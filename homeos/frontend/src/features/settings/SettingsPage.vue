@@ -169,8 +169,8 @@ import {
   registerGlobalPendingPause,
 } from '@/composables/settings-kernel/pending.internals'
 import { tabLabel } from '@/shared/utils/registry/settings-nav.util'
-import { countNavTabs, resolveNavTabContext } from './nav-search.util'
-import { SETTINGS_KEEP_ALIVE_MAX, SETTINGS_KEEP_ALIVE_INCLUDE } from './keep-alive.util'
+import { countNavTabs, resolveNavTabContext } from './utils/nav-search.util'
+import { SETTINGS_KEEP_ALIVE_MAX, SETTINGS_KEEP_ALIVE_INCLUDE } from './utils/keep-alive.util'
 import { settingsPageShareUrl } from '@/shared/utils/registry/settings-route.util'
 import { recordSettingsTabVisit } from '@/shared/utils/registry/settings-recent-tabs.util'
 import { copyTextWithNotify } from '@/services/notify'

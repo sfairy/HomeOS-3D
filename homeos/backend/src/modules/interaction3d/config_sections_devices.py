@@ -26,6 +26,7 @@ from .config_ctx import (
     validate_layout_widget,
 )
 from .device import DEVICE_PROFILES, GENERIC_DEVICE_COLLECTIONS, validate_device_bindings
+from .field_sets import WIDGET_COMMON_FIELDS
 from .media_device import MEDIA_DEVICE_COLLECTIONS, MEDIA_DEVICE_PROFILES
 
 #: 控件身份字段：必须存在且非空。
@@ -37,24 +38,8 @@ WIDGET_TEXT_FIELDS = ('id', 'floorId', 'modelId', 'label')
 # ── 电视 ───────────────────────────────────────────────────────────────────
 TELEVISION_FIELDS = frozenset(
     {
-        'x',
-        'y',
-        'id',
-        'icon',
-        'size',
-        'label',
-        'height',
-        'floorId',
-        'hitSize',
-        'modelId',
-        'visible',
-        'entityId',
-        'iconSize',
-        'clickAction',
-        'focusCamera',
-        'buttonHidden',
+        *WIDGET_COMMON_FIELDS,
         'powerEntityId',
-        'hiddenClickable',
         'extraDevices',
         'screenImage',
     }
@@ -76,23 +61,7 @@ TELEVISION_RULES = WidgetRules(
 # ── 音箱 ───────────────────────────────────────────────────────────────────
 SPEAKER_FIELDS = frozenset(
     {
-        'x',
-        'y',
-        'id',
-        'icon',
-        'size',
-        'label',
-        'height',
-        'floorId',
-        'hitSize',
-        'modelId',
-        'visible',
-        'entityId',
-        'iconSize',
-        'clickAction',
-        'focusCamera',
-        'buttonHidden',
-        'hiddenClickable',
+        *WIDGET_COMMON_FIELDS,
         'extraDevices',
     }
 )
@@ -109,30 +78,14 @@ SPEAKER_RULES = WidgetRules(
 # ── 扫地机 ─────────────────────────────────────────────────────────────────
 VACUUM_FIELDS = frozenset(
     {
-        'x',
-        'y',
-        'id',
+        *WIDGET_COMMON_FIELDS,
         'map',
-        'icon',
-        'size',
-        'label',
-        'height',
-        'floorId',
-        'hitSize',
-        'modelId',
-        'visible',
         'deviceId',
-        'entityId',
-        'iconSize',
         'shortcuts',
         'deviceName',
-        'clickAction',
-        'focusCamera',
         'funMessages',
-        'buttonHidden',
         'followCamera',
         'motionEnabled',
-        'hiddenClickable',
         'extraDevices',
         'relatedEntityIds',
         'backgroundOpacity',
@@ -200,24 +153,8 @@ VACUUM_RULES = WidgetRules(
 # ── NAS ────────────────────────────────────────────────────────────────────
 NAS_FIELDS = frozenset(
     {
-        'x',
-        'y',
-        'id',
-        'icon',
-        'size',
-        'label',
-        'height',
-        'floorId',
-        'hitSize',
-        'modelId',
-        'visible',
-        'entityId',
-        'iconSize',
-        'clickAction',
-        'focusCamera',
-        'buttonHidden',
+        *WIDGET_COMMON_FIELDS,
         'statusSource',
-        'hiddenClickable',
         'extraDevices',
     }
 )

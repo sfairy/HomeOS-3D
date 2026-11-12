@@ -1,7 +1,7 @@
 {
   "totals": {
-    "files": 368,
-    "color": 4291,
+    "files": 370,
+    "color": 4284,
     "duration": 1421,
     "important": 363
   },
@@ -526,32 +526,32 @@
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/features/device/DeviceAttrsPanel.vue": {
+    "homeos/frontend/src/features/device/components/DeviceAttrsPanel.vue": {
       "color": 6,
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/features/device/DeviceChartHeader.vue": {
+    "homeos/frontend/src/features/device/components/DeviceChartHeader.vue": {
       "color": 1,
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/features/device/DeviceFilterPanel.vue": {
+    "homeos/frontend/src/features/device/components/DeviceFilterPanel.vue": {
       "color": 2,
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/features/device/DeviceHealthScore.vue": {
+    "homeos/frontend/src/features/device/components/DeviceHealthScore.vue": {
       "color": 3,
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/features/device/DeviceStateHistoryPanel.vue": {
+    "homeos/frontend/src/features/device/components/DeviceStateHistoryPanel.vue": {
       "color": 13,
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/features/device/DeviceStatsDashboard.vue": {
+    "homeos/frontend/src/features/device/components/DeviceStatsDashboard.vue": {
       "color": 4,
       "duration": 0,
       "important": 0
@@ -641,7 +641,7 @@
       "duration": 6,
       "important": 0
     },
-    "homeos/frontend/src/features/events/ViewAnalytics.vue": {
+    "homeos/frontend/src/features/events/components/ViewAnalytics.vue": {
       "color": 6,
       "duration": 0,
       "important": 0
@@ -732,7 +732,7 @@
       "important": 0
     },
     "homeos/frontend/src/features/notifications/composables/notifications-analytics-charts.internals.ts": {
-      "color": 10,
+      "color": 8,
       "duration": 0,
       "important": 0
     },
@@ -741,18 +741,18 @@
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/features/security/CameraTile.vue": {
+    "homeos/frontend/src/features/security/SecurityPage.vue": {
+      "color": 4,
+      "duration": 0,
+      "important": 0
+    },
+    "homeos/frontend/src/features/security/components/CameraTile.vue": {
       "color": 5,
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/features/security/MonitorPanel.vue": {
+    "homeos/frontend/src/features/security/components/MonitorPanel.vue": {
       "color": 2,
-      "duration": 0,
-      "important": 0
-    },
-    "homeos/frontend/src/features/security/SecurityPage.vue": {
-      "color": 4,
       "duration": 0,
       "important": 0
     },
@@ -1286,6 +1286,11 @@
       "duration": 0,
       "important": 0
     },
+    "homeos/frontend/src/shared/utils/chart/chart-primitives.ts": {
+      "color": 1,
+      "duration": 0,
+      "important": 0
+    },
     "homeos/frontend/src/shared/utils/chart/device-chart-theme.ts": {
       "color": 7,
       "duration": 0,
@@ -1351,7 +1356,7 @@
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/scene/studio-scene-payload.ts": {
+    "homeos/frontend/src/studio/app/3d-studio/authoring/scene/payload/studio-scene-payload.ts": {
       "color": 1,
       "duration": 0,
       "important": 0
@@ -1361,32 +1366,37 @@
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/groups/light-groups-and-list-drag.ts": {
-      "color": 2,
-      "duration": 0,
-      "important": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/groups/materials-lighting-camera.ts": {
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/interaction/marquee.ts": {
       "color": 1,
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/groups/render-stats-and-frame-loop.ts": {
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/light-cache.ts": {
       "color": 0,
       "duration": 1,
       "important": 0
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/groups/save-history-plan-coords.ts": {
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/materials/item-materials.ts": {
+      "color": 1,
+      "duration": 0,
+      "important": 0
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/materials/material-slot-ui.ts": {
       "color": 3,
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/groups/selection-and-material-ui.ts": {
-      "color": 4,
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/persistence/draft-state.ts": {
+      "color": 2,
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/refreshStudioView.ts": {
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/plan/plan-coords.ts": {
+      "color": 3,
+      "duration": 0,
+      "important": 0
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/refreshStudioView.ts": {
       "color": 33,
       "duration": 0,
       "important": 0
@@ -1432,7 +1442,7 @@
       "important": 0
     },
     "homeos/frontend/src/studio/app/editor/component-templates.ts": {
-      "color": 95,
+      "color": 89,
       "duration": 0,
       "important": 0
     },
@@ -1456,22 +1466,22 @@
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/studio/app/editor/home/elements/editor-elements.ts": {
-      "color": 1,
-      "duration": 0,
-      "important": 0
-    },
-    "homeos/frontend/src/studio/app/editor/home/functions/component-editing.ts": {
+    "homeos/frontend/src/studio/app/editor/home/components/component-editing.ts": {
       "color": 13,
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/studio/app/editor/home/functions/popup-inspectors.ts": {
+    "homeos/frontend/src/studio/app/editor/home/elements/chrome.ts": {
       "color": 1,
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/studio/app/editor/home/functions/shell-controls.ts": {
+    "homeos/frontend/src/studio/app/editor/home/inspectors/popup-inspectors.ts": {
+      "color": 1,
+      "duration": 0,
+      "important": 0
+    },
+    "homeos/frontend/src/studio/app/editor/home/shell-controls.ts": {
       "color": 1,
       "duration": 0,
       "important": 0
@@ -1556,33 +1566,33 @@
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/studio/app/renderer/panel-seams/air-purifier-details.ts": {
-      "color": 6,
-      "duration": 0,
-      "important": 0
-    },
-    "homeos/frontend/src/studio/app/renderer/panel-seams/climate-controls.ts": {
+    "homeos/frontend/src/studio/app/renderer/panel-seams/controls/climate-controls.ts": {
       "color": 7,
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/studio/app/renderer/panel-seams/custom-popup.ts": {
-      "color": 8,
-      "duration": 0,
-      "important": 0
-    },
-    "homeos/frontend/src/studio/app/renderer/panel-seams/entity-details.ts": {
-      "color": 8,
-      "duration": 0,
-      "important": 0
-    },
-    "homeos/frontend/src/studio/app/renderer/panel-seams/light-controls.ts": {
+    "homeos/frontend/src/studio/app/renderer/panel-seams/controls/light-controls.ts": {
       "color": 10,
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/studio/app/renderer/panel-seams/presence-details.ts": {
+    "homeos/frontend/src/studio/app/renderer/panel-seams/details/air-purifier-details.ts": {
+      "color": 6,
+      "duration": 0,
+      "important": 0
+    },
+    "homeos/frontend/src/studio/app/renderer/panel-seams/details/entity-details.ts": {
+      "color": 8,
+      "duration": 0,
+      "important": 0
+    },
+    "homeos/frontend/src/studio/app/renderer/panel-seams/details/presence-details.ts": {
       "color": 2,
+      "duration": 0,
+      "important": 0
+    },
+    "homeos/frontend/src/studio/app/renderer/panel-seams/popups/custom-popup.ts": {
+      "color": 8,
       "duration": 0,
       "important": 0
     },

@@ -21,14 +21,14 @@ const frontendRoot = fileURLToPath(new URL('../../../../homeos/frontend/src/stud
 const readModule = (relative) => readFileSync(join(frontendRoot, relative), 'utf8')
 const importModule = (relative) => import(pathToFileURL(join(frontendRoot, relative)).href)
 
-const wallShellSource = readModule('authoring/scene/studio-wall-shell.ts')
-const wallTopSource = readModule('authoring/scene/studio-wall-top.ts')
-const wallsSource = readModule('authoring/scene/studio-walls.ts')
+const wallShellSource = readModule('authoring/scene/walls/studio-wall-shell.ts')
+const wallTopSource = readModule('authoring/scene/walls/studio-wall-top.ts')
+const wallsSource = readModule('authoring/scene/walls/studio-walls.ts')
 // 并集缓存的实现已搬到 plan/studio-wall-union（纯函数、与 walls 无闭包耦合），
 // 因此「失败分支走保守回退」的断言跟着实现走。
 const wallUnionSource = readModule('plan/studio-wall-union.ts')
 // 按高度层的墙带 / 顶盖 / soffit / 高亮层已切到 studio-wall-levels，断言跟着走。
-const wallLevelsSource = readModule('authoring/scene/studio-wall-levels.ts')
+const wallLevelsSource = readModule('authoring/scene/walls/studio-wall-levels.ts')
 
 test('顶盖膜浓度与墙面等效膜厚一致', async () => {
   const { wallFilmOpacity } = await importModule('materials/studio-wall-finish.ts')

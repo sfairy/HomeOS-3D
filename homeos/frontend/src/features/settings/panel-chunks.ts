@@ -2,7 +2,7 @@
 import { defineComponent, h, shallowRef, type Component } from 'vue'
 import { lazyComponent } from '@/shared/utils/core/lazy-component'
 import ErrorBoundary from '@/components/common/ErrorBoundary.vue'
-import { isPinnedSettingsTab, settingsKeepAliveName } from '@/features/settings/keep-alive.util'
+import { isPinnedSettingsTab, settingsKeepAliveName } from '@/features/settings/utils/keep-alive.util'
 
 /**
  * 创建懒加载面板组件。

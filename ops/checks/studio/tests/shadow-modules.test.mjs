@@ -17,9 +17,9 @@ import { fileURLToPath } from 'node:url'
 const SCENE_DIR = '../../../../homeos/frontend/src/studio/app/3d-studio/authoring/scene/'
 const moduleUrl = (name) => fileURLToPath(new URL(SCENE_DIR + name, import.meta.url))
 
-const { createShadowParameterBuffer } = await import(moduleUrl('studio-shadow-parameters.ts'))
-const { createShadowTextureCopy } = await import(moduleUrl('studio-shadow-copy.ts'))
-const { shellSignature, shellScopes, applyReviewedShells } = await import(moduleUrl('studio-reviewed-shells.ts'))
+const { createShadowParameterBuffer } = await import(moduleUrl('shadow/studio-shadow-parameters.ts'))
+const { createShadowTextureCopy } = await import(moduleUrl('shadow/studio-shadow-copy.ts'))
+const { shellSignature, shellScopes, applyReviewedShells } = await import(moduleUrl('shells/studio-reviewed-shells.ts'))
 
 // ── 射灯阴影参数 UBO ────────────────────────────────────────────────────────
 function createFakeGL({ uniformBlockSize = 65536 } = {}) {

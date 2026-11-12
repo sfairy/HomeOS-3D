@@ -22,7 +22,7 @@ const WIDGETS = fileURLToPath(
 )
 const INSPECTOR = fileURLToPath(
   new URL(
-    '../../../../homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/refreshStudioUiInner.ts',
+    '../../../../homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/refreshStudioUiInner.ts',
     import.meta.url,
   ),
 )

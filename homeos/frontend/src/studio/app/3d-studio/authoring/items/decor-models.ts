@@ -1,5 +1,5 @@
 import { WARM_WOOD_STYLE } from '../scene/studio-scene-style'
-import { defaultViewSettings } from '../scene/studio-view-settings'
+import { defaultViewSettings } from '../scene/payload/studio-view-settings'
 export const DECOR_THEMES = Object.freeze({
     default: Object.freeze({
       name: '默认蓝灰',

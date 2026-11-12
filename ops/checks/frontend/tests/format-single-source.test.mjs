@@ -158,10 +158,10 @@ test('相对时间分级只允许存在于 locale-format.util', () => {
  */
 const STUDIO_FLOAT_PERCENT_ALLOWED = new Set([
   // 亮度滑块位置（小数百分比，滑块自己夹到 min=1 并取整显示）
-  'homeos/frontend/src/studio/app/renderer/panel-seams/light-controls.ts',
+  'homeos/frontend/src/studio/app/renderer/panel-seams/controls/light-controls.ts',
   // 灯光光晕强度 / 亮度读数
-  'homeos/frontend/src/studio/app/renderer/panel-seams/entity-details.ts',
-  'homeos/frontend/src/studio/app/renderer/panel-seams/custom-popup.ts',
+  'homeos/frontend/src/studio/app/renderer/panel-seams/details/entity-details.ts',
+  'homeos/frontend/src/studio/app/renderer/panel-seams/popups/custom-popup.ts',
   'homeos/frontend/src/studio/app/renderer/registry/cover-climate-state.ts',
   // runtime 灯光状态（消费方 lighting.ts 自己夹到 1–100）
   'homeos/frontend/src/studio/runtime/light/light-state.ts',

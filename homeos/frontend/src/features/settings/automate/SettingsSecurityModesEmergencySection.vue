@@ -239,47 +239,15 @@
     </div>
 
     <div v-else class="sm-action-list">
-      <div v-for="(act, aidx) in emergencyConfig.actions" :key="aidx" class="sm-action-row">
-        <span class="sm-action-row__idx">{{ aidx + 1 }}</span>
-        <HosSelect
-          variant="home-mode"
-          block
-          trigger-class="sm-action-row__select sm-action-row__select--domain"
-          v-model="act.domain"
-          @change="
-            () => {
-              act.service = ''
-            }
-          "
-        >
-          <option value="">{{ '域' }}</option>
-          <option v-for="d in allDomains" :key="d" :value="d">{{ d }}</option>
-        </HosSelect>
-        <HosSelect
-          variant="home-mode"
-          block
-          trigger-class="sm-action-row__select sm-action-row__select--service"
-          v-model="act.service"
-        >
-          <option value="">{{ '服务' }}</option>
-          <option v-for="s in servicesForDomain(act.domain)" :key="s" :value="s">{{ s }}</option>
-        </HosSelect>
-        <EntityInput
-          v-model="act.entity_id"
-          :placeholder="'实体 ID'"
-          :domain-filter="act.domain || ''"
-          wrapper-class="sm-action-row__entity [&_.ei-wrap]:bg-black/30 [&_input]:text-sm [&_input]:py-2.5"
-        />
-        <button
-          type="button"
-          class="sm-action-row__del"
-          :title="'删除'"
-          :aria-label="'删除动作'"
-          @click="emergencyConfig.actions.splice(aidx, 1)"
-        >
-          <Trash2 class="w-3.5 h-3.5" />
-        </button>
-      </div>
+      <SecurityActionRow
+        v-for="(act, aidx) in emergencyConfig.actions"
+        :key="aidx"
+        :act="act"
+        :index="aidx"
+        :domains="allDomains"
+        :services-for-domain="servicesForDomain"
+        @remove="emergencyConfig.actions.splice(aidx, 1)"
+      />
     </div>
   </section>
 </template>
@@ -288,8 +256,8 @@
 import HosSelect from '@/components/common/base/HosSelect.vue'
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
-import { Zap, Plus, Layers, Trash2, AlertTriangle } from '@lucide/vue'
-import EntityInput from '@/components/common/entity-input/EntityInput.vue'
+import { Zap, Plus, Layers, AlertTriangle } from '@lucide/vue'
+import SecurityActionRow from './SecurityActionRow.vue'
 import SettingsRangeField from '@/features/settings/shared/layout/SettingsRangeField.vue'
 import { SETTINGS_RANGE_STEP } from '@/shared/utils/settings/range-steps.util'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'

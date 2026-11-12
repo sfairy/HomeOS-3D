@@ -38,6 +38,7 @@ from .config_ctx import (
     validate_layout_widget,
 )
 from .device import validate_device_status_rules
+from .field_sets import WIDGET_COMMON_FIELDS
 from .window import validate_window_bindings
 
 #: environment 分区允许出现的键。
@@ -66,23 +67,7 @@ WIDGET_TEXT_FIELDS = ('id', 'floorId', 'modelId', 'label')
 #: 空调控件白名单（含浴室暖风档）。
 AIR_CONDITIONER_FIELDS = frozenset(
     {
-        'x',
-        'y',
-        'id',
-        'icon',
-        'size',
-        'label',
-        'height',
-        'floorId',
-        'hitSize',
-        'modelId',
-        'visible',
-        'entityId',
-        'iconSize',
-        'clickAction',
-        'focusCamera',
-        'buttonHidden',
-        'hiddenClickable',
+        *WIDGET_COMMON_FIELDS,
         'deviceId',
         'deviceName',
         'climateType',
@@ -120,25 +105,9 @@ AIR_CONDITIONER_RULES = WidgetRules(
 #: 四类家电公共白名单。
 APPLIANCE_FIELDS = frozenset(
     {
-        'x',
-        'y',
-        'id',
-        'icon',
-        'size',
-        'label',
-        'height',
-        'floorId',
-        'hitSize',
-        'modelId',
-        'visible',
-        'entityId',
-        'iconSize',
-        'clickAction',
-        'focusCamera',
-        'buttonHidden',
+        *WIDGET_COMMON_FIELDS,
         'extraControls',
         'extraDevices',
-        'hiddenClickable',
     }
 )
 #: 风扇外观档位、朝向状态文本上限。
@@ -226,28 +195,12 @@ APPLIANCE_RULES: dict[str, ApplianceRules] = {
 # ── 窗帘 ───────────────────────────────────────────────────────────────────
 CURTAIN_FIELDS = frozenset(
     {
-        'x',
-        'y',
-        'id',
-        'icon',
-        'size',
-        'label',
-        'height',
-        'floorId',
-        'hitSize',
-        'modelId',
-        'visible',
-        'entityId',
-        'iconSize',
+        *WIDGET_COMMON_FIELDS,
         'coverKind',
-        'clickAction',
-        'focusCamera',
-        'buttonHidden',
         'curtainFabric',
         'coverKindOverride',
         'curtainFabricOverride',
         'coverDirection',
-        'hiddenClickable',
         'unboundPosition',
         'iconStateReversed',
     }

@@ -120,7 +120,7 @@
 <script setup lang="ts">
 import type { ComponentPublicInstance } from 'vue'
 import { Activity, Grid3x3, HeartPulse, AlertCircle } from '@lucide/vue'
-import DeviceChartHeader from '../DeviceChartHeader.vue'
+import DeviceChartHeader from '../components/DeviceChartHeader.vue'
 import { DEVICE_CHART_COPY } from '@/shared/utils/chart/device-chart-copy.util'
 
 // 父组件透传数据：eventsStats 含事件总数与 Top 实体，eventDomainEntries 为按域聚合的 [domain,count] 元组，

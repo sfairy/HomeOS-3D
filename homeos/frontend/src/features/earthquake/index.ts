@@ -7,10 +7,10 @@
  */
 
 // 域入口组件
-export { default as AlertOverlay } from './AlertOverlay.vue'
-export { default as CencBulletinCard } from './CencBulletinCard.vue'
-export { default as HistoryAnalytics } from './HistoryAnalytics.vue'
-export { default as SetupWizard } from './SetupWizard.vue'
+export { default as AlertOverlay } from './components/AlertOverlay.vue'
+export { default as CencBulletinCard } from './components/CencBulletinCard.vue'
+export { default as HistoryAnalytics } from './components/HistoryAnalytics.vue'
+export { default as SetupWizard } from './components/SetupWizard.vue'
 // `EewSafetyTips` / `EewSlideUnlock` 是 `AlertOverlay` 的内部子块，不走域根。
 
 // composables

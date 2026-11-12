@@ -4,7 +4,7 @@ import {
   flattenNavSearchResults,
   countNavTabs,
   highlightSearchParts,
-} from '@/features/settings/nav-search.util'
+} from '@/features/settings/utils/nav-search.util'
 import { tabLabel } from '@/shared/utils/registry/settings-nav.util'
 import { getIndependentPendingTabIds } from '@/composables/settings-kernel/pending.internals'
 

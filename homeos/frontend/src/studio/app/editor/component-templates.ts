@@ -5,6 +5,7 @@ import {
 import { FLOW_LINE_DEFAULTS as FLOW_LINE_DEFAULTS2 } from '../shared/flow-line-model'
 import { interaction3dTemplate as interaction3dTemplate2 } from '../bridge/definition'
 import { EVENT_LOG_WALL_DOMAINS } from '../renderer/controls/event-log-runtime'
+import { onNavigationStyleApplyDialogCloseValue } from './metadata/editor-navigation-style-metadata'
 const templatesById = new Map()
 registerComponentTemplate(interaction3dTemplate2)
 const templateScopeOrder = {
@@ -634,32 +635,9 @@ registerComponentTemplate({
           : {},
         properties: {
           instanceName: iconButtonEffectInstanceName,
-          buttonVisible: true,
-          effectVisible: true,
-          icon: 'mdi:lightbulb-outline',
-          iconOffColor: '#9aa5ad',
-          iconOnColor: '#ffffff',
-          iconSize: 44,
-          buttonOffColor: '#17242d',
-          buttonOnColor: '#1f91b8',
-          buttonOpacity: 0.92,
-          frameColor: '#dcebf2',
-          frameWidth: 1.5,
-          frameOpacity: 0.72,
-          radius: 50,
-          glowColor: '#43c8f0',
-          glowOffStrength: 0,
-          glowOnStrength: 1,
           effectAssetId: '',
-          effectOpacity: 1,
-          effectFadeDuration: 0.52,
-          effectColorTemperatureRealtime: true,
-          effectBrightnessRealtime: true,
-          effectLayoutMode: 'free',
-          effectLeft: 50,
-          effectTop: 50,
-          effectScale: 1,
-          effectRotation: 0,
+          // 其余默认值与编辑器「效果按钮」侧共用同一份声明（metadata 单一真源）。
+          ...onNavigationStyleApplyDialogCloseValue,
         },
         style: {
           scale: 1,
@@ -1394,6 +1372,8 @@ registerComponentTemplate({
           : {},
         properties: {
           instanceName: lineChartInstanceName,
+          // 与 metadata 的 navigationVisibilityComponentState 相比这里刻意**不含**
+          // statePrecision（折线图不给该键，值由渲染侧按 auto 兜底），故保持显式列出。
           valueVisible: true,
           valueScale: 100,
           valueColor: '#dce1e5',

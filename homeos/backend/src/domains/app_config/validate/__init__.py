@@ -128,8 +128,6 @@ def validate_app_config_section(
         raise AppConfigValidationError(errors)
 
 
-_ARRAY_SECTIONS = {"voiceCommands"}
-
 def validate_app_config_partial(partial: dict[str, Any], context: dict[str, Any] | None = None) -> None:
     """校验 PUT /system/config 各分区 partial。"""
     from ..defaults import DEFAULT_APP_CONFIG

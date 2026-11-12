@@ -5,7 +5,7 @@ import {
   materialStyleRecipeFor,
   normalizeMaterialStyle,
 } from '../../../materials/studio-material-presets'
-import { normalizeMaterialOverrides, normalizeMaterialSurfaceOverrides } from '../../scene/studio-scene-payload'
+import { normalizeMaterialOverrides, normalizeMaterialSurfaceOverrides } from '../../scene/payload/studio-scene-payload'
 import type { DoorPartMaterial } from '../../types/studio-app-types'
 import { doorPartThemeColor } from './door-theme'
 

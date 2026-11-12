@@ -7,10 +7,15 @@
 import type { EChartsCoreOption } from 'echarts'
 import { getKioskAnimationOptions } from '@/composables/ui/kiosk-animation'
 import {
-  axisLineStyle,
+  barGradient,
+  CHART_EMPTY_COLOR,
   chartLinearGradient,
+  countCategoryAxis,
+  countValueAxis,
   createChartTooltip,
-  splitLineStyle,
+  pieEmptyData,
+  pieSeries,
+  rankCategoryAxis,
 } from '@/shared/utils/chart/chart-primitives'
 
 type AnalyticsSourceBucket = {
@@ -50,43 +55,16 @@ function chartBase() {
   return { ...getKioskAnimationOptions(), backgroundColor: 'transparent' }
 }
 
-function barGradient(color: string) {
-  return chartLinearGradient([
-    [0, color],
-    [1, `${color}66`],
-  ])
-}
-
-function yMax(values: number[]) {
-  return Math.max(...values, 0, 1)
-}
-
 export function buildNotificationsTimeOption(buckets: AnalyticsTimeBucket[]): EChartsCoreOption {
   const counts = buckets.map((bucket) => bucket.count)
   return {
     ...chartBase(),
     grid: { left: 36, right: 12, top: 16, bottom: buckets.length > 8 ? 36 : 24 },
-    xAxis: {
-      type: 'category',
-      data: buckets.map((bucket) => bucket.label),
-      axisLine: axisLineStyle,
-      axisTick: { show: false },
-      axisLabel: {
-        color: 'rgba(255,255,255,0.58)',
-        fontSize: 9,
-        interval: buckets.length > 12 ? Math.floor(buckets.length / 8) : 0,
-        rotate: buckets.length > 10 ? 32 : 0,
-      },
-    },
-    yAxis: {
-      type: 'value',
-      min: 0,
-      max: yMax(counts),
-      minInterval: 1,
-      axisLine: { show: false },
-      splitLine: splitLineStyle,
-      axisLabel: { color: 'rgba(255,255,255,0.58)', fontSize: 10 },
-    },
+    xAxis: countCategoryAxis(
+      buckets.map((bucket) => bucket.label),
+      { adaptive: true, labelFontSize: 9 },
+    ),
+    yAxis: countValueAxis(counts),
     series: [
       {
         type: 'line',
@@ -116,16 +94,7 @@ export function buildNotificationsReadOption(summary: AnalyticsReadSummary): ECh
   return {
     ...chartBase(),
     tooltip: { ...chartTooltip, trigger: 'item' },
-    series: [
-      {
-        type: 'pie',
-        radius: ['46%', '72%'],
-        center: ['50%', '54%'],
-        label: { color: 'rgba(255,255,255,0.65)', fontSize: 10, fontWeight: 600 },
-        itemStyle: { borderRadius: 4, borderColor: 'rgba(0,0,0,0.35)', borderWidth: 1 },
-        data: summary.total ? data : [{ name: '暂无', value: 1, itemStyle: { color: '#64748b' } }],
-      },
-    ],
+    series: [pieSeries(summary.total ? data : pieEmptyData(), ['46%', '72%'])],
   }
 }
 
@@ -138,20 +107,11 @@ export function buildNotificationsSourceOption(sourceBuckets: AnalyticsSourceBuc
         key: bucket.key,
         itemStyle: { color: bucket.color },
       }))
-    : [{ name: '暂无', value: 1, key: '', itemStyle: { color: '#64748b' } }]
+    : [{ name: '暂无', value: 1, key: '', itemStyle: { color: CHART_EMPTY_COLOR } }]
   return {
     ...chartBase(),
     tooltip: { ...chartTooltip, trigger: 'item' },
-    series: [
-      {
-        type: 'pie',
-        radius: ['42%', '68%'],
-        center: ['50%', '54%'],
-        label: { color: 'rgba(255,255,255,0.65)', fontSize: 10, fontWeight: 600 },
-        itemStyle: { borderRadius: 4, borderColor: 'rgba(0,0,0,0.35)', borderWidth: 1 },
-        data,
-      },
-    ],
+    series: [pieSeries(data)],
   }
 }
 
@@ -161,22 +121,8 @@ export function buildNotificationsLevelOption(levelBuckets: AnalyticsLevelBucket
   return {
     ...chartBase(),
     grid: { left: 36, right: 12, top: 16, bottom: levelBuckets.length > 4 ? 36 : 24 },
-    xAxis: {
-      type: 'category',
-      data: labels,
-      axisLine: axisLineStyle,
-      axisTick: { show: false },
-      axisLabel: { color: 'rgba(255,255,255,0.58)', fontSize: 10 },
-    },
-    yAxis: {
-      type: 'value',
-      min: 0,
-      max: yMax(values),
-      minInterval: 1,
-      axisLine: { show: false },
-      splitLine: splitLineStyle,
-      axisLabel: { color: 'rgba(255,255,255,0.58)', fontSize: 10 },
-    },
+    xAxis: countCategoryAxis(labels),
+    yAxis: countValueAxis(values),
     series: [
       {
         type: 'bar',
@@ -209,19 +155,8 @@ export function buildNotificationsRankOption(sourceBuckets: AnalyticsSourceBucke
       outerBoundsMode: 'same',
       outerBoundsContain: 'axisLabel',
     },
-    xAxis: {
-      type: 'value',
-      min: 0,
-      max: yMax(values),
-      splitLine: splitLineStyle,
-      axisLabel: { color: 'rgba(255,255,255,0.58)', fontSize: 10 },
-    },
-    yAxis: {
-      type: 'category',
-      data: labels,
-      axisLine: { show: false },
-      axisLabel: { color: 'rgba(255,255,255,0.55)', fontSize: 10 },
-    },
+    xAxis: countValueAxis(values, { minInterval: false }),
+    yAxis: rankCategoryAxis(labels),
     series: [
       {
         type: 'bar',

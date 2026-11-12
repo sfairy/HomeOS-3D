@@ -3,7 +3,16 @@
  * @module frontend/src/composables
  */
 import { ref, computed, watch, type ToRefs, unref } from 'vue'
-import { useEchartsHost, axisLineStyle, splitLineStyle, yMax } from '@/composables/ui/useEchartsHost'
+import { useEchartsHost } from '@/composables/ui/useEchartsHost'
+import {
+  barGradient,
+  CHART_LABEL_MUTED,
+  countCategoryAxis,
+  countValueAxis,
+  createChartTooltip,
+  pieSeries,
+  rankCategoryAxis,
+} from '@/shared/utils/chart/chart-primitives'
 import {
   buildDepthBuckets,
   buildDistanceBuckets,
@@ -160,33 +169,13 @@ export function useEarthquakeHistoryAnalytics(
   const MAG_COLORS = ['#94a3b8', '#7dd3fc', '#fbbf24', '#fb923c', '#f87171']
 
   /** 图表 tooltip 共用样式（深色背景 + 暖色文字） */
-  const chartTooltip = {
-    backgroundColor: 'rgba(12, 12, 18, 0.94)',
+  const chartTooltip = createChartTooltip('rgba(12, 12, 18, 0.94)', {
     borderColor: 'rgba(251, 191, 36, 0.32)',
     borderWidth: 1,
     padding: [8, 12],
     extraCssText: 'border-radius: 10px; backdrop-filter: blur(12px); box-shadow: 0 8px 28px rgba(0,0,0,0.35);',
     textStyle: { color: '#fde68a', fontSize: 12, fontWeight: 600 },
-  }
-
-  /**
-   * 生成纵向线性渐变（从顶部 color 到底部 color+66 半透明）。
-   * @param color 顶部颜色（HEX）
-   * @returns ECharts linear gradient 配置
-   */
-  function barGradient(color: string) {
-    return {
-      type: 'linear',
-      x: 0,
-      y: 0,
-      x2: 0,
-      y2: 1,
-      colorStops: [
-        { offset: 0, color },
-        { offset: 1, color: `${color}66` },
-      ],
-    }
-  }
+  })
 
   /**
    * 构造震级分布柱状图 option。
@@ -198,22 +187,11 @@ export function useEarthquakeHistoryAnalytics(
     return {
       ...getChartBase(),
       grid: { left: 36, right: 12, top: 16, bottom: 24 },
-      xAxis: {
-        type: 'category',
-        data: buckets.map((bucket) => bucket.label),
-        axisLine: axisLineStyle,
-        axisTick: { show: false },
-        axisLabel: { color: 'rgba(255,255,255,0.55)', fontSize: 10 },
-      },
-      yAxis: {
-        type: 'value',
-        min: 0,
-        max: yMax(buckets.map((bucket) => bucket.count)),
-        minInterval: 1,
-        axisLine: { show: false },
-        splitLine: splitLineStyle,
-        axisLabel: { color: 'rgba(255,255,255,0.58)', fontSize: 10 },
-      },
+      xAxis: countCategoryAxis(
+        buckets.map((bucket) => bucket.label),
+        { labelFontSize: 10, labelColor: CHART_LABEL_MUTED },
+      ),
+      yAxis: countValueAxis(buckets.map((bucket) => bucket.count)),
       series: [
         {
           type: 'bar',
@@ -253,20 +231,7 @@ export function useEarthquakeHistoryAnalytics(
     return {
       ...getChartBase(),
       tooltip: { ...chartTooltip, trigger: 'item' },
-      series: [
-        {
-          type: 'pie',
-          radius: ['42%', '68%'],
-          center: ['50%', '54%'],
-          label: { color: 'rgba(255,255,255,0.65)', fontSize: 10, fontWeight: 600 },
-          itemStyle: {
-            borderRadius: 4,
-            borderColor: 'rgba(0,0,0,0.35)',
-            borderWidth: 1,
-          },
-          data,
-        },
-      ],
+      series: [pieSeries(data)],
     }
   }
 
@@ -281,27 +246,11 @@ export function useEarthquakeHistoryAnalytics(
     return {
       ...getChartBase(),
       grid: { left: 36, right: 12, top: 16, bottom: buckets.length > 6 ? 36 : 24 },
-      xAxis: {
-        type: 'category',
-        data: buckets.map((bucket) => bucket.label),
-        axisLine: axisLineStyle,
-        axisTick: { show: false },
-        axisLabel: {
-          color: 'rgba(255,255,255,0.58)',
-          fontSize: 9,
-          interval: 0,
-          rotate: buckets.length > 6 ? 32 : 0,
-        },
-      },
-      yAxis: {
-        type: 'value',
-        min: 0,
-        max: yMax(counts),
-        minInterval: 1,
-        axisLine: { show: false },
-        splitLine: splitLineStyle,
-        axisLabel: { color: 'rgba(255,255,255,0.58)', fontSize: 10 },
-      },
+      xAxis: countCategoryAxis(
+        buckets.map((bucket) => bucket.label),
+        { adaptive: true, labelFontSize: 9, rotateThreshold: 6, sparseThreshold: Number.POSITIVE_INFINITY },
+      ),
+      yAxis: countValueAxis(counts),
       series: [
         {
           type: 'bar',
@@ -339,19 +288,8 @@ export function useEarthquakeHistoryAnalytics(
           outerBoundsMode: 'same',
           outerBoundsContain: 'axisLabel',
         },
-        xAxis: {
-          type: 'value',
-          min: 0,
-          max: yMax(values),
-          splitLine: splitLineStyle,
-          axisLabel: { color: 'rgba(255,255,255,0.58)', fontSize: 10 },
-        },
-        yAxis: {
-          type: 'category',
-          data: labels,
-          axisLine: { show: false },
-          axisLabel: { color: 'rgba(255,255,255,0.55)', fontSize: 10 },
-        },
+        xAxis: countValueAxis(values, { minInterval: false }),
+        yAxis: rankCategoryAxis(labels),
         series: [
           {
             type: 'bar',
@@ -374,20 +312,11 @@ export function useEarthquakeHistoryAnalytics(
     return {
       ...getChartBase(),
       grid: { left: 36, right: 12, top: 16, bottom: 24 },
-      xAxis: {
-        type: 'category',
-        data: buckets.map((bucket) => bucket.label),
-        axisLine: { show: false },
-        axisLabel: { color: 'rgba(255,255,255,0.58)', fontSize: 10 },
-      },
-      yAxis: {
-        type: 'value',
-        min: 0,
-        max: yMax(counts),
-        minInterval: 1,
-        splitLine: splitLineStyle,
-        axisLabel: { color: 'rgba(255,255,255,0.58)', fontSize: 10 },
-      },
+      xAxis: countCategoryAxis(
+        buckets.map((bucket) => bucket.label),
+        { showAxisLine: false, hideAxisTick: false },
+      ),
+      yAxis: countValueAxis(counts, { showAxisLine: true }),
       series: [
         {
           type: 'bar',

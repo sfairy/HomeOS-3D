@@ -17,9 +17,9 @@
  */
 
 // ── 域入口组件 ──
-export { default as MonitorPanel } from './MonitorPanel.vue'
-export { default as Overview } from './Overview.vue'
-export { default as ZoneEditorList } from './ZoneEditorList.vue'
+export { default as MonitorPanel } from './components/MonitorPanel.vue'
+export { default as Overview } from './components/Overview.vue'
+export { default as ZoneEditorList } from './components/ZoneEditorList.vue'
 
 // ── 域内组件 ──
 export { default as MediaPagerControls } from './components/MediaPagerControls.vue'

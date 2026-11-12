@@ -1,6 +1,6 @@
 import type { StudioAppContext } from '../studio-app-context'
-import type { defaultViewSettings } from '../../scene/studio-view-settings'
-import type { doorTypeCatalog } from '../../scene/studio-scene-payload'
+import type { defaultViewSettings } from '../../scene/payload/studio-view-settings'
+import type { doorTypeCatalog } from '../../scene/payload/studio-scene-payload'
 
 export type BackgroundViewSettings = typeof defaultViewSettings & Record<string, any>
 

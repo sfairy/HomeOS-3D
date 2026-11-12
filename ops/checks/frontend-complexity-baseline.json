@@ -1,9 +1,9 @@
 {
   "totals": {
-    "functions": 27126,
+    "functions": 27169,
     "gt10": 1308,
     "gt15": 717,
-    "gt80": 802
+    "gt80": 806
   },
   "files": {
     "homeos-store/frontend/src/features/admin/components/RowMenu.vue": {
@@ -476,7 +476,7 @@
       "max": 10
     },
     "homeos/frontend/src/composables/ui/useEchartsHost.ts": {
-      "functions": 18,
+      "functions": 17,
       "gt10": 0,
       "gt15": 0,
       "gt80": 1,
@@ -552,28 +552,28 @@
       "gt80": 1,
       "max": 23
     },
-    "homeos/frontend/src/features/device/DeviceBatchActions.vue": {
+    "homeos/frontend/src/features/device/components/DeviceBatchActions.vue": {
       "functions": 8,
       "gt10": 1,
       "gt15": 1,
       "gt80": 0,
       "max": 25
     },
-    "homeos/frontend/src/features/device/DeviceHealthScore.vue": {
+    "homeos/frontend/src/features/device/components/DeviceHealthScore.vue": {
       "functions": 15,
       "gt10": 3,
       "gt15": 1,
       "gt80": 0,
       "max": 24
     },
-    "homeos/frontend/src/features/device/DeviceOverviewPanel.vue": {
+    "homeos/frontend/src/features/device/components/DeviceOverviewPanel.vue": {
       "functions": 27,
       "gt10": 2,
       "gt15": 1,
       "gt80": 0,
       "max": 16
     },
-    "homeos/frontend/src/features/device/DeviceStateHistoryPanel.vue": {
+    "homeos/frontend/src/features/device/components/DeviceStateHistoryPanel.vue": {
       "functions": 41,
       "gt10": 0,
       "gt15": 0,
@@ -609,7 +609,7 @@
       "max": 12
     },
     "homeos/frontend/src/features/earthquake/composables/useEarthquakeHistoryAnalytics.ts": {
-      "functions": 49,
+      "functions": 48,
       "gt10": 1,
       "gt15": 1,
       "gt80": 1,
@@ -629,8 +629,8 @@
       "gt80": 2,
       "max": 10
     },
-    "homeos/frontend/src/features/events/ViewAnalytics.vue": {
-      "functions": 27,
+    "homeos/frontend/src/features/events/components/ViewAnalytics.vue": {
+      "functions": 26,
       "gt10": 1,
       "gt15": 0,
       "gt80": 0,
@@ -1393,7 +1393,7 @@
       "max": 11
     },
     "homeos/frontend/src/shared/entity/utils/ws-subscription.ts": {
-      "functions": 14,
+      "functions": 18,
       "gt10": 2,
       "gt15": 1,
       "gt80": 0,
@@ -1638,11 +1638,11 @@
       "max": 13
     },
     "homeos/frontend/src/stores/entities/entity-store-actions.ts": {
-      "functions": 15,
+      "functions": 32,
       "gt10": 4,
       "gt15": 3,
       "gt80": 2,
-      "max": 31
+      "max": 23
     },
     "homeos/frontend/src/stores/entities/entity-store-cache.ts": {
       "functions": 12,
@@ -2015,6 +2015,69 @@
       "gt80": 1,
       "max": 26
     },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/scene/floor/studio-floor-transition.ts": {
+      "functions": 52,
+      "gt10": 4,
+      "gt15": 3,
+      "gt80": 4,
+      "max": 32
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/scene/overview/studio-overview-detail.ts": {
+      "functions": 17,
+      "gt10": 1,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 13
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/scene/overview/studio-overview-stack.ts": {
+      "functions": 22,
+      "gt10": 2,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 14
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/scene/payload/studio-document-payload.ts": {
+      "functions": 4,
+      "gt10": 1,
+      "gt15": 0,
+      "gt80": 0,
+      "max": 11
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/scene/payload/studio-scene-payload.ts": {
+      "functions": 30,
+      "gt10": 2,
+      "gt15": 2,
+      "gt80": 2,
+      "max": 85
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/scene/shadow/studio-floor-directional-shadow.ts": {
+      "functions": 40,
+      "gt10": 3,
+      "gt15": 2,
+      "gt80": 3,
+      "max": 22
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/scene/shadow/studio-floor-lights.ts": {
+      "functions": 35,
+      "gt10": 2,
+      "gt15": 1,
+      "gt80": 2,
+      "max": 41
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/scene/shadow/studio-shadow-atlas.ts": {
+      "functions": 74,
+      "gt10": 4,
+      "gt15": 3,
+      "gt80": 3,
+      "max": 42
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/scene/shells/studio-reviewed-shells.ts": {
+      "functions": 14,
+      "gt10": 2,
+      "gt15": 1,
+      "gt80": 1,
+      "max": 17
+    },
     "homeos/frontend/src/studio/app/3d-studio/authoring/scene/studio-background-cache.ts": {
       "functions": 10,
       "gt10": 1,
@@ -2028,34 +2091,6 @@
       "gt15": 1,
       "gt80": 0,
       "max": 18
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/scene/studio-document-payload.ts": {
-      "functions": 4,
-      "gt10": 1,
-      "gt15": 0,
-      "gt80": 0,
-      "max": 11
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/scene/studio-floor-directional-shadow.ts": {
-      "functions": 40,
-      "gt10": 3,
-      "gt15": 2,
-      "gt80": 3,
-      "max": 22
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/scene/studio-floor-lights.ts": {
-      "functions": 35,
-      "gt10": 2,
-      "gt15": 1,
-      "gt80": 2,
-      "max": 41
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/scene/studio-floor-transition.ts": {
-      "functions": 52,
-      "gt10": 4,
-      "gt15": 3,
-      "gt80": 4,
-      "max": 32
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/scene/studio-interaction-geometry.ts": {
       "functions": 7,
@@ -2071,40 +2106,12 @@
       "gt80": 1,
       "max": 12
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/scene/studio-overview-detail.ts": {
-      "functions": 17,
-      "gt10": 1,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 13
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/scene/studio-overview-stack.ts": {
-      "functions": 22,
-      "gt10": 2,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 14
-    },
     "homeos/frontend/src/studio/app/3d-studio/authoring/scene/studio-preview-scope.ts": {
       "functions": 24,
       "gt10": 3,
       "gt15": 0,
       "gt80": 0,
       "max": 15
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/scene/studio-reviewed-shells.ts": {
-      "functions": 14,
-      "gt10": 2,
-      "gt15": 1,
-      "gt80": 1,
-      "max": 17
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/scene/studio-scene-payload.ts": {
-      "functions": 30,
-      "gt10": 2,
-      "gt15": 2,
-      "gt80": 2,
-      "max": 85
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/scene/studio-shader-precompile.ts": {
       "functions": 14,
@@ -2113,13 +2120,6 @@
       "gt80": 1,
       "max": 11
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/scene/studio-shadow-atlas.ts": {
-      "functions": 74,
-      "gt10": 4,
-      "gt15": 3,
-      "gt80": 3,
-      "max": 42
-    },
     "homeos/frontend/src/studio/app/3d-studio/authoring/scene/studio-startup-presentation.ts": {
       "functions": 18,
       "gt10": 1,
@@ -2127,7 +2127,7 @@
       "gt80": 1,
       "max": 16
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/scene/studio-walls.ts": {
+    "homeos/frontend/src/studio/app/3d-studio/authoring/scene/walls/studio-walls.ts": {
       "functions": 41,
       "gt10": 3,
       "gt15": 1,
@@ -2176,201 +2176,180 @@
       "gt80": 5,
       "max": 51
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/acquireRenderSurface.ts": {
-      "functions": 3,
-      "gt10": 2,
-      "gt15": 1,
-      "gt80": 1,
-      "max": 32
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/addLightModel.ts": {
-      "functions": 1,
-      "gt10": 1,
-      "gt15": 1,
-      "gt80": 1,
-      "max": 22
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/applyLoadedDraft.ts": {
-      "functions": 8,
-      "gt10": 1,
-      "gt15": 1,
-      "gt80": 1,
-      "max": 27
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/applyToolSetting.ts": {
-      "functions": 8,
-      "gt10": 1,
-      "gt15": 1,
-      "gt80": 1,
-      "max": 71
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/beginLightingPreview.ts": {
-      "functions": 4,
-      "gt10": 1,
-      "gt15": 1,
-      "gt80": 1,
-      "max": 51
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/buildStudioScene.ts": {
-      "functions": 20,
-      "gt10": 1,
-      "gt15": 1,
-      "gt80": 1,
-      "max": 33
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/createSceneItem.ts": {
-      "functions": 1,
-      "gt10": 1,
-      "gt15": 1,
-      "gt80": 1,
-      "max": 31
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/createStudioRenderer.ts": {
-      "functions": 20,
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/export/export-flow.ts": {
+      "functions": 45,
       "gt10": 3,
-      "gt15": 2,
-      "gt80": 1,
-      "max": 23
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/generateExportBundle.ts": {
-      "functions": 20,
-      "gt10": 1,
-      "gt15": 1,
-      "gt80": 1,
-      "max": 59
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/groups/export-flow-and-scene-build.ts": {
-      "functions": 66,
-      "gt10": 4,
-      "gt15": 2,
-      "gt80": 0,
-      "max": 30
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/groups/light-groups-and-list-drag.ts": {
-      "functions": 112,
-      "gt10": 2,
       "gt15": 1,
       "gt80": 0,
-      "max": 21
+      "max": 17
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/groups/light-precompile-and-shared-meshes.ts": {
-      "functions": 65,
-      "gt10": 6,
-      "gt15": 3,
-      "gt80": 6,
-      "max": 23
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/groups/materials-lighting-camera.ts": {
-      "functions": 104,
-      "gt10": 8,
-      "gt15": 1,
-      "gt80": 1,
-      "max": 20
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/groups/pointer-input-and-tools.ts": {
-      "functions": 47,
-      "gt10": 4,
-      "gt15": 2,
-      "gt80": 2,
-      "max": 41
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/groups/render-stats-and-frame-loop.ts": {
-      "functions": 83,
-      "gt10": 6,
-      "gt15": 2,
-      "gt80": 2,
-      "max": 21
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/groups/save-history-plan-coords.ts": {
-      "functions": 87,
-      "gt10": 7,
-      "gt15": 2,
-      "gt80": 0,
-      "max": 20
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/groups/scene-layers-and-floor-build.ts": {
-      "functions": 57,
-      "gt10": 5,
-      "gt15": 2,
-      "gt80": 3,
-      "max": 27
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/groups/scene-payload-and-floors.ts": {
-      "functions": 115,
-      "gt10": 2,
-      "gt15": 2,
-      "gt80": 2,
-      "max": 26
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/groups/selection-and-material-ui.ts": {
-      "functions": 79,
-      "gt10": 5,
-      "gt15": 4,
-      "gt80": 3,
-      "max": 27
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/groups/shadow-camera-export-presets.ts": {
-      "functions": 49,
-      "gt10": 10,
-      "gt15": 5,
-      "gt80": 0,
-      "max": 21
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/handlePointerDown.ts": {
-      "functions": 10,
-      "gt10": 1,
-      "gt15": 1,
-      "gt80": 1,
-      "max": 59
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/handlePointerUp.ts": {
-      "functions": 6,
-      "gt10": 1,
-      "gt15": 1,
-      "gt80": 1,
-      "max": 44
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/hitTestPlanItem.ts": {
-      "functions": 1,
-      "gt10": 1,
-      "gt15": 1,
-      "gt80": 1,
-      "max": 27
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/light-shape-sync.ts": {
-      "functions": 14,
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/export/export-presets.ts": {
+      "functions": 15,
       "gt10": 1,
       "gt15": 0,
       "gt80": 0,
       "max": 13
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/openExportPanel.ts": {
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/export/generateExportBundle.ts": {
+      "functions": 20,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 1,
+      "max": 59
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/export/openExportPanel.ts": {
       "functions": 7,
       "gt10": 1,
       "gt15": 1,
       "gt80": 1,
       "max": 19
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/publishRenderStats.ts": {
-      "functions": 2,
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/interaction/applyToolSetting.ts": {
+      "functions": 8,
       "gt10": 1,
       "gt15": 1,
       "gt80": 1,
-      "max": 28
+      "max": 71
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/refreshStudioUiInner.ts": {
-      "functions": 5,
-      "gt10": 1,
-      "gt15": 1,
-      "gt80": 1,
-      "max": 108
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/refreshStudioView.ts": {
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/interaction/createSceneItem.ts": {
       "functions": 1,
       "gt10": 1,
       "gt15": 1,
       "gt80": 1,
-      "max": 64
+      "max": 31
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/interaction/handlePointerDown.ts": {
+      "functions": 10,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 1,
+      "max": 59
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/interaction/handlePointerUp.ts": {
+      "functions": 6,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 1,
+      "max": 44
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/interaction/hitTestPlanItem.ts": {
+      "functions": 1,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 1,
+      "max": 27
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/interaction/marquee.ts": {
+      "functions": 12,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 1,
+      "max": 20
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/interaction/model-drag-drop.ts": {
+      "functions": 29,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 6
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/interaction/pointer-input.ts": {
+      "functions": 16,
+      "gt10": 2,
+      "gt15": 2,
+      "gt80": 2,
+      "max": 41
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/interaction/tool-selection.ts": {
+      "functions": 52,
+      "gt10": 3,
+      "gt15": 1,
+      "gt80": 1,
+      "max": 20
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/addLightModel.ts": {
+      "functions": 1,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 1,
+      "max": 22
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/base-lighting.ts": {
+      "functions": 14,
+      "gt10": 1,
+      "gt15": 0,
+      "gt80": 0,
+      "max": 15
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/beginLightingPreview.ts": {
+      "functions": 4,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 1,
+      "max": 51
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/light-areas.ts": {
+      "functions": 34,
+      "gt10": 1,
+      "gt15": 0,
+      "gt80": 0,
+      "max": 11
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/light-cache.ts": {
+      "functions": 20,
+      "gt10": 1,
+      "gt15": 0,
+      "gt80": 0,
+      "max": 13
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/light-group-targets.ts": {
+      "functions": 6,
+      "gt10": 1,
+      "gt15": 0,
+      "gt80": 0,
+      "max": 11
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/light-groups.ts": {
+      "functions": 35,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 0,
+      "max": 21
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/light-shape-sync.ts": {
+      "functions": 14,
+      "gt10": 1,
+      "gt15": 0,
+      "gt80": 0,
+      "max": 13
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/precompile.ts": {
+      "functions": 21,
+      "gt10": 2,
+      "gt15": 1,
+      "gt80": 3,
+      "max": 21
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/preview-meshes.ts": {
+      "functions": 8,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 5
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/scene-shadows-control.ts": {
+      "functions": 2,
+      "gt10": 2,
+      "gt15": 2,
+      "gt80": 0,
+      "max": 20
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/scene-shadows.ts": {
+      "functions": 10,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 1,
+      "max": 18
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/materials/door-materials.ts": {
       "functions": 3,
@@ -2378,6 +2357,125 @@
       "gt15": 0,
       "gt80": 0,
       "max": 13
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/materials/item-materials.ts": {
+      "functions": 9,
+      "gt10": 1,
+      "gt15": 0,
+      "gt80": 0,
+      "max": 11
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/materials/material-edit.ts": {
+      "functions": 24,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 0,
+      "max": 16
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/materials/material-slot-ui.ts": {
+      "functions": 26,
+      "gt10": 3,
+      "gt15": 2,
+      "gt80": 2,
+      "max": 27
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/persistence/applyLoadedDraft.ts": {
+      "functions": 8,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 1,
+      "max": 27
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/persistence/history.ts": {
+      "functions": 26,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 0,
+      "max": 20
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/persistence/save.ts": {
+      "functions": 34,
+      "gt10": 4,
+      "gt15": 0,
+      "gt80": 0,
+      "max": 14
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/persistence/scene-sync.ts": {
+      "functions": 6,
+      "gt10": 2,
+      "gt15": 1,
+      "gt80": 0,
+      "max": 19
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/acquireRenderSurface.ts": {
+      "functions": 3,
+      "gt10": 2,
+      "gt15": 1,
+      "gt80": 1,
+      "max": 32
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/camera-frames.ts": {
+      "functions": 15,
+      "gt10": 3,
+      "gt15": 2,
+      "gt80": 0,
+      "max": 21
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/createStudioRenderer.ts": {
+      "functions": 20,
+      "gt10": 3,
+      "gt15": 2,
+      "gt80": 1,
+      "max": 23
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/frame-driver.ts": {
+      "functions": 37,
+      "gt10": 2,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 15
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/orbit-controls.ts": {
+      "functions": 7,
+      "gt10": 1,
+      "gt15": 0,
+      "gt80": 0,
+      "max": 11
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/publishRenderStats.ts": {
+      "functions": 2,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 1,
+      "max": 28
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/render-budget.ts": {
+      "functions": 11,
+      "gt10": 2,
+      "gt15": 0,
+      "gt80": 0,
+      "max": 14
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/renderer-resize.ts": {
+      "functions": 10,
+      "gt10": 3,
+      "gt15": 1,
+      "gt80": 0,
+      "max": 21
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/scene-refresh.ts": {
+      "functions": 5,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 0,
+      "max": 19
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/stats.ts": {
+      "functions": 17,
+      "gt10": 2,
+      "gt15": 1,
+      "gt80": 1,
+      "max": 21
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/studio-render-loop.ts": {
       "functions": 251,
@@ -2400,12 +2498,89 @@
       "gt80": 2,
       "max": 53
     },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/scene-build/background-image.ts": {
+      "functions": 8,
+      "gt10": 1,
+      "gt15": 0,
+      "gt80": 0,
+      "max": 12
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/scene-build/buildStudioScene.ts": {
+      "functions": 20,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 1,
+      "max": 33
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/scene-build/camera-bounds.ts": {
+      "functions": 8,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 0,
+      "max": 18
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/scene-build/floor-build.ts": {
+      "functions": 34,
+      "gt10": 3,
+      "gt15": 0,
+      "gt80": 2,
+      "max": 14
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/scene-build/global-controls.ts": {
+      "functions": 12,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 9
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/scene-build/mesh-builders.ts": {
+      "functions": 21,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 0,
+      "max": 30
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/scene-build/scene-layers.ts": {
+      "functions": 11,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 1,
+      "max": 27
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/scene-build/scene-payload-build.ts": {
+      "functions": 34,
+      "gt10": 2,
+      "gt15": 2,
+      "gt80": 1,
+      "max": 26
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/scene-build/scene-rebuild.ts": {
+      "functions": 11,
+      "gt10": 2,
+      "gt15": 1,
+      "gt80": 0,
+      "max": 23
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/scene-build/shared-meshes.ts": {
+      "functions": 15,
+      "gt10": 1,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 15
+    },
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/studio-app-context.ts": {
       "functions": 1,
       "gt10": 0,
       "gt15": 0,
       "gt80": 1,
       "max": 1
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/asset-library.ts": {
+      "functions": 6,
+      "gt10": 1,
+      "gt15": 0,
+      "gt80": 0,
+      "max": 15
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/export-dialog-wiring.ts": {
       "functions": 13,
@@ -2414,12 +2589,19 @@
       "gt80": 1,
       "max": 3
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/model-drag-drop.ts": {
-      "functions": 29,
-      "gt10": 0,
-      "gt15": 0,
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/refreshStudioUiInner.ts": {
+      "functions": 5,
+      "gt10": 1,
+      "gt15": 1,
       "gt80": 1,
-      "max": 6
+      "max": 108
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/refreshStudioView.ts": {
+      "functions": 1,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 1,
+      "max": 64
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/tool-option-wiring.ts": {
       "functions": 28,
@@ -2855,7 +3037,7 @@
       "gt80": 1,
       "max": 18
     },
-    "homeos/frontend/src/studio/app/bridge/access/access-monitor.ts": {
+    "homeos/frontend/src/studio/app/bridge/access-monitor.ts": {
       "functions": 11,
       "gt10": 1,
       "gt15": 1,
@@ -2883,6 +3065,13 @@
       "gt80": 1,
       "max": 3
     },
+    "homeos/frontend/src/studio/app/bridge/editor-pickers.ts": {
+      "functions": 115,
+      "gt10": 6,
+      "gt15": 3,
+      "gt80": 4,
+      "max": 39
+    },
     "homeos/frontend/src/studio/app/bridge/editor.ts": {
       "functions": 159,
       "gt10": 4,
@@ -2903,13 +3092,6 @@
       "gt15": 3,
       "gt80": 0,
       "max": 25
-    },
-    "homeos/frontend/src/studio/app/bridge/pickers/editor-pickers.ts": {
-      "functions": 115,
-      "gt10": 6,
-      "gt15": 3,
-      "gt80": 4,
-      "max": 39
     },
     "homeos/frontend/src/studio/app/bridge/presets/focus-layout.ts": {
       "functions": 27,
@@ -3128,6 +3310,34 @@
       "gt80": 2,
       "max": 16
     },
+    "homeos/frontend/src/studio/app/editor/home/assets/asset-management.ts": {
+      "functions": 49,
+      "gt10": 2,
+      "gt15": 0,
+      "gt80": 4,
+      "max": 11
+    },
+    "homeos/frontend/src/studio/app/editor/home/assets/asset-picker.ts": {
+      "functions": 64,
+      "gt10": 3,
+      "gt15": 1,
+      "gt80": 1,
+      "max": 20
+    },
+    "homeos/frontend/src/studio/app/editor/home/assets/icon-pickers.ts": {
+      "functions": 32,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 0,
+      "max": 21
+    },
+    "homeos/frontend/src/studio/app/editor/home/components/component-editing.ts": {
+      "functions": 82,
+      "gt10": 3,
+      "gt15": 1,
+      "gt80": 2,
+      "max": 19
+    },
     "homeos/frontend/src/studio/app/editor/home/editor-context.ts": {
       "functions": 1,
       "gt10": 0,
@@ -3135,117 +3345,68 @@
       "gt80": 1,
       "max": 1
     },
-    "homeos/frontend/src/studio/app/editor/home/elements/editor-elements.ts": {
-      "functions": 3,
+    "homeos/frontend/src/studio/app/editor/home/elements/chrome.ts": {
+      "functions": 1,
       "gt10": 0,
       "gt15": 0,
       "gt80": 1,
       "max": 1
     },
-    "homeos/frontend/src/studio/app/editor/home/functions/asset-management.ts": {
-      "functions": 49,
-      "gt10": 2,
+    "homeos/frontend/src/studio/app/editor/home/elements/inspectors-charts.ts": {
+      "functions": 2,
+      "gt10": 0,
       "gt15": 0,
-      "gt80": 4,
-      "max": 11
-    },
-    "homeos/frontend/src/studio/app/editor/home/functions/asset-picker.ts": {
-      "functions": 64,
-      "gt10": 3,
-      "gt15": 1,
       "gt80": 1,
-      "max": 20
+      "max": 1
     },
-    "homeos/frontend/src/studio/app/editor/home/functions/component-editing.ts": {
-      "functions": 82,
-      "gt10": 3,
-      "gt15": 1,
-      "gt80": 2,
-      "max": 19
-    },
-    "homeos/frontend/src/studio/app/editor/home/functions/copy-backup-pickers.ts": {
-      "functions": 195,
-      "gt10": 2,
+    "homeos/frontend/src/studio/app/editor/home/elements/inspectors-climate.ts": {
+      "functions": 1,
+      "gt10": 0,
       "gt15": 0,
-      "gt80": 3,
-      "max": 13
+      "gt80": 1,
+      "max": 1
     },
-    "homeos/frontend/src/studio/app/editor/home/functions/entity-labels.ts": {
+    "homeos/frontend/src/studio/app/editor/home/elements/inspectors-devices.ts": {
+      "functions": 1,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 1
+    },
+    "homeos/frontend/src/studio/app/editor/home/elements/inspectors-navigation.ts": {
+      "functions": 2,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 1
+    },
+    "homeos/frontend/src/studio/app/editor/home/entity/entity-labels.ts": {
       "functions": 40,
       "gt10": 2,
       "gt15": 1,
       "gt80": 0,
       "max": 17
     },
-    "homeos/frontend/src/studio/app/editor/home/functions/floorplan-auto-diagram-wiring.ts": {
+    "homeos/frontend/src/studio/app/editor/home/floorplan-auto-diagram-wiring.ts": {
       "functions": 10,
       "gt10": 1,
       "gt15": 0,
       "gt80": 1,
       "max": 12
     },
-    "homeos/frontend/src/studio/app/editor/home/functions/icon-pickers.ts": {
-      "functions": 32,
-      "gt10": 1,
-      "gt15": 1,
-      "gt80": 0,
-      "max": 21
-    },
-    "homeos/frontend/src/studio/app/editor/home/functions/inspector-context-builders.ts": {
+    "homeos/frontend/src/studio/app/editor/home/inspectors/inspector-context-builders.ts": {
       "functions": 56,
       "gt10": 3,
       "gt15": 2,
       "gt80": 2,
       "max": 21
     },
-    "homeos/frontend/src/studio/app/editor/home/functions/lighting-panel.ts": {
-      "functions": 39,
-      "gt10": 2,
-      "gt15": 2,
-      "gt80": 0,
-      "max": 16
-    },
-    "homeos/frontend/src/studio/app/editor/home/functions/navigation-preview.ts": {
-      "functions": 32,
-      "gt10": 2,
-      "gt15": 1,
-      "gt80": 0,
-      "max": 21
-    },
-    "homeos/frontend/src/studio/app/editor/home/functions/popup-inspectors.ts": {
+    "homeos/frontend/src/studio/app/editor/home/inspectors/popup-inspectors.ts": {
       "functions": 42,
       "gt10": 1,
       "gt15": 0,
       "gt80": 0,
       "max": 11
-    },
-    "homeos/frontend/src/studio/app/editor/home/functions/style-apply.ts": {
-      "functions": 32,
-      "gt10": 10,
-      "gt15": 9,
-      "gt80": 0,
-      "max": 33
-    },
-    "homeos/frontend/src/studio/app/editor/home/functions/style-dialogs.ts": {
-      "functions": 46,
-      "gt10": 3,
-      "gt15": 1,
-      "gt80": 0,
-      "max": 20
-    },
-    "homeos/frontend/src/studio/app/editor/home/functions/workspace-document.ts": {
-      "functions": 63,
-      "gt10": 2,
-      "gt15": 2,
-      "gt80": 0,
-      "max": 25
-    },
-    "homeos/frontend/src/studio/app/editor/home/functions/workspace-history.ts": {
-      "functions": 61,
-      "gt10": 8,
-      "gt15": 4,
-      "gt80": 2,
-      "max": 26
     },
     "homeos/frontend/src/studio/app/editor/home/lifecycle/asset-dialog-wiring.ts": {
       "functions": 43,
@@ -3288,6 +3449,55 @@
       "gt15": 0,
       "gt80": 2,
       "max": 6
+    },
+    "homeos/frontend/src/studio/app/editor/home/navigation-preview.ts": {
+      "functions": 32,
+      "gt10": 2,
+      "gt15": 1,
+      "gt80": 0,
+      "max": 21
+    },
+    "homeos/frontend/src/studio/app/editor/home/style/lighting-panel.ts": {
+      "functions": 39,
+      "gt10": 2,
+      "gt15": 2,
+      "gt80": 0,
+      "max": 16
+    },
+    "homeos/frontend/src/studio/app/editor/home/style/style-apply.ts": {
+      "functions": 32,
+      "gt10": 10,
+      "gt15": 9,
+      "gt80": 0,
+      "max": 33
+    },
+    "homeos/frontend/src/studio/app/editor/home/style/style-dialogs.ts": {
+      "functions": 46,
+      "gt10": 3,
+      "gt15": 1,
+      "gt80": 0,
+      "max": 20
+    },
+    "homeos/frontend/src/studio/app/editor/home/workspace/copy-backup-pickers.ts": {
+      "functions": 195,
+      "gt10": 2,
+      "gt15": 0,
+      "gt80": 3,
+      "max": 13
+    },
+    "homeos/frontend/src/studio/app/editor/home/workspace/workspace-document.ts": {
+      "functions": 63,
+      "gt10": 2,
+      "gt15": 2,
+      "gt80": 0,
+      "max": 25
+    },
+    "homeos/frontend/src/studio/app/editor/home/workspace/workspace-history.ts": {
+      "functions": 61,
+      "gt10": 8,
+      "gt15": 4,
+      "gt80": 2,
+      "max": 26
     },
     "homeos/frontend/src/studio/app/editor/inspectors/flow-line-inspector.ts": {
       "functions": 21,
@@ -3527,7 +3737,7 @@
       "gt80": 1,
       "max": 31
     },
-    "homeos/frontend/src/studio/app/renderer/flow-line/flow-line-editor.ts": {
+    "homeos/frontend/src/studio/app/renderer/flow-line-editor.ts": {
       "functions": 51,
       "gt10": 2,
       "gt15": 1,
@@ -3569,82 +3779,96 @@
       "gt80": 5,
       "max": 47
     },
-    "homeos/frontend/src/studio/app/renderer/panel-seams/air-purifier-details.ts": {
-      "functions": 31,
-      "gt10": 2,
-      "gt15": 1,
-      "gt80": 1,
-      "max": 19
-    },
-    "homeos/frontend/src/studio/app/renderer/panel-seams/capability-controls.ts": {
+    "homeos/frontend/src/studio/app/renderer/panel-seams/controls/capability-controls.ts": {
       "functions": 41,
       "gt10": 3,
       "gt15": 3,
       "gt80": 3,
       "max": 40
     },
-    "homeos/frontend/src/studio/app/renderer/panel-seams/climate-controls.ts": {
+    "homeos/frontend/src/studio/app/renderer/panel-seams/controls/climate-controls.ts": {
       "functions": 69,
       "gt10": 6,
       "gt15": 4,
       "gt80": 5,
       "max": 27
     },
-    "homeos/frontend/src/studio/app/renderer/panel-seams/cover-controls.ts": {
+    "homeos/frontend/src/studio/app/renderer/panel-seams/controls/cover-controls.ts": {
       "functions": 26,
       "gt10": 2,
       "gt15": 2,
       "gt80": 1,
       "max": 43
     },
-    "homeos/frontend/src/studio/app/renderer/panel-seams/custom-popup.ts": {
-      "functions": 102,
-      "gt10": 8,
-      "gt15": 4,
-      "gt80": 3,
-      "max": 144
-    },
-    "homeos/frontend/src/studio/app/renderer/panel-seams/details-popups.ts": {
-      "functions": 58,
-      "gt10": 4,
-      "gt15": 4,
-      "gt80": 4,
-      "max": 32
-    },
-    "homeos/frontend/src/studio/app/renderer/panel-seams/entity-details.ts": {
-      "functions": 42,
-      "gt10": 8,
-      "gt15": 5,
-      "gt80": 2,
-      "max": 234
-    },
-    "homeos/frontend/src/studio/app/renderer/panel-seams/light-controls.ts": {
+    "homeos/frontend/src/studio/app/renderer/panel-seams/controls/light-controls.ts": {
       "functions": 24,
       "gt10": 4,
       "gt15": 2,
       "gt80": 3,
       "max": 28
     },
-    "homeos/frontend/src/studio/app/renderer/panel-seams/media-camera.ts": {
+    "homeos/frontend/src/studio/app/renderer/panel-seams/controls/media-camera.ts": {
       "functions": 42,
       "gt10": 2,
       "gt15": 1,
       "gt80": 3,
       "max": 25
     },
-    "homeos/frontend/src/studio/app/renderer/panel-seams/optimistic-state.ts": {
-      "functions": 18,
+    "homeos/frontend/src/studio/app/renderer/panel-seams/controls/water-heater-controls.ts": {
+      "functions": 30,
       "gt10": 3,
-      "gt15": 2,
-      "gt80": 2,
-      "max": 48
+      "gt15": 1,
+      "gt80": 1,
+      "max": 19
     },
-    "homeos/frontend/src/studio/app/renderer/panel-seams/presence-details.ts": {
+    "homeos/frontend/src/studio/app/renderer/panel-seams/details/air-purifier-details.ts": {
+      "functions": 31,
+      "gt10": 2,
+      "gt15": 1,
+      "gt80": 1,
+      "max": 19
+    },
+    "homeos/frontend/src/studio/app/renderer/panel-seams/details/entity-details.ts": {
+      "functions": 42,
+      "gt10": 8,
+      "gt15": 5,
+      "gt80": 2,
+      "max": 234
+    },
+    "homeos/frontend/src/studio/app/renderer/panel-seams/details/presence-details.ts": {
       "functions": 17,
       "gt10": 2,
       "gt15": 1,
       "gt80": 1,
       "max": 18
+    },
+    "homeos/frontend/src/studio/app/renderer/panel-seams/details/vacuum-details.ts": {
+      "functions": 35,
+      "gt10": 3,
+      "gt15": 2,
+      "gt80": 1,
+      "max": 33
+    },
+    "homeos/frontend/src/studio/app/renderer/panel-seams/popups/custom-popup.ts": {
+      "functions": 102,
+      "gt10": 8,
+      "gt15": 4,
+      "gt80": 3,
+      "max": 144
+    },
+    "homeos/frontend/src/studio/app/renderer/panel-seams/popups/details-popups.ts": {
+      "functions": 58,
+      "gt10": 4,
+      "gt15": 4,
+      "gt80": 4,
+      "max": 32
+    },
+    "homeos/frontend/src/studio/app/renderer/panel-seams/popups/runtime-dialogs.ts": {
+      "functions": 10,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 0,
+      "max": 19
     },
     "homeos/frontend/src/studio/app/renderer/panel-seams/render-component.ts": {
       "functions": 21,
@@ -3653,68 +3877,54 @@
       "gt80": 1,
       "max": 92
     },
-    "homeos/frontend/src/studio/app/renderer/panel-seams/runtime-actions.ts": {
+    "homeos/frontend/src/studio/app/renderer/panel-seams/runtime/optimistic-state.ts": {
+      "functions": 18,
+      "gt10": 3,
+      "gt15": 2,
+      "gt80": 2,
+      "max": 48
+    },
+    "homeos/frontend/src/studio/app/renderer/panel-seams/runtime/runtime-actions.ts": {
       "functions": 33,
       "gt10": 3,
       "gt15": 1,
       "gt80": 2,
       "max": 18
     },
-    "homeos/frontend/src/studio/app/renderer/panel-seams/runtime-connect.ts": {
+    "homeos/frontend/src/studio/app/renderer/panel-seams/runtime/runtime-connect.ts": {
       "functions": 21,
       "gt10": 3,
       "gt15": 2,
       "gt80": 2,
       "max": 75
     },
-    "homeos/frontend/src/studio/app/renderer/panel-seams/runtime-dialogs.ts": {
-      "functions": 10,
-      "gt10": 1,
-      "gt15": 1,
-      "gt80": 0,
-      "max": 19
-    },
-    "homeos/frontend/src/studio/app/renderer/panel-seams/runtime-refresh.ts": {
+    "homeos/frontend/src/studio/app/renderer/panel-seams/runtime/runtime-refresh.ts": {
       "functions": 75,
       "gt10": 9,
       "gt15": 5,
       "gt80": 5,
       "max": 33
     },
-    "homeos/frontend/src/studio/app/renderer/panel-seams/selection-bounds.ts": {
+    "homeos/frontend/src/studio/app/renderer/panel-seams/selection/selection-bounds.ts": {
       "functions": 39,
       "gt10": 4,
       "gt15": 2,
       "gt80": 3,
       "max": 24
     },
-    "homeos/frontend/src/studio/app/renderer/panel-seams/selection-overlay.ts": {
+    "homeos/frontend/src/studio/app/renderer/panel-seams/selection/selection-overlay.ts": {
       "functions": 21,
       "gt10": 1,
       "gt15": 0,
       "gt80": 0,
       "max": 11
     },
-    "homeos/frontend/src/studio/app/renderer/panel-seams/transform-interaction.ts": {
+    "homeos/frontend/src/studio/app/renderer/panel-seams/selection/transform-interaction.ts": {
       "functions": 56,
       "gt10": 3,
       "gt15": 2,
       "gt80": 5,
       "max": 29
-    },
-    "homeos/frontend/src/studio/app/renderer/panel-seams/vacuum-details.ts": {
-      "functions": 35,
-      "gt10": 3,
-      "gt15": 2,
-      "gt80": 1,
-      "max": 33
-    },
-    "homeos/frontend/src/studio/app/renderer/panel-seams/water-heater-controls.ts": {
-      "functions": 30,
-      "gt10": 3,
-      "gt15": 1,
-      "gt80": 1,
-      "max": 19
     },
     "homeos/frontend/src/studio/app/renderer/registry/_shared.ts": {
       "functions": 26,
@@ -4620,11 +4830,11 @@
       "max": 55
     },
     "homeos/frontend/src/studio/runtime/light/light-stream.ts": {
-      "functions": 52,
+      "functions": 55,
       "gt10": 2,
       "gt15": 1,
       "gt80": 3,
-      "max": 21
+      "max": 17
     },
     "homeos/frontend/src/studio/runtime/nas/nas-panel.ts": {
       "functions": 23,

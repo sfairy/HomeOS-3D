@@ -229,11 +229,11 @@ import { computed, nextTick, ref, watch, type ComponentPublicInstance } from 'vu
 import { Layers, CheckSquare, Square, BarChart3, ChevronLeft, ChevronRight } from '@lucide/vue'
 // 域内子件用相对导入：域根 barrel 只服务跨域消费者，域内文件引用自己的 barrel
 // 会被 check-frontend-deps 的 feature-self-barrel 规则判违规。
-import DeviceAnalyticsDashboard from './DeviceAnalyticsDashboard.vue'
-import DeviceBatchActions from './DeviceBatchActions.vue'
-import DeviceFilterPanel from './DeviceFilterPanel.vue'
-import DeviceRow from './DeviceRow.vue'
-import DeviceStatsDashboard from './DeviceStatsDashboard.vue'
+import DeviceAnalyticsDashboard from './components/DeviceAnalyticsDashboard.vue'
+import DeviceBatchActions from './components/DeviceBatchActions.vue'
+import DeviceFilterPanel from './components/DeviceFilterPanel.vue'
+import DeviceRow from './components/DeviceRow.vue'
+import DeviceStatsDashboard from './components/DeviceStatsDashboard.vue'
 import SearchableSelect from '@/components/common/base/SearchableSelect.vue'
 import VirtualList from '@/components/common/base/VirtualList.vue'
 import ListPageHero from '@/components/list-page-shell/ListPageHero.vue'

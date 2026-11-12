@@ -1,4 +1,4 @@
-/** 灯光组淡入 / 淡出帧步进（从 `functions/groups/render-stats-and-frame-loop` 拆出）。 */
+/** 灯光组淡入 / 淡出帧步进（原属 `render/render-stats-and-frame-loop`，随之拆出到此）。 */
 
 import type { StudioAppRuntime } from '../runtime/studio-app-runtime'
 import { clamp as clamp2 } from '../../../plan/geometry'

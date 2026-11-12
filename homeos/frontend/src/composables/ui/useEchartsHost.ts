@@ -30,10 +30,8 @@ let kioskAnimationOptions: KioskAnimationOptions | null = null
 /** 共享主题常量（统一定义于 chart-primitives，此处 re-export 保持既有调用方引用不变） */
 export { axisLineStyle, splitLineStyle } from '@/shared/utils/chart/chart-primitives'
 
-/** Y 轴最大值：至少为 1，避免全 0 时图表塌缩 */
-export function yMax(values: number[]) {
-  return Math.max(...values, 0, 1)
-}
+/** Y 轴最大值：至少为 1，避免全 0 时图表塌缩（实现单点化在 chart-primitives） */
+export { countYMax as yMax } from '@/shared/utils/chart/chart-primitives'
 
 /**
  * 判断图表 DOM 是否已就绪（宽高均大于 0）。

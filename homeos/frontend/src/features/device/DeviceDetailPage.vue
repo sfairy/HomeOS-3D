@@ -176,12 +176,12 @@ import ApiQueryState from '@/components/common/ApiQueryState.vue'
 import VEmptyState from '@/components/common/base/VEmptyState.vue'
 // 域内子件用相对导入：域根 barrel 只服务跨域消费者，域内文件引用自己的 barrel
 // 会被 check-frontend-deps 的 feature-self-barrel 规则判违规。
-import DeviceAnalyticsPanel from './DeviceAnalyticsPanel.vue'
-import DeviceAttrsPanel from './DeviceAttrsPanel.vue'
-import DeviceEntityReferencesPanel from './DeviceEntityReferencesPanel.vue'
-import DeviceOverviewPanel from './DeviceOverviewPanel.vue'
-import DeviceStateHistoryPanel from './DeviceStateHistoryPanel.vue'
-import DeviceUsageStats from './DeviceUsageStats.vue'
+import DeviceAnalyticsPanel from './components/DeviceAnalyticsPanel.vue'
+import DeviceAttrsPanel from './components/DeviceAttrsPanel.vue'
+import DeviceEntityReferencesPanel from './components/DeviceEntityReferencesPanel.vue'
+import DeviceOverviewPanel from './components/DeviceOverviewPanel.vue'
+import DeviceStateHistoryPanel from './components/DeviceStateHistoryPanel.vue'
+import DeviceUsageStats from './components/DeviceUsageStats.vue'
 import { useDeviceDetailView } from './composables/useDeviceDetailView'
 
 /**

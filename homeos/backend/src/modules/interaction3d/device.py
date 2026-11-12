@@ -27,6 +27,7 @@ from .config_ctx import (
 )
 from .extra_sources import validate_extra_sources
 from .extra_types import EXTRA_TYPES
+from .field_sets import WIDGET_COMMON_FIELDS
 
 #: 绿植类允许的模型（只有这些模型会被 ``plant`` 集合收纳）。
 INDOOR_PLANT_MODEL_TYPES = (
@@ -184,29 +185,13 @@ GENERIC_DEVICE_COLLECTIONS = tuple(
 #: 家电公共白名单（注意：家电**不允许**有 ``entityId``，主实体由设备档案推断）。
 GENERIC_DEVICE_FIELDS = frozenset(
     {
-        'x',
-        'y',
-        'id',
-        'icon',
-        'size',
-        'label',
-        'height',
-        'floorId',
-        'hitSize',
-        'modelId',
-        'visible',
+        *WIDGET_COMMON_FIELDS,
         'deviceId',
-        'entityId',
-        'iconSize',
         'deviceName',
-        'clickAction',
-        'focusCamera',
         'statusRules',
-        'buttonHidden',
         'extraControls',
         'extraDevices',
         'mainEntityId',
-        'hiddenClickable',
     }
 )
 #: 游戏机：主实体域（Switch 是 ``sensor.*``，PlayStation 是 ``media_player.*``）。

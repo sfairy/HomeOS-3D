@@ -19,7 +19,7 @@
  *    「选了配墙，柱子和墙不是一个色」。
  */
 import { materialStylePresetRoleColorFor } from './studio-material-presets'
-import { defaultViewSettings } from '../authoring/scene/studio-view-settings'
+import { defaultViewSettings } from '../authoring/scene/payload/studio-view-settings'
 import { WALL_SURFACE_FINISH, wallEmissiveIntensity, wallFilmOpacity } from './studio-wall-finish'
 
 interface PillarMaterialSpec {

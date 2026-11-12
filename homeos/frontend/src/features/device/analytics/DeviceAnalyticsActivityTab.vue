@@ -118,7 +118,7 @@
 <script setup lang="ts">
 import type { ComponentPublicInstance } from 'vue'
 import { Flame, BarChart3, TrendingUp } from '@lucide/vue'
-import DeviceChartHeader from '../DeviceChartHeader.vue'
+import DeviceChartHeader from '../components/DeviceChartHeader.vue'
 import { DEVICE_CHART_COPY } from '@/shared/utils/chart/device-chart-copy.util'
 
 // 父组件透传的展示数据与回调：summary 含 Top 设备列表，heatmapDevices 用于热力图渲染，

@@ -38,7 +38,7 @@ import { Overview } from '@/features/security'
 // ✅ 域内：相对/绝对都行
 import { useNav } from './composables/nav'
 // ❌ 跨域深引用（禁止）
-import Overview from '@/features/security/Overview.vue'
+import Overview from '@/features/security/components/Overview.vue'
 ```
 
 ### 域根 barrel 与页面入口
@@ -127,14 +127,14 @@ import Overview from '@/features/security/Overview.vue'
 | 设置面板 / 导航 | `features/settings/`（`{connect,display,system,interact,automate,home,shared}/`） |
 | 设置路由外壳 | `views/SettingsView.vue`（7 行适配器）→ `features/settings/entry.ts` → `SettingsPage.vue` |
 | 安防页面外壳 / 功能域 | `views/SecurityView.vue` → `features/security/entry.ts`；域在 `features/security/` |
-| 设备 2D 控制 UI（域） | `features/device/`（组件 + `analytics/` + `styles/`（含域主题表 `devices-theme.css`）+ 两页 + 两个视图模型） |
+| 设备 2D 控制 UI（域） | `features/device/`（根只留两页 + 两个 `entry-*.ts`；13 个组件在 `components/`、`analytics/`、`styles/`（含域主题表 `devices-theme.css`）+ 两个视图模型） |
 | 设备页外壳 | `views/{DevicesView,DeviceDetailView}.vue` → `features/device/entry-devices.ts` / `entry-device-detail.ts` |
 | 家庭模式触发日志页 | `views/ModeTriggerLogsView.vue` → `features/home-mode/entry.ts` → `ModeTriggerLogsPage.vue` |
 | 内嵌网页页 | `views/EmbedView.vue` → `features/embed/entry.ts` → `EmbedPage.vue`（`/embed/movie-pilot` 与 `/embed/:id` 共用） |
 | 设备 / 实体 hooks | `composables/{device,entity}/`；`entity/` 下按簇分子包：`ws/`（socket 与 ws-bind 链）、`popup/`（弹窗壳与各控制弹窗）、`device-group/`（批量 / 成员 / 离线），其余选择与投影 hooks 留根 |
 | 界面 hooks | `composables/ui/`；子包 `popup/`（定位与互斥下拉）、`screensaver/`（屏保生命周期与布局）、`shell/`（主壳层导航 / 门铃 / teleport / 微件面板），通用原语（`useClickOutside` / `useFocusTrap` / `useEscStack` 等）留根 |
 | 设备 / 实体纯函数 | `shared/{device,entity}/utils/`（含 `entity/utils/control/` 与 `popup-registry.util` 纯判定） |
-| 事件 / 通知域 | `features/{events,notifications}/`（各 4 个 `View*` 组件 + 样式，具名 barrel 前缀 `Events*` / `Notifications*`） |
+| 事件 / 通知域 | `features/{events,notifications}/`（根只留 Page + `entry.ts`；各 4 个 `View*` 组件在 `components/` + 样式，具名 barrel 前缀 `Events*` / `Notifications*`） |
 | 事件 / 通知纯逻辑 | `shared/{events,notifications}/utils/`：`dnd.util` 被 `composables/widget/useNotificationCenter`、`ws-sync.util` 被 `stores/entities/ws/ws-bind` 反向依赖，**不能进 features** |
 | 安防 hooks | `features/security/composables/`（跨域经域根 barrel）；带 store 依赖的 `useSecurityPanelStatus` 在 `composables/security/`（`components/` 要它，而 `components` 禁 import `@/features/**`） |
 | 安防纯函数 | `shared/security/utils/`（`panel-arm`、`panel-layout`、`panel-zones-bootstrap`、`zones-api`）+ `features/security/utils/`（域内自用） |
@@ -207,8 +207,9 @@ import Overview from '@/features/security/Overview.vue'
   `vue/no-mutating-props`（嵌套属性）与 `vue/no-ref-as-operand` 的 `if (someRef)` 真值判断形态
   （TS 只在算术/比较时报 TS2365，赋值报 TS2540，真值判断不报）。改这几类写法时只能靠 review。
 - **四个 studio 文件刻意不参与格式化**：`studio-app/boot.ts` 与 `editor/home/lifecycle/boot.ts`
-  受 `check:studio-split` 的**硬性行数预算**约束（4200 / 5400 行），格式化会把它们从 4070/5355
-  顶到 5818/8418；`studio-item-model.ts` 与 `items/item-model/**` 受 `verify_item_model` 的
+  受 `check:studio-split` 的**硬性行数预算**约束（4200 / 5400 行），当前是 4182 / 4917 行，
+  而 Biome 格式化会把它们顶到 5799 / 7470 行（实测：`biome format --stdin-file-path=x.ts < boot.ts`），
+  两组预算都会当场被突破；`studio-item-model.ts` 与 `items/item-model/**` 受 `verify_item_model` 的
   **逐分支文本哈希等价证明**约束，格式化会让哈希全部失配。因此它们只在 `biome.json` 里关掉
   `formatter`，`linter` 照旧检查 —— 看到这几处还是双引号 + 分号，属于预期，不是漏改。
 
@@ -242,6 +243,9 @@ import Overview from '@/features/security/Overview.vue'
 ## 8. Studio
 
 不要在 `studio/app/3d-studio/authoring/` 下新增平铺的 `studio-*.ts` 文件 —— 使用域文件夹
-（`scene/`、`items/`、`lights/`、`ui/`）。详见 [studio/README.md](./studio/README.md)。
+（`scene/`、`items/`、`lights/`、`ui/`、`studio-app/`）。`scene/` 内部还有 6 个子域
+（`walls/` `shadow/` `payload/` `shells/` `overview/` `floor/`），新增场景构件先进对应子域，
+不要往 `scene/` 根上继续加平铺文件。详见 [studio/README.md](./studio/README.md)。
 
-> 最后核对：2026-10-28（链接、命令与路径已逐条验证；计数类结论给出核对命令而不写死数字）
+> 最后核对：2026-11-13（按 2026-11 结构重构复核：`features/<域>` 组件已统一进 `components/`、
+> `authoring/scene` 已分 6 子域；链接、命令与路径逐条验证，计数类结论给出核对命令而不写死数字）

@@ -1,186 +1,310 @@
 import {
-  moveStepMeters as moveStepMeters2,
-  planDirectionForScreenArrow,
-} from "../studio-edit-metrics";
+  moveStepMeters as moveStepMeters2, planDirectionForScreenArrow,
+  } from "../studio-edit-metrics";
 import { resolveStageLightingPipeline } from "../scene/studio-stage-lighting-mode"
 import {
   courtyardPlanColor as courtyardPlanColor2,
-} from "../../plan/courtyard-plan";
+  } from "../../plan/courtyard-plan";
 
 
 import {
   buildingFootprints as buildingFootprints2,
-  anchorGate as anchorGate2,
-  isCourtyardGate as isCourtyardGate2,
-} from "../../plan/courtyard-drawing";
+  anchorGate as anchorGate2, isCourtyardGate as isCourtyardGate2,
+  } from "../../plan/courtyard-drawing";
 import { createCourtyardDrawingEditor as createCourtyardDrawingEditor2 } from "../../plan/courtyard-drawing-editor";
 
 
-import { resolveDoorPartMaterials } from "./materials/door-materials";
-import { runStudioRenderLoop as runStudioRenderLoopImpl, type StudioRenderDeps } from "./render/studio-render-loop";
-import { handlePointerUp as handlePointerUpImpl, type HandlePointerUpDeps } from "./functions/handlePointerUp";
-import { refreshStudioUiInner as refreshStudioUiInnerImpl, type RefreshStudioUiInnerDeps } from "./functions/refreshStudioUiInner";
-import { handlePointerDown as handlePointerDownImpl, type HandlePointerDownDeps } from "./functions/handlePointerDown";
-import { applyToolSetting as applyToolSettingImpl, type ApplyToolSettingDeps } from "./functions/applyToolSetting";
-import { createStudioRenderer as createStudioRendererImpl, type CreateStudioRendererDeps } from "./functions/createStudioRenderer";
-import { buildStudioScene as buildStudioSceneImpl, type BuildStudioSceneDeps } from "./functions/buildStudioScene";
-import { generateExportBundle as generateExportBundleImpl, type GenerateExportBundleDeps } from "./functions/generateExportBundle";
-import { refreshStudioView as refreshStudioViewImpl, type RefreshStudioViewDeps } from "./functions/refreshStudioView";
-import { openExportPanel as openExportPanelImpl, type OpenExportPanelDeps } from "./functions/openExportPanel";
-import { beginLightingPreview as beginLightingPreviewImpl, type BeginLightingPreviewDeps } from "./functions/beginLightingPreview";
-import { publishRenderStats as publishRenderStatsImpl, type PublishRenderStatsDeps } from "./functions/publishRenderStats";
-import { addLightModel as addLightModelImpl, type AddLightModelDeps } from "./functions/addLightModel";
-import { applyLoadedDraft as applyLoadedDraftImpl, type ApplyLoadedDraftDeps } from "./functions/applyLoadedDraft";
-import { createSceneItem as createSceneItemImpl, type CreateSceneItemDeps } from "./functions/createSceneItem";
-import { acquireRenderSurface as acquireRenderSurfaceImpl, type AcquireRenderSurfaceDeps } from "./functions/acquireRenderSurface";
-import { hitTestPlanItem as hitTestPlanItemImpl, type HitTestPlanItemDeps } from "./functions/hitTestPlanItem";
 import {
-  sceneCacheDescriptor as sceneCacheDescriptorImpl, checkModelInUse as checkModelInUseImpl, collectScenePayload as collectScenePayloadImpl, collectSelectedFloors as collectSelectedFloorsImpl,
-  scheduleModelLoadFlush as scheduleModelLoadFlushImpl, loadModelsForTypes as loadModelsForTypesImpl, preloadDefaultModels as preloadDefaultModelsImpl, requestSceneRender as requestSceneRenderImpl,
-  finishModelLoad as finishModelLoadImpl, publishModelLoadState as publishModelLoadStateImpl, emitRuntimeDiagnostic as emitRuntimeDiagnosticImpl, updateModelLoadIndicator as updateModelLoadIndicatorImpl,
-  materialLoadOptionsForItem as materialLoadOptionsForItemImpl, applyItemOptimization as applyItemOptimizationImpl, getActiveFloor as getActiveFloorImpl, captureStudioSnapshot as captureStudioSnapshotImpl,
-  getLocalSaveRevision as getLocalSaveRevisionImpl, uniqueFloorName as uniqueFloorNameImpl, hideFloorActionMenu as hideFloorActionMenuImpl, showFloorActionMenu as showFloorActionMenuImpl,
+  generateExportBundle as generateExportBundleImpl,
+  type GenerateExportBundleDeps, openExportPanel as openExportPanelImpl, type OpenExportPanelDeps,
+  openExportDialog as openExportDialogImpl, renderExportPresetSlots as renderExportPresetSlotsImpl,
+  buildExportPreset as buildExportPresetImpl, importCameraPreset as importCameraPresetImpl,
+  applyExportPreset as applyExportPresetImpl, selectExportPresetSlot as selectExportPresetSlotImpl,
+  saveExportPreset as saveExportPresetImpl, syncExportControls as syncExportControlsImpl,
+  formatPresetLabel as formatPresetLabelImpl, makeUniquePresetName as makeUniquePresetNameImpl,
+  saveAsNewPreset as saveAsNewPresetImpl, ensureSceneRendered as ensureSceneRenderedImpl,
+  prepareFreeCameraCapture as prepareFreeCameraCaptureImpl, selectPreviewFloor as selectPreviewFloorImpl,
+  collectSelectedExportFiles as collectSelectedExportFilesImpl,
+  restorePreviewAfterExport as restorePreviewAfterExportImpl, setExportBusy as setExportBusyImpl,
+  prepareExportRender as prepareExportRenderImpl, canvasToBlob as canvasToBlobImpl,
+  renderExportImage as renderExportImageImpl, renderLightDeltaLayer as renderLightDeltaLayerImpl,
+  renderLightShadowLayer as renderLightShadowLayerImpl, renderBackgroundLayer as renderBackgroundLayerImpl,
+  makeUniqueFileName as makeUniqueFileNameImpl, buildExportCamera as buildExportCameraImpl,
+  buildLightExportEntry as buildLightExportEntryImpl, projectItemAnchor as projectItemAnchorImpl,
+  projectLightGroupAnchor as projectLightGroupAnchorImpl, blobToBytes as blobToBytesImpl,
+  applyExportVisibility as applyExportVisibilityImpl, setExportRoleVisibility as setExportRoleVisibilityImpl,
+  resolveOverwriteChoice as resolveOverwriteChoiceImpl, showConflictDialog as showConflictDialogImpl,
+  beginExportFlow as beginExportFlowImpl, reportExportFailure as reportExportFailureImpl,
+  showExportResult as showExportResultImpl, renderExportLayers as renderExportLayersImpl,
+  closePresetRenameDialog as closePresetRenameDialogImpl, openPresetRenameDialog as openPresetRenameDialogImpl,
+  openPresetDeleteDialog as openPresetDeleteDialogImpl,
+} from "./export";
+import { addCylinderMesh } from "./geometry";
+import {
+  handlePointerUp as handlePointerUpImpl, type HandlePointerUpDeps, handlePointerDown as handlePointerDownImpl,
+  type HandlePointerDownDeps, applyToolSetting as applyToolSettingImpl, type ApplyToolSettingDeps,
+  createSceneItem as createSceneItemImpl, type CreateSceneItemDeps, hitTestPlanItem as hitTestPlanItemImpl,
+  type HitTestPlanItemDeps, hitTestHandle as hitTestHandleImpl, boundsFromCorners as boundsFromCornersImpl,
+  marqueeDelta as marqueeDeltaImpl, updateMarqueeOverlay as updateMarqueeOverlayImpl,
+  drawMarqueeOverlay as drawMarqueeOverlayImpl, renderPlanScene as renderPlanSceneImpl,
+  getSelectedObject as getSelectedObjectImpl, setDrawingToolGroupOpen as setDrawingToolGroupOpenImpl,
+  closeDrawingToolGroups as closeDrawingToolGroupsImpl, syncDrawingToolGroupStates as syncDrawingToolGroupStatesImpl,
+  selectStudioTool as selectStudioToolImpl, ensureCalibrationReady as ensureCalibrationReadyImpl,
+  clearSelection as clearSelectionImpl, finalizeAddedItem as finalizeAddedItemImpl,
+  duplicateSelection as duplicateSelectionImpl, collectSelectedPlanItems as collectSelectedPlanItemsImpl,
+  mirrorSelection as mirrorSelectionImpl, rotateSelection as rotateSelectionImpl,
+  updateSnapIndicator as updateSnapIndicatorImpl, toggleSnapSetting as toggleSnapSettingImpl,
+  schedulePointerMove as schedulePointerMoveImpl, handlePointerMove as handlePointerMoveImpl,
+  cancelPointerDrag as cancelPointerDragImpl, scheduleDragUpdate as scheduleDragUpdateImpl,
+  handleCanvasWheel as handleCanvasWheelImpl, finishPointerDrag as finishPointerDragImpl,
+  handlePointerRelease as handlePointerReleaseImpl, refreshPreviewScene as refreshPreviewSceneImpl,
+  resetCameraView as resetCameraViewImpl, clearLightGroupDropIndicator as clearLightGroupDropIndicatorImpl,
+  collectListDragDropTargets as collectListDragDropTargetsImpl,
+  applyListDragDropIndicator as applyListDragDropIndicatorImpl, activateListDrag as activateListDragImpl,
+  handleListDragPointerMove as handleListDragPointerMoveImpl, handleListDragPointerUp as handleListDragPointerUpImpl,
+  handleListDragPointerCancel as handleListDragPointerCancelImpl,
+  handleListDragTouchMove as handleListDragTouchMoveImpl, finishListDrag as finishListDragImpl,
+  beginListRowDrag as beginListRowDragImpl, createSelectionRef as createSelectionRefImpl,
+  refreshSelection as refreshSelectionImpl, isPlanItemVisible as isPlanItemVisibleImpl,
+  isSelectionAllowed as isSelectionAllowedImpl, selectSceneObject as selectSceneObjectImpl,
+  getDefaultSelectionScope as getDefaultSelectionScopeImpl, resolvePreviewScope as resolvePreviewScopeImpl,
+  classifySelectionScope as classifySelectionScopeImpl, getCurrentPreviewScope as getCurrentPreviewScopeImpl,
+  getPreviewScopeSelection as getPreviewScopeSelectionImpl, setPreviewScope as setPreviewScopeImpl, bindModelDragDrop,
+} from "./interaction";
+import {
+  beginLightingPreview as beginLightingPreviewImpl, type BeginLightingPreviewDeps, addLightModel as addLightModelImpl,
+  type AddLightModelDeps, captureUndoSnapshot as captureUndoSnapshotImpl, resolveLightGroup as resolveLightGroupImpl,
+  resolveFloorDefaultGroup as resolveFloorDefaultGroupImpl, isLampEnabled as isLampEnabledImpl,
+  getScreenLightGroups as getScreenLightGroupsImpl, getChargingLightGroups as getChargingLightGroupsImpl,
+  getOrderedFloorList as getOrderedFloorListImpl, composeLightGroupKey as composeLightGroupKeyImpl,
+  collectLampEntries as collectLampEntriesImpl, listLightGroupRows as listLightGroupRowsImpl,
+  listScreenRows as listScreenRowsImpl, listChargingRows as listChargingRowsImpl,
+  syncScreenLayers as syncScreenLayersImpl, syncChargingLayers as syncChargingLayersImpl,
+  pushUndoEntry as pushUndoEntryImpl, moveAreaRow as moveAreaRowImpl,
+  moveLightGroupToArea as moveLightGroupToAreaImpl, refreshLightAreasFromHa as refreshLightAreasFromHaImpl,
+  readSavedLightAreaOrder as readSavedLightAreaOrderImpl, persistLightAreaOrder as persistLightAreaOrderImpl,
+  applySavedLightAreaOrder as applySavedLightAreaOrderImpl, isKnownLightAreaId as isKnownLightAreaIdImpl,
+  syncAreaAssignOptions as syncAreaAssignOptionsImpl, openLightGroupAreaDialog as openLightGroupAreaDialogImpl,
+  closeLightGroupAreaDialog as closeLightGroupAreaDialogImpl, toggleAreaExpanded as toggleAreaExpandedImpl,
+  createAreaSection as createAreaSectionImpl, maybeShowDrawingLightNotice as maybeShowDrawingLightNoticeImpl,
+  getLightGroups as getLightGroupsImpl, syncLightGroupSelect as syncLightGroupSelectImpl,
+  hideLightGroupActionMenu as hideLightGroupActionMenuImpl, showLightGroupActionMenu as showLightGroupActionMenuImpl,
+  deleteLightGroup as deleteLightGroupImpl, uniqueLightGroupName as uniqueLightGroupNameImpl,
+  duplicateLightGroup as duplicateLightGroupImpl, createLightGroupRow as createLightGroupRowImpl,
+  syncLightGroupList as syncLightGroupListImpl, setAllLightGroupsEnabled as setAllLightGroupsEnabledImpl,
+  refreshBaseLighting as refreshBaseLightingImpl, setShadowQualityHigh as setShadowQualityHighImpl,
+  clampShadowMapSize as clampShadowMapSizeImpl, syncBaseLightingControls as syncBaseLightingControlsImpl,
+  applyBaseLighting as applyBaseLightingImpl, saveBaseLightingEdit as saveBaseLightingEditImpl,
+  openLightingDialog as openLightingDialogImpl, confirmLightingDialog as confirmLightingDialogImpl,
+  updateBaseLightingFromInput as updateBaseLightingFromInputImpl,
+  collectActiveLightEntries as collectActiveLightEntriesImpl, areLightsEnabled as areLightsEnabledImpl,
+  restoreLightVisibility as restoreLightVisibilityImpl, findLightGroup as findLightGroupImpl,
+  transitionLightGroups as transitionLightGroupsImpl, syncLightCache as syncLightCacheImpl,
+  buildLightCacheMap as buildLightCacheMapImpl, ensureLightCache as ensureLightCacheImpl,
+  updateLightCache as updateLightCacheImpl, showLightCacheFor as showLightCacheForImpl,
+  collectActiveLightGroupKeys as collectActiveLightGroupKeysImpl, showCachedLights as showCachedLightsImpl,
+  captureLightSnapshot as captureLightSnapshotImpl, restorePreviewAfterFade as restorePreviewAfterFadeImpl,
+  planLightPrecompileBatches as planLightPrecompileBatchesImpl, shouldSuspendSceneWork as shouldSuspendSceneWorkImpl,
+  shouldDeferSceneWork as shouldDeferSceneWorkImpl, scheduleLightPrecompile as scheduleLightPrecompileImpl,
+  scheduleExternalPrecompile as scheduleExternalPrecompileImpl, addStripLightPreview as addStripLightPreviewImpl,
+  applyAccentEmissive as applyAccentEmissiveImpl, planLabelAccentColor as planLabelAccentColorImpl,
+  createPlanLabel as createPlanLabelImpl, collectLightSourceSpecs as collectLightSourceSpecsImpl,
+  collectLightTargetInputs as collectLightTargetInputsImpl, syncLightTargetGroups as syncLightTargetGroupsImpl,
+  buildLightGroupList as buildLightGroupListImpl, setShadowFreeze as setShadowFreezeImpl,
+  updateShadowState as updateShadowStateImpl, collectShadowCandidates as collectShadowCandidatesImpl,
+  setupSceneShadows as setupSceneShadowsImpl,
+} from "./lights";
+import {
+  resolveDoorPartMaterials, materialSameModelPeerCount as materialSameModelPeerCountImpl,
+  materialEditModelType as materialEditModelTypeImpl, selectedMaterialEditTarget as selectedMaterialEditTargetImpl,
+  materialSameModelPeerRecords as materialSameModelPeerRecordsImpl,
+  commitItemMaterialEdit as commitItemMaterialEditImpl, setItemMaterialOverride as setItemMaterialOverrideImpl,
+  setItemMaterialStyle as setItemMaterialStyleImpl, resetItemMaterialAll as resetItemMaterialAllImpl,
+  setItemMaterialSurfaceOverride as setItemMaterialSurfaceOverrideImpl,
+  readStoredCustomMaterialStyles as readStoredCustomMaterialStylesImpl,
+  loadCustomMaterialStyles as loadCustomMaterialStylesImpl,
+  ensureCustomMaterialStylesLoaded as ensureCustomMaterialStylesLoadedImpl,
+  writeStoredCustomMaterialStyles as writeStoredCustomMaterialStylesImpl,
+  materialSlotPanelSignatureFor as materialSlotPanelSignatureForImpl,
+  materialStyleSwatchColors as materialStyleSwatchColorsImpl, syncMaterialStyleStrip as syncMaterialStyleStripImpl,
+  renderMaterialSlotGroupChips as renderMaterialSlotGroupChipsImpl,
+  setMaterialSlotGroupFilter as setMaterialSlotGroupFilterImpl, materialSlotMetaText as materialSlotMetaTextImpl,
+  doorPartDisplayColor as doorPartDisplayColorImpl, doorPartMeshOptions as doorPartMeshOptionsImpl,
+  doorMaterialPeerCount as doorMaterialPeerCountImpl, renderDoorMaterialPanel as renderDoorMaterialPanelImpl,
+  renderMaterialSlotPanel as renderMaterialSlotPanelImpl, materialCoverageSummary as materialCoverageSummaryImpl,
+  createMaterialSlotRow as createMaterialSlotRowImpl,
+  saveCurrentItemMaterialStyle as saveCurrentItemMaterialStyleImpl,
+  deleteCustomMaterialStyle as deleteCustomMaterialStyleImpl,
+  applyMaterialToSameModelItems as applyMaterialToSameModelItemsImpl, refreshScopeItems as refreshScopeItemsImpl,
+  doorPartThemeColor,
+} from "./materials";
+import {
+  applyLoadedDraft as applyLoadedDraftImpl, type ApplyLoadedDraftDeps, markWallsChanged as markWallsChangedImpl,
+  rebuildWallIndex as rebuildWallIndexImpl, getPixelsPerMeter as getPixelsPerMeterImpl,
+  historyUndoDepth as historyUndoDepthImpl, historyRedoDepth as historyRedoDepthImpl,
+  isStudioDraftReadonly as isStudioDraftReadonlyImpl, downloadStudioLocalCopy as downloadStudioLocalCopyImpl,
+  renderStudioReadonlyBanner as renderStudioReadonlyBannerImpl,
+  syncStudioHistoryFacade as syncStudioHistoryFacadeImpl, syncStudioClipboardFacade as syncStudioClipboardFacadeImpl,
+  historyFailureMessage as historyFailureMessageImpl, undoStudioHistory as undoStudioHistoryImpl,
+  redoStudioHistory as redoStudioHistoryImpl, applyStudioHistoryDirection as applyStudioHistoryDirectionImpl,
+  collectPatchFloorIds as collectPatchFloorIdsImpl, canApplyHistoryPatch as canApplyHistoryPatchImpl,
+  refreshAfterHistoryChange as refreshAfterHistoryChangeImpl, validateSelectionChange as validateSelectionChangeImpl,
+  primeHistorySnapshot as primeHistorySnapshotImpl, deselectAll as deselectAllImpl,
+  applyPlacementChange as applyPlacementChangeImpl, flushPendingHistory as flushPendingHistoryImpl,
+  hideStudioReadonlyBanner as hideStudioReadonlyBannerImpl, applyStudioSaveState as applyStudioSaveStateImpl,
+  getStudioSaveStore as getStudioSaveStoreImpl, syncDraftPayloadAfterSave as syncDraftPayloadAfterSaveImpl,
+  recordSaveConflictFromServer as recordSaveConflictFromServerImpl,
+  settleStudioSaveResult as settleStudioSaveResultImpl,
+  waitForStudioInteractionIdle as waitForStudioInteractionIdleImpl, flushStudioSaveOnce as runStudioSaveOnceImpl,
+  notifyStudioDraftLoadFailure as notifyStudioDraftLoadFailureImpl, retryStudioDraftLoad as retryStudioDraftLoadImpl,
+  flushStudioSaveBeforeTeardown as flushStudioSaveBeforeTeardownImpl, showToast as showToastImpl,
+  showSaveState as showSaveStateImpl, markDocumentDirty as markDocumentDirtyImpl,
+  scheduleAutosave as scheduleAutosaveImpl, handleInteractionEnded as handleInteractionEndedImpl,
+  isInteractionBusy as isInteractionBusyImpl, hasUnsavedChanges as hasUnsavedChangesImpl,
+  refreshExitDialogButtons as refreshExitDialogButtonsImpl, closeExitDialog as closeExitDialogImpl,
+  leaveStudio as leaveStudioImpl, flushAutosave as flushAutosaveImpl,
+  sceneSyncFlushIsDirty as sceneSyncFlushIsDirtyImpl, flushSceneSyncRuntime as flushSceneSyncRuntimeImpl,
+  currentSceneSyncSinceKey as currentSceneSyncSinceKeyImpl, rememberSceneSyncKey as rememberSceneSyncKeyImpl,
+  refreshAfterSceneSyncOutcome as refreshAfterSceneSyncOutcomeImpl, fetchStudioApi as fetchStudioApiImpl,
+} from "./persistence";
+import {
+  planToWorldPoint as planToWorldPointImpl, worldToPlanPoint as worldToPlanPointImpl,
+  worldPointForFloor as worldPointForFloorImpl, getActiveWalls as getActiveWallsImpl,
+  startFloorAlign as startFloorAlignImpl, cancelFloorAlign as cancelFloorAlignImpl,
+  isSameAlignmentFloor as isSameAlignmentFloorImpl, updatePreviewFloorGap as updatePreviewFloorGapImpl,
+  updateUniformOverviewStack as updateUniformOverviewStackImpl, updateExportFloorGap as updateExportFloorGapImpl,
+  floorElevationFor as floorElevationForImpl, planToScreen as planToScreenImpl,
+  screenToPlanPoint as screenToPlanPointImpl, screenToPlan as screenToPlanImpl,
+  eventToLocalPoint as eventToLocalPointImpl, getCanvasSize as getCanvasSizeImpl, resetView as resetViewImpl,
+  zoomByScale as zoomByScaleImpl, rotatePlanView as rotatePlanViewImpl, resizePlanStage as resizePlanStageImpl,
+  buildSnapIndex as buildSnapIndexImpl, closedWallLoops as closedWallLoopsImpl,
+  computeWallIntersections as computeWallIntersectionsImpl, computeSurfaceExclusions as computeSurfaceExclusionsImpl,
+  computeWallPolygons as computeWallPolygonsImpl, wallWindowSpan as wallWindowSpanImpl,
+  drawRailing as drawRailingImpl, rotateLocalPoint as rotateLocalPointImpl,
+  buildHandleGeometry as buildHandleGeometryImpl,
+} from "./plan";
+import {
+  runStudioRenderLoop as runStudioRenderLoopImpl, type StudioRenderDeps,
+  createStudioRenderer as createStudioRendererImpl, type CreateStudioRendererDeps,
+  publishRenderStats as publishRenderStatsImpl, type PublishRenderStatsDeps,
+  acquireRenderSurface as acquireRenderSurfaceImpl, type AcquireRenderSurfaceDeps,
+  cameraSettings as cameraSettingsImpl, getCameraMode as getCameraModeImpl, getCameraView as getCameraViewImpl,
+  getCameraTopRotation as getCameraTopRotationImpl, buildCameraUpVector as buildCameraUpVectorImpl,
+  getCameraFocalLength as getCameraFocalLengthImpl, syncCameraModeControls as syncCameraModeControlsImpl,
+  syncCameraViewControls as syncCameraViewControlsImpl,
+  syncCameraFocalLengthControl as syncCameraFocalLengthControlImpl,
+  applyCameraFocalLength as applyCameraFocalLengthImpl, assessRenderBudget as assessRenderBudgetImpl,
+  canRenderScene as canRenderSceneImpl, applyAdaptiveQuality as applyAdaptiveQualityImpl,
+  resetFrameSamples as resetFrameSamplesImpl, recordFrameTime as recordFrameTimeImpl,
+  getPreviewSyncMode as getPreviewSyncModeImpl, refreshPreviewSync as refreshPreviewSyncImpl,
+  requestStudioRender as requestStudioRenderImpl, computeRenderPixelRatio as computeRenderPixelRatioImpl,
+  renderStudioFrame as renderStudioFrameImpl, bindFrameDriver as bindFrameDriverImpl,
+  setFadeOverlay as setFadeOverlayImpl, hasPendingSceneWork as hasPendingSceneWorkImpl,
+  canBuildScene as canBuildSceneImpl, drawToActiveSurface as drawToActiveSurfaceImpl,
+  awaitNextFramePair as awaitNextFramePairImpl, captureFramePixels as captureFramePixelsImpl,
+  rerenderScene as rerenderSceneImpl, ensureRenderReady as ensureRenderReadyImpl,
+  waitForIdleFrame as waitForIdleFrameImpl, scheduleStudioRender as scheduleStudioRenderImpl,
+  discardLightingEdit as discardLightingEditImpl, resetPlanInteraction as resetPlanInteractionImpl,
+  endStudioGesture as endStudioGestureImpl, isEffectCacheReady as isEffectCacheReadyImpl,
+  beginMotionMeasurement as beginMotionMeasurementImpl, endMotionMeasurement as endMotionMeasurementImpl,
+  updateMotionStats as updateMotionStatsImpl, needsMotionPresentation as needsMotionPresentationImpl,
+  fadeLightsIn as fadeLightsInImpl, fadeLightsOut as fadeLightsOutImpl, refreshSceneRender as refreshSceneRenderImpl,
+  disposeShadowAtlas as disposeShadowAtlasImpl, prepareShadowAtlas as prepareShadowAtlasImpl,
+  updateRenderStatsHud as updateRenderStatsHudImpl, pushBoundedSample as pushBoundedSampleImpl,
+  computeAverage as computeAverageImpl, computePercentile as computePercentileImpl,
+  roundToDigits as roundToDigitsImpl, ensureDiagnosticsHud as ensureDiagnosticsHudImpl,
+  flushGpuQueries as flushGpuQueriesImpl, measureFloorSwitchPhase as measureFloorSwitchPhaseImpl,
+  recordFloorSwitchTick as recordFloorSwitchTickImpl, recordRenderTiming as recordRenderTimingImpl,
+  snapshotRenderStats as snapshotRenderStatsImpl, captureCameraView as captureCameraViewImpl,
+  storeFixedCameraView as storeFixedCameraViewImpl, updateCameraPlanes as updateCameraPlanesImpl,
+  computeVisibleHeight as computeVisibleHeightImpl, adjustFrameSize as adjustFrameSizeImpl,
+  computeFrameSize as computeFrameSizeImpl, computeOrthoFrameSize as computeOrthoFrameSizeImpl,
+  resolveFrameSize as resolveFrameSizeImpl, saveCameraView as saveCameraViewImpl,
+  applyCameraSnapshot as applyCameraSnapshotImpl, setCameraView as setCameraViewImpl,
+  setCameraMode as setCameraModeImpl, applyOrthoFrame as applyOrthoFrameImpl,
+  captureOverviewCamera as captureOverviewCameraImpl, applyCameraState as applyCameraStateImpl,
+  handleOrbitStart as handleOrbitStartImpl, handleOrbitChange as handleOrbitChangeImpl,
+  handleOrbitEnd as handleOrbitEndImpl, createOrbitControls as createOrbitControlsImpl,
+  refreshFloorControls as refreshFloorControlsImpl, resizeStudioRenderer as resizeStudioRendererImpl,
+  stateViewportAspectGetCanvasSize as stateViewportAspectGetCanvasSizeImpl,
+  refreshCanvasSizeUi as refreshCanvasSizeUiImpl, resolvePixelRatio as resolvePixelRatioImpl,
+  resizeRenderCanvas as resizeRenderCanvasImpl, syncCanvasSizeInputs as syncCanvasSizeInputsImpl,
+  handleCanvasSizeInput as handleCanvasSizeInputImpl, clearStudioDocumentResidue, releaseStudioRenderer,
+} from "./render";
+import {
+  waitForStageReady as waitForStageReadyImpl, jumpWorkflowStep as jumpWorkflowStepImpl, bindAutoDiagramMessages,
+  bindGlobalShortcuts,
+} from "./runtime";
+import {
+  buildStudioScene as buildStudioSceneImpl, type BuildStudioSceneDeps, uniqueFloorName as uniqueFloorNameImpl,
+  hideFloorActionMenu as hideFloorActionMenuImpl, showFloorActionMenu as showFloorActionMenuImpl,
   floorActionHandler as floorActionHandlerImpl, openFloorRenameDialog as openFloorRenameDialogImpl,
-  syncGlobalControls as syncGlobalControlsImpl, clearDropIndicator as clearDropIndicatorImpl, moveFloorRow as moveFloorRowImpl, renderFloorList as renderFloorListImpl,
-  selectFloor as selectFloorImpl, addNewFloor as addNewFloorImpl, copyFloor as copyFloorImpl, planToWorldPoint as planToWorldPointImpl, worldToPlanPoint as worldToPlanPointImpl,
-  worldPointForFloor as worldPointForFloorImpl, getActiveWalls as getActiveWallsImpl, startFloorAlign as startFloorAlignImpl, cancelFloorAlign as cancelFloorAlignImpl,
-  isSameAlignmentFloor as isSameAlignmentFloorImpl, updatePreviewFloorGap as updatePreviewFloorGapImpl, updateUniformOverviewStack as updateUniformOverviewStackImpl, updateExportFloorGap as updateExportFloorGapImpl,
-  captureUndoSnapshot as captureUndoSnapshotImpl, resolveLightGroup as resolveLightGroupImpl, resolveFloorDefaultGroup as resolveFloorDefaultGroupImpl, isLampEnabled as isLampEnabledImpl,
-  getScreenLightGroups as getScreenLightGroupsImpl, getChargingLightGroups as getChargingLightGroupsImpl, getOrderedFloorList as getOrderedFloorListImpl, floorElevationFor as floorElevationForImpl,
-  composeLightGroupKey as composeLightGroupKeyImpl, collectLampEntries as collectLampEntriesImpl, listLightGroupRows as listLightGroupRowsImpl, listScreenRows as listScreenRowsImpl,
-  listChargingRows as listChargingRowsImpl, syncScreenLayers as syncScreenLayersImpl, syncChargingLayers as syncChargingLayersImpl, pushUndoEntry as pushUndoEntryImpl,
-} from "./functions/groups/scene-payload-and-floors";
+  clearDropIndicator as clearDropIndicatorImpl, moveFloorRow as moveFloorRowImpl,
+  renderFloorList as renderFloorListImpl, selectFloor as selectFloorImpl, addNewFloor as addNewFloorImpl,
+  copyFloor as copyFloorImpl, syncGlobalControls as syncGlobalControlsImpl,
+  disposeObjectTree as disposeObjectTreeImpl, disposeFloorScene as disposeFloorSceneImpl,
+  createOutlinePath as createOutlinePathImpl, buildShapesWithHoles as buildShapesWithHolesImpl,
+  createWallSideMaterial as createWallSideMaterialImpl, createWallTopMaterial as createWallTopMaterialImpl,
+  expandPolygonOutward as expandPolygonOutwardImpl, buildInteriorScene as buildInteriorSceneImpl,
+  buildItemModel as buildItemModelImpl, drawDoor as drawDoorImpl, drawCourtyardArea as drawCourtyardAreaImpl,
+  addArchitectureMesh as addArchitectureMeshImpl, addWindowFrames as addWindowFramesImpl,
+  buildRugGeometry as buildRugGeometryImpl, createRugMaterial as createRugMaterialImpl,
+  addRugMeshes as addRugMeshesImpl, mergeMeshesByType as mergeMeshesByTypeImpl,
+  configureLightSourcePreview as configureLightSourcePreviewImpl, requestSceneRebuild as requestSceneRebuildImpl,
+  getSceneContentBounds as getSceneContentBoundsImpl, computeCourtyardBounds as computeCourtyardBoundsImpl,
+  createFloorMaterial as createFloorMaterialImpl, isDescendantOfRoot as isDescendantOfRootImpl,
+  computeSceneBounds as computeSceneBoundsImpl, computeSceneExtent as computeSceneExtentImpl,
+  updateCameraView as updateCameraViewImpl, axisLockedDistance as axisLockedDistanceImpl,
+  formatMeasurement as formatMeasurementImpl, buildCourtyardFoundation as buildCourtyardFoundationImpl,
+  buildGroundShadow as buildGroundShadowImpl, getPreviewFloorMode as getPreviewFloorModeImpl,
+  updateFloorPreviewButtons as updateFloorPreviewButtonsImpl, setPreviewFloor as setPreviewFloorImpl,
+  rebuildFloorLayers as rebuildFloorLayersImpl, syncFloorGroups as syncFloorGroupsImpl,
+  createFloorWorldMapper as createFloorWorldMapperImpl, buildFloorAtIndex as buildFloorAtIndexImpl,
+  buildLayerForFloor as buildLayerForFloorImpl, previewTransformContext as previewTransformContextImpl,
+  capturePreviewTransforms as capturePreviewTransformsImpl, applyPreviewTransforms as applyPreviewTransformsImpl,
+  buildSceneLayers as buildSceneLayersImpl, buildLayerGroup as buildLayerGroupImpl,
+  buildArchitectureLayer as buildArchitectureLayerImpl, buildItemsLayer as buildItemsLayerImpl,
+  buildLightsLayer as buildLightsLayerImpl, buildFloorsAsync as buildFloorsAsyncImpl,
+  waitForSceneRevision as waitForSceneRevisionImpl, waitForSceneReady as waitForSceneReadyImpl,
+  postBridgeState as postBridgeStateImpl, postBridgeFloors as postBridgeFloorsImpl,
+  sceneCacheDescriptor as sceneCacheDescriptorImpl, checkModelInUse as checkModelInUseImpl,
+  collectScenePayload as collectScenePayloadImpl, collectSelectedFloors as collectSelectedFloorsImpl,
+  scheduleModelLoadFlush as scheduleModelLoadFlushImpl, loadModelsForTypes as loadModelsForTypesImpl,
+  preloadDefaultModels as preloadDefaultModelsImpl, requestSceneRender as requestSceneRenderImpl,
+  finishModelLoad as finishModelLoadImpl, publishModelLoadState as publishModelLoadStateImpl,
+  emitRuntimeDiagnostic as emitRuntimeDiagnosticImpl, updateModelLoadIndicator as updateModelLoadIndicatorImpl,
+  materialLoadOptionsForItem as materialLoadOptionsForItemImpl, applyItemOptimization as applyItemOptimizationImpl,
+  getActiveFloor as getActiveFloorImpl, captureStudioSnapshot as captureStudioSnapshotImpl,
+  getLocalSaveRevision as getLocalSaveRevisionImpl, refreshBackground as refreshBackgroundImpl,
+  refreshStudioUi as refreshStudioUiImpl, loadBackgroundImage as loadBackgroundImageImpl,
+  importBackgroundFile as importBackgroundFileImpl, backgroundSettings as backgroundSettingsImpl,
+  countMaterialTextures as countMaterialTexturesImpl, findMaxMaterialTextures as findMaxMaterialTexturesImpl,
+  getMaxTextureUnits as getMaxTextureUnitsImpl, batchSharedMeshes as batchSharedMeshesImpl,
+  mergeStaticItemMeshes as mergeStaticItemMeshesImpl, collectSharedMaterials as collectSharedMaterialsImpl,
+  updateExternalModelDataset as updateExternalModelDatasetImpl,
+} from "./scene-build";
 import {
-  getLightGroups as getLightGroupsImpl, syncLightGroupSelect as syncLightGroupSelectImpl, hideLightGroupActionMenu as hideLightGroupActionMenuImpl, showLightGroupActionMenu as showLightGroupActionMenuImpl,
-  deleteLightGroup as deleteLightGroupImpl, uniqueLightGroupName as uniqueLightGroupNameImpl, duplicateLightGroup as duplicateLightGroupImpl, clearLightGroupDropIndicator as clearLightGroupDropIndicatorImpl,
-  collectListDragDropTargets as collectListDragDropTargetsImpl, applyListDragDropIndicator as applyListDragDropIndicatorImpl, activateListDrag as activateListDragImpl, handleListDragPointerMove as handleListDragPointerMoveImpl,
-  handleListDragPointerUp as handleListDragPointerUpImpl, handleListDragPointerCancel as handleListDragPointerCancelImpl, handleListDragTouchMove as handleListDragTouchMoveImpl, finishListDrag as finishListDragImpl,
-  beginListRowDrag as beginListRowDragImpl, moveAreaRow as moveAreaRowImpl, moveLightGroupToArea as moveLightGroupToAreaImpl, refreshLightAreasFromHa as refreshLightAreasFromHaImpl,
-  readSavedLightAreaOrder as readSavedLightAreaOrderImpl, persistLightAreaOrder as persistLightAreaOrderImpl, applySavedLightAreaOrder as applySavedLightAreaOrderImpl, isKnownLightAreaId as isKnownLightAreaIdImpl,
-  syncAreaAssignOptions as syncAreaAssignOptionsImpl, openLightGroupAreaDialog as openLightGroupAreaDialogImpl, closeLightGroupAreaDialog as closeLightGroupAreaDialogImpl, toggleAreaExpanded as toggleAreaExpandedImpl,
-  createLightGroupRow as createLightGroupRowImpl, createAreaSection as createAreaSectionImpl, maybeShowDrawingLightNotice as maybeShowDrawingLightNoticeImpl, syncLightGroupList as syncLightGroupListImpl,
-  setAllLightGroupsEnabled as setAllLightGroupsEnabledImpl, createSelectionRef as createSelectionRefImpl, refreshSelection as refreshSelectionImpl, isPlanItemVisible as isPlanItemVisibleImpl,
-  isSelectionAllowed as isSelectionAllowedImpl, selectSceneObject as selectSceneObjectImpl, getDefaultSelectionScope as getDefaultSelectionScopeImpl, resolvePreviewScope as resolvePreviewScopeImpl,
-  classifySelectionScope as classifySelectionScopeImpl, getCurrentPreviewScope as getCurrentPreviewScopeImpl, getPreviewScopeSelection as getPreviewScopeSelectionImpl, setPreviewScope as setPreviewScopeImpl,
-  markWallsChanged as markWallsChangedImpl, rebuildWallIndex as rebuildWallIndexImpl, getPixelsPerMeter as getPixelsPerMeterImpl, historyUndoDepth as historyUndoDepthImpl,
-  historyRedoDepth as historyRedoDepthImpl, isStudioDraftReadonly as isStudioDraftReadonlyImpl, downloadStudioLocalCopy as downloadStudioLocalCopyImpl, renderStudioReadonlyBanner as renderStudioReadonlyBannerImpl,
-} from "./functions/groups/light-groups-and-list-drag";
-import {
-  hideStudioReadonlyBanner as hideStudioReadonlyBannerImpl, applyStudioSaveState as applyStudioSaveStateImpl, getStudioSaveStore as getStudioSaveStoreImpl, syncDraftPayloadAfterSave as syncDraftPayloadAfterSaveImpl,
-  recordSaveConflictFromServer as recordSaveConflictFromServerImpl, settleStudioSaveResult as settleStudioSaveResultImpl, waitForStudioInteractionIdle as waitForStudioInteractionIdleImpl, flushStudioSaveOnce as runStudioSaveOnceImpl,
-  notifyStudioDraftLoadFailure as notifyStudioDraftLoadFailureImpl, retryStudioDraftLoad as retryStudioDraftLoadImpl, flushStudioSaveBeforeTeardown as flushStudioSaveBeforeTeardownImpl, sceneSyncFlushIsDirty as sceneSyncFlushIsDirtyImpl,
-  flushSceneSyncRuntime as flushSceneSyncRuntimeImpl, currentSceneSyncSinceKey as currentSceneSyncSinceKeyImpl, rememberSceneSyncKey as rememberSceneSyncKeyImpl, refreshAfterSceneSyncOutcome as refreshAfterSceneSyncOutcomeImpl,
-  fetchStudioApi as fetchStudioApiImpl, showToast as showToastImpl, showSaveState as showSaveStateImpl, syncStudioHistoryFacade as syncStudioHistoryFacadeImpl,
-  syncStudioClipboardFacade as syncStudioClipboardFacadeImpl,
-  historyFailureMessage as historyFailureMessageImpl, undoStudioHistory as undoStudioHistoryImpl, redoStudioHistory as redoStudioHistoryImpl, applyStudioHistoryDirection as applyStudioHistoryDirectionImpl,
-  collectPatchFloorIds as collectPatchFloorIdsImpl, canApplyHistoryPatch as canApplyHistoryPatchImpl, refreshAfterHistoryChange as refreshAfterHistoryChangeImpl, validateSelectionChange as validateSelectionChangeImpl,
-  primeHistorySnapshot as primeHistorySnapshotImpl, deselectAll as deselectAllImpl, applyPlacementChange as applyPlacementChangeImpl, flushPendingHistory as flushPendingHistoryImpl,markDocumentDirty as markDocumentDirtyImpl, recordSaveConflict as recordSaveConflictImpl, 
-  scheduleAutosave as scheduleAutosaveImpl, handleInteractionEnded as handleInteractionEndedImpl, isInteractionBusy as isInteractionBusyImpl, hasUnsavedChanges as hasUnsavedChangesImpl,
-  refreshExitDialogButtons as refreshExitDialogButtonsImpl, closeExitDialog as closeExitDialogImpl, leaveStudio as leaveStudioImpl, flushAutosave as flushAutosaveImpl,
-  planToScreen as planToScreenImpl, screenToPlanPoint as screenToPlanPointImpl, screenToPlan as screenToPlanImpl, eventToLocalPoint as eventToLocalPointImpl,
-  getCanvasSize as getCanvasSizeImpl, resetView as resetViewImpl, zoomByScale as zoomByScaleImpl, rotatePlanView as rotatePlanViewImpl,
-  resizePlanStage as resizePlanStageImpl, buildSnapIndex as buildSnapIndexImpl, closedWallLoops as closedWallLoopsImpl, computeWallIntersections as computeWallIntersectionsImpl,
-  computeSurfaceExclusions as computeSurfaceExclusionsImpl, computeWallPolygons as computeWallPolygonsImpl, wallWindowSpan as wallWindowSpanImpl, drawRailing as drawRailingImpl,
-  rotateLocalPoint as rotateLocalPointImpl, buildHandleGeometry as buildHandleGeometryImpl,
-} from "./functions/groups/save-history-plan-coords";
-import {
-  hitTestHandle as hitTestHandleImpl, boundsFromCorners as boundsFromCornersImpl, marqueeDelta as marqueeDeltaImpl, updateMarqueeOverlay as updateMarqueeOverlayImpl,
-  drawMarqueeOverlay as drawMarqueeOverlayImpl, renderPlanScene as renderPlanSceneImpl, getSelectedObject as getSelectedObjectImpl, getPanelRatioLimits as getPanelRatioLimitsImpl,
-  applyPanelRatios as applyPanelRatiosImpl, applyDetailsRatio as applyDetailsRatioImpl, isSnapEnabled as isSnapEnabledImpl, setSnapSettingsOpen as setSnapSettingsOpenImpl,
-  syncSnapControls as syncSnapControlsImpl, applySnapTolerance as applySnapToleranceImpl, refreshBackground as refreshBackgroundImpl, refreshStudioUi as refreshStudioUiImpl,
-  readInspectorGroupCollapseState as readInspectorGroupCollapseStateImpl, writeInspectorGroupCollapseState as writeInspectorGroupCollapseStateImpl, inspectorGroupHasVisibleField as inspectorGroupHasVisibleFieldImpl, countInspectorGroupFields as countInspectorGroupFieldsImpl,
-  syncInspectorGroups as syncInspectorGroupsImpl, toggleInspectorGroup as toggleInspectorGroupImpl, materialSlotPanelSignatureFor as materialSlotPanelSignatureForImpl, materialStyleSwatchColors as materialStyleSwatchColorsImpl,
-  syncMaterialStyleStrip as syncMaterialStyleStripImpl, renderMaterialSlotGroupChips as renderMaterialSlotGroupChipsImpl, setMaterialSlotGroupFilter as setMaterialSlotGroupFilterImpl, materialSlotMetaText as materialSlotMetaTextImpl,
-  doorPartDisplayColor as doorPartDisplayColorImpl, doorPartMeshOptions as doorPartMeshOptionsImpl, doorMaterialPeerCount as doorMaterialPeerCountImpl, renderDoorMaterialPanel as renderDoorMaterialPanelImpl,
-  renderMaterialSlotPanel as renderMaterialSlotPanelImpl, materialCoverageSummary as materialCoverageSummaryImpl, createMaterialSlotRow as createMaterialSlotRowImpl, materialSameModelPeerCount as materialSameModelPeerCountImpl,
-  materialEditModelType as materialEditModelTypeImpl, selectedMaterialEditTarget as selectedMaterialEditTargetImpl, materialSameModelPeerRecords as materialSameModelPeerRecordsImpl, commitItemMaterialEdit as commitItemMaterialEditImpl,
-  setItemMaterialOverride as setItemMaterialOverrideImpl, setItemMaterialStyle as setItemMaterialStyleImpl, resetItemMaterialAll as resetItemMaterialAllImpl, setItemMaterialSurfaceOverride as setItemMaterialSurfaceOverrideImpl,
-  readStoredCustomMaterialStyles as readStoredCustomMaterialStylesImpl, loadCustomMaterialStyles as loadCustomMaterialStylesImpl, ensureCustomMaterialStylesLoaded as ensureCustomMaterialStylesLoadedImpl, writeStoredCustomMaterialStyles as writeStoredCustomMaterialStylesImpl,
-} from "./functions/groups/selection-and-material-ui";
-import {
-  saveCurrentItemMaterialStyle as saveCurrentItemMaterialStyleImpl, deleteCustomMaterialStyle as deleteCustomMaterialStyleImpl, applyMaterialToSameModelItems as applyMaterialToSameModelItemsImpl, refreshScopeItems as refreshScopeItemsImpl,
-  setDrawingToolGroupOpen as setDrawingToolGroupOpenImpl, closeDrawingToolGroups as closeDrawingToolGroupsImpl, syncDrawingToolGroupStates as syncDrawingToolGroupStatesImpl, selectStudioTool as selectStudioToolImpl,
-  ensureCalibrationReady as ensureCalibrationReadyImpl, clearSelection as clearSelectionImpl, finalizeAddedItem as finalizeAddedItemImpl, duplicateSelection as duplicateSelectionImpl,
-  collectSelectedPlanItems as collectSelectedPlanItemsImpl, mirrorSelection as mirrorSelectionImpl, rotateSelection as rotateSelectionImpl, loadBackgroundImage as loadBackgroundImageImpl,
-  importBackgroundFile as importBackgroundFileImpl, backgroundSettings as backgroundSettingsImpl, positionLightFromAngles as positionLightFromAnglesImpl, refreshBaseLighting as refreshBaseLightingImpl,
-  setShadowQualityHigh as setShadowQualityHighImpl, clampShadowMapSize as clampShadowMapSizeImpl, syncBaseLightingControls as syncBaseLightingControlsImpl, applyBaseLighting as applyBaseLightingImpl,
-  saveBaseLightingEdit as saveBaseLightingEditImpl, openLightingDialog as openLightingDialogImpl, confirmLightingDialog as confirmLightingDialogImpl, updateBaseLightingFromInput as updateBaseLightingFromInputImpl,
-  cameraSettings as cameraSettingsImpl, getCameraMode as getCameraModeImpl, getCameraView as getCameraViewImpl, getCameraTopRotation as getCameraTopRotationImpl,
-  buildCameraUpVector as buildCameraUpVectorImpl, getCameraFocalLength as getCameraFocalLengthImpl, collectActiveLightEntries as collectActiveLightEntriesImpl, assessRenderBudget as assessRenderBudgetImpl,
-  canRenderScene as canRenderSceneImpl, areLightsEnabled as areLightsEnabledImpl, applyAdaptiveQuality as applyAdaptiveQualityImpl, resetFrameSamples as resetFrameSamplesImpl,
-  recordFrameTime as recordFrameTimeImpl, getPreviewSyncMode as getPreviewSyncModeImpl, refreshPreviewSync as refreshPreviewSyncImpl, syncCameraModeControls as syncCameraModeControlsImpl,
-  syncCameraViewControls as syncCameraViewControlsImpl, syncCameraFocalLengthControl as syncCameraFocalLengthControlImpl, applyCameraFocalLength as applyCameraFocalLengthImpl, requestStudioRender as requestStudioRenderImpl,
-  computeRenderPixelRatio as computeRenderPixelRatioImpl,
-} from "./functions/groups/materials-lighting-camera";
-import {
-  updateRenderStatsHud as updateRenderStatsHudImpl, pushBoundedSample as pushBoundedSampleImpl, computeAverage as computeAverageImpl, computePercentile as computePercentileImpl,
-  roundToDigits as roundToDigitsImpl, ensureDiagnosticsHud as ensureDiagnosticsHudImpl, beginMotionMeasurement as beginMotionMeasurementImpl, endMotionMeasurement as endMotionMeasurementImpl,
-  flushGpuQueries as flushGpuQueriesImpl, measureFloorSwitchPhase as measureFloorSwitchPhaseImpl, recordFloorSwitchTick as recordFloorSwitchTickImpl, recordRenderTiming as recordRenderTimingImpl,
-  snapshotRenderStats as snapshotRenderStatsImpl, updateMotionStats as updateMotionStatsImpl, renderStudioFrame as renderStudioFrameImpl, needsMotionPresentation as needsMotionPresentationImpl,
-  bindFrameDriver as bindFrameDriverImpl, setFadeOverlay as setFadeOverlayImpl, hasPendingSceneWork as hasPendingSceneWorkImpl, canBuildScene as canBuildSceneImpl,
-  drawToActiveSurface as drawToActiveSurfaceImpl, restoreLightVisibility as restoreLightVisibilityImpl, fadeLightsIn as fadeLightsInImpl, findLightGroup as findLightGroupImpl,
-  fadeLightsOut as fadeLightsOutImpl, transitionLightGroups as transitionLightGroupsImpl, refreshSceneRender as refreshSceneRenderImpl, syncLightCache as syncLightCacheImpl,
-  buildLightCacheMap as buildLightCacheMapImpl, ensureLightCache as ensureLightCacheImpl, updateLightCache as updateLightCacheImpl, showLightCacheFor as showLightCacheForImpl,
-  collectActiveLightGroupKeys as collectActiveLightGroupKeysImpl, showCachedLights as showCachedLightsImpl, captureLightSnapshot as captureLightSnapshotImpl, restorePreviewAfterFade as restorePreviewAfterFadeImpl,
-  awaitNextFramePair as awaitNextFramePairImpl, captureFramePixels as captureFramePixelsImpl, rerenderScene as rerenderSceneImpl, ensureRenderReady as ensureRenderReadyImpl,
-  waitForIdleFrame as waitForIdleFrameImpl, scheduleStudioRender as scheduleStudioRenderImpl, discardLightingEdit as discardLightingEditImpl, resetPlanInteraction as resetPlanInteractionImpl,
-  endStudioGesture as endStudioGestureImpl, disposeShadowAtlas as disposeShadowAtlasImpl, prepareShadowAtlas as prepareShadowAtlasImpl, isEffectCacheReady as isEffectCacheReadyImpl,
-} from "./functions/groups/render-stats-and-frame-loop";
-import {
-  setShadowFreeze as setShadowFreezeImpl, updateShadowState as updateShadowStateImpl, handleOrbitStart as handleOrbitStartImpl, handleOrbitChange as handleOrbitChangeImpl,
-  handleOrbitEnd as handleOrbitEndImpl, refreshFloorControls as refreshFloorControlsImpl, captureCameraView as captureCameraViewImpl, storeFixedCameraView as storeFixedCameraViewImpl,
-  createOrbitControls as createOrbitControlsImpl, updateCameraPlanes as updateCameraPlanesImpl, computeVisibleHeight as computeVisibleHeightImpl, adjustFrameSize as adjustFrameSizeImpl,
-  computeFrameSize as computeFrameSizeImpl, computeOrthoFrameSize as computeOrthoFrameSizeImpl, resolveFrameSize as resolveFrameSizeImpl, saveCameraView as saveCameraViewImpl,
-  applyCameraSnapshot as applyCameraSnapshotImpl, setCameraView as setCameraViewImpl, setCameraMode as setCameraModeImpl, applyOrthoFrame as applyOrthoFrameImpl,
-  resizeStudioRenderer as resizeStudioRendererImpl, captureOverviewCamera as captureOverviewCameraImpl, applyCameraState as applyCameraStateImpl, stateViewportAspectGetCanvasSize as stateViewportAspectGetCanvasSizeImpl,
-  refreshCanvasSizeUi as refreshCanvasSizeUiImpl, resolvePixelRatio as resolvePixelRatioImpl, resizeRenderCanvas as resizeRenderCanvasImpl, syncCanvasSizeInputs as syncCanvasSizeInputsImpl,
-  handleCanvasSizeInput as handleCanvasSizeInputImpl, openExportDialog as openExportDialogImpl, renderExportPresetSlots as renderExportPresetSlotsImpl, buildExportPreset as buildExportPresetImpl,
-  importCameraPreset as importCameraPresetImpl, applyExportPreset as applyExportPresetImpl, selectExportPresetSlot as selectExportPresetSlotImpl, saveExportPreset as saveExportPresetImpl,
-  syncExportControls as syncExportControlsImpl, formatPresetLabel as formatPresetLabelImpl, makeUniquePresetName as makeUniquePresetNameImpl,
-} from "./functions/groups/shadow-camera-export-presets";
-import {
-  saveAsNewPreset as saveAsNewPresetImpl, closePresetRenameDialog as closePresetRenameDialogImpl, openPresetRenameDialog as openPresetRenameDialogImpl,
-  openPresetDeleteDialog as openPresetDeleteDialogImpl, ensureSceneRendered as ensureSceneRenderedImpl, prepareFreeCameraCapture as prepareFreeCameraCaptureImpl,
-  selectPreviewFloor as selectPreviewFloorImpl, collectSelectedExportFiles as collectSelectedExportFilesImpl, restorePreviewAfterExport as restorePreviewAfterExportImpl, setExportBusy as setExportBusyImpl,
-  prepareExportRender as prepareExportRenderImpl, canvasToBlob as canvasToBlobImpl, renderExportImage as renderExportImageImpl, renderLightDeltaLayer as renderLightDeltaLayerImpl,
-  renderLightShadowLayer as renderLightShadowLayerImpl, renderBackgroundLayer as renderBackgroundLayerImpl, makeUniqueFileName as makeUniqueFileNameImpl, buildExportCamera as buildExportCameraImpl,
-  buildLightExportEntry as buildLightExportEntryImpl, projectItemAnchor as projectItemAnchorImpl, projectLightGroupAnchor as projectLightGroupAnchorImpl, blobToBytes as blobToBytesImpl,
-  applyExportVisibility as applyExportVisibilityImpl, setExportRoleVisibility as setExportRoleVisibilityImpl, resolveOverwriteChoice as resolveOverwriteChoiceImpl, showConflictDialog as showConflictDialogImpl,
-  beginExportFlow as beginExportFlowImpl, reportExportFailure as reportExportFailureImpl, showExportResult as showExportResultImpl, disposeObjectTree as disposeObjectTreeImpl,
-  disposeFloorScene as disposeFloorSceneImpl, createOutlinePath as createOutlinePathImpl, buildShapesWithHoles as buildShapesWithHolesImpl, createWallSideMaterial as createWallSideMaterialImpl,
-  createWallTopMaterial as createWallTopMaterialImpl, expandPolygonOutward as expandPolygonOutwardImpl, buildInteriorScene as buildInteriorSceneImpl, buildItemModel as buildItemModelImpl,
-  drawDoor as drawDoorImpl, drawCourtyardArea as drawCourtyardAreaImpl, renderExportLayers as renderExportLayersImpl, addArchitectureMesh as addArchitectureMeshImpl,
-  addWindowFrames as addWindowFramesImpl, buildRugGeometry as buildRugGeometryImpl, createRugMaterial as createRugMaterialImpl, addRugMeshes as addRugMeshesImpl,
-  mergeMeshesByType as mergeMeshesByTypeImpl, configureLightSourcePreview as configureLightSourcePreviewImpl,
-} from "./functions/groups/export-flow-and-scene-build";
-import {
-  addStripLightPreview as addStripLightPreviewImpl, applyAccentEmissive as applyAccentEmissiveImpl, planLabelAccentColor as planLabelAccentColorImpl, createPlanLabel as createPlanLabelImpl,
-  collectLightSourceSpecs as collectLightSourceSpecsImpl, countMaterialTextures as countMaterialTexturesImpl, findMaxMaterialTextures as findMaxMaterialTexturesImpl, getMaxTextureUnits as getMaxTextureUnitsImpl,
-  collectShadowCandidates as collectShadowCandidatesImpl, setupSceneShadows as setupSceneShadowsImpl, batchSharedMeshes as batchSharedMeshesImpl, mergeStaticItemMeshes as mergeStaticItemMeshesImpl,
-  collectSharedMaterials as collectSharedMaterialsImpl, updateExternalModelDataset as updateExternalModelDatasetImpl, planLightPrecompileBatches as planLightPrecompileBatchesImpl, shouldSuspendSceneWork as shouldSuspendSceneWorkImpl,
-  shouldDeferSceneWork as shouldDeferSceneWorkImpl, scheduleLightPrecompile as scheduleLightPrecompileImpl, scheduleExternalPrecompile as scheduleExternalPrecompileImpl, requestSceneRebuild as requestSceneRebuildImpl,
-  getSceneContentBounds as getSceneContentBoundsImpl, computeCourtyardBounds as computeCourtyardBoundsImpl, createFloorMaterial as createFloorMaterialImpl,
-} from "./functions/groups/light-precompile-and-shared-meshes";
-import {
-  buildCourtyardFoundation as buildCourtyardFoundationImpl, buildGroundShadow as buildGroundShadowImpl, getPreviewFloorMode as getPreviewFloorModeImpl, updateFloorPreviewButtons as updateFloorPreviewButtonsImpl,
-  setPreviewFloor as setPreviewFloorImpl, rebuildFloorLayers as rebuildFloorLayersImpl, waitForSceneRevision as waitForSceneRevisionImpl, waitForSceneReady as waitForSceneReadyImpl,
-  buildFloorsAsync as buildFloorsAsyncImpl, syncFloorGroups as syncFloorGroupsImpl, createFloorWorldMapper as createFloorWorldMapperImpl, previewTransformContext as previewTransformContextImpl,
-  capturePreviewTransforms as capturePreviewTransformsImpl, applyPreviewTransforms as applyPreviewTransformsImpl, buildSceneLayers as buildSceneLayersImpl, buildLayerGroup as buildLayerGroupImpl,
-  buildArchitectureLayer as buildArchitectureLayerImpl, buildItemsLayer as buildItemsLayerImpl, buildLightsLayer as buildLightsLayerImpl, buildFloorAtIndex as buildFloorAtIndexImpl,
-  buildLayerForFloor as buildLayerForFloorImpl, isDescendantOfRoot as isDescendantOfRootImpl, computeSceneBounds as computeSceneBoundsImpl, computeSceneExtent as computeSceneExtentImpl,
-  updateCameraView as updateCameraViewImpl, axisLockedDistance as axisLockedDistanceImpl, formatMeasurement as formatMeasurementImpl,
-} from "./functions/groups/scene-layers-and-floor-build";
-import {
-  updateSnapIndicator as updateSnapIndicatorImpl, toggleSnapSetting as toggleSnapSettingImpl, schedulePointerMove as schedulePointerMoveImpl, handlePointerMove as handlePointerMoveImpl,
-  cancelPointerDrag as cancelPointerDragImpl, scheduleDragUpdate as scheduleDragUpdateImpl, handleCanvasWheel as handleCanvasWheelImpl, finishPointerDrag as finishPointerDragImpl,
-  handlePointerRelease as handlePointerReleaseImpl, refreshPreviewScene as refreshPreviewSceneImpl, resetCameraView as resetCameraViewImpl, applyWallHeightInput as applyWallHeightInputImpl,
-  applyWallThicknessInput as applyWallThicknessInputImpl, applyWallOpacityInput as applyWallOpacityInputImpl, scheduleWallApply as scheduleWallApplyImpl, commitWallHeight as commitWallHeightImpl,
-  commitWallThickness as commitWallThicknessImpl, commitWallOpacity as commitWallOpacityImpl, filterAssetList as filterAssetListImpl, setAssetCategory as setAssetCategoryImpl,
-  toggleAssetGroup as toggleAssetGroupImpl,
-  closeOpenPopovers as closeOpenPopoversImpl, applyLightGroupRename as applyLightGroupRenameImpl, createLightGroup as createLightGroupImpl, collectLightTargetInputs as collectLightTargetInputsImpl,
-  syncLightTargetGroups as syncLightTargetGroupsImpl, buildLightGroupList as buildLightGroupListImpl, postBridgeState as postBridgeStateImpl, postBridgeFloors as postBridgeFloorsImpl,
-  waitForStageReady as waitForStageReadyImpl, jumpWorkflowStep as jumpWorkflowStepImpl,
-} from "./functions/groups/pointer-input-and-tools";
+  refreshStudioUiInner as refreshStudioUiInnerImpl, type RefreshStudioUiInnerDeps,
+  refreshStudioView as refreshStudioViewImpl, type RefreshStudioViewDeps,
+  recordSaveConflict as recordSaveConflictImpl,
+  readInspectorGroupCollapseState as readInspectorGroupCollapseStateImpl,
+  writeInspectorGroupCollapseState as writeInspectorGroupCollapseStateImpl,
+  inspectorGroupHasVisibleField as inspectorGroupHasVisibleFieldImpl,
+  countInspectorGroupFields as countInspectorGroupFieldsImpl, syncInspectorGroups as syncInspectorGroupsImpl,
+  toggleInspectorGroup as toggleInspectorGroupImpl, getPanelRatioLimits as getPanelRatioLimitsImpl,
+  applyPanelRatios as applyPanelRatiosImpl, applyDetailsRatio as applyDetailsRatioImpl,
+  isSnapEnabled as isSnapEnabledImpl, setSnapSettingsOpen as setSnapSettingsOpenImpl,
+  syncSnapControls as syncSnapControlsImpl, applySnapTolerance as applySnapToleranceImpl,
+  filterAssetList as filterAssetListImpl, setAssetCategory as setAssetCategoryImpl,
+  toggleAssetGroup as toggleAssetGroupImpl, closeOpenPopovers as closeOpenPopoversImpl,
+  applyLightGroupRename as applyLightGroupRenameImpl, createLightGroup as createLightGroupImpl,
+  applyWallHeightInput as applyWallHeightInputImpl, applyWallThicknessInput as applyWallThicknessInputImpl,
+  applyWallOpacityInput as applyWallOpacityInputImpl, scheduleWallApply as scheduleWallApplyImpl,
+  commitWallHeight as commitWallHeightImpl, commitWallThickness as commitWallThicknessImpl,
+  commitWallOpacity as commitWallOpacityImpl, bindToolOptionWiring, bindWindowDesignerWiring, bindExportDialogWiring,
+  refreshStepChecklist, prepareSaveConflictDialog,
+} from "./ui";
+import { positionLightFromAngles as positionLightFromAnglesImpl } from "../lights/studio-light-placement";
 import type { StudioAppRuntime } from "./runtime/studio-app-runtime";
 let planPainter: any = null,
   gardenGateItemType = "garden-gate",
@@ -270,15 +394,9 @@ import {
 
 import { itemTypeCatalog, lampItemTypeSet, stairItemTypeSet } from "../items/item-catalog";
 import { installLibraryNameScroll } from "../items/studio-model-library";
-import { defaultViewSettings } from "../scene/studio-view-settings";
+import { defaultViewSettings } from "../scene/payload/studio-view-settings";
 window.__homeosStudioModuleVersion =
   "20260904-local-shadow-edge-v6-depth-precision-v1-model-load-state-v3-floor-scope-v1-ground-grid-v3-depth-fade-v2-local-shadow-depth-v1-export-shadow-quality-v1-base-light-entry-v1-auto-diagram-preview-hd-v1-auto-diagram-floor-v1-20260905-first-light-prewarm-v3-20260905-orbit-architecture-center-v1";
-import { bindToolOptionWiring } from "./ui/tool-option-wiring";
-import { bindWindowDesignerWiring } from "./ui/window-designer-wiring";
-import { bindAutoDiagramMessages } from "./runtime/auto-diagram-messages";
-import { bindExportDialogWiring } from "./ui/export-dialog-wiring";
-import { bindModelDragDrop } from "./ui/model-drag-drop";
-import { bindGlobalShortcuts } from "./runtime/global-shortcuts";
 import { createLegacyScope } from '@/studio/platform/legacy-scope';
 import { navigateInShell } from '@/studio/platform/shell-navigation';
 import {
@@ -297,8 +415,8 @@ import {
   normalizeLightPropertyValue,
   formatLightPropertyValue,
 } from '../lights/studio-app-light-data';
-import { createStudioDocument } from "../scene/studio-scene-payload";
-import { normalizeStudioDocument } from "../scene/studio-document-payload";
+import { createStudioDocument } from "../scene/payload/studio-scene-payload";
+import { normalizeStudioDocument } from "../scene/payload/studio-document-payload";
 
 
 import { startupStudio } from "../boot/studio-boot";
@@ -316,11 +434,6 @@ import { createStudioAppContext } from "./studio-app-context";
 import {
   type StudioStaticItemMeshesDeps,
 } from "../items/studio-static-item-meshes";
-import { addCylinderMesh } from "./scene/cylinder-mesh";
-import { doorPartThemeColor } from "./materials/door-theme";
-import { refreshStepChecklist } from "./ui/step-checklist";
-import { clearStudioDocumentResidue, releaseStudioRenderer } from "./render/studio-render-release";
-import { prepareSaveConflictDialog } from "./ui/save-conflict-dialog";
 
 /** 嵌入舞台可能只挂隐藏 stub；缺节点时用离屏 canvas，避免 bootStudio 同步崩溃导致永不出图。 */
 function planCanvasContext(canvas: HTMLCanvasElement | null) {
@@ -368,7 +481,7 @@ export function bootStudio(): void {
     get MATERIAL_STYLE_CUSTOM_STORAGE_KEY() { return MATERIAL_STYLE_CUSTOM_STORAGE_KEY; },
     get StudioApiError() { return StudioApiError; },
     get activateListDrag() { return activateListDrag; },
-    get activeDoorType() { return activeDoorType as keyof typeof import("../scene/studio-scene-payload").doorTypeCatalog; },
+    get activeDoorType() { return activeDoorType as keyof typeof import("../scene/payload/studio-scene-payload").doorTypeCatalog; },
     get activeToolLabel() { return activeToolLabel; },
     get addLightModel() { return addLightModel; },
     get adjustFrameSize() { return adjustFrameSize; },

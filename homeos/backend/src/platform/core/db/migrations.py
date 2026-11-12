@@ -13,32 +13,12 @@ from datetime import UTC, datetime
 from homeos_shared.schema_migrate import Migration, MigrationContext, SchemaMigrationError
 from homeos_shared.sqlite_email import normalize_email_column
 
-
-def _columns(connection: sqlite3.Connection, table: str) -> set[str]:
-    return {str(row[1]) for row in connection.execute(f'PRAGMA table_info("{table}")')}
-
-
-def _table_exists(connection: sqlite3.Connection, table: str) -> bool:
-    return connection.execute(
-        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", (table,)
-    ).fetchone() is not None
-
-
-def _normalize_datetime(value: str | None) -> str | None:
-    """把 ISO 时间统一成 SQLite/ORM 使用的 UTC-naive 26 字符格式。"""
-    if not value or not isinstance(value, str):
-        return value
-    text = value.strip()
-    if not text:
-        return value
-    try:
-        parsed = datetime.fromisoformat(text)
-    except ValueError:
-        return value
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=UTC)
-    parsed = parsed.astimezone(UTC)
-    return parsed.strftime("%Y-%m-%d %H:%M:%S.%f")
+# 这三个 introspect 帮手保留原有私有名字：注册表里 30+ 处调用点因此一行都不用改。
+# 刻意写成单行 import（而不是括号多行）：ruff isort 在未开 combine-as-imports 时会把
+# `X as Y` 拆成每条独立语句，包成括号反而会多出三层噪音。
+from homeos_shared.sqlite_introspect import normalize_datetime as _normalize_datetime
+from homeos_shared.sqlite_introspect import table_columns as _columns
+from homeos_shared.sqlite_introspect import table_exists as _table_exists
 
 
 def _normalize_users_email(connection: sqlite3.Connection, _context: MigrationContext) -> None:

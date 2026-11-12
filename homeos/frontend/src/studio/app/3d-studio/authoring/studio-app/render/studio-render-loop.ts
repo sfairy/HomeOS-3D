@@ -1,4 +1,4 @@
-import { trimRetainedFloors as trimRetainedFloors2 } from '../../scene/studio-floor-cache-budget'
+import { trimRetainedFloors as trimRetainedFloors2 } from '../../scene/floor/studio-floor-cache-budget'
 
 import { sceneModelOrigin as sceneModelOrigin2 } from '../../../plan/courtyard-drawing'
 import { createInteractionBatches as createInteractionBatches2 } from '../../studio-interaction-batches'
@@ -24,9 +24,9 @@ import {
 } from '../../scene/studio-camera-constraints'
 import { createReflectionPasses as createReflectionPasses2 } from '../../../reflection/studio-reflection-passes'
 import { createReflectionDetail as createReflectionDetail2 } from '../../../reflection/studio-reflection-detail'
-import { createOverviewDetail as createOverviewDetail2 } from '../../scene/studio-overview-detail'
-import { overviewFloorId as overviewFloorId2 } from '../../scene/studio-overview-stack'
-import { createFloorTransition as createFloorTransition2 } from '../../scene/studio-floor-transition'
+import { createOverviewDetail as createOverviewDetail2 } from '../../scene/overview/studio-overview-detail'
+import { overviewFloorId as overviewFloorId2 } from '../../scene/overview/studio-overview-stack'
+import { createFloorTransition as createFloorTransition2 } from '../../scene/floor/studio-floor-transition'
 import { createGroundReflections as createGroundReflections2 } from '../../../reflection/studio-ground-reflections'
 import { createMotionPresentation as createMotionPresentation2 } from '../../scene/studio-motion-presentation'
 import { applyOrbitControlSettingsTo, createRenderLoopTeardown, syncViewOffsetFor } from './render-loop-lifecycle'
@@ -59,13 +59,13 @@ import { lampItemTypeSet } from '../../items/item-catalog'
 import type { LightEffectOptions, CameraInteractionOptions } from '../../types/studio-app-types'
 import { composeItemKey } from '../../ui/studio-app-helpers'
 
-import { normalizeStudioDocument } from '../../scene/studio-document-payload'
+import { normalizeStudioDocument } from '../../scene/payload/studio-document-payload'
 
 import { mergeFloors } from '../../store/scene-sync-controller'
 
 import { createStudioRenderContext } from '../../studio-app/studio-render-context'
 
-import { computeDownlightRange } from '../../studio-app/scene/downlight-range'
+import { computeDownlightRange } from '../geometry/downlight-range'
 
 /**
  * 渲染循环的依赖边界。

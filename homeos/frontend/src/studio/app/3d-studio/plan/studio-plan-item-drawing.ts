@@ -39,7 +39,7 @@ import {
 } from '../authoring/items/studio-item-posture'
 import { itemTypeCatalog, lampItemTypeSet, roundTableTypeSet, stairItemTypeSet } from '../authoring/items/item-catalog'
 import { drawStripLightPlanGlyph as drawStripLightPlanGlyph2 } from './strip-light-glyph'
-import { planLabelThemeColors } from '../authoring/scene/studio-scene-payload'
+import { planLabelThemeColors } from '../authoring/scene/payload/studio-scene-payload'
 import { dashboardCanvasFont } from '../../shared/dashboard-fonts'
 
 /**

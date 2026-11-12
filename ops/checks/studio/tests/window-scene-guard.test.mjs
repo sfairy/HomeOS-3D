@@ -34,7 +34,7 @@ const DESIGNER = fileURLToPath(
 /** 场景入库净化：`normalizeScenePayload` 会按固定字段重建每个 window。 */
 const SCENE_PAYLOAD = fileURLToPath(
   new URL(
-    '../../../../homeos/frontend/src/studio/app/3d-studio/authoring/scene/studio-scene-payload.ts',
+    '../../../../homeos/frontend/src/studio/app/3d-studio/authoring/scene/payload/studio-scene-payload.ts',
     import.meta.url,
   ),
 )

@@ -1,6 +1,6 @@
 import { normalizeFlowLine as normalizeFlowLine2, flowClamp as flowClamp2 } from '../../shared/flow-line-model'
 import { inspectorComponentMetrics as inspectorComponentMetrics2 } from './basic'
-import { openFlowLinePathEditor as openFlowLinePathEditor2 } from '../../renderer/flow-line/flow-line-editor'
+import { openFlowLinePathEditor as openFlowLinePathEditor2 } from '../../renderer/flow-line-editor'
 import type { DomControl } from '@app/shared/util/dom-control'
 const inspectorStateByHost = new WeakMap(),
   numericRangeByProperty = {

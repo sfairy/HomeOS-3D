@@ -1,4 +1,4 @@
-import { createAccessMonitor } from './access/access-monitor'
+import { createAccessMonitor } from './access-monitor'
 import { createInteraction3dCover } from './cover'
 import { createInteraction3dFocusLayout } from './presets/focus-layout'
 import { hostLoadTiming } from './scene/load-timing'

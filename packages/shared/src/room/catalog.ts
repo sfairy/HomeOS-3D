@@ -391,6 +391,49 @@ export function buildPublicRoomMeta(
   return { roomLabels, deviceGroupLabels }
 }
 
+/** 目录派生的匹配表：按 catalog 引用缓存一次，避免每实体重建。 */
+interface RoomCatalogIndex {
+  /** roomId → 该房间的静态 token（已小写 / 去重 / 过滤空；不含传感器自定义 label）。 */
+  tokensByRoom: Map<string, string[]>
+  /** 推断用：按目录顺序的 `[roomId, 小写 inferKeywords]` 列表。 */
+  inferEntries: Array<{ id: string; keywords: string[] }>
+}
+
+/**
+ * 目录索引缓存。
+ *
+ * `DEFAULT_ROOM_CATALOG` 是模块级常量，`WeakMap` 以数组引用为键 —— 调用方传入同一份目录时
+ * 复用索引，传入临时目录也不会泄漏。此前每次 `entityMatchesEnvRoom` /
+ * `inferRoomIdFromEntityId` 都要 `catalog.find(...)` 并把同一批关键词重新 `toLowerCase()`
+ * （3000 个实体实测 3.1ms，其中绝大部分是重复的小写化）。
+ */
+const ROOM_CATALOG_INDEX_CACHE = new WeakMap<readonly RoomCatalogEntry[], RoomCatalogIndex>()
+
+function roomCatalogIndex(catalog: readonly RoomCatalogEntry[]): RoomCatalogIndex {
+  const cached = ROOM_CATALOG_INDEX_CACHE.get(catalog)
+  if (cached) return cached
+
+  const tokensByRoom = new Map<string, string[]>()
+  const inferEntries: RoomCatalogIndex['inferEntries'] = []
+  for (const room of catalog) {
+    // `find` 取首个同 id 条目；这里用 has 守卫保持同样的「首个生效」语义。
+    if (!tokensByRoom.has(room.id)) {
+      const tokens = new Set<string>()
+      tokens.add(room.id.toLowerCase())
+      tokens.add(room.deviceGroupKey.toLowerCase())
+      for (const kw of room.inferKeywords) tokens.add(kw.toLowerCase())
+      for (const kw of room.voiceKeywords) tokens.add(kw.toLowerCase())
+      for (const pattern of room.areaPatterns) tokens.add(pattern.toLowerCase())
+      tokensByRoom.set(room.id, [...tokens].filter(Boolean))
+    }
+    inferEntries.push({ id: room.id, keywords: room.inferKeywords.map((kw) => kw.toLowerCase()) })
+  }
+
+  const index: RoomCatalogIndex = { tokensByRoom, inferEntries }
+  ROOM_CATALOG_INDEX_CACHE.set(catalog, index)
+  return index
+}
+
 /**
  * 构建某个房间的「实体归属匹配 token 集合」（id / deviceGroupKey / inferKeywords / voiceKeywords / areaPatterns / 自定义 label，全部小写去重）。
  *
@@ -404,17 +447,12 @@ export function buildRoomEntityMatchers(
   sensorMap: EnvSensorMap = {},
   catalog: readonly RoomCatalogEntry[] = DEFAULT_ROOM_CATALOG,
 ): string[] {
-  const tokens = new Set<string>()
-  const preset = catalog.find((room) => room.id === roomId)
-  if (preset) {
-    tokens.add(preset.id.toLowerCase())
-    tokens.add(preset.deviceGroupKey.toLowerCase())
-    for (const kw of preset.inferKeywords) tokens.add(kw.toLowerCase())
-    for (const kw of preset.voiceKeywords) tokens.add(kw.toLowerCase())
-    for (const pattern of preset.areaPatterns) tokens.add(pattern.toLowerCase())
-  }
+  const presetTokens = roomCatalogIndex(catalog).tokensByRoom.get(roomId) ?? []
   const label = sensorMap[roomId]?.label?.trim()
-  if (label) tokens.add(label.toLowerCase())
+  if (!label) return [...presetTokens]
+  // 自定义 label 参与去重，与原先「先放静态 token、再 add(label)」的 Set 语义一致。
+  const tokens = new Set(presetTokens)
+  tokens.add(label.toLowerCase())
   return [...tokens].filter(Boolean)
 }
 
@@ -438,7 +476,13 @@ export function entityMatchesEnvRoom(
   catalog: readonly RoomCatalogEntry[] = DEFAULT_ROOM_CATALOG,
 ): boolean {
   const hay = `${entityId} ${friendlyName || ''} ${areaId || ''}`.toLowerCase()
-  return buildRoomEntityMatchers(roomId, sensorMap, catalog).some((token) => hay.includes(token))
+  // 直接遍历缓存的 token，不每调用一次就拼一个 Set + 数组（此前 3000 实体 0.32ms 里
+  // 一半以上是这次分配）。
+  for (const token of roomCatalogIndex(catalog).tokensByRoom.get(roomId) ?? []) {
+    if (hay.includes(token)) return true
+  }
+  const label = sensorMap[roomId]?.label?.trim()
+  return Boolean(label) && hay.includes((label as string).toLowerCase())
 }
 
 /**
@@ -453,9 +497,10 @@ export function inferRoomIdFromEntityId(
   catalog: readonly RoomCatalogEntry[] = DEFAULT_ROOM_CATALOG,
 ): string | null {
   const id = entityId.toLowerCase()
-  for (const room of catalog) {
-    for (const kw of room.inferKeywords) {
-      if (id.includes(kw.toLowerCase())) return room.id
+  // 关键词小写化已随目录索引缓存；这里只做子串命中。
+  for (const entry of roomCatalogIndex(catalog).inferEntries) {
+    for (const kw of entry.keywords) {
+      if (id.includes(kw)) return entry.id
     }
   }
   if (id.startsWith('sensor.')) {

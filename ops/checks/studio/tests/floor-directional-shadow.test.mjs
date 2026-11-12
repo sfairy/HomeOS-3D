@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url'
 
 const moduleUrl = fileURLToPath(
   new URL(
-    '../../../../homeos/frontend/src/studio/app/3d-studio/authoring/scene/studio-floor-directional-shadow.ts',
+    '../../../../homeos/frontend/src/studio/app/3d-studio/authoring/scene/shadow/studio-floor-directional-shadow.ts',
     import.meta.url,
   ),
 )

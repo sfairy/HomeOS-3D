@@ -12,28 +12,9 @@ from .core import (
     validate_entity_id_list,
     validate_optional_entity_id,
 )
-from .energy import (
-    _validate_energy,
-    _validate_pricing,
-)
 
 #: 环境传感器映射里的实体/数值字段写法：``domain.object_id``（大小写不敏感）。
 _ENV_SENSOR_ENTITY_PATTERN = re.compile(r"^[a-z][a-z0-9_]*\.[a-z0-9_]+$", re.IGNORECASE)
-from .sections_ui import (
-    _validate_frontend,
-    _validate_media_playlists,
-    _validate_screensaver,
-    _validate_ui,
-    _validate_voice,
-)
-from .security import (
-    _validate_auth,
-    _validate_circadian,
-    _validate_iaq,
-    _validate_notification,
-    _validate_security,
-    _validate_water,
-)
 
 
 def _validate_home_mode(section: str, payload: dict[str, Any], errors: list[FieldError]) -> None:
@@ -461,32 +442,3 @@ def _validate_profiles(section: str, payload: dict[str, Any], errors: list[Field
                 )
                 break
 
-
-_SECTION_VALIDATORS: dict[str, Any] = {
-    "notification": _validate_notification,
-    "security": _validate_security,
-    "water": _validate_water,
-    "iaq": _validate_iaq,
-    "circadian": _validate_circadian,
-    "energy": _validate_energy,
-    "pricing": _validate_pricing,
-    "frontend": _validate_frontend,
-    "screensaver": _validate_screensaver,
-    "voice": _validate_voice,
-    "auth": _validate_auth,
-    "ops": _validate_ops,
-    "haConnector": _validate_ha_connector,
-    "stateStore": _validate_state_store,
-    "homeMode": _validate_home_mode,
-    "other": _validate_other,
-    "retention": _validate_retention,
-    "external": _validate_external,
-    "wsPush": _validate_ws_push,
-    "commandProxy": _validate_command_proxy,
-    "webrtc": _validate_webrtc,
-    "clientPower": _validate_client_power,
-    "envSensorMap": _validate_env_sensor_map,
-    "profiles": _validate_profiles,
-    "ui": _validate_ui,
-    "mediaPlaylists": _validate_media_playlists,
-}

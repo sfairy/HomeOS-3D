@@ -13,7 +13,7 @@
  * `cb` 就退化成隐式 `any`（`TS7006`），精确类型的价值正是在这里。
  */
 import type { normalizeBaseLighting as normalizeBaseLighting2 } from '../../loaders/studio-normalization'
-import type { createStudioDocument } from '../scene/studio-scene-payload'
+import type { createStudioDocument } from '../scene/payload/studio-scene-payload'
 import type { ListDragRowSession } from '../types/studio-app-types'
 
 export interface StudioAppContext {

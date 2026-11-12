@@ -1,4 +1,4 @@
-import { applyReviewedShells } from '../authoring/scene/studio-reviewed-shells'
+import { applyReviewedShells } from '../authoring/scene/shells/studio-reviewed-shells'
 
 export function addSecurityModel(
   three: any,

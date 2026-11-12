@@ -17,10 +17,8 @@ from __future__ import annotations
 import sqlite3
 
 from .schema_migrate import SchemaMigrationError
-
-
-def _columns(connection: sqlite3.Connection, table: str) -> set[str]:
-    return {str(row[1]) for row in connection.execute(f'PRAGMA table_info("{table}")')}
+from .sqlite_introspect import table_columns as _columns
+from .sqlite_introspect import table_exists as _table_exists
 
 
 def _email_not_null(connection: sqlite3.Connection, table: str) -> bool:
@@ -29,15 +27,6 @@ def _email_not_null(connection: sqlite3.Connection, table: str) -> bool:
         if str(row[1]) == "email":
             return bool(row[3])
     return False
-
-
-def _table_exists(connection: sqlite3.Connection, table: str) -> bool:
-    return (
-        connection.execute(
-            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", (table,)
-        ).fetchone()
-        is not None
-    )
 
 
 def normalize_email_column(

@@ -108,7 +108,7 @@
 <script setup lang="ts">
 import type { ComponentPublicInstance } from 'vue'
 import { Zap, Clock, TrendingUp, Cpu, Grid3x3, Layers } from '@lucide/vue'
-import DeviceChartHeader from '../DeviceChartHeader.vue'
+import DeviceChartHeader from '../components/DeviceChartHeader.vue'
 import { DEVICE_CHART_COPY } from '@/shared/utils/chart/device-chart-copy.util'
 
 // 父组件透传数据：summary.totalDevices/domainBreakdown 为设备总数与按域聚合明细，

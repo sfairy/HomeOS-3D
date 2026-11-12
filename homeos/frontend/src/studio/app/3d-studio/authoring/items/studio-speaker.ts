@@ -1,4 +1,4 @@
-import { applyReviewedShells } from '../scene/studio-reviewed-shells'
+import { applyReviewedShells } from '../scene/shells/studio-reviewed-shells'
 
 const canvasCacheByDocument = new WeakMap()
 function getCanvasCache(contentDocument: any) {

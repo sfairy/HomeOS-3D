@@ -7,42 +7,15 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import UTC, datetime
 
 from homeos_shared.schema_migrate import Migration, MigrationContext, SchemaMigrationError
 from homeos_shared.sqlite_email import normalize_email_column
 
-
-def _columns(connection: sqlite3.Connection, table: str) -> set[str]:
-    return {str(row[1]) for row in connection.execute(f'PRAGMA table_info("{table}")')}
-
-
-def _table_exists(connection: sqlite3.Connection, table: str) -> bool:
-    return connection.execute(
-        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", (table,)
-    ).fetchone() is not None
-
-
-def _index_exists(connection: sqlite3.Connection, index: str) -> bool:
-    return connection.execute(
-        "SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = ?", (index,)
-    ).fetchone() is not None
-
-
-def _normalize_datetime(value: str | None) -> str | None:
-    if not value or not isinstance(value, str):
-        return value
-    text = value.strip()
-    if not text:
-        return value
-    try:
-        parsed = datetime.fromisoformat(text)
-    except ValueError:
-        return value
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=UTC)
-    parsed = parsed.astimezone(UTC)
-    return parsed.strftime("%Y-%m-%d %H:%M:%S.%f")
+# 同 platform/core/db/migrations.py：沿用原有私有名字，调用点零改写（见那里的注释）。
+from homeos_shared.sqlite_introspect import index_exists as _index_exists
+from homeos_shared.sqlite_introspect import normalize_datetime as _normalize_datetime
+from homeos_shared.sqlite_introspect import table_columns as _columns
+from homeos_shared.sqlite_introspect import table_exists as _table_exists
 
 
 def _normalize_accounts_email(connection: sqlite3.Connection, _context: MigrationContext) -> None:

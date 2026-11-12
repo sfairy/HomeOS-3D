@@ -8,7 +8,7 @@
  */
 import { createScenePopupEditor } from '../../scene-popup-editor'
 import { scenePopupEnabled } from '../../../renderer/scene-popup-model'
-import { openScenePopupEntityPicker, openScenePopupIconPicker } from '../functions/scene-popup-editor-wiring'
+import { openScenePopupEntityPicker, openScenePopupIconPicker } from '../entity/scene-popup-editor-wiring'
 
 export function bindScenePopupEditorBoot(deps: any): void {
   const closeScenePopupEditor = () => {

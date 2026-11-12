@@ -131,7 +131,7 @@
 
 <script setup lang="ts">
 import { AlertCircle, Zap, BatteryWarning, Clock, HeartPulse } from '@lucide/vue'
-import DeviceChartHeader from '../DeviceChartHeader.vue'
+import DeviceChartHeader from '../components/DeviceChartHeader.vue'
 import { hintTypeLabel, hintClass } from '@/composables/device/useDeviceAnalyticsDashboardShell'
 
 // 父组件透传数据：summary.anomalyHints 为异常提示数组，alertCounts 为四类告警计数，

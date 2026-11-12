@@ -4,7 +4,7 @@
     "homeos/backend/src",
     "homeos-store/backend/src"
   ],
-  "total": 516,
+  "total": 514,
   "files": {
     "homeos-store/backend/src/__init__.py": 2,
     "homeos-store/backend/src/api/payments/license.py": 3,
@@ -16,7 +16,6 @@
     "homeos-store/backend/src/config.py": 1,
     "homeos-store/backend/src/core/console_log.py": 1,
     "homeos-store/backend/src/core/env.py": 1,
-    "homeos-store/backend/src/core/persistence/migrations.py": 1,
     "homeos-store/backend/src/core/serializers.py": 2,
     "homeos-store/backend/src/core/timeutil.py": 1,
     "homeos-store/backend/src/ops/appearance.py": 3,
@@ -188,7 +187,7 @@
     "homeos/backend/src/modules/interaction3d/window.py": 1,
     "homeos/backend/src/platform/core/db/database.py": 1,
     "homeos/backend/src/platform/core/db/json_field.py": 3,
-    "homeos/backend/src/platform/core/db/migrations.py": 5,
+    "homeos/backend/src/platform/core/db/migrations.py": 4,
     "homeos/backend/src/platform/core/db/pagination.py": 1,
     "homeos/backend/src/platform/core/db/retention.py": 3,
     "homeos/backend/src/platform/core/db/runtime_kv.py": 1,

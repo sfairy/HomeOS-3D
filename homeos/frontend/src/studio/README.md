@@ -9,7 +9,7 @@
 | --- | --- | --- |
 | 入口 | `entries/` | 子系统自身的路由入口页（`StudioView` / `EditorView` / `DisplayView`），由 `@/studio` barrel 以懒加载器暴露给根 router |
 | 外壳 / 引擎 | `chrome/`, `engine/` | Vue chrome（顶栏 / 缩放 / 快捷键）与 facade 总线（根 store ↔ studio facade） |
-| 创作 | `app/3d-studio/`（+ `authoring/{scene,items,lights,ui,boot,types}` 域文件夹） | 平面图 / 场景创作 |
+| 创作 | `app/3d-studio/`（+ `authoring/{scene,items,lights,ui,boot,store,types,studio-app}` 域文件夹） | 平面图 / 场景创作 |
 | 面板 | `app/editor/`, `app/renderer/`, `app/display/` | 2D 面板编辑器、`PanelRenderer`、显示端启动 |
 | 平台 | `platform/`、叶子 `app/bridge/**`、叶子 `app/shared/**`（含 `app/shared/util/**`） | 共享适配层 —— **禁止** import editor / renderer / creator |
 | 舞台 | `runtime/`（配置编辑器在 `config-ui/`）、`shims/` | 实时 3D 舞台 + 设备；多入口经 `vite.runtime.config.ts` |
@@ -60,14 +60,18 @@ studio 是子系统，不复用应用根的通用桶名，避免同名不同义�
 | --- | --- |
 | `lifecycle.ts` | 生命周期再导出（原 `boot.ts`，改名避开与 `boot/` 同名） |
 | `boot/studio-boot.ts` | 引导序列 `startupStudio`（入口判定 → 渲染器 → 拉草稿 → 净化 → 应用 → 挂载舞台 / 开导出面板），依赖按 `StudioBootDeps` 注入 |
-| `scene/` | 相机、阴影、总览、运动呈现、场景 / 楼层文档净化、遮挡与缓存（`studio-view-settings`、`studio-scene-payload`、`studio-document-payload`、`studio-box-mesh`） |
+| `scene/` | 场景构件，按依赖簇分 6 个子域：`walls/`（墙体 / 墙顶 / 墙层 / 墙壳 / 调试）、`shadow/`（阴影图集 / 地面方向光阴影 / 地面灯 / 光照 shader chunk）、`payload/`（场景与文档 payload、视图设置）、`shells/`（reviewed 外壳）、`overview/`（总览栈与细节）、`floor/`（楼层过渡与楼层缓存预算）；根上留 12 个无内部依赖的叶子（`studio-box-mesh`、`studio-preview-scope`、`studio-camera-constraints` 等）。子域是按**内部 import 图的强连通分量**切的，不是按名字猜的 |
 | `items/` | 家具 / 设备物件助手（`item-catalog`、各品类模型构件、`studio-item-model.ts` 入口）与 `item-model/` 分派族（14 族 / 59 类型分支，见 [`item-model/README.md`](./app/3d-studio/authoring/items/item-model/README.md)） |
 | `lights/` | 灯光预设数据 |
 | `ui/` | 微件、历史、纯函数助手（如 `studio-export-layers`） |
 | `types/` | 共享的 studio-app 类型 |
-| `studio-app/` | 拆分后的闭包函数域（`functions/groups/`、`render/`、`scene/`、`ui/`、`runtime/`、`materials/`）与两个 context 类型 |
+| `studio-app/` | 编排宿主的域文件夹（每个域一个 `index.ts` barrel，`boot.ts` 按域导入）：`interaction/`（指针 / 工具 / 选中 / 拖拽 / 框选）、`lights/`（灯组 / 预编译 / 灯缓存 / 基础照明 / 阴影状态）、`materials/`（材质槽 UI / 材质编辑 / 物件材质）、`persistence/`（保存 / 历史 / 场景同步 / 草稿状态）、`scene-build/`（场景与楼层构建 / 网格构件 / 相机取景）、`geometry/`（几何小原语：边界 / 圆柱 / 地面网格 / 楼层描边 / 朝向）、`render/`（渲染循环 / 帧驱动 / 相机取景 / 统计 / 预算）、`export/`（导出流程 / 预设）、`plan/`（平面坐标与世界坐标）、`ui/`（面板装配 / 列表拖拽 / 检视分组）、`runtime/`（引导期接线 / 全局快捷键 / 工作流） |
 | `studio-app/boot.ts` | 编排宿主（`bootStudio` / `teardownStudio`）：只保留状态装配、域函数转发与卸载期资源释放 |
-| `studio-app/ui/`、`studio-app/runtime/` | 引导体的语句级切片，与 `home/lifecycle/` 同构（deps 袋注入、正文逐字搬出）：`model-drag-drop`（模型库拖放建物）、`tool-option-wiring`（工具面板选项）、`export-dialog-wiring`（导出弹窗）、`global-shortcuts`（全局键盘 / 窗口消息短路）、`auto-diagram-messages`（自动导图 iframe 桥接） |
+
+> `studio-app/geometry/` 与 `authoring/scene/` 不是一回事：前者是**几何小原语**（给定参数造
+> 一个 `BufferGeometry` / `Group`，不含场景状态），后者是**完整场景构建**（墙体、阴影、楼层、
+> payload）。命名刻意区分，避免「两个 scene 目录各管一半」。
+| `studio-app/ui/`、`studio-app/runtime/` | 引导体的语句级切片，与 `home/lifecycle/` 同构（deps 袋注入、正文逐字搬出）：`ui/` 放面板装配与列表交互（`tool-option-wiring` 工具面板选项、`export-dialog-wiring` 导出弹窗、`step-checklist`、`slot-group-view`、`panel-layout`、`snap-controls`、`inspector-groups`、`asset-library`、`wall-inputs`、`popover-dismiss`、`light-signature`、`lighting-scope`、`studio-confirm-dialogs`、`save-conflict-dialog`、`refreshStudioUi*`）；`runtime/` 放引导期接线（`global-shortcuts` 全局键盘 / 窗口消息短路、`auto-diagram-messages` 自动导图 iframe 桥接、`workflow` 引导步骤、`studio-app-runtime` 类型袋）。**指针 / 拖拽 / 选中属于 `interaction/`**（`pointer-input`、`marquee`、`preview-scope`、`list-drag`、`model-drag-drop`、`tool-selection`），不要放进 `ui/` |
 
 `authoring/` 之外，`app/3d-studio/` 顶层还有一批同级创作域：
 `plan/`（平面图真实体）、`materials/`、`export/`、`loaders/`（模型加载）、`reflection/`（反射呈现）、
@@ -93,22 +97,30 @@ studio 是子系统，不复用应用根的通用桶名，避免同名不同义�
 | `net/` | 编辑器请求面：`requestJson`（超时 / 中止 / CSRF / 401-403 跳转）+ 认证跳转闩 |
 | `picker/` | 取数弹层 |
 | `selection/` | 选中组件方向键微调 |
-| `home/` | `bootEditor` 拆出的域（`editor-context.ts`、`elements/`、`functions/`、`lifecycle/`） |
+| `home/` | `bootEditor` 拆出的域：`editor-context.ts` + `elements/`（DOM 元素查询）+ `lifecycle/`（引导体切片）+ 六个函数域 + 四个根叶子 |
+| `home/elements/` | 编辑器元素查询链（859 项）。按面板族拆成 `chrome`（工作区外壳 / 项目 / 页面 / 弹窗 / 组件列表）、`inspectors-navigation`（导航 / 标题 / 图标 / 图标按钮效果 / 底图框）、`inspectors-climate`（空调 / 天气 / 存在 / 窗帘 / 门）、`inspectors-charts`（折线图 / 事件日志 / 日期 / 时间 / 图片）、`inspectors-devices`（灯光统计 / 扫地机 / 设备 / 相机 / 户型图 / 效果 / 恢复）；`editor-elements.ts` 只做汇总，导出面仍是 `queryEditorElements(findElement)`。新增元素加到对应族，不要加进汇总文件 |
+| `home/{workspace,assets,style,inspectors,components,entity}/` | 函数域（原 `home/functions/` 通用名已取消）：`workspace/`（文档 / 历史 / 复制备份）、`assets/`（资源选择 / 资源管理 / 图标选择）、`style/`（样式对话框 / 套用 / 灯光面板）、`inspectors/`（检视上下文构建 / 弹窗检视）、`components/`（组件编辑 / 删除）、`entity/`（实体标签 / 选项列表 / 情景弹窗接线） |
+| `home/` 根叶子 | `bind-deps`（deps 袋绑定器）、`shell-controls`、`navigation-preview`、`floorplan-auto-diagram-wiring` |
 | `home/lifecycle/` | 引导体语句级切片：`boot.ts` 只留状态装配与卸载，事件注册按「一段可独立搬运的处理序列」外置为 `floorplan-messages`（户型图 iframe 回传消息）/ `canvas-marquee`（框选 + 尺寸观察器）/ `navigation-style-wiring`（套用样式入口与共享引用表）/ `asset-dialog-wiring`（资源与项目弹窗）/ `inspector-contexts`（四份检查器上下文）。依赖经单个 deps 袋注入，正文与搬出前逐字一致 |
 | `boot.ts` | 生命周期 |
 
-`app/renderer/` 的域文件夹：`controls/`（控件渲染）、`flow-line/`（流线绘制）、`geometry/`（几何计算）、
-`registry/`（组件注册表）、`panel-seams/`（见下）。
+`app/renderer/` 的域文件夹：`controls/`（控件渲染）、`geometry/`（几何计算）、
+`registry/`（组件注册表）、`panel-seams/`（见下）。流线编辑器是单文件 `flow-line-editor.ts`，
+不再单独占一层目录（`flow-line/` 只放一个文件时，目录名没有提供额外信息）。
 
 ## 7. 面板渲染器命名与 seam
 
 - 使用 `panel-renderer.ts`，不要再导出 `renderer.ts`
 - 使用 `panel-document.ts` / `panel-caches.ts` / `panel-dialog-motion.ts`，不要用 `runtime-*.ts` 桩
-- **`app/renderer/panel-seams/` 是「面板渲染器方法」域**：按 seam 拆成 21 个文件，
-  调用方 `panel-renderer.ts` 显式 import + 一个 `Object.assign` 清单
+- **`app/renderer/panel-seams/` 是「面板渲染器方法」域**：按**服务的对象**分 5 个子域 ——
+  `controls/`（气候 / 窗帘 / 灯光 / 热水器 / 媒体相机 / 能力控件）、`details/`（实体 / 扫地机 /
+  空气净化器 / 存在详情卡）、`popups/`（自定义弹窗 / 详情弹窗 / 运行时弹窗 / 场景弹窗 / 天气弹窗）、
+  `runtime/`（刷新 / 连接 / 动作 / 乐观状态）、`selection/`（选中边界 / 覆盖层 / 变换交互）；
+  根上只留分发入口 `render-component.ts`。调用方 `panel-renderer.ts` 显式 import + 一个 `Object.assign` 清单
 - **class 方法域同在此目录**：`panel-renderer.ts` 的类方法按 seam 分布在
-  `transform-interaction` / `selection-overlay` / `selection-bounds` / `runtime-refresh` /
-  `details-popups` / `media-camera` / `runtime-dialogs` / `runtime-actions` / `optimistic-state`
+  `selection/transform-interaction` / `selection/selection-overlay` / `selection/selection-bounds` /
+  `runtime/runtime-refresh` / `popups/details-popups` / `controls/media-camera` /
+  `popups/runtime-dialogs` / `runtime/runtime-actions` / `runtime/optimistic-state`
   等文件。形态是「模块侧 `export function name(self: PanelRenderer, …)` + 类侧原地一行转发薄成员」——
   薄成员留在类里，签名因此仍受同名 interface 合并面的类型检查（漏一个名字 tsc 当场报错）
 - `paint.ts`（`panel-renderer.ts` 自己的绘制 seam）尚未建立
@@ -153,19 +165,23 @@ utils；UI 侧只依赖 `@/components`、`@/composables`、`@/stores`、`@/share
 
 两个宿主的「语句级切片」约定（`home/lifecycle/*` 与 `studio-app/{ui,runtime}/*`）：把一段连续、可整块搬运的
 事件注册序列原样移出，函数只收一个 `deps` 袋（`Record<string, any>`）+ 逐字保留的正文；deps 名单靠 tsc 的
-`Cannot find name` 反推，**不许**改写正文语义。约束有三条：正文里不得给闭包 `let` 赋值（要么改成对象 /
+`Cannot find name` 反推，**不许**改写正文语义。约束有四条：正文里不得给闭包 `let` 赋值（要么改成对象 /
 Map 属性，要么在调用点用 `get/set` 访问器代理，如 `planPainter`、`studioSaveStore`）；拆出的模块不得
 被宿主后续语句反向引用（需要共享就返回句柄，如 `bindCanvasMarquee` 返回 `workspaceResizeObserver`）；
+跨域搬运（例如把指针逻辑从 `ui/` 移到 `interaction/`）必须同步重生成源域与目标域的 `index.ts` barrel，
+再跑 `boot.ts` 的按域导入重排 —— 手工挪成员容易漏键，barrel 是唯一真源；
 拆分预算随之下降——`ops/checks/studio/check_split_budget.mjs` 里 `editor-home` 5400 行、`studio-app` 4200 行。
 
 ## 12. 该改哪里
 
 | 任务 | 目录 |
 | --- | --- |
-| 平面图 / 灯光 / 材质创作 | `app/3d-studio/`（`authoring/scene`、`authoring/items`、`authoring/lights`、`plan/`、`materials/`） |
+| 平面图 / 灯光 / 材质创作 | `app/3d-studio/`（`authoring/scene/<子域>`、`authoring/items`、`authoring/lights`、`plan/`、`materials/`、`authoring/studio-app/<域>`） |
 | 2D 仪表盘面板 / 检查器 | `app/editor/`、`app/renderer/`（含 `panel-seams/`） |
 | 实时舞台设备动效 / 面板 | `runtime/<device>/`、`runtime/core/`、`runtime/config-ui/` |
 | Vue chrome / 工作流步骤 | `entries/`、`chrome/`、`engine/` |
 | 外壳桥接 / 实体角色档案 | `platform/` |
 
-> 最后核对：2026-10-28（链接、命令与路径已逐条验证；体积类结论给 `wc -l` 而不写死行数）
+> 最后核对：2026-11-13（按 2026-11 的结构重构逐条复核：`authoring/scene` 已分 6 子域、
+> `studio-app` 已无 `functions/groups` 两层、`editor/home` 已无 `functions/`、`panel-seams` 已分 5 子域；
+> 体积类结论给 `wc -l` 而不写死行数）

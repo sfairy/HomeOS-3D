@@ -117,20 +117,20 @@ import * as geometryMethods from './renderer-geometry'
 // 这里显式列出、不再立一层 barrel：桶会立刻退化成「纯 re-export 桩」，而 `import * as ns`
 // + `Object.assign(proto, ns as any)` 的组合在漏一个名字时 **tsc 一声不吭**（`as any`），
 // 只有运行期点开对应面板才炸。清单式 import 让漏项在 typecheck 阶段就显形。
-import { createCapabilityDetailsControls } from './panel-seams/capability-controls'
-import { createClimateDetailsControls } from './panel-seams/climate-controls'
-import { createCoverDetailsControls } from './panel-seams/cover-controls'
-import { createLightDetailsControls } from './panel-seams/light-controls'
-import { createWaterHeaterExtensionControls } from './panel-seams/water-heater-controls'
-import { connectRuntime, resumeRuntime, suspendRuntime } from './panel-seams/runtime-connect'
+import { createCapabilityDetailsControls } from './panel-seams/controls/capability-controls'
+import { createClimateDetailsControls } from './panel-seams/controls/climate-controls'
+import { createCoverDetailsControls } from './panel-seams/controls/cover-controls'
+import { createLightDetailsControls } from './panel-seams/controls/light-controls'
+import { createWaterHeaterExtensionControls } from './panel-seams/controls/water-heater-controls'
+import { connectRuntime, resumeRuntime, suspendRuntime } from './panel-seams/runtime/runtime-connect'
 import { renderComponent } from './panel-seams/render-component'
-import { showAirPurifierDetails } from './panel-seams/air-purifier-details'
-import { showCustomPopup } from './panel-seams/custom-popup'
-import { showEntityDetails } from './panel-seams/entity-details'
-import { showWeatherForecast } from './panel-seams/weather-popup'
-import { showScenePopup } from './panel-seams/scene-popup-dialog'
-import { showPresenceDetails } from './panel-seams/presence-details'
-import { showVacuumDetails } from './panel-seams/vacuum-details'
+import { showAirPurifierDetails } from './panel-seams/details/air-purifier-details'
+import { showCustomPopup } from './panel-seams/popups/custom-popup'
+import { showEntityDetails } from './panel-seams/details/entity-details'
+import { showWeatherForecast } from './panel-seams/popups/weather-popup'
+import { showScenePopup } from './panel-seams/popups/scene-popup-dialog'
+import { showPresenceDetails } from './panel-seams/details/presence-details'
+import { showVacuumDetails } from './panel-seams/details/vacuum-details'
 import {
   startComponentsScale,
   startComponentsRotate,
@@ -141,7 +141,7 @@ import {
   startAirflowRotate,
   startComponentScale,
   startComponentRotate,
-} from './panel-seams/transform-interaction'
+} from './panel-seams/selection/transform-interaction'
 import {
   createComponentSelectionOverlay,
   createAirflowSelectionOverlay,
@@ -157,7 +157,7 @@ import {
   appendDoorWindowPerspectiveHandles,
   updateAirflowHandleScale,
   updateTransformHandleScale,
-} from './panel-seams/selection-overlay'
+} from './panel-seams/selection/selection-overlay'
 import {
   updateAirConditionerButtonSelectionBounds,
   updateDeviceButtonSelectionBounds,
@@ -165,7 +165,7 @@ import {
   updateLightStatisticsSelectionBounds,
   updateTextSelectionBounds,
   updateImageSelectionBounds,
-} from './panel-seams/selection-bounds'
+} from './panel-seams/selection/selection-bounds'
 import {
   scheduleInteraction3dPrewarm,
   releaseRetainedInteraction3d,
@@ -189,7 +189,7 @@ import {
   refreshHistorySeries,
   scheduleHistoryRetry,
   refreshHistorySeriesPass,
-} from './panel-seams/runtime-refresh'
+} from './panel-seams/runtime/runtime-refresh'
 import {
   popupComponentForEntity,
   showActionPopup,
@@ -199,32 +199,32 @@ import {
   showElectricBedLoadingDetails,
   showElectricBedDetails,
   openInteraction3dVacuumDetails,
-} from './panel-seams/details-popups'
+} from './panel-seams/popups/details-popups'
 import {
   browseMedia,
   createMediaBrowserControl,
   openInteraction3dCameraPreview,
   showCameraPreview,
-} from './panel-seams/media-camera'
+} from './panel-seams/controls/media-camera'
 import {
   registerRuntimeDialogScale,
   updateRuntimeDialogScale,
   clearRuntimeDialogScale,
   closeRuntimeDialog,
   bindRuntimeDialogOutsideDismiss,
-} from './panel-seams/runtime-dialogs'
+} from './panel-seams/popups/runtime-dialogs'
 import {
   bindRuntimeActions,
   triggerRuntimeAction,
   previewAction,
   dispatchAction,
   callEntityService,
-} from './panel-seams/runtime-actions'
+} from './panel-seams/runtime/runtime-actions'
 import {
   optimisticStateIsConfirmed,
   updateOptimisticToggleVisuals,
   applyOptimisticToggle,
-} from './panel-seams/optimistic-state'
+} from './panel-seams/runtime/optimistic-state'
 export { setBuiltinAssetVersions2 as setBuiltinAssetVersions }
 export {
   airflowCanvasOffsetBounds2 as airflowCanvasOffsetBounds,

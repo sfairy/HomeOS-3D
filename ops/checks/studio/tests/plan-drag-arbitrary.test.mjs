@@ -19,7 +19,7 @@ const GEOMETRY = fileURLToPath(
 )
 const POINTER_UP = fileURLToPath(
   new URL(
-    '../../../../homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/handlePointerUp.ts',
+    '../../../../homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/interaction/handlePointerUp.ts',
     import.meta.url,
   ),
 )

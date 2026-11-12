@@ -187,47 +187,15 @@
           <span>{{ '实体' }}</span>
           <span />
         </div>
-        <div v-for="(act, aidx) in mode.actions" :key="aidx" class="sm-action-row">
-          <span class="sm-action-row__idx">{{ aidx + 1 }}</span>
-          <HosSelect
-            variant="home-mode"
-            block
-            trigger-class="sm-action-row__select sm-action-row__select--domain"
-            v-model="act.domain"
-            @change="
-              () => {
-                act.service = ''
-              }
-            "
-          >
-            <option value="">{{ '域' }}</option>
-            <option v-for="d in allDomains" :key="d" :value="d">{{ d }}</option>
-          </HosSelect>
-          <HosSelect
-            variant="home-mode"
-            block
-            trigger-class="sm-action-row__select sm-action-row__select--service"
-            v-model="act.service"
-          >
-            <option value="">{{ '服务' }}</option>
-            <option v-for="s in servicesForDomain(act.domain)" :key="s" :value="s">{{ s }}</option>
-          </HosSelect>
-          <EntityInput
-            v-model="act.entity_id"
-            :placeholder="'实体 ID'"
-            :domain-filter="act.domain || ''"
-            wrapper-class="sm-action-row__entity [&_.ei-wrap]:bg-black/30 [&_input]:text-sm [&_input]:py-2.5"
-          />
-          <button
-            type="button"
-            class="sm-action-row__del"
-            :title="'删除'"
-            :aria-label="'删除动作'"
-            @click="mode.actions.splice(aidx, 1)"
-          >
-            <Trash2 class="w-3.5 h-3.5" />
-          </button>
-        </div>
+        <SecurityActionRow
+          v-for="(act, aidx) in mode.actions"
+          :key="aidx"
+          :act="act"
+          :index="aidx"
+          :domains="allDomains"
+          :services-for-domain="servicesForDomain"
+          @remove="mode.actions.splice(aidx, 1)"
+        />
       </div>
     </div>
   </section>
@@ -236,8 +204,8 @@
 <script setup>
 import HosSelect from '@/components/common/base/HosSelect.vue'
 import { computed, ref } from 'vue'
-import { Zap, Plus, Layers, Trash2 } from '@lucide/vue'
-import EntityInput from '@/components/common/entity-input/EntityInput.vue'
+import { Zap, Plus, Layers } from '@lucide/vue'
+import SecurityActionRow from './SecurityActionRow.vue'
 import { useLayoutStore } from '@/stores/layout.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useEntitiesStore } from '@/stores/entities.store'

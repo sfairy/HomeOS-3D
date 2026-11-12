@@ -35,7 +35,10 @@ const GEOMETRY = fileURLToPath(
   new URL('../../../../homeos/frontend/src/studio/app/3d-studio/plan/geometry.ts', import.meta.url),
 )
 const STUDIO_WALLS = fileURLToPath(
-  new URL('../../../../homeos/frontend/src/studio/app/3d-studio/authoring/scene/studio-walls.ts', import.meta.url),
+  new URL(
+    '../../../../homeos/frontend/src/studio/app/3d-studio/authoring/scene/walls/studio-walls.ts',
+    import.meta.url,
+  ),
 )
 
 const { createLockMotion } = await import(LOCK_MOTION)

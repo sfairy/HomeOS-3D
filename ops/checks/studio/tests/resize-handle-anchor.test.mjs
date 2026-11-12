@@ -249,7 +249,7 @@ test('拖角缩放：调用方不再把家具步进塞给缩放（否则又变�
   const pointerUpSource = readFileSync(
       fileURLToPath(
         new URL(
-          '../../../../homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/handlePointerUp.ts',
+          '../../../../homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/interaction/handlePointerUp.ts',
           import.meta.url,
         ),
       ),

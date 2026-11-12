@@ -1,5 +1,5 @@
 import { RoundedBoxGeometry } from '/static/vendor/three/0.187.0/RoundedBoxGeometry.js'
-import { applyReviewedShells } from '../scene/studio-reviewed-shells'
+import { applyReviewedShells } from '../scene/shells/studio-reviewed-shells'
 import {
   AIRER_PLATE_HOLE_RADIUS,
   AIRER_PLATE_WIDTH,
