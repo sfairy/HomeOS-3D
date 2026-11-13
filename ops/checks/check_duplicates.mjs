@@ -20,11 +20,15 @@
  * --------
  * 基线记录两样东西：
  *   1. `totals.duplicatedLines` —— 重复行总数；
- *   2. `fingerprints` —— 每个克隆的 `sha1(相对路径对 + 归一化片段)` 集合。
+ *   2. `entries` —— 每个克隆的指纹 + 出现位置 + 行数。
  *
  * 判定：
  * - `duplicatedLines` **增加即失败**；
  * - 出现基线里没有的指纹 **即失败**（新长出来的重复，即使总量因为别处删掉而没涨）；
+ * - 例外：若同一对文件在基线里有**更大的**克隆（`entries[].lines` 更大），则该指纹算
+ *   「重复变小」而不是「新增」。没有这条例外，把一个 43 行克隆修到 19 行会被判成
+ *   「新增 1 处重复」—— 门禁反过来惩罚改善。总量棘轮仍是兜底：老克隆还在、又长新的，
+ *   `duplicatedLines` 必然上升。
  * - `percentage` 只打印不判定：删掉一个干净的大文件会让占比**上升**，拿它当闸门会误伤。
  *
  * 指纹为什么要归一化片段
@@ -108,6 +112,11 @@ function fingerprint(firstPath, secondPath, fragment) {
   return createHash('sha1')
     .update(`${a}\u0000${b}\u0000${normalizeFragment(fragment)}`)
     .digest('hex')
+}
+
+/** 无序路径对：用来判断「同一对文件之间」的重复规模是否缩小了。 */
+function pairKey(firstPath, secondPath) {
+  return [firstPath, secondPath].sort().join('\u0000')
 }
 
 function readJscpdVersion() {
@@ -202,7 +211,19 @@ function runJscpd() {
 
 function loadBaseline() {
   if (!fs.existsSync(BASELINE_PATH)) return null
-  return JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8'))
+  const raw = JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8'))
+
+  // 兼容第一版基线（只有 `fingerprints: string[]`）：那版没有路径与行数，
+  // 因此无法判断「同一对文件之间缩小了」，只能按严格模式判。读到就照严格判，
+  // 并在报告里提示需要 `--update` 升级格式。
+  if (Array.isArray(raw.fingerprints) && !Array.isArray(raw.entries)) {
+    return {
+      ...raw,
+      legacy: true,
+      entries: raw.fingerprints.map((fp) => ({ fingerprint: fp, first: null, second: null, lines: 0 })),
+    }
+  }
+  return { ...raw, legacy: false, entries: raw.entries ?? [] }
 }
 
 function buildBaseline(current) {
@@ -213,7 +234,16 @@ function buildBaseline(current) {
     scanRoots: current.scanRoots,
     totals: current.totals,
     byFormat: current.byFormat,
-    fingerprints: current.clones.map((clone) => clone.fingerprint).sort(),
+    // 存路径与行数，而不只是指纹：判断「新增」时需要区分
+    // 「凭空长出一处重复」与「同一对文件之间的重复从 43 行缩到 19 行」。
+    entries: current.clones
+      .map((clone) => ({
+        fingerprint: clone.fingerprint,
+        first: clone.first.path,
+        second: clone.second.path,
+        lines: clone.lines,
+      }))
+      .sort((a, b) => a.fingerprint.localeCompare(b.fingerprint)),
   }
 }
 
@@ -261,20 +291,43 @@ function main() {
       process.exit(1)
     }
     fs.writeFileSync(BASELINE_PATH, `${JSON.stringify(buildBaseline(current), null, 2)}\n`, 'utf8')
-    console.log(`已写入基线 ${path.relative(REPO_ROOT, BASELINE_PATH)}（${current.totals.duplicatedLines} 行重复）`)
-    for (const line of summarize(current, baseline)) console.log(line)
+    if (!AS_JSON) {
+      console.log(`已写入基线 ${path.relative(REPO_ROOT, BASELINE_PATH)}（${current.totals.duplicatedLines} 行重复）`)
+      for (const line of summarize(current, baseline)) console.log(line)
+    }
     return
   }
 
-  for (const line of summarize(current, baseline)) console.log(line)
+  for (const line of summarize(current, baseline)) {
+    if (!AS_JSON) console.log(line)
+  }
 
   if (MODE_REPORT || !baseline) {
     if (!baseline) console.log('\n无基线文件：本次只报告。用 --update 建立基线后再纳入门禁。')
     return
   }
 
-  const known = new Set(baseline.fingerprints)
-  const fresh = current.clones.filter((clone) => !known.has(clone.fingerprint))
+  const known = new Set(baseline.entries.map((entry) => entry.fingerprint))
+  // 同一对文件在基线里的最大重复行数。用来区分两种「指纹不在基线里」：
+  //   (a) 凭空长出一处重复 —— 该失败；
+  //   (b) 同一对文件之间的重复变小了（43 行 → 19 行）或标识符改名 —— 指纹必然变，
+  //       但这不是新增重复，不该红灯。总量棘轮仍在兜底：如果老的还在、又长出新的，
+  //       duplicatedLines 会上升，(b) 的豁免也就无从生效。
+  const pairCeiling = new Map()
+  for (const entry of baseline.entries) {
+    if (!entry.first || !entry.second) continue
+    const key = pairKey(entry.first, entry.second)
+    pairCeiling.set(key, Math.max(pairCeiling.get(key) ?? 0, entry.lines))
+  }
+
+  const fresh = []
+  const shrunk = []
+  for (const clone of current.clones) {
+    if (known.has(clone.fingerprint)) continue
+    const ceiling = pairCeiling.get(pairKey(clone.first.path, clone.second.path)) ?? 0
+    if (ceiling >= clone.lines) shrunk.push(clone)
+    else fresh.push(clone)
+  }
   const failures = []
 
   if (current.totals.duplicatedLines > baseline.totals.duplicatedLines) {
@@ -293,14 +346,41 @@ function main() {
       failures.push(`  …另有 ${fresh.length - 20} 处，见 docs/analysis/code-duplication/report/jscpd-report.html`)
   }
 
+  const removed = baseline.entries.filter(
+    (entry) => !current.clones.some((clone) => clone.fingerprint === entry.fingerprint),
+  )
+
+  // 人读的部分与机器读的部分严格分开：`--json` 时 stdout 必须只有那一个 JSON 文档，
+  // 否则消费方得先剥掉前几行才能解析（`JSON.parse` 直接报 Extra data）。
+  const notes = []
+  if (shrunk.length > 0) {
+    notes.push(`本次有 ${shrunk.length} 处重复变小（不是新增，已按同一对文件的行数上限放行）。`)
+  }
+  if (removed.length > 0) {
+    notes.push(`本次消除了 ${removed.length} 处重复。跑 \`bun run update:duplication-baseline\` 把基线压低。`)
+  }
+  if (baseline.legacy) {
+    notes.push('注意：基线还是第一版格式（只有指纹），无法判断「重复变小」。跑一次 `--update` 升级。')
+  }
+
   if (AS_JSON) {
     console.log(
       JSON.stringify(
-        { totals: current.totals, baseline: baseline.totals, newClones: fresh.length, ok: failures.length === 0 },
+        {
+          totals: current.totals,
+          baseline: baseline.totals,
+          newClones: fresh.length,
+          shrunkClones: shrunk.length,
+          removedClones: removed.length,
+          ok: failures.length === 0,
+          notes,
+        },
         null,
         2,
       ),
     )
+  } else {
+    for (const note of notes) console.log(`\n${note}`)
   }
 
   if (failures.length > 0) {
@@ -309,11 +389,7 @@ function main() {
     process.exit(1)
   }
 
-  const removed = baseline.fingerprints.filter((fp) => !current.clones.some((clone) => clone.fingerprint === fp))
-  if (removed.length > 0) {
-    console.log(`\n本次减少了 ${removed.length} 处重复。跑 \`bun run update:duplication-baseline\` 把基线压低。`)
-  }
-  console.log('\n重复代码门禁通过。')
+  if (!AS_JSON) console.log('\n重复代码门禁通过。')
 }
 
 try {
