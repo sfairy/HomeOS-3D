@@ -100,38 +100,14 @@
         @keydown.enter.prevent="onNotificationClick(n)"
         @keydown.space.prevent="onNotificationClick(n)"
       >
-        <div class="nc-item__icon-wrap" :class="`nc-item__icon-wrap--${n.level || 'info'}`">
-          <component
-            :is="levelIcon(n.level)"
-            class="nc-item__icon"
-            :class="levelColor(n.level)"
-          />
-        </div>
-        <div class="nc-item__body">
-          <p class="nc-text">{{ n.message }}</p>
-          <div class="nc-meta">
-            <span class="nc-source">{{ notificationSourceLabel(n.source) }}</span>
-            <span class="nc-meta-sep" aria-hidden="true">·</span>
-            <span class="nc-time">{{ n.time }}{{ n.deliveredAt ? ` · ${'已推送'}` : '' }}</span>
-            <button
-              v-if="n.actionPrompt"
-              type="button"
-              class="nc-action-prompt"
-              @click.stop="handleActionPrompt(n)"
-            >
-              <Sparkles class="nc-action-prompt__icon" aria-hidden="true" />
-              {{ '让管家处理' }}
-            </button>
-          </div>
-        </div>
-        <ChevronRight
-          v-if="resolveNotificationLink(n)"
-          class="nc-item__chevron"
-          aria-hidden="true"
+        <NotificationRowContent
+          :n="n"
+          :icon="levelIcon(n.level)"
+          :icon-class="levelColor(n.level)"
+          :has-link="!!resolveNotificationLink(n)"
+          @action-prompt="handleActionPrompt(n)"
+          @dismiss="dismiss(n.id)"
         />
-        <button class="nc-dismiss" :aria-label="'关闭通知'" @click.stop="dismiss(n.id)">
-          <X class="nc-dismiss__icon" />
-        </button>
       </div>
     </div>
 
@@ -159,38 +135,14 @@
           @keydown.enter.prevent="onNotificationClick(n)"
           @keydown.space.prevent="onNotificationClick(n)"
         >
-          <div class="nc-item__icon-wrap" :class="`nc-item__icon-wrap--${n.level || 'info'}`">
-            <component
-              :is="levelIcon(n.level)"
-              class="nc-item__icon"
-              :class="levelColor(n.level)"
-            />
-          </div>
-          <div class="nc-item__body">
-            <p class="nc-text">{{ n.message }}</p>
-            <div class="nc-meta">
-              <span class="nc-source">{{ notificationSourceLabel(n.source) }}</span>
-              <span class="nc-meta-sep" aria-hidden="true">·</span>
-              <span class="nc-time">{{ n.time }}{{ n.deliveredAt ? ` · ${'已推送'}` : '' }}</span>
-              <button
-                v-if="n.actionPrompt"
-                type="button"
-                class="nc-action-prompt"
-                @click.stop="handleActionPrompt(n)"
-              >
-                <Sparkles class="nc-action-prompt__icon" aria-hidden="true" />
-                {{ '让管家处理' }}
-              </button>
-            </div>
-          </div>
-          <ChevronRight
-            v-if="resolveNotificationLink(n)"
-            class="nc-item__chevron"
-            aria-hidden="true"
+          <NotificationRowContent
+            :n="n"
+            :icon="levelIcon(n.level)"
+            :icon-class="levelColor(n.level)"
+            :has-link="!!resolveNotificationLink(n)"
+            @action-prompt="handleActionPrompt(n)"
+            @dismiss="dismiss(n.id)"
           />
-          <button class="nc-dismiss" :aria-label="'关闭通知'" @click.stop="dismiss(n.id)">
-            <X class="nc-dismiss__icon" />
-          </button>
         </div>
       </template>
     </VirtualList>
@@ -246,7 +198,7 @@
  * @dependencies
  *  - vue: computed/inject/watch 响应式与依赖注入
  *  - vue-router: RouterLink 路由跳转
- *  - @lucide/vue: ChevronRight / X 图标
+ *  - @lucide/vue: ChevronRight / X 图标（已下沉到 NotificationRowContent）
  *  - @/components/common/ApiQueryState.vue: 查询状态容器
  *  - @/components/common/base/VirtualList.vue: 虚拟列表
  *  - @/components/common/base/VEmptyState.vue: 空态组件
@@ -258,14 +210,13 @@
  */
 import { computed, inject, watch } from 'vue'
 import { RouterLink } from 'vue-router'
-import { ChevronRight, Sparkles, X } from '@lucide/vue'
 import ApiQueryState from '@/components/common/ApiQueryState.vue'
 import VirtualList from '@/components/common/base/VirtualList.vue'
 import VEmptyState from '@/components/common/base/VEmptyState.vue'
+import NotificationRowContent from '@/components/widgets/system/NotificationRowContent.vue'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 import { useNotificationCenter } from '@/composables/widget/useNotificationCenter'
 import { NOTIFICATION_CENTER_KEY } from '@/composables/widget/notification-center.context'
-import { notificationSourceLabel } from '@homeos/shared'
 import { useFixedPagePagination } from '@/composables/ui/hub-viewport.internals'
 import { useChromeStore } from '@/stores/chrome.store'
 import './styles/notification-center.css'

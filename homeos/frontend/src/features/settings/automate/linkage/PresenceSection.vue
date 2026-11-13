@@ -16,9 +16,11 @@
  * 关键依赖：SettingsSectionHead / SettingsPresenceEntitiesSection / presence composable。
  * 约定：数据读写与保存动作经 emit 上抛，不在视图层内直接写业务逻辑。
  */
-import { Home, MapPin, RefreshCw, Save, Users } from '@lucide/vue'
+import { Users } from '@lucide/vue'
 import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSectionHead.vue'
 import SettingsPresenceEntitiesSection from '@/features/settings/automate/SettingsPresenceEntitiesSection.vue'
+import PresenceStatusMeta from '@/features/settings/automate/linkage/PresenceStatusMeta.vue'
+import PresenceActions from '@/features/settings/automate/linkage/PresenceActions.vue'
 import { usePresenceEntitiesDisplay } from '@/features/settings/automate/composables/presence-linkage.internals'
 
 // 入参：加载/保存态、自动模式、人员预览、是否隐藏标题
@@ -59,41 +61,15 @@ const { summaryText, modeHint, showHomeSummaryStyle } = usePresenceEntitiesDispl
         <span class="linkage-presence-desc">{{
           '定义家庭成员并关联判定实体；默认需全部判定实体在家才算该人员在家（可配 presenceRequireAllAway），驱动在家人数统计与全员离家联动。'
         }}</span>
-        <div v-if="!loading" class="linkage-presence-meta">
-          <span
-            :class="[
-              'linkage-presence-status',
-              showHomeSummaryStyle && 'linkage-presence-status--home',
-            ]"
-          >
-            <Home v-if="showHomeSummaryStyle" class="w-3.5 h-3.5 shrink-0" />
-            <MapPin v-else class="w-3.5 h-3.5 shrink-0" />
-            {{ summaryText }}
-          </span>
-          <span class="linkage-presence-mode">{{ modeHint }}</span>
-        </div>
+        <PresenceStatusMeta
+          :loading="loading"
+          :show-home-summary-style="showHomeSummaryStyle"
+          :summary-text="summaryText"
+          :mode-hint="modeHint"
+        />
       </template>
       <template #actions>
-        <div class="linkage-presence-actions">
-          <button
-            type="button"
-            class="settings-btn-ghost linkage-presence-actions__refresh"
-            :disabled="loading"
-            :aria-label="'刷新人员状态'"
-            @click="emit('refresh')"
-          >
-            <RefreshCw class="w-3.5 h-3.5" />
-          </button>
-          <button
-            type="button"
-            class="settings-btn-accent linkage-presence-actions__save"
-            :disabled="saving"
-            @click="emit('save')"
-          >
-            <Save class="w-3.5 h-3.5" />
-            {{ saving ? '保存中…' : '保存' }}
-          </button>
-        </div>
+        <PresenceActions :loading="loading" :saving="saving" @refresh="emit('refresh')" @save="emit('save')" />
       </template>
     </SettingsSectionHead>
 
@@ -102,40 +78,14 @@ const { summaryText, modeHint, showHomeSummaryStyle } = usePresenceEntitiesDispl
         <p class="linkage-pane-toolbar__lead">
           {{ '定义家庭成员与判定实体，驱动在家统计与全员离家联动。' }}
         </p>
-        <div v-if="!loading" class="linkage-presence-meta">
-          <span
-            :class="[
-              'linkage-presence-status',
-              showHomeSummaryStyle && 'linkage-presence-status--home',
-            ]"
-          >
-            <Home v-if="showHomeSummaryStyle" class="w-3.5 h-3.5 shrink-0" />
-            <MapPin v-else class="w-3.5 h-3.5 shrink-0" />
-            {{ summaryText }}
-          </span>
-          <span class="linkage-presence-mode">{{ modeHint }}</span>
-        </div>
+        <PresenceStatusMeta
+          :loading="loading"
+          :show-home-summary-style="showHomeSummaryStyle"
+          :summary-text="summaryText"
+          :mode-hint="modeHint"
+        />
       </div>
-      <div class="linkage-presence-actions">
-        <button
-          type="button"
-          class="settings-btn-ghost linkage-presence-actions__refresh"
-          :disabled="loading"
-          :aria-label="'刷新人员状态'"
-          @click="emit('refresh')"
-        >
-          <RefreshCw class="w-3.5 h-3.5" />
-        </button>
-        <button
-          type="button"
-          class="settings-btn-accent linkage-presence-actions__save"
-          :disabled="saving"
-          @click="emit('save')"
-        >
-          <Save class="w-3.5 h-3.5" />
-          {{ saving ? '保存中…' : '保存' }}
-        </button>
-      </div>
+      <PresenceActions :loading="loading" :saving="saving" @refresh="emit('refresh')" @save="emit('save')" />
     </div>
 
     <SettingsPresenceEntitiesSection

@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import HomeModeContextPill from './HomeModeContextPill.vue'
 
 const props = defineProps({
   contextLoadWarnings: { type: Array, default: () => [] },
@@ -13,9 +14,10 @@ const isDefaultCollapsed = computed(() => props.embedded)
 const dockSummary = computed(() => props.contextPills.map((pill) => `${pill.label} ${pill.value}`).join(' · '))
 const emit = defineEmits(['pill-click'])
 
-// 点击带 section 的 pill 时向上透传 section 标识，用于跳转到对应分区
-function onPillClick(pill) {
-  if (pill.section) emit('pill-click', pill.section)
+// 点击带 section 的 pill 时向上透传 section 标识，用于跳转到对应分区。
+// 「有没有 section」由 HomeModeContextPill 判定，这里不再重复一次。
+function onPillClick(section) {
+  emit('pill-click', section)
 }
 </script>
 
@@ -26,60 +28,14 @@ function onPillClick(pill) {
     </div>
   </div>
 
-  <details
-    v-if="embedded"
-    class="hm-context-dock"
-    :open="!isDefaultCollapsed"
-  >
+  <details v-if="embedded" class="hm-context-dock" :open="!isDefaultCollapsed">
     <summary class="hm-context-dock__summary">{{ '上下文概览' }} · {{ dockSummary }}</summary>
     <div class="hm-context-pills px-6 py-3 shrink-0">
-      <div
-        v-for="pill in contextPills"
-        :key="pill.id"
-        :class="[
-          'hm-context-pill',
-          pill.tone && `hm-context-pill--${pill.tone}`,
-          pill.section && 'hm-context-pill--clickable',
-        ]"
-        :role="pill.section ? 'button' : undefined"
-        :tabindex="pill.section ? 0 : undefined"
-        @click="onPillClick(pill)"
-        @keydown.enter.prevent="onPillClick(pill)"
-        @keydown.space.prevent="onPillClick(pill)"
-      >
-        <div class="hm-context-pill__icon">
-          <component :is="pill.icon" class="w-3.5 h-3.5" />
-        </div>
-        <div class="hm-context-pill__body">
-          <span class="hm-context-pill__label">{{ pill.label }}</span>
-          <span class="hm-context-pill__val">{{ pill.value }}</span>
-        </div>
-      </div>
+      <HomeModeContextPill v-for="pill in contextPills" :key="pill.id" :pill="pill" @pill-click="onPillClick" />
     </div>
   </details>
 
   <div v-else class="hm-context-pills px-6 py-3 shrink-0">
-    <div
-      v-for="pill in contextPills"
-      :key="pill.id"
-      :class="[
-        'hm-context-pill',
-        pill.tone && `hm-context-pill--${pill.tone}`,
-        pill.section && 'hm-context-pill--clickable',
-      ]"
-      :role="pill.section ? 'button' : undefined"
-      :tabindex="pill.section ? 0 : undefined"
-      @click="onPillClick(pill)"
-      @keydown.enter.prevent="onPillClick(pill)"
-      @keydown.space.prevent="onPillClick(pill)"
-    >
-      <div class="hm-context-pill__icon">
-        <component :is="pill.icon" class="w-3.5 h-3.5" />
-      </div>
-      <div class="hm-context-pill__body">
-        <span class="hm-context-pill__label">{{ pill.label }}</span>
-        <span class="hm-context-pill__val">{{ pill.value }}</span>
-      </div>
-    </div>
+    <HomeModeContextPill v-for="pill in contextPills" :key="pill.id" :pill="pill" @pill-click="onPillClick" />
   </div>
 </template>
