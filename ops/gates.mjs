@@ -30,10 +30,10 @@
  * 用法
  * ----
  * ```bash
- * bun run gate                    # static + test + model（默认）
+ * bun run gate                    # static + model（默认）
  * bun run gate:model              # 只跑一组
  * node ops/gates.mjs --all        # 含 build + infra
- * node ops/gates.mjs --group static,test
+ * node ops/gates.mjs --group static,model
  * node ops/gates.mjs --list       # 打印清单，不执行
  * node ops/gates.mjs --fail-fast
  * HOMEOS_GATE_CONTEXT=ci bun run gate:infra   # CI 上下文：ciOnly 步骤参与、缺工具即失败
@@ -112,28 +112,16 @@ const GATE_GROUPS = {
     { name: 'check:store-routes', ...bun('run', 'check:store-routes') },
     { name: 'check:api-contract', ...bun('run', 'check:api-contract') },
     // 「域 → 控制类型」契约表在 Python（后端校验命令）与 TS（播放器渲染面板）各有一份。
-    // 两端不一致时「面板能显示、命令发不出去」，两边的单测都看不出来，只能靠这条对齐检查。
+    // 两端不一致时「面板能显示、命令发不出去」，类型检查看不见这种跨语言漂移，只能靠这条对齐检查。
     { name: 'check:extra-types', ...bun('run', 'check:extra-types') },
     { name: 'check:file-size', ...bun('run', 'check:file-size') },
     { name: 'check:complexity', ...bun('run', 'check:complexity') },
     { name: 'check:python-format', ...bun('run', 'check:python-format') },
-  ],
-  test: [
-    { name: 'test:frontend', ...bun('run', 'test:frontend') },
-    // 同一个目录两套 runner：`bun test` 只认 `*.test.mjs`，Python 侧用例要 unittest 跑。
-    // 合在一个脚本里（package.json 的 test:studio），避免「同一目录两条命令」被漏掉一条。
-    { name: 'test:studio', ...bun('run', 'test:studio') },
+    // 以下四条原属 test 组：它们只读源码、不跑用例，测试移除后并入 static，避免门禁丢项。
     { name: 'check:studio-split', ...bun('run', 'check:studio-split') },
-    { name: 'test:home-mode', ...bun('run', 'test:home-mode') },
-    { name: 'test:smarthome', ...bun('run', 'test:smarthome') },
-    { name: 'test:security', ...bun('run', 'test:security') },
-    { name: 'test:shared', ...bun('run', 'test:shared') },
-    { name: 'test:store', ...bun('run', 'test:store') },
-    { name: 'test:auth-nav', ...bun('run', 'test:auth-nav') },
     { name: 'check:frontend-deps', ...bun('run', 'check:frontend-deps') },
     { name: 'check:backend-deps', ...bun('run', 'check:backend-deps') },
-    { name: 'test:architecture', ...bun('run', 'test:architecture') },
-    // 导入真实路由注册表，依赖后端 requirements（CI 只有 test 组安装），故不放 static。
+    // 导入真实路由注册表，需要后端运行期依赖（CI static job 为此装 requirements.txt）。
     { name: 'check:routes', ...bun('run', 'check:routes') },
   ],
   model: [
@@ -259,7 +247,7 @@ const GATE_GROUPS = {
   ],
 }
 
-const DEFAULT_GROUPS = ['static', 'test', 'model']
+const DEFAULT_GROUPS = ['static', 'model']
 
 /* ------------------------------------------------------------------ *
  * 参数

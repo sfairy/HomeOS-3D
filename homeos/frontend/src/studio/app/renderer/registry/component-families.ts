@@ -2,8 +2,8 @@
  * 组件类型 ↔ 动态族 的纯映射（**零 import**）。
  *
  * 单独成文件的原因：`register-all.ts` 会顺带 import 各族渲染实现（three / DOM / 播放器），
- * 在 node 里跑不起来；而「这份草稿要哪些族」是不依赖运行时的纯计算，单独放这里就能用
- * `node --test` 直接覆盖（`ops/checks/frontend/tests/registry-families.test.mjs`）。
+ * 在 node 里跑不起来；而「这份草稿要哪些族」是不依赖运行时的纯计算，单独放这里就能
+ * 脱离 three / DOM 直接调用。
  */
 
 /**

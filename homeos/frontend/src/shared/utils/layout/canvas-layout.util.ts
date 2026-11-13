@@ -3,7 +3,7 @@
  *
  * 抽成纯函数的原因：这套公式同时被主壳（`useScaling`）、锁屏（`computeScreensaverLayout`）
  * 与设置页预览消费，此前三处各自内联一份，改一处就会漂移；而且它是「换分辨率后布局是否
- * 变形」的唯一判据，必须能被单测直接断言（见 ops/checks/frontend/tests/scaling-canvas-layout.test.mjs）。
+ * 变形」的唯一判据，必须能被独立断言（纯函数，不依赖渲染环境）。
  *
  * 契约（两个轴都必须成立）：
  *   1. `canvasW × scale == 视口宽`、`canvasH × scale == 视口高` —— 不出现黑边、不裁切；

@@ -19,7 +19,7 @@
  *
  * 用法：
  *   node ops/lib/py.mjs <script.py> [args...]
- *   node ops/lib/py.mjs -m unittest discover -s ops/checks/... -v
+ *   node ops/lib/py.mjs -m ruff check .
  *   node ops/lib/py.mjs --which          # 只打印解析到的解释器
  */
 import { spawnSync } from 'node:child_process'

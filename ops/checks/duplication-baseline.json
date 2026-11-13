@@ -23,13 +23,13 @@
     "ops"
   ],
   "totals": {
-    "sources": 3458,
-    "lines": 669611,
-    "clones": 183,
-    "duplicatedLines": 3043,
-    "percentage": 0.4544,
-    "tokens": 3916874,
-    "duplicatedTokens": 14590
+    "sources": 3326,
+    "lines": 647626,
+    "clones": 160,
+    "duplicatedLines": 2719,
+    "percentage": 0.4198,
+    "tokens": 3769657,
+    "duplicatedTokens": 12887
   },
   "byFormat": {
     "css": {
@@ -47,29 +47,29 @@
       "clones": 20
     },
     "javascript": {
-      "sources": 352,
-      "lines": 48380,
-      "duplicatedLines": 276,
-      "percentage": 0.5705,
-      "clones": 19
+      "sources": 263,
+      "lines": 35366,
+      "duplicatedLines": 188,
+      "percentage": 0.5316,
+      "clones": 13
     },
     "python": {
-      "sources": 649,
-      "lines": 153991,
-      "duplicatedLines": 741,
-      "percentage": 0.4812,
-      "clones": 55
+      "sources": 604,
+      "lines": 144967,
+      "duplicatedLines": 505,
+      "percentage": 0.3484,
+      "clones": 38
     },
     "typescript": {
-      "sources": 1606,
-      "lines": 354258,
+      "sources": 1608,
+      "lines": 354386,
       "duplicatedLines": 1751,
-      "percentage": 0.4943,
+      "percentage": 0.4941,
       "clones": 89
     },
     "vue": {
       "sources": 413,
-      "lines": 82321,
+      "lines": 82246,
       "duplicatedLines": 0,
       "percentage": 0,
       "clones": 0
@@ -131,6 +131,12 @@
       "lines": 11
     },
     {
+      "fingerprint": "0ef7a02942fdf5b598d47e3bf2712a8cd66c17ca",
+      "first": "homeos-store/backend/src/infra/mailer.py",
+      "second": "homeos-store/backend/src/infra/mailer.py",
+      "lines": 13
+    },
+    {
       "fingerprint": "1074bda59cef73dc9c32af70740f9240969e2efe",
       "first": "homeos/frontend/src/studio/runtime/panels/input-extra-panel.ts",
       "second": "homeos/frontend/src/studio/runtime/panels/light-extra-panel.ts",
@@ -173,12 +179,6 @@
       "lines": 16
     },
     {
-      "fingerprint": "181f03db57803cee2b08499011a1a2ea697ef464",
-      "first": "ops/checks/security/tests/test_security_regressions.py",
-      "second": "ops/checks/security/tests/test_zones_clear_armed.py",
-      "lines": 16
-    },
-    {
       "fingerprint": "196be141c8563cb5864efd9c1fb39c83dd770bac",
       "first": "homeos/frontend/src/components/common/entity-multi-select/EntityMultiSelectDropdown.vue",
       "second": "homeos/frontend/src/components/common/entity-multi-select/EntityMultiSelectItemList.vue",
@@ -195,24 +195,6 @@
       "first": "homeos/frontend/src/studio/app/3d-studio/authoring/items/studio-static-item-meshes.ts",
       "second": "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/scene-build/scene-layers.ts",
       "lines": 29
-    },
-    {
-      "fingerprint": "1c5f4845b8f1a91742efb81cd26a2e5e20165fa7",
-      "first": "ops/checks/smarthome/tests/test_home_mode_action_policy.py",
-      "second": "ops/checks/smarthome/tests/test_home_mode_action_policy.py",
-      "lines": 13
-    },
-    {
-      "fingerprint": "1d2391de3637b4fcf07d78aa6d9b25d0e08f3ea6",
-      "first": "homeos-store/frontend/src/features/admin/views/ops/DiagnosticsView.vue",
-      "second": "homeos-store/frontend/src/features/admin/views/ops/DiagnosticsView.vue",
-      "lines": 62
-    },
-    {
-      "fingerprint": "1d9321b2f43dc9450e40c248de8dfb89979e94b1",
-      "first": "ops/checks/security/tests/test_arm_compensation.py",
-      "second": "ops/checks/security/tests/test_security_regressions.py",
-      "lines": 15
     },
     {
       "fingerprint": "1de550538078dc214f7bf05c5f6ac878f9c591c0",
@@ -237,18 +219,6 @@
       "first": "homeos/frontend/scripts/models/lib/glb-io.mjs",
       "second": "ops/checks/studio/audit_glb_materials.mjs",
       "lines": 12
-    },
-    {
-      "fingerprint": "22c5f2f20c7821c7a22b9d8f0057bf2664784328",
-      "first": "homeos-store/backend/src/ops/mailer.py",
-      "second": "homeos-store/backend/src/ops/mailer.py",
-      "lines": 13
-    },
-    {
-      "fingerprint": "2735f0e9a6a9582eebba14e3b22f2fdbd6a3efa7",
-      "first": "ops/checks/smarthome/tests/test_home_mode_conditions.py",
-      "second": "ops/checks/smarthome/tests/test_home_mode_conditions.py",
-      "lines": 21
     },
     {
       "fingerprint": "284e7c53e34ef1a15f0f2ceb176cb541da913aef",
@@ -287,18 +257,6 @@
       "lines": 29
     },
     {
-      "fingerprint": "2d741223ff6b4507a78fc1cb27f08533d8ad4bdf",
-      "first": "ops/checks/frontend/tests/agent-chat-history.test.mjs",
-      "second": "ops/checks/frontend/tests/format-single-source.test.mjs",
-      "lines": 14
-    },
-    {
-      "fingerprint": "2dbc35548a0e972a9acf1e695334ae96e6e51dc9",
-      "first": "ops/checks/studio/tests/preview-scope.test.mjs",
-      "second": "ops/checks/studio/tests/preview-scope.test.mjs",
-      "lines": 16
-    },
-    {
       "fingerprint": "2e50d0dd2380d593b33f4a3b6433b3615ed78d91",
       "first": "homeos/frontend/src/studio/app/renderer/panel-seams/details/entity-details.ts",
       "second": "homeos/frontend/src/studio/app/renderer/panel-seams/details/entity-details.ts",
@@ -329,10 +287,10 @@
       "lines": 15
     },
     {
-      "fingerprint": "363dd3da648f9455af13d4c83903dd03fdcff472",
-      "first": "homeos/frontend/scripts/models/lib/garden-parts.mjs",
-      "second": "ops/checks/frontend/tests/scaling-canvas-layout.test.mjs",
-      "lines": 13
+      "fingerprint": "36505fc8032df11fc5dfe4eef05ea846cdb225c5",
+      "first": "homeos-store/backend/src/infra/mailer.py",
+      "second": "homeos-store/backend/src/infra/mailer.py",
+      "lines": 16
     },
     {
       "fingerprint": "368f526efddc768db99822ffebaff7d8d9b4a4b0",
@@ -357,24 +315,6 @@
       "first": "homeos/backend/src/domains/channels/webpush_service.py",
       "second": "homeos/backend/src/domains/system/ops/moviepilot_proxy.py",
       "lines": 12
-    },
-    {
-      "fingerprint": "3d768c1a8e9c183255ccac8d65f71098e8f72d5a",
-      "first": "homeos-store/frontend/src/features/admin/views/ops/DiagnosticsView.vue",
-      "second": "homeos-store/frontend/src/features/admin/views/ops/DiagnosticsView.vue",
-      "lines": 48
-    },
-    {
-      "fingerprint": "3f480c4cdf5a21145012c9f6a1835adca7d58315",
-      "first": "homeos-store/backend/src/ops/mailer.py",
-      "second": "homeos-store/backend/src/ops/mailer.py",
-      "lines": 16
-    },
-    {
-      "fingerprint": "40106d6c3bf7e51d14ec5f97c0db55bf30f9edc3",
-      "first": "ops/checks/studio/tests/test_frontend_resources.py",
-      "second": "ops/checks/studio/tests/test_global_log_append_async.py",
-      "lines": 11
     },
     {
       "fingerprint": "4244c75549b10992a5541e2d6306d696b1c7a018",
@@ -419,6 +359,12 @@
       "lines": 23
     },
     {
+      "fingerprint": "495c41977727cdfabb30cf0e1d2afa3ee1e1767a",
+      "first": "homeos-store/frontend/src/features/admin/diagnostics/DiagnosticsView.vue",
+      "second": "homeos-store/frontend/src/features/admin/diagnostics/DiagnosticsView.vue",
+      "lines": 101
+    },
+    {
       "fingerprint": "49b33f3c29fb9a01aaf77846bee74281d16fc47f",
       "first": "homeos/frontend/src/stores/entities/ws/ws-bind-domain.ts",
       "second": "homeos/frontend/src/stores/entities/ws/ws-bind-domain.ts",
@@ -431,28 +377,10 @@
       "lines": 13
     },
     {
-      "fingerprint": "4b6169bf902b5df72e0a18fe5bd2c79b6548d90a",
-      "first": "ops/checks/smarthome/tests/test_batch_control.py",
-      "second": "ops/checks/smarthome/tests/test_idempotency_pending_contract.py",
-      "lines": 12
-    },
-    {
-      "fingerprint": "4e34db0fa4e6e48e409c7b1caef0d015080e6dea",
-      "first": "ops/checks/smarthome/tests/test_idempotency_pending_contract.py",
-      "second": "ops/checks/smarthome/tests/test_snapshot_targets.py",
-      "lines": 15
-    },
-    {
       "fingerprint": "4e606bfcf937eaa9c7edcef104228f74bc48c435",
       "first": "homeos/frontend/src/features/settings/interact/SettingsAgentDiagnosticsSection.vue",
       "second": "homeos/frontend/src/features/settings/interact/SettingsAgentSchedulesSection.vue",
       "lines": 14
-    },
-    {
-      "fingerprint": "4f96cfce000d88a0a200a692b710395a2c0cee1c",
-      "first": "homeos-store/frontend/src/features/admin/views/ops/DiagnosticsView.vue",
-      "second": "homeos-store/frontend/src/features/admin/views/ops/DiagnosticsView.vue",
-      "lines": 101
     },
     {
       "fingerprint": "4fd8a389b70f1273ca0b714efa0e2f66ed02966f",
@@ -545,22 +473,10 @@
       "lines": 14
     },
     {
-      "fingerprint": "60f3ca0d94ce201f4f32da642d9bf0f3879fbed4",
-      "first": "ops/checks/home_mode/tests/test_realtime_connect_race.py",
-      "second": "ops/checks/smarthome/tests/test_baseline_trigger_suppression.py",
-      "lines": 11
-    },
-    {
       "fingerprint": "6494ba95e7f50df5927af1bc47384cafa872288e",
       "first": "homeos/frontend/src/studio/runtime/panels/compound-extra-panel.ts",
       "second": "homeos/frontend/src/studio/runtime/panels/list-extra-panel.ts",
       "lines": 15
-    },
-    {
-      "fingerprint": "64acef6eab30eb43ebc6e6f6c181673735355cc6",
-      "first": "ops/checks/home_mode/tests/test_realtime_connect_race.py",
-      "second": "ops/checks/smarthome/tests/test_home_mode_action_policy.py",
-      "lines": 11
     },
     {
       "fingerprint": "6a541a9329ed8830db2a07117c9fd0afb1f7231b",
@@ -591,12 +507,6 @@
       "first": "homeos/frontend/src/components/entities/EntityPickModal.vue",
       "second": "homeos/frontend/src/components/entities/device-group/DeviceGroupModal.vue",
       "lines": 13
-    },
-    {
-      "fingerprint": "74fd41ea122f27c7a37a4639050ad84a3866cfbd",
-      "first": "ops/checks/security/tests/test_arm_compensation.py",
-      "second": "ops/checks/security/tests/test_security_regressions.py",
-      "lines": 20
     },
     {
       "fingerprint": "76a11205b7194c449e54a0505910c2b2c66643a4",
@@ -635,12 +545,6 @@
       "lines": 34
     },
     {
-      "fingerprint": "8335a3d2b0202af13c7d8613e98fa572c1fdbc86",
-      "first": "ops/checks/smarthome/tests/test_alert_lifecycle.py",
-      "second": "ops/checks/smarthome/tests/test_alert_rule_timing.py",
-      "lines": 16
-    },
-    {
       "fingerprint": "8424a21d317107ce41139bc19ac9846fbf738135",
       "first": "homeos/frontend/src/features/device/components/DeviceAnalyticsDashboard.vue",
       "second": "homeos/frontend/src/features/device/components/DeviceAnalyticsPanel.vue",
@@ -674,12 +578,6 @@
       "fingerprint": "892c22fc3921f1ddd0b14d20b69efa57070990f2",
       "first": "homeos/frontend/src/studio/runtime/config-ui/config-editor/rendering/panel-assembly.ts",
       "second": "homeos/frontend/src/studio/runtime/config-ui/config-editor/rendering/panel-sections.ts",
-      "lines": 12
-    },
-    {
-      "fingerprint": "8935d222160df9368833967e72db724afaf86ae5",
-      "first": "ops/checks/studio/tests/light-stream.test.mjs",
-      "second": "ops/checks/studio/tests/light-stream.test.mjs",
       "lines": 12
     },
     {
@@ -737,16 +635,16 @@
       "lines": 28
     },
     {
-      "fingerprint": "966d4ca1d6102f7638087f00d4330392f46dda8b",
-      "first": "ops/checks/frontend/tests/agent-chat-history.test.mjs",
-      "second": "ops/checks/frontend/tests/agent-model-label.test.mjs",
-      "lines": 17
-    },
-    {
       "fingerprint": "9718d7778a776e2ace5eefa094a0bb95271567fd",
       "first": "homeos/frontend/src/studio/runtime/device/computer-screen.ts",
       "second": "homeos/frontend/src/studio/runtime/environment/device-mist.ts",
       "lines": 11
+    },
+    {
+      "fingerprint": "9787c3944bf8c76f7f2d2600091cb185cf6d2eee",
+      "first": "homeos-store/frontend/src/features/admin/diagnostics/DiagnosticsView.vue",
+      "second": "homeos-store/frontend/src/features/admin/diagnostics/DiagnosticsView.vue",
+      "lines": 62
     },
     {
       "fingerprint": "983c71adbfd984a22c2331186ddcfabb7e71bc51",
@@ -785,12 +683,6 @@
       "lines": 11
     },
     {
-      "fingerprint": "a16b185e9f1cf782deeb9efc8e08f448d2d3824a",
-      "first": "homeos-store/backend/src/api/store/products_cache.py",
-      "second": "homeos/backend/src/platform/http_cache.py",
-      "lines": 11
-    },
-    {
       "fingerprint": "a170ecb39e0de1bba2b203d65ecbf340ea7afd7a",
       "first": "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/light-areas.ts",
       "second": "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/light-groups.ts",
@@ -813,6 +705,12 @@
       "first": "homeos/frontend/src/features/settings/connect/bindings/AccountListEditor.vue",
       "second": "homeos/frontend/src/features/settings/connect/bindings/AccountListRows.vue",
       "lines": 13
+    },
+    {
+      "fingerprint": "a651f14ab3b873dbf294f5ef527fb854bb3b4919",
+      "first": "homeos-store/frontend/src/features/admin/diagnostics/DiagnosticsView.vue",
+      "second": "homeos-store/frontend/src/features/admin/diagnostics/DiagnosticsView.vue",
+      "lines": 48
     },
     {
       "fingerprint": "a93e78b5cc74dbc65eae6c14172d37f27b98aff5",
@@ -869,12 +767,6 @@
       "lines": 12
     },
     {
-      "fingerprint": "b6f9e2af2dcd8de4f37af2e14728e1574b0e4030",
-      "first": "ops/checks/smarthome/tests/test_alert_rule_delete_cache.py",
-      "second": "ops/checks/smarthome/tests/test_alert_rule_timing.py",
-      "lines": 12
-    },
-    {
       "fingerprint": "b78ecec06469332a25335ce684ea4925290cab23",
       "first": "homeos/backend/src/domains/earthquake/feeds.py",
       "second": "homeos/backend/src/domains/earthquake/feeds.py",
@@ -899,12 +791,6 @@
       "lines": 11
     },
     {
-      "fingerprint": "ba7de8982d64c900b5b158f1699b0a23da3e3027",
-      "first": "ops/checks/security/tests/test_cors_origin.py",
-      "second": "ops/checks/smarthome/tests/test_migrations_registry.py",
-      "lines": 13
-    },
-    {
       "fingerprint": "ba94427ebf49799383a5722d222610e9c224b557",
       "first": "homeos/backend/src/domains/studio3d/doors.py",
       "second": "homeos/backend/src/domains/studio3d/windows.py",
@@ -927,12 +813,6 @@
       "first": "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/boot.ts",
       "second": "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/studio-render-loop.ts",
       "lines": 30
-    },
-    {
-      "fingerprint": "c28836b6f2c718ca6384abef9a60795ddb0f3b93",
-      "first": "ops/checks/studio/tests/door-open-direction.test.mjs",
-      "second": "ops/checks/studio/tests/door-open-direction.test.mjs",
-      "lines": 16
     },
     {
       "fingerprint": "c567eb8108b2c5aa75e8289b4562304904d23c81",
@@ -969,12 +849,6 @@
       "first": "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/boot.ts",
       "second": "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/studio-render-loop.ts",
       "lines": 51
-    },
-    {
-      "fingerprint": "d0fe751683f86ad344e2214dfbce683b96745cd4",
-      "first": "ops/checks/studio/tests/test_binding_references.py",
-      "second": "ops/checks/studio/tests/test_resource_publication.py",
-      "lines": 12
     },
     {
       "fingerprint": "d3ef294525677ad4a9c15b2ebd49a23064398ae4",
@@ -1103,12 +977,6 @@
       "lines": 13
     },
     {
-      "fingerprint": "ee8bcb379335d210aff1034899bed6ef2a339a32",
-      "first": "ops/checks/smarthome/tests/test_baseline_trigger_suppression.py",
-      "second": "ops/checks/smarthome/tests/test_baseline_trigger_suppression.py",
-      "lines": 16
-    },
-    {
       "fingerprint": "efdb2ee14c51b28998d665a59179de7fbf8d00bd",
       "first": "homeos/frontend/src/features/settings/connect/connection/EventLogRecordFilterSection.vue",
       "second": "homeos/frontend/src/features/settings/connect/connection/EventLogRecordFilterSection.vue",
@@ -1137,12 +1005,6 @@
       "first": "homeos/frontend/src/features/notifications/components/ViewHero.vue",
       "second": "homeos/frontend/src/features/notifications/components/ViewStream.vue",
       "lines": 21
-    },
-    {
-      "fingerprint": "f7a9ee0d0815375321136b9980819fe3647907d5",
-      "first": "ops/checks/security/tests/test_arm_compensation.py",
-      "second": "ops/checks/security/tests/test_zones_clear_armed.py",
-      "lines": 11
     },
     {
       "fingerprint": "fa7a91bb726400be7b3cb78f2152e4110a9ef527",

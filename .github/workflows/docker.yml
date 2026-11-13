@@ -83,8 +83,8 @@ jobs:
             echo "release=${release}"
           } >> "$GITHUB_OUTPUT"
 
-  # 全部门禁统一定义在 checks.yml（五个 job = ops/gates.mjs 的五个组：static / test /
-  # model / build / infra）。这里调用而不是内联复制，避免两处漂移。
+  # 全部门禁统一定义在 checks.yml（四个 job = ops/gates.mjs 的四个组：static / model /
+  # build / infra）。这里调用而不是内联复制，避免两处漂移。
   # 调用时 checks 的 build job 会把前端产物传成 frontend-app / frontend-store 制品 ——
   # 前端与 CPU 架构无关，全流水线只该构建一次，再由下面的矩阵按项目取用。
   # checks.yml 现在同时挂在 push(main) / pull_request / 手动 dispatch 上；作为可复用工作流

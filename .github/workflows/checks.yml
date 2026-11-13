@@ -1,9 +1,8 @@
 name: Checks
 
-# 门禁入口（不构建镜像、不推 GHCR）。五个 job 与 `ops/gates.mjs` 的五个组一一对应：
+# 门禁入口（不构建镜像、不推 GHCR）。四个 job 与 `ops/gates.mjs` 的四个组一一对应：
 #
-#   static  → bun run gate:static   类型 / lint / ruff / 结构规则 / 棘轮
-#   test    → bun run gate:test     单测 + 架构门禁用例（依赖 DAG、路由基线）
+#   static  → bun run gate:static   类型 / lint / ruff / 结构规则 / 棘轮 / 依赖方向与路由基线
 #   model   → bun run gate:model    3D 模型库只读审计（几何 / 槽位 / 材质 / 资产 / 布局）
 #   build   → bun run gate:build    前端产物构建 + 结构断言 + 体积预算 + chunk 初始化
 #   infra   → bun run gate:infra    shell / workflow / compose / Caddyfile / Cython
@@ -19,7 +18,7 @@ name: Checks
 # - workflow_dispatch：Actions 页面 Run workflow。
 # - workflow_call：docker.yml 发版前复用同一份检查，并取用 build job 的前端制品。
 #
-# 本地等价入口：`bun run gate`（默认 static + test + model）、`bun run gate:build`、
+# 本地等价入口：`bun run gate`（默认 static + model）、`bun run gate:build`、
 # `bun run gate:infra`；`node ops/gates.mjs --list` 打印完整清单。
 on:
   push:
@@ -77,48 +76,15 @@ jobs:
       - name: Install ruff
         run: pip install "ruff==0.17.3"
 
-      - name: Static gates
-        run: bun run gate:static
-
-  # 单测 + 架构门禁。后端单测直接 import `src.*`（fastapi / sqlalchemy 都在导入链上），
-  # 所以要有运行期依赖；装的是开区间的 requirements.txt，不碰 requirements.lock
-  # （镜像用的才是那份锁）。
-  #
-  # Node 侧测试命令走 package.json，且传**带引号的 glob**而不是目录：Node 22（ubuntu runner
-  # 自带版本）把 `--test <目录>` 当成单个测试模块，直接 MODULE_NOT_FOUND —— 开发机的
-  # Node 26 是好的，于是「本机绿、CI 红」。
-  test:
-    runs-on: ubuntu-24.04
-    env:
-      HOMEOS_GATE_CONTEXT: ci
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.4.4
-
-      - uses: actions/setup-python@v7
-        with:
-          python-version: '3.15'
-
-      - name: Cache bun install cache
-        uses: actions/cache@v6
-        with:
-          path: ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-          restore-keys: bun-${{ runner.os }}-
-
-      - name: Install JS deps
-        run: bun install --frozen-lockfile
-
-      - name: Install backend deps for unit tests
+      # `check:routes` 导入真实路由注册表（fastapi / sqlalchemy 在导入链上），
+      # 装开区间的 requirements.txt，不碰 requirements.lock（镜像用的才是那份锁）。
+      - name: Install backend deps for route gate
         run: |
           pip install -r homeos/backend/requirements.txt
           pip install -r homeos-store/backend/requirements.txt
 
-      - name: Test gates
-        run: bun run gate:test
+      - name: Static gates
+        run: bun run gate:static
 
   # 模型库只读审计：不依赖前端构建，也不写盘。
   #

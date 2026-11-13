@@ -13,7 +13,7 @@
 ``raise KeyError('Session is disconnected')``。这个 KeyError 一路冒泡到 socketio 的
 ASGIApp（它只做路径分派、不接异常），最终由 uvicorn 转成 **500 Internal Server Error**。
 
-线上表现（最小复现已固化为回归测试 ``ops/checks/security/tests/test_socketio_transport.py``）：
+线上表现（最小复现曾在回归用例中固定下来）：
 浏览器断线或心跳超时后，engineio 已把 socket 标成 closed、却还没来得及从 ``sockets``
 摘除的那个窗口里，客户端最后一发 polling POST 打进来 → 500；socket.io-client 把它记成
 ``connect_error: xhr post error``，随后拿着同一个死 sid 做 WebSocket upgrade，于是控制台

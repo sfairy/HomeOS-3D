@@ -9,7 +9,7 @@
 | 装到自己这台（含商店） | `docker compose up -d` | [§5](#5-部署) |
 | 给客户装一台 | `docker compose -f docker-compose.app.yml up -d` | [§5](#5-部署) |
 
-提交前跑 `bun run gate`（static + test + model）；动过 compose / Dockerfile / 脚本再加
+提交前跑 `bun run gate`（static + model）；动过 compose / Dockerfile / 脚本再加
 `bun run gate:build` 与 `bun run gate:infra`。
 
 ---
@@ -93,7 +93,7 @@ HomeOS/
 │   ├── gates.mjs / lib/py.mjs     # 门禁编排（唯一清单）+ Python 解释器统一入口
 │   ├── dev.mjs / build.py / ports.mjs   # 本地联调 / 构建 / 端口唯一真源
 │   ├── contracts/                 # 能力码目录唯一真源（feature_codes.json）
-│   ├── checks/                    # 架构、3D 模型、体积预算、前端 / 后端边界门禁与回归用例
+│   ├── checks/                    # 架构、3D 模型、体积预算、前端 / 后端边界门禁
 │   ├── release/                   # set-version.mjs（全仓版本槽位对齐）
 │   ├── dev/                       # clean-local.mjs（本地构建缓存清理）
 │   ├── deploy/                    # 公网接入 / 穿透配置示例、preflight.sh、run-backend.sh
@@ -169,19 +169,18 @@ bun run dev -- --lan   # 同网段平板 / 墙面板访问（绑 0.0.0.0，终�
 
 | 层 | 命令 | 谁跑 | 说明 |
 | --- | --- | --- | --- |
-| 阻断 | `gate` / `gate:static` / `gate:test` / `gate:model` / `gate:build` / `gate:infra` | 本地手动 + CI 五个 job | 清单唯一来源是 `ops/gates.mjs`；CI 每个 job 就是「装环境 + `bun run gate:<组>`」 |
+| 阻断 | `gate` / `gate:static` / `gate:model` / `gate:build` / `gate:infra` | 本地手动 + CI 四个 job | 清单唯一来源是 `ops/gates.mjs`；CI 每个 job 就是「装环境 + `bun run gate:<组>`」 |
 | 手动审计 | `audit:*`、不带 `--check` 的同名脚本 | 人 | 只报告不阻断（如 `audit:materials` 写材质报告） |
 | 生成 | `generate:*`、`organize:*`、`index:*`、`rebuild:*`、`build:slot-contracts` | 人 | 写盘命令，产物是提交进仓库的派生表或资产（见 [§4.2](#42-材质槽位契约全部是生成物)） |
 
 | 组 | 管什么 |
 | --- | --- |
-| `static` | 全仓 typecheck / Biome lint、`ruff`、场景静态资源、`any` 棘轮、静默 `except`、async DB、依赖锁与镜像导入 |
-| `test` | 前端 / studio / 架构 / 安防 / 首页模式 / 鉴权导航用例，前后端依赖 DAG，拆分预算 |
+| `static` | 全仓 typecheck / Biome lint、`ruff`、场景静态资源、`any` 棘轮、静默 `except`、async DB、依赖锁与镜像导入、前后端依赖方向、路由基线与拆分预算 |
 | `model` | 3D 模型：几何、槽位、槽位角色、材质角色指纹、资产结构、目录布局、中文名索引 |
 | `build` | 清 `dist` → 前端构建与产物断言 → 体积预算 → 跨 chunk 初始化顺序 |
 | `infra` | shellcheck / actionlint / compose 三种形态 / Caddy 校验 / Cython 兼容性 |
 
-`bun run gate` 默认跑 static + test + model（改代码时够用）；`node ops/gates.mjs --all` 含 build + infra，
+`bun run gate` 默认跑 static + model（改代码时够用）；`node ops/gates.mjs --all` 含 build + infra，
 发版前或动过 compose / Dockerfile / shell 时再跑。缺工具（shellcheck / actionlint / docker）时本机
 显式 SKIP 并给安装提示，**CI 里同一缺失直接失败**。pre-commit 只是客户端兜底，不是门禁层。
 
@@ -258,7 +257,7 @@ bun run dev -- --lan   # 同网段平板 / 墙面板访问（绑 0.0.0.0，终�
 | `bun run check:studio-split` | 拆分预算 + 物品模型等价性（改 `item-model/` 后必跑） |
 | `bun run rebuild:items` | 按 `items/<id>.mjs` 配方重建精修件（写盘） |
 
-前 7 条即 `bun run gate:model`（CI 的 `model` job）；`check:studio-split` 在 `test` 组。
+前 7 条即 `bun run gate:model`（CI 的 `model` job）；`check:studio-split` 在 `static` 组。
 
 **没有 `repair:*` 层**：能自动修的东西要么已经修完并落进基线，要么不该自动修。模型坏了用 `audit:*`
 定位，然后重导出或 `rebuild:items` 重建 —— 前者保证几何来自 Blender 原件，后者保证材质与节点名不动
