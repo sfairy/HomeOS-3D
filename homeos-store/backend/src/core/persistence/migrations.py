@@ -13,7 +13,7 @@ from homeos_shared.sqlite_email import normalize_email_column
 
 # 同 platform/core/db/migrations.py：沿用原有私有名字，调用点零改写（见那里的注释）。
 from homeos_shared.sqlite_introspect import index_exists as _index_exists
-from homeos_shared.sqlite_introspect import normalize_datetime as _normalize_datetime
+from homeos_shared.sqlite_introspect import normalize_all_datetimes
 from homeos_shared.sqlite_introspect import table_columns as _columns
 from homeos_shared.sqlite_introspect import table_exists as _table_exists
 
@@ -98,33 +98,13 @@ def _add_recovery_revoked_at(connection: sqlite3.Connection) -> None:
 
 
 def _normalize_all_datetimes(connection: sqlite3.Connection, context: MigrationContext) -> None:
-    tables = [
-        str(row[0])
-        for row in connection.execute(
-            "SELECT name FROM sqlite_master WHERE type = 'table' "
-            "AND name NOT LIKE 'sqlite_%' AND name != 'schema_migrations'"
-        )
-    ]
-    changed = 0
-    for table in tables:
-        declared = connection.execute(f'PRAGMA table_info("{table}")').fetchall()
-        types = {str(row[1]): str(row[2]).upper() for row in declared}
-        for column, declared_type in types.items():
-            if "DATE" not in declared_type and "TIME" not in declared_type:
-                continue
-            rows = connection.execute(
-                f'SELECT rowid, "{column}" FROM "{table}" WHERE "{column}" IS NOT NULL '  # noqa: S608
-                f'AND (instr("{column}", "+") > 0 OR instr("{column}", "T") > 0 '
-                f'OR length("{column}") NOT IN (19, 26))'
-            ).fetchall()
-            for rowid, value in rows:
-                normalized = _normalize_datetime(str(value))
-                if normalized != value:
-                    connection.execute(
-                        f'UPDATE "{table}" SET "{column}" = ? WHERE rowid = ?',  # noqa: S608
-                        (normalized, rowid),
-                    )
-                    changed += 1
+    """把历史库里非 UTC-naive 的时间字段统一成 ORM 期望的形态。
+
+    实现单点在 ``homeos_shared.sqlite_introspect.normalize_all_datetimes``（与主后端
+    ``platform/core/db/migrations.py`` 同一个函数）：两份逐字相同的 PRAGMA 遍历早已合并。
+    迁移协议签名保持 ``(connection, context)``，``MIGRATIONS`` 注册表一行都不用改。
+    """
+    changed = normalize_all_datetimes(connection)
     if changed:
         context.logger.warning("已归一化 %s 个时间字段为 UTC-naive", changed)
 
