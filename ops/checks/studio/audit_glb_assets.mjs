@@ -95,10 +95,8 @@ export const ALLOW_NAME_CHANGES = new Set(['freezer'])
  */
 export const DECLARED_ORPHAN_FILES = Object.freeze({
   '电器/装饰灯具/落地灯（旧版）.glb':
-    '`floor-lamp` 的 SimLab 原模型，保留作 compare_model_quality 的质量基线；' +
-    '设计目录用的是 `floorlamp`，这份不参与运行时加载',
-  '电器/装饰灯具/落地灯（旧版）-lite.glb':
-    '同上的 lite 档：`compare_model_quality` 按「完整件 ↔ lite」成对比较，缺一份就没法对拍',
+    '`floor-lamp` 的 SimLab 原模型，保留作质量对照基线；' + '设计目录用的是 `floorlamp`，这份不参与运行时加载',
+  '电器/装饰灯具/落地灯（旧版）-lite.glb': '同上的 lite 档：保留完整件与 lite 成对，缺一份就无法对拍',
 })
 
 /**

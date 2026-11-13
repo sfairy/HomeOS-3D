@@ -379,8 +379,8 @@ const DECLARED_ASSET_EXCEPTIONS = Object.freeze({
   'floor-lamp': {
     kind: 'orphan',
     reason:
-      '`落地灯（旧版）.glb` 是 SimLab 原模型，保留作 `compare_model_quality.mjs` ' +
-      '的质量基线；不进设计目录（设计用的是 `floorlamp`），也不参与运行时加载',
+      '`落地灯（旧版）.glb` 是 SimLab 原模型，保留作质量对照基线；' +
+      '不进设计目录（设计用的是 `floorlamp`），也不参与运行时加载',
   },
 })
 

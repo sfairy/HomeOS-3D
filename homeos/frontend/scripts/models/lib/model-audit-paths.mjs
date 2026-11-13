@@ -20,9 +20,6 @@ export const modelAuditDir = path.join(repoRoot, 'docs/model-audit')
 /** `audit_glb_materials.mjs` 输出；`build-slot-contracts.mjs` 的唯一外部输入。 */
 export const materialAuditFile = path.join(modelAuditDir, 'glb-material-audit.json')
 
-/** `compare_model_quality.mjs` 默认输出目录。 */
-export const qualityDir = path.join(modelAuditDir, 'quality')
-
 /** 仓库相对路径，用于写进生成物做溯源（始终用 `/` 分隔）。 */
 export function repoRelative(absolutePath) {
   return path.relative(repoRoot, absolutePath).split(path.sep).join('/')
