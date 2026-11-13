@@ -32,7 +32,7 @@
 #   docker logs homeos-store 2>&1 | grep -m1 SETUP-TOKEN=     # 用它打开 /setup 建管理员
 #
 # 后续步骤（发激活码、客户机注册）、公网接入、内网穿透、上线自检：
-#   ops/deploy/README.md（部署手册）· ops/deploy/PUBLIC-ACCESS.md · ops/deploy/TUNNEL-ACCESS.md
+#   根 README §5（部署）· ops/deploy/（反代与隧道配置示例）· 本文件与 .env.example 的注释
 #
 # 升级：docker compose pull && docker compose up -d。永远不要 down -v（会连数据卷一起删）。
 #

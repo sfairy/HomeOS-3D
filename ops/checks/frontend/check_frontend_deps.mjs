@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * 前端域边界门禁：把 README 中的约定变成可执行检查。
+ * 前端域边界门禁：把前端分层约定变成可执行检查（本文件的规则清单即唯一真源）。
  *
- * 规则（详见 homeos/frontend/src/README.md）：
+ * 规则：
  * 1. views/** 只能经 `@/features/<域>` 或 `@/features/<域>/entry` 使用 feature；
  * 2. feature A 引用 feature B 只能走 B 的域根 barrel；A 不得引用自身 barrel。
  *    域根 barrel 是「有跨域消费者才建」的按需文件：没有 `index.ts` 的域（如只被
@@ -14,7 +14,7 @@
  *    不得 import `@/shared/<域>` 裸 barrel；
  * 6. 根入口不得深引 `@/studio/**`；
  * 7. 禁止 `import Foo from '@/features/<域>'` 默认导入；
- * 8. studio 分层（homeos/frontend/src/studio/README.md §9）：app ↛ runtime；runtime 只依赖
+ * 8. studio 分层（`@/studio` 内）：app ↛ runtime；runtime 只依赖
  *    platform / app/bridge / app/shared；app/bridge 与 app/shared、platform 是叶子层；
  *    纯类型引用编译后消失，不计入；
  * 9. 值引用（非类型、非动态 import）不得成环；

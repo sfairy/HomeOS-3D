@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """后端依赖方向门禁（只读）。
 
-把 `homeos/backend/src/README.md` 里用自然语言写的依赖方向约定，变成可执行的检查。
+本文件即后端依赖方向约定的唯一真源：下面五条规则既是说明也是检查实现。
 前端同样的约定有两道门禁（根 `biome.json` 里的 `noRestrictedImports` 分层规则 +
 `ops/checks/frontend/check_frontend_deps.mjs`），
 后端此前一道都没有 —— 本脚本补上这个缺口。
 
-五条规则（B1/B2/B3 取自 README「依赖方向（约定）」一节；B4/B5 是结构不变量）：
+五条规则（B1/B2/B3 是分层约定；B4/B5 是结构不变量）：
 
     B1 platform→upper : `platform/**` 是叶子基础设施，不得 import
                         api / domains / modules / bootstrap / panel / realtime
     B2 lower→api      : `domains/**` `modules/**` `panel/**` `realtime/**` 不得 import `api/**`
-                        （`bootstrap → 全部` 是 README 明确允许的装配方向，故不列 bootstrap）
+                        （`bootstrap → 全部` 是明确允许的装配方向，故不列 bootstrap）
     B3 absolute-src   : 禁止绝对 `from src.…` / `import src.…`
                         （容器构建期 Cython 烤成 .so 后，`import app.app` 会炸）
     B4 package-cycle  : 包级强连通分量必须落在白名单里。包级互依本身不是运行时环
@@ -24,7 +24,7 @@
     B6 base→package   : 纯配置模块（`config` / `env` / `version`）不得 import 任何顶层包
     B7 layer-direction: 声明了 `allowed_targets` 的项目，层间边必须落在允许表里
 
-多项目：`--project homeos|store|all`（默认 all）。`homeos-store` 的 README 尚未写依赖方向，
+多项目：`--project homeos|store|all`（默认 all）。`homeos-store` 尚未声明依赖方向，
 因此它的 profile 不设 B1/B2（不臆造规则），只跑 B3 与 B4/B5 —— 结构不变量与具体约定无关。
 
 用法：
@@ -54,7 +54,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
-#: 后端顶层包（与 `inventory.py` 的 BACKEND_TOP 保持一致）。
+#: 后端顶层包（唯一真源；改动要与 backend 的实际顶层目录同步）。
 BACKEND_TOP = frozenset({"api", "domains", "platform", "modules", "bootstrap", "realtime", "panel"})
 
 #: B4 白名单：允许互相依赖的包级强连通分量。新增一处就必须显式加到这里 ——
@@ -109,7 +109,7 @@ class Profile:
     #: B4 白名单。
     package_whitelist: frozenset[frozenset[str]] = frozenset()
     #: B4 的包粒度：这些顶层包取 2 段（`domains.ha` / `platform.core`），其余取 1 段。
-    #: 与 `inventory.py` 的 `backend_module_for` 同口径 —— 否则报告与门禁会对不上。
+    #: 与 `package_key` 同口径 —— 否则包级图的边会对不上。
     two_level: frozenset[str] = frozenset({"domains", "modules", "platform", "api"})
     #: 源码根下的单文件模块归到哪一层。`BASE_LAYER` 是比 platform 更低的纯配置层：
     #: 谁都可以依赖它，它自己不得 import 任何顶层包（B6）。
@@ -129,15 +129,15 @@ HOMEOS = Profile(
 )
 
 #: `homeos-store` 后端：顶层是 api / commerce / core / licensing / ops / payments / security，
-#: README 未声明依赖方向。只跑与约定无关的 B3/B4/B5，等它写出方向后再补 leaf_layers / lower_layers。
+#: 尚未声明依赖方向。只跑与约定无关的 B3/B4/B5，等它写出方向后再补 leaf_layers / lower_layers。
 STORE = Profile(
     name="store",
     root=REPO_ROOT / "homeos-store" / "backend" / "src",
     top=frozenset({"api", "commerce", "core", "licensing", "ops", "payments", "security"}),
     two_level=frozenset(),
-    # `homeos-store` 的 README 没有声明依赖方向，所以这里不设 B1/B2（不臆造规则），
+    # `homeos-store` 还没有声明依赖方向，所以这里不设 B1/B2（不臆造规则），
     # 只把 B4 的现状冻结住：5 个平铺包已经是强连通（文件级仍无环），
-    # 允许它维持现状，但不允许再多出新的包级环。等 README 写出方向后再降级为白名单清空。
+    # 允许它维持现状，但不允许再多出新的包级环。等方向写进本文件后再降级为白名单清空。
     package_whitelist=frozenset({frozenset({"commerce", "core", "ops", "payments", "security"})}),
 )
 
@@ -329,8 +329,8 @@ def package_graph(root: Path, profile: Profile) -> dict[str, set[str]]:
 
     **不解析到文件**：`homeos` 后端大量目录是隐式命名空间包（没有 `__init__.py`），
     `from .. import channels` 这类写法解析到文件时会塌到最近的祖先包上，把不同包的边
-    混成一个假枢纽。直接把 import 目标截到前 `package_depth` 段，与 `inventory.py`
-    生成报告的口径一致，B4 的结论才能和结构报告对得上。
+    混成一个假枢纽。直接把 import 目标截到前 `package_depth` 段，与 `package_key` 的
+    口径一致，B4 的结论才能自洽。
     """
     parsed = parsed_files(root, profile)
     known = {package_key(rel, profile) for rel, _ in parsed}
@@ -421,7 +421,7 @@ def strongly_connected(graph: dict[str, set[str]]) -> list[list[str]]:
 def package_key(rel: str, profile: Profile) -> str:
     """文件 → 包键。`two_level` 里的顶层包取 2 段，其余取 1 段。
 
-    与 `inventory.py` 的 `backend_module_for` 同口径：`domains.ha` 是包，而
+    与 `package_key` 同口径：`domains.ha` 是包，而
     `bootstrap` / `realtime` / `panel` 是平铺包（文件直接放在下面）。若对所有包都用
     「取前 2 段」，`bootstrap/router_registry.py` 会变成 `bootstrap.router_registry`，
     于是 `bootstrap → api.*` 的边全部消失、报告与门禁给出两套结果。

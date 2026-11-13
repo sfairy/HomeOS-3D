@@ -292,7 +292,7 @@ RUN mkdir -p /data /data/license-keys /data/client-keys \
 COPY --chown=homeos:homeos dist/homeos-store/backend/${BACKEND_PLATFORM} /app
 COPY --chown=homeos:homeos dist/homeos-store/frontend /app/dist
 # 商店**没有** HTTPS 入口：内网走 http://<局域网IP>:8802，公网由隧道 / 跳板机在 80·443 上
-# 用真实证书终止 TLS（见 ops/deploy/TUNNEL-ACCESS.md）。镜像里不再内置 Caddy 反代，也就不存在
+# 用真实证书终止 TLS（反代 / 隧道片段见 ops/deploy/）。镜像里不再内置 Caddy 反代，也就不存在
 # 8804 —— 那是个自签端口，客户机（httpx 按系统 CA 校验）和支付平台都必然拒绝它。
 EXPOSE 8802
 VOLUME ["/data"]

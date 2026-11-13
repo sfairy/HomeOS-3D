@@ -6,7 +6,7 @@
 
 为什么不做成运行期依赖对方的包：两端**运行期互不 import**（由
 独立部署约定钉死），构建期各自把这一个文件内联编译进自己的
-``.so`` 才是允许的形态（见 ``packages/shared-py/README.md``）。
+``.so`` 才是允许的形态（由 ``ops/docker/compile_python.py`` 在构建期内联）。
 """
 from __future__ import annotations
 

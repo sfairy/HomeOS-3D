@@ -858,7 +858,9 @@ async function main() {
           : `${APP_PORT}/${STORE_PORT}/${VITE_3D_PORT}/${VITE_STORE_PORT}`
         console.log(`  （没探到局域网地址，请自行查看本机 IP；端口 ${ports}）`)
       }
-      console.log('  支付渠道需要真实凭据（支付宝沙箱见 homeos-store/backend/src/README.md）；未配置时下单会 503。')
+      console.log(
+        '  支付渠道需要真实凭据（支付宝沙箱凭据见 homeos-store/backend/src/payments/alipay/）；未配置时下单会 503。',
+      )
     }
 
     for (const child of children) {

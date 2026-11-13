@@ -13,7 +13,7 @@
 #
 # 端口：8801（HTTP）/ 8803（内置自签 HTTPS），冲突就改 `ports:` 左侧。
 # 内网直连用这两个端口；要让外网访问，由隧道 / 反代把 443 回灌到 127.0.0.1:8801，
-# 并把本机的公网地址填进 APP_BASE_URL（见下方 environment 与 ops/deploy/TUNNEL-ACCESS.md）。
+# 并把本机的公网地址填进 APP_BASE_URL（见下方 environment）。
 #
 # 首次启动（Linux 客户机）：
 #   sudo mkdir -p /host/etc /host/sys/class/dmi

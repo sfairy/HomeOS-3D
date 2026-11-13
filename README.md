@@ -6,8 +6,8 @@
 | 我想 | 做什么 | 去看 |
 | --- | --- | --- |
 | 改代码 | `bun install && bun run dev` | [§3](#3-本地开发) |
-| 装到自己这台（含商店） | `docker compose up -d` | [ops/deploy/README.md](ops/deploy/README.md) |
-| 给客户装一台 | `docker compose -f docker-compose.app.yml up -d` | [ops/deploy/README.md](ops/deploy/README.md) |
+| 装到自己这台（含商店） | `docker compose up -d` | [§5](#5-部署) |
+| 给客户装一台 | `docker compose -f docker-compose.app.yml up -d` | [§5](#5-部署) |
 
 提交前跑 `bun run gate`（static + test + model）；动过 compose / Dockerfile / 脚本再加
 `bun run gate:build` 与 `bun run gate:infra`。
@@ -60,7 +60,7 @@
 | 主应用 | `homeos` | 8801 | 8803（自签，可选） | `/login` 登录；首装零用户时同一页给「创建本机唯一账号」 |
 | 授权商店 | `homeos-store` | 8802 | ——（刻意没有） | `/setup` 建运营管理员，`/admin` 运营后台 |
 
-> 端口上的「没有」和「自签」都有原因，别当成没做完 —— 见 [部署手册 §5](ops/deploy/README.md#5-内网直连与-https)。
+> 端口上的「没有」和「自签」都有原因，别当成没做完 —— 见上表与 [§5](#5-部署)。
 >
 > **运行期身份一律不改**：容器名 / 镜像名 / **数据卷名**里的 `homeos` 是刻意保留的。改了就等于换一套
 > 卷，存量部署的数据会看起来「丢了」，而且容器 hostname 参与授权实例指纹。从更早的多文件编排迁过来
@@ -83,12 +83,10 @@ HomeOS/
 │   │   └── public/static/3d-studio/models/   # 模型库：336 个 id / 672 个 GLB（31 MB）
 │   ├── assets-default/            # 随镜像烘焙的默认 UI 素材（镜像内 /app/assets-default）
 │   ├── data/                      # 源码态运行时数据（不入库；容器内 /data）
-│   ├── scripts/run.mjs            # TS 侧 prep / typecheck / build 编排（其余脚本已上移到 ops/）
-│   └── README.md                  # 主应用目录、命令与边界
+│   └── scripts/run.mjs            # TS 侧 prep / typecheck / build 编排（其余脚本已上移到 ops/）
 ├── homeos-store/                  # 授权商店：backend/（commerce / licensing / payments）+ frontend/
 │   ├── frontend/scripts/stage-plan.mjs   # 首屏 3D 舞台示意图生成
-│   ├── data/ keys/local/          # 源码态运行时数据 + 开发态授权密钥
-│   └── README.md                  # 商店目录、命令与边界
+│   └── data/ keys/local/          # 源码态运行时数据 + 开发态授权密钥
 ├── packages/shared/               # @homeos/shared 前端共享契约包；scene/static 是场景 CSS / 字体的唯一真源
 ├── packages/shared-py/            # homeos_shared Python 共享包（构建期各自内联进 .so）
 ├── ops/
@@ -98,8 +96,7 @@ HomeOS/
 │   ├── checks/                    # 架构、3D 模型、体积预算、前端 / 后端边界门禁与回归用例
 │   ├── release/                   # set-version.mjs（全仓版本槽位对齐）
 │   ├── dev/                       # clean-local.mjs（本地构建缓存清理）
-│   ├── deploy/                    # 部署手册、公网接入、穿透、preflight.sh、run-backend.sh
-│   ├── perf/                      # 性能口径 / harness / 阈值 / HA 基线采样
+│   ├── deploy/                    # 公网接入 / 穿透配置示例、preflight.sh、run-backend.sh
 │   └── ci/ docker/ caddy/ vite/   # 容器入口、Caddyfile、Vite 辅助、CI 脚本
 ├── assets/                        # 运行期可替换 UI 素材（compose bind mount 到 /app/assets）
 ├── backups/                       # 备份包落点（compose bind mount 到 /data/backups）
@@ -173,7 +170,7 @@ bun run dev -- --lan   # 同网段平板 / 墙面板访问（绑 0.0.0.0，终�
 | 层 | 命令 | 谁跑 | 说明 |
 | --- | --- | --- | --- |
 | 阻断 | `gate` / `gate:static` / `gate:test` / `gate:model` / `gate:build` / `gate:infra` | 本地手动 + CI 五个 job | 清单唯一来源是 `ops/gates.mjs`；CI 每个 job 就是「装环境 + `bun run gate:<组>`」 |
-| 手动审计 | `audit:*`、`perf:*`、不带 `--check` 的同名脚本 | 人 | 只报告不阻断；`audit:quality` 是模型损伤台账，`audit:architecture` 盘点模块规模 |
+| 手动审计 | `audit:*`、不带 `--check` 的同名脚本 | 人 | 只报告不阻断（如 `audit:materials` 写材质报告） |
 | 生成 | `generate:*`、`organize:*`、`index:*`、`rebuild:*`、`build:slot-contracts` | 人 | 写盘命令，产物是提交进仓库的派生表或资产（见 [§4.2](#42-材质槽位契约全部是生成物)） |
 
 | 组 | 管什么 |
@@ -206,8 +203,8 @@ bun run dev -- --lan   # 同网段平板 / 墙面板访问（绑 0.0.0.0，终�
 创作页（`/3d-studio`）与展示页（`/`）**共用同一份场景构建**（`buildStudioScene`），区别只在外壳与
 可编辑性。根应用只能 `import '@/studio'`（barrel 里的懒加载器），不得直达 `@app/*` / `@runtime/*`；
 `studio/runtime/**` 每个 `.ts` 都是 Vite 入口，按 `/api/v1/modules/interaction3d/<rel>.js` 投放 ——
-**URL 即公网路径**，改名要同步后端 manifest 与白名单。分层与设备运行时约定见
-[`studio/README.md`](homeos/frontend/src/studio/README.md)。
+**URL 即公网路径**，改名要同步后端 manifest 与白名单。分层约定由
+`ops/checks/frontend/check_frontend_deps.mjs` 的规则清单守（`bun run check:frontend-deps`）。
 
 ### 4.1 模型库
 
@@ -220,8 +217,7 @@ bun run dev -- --lan   # 同网段平板 / 墙面板访问（绑 0.0.0.0，终�
   `loaders/external-models/model-asset-folders.ts` 与 `model-file-names.generated.ts` 维护。
 - 中文名索引 [`MODEL-NAMES.md`](homeos/frontend/public/static/3d-studio/models/MODEL-NAMES.md)
   由 `bun run index:model-names` 生成，**不要手改**。
-- 物品模型按 14 个族、59 个类型分支分派，规则与「族顺序不可重排」的原因见
-  [`item-model/README.md`](homeos/frontend/src/studio/app/3d-studio/authoring/items/item-model/README.md)。
+- 物品模型按 14 个族、59 个类型分支分派（`item-model/` 下的族表），族顺序不可重排。
 
 新增一个模型：登记 id 到 `model-asset-folders.ts` → 放进对应分区的两个 GLB → 在模型库加一张带
 `data-library-name` 的卡片（`src/studio/entries/StudioView.vue`）→ `bun run index:model-names` →
@@ -260,7 +256,6 @@ bun run dev -- --lan   # 同网段平板 / 墙面板访问（绑 0.0.0.0，终�
 | `bun run check:models-layout` / `organize:models` | 中文目录布局是否归位 / 归位（写盘） |
 | `bun run check:model-names` / `index:model-names` | 中文名索引是否最新 / 重建 |
 | `bun run check:studio-split` | 拆分预算 + 物品模型等价性（改 `item-model/` 后必跑） |
-| `bun run audit:quality` | 模型损伤台账（HEAD 原始件 vs 当前工作区，只报告） |
 | `bun run rebuild:items` | 按 `items/<id>.mjs` 配方重建精修件（写盘） |
 
 前 7 条即 `bun run gate:model`（CI 的 `model` job）；`check:studio-split` 在 `test` 组。
@@ -287,8 +282,8 @@ bun run dev -- --lan   # 同网段平板 / 墙面板访问（绑 0.0.0.0，终�
 换域名都不影响）；用后一份时**商店地址永远是公网域名**（没有「改成私网 IP」的分支）。
 
 装机步骤、四个地址变量（`APP_LICENSE_SERVER_URL` / `APP_STORE_URL` / `STORE_BASE_URL` /
-`APP_BASE_URL`）、内网 HTTPS 与 SNI、内网穿透、备份与升级、排错表 —— 全部在
-**[ops/deploy/README.md](ops/deploy/README.md)**。
+`APP_BASE_URL`）、内网 HTTPS 与 SNI、内网穿透、备份与升级、排错表 —— 从
+[`.env.example`](.env.example) 的分区注释与两个 compose 文件里的注释读，二者是唯一真源。
 
 ---
 
@@ -296,25 +291,13 @@ bun run dev -- --lan   # 同网段平板 / 墙面板访问（绑 0.0.0.0，终�
 
 | 文档 | 内容 |
 | --- | --- |
-| [ops/deploy/README.md](ops/deploy/README.md) | **部署手册**（部署/运维唯一入口）：装机两步、地址变量、HTTPS、穿透、备份、升级、排错 |
-| [ops/deploy/PUBLIC-ACCESS.md](ops/deploy/PUBLIC-ACCESS.md) | 商店公网接入（域名 + 真实证书 HTTPS、支付回调），配置片段用 `store.example.com` 占位 |
-| [ops/deploy/TUNNEL-ACCESS.md](ops/deploy/TUNNEL-ACCESS.md) | 没有公网 IP 时的内网穿透（frp / cloudflared / 节点小宝），用本项目实际域名 |
-| [ops/BUILD.md](ops/BUILD.md) | 镜像构建细节（Cython 产物、基础镜像钉版、镜像站） |
 | [ops/gates.mjs](ops/gates.mjs) | 门禁清单与分组（CI 五个 job 与本地 `bun run gate` 的唯一来源） |
-| [homeos/frontend/src/README.md](homeos/frontend/src/README.md) | 主应用前端分层 DAG、域边界、桶命名与 studio 的关系 |
-| [homeos/frontend/src/studio/README.md](homeos/frontend/src/studio/README.md) | Studio 子系统分层、启动入口、面板渲染器与设备运行时 |
-| [item-model/README.md](homeos/frontend/src/studio/app/3d-studio/authoring/items/item-model/README.md) | 物品模型 14 族 / 59 分支的拆分规则 |
-| [homeos/backend/src/README.md](homeos/backend/src/README.md) | 主应用后端目录、业务域与关键契约 |
-| [homeos-store/backend/src/README.md](homeos-store/backend/src/README.md) | 商店 / 授权服务器细节 |
-| [homeos-store/frontend/src/README.md](homeos-store/frontend/src/README.md) | 商店前端（前台 + 运营后台）目录与样式/令牌约定（商店前端约定唯一真源） |
-| [packages/shared-py/README.md](packages/shared-py/README.md) | 两个后端共享的 Python 源码包（模块清单 + 共享判据） |
-| [packages/shared/scene/README.md](packages/shared/scene/README.md) | 入户场景静态资源（两个前端共用） |
 | [MODEL-NAMES.md](homeos/frontend/public/static/3d-studio/models/MODEL-NAMES.md) | 模型库中文名索引（**生成，勿手改**：`bun run index:model-names`） |
 | [meshoptimizer LICENSE](homeos/frontend/public/static/vendor/meshoptimizer/0.25/LICENSE.md) | 第三方许可证（**勿改**） |
 | [.env.example](.env.example) | 全部环境变量（分区注释；compose 文件已写死常用值） |
 
-> 文档纪律：性能与审计报告按日期**不入库**；本表外的 `.md` 只有
-> 上面两个「生成 / 第三方」文件，其余新增文档请一并登记到本表。
+> 文档纪律：代码即文档 —— 分层约定写在门禁脚本的规则清单里，部署信息写在 compose / `.env.example`
+> 的注释里，不再另维护 `.md` 副本。本表外的 `.md` 只有上面两个「生成 / 第三方」文件。
 
 CI：两个工作流都**只能手动触发**（Actions 页面 Run workflow），推送不会自动构建：
 

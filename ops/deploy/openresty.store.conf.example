@@ -8,7 +8,7 @@
 # 少了这一段，域名会返回 **404 page not found**（那是 OpenResty 自己的 404，
 # 不是商店的 404 —— 商店的 404 是 JSON），客户机取公钥、激活、心跳、注册验证码
 # 全部失败，而且症状只是「连接失败」，很难一眼看出是入口没配对。
-# 判断方法见 ops/deploy/PUBLIC-ACCESS.md §3.3。
+# 判断方法见 ops/deploy/openresty.store.conf.example 顶部说明与商店后端的 404 日志。`
 #
 # 放置方式（任选其一）：
 #   - 直接并进 nginx.conf 的 http {} 里；

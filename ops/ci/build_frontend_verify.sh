@@ -34,10 +34,10 @@ bun run --cwd homeos/frontend sync:hls:check
 
 bun run build:frontend
 
-# 前端产物是 Vite 压缩产物（**不混淆**，见 ops/BUILD.md）。
+# 前端产物是 Vite 压缩产物（**不混淆**）。
 # 这条断言防止 `_0x` 标识符重新出现：混淆对体积的代价是 5.6x、且线上堆栈会彻底失去可读性。
 if grep -q '_0x' dist/homeos/frontend/static/assets/index-*.js; then
-    echo "主应用产物出现了 _0x 标识符：前端构建不应再走混淆（见 ops/BUILD.md）。" >&2
+    echo "主应用产物出现了 _0x 标识符：前端构建不应再走混淆。" >&2
     exit 1
 fi
 # 3D 外置运行时（three）必须同时满足两件事，缺一件都会让 studio 白屏：
