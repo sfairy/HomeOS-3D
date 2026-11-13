@@ -169,6 +169,36 @@ SQLite 上顺序不影响最终结果，但确定性的执行顺序对「逐字�
 
 ---
 
+## R6 商店订单弹窗的公共行为（本轮补做）
+
+**问题**：`homeos-store/frontend/src/features/storefront/components/PaymentDialog.vue` 与
+`PendingOrderDialog.vue` 里三件事逐字相同（jscpd: 31 行）：
+
+1. `watch(openRef, ...)` 里 `<dialog>` 的 `showModal()` / `close()` 与「打开期间每秒刷新 `now`」；
+2. `onBeforeUnmount(() => window.clearInterval(timer))`；
+3. `cancel()` 的二次确认 —— 连 `kicker` / `title` / `message` / `detail` / 两个按钮文案 / `tone`
+   都一字不差。
+
+**改法**：新增 `features/storefront/composables/useOrderDialog.ts`，导出
+
+- `useOrderDialog(isOpen: () => boolean, dialog: Ref<HTMLDialogElement | null>)` → `{ dialog, now }`
+- `useCancelOrder()` → `(target: StoreOrder | null | undefined) => Promise<void>`
+
+两个弹窗各留 3 行调用，模板完全不动（`ref="dialog"` 仍然绑同一个 ref）。
+
+**为什么 `dialog` 由调用方传入而不是在 composable 里新建**：模板里的 `ref="dialog"` 绑的是 SFC
+作用域内的名字。若 ref 只在 composable 内创建、SFC 只解构 `now`，vue-tsc 的 `noUnusedLocals`
+会把解构出来的 `dialog` 判成「声明未使用」（模板引用不算脚本引用）—— 这是本轮实际撞到的编译错误。
+
+**行为等价性**：三处语义逐条保持 —— 已 open 时不再 `showModal()`（重复调用会抛
+`InvalidStateError`）；每次打开先清旧 interval 再起新的；关闭时只在 `node.open` 为真时 `close()`；
+卸载清定时器。`cancelOrder(target)` 的 target 由调用方给（支付弹窗传 `currentOrder`，
+待提醒传 `pendingOrder`），与原实现一致。
+
+**验证**：`vue-tsc`（商店）+ `biome` + 商店生产构建均通过；jscpd 该克隆归零，总量 −31 行。
+
+---
+
 ## 明确不做的
 
 | 项 | 行数 | 为什么不做 |
@@ -184,7 +214,7 @@ SQLite 上顺序不影响最终结果，但确定性的执行顺序对「逐字�
 ## 提交切分与回滚
 
 分支 `refactor/dedup-safe-batch`，按 R1→R5 分 6 个提交（R1 两个文件一个提交），
-另加 2 个修正提交（门禁自身的缺陷、报告口径与文档），共 8 个。
+另加 3 个提交（门禁缺陷修正、R6、报告口径与文档），共 9 个。
 
 | 提交 | 内容 | 回滚方式 |
 |---|---|---|
@@ -196,6 +226,7 @@ SQLite 上顺序不影响最终结果，但确定性的执行顺序对「逐字�
 | 6 | R5 契约门禁 | 单独 revert |
 | 7 | 门禁缺陷修正：把「重复变小」与「新增重复」区分开；`--json` 输出纯度 | 单独 revert（会退回「改善被判成新增」的误报） |
 | 8 | 报告口径修正与文档 | 纯文档 |
+| 9 | R6 商店订单弹窗 composable | 单独 revert；只动 `homeos-store` 两个弹窗与一个新文件 |
 
 任一提交失败即单独 `git revert`，不影响其他项 —— 每个提交都能独立通过 `gate:static`
 （提交 1 已在独立工作树里实跑验证：`重复代码门禁通过`，exit 0）。

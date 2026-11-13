@@ -38,35 +38,37 @@
 
 | 指标 | 重构前 | 重构后 | 变化 |
 |---|---:|---:|---:|
-| 克隆数 | 194 | 190 | **−4** |
-| 重复行（按克隆计） | 3714 | 3604 | **−110** |
-| `statistics.total.duplicatedLines` | 3371 | 3261 | **−110（−3.26%）** |
-| 扫描总行 | 668,982 | 669,987 | +1,005（新增度量脚本与 4 个组件） |
-| 重复占比 | 0.5039% | 0.4867% | **−0.0172 个百分点** |
+| 克隆数 | 194 | 189 | **−5** |
+| `statistics.total.duplicatedLines` | 3371 | 3232 | **−139（−4.12%）** |
+| 扫描总行 | 668,982 | 669,961 | +979（新增度量脚本 + 5 个新组件） |
+| 重复占比 | 0.5039% | 0.4824% | **−0.0215 个百分点** |
+| 重复 token | 17,648 | 16,893 | **−755** |
 | M2 近似重复簇 | 590 | 583 | **−7** |
 
-> 分母涨了 1,005 行（3 个门禁脚本 + 4 个新组件，均不含重复），所以占比的下降幅度比
-> 「重复行 −3.26%」看起来更大一点；**判断以绝对重复行 −110 为准**。
+> 分母涨了 979 行（门禁脚本与新增组件，均不含重复），所以占比降幅（−4.27%）比
+> 「重复行 −4.12%」略大；**判断以绝对重复行 −139 为准**。
 > 另注：门禁脚本自身也在扫描范围内，因此**每次修改这些脚本，`lines` 就会变**（不影响克隆判定）——
-> 对照数字请以同一次生成的两份 artifact 为准，不要跨次混用。
+> 对照数字必须取同一次生成的两份 artifact，不要跨次混用。
 
 ### 按格式
 
 **注意口径**：下表取 jscpd 的 `statistics.formats`（各格式相加 = 总量）。
-不要把 `duplicates[].lines` 直接按 `format` 求和 —— 重叠的克隆会让同一行被计多次，
-那样算出来的合计是 3604 而不是 3261，比总量多出 343 行。这份清单初版就踩过这个坑，已修正。
+不要把 `duplicates[].lines` 直接按 `format` 求和 —— 重叠的克隆会让同一行被计多次。
+这份清单初版就踩过这个坑（求和得 3714/3604，比总量多出约 340 行），已修正。
 
 | 格式 | 前（行 / 克隆） | 后（行 / 克隆） | Δ行 | 对应改动 |
 |---|---:|---:|---:|---|
-| typescript | 1826 / 92 | 1810 / 91 | **−16** | R3 |
+| typescript | 1826 / 92 | 1781 / 90 | **−45** | R3（16）+ R6（29，商店弹窗 composable） |
 | python | 787 / 57 | 741 / 55 | **−46** | R1（26）+ R2（20） |
 | html（`.vue` 模板段） | 482 / 26 | 434 / 25 | **−48** | R4（24 + 24） |
 | javascript | 276 / 19 | 276 / 19 | 0 | — |
 | css / vue | 0 / 0 | 0 / 0 | 0 | — |
-| **合计** | **3371 / 194** | **3261 / 190** | **−110** | |
+| **合计** | **3371 / 194** | **3232 / 189** | **−139** | |
 
 > `.vue` 文件在 jscpd 里被拆成两段：模板算 `html`、`<script>` 算 `typescript`，
 > 所以「html」这一行的含义是「Vue 模板段」，不是「HTML 文件」。
+> 商店弹窗那 31 行克隆的 `format` 是 `typescript`（匹配到的是 `<script setup>` 里的组合式逻辑），
+> 不是模板。
 
 ### 按目录（相对比较用）
 
@@ -79,10 +81,10 @@
 |---|---:|---:|---:|
 | `homeos/frontend/src` | 4824 | 4712 | **−112** |
 | `homeos/backend/src` | 863 | 791 | **−72** |
+| `homeos-store/frontend/src` | 570 | 508 | **−62** |
 | `homeos-store/backend/src` | 187 | 167 | **−20** |
 | `packages/shared/src` | 16 | 0 | **−16** |
 | `homeos/frontend/scripts` | 228 | 228 | 0 |
-| `homeos-store/frontend/src` | 570 | 570 | 0 |
 | `packages/shared-py` | 22 | 22 | 0 |
 | `ops` | 718 | 718 | 0 |
 
@@ -102,95 +104,109 @@
 jscpd 从未报到，但确实是逐字重复 —— R1 一并消掉了。这也是为什么 R1 的实际删除量（132 行）
 大于 M1 计到的 26 行。
 
-## 4. 剩余清单（≥ 20 行，共 51 条）
+## 4. 剩余清单（≥ 20 行）
 
-按「是否值得动」标注。
+### 4.0 这份清单怎么读
 
-| 行 | 格式 | A | B | 判定 |
-|---:|---|---|---|---|
-| 109 | html | `features/home-mode/editor/HomeModeActionsSection.vue:15` | `features/home-mode/editor/HomeModeTriggersSection.vue:20` | **待办**：两个兄弟分区的头部/批量面板同构，抽出 `HomeModeSectionHead` 可一次消 109 行 |
-| 101 | html | `store .../ops/DiagnosticsView.vue:370` | 同文件 `:416` | **待办**：同一运维页内三处指标卡重复 |
-| 62 | html | 同上 `:409` | 同上 `:517` | **待办**：同上（抽 `MetricCard`） |
-| 48 | html | 同上 `:471` | 同上 `:517` | **待办**：同上 |
-| 51 | ts | `studio-app/boot.ts:2305` | `studio-app/ui/refreshStudioUiInner.ts:131` | **保留**：facade 的「依赖对象字面量」必然与实现侧一致，是依赖倒置的代价 |
-| 51 | ts | `studio-app/boot.ts:3920` | `studio-app/render/studio-render-loop.ts:165` | **保留**：同上 |
-| 46 | js | `scripts/models/items/dryer.mjs:7` | `scripts/models/items/washer.mjs:7` | **待办**：洗衣/烘干模型脚本样板，可提 `buildApplianceSpec()` |
-| 45 | ts | `editor/home/lifecycle/asset-dialog-wiring.ts:7` | 同目录 `boot.ts:4014` | **保留**：facade 依赖字面量 |
-| 42 | ts | `studio-app/boot.ts:2590` | `export/generateExportBundle.ts:60` | **保留**：同上 |
-| 42 | ts | `studio-app/boot.ts:2834` | `interaction/handlePointerDown.ts:65` | **保留**：同上 |
-| 41 | ts | `studio-app/boot.ts:2543` | `export/openExportPanel.ts:50` | **保留**：同上 |
-| 42 | ts | `editor/home/elements/inspectors-navigation.ts:525` | `editor/home/lifecycle/boot.ts:424` | **保留**：同上 |
-| 40 | ts | `editor/home/elements/inspectors-navigation.ts:526` | `editor/home/lifecycle/boot.ts:484` | **保留**：同上 |
-| 37 | ts | `components/common/entity-multi-select/EntityMultiSelect.vue:86` | `.../useEntityMultiSelect.ts:398` | **待办**：SFC 与同目录 composable 的同构解构块（`EntityInput.vue ↔ useEntityInput.ts` 同类） |
-| 34 | ts | `editor/home/lifecycle/boot.ts:3778` | `.../navigation-style-wiring.ts:7` | **保留**：facade 依赖字面量 |
-| 33 | html | `studio/chrome/editor/EditorButtonInspectors.vue:166` | 同文件 `:337` | **待办**：同一文件内同一段写了 3 遍（`:166` / `:337` / `:612`），`EditorChartInspectors` / `EditorDeviceInspectors` / `EditorMediaInspectors` 里还有第 4、5 份 |
-| 33 | html | 同上 `:166` | 同文件 `:612` | **待办**：同上 |
-| 31 | ts | `store .../storefront/components/PaymentDialog.vue:26` | `.../PendingOrderDialog.vue:29` | **待办**：两个结算弹窗的倒计时/取消逻辑同构 |
-| 31 | html | `EditorButtonInspectors.vue:167` | `EditorChartInspectors.vue:139` | **待办**：同族 |
-| 31 | html | `EditorChartInspectors.vue:139` | `EditorDeviceInspectors.vue:172` | **待办**：同族 |
-| 31 | html | `EditorChartInspectors.vue:460` | `EditorMediaInspectors.vue:75` | **待办**：同族 |
-| 30 | ts | `features/settings/interact/composables/alert-rules-context.internals.ts:44` | 同文件 `:242` | **待办**：同一文件内两段同构 |
-| 30 | ts | `studio-app/boot.ts:3972` | `studio-render-loop.ts:215` | **保留**：facade 依赖字面量 |
-| 30 | ts | `editor/home/inspectors/inspector-context-builders.ts:301` | `editor/inspectors/home/home-title-button-inspector.ts:39` | **待办**：`titleButton*Element` 25 个字段的类型声明抄了两份 |
-| 29 | ts | `studio-static-item-meshes.ts:61` | `scene-build/buildStudioScene.ts:317` | **待办** |
-| 29 | ts | `studio-static-item-meshes.ts:61` | `scene-build/scene-layers.ts:128` | **待办** |
-| 29 | ts | `editor/home/lifecycle/boot.ts:2299` | `.../floorplan-messages.ts:10` | **保留**：facade 依赖字面量 |
-| 28 | ts | `features/device/DevicesPage.vue:251` | `features/device/composables/useDevicesView.ts:352` | **待办**：SFC↔composable 同构 |
-| 28 | ts | `editor/home/elements/inspectors-charts.ts:179` | `editor/home/lifecycle/boot.ts:418` | **保留**：同上 |
-| 27 | ts | `studio-app/boot.ts:2260` | `ui/refreshStudioView.ts:36` | **保留**：同上 |
-| 27 | ts | `studio-app/boot.ts:2801` | `scene-build/buildStudioScene.ts:71` | **保留**：同上 |
-| 27 | ts | `editor/home/inspectors/popup-inspectors.ts:93` | `editor/inspectors/home/home-weather-inspector.ts:18` | **待办**：与上面 `titleButton` 同型（`weather*Element` 字段声明） |
-| 26 | ts | `items/studio-item-model.ts:43` | 同文件 `:182` | **待办** |
-| 26 | ts | `editor/component-templates.ts:1134` | `editor/metadata/editor-navigation-style-metadata.ts:169` | **待办**：同一组 `airflow*` 默认值 + 中文标签在「模板」与「元数据」两侧各写一遍；同一对文件另有 23/15/15 行三处，合计 **79 行** |
-| 25 | py | `store api/admin/compliance.py:19` | `store api/admin/ops.py:21` | **待办**：两个 admin 路由的鉴权依赖声明同构 |
-| 25 | ts | `editor/copy-backup/run-copy-backup.ts:20` | `editor/home/style/style-dialogs.ts:692` | **待办** |
-| 24 | html | `features/settings/connect/connection/EventLogRecordFilterSection.vue:263` | 同文件 `:288` | **待办** |
-| 23 | py | `backend api/entities.py:48` | `backend api/voice.py:32` | **待办** |
-| 23 | ts | `features/device/components/DeviceStatsDashboard.vue:214` | 同文件 `:261` | **待办** |
-| 23 | ts | `editor/component-templates.ts:842` | `editor-navigation-style-metadata.ts:304` | **待办**：见上（79 行同族） |
-| 23 | ts | `views/auth/RegisterView.vue:75` | `views/auth/ResetPasswordView.vue:34` | **待办**：两个入户页的步骤条同构 |
-| 22 | ts | `composables/ui/hub-viewport.internals.ts:101` | 同文件 `:194` | **待办** |
-| 22 | ts | `renderer/panel-seams/details/entity-details.ts:14` | `renderer/panel-seams/popups/custom-popup.ts:9` | **待办** |
-| 22 | ts | `views/auth/RegisterView.vue:105` | `views/auth/ResetPasswordView.vue:67` | **待办** |
-| 21 | ts | `features/device/components/DeviceAnalyticsPanel.vue:316` | `.../DeviceUsageStats.vue:308` | **待办** |
-| 21 | html | `features/notifications/components/ViewHero.vue:42` | `.../ViewStream.vue:30` | **待办** |
-| 21 | ts | `features/security/composables/useSecuritySensors.ts:21` | `features/security/utils/zone-room.util.ts:35` | **待办** |
-| 21 | py | `ops/checks/smarthome/tests/test_home_mode_conditions.py:212` | 同文件 `:265` | **保留**：测试用例之间刻意保留的并列结构，合并会降低可读性 |
-| 20 | ts | `components/common/AssetPickerModal.vue:97` | `components/common/asset-manager/AssetManagerModal.vue:66` | **待办** |
-| 20 | ts | `features/device/components/DeviceAnalyticsPanel.vue:168` | `.../DeviceUsageStats.vue:160` | **待办** |
-| 20 | ts | `features/settings/nav.ts:58` | `shared/utils/registry/settings-header-icons.ts:63` | **待办**：设置导航的图标表两处维护 |
-| 20 | py | `ops/checks/security/tests/test_arm_compensation.py:54` | `.../test_security_regressions.py:65` | **保留**：测试夹具 |
+判定列只有三种取值，**每种都注明依据**：
 
-### 明确「保留不动」的两处
+| 判定 | 含义 |
+|---|---|
+| **已修复** | 本次改掉了，见对应 R* |
+| **保留** | 已读代码，确认**不该合并**（下面是具体原因） |
+| **待办** | 已读代码，确认是真复制，且给出了具体抽法 |
+| **未研判** | 只有路径，**我还没读它的上下文**，不给结论 |
 
-| 行 | 克隆 | 为什么不合并 |
+之所以要做这个区分：初版清单里有十几条是**按文件名猜的**，标注「待办」并附了一个抽法。
+复核后发现其中两类猜错了（见 4.3），如果照那个建议去改会白费功夫甚至改错结构。
+**没有读过代码就不该给判断**，所以未读的条目一律降级为「未研判」。
+
+### 4.1 已修复
+
+| 行 | 克隆 | 对应 |
 |---:|---|---|
-| 19 | `composables/ui/screensaver/screensaver.defaults.ts:9` ↔ `shared/utils/config/frontend-config.ts:49` | 两份默认值**故意不同**：`defaultMode` 是 `clock` vs `random`，`brandSizePx` 是 `26` vs `22`。合并需要引入「覆盖参数」，反而更绕；真正的修法是删掉 `SS_DEFAULTS` 里已被 config 覆盖的键 —— 那是行为变更，需要单独验证。 |
-| 15 | `domains/app_config/defaults.py:382` ↔ `platform/core/db/retention.py:35` | `DEFAULT_RETENTION` 的键是「保留天数」的**领域模型**，`_ops_defaults()` 里的 `retention*` 是**运维行为参数**（批大小/首次延迟/间隔），两边只是前缀同名。强行合并会把两件事绑在一起。 |
+| 26 | `backend/domains/app_config/defaults.py:113` ↔ `backend/domains/security/config.py:21` | R1 |
+| 20 | `store backend/core/persistence/migrations.py:113` ↔ `backend/platform/core/db/migrations.py:172` | R2 |
+| 16 | `frontend/src/shared/utils/config/frontend-config.ts:95` ↔ `shared/src/notification/voice-alert.ts:42` | R3 |
+| 24 | `features/home-mode/editor/HomeModeContextBar.vue:35 ↔ :61` | R4 |
+| 43→19 | `components/widgets/system/NotificationCenter.vue:93 ↔ :152` | R4（剩余 19 行是两处调用点各自的外层容器，已低于可抽粒度） |
+| 37（M2） | `features/settings/automate/linkage/PresenceSection.vue:61 ↔ :104` | R4 |
+| 31 | `store .../storefront/components/PaymentDialog.vue:26` ↔ `.../PendingOrderDialog.vue:29` | R6（本轮补做）：`<dialog>` 开关 + 每秒 `now` + 取消二次确认三件事逐字相同 → `useOrderDialog.ts` |
 
-### 规模分布
+另外 `domains/app_config/defaults.py` 与 `domains/notification/config.py` 之间的
+`energy` / `water` / `iaq` / `notification` 四个分区字面量**低于 M1 阈值**（每块 1–10 行），
+jscpd 从未报到，但确实是逐字重复 —— R1 一并消掉了。这也是 R1 的实际删除量（37 行）
+大于 M1 计到的 26 行的原因。
+
+### 4.2 保留（已读代码，确认不该合并）
+
+| 行 | 克隆 | 为什么保留 |
+|---:|---|---|
+| 101 / 62 / 48 | `store .../ops/DiagnosticsView.vue` 自重复三处 | **初版建议是错的**。它不是「指标卡重复」，而是**两张不同的表**（账号会话 / 客户端会话，列不同）共用同一套单元格写法：`<td class="nowrap">{{ dt(...) }}</td>`、`—` 兜底、`pill` 成对、`row-actions` 按钮。jscpd 匹配的是这套 token 骨架。唯一的抽法是 `<DataCell>` 级别的原语，抽象收益低于它带来的间接层。 |
+| 51 / 51 / 42 / 42 / 41 / 42 / 40 / 34 / 30 / 29 / 28 / 27 / 27 | `studio-app/boot.ts` 与各实现文件（13 条） | facade 的「依赖对象字面量」：`boot.ts` 侧 `xDeps()` 与实现侧解构出的名字必须一致，这是依赖倒置手法的代价，不是复制粘贴。真正的结构问题是 4182 行 / 765 个 `*Impl` 包装，归 `check_split_budget.mjs` 分阶段处理。 |
+| 37 / 30 / 28 | `EntityMultiSelect.vue ↔ useEntityMultiSelect.ts`、`EntityInput.vue ↔ useEntityInput.ts`、`DevicesPage.vue ↔ useDevicesView.ts` | 一侧是 composable 的 `return { ... }`，另一侧是 SFC 的 `const { ... } = useX()`。**这是 API 面本身**，就像函数签名。合并只能靠「返回一个对象再整体解构」，会让每个调用点都多一层间接，可读性更差。 |
+| 19 | `composables/ui/screensaver/screensaver.defaults.ts ↔ shared/utils/config/frontend-config.ts` | 两份默认值**故意不同**：`defaultMode` 是 `clock` vs `random`，`brandSizePx` 是 `26` vs `22`。 |
+| 15 | `domains/app_config/defaults.py:382` ↔ `platform/core/db/retention.py:35` | `DEFAULT_RETENTION` 是「各表保留天数」的领域模型，`_ops_defaults()` 里的是运维行为参数（批大小 / 首次延迟 / 间隔），只是前缀同名。 |
+| 21 / 20 | `ops/checks/smarthome/tests/*`、`ops/checks/security/tests/*` | 测试用例之间刻意并列的结构，合并会降低可读性。 |
+
+### 4.3 待办（已读代码，确认真复制）
+
+| 行 | 克隆 | 抽法 | 风险 |
+|---:|---|---|---|
+| 109 | `features/home-mode/editor/HomeModeActionsSection.vue:15` ↔ `HomeModeTriggersSection.vue:20` | 两个兄弟分区的「标题 + 描述 + 紧凑态按钮组」及批量面板头部同构 → `HomeModeSectionHead` | 中：两个文件各 300–420 行，涉及主从导航 |
+| 33×2 / 31×2 / 31 | `studio/chrome/editor/Editor{Button,Chart,Device,Media}Inspectors.vue` | 同一段「四组动作按钮」（`data-action-trigger` tap/doubleTap… + 目标 select）在 5 个文件里**逐字**抄了 5 遍 → `ComponentActionControls.vue` | 中高：`data-*` 与 id 被 studio runtime 的普通 JS 按选择器读取，抽成组件必须保持 DOM 与属性逐字不变；且受 chunk 预算约束 |
+| 26 / 23 / 15 / 15 | `editor/component-templates.ts` ↔ `editor/metadata/editor-navigation-style-metadata.ts` | 同一组 `airflow*` / `onFill*` 默认值与中文标签在「模板默认值」与「元数据渲染」两侧各写一遍（合计 79 行）→ 提 `AIRFLOW_DEFAULTS` / `NAV_STYLE_LABELS` 常量供两侧引用 | 低：纯数据，但键很多，漏一个就是行为差异 |
+| 46 | `scripts/models/items/dryer.mjs:7` ↔ `washer.mjs:7` | 洗衣/烘干两个模型脚本的尺寸与外壳构造逐字相同 → 共享 `buildLaundryShell()` | 低技术风险，但**归模型库 owner**：哪天两者要分化，过早共享会碍事 |
+| 30 / 27 | `editor/home/inspectors/inspector-context-builders.ts:301` ↔ `inspectors/home/home-title-button-inspector.ts:39`；`popup-inspectors.ts:93` ↔ `home-weather-inspector.ts:18` | 25 个 `titleButton*Element` / 一组 `weather*Element` 的**类型声明**抄了两份 → 从 `inspectors` 侧 `export type` 一次，builder 侧 `import type` | 低：纯类型 |
+| 30 | `features/settings/interact/composables/alert-rules-context.internals.ts:44 ↔ :242` | 同文件内两段同构的取值/合并逻辑 | 中：需逐行确认两边字段集是否真的相同 |
+
+### 4.4 未研判（只有路径，本轮未读代码）
+
+下面这些出现在报表里，但**我没有读它们的上下文，因此不给判定**。
+triage 方法：先看两侧是不是「同一份契约的两处声明」或「API 面」（→ 保留），
+再看能不能就地抽一个纯展示件（→ 待办）。
+
+```
+24  features/settings/connect/connection/EventLogRecordFilterSection.vue:263 ↔ :288 (自重复)
+23  api/entities.py:48 ↔ api/voice.py:32                                    (backend)
+23  features/device/components/DeviceStatsDashboard.vue:214 ↔ :261          (自重复)
+23  views/auth/RegisterView.vue:75 ↔ ResetPasswordView.vue:34
+22  composables/ui/hub-viewport.internals.ts:101 ↔ :194                     (自重复)
+22  renderer/panel-seams/details/entity-details.ts:14 ↔ popups/custom-popup.ts:9
+22  views/auth/RegisterView.vue:105 ↔ ResetPasswordView.vue:67
+21  features/device/components/DeviceAnalyticsPanel.vue:316 ↔ DeviceUsageStats.vue:308
+21  features/notifications/components/ViewHero.vue:42 ↔ ViewStream.vue:30
+21  features/security/composables/useSecuritySensors.ts:21 ↔ utils/zone-room.util.ts:35
+20  components/common/AssetPickerModal.vue:97 ↔ asset-manager/AssetManagerModal.vue:66
+20  features/device/components/DeviceAnalyticsPanel.vue:168 ↔ DeviceUsageStats.vue:160
+20  features/settings/nav.ts:58 ↔ shared/utils/registry/settings-header-icons.ts:63
+29  studio/app/3d-studio/authoring/items/studio-static-item-meshes.ts:61 ↔ scene-build/buildStudioScene.ts:317
+29  同上 ↔ scene-build/scene-layers.ts:128
+24  ops/checks/... (测试夹具，见 4.2 同类)
+```
+
+### 4.5 规模分布
 
 | 行数区间 | 重构前 | 重构后 |
 |---|---:|---:|
 | 10–14 | 98 | 98 |
-| 15–29 | 71 | 68 |
+| 15–29 | 71 | 66 |
 | 30–59 | 22 | 21 |
 | ≥60 | 3 | 3 |
-| **合计** | **194** | **190** |
+| **合计** | **194** | **189** |
 
 `10–14` 段一条没少，符合预期：这一段绝大多数是「一处契约的两份声明」和测试夹具，属于
-**已知不会去改**的重复；真正的收益集中在 `≥15` 段。
+**已知不会去改**的重复；真正的收益集中在 `≥15` 段（71 → 66）。
 
-## 5. 后续建议顺序（按收益/风险）
+## 5. 后续建议顺序（按「已核实 + 收益/风险」）
 
-1. `DiagnosticsView.vue`（store 运维页）：211 行，纯前端、单文件、无跨端契约 → 最容易拿下。
-2. `EditorXxxInspectors.vue` 五兄弟：约 150 行，同一份「datalist + 字段行」模板抄了 5 遍，抽一个 `<InspectorFieldRow>`。
-3. `component-templates.ts ↔ editor-navigation-style-metadata.ts`：79 行，`airflow*` 默认值 + 中文标签；需要同时改「模板默认值」与「元数据渲染」，建议把默认值提成 `AIRFLOW_DEFAULTS` 常量供两侧引用。
-4. `entity-multi-select` / `entity-input` / `DevicesPage` 的 SFC↔composable 同构解构：约 100 行，同一套 `{ a, b, c } = useX()` 在 SFC 与 composable 各写一遍；这块已在 M2 里排前 20。
-5. `HomeModeActionsSection ↔ HomeModeTriggersSection`：109 行，收益最大但两个文件都 300–420 行，
-   且涉及 `RecommendInsightCard` 与主从导航，**建议放到与 `studio` 拆分同批**做。
-6. 模型脚本 `dryer.mjs ↔ washer.mjs`：46 行，低风险，可随时做。
-
+1. `component-templates.ts ↔ editor-navigation-style-metadata.ts`（79 行）：纯数据，抽常量即可，风险最低。
+2. `editor/home/inspectors` 的类型声明（57 行）：纯 `export type`，机械改动。
+3. `Editor{Button,Chart,Device,Media}Inspectors.vue` 的五份动作按钮（约 150 行）：收益最大，
+   但必须先确认 `data-*` / id 被哪些 JS 选择器依赖，再动手。
+4. `HomeModeActionsSection ↔ HomeModeTriggersSection`（109 行）：与 `studio` 拆分同批做。
+5. 模型脚本 `dryer.mjs ↔ washer.mjs`（46 行）：归模型库 owner，随时可做。
+6. 4.4 里的未研判项：先 triage 再决定，不要按行数排序直接改。
 ## 6. 复现命令
 
 ```bash
