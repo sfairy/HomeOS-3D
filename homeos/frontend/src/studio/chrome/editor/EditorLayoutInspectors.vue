@@ -1,10 +1,18 @@
 <script setup lang="ts">
+import ComponentActionTrigger from './ComponentActionTrigger.vue'
 /**
  * 布局类检查器（导航 / 面板框 / 户型图自动导图）。
  *
- * 从 `entries/EditorView.vue` 模板整段切出（`ops/studio/studio_template_seam.mjs`）。
+ * 从 `entries/EditorView.vue` 模板整段切出。切分脚本
+ * `ops/studio/studio_template_seam.mjs` 已随「拆除自定义门禁 / 冒烟体系」删除且无替代品，
+ * 现在这些模板是手写维护的源文件 —— 不要再去找那个脚本。
  * 这些段落是**引擎命令式填充的静态 DOM 契约**（`getElementById` / `querySelector`），
- * 零 Vue 指令，故无需 props / emits；用多根模板渲染，DOM 结构与切片前一致（不新增包裹元素）。
+ * 本组件自身仍是零 Vue 指令、无 props / emits，用多根模板渲染，DOM 结构与切片前一致
+ * （不新增包裹元素）。唯一例外是「动作」区的 3 个触发块改用
+ * `ComponentActionTrigger.vue`：那 11 行标记在 5 个检查器里一共写了 27 遍。
+ * 该子组件的 props **必须保持静态** —— 引擎会命令式改写它渲染出的
+ * `<select data-action-target>` 子节点与 `.component-action-target` 的 hidden，
+ * Vue 一旦重渲染就会把这些改动清掉。
  *
  * 改动约束：元素 id 属于对外契约，重命名/删除必须同步 `app/editor/**` 里的取值方。
  */
@@ -309,33 +317,9 @@
                 <section class="inspector-section">
                     <h3>动作</h3>
                     <div id="navigation-action-controls" class="component-action-controls">
-                        <div class="component-action-control" data-action-trigger="tap"> <span>点按</span>
-                            <div class="component-action-options" role="group" aria-label="点按动作"> <button type="button"
-                                    data-action-type="none">无动作</button> <button type="button"
-                                    data-action-type="toggle">切换</button> <button type="button"
-                                    data-action-type="more-info">打开弹窗</button> <button type="button"
-                                    data-action-type="navigate">跳转页面</button> </div> <label
-                                class="component-action-target" hidden><span>跳转到</span><select data-action-target
-                                    aria-label="点按跳转页面"></select></label>
-                        </div>
-                        <div class="component-action-control" data-action-trigger="doubleTap"> <span>双击</span>
-                            <div class="component-action-options" role="group" aria-label="双击动作"> <button type="button"
-                                    data-action-type="none">无动作</button> <button type="button"
-                                    data-action-type="toggle">切换</button> <button type="button"
-                                    data-action-type="more-info">打开弹窗</button> <button type="button"
-                                    data-action-type="navigate">跳转页面</button> </div> <label
-                                class="component-action-target" hidden><span>跳转到</span><select data-action-target
-                                    aria-label="双击跳转页面"></select></label>
-                        </div>
-                        <div class="component-action-control" data-action-trigger="hold"> <span>长按</span>
-                            <div class="component-action-options" role="group" aria-label="长按动作"> <button type="button"
-                                    data-action-type="none">无动作</button> <button type="button"
-                                    data-action-type="toggle">切换</button> <button type="button"
-                                    data-action-type="more-info">打开弹窗</button> <button type="button"
-                                    data-action-type="navigate">跳转页面</button> </div> <label
-                                class="component-action-target" hidden><span>跳转到</span><select data-action-target
-                                    aria-label="长按跳转页面"></select></label>
-                        </div>
+                        <ComponentActionTrigger trigger="tap" label="点按" group-aria-label="点按动作" select-aria-label="点按跳转页面" more-info-label="打开弹窗" />
+                        <ComponentActionTrigger trigger="doubleTap" label="双击" group-aria-label="双击动作" select-aria-label="双击跳转页面" more-info-label="打开弹窗" />
+                        <ComponentActionTrigger trigger="hold" label="长按" group-aria-label="长按动作" select-aria-label="长按跳转页面" more-info-label="打开弹窗" />
                     </div>
                 </section>
                 <section class="inspector-section navigation-batch-section">
