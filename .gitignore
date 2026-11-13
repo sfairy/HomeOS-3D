@@ -113,3 +113,7 @@ ops/checks/studio/material-slot-repair-plan.json
 # 移植核对工具的一次性调试产物（反混淆片段、临时 CSS、dbg 脚本）。
 # `ops/port/*.mjs` 与 `ops/port/lib/` 入库，`tmp/` 只留本地。
 ops/port/tmp/
+
+# 重复代码检测的原始报告（jscpd 每次重跑即覆盖，且内含绝对路径会写进本机用户名）。
+# 入库的是归一化后的 jscpd-before.json / jscpd-after.json 与 ops/checks/duplication-baseline.json。
+docs/analysis/code-duplication/report/

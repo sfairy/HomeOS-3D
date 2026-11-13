@@ -95,6 +95,10 @@ const GATE_GROUPS = {
     { name: 'check:scene', ...bun('run', 'check:scene') },
     { name: 'check:any', ...bun('run', 'check:any') },
     { name: 'check:frontend-complexity', ...bun('run', 'check:frontend-complexity') },
+    // 重复代码棘轮：jscpd 精确克隆（≥10 行且 ≥50 token）对比基线，涨了即失败。
+    // 近似重复（相似度阈值）不进这里 —— 主观阈值卡 CI 只会催生「改得更不像」的动机，
+    // 那部分由 `bun run dup:analyze` 单独出清单。
+    { name: 'check:duplicates', ...bun('run', 'check:duplicates') },
     { name: 'check:styles', ...bun('run', 'check:styles') },
     { name: 'check:silent-except', ...bun('run', 'check:silent-except') },
     { name: 'check:async-db', ...bun('run', 'check:async-db') },
@@ -108,6 +112,9 @@ const GATE_GROUPS = {
     { name: 'check:ws-auth', ...bun('run', 'check:ws-auth') },
     { name: 'check:store-routes', ...bun('run', 'check:store-routes') },
     { name: 'check:api-contract', ...bun('run', 'check:api-contract') },
+    // 「域 → 控制类型」契约表在 Python（后端校验命令）与 TS（播放器渲染面板）各有一份。
+    // 两端不一致时「面板能显示、命令发不出去」，两边的单测都看不出来，只能靠这条对齐检查。
+    { name: 'check:extra-types', ...bun('run', 'check:extra-types') },
     { name: 'check:file-size', ...bun('run', 'check:file-size') },
     { name: 'check:complexity', ...bun('run', 'check:complexity') },
     { name: 'check:python-format', ...bun('run', 'check:python-format') },
