@@ -115,5 +115,5 @@ ops/checks/studio/material-slot-repair-plan.json
 ops/port/tmp/
 
 # 重复代码检测的原始报告（jscpd 每次重跑即覆盖，且内含绝对路径会写进本机用户名）。
-# 入库的是归一化后的 jscpd-before.json / jscpd-after.json 与 ops/checks/duplication-baseline.json。
-docs/analysis/code-duplication/report/
+# 已被上面的 `docs/` 整目录规则覆盖，这里不再单列；入库的只有归一化后的
+# 基线与 `ops/checks/duplication-baseline.json`。
