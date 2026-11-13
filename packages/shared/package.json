@@ -15,8 +15,9 @@
     "./components/PasswordField.vue": "./src/components/PasswordField.vue",
     "./components/SceneStage.vue": "./src/components/SceneStage.vue",
     "./components/EntryShell.vue": "./src/components/EntryShell.vue",
-    "./components/entry-step": "./src/components/entry-step.ts",
-    "./scene/scene-values": "./src/scene/scene-values.ts",
+  "./components/entry-step": "./src/components/entry-step.ts",
+  "./notification/voice-alert": "./src/notification/voice-alert.ts",
+  "./scene/scene-values": "./src/scene/scene-values.ts",
     "./scene/touch-profile": "./src/scene/touch-profile.ts",
     "./security/password-policy": "./src/security/password-policy.ts",
     "./utils/clipboard": "./src/utils/clipboard.ts"

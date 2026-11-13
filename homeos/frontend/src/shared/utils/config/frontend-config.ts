@@ -3,6 +3,9 @@ import { ref } from 'vue'
 import { logger } from '@/shared/utils/core/logger'
 import { AGENT_QUICK_PROMPTS } from '@/shared/agent/constants/agent-quick-prompts'
 import type { ClientPowerWakePublic } from '@homeos/shared'
+// 语音告警默认矩阵单点在 ``@homeos/shared``：这里只是「公开配置还没拉到时」的一份兜底，
+// 再抄一遍 14 个布尔键就等于让「后端默认值」和「前端兜底值」各走各的（见 voice-alert.ts）。
+import { DEFAULT_VOICE_ALERT_RULES } from '@homeos/shared/notification/voice-alert'
 import type {
   AppPublicConfig,
   ConfigChangeListener,
@@ -92,22 +95,9 @@ const defaults: AppPublicConfig = {
     customTtsAlerts: [],
     entityTtsAlerts: [],
     rooms: [],
-    ttsAlerts: {
-      enabled: true,
-      securityZone: true,
-      securityAnomaly: true,
-      safetySmoke: true,
-      safetyGas: true,
-      safetyWater: true,
-      securityEmergency: true,
-      presenceLeft: true,
-      energyAnomaly: true,
-      energyBudget: false,
-      waterAnomaly: true,
-      envMoldRisk: false,
-      notificationDanger: true,
-      notificationWarn: false,
-    },
+    // 与后端 DEFAULT_NOTIFICATION_CONFIG["voice"]["ttsAlerts"] 同源（见 voice-alert.ts）。
+    // 展开而不是直接引用：调用方会就地改这个对象，共享单例会被跨实例改写。
+    ttsAlerts: { ...DEFAULT_VOICE_ALERT_RULES },
   },
   voiceCommands: [],
   eventLog: {
