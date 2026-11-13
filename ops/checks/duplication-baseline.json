@@ -23,13 +23,13 @@
     "ops"
   ],
   "totals": {
-    "sources": 3460,
-    "lines": 669952,
-    "clones": 188,
-    "duplicatedLines": 3202,
-    "percentage": 0.4779,
-    "tokens": 3924290,
-    "duplicatedTokens": 16833
+    "sources": 3458,
+    "lines": 669611,
+    "clones": 183,
+    "duplicatedLines": 3043,
+    "percentage": 0.4544,
+    "tokens": 3916874,
+    "duplicatedTokens": 14590
   },
   "byFormat": {
     "css": {
@@ -40,17 +40,17 @@
       "clones": 0
     },
     "html": {
-      "sources": 403,
-      "lines": 28099,
-      "duplicatedLines": 434,
-      "percentage": 1.5445,
-      "clones": 25
+      "sources": 404,
+      "lines": 27896,
+      "duplicatedLines": 275,
+      "percentage": 0.9858,
+      "clones": 20
     },
     "javascript": {
-      "sources": 351,
-      "lines": 48373,
+      "sources": 352,
+      "lines": 48380,
       "duplicatedLines": 276,
-      "percentage": 0.5706,
+      "percentage": 0.5705,
       "clones": 19
     },
     "python": {
@@ -61,15 +61,15 @@
       "clones": 55
     },
     "typescript": {
-      "sources": 1611,
-      "lines": 354303,
+      "sources": 1606,
+      "lines": 354258,
       "duplicatedLines": 1751,
-      "percentage": 0.4942,
+      "percentage": 0.4943,
       "clones": 89
     },
     "vue": {
-      "sources": 412,
-      "lines": 82421,
+      "sources": 413,
+      "lines": 82321,
       "duplicatedLines": 0,
       "percentage": 0,
       "clones": 0
@@ -129,12 +129,6 @@
       "first": "homeos/backend/src/domains/logs/event_log.py",
       "second": "homeos/backend/src/domains/logs/event_log.py",
       "lines": 11
-    },
-    {
-      "fingerprint": "1000c5a98ff8a13a65ee8740026ed4062fdb177d",
-      "first": "homeos/frontend/src/studio/chrome/editor/EditorButtonInspectors.vue",
-      "second": "homeos/frontend/src/studio/chrome/editor/EditorChartInspectors.vue",
-      "lines": 31
     },
     {
       "fingerprint": "1074bda59cef73dc9c32af70740f9240969e2efe",
@@ -317,12 +311,6 @@
       "lines": 12
     },
     {
-      "fingerprint": "30fd13a8c989042c2e0d4bc8b0dfded007b68239",
-      "first": "homeos/frontend/src/studio/chrome/editor/EditorChartInspectors.vue",
-      "second": "homeos/frontend/src/studio/chrome/editor/EditorDeviceInspectors.vue",
-      "lines": 31
-    },
-    {
       "fingerprint": "3176ee22f18a99ca2a25003a75e3ac12b7f1e6f2",
       "first": "homeos/backend/src/domains/agent/policy/proactive.py",
       "second": "homeos/backend/src/domains/agent/tools/home_tools_entities.py",
@@ -461,18 +449,6 @@
       "lines": 14
     },
     {
-      "fingerprint": "4eb90dcdc18ebb6449423b5614c4f23a292a5128",
-      "first": "homeos/frontend/src/studio/chrome/editor/EditorButtonInspectors.vue",
-      "second": "homeos/frontend/src/studio/chrome/editor/EditorButtonInspectors.vue",
-      "lines": 33
-    },
-    {
-      "fingerprint": "4eb90dcdc18ebb6449423b5614c4f23a292a5128",
-      "first": "homeos/frontend/src/studio/chrome/editor/EditorButtonInspectors.vue",
-      "second": "homeos/frontend/src/studio/chrome/editor/EditorButtonInspectors.vue",
-      "lines": 33
-    },
-    {
       "fingerprint": "4f96cfce000d88a0a200a692b710395a2c0cee1c",
       "first": "homeos-store/frontend/src/features/admin/views/ops/DiagnosticsView.vue",
       "second": "homeos-store/frontend/src/features/admin/views/ops/DiagnosticsView.vue",
@@ -585,12 +561,6 @@
       "first": "ops/checks/home_mode/tests/test_realtime_connect_race.py",
       "second": "ops/checks/smarthome/tests/test_home_mode_action_policy.py",
       "lines": 11
-    },
-    {
-      "fingerprint": "68237eba8397f3e7ec0b253da1b968ad9788ae78",
-      "first": "homeos/frontend/src/studio/chrome/editor/EditorChartInspectors.vue",
-      "second": "homeos/frontend/src/studio/chrome/editor/EditorMediaInspectors.vue",
-      "lines": 31
     },
     {
       "fingerprint": "6a541a9329ed8830db2a07117c9fd0afb1f7231b",
