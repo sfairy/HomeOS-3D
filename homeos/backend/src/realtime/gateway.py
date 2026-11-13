@@ -127,8 +127,15 @@ class RealtimeGateway(BroadcastMixin, ConnectionLifecycleMixin, SubscriptionInde
             return True
         from ..platform.security.cookies import is_origin_allowed, resolve_allowed_origins
 
-        if is_origin_allowed(origin, resolve_allowed_origins()):
-            return True
+        try:
+            if is_origin_allowed(origin, resolve_allowed_origins()):
+                return True
+        except Exception as error:
+            # 这个 callable 由 engineio 在**每次响应**的 CORS 头阶段调用，且位于它的
+            # try/except 之外（见 platform/core/http/socketio_transport.py 的同源说明）：
+            # 这里抛任何异常都会把一次来源判定失败升级成整条 socket.io 通道的 500。
+            # 判定不出来就按「不受理」，同源兜底在下面继续，权限面只收紧不放宽。
+            logger.warning("Socket.IO 来源白名单判定失败，按未授权处理：%r", error)
         # 同源兜底：握手一定带 Origin，而请求的 Host 就是浏览器此刻真正在访问的地址。
         # 这条不能只靠白名单：`APP_BASE_URL` 在客户机那份 compose 里默认留空（客户用
         # 自己的域名 / 穿透域名访问时根本不知道该填什么），只认白名单会把公网域名的实时

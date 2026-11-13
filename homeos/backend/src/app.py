@@ -34,6 +34,7 @@ from .bootstrap.studio_shell import install as install_studio_shell
 from .config import Settings, load_settings
 from .platform.core.db.database import Database
 from .platform.core.http.proxy_env import repair_no_proxy_env
+from .platform.core.http.socketio_transport import guard_socketio_transport
 from .platform.core.runtime.observability import decide_metrics_access, format_homeos_prometheus_metrics
 from .platform.security.client_address import client_ip_from_request
 
@@ -206,6 +207,11 @@ def create_asgi_app(settings: Settings | None = None, *, boot_import_ms: float |
 
     与 Nest main.ts 一致：Socket.IO 与 HTTP 同端口、同进程，前端零改动。
     boot_import_ms 由入口进程测得，仅为 /metrics 提供「import vs lifespan」拆分，不参与运行。
+
+    最外层的 ``guard_socketio_transport`` 不是可选项：python-engineio 的 POST 分支对
+    ``_get_socket`` 没有 try/except，会话被关闭后客户端最后一发 polling POST 会以未处理
+    KeyError 冒到 uvicorn、变成 500（前端表现为 ``xhr post error`` + ``WebSocket is closed``）。
+    详见 ``platform/core/http/socketio_transport.py``。
     """
     import socketio
 
@@ -213,8 +219,9 @@ def create_asgi_app(settings: Settings | None = None, *, boot_import_ms: float |
     fastapi_app.state.boot_import_ms = float(
         boot_import_ms if boot_import_ms is not None else _MODULE_IMPORT_MS
     )
-    return socketio.ASGIApp(
+    socketio_app = socketio.ASGIApp(
         fastapi_app.state.realtime.sio,
         other_asgi_app=fastapi_app,
         socketio_path="socket.io",
     )
+    return guard_socketio_transport(socketio_app)
