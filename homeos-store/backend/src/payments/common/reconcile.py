@@ -1,5 +1,4 @@
-"""主动查单对账 + 过期订单关单。
-"""
+"""主动查单对账 + 过期订单关单。"""
 
 from __future__ import annotations
 
@@ -21,7 +20,7 @@ from ...commerce import fulfill
 from ...commerce.expiry import EXPIRE_BATCH_LIMIT, expire_stale_orders, prune_expired_sessions
 from ...config import StoreSettings
 from ...core.models import Order, Product, StoreSetting, utcnow
-from ...ops import incidents
+from ...infra import incidents
 
 logger = logging.getLogger("src.payments.reconcile")
 
@@ -44,12 +43,8 @@ _lock = threading.Lock()
 
 
 def channel_still_payable(order: Order, *, now: datetime | None = None) -> bool:
-    """这笔订单的渠道交易是否**仍可能被付款**。
-    """
-    if (
-        normalize_provider_name(order.payment_provider) not in PROVIDER_NAMES
-        or order.channel_closed_at is not None
-    ):
+    """这笔订单的渠道交易是否**仍可能被付款**。"""
+    if normalize_provider_name(order.payment_provider) not in PROVIDER_NAMES or order.channel_closed_at is not None:
         return False
     created = order.created_at
     if created is None:
@@ -100,9 +95,7 @@ class _QueryOrder:
     order_no: str
 
 
-def _query_payment_without_session(
-    provider, settings: StoreSettings, order_no: str
-) -> dict | None:
+def _query_payment_without_session(provider, settings: StoreSettings, order_no: str) -> dict | None:
     """线程池里的查单探针：只发出 HTTP，绝不碰 ORM 会话或 ORM 实例。
 
     SQLAlchemy 的 Session 不是线程安全的，所以并发只允许发生在「查单」这一步；
@@ -227,14 +220,10 @@ def reconcile_pending_orders_bounded(
         return 0
 
     settled = 0
-    executor = ThreadPoolExecutor(
-        max_workers=len(candidates), thread_name_prefix="store-reconcile"
-    )
+    executor = ThreadPoolExecutor(max_workers=len(candidates), thread_name_prefix="store-reconcile")
     try:
         futures = {
-            executor.submit(
-                _query_payment_without_session, provider, settings, order.order_no
-            ): (
+            executor.submit(_query_payment_without_session, provider, settings, order.order_no): (
                 order,
                 channel,
                 provider,
@@ -310,8 +299,7 @@ def _confirm_paid_after_close(
     actions: list[_Action],
     result: SweepResult,
 ) -> bool:
-    """关单接口报「已付款」时的兜底核实：重新查单，核对状态与金额后才入账。
-    """
+    """关单接口报「已付款」时的兜底核实：重新查单，核对状态与金额后才入账。"""
     try:
         node = provider.query_payment(settings, order)
     except PaymentError as error:
@@ -333,19 +321,14 @@ def _confirm_paid_after_close(
     if not _amount_matches(order, node, provider):
         result.failed += 1
         return False
-    actions.append(
-        _Action(order=order, kind="settle", trade_no=provider.trade_no_of(node))
-    )
+    actions.append(_Action(order=order, kind="settle", trade_no=provider.trade_no_of(node)))
     return True
 
 
 def _expire_local_order(session: Session, order: Order) -> bool:
-    """把「已过期但仍是 pending」的订单推进终态，归还预留与优惠码名额。
-    """
+    """把「已过期但仍是 pending」的订单推进终态，归还预留与优惠码名额。"""
     product = session.get(Product, order.product_id) if order.product_id else None
-    if not fulfill.close_pending_order(
-        session, order=order, product=product, status="expired"
-    ):
+    if not fulfill.close_pending_order(session, order=order, product=product, status="expired"):
         return False
     session.refresh(order)
     return True
@@ -358,15 +341,12 @@ def reconcile_due_orders(
     setting: StoreSetting,
     limit: int = 25,
 ) -> SweepResult:
-    """巡检一次：先做渠道对账，再做**与渠道无关**的本地过期收尾。
-    """
+    """巡检一次：先做渠道对账，再做**与渠道无关**的本地过期收尾。"""
     result = _sweep_channel_orders(session, settings=settings, setting=setting, limit=limit)
     expired = expire_stale_orders(session, settings, limit=SWEEP_EXPIRE_LIMIT)
     if expired:
         result.expired = expired
-        logger.info(
-            "支付巡检：本地过期收尾 %d 笔（已归还库存预留与优惠码名额）", expired
-        )
+        logger.info("支付巡检：本地过期收尾 %d 笔（已归还库存预留与优惠码名额）", expired)
     pruned = prune_expired_sessions(session)
     if pruned:
         logger.info("支付巡检：清理过期登录会话 %d 条", pruned)
@@ -404,9 +384,7 @@ def _collect_pending_sweep_actions(
             if not _amount_matches(order, node, provider):
                 sweep.failed += 1
                 continue
-            actions.append(
-                _Action(order=order, kind="settle", trade_no=provider.trade_no_of(node))
-            )
+            actions.append(_Action(order=order, kind="settle", trade_no=provider.trade_no_of(node)))
             continue
 
         if not is_expired:
@@ -446,9 +424,7 @@ def _collect_pending_sweep_actions(
             )
         else:
             sweep.failed += 1
-            logger.warning(
-                "过期单关单未成功 order=%s reason=%s", order.order_no, outcome.reason
-            )
+            logger.warning("过期单关单未成功 order=%s reason=%s", order.order_no, outcome.reason)
 
 
 def _collect_closing_sweep_actions(
@@ -473,9 +449,7 @@ def _collect_closing_sweep_actions(
             continue
 
         if node is None:
-            actions.append(
-                _Action(order=order, kind="close", detail="渠道无此交易，直接标记已关闭")
-            )
+            actions.append(_Action(order=order, kind="close", detail="渠道无此交易，直接标记已关闭"))
             continue
 
         if provider.is_success_node(node) and _amount_matches(order, node, provider):
@@ -496,17 +470,13 @@ def _collect_closing_sweep_actions(
             continue
 
         if outcome.already_paid:
-            _confirm_paid_after_close(
-                provider=provider, settings=settings, order=order, actions=actions, result=sweep
-            )
+            _confirm_paid_after_close(provider=provider, settings=settings, order=order, actions=actions, result=sweep)
             continue
         if outcome.closed:
             actions.append(_Action(order=order, kind="close", detail=outcome.reason))
         else:
             sweep.failed += 1
-            logger.warning(
-                "关单未成功 order=%s reason=%s", order.order_no, outcome.reason
-            )
+            logger.warning("关单未成功 order=%s reason=%s", order.order_no, outcome.reason)
 
 
 def _apply_sweep_actions(
@@ -535,9 +505,7 @@ def _apply_sweep_actions(
             continue
         action.order.channel_closed_at = utcnow()
         if action.detail:
-            logger.info(
-                "已关闭渠道交易 order=%s 说明=%s", action.order.order_no, action.detail
-            )
+            logger.info("已关闭渠道交易 order=%s 说明=%s", action.order.order_no, action.detail)
         sweep.closed += 1
 
     if actions:
@@ -551,8 +519,7 @@ def _sweep_channel_orders(
     setting: StoreSetting,
     limit: int = 25,
 ) -> SweepResult:
-    """巡检一次：认领「已付款但本地还是待支付」的单，并关闭过期未付的渠道交易。
-    """
+    """巡检一次：认领「已付款但本地还是待支付」的单，并关闭过期未付的渠道交易。"""
     sweep = SweepResult()
     providers: dict = {}
 

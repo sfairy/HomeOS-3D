@@ -15,15 +15,20 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
+from .clock import utcnow
+from .ids import new_uuid
 from .persistence.database import Base
-from ..security.security import new_uuid, utcnow
 
 
 def _id() -> str:
     return new_uuid()
+
+
 #: 新建站点写入的默认客服邮箱。可在容器启动时用 ``STORE_SUPPORT_EMAIL`` 覆盖；已有站点
 #: 以库里的值为准（后台「站点配置 → 支持邮箱」）。默认值只是占位，商用前务必替换。
 DEFAULT_SUPPORT_EMAIL = (os.getenv("STORE_SUPPORT_EMAIL") or "").strip() or "156120718@qq.com"
+
+
 class StoreSetting(Base):
     """站点级运行时配置（单例，id 固定为 1）。"""
 
@@ -80,24 +85,24 @@ class StoreSetting(Base):
     verification_ttl_seconds: Mapped[int] = mapped_column(Integer, default=0)
     verification_cooldown_seconds: Mapped[int] = mapped_column(Integer, default=0)
     verification_global_hourly_limit: Mapped[int] = mapped_column(Integer, default=0)
-    delivery_email_enabled: Mapped[bool] = mapped_column(
-        Boolean, default=True, server_default="1"
-    )
+    delivery_email_enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
 
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
 class AccountSession(Base):
     __tablename__ = "account_sessions"
 
     id_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
-    account_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("accounts.id", ondelete="CASCADE"), index=True
-    )
+    account_id: Mapped[str] = mapped_column(String(36), ForeignKey("accounts.id", ondelete="CASCADE"), index=True)
     is_admin_session: Mapped[bool] = mapped_column(Boolean, default=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     last_seen_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     ip_address: Mapped[str | None] = mapped_column(String(64))
     user_agent: Mapped[str | None] = mapped_column(String(512))
+
+
 class EmailVerification(Base):
     __tablename__ = "email_verifications"
 
@@ -118,6 +123,8 @@ class EmailVerification(Base):
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime)
 
     __table_args__ = (Index("ix_email_verifications_email_purpose", "email", "purpose"),)
+
+
 class LoginAttempt(Base):
     __tablename__ = "login_attempts"
 
@@ -125,6 +132,8 @@ class LoginAttempt(Base):
     scope: Mapped[str] = mapped_column(String(255), index=True)
     succeeded: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+
+
 class Coupon(Base):
     __tablename__ = "coupons"
 
@@ -144,33 +153,28 @@ class Coupon(Base):
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
 class CouponRedemption(Base):
     __tablename__ = "coupon_redemptions"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_id)
-    coupon_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("coupons.id", ondelete="CASCADE"), index=True
-    )
-    account_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("accounts.id", ondelete="CASCADE"), index=True
-    )
-    order_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("orders.id", ondelete="SET NULL"), index=True
-    )
+    coupon_id: Mapped[str] = mapped_column(String(36), ForeignKey("coupons.id", ondelete="CASCADE"), index=True)
+    account_id: Mapped[str] = mapped_column(String(36), ForeignKey("accounts.id", ondelete="CASCADE"), index=True)
+    order_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("orders.id", ondelete="SET NULL"), index=True)
     discount_cents: Mapped[int] = mapped_column(Integer, default=0)
     voided_at: Mapped[datetime | None] = mapped_column(DateTime)
     void_reason: Mapped[str] = mapped_column(String(255), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
 class OrderRefund(Base):
-    """一次退款动作的流水（含被渠道拒绝的尝试）。
-    """
+    """一次退款动作的流水（含被渠道拒绝的尝试）。"""
 
     __tablename__ = "order_refunds"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_id)
-    order_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("orders.id", ondelete="CASCADE"), index=True
-    )
+    order_id: Mapped[str] = mapped_column(String(36), ForeignKey("orders.id", ondelete="CASCADE"), index=True)
     order_no: Mapped[str] = mapped_column(String(64), default="", index=True)
     out_request_no: Mapped[str] = mapped_column(String(128), unique=True, index=True)
     amount_cents: Mapped[int] = mapped_column(Integer, default=0)
@@ -181,6 +185,8 @@ class OrderRefund(Base):
     offline: Mapped[bool] = mapped_column(Boolean, default=False)
     operator: Mapped[str] = mapped_column(String(255), default="system")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+
+
 class LicenseSession(Base):
     __tablename__ = "license_sessions"
 
@@ -189,12 +195,12 @@ class LicenseSession(Base):
     binding_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("device_bindings.id", ondelete="CASCADE"), index=True
     )
-    license_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("licenses.id", ondelete="CASCADE"), index=True
-    )
+    license_id: Mapped[str] = mapped_column(String(36), ForeignKey("licenses.id", ondelete="CASCADE"), index=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     last_used_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
 class RecoveryToken(Base):
     __tablename__ = "recovery_tokens"
 
@@ -202,9 +208,7 @@ class RecoveryToken(Base):
     binding_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("device_bindings.id", ondelete="CASCADE"), index=True
     )
-    license_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("licenses.id", ondelete="CASCADE"), index=True
-    )
+    license_id: Mapped[str] = mapped_column(String(36), ForeignKey("licenses.id", ondelete="CASCADE"), index=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
@@ -229,9 +233,7 @@ class DeviceReleaseEvent(Base):
     __tablename__ = "device_release_events"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_id)
-    license_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("licenses.id", ondelete="CASCADE"), index=True
-    )
+    license_id: Mapped[str] = mapped_column(String(36), ForeignKey("licenses.id", ondelete="CASCADE"), index=True)
     account_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("accounts.id", ondelete="SET NULL"), index=True
     )
@@ -248,14 +250,14 @@ class ReferralWallet(Base):
         String(36), ForeignKey("accounts.id", ondelete="CASCADE"), unique=True, index=True
     )
     code: Mapped[str] = mapped_column(String(16), unique=True, index=True)
-    balance_centi: Mapped[int] = mapped_column(
-        Integer, default=0, server_default="0"
-    )
+    balance_centi: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     frozen_centi: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     earned_centi: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     withdrawn_centi: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
 class ReferralLedger(Base):
     __tablename__ = "referral_ledger"
 
@@ -271,10 +273,10 @@ class ReferralLedger(Base):
     frozen_after_centi: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     note: Mapped[str] = mapped_column(String(255), default="")
     reference: Mapped[str | None] = mapped_column(String(128))
-    order_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("orders.id", ondelete="SET NULL"), index=True
-    )
+    order_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("orders.id", ondelete="SET NULL"), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+
+
 class ReferralWithdrawal(Base):
     __tablename__ = "referral_withdrawals"
 
@@ -292,6 +294,8 @@ class ReferralWithdrawal(Base):
     note: Mapped[str] = mapped_column(String(255), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+
 class AuditLog(Base):
     __tablename__ = "audit_logs"
 

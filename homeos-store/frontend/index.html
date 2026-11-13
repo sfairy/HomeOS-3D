@@ -34,10 +34,25 @@
     type="font/woff2" crossorigin>
   <!-- 图标字体子集（50 个字形 / 9,552B，由 scripts/build-font-subset.mjs 从完整字体生成）。
        完整 font.woff2 634,548B 仍留在 @font-face 的 src 里兜底，但 woff2 可用时不会被请求。
-       这里 preload 是为了让子集与 font.min.css 同时到达：那张表是 media=print 延后加载的，
-       不预载的话图标会在样式揭幕后再多一跳。 -->
-  <link rel="preload" href="/store-static/fonts/font-subset.woff2" as="font"
-    type="font/woff2" crossorigin>
+       preload 是为了让子集与 font.min.css 同时到达：那张表是 media=print 延后加载的，
+       不预载的话图标会在样式揭幕后再多一跳。
+       但只有前台页面用这套图标（后台是内联 SVG，唯一的 FA 图标是 DataTable 错误行），
+       在后台 / 初始化 / 登录页 preload 出去的东西永远没人取用，Chrome 会在 load 之后
+       报一条 "preloaded using link preload but not used"。所以在 head 里同步按路径决定
+       要不要发这条 preload —— 等 main.ts / 路由跑起来再判断，请求早就发出去了。
+       加了新的图标消费方（尤其后台）要同步这份路径表。 -->
+  <script nonce="{{NONCE}}">
+    (function () {
+      if (/^\/(?:admin|setup|user\/authentication)(?:\/|$)/.test(location.pathname)) return;
+      var link = document.createElement("link");
+      link.rel = "preload";
+      link.as = "font";
+      link.type = "font/woff2";
+      link.href = "/store-static/fonts/font-subset.woff2";
+      link.crossOrigin = "anonymous";
+      document.head.appendChild(link);
+    })();
+  </script>
   <link rel="stylesheet" href="/store-static/font.min.css" media="print" data-defer-style>
   <link rel="stylesheet" href="/store-static/scene/fonts.css" media="print" data-defer-style>
   <link rel="stylesheet" href="/store-static/scene/page.css" media="print" data-defer-style>

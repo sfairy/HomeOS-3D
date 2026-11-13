@@ -11,11 +11,11 @@ import logging
 from sqlalchemy import select, update
 from sqlalchemy.exc import SQLAlchemyError
 
+from ..core import site_settings as site_config
 from ..core.models import License, Order, utcnow
 from ..core.persistence.database import Database
 from ..core.timeutil import format_local
-from ..ops import incidents, mailer
-from ..ops import site_settings as site_config
+from ..infra import incidents, mailer
 
 logger = logging.getLogger("src.commerce.delivery")
 
@@ -29,9 +29,7 @@ def _expires_text(license_row: License) -> str:
     return format_local(license_row.access_expires_at) + "（北京时间）"
 
 
-def notify_license_issued(
-    database: Database, *, order_id: str, force: bool = False
-) -> dict:
+def notify_license_issued(database: Database, *, order_id: str, force: bool = False) -> dict:
     """把某张订单的激活码发到买家邮箱，返回一个可读的结果字典。
 
     ``force=True`` 供个人中心的「重发激活码邮件」使用：跳过「已经发过」与「自动重试
@@ -65,9 +63,7 @@ def notify_license_issued(
             conditions = [Order.id == order.id]
             if not force:
                 conditions.append(Order.license_email_sent_at.is_(None))
-                conditions.append(
-                    Order.license_email_attempts < MAX_AUTO_DELIVERY_ATTEMPTS
-                )
+                conditions.append(Order.license_email_attempts < MAX_AUTO_DELIVERY_ATTEMPTS)
             claimed = session.execute(
                 update(Order)
                 .where(*conditions)
@@ -93,9 +89,7 @@ def notify_license_issued(
             )
 
             try:
-                order.license_email_error = (
-                    "" if result.delivered else (result.error or "未投递")
-                )[:255]
+                order.license_email_error = ("" if result.delivered else (result.error or "未投递"))[:255]
                 if result.delivered:
                     order.license_email_sent_at = utcnow()
                 session.commit()
@@ -112,9 +106,7 @@ def notify_license_issued(
                     attempts_used + 1,
                 )
             else:
-                incidents.note(
-                    "delivery", order_no=order.order_no, error=result.error or "未投递"
-                )
+                incidents.note("delivery", order_no=order.order_no, error=result.error or "未投递")
             return {
                 "sent": result.delivered,
                 "attempts": attempts_used + 1,

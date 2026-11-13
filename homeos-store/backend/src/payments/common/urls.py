@@ -10,7 +10,7 @@ from __future__ import annotations
 from urllib.parse import urlsplit
 
 from .base import PaymentError
-from ...ops.net_probe import (
+from ...infra.net_probe import (
     LEVEL_FAIL,
     LEVEL_PASS,
     LEVEL_WARN,
@@ -27,10 +27,7 @@ def callback_url_error(text: str, *, label: str, channel: str) -> str:
         return ""
     lowered = text.lower()
     if not lowered.startswith(("http://", "https://")):
-        return (
-            f"{label}必须以 http:// 或 https:// 开头（要填完整的外部可达地址，"
-            "不能只填路径）。"
-        )
+        return f"{label}必须以 http:// 或 https:// 开头（要填完整的外部可达地址，不能只填路径）。"
     host = host_from_url(text)
     if not host:
         return f"{label}缺少主机名。"
@@ -50,9 +47,7 @@ def validate_callback_url(text: str, *, label: str, channel: str) -> None:
         raise PaymentError(problem)
 
 
-def callback_url_check(
-    check_id: str, label: str, url_value: str, *, channel: str, reachable_hint: str
-) -> dict:
+def callback_url_check(check_id: str, label: str, url_value: str, *, channel: str, reachable_hint: str) -> dict:
     """回调地址的单项诊断：格式 → 是否内网 → 本机可达性。
 
     「本机可达性」只是**提示**（LEVEL_WARN）而不是失败：从容器里探不到自己的公网地址
@@ -73,9 +68,7 @@ def callback_url_check(
     reachable, detail = probe_http(text)
     if reachable:
         return check_result(check_id, label, LEVEL_PASS, f"{text} — {detail}")
-    return check_result(
-        check_id, label, LEVEL_WARN, f"{text} — {detail}。{reachable_hint}"
-    )
+    return check_result(check_id, label, LEVEL_WARN, f"{text} — {detail}。{reachable_hint}")
 
 
 def url_port(url: str, *, default: int) -> int:

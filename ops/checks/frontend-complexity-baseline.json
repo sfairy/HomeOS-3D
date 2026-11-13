@@ -1,6 +1,6 @@
 {
   "totals": {
-    "functions": 27169,
+    "functions": 27177,
     "gt10": 1308,
     "gt15": 717,
     "gt80": 806
@@ -12,6 +12,27 @@
       "gt15": 0,
       "gt80": 0,
       "max": 11
+    },
+    "homeos-store/frontend/src/features/admin/overview/OverviewView.vue": {
+      "functions": 26,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 0,
+      "max": 17
+    },
+    "homeos-store/frontend/src/features/admin/settings/MailPanel.vue": {
+      "functions": 19,
+      "gt10": 2,
+      "gt15": 1,
+      "gt80": 0,
+      "max": 18
+    },
+    "homeos-store/frontend/src/features/admin/settings/SettingsView.vue": {
+      "functions": 17,
+      "gt10": 2,
+      "gt15": 1,
+      "gt80": 1,
+      "max": 48
     },
     "homeos-store/frontend/src/features/admin/stores/admin.ts": {
       "functions": 11,
@@ -34,54 +55,33 @@
       "gt80": 0,
       "max": 13
     },
-    "homeos-store/frontend/src/features/admin/views/ops/OverviewView.vue": {
-      "functions": 26,
+    "homeos-store/frontend/src/features/storefront/catalog/ItemView.vue": {
+      "functions": 43,
       "gt10": 1,
-      "gt15": 1,
+      "gt15": 0,
       "gt80": 0,
-      "max": 17
+      "max": 14
     },
-    "homeos-store/frontend/src/features/admin/views/ops/SettingsView.vue": {
-      "functions": 17,
-      "gt10": 2,
-      "gt15": 1,
-      "gt80": 1,
-      "max": 48
-    },
-    "homeos-store/frontend/src/features/admin/views/ops/settings/MailPanel.vue": {
-      "functions": 19,
-      "gt10": 2,
-      "gt15": 1,
-      "gt80": 0,
-      "max": 18
-    },
-    "homeos-store/frontend/src/features/storefront/composables/useHomeView.ts": {
-      "functions": 53,
-      "gt10": 2,
-      "gt15": 1,
-      "gt80": 1,
-      "max": 25
-    },
-    "homeos-store/frontend/src/features/storefront/stores/catalog.ts": {
+    "homeos-store/frontend/src/features/storefront/catalog/store.ts": {
       "functions": 35,
       "gt10": 0,
       "gt15": 0,
       "gt80": 1,
       "max": 6
     },
-    "homeos-store/frontend/src/features/storefront/stores/order.ts": {
+    "homeos-store/frontend/src/features/storefront/checkout/store.ts": {
       "functions": 27,
       "gt10": 1,
       "gt15": 1,
       "gt80": 1,
       "max": 23
     },
-    "homeos-store/frontend/src/features/storefront/views/ItemView.vue": {
-      "functions": 43,
-      "gt10": 1,
-      "gt15": 0,
-      "gt80": 0,
-      "max": 14
+    "homeos-store/frontend/src/features/storefront/home/useHomeView.ts": {
+      "functions": 53,
+      "gt10": 2,
+      "gt15": 1,
+      "gt80": 1,
+      "max": 25
     },
     "homeos-store/frontend/src/shared/stores/session.ts": {
       "functions": 32,
@@ -3143,7 +3143,7 @@
       "max": 12
     },
     "homeos/frontend/src/studio/app/bridge/scene/scene-update.ts": {
-      "functions": 9,
+      "functions": 10,
       "gt10": 1,
       "gt15": 1,
       "gt80": 0,

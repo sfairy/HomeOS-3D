@@ -7,13 +7,14 @@ from typing import Annotated
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, model_validator
 
-from ..security.security import (
+from homeos_shared.password_policy import (
     PASSWORD_MAX_LENGTH,
     PASSWORD_MIN_LENGTH,
     PASSWORD_POLICY_MESSAGE,
     is_password_policy_compliant,
-    normalize_username,
 )
+
+from .text import normalize_username
 
 
 def _check_password_policy(value: str) -> str:

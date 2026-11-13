@@ -1,5 +1,4 @@
-"""ORM → 参考站风格 JSON 的序列化。
-"""
+"""ORM → 参考站风格 JSON 的序列化。"""
 
 from __future__ import annotations
 
@@ -7,7 +6,9 @@ import hashlib
 import json
 from datetime import datetime, timedelta
 
-from ..commerce.order_status import order_status_label, refundable_cents
+from .clock import iso, iso_z, utcnow
+from .order_status import order_status_label, refundable_cents
+from .site_settings import resolve_device_release_cooldown
 from ..config import StoreSettings
 from ..core.models import (
     Account,
@@ -20,8 +21,6 @@ from ..core.models import (
     ProductImage,
     StoreSetting,
 )
-from ..ops.site_settings import resolve_device_release_cooldown
-from ..security.security import iso, iso_z, utcnow
 
 
 def json_list(value: str | None) -> list:
@@ -29,7 +28,7 @@ def json_list(value: str | None) -> list:
         return []
     try:
         parsed = json.loads(value)
-    except (ValueError, TypeError):
+    except (ValueError, TypeError):  # fmt: skip
         return []
     return parsed if isinstance(parsed, list) else []
 
@@ -50,8 +49,7 @@ def available_stock_units(product: Product) -> int | None:
 
 
 def is_sold_out(product: Product) -> bool:
-    """是否售罄 —— **全站唯一**的售罄判据。
-    """
+    """是否售罄 —— **全站唯一**的售罄判据。"""
     stock = available_stock_units(product)
     return stock is not None and stock <= 0
 
@@ -214,9 +212,7 @@ def license_payload(
 ) -> dict:
     moment = _now(now)
     access_expires = license.access_expires_at
-    active = bool(license.active) and (
-        access_expires is None or access_expires > moment
-    )
+    active = bool(license.active) and (access_expires is None or access_expires > moment)
     return {
         "activationCode": license.activation_code,
         "activationCodeId": license.id,
@@ -268,7 +264,7 @@ def order_payload(order: Order) -> dict:
     payment = {}
     try:
         payment = json.loads(order.payment_payload_json or "{}")
-    except (ValueError, TypeError):
+    except (ValueError, TypeError):  # fmt: skip
         payment = {}
     return {
         "orderNo": order.order_no,
@@ -290,9 +286,7 @@ def order_payload(order: Order) -> dict:
         "fulfillmentMode": order.fulfillment_mode,
         "payment": payment,
         "refundAmountCents": int(order.refund_amount_cents or 0),
-        "refundableCents": refundable_cents(
-            order.amount_cents, order.refund_amount_cents
-        ),
+        "refundableCents": refundable_cents(order.amount_cents, order.refund_amount_cents),
         "refundTradeNo": order.refund_trade_no,
         "needsReview": bool(order.needs_review),
         "reviewNote": order.review_note or "",

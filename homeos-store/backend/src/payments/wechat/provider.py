@@ -40,7 +40,7 @@ from ..common.urls import callback_url_check
 from ...commerce import money
 from ...config import StoreSettings
 from ...core.models import Order, StoreSetting
-from ...ops.net_probe import LEVEL_FAIL, LEVEL_PASS, LEVEL_WARN, check_result, host_from_url
+from ...infra.net_probe import LEVEL_FAIL, LEVEL_PASS, LEVEL_WARN, check_result, host_from_url
 
 logger = logging.getLogger("src.payments.wechat")
 
@@ -116,7 +116,6 @@ class WeChatPayProvider:
     def __init__(self, settings: StoreSettings | None = None) -> None:
         self._settings = settings
 
-
     def _resolve(self, settings: StoreSettings) -> StoreSettings:
         return self._settings or settings
 
@@ -150,11 +149,9 @@ class WeChatPayProvider:
         if missing:
             raise PaymentError("微信支付收款尚未配置完整，缺少：" + "、".join(missing) + "。")
 
-
     def notify_url(self, settings: StoreSettings, base_url: str) -> str:
         settings = self._resolve(settings)
         return settings.wechat_notify_url or f"{base_url}/store/v1/payments/wechat/notify"
-
 
     def _request(
         self,
@@ -220,11 +217,8 @@ class WeChatPayProvider:
         if response.status_code >= 400 and response.status_code not in tolerate_status:
             code = str((node or {}).get("code") or "")
             detail = str((node or {}).get("message") or text[:200])
-            raise PaymentError(
-                f"微信支付接口返回 {response.status_code}（{code or '无错误码'}）：{detail}"
-            )
+            raise PaymentError(f"微信支付接口返回 {response.status_code}（{code or '无错误码'}）：{detail}")
         return response.status_code, node, text
-
 
     def create_payment(
         self,
@@ -238,9 +232,7 @@ class WeChatPayProvider:
         self._assert_configured(settings)
 
         description = (
-            setting.payment_transaction_description
-            or settings.wechat_transaction_description
-            or "HomeOS 授权"
+            setting.payment_transaction_description or settings.wechat_transaction_description or "HomeOS 授权"
         )
         body = {
             "appid": settings.wechat_app_id,
@@ -274,23 +266,17 @@ class WeChatPayProvider:
             qr_code=code_url,
         )
 
-
     def query_payment(self, settings: StoreSettings, order: Order) -> dict[str, Any] | None:
         """查这笔订单在渠道侧的状态；交易不存在时返回 ``None``（不是失败）。"""
         settings = self._resolve(settings)
         path = f"/v3/pay/transactions/out-trade-no/{quote(order.order_no, safe='')}"
         query = f"mchid={quote(settings.wechat_mch_id, safe='')}"
-        status, node, _raw = self._request(
-            settings, "GET", path, query=query, tolerate_status=(404,)
-        )
+        status, node, _raw = self._request(settings, "GET", path, query=query, tolerate_status=(404,))
         if status == 404:
             code = str((node or {}).get("code") or "")
             if code in TRADE_NOT_EXIST_CODES:
                 return None
-            raise PaymentError(
-                f"微信支付查单失败（{code or '未知'}）："
-                f"{str((node or {}).get('message') or '')[:200]}"
-            )
+            raise PaymentError(f"微信支付查单失败（{code or '未知'}）：{str((node or {}).get('message') or '')[:200]}")
         return node
 
     def close_payment(self, settings: StoreSettings, order: Order) -> CloseResult:
@@ -313,7 +299,6 @@ class WeChatPayProvider:
             return CloseResult(closed=True)
         return CloseResult(closed=False, reason=f"网关返回 {status}")
 
-
     def is_success_node(self, node: dict) -> bool:
         return str(node.get("trade_state") or "") in SUCCESS_TRADE_STATES
 
@@ -327,7 +312,6 @@ class WeChatPayProvider:
         amount = node.get("amount")
         total = amount.get("total") if isinstance(amount, dict) else None
         return int(total) if isinstance(total, int) else None
-
 
     def refund_payment(
         self,
@@ -378,10 +362,7 @@ class WeChatPayProvider:
             detail=f"微信支付退款未成功（status={state or '未知'}）。",
         )
 
-
-    def verify_notification(
-        self, settings: StoreSettings, *, headers: dict[str, str], body: str
-    ) -> WeChatNotification:
+    def verify_notification(self, settings: StoreSettings, *, headers: dict[str, str], body: str) -> WeChatNotification:
         """验签 + 解密。两步都成功才算收到一条可信通知。
 
         顺序不能反：**先验签再看内容**。解密是纯本地运算，不验签就解密等于让任何人
@@ -397,7 +378,7 @@ class WeChatPayProvider:
 
         try:
             skew = abs(int(time.time()) - int(timestamp))
-        except (TypeError, ValueError):
+        except (TypeError, ValueError):  # fmt: skip
             return WeChatNotification(ok=False, reason="回调时间戳不是整数")
         if skew > NOTIFICATION_MAX_SKEW_SECONDS:
             return WeChatNotification(
@@ -443,7 +424,6 @@ class WeChatPayProvider:
             resource=payload,
         )
 
-
     def _probe_gateway_credentials(self, settings: StoreSettings) -> tuple[bool, str]:
         """用一笔**不存在的交易**查单，判断网关认不认这套签名。
 
@@ -458,9 +438,7 @@ class WeChatPayProvider:
         path = f"/v3/pay/transactions/out-trade-no/HOMEOS-PROBE-{uuid4().hex[:12]}"
         query = f"mchid={quote(settings.wechat_mch_id, safe='')}"
         try:
-            status, node, _raw = self._request(
-                settings, "GET", path, query=query, tolerate_status=(404,)
-            )
+            status, node, _raw = self._request(settings, "GET", path, query=query, tolerate_status=(404,))
         except PaymentError as error:
             return False, str(error)
         code = str((node or {}).get("code") or "")
@@ -525,9 +503,7 @@ class WeChatPayProvider:
         if passed:
             return True, "凭据自检全部通过：网关验签与回调配置均可用。"
         if failures:
-            return False, "自检未通过：" + "；".join(
-                f"{entry['label']} —— {entry['detail']}" for entry in failures
-            )
+            return False, "自检未通过：" + "；".join(f"{entry['label']} —— {entry['detail']}" for entry in failures)
         return False, "自检通过但有待确认项：" + "；".join(
             f"{entry['label']} —— {entry['detail']}" for entry in warnings
         )

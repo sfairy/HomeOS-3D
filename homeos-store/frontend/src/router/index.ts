@@ -9,10 +9,10 @@ import { StoreLayout, HomeView, AuthView } from "@store/features/storefront";
 import { resolveAdminGate } from "./admin-guard";
 import { probeSetupStatus, setupTokenFromHash } from "@store/shared/utils/setup-status";
 
-const ProductsView = () => import("@store/features/storefront/views/ProductsView.vue");
-const ItemView = () => import("@store/features/storefront/views/ItemView.vue");
-const AccountView = () => import("@store/features/storefront/views/AccountView.vue");
-const ReferralsView = () => import("@store/features/storefront/views/ReferralsView.vue");
+const ProductsView = () => import("@store/features/storefront/catalog/ProductsView.vue");
+const ItemView = () => import("@store/features/storefront/catalog/ItemView.vue");
+const AccountView = () => import("@store/features/storefront/account/AccountView.vue");
+const ReferralsView = () => import("@store/features/storefront/account/ReferralsView.vue");
 
 const AdminLayout = () => import("@store/features/admin/layouts/AdminLayout.vue");
 const SetupView = () => import("@store/views/SetupView.vue");

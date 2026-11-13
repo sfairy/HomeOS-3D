@@ -11,7 +11,7 @@
       "duration": 0,
       "important": 0
     },
-    "homeos-store/frontend/src/features/storefront/stores/order.ts": {
+    "homeos-store/frontend/src/features/storefront/checkout/store.ts": {
       "color": 2,
       "duration": 0,
       "important": 0

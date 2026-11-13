@@ -24,8 +24,9 @@
     B6 base→package   : 纯配置模块（`config` / `env` / `version`）不得 import 任何顶层包
     B7 layer-direction: 声明了 `allowed_targets` 的项目，层间边必须落在允许表里
 
-多项目：`--project homeos|store|all`（默认 all）。`homeos-store` 尚未声明依赖方向，
-因此它的 profile 不设 B1/B2（不臆造规则），只跑 B3 与 B4/B5 —— 结构不变量与具体约定无关。
+多项目：`--project homeos|store|all`（默认 all）。两个项目都声明了分层：`homeos`
+以 `platform` 为叶子，`homeos-store` 以 `core` 为叶子（`infra` / `security` / `commerce` /
+`payments` / `licensing` / `ops` 依次向上，`api` 在顶）。
 
 用法：
     # 只报告（默认，退出码 0）
@@ -128,17 +129,58 @@ HOMEOS = Profile(
     root_modules=HOMEOS_ROOT_MODULES,
 )
 
-#: `homeos-store` 后端：顶层是 api / commerce / core / licensing / ops / payments / security，
-#: 尚未声明依赖方向。只跑与约定无关的 B3/B4/B5，等它写出方向后再补 leaf_layers / lower_layers。
+#: `homeos-store` 后端分层（2026-11 重构后）。
+#:
+#: 目标方向（箭头 = 允许依赖，无反向边）：
+#:
+#:     api → commerce / core / infra / licensing / ops / payments / security
+#:     ops → core / infra / payments
+#:     payments → commerce / core / infra / security
+#:     commerce → core / infra / security
+#:     licensing → core / infra / security
+#:     security → core
+#:     infra → core
+#:     core → （叶子：只依赖标准库与 homeos_shared）
+#:
+#: 三个包级环是这样消掉的，改动本 profile 前请先读一遍：
+#:
+#: 1. ``core → security``：``security/security.py`` 曾同时装着时间/标识/文本/口令，
+#:    现在拆成 ``core.clock`` / ``core.ids`` / ``core.text`` / ``security.passwords``，
+#:    老路径保留为门面；
+#: 2. ``core → commerce``：订单状态口径搬到 ``core.order_status``；
+#: 3. ``core → ops``：站点配置读取与站点/邀请序列化搬到 ``core.site_settings``；
+#: 4. ``commerce → ops`` 与 ``payments → ops``：邮件、网络探测、事故计数下沉到 ``infra``。
+#:
+#: B4 白名单为空是**最终态**：再出现包级环就是设计回退，必须修掉而不是加白名单。
 STORE = Profile(
     name="store",
     root=REPO_ROOT / "homeos-store" / "backend" / "src",
-    top=frozenset({"api", "commerce", "core", "licensing", "ops", "payments", "security"}),
+    top=frozenset(
+        {"api", "commerce", "core", "infra", "licensing", "ops", "payments", "security"}
+    ),
+    leaf_layers=frozenset({"core"}),
+    lower_layers=frozenset({"commerce", "infra", "licensing", "payments", "security"}),
+    forbidden_targets=frozenset({"api"}),
     two_level=frozenset(),
-    # `homeos-store` 还没有声明依赖方向，所以这里不设 B1/B2（不臆造规则），
-    # 只把 B4 的现状冻结住：5 个平铺包已经是强连通（文件级仍无环），
-    # 允许它维持现状，但不允许再多出新的包级环。等方向写进本文件后再降级为白名单清空。
-    package_whitelist=frozenset({frozenset({"commerce", "core", "ops", "payments", "security"})}),
+    package_whitelist=frozenset(),
+    #: 入口/纯配置是装配层与叶子配置，不参与方向判定（与 homeos 的 root_modules 同口径）。
+    root_modules={
+        "config": "config",
+        "app": "bootstrap",
+        "run": "bootstrap",
+    },
+    allowed_targets={
+        "core": frozenset(),
+        "infra": frozenset({"core"}),
+        "security": frozenset({"core"}),
+        "commerce": frozenset({"core", "infra", "security"}),
+        "payments": frozenset({"commerce", "core", "infra", "security"}),
+        "licensing": frozenset({"core", "infra", "security"}),
+        "ops": frozenset({"core", "infra", "payments"}),
+        "api": frozenset(
+            {"commerce", "core", "infra", "licensing", "ops", "payments", "security"}
+        ),
+    },
 )
 
 PROFILES = {profile.name: profile for profile in (HOMEOS, STORE)}

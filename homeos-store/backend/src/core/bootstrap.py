@@ -1,5 +1,4 @@
-"""启动时幂等补齐的默认数据：商品目录、站点配置。
-"""
+"""启动时幂等补齐的默认数据：商品目录、站点配置。"""
 
 from __future__ import annotations
 
@@ -8,9 +7,9 @@ import logging
 from sqlalchemy import exists, insert, literal, null, select
 from sqlalchemy.orm import Session
 
+from .features import BASE_PRODUCT_FEATURES, MODULE_3D_FEATURES, MODULE_FEATURES
 from ..core.models import Product, StoreSetting
 from ..core.serializers import list_json
-from ..ops.features import BASE_PRODUCT_FEATURES, MODULE_3D_FEATURES, MODULE_FEATURES
 
 logger = logging.getLogger("src.core.bootstrap")
 
@@ -19,17 +18,12 @@ def _value(expression):
     return null() if expression is None else literal(expression)
 
 
-def _insert_product_if_absent(
-    session: Session, product_type: str, fields: dict
-) -> bool:
-    """「库里没有这个 ``product_type`` 的商品时才插入」，压成一条语句。
-    """
+def _insert_product_if_absent(session: Session, product_type: str, fields: dict) -> bool:
+    """「库里没有这个 ``product_type`` 的商品时才插入」，压成一条语句。"""
     guard = ~exists(select(Product.id).where(Product.product_type == product_type))
     statement = insert(Product).from_select(
         [*fields, "product_type"],
-        select(*[_value(value) for value in fields.values()], literal(product_type)).where(
-            guard
-        ),
+        select(*[_value(value) for value in fields.values()], literal(product_type)).where(guard),
     )
     return bool(session.execute(statement).rowcount)  # pyright: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
 
@@ -74,9 +68,7 @@ def ensure_default_products(session: Session) -> None:
     ):
         inserted.append("module")
 
-    module_id = session.scalar(
-        select(Product.id).where(Product.product_type == "module").limit(1)
-    )
+    module_id = session.scalar(select(Product.id).where(Product.product_type == "module").limit(1))
     if _insert_product_if_absent(
         session,
         "package",

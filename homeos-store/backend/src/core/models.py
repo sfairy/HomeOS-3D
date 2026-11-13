@@ -1,5 +1,4 @@
-"""授权商店服务的数据模型。
-"""
+"""授权商店服务的数据模型。"""
 
 from __future__ import annotations
 
@@ -18,6 +17,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from .clock import utcnow
 from .models_engagement import (
     DEFAULT_SUPPORT_EMAIL,
     AccountSession,
@@ -38,7 +38,6 @@ from .models_engagement import (
     _id,
 )
 from .persistence.database import Base
-from ..security.security import utcnow
 
 
 class Account(Base):
@@ -110,9 +109,7 @@ class Product(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
-    images: Mapped[list[ProductImage]] = relationship(
-        back_populates="product", cascade="all, delete-orphan"
-    )
+    images: Mapped[list[ProductImage]] = relationship(back_populates="product", cascade="all, delete-orphan")
 
 
 class ProductImage(Base):
@@ -180,19 +177,11 @@ class Order(Base):
     needs_review: Mapped[bool] = mapped_column(Boolean, default=False)
     review_note: Mapped[str] = mapped_column(String(255), default="")
     manual_settlement: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
-    referral_reward_points_centi: Mapped[int] = mapped_column(
-        Integer, default=0, server_default="0"
-    )
+    referral_reward_points_centi: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     license_email_sent_at: Mapped[datetime | None] = mapped_column(DateTime)
-    license_email_error: Mapped[str] = mapped_column(
-        String(255), default="", server_default=text("''")
-    )
-    license_email_attempts: Mapped[int] = mapped_column(
-        Integer, default=0, server_default="0"
-    )
-    fulfillment_attempts: Mapped[int] = mapped_column(
-        Integer, default=0, server_default="0"
-    )
+    license_email_error: Mapped[str] = mapped_column(String(255), default="", server_default=text("''"))
+    license_email_attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    fulfillment_attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime)
     paid_at: Mapped[datetime | None] = mapped_column(DateTime)
@@ -203,9 +192,7 @@ class Order(Base):
     archived_at: Mapped[datetime | None] = mapped_column(DateTime)
     stock_reservation_released_at: Mapped[datetime | None] = mapped_column(DateTime)
 
-    license: Mapped[License | None] = relationship(
-        "License", foreign_keys=[license_id], post_update=True
-    )
+    license: Mapped[License | None] = relationship("License", foreign_keys=[license_id], post_update=True)
 
 
 class License(Base):
@@ -214,22 +201,16 @@ class License(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_id)
     activation_code: Mapped[str] = mapped_column(String(128), unique=True, index=True)
     code_hint: Mapped[str] = mapped_column(String(32), default="")
-    customer_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("customers.id", ondelete="CASCADE"), index=True
-    )
+    customer_id: Mapped[str] = mapped_column(String(36), ForeignKey("customers.id", ondelete="CASCADE"), index=True)
     account_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("accounts.id", ondelete="SET NULL"), index=True
     )
     product_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("products.id", ondelete="SET NULL"))
-    order_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("orders.id", ondelete="SET NULL"), index=True
-    )
+    order_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("orders.id", ondelete="SET NULL"), index=True)
     product_name: Mapped[str] = mapped_column(String(255), default="")
     product_type: Mapped[str] = mapped_column(String(32), default="base")
     #: 签发时固化的商品功能码快照；心跳/续租以此为准，不跟随商品后续 PATCH。
-    feature_codes_json: Mapped[str] = mapped_column(
-        Text, default="[]", server_default="[]"
-    )
+    feature_codes_json: Mapped[str] = mapped_column(Text, default="[]", server_default="[]")
     price_cents: Mapped[int] = mapped_column(Integer, default=0)
     validity_days: Mapped[int | None] = mapped_column(Integer)
     issuance_source: Mapped[str] = mapped_column(String(32), default="payment_automatic")
@@ -244,28 +225,20 @@ class License(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
-    __table_args__ = (
-        Index("ix_licenses_product_active", "product_id", "active"),
-    )
+    __table_args__ = (Index("ix_licenses_product_active", "product_id", "active"),)
 
     binding: Mapped[DeviceBinding | None] = relationship(
         back_populates="license", uselist=False, cascade="all, delete-orphan"
     )
-    entitlements: Mapped[list[Entitlement]] = relationship(
-        back_populates="license", cascade="all, delete-orphan"
-    )
+    entitlements: Mapped[list[Entitlement]] = relationship(back_populates="license", cascade="all, delete-orphan")
 
 
 class Entitlement(Base):
     __tablename__ = "entitlements"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_id)
-    customer_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("customers.id", ondelete="CASCADE"), index=True
-    )
-    license_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("licenses.id", ondelete="CASCADE"), index=True
-    )
+    customer_id: Mapped[str] = mapped_column(String(36), ForeignKey("customers.id", ondelete="CASCADE"), index=True)
+    license_id: Mapped[str] = mapped_column(String(36), ForeignKey("licenses.id", ondelete="CASCADE"), index=True)
     product_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("products.id", ondelete="SET NULL"), index=True
     )
@@ -296,9 +269,7 @@ class DeviceBinding(Base):
     __tablename__ = "device_bindings"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_id)
-    license_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("licenses.id", ondelete="CASCADE"), index=True
-    )
+    license_id: Mapped[str] = mapped_column(String(36), ForeignKey("licenses.id", ondelete="CASCADE"), index=True)
     instance_id: Mapped[str] = mapped_column(String(128), index=True)
     client_version: Mapped[str] = mapped_column(String(32), default="")
     #: 激活时客户端上报的本机账号名（「授权用户增设账户名」）；未上报时为空。
@@ -315,20 +286,17 @@ class DeviceBinding(Base):
 
     @property
     def is_live(self) -> bool:
-        """这一行现在还算不算「绑定着这台设备」。
-        """
+        """这一行现在还算不算「绑定着这台设备」。"""
         return bool(self.active) and self.released_at is None
 
     @classmethod
     def live_clause(cls):
-        """``is_live`` 的 SQL 形态：属性不能在 ``WHERE`` 里判，查询用这个。
-        """
+        """``is_live`` 的 SQL 形态：属性不能在 ``WHERE`` 里判，查询用这个。"""
         return and_(cls.active.is_(True), cls.released_at.is_(None))
 
     @classmethod
     def liveness_order(cls):
-        """从多行绑定里**挑「当前那行」**的 ``ORDER BY`` 口径，按优先级从高到低。
-        """
+        """从多行绑定里**挑「当前那行」**的 ``ORDER BY`` 口径，按优先级从高到低。"""
         return (
             cls.released_at.is_(None).desc(),
             cls.active.desc(),
@@ -344,30 +312,31 @@ class DeviceBinding(Base):
         ),
     )
 
+
 __all__ = [
-    'DEFAULT_SUPPORT_EMAIL',
-    'Account',
-    'AccountSession',
-    'AuditLog',
-    'Coupon',
-    'CouponRedemption',
-    'Customer',
-    'DeviceBinding',
-    'DeviceReleaseEvent',
-    'EmailVerification',
-    'Entitlement',
-    'License',
-    'LicenseNonce',
-    'LicenseSession',
-    'LoginAttempt',
-    'Order',
-    'OrderRefund',
-    'Product',
-    'ProductImage',
-    'RecoveryToken',
-    'ReferralLedger',
-    'ReferralWallet',
-    'ReferralWithdrawal',
-    'StoreSetting',
-    '_id',
+    "DEFAULT_SUPPORT_EMAIL",
+    "Account",
+    "AccountSession",
+    "AuditLog",
+    "Coupon",
+    "CouponRedemption",
+    "Customer",
+    "DeviceBinding",
+    "DeviceReleaseEvent",
+    "EmailVerification",
+    "Entitlement",
+    "License",
+    "LicenseNonce",
+    "LicenseSession",
+    "LoginAttempt",
+    "Order",
+    "OrderRefund",
+    "Product",
+    "ProductImage",
+    "RecoveryToken",
+    "ReferralLedger",
+    "ReferralWallet",
+    "ReferralWithdrawal",
+    "StoreSetting",
+    "_id",
 ]

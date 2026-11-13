@@ -26,6 +26,19 @@ import { localZoneLabel } from "@store/features/admin/utils/format";
 import { useToastStore } from "@store/shared/stores/toast";
 import { isPasswordPolicyCompliant, PASSWORD_POLICY_MESSAGE } from "@homeos/shared/security/password-policy";
 
+/**
+ * 关掉属性自动继承。
+ *
+ * 路由表用 `props: true` 挂载本组件（`/admin/:page?/:tab?`），`<RouterView>` 还会再附
+ * 一个 devtools 用的 `onVnodeUnmounted`，这些都会落进 `attrs`。但本组件模板是**多根**
+ * （引导壳 / 登录屏 / 工作台 / 三个弹窗平级），没有唯一的根节点可以挂，Vue 只能打一条
+ * `Extraneous non-props attributes (page, tab) ... could not be automatically inherited`。
+ *
+ * 关掉继承没有副作用：`page` / `tab` 本来就从 `route.params` 读（见 `activePage`），
+ * 父级（`App.vue` 的裸 `<router-view />`）也不透传任何 class / style。
+ */
+defineOptions({ inheritAttrs: false });
+
 interface NavItem {
   page: string;
   label: string;
@@ -158,7 +171,7 @@ const toast = useToastStore();
 
 /** 面板按 `:page` 懒加载；未知 page 渲染空白。 */
 const PANELS: Record<string, Component> = {
-  overview: defineAsyncComponent(() => import("../views/ops/OverviewView.vue")),
+  overview: defineAsyncComponent(() => import("../overview/OverviewView.vue")),
   products: defineAsyncComponent(() => import("../views/catalog/ProductsView.vue")),
   orders: defineAsyncComponent(() => import("../views/settlement/OrdersView.vue")),
   licenses: defineAsyncComponent(() => import("../views/accounts/LicensesView.vue")),
@@ -166,12 +179,12 @@ const PANELS: Record<string, Component> = {
   coupons: defineAsyncComponent(() => import("../views/catalog/CouponsView.vue")),
   withdrawals: defineAsyncComponent(() => import("../views/settlement/WithdrawalsView.vue")),
   accounts: defineAsyncComponent(() => import("../views/accounts/AccountsView.vue")),
-  settings: defineAsyncComponent(() => import("../views/ops/SettingsView.vue")),
+  settings: defineAsyncComponent(() => import("../settings/SettingsView.vue")),
   audits: defineAsyncComponent(() => import("../views/ops/AuditsView.vue")),
   entitlements: defineAsyncComponent(() => import("../views/catalog/EntitlementsView.vue")),
   ledger: defineAsyncComponent(() => import("../views/settlement/LedgerView.vue")),
   customers: defineAsyncComponent(() => import("../views/accounts/CustomersView.vue")),
-  diagnostics: defineAsyncComponent(() => import("../views/ops/DiagnosticsView.vue")),
+  diagnostics: defineAsyncComponent(() => import("../diagnostics/DiagnosticsView.vue")),
 };
 
 const loginEmail = ref("");

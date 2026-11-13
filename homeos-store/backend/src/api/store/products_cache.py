@@ -11,6 +11,7 @@
 - 缓存的是「最终响应字节」，所以 ETag 与 200 响应的 body 严格一致；条件请求命中时
   直接返回 304，不解析文档、不查库。
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -22,6 +23,8 @@ from typing import Any
 
 from sqlalchemy import event, select
 from sqlalchemy.orm import Session
+
+from homeos_shared.http_cache import etag_value_matches
 
 from .catalog import _bundled_map, _image_map, _product_stats
 from ...core.models import Product
@@ -50,9 +53,7 @@ def _build(session: Session) -> ProductsPayload:
     images = _image_map(session)
     bundled = _bundled_map(session)
     products = session.scalars(
-        select(Product)
-        .where(Product.active.is_(True))
-        .order_by(Product.sort_order, Product.created_at)
+        select(Product).where(Product.active.is_(True)).order_by(Product.sort_order, Product.created_at)
     ).all()
     stats = _product_stats(session, [product.id for product in products])
     payload = {
@@ -67,9 +68,7 @@ def _build(session: Session) -> ProductsPayload:
             for product in products
         ]
     }
-    body = json.dumps(
-        payload, ensure_ascii=False, allow_nan=False, separators=(",", ":")
-    ).encode("utf-8")
+    body = json.dumps(payload, ensure_ascii=False, allow_nan=False, separators=(",", ":")).encode("utf-8")
     # 强 ETag：body 不变则 ETag 不变。只取 32 个 hex（128 bit），足够区分内容。
     etag = '"' + hashlib.sha256(body).hexdigest()[:32] + '"'
     return ProductsPayload(payload=payload, body=body, etag=etag)
@@ -114,15 +113,9 @@ def mark_products_changed(session: Session) -> None:
     session.info[_DIRTY_KEY] = True
 
 
-def etag_matches(if_none_match: str | None, etag: str) -> bool:
-    """RFC 9110 If-None-Match 匹配（支持逗号列表、W/ 前缀与 *）。"""
-    if not if_none_match:
-        return False
-    normalized = etag.removeprefix("W/")
-    return any(
-        value == "*" or value.removeprefix("W/") == normalized
-        for value in (part.strip() for part in if_none_match.split(","))
-    )
+#: RFC 9110 条件匹配的唯一真源在 ``homeos_shared.http_cache``（主应用与商店共用一份）。
+#: 这里保留同名导入，调用点仍是 ``etag_matches(if_none_match, etag)``，但实现不再重复。
+etag_matches = etag_value_matches
 
 
 @event.listens_for(Session, "after_commit")

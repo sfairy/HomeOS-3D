@@ -9,9 +9,10 @@ from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from .clock import utcnow
+from .ids import token_hash
 from ..config import StoreSettings
 from ..core.models import Account, AccountSession, Order
-from ..security.security import token_hash, utcnow
 
 LAST_SEEN_REFRESH_SECONDS = 60
 
@@ -28,8 +29,7 @@ DbSession = Annotated[Session, Depends(get_session, scope="function")]
 
 
 def _resolve_session(request: Request, session: Session) -> AccountSession | None:
-    """按 Cookie 找回当前会话。**这个函数不写库**。
-    """
+    """按 Cookie 找回当前会话。**这个函数不写库**。"""
     token = request.cookies.get(request.app.state.settings.cookie_name)
     if not token:
         return None
@@ -69,9 +69,7 @@ CurrentAccount = Annotated[Account | None, Depends(current_account)]
 
 def require_account(account: CurrentAccount) -> Account:
     if account is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="请先登录。"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="请先登录。")
     return account
 
 
@@ -86,9 +84,7 @@ def require_admin(account: AuthedAccount, record: CurrentSession) -> Account:
     is_admin_session 由登录/提权时在服务端写入，降权时随会话一起清掉。
     """
     if not account.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="需要管理员权限。"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="需要管理员权限。")
     if record is None or not record.is_admin_session:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -108,8 +104,7 @@ SettingsDep = Annotated[StoreSettings, Depends(get_settings)]
 
 
 def order_or_404(session: Session, order_no: str) -> Order:
-    """按订单号取订单；取不到就 404「订单不存在。」。
-    """
+    """按订单号取订单；取不到就 404「订单不存在。」。"""
     order = session.scalars(select(Order).where(Order.order_no == order_no)).first()
     if order is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="订单不存在。")

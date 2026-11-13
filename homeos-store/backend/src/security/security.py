@@ -1,14 +1,18 @@
-"""口令哈希、会话令牌与验证码工具。"""
+"""``core`` 叶子实现的门面（保留既有导入路径，不再持有实现）。
+
+拆分背景
+--------
+本模块此前同时装着四类职责：时间、标识/凭据、文本判据、口令哈希。后果是
+``core.models`` / ``core.deps`` / ``core.schemas`` 都必须 import 它，于是 ``core`` 反过来
+依赖 ``security``，两者构成包级强连通（``check_backend_deps`` 的 B4 白名单一度冻结了这个环）。
+
+现在真实实现按职责落位：``core.clock`` / ``core.ids`` / ``core.text`` / ``security.passwords``。
+本模块只做 re-export —— 调用点（``api``、``licensing``、``payments`` …）里既有的
+``from ..security.security import utcnow`` 不必逐个改，行为逐字不变；**新代码**请直接
+import 真正的模块，别再把这里当杂物间。
+"""
 
 from __future__ import annotations
-
-import base64
-import hashlib
-import hmac
-import re
-import secrets
-import uuid
-from datetime import UTC, datetime
 
 from homeos_shared.password_policy import (
     PASSWORD_MAX_LENGTH,
@@ -17,12 +21,45 @@ from homeos_shared.password_policy import (
     is_password_policy_compliant,
 )
 
-from ..core.timeutil import aware_now
+from .passwords import (
+    PBKDF2_ALGORITHM,
+    PBKDF2_ITERATIONS,
+    PBKDF2_MAX_ITERATIONS,
+    hash_password,
+    needs_rehash,
+    verify_password,
+)
+from ..core.clock import iso, iso_micro, iso_z, naive_utc, utcnow
+from ..core.ids import (
+    activation_code_hint,
+    code_hash,
+    log_fingerprint,
+    new_activation_code,
+    new_code_salt,
+    new_order_no,
+    new_referral_code,
+    new_token,
+    new_uuid,
+    new_verification_code,
+    token_hash,
+    token_matches,
+)
+from ..core.text import (
+    REFERRAL_CODE_RE,
+    is_valid_email,
+    normalize_email,
+    normalize_referral_code,
+    normalize_username,
+)
 
 __all__ = [
     "PASSWORD_MAX_LENGTH",
     "PASSWORD_MIN_LENGTH",
     "PASSWORD_POLICY_MESSAGE",
+    "PBKDF2_ALGORITHM",
+    "PBKDF2_ITERATIONS",
+    "PBKDF2_MAX_ITERATIONS",
+    "REFERRAL_CODE_RE",
     "activation_code_hint",
     "code_hash",
     "hash_password",
@@ -49,230 +86,3 @@ __all__ = [
     "utcnow",
     "verify_password",
 ]
-
-PBKDF2_ITERATIONS = 600_000
-PBKDF2_ALGORITHM = "sha256"
-
-#: 校验时允许的最大迭代次数。库里的迭代次数来自 ``password_hash`` 列（服务端写入、不可由
-#: 请求控制），但损坏或被人为塞入的超大值会让**每一次**登录都变成一个 CPU 热点 ——
-#: 在单进程 SQLite 部署上等于一个自伤的 DoS。超过上限一律判为无效哈希（fail-closed）。
-PBKDF2_MAX_ITERATIONS = 4_000_000
-
-
-def utcnow() -> datetime:
-    """返回 naive UTC 时间，便于 SQLite 存储与比较。"""
-    return datetime.now(UTC).replace(tzinfo=None)
-
-
-def naive_utc(value: datetime | None) -> datetime | None:
-    """时区归一的**唯一**实现：带时区的值先换算到 UTC，再去掉时区。
-    """
-    if value is None or value.tzinfo is None:
-        return value
-    return value.astimezone(UTC).replace(tzinfo=None)
-
-
-def iso(value: datetime | None) -> str | None:
-    """序列化为参考站风格的无时区 ISO 字符串。"""
-    value = naive_utc(value)
-    return None if value is None else value.strftime("%Y-%m-%dT%H:%M:%S")
-
-
-def iso_micro(value: datetime | None) -> str | None:
-    value = naive_utc(value)
-    return None if value is None else value.strftime("%Y-%m-%dT%H:%M:%S.%f")
-
-
-def iso_z(value: datetime | None) -> str | None:
-    """带 Z 后缀的 ISO 字符串，授权协议要求。"""
-    text = iso_micro(value)
-    return None if text is None else f"{text}Z"
-
-
-def hash_password(password: str) -> str:
-    salt = secrets.token_bytes(16)
-    digest = hashlib.pbkdf2_hmac(
-        PBKDF2_ALGORITHM, password.encode("utf-8"), salt, PBKDF2_ITERATIONS
-    )
-    return "$".join(
-        (
-            "pbkdf2",
-            PBKDF2_ALGORITHM,
-            str(PBKDF2_ITERATIONS),
-            base64.b64encode(salt).decode("ascii"),
-            base64.b64encode(digest).decode("ascii"),
-        )
-    )
-
-
-def needs_rehash(encoded: str | None) -> bool:
-    """该口令哈希是否需要用当前参数重新计算。
-
-    升级 ``PBKDF2_ITERATIONS`` 只对新口令生效；存量账号的哈希还停在旧迭代次数上，
-    必须等用户下次**成功登录**（手里有明文口令的那一刻）才有机会就地升级。
-    这也是这里返回布尔而不是直接改写的原因：本函数不认识数据库。
-    """
-    if not encoded:
-        return False
-    parts = encoded.split("$")
-    if len(parts) != 5:
-        return True
-    scheme, algorithm, iterations, _salt, _digest = parts
-    if scheme != "pbkdf2" or algorithm != PBKDF2_ALGORITHM:
-        return True
-    # 迭代次数必须是纯数字：``int()`` 的异常在这里没有信息量，用 ``isdigit`` 提前判掉，
-    # 顺带拒绝 ``+240000`` / `` 240000`` 这类「能转但不该接受」的写法。
-    if not iterations.isdigit():
-        return True
-    return int(iterations) < PBKDF2_ITERATIONS
-
-
-#: 口令策略（长度上下界 / 提示文案 / 判据）的真源在 ``homeos_shared.password_policy``，
-#: 与主应用 ``platform/security/passwords.py`` 共用同一份；本模块只做 re-export，
-#: 调用点继续 ``from .security import is_password_policy_compliant``。
-
-
-def verify_password(password: str, encoded: str | None) -> bool:
-    if not encoded:
-        return False
-    try:
-        scheme, algorithm, iterations, salt_b64, digest_b64 = encoded.split("$")
-        if scheme != "pbkdf2":
-            return False
-        rounds = int(iterations)
-        if rounds <= 0 or rounds > PBKDF2_MAX_ITERATIONS:
-            return False
-        expected = base64.b64decode(digest_b64)
-        actual = hashlib.pbkdf2_hmac(
-            algorithm,
-            password.encode("utf-8"),
-            base64.b64decode(salt_b64),
-            rounds,
-        )
-    except (ValueError, TypeError):
-        return False
-    return hmac.compare_digest(actual, expected)
-
-
-def new_token(length: int = 32) -> str:
-    return secrets.token_urlsafe(length)
-
-
-def token_hash(token: str) -> str:
-    return hashlib.sha256(token.encode("utf-8")).hexdigest()
-
-
-def log_fingerprint(secret: str) -> str:
-    """日志里使用的不可逆指纹：同一凭据可串联排障，又不会泄露明文。"""
-    return token_hash(secret)[:12]
-
-
-def token_matches(candidate: str | None, expected: str | None) -> bool:
-    """恒定时间比较两个令牌；任一为空即 ``False``。
-    """
-    if not candidate or not expected:
-        return False
-    return secrets.compare_digest(candidate.encode("utf-8"), expected.encode("utf-8"))
-
-
-def new_verification_code() -> str:
-    return f"{secrets.randbelow(1_000_000):06d}"
-
-
-def new_activation_code() -> str:
-    """生成 HOMEOS-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX 形式的激活码。"""
-    alphabet = "0123456789ABCDEF"
-    groups = ["".join(secrets.choice(alphabet) for _ in range(4)) for _ in range(6)]
-    return "HOMEOS-" + "-".join(groups)
-
-
-def activation_code_hint(code: str) -> str:
-    return code[-9:]
-
-
-def new_code_salt() -> str:
-    """验证码的逐条随机盐（16 字节十六进制）。"""
-    return secrets.token_hex(16)
-
-
-def code_hash(code: str, salt: str = "") -> str:
-    """验证码在库里只存哈希，且**逐条加盐**。
-    """
-    text = (code or "").strip()
-    if not salt:
-        return hashlib.sha256(f"hb-store-verification:{text}".encode()).hexdigest()
-    return hashlib.sha256(f"{salt}\x1f{text}".encode()).hexdigest()
-
-
-def new_order_no(*, now: datetime | None = None) -> str:
-    """生成订单号：``HOMEOS-<本地时间14位>-<随机8位>``（固定 30 字符）。
-
-    - **不再带邮箱前缀**：订单号会进日志、发货邮件和支付网关，把邮箱本地部分写进去等于
-      把 PII 散到所有下游；
-    - **固定长度 30**：旧格式中间的邮箱前缀长度随邮箱变化（最长 64），一方面可能撑破
-      ``orders.orderNo`` 的 ``String(64)``，另一方面订单号会直接当微信 ``out_trade_no``
-      用（只接受 6–32 字符），长邮箱用户的支付请求会被网关直接拒绝。
-
-    随机段 8 位十六进制（4 字节）：同一秒内碰撞概率可忽略，真撞了靠唯一约束重试。
-    """
-    moment = now or aware_now()
-    return f"HOMEOS-{moment.strftime('%Y%m%d%H%M%S')}-{secrets.token_hex(4)}"
-
-
-_EMAIL_RE = re.compile(
-    r"^[A-Za-z0-9!#$%&'*+/=?^_`{|}~.-]{1,64}"
-    r"@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
-    r"(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$"
-)
-
-
-def is_valid_email(value: str | None) -> bool:
-    """邮箱形态是否合法（同时要求长度不超过 255，和 ``accounts.email`` 列宽对齐）。"""
-    if not value:
-        return False
-    text = value.strip()
-    return len(text) <= 255 and bool(_EMAIL_RE.match(text))
-
-
-def normalize_email(value: str) -> str:
-    """统一大小写与前后空白：库里所有邮箱都按小写比对，签名也要一致。"""
-    return value.strip().lower()
-
-
-_CONTROL_CHARACTERS = re.compile(r"[\x00-\x1f\x7f]")
-
-
-def normalize_username(value: str) -> str:
-    """登录账号名清洗（与主应用 ``_clean_username`` 同口径）。
-
-    至少 3 位、最多 64 位；不能含控制字符、``@`` 或空白（``@`` 留给邮箱登录）。
-    统一小写，避免 ``Alice`` / ``alice`` 双注册而登录 ``func.lower`` 歧义。
-    """
-    cleaned = (value or "").strip().lower()
-    if len(cleaned) < 3 or len(cleaned) > 64 or _CONTROL_CHARACTERS.search(cleaned):
-        raise ValueError("账号长度须为 3–64 个字符，且不能包含控制字符。")
-    if "@" in cleaned or re.search(r"\s", cleaned):
-        raise ValueError("账号不能包含 @ 或空格（@ 保留给邮箱登录）。")
-    return cleaned
-
-
-REFERRAL_CODE_RE = re.compile(r"^[2-9A-HJ-NP-Z]{8}$")
-
-
-def new_referral_code() -> str:
-    """生成 8 位无歧义邀请码（32^8 远大于原来 6 位数字的 10^6，撞码概率可忽略）。"""
-    alphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
-    return "".join(secrets.choice(alphabet) for _ in range(8))
-
-
-def normalize_referral_code(value: str | None) -> str | None:
-    """把用户输入的邀请码归一成库里存的形式；形态不合法时返回 None。
-    """
-    text = (value or "").strip().upper()
-    if not text:
-        return None
-    return text if REFERRAL_CODE_RE.match(text) else None
-
-
-def new_uuid() -> str:
-    return str(uuid.uuid4())

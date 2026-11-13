@@ -192,8 +192,15 @@ import {
   normalizeAgentCompanion,
   resolveAgentCompanionPosition,
   resolveAgentCompanionStageSize,
-  roundCompanionPercent,
 } from '@/shared/utils/layout/agent-companion.util'
+import {
+  centerToPercent,
+  clampCompanionCenter,
+  companionBubbleArrowLeft,
+  companionBubbleFlipped,
+  companionBubbleShift,
+  companionBubbleWidth,
+} from './agent-companion/companion-geometry'
 
 /** 伴侣的展示状态：dormant 是刚挂载的静默期，idle 是静止待机（收缩形态） */
 type CompanionState = 'dormant' | 'greeting' | 'idle' | 'tips' | 'listening' | 'thinking' | 'replying'
@@ -216,15 +223,6 @@ const REPLY_HOLD_MS = 3800
 const CANCEL_UP_PX = 45
 /** 超过这个位移才算拖动，避免手抖把「点击」变成「挪位置」 */
 const DRAG_START_DISTANCE = 6
-/** 拖动时图标离视口边缘的最小间距（px） */
-const DRAG_EDGE_MARGIN = 8
-/** 气泡与视口边缘的最小留白（px，设计坐标系） */
-const BUBBLE_EDGE_GAP = 10
-/** 气泡宽度区间（px，设计坐标系） */
-const BUBBLE_MIN_WIDTH = 236
-const BUBBLE_MAX_WIDTH = 300
-/** 机器人中心低于该高度（px）就认为上方放不下气泡，改到下方展开 */
-const BUBBLE_FLIP_TOP = 236
 /** 停止录音后多久没拿到识别结果就回到待机，避免 HUD 卡死 */
 const VOICE_SETTLE_MS = 1000
 
@@ -363,23 +361,13 @@ function shellScale() {
 
 /** 把中心点夹在视口内，保证圆脸完整可见（边距同样按壳层缩放换算） */
 function clampCenter(center: { x: number; y: number }) {
-  const { width, height } = viewportSize()
-  const margin = (AGENT_COMPANION_FACE_SIZE / 2 + DRAG_EDGE_MARGIN) * shellScale()
-  return {
-    x: Math.min(Math.max(center.x, margin), Math.max(margin, width - margin)),
-    y: Math.min(Math.max(center.y, margin), Math.max(margin, height - margin)),
-  }
+  return clampCompanionCenter(center, viewportSize(), shellScale())
 }
 
 /** 当前落点（视口百分比）：拖动中读 dragCenter，否则读布局配置 / 旧版停靠回退 */
 const positionPercent = computed(() => {
   if (dragCenter.value) {
-    const { width, height } = viewportSize()
-    const center = clampCenter(dragCenter.value)
-    return {
-      xPercent: roundCompanionPercent((center.x / width) * 100),
-      yPercent: roundCompanionPercent((center.y / height) * 100),
-    }
+    return centerToPercent(clampCenter(dragCenter.value), viewportSize())
   }
   const stage = resolveAgentCompanionStageSize()
   const resolved = resolveAgentCompanionPosition(config.value, {
@@ -388,15 +376,12 @@ const positionPercent = computed(() => {
     viewportWidth: stage.width,
     viewportHeight: stage.height,
   })
-  const { width, height } = viewportSize()
+  const viewport = viewportSize()
   const center = clampCenter({
-    x: (resolved.xPercent / 100) * width,
-    y: (resolved.yPercent / 100) * height,
+    x: (resolved.xPercent / 100) * viewport.width,
+    y: (resolved.yPercent / 100) * viewport.height,
   })
-  return {
-    xPercent: roundCompanionPercent((center.x / width) * 100),
-    yPercent: roundCompanionPercent((center.y / height) * 100),
-  }
+  return centerToPercent(center, viewport)
 })
 
 const positionStyle = computed(() => ({
@@ -405,27 +390,17 @@ const positionStyle = computed(() => ({
 }))
 
 /** 气泡宽度：随画面宽度收缩，但保持在可读区间 */
-const bubbleWidth = computed(() => {
-  const { width } = stagePx()
-  return Math.min(BUBBLE_MAX_WIDTH, Math.max(BUBBLE_MIN_WIDTH, width * 0.46))
-})
+const bubbleWidth = computed(() => companionBubbleWidth(stagePx().width))
 
 /** 气泡水平位移：让气泡整体留在视口内，又不离开机器人太远 */
 const bubbleShift = computed(() => {
   const { width } = stagePx()
-  const half = bubbleWidth.value / 2
   const anchorX = (positionPercent.value.xPercent / 100) * width
-  const min = BUBBLE_EDGE_GAP - (anchorX - half)
-  const max = width - BUBBLE_EDGE_GAP - (anchorX + half)
-  if (min > max) return (min + max) / 2
-  return Math.min(Math.max(0, min), max)
+  return companionBubbleShift(anchorX, width, bubbleWidth.value)
 })
 
 /** 箭头始终指向机器人，而不是跟着气泡一起被推走 */
-const bubbleArrowLeft = computed(() => {
-  const offset = bubbleWidth.value / 2 - bubbleShift.value
-  return Math.min(Math.max(offset, 18), bubbleWidth.value - 18)
-})
+const bubbleArrowLeft = computed(() => companionBubbleArrowLeft(bubbleWidth.value, bubbleShift.value))
 
 const bubbleStyle = computed(() => ({
   width: `${bubbleWidth.value}px`,
@@ -435,9 +410,8 @@ const bubbleStyle = computed(() => ({
 
 /** 顶部放不下气泡就翻到机器人下方（箭头同步翻面） */
 const bubbleFlipped = computed(() => {
-  const { height } = stagePx()
-  const anchorY = (positionPercent.value.yPercent / 100) * height
-  return anchorY - AGENT_COMPANION_FACE_SIZE / 2 < BUBBLE_FLIP_TOP
+  const anchorY = (positionPercent.value.yPercent / 100) * stagePx().height
+  return companionBubbleFlipped(anchorY)
 })
 
 /* ------------------------------------------------------------------ 状态切换 */

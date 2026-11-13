@@ -1,5 +1,4 @@
-"""退款流水的落库辅助。
-"""
+"""退款流水的落库辅助。"""
 
 from __future__ import annotations
 
@@ -15,7 +14,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
 from ...core.models import Order, OrderRefund
-from ...ops import incidents
+from ...infra import incidents
 from ...security.security import utcnow
 
 logger = logging.getLogger("src.payments.refunds")
@@ -38,8 +37,7 @@ __all__ = [
 
 
 def record_refund_in_new_session(session: Session, refund: OrderRefund) -> bool:
-    """在独立事务里写入一条退款流水，返回是否写入成功。
-    """
+    """在独立事务里写入一条退款流水，返回是否写入成功。"""
     factory = sessionmaker(bind=session.get_bind(), expire_on_commit=False, future=True)
     try:
         with factory() as probe:
@@ -130,9 +128,7 @@ def refund_request_no(order_no: str, target_cents: int) -> str:
 
 def refund_by_request_no(session: Session, out_request_no: str) -> OrderRefund | None:
     """按幂等号取退款流水：一次退款动作在任何时刻最多一行。"""
-    return session.scalars(
-        select(OrderRefund).where(OrderRefund.out_request_no == out_request_no)
-    ).first()
+    return session.scalars(select(OrderRefund).where(OrderRefund.out_request_no == out_request_no)).first()
 
 
 def unsettled_refund(session: Session, *, order_id: str) -> OrderRefund | None:
@@ -228,7 +224,7 @@ def open_refund_gate(session: Session, refund: OrderRefund) -> tuple[str, OrderR
                     amount_cents=int(refund.amount_cents or 0),
                     status="running",
                     detail="",
-            reason=refund.reason or "",
+                    reason=refund.reason or "",
                     offline=refund.offline,
                     operator=refund.operator,
                     created_at=refund.created_at or utcnow(),
@@ -283,17 +279,18 @@ def persist_refund_result(
     factory = sessionmaker(bind=session.get_bind(), expire_on_commit=False, future=True)
     try:
         with factory() as probe:
-            if write_refund_result(
-                probe,
-                out_request_no=out_request_no,
-                status=status,
-                amount_cents=amount_cents,
-                trade_no=trade_no,
-                detail=detail,
-            ) != 1:
-                logger.error(
-                    "退款流水不存在，结果未能落库 out_request_no=%s", out_request_no
+            if (
+                write_refund_result(
+                    probe,
+                    out_request_no=out_request_no,
+                    status=status,
+                    amount_cents=amount_cents,
+                    trade_no=trade_no,
+                    detail=detail,
                 )
+                != 1
+            ):
+                logger.error("退款流水不存在，结果未能落库 out_request_no=%s", out_request_no)
                 return False
             probe.commit()
     except SQLAlchemyError:
@@ -305,6 +302,7 @@ def persist_refund_result(
         )
         return False
     return True
+
 
 def record_refund_audit(session: Session, refund: OrderRefund) -> bool:
     """把退款流水写进独立事务，**写不进去必须留痕**。

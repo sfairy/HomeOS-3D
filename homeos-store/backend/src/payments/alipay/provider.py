@@ -1,5 +1,4 @@
-"""支付宝当面付（扫码支付）渠道：下单、异步通知验签、主动查单。
-"""
+"""支付宝当面付（扫码支付）渠道：下单、异步通知验签、主动查单。"""
 
 from __future__ import annotations
 
@@ -22,7 +21,7 @@ from ..common.http_pool import request as http_request
 from ...commerce import money
 from ...config import StoreSettings
 from ...core.models import Order, StoreSetting
-from ...ops.net_probe import (
+from ...infra.net_probe import (
     LEVEL_FAIL,
     LEVEL_PASS,
     LEVEL_SKIP,
@@ -54,6 +53,7 @@ CREDENTIAL_ERROR_SUB_CODES = frozenset(
         "isv.missing-parameter",
     }
 )
+
 
 @dataclass(frozen=True)
 class AlipayNotification:
@@ -95,17 +95,14 @@ def _gateway_hint(settings: StoreSettings, sub_code: str) -> str:
 
 
 def _summarize_diagnostics(checks: list[dict]) -> tuple[bool, str]:
-    """把逐项自检结论收成 ``(是否全部通过, 一句话结论)``。
-    """
+    """把逐项自检结论收成 ``(是否全部通过, 一句话结论)``。"""
     passed = all(item["level"] == LEVEL_PASS for item in checks)
     failures = [item for item in checks if item["level"] == LEVEL_FAIL]
     warnings = [item for item in checks if item["level"] == LEVEL_WARN]
     if passed:
         message = "凭据自检全部通过：网关验签、响应验签与回调地址配置均可用。"
     elif failures:
-        message = "自检未通过：" + "；".join(
-            f"{item['label']} —— {item['detail']}" for item in failures
-        )
+        message = "自检未通过：" + "；".join(f"{item['label']} —— {item['detail']}" for item in failures)
     else:
         message = "自检未通过（存在无法判定或需要留意的事项）：" + "；".join(
             f"{item['label']} —— {item['detail']}" for item in warnings
@@ -123,17 +120,12 @@ class AlipayProvider:
         return self._settings or settings
 
     def resolve_settings(self, settings: StoreSettings) -> StoreSettings:
-        """返回本次调用**实际生效**的凭据集合（已合并后台站点配置）。
-        """
+        """返回本次调用**实际生效**的凭据集合（已合并后台站点配置）。"""
         return self._resolve(settings)
 
     def is_configured(self, settings: StoreSettings) -> bool:
         settings = self._resolve(settings)
-        return bool(
-            settings.alipay_app_id
-            and settings.alipay_private_key_text
-            and settings.alipay_public_key_text
-        )
+        return bool(settings.alipay_app_id and settings.alipay_private_key_text and settings.alipay_public_key_text)
 
     def _assert_configured(self, settings: StoreSettings) -> None:
         settings = self._resolve(settings)
@@ -152,9 +144,7 @@ class AlipayProvider:
             missing.append("应用私钥")
         if not settings.alipay_public_key_text:
             missing.append("支付宝公钥")
-        raise PaymentError(
-            "支付宝收款尚未配置完整，缺少：" + "、".join(missing) + "。"
-        )
+        raise PaymentError("支付宝收款尚未配置完整，缺少：" + "、".join(missing) + "。")
 
     def notify_url(self, settings: StoreSettings, base_url: str) -> str:
         settings = self._resolve(settings)
@@ -174,8 +164,7 @@ class AlipayProvider:
         require_signature: bool = True,
         force_signature_check: bool = False,
     ) -> tuple[dict, str]:
-        """调用一个 OpenAPI 方法，返回 (响应节点, 原始响应文本)。
-        """
+        """调用一个 OpenAPI 方法，返回 (响应节点, 原始响应文本)。"""
         settings = self._resolve(settings)
         self._assert_configured(settings)
         node_key = method.replace(".", "_") + "_response"
@@ -209,9 +198,7 @@ class AlipayProvider:
             raise PaymentError(f"访问支付宝网关失败：{error}") from error
 
         if response.status_code != 200:
-            raise PaymentError(
-                f"支付宝网关返回 HTTP {response.status_code}：{response.text[:200]}"
-            )
+            raise PaymentError(f"支付宝网关返回 HTTP {response.status_code}：{response.text[:200]}")
 
         raw = response.text
         try:
@@ -239,9 +226,7 @@ class AlipayProvider:
     ) -> None:
         settings = self._resolve(settings)
         if not isinstance(signature, str) or not signature:
-            raise ResponseSignatureMissing(
-                "支付宝响应缺少 sign，已拒绝该响应（可关闭响应验签开关）。"
-            )
+            raise ResponseSignatureMissing("支付宝响应缺少 sign，已拒绝该响应（可关闭响应验签开关）。")
         content = extract_raw_node(raw, node_key)
         if not content:
             raise PaymentError("无法从支付宝响应中定位待验签内容。")
@@ -259,20 +244,14 @@ class AlipayProvider:
         settings = self._resolve(settings)
         self._assert_configured(settings)
 
-        subject = (
-            setting.payment_transaction_description
-            or settings.alipay_transaction_description
-            or "HomeOS 授权"
-        )
+        subject = setting.payment_transaction_description or settings.alipay_transaction_description or "HomeOS 授权"
         biz_content: dict[str, object] = {
             "out_trade_no": order.order_no,
             "total_amount": yuan_from_cents(order.amount_cents),
             "subject": subject[:256],
         }
 
-        node, _raw = self._call(
-            settings, "alipay.trade.precreate", biz_content, base_url=base_url
-        )
+        node, _raw = self._call(settings, "alipay.trade.precreate", biz_content, base_url=base_url)
         code = str(node.get("code", ""))
         if code != "10000":
             detail = node.get("sub_msg") or node.get("msg") or "未知错误"
@@ -283,9 +262,7 @@ class AlipayProvider:
             raise PaymentError("支付宝下单成功但没有返回二维码。")
 
         display_name = display_name_for("alipay", setting, settings)
-        logger.info(
-            "支付宝下单成功 order=%s amount=%s", order.order_no, biz_content["total_amount"]
-        )
+        logger.info("支付宝下单成功 order=%s amount=%s", order.order_no, biz_content["total_amount"])
         return PaymentIntent(
             provider=self.name,
             payload={
@@ -309,8 +286,7 @@ class AlipayProvider:
         settings: StoreSettings,
         setting: StoreSetting,
     ) -> RefundResult:
-        """调用 ``alipay.trade.refund`` 真实退款。
-        """
+        """调用 ``alipay.trade.refund`` 真实退款。"""
         settings = self._resolve(settings)
         self._assert_configured(settings)
         if amount_cents <= 0:
@@ -359,18 +335,14 @@ class AlipayProvider:
             ),
         )
 
-    def verify_notification(
-        self, settings: StoreSettings, form: dict[str, str]
-    ) -> AlipayNotification:
+    def verify_notification(self, settings: StoreSettings, form: dict[str, str]) -> AlipayNotification:
         settings = self._resolve(settings)
         fields = {str(key): ("" if value is None else str(value)) for key, value in form.items()}
         signature = fields.get("sign", "")
         if not signature:
             return AlipayNotification(ok=False, reason="通知缺少 sign 参数", fields=fields)
 
-        content = build_sign_content(
-            fields, excluded=frozenset({"sign", "sign_type"})
-        )
+        content = build_sign_content(fields, excluded=frozenset({"sign", "sign_type"}))
         if not verify_content(content, signature, settings.alipay_public_key_text):
             return AlipayNotification(ok=False, reason="通知验签失败", fields=fields)
 
@@ -386,8 +358,7 @@ class AlipayProvider:
         )
 
     def _probe_gateway_credentials(self, settings: StoreSettings) -> tuple[bool, str]:
-        """用一笔**不存在的交易**探活，判断网关认不认这套 app_id + 私钥。
-        """
+        """用一笔**不存在的交易**探活，判断网关认不认这套 app_id + 私钥。"""
         settings = self._resolve(settings)
         try:
             self._assert_configured(settings)
@@ -418,8 +389,7 @@ class AlipayProvider:
         notify_url: str = "",
         return_url: str = "",
     ) -> tuple[bool, str, list[dict]]:
-        """逐项自检凭据与回调配置，返回 ``(是否全部通过, 一句话结论, 结论列表)``。
-        """
+        """逐项自检凭据与回调配置，返回 ``(是否全部通过, 一句话结论, 结论列表)``。"""
         settings = self._resolve(settings)
         checks: list[dict] = [
             self._diagnose_gateway_address(settings),
@@ -466,15 +436,11 @@ class AlipayProvider:
         if private_error:
             checks.append(check_result("private-key", "应用私钥", LEVEL_FAIL, private_error))
         else:
-            checks.append(
-                check_result("private-key", "应用私钥", LEVEL_PASS, "格式与位数合法（RSA2048）。")
-            )
+            checks.append(check_result("private-key", "应用私钥", LEVEL_PASS, "格式与位数合法（RSA2048）。"))
         if public_error:
             checks.append(check_result("public-key", "支付宝公钥", LEVEL_FAIL, public_error))
         else:
-            checks.append(
-                check_result("public-key", "支付宝公钥", LEVEL_PASS, "格式与位数合法（RSA2048）。")
-            )
+            checks.append(check_result("public-key", "支付宝公钥", LEVEL_PASS, "格式与位数合法（RSA2048）。"))
         if not private_error and not public_error:
             if key_pair_same_modulus(private_text, public_text):
                 checks.append(
@@ -543,8 +509,7 @@ class AlipayProvider:
                 "public-key-verified",
                 "响应验签",
                 LEVEL_WARN,
-                "网关本次响应未带签名，无法据此判定支付宝公钥是否正确"
-                "（先修好上面的凭据项再复测）。",
+                "网关本次响应未带签名，无法据此判定支付宝公钥是否正确（先修好上面的凭据项再复测）。",
             )
         except ResponseSignatureInvalid:
             return check_result(
@@ -605,15 +570,10 @@ class AlipayProvider:
             )
         return check_result("gateway-environment", "运行环境", LEVEL_PASS, "支付宝生产网关。")
 
-    def query_payment(
-        self, settings: StoreSettings, order: Order
-    ) -> dict[str, object] | None:
-        """查单。返回响应节点；**确认**交易不存在（尚未支付）时返回 ``None``。
-        """
+    def query_payment(self, settings: StoreSettings, order: Order) -> dict[str, object] | None:
+        """查单。返回响应节点；**确认**交易不存在（尚未支付）时返回 ``None``。"""
         settings = self._resolve(settings)
-        node, _raw = self._call(
-            settings, "alipay.trade.query", {"out_trade_no": order.order_no}
-        )
+        node, _raw = self._call(settings, "alipay.trade.query", {"out_trade_no": order.order_no})
         code = str(node.get("code", ""))
         if code == "10000":
             return node
@@ -622,7 +582,6 @@ class AlipayProvider:
             return None
         detail = node.get("sub_msg") or node.get("msg") or "未知错误"
         raise PaymentError(f"支付宝查单失败（{code}）：{detail}")
-
 
     def is_success_node(self, node: dict) -> bool:
         return str(node.get("trade_status") or "") in SUCCESS_TRADE_STATUSES
@@ -637,13 +596,10 @@ class AlipayProvider:
         return cents_from_yuan(node.get("total_amount"))
 
     def close_payment(self, settings: StoreSettings, order: Order) -> CloseResult:
-        """关闭渠道侧的预下单交易（``alipay.trade.close``）。
-        """
+        """关闭渠道侧的预下单交易（``alipay.trade.close``）。"""
         settings = self._resolve(settings)
         self._assert_configured(settings)
-        node, _raw = self._call(
-            settings, "alipay.trade.close", {"out_trade_no": order.order_no}
-        )
+        node, _raw = self._call(settings, "alipay.trade.close", {"out_trade_no": order.order_no})
         code = str(node.get("code", ""))
         if code == "10000":
             logger.info("支付宝关单成功 order=%s", order.order_no)
@@ -668,6 +624,7 @@ class AlipayProvider:
 
         raise PaymentError(f"支付宝关单失败（{code}）：{detail}")
 
+
 from .signing import (
     ResponseSignatureInvalid,
     ResponseSignatureMissing,
@@ -688,30 +645,30 @@ from .signing import (
 )
 
 __all__ = [
-    'CLOSE_ALREADY_PAID_SUB_CODES',
-    'CLOSE_IDEMPOTENT_SUB_CODES',
-    'CREDENTIAL_ERROR_SUB_CODES',
-    'PRODUCTION_GATEWAY_HOST',
-    'SUCCESS_TRADE_STATUSES',
-    'TRADE_NOT_EXIST_SUB_CODES',
-    'AlipayNotification',
-    'AlipayProvider',
-    'CloseResult',
-    'ResponseSignatureInvalid',
-    'ResponseSignatureMissing',
-    '_callback_check',
-    '_url_port',
-    'alipay_timestamp',
-    'build_sign_content',
-    'cents_from_yuan',
-    'extract_raw_node',
-    'key_pair_same_modulus',
-    'logger',
-    'private_key_error',
-    'public_key_error',
-    'sign_params',
-    'validate_callback_url',
-    'validate_gateway_url',
-    'verify_content',
-    'yuan_from_cents',
+    "CLOSE_ALREADY_PAID_SUB_CODES",
+    "CLOSE_IDEMPOTENT_SUB_CODES",
+    "CREDENTIAL_ERROR_SUB_CODES",
+    "PRODUCTION_GATEWAY_HOST",
+    "SUCCESS_TRADE_STATUSES",
+    "TRADE_NOT_EXIST_SUB_CODES",
+    "AlipayNotification",
+    "AlipayProvider",
+    "CloseResult",
+    "ResponseSignatureInvalid",
+    "ResponseSignatureMissing",
+    "_callback_check",
+    "_url_port",
+    "alipay_timestamp",
+    "build_sign_content",
+    "cents_from_yuan",
+    "extract_raw_node",
+    "key_pair_same_modulus",
+    "logger",
+    "private_key_error",
+    "public_key_error",
+    "sign_params",
+    "validate_callback_url",
+    "validate_gateway_url",
+    "verify_content",
+    "yuan_from_cents",
 ]

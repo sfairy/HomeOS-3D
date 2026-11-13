@@ -1,5 +1,4 @@
-"""后台支付巡检：定时对账 + 关闭过期交易 + 本地超时单收尾。
-"""
+"""后台支付巡检：定时对账 + 关闭过期交易 + 本地超时单收尾。"""
 
 from __future__ import annotations
 
@@ -13,10 +12,10 @@ from sqlalchemy import select, update
 from .reconcile import SweepResult, reconcile_due_orders
 from ...commerce import fulfill
 from ...config import StoreSettings
+from ...core import site_settings as site_config
 from ...core.models import Order, utcnow
 from ...core.persistence.database import Database
-from ...ops import incidents
-from ...ops import site_settings as site_config
+from ...infra import incidents
 from ...security.security import iso_z
 
 logger = logging.getLogger("src.payments.sweeper")
@@ -61,8 +60,7 @@ _lock = threading.Lock()
 
 
 def configure_sweep_loop(interval_seconds: int) -> int:
-    """由巡检循环启动时调用，声明「要跑、间隔多少」。
-    """
+    """由巡检循环启动时调用，声明「要跑、间隔多少」。"""
     with _lock:
         _state.generation += 1
         _state.configured = True
@@ -93,8 +91,7 @@ def _is_current(generation: int | None) -> bool:
 
 
 def mark_sweep_loop_stopped(generation: int | None = None) -> None:
-    """循环退出时调用。
-    """
+    """循环退出时调用。"""
     with _lock:
         if generation is not None and generation != _state.generation:
             return
@@ -131,8 +128,7 @@ def sweep_round(
     settings: StoreSettings,
     generation: int | None = None,
 ) -> SweepResult | None:
-    """跑一轮巡检并登记状态。异常照旧往上抛。
-    """
+    """跑一轮巡检并登记状态。异常照旧往上抛。"""
     if generation is None:
         generation = _current_generation()
     live = _is_current(generation)
@@ -203,9 +199,7 @@ MAX_FULFILLMENT_RETRIES = 5
 FULFILLMENT_RETRY_LOOKBACK_HOURS = 24
 
 
-def _retry_failed_fulfillments(
-    database: Database, settings: StoreSettings, *, limit: int = 10
-) -> int:
+def _retry_failed_fulfillments(database: Database, settings: StoreSettings, *, limit: int = 10) -> int:
     """自动重试「已收款但发码失败」的订单，返回本轮成功的笔数。
 
     没有这一段时，履约失败就是一个死胡同：入账时异常被刻意吞掉（对，不然支付宝会
@@ -222,10 +216,7 @@ def _retry_failed_fulfillments(
                 select(Order.id)
                 .where(Order.status == "fulfillment_failed")
                 .where(Order.fulfillment_attempts < MAX_FULFILLMENT_RETRIES)
-                .where(
-                    Order.created_at
-                    >= moment - timedelta(hours=FULFILLMENT_RETRY_LOOKBACK_HOURS)
-                )
+                .where(Order.created_at >= moment - timedelta(hours=FULFILLMENT_RETRY_LOOKBACK_HOURS))
                 .order_by(Order.paid_at.asc())
                 .limit(max(1, int(limit)))
             )
@@ -251,9 +242,7 @@ def _retry_failed_fulfillments(
                 continue
             session.refresh(order)
             recovered += 1
-            logger.warning(
-                "履约失败订单已自动补发 order=%s status=%s", order.order_no, order.status
-            )
+            logger.warning("履约失败订单已自动补发 order=%s status=%s", order.order_no, order.status)
     return recovered
 
 
@@ -266,9 +255,7 @@ def sweep_once(database: Database, settings: StoreSettings) -> SweepResult | Non
             setting=setting,
             limit=max(1, int(settings.payment_sweep_batch or 25)),
         )
-    recovered = _retry_failed_fulfillments(
-        database, settings, limit=max(1, int(settings.payment_sweep_batch or 25))
-    )
+    recovered = _retry_failed_fulfillments(database, settings, limit=max(1, int(settings.payment_sweep_batch or 25)))
     if recovered:
         logger.warning("支付巡检：履约失败订单已自动补发 %d 笔", recovered)
 

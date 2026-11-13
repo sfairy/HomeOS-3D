@@ -1,5 +1,4 @@
-"""支付到账后的统一入账逻辑。
-"""
+"""支付到账后的统一入账逻辑。"""
 
 from __future__ import annotations
 
@@ -15,7 +14,7 @@ from ...commerce.order_status import (
     order_status_label,
 )
 from ...core.models import Order, StoreSetting
-from ...ops import incidents
+from ...infra import incidents
 from ...security.security import utcnow
 
 logger = logging.getLogger("src.payments.settlement")
@@ -72,9 +71,7 @@ def settle_paid_order(
         return {"changed": False, "alreadyFulfilled": True, "licenseId": order.license_id}
 
     session.refresh(order)
-    revived = order.stock_reservation_released_at is not None or (
-        original_status not in RESERVING_STATUSES
-    )
+    revived = order.stock_reservation_released_at is not None or (original_status not in RESERVING_STATUSES)
     if revived:
         if order.coupon_code and not coupons.reoccupy_coupon(session, order):
             logger.warning(
@@ -89,8 +86,7 @@ def settle_paid_order(
         )
         session.flush()
         logger.warning(
-            "订单 %s 已关闭（原状态 %s）但确认收到支付，按已支付处理并补发授权，"
-            "已标记待人工复核",
+            "订单 %s 已关闭（原状态 %s）但确认收到支付，按已支付处理并补发授权，已标记待人工复核",
             order.order_no,
             original_status,
         )
@@ -128,10 +124,7 @@ def _mark_fulfillment_failed(session: Session, *, order_id: str, error: Exceptio
     「履约失败」盖掉它，运营就再也看不到「这一单可能超卖」这个事实 —— 而它比履约失败
     更需要人看一眼。
     """
-    previous = (
-        session.execute(select(Order.review_note).where(Order.id == order_id)).scalar_one_or_none()
-        or ""
-    )
+    previous = session.execute(select(Order.review_note).where(Order.id == order_id)).scalar_one_or_none() or ""
     note = f"履约失败：{_short_error(error)}"
     if previous and note not in previous:
         keep = max(0, 255 - len(note) - 1)
@@ -154,4 +147,3 @@ def _mark_fulfillment_failed(session: Session, *, order_id: str, error: Exceptio
 def _short_error(error: Exception) -> str:
     text = str(error).strip() or error.__class__.__name__
     return text[:230]
-

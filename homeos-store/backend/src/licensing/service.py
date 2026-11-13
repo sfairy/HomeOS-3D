@@ -9,6 +9,7 @@ from sqlalchemy import case, delete, select
 from sqlalchemy.orm import Session
 
 from ..config import StoreSettings
+from ..core import site_settings as site_config
 from ..core.models import (
     Account,
     Customer,
@@ -28,7 +29,6 @@ from ..licensing.crypto import (
     KeyRegistry,
     LicenseServerError,
 )
-from ..ops import site_settings as site_config
 from ..security.security import (
     iso_z,
     log_fingerprint,
