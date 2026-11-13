@@ -199,6 +199,48 @@ SQLite 上顺序不影响最终结果，但确定性的执行顺序对「逐字�
 
 ---
 
+## R7 告警面板的转发清单（第二轮）
+
+**问题**：`features/settings/interact/composables/alert-rules-context.internals.ts` 的
+`useAlertRulesPanelContext` 从 `useVoiceAlertsEditor()` 解构 30 个字段，函数体只用到 7 个，
+其余 23 个只是为了在 `return` 里再列一遍 —— 同一串名字写两次（jscpd: 30 行）。
+
+**改法**：
+
+```ts
+const { voiceMeta: _voiceMetaNotExposed, ...voiceAlertsEditor } = useVoiceAlertsEditor()
+const { voice, voiceSaveTip, ttsMediaPlayerId, speakCooldownMin,
+        builtinStyleState, initVoiceAlerts, persistVoiceAlerts } = voiceAlertsEditor
+// ...
+return { /* … */ ...voiceAlertsEditor /* … */ }
+```
+
+**`voiceMeta` 为什么必须显式剔除**：它确实是 composable 的返回值（31 键），但本 wrapper
+一直没暴露。展开会「顺手多暴露一个」—— 那也是行为变更（会经 `useAlertRulesPanel` 的
+`...ctx` 一路传到设置页）。剔掉才能保持对外键集逐字一致。
+
+**展开安全性**：`useVoiceAlertsEditor` 的 return 块里 0 个 getter（实测扫描），返回的是
+ref / computed **对象本身**，浅拷贝不改变响应性。
+
+**等价性证明**（脚本比对）：新透传 30 键与旧解构列表集合相同、顺序相同；return 显式键
+102 → 72，差额恰为被展开的 30 个；展开位置即原 `voice,` 的位置，最终键序不变。
+
+**运行时验证**：设置 › 告警规则 › 语音播报，DOM 实测「10 播报项」、7 个安防开关全 checked、
+冷却 10、分组 7/4/2 —— 全部来自被转发的字段。
+
+---
+
+## 文档修正（第二轮）
+
+`studio/app/editor/**` 下 7 个 inspector 接口的注释声称字段清单由
+`ops/studio/studio_context_bag_typing.mjs` 生成。该脚本已在 `a70ed33d7` 删除且无替代品 ——
+注释在指引后来者找一个不存在的东西。改为陈述现状（手写维护，形状由构造器 + tsc 兜底）。
+
+顺带得到一个实测结论：这 7 个文件共 +35 行注释，`check:duplicates` 的 `duplicatedLines`
+**一行没变** —— 实证了 `mode=weak` 跳过注释，当初从 `strict` 换过来的理由成立。
+
+---
+
 ## 明确不做的
 
 | 项 | 行数 | 为什么不做 |
@@ -214,7 +256,7 @@ SQLite 上顺序不影响最终结果，但确定性的执行顺序对「逐字�
 ## 提交切分与回滚
 
 分支 `refactor/dedup-safe-batch`，按 R1→R5 分 6 个提交（R1 两个文件一个提交），
-另加 3 个提交（门禁缺陷修正、R6、报告口径与文档），共 9 个。
+另加 4 个提交（门禁缺陷修正、R6、R7 与陈旧注释、报告口径与文档），共 10 个。
 
 | 提交 | 内容 | 回滚方式 |
 |---|---|---|
@@ -227,6 +269,7 @@ SQLite 上顺序不影响最终结果，但确定性的执行顺序对「逐字�
 | 7 | 门禁缺陷修正：把「重复变小」与「新增重复」区分开；`--json` 输出纯度 | 单独 revert（会退回「改善被判成新增」的误报） |
 | 8 | 报告口径修正与文档 | 纯文档 |
 | 9 | R6 商店订单弹窗 composable | 单独 revert；只动 `homeos-store` 两个弹窗与一个新文件 |
+| 10 | R7 告警面板转发清单 + 7 处陈旧注释 | 单独 revert；两者互不依赖 |
 
 任一提交失败即单独 `git revert`，不影响其他项 —— 每个提交都能独立通过 `gate:static`
 （提交 1 已在独立工作树里实跑验证：`重复代码门禁通过`，exit 0）。

@@ -24,12 +24,12 @@
   ],
   "totals": {
     "sources": 3460,
-    "lines": 669961,
-    "clones": 189,
-    "duplicatedLines": 3232,
-    "percentage": 0.4824,
-    "tokens": 3924382,
-    "duplicatedTokens": 16893
+    "lines": 669952,
+    "clones": 188,
+    "duplicatedLines": 3202,
+    "percentage": 0.4779,
+    "tokens": 3924290,
+    "duplicatedTokens": 16833
   },
   "byFormat": {
     "css": {
@@ -62,10 +62,10 @@
     },
     "typescript": {
       "sources": 1611,
-      "lines": 354312,
-      "duplicatedLines": 1781,
-      "percentage": 0.5027,
-      "clones": 90
+      "lines": 354303,
+      "duplicatedLines": 1751,
+      "percentage": 0.4942,
+      "clones": 89
     },
     "vue": {
       "sources": 412,
@@ -369,12 +369,6 @@
       "first": "homeos/backend/src/domains/channels/webpush_service.py",
       "second": "homeos/backend/src/domains/system/ops/moviepilot_proxy.py",
       "lines": 12
-    },
-    {
-      "fingerprint": "3aaea875cb4ec8e04a7a42ca1f6761ea0245a553",
-      "first": "homeos/frontend/src/features/settings/interact/composables/alert-rules-context.internals.ts",
-      "second": "homeos/frontend/src/features/settings/interact/composables/alert-rules-context.internals.ts",
-      "lines": 30
     },
     {
       "fingerprint": "3d768c1a8e9c183255ccac8d65f71098e8f72d5a",
