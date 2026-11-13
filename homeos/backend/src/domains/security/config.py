@@ -7,55 +7,43 @@ Nest 的 ``AppConfigService.get(section)`` 会返回「默认值 + 已存配置�
 
 from __future__ import annotations
 
+import copy
 from typing import Any
 
 from sqlalchemy.orm import Session
 
+# 分区默认值单点在 ``domains.app_config.defaults``（那里逐条对齐
+# ``backend/src/shared/app-config/defaults.ts``）。本模块过去把 ``security`` /
+# ``frontend`` / ``notification`` 三个分区**又抄了一遍字面量**，于是同一张表在仓库里
+# 有两份：改 defaults.py 改不到这里，改这里又对不上导出给前端的快照。
+from ..app_config.defaults import DEFAULT_APP_CONFIG
 from ...platform.core.runtime.app_config import load_raw_config
 
 # 通知拉取条数 clamp 与 ``domains.alerts.channels`` 共用同一实现（原为两份拷贝）。
 # 转出（非本地定义）：列入 ``__all__`` 即视为有意重导出。
 from ...platform.core.runtime.numbers import resolve_notification_fetch_limit
 
-#: 安防分区默认值（逐条对齐 backend/src/shared/app-config/defaults.ts）。
+#: 安防分区默认值。
+#:
+#: 深拷贝而非直接引用：``DEFAULT_APP_CONFIG`` 是模块级单例，直接引用会把「每个模块各有一份
+#: 独立字面量」变成「全仓共享同一个 dict / list」（``presencePersons`` / ``alertChannels``
+#: 都是可变容器）。深拷贝把旧语义原样保住。
+#:
+#: ``manualArmLockSec``（手动布防/撤防后的人为锁定时长）只被安防联动读取，不在
+#: ``DEFAULT_APP_CONFIG`` 里 —— 加进去会多出一个前端也要渲染的分区字段。
 DEFAULT_SECURITY_CONFIG: dict[str, Any] = {
-    "sensorAlertCooldownSec": 60,
-    "awayConfirmMin": 5,
-    "homeConfirmMin": 2,
-    "requireConfiguredPersons": True,
-    "presencePersons": [],
-    "mmWaveFusePresence": True,
-    "autoArmOnEveryoneLeft": False,
-    "autoUpgradeToAwayOnEveryoneLeft": False,
-    "calendarArmOnAway": False,
-    #: 日历外出时，若当前为居家/夜间则升级离家（与「全员离家升级」独立）。
-    "calendarUpgradeToAway": False,
-    #: 同一人员多 tracker：True=全部在家才算在家（AND，默认）；False=任一在家即在家（OR）。
-    "presenceRequireAllAway": True,
-    "autoDisarmOnFirstHome": False,
-    "linkAwaySimOnArmAway": False,
-    "linkHomeModeOnSecurityChange": True,
-    "frigatePersonAlarmModes": "armed_away,armed_night",
-    "emergencyCooldownSec": 60,
-    "frigateMaxEvents": 50,
-    "frigateDedupMs": 30_000,
-    "awaySimBrightnessMin": 40,
-    "awaySimBrightnessRange": 50,
-    "awaySimIntervalMinMax": {"min": 8, "max": 25},
-    "configCacheTtlMs": 60_000,
-    "alertChannels": ["in_app"],
-    "alertBypassDnd": True,
-    "armExitGraceSeconds": 30,
-    #: 手动布防/撤防后的人为锁定时长：期间 presence / 日历自动联动不覆盖人工决定。
+    **copy.deepcopy(DEFAULT_APP_CONFIG["security"]),
     "manualArmLockSec": 300,
 }
 
+#: 只声明安防侧真正读取的那一个键（完整 ``frontend`` 分区由 app_config 拥有）。
 DEFAULT_FRONTEND_CONFIG: dict[str, Any] = {
-    "maxRemoteNotifications": 100,
+    "maxRemoteNotifications": DEFAULT_APP_CONFIG["frontend"]["maxRemoteNotifications"],
 }
 
+#: 同上：只声明本模块 ``load_notification_config`` 用得到的键。
 DEFAULT_NOTIFICATION_CONFIG: dict[str, Any] = {
-    "maxNotifications": 500,
+    "maxNotifications": DEFAULT_APP_CONFIG["notification"]["maxNotifications"],
 }
 
 DEFAULT_SECURITY_EMERGENCY: dict[str, Any] = {
@@ -97,18 +85,14 @@ def load_home_timezone(session: Session) -> str | None:
     return tz.strip() if isinstance(tz, str) and tz.strip() else None
 
 
-
-
 def parse_optional_int(raw: Any, default: int | None = None) -> int | None:
     """对齐 ``parseOptionalInt``：缺失/非法返回 default，否则取整。"""
     if raw is None or raw == "":
         return default
     try:
         return int(str(raw).strip())
-    except (TypeError, ValueError):
+    except (TypeError, ValueError):  # fmt: skip  # 括号不能省：Cython 3.3.0 会把无括号形式解析成 `except A as B:`
         return default
-
-
 
 
 __all__ = [

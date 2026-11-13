@@ -7,9 +7,11 @@ Nest 的 ``AppConfigService.get(section)`` 返回「默认值 + 已存配置」�
 
 from __future__ import annotations
 
+import copy
 from typing import Any
 
 from ..alerts.channels import resolve_notification_fetch_limit
+from ..app_config.defaults import DEFAULT_APP_CONFIG
 from ..security.config import (
     DEFAULT_FRONTEND_CONFIG,
     DEFAULT_SECURITY_CONFIG,
@@ -18,44 +20,21 @@ from ..security.config import (
 )
 from ...platform.core.runtime.app_config import load_raw_config, merge_raw_config_section
 
-#: 通知分区完整默认值（逐条对齐 backend/src/shared/app-config/defaults.ts）。
-DEFAULT_NOTIFICATION_CONFIG: dict[str, Any] = {
-    "dndStart": 22,
-    "dndEnd": 8,
-    "maxNotifications": 500,
-    "globalNotifyEnabled": True,
-    "importantNotifyEnabled": True,
-    "offlineNotifyEnabled": True,
-    "lowBatteryNotifyEnabled": True,
-    "offlineCooldownMin": 30,
-    "lowBatteryCooldownMin": 120,
-}
+#: 各分区默认值同样单点在 ``domains.app_config.defaults``；本模块只保留「本域真正读取的
+#: 那一份深拷贝」。过去这里是五个整段字面量，与 defaults.py 各自维护 —— 两边一旦不同步，
+#: 「导出给前端的默认值」和「后端 tick 时用的默认值」就会是两套数字。
+DEFAULT_NOTIFICATION_CONFIG: dict[str, Any] = copy.deepcopy(DEFAULT_APP_CONFIG["notification"])
 
-DEFAULT_ENERGY_CONFIG: dict[str, Any] = {
-    "meterEntityId": "",
-    "meterScope": "total",
-    "mainPowerEntityId": "",
-    "monthMeterEntityId": "",
-    "dayMeterEntityId": "",
-    "circuitEntityIds": [],
-    "learningPeriodDays": 7,
-    "learningStartedAt": "",
-    "anomalyCooldownMin": 60,
-    "budgetAlertCooldownMin": 720,
-}
+DEFAULT_ENERGY_CONFIG: dict[str, Any] = copy.deepcopy(DEFAULT_APP_CONFIG["energy"])
 
-DEFAULT_WATER_CONFIG: dict[str, Any] = {
-    "anomalyCooldownMin": 30,
-    "mainValveEntityId": "",
-}
+DEFAULT_WATER_CONFIG: dict[str, Any] = copy.deepcopy(DEFAULT_APP_CONFIG["water"])
 
-DEFAULT_IAQ_CONFIG: dict[str, Any] = {
-    "moldAlertCooldownMin": 10,
-}
+DEFAULT_IAQ_CONFIG: dict[str, Any] = copy.deepcopy(DEFAULT_APP_CONFIG["iaq"])
 
+#: ``other`` 分区里只有这两项属于「通知 / 播报」面；其余（事件日志、备份、时区）不在这里镜像。
 DEFAULT_OTHER_CONFIG: dict[str, Any] = {
-    "speakCooldownMin": 10,
-    "tipCooldownHours": 2,
+    "speakCooldownMin": DEFAULT_APP_CONFIG["other"]["speakCooldownMin"],
+    "tipCooldownHours": DEFAULT_APP_CONFIG["other"]["tipCooldownHours"],
 }
 
 
