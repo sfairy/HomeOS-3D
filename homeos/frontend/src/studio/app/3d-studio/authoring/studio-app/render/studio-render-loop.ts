@@ -33,7 +33,7 @@ import { applyOrbitControlSettingsTo, createRenderLoopTeardown, syncViewOffsetFo
 
 import { transformSceneCamera as transformSceneCamera2 } from '../../../../bridge/scene/scene-frame'
 import { normalizeGroundReflection as normalizeGroundReflection2 } from '../../../../bridge/scene/reflection-settings'
-import { sceneUpdatePlan as sceneUpdatePlan2 } from '../../../../bridge/scene/scene-update'
+import { sceneUpdatePlan as sceneUpdatePlan2, sceneSyncFailureMessage } from '../../../../bridge/scene/scene-update'
 import { createDemandFrameLoop as createDemandFrameLoop2 } from '../../../../bridge/scene/frame-loop'
 import { withRequestTimeout as withRequestTimeout2 } from '../../../../shared/util/request-timeout'
 import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
@@ -2101,7 +2101,7 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
               },
             )
             if (sceneUpdateFetchResponse.status === 204) return null
-            if (!sceneUpdateFetchResponse.ok) throw new Error('户型同步暂时不可用')
+            if (!sceneUpdateFetchResponse.ok) throw new Error(await sceneSyncFailureMessage(sceneUpdateFetchResponse))
             return sceneUpdateFetchResponse.json()
           },
           sceneUpdatePayload,
