@@ -9,7 +9,6 @@
       "size": 17772300,
       "sha256": "a3041811a78c361b1de50f953c805e0244951c21c5bd412f7232ef0d899af0da",
       "source": "https://raw.githubusercontent.com/google/fonts/5bb28733cec313b63fbd415b574b5ae35c8aa8b8/ofl/notosanssc/NotoSansSC%5Bwght%5D.ttf",
-      "license": "noto-sans-sc.OFL.txt",
       "licenseSource": "https://raw.githubusercontent.com/google/fonts/5bb28733cec313b63fbd415b574b5ae35c8aa8b8/ofl/notosanssc/OFL.txt"
     },
     {
@@ -21,7 +20,6 @@
       "size": 10421244,
       "sha256": "808cb3203bb9cdd6b166a8a656a0c7608a7dc2a31c41c2cd0374550cae445471",
       "source": "https://raw.githubusercontent.com/adobe-fonts/source-han-serif/7889f11bf31170b5d092a083b357c8c8130f89e0/Variable/WOFF2/OTF/Subset/SourceHanSerifCN-VF.otf.woff2",
-      "license": "source-han-serif.OFL.txt",
       "licenseSource": "https://raw.githubusercontent.com/adobe-fonts/source-han-serif/7889f11bf31170b5d092a083b357c8c8130f89e0/LICENSE.txt"
     },
     {
@@ -33,7 +31,6 @@
       "size": 25928940,
       "sha256": "2d73eea94ad808999d90c0000c239a84a33b09d4bc6ab6c5b8bbf1eda8a7fc8b",
       "source": "https://github.com/lxgw/LxgwWenKai/releases/download/v1.530/LXGWWenKai-Regular.ttf",
-      "license": "lxgw-wenkai.OFL.txt",
       "licenseSource": "https://raw.githubusercontent.com/lxgw/LxgwWenKai/v1.530/OFL.txt"
     },
     {
@@ -45,7 +42,6 @@
       "size": 1150924,
       "sha256": "731f22973349404b15a88a99ef3b5dd4104c0965c23b7e485c1f11e84fea99e2",
       "source": "https://github.com/atelier-anchor/smiley-sans/releases/download/v2.0.1/smiley-sans-v2.0.1.zip",
-      "license": "smiley-sans.OFL.txt",
       "licenseSource": "https://raw.githubusercontent.com/atelier-anchor/smiley-sans/cbf2ce4a27933855e400f693265ef890fb60f21d/LICENSE"
     },
     {
@@ -57,7 +53,6 @@
       "size": 876576,
       "sha256": "29160a80ff49ddcab2c97711247e08b1fab27a484a329ce8b813d820dc559031",
       "source": "https://raw.githubusercontent.com/google/fonts/5bb28733cec313b63fbd415b574b5ae35c8aa8b8/ofl/inter/Inter%5Bopsz,wght%5D.ttf",
-      "license": "inter.OFL.txt",
       "licenseSource": "https://raw.githubusercontent.com/google/fonts/5bb28733cec313b63fbd415b574b5ae35c8aa8b8/ofl/inter/OFL.txt"
     },
     {
@@ -69,7 +64,6 @@
       "size": 102480,
       "sha256": "583cec5da3b84bc4dc7c9c72e2a565c94d34e431518b19d7e250b7830ad5f996",
       "source": "https://raw.githubusercontent.com/google/fonts/5bb28733cec313b63fbd415b574b5ae35c8aa8b8/ofl/barlowcondensed/BarlowCondensed-Regular.ttf",
-      "license": "barlow-condensed.OFL.txt",
       "licenseSource": "https://raw.githubusercontent.com/google/fonts/5bb28733cec313b63fbd415b574b5ae35c8aa8b8/ofl/barlowcondensed/OFL.txt"
     },
     {
@@ -81,7 +75,6 @@
       "size": 38576,
       "sha256": "f42db2dd16e642258e35782916eceb1dcdbea06fb958d77ad71dc5963587e8fd",
       "source": "https://raw.githubusercontent.com/google/fonts/5bb28733cec313b63fbd415b574b5ae35c8aa8b8/ofl/orbitron/Orbitron%5Bwght%5D.ttf",
-      "license": "orbitron.OFL.txt",
       "licenseSource": "https://raw.githubusercontent.com/google/fonts/5bb28733cec313b63fbd415b574b5ae35c8aa8b8/ofl/orbitron/OFL.txt"
     },
     {
@@ -93,7 +86,6 @@
       "size": 187208,
       "sha256": "48715a42ec242c21e9f02692891e147d022299a52e48d5e413e1a942193ffeda",
       "source": "https://raw.githubusercontent.com/google/fonts/5bb28733cec313b63fbd415b574b5ae35c8aa8b8/ofl/jetbrainsmono/JetBrainsMono%5Bwght%5D.ttf",
-      "license": "jetbrains-mono.OFL.txt",
       "licenseSource": "https://raw.githubusercontent.com/google/fonts/5bb28733cec313b63fbd415b574b5ae35c8aa8b8/ofl/jetbrainsmono/OFL.txt"
     }
   ]

@@ -154,7 +154,8 @@ class BuiltinFontCatalogTest(unittest.TestCase):
         self.assertEqual(len(ids), 8)
         for item in catalog["fonts"]:
             self.assertTrue((root / item["file"]).is_file(), item["file"])
-            self.assertTrue((root / item["license"]).is_file(), item["license"])
+            # 授权文本不再随包分发，只保留上游 URL 作为出处；这里守的是「出处必须声明」。
+            self.assertTrue(item.get("licenseSource", "").startswith("https://"), item["id"])
 
 
 if __name__ == "__main__":
