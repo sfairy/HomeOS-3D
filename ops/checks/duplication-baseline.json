@@ -4,7 +4,13 @@
   "config": {
     "minLines": 10,
     "minTokens": 50,
-    "mode": "weak"
+    "mode": "weak",
+    "format": [
+      "typescript",
+      "javascript",
+      "vue",
+      "python"
+    ]
   },
   "scanRoots": [
     "homeos/frontend/src",
@@ -17,55 +23,55 @@
     "ops"
   ],
   "totals": {
-    "sources": 3445,
-    "lines": 668982,
-    "clones": 194,
-    "duplicatedLines": 3371,
-    "percentage": 0.5039,
-    "tokens": 3918611,
-    "duplicatedTokens": 17648
+    "sources": 3459,
+    "lines": 669911,
+    "clones": 190,
+    "duplicatedLines": 3261,
+    "percentage": 0.4868,
+    "tokens": 3924360,
+    "duplicatedTokens": 17061
   },
   "byFormat": {
     "css": {
       "sources": 34,
       "lines": 2765,
       "duplicatedLines": 0,
-      "percentage": 0.0,
+      "percentage": 0,
       "clones": 0
     },
     "html": {
-      "sources": 399,
-      "lines": 28152,
-      "duplicatedLines": 482,
-      "percentage": 1.7121,
-      "clones": 26
+      "sources": 403,
+      "lines": 28099,
+      "duplicatedLines": 434,
+      "percentage": 1.5445,
+      "clones": 25
     },
     "javascript": {
-      "sources": 347,
-      "lines": 47943,
+      "sources": 351,
+      "lines": 48297,
       "duplicatedLines": 276,
-      "percentage": 0.5757,
+      "percentage": 0.5715,
       "clones": 19
     },
     "python": {
-      "sources": 647,
-      "lines": 153400,
-      "duplicatedLines": 787,
-      "percentage": 0.513,
-      "clones": 57
+      "sources": 649,
+      "lines": 153991,
+      "duplicatedLines": 741,
+      "percentage": 0.4812,
+      "clones": 55
     },
     "typescript": {
       "sources": 1610,
-      "lines": 354288,
-      "duplicatedLines": 1826,
-      "percentage": 0.5154,
-      "clones": 92
+      "lines": 354280,
+      "duplicatedLines": 1810,
+      "percentage": 0.5109,
+      "clones": 91
     },
     "vue": {
-      "sources": 408,
-      "lines": 82434,
+      "sources": 412,
+      "lines": 82479,
       "duplicatedLines": 0,
-      "percentage": 0.0,
+      "percentage": 0,
       "clones": 0
     }
   },
@@ -120,7 +126,6 @@
     "391590d6cca778d9fe892593eed527e5a1a562b4",
     "39d87f2287b293c604d1ab2bd4c3c628da279053",
     "3aaea875cb4ec8e04a7a42ca1f6761ea0245a553",
-    "3bf417beaf8a8d392916335aabf0eedd2a6521ee",
     "3d768c1a8e9c183255ccac8d65f71098e8f72d5a",
     "3f480c4cdf5a21145012c9f6a1835adca7d58315",
     "40106d6c3bf7e51d14ec5f97c0db55bf30f9edc3",
@@ -163,7 +168,6 @@
     "6b11fa48f5fcc601d49b901dacb9d452f3205f14",
     "6be0a53513dd0c158fc0f947640755f98e0b541a",
     "70cb18ea48fdd8cdce10ad7edf33ebfaae121681",
-    "71339d6afa0b0fd13f0b4c0bb819733ec9c30452",
     "7165543ae8efa72926f637f86fe3e0c1bad7c763",
     "74fd41ea122f27c7a37a4639050ad84a3866cfbd",
     "76a11205b7194c449e54a0505910c2b2c66643a4",
@@ -180,21 +184,19 @@
     "8751f898db38df6017ddfe75112deaaabab0633a",
     "892c22fc3921f1ddd0b14d20b69efa57070990f2",
     "8935d222160df9368833967e72db724afaf86ae5",
-    "8a0e25bedde392b7b1616f28f0416ad74e127f5a",
     "8be9a4ba837064f102010d1827aaffd740b2e041",
     "8c01b4d974a82d9a4a477db2a7cd4515c85bd54c",
     "8c4a54df6f19d5f1a3d9064a8daa721bf835628c",
     "8cb7edcd0b0e2f140dce1ca4bcf0bd2f3ac36a95",
     "8e88aaa03a04323799c0c80bff69c49b1f5d2f4d",
     "8f9d4ff0162734ea464ea075f4bb83fb4c1c5d57",
-    "908fcf12133e19893d183a539cf6846aa2813764",
     "91484d6ce02e966688b8d9b1564d2e4fdfaeb44f",
+    "932d670db3158677f3b02ba7f8d1c7ac10888f91",
     "951ec47d39cd513c469c75c2b1cfb9e784b4bb95",
     "966d4ca1d6102f7638087f00d4330392f46dda8b",
     "9718d7778a776e2ace5eefa094a0bb95271567fd",
     "983c71adbfd984a22c2331186ddcfabb7e71bc51",
     "99de971c620116ee3a3dfb05dceaacc82c2bd9d4",
-    "9af0d0559b73f78d08e3ea7ce5929add5ec17fa0",
     "9d84ebdef2b6812cc8498110d7834b4567d33f44",
     "9d9221ca2d4a77e09eb795b18b25042c44d487a0",
     "9e0ab581663b7028c4fb123c20702bd77ecff726",
