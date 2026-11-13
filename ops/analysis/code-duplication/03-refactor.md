@@ -230,6 +230,50 @@ ref / computed **对象本身**，浅拷贝不改变响应性。
 
 ---
 
+## R8 Inspector 动作触发块 ×27（第三轮）
+
+**问题**：`Editor{Button,Chart,Device,Layout,Media}Inspectors.vue` 里，
+「一个触发方式 × 四个动作类型 + 跳转目标下拉」这 11 行标记写了 **27 遍**
+（`tap` / `doubleTap` / `hold` 各一组，部分文件有多组控件）。
+
+**改法**：新增 `studio/chrome/editor/ComponentActionTrigger.vue`，27 处变为组件调用。
+
+### 为什么它比前几项危险
+
+这些检查器是**引擎命令式填充的静态 DOM 契约**：`inspector-sync.ts` 的
+`syncComponentActionControlsCore()` 按 `[data-action-trigger]` 找根节点，再在内部
+query `[data-action-type]` / `.component-action-target` / `[data-action-target]`，
+并且会**直接改写** `<select>` 的子节点与 `.component-action-target` 的 `hidden`；
+`initActionPopupConfig()` 还会往 `.component-action-control` 内部 **append** 一个
+`div.component-popup-config`、并把 more-info 的文案统一改成「打开弹窗」。
+
+两条硬约束因此写进了组件注释：
+
+1. **props 必须保持静态**。Vue 一旦重渲染，引擎塞进去的 `<select>` 选项、`hidden`
+   状态、`component-popup-config` 都会消失。现状安全，因为这些检查器模板本身零响应式绑定，
+   渲染一次即定型。
+2. **class 与 `data-*` 一个都不能改**。它们是 `inspector-sync.ts`、`popup-inspectors.ts`、
+   `date-inspector-submit.ts`、`document-entity-picker-dismiss.ts` 的选择器契约。
+
+### 27 处并非一致：两类真实差异
+
+| 差异 | 处数 | 处理 |
+|---|---:|---|
+| more-info 文案「打开弹窗」 vs 「显示详情」 | 6（Layout×3 + Media 后 3） | `moreInfoLabel` prop |
+| `role="group"` / `<select>` 的 `aria-label` 有无 | 部分 | `groupAriaLabel` / `selectAriaLabel` prop，空串不渲染属性 |
+
+**`moreInfoLabel` 的运行时不重要性**：引擎会把所有 more-info 文案统一改成「打开弹窗」，
+所以这个静态值只在 init 前可见。仍然保留差异 —— 一旦将来那行覆盖被去掉（它本来就该由
+组件负责文案），静态值就成了唯一真相，届时要能追溯「原本写的是什么」。
+
+### 一个被自己的校验器救下来的事故
+
+第一版替换脚本在「结构不等价」分支漏了「先追加未处理原文」，**删掉了 130 行真实内容**
+（Media 的整个相机检查器）。靠 `git diff --numstat` 报 `-133`（远超 27×11 的预期）发现。
+已还原重做。规则：**批量改写脚本先核对行数，再继续**。
+
+---
+
 ## 文档修正（第二轮）
 
 `studio/app/editor/**` 下 7 个 inspector 接口的注释声称字段清单由
@@ -256,7 +300,7 @@ ref / computed **对象本身**，浅拷贝不改变响应性。
 ## 提交切分与回滚
 
 分支 `refactor/dedup-safe-batch`，按 R1→R5 分 6 个提交（R1 两个文件一个提交），
-另加 4 个提交（门禁缺陷修正、R6、R7 与陈旧注释、报告口径与文档），共 10 个。
+另加 5 个提交（门禁缺陷修正、R6、R7、R8、报告口径与文档），共 11 个。
 
 | 提交 | 内容 | 回滚方式 |
 |---|---|---|
@@ -270,6 +314,7 @@ ref / computed **对象本身**，浅拷贝不改变响应性。
 | 8 | 报告口径修正与文档 | 纯文档 |
 | 9 | R6 商店订单弹窗 composable | 单独 revert；只动 `homeos-store` 两个弹窗与一个新文件 |
 | 10 | R7 告警面板转发清单 + 7 处陈旧注释 | 单独 revert；两者互不依赖 |
+| 11 | R8 Inspector 动作块 ×27 + 5 处陈旧注释 | 单独 revert；回滚需同时删掉 `ComponentActionTrigger.vue` |
 
 任一提交失败即单独 `git revert`，不影响其他项 —— 每个提交都能独立通过 `gate:static`
 （提交 1 已在独立工作树里实跑验证：`重复代码门禁通过`，exit 0）。

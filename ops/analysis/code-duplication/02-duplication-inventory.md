@@ -38,15 +38,14 @@
 
 | 指标 | 重构前 | 重构后 | 变化 |
 |---|---:|---:|---:|
-| 克隆数 | 194 | 188 | **−6** |
-| `statistics.total.duplicatedLines` | 3371 | 3202 | **−169（−5.01%）** |
-| 扫描总行 | 668,982 | 669,952 | +970（新增度量脚本 + 5 个新文件） |
-| 重复占比 | 0.5039% | 0.4779% | **−0.0260 个百分点** |
-| 重复 token | 17,648 | 16,833 | **−815** |
+| 克隆数 | 194 | 183 | **−11** |
+| `statistics.total.duplicatedLines` | 3371 | 3043 | **−328（−9.73%）** |
+| 扫描总行 | 668,982 | 669,611 | +629（新增脚本与组件） |
+| 重复占比 | 0.5039% | 0.4544% | **−0.0495 个百分点** |
+| 重复 token | 17,648 | 14,590 | **−3,058** |
 | M2 近似重复簇 | 590 | 583 | **−7** |
 
-> 分母涨了 970 行（门禁脚本与新增组件，均不含重复），所以占比降幅（−5.15%）比
-> 「重复行 −5.01%」略大；**判断以绝对重复行 −169 为准**。
+> 分母涨了 629 行（门禁脚本与新增组件，均不含重复）。**判断以绝对重复行 −328 为准**。
 > 另注：门禁脚本自身也在扫描范围内，因此**每次修改这些脚本，`lines` 就会变**（不影响克隆判定）——
 > 对照数字必须取同一次生成的两份 artifact，不要跨次混用。
 
@@ -60,10 +59,10 @@
 |---|---:|---:|---:|---|
 | typescript | 1826 / 92 | 1751 / 89 | **−75** | R3（16）+ R6（29，商店弹窗）+ R7（30，告警面板转发清单） |
 | python | 787 / 57 | 741 / 55 | **−46** | R1（26）+ R2（20） |
-| html（`.vue` 模板段） | 482 / 26 | 434 / 25 | **−48** | R4（24 + 24） |
+| html（`.vue` 模板段） | 482 / 26 | 275 / 20 | **−207** | R4（48）+ R8（159，27 份动作块） |
 | javascript | 276 / 19 | 276 / 19 | 0 | — |
 | css / vue | 0 / 0 | 0 / 0 | 0 | — |
-| **合计** | **3371 / 194** | **3202 / 188** | **−169** | |
+| **合计** | **3371 / 194** | **3043 / 183** | **−328** | |
 
 > `.vue` 文件在 jscpd 里被拆成两段：模板算 `html`、`<script>` 算 `typescript`，
 > 所以「html」这一行的含义是「Vue 模板段」，不是「HTML 文件」。
@@ -79,7 +78,7 @@
 
 | 根目录 | 前 | 后 | Δ |
 |---|---:|---:|---:|
-| `homeos/frontend/src` | 4824 | 4652 | **−172** |
+| `homeos/frontend/src` | 4824 | 4334 | **−490** |
 | `homeos/backend/src` | 863 | 791 | **−72** |
 | `homeos-store/frontend/src` | 570 | 508 | **−62** |
 | `homeos-store/backend/src` | 187 | 167 | **−20** |
@@ -156,7 +155,6 @@ jscpd 从未报到，但确实是逐字重复 —— R1 一并消掉了。这也
 | 行 | 克隆 | 抽法 | 风险 |
 |---:|---|---|---|
 | 109 | `features/home-mode/editor/HomeModeActionsSection.vue:15` ↔ `HomeModeTriggersSection.vue:20` | 两个兄弟分区的「标题 + 描述 + 紧凑态按钮组」及批量面板头部同构 → `HomeModeSectionHead` | 中：两个文件各 300–420 行，涉及主从导航 |
-| 33×2 / 31×2 / 31 | `studio/chrome/editor/Editor{Button,Chart,Device,Media}Inspectors.vue` | 同一段「四组动作按钮」（`data-action-trigger` tap/doubleTap… + 目标 select）在 5 个文件里**逐字**抄了 5 遍 → `ComponentActionControls.vue` | 中高：`data-*` 与 id 被 studio runtime 的普通 JS 按选择器读取，抽成组件必须保持 DOM 与属性逐字不变；且受 chunk 预算约束 |
 | 46 | `scripts/models/items/dryer.mjs:7` ↔ `washer.mjs:7` | 洗衣/烘干两个模型脚本的尺寸与外壳构造逐字相同 → 共享 `buildLaundryShell()` | 低技术风险，但**归模型库 owner**：哪天两者要分化，过早共享会碍事 |
 | 30 | `features/settings/interact/composables/alert-rules-context.internals.ts:44 ↔ :242` | 同文件内两段同构的取值/合并逻辑 | 中：需逐行确认两边字段集是否真的相同 |
 
@@ -191,9 +189,9 @@ triage 方法：先看两侧是不是「同一份契约的两处声明」或「A
 |---|---:|---:|
 | 10–14 | 98 | 98 |
 | 15–29 | 71 | 68 |
-| 30–59 | 22 | 19 |
+| 30–59 | 22 | 14 |
 | ≥60 | 3 | 3 |
-| **合计** | **194** | **188** |
+| **合计** | **194** | **183** |
 
 `10–14` 段一条没少，符合预期：这一段绝大多数是「一处契约的两份声明」和测试夹具，属于
 **已知不会去改**的重复；真正的收益集中在 `≥15` 段（71 → 66）。
@@ -203,16 +201,15 @@ triage 方法：先看两侧是不是「同一份契约的两处声明」或「A
 初版这份排序里前两条（`airflow*` 常量、类型声明）**已被证伪**，见 4.2 的最后两条。
 剩下的按「已核实 + 能验证」重排：
 
-1. `Editor{Button,Chart,Device,Media}Inspectors.vue` 的五份动作按钮（约 150 行，已读代码确认为逐字复制）：
-   收益最大。前置条件是先做 `data-action-*` / `id` 的**选择器依赖盘点** —— 这批属性被 studio
-   runtime 的普通 JS 按 querySelector 读取，抽成组件必须保持 DOM 与属性逐字不变。
-2. `features/settings/interact/composables/alert-rules-context.internals.ts:44 ↔ :242`（30 行）：
-   同文件内两段同构，需逐行确认两边字段集真的相同。
-3. `HomeModeActionsSection ↔ HomeModeTriggersSection`（109 行）：与 `studio` 拆分同批做。
-4. 模型脚本 `dryer.mjs ↔ washer.mjs`（46 行）：归模型库 owner，随时可做。
-5. 4.4 里的未研判项：先 triage 再决定，不要按行数排序直接改。
-6. `airflow*` 那 79 行：需要 studio owner 决定「新建初值」与「回退默认」是否应该焊死；
+1. `HomeModeActionsSection ↔ HomeModeTriggersSection`（109 行）：现已是剩余最大一块，
+   但两个文件各 300–420 行、涉及主从导航，建议与 `studio` 拆分同批做。
+2. `studio/chrome/editor` 的 `EditorLayoutInspectors` 等文件已无动作块重复（R8 已清零），
+   若后续新增控件请直接复用 `ComponentActionTrigger.vue`。
+3. 模型脚本 `dryer.mjs ↔ washer.mjs`（46 行）：归模型库 owner，随时可做。
+4. 4.4 里的未研判项：先 triage 再决定，不要按行数排序直接改。
+5. `airflow*` 那 79 行：需要 studio owner 决定「新建初值」与「回退默认」是否应该焊死；
    决定合并前先补视觉快照基线。
+
 ## 6. 复现命令
 
 ```bash

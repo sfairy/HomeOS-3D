@@ -155,15 +155,19 @@ graph TD
 |---|---|
 | 新增 `ops/analysis/code-duplication/`（4 份评审文档） | 入库的评审产物 |
 | 新增 `ops/checks/{check_duplicates.mjs, dup_near.py, check_extra_types_parity.py}` | 门禁与度量 |
-| 新增 4 个 Vue 组件（`HomeModeContextPill`、`NotificationRowContent`、`PresenceStatusMeta`、`PresenceActions`） | 均为「同文件/同 feature 内被写了两遍」的片段，就地成组件 |
+| 新增 6 个 Vue 组件 / composable（`HomeModeContextPill`、`NotificationRowContent`、`PresenceStatusMeta`、`PresenceActions`、`useOrderDialog`、`ComponentActionTrigger`） | 均为「同一段被写了两遍以上」的片段，就地收口 |
 | 无目录搬迁、无文件移动、无模块改名 | 路由基线、依赖基线、导入图均未变 |
 
 净行数（如实记账，不美化）：
 
-- 累计 25 个业务源码文件：**+495 / −472 = 净 +23 行**（其中 5 个新文件 256 行）；
-- 其中 7 个文件的改动只是把注释指向一个已被删除的脚本（见 `04` §12）；
-- 业务源码 **净 +23 行**，而**重复行 −169 行（−5.01%）**。
+- 被改动的 31 个既有业务源码文件：**+649 / −725 = 净 −76 行**；
+- 新增 6 个文件（5 个 Vue 组件 + 1 个 composable）：**+333 行**，注释占相当比例；
+- 业务源码合计 **净 +257 行**，而**重复行 −328 行（−9.73%）**。
+
+> 不要把「净 +257」读成「这次让代码变多了所以没价值」：新增的 333 行里，真正的新逻辑只有
+> `useOrderDialog` 的 90 行与 `ComponentActionTrigger` 的 77 行；其余是 4 个纯展示组件的
+> `defineProps` 与约束说明。删掉的 725 行则**全是**同一段逻辑的第二份、第三份拷贝。
 
 也就是说：这次没有靠删代码取胜，而是把「同一件事写两遍」变成「写一遍 + 各自付一点调用成本」。
-源码总量基本持平，换来的是 jscpd 绝对值下降 5.01%，以及「改一处必须记得改另一处」的清单缩短了 7 项。
+源码总量基本持平，换来的是 jscpd 绝对值下降 9.73%，以及「改一处必须记得改另一处」的清单缩短了 8 项。
 具体数字见 `04-verification.md`。
