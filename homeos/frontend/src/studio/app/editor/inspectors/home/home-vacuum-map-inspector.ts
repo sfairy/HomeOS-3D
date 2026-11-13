@@ -2,8 +2,13 @@
 import { clampNumber as clampNumber2, roundField as roundField2 } from '../../editor-utils'
 
 interface VacuumMapInspectorContext {
-  /** 字段清单 = 本文件里出现过的袋子取值（`ctx.<key>` / 别名访问 / 解构），由
-   *  `ops/studio/studio_context_bag_typing.mjs` 从**真实使用**生成，一个不多一个不少。
+  /** 字段清单 = 本文件里出现过的袋子取值（`ctx.<key>` / 别名访问 / 解构）。
+   *
+   * **手写维护**：原先由 `ops/studio/studio_context_bag_typing.mjs` 生成，该脚本已在
+   * 「拆除自定义门禁 / 冒烟体系」时删除，仓库里没有替代品 —— 不要再去找它。
+   * 「一个不多一个不少」现在由 `tsc` 兜底：调用方必须先过 `buildXInspectorContext()`
+   * 之类的构造器，返回对象与下面这些字段不完全一致就编译不过。新增 `ctx.<key>` 用法时，
+   * 在这里补一行、并在对应构造器里补一行。
    *
    * 类型暂为 `any`：宿主 `home.ts` 的 `findElement()` 仍返回宽类型，控件语义（`.value` /
    * `.checked` / `.options`）由注入点保证。**但开放索引签名已去掉** —— 键名拼错、宿主漏传

@@ -40,38 +40,22 @@ export function useAlertRulesPanelContext(activeTabSource: Ref<string | undefine
 
   const alertSection = ref('inbox')
 
+  // 这个 wrapper 只**用** 7 个字段，其余 23 个纯粹是转发（原先解构一遍、return 里再列一遍，
+  // 同一串名字写两次）。现在整袋透传：展开是安全的，因为 useVoiceAlertsEditor 返回的是
+  // ref / computed **对象**本身，不是求值结果，浅拷贝不改变任何响应性。
+  //
+  // `voiceMeta` 是 useVoiceAlertsEditor 的内部状态（告警目录缓存），本 wrapper 一直没暴露它。
+  // 显式剔除，保证对外键集与改动前逐字一致 —— 「顺手多暴露一个」也是行为变更。
+  const { voiceMeta: _voiceMetaNotExposed, ...voiceAlertsEditor } = useVoiceAlertsEditor()
   const {
     voice,
-    voiceLoading,
-    voiceLoadError,
-    voiceSaving,
     voiceSaveTip,
     ttsMediaPlayerId,
     speakCooldownMin,
-    expandedAlert,
     builtinStyleState,
-    alertRuleGroups,
-    enabledVoiceAlertCount,
-    addCustomAlert,
-    removeCustomAlert,
-    addEntityTtsAlert,
-    removeEntityTtsAlert,
-    entityTtsVarChips,
-    entityPreviewVars,
-    insertEntityTtsVar,
     initVoiceAlerts,
     persistVoiceAlerts,
-    setBuiltinStyle,
-    setBuiltinCustom,
-    insertBuiltinVar,
-    builtinPreviewTemplate,
-    varChipsForKey,
-    toggleAlertExpand,
-    stylesForAlertKey,
-    composeCustomAlertTemplate,
-    builtinDefaultSpeech,
-    alertPreviewSamples,
-  } = useVoiceAlertsEditor()
+  } = voiceAlertsEditor
 
   const initialVoiceAlertsSnapshot = ref<VoiceAlertsSnapshot | null>(null)
 
@@ -239,36 +223,8 @@ export function useAlertRulesPanelContext(activeTabSource: Ref<string | undefine
     saveEarthquake,
     cancelEarthquakeChanges,
     voiceAlertsPending,
-    voice,
-    voiceLoading,
-    voiceLoadError,
-    voiceSaving,
-    voiceSaveTip,
-    ttsMediaPlayerId,
-    speakCooldownMin,
-    expandedAlert,
-    builtinStyleState,
-    alertRuleGroups,
-    enabledVoiceAlertCount,
-    addCustomAlert,
-    removeCustomAlert,
-    addEntityTtsAlert,
-    removeEntityTtsAlert,
-    entityTtsVarChips,
-    entityPreviewVars,
-    insertEntityTtsVar,
-    initVoiceAlerts,
-    persistVoiceAlerts,
-    setBuiltinStyle,
-    setBuiltinCustom,
-    insertBuiltinVar,
-    builtinPreviewTemplate,
-    varChipsForKey,
-    toggleAlertExpand,
-    stylesForAlertKey,
-    composeCustomAlertTemplate,
-    builtinDefaultSpeech,
-    alertPreviewSamples,
+    // 23 个纯转发字段（voice / voiceLoading / … / alertPreviewSamples）：见上方解构处的注释。
+    ...voiceAlertsEditor,
     sectionEmoji,
     levelClass: ruleEditor.levelClass,
     alertRulePresets: ALERT_RULE_PRESETS,
