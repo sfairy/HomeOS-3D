@@ -23,13 +23,13 @@
     "ops"
   ],
   "totals": {
-    "sources": 3459,
-    "lines": 669987,
-    "clones": 190,
-    "duplicatedLines": 3261,
-    "percentage": 0.4867,
-    "tokens": 3924743,
-    "duplicatedTokens": 17061
+    "sources": 3460,
+    "lines": 669961,
+    "clones": 189,
+    "duplicatedLines": 3232,
+    "percentage": 0.4824,
+    "tokens": 3924382,
+    "duplicatedTokens": 16893
   },
   "byFormat": {
     "css": {
@@ -61,15 +61,15 @@
       "clones": 55
     },
     "typescript": {
-      "sources": 1610,
-      "lines": 354280,
-      "duplicatedLines": 1810,
-      "percentage": 0.5109,
-      "clones": 91
+      "sources": 1611,
+      "lines": 354312,
+      "duplicatedLines": 1781,
+      "percentage": 0.5027,
+      "clones": 90
     },
     "vue": {
       "sources": 412,
-      "lines": 82479,
+      "lines": 82421,
       "duplicatedLines": 0,
       "percentage": 0,
       "clones": 0
@@ -489,12 +489,6 @@
       "first": "homeos/backend/src/api/schemas/auth.py",
       "second": "homeos/backend/src/api/schemas/auth.py",
       "lines": 17
-    },
-    {
-      "fingerprint": "4ffeaf09e7e1925a6b0b8b984df243686f58639a",
-      "first": "homeos-store/frontend/src/features/storefront/components/PaymentDialog.vue",
-      "second": "homeos-store/frontend/src/features/storefront/components/PendingOrderDialog.vue",
-      "lines": 31
     },
     {
       "fingerprint": "508501157e405ddcd546fb1f912739e7a466b2c1",

@@ -1,23 +1,24 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { computed, ref } from "vue";
 import { useOrderStore, orderCountdownText } from "@store/features/storefront/stores/order";
-import { useConfirmStore } from "@store/shared/stores/confirm";
+import { useCancelOrder, useOrderDialog } from "@store/features/storefront/composables/useOrderDialog";
 import { api } from "@store/shared/api/http";
 import { formatCentsPlain as moneyAmount } from "@store/shared/utils/money";
 import { errorMessage, type StoreOrder } from "@store/shared/types/store";
 import { useStoreToast } from "@store/shared/stores/toast";
 
 const order = useOrderStore();
-const confirm = useConfirmStore();
 const toast = useStoreToast();
-const dialog = ref<HTMLDialogElement | null>(null);
-const now = ref(Date.now());
 const continued = ref(false);
 const TITLE_ID = "pending-order-title";
 const DESC_ID = "pending-order-desc";
 const NOTE_ID = "pending-order-note";
 const DESCRIBED_BY = `${DESC_ID} ${NOTE_ID}`;
-let timer: number | undefined;
+
+// dialog 开关 + 每秒 now（倒计时依赖）与「取消支付」确认，均与支付弹窗共用。
+const dialog = ref<HTMLDialogElement | null>(null);
+const { now } = useOrderDialog(() => order.pendingOpen, dialog);
+const cancelOrderWithConfirm = useCancelOrder();
 
 const pending = computed(() => order.pendingOrder);
 const countdown = computed(() => {
@@ -25,38 +26,8 @@ const countdown = computed(() => {
   return orderCountdownText(pending.value?.expiresAt);
 });
 
-watch(
-  () => order.pendingOpen,
-  (open) => {
-    const node = dialog.value;
-    if (!node) return;
-    if (open) {
-      if (!node.open) node.showModal();
-      window.clearInterval(timer);
-      timer = window.setInterval(() => {
-        now.value = Date.now();
-      }, 1000);
-    } else if (node.open) {
-      node.close();
-      window.clearInterval(timer);
-    }
-  },
-);
-
-onBeforeUnmount(() => window.clearInterval(timer));
-
-async function cancel() {
-  const ok = await confirm.confirm({
-    kicker: "Cancel Order",
-    title: "取消这笔待支付订单？",
-    message: "取消后订单立即关闭，占用的库存和优惠码会释放。",
-    detail: "如果还需要这份授权，需要重新下单；付款码也会同时作废。",
-    confirmLabel: "取消订单",
-    cancelLabel: "继续支付",
-    tone: "danger",
-  });
-  if (!ok) return;
-  await order.cancelOrder(pending.value);
+function cancel() {
+  return cancelOrderWithConfirm(pending.value);
 }
 
 async function continuePayment() {

@@ -1,19 +1,20 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { computed, ref } from "vue";
 import { useOrderStore, orderCountdownText } from "@store/features/storefront/stores/order";
-import { useConfirmStore } from "@store/shared/stores/confirm";
+import { useCancelOrder, useOrderDialog } from "@store/features/storefront/composables/useOrderDialog";
 import { formatCentsPlain as moneyAmount } from "@store/shared/utils/money";
 
 const order = useOrderStore();
-const confirm = useConfirmStore();
-const dialog = ref<HTMLDialogElement | null>(null);
-const now = ref(Date.now());
 const refreshing = ref(false);
 const TITLE_ID = "payment-dialog-title";
 const SCAN_ID = "payment-dialog-scan";
 const NOTE_ID = "payment-dialog-note";
 const DESCRIBED_BY = `${SCAN_ID} ${NOTE_ID}`;
-let timer: number | undefined;
+
+// dialog 开关 + 每秒 now（倒计时依赖）与「取消支付」确认，均与待支付提醒弹窗共用。
+const dialog = ref<HTMLDialogElement | null>(null);
+const { now } = useOrderDialog(() => order.paymentOpen, dialog);
+const cancelOrderWithConfirm = useCancelOrder();
 
 const current = computed(() => order.currentOrder);
 const countdown = computed(() => {
@@ -22,38 +23,8 @@ const countdown = computed(() => {
   return orderCountdownText(current.value?.expiresAt);
 });
 
-watch(
-  () => order.paymentOpen,
-  (open) => {
-    const node = dialog.value;
-    if (!node) return;
-    if (open) {
-      if (!node.open) node.showModal();
-      window.clearInterval(timer);
-      timer = window.setInterval(() => {
-        now.value = Date.now();
-      }, 1000);
-    } else if (node.open) {
-      node.close();
-      window.clearInterval(timer);
-    }
-  },
-);
-
-onBeforeUnmount(() => window.clearInterval(timer));
-
-async function cancel() {
-  const ok = await confirm.confirm({
-    kicker: "Cancel Order",
-    title: "取消这笔待支付订单？",
-    message: "取消后订单立即关闭，占用的库存和优惠码会释放。",
-    detail: "如果还需要这份授权，需要重新下单；付款码也会同时作废。",
-    confirmLabel: "取消订单",
-    cancelLabel: "继续支付",
-    tone: "danger",
-  });
-  if (!ok) return;
-  await order.cancelOrder(current.value);
+function cancel() {
+  return cancelOrderWithConfirm(current.value);
 }
 
 async function refresh() {
