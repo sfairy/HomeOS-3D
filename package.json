@@ -47,6 +47,7 @@
     "update:frontend-complexity-baseline": "node ops/checks/check_frontend_complexity.mjs --update",
     "check:duplicates": "node ops/checks/check_duplicates.mjs",
     "check:code-size": "node ops/checks/code-size.mjs --check ops/checks/code-size-baseline.json",
+    "report:compression": "node ops/checks/compression-report.mjs",
     "update:code-size-baseline": "node ops/checks/code-size.mjs --write --out ops/checks/code-size-baseline.json",
     "check:css-duplicates": "node ops/scripts/merge-css-duplicates.mjs --check",
     "check:dom-factory": "node ops/checks/dom-factory-equivalence.mjs",

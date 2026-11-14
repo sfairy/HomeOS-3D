@@ -33,6 +33,14 @@
  *
  * `--check` 是「棘轮」：只允许持平或下降。与 `check:duplicates` 同语义 —— 要让基线变大
  * 必须是显式 `--write` 的评审动作，而不是顺手跑一遍。
+ *
+ * 判定范围为什么排除 `ops/`
+ * -------------------------
+ * 棘轮的意图是「拦住产品代码变胖」。`ops/` 是工具链：每新增一条检查、一个 codemod 都必然
+ * 让它变大，而且这是被评审过的、期望发生的增长。把它算进判定会有两个坏后果：
+ *   1. 每次加检查都要顺手 `--write` 抬基线，训练出「棘轮红了就 --write」的习惯；
+ *   2. 真正需要警惕的产品膨胀被这些例行抬升稀释掉。
+ * 所以 `ops/` 仍然**统计并打印**（报告要看得见），但不参与通过/失败判定。
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -40,6 +48,9 @@ import process from 'node:process'
 
 const REPO_ROOT = path.resolve(import.meta.dirname, '../..')
 const OUT_DIR = path.join(REPO_ROOT, 'docs/analysis/code-size')
+
+/** 只统计、不参与棘轮判定的根目录（工具链，见文件头说明）。 */
+const NON_RATCHET_ROOTS = new Set(['ops'])
 
 /** 默认扫描根：两个产品 + 共享包 + 构建脚本。排除规则统一在下方，避免多处各写一份。 */
 export const DEFAULT_ROOTS = [
@@ -181,7 +192,7 @@ function parseArgs(argv) {
   }
 }
 
-/** 对比两份快照：行数或字符数**变大**即失败（棘轮）。 */
+/** 对比两份快照：行数或字符数**变大**即失败（棘轮）。`NON_RATCHET_ROOTS` 只报不判。 */
 export function compareSnapshots(baseline, current) {
   const failures = []
   const rows = []
@@ -193,11 +204,12 @@ export function compareSnapshots(baseline, current) {
     }
     const codeDelta = bucket.code - before.code
     const charsDelta = bucket.chars - before.chars
-    const failed = codeDelta > 0 || charsDelta > 0
+    const ratcheted = !NON_RATCHET_ROOTS.has(root)
+    const failed = ratcheted && (codeDelta > 0 || charsDelta > 0)
     if (failed) failures.push({ root, codeDelta, charsDelta })
     rows.push({
       root,
-      status: failed ? 'grew' : codeDelta === 0 && charsDelta === 0 ? 'equal' : 'shrank',
+      status: failed ? 'grew' : codeDelta === 0 && charsDelta === 0 ? 'equal' : codeDelta < 0 ? 'shrank' : 'info',
       codeDelta,
       charsDelta,
     })
@@ -222,7 +234,7 @@ if (import.meta.filename === process.argv[1]) {
     }
     console.log(`\n总计：${snapshot.total.code} 行 / ${snapshot.total.chars} 字符`)
     if (failures.length > 0) {
-      console.error(`\n代码量棘轮失败：${failures.length} 个根目录变大。压缩只能下降；要放宽请显式 --write。`)
+      console.error(`\n代码量棘轮失败：${failures.length} 个产品根目录变大。压缩只能下降；要放宽请显式 --write。`)
       process.exit(1)
     }
     process.exit(0)
