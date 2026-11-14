@@ -1,0 +1,159 @@
+{
+  "generatedAt": "2026-11-14T05:03:22.470Z",
+  "roots": [
+    "homeos/frontend/src",
+    "homeos/backend/src",
+    "homeos-store/frontend/src",
+    "homeos-store/backend/src",
+    "packages/shared/src",
+    "packages/shared-py",
+    "ops"
+  ],
+  "byRoot": {
+    "homeos/frontend/src": {
+      "code": 423378,
+      "comment": 37533,
+      "blank": 27629,
+      "chars": 12659050,
+      "files": 1973,
+      "byExt": {
+        ".vue": {
+          "code": 63314,
+          "chars": 1819144,
+          "files": 372
+        },
+        ".css": {
+          "code": 70768,
+          "chars": 1544399,
+          "files": 217
+        },
+        ".ts": {
+          "code": 289296,
+          "chars": 9295507,
+          "files": 1384
+        }
+      }
+    },
+    "homeos/backend/src": {
+      "code": 93609,
+      "comment": 5211,
+      "blank": 15669,
+      "chars": 2913174,
+      "files": 504,
+      "byExt": {
+        ".py": {
+          "code": 93609,
+          "chars": 2913174,
+          "files": 504
+        }
+      }
+    },
+    "homeos-store/frontend/src": {
+      "code": 14187,
+      "comment": 1105,
+      "blank": 1310,
+      "chars": 403625,
+      "files": 99,
+      "byExt": {
+        ".vue": {
+          "code": 10656,
+          "chars": 311839,
+          "files": 54
+        },
+        ".ts": {
+          "code": 3529,
+          "chars": 91657,
+          "files": 43
+        },
+        ".css": {
+          "code": 2,
+          "chars": 129,
+          "files": 2
+        }
+      }
+    },
+    "homeos-store/backend/src": {
+      "code": 19946,
+      "comment": 386,
+      "blank": 3383,
+      "chars": 597601,
+      "files": 114,
+      "byExt": {
+        ".py": {
+          "code": 19946,
+          "chars": 597601,
+          "files": 114
+        }
+      }
+    },
+    "packages/shared/src": {
+      "code": 4158,
+      "comment": 1953,
+      "blank": 531,
+      "chars": 121779,
+      "files": 62,
+      "byExt": {
+        ".vue": {
+          "code": 417,
+          "chars": 15717,
+          "files": 3
+        },
+        ".ts": {
+          "code": 3222,
+          "chars": 87956,
+          "files": 56
+        },
+        ".css": {
+          "code": 519,
+          "chars": 18106,
+          "files": 3
+        }
+      }
+    },
+    "packages/shared-py": {
+      "code": 1937,
+      "comment": 112,
+      "blank": 424,
+      "chars": 56996,
+      "files": 17,
+      "byExt": {
+        ".py": {
+          "code": 1937,
+          "chars": 56996,
+          "files": 17
+        }
+      }
+    },
+    "ops": {
+      "code": 13413,
+      "comment": 2435,
+      "blank": 1726,
+      "chars": 413845,
+      "files": 69,
+      "byExt": {
+        ".py": {
+          "code": 4153,
+          "chars": 129550,
+          "files": 28
+        },
+        ".mjs": {
+          "code": 9198,
+          "chars": 282691,
+          "files": 40
+        },
+        ".ts": {
+          "code": 62,
+          "chars": 1604,
+          "files": 1
+        }
+      }
+    }
+  },
+  "total": {
+    "code": 570628,
+    "comment": 48735,
+    "blank": 50672,
+    "chars": 17166070,
+    "files": 2838
+  }
+}

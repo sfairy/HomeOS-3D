@@ -98,6 +98,12 @@ const GATE_GROUPS = {
     // 重复代码棘轮：jscpd 精确克隆（≥10 行且 ≥50 token）对比基线，涨了即失败。
     // 近似重复（相似度阈值）不进门禁 —— 主观阈值卡 CI 只会催生「改得更不像」的动机。
     { name: 'check:duplicates', ...bun('run', 'check:duplicates') },
+    // 代码量棘轮：有效代码行（去空行/整行注释）与有效字符数只允许持平或下降。
+    { name: 'check:code-size', ...bun('run', 'check:code-size') },
+    // CSS 重复声明体：可证明安全的那部分必须已经合并完（见 ops/scripts/merge-css-duplicates.mjs）。
+    { name: 'check:css-duplicates', ...bun('run', 'check:css-duplicates') },
+    // `domElement` 与「建元素 + 设类名 + 设文本」的等价性证明（假 document 逐字段比对）。
+    { name: 'check:dom-factory', ...bun('run', 'check:dom-factory') },
     { name: 'check:styles', ...bun('run', 'check:styles') },
     { name: 'check:silent-except', ...bun('run', 'check:silent-except') },
     { name: 'check:async-db', ...bun('run', 'check:async-db') },
