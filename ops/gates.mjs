@@ -107,6 +107,8 @@ const GATE_GROUPS = {
     // 平面多边形布尔内核的数学不变量（空集恒等 / 幂等 / 面积守恒 / 洞语义 / 点归属）。
     // 「模型门禁」看的是 GLB 文件，「这条」看的是户型绘制用的并集/差集内核，两者互不覆盖。
     { name: 'check:plan-geometry', ...bun('run', 'check:plan-geometry') },
+    // 存草稿兼容层：老草稿经归一化载入、编辑后整份写回，漏挑一个字段就是静默丢数据。
+    { name: 'check:scene-payload', ...bun('run', 'check:scene-payload') },
     { name: 'check:styles', ...bun('run', 'check:styles') },
     { name: 'check:silent-except', ...bun('run', 'check:silent-except') },
     { name: 'check:async-db', ...bun('run', 'check:async-db') },

@@ -53,6 +53,8 @@
     "check:dom-factory": "node ops/checks/dom-factory-equivalence.mjs",
     "check:geometry-calls": "node ops/checks/geometry-call-golden.mjs --check",
     "check:plan-geometry": "node ops/checks/plan-geometry-invariants.mjs",
+    "check:scene-payload": "node ops/checks/scene-payload-invariants.mjs",
+    "check:scene-payload-mutations": "node ops/checks/scene-payload-mutation-check.mjs",
     "check:plan-geometry-mutations": "node ops/checks/plan-geometry-mutation-check.mjs",
     "update:duplication-baseline": "node ops/checks/check_duplicates.mjs --update",
     "check:styles": "node ops/checks/check_hardcoded_styles.mjs",
