@@ -44,6 +44,11 @@ const MUTATIONS = [
     replace: 'for (const sourceLoop of [...primaryLoops])',
   },
   {
+    label: '拆分丢掉最后一段（墙段总长变短）',
+    find: 'for (let splitIndex = 0; splitIndex < sortedSplitParams.length - 1; splitIndex += 1) {',
+    replace: 'for (let splitIndex = 0; splitIndex < sortedSplitParams.length - 2; splitIndex += 1) {',
+  },
+  {
     label: 'polygonArea 符号取反（外环被当成洞）',
     find: 'export function polygonArea(polygonPoints: any) {',
     replace:

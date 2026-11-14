@@ -202,6 +202,72 @@ check('A 的中心在并集内', containsPoint(geometry, overlapUnion, { x: 1, y
 check('洞里的点不在差集内', !containsPoint(geometry, holed, { x: 1, y: 1 }), '洞被当成实体了')
 check('差集实体内的点仍在差集内', containsPoint(geometry, holed, { x: 0.25, y: 0.25 }))
 
+// ── 墙段拆分与合并：总长守恒 ───────────────────────────────────────────────
+/**
+ * 这两支函数喂给地板轮廓：拆分的目的是让相交点成为共享顶点，合并的目的是把端点相接的共线
+ * 墙缝成一条。它们的共同不变量是**总长守恒** —— 拆分不得凭空增长或丢失长度，合并不得把
+ * 重叠部分重复计入。长度一旦漂移，地板多边形就会与墙体对不齐（表现为「地板边缘露出墙外」
+ * 或「墙脚缺一条缝」），而且这类误差会随编辑次数累积。
+ */
+function segmentLength(segment) {
+  return Math.hypot(segment.end.x - segment.start.x, segment.end.y - segment.start.y)
+}
+const segment = (x1, y1, x2, y2) => ({ start: { x: x1, y: y1 }, end: { x: x2, y: y2 } })
+const totalLength = (segments) => segments.reduce((total, item) => total + segmentLength(item), 0)
+
+const crossingPair = [segment(0, 0, 4, 0), segment(2, -2, 2, 2)]
+const splitPieces = geometry.splitWallSegments(crossingPair)
+check('交叉墙段被拆成 4 段', splitPieces.length === 4, `得到 ${splitPieces.length}`)
+check(
+  '拆分不改变总长',
+  nearlyEqual(totalLength(splitPieces), totalLength(crossingPair)),
+  `${totalLength(splitPieces)} vs ${totalLength(crossingPair)}`,
+)
+check(
+  '拆分后每段长度为正',
+  splitPieces.every((piece) => segmentLength(piece) > 0),
+)
+check(
+  '拆分后各段不跨越交点（t 区间落在 [0,1]）',
+  splitPieces.every((piece) => piece.startT >= 0 && piece.endT <= 1 + 1e-9),
+)
+
+const collinearOverlap = [segment(0, 0, 2, 0), segment(1, 0, 3, 0), segment(3, 0, 5, 0)]
+const mergedWalls = geometry.mergeCollinearWallSegments(collinearOverlap).walls
+check(
+  '合并不改变总长（重叠部分不得被重复计入）',
+  nearlyEqual(totalLength(mergedWalls), totalLength(collinearOverlap)),
+  `${totalLength(mergedWalls)} vs ${totalLength(collinearOverlap)}`,
+)
+check('合并后段数减少', mergedWalls.length < collinearOverlap.length, `得到 ${mergedWalls.length}`)
+check(
+  '合并幂等',
+  JSON.stringify(geometry.mergeCollinearWallSegments(mergedWalls).walls) === JSON.stringify(mergedWalls),
+)
+
+const joinedPair = [segment(0, 0, 2, 0), segment(2, 0, 4, 0)]
+const joined = geometry.mergeCollinearWallSegments(joinedPair).walls
+check('端点相接的共线墙被缝成一条', joined.length === 1, `得到 ${joined.length}`)
+check('缝成一条后总长不变', joined.length === 1 && nearlyEqual(segmentLength(joined[0]), 4))
+
+const perpendicularPair = [segment(0, 0, 2, 0), segment(0, 0, 0, 2)]
+check('非共线墙段不合并', geometry.mergeCollinearWallSegments(perpendicularPair).walls.length === 2)
+check(
+  '退化墙段（零长度）被丢弃',
+  geometry.mergeCollinearWallSegments([segment(0, 0, 0, 0), segment(0, 0, 1, 0)]).walls.length === 1,
+)
+
+// ── 多边形规范化键 ───────────────────────────────────────────────────────
+const triangle = [
+  { x: 0, y: 0 },
+  { x: 1, y: 0 },
+  { x: 1, y: 1 },
+]
+const rotated = [triangle[1], triangle[2], triangle[0]]
+const reversedTriangle = [...triangle].reverse()
+check('规范化键与起点无关', geometry.canonicalPolygonKey(triangle) === geometry.canonicalPolygonKey(rotated))
+check('规范化键与绕向无关', geometry.canonicalPolygonKey(triangle) === geometry.canonicalPolygonKey(reversedTriangle))
+
 // ── 退化输入不得抛出 ─────────────────────────────────────────────────────
 for (const [label, loops] of [
   [
@@ -240,7 +306,9 @@ if (AS_JSON) {
   for (const failure of failures) console.error(`  - ${failure}`)
   console.error('  说明：这些是布尔运算的数学性质，任何正确实现都应满足；失败即表示内核行为已改变。')
 } else {
-  console.log(`多边形内核不变量通过：${assertions} 项断言（空集恒等 / 幂等 / 面积守恒 / 洞语义 / 交换性 / 点归属）`)
+  console.log(
+    `多边形内核不变量通过：${assertions} 项断言（空集恒等 / 幂等 / 面积守恒 / 洞语义 / 交换性 / 点归属 / 墙段总长守恒）`,
+  )
 }
 
 process.exit(failures.length > 0 ? 1 : 0)
