@@ -104,6 +104,9 @@ const GATE_GROUPS = {
     { name: 'check:css-duplicates', ...bun('run', 'check:css-duplicates') },
     // `domElement` 与「建元素 + 设类名 + 设文本」的等价性证明（假 document 逐字段比对）。
     { name: 'check:dom-factory', ...bun('run', 'check:dom-factory') },
+    // 平面多边形布尔内核的数学不变量（空集恒等 / 幂等 / 面积守恒 / 洞语义 / 点归属）。
+    // 「模型门禁」看的是 GLB 文件，「这条」看的是户型绘制用的并集/差集内核，两者互不覆盖。
+    { name: 'check:plan-geometry', ...bun('run', 'check:plan-geometry') },
     { name: 'check:styles', ...bun('run', 'check:styles') },
     { name: 'check:silent-except', ...bun('run', 'check:silent-except') },
     { name: 'check:async-db', ...bun('run', 'check:async-db') },
