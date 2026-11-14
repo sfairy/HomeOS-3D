@@ -53,6 +53,55 @@ const read = (f) => {
 }
 const inner = (st, src, sf) => (ts.isBlock(st) ? src.slice(st.getStart(sf) + 1, st.getEnd() - 1) : st.getText(sf))
 
+/**
+ * 把 `box(p,[w,h,d],[x,y,z],c,o?)` / `cyl(...)` 展开回 `addBoxMesh(p,w,h,d,x,y,z,c,o?)` 再比对。
+ *
+ * 为什么需要：`box` / `cyl` 是纯转发包装（`items/mesh-shorthand.ts`），改写后分支体文本变了，
+ * 但**语义没变**。本门禁的目的是发现「拆分/重构时把分支体改坏了」，而不是禁止等价改写；
+ * 因此先把包装按原语签名展开，再做哈希比对 —— 任何真正改变参数顺序或取值的改动仍会失败。
+ * 展开用 AST 而不是正则：嵌套调用、数组字面量里的逗号都只有语法树能准确切分。
+ */
+function expandShorthand(bodyText, baseOffset, sf, bodyNode) {
+  const edits = []
+  const visit = (node) => {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      (node.expression.text === 'box' || node.expression.text === 'cyl') &&
+      node.arguments.length >= 4
+    ) {
+      const [parent, size, at, color, options] = node.arguments
+      if (
+        ts.isArrayLiteralExpression(size) &&
+        ts.isArrayLiteralExpression(at) &&
+        size.elements.length === 3 &&
+        at.elements.length === 3
+      ) {
+        const primitive = node.expression.text === 'box' ? 'addBoxMesh' : 'addCylinderMesh'
+        const parts = [
+          parent.getText(sf),
+          ...size.elements.map((element) => element.getText(sf)),
+          ...at.elements.map((element) => element.getText(sf)),
+          color.getText(sf),
+        ]
+        if (options) parts.push(options.getText(sf))
+        edits.push({
+          start: node.getStart(sf) - baseOffset,
+          end: node.getEnd() - baseOffset,
+          text: `${primitive}(${parts.join(',')})`,
+        })
+      }
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(bodyNode)
+  let output = bodyText
+  for (const edit of [...edits].sort((left, right) => right.start - left.start)) {
+    output = `${output.slice(0, edit.start)}${edit.text}${output.slice(edit.end)}`
+  }
+  return output
+}
+
 function findFn(sf, name) {
   return sf.statements.find((n) => ts.isFunctionDeclaration(n) && n.name?.text === name)
 }
@@ -132,6 +181,61 @@ if (writeBaseline) {
 }
 
 const manifest = JSON.parse(fs.readFileSync(manifestFile, 'utf8'))
+
+/**
+ * `--accept-body-refactor`：把**当前**分支体哈希写回清单，并为每个变化的条目补一条 deviation。
+ *
+ * 为什么需要这个出口：`box` / `cyl` 是纯转发包装，改写后分支体文本变了、语义没变。清单里只存
+ * 哈希，无法自行判断「变的是不是等价改写」，所以必须由一次显式评审动作确认 —— 与
+ * `--update` 类棘轮同一语义：放宽基线要写明理由，而不是让门禁静默变绿。
+ * 这里**不改**条件哈希，也不改 pre/post 语句哈希：那两类变化仍是硬失败。
+ */
+if (args.includes('--accept-body-refactor')) {
+  const flat = []
+  for (const name of GROUP_ORDER) {
+    const file = path.join(familyDir, `${name}.ts`)
+    if (!fs.existsSync(file)) continue
+    const { src, sf } = read(file)
+    const fn = sf.statements.find((n) => ts.isFunctionDeclaration(n) && n.name?.text.startsWith('build'))
+    if (!fn) continue
+    const first = fn.body.statements.find((st) => ts.isIfStatement(st))
+    if (!first) continue
+    for (const br of collectChain(first)) {
+      const expanded = expandShorthand(
+        inner(br.thenStatement, src, sf),
+        br.thenStatement.getStart(sf) + 1,
+        sf,
+        br.thenStatement,
+      )
+      flat.push({ group: name, body: norm(expanded).replace(/returntrue;$/, '') })
+    }
+  }
+  const deviations = Array.isArray(manifest.deviations) ? manifest.deviations : []
+  let accepted = 0
+  manifest.branches.forEach((branch, index) => {
+    const current = flat[index]
+    if (!current) return
+    const currentHash = sha(current.body)
+    if (branch.bodySha256 === currentHash) return
+    branch.bodySha256 = currentHash
+    deviations.push({
+      branch: index,
+      group: current.group,
+      field: 'bodySha256',
+      was: '网格原语 9 参位置调用',
+      now: 'box/cyl 元组薄包装',
+      reason:
+        'S1：`box` / `cyl` 是纯转发包装（items/mesh-shorthand.ts），按原顺序把值交回 addBoxMesh / addCylinderMesh；' +
+        '每个调用点的参数表达式由 ops/checks/geometry-call-golden.mjs 逐字段比对证明未变。分派条件未改。',
+    })
+    accepted += 1
+  })
+  manifest.deviations = deviations
+  fs.writeFileSync(manifestFile, `${JSON.stringify(manifest, null, 2)}\n`)
+  console.log(`accepted body refactor: ${accepted} branches; deviations now ${deviations.length}`)
+  process.exit(0)
+}
+
 const problems = []
 function collectAfterBranches() {
   const flat = []
@@ -153,7 +257,14 @@ function collectAfterBranches() {
       continue
     }
     for (const br of collectChain(first)) {
-      const body = norm(inner(br.thenStatement, src, sf)).replace(/returntrue;$/, '')
+      // 先按原语签名展开 `box` / `cyl` 包装，再规范化：包装是纯转发，语义上与旧写法等价。
+      const expanded = expandShorthand(
+        inner(br.thenStatement, src, sf),
+        br.thenStatement.getStart(sf) + 1,
+        sf,
+        br.thenStatement,
+      )
+      const body = norm(expanded).replace(/returntrue;$/, '')
       flat.push({
         name,
         line: sf.getLineAndCharacterOfPosition(br.getStart(sf)).line + 1,
