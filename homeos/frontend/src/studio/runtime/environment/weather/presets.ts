@@ -45,15 +45,8 @@ export type WeatherEffectPreset = {
   cloudTint?: string
   /** 云体底色（`r,g,b` 片段）：比主色更暗更冷，压出云底体积。 */
   cloudBottom?: string
-  /** 云层不透明度系数（0~1）：降水时压得更沉，但不能盖住户型。阴天模式下不参与计算。 */
+  /** 云层不透明度系数（0~1）：降水时压得更沉，但不能盖住户型。 */
   cloudAlpha?: number
-  /**
-   * 阴天模式：把云画成**互相重叠的一片**，而不是一朵朵独立可见的云。
-   *
-   * 用于「不能有云朵、但必须有云」的天气（下雪天是整片均匀的灰白阴天）。
-   * 开启后改用 14 层的云幕布局，单朵更宽更淡、层间重叠，`cloudAlpha` 不再参与计算。
-   */
-  cloudOvercast?: boolean
   /** 星点强度（0~1.4）。 */
   stars?: number
   /** 是否放流星：晴夜偶尔划过一颗，画面才有「时间在走」的感觉。 */
@@ -90,14 +83,13 @@ export const WEATHER_EFFECT_PRESETS: Readonly<Record<WeatherEffectKey, WeatherEf
     // 雪落地不是水花：只扬起一小团雪粉（强度与频率都比雨低得多）。
     splash: 0.3,
     splashStyle: 'snow',
-    // 雪云不是「一朵朵云」：真实的下雪天是整片均匀的灰白阴天，看不出单朵轮廓。
-    // 所以走阴天模式（重叠云幕），而不是把独立云朵调亮 —— 亮而厚的云是「连成一片」，
-    // 不是「一朵朵飘着」（用户实际反馈「雪场景里怎么有云朵」）。
+    // 雪云：偏亮偏慢、云量中等。不是铅灰的低压云，也不是飘着的薄纱 —— 雪天抬头看到的
+    // 是一朵朵有厚度、边缘发白的云。
     clouds: 0.86,
     cloudDrift: 0.024,
-    cloudTint: '228,234,246',
-    cloudBottom: '164,174,196',
-    cloudOvercast: true,
+    cloudTint: '232,238,248',
+    cloudBottom: '178,188,210',
+    cloudAlpha: 0.62,
   },
   'lightning-rainy': {
     rain: 1.1,

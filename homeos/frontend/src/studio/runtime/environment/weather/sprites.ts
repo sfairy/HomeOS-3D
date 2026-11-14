@@ -150,21 +150,32 @@ function paintCloud(
   variant: number,
 ) {
   const blobs = CLOUD_LAYOUTS[variant % CLOUD_LAYOUTS.length]
+  /**
+   * 一个团块。
+   *
+   * 渐变曲线是这张贴图「像云」还是「像雾」的关键：旧实现从中心到边缘一路平滑衰减
+   * （0.6 半径处已掉到 43%），团块之间叠起来没有实体感，远看就是一团雾。
+   * 云需要**实心内核 + 短促的柔边**：半径 72% 以内几乎不衰减（云体），
+   * 最后 28% 才快速散开（云的毛边）。这样几个团块叠在一起时才是一朵有体积的云。
+   */
   const paintBlob = (centerX: number, centerY: number, relativeRadius: number, color: string, alpha: number) => {
     const radius = width * relativeRadius * 0.5
     const x = width * centerX
     const y = height * centerY
     const gradient = paintCtx.createRadialGradient(x, y, 0, x, y, radius)
     gradient.addColorStop(0, `rgba(${color},${alpha})`)
-    gradient.addColorStop(0.6, `rgba(${color},${alpha * 0.43})`)
+    gradient.addColorStop(0.45, `rgba(${color},${alpha * 0.97})`)
+    gradient.addColorStop(0.72, `rgba(${color},${alpha * 0.74})`)
+    gradient.addColorStop(0.88, `rgba(${color},${alpha * 0.26})`)
     gradient.addColorStop(1, `rgba(${color},0)`)
     paintCtx.fillStyle = gradient
     paintCtx.fillRect(x - radius, y - radius, radius * 2, radius * 2)
   }
-  for (const [centerX, centerY, relativeRadius] of blobs) paintBlob(centerX, centerY, relativeRadius, rgb, 0.92)
-  // 云底：同一批团块整体下移一点点、用更暗的冷色，压出「上方亮、下方沉」的体积。
+  for (const [centerX, centerY, relativeRadius] of blobs) paintBlob(centerX, centerY, relativeRadius, rgb, 0.95)
+  // 云底：同一批团块整体下移、用更暗的冷色压出「上方亮、下方沉」的体积。
+  // 比主色更深也更实（0.5）：云底是云最有实体感的地方，太淡会让整朵云重新变糊。
   for (const [centerX, centerY, relativeRadius] of blobs)
-    paintBlob(centerX, centerY + relativeRadius * 0.16, relativeRadius * 0.92, bottomRgb, 0.34)
+    paintBlob(centerX, centerY + relativeRadius * 0.19, relativeRadius * 0.88, bottomRgb, 0.5)
 }
 
 export function createSpriteCache(doc: Document) {
