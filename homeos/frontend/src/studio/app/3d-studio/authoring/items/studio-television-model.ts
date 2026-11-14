@@ -8,10 +8,10 @@ import { applyTextureQuality } from '../../render-kit/texture-quality'
  * `backgroundSettings`（warm-wood 主题下的玻璃材质替换）。
  */
 
-import { addBoxMesh } from './studio-mesh-primitives'
 import { createWarmTelevisionGlass as createWarmTelevisionGlass2 } from '@app/shared/scene/studio-television-glass'
 import { drawTelevisionPoster as drawTelevisionPoster2 } from '@app/shared/scene/studio-television-poster'
 import { computeTelevisionProportions } from './studio-television-proportions'
+import { box } from './mesh-shorthand'
 import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
 
 // 比例换算已切到 `studio-television-proportions.ts`（纯函数），这里只做转出以保持旧引用可用。
@@ -63,14 +63,10 @@ export function addTelevisionModel(
     screenBodyZ = screenFrontDepth - screenThickness * 0.5,
     screenFaceZ = screenBodyZ + screenThickness * 0.5
   if (deps.isEmbeddedStage || televisionScreenItem.screenEnabled === false) {
-    const screenBodyMesh = addBoxMesh(
+    const screenBodyMesh = box(
       televisionParent,
-      screenWidth,
-      screenHeight,
-      screenThickness,
-      0,
-      ag3,
-      screenBodyZ,
+      [screenWidth, screenHeight, screenThickness],
+      [0, ag3, screenBodyZ],
       527122,
       {
         roughness: 0.18,

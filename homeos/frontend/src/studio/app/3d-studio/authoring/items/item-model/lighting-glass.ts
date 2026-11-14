@@ -4,14 +4,13 @@
  * 由 `items/studio-item-model.ts` 的 `buildItemModel` 按固定顺序调用；
  * 命中任一分支返回 true，否则返回 false。正文从原单体逐字切出，仅追加 return。
  */
+import { box, cyl } from '../mesh-shorthand'
 
-import { addBoxMesh } from "../studio-mesh-primitives";
 import * as ns2 from "/static/vendor/three/0.187.0/three.module.min.js";
 import type { ItemModelScope } from "./types";
 
 export function buildLightingGlass(scope: ItemModelScope): boolean {
   const {
-    addCylinderMesh,
     itemModelNode,
     modelItem,
     width6,
@@ -34,65 +33,35 @@ export function buildLightingGlass(scope: ItemModelScope): boolean {
           metalness: 0.64,
           roughness: 0.22,
         };
-    (addBoxMesh(
-      itemModelNode,
-      width6 *
-        0.68,
-      height6 *
-        0.5,
-      0.035,
-      0,
-      height6 *
-        0.52,
-      walllampMountZ,
-      yt4.furniture,
-      {
+    (box(itemModelNode, [width6 *
+        0.68, height6 *
+        0.5, 0.035], [0, height6 *
+        0.52, walllampMountZ], yt4.furniture, {
         radius: 0.02,
         metalness: 0.18,
         roughness: 0.46,
-      },
-    ),
-      addCylinderMesh(
-        itemModelNode,
-        width6 *
-          0.11,
-        width6 *
-          0.11,
-        0.035,
-        0,
-        height6 *
-          0.57,
-        walllampMountZ -
-          0.012,
-        yt4.furnitureSoft,
-        {
+      }),
+      cyl(itemModelNode, [width6 *
+          0.11, width6 *
+          0.11, 0.035], [0, height6 *
+          0.57, walllampMountZ -
+          0.012], yt4.furnitureSoft, {
           segments: 24,
           rotationX:
             Math.PI /
             2,
           metalness: 0.3,
           roughness: 0.34,
-        },
-      ),
-      addBoxMesh(
-        itemModelNode,
-        0.04,
-        height6 *
-          0.2,
-        depth *
-          0.28,
-        0,
-        height6 *
-          0.57,
-        -depth *
-          0.3,
-        yt4.furniture,
-        {
+        }),
+      box(itemModelNode, [0.04, height6 *
+          0.2, depth *
+          0.28], [0, height6 *
+          0.57, -depth *
+          0.3], yt4.furniture, {
           ...walllampBracketOptions,
           metalness: 0.18,
           roughness: 0.46,
-        },
-      ));
+        }));
     const walllampShadeMesh =
       new ns2.Mesh(
         new ns2.CylinderGeometry(
@@ -130,26 +99,16 @@ export function buildLightingGlass(scope: ItemModelScope): boolean {
       itemModelNode.add(
         walllampShadeMesh,
       ),
-      addCylinderMesh(
-        itemModelNode,
-        width6 *
-          0.15,
-        width6 *
-          0.15,
-        0.025,
-        0,
-        height6 *
-          0.19,
-        -depth *
-          0.16,
-        16769707,
-        {
+      cyl(itemModelNode, [width6 *
+          0.15, width6 *
+          0.15, 0.025], [0, height6 *
+          0.19, -depth *
+          0.16], 16769707, {
           segments: 24,
           emissive: 16760156,
           emissiveIntensity: 0.38,
           roughness: 0.24,
-        },
-      ));
+        }));
     return true;
   } else if (modelItem.type ===
       "glasspartition") {
@@ -189,21 +148,12 @@ export function buildLightingGlass(scope: ItemModelScope): boolean {
           castShadow: false,
           receiveShadow: false,
         };
-    (addBoxMesh(
-      itemModelNode,
-      glasspartitionGlassWidth,
-      glasspartitionGlassHeight,
-      Math.max(
+    (box(itemModelNode, [glasspartitionGlassWidth, glasspartitionGlassHeight, Math.max(
         depth *
           0.24,
         0.012,
-      ),
-      0,
-      height6 *
-        0.5,
-      0,
-      yt4.glass,
-      {
+      )], [0, height6 *
+        0.5, 0], yt4.glass, {
         rounded: false,
         transparent: true,
         opacity: 0.24,
@@ -214,84 +164,33 @@ export function buildLightingGlass(scope: ItemModelScope): boolean {
         castShadow: false,
         receiveShadow: false,
         renderOrder: 6,
-      },
-    ),
-      addBoxMesh(
-        itemModelNode,
-        width6,
-        glasspartitionFrameWidth,
-        glasspartitionFrameDepth,
-        0,
-        glasspartitionFrameWidth *
-          0.5,
-        0,
-        yt4.frame,
-        glasspartitionFrameOptions,
-      ),
-      addBoxMesh(
-        itemModelNode,
-        width6,
-        glasspartitionFrameWidth,
-        glasspartitionFrameDepth,
-        0,
-        height6 -
+      }),
+      box(itemModelNode, [width6, glasspartitionFrameWidth, glasspartitionFrameDepth], [0, glasspartitionFrameWidth *
+          0.5, 0], yt4.frame, glasspartitionFrameOptions),
+      box(itemModelNode, [width6, glasspartitionFrameWidth, glasspartitionFrameDepth], [0, height6 -
           glasspartitionFrameWidth *
-            0.5,
-        0,
-        yt4.frame,
-        glasspartitionFrameOptions,
-      ),
-      addBoxMesh(
-        itemModelNode,
-        glasspartitionFrameWidth,
-        height6,
-        glasspartitionFrameDepth,
-        -width6 *
+            0.5, 0], yt4.frame, glasspartitionFrameOptions),
+      box(itemModelNode, [glasspartitionFrameWidth, height6, glasspartitionFrameDepth], [-width6 *
           0.5 +
           glasspartitionFrameWidth *
-            0.5,
-        height6 *
-          0.5,
-        0,
-        yt4.frame,
-        glasspartitionFrameOptions,
-      ),
-      addBoxMesh(
-        itemModelNode,
-        glasspartitionFrameWidth,
-        height6,
-        glasspartitionFrameDepth,
-        width6 *
+            0.5, height6 *
+          0.5, 0], yt4.frame, glasspartitionFrameOptions),
+      box(itemModelNode, [glasspartitionFrameWidth, height6, glasspartitionFrameDepth], [width6 *
           0.5 -
           glasspartitionFrameWidth *
-            0.5,
-        height6 *
-          0.5,
-        0,
-        yt4.frame,
-        glasspartitionFrameOptions,
-      ));
+            0.5, height6 *
+          0.5, 0], yt4.frame, glasspartitionFrameOptions));
     for (const glasspartitionHingeX of [
       -width6 *
         0.34,
       width6 *
         0.34,
     ])
-      addBoxMesh(
-        itemModelNode,
-        glasspartitionFrameWidth *
-          1.7,
-        glasspartitionFrameWidth *
-          2.2,
-        glasspartitionFrameDepth *
-          1.18,
-        glasspartitionHingeX,
-        glasspartitionFrameWidth *
-          1.3,
-        0,
-        furnitureSoft,
-        glasspartitionFrameOptions,
-      );
+      box(itemModelNode, [glasspartitionFrameWidth *
+          1.7, glasspartitionFrameWidth *
+          2.2, glasspartitionFrameDepth *
+          1.18], [glasspartitionHingeX, glasspartitionFrameWidth *
+          1.3, 0], furnitureSoft, glasspartitionFrameOptions);
     return true;
   }
   return false;

@@ -4,14 +4,13 @@
  * 由 `items/studio-item-model.ts` 的 `buildItemModel` 按固定顺序调用；
  * 命中任一分支返回 true，否则返回 false。正文从原单体逐字切出，仅追加 return。
  */
+import { box, cyl } from '../mesh-shorthand'
 
-import { addBoxMesh } from "../studio-mesh-primitives";
 import { computeTelevisionProportions } from "../studio-television-model";
 import type { ItemModelScope } from "./types";
 
 export function buildMediaBath(scope: ItemModelScope): boolean {
   const {
-    addCylinderMesh,
     itemModelNode,
     modelItem,
     width6,
@@ -73,17 +72,8 @@ export function buildMediaBath(scope: ItemModelScope): boolean {
             0.7 +
           tvNeckHeight *
             0.5;
-      (addBoxMesh(
-        itemModelNode,
-        tvBaseWidth,
-        tvBaseThickness,
-        tvBaseDepth,
-        0,
-        tvBaseThickness *
-          0.72,
-        0,
-        furnitureDark,
-        {
+      (box(itemModelNode, [tvBaseWidth, tvBaseThickness, tvBaseDepth], [0, tvBaseThickness *
+          0.72, 0], furnitureDark, {
           radius:
             Math.min(
               tvBaseThickness,
@@ -92,81 +82,50 @@ export function buildMediaBath(scope: ItemModelScope): boolean {
             0.22,
           metalness: 0.18,
           roughness: 0.32,
-        },
-      ),
-        addBoxMesh(
-          itemModelNode,
-          width6 *
-            0.075,
-          tvNeckHeight,
-          Math.max(
+        }),
+        box(itemModelNode, [width6 *
+            0.075, tvNeckHeight, Math.max(
             depth *
               0.2,
             0.06,
-          ),
-          -width6 *
-            0.035,
-          tvNeckY,
-          -depth *
-            0.03,
-          furnitureDark,
-          {
+          )], [-width6 *
+            0.035, tvNeckY, -depth *
+            0.03], furnitureDark, {
             rounded: false,
             metalness: 0.2,
             roughness: 0.3,
-          },
-        ),
-        addBoxMesh(
-          itemModelNode,
-          width6 *
-            0.105,
-          tvNeckHeight *
-            0.86,
-          Math.max(
+          }),
+        box(itemModelNode, [width6 *
+            0.105, tvNeckHeight *
+            0.86, Math.max(
             depth *
               0.12,
             0.04,
-          ),
-          width6 *
-            0.025,
-          tvNeckY +
+          )], [width6 *
+            0.025, tvNeckY +
             tvNeckHeight *
-              0.02,
-          depth *
-            0.015,
-          furnitureSoft,
-          {
+              0.02, depth *
+            0.015], furnitureSoft, {
             rounded: false,
             metalness: 0.35,
             roughness: 0.28,
-          },
-        ),
-        addBoxMesh(
-          itemModelNode,
-          width6 *
-            0.34,
-          Math.max(
+          }),
+        box(itemModelNode, [width6 *
+            0.34, Math.max(
             height6 *
               0.018,
             0.025,
-          ),
-          Math.max(
+          ), Math.max(
             depth *
               0.5,
             0.2,
-          ),
-          0,
-          tvStandTopY *
-            0.76,
-          depth *
-            0.04,
-          furnitureDark,
-          {
+          )], [0, tvStandTopY *
+            0.76, depth *
+            0.04], furnitureDark, {
             radius: 0.012,
             metalness: 0.22,
             roughness: 0.3,
-          },
-        ));
+          }));
       const tvFootSize =
         Math.max(
           Math.min(
@@ -188,28 +147,18 @@ export function buildMediaBath(scope: ItemModelScope): boolean {
           tvBaseDepth *
             0.34,
         ])
-          addCylinderMesh(
-            itemModelNode,
-            tvFootSize,
-            tvFootSize,
-            Math.max(
+          cyl(itemModelNode, [tvFootSize, tvFootSize, Math.max(
               tvFootSize *
                 0.56,
               0.018,
-            ),
-            tvFootX,
-            tvFootSize,
-            tvFootZ,
-            1448479,
-            {
+            )], [tvFootX, tvFootSize, tvFootZ], 1448479, {
               segments: 20,
               rotationZ:
                 Math.PI /
                 2,
               roughness: 0.38,
               metalness: 0.1,
-            },
-          );
+            });
     } else {
       if (
         modelItem.tvMountStyle ===
@@ -237,17 +186,8 @@ export function buildMediaBath(scope: ItemModelScope): boolean {
               height6 *
                 0.12,
             );
-        (addBoxMesh(
-          itemModelNode,
-          tvTabletopBaseWidth,
-          tvTabletopThickness,
-          tvTabletopBaseDepth,
-          0,
-          tvTabletopThickness *
-            0.5,
-          0,
-          furnitureDark,
-          {
+        (box(itemModelNode, [tvTabletopBaseWidth, tvTabletopThickness, tvTabletopBaseDepth], [0, tvTabletopThickness *
+            0.5, 0], furnitureDark, {
             radius:
               Math.min(
                 tvTabletopThickness,
@@ -256,71 +196,41 @@ export function buildMediaBath(scope: ItemModelScope): boolean {
               0.26,
             metalness: 0.2,
             roughness: 0.3,
-          },
-        ),
-          addBoxMesh(
-            itemModelNode,
-            width6 *
-              0.075,
-            tvTabletopNeckHeight,
-            Math.max(
+          }),
+          box(itemModelNode, [width6 *
+              0.075, tvTabletopNeckHeight, Math.max(
               depth *
                 0.24,
               0.05,
-            ),
-            0,
-            tvTabletopThickness +
+            )], [0, tvTabletopThickness +
               tvTabletopNeckHeight *
-                0.5,
-            -depth *
-              0.03,
-            furnitureSoft,
-            {
+                0.5, -depth *
+              0.03], furnitureSoft, {
               rounded: false,
               metalness: 0.34,
               roughness: 0.28,
-            },
-          ),
-          addBoxMesh(
-            itemModelNode,
-            width6 *
-              0.18,
-            Math.max(
+            }),
+          box(itemModelNode, [width6 *
+              0.18, Math.max(
               height6 *
                 0.025,
               0.022,
-            ),
-            Math.max(
+            ), Math.max(
               depth *
                 0.34,
               0.08,
-            ),
-            0,
-            tvStandTopY,
-            0,
-            furnitureDark,
-            {
+            )], [0, tvStandTopY, 0], furnitureDark, {
               radius: 0.008,
               metalness: 0.22,
               roughness: 0.3,
-            },
-          ));
+            }));
       }
     }
-    addBoxMesh(
-      itemModelNode,
-      width6,
-      ag4,
-      Math.max(
+    box(itemModelNode, [width6, ag4, Math.max(
         depth *
           0.28,
         0.05,
-      ),
-      0,
-      ag5,
-      0,
-      furnitureDark,
-      {
+      )], [0, ag5, 0], furnitureDark, {
         radius:
           Math.min(
             width6,
@@ -328,8 +238,7 @@ export function buildMediaBath(scope: ItemModelScope): boolean {
           ) *
           0.012,
         roughness: 0.28,
-      },
-    );
+      });
     return true;
   } else if (modelItem.type ===
       "vanity") {
@@ -339,46 +248,19 @@ export function buildMediaBath(scope: ItemModelScope): boolean {
         height6 *
           0.5,
       );
-    (addBoxMesh(
-      itemModelNode,
-      width6,
-      0.075,
-      depth,
-      0,
-      vanityCounterY,
-      0,
-      furniture,
-    ),
-      addBoxMesh(
-        itemModelNode,
-        width6 *
-          0.27,
-        vanityCounterY *
-          0.82,
-        depth *
-          0.88,
-        -width6 *
-          0.34,
-        vanityCounterY *
-          0.42,
-        0,
-        furniture,
-      ),
-      addBoxMesh(
-        itemModelNode,
-        width6 *
-          0.27,
-        vanityCounterY *
-          0.82,
-        depth *
-          0.88,
-        width6 *
-          0.34,
-        vanityCounterY *
-          0.42,
-        0,
-        furniture,
-      ));
+    (box(itemModelNode, [width6, 0.075, depth], [0, vanityCounterY, 0], furniture),
+      box(itemModelNode, [width6 *
+          0.27, vanityCounterY *
+          0.82, depth *
+          0.88], [-width6 *
+          0.34, vanityCounterY *
+          0.42, 0], furniture),
+      box(itemModelNode, [width6 *
+          0.27, vanityCounterY *
+          0.82, depth *
+          0.88], [width6 *
+          0.34, vanityCounterY *
+          0.42, 0], furniture));
     for (const vanityFrontX of [
       -0.34,
       0.34,
@@ -387,24 +269,14 @@ export function buildMediaBath(scope: ItemModelScope): boolean {
         0.23,
         0.48,
       ])
-        addBoxMesh(
-          itemModelNode,
-          width6 *
-            0.22,
-          0.012,
-          depth *
-            0.02,
-          width6 *
-            vanityFrontX,
-          vanityCounterY *
-            vanityFrontY,
-          depth *
-            0.46,
-          furnitureDark,
-          {
+        box(itemModelNode, [width6 *
+            0.22, 0.012, depth *
+            0.02], [width6 *
+            vanityFrontX, vanityCounterY *
+            vanityFrontY, depth *
+            0.46], furnitureDark, {
             rounded: false,
-          },
-        );
+          });
     const vanityMirrorHeight =
       Math.max(
         height6 -
@@ -412,93 +284,43 @@ export function buildMediaBath(scope: ItemModelScope): boolean {
           0.08,
         0.45,
       );
-    (addBoxMesh(
-      itemModelNode,
-      width6 *
-        0.54,
-      vanityMirrorHeight,
-      0.025,
-      0,
-      vanityCounterY +
+    (box(itemModelNode, [width6 *
+        0.54, vanityMirrorHeight, 0.025], [0, vanityCounterY +
         vanityMirrorHeight *
-          0.5,
-      -depth *
-        0.43,
-      yt4.glass,
-      {
+          0.5, -depth *
+        0.43], yt4.glass, {
         transparent: true,
         opacity: 0.42,
         depthWrite: false,
         metalness: 0.22,
         roughness: 0.16,
         renderOrder: 6,
-      },
-    ),
-      addBoxMesh(
-        itemModelNode,
-        width6 *
-          0.59,
-        0.045,
-        0.05,
-        0,
-        vanityCounterY +
-          vanityMirrorHeight,
-        -depth *
-          0.43,
-        furnitureLight,
-        {
+      }),
+      box(itemModelNode, [width6 *
+          0.59, 0.045, 0.05], [0, vanityCounterY +
+          vanityMirrorHeight, -depth *
+          0.43], furnitureLight, {
           metalness: 0.12,
-        },
-      ),
-      addBoxMesh(
-        itemModelNode,
-        width6 *
-          0.59,
-        0.045,
-        0.05,
-        0,
-        vanityCounterY,
-        -depth *
-          0.43,
-        furnitureLight,
-        {
+        }),
+      box(itemModelNode, [width6 *
+          0.59, 0.045, 0.05], [0, vanityCounterY, -depth *
+          0.43], furnitureLight, {
           metalness: 0.12,
-        },
-      ),
-      addBoxMesh(
-        itemModelNode,
-        0.045,
-        vanityMirrorHeight,
-        0.05,
-        -width6 *
-          0.295,
-        vanityCounterY +
+        }),
+      box(itemModelNode, [0.045, vanityMirrorHeight, 0.05], [-width6 *
+          0.295, vanityCounterY +
           vanityMirrorHeight *
-            0.5,
-        -depth *
-          0.43,
-        furnitureLight,
-        {
+            0.5, -depth *
+          0.43], furnitureLight, {
           metalness: 0.12,
-        },
-      ),
-      addBoxMesh(
-        itemModelNode,
-        0.045,
-        vanityMirrorHeight,
-        0.05,
-        width6 *
-          0.295,
-        vanityCounterY +
+        }),
+      box(itemModelNode, [0.045, vanityMirrorHeight, 0.05], [width6 *
+          0.295, vanityCounterY +
           vanityMirrorHeight *
-            0.5,
-        -depth *
-          0.43,
-        furnitureLight,
-        {
+            0.5, -depth *
+          0.43], furnitureLight, {
           metalness: 0.12,
-        },
-      ));
+        }));
     return true;
   }
   return false;

@@ -4,15 +4,14 @@
  * 由 `items/studio-item-model.ts` 的 `buildItemModel` 按固定顺序调用；
  * 命中任一分支返回 true，否则返回 false。正文从原单体逐字切出，仅追加 return。
  */
+import { box, cyl } from '../mesh-shorthand'
 
-import { addBoxMesh } from "../studio-mesh-primitives";
 import { buildPressProfile } from "../studio-sanitary-models";
 import * as ns2 from "/static/vendor/three/0.187.0/three.module.min.js";
 import type { ItemModelScope } from "./types";
 
 export function buildBath(scope: ItemModelScope): boolean {
   const {
-    addCylinderMesh,
     itemModelNode,
     modelItem,
     width6,
@@ -127,21 +126,12 @@ export function buildBath(scope: ItemModelScope): boolean {
       itemModelNode.add(
         toiletSeatMesh,
       ),
-      addBoxMesh(
-        itemModelNode,
-        width6 *
-          0.9,
-        height6 *
-          0.095,
-        depth *
-          0.2,
-        0,
-        height6 *
-          0.775,
-        -depth *
-          0.34,
-        furnitureLight,
-        {
+      box(itemModelNode, [width6 *
+          0.9, height6 *
+          0.095, depth *
+          0.2], [0, height6 *
+          0.775, -depth *
+          0.34], furnitureLight, {
           radius:
             Math.min(
               width6,
@@ -149,64 +139,34 @@ export function buildBath(scope: ItemModelScope): boolean {
             ) *
             0.035,
           roughness: 0.36,
-        },
-      ),
-      addBoxMesh(
-        itemModelNode,
-        0.016,
-        height6 *
-          0.38,
-        0.024,
-        -width6 *
-          0.42,
-        height6 *
-          0.38,
-        -depth *
-          0.18,
-        furnitureDark,
-        {
+        }),
+      box(itemModelNode, [0.016, height6 *
+          0.38, 0.024], [-width6 *
+          0.42, height6 *
+          0.38, -depth *
+          0.18], furnitureDark, {
           rounded: false,
           roughness: 0.46,
-        },
-      ),
-      addCylinderMesh(
-        itemModelNode,
-        width6 *
-          0.035,
-        width6 *
-          0.035,
-        0.018,
-        -width6 *
-          0.46,
-        height6 *
-          0.66,
-        depth *
-          0.12,
-        furnitureSoft,
-        {
+        }),
+      cyl(itemModelNode, [width6 *
+          0.035, width6 *
+          0.035, 0.018], [-width6 *
+          0.46, height6 *
+          0.66, depth *
+          0.12], furnitureSoft, {
           segments: 24,
           rotationZ:
             Math.PI /
             2,
           metalness: 0.08,
           roughness: 0.3,
-        },
-      ));
+        }));
     return true;
   } else if (modelItem.type ===
       "squattoilet") {
-    (addBoxMesh(
-      itemModelNode,
-      width6,
-      height6 *
-        0.58,
-      depth,
-      0,
-      height6 *
-        0.29,
-      0,
-      furnitureLight,
-      {
+    (box(itemModelNode, [width6, height6 *
+        0.58, depth], [0, height6 *
+        0.29, 0], furnitureLight, {
         radius:
           Math.min(
             width6,
@@ -214,23 +174,13 @@ export function buildBath(scope: ItemModelScope): boolean {
           ) *
           0.08,
         roughness: 0.38,
-      },
-    ),
-      addBoxMesh(
-        itemModelNode,
-        width6 *
-          0.28,
-        height6 *
-          0.12,
-        depth *
-          0.58,
-        -width6 *
-          0.34,
-        height6 *
-          0.66,
-        0,
-        furnitureSoft,
-        {
+      }),
+      box(itemModelNode, [width6 *
+          0.28, height6 *
+          0.12, depth *
+          0.58], [-width6 *
+          0.34, height6 *
+          0.66, 0], furnitureSoft, {
           radius:
             Math.min(
               width6,
@@ -238,23 +188,13 @@ export function buildBath(scope: ItemModelScope): boolean {
             ) *
             0.035,
           roughness: 0.4,
-        },
-      ),
-      addBoxMesh(
-        itemModelNode,
-        width6 *
-          0.28,
-        height6 *
-          0.12,
-        depth *
-          0.58,
-        width6 *
-          0.34,
-        height6 *
-          0.66,
-        0,
-        furnitureSoft,
-        {
+        }),
+      box(itemModelNode, [width6 *
+          0.28, height6 *
+          0.12, depth *
+          0.58], [width6 *
+          0.34, height6 *
+          0.66, 0], furnitureSoft, {
           radius:
             Math.min(
               width6,
@@ -262,8 +202,7 @@ export function buildBath(scope: ItemModelScope): boolean {
             ) *
             0.035,
           roughness: 0.4,
-        },
-      ));
+        }));
     const squattoiletTrapMesh =
       new ns2.Mesh(
         new ns2.CylinderGeometry(
@@ -294,21 +233,12 @@ export function buildBath(scope: ItemModelScope): boolean {
     return true;
   } else if (modelItem.type ===
       "urinal") {
-    addBoxMesh(
-      itemModelNode,
-      width6 *
-        0.78,
-      height6 *
-        0.88,
-      depth *
-        0.72,
-      0,
-      height6 *
-        0.5,
-      -depth *
-        0.06,
-      furnitureLight,
-      {
+    box(itemModelNode, [width6 *
+        0.78, height6 *
+        0.88, depth *
+        0.72], [0, height6 *
+        0.5, -depth *
+        0.06], furnitureLight, {
         radius:
           Math.min(
             width6,
@@ -316,8 +246,7 @@ export function buildBath(scope: ItemModelScope): boolean {
           ) *
           0.16,
         roughness: 0.32,
-      },
-    );
+      });
     const urinalBowlMesh =
       new ns2.Mesh(
         new ns2.SphereGeometry(
@@ -362,24 +291,14 @@ export function buildBath(scope: ItemModelScope): boolean {
       itemModelNode.add(
         urinalBowlMesh,
       ),
-      addCylinderMesh(
-        itemModelNode,
-        0.018,
-        0.018,
-        height6 *
-          0.22,
-        0,
-        height6 *
-          0.95,
-        -depth *
-          0.18,
-        furnitureDark,
-        {
+      cyl(itemModelNode, [0.018, 0.018, height6 *
+          0.22], [0, height6 *
+          0.95, -depth *
+          0.18], furnitureDark, {
           segments: 16,
           metalness: 0.72,
           roughness: 0.22,
-        },
-      ));
+        }));
     return true;
   } else if (modelItem.type ===
       "bathtub") {
@@ -411,18 +330,9 @@ export function buildBath(scope: ItemModelScope): boolean {
           depth *
             0.42,
         );
-    (addBoxMesh(
-      itemModelNode,
-      bathtubInnerWidth,
-      bathtubOuterHeight *
-        0.16,
-      bathtubInnerDepth,
-      0,
-      bathtubOuterHeight *
-        0.14,
-      0,
-      furnitureSoft,
-      {
+    (box(itemModelNode, [bathtubInnerWidth, bathtubOuterHeight *
+        0.16, bathtubInnerDepth], [0, bathtubOuterHeight *
+        0.14, 0], furnitureSoft, {
         radius:
           Math.min(
             width6,
@@ -430,88 +340,47 @@ export function buildBath(scope: ItemModelScope): boolean {
           ) *
           0.16,
         roughness: 0.33,
-      },
-    ),
-      addBoxMesh(
-        itemModelNode,
-        width6,
-        bathtubInnerHeight,
-        bathtubWallThickness,
-        0,
-        bathtubInnerHeight *
-          0.5,
-        -depth *
+      }),
+      box(itemModelNode, [width6, bathtubInnerHeight, bathtubWallThickness], [0, bathtubInnerHeight *
+          0.5, -depth *
           0.5 +
           bathtubWallThickness *
-            0.5,
-        furnitureLight,
-        {
+            0.5], furnitureLight, {
           radius:
             bathtubWallThickness *
             0.5,
           roughness: 0.34,
-        },
-      ),
-      addBoxMesh(
-        itemModelNode,
-        width6,
-        bathtubInnerHeight,
-        bathtubWallThickness,
-        0,
-        bathtubInnerHeight *
-          0.5,
-        depth *
+        }),
+      box(itemModelNode, [width6, bathtubInnerHeight, bathtubWallThickness], [0, bathtubInnerHeight *
+          0.5, depth *
           0.5 -
           bathtubWallThickness *
-            0.5,
-        furnitureLight,
-        {
+            0.5], furnitureLight, {
           radius:
             bathtubWallThickness *
             0.5,
           roughness: 0.34,
-        },
-      ),
-      addBoxMesh(
-        itemModelNode,
-        bathtubWallThickness,
-        bathtubInnerHeight,
-        bathtubInnerDepth,
-        -width6 *
+        }),
+      box(itemModelNode, [bathtubWallThickness, bathtubInnerHeight, bathtubInnerDepth], [-width6 *
           0.5 +
           bathtubWallThickness *
-            0.5,
-        bathtubInnerHeight *
-          0.5,
-        0,
-        furnitureLight,
-        {
+            0.5, bathtubInnerHeight *
+          0.5, 0], furnitureLight, {
           radius:
             bathtubWallThickness *
             0.5,
           roughness: 0.34,
-        },
-      ),
-      addBoxMesh(
-        itemModelNode,
-        bathtubWallThickness,
-        bathtubInnerHeight,
-        bathtubInnerDepth,
-        width6 *
+        }),
+      box(itemModelNode, [bathtubWallThickness, bathtubInnerHeight, bathtubInnerDepth], [width6 *
           0.5 -
           bathtubWallThickness *
-            0.5,
-        bathtubInnerHeight *
-          0.5,
-        0,
-        furnitureLight,
-        {
+            0.5, bathtubInnerHeight *
+          0.5, 0], furnitureLight, {
           radius:
             bathtubWallThickness *
             0.5,
           roughness: 0.34,
-        },
-      ));
+        }));
     const bathtubRimHeight =
         bathtubOuterHeight *
         0.075,
@@ -519,82 +388,42 @@ export function buildBath(scope: ItemModelScope): boolean {
         bathtubInnerHeight +
         bathtubRimHeight *
           0.5;
-    (addBoxMesh(
-      itemModelNode,
-      width6,
-      bathtubRimHeight,
-      bathtubWallThickness,
-      0,
-      bathtubRimY,
-      -depth *
+    (box(itemModelNode, [width6, bathtubRimHeight, bathtubWallThickness], [0, bathtubRimY, -depth *
         0.5 +
         bathtubWallThickness *
-          0.5,
-      furnitureLight,
-      {
+          0.5], furnitureLight, {
         radius:
           bathtubWallThickness *
           0.45,
         roughness: 0.29,
-      },
-    ),
-      addBoxMesh(
-        itemModelNode,
-        width6,
-        bathtubRimHeight,
-        bathtubWallThickness,
-        0,
-        bathtubRimY,
-        depth *
+      }),
+      box(itemModelNode, [width6, bathtubRimHeight, bathtubWallThickness], [0, bathtubRimY, depth *
           0.5 -
           bathtubWallThickness *
-            0.5,
-        furnitureLight,
-        {
+            0.5], furnitureLight, {
           radius:
             bathtubWallThickness *
             0.45,
           roughness: 0.29,
-        },
-      ),
-      addBoxMesh(
-        itemModelNode,
-        bathtubWallThickness,
-        bathtubRimHeight,
-        bathtubInnerDepth,
-        -width6 *
+        }),
+      box(itemModelNode, [bathtubWallThickness, bathtubRimHeight, bathtubInnerDepth], [-width6 *
           0.5 +
           bathtubWallThickness *
-            0.5,
-        bathtubRimY,
-        0,
-        furnitureLight,
-        {
+            0.5, bathtubRimY, 0], furnitureLight, {
           radius:
             bathtubWallThickness *
             0.45,
           roughness: 0.29,
-        },
-      ),
-      addBoxMesh(
-        itemModelNode,
-        bathtubWallThickness,
-        bathtubRimHeight,
-        bathtubInnerDepth,
-        width6 *
+        }),
+      box(itemModelNode, [bathtubWallThickness, bathtubRimHeight, bathtubInnerDepth], [width6 *
           0.5 -
           bathtubWallThickness *
-            0.5,
-        bathtubRimY,
-        0,
-        furnitureLight,
-        {
+            0.5, bathtubRimY, 0], furnitureLight, {
           radius:
             bathtubWallThickness *
             0.45,
           roughness: 0.29,
-        },
-      ));
+        }));
     for (const bathtubFootX of [
       -width6 *
         0.38,
@@ -607,64 +436,34 @@ export function buildBath(scope: ItemModelScope): boolean {
         depth *
           0.3,
       ])
-        addCylinderMesh(
-          itemModelNode,
-          0.026,
-          0.026,
-          height6 *
-            0.16,
-          bathtubFootX,
-          height6 *
-            0.08,
-          bathtubFootZ,
-          yt4.furnitureDark,
-          {
+        cyl(itemModelNode, [0.026, 0.026, height6 *
+            0.16], [bathtubFootX, height6 *
+            0.08, bathtubFootZ], yt4.furnitureDark, {
             segments: 12,
             metalness: 0.42,
             roughness: 0.3,
-          },
-        );
-    (addCylinderMesh(
-      itemModelNode,
-      0.016,
-      0.016,
-      height6 *
-        0.25,
-      width6 *
-        0.34,
-      height6 *
-        0.96,
-      -depth *
-        0.22,
-      furnitureDark,
-      {
+          });
+    (cyl(itemModelNode, [0.016, 0.016, height6 *
+        0.25], [width6 *
+        0.34, height6 *
+        0.96, -depth *
+        0.22], furnitureDark, {
         segments: 16,
         metalness: 0.72,
         roughness: 0.2,
-      },
-    ),
-      addCylinderMesh(
-        itemModelNode,
-        0.016,
-        0.016,
-        depth *
-          0.28,
-        width6 *
-          0.34,
-        height6 *
-          1.08,
-        -depth *
-          0.08,
-        furnitureDark,
-        {
+      }),
+      cyl(itemModelNode, [0.016, 0.016, depth *
+          0.28], [width6 *
+          0.34, height6 *
+          1.08, -depth *
+          0.08], furnitureDark, {
           segments: 16,
           rotationX:
             Math.PI /
             2,
           metalness: 0.72,
           roughness: 0.2,
-        },
-      ));
+        }));
     return true;
   }
   return false;

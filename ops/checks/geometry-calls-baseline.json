@@ -1,0 +1,5454 @@
+{
+  "description": "网格原语调用的参数黄金快照：改写前后必须逐字段一致",
+  "calls": 340,
+  "files": {
+    "homeos/frontend/src/studio/app/3d-studio/authoring/items/item-model/bath.ts": [
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.9",
+          "height6 * 0.095",
+          "depth * 0.2"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.775",
+          "-depth * 0.34"
+        ],
+        "color": "furnitureLight",
+        "options": "{radius: Math.min(width6, depth,) * 0.035, roughness: 0.36,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "0.016",
+          "height6 * 0.38",
+          "0.024"
+        ],
+        "at": [
+          "-width6 * 0.42",
+          "height6 * 0.38",
+          "-depth * 0.18"
+        ],
+        "color": "furnitureDark",
+        "options": "{rounded: false, roughness: 0.46,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.035",
+          "width6 * 0.035",
+          "0.018"
+        ],
+        "at": [
+          "-width6 * 0.46",
+          "height6 * 0.66",
+          "depth * 0.12"
+        ],
+        "color": "furnitureSoft",
+        "options": "{segments: 24, rotationZ: Math.PI / 2, metalness: 0.08, roughness: 0.3,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "height6 * 0.58",
+          "depth"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.29",
+          "0"
+        ],
+        "color": "furnitureLight",
+        "options": "{radius: Math.min(width6, depth,) * 0.08, roughness: 0.38,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.28",
+          "height6 * 0.12",
+          "depth * 0.58"
+        ],
+        "at": [
+          "-width6 * 0.34",
+          "height6 * 0.66",
+          "0"
+        ],
+        "color": "furnitureSoft",
+        "options": "{radius: Math.min(width6, depth,) * 0.035, roughness: 0.4,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.28",
+          "height6 * 0.12",
+          "depth * 0.58"
+        ],
+        "at": [
+          "width6 * 0.34",
+          "height6 * 0.66",
+          "0"
+        ],
+        "color": "furnitureSoft",
+        "options": "{radius: Math.min(width6, depth,) * 0.035, roughness: 0.4,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.78",
+          "height6 * 0.88",
+          "depth * 0.72"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.5",
+          "-depth * 0.06"
+        ],
+        "color": "furnitureLight",
+        "options": "{radius: Math.min(width6, depth,) * 0.16, roughness: 0.32,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "0.018",
+          "0.018",
+          "height6 * 0.22"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.95",
+          "-depth * 0.18"
+        ],
+        "color": "furnitureDark",
+        "options": "{segments: 16, metalness: 0.72, roughness: 0.22,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "bathtubInnerWidth",
+          "bathtubOuterHeight * 0.16",
+          "bathtubInnerDepth"
+        ],
+        "at": [
+          "0",
+          "bathtubOuterHeight * 0.14",
+          "0"
+        ],
+        "color": "furnitureSoft",
+        "options": "{radius: Math.min(width6, depth,) * 0.16, roughness: 0.33,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "bathtubInnerHeight",
+          "bathtubWallThickness"
+        ],
+        "at": [
+          "0",
+          "bathtubInnerHeight * 0.5",
+          "-depth * 0.5 + bathtubWallThickness * 0.5"
+        ],
+        "color": "furnitureLight",
+        "options": "{radius: bathtubWallThickness * 0.5, roughness: 0.34,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "bathtubInnerHeight",
+          "bathtubWallThickness"
+        ],
+        "at": [
+          "0",
+          "bathtubInnerHeight * 0.5",
+          "depth * 0.5 - bathtubWallThickness * 0.5"
+        ],
+        "color": "furnitureLight",
+        "options": "{radius: bathtubWallThickness * 0.5, roughness: 0.34,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "bathtubWallThickness",
+          "bathtubInnerHeight",
+          "bathtubInnerDepth"
+        ],
+        "at": [
+          "-width6 * 0.5 + bathtubWallThickness * 0.5",
+          "bathtubInnerHeight * 0.5",
+          "0"
+        ],
+        "color": "furnitureLight",
+        "options": "{radius: bathtubWallThickness * 0.5, roughness: 0.34,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "bathtubWallThickness",
+          "bathtubInnerHeight",
+          "bathtubInnerDepth"
+        ],
+        "at": [
+          "width6 * 0.5 - bathtubWallThickness * 0.5",
+          "bathtubInnerHeight * 0.5",
+          "0"
+        ],
+        "color": "furnitureLight",
+        "options": "{radius: bathtubWallThickness * 0.5, roughness: 0.34,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "bathtubRimHeight",
+          "bathtubWallThickness"
+        ],
+        "at": [
+          "0",
+          "bathtubRimY",
+          "-depth * 0.5 + bathtubWallThickness * 0.5"
+        ],
+        "color": "furnitureLight",
+        "options": "{radius: bathtubWallThickness * 0.45, roughness: 0.29,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "bathtubRimHeight",
+          "bathtubWallThickness"
+        ],
+        "at": [
+          "0",
+          "bathtubRimY",
+          "depth * 0.5 - bathtubWallThickness * 0.5"
+        ],
+        "color": "furnitureLight",
+        "options": "{radius: bathtubWallThickness * 0.45, roughness: 0.29,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "bathtubWallThickness",
+          "bathtubRimHeight",
+          "bathtubInnerDepth"
+        ],
+        "at": [
+          "-width6 * 0.5 + bathtubWallThickness * 0.5",
+          "bathtubRimY",
+          "0"
+        ],
+        "color": "furnitureLight",
+        "options": "{radius: bathtubWallThickness * 0.45, roughness: 0.29,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "bathtubWallThickness",
+          "bathtubRimHeight",
+          "bathtubInnerDepth"
+        ],
+        "at": [
+          "width6 * 0.5 - bathtubWallThickness * 0.5",
+          "bathtubRimY",
+          "0"
+        ],
+        "color": "furnitureLight",
+        "options": "{radius: bathtubWallThickness * 0.45, roughness: 0.29,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "0.026",
+          "0.026",
+          "height6 * 0.16"
+        ],
+        "at": [
+          "bathtubFootX",
+          "height6 * 0.08",
+          "bathtubFootZ"
+        ],
+        "color": "yt4.furnitureDark",
+        "options": "{segments: 12, metalness: 0.42, roughness: 0.3,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "0.016",
+          "0.016",
+          "height6 * 0.25"
+        ],
+        "at": [
+          "width6 * 0.34",
+          "height6 * 0.96",
+          "-depth * 0.22"
+        ],
+        "color": "furnitureDark",
+        "options": "{segments: 16, metalness: 0.72, roughness: 0.2,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "0.016",
+          "0.016",
+          "depth * 0.28"
+        ],
+        "at": [
+          "width6 * 0.34",
+          "height6 * 1.08",
+          "-depth * 0.08"
+        ],
+        "color": "furnitureDark",
+        "options": "{segments: 16, rotationX: Math.PI / 2, metalness: 0.72, roughness: 0.2,}"
+      }
+    ],
+    "homeos/frontend/src/studio/app/3d-studio/authoring/items/item-model/climate-security.ts": [
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "height6",
+          "depth"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.5",
+          "0"
+        ],
+        "color": "furnitureLight",
+        "options": "{roughness: 0.46,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.9",
+          "height6 * 0.08",
+          "depth * 0.18"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.18",
+          "depth * 0.46"
+        ],
+        "color": "furnitureDark",
+        "options": "{rounded: false, roughness: 0.3,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.12",
+          "height6 * 0.08",
+          "depth * 0.05"
+        ],
+        "at": [
+          "width6 * 0.34",
+          "height6 * 0.68",
+          "depth * 0.51"
+        ],
+        "color": "furnitureSoft",
+        "options": "{rounded: false, emissive: furnitureSoft, emissiveIntensity: 0.18,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.46",
+          "width6 * 0.48",
+          "height6"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.5",
+          "0"
+        ],
+        "color": "furnitureLight",
+        "options": "{segments: 32, roughness: 0.48,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.5",
+          "height6 * 0.42",
+          "0.025"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.68",
+          "depth * 0.48"
+        ],
+        "color": "furnitureDark",
+        "options": "{rounded: false, roughness: 0.3,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.36",
+          "0.012",
+          "0.006"
+        ],
+        "at": [
+          "0",
+          "height6 * flooracVaneRatio",
+          "depth * 0.505"
+        ],
+        "color": "furnitureDark",
+        "options": "{rounded: false, roughness: 0.42,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.82",
+          "0.035",
+          "depth * 0.92"
+        ],
+        "at": [
+          "0",
+          "0.018",
+          "0"
+        ],
+        "color": "furnitureSoft",
+        "options": "{radius: Math.min(width6, depth,) * 0.05, roughness: 0.58,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.68",
+          "height6 * 0.82",
+          "depth * 0.48"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.47",
+          "-depth * 0.23"
+        ],
+        "color": "furnitureLight",
+        "options": "{radius: Math.min(width6, depth,) * 0.12, roughness: 0.48,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.44",
+          "height6 * 0.16",
+          "0.03"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.2",
+          "depth * 0.02"
+        ],
+        "color": "furnitureSoft",
+        "options": "{radius: Math.min(width6, depth,) * 0.04, roughness: 0.42,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.34",
+          "height6 * 0.07",
+          "0.035"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.14",
+          "depth * 0.04"
+        ],
+        "color": "furnitureDark",
+        "options": "{radius: Math.min(width6, depth,) * 0.025, roughness: 0.28,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.31",
+          "width6 * 0.32",
+          "height6 * 0.12"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.07",
+          "depth * 0.2"
+        ],
+        "color": "furnitureLight",
+        "options": "{segments: 32, roughness: 0.42,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.085",
+          "width6 * 0.09",
+          "height6 * 0.055"
+        ],
+        "at": [
+          "-width6 * 0.08",
+          "height6 * 0.16",
+          "depth * 0.15"
+        ],
+        "color": "furnitureSoft",
+        "options": "{segments: 24, roughness: 0.34,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.36",
+          "height6 * 0.045",
+          "0.025"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.08",
+          "depth * 0.52"
+        ],
+        "color": "furnitureDark",
+        "options": "{radius: Math.min(width6, depth,) * 0.025, roughness: 0.24,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "height6 * 0.94",
+          "depth * 0.94"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.53",
+          "-depth * 0.03"
+        ],
+        "color": "applianceSoft",
+        "options": "{radius: Math.min(width6, height6, depth,) * 0.025, roughness: 0.82,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.94",
+          "height6 * 0.84",
+          "depth * 0.04"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.52",
+          "depth * 0.46"
+        ],
+        "color": "applianceDark",
+        "options": "{rounded: false, roughness: 0.82,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.18",
+          "height6 * 0.71",
+          "depth * 0.02"
+        ],
+        "at": [
+          "width6 * nasDriveOffset",
+          "height6 * 0.52",
+          "depth * 0.49"
+        ],
+        "color": "applianceDark",
+        "options": "{rounded: false, roughness: 0.82,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.11",
+          "height6 * 0.035",
+          "depth * 0.01"
+        ],
+        "at": [
+          "width6 * nasDriveOffset",
+          "height6 * 0.38",
+          "depth * 0.495"
+        ],
+        "color": "applianceSoft",
+        "options": "{rounded: false, roughness: 0.82,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.12",
+          "height6 * 0.06",
+          "depth * 0.12"
+        ],
+        "at": [
+          "width6 * nasFootX",
+          "height6 * 0.03",
+          "depth * nasFootZ"
+        ],
+        "color": "applianceDark",
+        "options": "{rounded: false,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.016",
+          "height6 * 0.022",
+          "depth * 0.01"
+        ],
+        "at": [
+          "width6 * 0.44",
+          "height6 * 0.82",
+          "depth * 0.495"
+        ],
+        "color": "8702858",
+        "options": "{rounded: false, emissive: 6798195, emissiveIntensity: 0.5,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "airpurifierBodyRadius * 0.96",
+          "airpurifierBodyRadius",
+          "height6 * 0.92"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.46",
+          "0"
+        ],
+        "color": "furnitureLight",
+        "options": "{segments: 36, roughness: 0.5,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "airpurifierBodyRadius * 0.92",
+          "airpurifierBodyRadius * 0.92",
+          "height6 * 0.055"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.965",
+          "0"
+        ],
+        "color": "furnitureDark",
+        "options": "{segments: 36, metalness: 0.18, roughness: 0.3,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "airpurifierBodyRadius * 0.62",
+          "airpurifierBodyRadius * 0.62",
+          "height6 * 0.012"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.998",
+          "0"
+        ],
+        "color": "furnitureDark",
+        "options": "{segments: 32, metalness: 0.12, roughness: 0.48,}"
+      }
+    ],
+    "homeos/frontend/src/studio/app/3d-studio/authoring/items/item-model/decor.ts": [
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "rugPileThickness",
+          "depth"
+        ],
+        "at": [
+          "0",
+          "rugPileThickness * 0.5",
+          "0"
+        ],
+        "color": "furniture",
+        "options": "{radius: Math.min(width6, depth,) * 0.018, roughness: 1, metalness: 0, castShadow: false, receiveShadow: true,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "height6 * 0.76",
+          "depth"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.42",
+          "0"
+        ],
+        "color": "furniture"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.98",
+          "tvstandTopThickness",
+          "depth"
+        ],
+        "at": [
+          "0",
+          "tvstandTopY + tvstandTopThickness * 0.5",
+          "0"
+        ],
+        "color": "furnitureSoft"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "0.018",
+          "height6 * 0.58",
+          "depth * 1.01"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.43",
+          "depth * 0.01"
+        ],
+        "color": "furnitureDark",
+        "options": "{rounded: false,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.91",
+          "0.015",
+          "depth * 1.01"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.43",
+          "depth * 0.01"
+        ],
+        "color": "furnitureDark",
+        "options": "{rounded: false,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "0.055",
+          "height6 * 0.2",
+          "0.055"
+        ],
+        "at": [
+          "width6 * tvstandFootOffset",
+          "height6 * 0.1",
+          "0"
+        ],
+        "color": "furnitureDark",
+        "options": "{metalness: 0.32,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "floorlampBaseRadius * 0.82",
+          "floorlampBaseRadius",
+          "0.045"
+        ],
+        "at": [
+          "floorlampBaseX",
+          "0.0225",
+          "0"
+        ],
+        "color": "floorLampBody",
+        "options": "{segments: 32, metalness: 0.38, roughness: 0.3,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "floorlampShadeRadius * 0.94",
+          "floorlampShadeRadius * 0.98",
+          "0.025"
+        ],
+        "at": [
+          "floorlampShadeX",
+          "floorlampShadeY",
+          "0"
+        ],
+        "color": "yt4.floorLampBody ? yt4.applianceSoft : furnitureDark",
+        "options": "{segments: 32, metalness: 0.12, roughness: 0.5,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "Math.max(0.018, width6 * 0.014,)",
+          "Math.max(0.022, width6 * 0.018,)",
+          "0.045"
+        ],
+        "at": [
+          "floorlampShadeX",
+          "floorlampShadeTopY + 0.012",
+          "0"
+        ],
+        "color": "floorLampBody",
+        "options": "{segments: 20, metalness: 0.42, roughness: 0.28,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.25",
+          "width6 * 0.21",
+          "height6 * 0.22"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.11",
+          "0"
+        ],
+        "color": "furnitureSoft",
+        "options": "{segments: 24, roughness: 0.82,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.22",
+          "width6 * 0.22",
+          "0.035"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.22",
+          "0"
+        ],
+        "color": "furnitureDark",
+        "options": "{segments: 24, roughness: 0.96,}"
+      }
+    ],
+    "homeos/frontend/src/studio/app/3d-studio/authoring/items/item-model/kitchen.ts": [
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.96",
+          "kitchenToeKickHeight",
+          "depth * 0.8"
+        ],
+        "at": [
+          "0",
+          "kitchenToeKickHeight * 0.5",
+          "-depth * 0.06"
+        ],
+        "color": "furnitureDark",
+        "options": "{rounded: false, roughness: 0.52,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "kitchenBodyHeight",
+          "depth"
+        ],
+        "at": [
+          "0",
+          "kitchenBodyCenterY",
+          "0"
+        ],
+        "color": "furniture",
+        "options": "{rounded: false, roughness: 0.58,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 1.02",
+          "kitchenCounterThickness",
+          "depth * 1.04"
+        ],
+        "at": [
+          "0",
+          "height6 - kitchenCounterThickness * 0.5",
+          "0"
+        ],
+        "color": "furnitureLight",
+        "options": "{rounded: false, roughness: 0.42,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "kitchenDoorWidth * 0.92",
+          "kitchenBodyHeight * 0.9",
+          "0.025"
+        ],
+        "at": [
+          "kitchenDoorX",
+          "kitchenBodyCenterY",
+          "depth * 0.515"
+        ],
+        "color": "furnitureSoft",
+        "options": "{rounded: false, roughness: 0.46,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "kitchenDoorWidth * 0.28",
+          "0.022",
+          "0.03"
+        ],
+        "at": [
+          "kitchenDoorX",
+          "kitchenToeKickHeight + kitchenBodyHeight * 0.83",
+          "depth * 0.535"
+        ],
+        "color": "furnitureDark",
+        "options": "{rounded: false, metalness: 0.28, roughness: 0.3,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.42",
+          "0.025",
+          "depth * 0.52"
+        ],
+        "at": [
+          "0",
+          "height6 + 0.008",
+          "0"
+        ],
+        "color": "furnitureDark",
+        "options": "{rounded: false, metalness: 0.42, roughness: 0.28,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.34",
+          "0.02",
+          "depth * 0.4"
+        ],
+        "at": [
+          "0",
+          "height6 + 0.022",
+          "0"
+        ],
+        "color": "furnitureSoft",
+        "options": "{rounded: false, metalness: 0.18, roughness: 0.34,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "0.018",
+          "0.018",
+          "height6 * 0.22"
+        ],
+        "at": [
+          "width6 * 0.22",
+          "height6 + height6 * 0.11",
+          "-depth * 0.17"
+        ],
+        "color": "furnitureDark",
+        "options": "{segments: 20, metalness: 0.65, roughness: 0.2,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.16",
+          "0.035",
+          "0.035"
+        ],
+        "at": [
+          "width6 * 0.14",
+          "height6 + height6 * 0.2",
+          "-depth * 0.17"
+        ],
+        "color": "furnitureDark",
+        "options": "{rounded: false, metalness: 0.65, roughness: 0.2,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.48",
+          "0.025",
+          "depth * 0.55"
+        ],
+        "at": [
+          "0",
+          "height6 + 0.008",
+          "0"
+        ],
+        "color": "furnitureDark",
+        "options": "{rounded: false, metalness: 0.32, roughness: 0.25,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.06",
+          "width6 * 0.06",
+          "0.018"
+        ],
+        "at": [
+          "kitchenBurnerX",
+          "height6 + 0.028",
+          "kitchenBurnerZ"
+        ],
+        "color": "furnitureSoft",
+        "options": "{segments: 28, metalness: 0.42, roughness: 0.26,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.025",
+          "width6 * 0.025",
+          "0.025"
+        ],
+        "at": [
+          "kitchenBurnerX",
+          "height6 + 0.045",
+          "kitchenBurnerZ"
+        ],
+        "color": "furnitureDark",
+        "options": "{segments: 24, metalness: 0.5, roughness: 0.22,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "height6",
+          "depth"
+        ],
+        "at": [
+          "0",
+          "height6 / 2",
+          "0"
+        ],
+        "color": "furnitureLight",
+        "options": "{metalness: 0.18, roughness: 0.5,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.96",
+          "height6 * 0.96",
+          "fridgeDoorThickness"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.5",
+          "fridgeDoorZ"
+        ],
+        "color": "furnitureDark",
+        "options": "{rounded: false, roughness: 0.65,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.466",
+          "height6 * 0.945",
+          "fridgeDoorThickness"
+        ],
+        "at": [
+          "fridgeDoorSide * width6 * 0.239",
+          "height6 * 0.5",
+          "fridgeDoorZ + fridgeDoorThickness * 0.65"
+        ],
+        "color": "furnitureLight",
+        "options": "{metalness: 0.22, roughness: 0.42,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "Math.min(0.018, width6 * 0.024)",
+          "height6 * 0.3",
+          "0.028"
+        ],
+        "at": [
+          "fridgeDoorSide * width6 * 0.055",
+          "height6 * 0.56",
+          "fridgeDoorZ + fridgeDoorThickness * 1.3"
+        ],
+        "color": "furnitureDark",
+        "options": "{metalness: 0.65, roughness: 0.3,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.88",
+          "0.018",
+          "depth * 1.01"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.42",
+          "depth * 0.01"
+        ],
+        "color": "furnitureDark",
+        "options": "{metalness: 0.5,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "0.025",
+          "height6 * 0.27",
+          "0.035"
+        ],
+        "at": [
+          "width6 * 0.35",
+          "height6 * 0.65",
+          "depth * 0.515"
+        ],
+        "color": "furnitureDark",
+        "options": "{metalness: 0.7,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.78",
+          "height6 * 0.12",
+          "depth * 0.22"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.1",
+          "-depth * 0.36"
+        ],
+        "color": "furnitureDark",
+        "options": "{rounded: false, metalness: 0.55, roughness: 0.3,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "waterheaterTankRadius",
+          "waterheaterTankRadius",
+          "width6 * 0.82"
+        ],
+        "at": [
+          "0",
+          "waterheaterTankY",
+          "0"
+        ],
+        "color": "furnitureLight",
+        "options": "{segments: 36, rotationZ: Math.PI / 2, metalness: 0.2, roughness: 0.42,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "waterheaterTankRadius * 1.03",
+          "waterheaterTankRadius * 1.03",
+          "0.025"
+        ],
+        "at": [
+          "waterheaterPipeX",
+          "waterheaterTankY",
+          "0"
+        ],
+        "color": "furnitureSoft",
+        "options": "{segments: 36, rotationZ: Math.PI / 2, metalness: 0.28, roughness: 0.34,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.31",
+          "height6 * 0.23",
+          "0.026"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.51",
+          "depth * 0.44"
+        ],
+        "color": "furnitureDark",
+        "options": "{rounded: false, metalness: 0.18, roughness: 0.25,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.16",
+          "height6 * 0.045",
+          "0.018"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.58",
+          "depth * 0.46"
+        ],
+        "color": "7706534",
+        "options": "{rounded: false, emissive: 7706534, emissiveIntensity: 0.18, roughness: 0.2,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "0.022",
+          "0.022",
+          "height6 * 0.16"
+        ],
+        "at": [
+          "waterheaterLegX",
+          "height6 * 0.08",
+          "depth * 0.12"
+        ],
+        "color": "waterheaterLegX < 0 ? 4885698 : 12868184",
+        "options": "{segments: 18, metalness: 0.55, roughness: 0.24,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "0.04",
+          "0.04",
+          "0.028"
+        ],
+        "at": [
+          "waterheaterLegX",
+          "0.015",
+          "depth * 0.12"
+        ],
+        "color": "furnitureDark",
+        "options": "{segments: 20, metalness: 0.45, roughness: 0.28,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "gasheaterBodyHeight",
+          "depth"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.47",
+          "0"
+        ],
+        "color": "furnitureLight",
+        "options": "{rounded: false, metalness: 0.12, roughness: 0.46,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.86",
+          "gasheaterBodyHeight * 0.42",
+          "0.026"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.55",
+          "depth * 0.515"
+        ],
+        "color": "furnitureSoft",
+        "options": "{rounded: false, roughness: 0.36,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.44",
+          "gasheaterBodyHeight * 0.18",
+          "0.018"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.67",
+          "depth * 0.54"
+        ],
+        "color": "furnitureDark",
+        "options": "{rounded: false, metalness: 0.14, roughness: 0.22,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.62",
+          "0.012",
+          "0.02"
+        ],
+        "at": [
+          "0",
+          "height6 * (0.24 + gasheaterGrilleIndex * 0.07)",
+          "depth * 0.525"
+        ],
+        "color": "furnitureDark",
+        "options": "{rounded: false, roughness: 0.3,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "depth * 0.17",
+          "depth * 0.17",
+          "height6 * 0.18"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.91",
+          "0"
+        ],
+        "color": "furnitureDark",
+        "options": "{segments: 24, metalness: 0.58, roughness: 0.24,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "depth * 0.22",
+          "depth * 0.22",
+          "0.035"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.84",
+          "0"
+        ],
+        "color": "furnitureSoft",
+        "options": "{segments: 24, metalness: 0.5, roughness: 0.25,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "0.018",
+          "0.018",
+          "height6 * 0.18"
+        ],
+        "at": [
+          "gasheaterKnobX",
+          "height6 * 0.09",
+          "depth * 0.12"
+        ],
+        "color": "gasheaterKnobColor",
+        "options": "{segments: 18, metalness: 0.62, roughness: 0.22,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "0.034",
+          "0.034",
+          "0.025"
+        ],
+        "at": [
+          "gasheaterKnobX",
+          "0.014",
+          "depth * 0.12"
+        ],
+        "color": "furnitureDark",
+        "options": "{segments: 18, metalness: 0.5, roughness: 0.25,}"
+      }
+    ],
+    "homeos/frontend/src/studio/app/3d-studio/authoring/items/item-model/laundry.ts": [
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "height6",
+          "depth"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.5",
+          "0"
+        ],
+        "color": "furnitureLight",
+        "options": "{rounded: false, metalness: 0.1, roughness: 0.48,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.92",
+          "height6 * 0.18",
+          "0.035"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.86",
+          "depth * 0.505"
+        ],
+        "color": "furnitureSoft",
+        "options": "{rounded: false, roughness: 0.4,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "washerDrumRadius",
+          "washerDrumRadius",
+          "0.045"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.47",
+          "depth * 0.515"
+        ],
+        "color": "furnitureDark",
+        "options": "{segments: 40, rotationX: Math.PI / 2, metalness: 0.32, roughness: 0.28,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "washerDrumRadius * 0.74",
+          "washerDrumRadius * 0.74",
+          "0.03"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.47",
+          "depth * 0.545"
+        ],
+        "color": "isDryer ? 2502715 : 3622485",
+        "options": "{segments: 40, rotationX: Math.PI / 2, metalness: 0.08, roughness: 0.22,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.055",
+          "width6 * 0.055",
+          "0.035"
+        ],
+        "at": [
+          "width6 * 0.27",
+          "height6 * 0.86",
+          "depth * 0.535"
+        ],
+        "color": "furnitureDark",
+        "options": "{segments: 24, rotationX: Math.PI / 2, metalness: 0.4, roughness: 0.25,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.25",
+          "height6 * 0.035",
+          "0.026"
+        ],
+        "at": [
+          "-width6 * 0.23",
+          "height6 * 0.86",
+          "depth * 0.535"
+        ],
+        "color": "furnitureDark",
+        "options": "{rounded: false, roughness: 0.3,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.2",
+          "height6 * 0.055",
+          "0.025"
+        ],
+        "at": [
+          "-width6 * 0.3",
+          "height6 * 0.12",
+          "depth * 0.525"
+        ],
+        "color": "furnitureSoft",
+        "options": "{rounded: false, roughness: 0.42,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "height6",
+          "depth"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.5",
+          "0"
+        ],
+        "color": "furnitureLight",
+        "options": "{rounded: false, metalness: 0.12, roughness: 0.48,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.93",
+          "height6 * 0.74",
+          "0.028"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.46",
+          "depth * 0.515"
+        ],
+        "color": "furnitureSoft",
+        "options": "{rounded: false, metalness: 0.08, roughness: 0.44,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.93",
+          "height6 * 0.14",
+          "0.032"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.87",
+          "depth * 0.52"
+        ],
+        "color": "furnitureDark",
+        "options": "{rounded: false, metalness: 0.18, roughness: 0.3,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.58",
+          "height6 * 0.026",
+          "0.034"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.78",
+          "depth * 0.54"
+        ],
+        "color": "furnitureDark",
+        "options": "{rounded: false, metalness: 0.5, roughness: 0.22,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.9",
+          "height6 * 0.075",
+          "depth * 0.78"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.038",
+          "-depth * 0.04"
+        ],
+        "color": "furnitureDark",
+        "options": "{rounded: false, roughness: 0.4,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.018",
+          "width6 * 0.018",
+          "0.012"
+        ],
+        "at": [
+          "width6 * dishwasherKnobRatio",
+          "height6 * 0.88",
+          "depth * 0.545"
+        ],
+        "color": "furnitureSoft",
+        "options": "{segments: 18, rotationX: Math.PI / 2, metalness: 0.26, roughness: 0.24,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "height6",
+          "depth"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.5",
+          "0"
+        ],
+        "color": "furnitureLight",
+        "options": "{rounded: false, metalness: 0.16, roughness: 0.42,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.94",
+          "height6 * 0.9",
+          "0.026"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.5",
+          "depth * 0.515"
+        ],
+        "color": "furnitureDark",
+        "options": "{rounded: false, metalness: 0.18, roughness: 0.25,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.78",
+          "height6 * 0.56",
+          "0.018"
+        ],
+        "at": [
+          "-width6 * 0.03",
+          "height6 * 0.42",
+          "depth * 0.54"
+        ],
+        "color": "1515819",
+        "options": "{rounded: false, metalness: 0.12, roughness: 0.18,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.72",
+          "height6 * 0.035",
+          "0.038"
+        ],
+        "at": [
+          "-width6 * 0.03",
+          "height6 * 0.74",
+          "depth * 0.56"
+        ],
+        "color": "furnitureSoft",
+        "options": "{rounded: false, metalness: 0.52, roughness: 0.22,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.24",
+          "height6 * 0.075",
+          "0.022"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.86",
+          "depth * 0.545"
+        ],
+        "color": "7706534",
+        "options": "{rounded: false, emissive: 7706534, emissiveIntensity: 0.18, roughness: 0.2,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.045",
+          "width6 * 0.045",
+          "0.026"
+        ],
+        "at": [
+          "width6 * steamovenHandleRatio",
+          "height6 * 0.86",
+          "depth * 0.55"
+        ],
+        "color": "furnitureSoft",
+        "options": "{segments: 24, rotationX: Math.PI / 2, metalness: 0.4, roughness: 0.24,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "height6",
+          "depth"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.5",
+          "0"
+        ],
+        "color": "furnitureLight",
+        "options": "{rounded: false, metalness: 0.12, roughness: 0.44,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.93",
+          "height6 * 0.82",
+          "0.025"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.49",
+          "depth * 0.515"
+        ],
+        "color": "furnitureDark",
+        "options": "{rounded: false, metalness: 0.16, roughness: 0.24,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.62",
+          "height6 * 0.63",
+          "0.018"
+        ],
+        "at": [
+          "-width6 * 0.13",
+          "height6 * 0.48",
+          "depth * 0.54"
+        ],
+        "color": "1515819",
+        "options": "{rounded: false, metalness: 0.12, roughness: 0.18,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.035",
+          "height6 * 0.54",
+          "0.03"
+        ],
+        "at": [
+          "width6 * 0.19",
+          "height6 * 0.48",
+          "depth * 0.55"
+        ],
+        "color": "furnitureSoft",
+        "options": "{rounded: false, metalness: 0.46, roughness: 0.22,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.17",
+          "height6 * 0.1",
+          "0.02"
+        ],
+        "at": [
+          "width6 * 0.36",
+          "height6 * 0.72",
+          "depth * 0.54"
+        ],
+        "color": "7706534",
+        "options": "{rounded: false, emissive: 7706534, emissiveIntensity: 0.16, roughness: 0.2,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.13",
+          "height6 * 0.055",
+          "0.018"
+        ],
+        "at": [
+          "width6 * 0.36",
+          "height6 * microwaveKnobRatio",
+          "depth * 0.545"
+        ],
+        "color": "furnitureSoft",
+        "options": "{rounded: false, roughness: 0.3,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "ricecookerPotRadius * 0.9",
+          "ricecookerPotRadius",
+          "height6 * 0.68"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.38",
+          "0"
+        ],
+        "color": "furnitureLight",
+        "options": "{segments: 36, roughness: 0.46,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "ricecookerPotRadius * 0.94",
+          "ricecookerPotRadius * 0.94",
+          "height6 * 0.12"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.77",
+          "0"
+        ],
+        "color": "furnitureSoft",
+        "options": "{segments: 36, roughness: 0.38,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "ricecookerPotRadius * 0.72",
+          "ricecookerPotRadius * 0.74",
+          "height6 * 0.035"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.85",
+          "0"
+        ],
+        "color": "furnitureDark",
+        "options": "{segments: 32, metalness: 0.12, roughness: 0.28,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.5",
+          "height6 * 0.16",
+          "0.026"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.42",
+          "depth * 0.47"
+        ],
+        "color": "furnitureDark",
+        "options": "{radius: Math.min(width6, depth,) * 0.04, roughness: 0.28,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.24",
+          "height6 * 0.06",
+          "0.018"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.43",
+          "depth * 0.49"
+        ],
+        "color": "7706534",
+        "options": "{rounded: false, emissive: 7706534, emissiveIntensity: 0.16, roughness: 0.2,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.05",
+          "height6 * 0.16",
+          "depth * 0.1"
+        ],
+        "at": [
+          "-width6 * 0.27",
+          "height6 * 0.86",
+          "0"
+        ],
+        "color": "furnitureDark",
+        "options": "{roughness: 0.3,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.05",
+          "height6 * 0.16",
+          "depth * 0.1"
+        ],
+        "at": [
+          "width6 * 0.27",
+          "height6 * 0.86",
+          "0"
+        ],
+        "color": "furnitureDark",
+        "options": "{roughness: 0.3,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.58",
+          "height6 * 0.055",
+          "depth * 0.1"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.94",
+          "0"
+        ],
+        "color": "furnitureDark",
+        "options": "{roughness: 0.3,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.34",
+          "height6 * 0.72",
+          "depth * 0.42"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.6",
+          "-depth * 0.18"
+        ],
+        "color": "furniture",
+        "options": "{rounded: false, metalness: 0.22, roughness: 0.42,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "height6 * 0.22",
+          "depth"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.18",
+          "0"
+        ],
+        "color": "furnitureLight",
+        "options": "{rounded: false, metalness: 0.2, roughness: 0.4,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.9",
+          "height6 * 0.07",
+          "depth * 0.8"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.055",
+          "depth * 0.02"
+        ],
+        "color": "furnitureDark",
+        "options": "{rounded: false, metalness: 0.35, roughness: 0.28,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.22",
+          "height6 * 0.035",
+          "0.025"
+        ],
+        "at": [
+          "width6 * 0.3",
+          "height6 * 0.2",
+          "depth * 0.515"
+        ],
+        "color": "furnitureSoft",
+        "options": "{rounded: false, emissive: furnitureSoft, emissiveIntensity: 0.12, roughness: 0.3,}"
+      }
+    ],
+    "homeos/frontend/src/studio/app/3d-studio/authoring/items/item-model/lighting-glass.ts": [
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.68",
+          "height6 * 0.5",
+          "0.035"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.52",
+          "walllampMountZ"
+        ],
+        "color": "yt4.furniture",
+        "options": "{radius: 0.02, metalness: 0.18, roughness: 0.46,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.11",
+          "width6 * 0.11",
+          "0.035"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.57",
+          "walllampMountZ - 0.012"
+        ],
+        "color": "yt4.furnitureSoft",
+        "options": "{segments: 24, rotationX: Math.PI / 2, metalness: 0.3, roughness: 0.34,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "0.04",
+          "height6 * 0.2",
+          "depth * 0.28"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.57",
+          "-depth * 0.3"
+        ],
+        "color": "yt4.furniture",
+        "options": "{...walllampBracketOptions, metalness: 0.18, roughness: 0.46,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.15",
+          "width6 * 0.15",
+          "0.025"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.19",
+          "-depth * 0.16"
+        ],
+        "color": "16769707",
+        "options": "{segments: 24, emissive: 16760156, emissiveIntensity: 0.38, roughness: 0.24,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "glasspartitionGlassWidth",
+          "glasspartitionGlassHeight",
+          "Math.max(depth * 0.24, 0.012,)"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.5",
+          "0"
+        ],
+        "color": "yt4.glass",
+        "options": "{rounded: false, transparent: true, opacity: 0.24, depthWrite: false, side: ns2.DoubleSide, metalness: 0.04, roughness: 0.08, castShadow: false, receiveShadow: false, renderOrder: 6,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "glasspartitionFrameWidth",
+          "glasspartitionFrameDepth"
+        ],
+        "at": [
+          "0",
+          "glasspartitionFrameWidth * 0.5",
+          "0"
+        ],
+        "color": "yt4.frame",
+        "options": "glasspartitionFrameOptions"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "glasspartitionFrameWidth",
+          "glasspartitionFrameDepth"
+        ],
+        "at": [
+          "0",
+          "height6 - glasspartitionFrameWidth * 0.5",
+          "0"
+        ],
+        "color": "yt4.frame",
+        "options": "glasspartitionFrameOptions"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "glasspartitionFrameWidth",
+          "height6",
+          "glasspartitionFrameDepth"
+        ],
+        "at": [
+          "-width6 * 0.5 + glasspartitionFrameWidth * 0.5",
+          "height6 * 0.5",
+          "0"
+        ],
+        "color": "yt4.frame",
+        "options": "glasspartitionFrameOptions"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "glasspartitionFrameWidth",
+          "height6",
+          "glasspartitionFrameDepth"
+        ],
+        "at": [
+          "width6 * 0.5 - glasspartitionFrameWidth * 0.5",
+          "height6 * 0.5",
+          "0"
+        ],
+        "color": "yt4.frame",
+        "options": "glasspartitionFrameOptions"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "glasspartitionFrameWidth * 1.7",
+          "glasspartitionFrameWidth * 2.2",
+          "glasspartitionFrameDepth * 1.18"
+        ],
+        "at": [
+          "glasspartitionHingeX",
+          "glasspartitionFrameWidth * 1.3",
+          "0"
+        ],
+        "color": "furnitureSoft",
+        "options": "glasspartitionFrameOptions"
+      }
+    ],
+    "homeos/frontend/src/studio/app/3d-studio/authoring/items/item-model/living.ts": [
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.92",
+          "height6 * 0.28",
+          "depth * 0.72"
+        ],
+        "at": [
+          "0",
+          "handlePositionY(height6 * 0.28)",
+          "depth * 0.06"
+        ],
+        "color": "furniture"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.92",
+          "height6 * 0.55",
+          "depth * 0.18"
+        ],
+        "at": [
+          "0",
+          "handlePositionY(height6 * 0.56)",
+          "-depth * 0.35"
+        ],
+        "color": "furniture"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.1",
+          "height6 * 0.48",
+          "depth * 0.75"
+        ],
+        "at": [
+          "-width6 * 0.46",
+          "handlePositionY(height6 * 0.39)",
+          "depth * 0.03"
+        ],
+        "color": "furniture"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.1",
+          "height6 * 0.48",
+          "depth * 0.75"
+        ],
+        "at": [
+          "width6 * 0.46",
+          "handlePositionY(height6 * 0.39)",
+          "depth * 0.03"
+        ],
+        "color": "furniture"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.42",
+          "height6 * 0.12",
+          "depth * 0.55"
+        ],
+        "at": [
+          "-width6 * 0.22",
+          "handlePositionY(height6 * 0.47)",
+          "depth * 0.07"
+        ],
+        "color": "furnitureSoft"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.42",
+          "height6 * 0.12",
+          "depth * 0.55"
+        ],
+        "at": [
+          "width6 * 0.22",
+          "handlePositionY(height6 * 0.47)",
+          "depth * 0.07"
+        ],
+        "color": "furnitureSoft"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.996",
+          "height6 * 0.3",
+          "depth * 0.996"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.15",
+          "0"
+        ],
+        "color": "furnitureDark"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.96",
+          "height6 * 0.32",
+          "depth * 0.92"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.43",
+          "depth * 0.03"
+        ],
+        "color": "furnitureSoft"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "height6 * 0.95",
+          "depth * 0.09"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.48",
+          "-depth * 0.455"
+        ],
+        "color": "furniture"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.38",
+          "height6 * 0.14",
+          "depth * 0.22"
+        ],
+        "at": [
+          "-width6 * 0.23",
+          "height6 * 0.66",
+          "-depth * 0.29"
+        ],
+        "color": "furnitureLight"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.38",
+          "height6 * 0.14",
+          "depth * 0.22"
+        ],
+        "at": [
+          "width6 * 0.23",
+          "height6 * 0.66",
+          "-depth * 0.29"
+        ],
+        "color": "furnitureLight"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "height6 * 0.78",
+          "depth"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.49",
+          "0"
+        ],
+        "color": "furniture"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 1.04",
+          "height6 * 0.07",
+          "depth * 1.05"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.91",
+          "0"
+        ],
+        "color": "furnitureSoft",
+        "options": "{roughness: 0.5,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.9",
+          "0.014",
+          "depth * 1.01"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.63",
+          "depth * 0.01"
+        ],
+        "color": "furnitureDark",
+        "options": "{rounded: false,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.9",
+          "0.014",
+          "depth * 1.01"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.38",
+          "depth * 0.01"
+        ],
+        "color": "furnitureDark",
+        "options": "{rounded: false,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.22",
+          "0.022",
+          "0.032"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.5",
+          "depth * 0.52"
+        ],
+        "color": "furnitureLight",
+        "options": "{metalness: 0.5,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "0.035",
+          "height6 * 0.2",
+          "0.035"
+        ],
+        "at": [
+          "width6 * drawerOffsetX",
+          "height6 * 0.1",
+          "depth * drawerOffsetZ"
+        ],
+        "color": "furnitureDark",
+        "options": "{metalness: 0.18,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "topPanelWidth",
+          "height6 * 0.1",
+          "topPanelDepth"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.93",
+          "0"
+        ],
+        "color": "furniture"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "0.07",
+          "height6 * 0.9",
+          "0.07"
+        ],
+        "at": [
+          "topPanelWidth * knobOffsetX",
+          "height6 * 0.45",
+          "topPanelDepth * knobOffsetZ"
+        ],
+        "color": "furnitureDark"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "sinkRadius",
+          "sinkRadius",
+          "sinkDepth"
+        ],
+        "at": [
+          "0",
+          "sinkTopY",
+          "0"
+        ],
+        "color": "furnitureLight",
+        "options": "{segments: 48, roughness: 0.5, metalness: 0.08,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "Math.min(width6, depth) * 0.22",
+          "Math.min(width6, depth) * 0.3",
+          "height6 * 0.68"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.43",
+          "0"
+        ],
+        "color": "furniture",
+        "options": "{segments: 36, roughness: 0.55, metalness: 0.06,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "Math.min(width6, depth) * 0.34",
+          "Math.min(width6, depth) * 0.34",
+          "height6 * 0.07"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.045",
+          "0"
+        ],
+        "color": "furnitureDark",
+        "options": "{segments: 40, roughness: 0.42, metalness: 0.12,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "sinkRadius * 0.58",
+          "sinkRadius * 0.58",
+          "Math.max(height6 * 0.035, 0.025)"
+        ],
+        "at": [
+          "0",
+          "sinkTopY + sinkDepth * 0.58",
+          "0"
+        ],
+        "color": "furnitureSoft",
+        "options": "{segments: 48, roughness: 0.48, metalness: 0.08,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "sinkRadius * 0.44",
+          "sinkRadius * 0.44",
+          "0.018"
+        ],
+        "at": [
+          "0",
+          "sinkTopY + sinkDepth * 0.58 + 0.036",
+          "0"
+        ],
+        "color": "furnitureDark",
+        "options": "{segments: 48, roughness: 0.32, metalness: 0.12,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "height6 * 0.12",
+          "depth"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.94",
+          "0"
+        ],
+        "color": "furnitureSoft",
+        "options": "{roughness: 0.5,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.92",
+          "height6 * 0.78",
+          "depth * 0.46"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.45",
+          "-depth * 0.18"
+        ],
+        "color": "furniture",
+        "options": "{roughness: 0.65,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.86",
+          "height6 * 0.48",
+          "0.035"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.42",
+          "depth * 0.28"
+        ],
+        "color": "furnitureDark",
+        "options": "{rounded: false, roughness: 0.48,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "depth * 0.14",
+          "depth * 0.14",
+          "0.045"
+        ],
+        "at": [
+          "width6 * burnerOffsetX",
+          "height6 * 0.66",
+          "depth * 0.52"
+        ],
+        "color": "furnitureSoft",
+        "options": "{segments: 28, roughness: 0.52,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "0.025",
+          "0.025",
+          "height6 * 0.62"
+        ],
+        "at": [
+          "width6 * burnerOffsetX",
+          "height6 * 0.34",
+          "depth * 0.52"
+        ],
+        "color": "furnitureDark",
+        "options": "{segments: 18, metalness: 0.38, roughness: 0.28,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "depth * 0.1",
+          "depth * 0.12",
+          "0.035"
+        ],
+        "at": [
+          "width6 * burnerOffsetX",
+          "0.018",
+          "depth * 0.52"
+        ],
+        "color": "furnitureDark",
+        "options": "{segments: 24, metalness: 0.3, roughness: 0.34,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "baseCabinetHeight",
+          "depth"
+        ],
+        "at": [
+          "0",
+          "baseCabinetHeight * 0.5",
+          "0"
+        ],
+        "color": "furniture",
+        "options": "{rounded: false, roughness: 0.56,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "0.035",
+          "depth"
+        ],
+        "at": [
+          "0",
+          "baseCabinetHeight",
+          "0"
+        ],
+        "color": "yt4.frame",
+        "options": "{rounded: false, metalness: 0.34, roughness: 0.3,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 - cabinetFrameSize * 2",
+          "upperCabinetHeight",
+          "cabinetFrameSize"
+        ],
+        "at": [
+          "0",
+          "baseCabinetTopY + upperCabinetHeight * 0.5",
+          "-depth * 0.5 + cabinetFrameSize * 0.5"
+        ],
+        "color": "yt4.glass",
+        "options": "cabinetOptions"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 - cabinetFrameSize * 2",
+          "upperCabinetHeight",
+          "cabinetFrameSize"
+        ],
+        "at": [
+          "0",
+          "baseCabinetTopY + upperCabinetHeight * 0.5",
+          "depth * 0.5 - cabinetFrameSize * 0.5"
+        ],
+        "color": "yt4.glass",
+        "options": "cabinetOptions"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "cabinetFrameSize",
+          "upperCabinetHeight",
+          "depth - cabinetFrameSize * 2"
+        ],
+        "at": [
+          "-width6 * 0.5 + cabinetFrameSize * 0.5",
+          "baseCabinetTopY + upperCabinetHeight * 0.5",
+          "0"
+        ],
+        "color": "yt4.glass",
+        "options": "cabinetOptions"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "cabinetFrameSize",
+          "upperCabinetHeight",
+          "depth - cabinetFrameSize * 2"
+        ],
+        "at": [
+          "width6 * 0.5 - cabinetFrameSize * 0.5",
+          "baseCabinetTopY + upperCabinetHeight * 0.5",
+          "0"
+        ],
+        "color": "yt4.glass",
+        "options": "cabinetOptions"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "handleKnobRadius * 0.3",
+          "handleKnobRadius * 0.5",
+          "knobBaseY"
+        ],
+        "at": [
+          "knobX",
+          "knobBaseY * 0.5",
+          "knobZ"
+        ],
+        "color": "furniture",
+        "options": "{segments: 40, roughness: 0.82,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "handleKnobRadius * 1.02",
+          "handleKnobRadius * 1.02",
+          "knobBarDiameter"
+        ],
+        "at": [
+          "knobX",
+          "knobBarCenterY",
+          "knobZ"
+        ],
+        "color": "furnitureDark",
+        "options": "{segments: 48, roughness: 0.72,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "handleKnobRadius",
+          "handleKnobRadius",
+          "knobCapDiameter"
+        ],
+        "at": [
+          "knobX",
+          "knobCapCenterY",
+          "knobZ"
+        ],
+        "color": "furnitureLight",
+        "options": "{segments: 48, roughness: 0.9,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "handleSmallKnobRadius * 0.32",
+          "handleSmallKnobRadius * 0.52",
+          "smallKnobBaseY"
+        ],
+        "at": [
+          "smallKnobX",
+          "smallKnobBaseY * 0.5",
+          "smallKnobZ"
+        ],
+        "color": "furnitureSoft",
+        "options": "{segments: 40, roughness: 0.82,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "handleSmallKnobRadius * 1.02",
+          "handleSmallKnobRadius * 1.02",
+          "smallKnobBarDiameter"
+        ],
+        "at": [
+          "smallKnobX",
+          "smallKnobBarCenterY",
+          "smallKnobZ"
+        ],
+        "color": "furnitureDark",
+        "options": "{segments: 48, roughness: 0.72,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "handleSmallKnobRadius",
+          "handleSmallKnobRadius",
+          "smallKnobCapDiameter"
+        ],
+        "at": [
+          "smallKnobX",
+          "smallKnobCapCenterY",
+          "smallKnobZ"
+        ],
+        "color": "furnitureLight",
+        "options": "{segments: 48, roughness: 0.9,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.98",
+          "drawerGapHeight",
+          "depth * 1.03"
+        ],
+        "at": [
+          "0",
+          "drawerTopOffset + drawerPanelHeight + drawerGapHeight * 0.5",
+          "0"
+        ],
+        "color": "drawerHandleColor",
+        "options": "{radius: Math.min(width6, depth) * 0.035, roughness: 0.5, metalness: 0.02,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "drawerSideWidth",
+          "drawerPanelHeight",
+          "depth * 0.92"
+        ],
+        "at": [
+          "-width6 * 0.5 + drawerSideWidth * 0.5",
+          "drawerTopOffset + drawerPanelHeight * 0.5",
+          "0"
+        ],
+        "color": "drawerFrontColor",
+        "options": "{rounded: false, roughness: 0.6,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "drawerSideWidth",
+          "drawerPanelHeight",
+          "depth * 0.92"
+        ],
+        "at": [
+          "width6 * 0.5 - drawerSideWidth * 0.5",
+          "drawerTopOffset + drawerPanelHeight * 0.5",
+          "0"
+        ],
+        "color": "drawerFrontColor",
+        "options": "{rounded: false, roughness: 0.6,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.86",
+          "drawerPanelHeight * 0.9",
+          "0.035"
+        ],
+        "at": [
+          "0",
+          "drawerTopOffset + drawerPanelHeight * 0.52",
+          "-depth * 0.45"
+        ],
+        "color": "drawerFrontColor",
+        "options": "{rounded: false, roughness: 0.75,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.86",
+          "drawerPanelHeight * 0.1",
+          "depth * 0.9"
+        ],
+        "at": [
+          "0",
+          "drawerTopOffset + drawerPanelHeight * 0.08",
+          "0"
+        ],
+        "color": "drawerFrontColor",
+        "options": "{rounded: false, roughness: 0.58,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "drawerHandleWidth",
+          "drawerFrontPanelHeight",
+          "drawerFrontDepth"
+        ],
+        "at": [
+          "drawerHandleX",
+          "drawerFrontPanelY",
+          "depth * 0.48"
+        ],
+        "color": "drawerHandleColor",
+        "options": "{radius: Math.min(width6, depth) * 0.025, roughness: 0.52,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "0.022",
+          "drawerFrontPanelHeight * 0.2",
+          "0.025"
+        ],
+        "at": [
+          "handleBarY",
+          "drawerFrontPanelY",
+          "depth * 0.505"
+        ],
+        "color": "furnitureDark",
+        "options": "{radius: 0.009, metalness: 0.22, roughness: 0.3,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "legRadius",
+          "drawerFrontHeight",
+          "legRadius"
+        ],
+        "at": [
+          "legOffsetX",
+          "drawerFrontHeight * 0.5",
+          "legOffsetZ"
+        ],
+        "color": "furnitureDark",
+        "options": "{radius: legRadius * 0.22, roughness: 0.55, metalness: 0.02,}"
+      }
+    ],
+    "homeos/frontend/src/studio/app/3d-studio/authoring/items/item-model/media-bath.ts": [
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "tvBaseWidth",
+          "tvBaseThickness",
+          "tvBaseDepth"
+        ],
+        "at": [
+          "0",
+          "tvBaseThickness * 0.72",
+          "0"
+        ],
+        "color": "furnitureDark",
+        "options": "{radius: Math.min(tvBaseThickness, tvBaseDepth,) * 0.22, metalness: 0.18, roughness: 0.32,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.075",
+          "tvNeckHeight",
+          "Math.max(depth * 0.2, 0.06,)"
+        ],
+        "at": [
+          "-width6 * 0.035",
+          "tvNeckY",
+          "-depth * 0.03"
+        ],
+        "color": "furnitureDark",
+        "options": "{rounded: false, metalness: 0.2, roughness: 0.3,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.105",
+          "tvNeckHeight * 0.86",
+          "Math.max(depth * 0.12, 0.04,)"
+        ],
+        "at": [
+          "width6 * 0.025",
+          "tvNeckY + tvNeckHeight * 0.02",
+          "depth * 0.015"
+        ],
+        "color": "furnitureSoft",
+        "options": "{rounded: false, metalness: 0.35, roughness: 0.28,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.34",
+          "Math.max(height6 * 0.018, 0.025,)",
+          "Math.max(depth * 0.5, 0.2,)"
+        ],
+        "at": [
+          "0",
+          "tvStandTopY * 0.76",
+          "depth * 0.04"
+        ],
+        "color": "furnitureDark",
+        "options": "{radius: 0.012, metalness: 0.22, roughness: 0.3,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "tvFootSize",
+          "tvFootSize",
+          "Math.max(tvFootSize * 0.56, 0.018,)"
+        ],
+        "at": [
+          "tvFootX",
+          "tvFootSize",
+          "tvFootZ"
+        ],
+        "color": "1448479",
+        "options": "{segments: 20, rotationZ: Math.PI / 2, roughness: 0.38, metalness: 0.1,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "tvTabletopBaseWidth",
+          "tvTabletopThickness",
+          "tvTabletopBaseDepth"
+        ],
+        "at": [
+          "0",
+          "tvTabletopThickness * 0.5",
+          "0"
+        ],
+        "color": "furnitureDark",
+        "options": "{radius: Math.min(tvTabletopThickness, tvTabletopBaseDepth,) * 0.26, metalness: 0.2, roughness: 0.3,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.075",
+          "tvTabletopNeckHeight",
+          "Math.max(depth * 0.24, 0.05,)"
+        ],
+        "at": [
+          "0",
+          "tvTabletopThickness + tvTabletopNeckHeight * 0.5",
+          "-depth * 0.03"
+        ],
+        "color": "furnitureSoft",
+        "options": "{rounded: false, metalness: 0.34, roughness: 0.28,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.18",
+          "Math.max(height6 * 0.025, 0.022,)",
+          "Math.max(depth * 0.34, 0.08,)"
+        ],
+        "at": [
+          "0",
+          "tvStandTopY",
+          "0"
+        ],
+        "color": "furnitureDark",
+        "options": "{radius: 0.008, metalness: 0.22, roughness: 0.3,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "ag4",
+          "Math.max(depth * 0.28, 0.05,)"
+        ],
+        "at": [
+          "0",
+          "ag5",
+          "0"
+        ],
+        "color": "furnitureDark",
+        "options": "{radius: Math.min(width6, ag4,) * 0.012, roughness: 0.28,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "0.075",
+          "depth"
+        ],
+        "at": [
+          "0",
+          "vanityCounterY",
+          "0"
+        ],
+        "color": "furniture"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.27",
+          "vanityCounterY * 0.82",
+          "depth * 0.88"
+        ],
+        "at": [
+          "-width6 * 0.34",
+          "vanityCounterY * 0.42",
+          "0"
+        ],
+        "color": "furniture"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.27",
+          "vanityCounterY * 0.82",
+          "depth * 0.88"
+        ],
+        "at": [
+          "width6 * 0.34",
+          "vanityCounterY * 0.42",
+          "0"
+        ],
+        "color": "furniture"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.22",
+          "0.012",
+          "depth * 0.02"
+        ],
+        "at": [
+          "width6 * vanityFrontX",
+          "vanityCounterY * vanityFrontY",
+          "depth * 0.46"
+        ],
+        "color": "furnitureDark",
+        "options": "{rounded: false,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.54",
+          "vanityMirrorHeight",
+          "0.025"
+        ],
+        "at": [
+          "0",
+          "vanityCounterY + vanityMirrorHeight * 0.5",
+          "-depth * 0.43"
+        ],
+        "color": "yt4.glass",
+        "options": "{transparent: true, opacity: 0.42, depthWrite: false, metalness: 0.22, roughness: 0.16, renderOrder: 6,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.59",
+          "0.045",
+          "0.05"
+        ],
+        "at": [
+          "0",
+          "vanityCounterY + vanityMirrorHeight",
+          "-depth * 0.43"
+        ],
+        "color": "furnitureLight",
+        "options": "{metalness: 0.12,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.59",
+          "0.045",
+          "0.05"
+        ],
+        "at": [
+          "0",
+          "vanityCounterY",
+          "-depth * 0.43"
+        ],
+        "color": "furnitureLight",
+        "options": "{metalness: 0.12,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "0.045",
+          "vanityMirrorHeight",
+          "0.05"
+        ],
+        "at": [
+          "-width6 * 0.295",
+          "vanityCounterY + vanityMirrorHeight * 0.5",
+          "-depth * 0.43"
+        ],
+        "color": "furnitureLight",
+        "options": "{metalness: 0.12,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "0.045",
+          "vanityMirrorHeight",
+          "0.05"
+        ],
+        "at": [
+          "width6 * 0.295",
+          "vanityCounterY + vanityMirrorHeight * 0.5",
+          "-depth * 0.43"
+        ],
+        "color": "furnitureLight",
+        "options": "{metalness: 0.12,}"
+      }
+    ],
+    "homeos/frontend/src/studio/app/3d-studio/authoring/items/item-model/misc.ts": [
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "height6",
+          "depth"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.5",
+          "0"
+        ],
+        "color": "applianceItemTypeSet.has(modelItem.type) ? appliance : furniture",
+        "options": "{rounded: false, roughness: 0.6, metalness: 0.1,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.96",
+          "height6 * 0.38",
+          "depth * 0.9"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.28",
+          "0"
+        ],
+        "color": "furniture",
+        "options": "{roughness: 0.46, metalness: 0.18,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.78",
+          "height6 * 0.42",
+          "depth * 0.48"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.62",
+          "-depth * 0.03"
+        ],
+        "color": "furnitureSoft",
+        "options": "{roughness: 0.38, metalness: 0.12,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.1",
+          "height6 * 0.22",
+          "depth * 0.17"
+        ],
+        "at": [
+          "curtainOffsetX * width6",
+          "height6 * 0.17",
+          "curtainOffsetZ * depth"
+        ],
+        "color": "furnitureDark",
+        "options": "{rounded: false, roughness: 0.82,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "frameBarSize",
+          "frameBarSize",
+          "width6 * 1.06"
+        ],
+        "at": [
+          "0",
+          "frameTopY",
+          "0"
+        ],
+        "color": "furnitureDark",
+        "options": "{segments: 18, rotationZ: Math.PI / 2, metalness: 0.68, roughness: 0.22,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "frameBarSize * 1.45",
+          "frameBarSize * 1.45",
+          "frameBarSize * 0.9"
+        ],
+        "at": [
+          "frameSideX",
+          "frameTopY",
+          "0"
+        ],
+        "color": "furnitureLight",
+        "options": "{segments: 18, rotationZ: Math.PI / 2, metalness: 0.52, roughness: 0.26,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "panelStep * 1.24",
+          "framePanelHeight",
+          "depth * 0.62"
+        ],
+        "at": [
+          "panelX",
+          "frameInset + framePanelHeight * 0.5",
+          "panelZ"
+        ],
+        "color": "furnitureLight",
+        "options": "{radius: Math.min(panelStep * 0.34, 0.035), roughness: 0.94, metalness: 0,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "panelTotalWidth * 1.03",
+          "Math.max(height6 * 0.018, 0.025)",
+          "depth * 0.74"
+        ],
+        "at": [
+          "panelStartX + panelTotalWidth * 0.5",
+          "frameInset + height6 * 0.015",
+          "0"
+        ],
+        "color": "furnitureDark",
+        "options": "{radius: 0.01, roughness: 0.72, metalness: 0.02,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "panelTotalWidth * 1.06",
+          "Math.max(height6 * 0.025, 0.035)",
+          "depth * 0.82"
+        ],
+        "at": [
+          "panelStartX + panelTotalWidth * 0.5",
+          "frameInset + framePanelHeight * 0.52",
+          "0"
+        ],
+        "color": "furnitureLight",
+        "options": "{radius: 0.012, roughness: 0.48, metalness: 0.08,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "slatY",
+          "slatStep * 1.015"
+        ],
+        "at": [
+          "0",
+          "slatY * 0.5",
+          "slatZ"
+        ],
+        "color": "modelShadowIdsSlatIndex % 2 ? furniture : furnitureSoft",
+        "options": "{rounded: false, roughness: 0.82,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 1.01",
+          "0.018",
+          "slatStep * 0.94"
+        ],
+        "at": [
+          "0",
+          "slatY + 0.009",
+          "slatZ"
+        ],
+        "color": "furnitureLight",
+        "options": "{rounded: false, castShadow: false, roughness: 0.72,}"
+      }
+    ],
+    "homeos/frontend/src/studio/app/3d-studio/authoring/items/item-model/shower-basin.ts": [
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "0.045",
+          "showerRailHeight",
+          "0.045"
+        ],
+        "at": [
+          "0",
+          "(showerRailBottomY + showerRailTopY) * 0.5",
+          "showerRailZ"
+        ],
+        "color": "showerMetal",
+        "options": "showerMetalOptions"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "0.085",
+          "0.085",
+          "0.065"
+        ],
+        "at": [
+          "0",
+          "showerHingeY",
+          "showerRailZ"
+        ],
+        "color": "showerMetal",
+        "options": "showerMetalOptions"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.055",
+          "width6 * 0.055",
+          "0.04"
+        ],
+        "at": [
+          "0",
+          "showerBracketY",
+          "-depth * 0.47"
+        ],
+        "color": "showerMetal",
+        "options": "{segments: 28, rotationX: Math.PI / 2, metalness: 0.7, roughness: 0.2,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.36",
+          "0.065",
+          "0.065"
+        ],
+        "at": [
+          "0",
+          "showerHeadY",
+          "showerRailZ + depth * 0.08"
+        ],
+        "color": "showerMetal",
+        "options": "showerMetalOptions"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.055",
+          "width6 * 0.055",
+          "0.045"
+        ],
+        "at": [
+          "showerHeadX",
+          "showerHeadY",
+          "-depth * 0.45"
+        ],
+        "color": "showerMetal",
+        "options": "{segments: 28, rotationX: Math.PI / 2, metalness: 0.7, roughness: 0.2,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "0.05",
+          "0.05",
+          "depth * 0.13"
+        ],
+        "at": [
+          "showerHeadX",
+          "showerHeadY",
+          "showerRailZ + depth * 0.01"
+        ],
+        "color": "showerMetal",
+        "options": "showerMetalOptions"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "0.045",
+          "height6 * 0.12",
+          "0.045"
+        ],
+        "at": [
+          "0",
+          "showerHeadY - height6 * 0.045",
+          "showerRailZ + depth * 0.13"
+        ],
+        "color": "showerMetal",
+        "options": "showerMetalOptions"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "0.055",
+          "hypot4",
+          "0.055"
+        ],
+        "at": [
+          "0",
+          "(showerRailTopPoint.y + showerHeadPoint.y) * 0.5",
+          "(showerRailTopPoint.z + showerHeadPoint.z) * 0.5"
+        ],
+        "color": "showerMetal",
+        "options": "showerMetalOptions"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "0.055",
+          "height6 * 0.13",
+          "0.055"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.705",
+          "showerHeadPoint.z"
+        ],
+        "color": "showerMetal",
+        "options": "showerMetalOptions"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.34",
+          "0.035",
+          "depth * 0.3"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.64",
+          "showerHeadPoint.z + depth * 0.03"
+        ],
+        "color": "showerMetal",
+        "options": "{rounded: false, metalness: 0.64, roughness: 0.24,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.92",
+          "height6 * 0.72",
+          "depth * 0.9"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.36",
+          "0"
+        ],
+        "color": "furniture"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "0.065",
+          "depth"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.75",
+          "0"
+        ],
+        "color": "furnitureLight",
+        "options": "{roughness: 0.3,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.25",
+          "width6 * 0.21",
+          "0.08"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.8",
+          "depth * 0.02"
+        ],
+        "color": "furnitureSoft",
+        "options": "{roughness: 0.28,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "0.018",
+          "0.018",
+          "height6 * 0.2"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.9",
+          "-depth * 0.2"
+        ],
+        "color": "furnitureDark",
+        "options": "{metalness: 0.78, roughness: 0.18,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "0.018",
+          "0.018",
+          "depth * 0.2"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.99",
+          "-depth * 0.11"
+        ],
+        "color": "furnitureDark",
+        "options": "{rotationX: Math.PI / 2, metalness: 0.78, roughness: 0.18,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "0.012",
+          "height6 * 0.62",
+          "depth * 0.02"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.34",
+          "depth * 0.46"
+        ],
+        "color": "furnitureDark",
+        "options": "{rounded: false,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "basinMirrorWidth",
+          "basinMirrorHeight",
+          "0.018"
+        ],
+        "at": [
+          "0",
+          "basinMirrorTopY + basinMirrorHeight * 0.5",
+          "basinMirrorZ"
+        ],
+        "color": "yt4.glass",
+        "options": "{rounded: false, transparent: true, opacity: 0.46, depthWrite: false, metalness: 0.26, roughness: 0.12, castShadow: false, renderOrder: 6,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "basinMirrorWidth + 0.055",
+          "0.035",
+          "0.045"
+        ],
+        "at": [
+          "0",
+          "basinMirrorTopY",
+          "basinMirrorZ"
+        ],
+        "color": "furnitureDark",
+        "options": "{metalness: 0.35,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "basinMirrorWidth + 0.055",
+          "0.035",
+          "0.045"
+        ],
+        "at": [
+          "0",
+          "basinMirrorTopY + basinMirrorHeight",
+          "basinMirrorZ"
+        ],
+        "color": "furnitureDark",
+        "options": "{metalness: 0.35,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "0.035",
+          "basinMirrorHeight",
+          "0.045"
+        ],
+        "at": [
+          "-basinMirrorWidth * 0.5",
+          "basinMirrorTopY + basinMirrorHeight * 0.5",
+          "basinMirrorZ"
+        ],
+        "color": "furnitureDark",
+        "options": "{metalness: 0.35,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "0.035",
+          "basinMirrorHeight",
+          "0.045"
+        ],
+        "at": [
+          "basinMirrorWidth * 0.5",
+          "basinMirrorTopY + basinMirrorHeight * 0.5",
+          "basinMirrorZ"
+        ],
+        "color": "furnitureDark",
+        "options": "{metalness: 0.35,}"
+      }
+    ],
+    "homeos/frontend/src/studio/app/3d-studio/authoring/items/item-model/storage-lower.ts": [
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "sideboardCounterBottom",
+          "depth"
+        ],
+        "at": [
+          "0",
+          "sideboardCounterBottom * 0.5",
+          "0"
+        ],
+        "color": "furniture",
+        "options": "{roughness: 0.58,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "0.045",
+          "depth"
+        ],
+        "at": [
+          "0",
+          "sideboardLowerBlockHeight",
+          "0"
+        ],
+        "color": "furnitureSoft",
+        "options": "{roughness: 0.5,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "sideboardNicheTop - sideboardCounterTop",
+          "0.045"
+        ],
+        "at": [
+          "0",
+          "(sideboardCounterTop + sideboardNicheTop) * 0.5",
+          "-depth * 0.46"
+        ],
+        "color": "furniture",
+        "options": "{rounded: false, roughness: 0.62,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "sideboardUpperBlockHeight",
+          "depth"
+        ],
+        "at": [
+          "0",
+          "sideboardNicheTop + sideboardUpperBlockHeight * 0.5",
+          "0"
+        ],
+        "color": "furniture",
+        "options": "{roughness: 0.58,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "sideboardDoorPanelWidth",
+          "sideboardLowerDoorHeight",
+          "0.026"
+        ],
+        "at": [
+          "width6 * sideboardDoorOffset",
+          "sideboardLowerBlockHeight * 0.48",
+          "depth * 0.515"
+        ],
+        "color": "sideboardDoorFrontColor",
+        "options": "{rounded: false, roughness: 0.45,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "sideboardDoorPanelWidth",
+          "sideboardUpperDoorHeight",
+          "0.026"
+        ],
+        "at": [
+          "width6 * sideboardDoorOffset",
+          "sideboardNicheTop + sideboardUpperBlockHeight * 0.5",
+          "depth * 0.515"
+        ],
+        "color": "sideboardDoorFrontColor",
+        "options": "{rounded: false, roughness: 0.45,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.98",
+          "shoecabinetNominalHeight * 0.93",
+          "0.045"
+        ],
+        "at": [
+          "0",
+          "shoecabinetNominalHeight * 0.48",
+          "-depth * 0.47"
+        ],
+        "color": "furniture",
+        "options": "{rounded: false, roughness: 0.62,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "shoecabinetLeftColumnWidth",
+          "shoecabinetBenchBlockHeight * 0.56",
+          "depth * 0.92"
+        ],
+        "at": [
+          "shoecabinetLeftColumnX",
+          "shoecabinetBenchBlockHeight * 0.35",
+          "0"
+        ],
+        "color": "furniture",
+        "options": "{roughness: 0.56,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "shoecabinetLeftColumnWidth * 1.02",
+          "0.055",
+          "depth * 1.04"
+        ],
+        "at": [
+          "shoecabinetLeftColumnX",
+          "shoecabinetBenchBlockHeight * 0.67",
+          "0"
+        ],
+        "color": "shoecabinetTopColor",
+        "options": "{roughness: 0.5,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "shoecabinetRightColumnWidth",
+          "shoecabinetUpperBlockHeight",
+          "depth"
+        ],
+        "at": [
+          "shoecabinetRightColumnX",
+          "shoecabinetUpperBlockHeight * 0.5",
+          "0"
+        ],
+        "color": "furniture",
+        "options": "{roughness: 0.58,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "shoecabinetRightColumnWidth * 0.47",
+          "shoecabinetUpperBlockHeight * 0.84",
+          "0.026"
+        ],
+        "at": [
+          "shoecabinetRightColumnX + shoecabinetRightColumnWidth * shoecabinetBenchHandleOffset",
+          "shoecabinetUpperBlockHeight * 0.48",
+          "depth * 0.515"
+        ],
+        "color": "shoecabinetBoardColor",
+        "options": "{rounded: false, roughness: 0.45,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "shoecabinetLeftColumnWidth",
+          "shoecabinetMidBlockHeight",
+          "depth"
+        ],
+        "at": [
+          "shoecabinetLeftColumnX",
+          "shoecabinetMidBlockY + shoecabinetMidBlockHeight * 0.5",
+          "0"
+        ],
+        "color": "furniture",
+        "options": "{roughness: 0.58,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "shoecabinetLeftColumnWidth * 0.47",
+          "shoecabinetMidBlockHeight * 0.86",
+          "0.026"
+        ],
+        "at": [
+          "shoecabinetLeftColumnX + shoecabinetLeftColumnWidth * shoecabinetMidHandleOffset",
+          "shoecabinetMidBlockY + shoecabinetMidBlockHeight * 0.5",
+          "depth * 0.515"
+        ],
+        "color": "shoecabinetBoardColor",
+        "options": "{rounded: false, roughness: 0.45,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "shoecabinetRightColumnWidth",
+          "shoecabinetTopBlockHeight",
+          "depth"
+        ],
+        "at": [
+          "shoecabinetRightColumnX",
+          "shoecabinetTopBlockY + shoecabinetTopBlockHeight * 0.5",
+          "0"
+        ],
+        "color": "furniture",
+        "options": "{roughness: 0.58,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "shoecabinetRightColumnWidth * 0.47",
+          "shoecabinetTopBlockHeight * 0.9",
+          "0.026"
+        ],
+        "at": [
+          "shoecabinetRightColumnX + shoecabinetRightColumnWidth * shoecabinetTopHandleOffset",
+          "shoecabinetTopBlockY + shoecabinetTopBlockHeight * 0.5",
+          "depth * 0.515"
+        ],
+        "color": "shoecabinetBoardColor",
+        "options": "{rounded: false, roughness: 0.45,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "height6",
+          "depth"
+        ],
+        "at": [
+          "0",
+          "height6 / 2",
+          "0"
+        ],
+        "color": "furniture"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "0.018",
+          "height6 * 0.9",
+          "depth * 1.01"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.52",
+          "depth * 0.01"
+        ],
+        "color": "furnitureDark"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "0.025",
+          "0.16",
+          "0.035"
+        ],
+        "at": [
+          "-0.08",
+          "height6 * 0.55",
+          "depth * 0.515"
+        ],
+        "color": "furnitureLight",
+        "options": "{metalness: 0.55,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "0.025",
+          "0.16",
+          "0.035"
+        ],
+        "at": [
+          "0.08",
+          "height6 * 0.55",
+          "depth * 0.515"
+        ],
+        "color": "furnitureLight",
+        "options": "{metalness: 0.55,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "glasscabinetFrameThickness",
+          "height6",
+          "depth"
+        ],
+        "at": [
+          "-width6 * 0.5 + glasscabinetFrameThickness * 0.5",
+          "height6 * 0.5",
+          "0"
+        ],
+        "color": "furniture",
+        "options": "glasscabinetFrameOptions"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "glasscabinetFrameThickness",
+          "height6",
+          "depth"
+        ],
+        "at": [
+          "width6 * 0.5 - glasscabinetFrameThickness * 0.5",
+          "height6 * 0.5",
+          "0"
+        ],
+        "color": "furniture",
+        "options": "glasscabinetFrameOptions"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "height6",
+          "glasscabinetBackThickness + 0.004"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.5",
+          "-depth * 0.5 + glasscabinetBackThickness * 0.5 - 0.002"
+        ],
+        "color": "furniture",
+        "options": "glasscabinetFrameOptions"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "glasscabinetFrameThickness",
+          "depth"
+        ],
+        "at": [
+          "0",
+          "height6 - glasscabinetFrameThickness * 0.5",
+          "0"
+        ],
+        "color": "furniture",
+        "options": "glasscabinetFrameOptions"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "glasscabinetInnerWidth",
+          "glasscabinetFrameThickness * 0.72",
+          "depth * 0.9"
+        ],
+        "at": [
+          "0",
+          "glasscabinetTowerBaseY + glasscabinetShelfSpacing * glasscabinetShelfIndex",
+          "-depth * 0.025"
+        ],
+        "color": "furnitureSoft",
+        "options": "glasscabinetFrameOptions"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "glasscabinetInnerWidth",
+          "glasscabinetFrameThickness * 0.72",
+          "depth * 0.9"
+        ],
+        "at": [
+          "0",
+          "glasscabinetLowerShelfY",
+          "-depth * 0.025"
+        ],
+        "color": "furnitureSoft",
+        "options": "glasscabinetFrameOptions"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "glasscabinetFrameThickness * 0.72",
+          "height6 - glasscabinetFrameThickness",
+          "depth * 0.9"
+        ],
+        "at": [
+          "glasscabinetDividerX",
+          "(height6 - glasscabinetFrameThickness) * 0.5",
+          "-depth * 0.025"
+        ],
+        "color": "furniture",
+        "options": "glasscabinetFrameOptions"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "glasscabinetDoorWidth",
+          "glasscabinetTowerGlassHeight",
+          "0.03"
+        ],
+        "at": [
+          "glasscabinetDoorX",
+          "glasscabinetLowerShelfY + (glasscabinetTowerBaseY - glasscabinetLowerShelfY) * 0.5",
+          "glasscabinetFrontZ"
+        ],
+        "color": "glasscabinetDoorIndex ? furnitureSoft : furniture",
+        "options": "{...glasscabinetShelfOptions, roughness: 0.56,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "glasscabinetWindowWidth",
+          "glasscabinetWindowHeight",
+          "0.018"
+        ],
+        "at": [
+          "glasscabinetColumnCenterX",
+          "glasscabinetTowerBaseY + glasscabinetTowerHeight * 0.5",
+          "glasscabinetFrontZ"
+        ],
+        "color": "yt4.glass",
+        "options": "glasscabinetGlassOptions"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "glasscabinetMullionWidth",
+          "glasscabinetTowerHeight",
+          "0.032"
+        ],
+        "at": [
+          "glasscabinetColumnX + glasscabinetMullionWidth * 0.5",
+          "glasscabinetTowerBaseY + glasscabinetTowerHeight * 0.5",
+          "glasscabinetFrontZ + 0.009"
+        ],
+        "color": "furniture",
+        "options": "glasscabinetShelfOptions"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "glasscabinetMullionWidth",
+          "glasscabinetTowerHeight",
+          "0.032"
+        ],
+        "at": [
+          "glasscabinetColumnX + glasscabinetColumnWidth - glasscabinetMullionWidth * 0.5",
+          "glasscabinetTowerBaseY + glasscabinetTowerHeight * 0.5",
+          "glasscabinetFrontZ + 0.009"
+        ],
+        "color": "furniture",
+        "options": "glasscabinetShelfOptions"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "glasscabinetHandleWidth",
+          "glasscabinetWindowHeight * 0.88",
+          "0.006"
+        ],
+        "at": [
+          "glasscabinetColumnCenterX - glasscabinetWindowWidth * 0.37",
+          "glasscabinetTowerBaseY + glasscabinetTowerHeight * 0.52",
+          "glasscabinetFrontZ + 0.014"
+        ],
+        "color": "14282227",
+        "options": "glasscabinetHighlightOptions"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "glasscabinetWindowWidth * 0.34",
+          "Math.max(glasscabinetMullionWidth * 0.11, 0.004)",
+          "0.006"
+        ],
+        "at": [
+          "glasscabinetColumnCenterX - glasscabinetWindowWidth * 0.18",
+          "glasscabinetTowerBaseY + glasscabinetTowerHeight * 0.88",
+          "glasscabinetFrontZ + 0.014"
+        ],
+        "color": "15267578",
+        "options": "glasscabinetHighlightOptions"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "glasscabinetInnerWidth",
+          "glasscabinetMullionWidth",
+          "0.032"
+        ],
+        "at": [
+          "0",
+          "glasscabinetTowerBaseY + glasscabinetMullionWidth * 0.5",
+          "glasscabinetFrontZ + 0.009"
+        ],
+        "color": "furniture",
+        "options": "glasscabinetShelfOptions"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "glasscabinetInnerWidth",
+          "glasscabinetMullionWidth",
+          "0.032"
+        ],
+        "at": [
+          "0",
+          "height6 - glasscabinetFrameThickness - glasscabinetMullionWidth * 0.5",
+          "glasscabinetFrontZ + 0.009"
+        ],
+        "color": "furniture",
+        "options": "glasscabinetShelfOptions"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "glasscabinetBottleEachWidth",
+          "glasscabinetBottleEachHeight",
+          "depth * 0.42"
+        ],
+        "at": [
+          "glasscabinetBottleCursor + glasscabinetBottleEachWidth * 0.5",
+          "glasscabinetBottleBaseY + glasscabinetBottleEachHeight * 0.5",
+          "depth * 0.12"
+        ],
+        "color": "glasscabinetBottleColors[(glasscabinetBottleIndex + glasscabinetBottleSeed) % glasscabinetBottleColors.length]",
+        "options": "{radius: Math.min(glasscabinetBottleEachWidth * 0.12, 0.009,), roughness: 0.78, metalness: 0,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "glasscabinetPlatterZoneWidth * 0.56",
+          "glasscabinetFrameThickness * 0.48",
+          "depth * 0.4"
+        ],
+        "at": [
+          "glasscabinetPlatterZoneX",
+          "glasscabinetPlatterBaseY + glasscabinetFrameThickness * (0.3 + glasscabinetPlatterIndex * 0.52)",
+          "depth * 0.12"
+        ],
+        "color": "glasscabinetBottleColors[(glasscabinetPlatterIndex + glasscabinetPlatterSeed) % glasscabinetBottleColors.length]",
+        "options": "{radius: 0.006, roughness: 0.78, metalness: 0,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "glasscabinetJarZoneWidth * glasscabinetJarScale * 0.72",
+          "glasscabinetJarZoneWidth * glasscabinetJarScale",
+          "glasscabinetShelfSpacing * 0.46"
+        ],
+        "at": [
+          "glasscabinetJarX",
+          "glasscabinetJarY + glasscabinetShelfSpacing * 0.23",
+          "depth * 0.12"
+        ],
+        "color": "glasscabinetJarColor",
+        "options": "{segments: 24, roughness: 0.68,}"
+      }
+    ],
+    "homeos/frontend/src/studio/app/3d-studio/authoring/items/item-model/storage-upper.ts": [
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "bookcaseFrameThickness",
+          "height6",
+          "depth"
+        ],
+        "at": [
+          "-width6 * 0.5 + bookcaseFrameThickness * 0.5",
+          "height6 * 0.5",
+          "0"
+        ],
+        "color": "furniture",
+        "options": "bookcaseFrameOptions"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "bookcaseFrameThickness",
+          "height6",
+          "depth"
+        ],
+        "at": [
+          "width6 * 0.5 - bookcaseFrameThickness * 0.5",
+          "height6 * 0.5",
+          "0"
+        ],
+        "color": "furniture",
+        "options": "bookcaseFrameOptions"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "height6",
+          "bookcaseBackThickness + 0.004"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.5",
+          "-depth * 0.5 + bookcaseBackThickness * 0.5 - 0.002"
+        ],
+        "color": "furniture",
+        "options": "bookcaseFrameOptions"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "bookcaseInnerWidth",
+          "height6 * bookcaseUpperRatio - bookcaseFrameThickness * 0.5",
+          "depth * 0.9"
+        ],
+        "at": [
+          "0",
+          "height6 * bookcaseUpperRatio * 0.5",
+          "-depth * 0.025"
+        ],
+        "color": "furnitureSoft",
+        "options": "{...bookcaseFrameOptions, roughness: 0.66,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "bookcaseInnerWidth",
+          "bookcaseFrameThickness",
+          "depth"
+        ],
+        "at": [
+          "0",
+          "height6 * bookcaseShelfRatio",
+          "0"
+        ],
+        "color": "furnitureSoft",
+        "options": "bookcaseFrameOptions"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "bookcaseFrameThickness",
+          "depth"
+        ],
+        "at": [
+          "0",
+          "bookcaseTopInnerY",
+          "0"
+        ],
+        "color": "furniture",
+        "options": "bookcaseFrameOptions"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "bookcaseFrameThickness",
+          "bookcaseMidRailTop - bookcaseMidRailBottom",
+          "depth"
+        ],
+        "at": [
+          "bookcaseLeftWingX",
+          "(bookcaseMidRailTop + bookcaseMidRailBottom) * 0.5",
+          "0"
+        ],
+        "color": "furniture",
+        "options": "bookcaseFrameOptions"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "bookcaseLeftDividerWidth",
+          "bookcaseDividerEachHeight",
+          "0.026"
+        ],
+        "at": [
+          "-bookcaseInnerWidth * 0.5 + bookcaseLeftDividerWidth * 0.5",
+          "bookcaseDividerY",
+          "bookcaseFrontZ"
+        ],
+        "color": "furniture",
+        "options": "{...bookcaseFrameOptions, roughness: 0.55,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "bookcaseRightDividerWidth",
+          "bookcaseDividerEachHeight",
+          "0.026"
+        ],
+        "at": [
+          "bookcaseDividerOffsetX + bookcaseDividerGap * 0.5 + bookcaseRightDividerWidth * 0.5",
+          "bookcaseDividerY",
+          "bookcaseFrontZ"
+        ],
+        "color": "furnitureSoft",
+        "options": "{...bookcaseFrameOptions, roughness: 0.55,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "bookcaseRightBayWidth * 0.97",
+          "bookcaseBackBraceHeight",
+          "0.028"
+        ],
+        "at": [
+          "bookcaseRightBayX",
+          "height6 * (bookcaseShelfRatios[1] + bookcaseShelfRatios[2]) * 0.5",
+          "bookcaseFrontZ"
+        ],
+        "color": "furniture",
+        "options": "{...bookcaseFrameOptions, roughness: 0.54,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "bookcaseBookWidthValue",
+          "bookcaseBookHeightValue",
+          "depth * (0.47 + ((bookcaseBookIndex + bookcaseRowSeed) % 3) * 0.045)"
+        ],
+        "at": [
+          "bookcaseBookCursor + bookcaseBookWidthValue * 0.5",
+          "bookcaseRowShelfY + bookcaseBookHeightValue * 0.5",
+          "depth * 0.15"
+        ],
+        "color": "bookcaseBookColors[(bookcaseBookIndex + bookcaseRowSeed) % bookcaseBookColors.length]",
+        "options": "{radius: Math.min(bookcaseBookWidthValue * 0.14, 0.012,), roughness: 0.78, metalness: 0,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "bookcaseJarWidth",
+          "bookcaseFrameThickness * 0.54",
+          "depth * 0.48"
+        ],
+        "at": [
+          "bookcaseJarX",
+          "bookcaseJarY + bookcaseFrameThickness * (0.38 + bookcaseJarIndex * 0.56)",
+          "depth * 0.15"
+        ],
+        "color": "bookcaseBookColors[(bookcaseJarIndex + bookcaseJarSeed) % bookcaseBookColors.length]",
+        "options": "{radius: 0.007, roughness: 0.78, metalness: 0,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "bookcaseRightBayWidth * 0.17",
+          "height6 * 0.12",
+          "0.022"
+        ],
+        "at": [
+          "bookcaseRightBayX + bookcaseRightBayWidth * 0.27",
+          "bookcaseThirdShelfY + height6 * 0.065",
+          "depth * 0.22"
+        ],
+        "color": "11972517",
+        "options": "{rounded: false, roughness: 0.5,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "bookcaseRightBayWidth * 0.125",
+          "height6 * 0.085",
+          "0.026"
+        ],
+        "at": [
+          "bookcaseRightBayX + bookcaseRightBayWidth * 0.27",
+          "bookcaseThirdShelfY + height6 * 0.065",
+          "depth * 0.235"
+        ],
+        "color": "7762283",
+        "options": "{rounded: false, roughness: 0.42,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "bookcaseRightBayWidth * 0.055",
+          "bookcaseRightBayWidth * 0.075",
+          "height6 * 0.12"
+        ],
+        "at": [
+          "bookcaseRightBayX - bookcaseRightBayWidth * 0.08",
+          "bookcaseFourthShelfY + height6 * 0.06",
+          "depth * 0.12"
+        ],
+        "color": "5196615",
+        "options": "{segments: 22, roughness: 0.66,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "bookcaseRightBayWidth * 0.045",
+          "bookcaseRightBayWidth * 0.064",
+          "height6 * 0.15"
+        ],
+        "at": [
+          "bookcaseRightBayX + bookcaseRightBayWidth * 0.08",
+          "bookcaseFourthShelfY + height6 * 0.075",
+          "depth * 0.12"
+        ],
+        "color": "6643802",
+        "options": "{segments: 22, roughness: 0.66,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "shelfPostSize",
+          "height6",
+          "shelfPostSize"
+        ],
+        "at": [
+          "shelfPostX",
+          "height6 * 0.5",
+          "shelfPostZ"
+        ],
+        "color": "furniture",
+        "options": "shelfPostOptions"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "shelfBoardThickness",
+          "shelfBoardDepth"
+        ],
+        "at": [
+          "0",
+          "height6 * shelfHeightRatio",
+          "0"
+        ],
+        "color": "shelfHeightRatio === 0.96 ? furnitureLight : furnitureSoft",
+        "options": "shelfBoardOptions"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "shelfPostSize * 0.65",
+          "shelfPostSize"
+        ],
+        "at": [
+          "0",
+          "height6 * shelfHeightRatio",
+          "-depth * 0.5 + shelfPostSize * 0.5"
+        ],
+        "color": "furniture",
+        "options": "shelfPostOptions"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "shelfPostSize * 0.48",
+          "hypot3",
+          "shelfPostSize * 0.42"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.5",
+          "-depth * 0.5 + shelfPostSize * 0.18"
+        ],
+        "color": "furniture",
+        "options": "{...shelfPostOptions, castShadow: false,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "wallcabinetInnerWidth",
+          "wallcabinetTopY - wallcabinetCeilingY",
+          "depth"
+        ],
+        "at": [
+          "0",
+          "(wallcabinetTopY + wallcabinetCeilingY) / 2",
+          "0"
+        ],
+        "color": "furniture",
+        "options": "{rounded: false,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "wallcabinetInnerWidth",
+          "wallcabinetCeilingY - wallcabinetBottomY - wallcabinetPanelThickness * 2",
+          "wallcabinetPanelThickness"
+        ],
+        "at": [
+          "0",
+          "(wallcabinetBottomY + wallcabinetCeilingY) / 2",
+          "-depth / 2 + wallcabinetPanelThickness / 2"
+        ],
+        "color": "furniture",
+        "options": "{rounded: false, roughness: 0.62,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "wallcabinetInnerWidth",
+          "wallcabinetPanelThickness",
+          "depth"
+        ],
+        "at": [
+          "0",
+          "1.4",
+          "0"
+        ],
+        "color": "furnitureSoft",
+        "options": "{rounded: false, roughness: 0.5,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "wallcabinetInnerWidth",
+          "wallcabinetPanelThickness",
+          "depth"
+        ],
+        "at": [
+          "0",
+          "wallcabinetCounterY",
+          "0"
+        ],
+        "color": "furnitureSoft",
+        "options": "{rounded: false, roughness: 0.5,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "wallcabinetPanelThickness",
+          "wallcabinetTopY - wallcabinetBottomY",
+          "depth"
+        ],
+        "at": [
+          "-(width6 - wallcabinetPanelThickness) / 2",
+          "(wallcabinetBottomY + wallcabinetTopY) / 2",
+          "0"
+        ],
+        "color": "furniture",
+        "options": "{rounded: false,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "wallcabinetPanelThickness",
+          "wallcabinetTopY - wallcabinetBottomY",
+          "depth"
+        ],
+        "at": [
+          "(width6 - wallcabinetPanelThickness) / 2",
+          "(wallcabinetBottomY + wallcabinetTopY) / 2",
+          "0"
+        ],
+        "color": "furniture",
+        "options": "{rounded: false,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "wallcabinetDoorWidth",
+          "wallcabinetUpperHeight * 0.9",
+          "0.026"
+        ],
+        "at": [
+          "width6 * wallcabinetDoorOffset",
+          "wallcabinetCounterY + wallcabinetUpperHeight * 0.5",
+          "depth * 0.515"
+        ],
+        "color": "furnitureSoft",
+        "options": "{rounded: false, roughness: 0.45,}"
+      }
+    ],
+    "homeos/frontend/src/studio/app/3d-studio/authoring/items/item-model/water-tea.ts": [
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "purifierBodyHeight",
+          "depth"
+        ],
+        "at": [
+          "0",
+          "purifierBodyHeight * 0.5",
+          "0"
+        ],
+        "color": "furnitureLight",
+        "options": "{rounded: false, metalness: 0.04, roughness: 0.4,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.92",
+          "purifierBodyHeight * 0.27",
+          "0.028"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.76",
+          "depth * 0.515"
+        ],
+        "color": "furnitureDark",
+        "options": "{rounded: false, metalness: 0.16, roughness: 0.18,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.34",
+          "purifierBodyHeight * 0.045",
+          "0.014"
+        ],
+        "at": [
+          "-width6 * 0.08",
+          "height6 * 0.79",
+          "depth * 0.54"
+        ],
+        "color": "10470608",
+        "options": "{rounded: false, emissive: 10470608, emissiveIntensity: 0.2, roughness: 0.22,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "Math.min(width6, depth) * 0.055",
+          "Math.min(width6, depth) * 0.055",
+          "0.018"
+        ],
+        "at": [
+          "width6 * purifierValveOffset",
+          "height6 * 0.66",
+          "depth * 0.535"
+        ],
+        "color": "furnitureSoft",
+        "options": "{segments: 24, rotationX: Math.PI / 2, metalness: 0.22, roughness: 0.28,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "0.014",
+          "0.014",
+          "height6 * 0.12"
+        ],
+        "at": [
+          "purifierFootX",
+          "height6 * 0.49",
+          "depth * 0.48"
+        ],
+        "color": "furnitureDark",
+        "options": "{segments: 18, metalness: 0.46, roughness: 0.22,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "0.024",
+          "0.018",
+          "0.035"
+        ],
+        "at": [
+          "purifierFootX",
+          "height6 * 0.425",
+          "depth * 0.52"
+        ],
+        "color": "furnitureDark",
+        "options": "{segments: 18, rotationX: Math.PI / 2, metalness: 0.46, roughness: 0.22,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.68",
+          "height6 * 0.045",
+          "depth * 0.52"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.11",
+          "depth * 0.16"
+        ],
+        "color": "furnitureDark",
+        "options": "{rounded: false, metalness: 0.2, roughness: 0.3,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.42",
+          "0.028",
+          "depth * 0.28"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.16",
+          "depth * 0.28"
+        ],
+        "color": "furnitureSoft",
+        "options": "{rounded: false, roughness: 0.34,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "teabarBaseHeight",
+          "depth"
+        ],
+        "at": [
+          "0",
+          "teabarBaseHeight * 0.5",
+          "0"
+        ],
+        "color": "furnitureLight",
+        "options": "{rounded: false, roughness: 0.5, metalness: 0.04,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.94",
+          "0.028",
+          "depth * 1.02"
+        ],
+        "at": [
+          "0",
+          "teabarBaseHeight * 0.5",
+          "depth * 0.515"
+        ],
+        "color": "furnitureDark",
+        "options": "{rounded: false, roughness: 0.34,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.94",
+          "0.032",
+          "depth * 1.02"
+        ],
+        "at": [
+          "0",
+          "teabarBaseHeight",
+          "0"
+        ],
+        "color": "furnitureSoft",
+        "options": "{rounded: false, roughness: 0.42,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.94",
+          "height6 * 0.04",
+          "depth * 1.04"
+        ],
+        "at": [
+          "0",
+          "teabarCounterY",
+          "0"
+        ],
+        "color": "furnitureLight",
+        "options": "{rounded: false, roughness: 0.36, metalness: 0.1,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.92",
+          "teabarBackHeight",
+          "0.032"
+        ],
+        "at": [
+          "0",
+          "teabarCounterY + teabarBackHeight * 0.5",
+          "-depth * 0.46"
+        ],
+        "color": "furnitureSoft",
+        "options": "{rounded: false, roughness: 0.56,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.075",
+          "teabarBackHeight",
+          "depth * 0.78"
+        ],
+        "at": [
+          "teabarPillarX",
+          "teabarCounterY + teabarBackHeight * 0.5",
+          "0"
+        ],
+        "color": "furnitureLight",
+        "options": "{rounded: false, roughness: 0.48,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.86",
+          "height6 * 0.14",
+          "depth * 0.18"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.9",
+          "depth * 0.48"
+        ],
+        "color": "furnitureDark",
+        "options": "{rounded: false, metalness: 0.32, roughness: 0.22,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "Math.min(width6, depth) * 0.035",
+          "Math.min(width6, depth) * 0.035",
+          "0.018"
+        ],
+        "at": [
+          "teabarBottleX",
+          "height6 * 0.9",
+          "depth * 0.585"
+        ],
+        "color": "furnitureSoft",
+        "options": "{segments: 20, rotationX: Math.PI / 2, metalness: 0.2, roughness: 0.25,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "0.012",
+          "0.012",
+          "height6 * 0.11"
+        ],
+        "at": [
+          "teabarBottleX",
+          "height6 * 0.79",
+          "depth * 0.5"
+        ],
+        "color": "furnitureDark",
+        "options": "{segments: 18, metalness: 0.48, roughness: 0.22,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "teabarBottleSize * 0.9",
+          "teabarBottleSize",
+          "height6 * 0.13"
+        ],
+        "at": [
+          "teabarBottleX",
+          "height6 * 0.75",
+          "depth * 0.12"
+        ],
+        "color": "teabarBottleX < 0 ? 8752009 : furnitureSoft",
+        "options": "{segments: 28, metalness: 0.08, roughness: 0.34,}"
+      },
+      {
+        "kind": "cyl",
+        "parent": "itemModelNode",
+        "size": [
+          "teabarBottleSize * 0.84",
+          "teabarBottleSize * 0.84",
+          "0.016"
+        ],
+        "at": [
+          "teabarBottleX",
+          "height6 * 0.82",
+          "depth * 0.12"
+        ],
+        "color": "furnitureDark",
+        "options": "{segments: 28, metalness: 0.18, roughness: 0.28,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.12",
+          "height6 * 0.06",
+          "0.016"
+        ],
+        "at": [
+          "teabarBottleX",
+          "height6 * 0.77",
+          "depth * 0.3"
+        ],
+        "color": "furnitureDark",
+        "options": "{radius: 0.012, metalness: 0.24, roughness: 0.24,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.92",
+          "height6 * 0.055",
+          "depth * 0.82"
+        ],
+        "at": [
+          "0",
+          "0.028",
+          "0"
+        ],
+        "color": "furnitureDark",
+        "options": "{rounded: false, roughness: 0.36,}"
+      }
+    ],
+    "homeos/frontend/src/studio/app/3d-studio/authoring/items/item-model/workspace.ts": [
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "height6 * 0.1",
+          "depth"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.93",
+          "0"
+        ],
+        "color": "furniture"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.05",
+          "height6 * 0.88",
+          "depth * 0.82"
+        ],
+        "at": [
+          "-width6 * 0.44",
+          "height6 * 0.44",
+          "0"
+        ],
+        "color": "furnitureDark"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.05",
+          "height6 * 0.88",
+          "depth * 0.82"
+        ],
+        "at": [
+          "width6 * 0.44",
+          "height6 * 0.44",
+          "0"
+        ],
+        "color": "furnitureDark"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.34",
+          "height6 * 0.18",
+          "depth * 0.78"
+        ],
+        "at": [
+          "width6 * 0.22",
+          "height6 * 0.74",
+          "0"
+        ],
+        "color": "furniture"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.27",
+          "0.018",
+          "depth * 0.04"
+        ],
+        "at": [
+          "width6 * 0.22",
+          "height6 * 0.73",
+          "depth * 0.41"
+        ],
+        "color": "furnitureLight",
+        "options": "{metalness: 0.35,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "desktopScreenWidth",
+          "desktopScreenHeight",
+          "0.035"
+        ],
+        "at": [
+          "-width6 * 0.06",
+          "height6 * 0.66",
+          "-depth * 0.25"
+        ],
+        "color": "furnitureDark",
+        "options": "{rounded: false, roughness: 0.24,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "desktopScreenWidth * 0.9",
+          "desktopScreenHeight * 0.84",
+          "0.01"
+        ],
+        "at": [
+          "-width6 * 0.06",
+          "height6 * 0.66",
+          "-depth * 0.19"
+        ],
+        "color": "659481",
+        "options": "{rounded: false, roughness: 0.18, emissive: 1517112, emissiveIntensity: 0.35,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "0.035",
+          "height6 * 0.24",
+          "0.035"
+        ],
+        "at": [
+          "-width6 * 0.06",
+          "height6 * 0.25",
+          "-depth * 0.25"
+        ],
+        "color": "furnitureDark",
+        "options": "{metalness: 0.5,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.28",
+          "0.025",
+          "depth * 0.3"
+        ],
+        "at": [
+          "-width6 * 0.06",
+          "0.02",
+          "-depth * 0.22"
+        ],
+        "color": "furnitureDark",
+        "options": "{metalness: 0.42,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.58",
+          "0.022",
+          "depth * 0.38"
+        ],
+        "at": [
+          "-width6 * 0.08",
+          "0.025",
+          "depth * 0.24"
+        ],
+        "color": "furnitureSoft",
+        "options": "{rounded: false, roughness: 0.5,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.1",
+          "0.035",
+          "depth * 0.22"
+        ],
+        "at": [
+          "width6 * 0.36",
+          "0.028",
+          "depth * 0.24"
+        ],
+        "color": "furnitureSoft",
+        "options": "{radius: Math.min(width6, depth,) * 0.035, roughness: 0.46,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6",
+          "0.025",
+          "depth * 0.72"
+        ],
+        "at": [
+          "0",
+          "0.018",
+          "depth * 0.08"
+        ],
+        "color": "furniture",
+        "options": "{metalness: 0.28, roughness: 0.36,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.96",
+          "height6 * 0.78",
+          "0.018"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.43",
+          "-depth * 0.29"
+        ],
+        "color": "furnitureDark",
+        "options": "{rounded: false, metalness: 0.22, roughness: 0.25,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.86",
+          "height6 * 0.63",
+          "0.01"
+        ],
+        "at": [
+          "0",
+          "height6 * 0.43",
+          "-depth * 0.278"
+        ],
+        "color": "659740",
+        "options": "{rounded: false, emissive: 1585226, emissiveIntensity: 0.38, roughness: 0.18,}"
+      },
+      {
+        "kind": "box",
+        "parent": "itemModelNode",
+        "size": [
+          "width6 * 0.62",
+          "0.009",
+          "depth * 0.34"
+        ],
+        "at": [
+          "0",
+          "0.035",
+          "depth * 0.12"
+        ],
+        "color": "furnitureDark",
+        "options": "{rounded: false,}"
+      }
+    ],
+    "homeos/frontend/src/studio/app/3d-studio/authoring/items/mesh-shorthand.ts": [
+      {
+        "kind": "box",
+        "parent": "parent",
+        "size": [
+          "size[0]",
+          "size[1]",
+          "size[2]"
+        ],
+        "at": [
+          "at[0]",
+          "at[1]",
+          "at[2]"
+        ],
+        "color": "color",
+        "options": "options"
+      },
+      {
+        "kind": "cyl",
+        "parent": "parent",
+        "size": [
+          "size[0]",
+          "size[1]",
+          "size[2]"
+        ],
+        "at": [
+          "at[0]",
+          "at[1]",
+          "at[2]"
+        ],
+        "color": "color",
+        "options": "options"
+      }
+    ],
+    "homeos/frontend/src/studio/app/3d-studio/authoring/items/studio-mesh-primitives.ts": [
+      {
+        "kind": "box",
+        "parent": "assemblyGroup",
+        "size": [
+          "assemblyWidth * 0.9",
+          "assemblyOffsetTop",
+          "assemblyHeight * 0.82"
+        ],
+        "at": [
+          "0",
+          "assemblyOffsetFront",
+          "assemblyHeight * 0.02"
+        ],
+        "color": "assemblyDarkColor",
+        "options": "{radius: Math.min(assemblyWidth, assemblyHeight) * 0.06, roughness: 0.72,}"
+      },
+      {
+        "kind": "box",
+        "parent": "assemblyGroup",
+        "size": [
+          "assemblyWidth * 0.78",
+          "assemblyDepth * 0.34",
+          "assemblyHeight * 0.09"
+        ],
+        "at": [
+          "0",
+          "assemblyDepth * 0.78",
+          "assemblyOffsetBack"
+        ],
+        "color": "assemblyDarkColor",
+        "options": "{radius: Math.min(assemblyWidth, assemblyHeight) * 0.045, roughness: 0.72,}"
+      },
+      {
+        "kind": "box",
+        "parent": "assemblyGroup",
+        "size": [
+          "0.05",
+          "assemblyDepth * 0.47",
+          "0.05"
+        ],
+        "at": [
+          "assemblyWidth * assemblySideOffset",
+          "assemblyDepth * 0.235",
+          "assemblyHeight * 0.34"
+        ],
+        "color": "assemblyLightColor",
+        "options": "{rounded: false,}"
+      },
+      {
+        "kind": "box",
+        "parent": "assemblyGroup",
+        "size": [
+          "0.05",
+          "assemblyDepth * 0.94",
+          "0.05"
+        ],
+        "at": [
+          "assemblyWidth * assemblySideOffset",
+          "assemblyDepth * 0.47",
+          "assemblyOffsetBack"
+        ],
+        "color": "assemblyLightColor",
+        "options": "{rounded: false,}"
+      }
+    ],
+    "homeos/frontend/src/studio/app/3d-studio/authoring/items/studio-television-model.ts": [
+      {
+        "kind": "box",
+        "parent": "televisionParent",
+        "size": [
+          "screenWidth",
+          "screenHeight",
+          "screenThickness"
+        ],
+        "at": [
+          "0",
+          "ag3",
+          "screenBodyZ"
+        ],
+        "color": "527122",
+        "options": "{roughness: 0.18,}"
+      }
+    ]
+  }
+}

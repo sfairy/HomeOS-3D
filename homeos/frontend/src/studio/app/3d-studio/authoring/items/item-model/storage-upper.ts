@@ -4,8 +4,8 @@
  * 由 `items/studio-item-model.ts` 的 `buildItemModel` 按固定顺序调用；
  * 命中任一分支返回 true，否则返回 false。正文从原单体逐字切出，仅追加 return。
  */
+import { box, cyl } from '../mesh-shorthand'
 
-import { addBoxMesh } from "../studio-mesh-primitives";
 import { buildPillarSolidGeometry as buildPillarSolidGeometry2, normalizePillarShape as normalizePillarShape2 } from "../studio-item-posture";
 import * as ns2 from "/static/vendor/three/0.187.0/three.module.min.js";
 import { setWallGradientHeight as setWallGradientHeight2 } from "../../../materials/studio-wall-materials";
@@ -13,7 +13,6 @@ import type { ItemModelScope } from "./types";
 
 export function buildStorageUpper(scope: ItemModelScope): boolean {
   const {
-    addCylinderMesh,
     createWallSideMaterial,
     createWallTopMaterial,
     lampsLayerIndex,
@@ -70,92 +69,22 @@ export function buildStorageUpper(scope: ItemModelScope): boolean {
         metalness: 0.015,
       },
       bookcaseFrontZ = depth * 0.5 + 0.013;
-    (addBoxMesh(
-      itemModelNode,
-      bookcaseFrameThickness,
-      height6,
-      depth,
-      -width6 * 0.5 + bookcaseFrameThickness * 0.5,
-      height6 * 0.5,
-      0,
-      furniture,
-      bookcaseFrameOptions,
-    ),
-      addBoxMesh(
-        itemModelNode,
-        bookcaseFrameThickness,
-        height6,
-        depth,
-        width6 * 0.5 - bookcaseFrameThickness * 0.5,
-        height6 * 0.5,
-        0,
-        furniture,
-        bookcaseFrameOptions,
-      ),
-      addBoxMesh(
-        itemModelNode,
-        width6,
-        height6,
-        bookcaseBackThickness + 0.004,
-        0,
-        height6 * 0.5,
-        -depth * 0.5 + bookcaseBackThickness * 0.5 - 0.002,
-        furniture,
-        bookcaseFrameOptions,
-      ),
-      addBoxMesh(
-        itemModelNode,
-        bookcaseInnerWidth,
-        height6 * bookcaseUpperRatio -
-          bookcaseFrameThickness * 0.5,
-        depth * 0.9,
-        0,
-        height6 * bookcaseUpperRatio * 0.5,
-        -depth * 0.025,
-        furnitureSoft,
-        {
+    (box(itemModelNode, [bookcaseFrameThickness, height6, depth], [-width6 * 0.5 + bookcaseFrameThickness * 0.5, height6 * 0.5, 0], furniture, bookcaseFrameOptions),
+      box(itemModelNode, [bookcaseFrameThickness, height6, depth], [width6 * 0.5 - bookcaseFrameThickness * 0.5, height6 * 0.5, 0], furniture, bookcaseFrameOptions),
+      box(itemModelNode, [width6, height6, bookcaseBackThickness + 0.004], [0, height6 * 0.5, -depth * 0.5 + bookcaseBackThickness * 0.5 - 0.002], furniture, bookcaseFrameOptions),
+      box(itemModelNode, [bookcaseInnerWidth, height6 * bookcaseUpperRatio -
+          bookcaseFrameThickness * 0.5, depth * 0.9], [0, height6 * bookcaseUpperRatio * 0.5, -depth * 0.025], furnitureSoft, {
           ...bookcaseFrameOptions,
           roughness: 0.66,
-        },
-      ));
+        }));
     for (const bookcaseShelfRatio of bookcaseShelfRatios)
-      addBoxMesh(
-        itemModelNode,
-        bookcaseInnerWidth,
-        bookcaseFrameThickness,
-        depth,
-        0,
-        height6 * bookcaseShelfRatio,
-        0,
-        furnitureSoft,
-        bookcaseFrameOptions,
-      );
-    addBoxMesh(
-      itemModelNode,
-      width6,
-      bookcaseFrameThickness,
-      depth,
-      0,
-      bookcaseTopInnerY,
-      0,
-      furniture,
-      bookcaseFrameOptions,
-    );
+      box(itemModelNode, [bookcaseInnerWidth, bookcaseFrameThickness, depth], [0, height6 * bookcaseShelfRatio, 0], furnitureSoft, bookcaseFrameOptions);
+    box(itemModelNode, [width6, bookcaseFrameThickness, depth], [0, bookcaseTopInnerY, 0], furniture, bookcaseFrameOptions);
     const bookcaseMidRailBottom =
         height6 * bookcaseShelfRatios[1] +
         bookcaseFrameThickness * 0.5,
       bookcaseMidRailTop = height6 - bookcaseFrameThickness;
-    addBoxMesh(
-      itemModelNode,
-      bookcaseFrameThickness,
-      bookcaseMidRailTop - bookcaseMidRailBottom,
-      depth,
-      bookcaseLeftWingX,
-      (bookcaseMidRailTop + bookcaseMidRailBottom) * 0.5,
-      0,
-      furniture,
-      bookcaseFrameOptions,
-    );
+    box(itemModelNode, [bookcaseFrameThickness, bookcaseMidRailTop - bookcaseMidRailBottom, depth], [bookcaseLeftWingX, (bookcaseMidRailTop + bookcaseMidRailBottom) * 0.5, 0], furniture, bookcaseFrameOptions);
     const bookcaseDividerCount = 3,
       bookcaseDividerWidth = bookcaseFrameThickness * 0.72,
       bookcaseDividerTopY =
@@ -189,58 +118,28 @@ export function buildStorageUpper(scope: ItemModelScope): boolean {
         bookcaseDividerEachHeight * 0.5 +
         bookcaseDividerIndex *
           (bookcaseDividerEachHeight + bookcaseDividerGap);
-      (addBoxMesh(
-        itemModelNode,
-        bookcaseLeftDividerWidth,
-        bookcaseDividerEachHeight,
-        0.026,
-        -bookcaseInnerWidth * 0.5 +
-          bookcaseLeftDividerWidth * 0.5,
-        bookcaseDividerY,
-        bookcaseFrontZ,
-        furniture,
-        {
+      (box(itemModelNode, [bookcaseLeftDividerWidth, bookcaseDividerEachHeight, 0.026], [-bookcaseInnerWidth * 0.5 +
+          bookcaseLeftDividerWidth * 0.5, bookcaseDividerY, bookcaseFrontZ], furniture, {
           ...bookcaseFrameOptions,
           roughness: 0.55,
-        },
-      ),
-        addBoxMesh(
-          itemModelNode,
-          bookcaseRightDividerWidth,
-          bookcaseDividerEachHeight,
-          0.026,
-          bookcaseDividerOffsetX +
+        }),
+        box(itemModelNode, [bookcaseRightDividerWidth, bookcaseDividerEachHeight, 0.026], [bookcaseDividerOffsetX +
             bookcaseDividerGap * 0.5 +
-            bookcaseRightDividerWidth * 0.5,
-          bookcaseDividerY,
-          bookcaseFrontZ,
-          furnitureSoft,
-          {
+            bookcaseRightDividerWidth * 0.5, bookcaseDividerY, bookcaseFrontZ], furnitureSoft, {
             ...bookcaseFrameOptions,
             roughness: 0.55,
-          },
-        ));
+          }));
     }
     const bookcaseBackBraceHeight =
       height6 *
         (bookcaseShelfRatios[2] - bookcaseShelfRatios[1]) -
       bookcaseFrameThickness * 1.15;
-    addBoxMesh(
-      itemModelNode,
-      bookcaseRightBayWidth * 0.97,
-      bookcaseBackBraceHeight,
-      0.028,
-      bookcaseRightBayX,
-      height6 *
+    box(itemModelNode, [bookcaseRightBayWidth * 0.97, bookcaseBackBraceHeight, 0.028], [bookcaseRightBayX, height6 *
         (bookcaseShelfRatios[1] + bookcaseShelfRatios[2]) *
-        0.5,
-      bookcaseFrontZ,
-      furniture,
-      {
+        0.5, bookcaseFrontZ], furniture, {
         ...bookcaseFrameOptions,
         roughness: 0.54,
-      },
-    );
+      });
     const bookcaseBookColors = [
         14276045,
         12499117,
@@ -293,33 +192,23 @@ export function buildStorageUpper(scope: ItemModelScope): boolean {
               bookcaseBookGap
           )
             break;
-          const bookcaseBookMesh = addBoxMesh(
-            itemModelNode,
-            bookcaseBookWidthValue,
-            bookcaseBookHeightValue,
-            depth *
+          const bookcaseBookMesh = box(itemModelNode, [bookcaseBookWidthValue, bookcaseBookHeightValue, depth *
               (0.47 +
                 ((bookcaseBookIndex + bookcaseRowSeed) %
                   3) *
-                  0.045),
-            bookcaseBookCursor +
-              bookcaseBookWidthValue * 0.5,
-            bookcaseRowShelfY +
-              bookcaseBookHeightValue * 0.5,
-            depth * 0.15,
-            bookcaseBookColors[
+                  0.045)], [bookcaseBookCursor +
+              bookcaseBookWidthValue * 0.5, bookcaseRowShelfY +
+              bookcaseBookHeightValue * 0.5, depth * 0.15], bookcaseBookColors[
               (bookcaseBookIndex + bookcaseRowSeed) %
                 bookcaseBookColors.length
-            ],
-            {
+            ], {
               radius: Math.min(
                 bookcaseBookWidthValue * 0.14,
                 0.012,
               ),
               roughness: 0.78,
               metalness: 0,
-            },
-          );
+            });
           (bookcaseBookIndex === bookcaseRowCount - 1 &&
             bookcaseRowSeed % 2 === 1 &&
             (bookcaseBookMesh.rotation.z = -0.07),
@@ -339,26 +228,16 @@ export function buildStorageUpper(scope: ItemModelScope): boolean {
           bookcaseJarIndex < bookcaseJarCount;
           bookcaseJarIndex += 1
         )
-          addBoxMesh(
-            itemModelNode,
-            bookcaseJarWidth,
-            bookcaseFrameThickness * 0.54,
-            depth * 0.48,
-            bookcaseJarX,
-            bookcaseJarY +
+          box(itemModelNode, [bookcaseJarWidth, bookcaseFrameThickness * 0.54, depth * 0.48], [bookcaseJarX, bookcaseJarY +
               bookcaseFrameThickness *
-                (0.38 + bookcaseJarIndex * 0.56),
-            depth * 0.15,
-            bookcaseBookColors[
+                (0.38 + bookcaseJarIndex * 0.56), depth * 0.15], bookcaseBookColors[
               (bookcaseJarIndex + bookcaseJarSeed) %
                 bookcaseBookColors.length
-            ],
-            {
+            ], {
               radius: 0.007,
               roughness: 0.78,
               metalness: 0,
-            },
-          );
+            });
       },
       bookcaseFirstShelfY =
         height6 * bookcaseShelfRatios[0] +
@@ -402,34 +281,14 @@ export function buildStorageUpper(scope: ItemModelScope): boolean {
       count: 6,
       seed: 0,
     }),
-      addBoxMesh(
-        itemModelNode,
-        bookcaseRightBayWidth * 0.17,
-        height6 * 0.12,
-        0.022,
-        bookcaseRightBayX + bookcaseRightBayWidth * 0.27,
-        bookcaseThirdShelfY + height6 * 0.065,
-        depth * 0.22,
-        11972517,
-        {
+      box(itemModelNode, [bookcaseRightBayWidth * 0.17, height6 * 0.12, 0.022], [bookcaseRightBayX + bookcaseRightBayWidth * 0.27, bookcaseThirdShelfY + height6 * 0.065, depth * 0.22], 11972517, {
           rounded: false,
           roughness: 0.5,
-        },
-      ),
-      addBoxMesh(
-        itemModelNode,
-        bookcaseRightBayWidth * 0.125,
-        height6 * 0.085,
-        0.026,
-        bookcaseRightBayX + bookcaseRightBayWidth * 0.27,
-        bookcaseThirdShelfY + height6 * 0.065,
-        depth * 0.235,
-        7762283,
-        {
+        }),
+      box(itemModelNode, [bookcaseRightBayWidth * 0.125, height6 * 0.085, 0.026], [bookcaseRightBayX + bookcaseRightBayWidth * 0.27, bookcaseThirdShelfY + height6 * 0.065, depth * 0.235], 7762283, {
           rounded: false,
           roughness: 0.42,
-        },
-      ),
+        }),
       bookcaseJarRow(
         bookcaseRightBayCenterX,
         bookcaseThirdShelfY,
@@ -447,34 +306,14 @@ export function buildStorageUpper(scope: ItemModelScope): boolean {
       2,
       1,
     ),
-      addCylinderMesh(
-        itemModelNode,
-        bookcaseRightBayWidth * 0.055,
-        bookcaseRightBayWidth * 0.075,
-        height6 * 0.12,
-        bookcaseRightBayX - bookcaseRightBayWidth * 0.08,
-        bookcaseFourthShelfY + height6 * 0.06,
-        depth * 0.12,
-        5196615,
-        {
+      cyl(itemModelNode, [bookcaseRightBayWidth * 0.055, bookcaseRightBayWidth * 0.075, height6 * 0.12], [bookcaseRightBayX - bookcaseRightBayWidth * 0.08, bookcaseFourthShelfY + height6 * 0.06, depth * 0.12], 5196615, {
           segments: 22,
           roughness: 0.66,
-        },
-      ),
-      addCylinderMesh(
-        itemModelNode,
-        bookcaseRightBayWidth * 0.045,
-        bookcaseRightBayWidth * 0.064,
-        height6 * 0.15,
-        bookcaseRightBayX + bookcaseRightBayWidth * 0.08,
-        bookcaseFourthShelfY + height6 * 0.075,
-        depth * 0.12,
-        6643802,
-        {
+        }),
+      cyl(itemModelNode, [bookcaseRightBayWidth * 0.045, bookcaseRightBayWidth * 0.064, height6 * 0.15], [bookcaseRightBayX + bookcaseRightBayWidth * 0.08, bookcaseFourthShelfY + height6 * 0.075, depth * 0.12], 6643802, {
           segments: 22,
           roughness: 0.66,
-        },
-      ),
+        }),
       bookcaseJarRow(
         bookcaseRightBayCenterX,
         bookcaseFourthShelfY,
@@ -514,44 +353,14 @@ export function buildStorageUpper(scope: ItemModelScope): boolean {
         -depth * 0.5 + shelfPostSize * 0.5,
         depth * 0.5 - shelfPostSize * 0.5,
       ])
-        addBoxMesh(
-          itemModelNode,
-          shelfPostSize,
-          height6,
-          shelfPostSize,
-          shelfPostX,
-          height6 * 0.5,
-          shelfPostZ,
-          furniture,
-          shelfPostOptions,
-        );
+        box(itemModelNode, [shelfPostSize, height6, shelfPostSize], [shelfPostX, height6 * 0.5, shelfPostZ], furniture, shelfPostOptions);
     for (const shelfHeightRatio of [
       0.04, 0.26, 0.49, 0.72, 0.96,
     ])
-      (addBoxMesh(
-        itemModelNode,
-        width6,
-        shelfBoardThickness,
-        shelfBoardDepth,
-        0,
-        height6 * shelfHeightRatio,
-        0,
-        shelfHeightRatio === 0.96
+      (box(itemModelNode, [width6, shelfBoardThickness, shelfBoardDepth], [0, height6 * shelfHeightRatio, 0], shelfHeightRatio === 0.96
           ? furnitureLight
-          : furnitureSoft,
-        shelfBoardOptions,
-      ),
-        addBoxMesh(
-          itemModelNode,
-          width6,
-          shelfPostSize * 0.65,
-          shelfPostSize,
-          0,
-          height6 * shelfHeightRatio,
-          -depth * 0.5 + shelfPostSize * 0.5,
-          furniture,
-          shelfPostOptions,
-        ));
+          : furnitureSoft, shelfBoardOptions),
+        box(itemModelNode, [width6, shelfPostSize * 0.65, shelfPostSize], [0, height6 * shelfHeightRatio, -depth * 0.5 + shelfPostSize * 0.5], furniture, shelfPostOptions));
     const shelfClearWidth = Math.max(
         width6 - shelfPostSize * 2,
         shelfPostSize,
@@ -562,20 +371,10 @@ export function buildStorageUpper(scope: ItemModelScope): boolean {
         shelfTotalHeight,
       );
     for (const shelfBraceSign of [-1, 1]) {
-      const shelfDiagonalBrace = addBoxMesh(
-        itemModelNode,
-        shelfPostSize * 0.48,
-        hypot3,
-        shelfPostSize * 0.42,
-        0,
-        height6 * 0.5,
-        -depth * 0.5 + shelfPostSize * 0.18,
-        furniture,
-        {
+      const shelfDiagonalBrace = box(itemModelNode, [shelfPostSize * 0.48, hypot3, shelfPostSize * 0.42], [0, height6 * 0.5, -depth * 0.5 + shelfPostSize * 0.18], furniture, {
           ...shelfPostOptions,
           castShadow: false,
-        },
-      );
+        });
       shelfDiagonalBrace.rotation.z =
         shelfBraceSign *
         Math.atan2(shelfClearWidth, shelfTotalHeight);
@@ -661,109 +460,39 @@ export function buildStorageUpper(scope: ItemModelScope): boolean {
       wallcabinetCeilingY =
         wallcabinetCounterY +
         wallcabinetPanelThickness / 2;
-    (addBoxMesh(
-      itemModelNode,
-      wallcabinetInnerWidth,
-      wallcabinetTopY - wallcabinetCeilingY,
-      depth,
-      0,
-      (wallcabinetTopY + wallcabinetCeilingY) / 2,
-      0,
-      furniture,
-      {
+    (box(itemModelNode, [wallcabinetInnerWidth, wallcabinetTopY - wallcabinetCeilingY, depth], [0, (wallcabinetTopY + wallcabinetCeilingY) / 2, 0], furniture, {
         rounded: false,
-      },
-    ),
-      addBoxMesh(
-        itemModelNode,
-        wallcabinetInnerWidth,
-        wallcabinetCeilingY -
+      }),
+      box(itemModelNode, [wallcabinetInnerWidth, wallcabinetCeilingY -
           wallcabinetBottomY -
-          wallcabinetPanelThickness * 2,
-        wallcabinetPanelThickness,
-        0,
-        (wallcabinetBottomY + wallcabinetCeilingY) /
-          2,
-        -depth / 2 + wallcabinetPanelThickness / 2,
-        furniture,
-        {
+          wallcabinetPanelThickness * 2, wallcabinetPanelThickness], [0, (wallcabinetBottomY + wallcabinetCeilingY) /
+          2, -depth / 2 + wallcabinetPanelThickness / 2], furniture, {
           rounded: false,
           roughness: 0.62,
-        },
-      ),
-      addBoxMesh(
-        itemModelNode,
-        wallcabinetInnerWidth,
-        wallcabinetPanelThickness,
-        depth,
-        0,
-        1.4,
-        0,
-        furnitureSoft,
-        {
+        }),
+      box(itemModelNode, [wallcabinetInnerWidth, wallcabinetPanelThickness, depth], [0, 1.4, 0], furnitureSoft, {
           rounded: false,
           roughness: 0.5,
-        },
-      ),
-      addBoxMesh(
-        itemModelNode,
-        wallcabinetInnerWidth,
-        wallcabinetPanelThickness,
-        depth,
-        0,
-        wallcabinetCounterY,
-        0,
-        furnitureSoft,
-        {
+        }),
+      box(itemModelNode, [wallcabinetInnerWidth, wallcabinetPanelThickness, depth], [0, wallcabinetCounterY, 0], furnitureSoft, {
           rounded: false,
           roughness: 0.5,
-        },
-      ),
-      addBoxMesh(
-        itemModelNode,
-        wallcabinetPanelThickness,
-        wallcabinetTopY - wallcabinetBottomY,
-        depth,
-        -(width6 - wallcabinetPanelThickness) / 2,
-        (wallcabinetBottomY + wallcabinetTopY) / 2,
-        0,
-        furniture,
-        {
+        }),
+      box(itemModelNode, [wallcabinetPanelThickness, wallcabinetTopY - wallcabinetBottomY, depth], [-(width6 - wallcabinetPanelThickness) / 2, (wallcabinetBottomY + wallcabinetTopY) / 2, 0], furniture, {
           rounded: false,
-        },
-      ),
-      addBoxMesh(
-        itemModelNode,
-        wallcabinetPanelThickness,
-        wallcabinetTopY - wallcabinetBottomY,
-        depth,
-        (width6 - wallcabinetPanelThickness) / 2,
-        (wallcabinetBottomY + wallcabinetTopY) / 2,
-        0,
-        furniture,
-        {
+        }),
+      box(itemModelNode, [wallcabinetPanelThickness, wallcabinetTopY - wallcabinetBottomY, depth], [(width6 - wallcabinetPanelThickness) / 2, (wallcabinetBottomY + wallcabinetTopY) / 2, 0], furniture, {
           rounded: false,
-        },
-      ));
+        }));
     const wallcabinetDoorWidth = width6 * 0.31;
     for (const wallcabinetDoorOffset of [
       -0.33, 0, 0.33,
     ])
-      addBoxMesh(
-        itemModelNode,
-        wallcabinetDoorWidth,
-        wallcabinetUpperHeight * 0.9,
-        0.026,
-        width6 * wallcabinetDoorOffset,
-        wallcabinetCounterY +
-          wallcabinetUpperHeight * 0.5,
-        depth * 0.515,
-        furnitureSoft,
-        {
+      box(itemModelNode, [wallcabinetDoorWidth, wallcabinetUpperHeight * 0.9, 0.026], [width6 * wallcabinetDoorOffset, wallcabinetCounterY +
+          wallcabinetUpperHeight * 0.5, depth * 0.515], furnitureSoft, {
           rounded: false,
           roughness: 0.45,
-        },
-      );
+        });
     return true;
   }
   return false;
