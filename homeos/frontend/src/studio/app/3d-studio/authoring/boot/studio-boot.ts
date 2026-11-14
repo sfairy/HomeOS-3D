@@ -15,6 +15,7 @@ import {
 } from '../../../shared/dashboard-fonts'
 import { prepareSceneDocument as prepareSceneDocument2 } from '../../cache/scene-persistent-cache'
 import { stageStartup as stageStartup2 } from '../../stage-startup'
+import { STUDIO_COMPAT_NOTICE, studioCompatModeSource } from '../../studio-gpu-compat'
 import {
   studioStartupActive,
   studioStartupFail,
@@ -73,6 +74,21 @@ export function disposeStudioFonts() {
   studioFonts = null
 }
 
+/**
+ * 兼容模式是**自动**触发的（近期反复出现 GPU 故障），必须让用户知道画质为什么变低、
+ * 以及怎么退出 —— 否则「怎么突然糊了」会被当成又一个 bug。
+ * 抽出成函数是为了不给 `startupStudio` 增加复杂度（前端复杂度是棘轮门禁）。
+ */
+function announceStudioCompatMode(deps: StudioBootDeps): void {
+  const source = studioCompatModeSource()
+  if (!source) return
+  deps.showToast(STUDIO_COMPAT_NOTICE, 'warning')
+  window.HomeOSLog?.warn?.(STUDIO_COMPAT_NOTICE, {
+    phase: 'studio-gpu-compat',
+    source,
+  })
+}
+
 export async function startupStudio(deps: StudioBootDeps) {
   if (!deps.isStudioEntry) {
     deps.showSaveState('地址无效', 'error')
@@ -94,6 +110,7 @@ export async function startupStudio(deps: StudioBootDeps) {
     const registryReady = ensureRegistryComponents()
     registryReady.catch(() => {})
     deps.createStudioRenderer(), deps.stageLoadTiming('renderer-created'), deps.resizePlanStage()
+    announceStudioCompatMode(deps)
     // 阶段②：渲染器就位，接下来是一次草稿往返 —— 这时说「读取户型」才是用户真正在等的事。
     studioStartupPhase('正在读取户型…')
     const draftRequest = deps.fetchStudioApi(stageStartup2?.path || '/studio3d', {}, stageStartup2?.response)

@@ -1,5 +1,5 @@
 /**
- * 云：一朵朵**漂移的白云**，只出现在「多云」。
+ * 云：一朵朵**漂移的云**，出现在多云以及全部降水天气。
  *
  * 这里刻意没有「云幕」形态：铺满画面宽度的灰带会把下面的户型、家具与设备状态
  * 一起盖住，属于背景遮盖层——天气层不允许出现任何整屏填充。
@@ -7,6 +7,8 @@
  * 越近的云越大越快，靠视差拉开层次。
  *
  * 云只在画面上部活动，并且给每朵云单独限制不透明度上限，绝不下探到户型主体上。
+ * 降水天气（雨 / 雪 / 雷雨 / 雨夹雪）同样是这套云，只是换成更暗更沉的底色：
+ * 雨从晴空落下是「特效」，雨从低压的暗云下落下才是「天气」。
  */
 
 import type { WeatherFrame } from './frame'
@@ -19,8 +21,9 @@ const CLOUD_SPRITE_CENTER = 0.6
 const CLOUD_MAX_WIDTH = 0.34
 /** 云朵中心允许下探到画面高度的比例。 */
 const CLOUD_MAX_CENTER = 0.34
-/** 云朵贴图颜色：接近中性白，避免在暖色场景里发黄。 */
+/** 晴天的云贴图颜色：接近中性白，避免在暖色场景里发黄。 */
 const CLOUD_RGB = '250,252,255'
+const CLOUD_BOTTOM_RGB = '196,204,220'
 
 type CloudLayout = {
   /** 纵向位置（占画面高度比例，绘制前还会被 `CLOUD_MAX_CENTER` 夹一道）。 */
@@ -31,6 +34,8 @@ type CloudLayout = {
   phase: number
   /** 尺寸系数（0.7~1.2），同一远近也有大有小。 */
   size: number
+  /** 贴图变体：不同团块布局，避免整片天空的云长得一模一样。 */
+  variant: number
 }
 
 /**
@@ -40,16 +45,20 @@ type CloudLayout = {
  * 云的位置整体跳一下；固定布局 + 时间相位就能做到「云一直在，只是慢慢飘」。
  */
 const CLOUD_LAYOUT: readonly CloudLayout[] = Object.freeze([
-  { y: 0.06, depth: 0.35, phase: 0.02, size: 0.85 },
-  { y: 0.16, depth: 0.55, phase: 0.42, size: 1.05 },
-  { y: 0.1, depth: 0.72, phase: 0.66, size: 1.12 },
-  { y: 0.24, depth: 0.48, phase: 0.2, size: 0.92 },
-  { y: 0.2, depth: 0.9, phase: 0.83, size: 1.18 },
-  { y: 0.3, depth: 0.4, phase: 0.55, size: 0.8 },
+  { y: 0.06, depth: 0.35, phase: 0.02, size: 0.85, variant: 0 },
+  { y: 0.16, depth: 0.55, phase: 0.42, size: 1.05, variant: 1 },
+  { y: 0.1, depth: 0.72, phase: 0.66, size: 1.12, variant: 2 },
+  { y: 0.24, depth: 0.48, phase: 0.2, size: 0.92, variant: 2 },
+  { y: 0.2, depth: 0.9, phase: 0.83, size: 1.18, variant: 0 },
+  { y: 0.3, depth: 0.4, phase: 0.55, size: 0.8, variant: 1 },
+  { y: 0.13, depth: 0.62, phase: 0.11, size: 0.96, variant: 2 },
+  { y: 0.27, depth: 0.66, phase: 0.74, size: 0.88, variant: 1 },
 ])
 
-function drawCloud(frame: WeatherFrame, sprite: HTMLCanvasElement, layout: CloudLayout, amount: number) {
+function drawCloud(frame: WeatherFrame, rgb: string, bottomRgb: string, layout: CloudLayout, amount: number) {
   const { ctx, width, height } = frame
+  const sprite = frame.sprites.cloudSprite(rgb, bottomRgb, layout.variant)
+  if (!sprite) return
   const drift = (frame.preset.cloudDrift ?? 0.03) * (0.4 + layout.depth * 0.8)
   // 相位 + 时间 → 0~1.5 的横向位置，两端各多留 0.25 屏让云「从画面外飘进来」。
   const progress = (((frame.elapsedSeconds * drift + layout.phase) % 1.5) + 1.5) % 1.5
@@ -58,7 +67,10 @@ function drawCloud(frame: WeatherFrame, sprite: HTMLCanvasElement, layout: Cloud
   const cloudHeight = cloudWidth * (sprite.height / sprite.width)
   const centerX = (progress - 0.25) * width
   const centerY = height * Math.min(CLOUD_MAX_CENTER, layout.y + layout.depth * 0.04)
-  ctx.globalAlpha = Math.min(CLOUD_MAX_ALPHA, 0.34 + layout.depth * 0.3) * Math.min(1, amount)
+  const alphaCap = Math.min(CLOUD_MAX_ALPHA, 0.34 + layout.depth * 0.3) * Math.min(1, amount)
+  // 闪电照亮云底：整朵云在放电瞬间一起提亮，观感比只画一条亮线真实得多。
+  const flashBoost = 1 + frame.flash * 1.1
+  ctx.globalAlpha = Math.min(0.92, alphaCap * (frame.preset.cloudAlpha ?? 1) * flashBoost)
   ctx.drawImage(sprite, centerX - cloudWidth / 2, centerY - cloudHeight * CLOUD_SPRITE_CENTER, cloudWidth, cloudHeight)
 }
 
@@ -67,14 +79,15 @@ export function createCloudRenderer() {
     draw(frame: WeatherFrame) {
       const amount = frame.preset.clouds || 0
       if (amount <= 0) return
-      const sprite = frame.sprites.cloudSprite(CLOUD_RGB)
-      if (!sprite) return
+      const rgb = frame.preset.cloudTint || CLOUD_RGB
+      const bottomRgb = frame.preset.cloudBottom || CLOUD_BOTTOM_RGB
       const { ctx } = frame
       ctx.save()
-      // 画质降档时少画两朵（远的先省），但不能少到「看不出有云」。
-      const qualityCount = frame.quality >= 0.8 ? CLOUD_LAYOUT.length : CLOUD_LAYOUT.length - 2
+      // 画质降档时少画几朵（远的先省），但不能少到「看不出有云」。
+      const qualityCount = frame.quality >= 0.8 ? CLOUD_LAYOUT.length : CLOUD_LAYOUT.length - 4
       const count = amount >= 0.8 ? qualityCount : Math.max(2, Math.round(qualityCount * amount * 1.2))
-      for (let index = 0; index < count; index++) drawCloud(frame, sprite, CLOUD_LAYOUT[index], amount)
+      for (let index = 0; index < Math.min(count, CLOUD_LAYOUT.length); index++)
+        drawCloud(frame, rgb, bottomRgb, CLOUD_LAYOUT[index], amount)
       ctx.restore()
       ctx.globalAlpha = 1
     },

@@ -34,7 +34,15 @@ import { createThunderRenderer } from './weather/thunder'
 
 /** 设备像素比上限与「画布总像素」预算。 */
 const MAX_DEVICE_PIXEL_RATIO = 1.5
-const CANVAS_PIXEL_BUDGET = 2_400_000
+/**
+ * 画布总像素预算。
+ *
+ * 这是一层**盖在 3D 舞台上的全屏半透明画布**：每帧都要整块清屏 + 重绘 + 参与合成，
+ * 而 3D 画布在拖动时是 60fps 变的，合成器每帧都要把它们混一次。2.4M 像素时实测
+ * 遮挡层可见会让舞台 p95 帧间隔从 25.7ms 涨到 33.3ms；压到 1.9M 后这一份开销下来了，
+ * 视觉上几乎看不出差别（雨丝是 1~3px 的细线，降采样影响远小于几何分辨率）。
+ */
+const CANVAS_PIXEL_BUDGET = 1_900_000
 /** 粒子密度归一化基准面积（像素）与密度上限。 */
 const DENSITY_BASE_AREA = 900_000
 const MAX_DENSITY = 1.25
@@ -46,6 +54,16 @@ const MAX_STEP_SECONDS = 0.05
  */
 const WEATHER_FRAME_MS = 1000 / 30
 const WEATHER_STEP_DELAY_MS = WEATHER_FRAME_MS - 1000 / 60
+/**
+ * 拖动 / 缩放视角时的出帧上限。
+ *
+ * 拖动期间 3D 舞台是满帧重绘的，而天气层既是「全屏半透明画布要参与合成」、
+ * 又要整块清屏重绘 —— 它挤占的正是拖动最需要的那几十毫秒。此时把天气降到 15fps：
+ * 雨雪在快速运动中本来就糊成一片，帧率砍半看不出来，但拖动明显跟手了。
+ * 松手后立刻恢复 30fps。
+ */
+const WEATHER_MOTION_FRAME_MS = 1000 / 15
+const WEATHER_MOTION_STEP_DELAY_MS = WEATHER_MOTION_FRAME_MS - 1000 / 60
 /** 风速归一化基准（m/s）：超过这个值就按满速处理。 */
 const WIND_SPEED_BASE = 18
 /** 阵风包络：低频正弦叠一层更慢的正弦，形成「一阵一阵」的呼吸。 */
@@ -53,6 +71,12 @@ const GUST_BASE = 0.55
 const GUST_SWING = 0.45
 
 const WEATHER_CANVAS_CLASS = 'i3d-weather-effects'
+
+/** 下发给 3D 舞台的天气消息（目前只有放电事件；天气态本身由宿主统一发布）。 */
+export type WeatherStageMessage = {
+  type: string
+  [key: string]: unknown
+}
 
 /** 低频阵风包络（0~1）。 */
 function gustAt(elapsedSeconds: number) {
@@ -80,8 +104,10 @@ function strokeGroundQuad(frame: WeatherFrame) {
  * 挂在舞台容器上，画一层天气特效。
  *
  * @param host 舞台容器（通常是 3D 视口元素），canvas 会被 append 进去。
+ * @param postStageMessage 舞台消息通道；每次雷电放电会发一条 `weather-flash`，
+ *   让 3D 场景里的家具与墙面跟着亮一下（频率是几秒一次，不是逐帧）。
  */
-export function createWeatherEffects(host: any) {
+export function createWeatherEffects(host: any, postStageMessage?: (message: WeatherStageMessage) => void) {
   const doc = host.ownerDocument || document
   const win = doc.defaultView || window
   const canvas = doc.createElement('canvas')
@@ -105,7 +131,9 @@ export function createWeatherEffects(host: any) {
   const clouds = createCloudRenderer()
   const stars = createStarRenderer()
   const ground = createGroundRenderer()
-  const thunder = createThunderRenderer()
+  const thunder = createThunderRenderer({
+    onStrike: (intensity: number) => postStageMessage?.({ type: 'weather-flash', intensity }),
+  })
   const quality = createQualityGovernor(WEATHER_FRAME_MS)
   const groundDebug = isGroundDebugEnabled(win)
 
@@ -120,6 +148,8 @@ export function createWeatherEffects(host: any) {
   let lastFrameTimestamp: number | null = null
   let sizeKey = ''
   let elapsedSeconds = 0
+  /** 指针是否按着（拖动 / 缩放视角中）：这时把出帧上限降到 15fps。 */
+  let pointerHeld = false
   /** 舞台投影来的真实地面；没收到过就用兜底透视带，保证预览按钮一点就有效果。 */
   let groundQuad: WeatherGroundQuad = fallbackGroundQuad()
 
@@ -219,7 +249,9 @@ export function createWeatherEffects(host: any) {
     elapsedSeconds += deltaSeconds
     quality.sample(deltaSeconds)
     render(deltaSeconds)
-    return WEATHER_STEP_DELAY_MS
+    // 拖动 / 缩放视角期间降到 15fps：这时 3D 舞台是满帧重绘，天气层再抢一份合成与
+    // 清屏开销，代价直接落在「拖动跟不跟手」上。松手后自动回到 30fps。
+    return pointerHeld ? WEATHER_MOTION_STEP_DELAY_MS : WEATHER_STEP_DELAY_MS
   }
 
   const loop = createDemandFrameLoop({
@@ -250,6 +282,32 @@ export function createWeatherEffects(host: any) {
   measure()
   doc.addEventListener('visibilitychange', onVisibilityChange)
   reducedMotionQuery?.addEventListener?.('change', onReducedMotionChange)
+
+  /**
+   * 指针状态：按着就降帧。
+   *
+   * 用捕获阶段的 `pointerdown` 是为了拿到宿主里任何位置按下的第一手信号；
+   * `pointerup` / `pointercancel` / `pointerleave` 任一到达都恢复 —— 拖动中途在
+   * 别的元素上松手也能收到（`pointerup` 会冒泡到 document）。窗口失焦也恢复，
+   * 否则切走再回来会一直停在低帧率。
+   */
+  const onPointerDown = () => {
+    pointerHeld = true
+  }
+  const onPointerRelease = () => {
+    pointerHeld = false
+  }
+  doc.addEventListener('pointerdown', onPointerDown, { capture: true, passive: true })
+  doc.addEventListener('pointerup', onPointerRelease, { capture: true, passive: true })
+  doc.addEventListener('pointercancel', onPointerRelease, { capture: true, passive: true })
+  win.addEventListener('blur', onPointerRelease)
+
+  const removePointerListeners = () => {
+    doc.removeEventListener('pointerdown', onPointerDown, { capture: true })
+    doc.removeEventListener('pointerup', onPointerRelease, { capture: true })
+    doc.removeEventListener('pointercancel', onPointerRelease, { capture: true })
+    win.removeEventListener('blur', onPointerRelease)
+  }
 
   return {
     /**
@@ -305,6 +363,7 @@ export function createWeatherEffects(host: any) {
       loop.dispose()
       disposed = true
       resizeObserver.disconnect()
+      removePointerListeners()
       doc.removeEventListener('visibilitychange', onVisibilityChange)
       reducedMotionQuery?.removeEventListener?.('change', onReducedMotionChange)
       canvas.remove()

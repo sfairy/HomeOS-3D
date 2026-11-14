@@ -153,15 +153,31 @@ export function quadVerticalRange(quad: WeatherGroundQuad): readonly [number, nu
 }
 
 /**
- * 「近地面」的下限：四边形屏幕纵向范围的这个比例以下才算近处。
+ * 「近地面」的屏幕纵向分界线（归一化 y）：湿地/积雪的大面积色块从这条线往下铺。
  *
- * 为什么按屏幕纵向位置、而不是四边形参数 `v`：相机绕户型转一圈时，地板投影在
- * 屏幕上是个**旋转的**四边形（常常接近菱形）。`v` 的方向跟着四边形一起转，
- * 于是同一个 `v` 一会儿表示「靠下」、一会儿表示「靠左」——按 `v` 加权时，
- * 水花会挤在画布中间，而不是画面下部（用户实际反馈）。
- * 按屏幕纵向位置取点，无论相机怎么转，水花与积雪都落在画面下部。
+ * 注意这个值**不能**用来筛水花落点：相机绕到斜角时地板近边是斜的（一端在画面
+ * 底部、另一端只到画面中部），按屏幕 y 筛会把整整半边屏幕的点全滤掉
+ * （实测 x 分布 60%/40%/0%，用户反馈「水花挤在底部靠左」）。落点改用下面的
+ * `v` 阈值控制，横向才是均匀铺满整条宽度的。
  */
-export const NEAR_GROUND_BAND_START = 0.5
+export const NEAR_GROUND_BAND_START = 0.68
+
+/**
+ * 水花落点的纵深上限（四边形参数 `v`，0 = 近边、1 = 远边）。
+ *
+ * 用 `v` 而不是屏幕 y：`v` 沿着地板走，无论相机怎么转，落点都均匀铺在
+ * **整条地板近边带**上（横跨整个画面宽度），而不是被透视压进画面某一个角。
+ * 0.5 大致是地板靠镜头的一半，再远就会落到湿痕带以外。
+ */
+export const NEAR_GROUND_V_MAX = 0.5
+
+/**
+ * 纵深分布的下压指数：`v = r^bias`，bias > 1 让落点向近边集中。
+ *
+ * 单纯在 `v` 上均匀会让一半水花落在带子的远端（屏幕上偏中），所以用一个略大于 1
+ * 的指数把重心往脚下压；1.8 时约 2/3 的落点在前 40% 的纵深里。
+ */
+const NEAR_GROUND_V_BIAS = 1.8
 
 /** 一个地面落点：`u/v` 是四边形参数（相机变动后据此重新投影），`x/y` 是归一化屏幕坐标。 */
 export type GroundSample = {
@@ -217,26 +233,25 @@ export function createSeededRandom(seed: number) {
 }
 
 /**
- * 在「靠画面底部的一段」里采一个落点。
+ * 在地板「近边带」上采一个落点。
  *
- * 先按 `u/v` 均匀采，再按屏幕纵向位置做拒绝采样：落在上半段的点直接丢弃。
- * 这样水花永远出现在画面下部，而 `u/v` 仍然参与双线性插值，相机移动后
- * 落点依然贴在同一块地板上。`attempts` 用完仍没采到就返回 null（这一滴不画），
- * 调用方不会因此卡住。
+ * - **横向 `u` 均匀**：地板在屏幕上是个梯形，u 均匀就等于沿着画面宽度铺满，
+ *   左右两侧的密度不会塌向任何一边。
+ * - **纵深 `v` 向近边下压**（`r^bias`）：让重心落在脚下一带，而不是整块地板。
+ *
+ * 为什么不再按屏幕纵向取点：相机绕到斜角时地板近边是斜的，屏幕底部只对应
+ * 地板的一个角。按屏幕 y 采样会把所有点压进那个角（实测右侧三分之一为 0），
+ * 观感就是「水花挤在底部靠左」。沿着 `v` 采样才能既铺满宽度又靠近观众。
+ *
+ * 返回到绘制端的 `x/y` 已经经过双线性插值，相机移动后落点依然贴在同一块地板上。
  */
 export function sampleNearGroundPoint(
   quad: WeatherGroundQuad,
   random: () => number = Math.random,
-  bandStart = NEAR_GROUND_BAND_START,
-  attempts = 12,
-): GroundSample | null {
-  const cutY = nearGroundCutY(quad, bandStart)
-  for (let attempt = 0; attempt < attempts; attempt += 1) {
-    const u = random()
-    const v = random()
-    const [x, y] = pointOnQuad(quad, u, v)
-    if (y < cutY) continue
-    return { u, v, x, y, depth: quadDepthAt(quad, y) }
-  }
-  return null
+  vMax = NEAR_GROUND_V_MAX,
+): GroundSample {
+  const u = random()
+  const v = Math.pow(random(), NEAR_GROUND_V_BIAS) * Math.max(0, Math.min(1, vMax))
+  const [x, y] = pointOnQuad(quad, u, v)
+  return { u, v, x, y, depth: quadDepthAt(quad, y) }
 }

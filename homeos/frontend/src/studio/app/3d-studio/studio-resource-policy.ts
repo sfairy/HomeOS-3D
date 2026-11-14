@@ -6,6 +6,12 @@
  * 禁止默认 perf-low / 永久全局砍阴影。
  */
 import { urlFlag } from './render-kit/url-flags'
+import {
+  STUDIO_COMPAT_MAX_PIXEL_RATIO,
+  STUDIO_COMPAT_REFLECTION_RESOLUTION,
+  STUDIO_COMPAT_SUN_SHADOW_MAP_SIZE,
+  isStudioCompatMode,
+} from './studio-gpu-compat'
 
 export const interactionResourcePolicy = Object.freeze({
   contactShadows: Object.freeze({
@@ -59,9 +65,15 @@ export const interactionResourcePolicy = Object.freeze({
 /**
  * 反射分辨率预算：运动压到 maxResolution；闲时恢复外观档（含 512/768，不压低用户更高档）。
  * 低端设备全程卡在 maxResolution。`idleMaxResolution` 文档化为闲时目标上限参考。
+ *
+ * 兼容模式（GPU 崩溃熔断，见 `studio-gpu-compat.ts`）再压到 256：反射是每帧多一趟
+ * 全屏捕获 + 一条额外的 resolve，是最容易把 GPU 看门狗拖超时的可选项。
  */
 export function resolveReflectionResolution(isIdle: boolean, appearanceResolution: number): number {
   const { maxResolution } = interactionResourcePolicy.reflections
+  if (isStudioCompatMode()) {
+    return Math.min(appearanceResolution || STUDIO_COMPAT_REFLECTION_RESOLUTION, STUDIO_COMPAT_REFLECTION_RESOLUTION)
+  }
   if (isLowEndDevice() || !isIdle) return Math.min(appearanceResolution, maxResolution)
   return appearanceResolution
 }
@@ -82,8 +94,20 @@ export function resolveTextureAnisotropy(isIdle: boolean, deviceMax = 1): number
  */
 export function resolveSunShadowMapSize(isEmbedStageMode: boolean): number {
   if (isEmbedStageMode) return interactionResourcePolicy.stageSunShadow.mapSize
+  // 兼容模式：阴影图渲染是场景重建里最贵的一趟，先降到 1024（边缘略糊，但先不崩）。
+  if (isStudioCompatMode()) return STUDIO_COMPAT_SUN_SHADOW_MAP_SIZE
   return isLowEndDevice() ? 1024 : 2048
 }
+
+/**
+ * 编辑器（非嵌入舞台）一帧内允许烘焙几层接触阴影。
+ *
+ * 旧值 `Infinity`：多层户型的冷启动会在**一帧**里连做 N 次「1024² 接触图 + 表面图集」
+ * 全屏烘焙。GPU 看门狗按「单次提交耗时」判超时，这种一帧几十毫秒起步的提交正是它的
+ * 目标，崩了之后浏览器还会把 GPU 进程降级成 `--use-gl=disabled`（3D 直接不可用）。
+ * 拆帧对最终结果没有影响：控制器把剩余楼层放回待办并 requestFrame，只是多几帧才补齐。
+ */
+export const EDITOR_CONTACT_SHADOW_CAPTURES_PER_SYNC = 2
 
 /** 移动端 / 低端设备判定：粗指针、<=4GB 内存或 <=4 逻辑核都按低端处理。 */
 function isLowEndDevice(): boolean {
@@ -102,8 +126,19 @@ function isLowEndDevice(): boolean {
 export function idleRenderPixelRatio(renderScale: number): number {
   const devicePixelRatio = globalThis.devicePixelRatio || 1
   const flag = urlFlag('dpr-cap')
-  if (flag === 'legacy') return Math.min(devicePixelRatio, 1.6) * renderScale
+  if (flag === 'legacy') return clampCompatPixelRatio(Math.min(devicePixelRatio, 1.6) * renderScale)
   const cap = Number(flag)
   const limit = flag !== null && Number.isFinite(cap) && cap >= 0.5 ? cap : 2
-  return Math.min(Math.min(devicePixelRatio, limit) * renderScale, limit)
+  return clampCompatPixelRatio(Math.min(Math.min(devicePixelRatio, limit) * renderScale, limit))
+}
+
+/**
+ * 兼容模式的像素比封顶（GPU 崩溃熔断，见 `studio-gpu-compat.ts`）。
+ *
+ * DPR 2 时像素数是 DPR 1 的 4 倍，是 GPU 负载最直接的一阶项；放在这里是因为所有
+ * 渲染档位最终都经过 `idleRenderPixelRatio`，一处收口比在每个调用点各写一次可靠。
+ */
+function clampCompatPixelRatio(ratio: number): number {
+  if (!isStudioCompatMode()) return ratio
+  return Math.min(ratio, STUDIO_COMPAT_MAX_PIXEL_RATIO)
 }

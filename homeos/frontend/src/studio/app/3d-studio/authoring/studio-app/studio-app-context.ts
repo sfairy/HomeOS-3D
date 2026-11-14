@@ -147,6 +147,18 @@ export interface StudioAppContext {
   fillDirectionalLight: any
   topDirectionalLight: any
   lightPrecompileController: any
+  /**
+   * 天气大气控制器：把天气键换成光照系数（主光 / 环境光 / 曝光 / 雾）。
+   *
+   * 单独声明成结构类型而不是 import 控制器的具体类型：上下文与控制器互相引用，
+   * 只用类型也会形成环，结构声明把契约写在调用点这一侧。
+   */
+  weatherAtmosphere: {
+    setWeather(weatherKey: unknown): void
+    pulseStrike(intensity: unknown): void
+    refreshBaseline(): void
+    dispose(): void
+  } | null
   baseLightingSettings: ReturnType<typeof normalizeBaseLighting2>
   pointerDragState: any
   lightPreviewWorker: any
@@ -351,6 +363,7 @@ export function createStudioAppContext(): StudioAppContext {
     fillDirectionalLight: null,
     topDirectionalLight: null,
     lightPrecompileController: null,
+    weatherAtmosphere: null,
     baseLightingSettings: undefined as unknown as ReturnType<typeof normalizeBaseLighting2>,
     pointerDragState: null,
     lightPreviewWorker: null,

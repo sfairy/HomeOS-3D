@@ -1,5 +1,66 @@
 import type { StudioAppRuntime } from '../runtime/studio-app-runtime'
 import { urlFlag } from '../../../render-kit/url-flags'
+import { recordStudioGpuIncident } from '../../../studio-gpu-compat'
+
+/** 上下文丢失后等浏览器自己恢复的窗口；超过它基本可以认定 GPU 进程没能重建（Edge 会退化到 --use-gl=disabled）。 */
+const CONTEXT_LOST_RECOVERY_TIMEOUT_MS = 8000
+const CONTEXT_LOST_HINT_TEXT = '3D 图形上下文丢失，正在自动恢复…'
+const CONTEXT_LOST_FATAL_TEXT = '3D 图形上下文已丢失且未能自动恢复，请刷新页面重试。'
+/** `#webgl-message` 节点缺失（或文案被清空）时的兜底：恢复后别把提示留成空白。 */
+const CONTEXT_LOST_FALLBACK_TEXT = '当前浏览器无法创建 3D 画面。'
+
+/**
+ * 编辑器里给「上下文丢失」一个可见出口。
+ *
+ * 此前编辑器只在丢失时上报 RUM，画布就那样定住：GPU 进程崩过之后浏览器未必还能恢复
+ * （Edge 连续崩溃后会用 `--use-gl=disabled` 重启 GPU 进程，`webglcontextrestored` 永远不来），
+ * 用户看到的是「点什么都没反应 + 3D 定格」。这里复用初始化失败那块 `#webgl-message`：
+ * 先提示正在恢复，超时仍未恢复就明确让人刷新。
+ *
+ * 嵌入舞台不在这里显示：宿主的 `applyStageGpuHint` 已有同名提示，两条叠在一起更乱。
+ */
+function createContextLostHint(runtime: StudioAppRuntime, ownerDocument: Document) {
+  let recoveryTimer: number | null = null
+  let isShown = false
+  // 初始化失败的兜底文案也写在这个节点上（见 createStudioRenderer 的 catch）；
+  // 恢复后要还回去，不能留空 —— 否则下次真失败时用户看到的是一块空白提示。
+  const defaultText = ownerDocument.getElementById('webgl-message')?.textContent?.trim() || CONTEXT_LOST_FALLBACK_TEXT
+  const clearRecoveryTimer = () => {
+    if (recoveryTimer !== null) window.clearTimeout(recoveryTimer)
+    recoveryTimer = null
+  }
+  const paint = (text: string) => {
+    const messageElement = ownerDocument.getElementById('webgl-message') as HTMLElement | null
+    if (!messageElement) return false
+    messageElement.hidden = false
+    messageElement.textContent = text
+    isShown = true
+    return true
+  }
+  return {
+    show() {
+      if (runtime.isEmbeddedStage) return
+      clearRecoveryTimer()
+      if (!paint(CONTEXT_LOST_HINT_TEXT)) return
+      recoveryTimer = window.setTimeout(() => {
+        recoveryTimer = null
+        paint(CONTEXT_LOST_FATAL_TEXT)
+      }, CONTEXT_LOST_RECOVERY_TIMEOUT_MS)
+    },
+    hide() {
+      clearRecoveryTimer()
+      if (!isShown) return
+      isShown = false
+      const messageElement = ownerDocument.getElementById('webgl-message') as HTMLElement | null
+      if (!messageElement) return
+      messageElement.hidden = true
+      messageElement.textContent = defaultText
+    },
+    dispose() {
+      clearRecoveryTimer()
+    },
+  }
+}
 
 export function renderStudioFrame(runtime: StudioAppRuntime) {
   ;(runtime.appCtx.isLightCacheReady = true),
@@ -9,11 +70,16 @@ export function renderStudioFrame(runtime: StudioAppRuntime) {
 
 export function bindFrameDriver(runtime: StudioAppRuntime, frameCallback: any) {
   const domElement3 = runtime.appCtx.threeRenderer.domElement,
+    contextLostHint = createContextLostHint(runtime, domElement3.ownerDocument),
     handleRendererLost = (rendererLostEvent: any) => {
       rendererLostEvent.preventDefault(),
+        // 上下文丢失是 GPU 进程出问题最直接的信号：记一条带时间的故障，连续出现会在
+        // 下一次引导自动切到兼容模式（见 studio-gpu-compat.ts）。
+        recordStudioGpuIncident('context-lost'),
         !runtime.appCtx.isDisposed &&
           ((runtime.appCtx.isDisposed = true),
           runtime.emitRuntimeDiagnostic('gpu-lost'),
+          contextLostHint.show(),
           // 先就地 dispose 渲染期登记的 GPU 资源再清缓存，否则上下文丢失后它们悬空占显存。
           runtime.appCtx.contextResources?.releaseLostContext(),
           runtime.appCtx.lightingScheduler?.setAvailable(false),
@@ -37,6 +103,7 @@ export function bindFrameDriver(runtime: StudioAppRuntime, frameCallback: any) {
       runtime.appCtx.isDisposed &&
         ((runtime.appCtx.isDisposed = false),
         runtime.emitRuntimeDiagnostic('gpu-restored'),
+        contextLostHint.hide(),
         runtime.disposeShadowAtlas(),
         runtime.appCtx.compiledShaderCache?.clear(),
         runtime.effectCache?.resetContext(),
@@ -62,7 +129,8 @@ export function bindFrameDriver(runtime: StudioAppRuntime, frameCallback: any) {
     domElement3.addEventListener('webglcontextlost', handleRendererLost),
     domElement3.addEventListener('webglcontextrestored', handleRendererRestored),
     () => {
-      domElement3.removeEventListener('webglcontextlost', handleRendererLost),
+      contextLostHint.dispose(),
+        domElement3.removeEventListener('webglcontextlost', handleRendererLost),
         domElement3.removeEventListener('webglcontextrestored', handleRendererRestored)
     }
   )

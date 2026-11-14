@@ -60,6 +60,9 @@ export function refreshBaseLighting(runtime: StudioAppRuntime) {
       (runtime.appCtx.topDirectionalLight.color.setHex(yt2.warmWood ? 16776693 : 16250871),
       (runtime.appCtx.topDirectionalLight.intensity = vn2.topIntensity * intensityScale),
       runtime.positionLightFromAngles(runtime.appCtx.topDirectionalLight, vn2.topAzimuth, vn2.topElevation, 16.1))
+  // 上面刚把灯光恢复到「基线」。天气系数必须以这份基线为基准重新叠回去：
+  // 不补这一下的话，用户改一次基础光、或场景重建一次，天气就被冲掉（雨还在下、灯回到满亮）。
+  runtime.appCtx.weatherAtmosphere?.refreshBaseline()
 }
 
 export function setShadowQualityHigh(runtime: StudioAppRuntime, isHighQuality: any) {

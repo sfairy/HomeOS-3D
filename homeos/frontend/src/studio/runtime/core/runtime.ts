@@ -9,14 +9,9 @@ import { cameraSourceConfigured } from '../camera/camera-status'
 import { carTireEntities, carTireModelType } from '../vehicle/car-tires'
 import { createWeatherEffects } from '../environment/weather-effects'
 import { normalizeGroundQuad, type WeatherGroundQuad } from '../environment/weather/ground-quad'
-import {
-  WEATHER_EFFECTS,
-  WEATHER_PREVIEW_TIMEOUT_MS,
-  boundWeatherEntityId,
-  weatherEffectKey,
-  weatherEntityIds,
-  weatherEntityState,
-} from '@/studio/platform/weather-settings'
+import { boundWeatherEntityId, weatherEntityIds, weatherEntityState } from '@/studio/platform/weather-settings'
+import { createWeatherAtmospherePublisher } from './weather-atmosphere-publish'
+import { createWeatherPreview } from './weather-preview'
 import { ensureInteraction3dSelectControls } from '../config-ui/select-controls'
 import { createLabelConfigPatch } from './state-update-plan'
 import { applyStageGpuHint, createStageFrameLazyMountGate, scheduleSlowLoadHint } from './stage-frame-lazy-mount'
@@ -1187,16 +1182,12 @@ export function mountInteraction3d(
   }
   // 天气特效层：只在「绑定了天气实体」或「编辑器正在预览某个天气态」时创建 canvas，
   // 其余情况整层不存在、不出帧（按需帧循环见 `weather-effects`）。
-  let weatherEffects: any = null,
-    weatherPreviewCondition = '',
-    weatherPreviewTimeoutId: any = null
+  let weatherEffects: any = null
   /**
    * 舞台发来的真实地面投影（归一化屏幕四边形）。
    * 没收到过（舞台未就绪 / 相机贴地导致投影退化）时保持 null，天气层用兜底透视带。
    */
   let weatherGroundQuad: WeatherGroundQuad | null = null
-  /** 预览态订阅方（配置面板据此高亮按钮、复位说明文案）。 */
-  const weatherPreviewListeners = new Set<(previewState: string) => void>()
   /**
    * 绑定的天气实体 ID。
    *
@@ -1207,10 +1198,35 @@ export function mountInteraction3d(
    * 与实体订阅共用同一份清单——两处口径不一致时，状态根本不会推下来。
    */
   const currentWeatherEntityId = () => boundWeatherEntityId(componentProperties)
-  /** 广播当前预览态；没有预览时传空串。 */
-  function notifyWeatherPreview() {
-    for (const listener of weatherPreviewListeners) listener(weatherPreviewCondition)
-  }
+  /**
+   * 天气预览态（12 秒后自动恢复真实天气）。
+   *
+   * 「不可见」不在这里判：这条路径会被每次可见性重算命中，顺手取消预览会让
+   * 「点预览按钮」在不可见的那一帧自我了断——按钮已高亮、画面却什么都没发生。
+   */
+  const weatherPreview = createWeatherPreview({
+    isDisposed: () => isDisposed,
+    canPreview: () =>
+      isAuthorized &&
+      isScenePresented &&
+      !!runtimeContext.editable &&
+      !isPageHidden &&
+      !document.hidden &&
+      !isPreviewSuspended &&
+      !isRangeEditing &&
+      !isViewEditing,
+    onSync: () => syncWeatherEffects(),
+  })
+  /**
+   * 天气 → 3D 舞台的唯一出口（预览优先于实体；只在变化时发）。
+   *
+   * 舞台的灯光 / 曝光 / 雾都跟着这条消息走：2D 层在下雨而房间是晴天，是最容易穿帮的组合。
+   */
+  const publishWeatherAtmosphere = createWeatherAtmospherePublisher(postToStageFrame, () =>
+    weatherPreview.condition
+      ? { state: weatherPreview.condition }
+      : weatherEntityState(getCurrentStates(), currentWeatherEntityId()),
+  )
   /**
    * 天气层是否该出帧。
    *
@@ -1237,60 +1253,28 @@ export function mountInteraction3d(
     if (isDisposed) return
     const weatherTargetId = currentWeatherEntityId()
     // 没绑定、也没在预览：连 canvas 都不建，避免给不关心天气的户型带来任何开销。
-    if (!weatherEffects && !weatherTargetId && !weatherPreviewCondition) return
+    if (!weatherEffects && !weatherTargetId && !weatherPreview.condition) return
     // 解绑（或实体 ID 变成空串）后把已经建过的 canvas 一起收掉：留着它虽然 `hidden`，
     // 但会永久占着一个 DOM 节点 + 一份粒子池，而且下次绑定要复用一个「上一次天气」的旧层。
-    if (!weatherTargetId && !weatherPreviewCondition) {
-      weatherEffects?.dispose(), (weatherEffects = null)
+    if (!weatherTargetId && !weatherPreview.condition) {
+      weatherEffects?.dispose(), (weatherEffects = null), publishWeatherAtmosphere()
       return
     }
     const isActive = weatherEffectsActive()
     // 不可见**不结束预览**：这条路径会被每次可见性重算命中（滚动、切页、其它弹窗盖上来），
     // 在这里顺手取消预览会让「点预览按钮」在不可见的那一帧自我了断——按钮已高亮、
     // 画面却什么都没发生。预览的收尾只交给 12 秒超时与 `setEditable` / dispose。
-    if (!weatherEffects && isActive && (weatherTargetId || weatherPreviewCondition))
-      (weatherEffects = createWeatherEffects(hostElement)), weatherEffects.setGround?.(weatherGroundQuad)
+    if (!weatherEffects && isActive && (weatherTargetId || weatherPreview.condition))
+      (weatherEffects = createWeatherEffects(hostElement, postToStageFrame)),
+        weatherEffects.setGround?.(weatherGroundQuad)
     weatherEffects?.update(
-      weatherPreviewCondition
-        ? { state: weatherPreviewCondition }
+      weatherPreview.condition
+        ? { state: weatherPreview.condition }
         : weatherEntityState(states ?? getCurrentStates(), weatherTargetId),
       isActive,
     )
-  }
-  /** 结束天气预览（含 12 秒超时到点）。空态时直接返回，避免与 `syncWeatherEffects` 相互递归。 */
-  function closeWeatherPreview() {
-    if (weatherPreviewTimeoutId !== null) clearTimeout(weatherPreviewTimeoutId)
-    weatherPreviewTimeoutId = null
-    if (!weatherPreviewCondition) return
-    weatherPreviewCondition = ''
-    notifyWeatherPreview()
-    syncWeatherEffects()
-  }
-  /**
-   * 进入预览态。合法态与可预览性都从 `WEATHER_EFFECTS` 派生：新增天气不必再改这里。
-   */
-  function previewWeather(weatherState: unknown) {
-    const previewKey = weatherEffectKey(weatherState)
-    if (
-      isDisposed ||
-      !isAuthorized ||
-      !isScenePresented ||
-      !runtimeContext.editable ||
-      isPageHidden ||
-      document.hidden ||
-      isPreviewSuspended ||
-      isRangeEditing ||
-      isViewEditing ||
-      !previewKey ||
-      !WEATHER_EFFECTS[previewKey].preview
-    )
-      return false
-    clearTimeout(weatherPreviewTimeoutId)
-    weatherPreviewCondition = previewKey
-    weatherPreviewTimeoutId = setTimeout(closeWeatherPreview, WEATHER_PREVIEW_TIMEOUT_MS)
-    notifyWeatherPreview()
-    syncWeatherEffects()
-    return true
+    // 2D 效果与 3D 光照必须同时跟随：雨在下、房间却是晴天，是最容易穿帮的组合。
+    publishWeatherAtmosphere()
   }
   /**
    * 按 HA 显示精度生成 `entityId -> precision` 映射；只在变化时下发。
@@ -1591,8 +1575,8 @@ export function mountInteraction3d(
           ? failureMessage.message.trim()
           : ''
     if (!raw) return '3D 画布初始化失败，请重试或改用 2D 控件。'
-    return /webgl|webgpu|context lost|renderer|three\.|reading 'render'|cannot read propert/i.test(raw)
-      ? '当前设备无法创建 3D 画面（WebGL 不可用），可重试或改用 2D 控件。'
+    return /webgl|webgpu|context lost|disabled|renderer|three\.|reading 'render'|cannot read propert/i.test(raw)
+      ? '当前设备无法创建 3D 画面（WebGL 不可用）。请开启浏览器「使用图形加速」并重启浏览器，或改用 2D 控件。'
       : raw
   }
   function failSceneLoad(failureMessage: any) {
@@ -1906,6 +1890,7 @@ export function mountInteraction3d(
           componentProperties.camera ||
           defaultCamera),
         sendConfigUpdate(),
+        publishWeatherAtmosphere(true),
         isPreviewSuspended && refreshActivityState(true),
         void coverMemoryClient.load(true),
         onReady(stageMessage.metadata)),
@@ -1925,6 +1910,7 @@ export function mountInteraction3d(
           hostElement.classList.remove('is-loading', 'is-load-error'),
           hostElement.classList.add('is-ready'),
           hostElement.setAttribute('aria-busy', 'false'),
+          publishWeatherAtmosphere(true),
           onPresented()),
         (hasPresentedStage = true),
         refreshActivityState()),
@@ -2242,10 +2228,7 @@ export function mountInteraction3d(
           coverMemoryClient.dispose(),
           securityAlarmOverlay?.dispose(),
           (securityAlarmOverlay = null),
-          weatherPreviewTimeoutId !== null && clearTimeout(weatherPreviewTimeoutId),
-          (weatherPreviewTimeoutId = null),
-          (weatherPreviewCondition = ''),
-          weatherPreviewListeners.clear(),
+          weatherPreview.dispose(),
           weatherEffects?.dispose(),
           (weatherEffects = null),
           (weatherGroundQuad = null),
@@ -2561,18 +2544,10 @@ export function mountInteraction3d(
       }
     }),
     (runtimeHandle.closePopupLayoutPreview = closePopupLayoutPreview),
-    (runtimeHandle.closeWeatherPreview = closeWeatherPreview),
-    (runtimeHandle.previewWeather = previewWeather),
-    (runtimeHandle.onWeatherPreviewChange = (listener: unknown) => {
-      if (typeof listener !== 'function') return () => {}
-      const previewListener = listener as (previewState: string) => void
-      weatherPreviewListeners.add(previewListener)
-      // 订阅即回报当前态：面板重开时仍能对上正在进行的预览。
-      previewListener(weatherPreviewCondition)
-      return () => {
-        weatherPreviewListeners.delete(previewListener)
-      }
-    }),
+    (runtimeHandle.closeWeatherPreview = weatherPreview.close),
+    (runtimeHandle.previewWeather = weatherPreview.preview),
+    (runtimeHandle.onWeatherPreviewChange = (listener: unknown) =>
+      typeof listener === 'function' ? weatherPreview.subscribe(listener as (state: string) => void) : () => {}),
     (runtimeHandle.previewPopupLayout = (
       layoutKind: string,
       layoutOptions: Record<string, unknown> = {},
@@ -2783,7 +2758,7 @@ export function mountInteraction3d(
         isViewEditing && runtimeHandle.setViewEditing(false),
         isNavigationEditing && setNavigationEditingState(false),
         closePopupLayoutPreview(),
-        closeWeatherPreview(),
+        weatherPreview.close(),
         (runtimeContext.editable = editableEnabled),
         (selectedId = ''),
         (stageFrameElement.style.pointerEvents = editableEnabled && !isEditing ? 'none' : ''),

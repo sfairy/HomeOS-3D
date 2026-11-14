@@ -2541,8 +2541,14 @@ html.list-drag-active * {
   inset: 0;
   display: grid;
   place-items: center;
+  /* 文案带上了排查动作（开启图形加速 / 换浏览器），会折成多行：给足行高和内边距，
+     否则 10px 挤在画布正中根本读不完。 */
+  padding: 16px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
+  line-height: 1.7;
+  text-align: center;
+  text-wrap: pretty;
 }
 @container (max-width: 480px) {
   .preview-primary-controls,

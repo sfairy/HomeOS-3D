@@ -1405,7 +1405,7 @@ onBeforeUnmount(() => {
                         </div>
                     </div> <canvas id="preview-light-cache" class="preview-light-cache" hidden></canvas><canvas
                         id="preview-render-shield" class="preview-render-shield" hidden></canvas>
-                    <div id="webgl-message" class="webgl-message" hidden>当前浏览器无法创建 3D 画面。</div>
+                    <div id="webgl-message" class="webgl-message" hidden>当前浏览器无法创建 3D 画面：WebGL 已被禁用。请开启浏览器「使用图形加速」并重启浏览器；仍不行请改用 Chrome / Safari。</div>
                     <div id="model-loading-status" class="model-loading-status" role="status" aria-live="polite" hidden>
                         <span class="model-loading-spinner" aria-hidden="true"></span><span>正在加载模型…</span></div>
                 </div>
