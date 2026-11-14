@@ -1,16 +1,18 @@
 /**
- * 地面交互层：水花、涟漪、湿地反光、积雪。
+ * 地面交互层：水花、涟漪、水洼反光。
  *
  * 这是「像天气」和「像天气场景」的分界线。雨滴只在空中划过时，人也只能说
- * 「有个下雨特效」；雨滴砸在真实地板上溅起水花、地面慢慢变湿反光，才会让人
+ * 「有个下雨特效」；雨滴砸在真实地板上溅起水花、水面成块反光，才会让人
  * 觉得屋外真的在下雨。
  *
  * 落点由 `frame.ground`（舞台投影来的真实地面四边形）决定：
  * 随机取 `u/v` → 双线性插值成屏幕坐标，所以无论怎么转视角，水花都贴在地板上。
  *
- * 湿地与积雪也不再是「一整片均匀渐变」：水洼与雪堆按固定的 `u/v` 布点，
- * 每一块都跟着地板一起转。均匀渐变看起来像给地板蒙了一层灰纱，只有成块的水洼
- * 与斑驳的雪堆才像真的积在地上。
+ * **不铺整片底、也不堆雪**：湿痕只由成块的水洼表示（不再沿地板四边形铺一层竖直渐变），
+ * 积雪堆积整块不做。前者在画面上就是一块半透明的灰白梯形「底板」—— 天气一开，画面下部
+ * 像被盖了一块板；后者铺的是一块块白色斑块，压扁的云贴图看起来就是「躺在地上的云朵」
+ * （用户反馈要求去掉）。所以本模块只画有明确形状且贴地的元素：成块水洼、贴水高光、
+ * 以及落点水花与涟漪。
  */
 import type { WeatherFrame } from './frame'
 import { createSeededRandom, pointOnQuad, quadDepthAt, quadSheenSpan, sampleNearGroundPoint } from './ground-quad'
@@ -38,17 +40,14 @@ const DROPLET_SPEED = 70
 const DROPLET_GRAVITY = 280
 /** 地面椭圆的透视压扁比例。 */
 const RIPPLE_FLATTEN = 0.34
-/** 湿地 / 积雪的收敛速度：湿地快、积雪慢（20~40 秒才铺白）。 */
+/** 湿地的收敛速度：下雨后水洼约 1 秒内起效，停雨后慢慢收干。 */
 const WET_CONVERGE = 2.2
-const SNOW_CONVERGE = 0.06
 /** 采样点落到画面外的容差：贴边的涟漪还要露出一半。 */
 const OFFSCREEN_MARGIN = 0.05
-/** 湿地 / 积雪在四边形内部的峰值不透明度上限（再高就会盖住地板纹理）。 */
+/** 水洼在四边形内部的峰值不透明度上限（再高就会盖住地板纹理）。 */
 const WET_MAX_ALPHA = 0.2
-const SNOW_MAX_ALPHA = 0.2
-/** 水洼与雪堆的固定布点数。 */
+/** 水洼的固定布点数。 */
 const PUDDLE_COUNT = 11
-const SNOW_PATCH_COUNT = 9
 /** 布点用的固定种子：每次重建天气层都落在同一批位置，切天气不会整体跳一下。 */
 const GROUND_DETAIL_SEED = 0x51ed270b
 
@@ -56,7 +55,6 @@ type GroundState = {
   spawnAccumulator: number
   spawnCursor: number
   wetLevel: number
-  snowCover: number
 }
 
 /** 一块水洼 / 雪堆：`u/v` 是地板参数，随相机一起变换。 */
@@ -82,45 +80,6 @@ function createPatches(seed: number, count: number, radiusFrom: number, radiusTo
     strength: 0.45 + random() * 0.55,
     variant: index % 3,
   }))
-}
-
-function traceGroundPath(frame: WeatherFrame) {
-  const { ctx, ground, width, height } = frame
-  const [firstPoint, ...restPoints] = ground
-  ctx.beginPath()
-  ctx.moveTo(firstPoint[0] * width, firstPoint[1] * height)
-  for (const point of restPoints) ctx.lineTo(point[0] * width, point[1] * height)
-  ctx.closePath()
-}
-
-/**
- * 地面层的「柔边」填充渐变。
- *
- * 直接沿裁剪路径铺满时，四边形的四条边是**硬切边**：只要天气一动，地板上就会
- * 浮出一块边缘笔直的「方块画布阴影」（用户实际反馈）。这里把 alpha 做成
- * **从画面下部往上淡出**的竖直渐变：上界处 alpha 归零，所以地板上看不到任何
- * 横向分界线，画面里也不会出现一块矩形色块。
- *
- * 为什么是竖直方向而不是以地面中心为圆心：相机绕户型转一圈时地板投影是旋转的，
- * 圆心的位置会跟着「近边」飘到画面左侧或右侧，特效重心又回到画布中间
- * （用户实际反馈）。屏幕纵向是唯一与相机无关的「远近」轴——越靠下越近，
- * 所以水痕与积雪按纵向铺，重心稳定落在画面下部。
- *
- * @param fadeStart 从底部往上多少比例开始衰减（0.5 表示中线以下才开始变淡）。
- */
-function groundSheenGradient(frame: WeatherFrame, rgb: string, peakAlpha: number, fadeStart: number) {
-  const { ctx, height, ground } = frame
-  const [topY, bottomY] = quadSheenSpan(ground)
-  const gradient = ctx.createLinearGradient(0, bottomY * height, 0, topY * height)
-  const alpha = Math.max(0, Math.min(1, peakAlpha))
-  const fadeFrom = Math.min(0.9, Math.max(0.05, fadeStart))
-  // 底部最强：脚下的积水 / 积雪最厚。
-  gradient.addColorStop(0, `rgba(${rgb},${alpha})`)
-  gradient.addColorStop(fadeFrom * 0.45, `rgba(${rgb},${alpha * 0.78})`)
-  // 中段压到不足一半：远端不会与近端一样白，积雪才有厚薄之分。
-  gradient.addColorStop(fadeFrom, `rgba(${rgb},${alpha * 0.4})`)
-  gradient.addColorStop(1, `rgba(${rgb},0)`)
-  return gradient
 }
 
 /**
@@ -335,8 +294,8 @@ function bandEdgeFade(y: number, bandTopY: number) {
 /**
  * 水洼：成块的湿地反光。
  *
- * 底色仍是一层很淡的竖直渐变（保证整片地板都有「湿」的底），但真正的形状由
- * 若干椭圆水洼给出来 —— 均匀渐变看起来像蒙了层灰纱，只有成块的水洼才像积水。
+ * 「湿」的观感完全由这些椭圆水洼给出来 —— 没有铺底的竖直渐变（那层会变成一块
+ * 半透明底板，见模块头注释）。只有成块的水洼才像积水，均匀填充像蒙了层灰纱。
  *
  * 水洼必须与水花落在**同一条湿痕带**里（`quadSheenSpan`）：水洼铺到画面中部、
  * 水花却只在下部时，两者观感会分裂（用户反馈「溅水偏中」的同一类问题）。
@@ -380,24 +339,21 @@ function drawPuddles(frame: WeatherFrame, puddles: readonly GroundPatch[], wetLe
   }
 }
 
-/** 湿地：地面铺一层底部加权的冷白反光，再叠水洼与横向高光；雷电时整体提亮。 */
+/**
+ * 湿地：水洼与横向高光，**不铺整片底**。
+ *
+ * 曾经这里会沿地板四边形铺一层竖直淡出的冷白渐变，用来表达「整片地板都湿了」。
+ * 但那层渐变在地板上就是一块**半透明的灰白梯形底板**：天气一开，画面下部像被盖了
+ * 一块板，比「湿」本身更抢眼（用户反馈要求去掉）。现在只保留成块的水洼与贴水的
+ * 高光短划 —— 湿的观感由形状给出来，而不是由一层覆盖整片地板的填充给出来。
+ */
 function drawWet(frame: WeatherFrame, wetLevel: number, puddles: readonly GroundPatch[]) {
   if (wetLevel <= 0.02) return
   const { ctx, width, height } = frame
-  const [topY, bottomY] = quadSheenSpan(frame.ground)
+  // 只用湿痕带的上缘做柔边：水洼与高光超过这条线就淡出，避免被硬切出直边。
+  const [topY] = quadSheenSpan(frame.ground)
   const flashBoost = 1 + frame.flash * 1.6
   ctx.save()
-  traceGroundPath(frame)
-  ctx.clip()
-  // 竖直淡出的柔边渐变：上界 alpha 为 0，不会在地板上切出一条横向硬边。
-  // 峰值比旧实现低：形状交给水洼，底子只负责「整片都湿」。
-  ctx.fillStyle = groundSheenGradient(
-    frame,
-    '206,220,236',
-    Math.min(WET_MAX_ALPHA * 0.62, 0.09 * wetLevel * flashBoost),
-    0.5,
-  )
-  ctx.fillRect(0, topY * height, width, (bottomY - topY) * height)
   drawPuddles(frame, puddles, wetLevel, topY)
   // 横向高光短划：位置缓慢漂移 + 低频闪烁，模拟水面反光。
   // 高光跟着水洼走，用同一条湿痕带的柔边上缘淡出 —— 这里**不能**用屏幕 y 硬筛：
@@ -421,85 +377,37 @@ function drawWet(frame: WeatherFrame, wetLevel: number, puddles: readonly Ground
   ctx.restore()
 }
 
-/**
- * 积雪：一层很淡的整体白 + 成块的雪堆。
- *
- * 雪不是均匀的白雾：风会把雪吹成一堆一堆，露出地板的低处。这里用云的团块贴图
- * 横向压扁后当「雪堆」，既不规则又便宜（贴图只生成一次）。
- */
-function drawSnowCover(frame: WeatherFrame, snowCover: number, patches: readonly GroundPatch[]) {
-  if (snowCover <= 0.004) return
-  const { ctx, width, height } = frame
-  const [topY, bottomY] = quadSheenSpan(frame.ground)
-  ctx.save()
-  traceGroundPath(frame)
-  ctx.clip()
-  // 同样走竖直淡出：积雪贴着画面下部积起来，远端只留一层薄白，边界不可见。
-  ctx.fillStyle = groundSheenGradient(frame, '246,250,255', Math.min(SNOW_MAX_ALPHA * 0.7, snowCover * 0.64), 0.55)
-  ctx.fillRect(0, topY * height, width, (bottomY - topY) * height)
-  // 三种团块布局的雪堆贴图：都预渲染一次，热循环里只做 drawImage。
-  const sprites = [0, 1, 2].map((variant) => frame.sprites.cloudSprite('248,251,255', '226,236,250', variant))
-  // 画质降档时少画几块雪堆（与水洼同一口径）。
-  const patchCount = visiblePatchCount(patches.length, frame.quality)
-  for (let index = 0; index < patchCount; index++) {
-    const patch = patches[index]
-    const sprite = sprites[patch.variant % sprites.length]
-    if (!sprite) continue
-    const [x, y] = pointOnQuad(frame.ground, patch.u, patch.v)
-    const depth = quadDepthAt(frame.ground, y)
-    if (x < -0.2 || x > 1.2 || y < -0.1 || y > 1.1) continue
-    const edgeFade = bandEdgeFade(y, topY)
-    if (edgeFade <= 0.01) continue
-    const radius = width * patch.radius * (0.9 + depth * 0.7)
-    // 雪堆边缘要淡：`snowCover` 越大越厚，不是一夜之间全白。
-    const alpha = Math.min(0.3, snowCover * 2.1 * patch.strength * (0.4 + depth * 0.6)) * edgeFade
-    if (alpha <= 0.006) continue
-    ctx.globalAlpha = alpha
-    ctx.drawImage(sprite, x * width - radius, y * height - radius * 0.32, radius * 2, radius * 0.64)
-  }
-  ctx.restore()
-  ctx.globalAlpha = 1
-}
-
 export function createGroundRenderer() {
   const state: GroundState = {
     spawnAccumulator: 0,
     spawnCursor: 0,
     wetLevel: 0,
-    snowCover: 0,
   }
   // 布点只算一次：切成雨再切回来，水洼还在原地，不会整体跳一下。
   const puddles = createPatches(GROUND_DETAIL_SEED, PUDDLE_COUNT, 0.05, 0.14)
-  const snowPatches = createPatches(GROUND_DETAIL_SEED ^ 0x9e3779b9, SNOW_PATCH_COUNT, 0.07, 0.18)
 
   return {
     draw(frame: WeatherFrame) {
       const targetWet = frame.preset.wet || 0
-      const targetSnow = frame.preset.snowCover || 0
       const strength = frame.preset.splash || 0
       // 溅射形态跟降水种类走：雨溅水，雪扬粉。见 `splashStyleOf`。
       const splashStyle = splashStyleOf(frame)
       if (frame.reducedMotion) {
-        // 定格模式下不推进生命周期，但积雪仍然要「已铺好」，否则静态帧看起来没下过雪。
+        // 定格模式下不推进生命周期；湿痕直接取目标值，静态帧才看得出下过雨。
         state.wetLevel = targetWet
-        state.snowCover = targetSnow
         drawWet(frame, state.wetLevel, puddles)
-        drawSnowCover(frame, state.snowCover, snowPatches)
         if (strength > 0) drawStaticSplashes(frame, splashStyle)
         return
       }
       state.wetLevel += (targetWet - state.wetLevel) * Math.min(1, frame.deltaSeconds * WET_CONVERGE)
-      state.snowCover += (targetSnow - state.snowCover) * Math.min(1, frame.deltaSeconds * SNOW_CONVERGE)
       if (strength > 0) advanceSplashes(frame, state, strength, splashStyle)
       drawWet(frame, state.wetLevel, puddles)
-      drawSnowCover(frame, state.snowCover, snowPatches)
       drawSplashes(frame, splashStyle)
     },
     reset() {
       state.spawnAccumulator = 0
       state.spawnCursor = 0
       state.wetLevel = 0
-      state.snowCover = 0
     },
   }
 }

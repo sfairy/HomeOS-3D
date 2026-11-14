@@ -44,8 +44,13 @@ const DRY_RUN = args.includes('--dry-run') || !WRITE
  * 文件里不可重新赋值的绑定：`const` 的**声明位置**与全部 import。
  *
  * 位置必须一起记：`get x() { return x }` 是延迟读取，`x,` 是立即读取。若 `const x` 写在对象
- * 字面量**之后**，简写会在初始化前读取，直接触发 TDZ（`ReferenceError`）—— biome 的
- * `noInvalidUseBeforeDeclaration` 会拦下这种改写，但脚本自己就该先排除。
+ * 字面量**之后**，简写会在初始化前读取，直接触发 TDZ（`ReferenceError`）。
+ *
+ * **但这道检查并不充分**，实测漏过一次（`entityPickerHintText`）：`const` 在文件第 3860 行、
+ * deps 工厂里的属性在第 3896 行 —— 位置比较通过，可那个 deps 工厂是在**更早的引导期**被调用
+ * 的（`bindScenePopupEditorBoot({ copyBackupPickers: copyBackupPickersDeps })` 传的是函数，
+ * 真正 `getDeps()` 发生在模块求值完成之前）。词法位置排不出「谁先执行」，所以下面再加一条
+ * 结构性排除：deps 工厂函数（`*Deps`）里的属性一律保持 getter，只转换普通对象字面量。
  */
 function collectImmutableBindings(source) {
   const names = new Map()
@@ -63,6 +68,31 @@ function collectImmutableBindings(source) {
   }
   for (const match of source.matchAll(/^import\s+(\w+)\s+from/gm)) names.set(match[1], -1)
   return names
+}
+
+/**
+ * `function xxxDeps(...)` 的函数体区间。
+ *
+ * 这些函数是「依赖袋工厂」：调用时机由宿主决定，可能早于文件里所有 `const` 的求值完成。
+ * 词法位置无法证明安全，所以其中的 getter 一律不转换（保留晚绑定语义）。
+ */
+function collectDepsFactoryRanges(source) {
+  const ranges = []
+  const pattern = /^(\s*)(?:export\s+)?function\s+(\w*Deps)\s*\([^)]*\)[^{]*\{/gm
+  let match
+  while ((match = pattern.exec(source)) !== null) {
+    const bodyStart = match.index + match[0].length
+    let depth = 1
+    let cursor = bodyStart
+    while (cursor < source.length && depth > 0) {
+      const char = source[cursor]
+      if (char === '{') depth += 1
+      else if (char === '}') depth -= 1
+      cursor += 1
+    }
+    ranges.push([bodyStart, cursor])
+  }
+  return ranges
 }
 
 /** `let` / `var` 绑定：出现即表示这些名字可能需要晚绑定，转换时一律排除。 */
@@ -83,23 +113,40 @@ for (const file of files) {
   const original = fs.readFileSync(file, 'utf8')
   const immutable = collectImmutableBindings(original)
   const mutable = collectMutableBindings(original)
+  const depsRanges = collectDepsFactoryRanges(original)
+  const insideDepsFactory = (offset) => depsRanges.some(([start, end]) => offset >= start && offset < end)
   let changedInFile = 0
 
-  const next = original
-    .replace(BLOCK_GETTER, (line, indent, name, returned, offset) => {
-      if (returned !== name || mutable.has(name)) return line
-      const declaredAt = immutable.get(name)
-      if (declaredAt === undefined || declaredAt > offset) return line
-      changedInFile += 1
-      return `${indent}${name},`
-    })
-    .replace(SINGLE_GETTER, (line, indent, name, returned, offset) => {
-      if (returned !== name || mutable.has(name)) return line
-      const declaredAt = immutable.get(name)
-      if (declaredAt === undefined || declaredAt > offset) return line
-      changedInFile += 1
-      return line.trimEnd().endsWith('},') || line.trimEnd().endsWith(',') ? `${indent}${name},` : `${indent}${name}`
-    })
+  // 收集要改的位置后再统一替换。
+  //
+  // **不能**用 `.replace(A, fn).replace(B, fn)` 链：第二个 replace 的 `offset` 是相对第一个
+  // 结果字符串的坐标，而 `immutable` 里记的 `declaredAt` 来自原文 —— 两个坐标系不同，
+  // 「声明在字面量之后」的检查会随机失效（实测漏掉了 `entityPickerHintText`，把 getter
+  // 收成简写后在 `copyBackupPickersDeps()` 里撞上 TDZ）。这里改成按原文偏移收集编辑。
+  const edits = []
+  const consider = (line, indent, name, returned, offset) => {
+    if (returned !== name || mutable.has(name)) return
+    // 依赖袋工厂里的属性可能被早于模块求值完成的代码读取，位置比较证明不了安全 → 保留 getter。
+    if (insideDepsFactory(offset)) return
+    const declaredAt = immutable.get(name)
+    if (declaredAt === undefined || declaredAt > offset) return
+    const keepComma = line.trimEnd().endsWith('},') || line.trimEnd().endsWith(',')
+    edits.push({ start: offset, length: line.length, text: `${indent}${name}${keepComma ? ',' : ''}` })
+    changedInFile += 1
+  }
+  for (const match of original.matchAll(BLOCK_GETTER)) {
+    consider(match[0], match[1], match[2], match[3], match.index)
+  }
+  for (const match of original.matchAll(SINGLE_GETTER)) {
+    // 同一个位置若已被块状规则命中就跳过（两种正则不会同时匹配，这里只是兜底）。
+    if (edits.some((edit) => edit.start === match.index)) continue
+    consider(match[0], match[1], match[2], match[3], match.index)
+  }
+
+  let next = original
+  for (const edit of [...edits].sort((left, right) => right.start - left.start)) {
+    next = `${next.slice(0, edit.start)}${edit.text}${next.slice(edit.start + edit.length)}`
+  }
 
   if (changedInFile === 0) continue
   perFile.push({ file: path.relative(REPO_ROOT, file), count: changedInFile })
