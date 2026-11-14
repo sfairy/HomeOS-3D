@@ -627,9 +627,7 @@ export function createFloorLightBuffer({
   }
 
   return {
-    get capacity() {
-      return capacity
-    },
+    capacity,
     get available() {
       return capacity > 0 && allFloorsFit
     },

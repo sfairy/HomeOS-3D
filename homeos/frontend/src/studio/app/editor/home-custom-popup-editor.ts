@@ -15,6 +15,7 @@ import {
 } from '../shared/popup-layout'
 import { syncedLineChartProperties as syncedLineChartProperties2 } from '../renderer/panel-renderer'
 
+import { domElement } from '@app/shared/util/dom-factory'
 export interface CustomPopupEditorContext {
   /** 字段清单 = 本文件里出现过的袋子取值（`ctx.<key>` / 别名访问 / 解构）。
    *
@@ -99,8 +100,7 @@ function applyPopupModuleReorder(
   }
 }
 function createPopupCoverSettings(popupIdentifier: any, coverModule: any) {
-  const containerElement = document.createElement('div')
-  containerElement.className = 'popup-cover-settings'
+  const containerElement = domElement(document, 'div', 'popup-cover-settings')
   const coverSettings = [
     {
       label: '窗帘类型',
@@ -138,10 +138,8 @@ function createPopupCoverSettings(popupIdentifier: any, coverModule: any) {
     },
   ]
   for (const settingRow of coverSettings) {
-    const rowElement = document.createElement('div')
-    rowElement.className = 'popup-cover-setting-row'
-    const rowLabelElement = document.createElement('span')
-    rowLabelElement.textContent = settingRow.label
+    const rowElement = domElement(document, 'div', 'popup-cover-setting-row')
+    const rowLabelElement = domElement(document, 'span', null, settingRow.label)
     const optionsGroupElement = document.createElement('div')
     ;(optionsGroupElement.className = 'popup-cover-setting-options'),
       optionsGroupElement.setAttribute('role', 'group'),
@@ -176,12 +174,9 @@ function createPopupCoverSettings(popupIdentifier: any, coverModule: any) {
   return containerElement
 }
 function createPopupClimateSettings(popupKey: any, climateModule: any) {
-  const climateContainerElement = document.createElement('div')
-  climateContainerElement.className = 'popup-climate-settings'
-  const deviceTypeRowElement = document.createElement('div')
-  deviceTypeRowElement.className = 'popup-cover-setting-row'
-  const deviceTypeLabelElement = document.createElement('span')
-  deviceTypeLabelElement.textContent = '设备类型'
+  const climateContainerElement = domElement(document, 'div', 'popup-climate-settings')
+  const deviceTypeRowElement = domElement(document, 'div', 'popup-cover-setting-row')
+  const deviceTypeLabelElement = domElement(document, 'span', null, '设备类型')
   const deviceTypeOptionsElement = document.createElement('div')
   ;(deviceTypeOptionsElement.className = 'popup-cover-setting-options'),
     deviceTypeOptionsElement.setAttribute('role', 'group'),
@@ -252,12 +247,9 @@ function resolveLineChartThresholds(thresholdSourceModule: any) {
   }))
 }
 function createPopupLineChartSettings(lineChartPopupId: any, lineChartModule: any) {
-  const chartSettingsElement = document.createElement('div')
-  chartSettingsElement.className = 'popup-line-chart-settings'
-  const precisionRowElement = document.createElement('div')
-  precisionRowElement.className = 'popup-line-chart-setting-row'
-  const precisionLabelElement = document.createElement('span')
-  precisionLabelElement.textContent = '数值小数位'
+  const chartSettingsElement = domElement(document, 'div', 'popup-line-chart-settings')
+  const precisionRowElement = domElement(document, 'div', 'popup-line-chart-setting-row')
+  const precisionLabelElement = domElement(document, 'span', null, '数值小数位')
   const precisionSelectElement = document.createElement('select')
   precisionSelectElement.setAttribute('aria-label', '组合弹窗折线图数值小数位')
   for (const [precisionOptionValue, precisionOptionLabel] of [
@@ -300,10 +292,8 @@ function createPopupLineChartSettings(lineChartPopupId: any, lineChartModule: an
     precisionRowElement.append(precisionLabelElement, precisionSelectElement),
     chartSettingsElement.append(precisionRowElement)
   const addColorRow = (rowTitle: any, colorValues: any, onColorChange: any, isDisabled = false) => {
-    const colorRowElement = document.createElement('div')
-    colorRowElement.className = 'popup-line-chart-setting-row'
-    const rowTitleElement = document.createElement('span')
-    rowTitleElement.textContent = rowTitle
+    const colorRowElement = domElement(document, 'div', 'popup-line-chart-setting-row')
+    const rowTitleElement = domElement(document, 'span', null, rowTitle)
     const colorInputsElement = document.createElement('div')
     ;(colorInputsElement.className = 'popup-line-chart-colors'),
       colorValues.forEach((colorValue: any, colorIndex: any) => {
@@ -338,10 +328,8 @@ function createPopupLineChartSettings(lineChartPopupId: any, lineChartModule: an
         })
     })
   })
-  const thresholdModeRowElement = document.createElement('div')
-  thresholdModeRowElement.className = 'popup-line-chart-setting-row'
-  const thresholdModeLabelElement = document.createElement('span')
-  thresholdModeLabelElement.textContent = '阈值模式'
+  const thresholdModeRowElement = domElement(document, 'div', 'popup-line-chart-setting-row')
+  const thresholdModeLabelElement = domElement(document, 'span', null, '阈值模式')
   const thresholdModeSelectElement = document.createElement('select')
   thresholdModeSelectElement.setAttribute('aria-label', '组合弹窗折线图阈值模式'),
     thresholdModeSelectElement.append(new Option('自动（按历史范围）', 'auto'), new Option('手动设置', 'manual'))
@@ -380,8 +368,7 @@ function createPopupLineChartSettings(lineChartPopupId: any, lineChartModule: an
   const gl2 = resolveLineChartThresholds(lineChartModule),
     thresholdRowElement = document.createElement('div')
   thresholdRowElement.className = 'popup-line-chart-setting-row'
-  const thresholdLabelElement = document.createElement('span')
-  thresholdLabelElement.textContent = '阈值'
+  const thresholdLabelElement = domElement(document, 'span', null, '阈值')
   const thresholdValuesElement = document.createElement('div')
   return (
     (thresholdValuesElement.className = 'popup-line-chart-threshold-values'),
@@ -462,10 +449,8 @@ export function renderCustomPopupEditor(ctx: CustomPopupEditorContext) {
       ctx.customPopupEditorElement.append(popupEmptyStateElement)
     return
   }
-  const popupEditorShellElement = document.createElement('div')
-  popupEditorShellElement.className = 'custom-popup-editor-shell'
-  const toolbarElement = document.createElement('div')
-  toolbarElement.className = 'custom-popup-editor-toolbar'
+  const popupEditorShellElement = domElement(document, 'div', 'custom-popup-editor-shell')
+  const toolbarElement = domElement(document, 'div', 'custom-popup-editor-toolbar')
   const titleGroupElement = document.createElement('div'),
     popupNameElement = document.createElement('strong')
   popupNameElement.textContent = activePopup.name
@@ -473,10 +458,8 @@ export function renderCustomPopupEditor(ctx: CustomPopupEditorContext) {
     metrics = popupLayoutMetrics2(activePopup.modules || [], activePopup.layout)
   ;(layoutSummaryElement.textContent = metrics.columns + ' 列 × ' + metrics.rows + ' 行·行数自适应'),
     titleGroupElement.append(popupNameElement, layoutSummaryElement)
-  const toolbarActionsElement = document.createElement('div')
-  toolbarActionsElement.className = 'custom-popup-toolbar-actions'
-  const columnToggleElement = document.createElement('span')
-  columnToggleElement.className = 'custom-popup-layout-toggle'
+  const toolbarActionsElement = domElement(document, 'div', 'custom-popup-toolbar-actions')
+  const columnToggleElement = domElement(document, 'span', 'custom-popup-layout-toggle')
   for (const columnCount of [2, 3, 4]) {
     const columnButtonElement = document.createElement('button')
     ;(columnButtonElement.type = 'button'),
@@ -511,10 +494,8 @@ export function renderCustomPopupEditor(ctx: CustomPopupEditorContext) {
     addModuleButtonElement.addEventListener('click', () => ctx.openPopupModuleDialog()),
     toolbarActionsElement.append(columnToggleElement, addModuleButtonElement),
     toolbarElement.append(titleGroupElement, toolbarActionsElement)
-  const editorStageWrapElement = document.createElement('div')
-  editorStageWrapElement.className = 'custom-popup-stage-wrap'
-  const viewportWrapElement = document.createElement('div')
-  viewportWrapElement.className = 'custom-popup-viewport'
+  const editorStageWrapElement = domElement(document, 'div', 'custom-popup-stage-wrap')
+  const viewportWrapElement = domElement(document, 'div', 'custom-popup-viewport')
   const stageGridElement = document.createElement('div')
   ;(stageGridElement.className = 'custom-popup-stage'),
     (stageGridElement.style.width = metrics.gridWidth + 'px'),
@@ -572,14 +553,12 @@ export function renderCustomPopupEditor(ctx: CustomPopupEditorContext) {
       ),
       (moduleCardElement.style.gridColumn = placement.x + 1 + ' / span ' + columnSpan),
       (moduleCardElement.style.gridRow = placement.y + 1 + ' / span ' + placement.height)
-    const cardHeadingElement = document.createElement('div')
-    cardHeadingElement.className = 'popup-module-card-heading'
+    const cardHeadingElement = domElement(document, 'div', 'popup-module-card-heading')
     const cardTitleWrapElement = document.createElement('div'),
       cardTitleElement = document.createElement('strong')
     ;(cardTitleElement.textContent = popupModuleEntry.title || ctx.deviceNameValue(popupModuleEntry.entityId)),
       cardTitleWrapElement.append(cardTitleElement)
-    const cardActionsElement = document.createElement('span')
-    cardActionsElement.className = 'popup-module-card-actions'
+    const cardActionsElement = domElement(document, 'span', 'popup-module-card-actions')
     const editModuleButtonElement = document.createElement('button')
     ;(editModuleButtonElement.type = 'button'),
       editModuleButtonElement.append(createUiIcon(document, 'pencil-outline')),
@@ -687,12 +666,10 @@ export function renderCustomPopupEditor(ctx: CustomPopupEditorContext) {
           clearDropIndicators()
       }),
       cardHeadingElement.append(cardTitleWrapElement, cardActionsElement)
-    const placeholderElement = document.createElement('div')
-    placeholderElement.className = 'popup-module-placeholder'
+    const placeholderElement = domElement(document, 'div', 'popup-module-placeholder')
     const placeholderTitleElement = document.createElement('strong')
     placeholderTitleElement.textContent = popupModuleTypeLabel2(popupModuleEntry.type) + '交互模块'
-    const placeholderEntityElement = document.createElement('span')
-    placeholderEntityElement.textContent = ctx.deviceNameValue(popupModuleEntry.entityId)
+    const placeholderEntityElement = domElement(document, 'span', null, ctx.deviceNameValue(popupModuleEntry.entityId))
     const placeholderIdElement = document.createElement('small')
     ;(placeholderIdElement.textContent = popupModuleEntry.entityId),
       placeholderElement.append(placeholderTitleElement, placeholderEntityElement, placeholderIdElement),

@@ -16,6 +16,7 @@ import {
 } from '../../controls/cover-runtime'
 import { shellConfirm } from '@/studio/platform/shell-chrome'
 
+import { domElement } from '@app/shared/util/dom-factory'
 export function createWaterHeaterExtensionControls(
   this: PanelRenderer,
   primaryEntityId: any,
@@ -123,8 +124,7 @@ export function createWaterHeaterExtensionControls(
         extensionGrid.append(extensionToggleButton)
     } else {
       if (['select', 'input_select'].includes(controlEntityDomain)) {
-        const extensionSelectWrapper = document.createElement('div')
-        extensionSelectWrapper.className = 'hb-water-heater-extension-select'
+        const extensionSelectWrapper = domElement(document, 'div', 'hb-water-heater-extension-select')
         const extensionSelectLabel = document.createElement('span')
         ;(extensionSelectLabel.textContent = entityLabel), (extensionSelectLabel.title = entityLabel)
         const relatedSelectTriggerButton = document.createElement('button')
@@ -325,10 +325,8 @@ export function createWaterHeaterExtensionControls(
           extensionGrid.append(extensionSelectWrapper)
       } else {
         if (['number', 'input_number'].includes(controlEntityDomain)) {
-          const extensionNumberWrapper = document.createElement('div')
-          extensionNumberWrapper.className = 'hb-water-heater-extension-number'
-          const extensionNumberLabel = document.createElement('span')
-          extensionNumberLabel.textContent = entityLabel
+          const extensionNumberWrapper = domElement(document, 'div', 'hb-water-heater-extension-number')
+          const extensionNumberLabel = domElement(document, 'span', null, entityLabel)
           const extensionNumberControlsBox = document.createElement('span'),
             decrementButton = document.createElement('button')
           ;(decrementButton.type = 'button'), (decrementButton.textContent = '−')
@@ -438,10 +436,8 @@ export function createWaterHeaterExtensionControls(
               extensionGrid.append(extensionActionButton)
           } else {
             if (['sensor', 'binary_sensor'].includes(controlEntityDomain)) {
-              const readonlyValueRow = document.createElement('div')
-              readonlyValueRow.className = 'hb-water-heater-extension-readonly'
-              const readonlyValueLabel = document.createElement('strong')
-              readonlyValueLabel.textContent = entityLabel
+              const readonlyValueRow = domElement(document, 'div', 'hb-water-heater-extension-readonly')
+              const readonlyValueLabel = domElement(document, 'strong', null, entityLabel)
               const readonlyValueStateLabel = document.createElement('small'),
                 syncReadonlyValue = (readonlyEntityState: any) => {
                   const readonlyStateValue = String(readonlyEntityState?.state || 'unknown'),

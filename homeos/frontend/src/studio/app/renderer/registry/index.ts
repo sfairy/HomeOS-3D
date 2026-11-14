@@ -39,6 +39,7 @@ export { renderIconButtonEffectLayer } from './icon-button-effect-layer'
 
 import { installRegistryComponents, loadComponentFamilies } from './register-all'
 
+import { domElement } from '@app/shared/util/dom-factory'
 export {
   componentFamilyByType,
   componentFamiliesForDocument,
@@ -79,10 +80,8 @@ export function ensureRegistryComponents(families?: Iterable<string>): Promise<s
 export function renderRegisteredComponent(componentProps: any, renderEnvironment: any) {
   const registeredRenderer = rendererByComponentType.get(componentProps.type)
   if (registeredRenderer) return registeredRenderer.render(componentProps, renderEnvironment)
-  const unknownComponentBox = document.createElement('div')
-  unknownComponentBox.className = 'hb-unknown-component'
-  const unknownComponentTitle = document.createElement('strong')
-  unknownComponentTitle.textContent = '控件尚未实现'
+  const unknownComponentBox = domElement(document, 'div', 'hb-unknown-component')
+  const unknownComponentTitle = domElement(document, 'strong', null, '控件尚未实现')
   const unknownComponentTypeElement = document.createElement('span')
   return (
     (unknownComponentTypeElement.textContent = componentProps.type),

@@ -364,12 +364,8 @@ export function mountStage(mountOptions: any) {
       get resolveLightState() {
         return resolveLightState
       },
-      get vector() {
-        return vector
-      },
-      get wakeSceneBackground() {
-        return wakeSceneBackground
-      },
+      vector,
+      wakeSceneBackground,
       get updateDevicePanel() {
         return updateDevicePanel
       },
@@ -379,9 +375,7 @@ export function mountStage(mountOptions: any) {
       get runLightCommand() {
         return sendLightCommand
       },
-      get lightControlsElement() {
-        return lightControlsElement
-      },
+      lightControlsElement,
       get currentModuleBindings() {
         return currentModuleBindings
       },
@@ -409,9 +403,7 @@ export function mountStage(mountOptions: any) {
       get stageModelIndex() {
         return stageModelIndex
       },
-      get isOverviewOrAllFloors() {
-        return isOverviewOrAllFloors
-      },
+      isOverviewOrAllFloors,
       get collectSecurityBindings() {
         return collectSecurityBindings
       },
@@ -454,9 +446,7 @@ export function mountStage(mountOptions: any) {
       set isModuleTabsHidden(value) {
         ctx.isModuleTabsHidden = value
       },
-      get moduleTabsElement() {
-        return moduleTabsElement
-      },
+      moduleTabsElement,
       get getComputedStyle() {
         return getComputedStyleForDeps
       },
@@ -469,15 +459,11 @@ export function mountStage(mountOptions: any) {
       get restoreFocusWithin() {
         return restoreFocusWithin
       },
-      get moduleTabsByKind() {
-        return moduleTabsByKind
-      },
+      moduleTabsByKind,
       get configuredModuleKinds2() {
         return ctx.configuredModuleKinds2
       },
-      get markerLayerElement() {
-        return markerLayerElement
-      },
+      markerLayerElement,
       get cancelGhostAnimation() {
         return cancelGhostAnimation
       },
@@ -1157,9 +1143,7 @@ export function mountStage(mountOptions: any) {
       set list(value) {
         ctx.list = value
       },
-      get curtainMotion() {
-        return curtainMotion
-      },
+      curtainMotion,
       get coverFeedback() {
         return coverFeedback
       },
@@ -1169,18 +1153,14 @@ export function mountStage(mountOptions: any) {
       get dreamTiltFeedback() {
         return dreamTiltFeedback
       },
-      get tiltPreviewByCoverKey() {
-        return tiltPreviewByCoverKey
-      },
+      tiltPreviewByCoverKey,
       get pruneTiltPreviews() {
         return pruneTiltPreviews
       },
       get startupProgress() {
         return ctx.startupProgress
       },
-      get nextCoverFeedbackDelay() {
-        return nextCoverFeedbackDelay
-      },
+      nextCoverFeedbackDelay,
     }
   }
 
@@ -1446,24 +1426,16 @@ export function mountStage(mountOptions: any) {
       get floorTabsElement() {
         return floorTabsElement
       },
-      get toolbarElement() {
-        return toolbarElement
-      },
-      get lightPanelSection() {
-        return lightPanelSection
-      },
+      toolbarElement,
+      lightPanelSection,
       get speakerPanel() {
         return speakerPanel
       },
       get getComputedStyle() {
         return getComputedStyleForDeps
       },
-      get presentationLayerElement() {
-        return presentationLayerElement
-      },
-      get computePopupPlacement() {
-        return computePopupPlacement
-      },
+      presentationLayerElement,
+      computePopupPlacement,
       get presentationUiSignatureCache() {
         return ctx.presentationUiSignatureCache
       },
@@ -1515,15 +1487,11 @@ export function mountStage(mountOptions: any) {
       get findBindingById() {
         return findBindingById
       },
-      get isOverviewOrAllFloors() {
-        return isOverviewOrAllFloors
-      },
+      isOverviewOrAllFloors,
       get vacuumWorkingLayerElement() {
         return vacuumWorkingLayerElement
       },
-      get markerLayerElement() {
-        return markerLayerElement
-      },
+      markerLayerElement,
       get restoreFocusWithin() {
         return restoreFocusWithin
       },
@@ -2586,9 +2554,7 @@ export function mountStage(mountOptions: any) {
       get syncLockMotion() {
         return syncLockMotion
       },
-      get transformFloorCamera() {
-        return transformFloorCamera
-      },
+      transformFloorCamera,
       get baseStageConfig() {
         return ctx.baseStageConfig
       },
@@ -2661,12 +2627,8 @@ export function mountStage(mountOptions: any) {
       get syncCameraInteraction() {
         return syncCameraInteraction
       },
-      get presentationLayerElement() {
-        return presentationLayerElement
-      },
-      get focusVignetteElement() {
-        return focusVignetteElement
-      },
+      presentationLayerElement,
+      focusVignetteElement,
       get rangeEditorHandle() {
         return ctx.rangeEditorHandle
       },
@@ -2676,9 +2638,7 @@ export function mountStage(mountOptions: any) {
       get isRangeEditorOnly() {
         return ctx.isRangeEditorOnly
       },
-      get wakeSceneBackground() {
-        return wakeSceneBackground
-      },
+      wakeSceneBackground,
       get renderMarkerPositions() {
         return renderMarkerPositions
       },
@@ -2718,9 +2678,7 @@ export function mountStage(mountOptions: any) {
       get carCharging() {
         return carCharging
       },
-      get environmentScene() {
-        return environmentScene
-      },
+      environmentScene,
       get rebuildCurtainMotion() {
         return rebuildCurtainMotion
       },
@@ -2772,21 +2730,11 @@ export function mountStage(mountOptions: any) {
       get presenceBindings() {
         return presenceBindings
       },
-      get screenOutlines() {
-        return screenOutlines
-      },
-      get environmentAirflow() {
-        return environmentAirflow
-      },
-      get deviceMist() {
-        return deviceMist
-      },
-      get rangehoodAirflow() {
-        return rangehoodAirflow
-      },
-      get computerScreens() {
-        return computerScreens
-      },
+      screenOutlines,
+      environmentAirflow,
+      deviceMist,
+      rangehoodAirflow,
+      computerScreens,
       get syncFloorTabs() {
         return syncFloorTabs
       },
@@ -2796,9 +2744,7 @@ export function mountStage(mountOptions: any) {
       get isNavigationVisible() {
         return ctx.isNavigationVisible
       },
-      get moduleTabsElement() {
-        return moduleTabsElement
-      },
+      moduleTabsElement,
       get floorTabsElement() {
         return floorTabsElement
       },
@@ -2808,15 +2754,11 @@ export function mountStage(mountOptions: any) {
       get configuredModuleKinds2() {
         return ctx.configuredModuleKinds2
       },
-      get moduleTabsByKind() {
-        return moduleTabsByKind
-      },
+      moduleTabsByKind,
       get restoreFocusWithin() {
         return restoreFocusWithin
       },
-      get moduleEmptyElement() {
-        return moduleEmptyElement
-      },
+      moduleEmptyElement,
       get applyDefaultCamera() {
         return applyDefaultCamera
       },
@@ -2841,9 +2783,7 @@ export function mountStage(mountOptions: any) {
       get isControlBusy() {
         return ctx.isControlBusy
       },
-      get applyRegionLightingPreset() {
-        return applyRegionLightingPreset
-      },
+      applyRegionLightingPreset,
       get lastRenderSignature() {
         return ctx.lastRenderSignature
       },
@@ -3391,9 +3331,7 @@ export function mountStage(mountOptions: any) {
       set cameraMotionSnapshot(value) {
         ctx.cameraMotionSnapshot = value
       },
-      get getFocusedEntry() {
-        return getFocusedEntry
-      },
+      getFocusedEntry,
       get computeGroupBounds() {
         return computeGroupBounds
       },
@@ -3436,9 +3374,7 @@ export function mountStage(mountOptions: any) {
       get climatePanel() {
         return climatePanel
       },
-      get lightModeMenu() {
-        return lightModeMenu
-      },
+      lightModeMenu,
       get lightColorPicker() {
         return lightColorPicker
       },
@@ -3481,9 +3417,7 @@ export function mountStage(mountOptions: any) {
       get restoreFocusWithin() {
         return restoreFocusWithin
       },
-      get lightPanelSection() {
-        return lightPanelSection
-      },
+      lightPanelSection,
       get syncPanelChrome() {
         return syncPanelChrome
       },
@@ -3493,27 +3427,17 @@ export function mountStage(mountOptions: any) {
       get applyLightStates() {
         return applyLightStates
       },
-      get findBindingById() {
-        return findBindingById
-      },
-      get isOverviewOrAllFloors() {
-        return isOverviewOrAllFloors
-      },
+      findBindingById,
+      isOverviewOrAllFloors,
       get idleFocusExitControl() {
         return idleFocusExitControl
       },
-      get controlErrorElement() {
-        return controlErrorElement
-      },
+      controlErrorElement,
       get updateDevicePanel() {
         return updateDevicePanel
       },
-      get handleMarkerActivate() {
-        return handleMarkerActivate
-      },
-      get isPanelDeviceKind() {
-        return isPanelDeviceKind
-      },
+      handleMarkerActivate,
+      isPanelDeviceKind,
       get activeCameraPose() {
         return ctx.activeCameraPose
       },
@@ -3532,9 +3456,7 @@ export function mountStage(mountOptions: any) {
       get syncMarkers() {
         return syncMarkers
       },
-      get vacuumOverlayByKey() {
-        return vacuumOverlayByKey
-      },
+      vacuumOverlayByKey,
       get map() {
         return map
       },
@@ -3544,18 +3466,14 @@ export function mountStage(mountOptions: any) {
       get deviceStates() {
         return ctx.deviceStates
       },
-      get mediaControlRequestsByRequestId() {
-        return mediaControlRequestsByRequestId
-      },
+      mediaControlRequestsByRequestId,
       get controlMediaDevice() {
         return controlMediaDevice
       },
       get readCoverFeedback() {
         return readCoverFeedback
       },
-      get coverPanelOptions() {
-        return coverPanelOptions
-      },
+      coverPanelOptions,
       get readLightState() {
         return readLightState
       },
@@ -3621,9 +3539,7 @@ export function mountStage(mountOptions: any) {
       get element() {
         return element
       },
-      get NAVIGATION_DRAG_THRESHOLD() {
-        return NAVIGATION_DRAG_THRESHOLD
-      },
+      NAVIGATION_DRAG_THRESHOLD,
       get syncLayoutMetrics() {
         return syncLayoutMetrics
       },
@@ -3910,12 +3826,8 @@ export function mountStage(mountOptions: any) {
     })
   function stageLightingDeps() {
     return {
-      get powerButton() {
-        return powerButton
-      },
-      get getFocusedEntry() {
-        return getFocusedEntry
-      },
+      powerButton,
+      getFocusedEntry,
       get isEditing() {
         return ctx.isEditing
       },
@@ -3925,18 +3837,14 @@ export function mountStage(mountOptions: any) {
       get resolveLightState() {
         return resolveLightState
       },
-      get vector() {
-        return vector
-      },
+      vector,
       get applyLightStates() {
         return applyLightStates
       },
       get enqueueControlCommand() {
         return enqueueControlCommand
       },
-      get controlErrorElement() {
-        return controlErrorElement
-      },
+      controlErrorElement,
       get syncMarkers() {
         return syncMarkers
       },

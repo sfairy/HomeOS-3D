@@ -955,7 +955,7 @@ export function bootStudio(): void {
     get snapToggleStateElement() { return snapToggleStateElement; },
     get snapToleranceInput() { return snapToleranceInput; },
     get snapToleranceValueElement() { return snapToleranceValueElement; },
-    get stageLoadTiming() { return stageLoadTiming; },
+    stageLoadTiming,
     get stateViewportAspectGetCanvasSize() { return stateViewportAspectGetCanvasSize; },
     get storeFixedCameraView() { return storeFixedCameraView; },
     get studioBackLinkElement() { return studioBackLinkElement; },

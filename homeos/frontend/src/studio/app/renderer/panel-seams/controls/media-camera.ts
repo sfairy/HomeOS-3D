@@ -9,6 +9,7 @@ import { mountCameraMedia as mountCameraMedia2 } from '../../registry/index'
 import { popupPlacement as popupPlacement2 } from '../../../bridge/presets/popup-placement'
 import type { PanelRenderer } from '../../panel-renderer'
 
+import { domElement } from '@app/shared/util/dom-factory'
 export async function browseMedia(
   _self: PanelRenderer,
   mediaEntityId: any,
@@ -35,8 +36,7 @@ export function createMediaBrowserControl(
   mediaBrowserEntityId: any,
   { preview: isMediaPreview = false } = {},
 ) {
-  const mediaBrowserRootElement = document.createElement('section')
-  mediaBrowserRootElement.className = 'hb-media-browser'
+  const mediaBrowserRootElement = domElement(document, 'section', 'hb-media-browser')
   const mediaBrowserTriggerElement = document.createElement('button')
   ;(mediaBrowserTriggerElement.type = 'button'),
     (mediaBrowserTriggerElement.className = 'hb-media-browser-trigger'),
@@ -47,8 +47,7 @@ export function createMediaBrowserControl(
     (mediaBrowserTriggerElement.disabled = isMediaPreview)
   const mediaBrowserPanelElement = document.createElement('div')
   ;(mediaBrowserPanelElement.className = 'hb-media-browser-panel'), (mediaBrowserPanelElement.hidden = true)
-  const mediaBrowserToolbarElement = document.createElement('div')
-  mediaBrowserToolbarElement.className = 'hb-media-browser-toolbar'
+  const mediaBrowserToolbarElement = domElement(document, 'div', 'hb-media-browser-toolbar')
   const mediaBrowserBackElement = document.createElement('button')
   ;(mediaBrowserBackElement.type = 'button'),
     (mediaBrowserBackElement.className = 'hb-media-browser-back'),
@@ -57,8 +56,7 @@ export function createMediaBrowserControl(
   const mediaBrowserLocationElement = document.createElement('strong')
   ;(mediaBrowserLocationElement.className = 'hb-media-browser-location'),
     (mediaBrowserLocationElement.textContent = '媒体库')
-  const mediaBrowserStatusElement = document.createElement('span')
-  mediaBrowserStatusElement.className = 'hb-media-browser-status'
+  const mediaBrowserStatusElement = domElement(document, 'span', 'hb-media-browser-status')
   const mediaBrowserCloseElement = document.createElement('button')
   ;(mediaBrowserCloseElement.type = 'button'),
     (mediaBrowserCloseElement.className = 'hb-media-browser-close'),
@@ -124,8 +122,7 @@ export function createMediaBrowserControl(
               mediaBrowserListElement.append(mediaEmptyElement)
           }
           children2.forEach((mediaChildEntry: any) => {
-            const mediaItemElement = document.createElement('div')
-            mediaItemElement.className = 'hb-media-browser-item'
+            const mediaItemElement = domElement(document, 'div', 'hb-media-browser-item')
             const mediaItemTitleElement = document.createElement('span')
             ;(mediaItemTitleElement.className = 'hb-media-browser-item-title'),
               (mediaItemTitleElement.textContent = mediaItemTitle(mediaChildEntry))
@@ -285,10 +282,8 @@ export function showCameraPreview(
   const cameraPreviewDialog: ComponentDialogElement = document.createElement('dialog')
   ;(cameraPreviewDialog.className = 'hb-camera-preview-dialog fit-media-ratio'),
     (cameraPreviewDialog.dataset.componentId = cameraComponent.id || '')
-  const cameraPreviewCard = document.createElement('div')
-  cameraPreviewCard.className = 'hb-camera-preview-card'
-  const cameraPreviewHeading = document.createElement('div')
-  cameraPreviewHeading.className = 'hb-camera-preview-heading'
+  const cameraPreviewCard = domElement(document, 'div', 'hb-camera-preview-card')
+  const cameraPreviewHeading = domElement(document, 'div', 'hb-camera-preview-heading')
   const cameraPreviewTitleBox = document.createElement('div'),
     cameraPreviewTitle = document.createElement('strong')
   cameraPreviewTitle.textContent = componentDialogTitle(cameraComponent, '摄像头实时预览')
@@ -305,14 +300,10 @@ export function showCameraPreview(
   const cameraDeviceVisualSection = document.createElement('section')
   ;(cameraDeviceVisualSection.className = 'hb-camera-device-visual'),
     cameraDeviceVisualSection.setAttribute('aria-hidden', 'true')
-  const cameraDeviceMountIcon = document.createElement('i')
-  cameraDeviceMountIcon.className = 'hb-camera-device-mount'
-  const cameraDeviceArmIcon = document.createElement('i')
-  cameraDeviceArmIcon.className = 'hb-camera-device-arm'
-  const cameraDeviceBody = document.createElement('div')
-  cameraDeviceBody.className = 'hb-camera-device-body'
-  const cameraDeviceLensIcon = document.createElement('i')
-  cameraDeviceLensIcon.className = 'hb-camera-device-lens'
+  const cameraDeviceMountIcon = domElement(document, 'i', 'hb-camera-device-mount')
+  const cameraDeviceArmIcon = domElement(document, 'i', 'hb-camera-device-arm')
+  const cameraDeviceBody = domElement(document, 'div', 'hb-camera-device-body')
+  const cameraDeviceLensIcon = domElement(document, 'i', 'hb-camera-device-lens')
   const cameraDeviceLedIcon = document.createElement('i')
   ;(cameraDeviceLedIcon.className = 'hb-camera-device-led'),
     cameraDeviceBody.append(cameraDeviceLensIcon, cameraDeviceLedIcon),

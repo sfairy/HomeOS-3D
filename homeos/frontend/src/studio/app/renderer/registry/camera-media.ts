@@ -11,6 +11,7 @@ import { clampNumberWithFallback, normalizeCssColor, appendSvgElement, createCam
 import { cameraStreamBudget, withCameraHttpSlot } from '@/studio/platform/camera/camera-budget'
 import { createCameraMjpegStream } from '@/studio/platform/camera/camera-mjpeg'
 
+import { domElement } from '@app/shared/util/dom-factory'
 /**
  * Studio 侧复用共享的 go2rtc MSE 实现（`shared/camera/composables/useGo2RtcMseTransport`），
  * 这里再导出一次，视频弹窗/安全检查器等别的渲染子模块从本文件取，避免两份协议漂移。
@@ -372,8 +373,7 @@ export function mountCameraMedia({
   componentId: cameraComponentId = '',
   cameraId: cameraMarkerId = '',
 }: any) {
-  const cameraVideoElement = document.createElement('video')
-  cameraVideoElement.className = 'hb-camera-video'
+  const cameraVideoElement = domElement(document, 'video', 'hb-camera-video')
   cameraVideoElement.setAttribute('aria-label', legacyCameraLabel || legacySnapshotEntityId)
   cameraVideoElement.autoplay = true
   cameraVideoElement.muted = true
@@ -381,8 +381,7 @@ export function mountCameraMedia({
   cameraVideoElement.disablePictureInPicture = true
   cameraVideoElement.style.objectFit = legacyObjectFit
 
-  const fallbackImageElement = document.createElement('img')
-  fallbackImageElement.className = 'hb-camera-image'
+  const fallbackImageElement = domElement(document, 'img', 'hb-camera-image')
   fallbackImageElement.alt = legacyCameraLabel || legacySnapshotEntityId
   fallbackImageElement.draggable = false
   fallbackImageElement.style.objectFit = legacyObjectFit

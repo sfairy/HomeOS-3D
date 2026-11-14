@@ -8,6 +8,7 @@ import { createStageDeviceVisual } from '../core/stage-device-visual'
 import { createPopupFeedback } from '@app/shared/util/popup-feedback'
 import { gameConsoleState, isGameConsoleKind } from './game-console-state'
 import { createGameConsoleMain } from './game-console-panel'
+import { domElement } from '@app/shared/util/dom-factory'
 /** 电源指令等待 HA 回执的上限；超时给出「设备未响应」。 */
 const POWER_RESPONSE_TIMEOUT_MS = 14_000
 export function createDevicePanel({ onControl: onControl, onLayout: onLayout = () => {} }: any) {
@@ -31,8 +32,7 @@ export function createDevicePanel({ onControl: onControl, onLayout: onLayout = (
     lastItem: any = null
   const extraErrorElement = document.createElement('p')
   ;(extraErrorElement.className = 'i3d-extra-error'), extraErrorElement.setAttribute('role', 'status')
-  const headingElement = document.createElement('div')
-  headingElement.className = 'i3d-climate-heading i3d-nas-heading i3d-popup-heading'
+  const headingElement = domElement(document, 'div', 'i3d-climate-heading i3d-nas-heading i3d-popup-heading')
   const headingTextElement = document.createElement('div')
   const deviceVisual = createStageDeviceVisual({
     kind: 'generic',

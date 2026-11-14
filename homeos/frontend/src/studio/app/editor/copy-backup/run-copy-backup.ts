@@ -3,6 +3,7 @@
 
 import { clampNumber as clampNumber2 } from '../editor-utils'
 
+import { domElement } from '@app/shared/util/dom-factory'
 /** 依赖袋（宿主 `bootEditor` 作用域）：**每次调用现取**的普通对象，等价于闭包读值。
  * 本族切片只读不写（外层写入 0），所以不需要 getter / state 袋；宿主侧每个函数一个同名
  * 薄转发器，调用点零改写（函数声明保持提升语义）。族内互调留在模块内，不进依赖袋。
@@ -49,14 +50,13 @@ export function renderPagedPickerDialog(
   const popupNameSubmitEventElementElement = document.createElement('div')
   popupNameSubmitEventElementElement.className =
     'editor-paged-picker-card' + (onShowPageComponentsButtonClickState ? ' with-toolbar' : '')
-  const popupNameSubmitEventElementPanel = document.createElement('div')
-  popupNameSubmitEventElementPanel.className = 'editor-paged-picker-heading'
-  const popupNameSubmitEventElementSection = document.createElement('div')
-  popupNameSubmitEventElementSection.className = popupBeingRenamedEntry
-    ? 'editor-paged-picker-heading-copy has-subtitle'
-    : 'editor-paged-picker-heading-copy'
-  const popupNameSubmitEventElementCard = document.createElement('strong')
-  popupNameSubmitEventElementCard.textContent = popupBeingRenamedRef
+  const popupNameSubmitEventElementPanel = domElement(document, 'div', 'editor-paged-picker-heading')
+  const popupNameSubmitEventElementSection = domElement(
+    document,
+    'div',
+    popupBeingRenamedEntry ? 'editor-paged-picker-heading-copy has-subtitle' : 'editor-paged-picker-heading-copy',
+  )
+  const popupNameSubmitEventElementCard = domElement(document, 'strong', null, popupBeingRenamedRef)
   const popupNameSubmitEventElementBar = document.createElement('span')
   ;(popupNameSubmitEventElementBar.textContent = popupBeingRenamedEntry),
     popupNameSubmitEventElementSection.append(popupNameSubmitEventElementCard),
@@ -70,15 +70,13 @@ export function renderPagedPickerDialog(
   const popupNameInputElement = document.createElement('div')
   ;(popupNameInputElement.className = 'editor-paged-picker-toolbar'),
     (popupNameInputElement.hidden = !onShowPageComponentsButtonClickState)
-  const popupNameInputPanel = document.createElement('label')
-  popupNameInputPanel.className = 'editor-paged-picker-search'
+  const popupNameInputPanel = domElement(document, 'label', 'editor-paged-picker-search')
   const popupNameInputSection = document.createElement('input')
   ;(popupNameInputSection.type = 'search'),
     (popupNameInputSection.placeholder = popupBeingRenamedRecord),
     (popupNameInputSection.autocomplete = 'off'),
     popupNameInputPanel.append(popupNameInputSection)
-  const templateItemElementElement = document.createElement('div')
-  templateItemElementElement.className = 'editor-paged-picker-selected'
+  const templateItemElementElement = domElement(document, 'div', 'editor-paged-picker-selected')
   const templatePagePathValue = selectedTextValue || (popupBeingRenamedConfig === 'entity' ? '不使用实体' : '')
   if (((templateItemElementElement.hidden = !templatePagePathValue), templatePagePathValue)) {
     const popupNameInputCard = document.createElement('span')
@@ -113,12 +111,9 @@ export function renderPagedPickerDialog(
   const popupNameInputList = document.createElement('div')
   ;(popupNameInputList.className = ('editor-paged-picker-items ' + itemClassName).trim()),
     popupNameInputList.setAttribute('role', 'listbox')
-  const popupNameInputRow = document.createElement('div')
-  popupNameInputRow.className = 'editor-paged-picker-footer'
-  const popupNameInputBox = document.createElement('span')
-  popupNameInputBox.className = 'editor-paged-picker-status'
-  const popupNameInputStack = document.createElement('div')
-  popupNameInputStack.className = 'editor-paged-picker-pagination'
+  const popupNameInputRow = domElement(document, 'div', 'editor-paged-picker-footer')
+  const popupNameInputBox = domElement(document, 'span', 'editor-paged-picker-status')
+  const popupNameInputStack = domElement(document, 'div', 'editor-paged-picker-pagination')
   const popupNameInputColumn = document.createElement('button')
   ;(popupNameInputColumn.type = 'button'), (popupNameInputColumn.textContent = '上一页')
   const popupNameInputTrack = document.createElement('input')

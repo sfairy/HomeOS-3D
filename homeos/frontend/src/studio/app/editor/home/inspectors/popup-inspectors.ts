@@ -24,6 +24,7 @@ import { syncWeatherInspector as syncWeatherInspectorExternal } from '../../insp
 import { renderEntityOptionButtons } from '../entity/entity-option-list'
 import { positionFloatingMenu } from '../../../shared/util/editor-floating-layout'
 
+import { domElement } from '@app/shared/util/dom-factory'
 export interface PopupInspectorsDeps {
   editorCtx: EditorContext
   assetDisplayName: any
@@ -137,8 +138,7 @@ export function createAssetOptionButton(deps: PopupInspectorsDeps, optionAsset: 
     optionAsset.source === 'studio3d-export' || optionAsset.source !== 'user')
   )
     return assetOptionButton
-  const deleteWrapElement = document.createElement('div')
-  deleteWrapElement.className = 'user-asset-option-wrap'
+  const deleteWrapElement = domElement(document, 'div', 'user-asset-option-wrap')
   const deleteButtonElement = document.createElement('button')
   return (
     (deleteButtonElement.type = 'button'),

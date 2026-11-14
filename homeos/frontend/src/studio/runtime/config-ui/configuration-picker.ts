@@ -10,6 +10,7 @@
 
 import type { ConfigurationProgress } from './configuration-progress'
 
+import { domElement } from '@app/shared/util/dom-factory'
 export interface ConfigurationSummaryOptions {
   document: Document
   /** 「模型 / 灯组 / 按钮」，只影响提示文案。 */
@@ -59,8 +60,7 @@ export function configurationSummary(
   progress: ConfigurationProgress,
   { document: ownerDocument, unit = '模型' }: ConfigurationSummaryOptions,
 ): HTMLElement {
-  const summaryElement = ownerDocument.createElement('span')
-  summaryElement.className = 'i3d-configuration-counts'
+  const summaryElement = domElement(ownerDocument, 'span', 'i3d-configuration-counts')
   if (!progress.ready) {
     summaryElement.textContent = '加载中…'
     return summaryElement
@@ -75,12 +75,10 @@ export function configurationSummary(
   if (progress.missing) entries.push([unit === '灯组' ? '灯组缺失' : '模型缺失', progress.missing, 'missing'])
   entries.forEach(([labelText, countValue, stateName], entryIndex) => {
     if (entryIndex) {
-      const separatorElement = ownerDocument.createElement('span')
-      separatorElement.textContent = ' · '
+      const separatorElement = domElement(ownerDocument, 'span', null, ' · ')
       summaryElement.append(separatorElement)
     }
-    const labelElement = ownerDocument.createElement('span')
-    labelElement.textContent = labelText + ' '
+    const labelElement = domElement(ownerDocument, 'span', null, labelText + ' ')
     const countElement = ownerDocument.createElement('b')
     const resolvedCount = countValue ?? 0
     countElement.className = 'i3d-configuration-number is-' + (resolvedCount === 0 ? 'zero' : stateName)

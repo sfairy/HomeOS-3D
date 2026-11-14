@@ -7,6 +7,7 @@
 import { attachFeedback, createVisibilityGate } from './panel-utils'
 import type { ExtraPanelViewModel, FeedbackSlot } from './panel-utils'
 
+import { domElement } from '@app/shared/util/dom-factory'
 type ImageExtraPanelOptions = {
   element: any
   feedbackSlot?: FeedbackSlot
@@ -35,8 +36,7 @@ export function createImageExtraPanel({
   frameElement.append(imageElement, placeholderElement, retryElement)
   hostElement.replaceChildren(frameElement)
 
-  const errorElement = ownerDocument.createElement('p')
-  errorElement.className = 'i3d-climate-error'
+  const errorElement = domElement(ownerDocument, 'p', 'i3d-climate-error')
   hostElement.append(errorElement)
 
   let viewModel: ExtraPanelViewModel | null = null

@@ -47,6 +47,7 @@ import { popupLayoutMetrics as popupLayoutMetrics2 } from '../../../shared/popup
 import { syncHtmlRangeProgress as syncHtmlRangeProgress2 } from '../../../shared/util/range-progress'
 import { syncedLineChartProperties as syncedLineChartProperties2 } from '../../panel-document'
 
+import { domElement } from '@app/shared/util/dom-factory'
 export function showCustomPopup(
   this: PanelRenderer,
   customPopupModule: any,
@@ -56,10 +57,8 @@ export function showCustomPopup(
     (this.historyPopupGeneration += 1),
     (this.activePopupId = String(customPopupModule?.id || '')),
     this.connectRuntime()
-  const customPopupDialog = document.createElement('dialog')
-  customPopupDialog.className = 'hb-custom-popup-dialog'
-  const customPopupCard = document.createElement('div')
-  customPopupCard.className = 'hb-custom-popup-card'
+  const customPopupDialog = domElement(document, 'dialog', 'hb-custom-popup-dialog')
+  const customPopupCard = domElement(document, 'div', 'hb-custom-popup-card')
   const popupModules = customPopupModule.modules || [],
     popupLayoutMetrics = popupLayoutMetrics2(popupModules, customPopupModule.layout),
     popupWidth = popupLayoutMetrics.popupWidth,
@@ -69,8 +68,7 @@ export function showCustomPopup(
     (customPopupCard.style.width = popupWidth + 'px'),
     (customPopupCard.style.height = popupHeight + 'px'),
     (customPopupCard.style.maxHeight = 'none')
-  const customPopupHeading = document.createElement('div')
-  customPopupHeading.className = 'hb-custom-popup-heading'
+  const customPopupHeading = domElement(document, 'div', 'hb-custom-popup-heading')
   const customPopupTitleBox = document.createElement('div'),
     customPopupTitle = document.createElement('strong')
   ;(customPopupTitle.textContent = customPopupModule.name || '组合弹窗'), customPopupTitleBox.append(customPopupTitle)
@@ -144,8 +142,7 @@ export function showCustomPopup(
       'hb-custom-popup-module hb-custom-popup-module--' + (moduleDeviceProfile.type || 'generic')),
       (popupModuleSection.style.gridColumn = modulePlacement.x + 1 + ' / span ' + moduleColumnSpan),
       (popupModuleSection.style.gridRow = modulePlacement.y + 1 + ' / span ' + modulePlacement.height)
-    const popupModuleHeading = document.createElement('div')
-    popupModuleHeading.className = 'hb-custom-popup-module-heading'
+    const popupModuleHeading = domElement(document, 'div', 'hb-custom-popup-module-heading')
     const popupModuleTitle = document.createElement('strong')
     popupModuleTitle.textContent = popupModuleDialogTitle(moduleDeviceProfile, popupEntityState)
     const popupModuleStatus = document.createElement('span')
@@ -196,10 +193,8 @@ export function showCustomPopup(
           },
           electricBedBodyElement = document.createElement('div')
         electricBedBodyElement.className = 'hb-custom-electric-bed-body'
-        const electricBedVisualElement = document.createElement('section')
-        electricBedVisualElement.className = 'hb-electric-bed-visual'
-        const electricBedModelArea = document.createElement('div')
-        electricBedModelArea.className = 'hb-electric-bed-model'
+        const electricBedVisualElement = domElement(document, 'section', 'hb-electric-bed-visual')
+        const electricBedModelArea = domElement(document, 'div', 'hb-electric-bed-model')
         for (const bedModelPart of ['mattress', 'back', 'waist', 'legs', 'base']) {
           const bedModelPartIcon = document.createElement('i')
           ;(bedModelPartIcon.className = 'hb-electric-bed-' + bedModelPart),
@@ -228,12 +223,9 @@ export function showCustomPopup(
           waistReadoutElement.item,
           legsReadoutElement.item,
         )
-        const bedModeControl = document.createElement('section')
-        bedModeControl.className = 'hb-electric-bed-control hb-electric-bed-mode'
-        const bedMemorySection = document.createElement('section')
-        bedMemorySection.className = 'hb-electric-bed-memory'
-        const bedAngleControlsSection = document.createElement('section')
-        bedAngleControlsSection.className = 'hb-electric-bed-angle-controls'
+        const bedModeControl = domElement(document, 'section', 'hb-electric-bed-control hb-electric-bed-mode')
+        const bedMemorySection = domElement(document, 'section', 'hb-electric-bed-memory')
+        const bedAngleControlsSection = domElement(document, 'section', 'hb-electric-bed-angle-controls')
         const bedModeValue = String(bedRoles.mode || ''),
           slice4 = [bedRoles.memory1, bedRoles.memory2].filter(Boolean).slice(0, 2),
           bedAngleControlEntries = [
@@ -254,10 +246,8 @@ export function showCustomPopup(
             blockEntityId: any,
             controlVariantName = '',
           ) => {
-            const bedControlSection = document.createElement('section')
-            bedControlSection.className = 'hb-electric-bed-control'
-            const bedControlTitle = document.createElement('strong')
-            bedControlTitle.textContent = controlLabelText
+            const bedControlSection = domElement(document, 'section', 'hb-electric-bed-control')
+            const bedControlTitle = domElement(document, 'strong', null, controlLabelText)
             const capabilityDetailsControls3 = this.createCapabilityDetailsControls(
               blockEntityId,
               resolveBedEntityState(blockEntityId),
@@ -276,18 +266,15 @@ export function showCustomPopup(
           }
         if (bedModeValue) createBedControlBlock(bedModeControl, '模式', bedModeValue, 'electric-bed')
         else {
-          const bedModeTitle = document.createElement('strong')
-          bedModeTitle.textContent = '模式'
+          const bedModeTitle = domElement(document, 'strong', null, '模式')
           const bedModeSelect = document.createElement('select')
           ;(bedModeSelect.className = 'hb-capability-select'),
             (bedModeSelect.disabled = true),
             bedModeSelect.append(new Option('未识别到模式实体')),
             bedModeControl.append(bedModeTitle, bedModeSelect)
         }
-        const bedMemoryTitle = document.createElement('strong')
-        bedMemoryTitle.textContent = '记忆姿势'
-        const bedMemoryList = document.createElement('div')
-        bedMemoryList.className = 'hb-electric-bed-memory-list'
+        const bedMemoryTitle = domElement(document, 'strong', null, '记忆姿势')
+        const bedMemoryList = domElement(document, 'div', 'hb-electric-bed-memory-list')
         for (let memoryIndex = 0; memoryIndex < 2; memoryIndex += 1) {
           const memorySlotEntityId = String(slice4[memoryIndex] || ''),
             memoryMetadata = memorySlotEntityId ? this.entityMetadata.get(memorySlotEntityId) : null
@@ -364,14 +351,10 @@ export function showCustomPopup(
           const popupCameraVisualElement = document.createElement('section')
           ;(popupCameraVisualElement.className = 'hb-camera-device-visual hb-custom-camera-device-visual'),
             popupCameraVisualElement.setAttribute('aria-hidden', 'true')
-          const popupCameraMountIcon = document.createElement('i')
-          popupCameraMountIcon.className = 'hb-camera-device-mount'
-          const popupCameraArmIcon = document.createElement('i')
-          popupCameraArmIcon.className = 'hb-camera-device-arm'
-          const popupCameraBody = document.createElement('div')
-          popupCameraBody.className = 'hb-camera-device-body'
-          const popupCameraLensIcon = document.createElement('i')
-          popupCameraLensIcon.className = 'hb-camera-device-lens'
+          const popupCameraMountIcon = domElement(document, 'i', 'hb-camera-device-mount')
+          const popupCameraArmIcon = domElement(document, 'i', 'hb-camera-device-arm')
+          const popupCameraBody = domElement(document, 'div', 'hb-camera-device-body')
+          const popupCameraLensIcon = domElement(document, 'i', 'hb-camera-device-lens')
           const popupCameraLedIcon = document.createElement('i')
           ;(popupCameraLedIcon.className = 'hb-camera-device-led'),
             popupCameraBody.append(popupCameraLensIcon, popupCameraLedIcon),
@@ -455,8 +438,7 @@ export function showCustomPopup(
           ;(popupCameraStage.className = 'hb-custom-popup-camera-stage is-connecting'),
             (popupModuleStatus.textContent = isCustomPopupPreview ? '预览模式' : '正在连接'),
             popupModuleStatus.classList.add('is-connecting')
-          const popupCameraRevealVeilIcon = document.createElement('i')
-          popupCameraRevealVeilIcon.className = 'hb-camera-preview-reveal-veil'
+          const popupCameraRevealVeilIcon = domElement(document, 'i', 'hb-camera-preview-reveal-veil')
           const popupCameraScanLineIcon = document.createElement('i')
           ;(popupCameraScanLineIcon.className = 'hb-camera-preview-scan-line'),
             popupCameraStage.append(popupCameraRevealVeilIcon, popupCameraScanLineIcon)
@@ -684,10 +666,8 @@ export function showCustomPopup(
                   (popupLightVisualElement.style.animationDelay = 0.08 + moduleIndex * 0.07 + 's'),
                   (popupLightVisualElement.inert = isCustomPopupPreview),
                   popupLightVisualElement.setAttribute('aria-disabled', String(isCustomPopupPreview))
-                const lightVisualAuraElement = document.createElement('div')
-                lightVisualAuraElement.className = 'hb-light-visual-aura'
-                const lightVisualLampElement = document.createElement('div')
-                lightVisualLampElement.className = 'hb-light-visual-lamp'
+                const lightVisualAuraElement = domElement(document, 'div', 'hb-light-visual-aura')
+                const lightVisualLampElement = domElement(document, 'div', 'hb-light-visual-lamp')
                 for (const lightVisualPart of ['cord', 'shade', 'bulb', 'filament']) {
                   const lightVisualPartIcon = document.createElement('i')
                   ;(lightVisualPartIcon.className = 'hb-light-visual-' + lightVisualPart),
@@ -853,8 +833,7 @@ export function showCustomPopup(
                       }),
                     (climateVisualElement.inert = isCustomPopupPreview),
                     climateVisualElement.setAttribute('aria-disabled', String(isCustomPopupPreview))
-                  const climateVisualUnitBox = document.createElement('div')
-                  climateVisualUnitBox.className = 'hb-climate-visual-unit'
+                  const climateVisualUnitBox = domElement(document, 'div', 'hb-climate-visual-unit')
                   const climateVisualBrandElement = document.createElement('span')
                   ;(climateVisualBrandElement.className = 'hb-climate-visual-brand'),
                     (climateVisualBrandElement.textContent =
@@ -863,10 +842,8 @@ export function showCustomPopup(
                         : heaterType === 'water-heater'
                           ? 'SMART WATER'
                           : 'SMART AIR')
-                  const climateVisualDisplayElement = document.createElement('strong')
-                  climateVisualDisplayElement.className = 'hb-climate-visual-display'
-                  const climateVisualVentBox = document.createElement('div')
-                  climateVisualVentBox.className = 'hb-climate-visual-vent'
+                  const climateVisualDisplayElement = domElement(document, 'strong', 'hb-climate-visual-display')
+                  const climateVisualVentBox = domElement(document, 'div', 'hb-climate-visual-vent')
                   for (let climateVentUnitIndex = 0; climateVentUnitIndex < 5; climateVentUnitIndex += 1)
                     climateVisualVentBox.append(document.createElement('i'))
                   climateVisualUnitBox.append(
@@ -874,8 +851,7 @@ export function showCustomPopup(
                     climateVisualDisplayElement,
                     climateVisualVentBox,
                   )
-                  const climateVisualAirflowBox = document.createElement('div')
-                  climateVisualAirflowBox.className = 'hb-climate-visual-airflow'
+                  const climateVisualAirflowBox = domElement(document, 'div', 'hb-climate-visual-airflow')
                   for (let climateAirflowUnitIndex = 0; climateAirflowUnitIndex < 3; climateAirflowUnitIndex += 1)
                     climateVisualAirflowBox.append(document.createElement('i'))
                   climateVisualElement.append(climateVisualUnitBox, climateVisualAirflowBox)
@@ -1137,18 +1113,13 @@ export function showCustomPopup(
                       (coverVisualElement.className = 'hb-cover-visual hb-custom-cover-visual'),
                       (coverVisualElement.inert = isCustomPopupPreview),
                       coverVisualElement.setAttribute('aria-disabled', String(isCustomPopupPreview))
-                    const coverRailIcon = document.createElement('i')
-                    coverRailIcon.className = 'hb-cover-visual-rail'
-                    const coverLeftPanelIcon = document.createElement('i')
-                    coverLeftPanelIcon.className = 'hb-cover-visual-panel left'
-                    const coverRightPanelIcon = document.createElement('i')
-                    coverRightPanelIcon.className = 'hb-cover-visual-panel right'
-                    const coverSlatsBox = document.createElement('span')
-                    coverSlatsBox.className = 'hb-cover-visual-slats'
+                    const coverRailIcon = domElement(document, 'i', 'hb-cover-visual-rail')
+                    const coverLeftPanelIcon = domElement(document, 'i', 'hb-cover-visual-panel left')
+                    const coverRightPanelIcon = domElement(document, 'i', 'hb-cover-visual-panel right')
+                    const coverSlatsBox = domElement(document, 'span', 'hb-cover-visual-slats')
                     const coverSlatTotal = 13
                     for (let coverSlatPosition = 0; coverSlatPosition < coverSlatTotal; coverSlatPosition += 1) {
-                      const coverSlatIcon = document.createElement('span')
-                      coverSlatIcon.className = 'hb-cover-visual-slat'
+                      const coverSlatIcon = domElement(document, 'span', 'hb-cover-visual-slat')
                       const coverSlatDetailIcon = document.createElement('i')
                       coverSlatIcon.style.setProperty('--hb-cover-slat-index', String(coverSlatPosition))
                       const abs3 =
@@ -1433,24 +1404,18 @@ export function showCustomPopup(
                           'hb-air-purifier-visual hb-custom-air-purifier-visual'),
                         (popupAirPurifierVisualElement.inert = isCustomPopupPreview),
                         popupAirPurifierVisualElement.setAttribute('aria-disabled', String(isCustomPopupPreview))
-                      const popupPurifierAuraIcon = document.createElement('i')
-                      popupPurifierAuraIcon.className = 'hb-air-purifier-visual-aura'
-                      const popupPurifierAirflowIcon = document.createElement('span')
-                      popupPurifierAirflowIcon.className = 'hb-air-purifier-visual-airflow'
+                      const popupPurifierAuraIcon = domElement(document, 'i', 'hb-air-purifier-visual-aura')
+                      const popupPurifierAirflowIcon = domElement(document, 'span', 'hb-air-purifier-visual-airflow')
                       for (
                         let popupPurifierAirflowIndex = 0;
                         popupPurifierAirflowIndex < 4;
                         popupPurifierAirflowIndex += 1
                       )
                         popupPurifierAirflowIcon.append(document.createElement('i'))
-                      const popupPurifierBodyIcon = document.createElement('span')
-                      popupPurifierBodyIcon.className = 'hb-air-purifier-visual-body'
-                      const popupPurifierTopIcon = document.createElement('i')
-                      popupPurifierTopIcon.className = 'hb-air-purifier-visual-top'
-                      const popupPurifierVentIcon = document.createElement('i')
-                      popupPurifierVentIcon.className = 'hb-air-purifier-visual-vent'
-                      const popupPurifierDisplayIcon = document.createElement('span')
-                      popupPurifierDisplayIcon.className = 'hb-air-purifier-visual-display'
+                      const popupPurifierBodyIcon = domElement(document, 'span', 'hb-air-purifier-visual-body')
+                      const popupPurifierTopIcon = domElement(document, 'i', 'hb-air-purifier-visual-top')
+                      const popupPurifierVentIcon = domElement(document, 'i', 'hb-air-purifier-visual-vent')
+                      const popupPurifierDisplayIcon = domElement(document, 'span', 'hb-air-purifier-visual-display')
                       const popupPurifierDisplayLabel = document.createElement('strong')
                       popupPurifierDisplayIcon.append(popupPurifierDisplayLabel),
                         popupPurifierBodyIcon.append(
@@ -1473,22 +1438,15 @@ export function showCustomPopup(
                         ),
                         popupPurifierLayoutBox = document.createElement('div')
                       popupPurifierLayoutBox.className = 'hb-air-purifier-layout hb-custom-air-purifier-layout'
-                      const popupPurifierSummarySection = document.createElement('section')
-                      popupPurifierSummarySection.className = 'hb-air-purifier-summary'
-                      const popupPurifierGaugeWrapElement = document.createElement('div')
-                      popupPurifierGaugeWrapElement.className = 'hb-air-purifier-gauge-wrap'
-                      const popupPurifierGaugeBox = document.createElement('div')
-                      popupPurifierGaugeBox.className = 'hb-air-purifier-gauge is-quality'
-                      const popupPurifierGaugeOrbitIcon = document.createElement('i')
-                      popupPurifierGaugeOrbitIcon.className = 'hb-air-purifier-gauge-orbit'
-                      const popupPurifierArcStartIcon = document.createElement('i')
-                      popupPurifierArcStartIcon.className = 'hb-air-purifier-arc-cap start'
-                      const popupPurifierArcEndIcon = document.createElement('i')
-                      popupPurifierArcEndIcon.className = 'hb-air-purifier-arc-cap end'
+                      const popupPurifierSummarySection = domElement(document, 'section', 'hb-air-purifier-summary')
+                      const popupPurifierGaugeWrapElement = domElement(document, 'div', 'hb-air-purifier-gauge-wrap')
+                      const popupPurifierGaugeBox = domElement(document, 'div', 'hb-air-purifier-gauge is-quality')
+                      const popupPurifierGaugeOrbitIcon = domElement(document, 'i', 'hb-air-purifier-gauge-orbit')
+                      const popupPurifierArcStartIcon = domElement(document, 'i', 'hb-air-purifier-arc-cap start')
+                      const popupPurifierArcEndIcon = domElement(document, 'i', 'hb-air-purifier-arc-cap end')
                       const popupPurifierGaugeContentElement = document.createElement('div')
                       popupPurifierGaugeContentElement.className = 'hb-air-purifier-gauge-content'
-                      const popupPurifierQualityCaption = document.createElement('small')
-                      popupPurifierQualityCaption.textContent = '室内空气质量'
+                      const popupPurifierQualityCaption = domElement(document, 'small', null, '室内空气质量')
                       const popupPurifierQualityValueElement = document.createElement('strong'),
                         popupPurifierQualityNumberElement = document.createElement('span'),
                         popupPurifierDeviceStatus = document.createElement('span')
@@ -1746,8 +1704,7 @@ export function showCustomPopup(
                         ;(popupMediaSpeakerVisualElement.className = 'hb-media-speaker-visual'),
                           popupMediaSpeakerVisualElement.setAttribute('aria-hidden', 'true'),
                           popupMediaSpeakerVisuals.push(popupMediaSpeakerVisualElement)
-                        const popupSpeakerBodyIcon = document.createElement('i')
-                        popupSpeakerBodyIcon.className = 'hb-media-speaker-body'
+                        const popupSpeakerBodyIcon = domElement(document, 'i', 'hb-media-speaker-body')
                         const popupSpeakerArtworkImage = document.createElement('img')
                         ;(popupSpeakerArtworkImage.className = 'hb-media-speaker-artwork'),
                           (popupSpeakerArtworkImage.alt = ''),
@@ -1768,8 +1725,7 @@ export function showCustomPopup(
                         ;(popupMediaArtworkImage.className = 'hb-media-player-artwork'),
                           (popupMediaArtworkImage.alt = ''),
                           (popupMediaArtworkImage.hidden = true)
-                        const popupMediaCopyBox = document.createElement('div')
-                        popupMediaCopyBox.className = 'hb-media-player-copy'
+                        const popupMediaCopyBox = domElement(document, 'div', 'hb-media-player-copy')
                         const popupMediaTitleLabel = document.createElement('strong'),
                           popupMediaSubtitleLabel = document.createElement('span'),
                           popupMediaProgressRow = document.createElement('div')
@@ -1788,8 +1744,7 @@ export function showCustomPopup(
                             popupMediaProgressRow,
                           ),
                           popupNowPlayingSection.append(popupMediaArtworkImage, popupMediaCopyBox)
-                        const popupMediaActionsRow = document.createElement('div')
-                        popupMediaActionsRow.className = 'hb-media-player-actions'
+                        const popupMediaActionsRow = domElement(document, 'div', 'hb-media-player-actions')
                         const createPopupMediaButton = (popupButtonLabel: any, popupMediaService: any) => {
                             const popupMediaButton = document.createElement('button')
                             return (
@@ -1818,12 +1773,9 @@ export function showCustomPopup(
                             preview: isCustomPopupPreview,
                           })
                         popupCleanupCallbacks.push(() => mediaBrowserControl2.cleanup?.())
-                        const popupMediaVolumeSection = document.createElement('section')
-                        popupMediaVolumeSection.className = 'hb-capability-range-group'
-                        const popupMediaVolumeHeading = document.createElement('div')
-                        popupMediaVolumeHeading.className = 'hb-capability-range-heading'
-                        const popupMediaVolumeTitle = document.createElement('strong')
-                        popupMediaVolumeTitle.textContent = '音量'
+                        const popupMediaVolumeSection = domElement(document, 'section', 'hb-capability-range-group')
+                        const popupMediaVolumeHeading = domElement(document, 'div', 'hb-capability-range-heading')
+                        const popupMediaVolumeTitle = domElement(document, 'strong', null, '音量')
                         const popupMediaVolumeOutputElement = document.createElement('output')
                         popupMediaVolumeHeading.append(popupMediaVolumeTitle, popupMediaVolumeOutputElement)
                         const popupMediaVolumeSlider = document.createElement('input')
@@ -2054,8 +2006,7 @@ export function showCustomPopup(
                           popupControlPanels.push(mediaBrowserControl2.panel),
                           popupModuleSection.append(popupMediaBody)
                       } else {
-                        const popupModuleStatusNote = document.createElement('p')
-                        popupModuleStatusNote.className = 'hb-custom-popup-generic'
+                        const popupModuleStatusNote = domElement(document, 'p', 'hb-custom-popup-generic')
                         const syncPopupModuleStatus = (popupModuleStateArg: any) => {
                           popupModuleStatusNote.textContent = '当前状态：' + (popupModuleStateArg?.state ?? '暂无状态')
                         }

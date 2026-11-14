@@ -8,6 +8,7 @@ import {
 import { syncHtmlRangeProgress as syncHtmlRangeProgress2 } from '../../../shared/util/range-progress'
 import { positionScaledPopupMenu } from '../../../shared/util/editor-floating-layout'
 
+import { domElement } from '@app/shared/util/dom-factory'
 export function createCapabilityDetailsControls(
   this: PanelRenderer,
   capabilityEntityId: any,
@@ -94,17 +95,14 @@ export function createCapabilityDetailsControls(
         !(['electric-bed', 'electric-bed-memory'].includes(capabilityVariant) && capabilityDomain === 'select')
       )
         return
-      const optionGroupSection = document.createElement('section')
-      optionGroupSection.className = 'hb-capability-option-group'
-      const optionGroupTitle = document.createElement('strong')
-      optionGroupTitle.textContent = optionControlLabel
+      const optionGroupSection = domElement(document, 'section', 'hb-capability-option-group')
+      const optionGroupTitle = domElement(document, 'strong', null, optionControlLabel)
       const optionGroupBox = document.createElement('div')
       if (
         ((optionGroupBox.className = 'hb-capability-options'),
         ['electric-bed', 'electric-bed-memory'].includes(capabilityVariant) && capabilityDomain === 'select')
       ) {
-        const bedSelectWrapper = document.createElement('div')
-        bedSelectWrapper.className = 'hb-electric-bed-select'
+        const bedSelectWrapper = domElement(document, 'div', 'hb-electric-bed-select')
         const bedSelectTriggerButton = document.createElement('button')
         ;(bedSelectTriggerButton.type = 'button'),
           (bedSelectTriggerButton.className = 'hb-electric-bed-select-trigger'),
@@ -327,10 +325,8 @@ export function createCapabilityDetailsControls(
     if (capabilityVariant === 'air-purifier') {
       const speedGroupSection = document.createElement('section')
       speedGroupSection.className = 'hb-capability-option-group hb-air-purifier-speed-group'
-      const speedGroupTitle = document.createElement('strong')
-      speedGroupTitle.textContent = '风速'
-      const speedGroupBox = document.createElement('div')
-      speedGroupBox.className = 'hb-capability-options hb-air-purifier-speed-options'
+      const speedGroupTitle = domElement(document, 'strong', null, '风速')
+      const speedGroupBox = domElement(document, 'div', 'hb-capability-options hb-air-purifier-speed-options')
       const speedPresets = [
         {
           label: '低',
@@ -389,12 +385,9 @@ export function createCapabilityDetailsControls(
           buttons: speedPresets,
         })
     } else {
-      const fanSpeedRangeSection = document.createElement('section')
-      fanSpeedRangeSection.className = 'hb-capability-range-group'
-      const fanSpeedRangeHeading = document.createElement('div')
-      fanSpeedRangeHeading.className = 'hb-capability-range-heading'
-      const fanSpeedRangeTitle = document.createElement('strong')
-      fanSpeedRangeTitle.textContent = '风速'
+      const fanSpeedRangeSection = domElement(document, 'section', 'hb-capability-range-group')
+      const fanSpeedRangeHeading = domElement(document, 'div', 'hb-capability-range-heading')
+      const fanSpeedRangeTitle = domElement(document, 'strong', null, '风速')
       const fanSpeedRangeOutputElement = document.createElement('output')
       fanSpeedRangeHeading.append(fanSpeedRangeTitle, fanSpeedRangeOutputElement)
       const fanSpeedRangeSlider = document.createElement('input')
@@ -470,10 +463,8 @@ export function createCapabilityDetailsControls(
           : 1,
       numericRangeSection = document.createElement('section')
     numericRangeSection.className = 'hb-capability-range-group'
-    const numericRangeHeading = document.createElement('div')
-    numericRangeHeading.className = 'hb-capability-range-heading'
-    const numericRangeTitle = document.createElement('strong')
-    numericRangeTitle.textContent = getEntityAttributes().unit_of_measurement
+    const numericRangeHeading = domElement(document, 'div', 'hb-capability-range-heading')
+    const numericRangeTitle = domElement(document, 'strong', null, getEntityAttributes().unit_of_measurement)
       ? '数值（' + getEntityAttributes().unit_of_measurement + '）'
       : '数值'
     const numericRangeOutputElement = document.createElement('output')

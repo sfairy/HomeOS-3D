@@ -1,6 +1,7 @@
 import { normalizeCssColor } from './_shared'
 import { doorWindowPerspectiveMatrix } from '../controls/door-window-runtime'
 
+import { domElement } from '@app/shared/util/dom-factory'
 export function createDoorWindowSensorView(
   sensorComponent: any,
   doorWindowProperties: any,
@@ -25,8 +26,7 @@ export function createDoorWindowSensorView(
     doorWindowSensorElement.style.setProperty('--hb-door-window-accent', sensorAccentColor),
     doorWindowSensorElement.setAttribute('role', 'img'),
     doorWindowSensorElement.setAttribute('aria-label', '门窗传感器：' + sensorStateLabel)
-  const doorWindowVisualElement = document.createElement('div')
-  doorWindowVisualElement.className = 'hb-door-window-visual'
+  const doorWindowVisualElement = domElement(document, 'div', 'hb-door-window-visual')
   const componentScale = Math.max(0.01, Number(sensorRenderEnvironment.document?.canvas?.componentScale || 1)),
     visualWidth = Math.max(1, Number(sensorComponent.position?.width || 100) / componentScale),
     visualHeight = Math.max(1, Number(sensorComponent.position?.height || 100) / componentScale)
@@ -35,17 +35,14 @@ export function createDoorWindowSensorView(
     visualHeight,
     doorWindowProperties.perspectiveCorners,
   )
-  const doorWindowFrameElement = document.createElement('span')
-  doorWindowFrameElement.className = 'hb-door-window-frame'
-  const leftPanelElement = document.createElement('span')
-  leftPanelElement.className = 'hb-door-window-panel left'
+  const doorWindowFrameElement = domElement(document, 'span', 'hb-door-window-frame')
+  const leftPanelElement = domElement(document, 'span', 'hb-door-window-panel left')
   const rightPanelElement = document.createElement('span')
   ;(rightPanelElement.className = 'hb-door-window-panel right'),
     leftPanelElement.append(document.createElement('i')),
     rightPanelElement.append(document.createElement('i')),
     doorWindowFrameElement.append(leftPanelElement, rightPanelElement)
-  const airflowElement = document.createElement('span')
-  airflowElement.className = 'hb-door-window-airflow'
+  const airflowElement = domElement(document, 'span', 'hb-door-window-airflow')
   for (let airflowDotIndex = 0; airflowDotIndex < 3; airflowDotIndex += 1)
     airflowElement.append(document.createElement('i'))
   return (
@@ -70,12 +67,9 @@ export function createWaterLeakSensorView(waterLeakProperties: any, waterLeakSta
     waterLeakSensorElement.style.setProperty('--hb-water-leak-accent', waterLeakColor),
     waterLeakSensorElement.setAttribute('role', 'img'),
     waterLeakSensorElement.setAttribute('aria-label', '水浸传感器：' + waterLeakStateLabel)
-  const waterLeakVisualElement = document.createElement('div')
-  waterLeakVisualElement.className = 'hb-water-leak-visual'
-  const puddleElement = document.createElement('span')
-  puddleElement.className = 'hb-water-leak-puddle'
-  const ripplesElement = document.createElement('span')
-  ripplesElement.className = 'hb-water-leak-ripples'
+  const waterLeakVisualElement = domElement(document, 'div', 'hb-water-leak-visual')
+  const puddleElement = domElement(document, 'span', 'hb-water-leak-puddle')
+  const ripplesElement = domElement(document, 'span', 'hb-water-leak-ripples')
   for (let rippleIndex = 0; rippleIndex < 3; rippleIndex += 1) ripplesElement.append(document.createElement('i'))
   const svgUrl = 'http://www.w3.org/2000/svg',
     dropletSvgElement = document.createElementNS(svgUrl, 'svg')
@@ -111,10 +105,8 @@ export function createSmokeSensorView(smokeProperties: any, smokeState: any) {
     smokeSensorElement.style.setProperty('--hb-smoke-accent', smokeColor),
     smokeSensorElement.setAttribute('role', 'img'),
     smokeSensorElement.setAttribute('aria-label', '烟雾传感器：' + smokeStateLabel)
-  const smokeVisualElement = document.createElement('span')
-  smokeVisualElement.className = 'hb-smoke-visual'
-  const smokeGroundElement = document.createElement('span')
-  smokeGroundElement.className = 'hb-smoke-ground'
+  const smokeVisualElement = domElement(document, 'span', 'hb-smoke-visual')
+  const smokeGroundElement = domElement(document, 'span', 'hb-smoke-ground')
   const smokeSvgUrl = 'http://www.w3.org/2000/svg',
     smokeWispsSvgElement = document.createElementNS(smokeSvgUrl, 'svg')
   smokeWispsSvgElement.setAttribute('class', 'hb-smoke-wisps'),
@@ -176,10 +168,8 @@ export function createNaturalGasSensorView(naturalGasProperties: any, naturalGas
     naturalGasSensorElement.style.setProperty('--hb-natural-gas-accent', naturalGasColor),
     naturalGasSensorElement.setAttribute('role', 'img'),
     naturalGasSensorElement.setAttribute('aria-label', '天然气传感器：' + naturalGasStateLabel)
-  const naturalGasVisualElement = document.createElement('span')
-  naturalGasVisualElement.className = 'hb-natural-gas-visual'
-  const naturalGasHazeElement = document.createElement('span')
-  naturalGasHazeElement.className = 'hb-natural-gas-haze'
+  const naturalGasVisualElement = domElement(document, 'span', 'hb-natural-gas-visual')
+  const naturalGasHazeElement = domElement(document, 'span', 'hb-natural-gas-haze')
   const naturalGasSvgUrl = 'http://www.w3.org/2000/svg',
     naturalGasSvgElement = document.createElementNS(naturalGasSvgUrl, 'svg')
   naturalGasSvgElement.setAttribute('class', 'hb-natural-gas-currents'),

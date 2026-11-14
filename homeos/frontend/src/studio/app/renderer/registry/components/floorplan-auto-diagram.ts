@@ -19,6 +19,7 @@ import { isEntityStateActive } from '../entity-state-active'
 import { componentContentUnitsPx } from '../content-units'
 import type { RenderPropertyBag, ComponentControllerHooks } from './types'
 
+import { domElement } from '@app/shared/util/dom-factory'
 export function registerFloorplanAutoDiagramComponent(registerComponent: (type: any, def: any) => void) {
   registerComponent('floorplan-auto-diagram', {
     render(diagramComponent: any, diagramRenderEnvironment: RenderPropertyBag = {}) {
@@ -525,8 +526,7 @@ export function registerFloorplanAutoDiagramComponent(registerComponent: (type: 
             statisticsElement.append(statisticsTitleElement)
         }
         if (isCountVisible) {
-          const statisticsCountElement = document.createElement('span')
-          statisticsCountElement.className = 'hb-light-statistics-count'
+          const statisticsCountElement = domElement(document, 'span', 'hb-light-statistics-count')
           const activeCountElement = document.createElement('b')
           if (
             ((activeCountElement.textContent = lightStatisticsTotals.total ? String(lightStatisticsTotals.on) : '--'),

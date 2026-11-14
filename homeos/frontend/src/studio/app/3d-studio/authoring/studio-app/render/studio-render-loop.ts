@@ -1737,9 +1737,7 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
     constrainCameraPose: constrainCameraPose2,
     container: selectElement('#preview-3d'),
     canvas: appCtx.threeRenderer.domElement,
-    get groundReflections() {
-      return groundReflections
-    },
+    groundReflections,
     invalidateReflections(reflectionInvalidateReason: any) {
       groundReflections.changed(reflectionInvalidateReason)
     },

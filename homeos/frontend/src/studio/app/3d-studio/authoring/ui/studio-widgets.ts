@@ -1,5 +1,6 @@
 import { editNumberText, numberEditValue, rememberNumberValue, steppedNumber } from '../studio-edit-metrics'
 
+import { domElement } from '@app/shared/util/dom-factory'
 const selectRecordsBySelect = new Map()
 let openSelectRecord: any = null
 function closeStudioSelect(recordToClose = openSelectRecord) {
@@ -146,8 +147,7 @@ function enhanceNumberInput(numberInput: any) {
   if (!numberInput || numberInput.closest('.number-stepper')) return
   const stepperElement = document.createElement('span')
   ;(stepperElement.className = 'number-stepper'), numberInput.before(stepperElement), stepperElement.append(numberInput)
-  const buttonGroupElement = document.createElement('span')
-  buttonGroupElement.className = 'number-stepper-buttons'
+  const buttonGroupElement = domElement(document, 'span', 'number-stepper-buttons')
   const stepperButtonConfigs = [
     {
       direction: 'up',

@@ -1,6 +1,7 @@
 import { showRuntimeDialog } from '../popups/runtime-dialogs'
 import type { PanelRenderer } from '../../panel-renderer'
 import { componentDialogTitle } from '../../renderer-helpers'
+import { domElement } from '@app/shared/util/dom-factory'
 import {
   formatPresenceDuration as formatPresenceDuration2,
   presenceHistoryBuckets as presenceHistoryBuckets2,
@@ -99,10 +100,8 @@ export function showPresenceDetails(
     (presenceDialog.dataset.sensorKind = sensorKind),
     presenceDialog.style.setProperty('--hb-presence-occupied', occupiedColor),
     presenceDialog.style.setProperty('--hb-presence-clear', clearColor)
-  const presenceCard = document.createElement('div')
-  presenceCard.className = 'hb-entity-details-card'
-  const presenceHeading = document.createElement('div')
-  presenceHeading.className = 'hb-entity-details-heading'
+  const presenceCard = domElement(document, 'div', 'hb-entity-details-card')
+  const presenceHeading = domElement(document, 'div', 'hb-entity-details-heading')
   const presenceTitleRow = document.createElement('div'),
     presenceTitle = document.createElement('strong')
   presenceTitle.textContent = componentDialogTitle(
@@ -116,28 +115,21 @@ export function showPresenceDetails(
     (presenceCloseButton.textContent = '×'),
     presenceCloseButton.setAttribute('aria-label', '关闭弹窗'),
     presenceHeading.append(presenceTitleRow, presenceCloseButton)
-  const presenceBody = document.createElement('div')
-  presenceBody.className = 'hb-presence-details-body'
-  const presenceVisualElement = document.createElement('section')
-  presenceVisualElement.className = 'hb-presence-details-visual'
+  const presenceBody = domElement(document, 'div', 'hb-presence-details-body')
+  const presenceVisualElement = domElement(document, 'section', 'hb-presence-details-visual')
   let presenceSensorElement: any = null
   if (sensorKind === 'presence') {
-    const presenceSpaceElement = document.createElement('span')
-    presenceSpaceElement.className = 'hb-presence-sensor-space'
+    const presenceSpaceElement = domElement(document, 'span', 'hb-presence-sensor-space')
     for (let spaceLayerIndex = 0; spaceLayerIndex < 3; spaceLayerIndex += 1)
       presenceSpaceElement.append(document.createElement('i'))
-    const presenceFloorElement = document.createElement('span')
-    presenceFloorElement.className = 'hb-presence-sensor-floor'
-    const presencePersonElement = document.createElement('span')
-    presencePersonElement.className = 'hb-presence-sensor-person'
+    const presenceFloorElement = domElement(document, 'span', 'hb-presence-sensor-floor')
+    const presencePersonElement = domElement(document, 'span', 'hb-presence-sensor-person')
     const personHeadElement = document.createElement('i'),
       personTorsoElement = document.createElement('b'),
       personArmLeftElement = document.createElement('span')
     personArmLeftElement.className = 'arm left'
-    const personArmRightElement = document.createElement('span')
-    personArmRightElement.className = 'arm right'
-    const personLegLeftElement = document.createElement('span')
-    personLegLeftElement.className = 'leg left'
+    const personArmRightElement = domElement(document, 'span', 'arm right')
+    const personLegLeftElement = domElement(document, 'span', 'leg left')
     const personLegRightElement = document.createElement('span')
     ;(personLegRightElement.className = 'leg right'),
       presencePersonElement.append(
@@ -172,8 +164,7 @@ export function showPresenceDetails(
   const presenceStateLabelElement = document.createElement('strong'),
     presenceStateHint = document.createElement('small')
   presenceVisualElement.append(presenceStateLabelElement, presenceStateHint)
-  const presenceMetricsSection = document.createElement('section')
-  presenceMetricsSection.className = 'hb-presence-details-metrics'
+  const presenceMetricsSection = domElement(document, 'section', 'hb-presence-details-metrics')
   const createPresenceMetric = (metricLabel: any) => {
       const presenceMetricElement = document.createElement('div'),
         presenceMetricLabel = document.createElement('small')
@@ -245,8 +236,7 @@ export function showPresenceDetails(
       )
       presenceTimelineTrack.replaceChildren(
         ...historyBuckets.map((bucketState, bucketIndex) => {
-          const timelineBucketElement = document.createElement('i')
-          timelineBucketElement.className = 'is-' + bucketState
+          const timelineBucketElement = domElement(document, 'i', 'is-' + bucketState)
           const round3 = Math.round(
             (historyHours * 60 * (historyBuckets.length - bucketIndex - 1)) / historyBuckets.length,
           )

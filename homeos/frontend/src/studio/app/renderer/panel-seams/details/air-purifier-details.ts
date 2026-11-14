@@ -4,6 +4,7 @@ import { componentDialogTitle } from '../../renderer-helpers'
 import { entityMetadataIsAvailable as entityMetadataIsAvailable2 } from '@app/shared/device/entity-metadata'
 import { selectedRelatedEntityIds as selectedRelatedEntityIds2 } from '../../../shared/related-entities'
 
+import { domElement } from '@app/shared/util/dom-factory'
 export function showAirPurifierDetails(
   this: PanelRenderer,
   airPurifierComponent: any,
@@ -22,10 +23,8 @@ export function showAirPurifierDetails(
     }
   const airPurifierDialog = document.createElement('dialog')
   airPurifierDialog.className = 'hb-entity-details-dialog air-purifier-details capability-details'
-  const airPurifierDialogCard = document.createElement('div')
-  airPurifierDialogCard.className = 'hb-entity-details-card'
-  const airPurifierDialogHeading = document.createElement('div')
-  airPurifierDialogHeading.className = 'hb-entity-details-heading'
+  const airPurifierDialogCard = domElement(document, 'div', 'hb-entity-details-card')
+  const airPurifierDialogHeading = domElement(document, 'div', 'hb-entity-details-heading')
   const airPurifierDialogTitleBox = document.createElement('div'),
     airPurifierDialogTitle = document.createElement('strong')
   airPurifierDialogTitle.textContent =
@@ -38,20 +37,14 @@ export function showAirPurifierDetails(
     (airPurifierPowerButton.className = 'hb-air-purifier-visual'),
     (airPurifierPowerButton.inert = isAirPurifierPreview),
     airPurifierPowerButton.setAttribute('aria-label', '切换空气净化器电源')
-  const airPurifierAuraIcon = document.createElement('i')
-  airPurifierAuraIcon.className = 'hb-air-purifier-visual-aura'
-  const airPurifierAirflowIcon = document.createElement('span')
-  airPurifierAirflowIcon.className = 'hb-air-purifier-visual-airflow'
+  const airPurifierAuraIcon = domElement(document, 'i', 'hb-air-purifier-visual-aura')
+  const airPurifierAirflowIcon = domElement(document, 'span', 'hb-air-purifier-visual-airflow')
   for (let purifierAirflowUnitIndex = 0; purifierAirflowUnitIndex < 4; purifierAirflowUnitIndex += 1)
     airPurifierAirflowIcon.append(document.createElement('i'))
-  const airPurifierBodyIcon = document.createElement('span')
-  airPurifierBodyIcon.className = 'hb-air-purifier-visual-body'
-  const airPurifierTopIcon = document.createElement('i')
-  airPurifierTopIcon.className = 'hb-air-purifier-visual-top'
-  const airPurifierVentIcon = document.createElement('i')
-  airPurifierVentIcon.className = 'hb-air-purifier-visual-vent'
-  const airPurifierDisplayIcon = document.createElement('span')
-  airPurifierDisplayIcon.className = 'hb-air-purifier-visual-display'
+  const airPurifierBodyIcon = domElement(document, 'span', 'hb-air-purifier-visual-body')
+  const airPurifierTopIcon = domElement(document, 'i', 'hb-air-purifier-visual-top')
+  const airPurifierVentIcon = domElement(document, 'i', 'hb-air-purifier-visual-vent')
+  const airPurifierDisplayIcon = domElement(document, 'span', 'hb-air-purifier-visual-display')
   const airPurifierDisplayLabel = document.createElement('strong')
   airPurifierDisplayIcon.append(airPurifierDisplayLabel),
     airPurifierBodyIcon.append(airPurifierTopIcon, airPurifierVentIcon, airPurifierDisplayIcon),
@@ -61,24 +54,15 @@ export function showAirPurifierDetails(
     (airPurifierDialogCloseButton.textContent = '×'),
     airPurifierDialogCloseButton.setAttribute('aria-label', '关闭弹窗'),
     airPurifierDialogHeading.append(airPurifierDialogTitleBox, airPurifierPowerButton, airPurifierDialogCloseButton)
-  const airPurifierLayoutBox = document.createElement('div')
-  airPurifierLayoutBox.className = 'hb-air-purifier-layout'
-  const airPurifierSummarySection = document.createElement('section')
-  airPurifierSummarySection.className = 'hb-air-purifier-summary'
-  const airPurifierGaugeWrapElement = document.createElement('div')
-  airPurifierGaugeWrapElement.className = 'hb-air-purifier-gauge-wrap'
-  const airPurifierGaugeBox = document.createElement('div')
-  airPurifierGaugeBox.className = 'hb-air-purifier-gauge is-quality'
-  const airPurifierGaugeOrbitIcon = document.createElement('i')
-  airPurifierGaugeOrbitIcon.className = 'hb-air-purifier-gauge-orbit'
-  const airPurifierArcStartIcon = document.createElement('i')
-  airPurifierArcStartIcon.className = 'hb-air-purifier-arc-cap start'
-  const airPurifierArcEndIcon = document.createElement('i')
-  airPurifierArcEndIcon.className = 'hb-air-purifier-arc-cap end'
-  const airPurifierGaugeContentElement = document.createElement('div')
-  airPurifierGaugeContentElement.className = 'hb-air-purifier-gauge-content'
-  const airPurifierQualityCaption = document.createElement('small')
-  airPurifierQualityCaption.textContent = '室内空气质量'
+  const airPurifierLayoutBox = domElement(document, 'div', 'hb-air-purifier-layout')
+  const airPurifierSummarySection = domElement(document, 'section', 'hb-air-purifier-summary')
+  const airPurifierGaugeWrapElement = domElement(document, 'div', 'hb-air-purifier-gauge-wrap')
+  const airPurifierGaugeBox = domElement(document, 'div', 'hb-air-purifier-gauge is-quality')
+  const airPurifierGaugeOrbitIcon = domElement(document, 'i', 'hb-air-purifier-gauge-orbit')
+  const airPurifierArcStartIcon = domElement(document, 'i', 'hb-air-purifier-arc-cap start')
+  const airPurifierArcEndIcon = domElement(document, 'i', 'hb-air-purifier-arc-cap end')
+  const airPurifierGaugeContentElement = domElement(document, 'div', 'hb-air-purifier-gauge-content')
+  const airPurifierQualityCaption = domElement(document, 'small', null, '室内空气质量')
   const airPurifierQualityValueElement = document.createElement('strong'),
     airPurifierQualityNumberElement = document.createElement('span'),
     airPurifierQualityUnitElement = document.createElement('small')
@@ -184,8 +168,7 @@ export function showAirPurifierDetails(
         length: 3,
       },
       () => {
-        const secondaryMetricRow = document.createElement('div')
-        secondaryMetricRow.className = 'hb-air-purifier-secondary-metric'
+        const secondaryMetricRow = domElement(document, 'div', 'hb-air-purifier-secondary-metric')
         const secondaryMetricLabel = document.createElement('small'),
           secondaryMetricValueElement = document.createElement('strong')
         return (

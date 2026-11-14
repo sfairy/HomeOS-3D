@@ -71,9 +71,7 @@ export function createShadowParameterBuffer(gl: ShadowParameterGL | null | undef
   }
 
   return {
-    get capacity() {
-      return capacity
-    },
+    capacity,
     update(matrices, rects, params) {
       if (!gl || !capacity || matrices.length > capacity || gl.isContextLost?.()) return false
       if (!buffer) {

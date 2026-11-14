@@ -18,6 +18,7 @@ import {
 import { resolveSceneControlMode } from '../renderer/scene-mode'
 import { randomUuid } from '../shared/util/random-id'
 
+import { domElement } from '@app/shared/util/dom-factory'
 /** 可编辑属性：`[键, 标签, 控件类型, min?, max?, step?]`。 */
 const SCENE_PROPERTY_FIELDS: ReadonlyArray<readonly [string, string, string, number?, number?, number?]> = [
   ['mainText', '主文字', 'text'],
@@ -83,8 +84,7 @@ interface ScenePopupEditorHost {
 
 export function createScenePopupEditor(scenePopupEditorHost: ScenePopupEditorHost) {
   const editorDocument = scenePopupEditorHost.document || document
-  const editorRoot = editorDocument.createElement('section')
-  editorRoot.className = 'hb-scene-popup-editor'
+  const editorRoot = domElement(editorDocument, 'section', 'hb-scene-popup-editor')
   editorRoot.setAttribute('aria-label', '情景弹窗设置')
   editorRoot.innerHTML =
     '<header class="hb-scene-popup-editor-header"><button type="button" data-scene-edit-action="back">← 返回控件属性</button><h2>情景弹窗设置</h2><span data-scene-editor-status></span><button type="button" data-scene-edit-action="undo" aria-label="撤销">撤销</button><button type="button" data-scene-edit-action="redo" aria-label="重做">重做</button><button type="button" data-scene-edit-action="preview">预览弹窗</button><button type="button" class="primary" data-scene-edit-action="save">保存</button></header>' +

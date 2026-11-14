@@ -8,6 +8,7 @@
 
 import { clampNumber as clampNumber2 } from '../editor-utils'
 
+import { domElement } from '@app/shared/util/dom-factory'
 function stepNumberInput(changedPagePathElement: any, stepDelta: any) {
   if (!changedPagePathElement || !changedPagePathElement.isConnected) return false
   if (changedPagePathElement.disabled || changedPagePathElement.readOnly) return false
@@ -56,10 +57,8 @@ export function formatLastSeen(deps: NumberStepperDeps, lastSeenTimestamp: Docum
   for (const formatDisplayTokenExpiryElement of lastSeenDate) {
     if (enhancedNumberInputsSet.has(formatDisplayTokenExpiryElement)) continue
     enhancedNumberInputsSet.add(formatDisplayTokenExpiryElement)
-    const formatDisplayTokenExpiryElementElement = document.createElement('span')
-    formatDisplayTokenExpiryElementElement.className = 'inspector-number-control'
-    const displayDeviceElement = document.createElement('span')
-    displayDeviceElement.className = 'inspector-number-steppers'
+    const formatDisplayTokenExpiryElementElement = domElement(document, 'span', 'inspector-number-control')
+    const displayDeviceElement = domElement(document, 'span', 'inspector-number-steppers')
     const displayDeviceHandler = (displayDevice: any, loadDisplayPairingCodes: any, pairingCodes: any) => {
       const pairingsEmptyElement = document.createElement('button')
       return (

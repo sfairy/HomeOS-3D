@@ -15,6 +15,7 @@ import {
 } from '../basic'
 import { renderPercentageBarInspector as renderPercentageBarInspector2 } from '../percentage-bar-inspector'
 
+import { domElement } from '@app/shared/util/dom-factory'
 export interface CoverMotorInspectorContext {
   [key: string]: any
 }
@@ -467,8 +468,7 @@ export function coverMotorButtonElement(ctx: CoverMotorInspectorContext) {
         (lightEntityRecord: any) => ctx.renderNavigationIconPreview(lightEntityRecord) === 'light',
       ),
       lightGroupRows = (diagramProperties.lightLayers || []).map((lightLayer: any) => {
-        const layerLabelElement = document.createElement('label')
-        layerLabelElement.textContent = lightLayer.note || lightLayer.name || '灯组'
+        const layerLabelElement = domElement(document, 'label', null, lightLayer.note || lightLayer.name || '灯组')
         const entitySelectElement = document.createElement('select')
         entitySelectElement.dataset.floorplanLightGroupId = lightLayer.id
         const boundLightEntityId = createdInstanceConfig.bindings?.['lightGroup:' + lightLayer.id]?.entityId || '',

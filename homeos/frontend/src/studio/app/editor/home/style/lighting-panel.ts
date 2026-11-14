@@ -81,9 +81,7 @@ export function targetPageCandidate(deps: LightingPanelDeps) {
     get projectTemplateOptionsElement() {
       return deps.projectTemplateOptionsElement
     },
-    get cameraCommandState() {
-      return cameraCommandState
-    },
+    cameraCommandState,
     get resizeWarningResolveState() {
       return deps.editorCtx.resizeWarningResolveState
     },

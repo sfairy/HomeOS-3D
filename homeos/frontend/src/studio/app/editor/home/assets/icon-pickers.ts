@@ -2,6 +2,7 @@
 import type { EditorContext } from '../editor-context'
 import { clampNumber as clampNumber2 } from '../../editor-utils'
 
+import { domElement } from '@app/shared/util/dom-factory'
 export interface IconPickersDeps {
   editorCtx: EditorContext
   airConditionerEntityButtonElement: any
@@ -226,8 +227,7 @@ export function enhanceEntityCopyButton(
   if (!copyButtonHostElement || copyButtonHostElement.dataset.entityCopyReady === 'true')
     return copyButtonHostElement._entityCopySync
   deps.runFallback(copyButtonHostElement)
-  const entityCopyRowElement = document.createElement('div')
-  entityCopyRowElement.className = 'entity-picker-field-row'
+  const entityCopyRowElement = domElement(document, 'div', 'entity-picker-field-row')
   const entityCopyButtonElement = document.createElement('button')
   ;(entityCopyButtonElement.type = 'button'),
     (entityCopyButtonElement.className = 'navigation-icon-copy entity-picker-copy'),

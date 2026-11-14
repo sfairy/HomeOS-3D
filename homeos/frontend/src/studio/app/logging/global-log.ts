@@ -1,4 +1,5 @@
 import type { DomControl } from '@app/shared/util/dom-control'
+import { domElement } from '@app/shared/util/dom-factory'
 const LEVEL_LABELS = {
   info: '信息',
   success: '成功',
@@ -117,8 +118,7 @@ export function setupGlobalLog({ api: apiRequest }: any) {
     }
     const logListFragmentNode = document.createDocumentFragment()
     for (const logEntry of entryList) {
-      const itemElement = document.createElement('article')
-      itemElement.className = 'global-log-item ' + (logEntry.level || 'info')
+      const itemElement = domElement(document, 'article', 'global-log-item ' + (logEntry.level || 'info'))
       const levelIcon = document.createElement('i')
       levelIcon.setAttribute('aria-hidden', 'true')
       const bodyElement = document.createElement('div'),

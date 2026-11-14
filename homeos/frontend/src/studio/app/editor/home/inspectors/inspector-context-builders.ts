@@ -28,6 +28,7 @@ import {
 } from '../../editor-document-management'
 import { renderEntityOptionButtons } from '../entity/entity-option-list'
 
+import { domElement } from '@app/shared/util/dom-factory'
 export interface InspectorContextsDeps {
   editorCtx: EditorContext
   bindingRepair?: any
@@ -869,8 +870,7 @@ export function renderCustomPopupSelector(
       (popupItemButtonElement.dataset.popupId = popupItemState.id),
       popupItemButtonElement.setAttribute('role', 'option'),
       popupItemButtonElement.setAttribute('aria-selected', String(popupItemState.id === deps.editorCtx.selectedPopupId))
-    const popupItemNameElementElement = document.createElement('span')
-    popupItemNameElementElement.textContent = popupItemState.name
+    const popupItemNameElementElement = domElement(document, 'span', null, popupItemState.name)
     const popupItemMetaElementElement = document.createElement('small')
     ;(popupItemMetaElementElement.textContent = (popupItemState.modules || []).length + ' 个模块'),
       popupItemButtonElement.append(popupItemNameElementElement, popupItemMetaElementElement),

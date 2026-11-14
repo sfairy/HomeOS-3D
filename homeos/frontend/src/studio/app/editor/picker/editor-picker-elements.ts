@@ -1,3 +1,4 @@
+import { domElement } from '@app/shared/util/dom-factory'
 export function createEditorPickerElements({
   entityKindLabel: entityKindLabel,
   entityPickerPrimaryName: entityPickerPrimaryName,
@@ -110,10 +111,8 @@ export function createEditorPickerElements({
     )
   }
   function createEditorPickerCurrentEntity(selectedEntity: any, emptyEntityLabel = '未选择实体') {
-    const currentEntityElement = document.createElement('span')
-    currentEntityElement.className = 'editor-paged-picker-current-entity'
-    const currentEntityNameElement = document.createElement('span')
-    currentEntityNameElement.className = 'editor-paged-picker-current-entity-name'
+    const currentEntityElement = domElement(document, 'span', 'editor-paged-picker-current-entity')
+    const currentEntityNameElement = domElement(document, 'span', 'editor-paged-picker-current-entity-name')
     const currentEntityIdElement = document.createElement('span')
     return (
       (currentEntityIdElement.className = 'editor-paged-picker-current-entity-id'),
@@ -128,8 +127,7 @@ export function createEditorPickerElements({
     )
   }
   function createEditorPickerCurrentAsset(asset: any, emptyAssetLabel = '未使用图片') {
-    const currentAssetElement = document.createElement('span')
-    currentAssetElement.className = 'editor-paged-picker-current-asset'
+    const currentAssetElement = domElement(document, 'span', 'editor-paged-picker-current-asset')
     const assetImageElement = document.createElement('img')
     assetImageElement.alt = ''
     const assetNameElement = document.createElement('span')

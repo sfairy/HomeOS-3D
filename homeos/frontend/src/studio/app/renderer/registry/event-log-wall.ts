@@ -13,6 +13,7 @@ import { navigateInShell } from '@/studio/platform/shell-navigation'
 import { clampNumberWithFallback, normalizeCssColor } from './_shared'
 import { componentContentUnitsPx } from './content-units'
 
+import { domElement } from '@app/shared/util/dom-factory'
 type ComponentControllerHooks = {
   pushEvent?: (...eventArgs: any[]) => any
 }
@@ -72,13 +73,11 @@ export function renderEventLogWall(eventLogWallComponent: any, eventLogWallRende
       ),
     )
 
-  const eventLogWallPanelElement = document.createElement('div')
-  eventLogWallPanelElement.className = 'hb-event-log-wall__panel'
+  const eventLogWallPanelElement = domElement(document, 'div', 'hb-event-log-wall__panel')
 
   const isEventLogWallTitleVisible = eventLogWallProperties.titleVisible === true
   if (isEventLogWallTitleVisible) {
-    const eventLogWallTitleElement = document.createElement('div')
-    eventLogWallTitleElement.className = 'hb-event-log-wall__title'
+    const eventLogWallTitleElement = domElement(document, 'div', 'hb-event-log-wall__title')
     const eventLogWallTitleTextElement = document.createElement('strong')
     eventLogWallTitleTextElement.textContent = String(
       eventLogWallProperties.title || eventLogWallProperties.instanceName || '即时消息墙',
@@ -87,10 +86,8 @@ export function renderEventLogWall(eventLogWallComponent: any, eventLogWallRende
     eventLogWallPanelElement.append(eventLogWallTitleElement)
   }
 
-  const eventLogWallScrollElement = document.createElement('div')
-  eventLogWallScrollElement.className = 'hb-event-log-wall__scroll'
-  const eventLogWallListElement = document.createElement('div')
-  eventLogWallListElement.className = 'hb-event-log-wall__list'
+  const eventLogWallScrollElement = domElement(document, 'div', 'hb-event-log-wall__scroll')
+  const eventLogWallListElement = domElement(document, 'div', 'hb-event-log-wall__list')
   eventLogWallScrollElement.append(eventLogWallListElement)
   eventLogWallPanelElement.append(eventLogWallScrollElement)
   eventLogWallRootElement.append(eventLogWallPanelElement)
@@ -134,12 +131,8 @@ export function renderEventLogWall(eventLogWallComponent: any, eventLogWallRende
     eventLogWallStateElement.className =
       'hb-event-log-wall__state hb-event-log-wall__state--' + eventLogWallEntry.colorToken
     eventLogWallStateElement.textContent = '[' + eventLogWallEntry.state + ']'
-    const eventLogWallTimeElement = document.createElement('span')
-    eventLogWallTimeElement.className = 'hb-event-log-wall__time'
-    eventLogWallTimeElement.textContent = eventLogWallEntry.timestamp
-    const eventLogWallNameElement = document.createElement('span')
-    eventLogWallNameElement.className = 'hb-event-log-wall__name'
-    eventLogWallNameElement.textContent = eventLogWallEntry.name
+    const eventLogWallTimeElement = domElement(document, 'span', 'hb-event-log-wall__time', eventLogWallEntry.timestamp)
+    const eventLogWallNameElement = domElement(document, 'span', 'hb-event-log-wall__name', eventLogWallEntry.name)
     eventLogWallEntryElement.append(eventLogWallStateElement, eventLogWallTimeElement, eventLogWallNameElement)
     if (
       eventLogWallProperties.entryClickMode !== 'none' &&

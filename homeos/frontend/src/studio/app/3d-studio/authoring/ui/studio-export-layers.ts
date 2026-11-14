@@ -8,6 +8,7 @@
 
 import { EXPORT_IMAGE_EXTENSION as EXPORT_IMAGE_EXTENSION2 } from '../../export/export-utils'
 
+import { domElement } from '@app/shared/util/dom-factory'
 /** 导出图层渲染需要的外部状态：图层清单容器 + 取数助手（都读宿主里的 `studioProject`）。 */
 interface StudioExportLayerDeps {
   exportGroupFilesElement: HTMLElement | null
@@ -28,8 +29,7 @@ export function renderExportLayers(deps: StudioExportLayerDeps) {
       ;(exportLayerCheckbox.type = 'checkbox'),
         (exportLayerCheckbox.checked = true),
         (exportLayerCheckbox.dataset.exportFile = layerFileKey)
-      const exportLayerCaption = document.createElement('span')
-      exportLayerCaption.textContent = layerLabel
+      const exportLayerCaption = domElement(document, 'span', null, layerLabel)
       const exportLayerNote = document.createElement('small')
       ;(exportLayerNote.textContent = layerNote),
         exportLayerLabel.append(exportLayerCheckbox, exportLayerCaption),

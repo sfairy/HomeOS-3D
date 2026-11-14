@@ -3,6 +3,7 @@ import { resolveStatePayload } from '../_shared'
 import { appendCameraFrame, cameraRadiusRatio, mountCameraMedia, mountCameraSnapshot } from '../camera-media'
 import { cameraSourceConfigured } from '@/studio/platform/camera-binding-source'
 
+import { domElement } from '@app/shared/util/dom-factory'
 export function register(registerComponent: (type: any, def: any) => void) {
   registerComponent('camera', {
     render(cameraComponent: any, cameraRenderEnvironment: any) {
@@ -23,8 +24,7 @@ export function register(registerComponent: (type: any, def: any) => void) {
           cameraComponentElement.append(editableCameraPlaceholderElement)
       } else {
         if (cameraRenderEnvironment.liveMedia !== false && cameraProperties.mediaVisible !== false) {
-          const runtimeCameraPlaceholderElement = document.createElement('div')
-          runtimeCameraPlaceholderElement.className = 'hb-camera-placeholder'
+          const runtimeCameraPlaceholderElement = domElement(document, 'div', 'hb-camera-placeholder')
           // go2rtc 来源可以不绑 HA 实体，此时地址本身就是「已配置」的判据。
           const runtimeCameraGo2rtcUrl =
               cameraProperties.cameraSource === 'go2rtc' ? String(cameraProperties.go2rtcUrl || '').trim() : '',

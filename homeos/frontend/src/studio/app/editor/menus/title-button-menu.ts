@@ -1,5 +1,6 @@
 import { createUiIcon } from '../../shared/ui-icons'
 
+import { domElement } from '@app/shared/util/dom-factory'
 /** 依赖袋（宿主 `bootEditor` 作用域）：**每次调用现取**的普通对象，等价于闭包读值。
  * 本族切片只读不写（外层写入 0），所以不需要 getter / state 袋；宿主侧每个函数一个同名
  * 薄转发器，调用点零改写（函数声明保持提升语义）。族内互调留在模块内，不进依赖袋。
@@ -26,9 +27,7 @@ interface TitleButtonMenuDeps {
 
 /** 字体下拉（0.8.6）：字体名可能很长，包一层可悬停滚动预览的省略号文本。 */
 function wrapFontChoiceName(host: HTMLElement) {
-  const name = document.createElement('span')
-  name.className = 'dashboard-font-choice-name'
-  name.textContent = host.textContent
+  const name = domElement(document, 'span', 'dashboard-font-choice-name', host.textContent)
   name.dataset.overflowScrollPreview = 'true'
   name.dataset.overflowScrollFocus = 'true'
   host.dataset.overflowScrollPreviewRow = 'true'
@@ -42,8 +41,7 @@ const EMPTY_SELECT_LABELS: Record<string, string> = {
 }
 
 function createDefaultMarker() {
-  const marker = document.createElement('span')
-  marker.className = 'custom-select-default-marker'
+  const marker = domElement(document, 'span', 'custom-select-default-marker')
   marker.setAttribute('aria-hidden', 'true')
   marker.append(createUiIcon(document, 'star'))
   return marker
@@ -99,8 +97,7 @@ export function loadNavigationIconOptionsCore(deps: TitleButtonMenuDeps, loadTit
         !positionEntityPickerMenu || !deps.canDeleteAssetFolder(Zt2, positionIconButtonEffectIconMenu.value))
       )
         return positionIconButtonIconMenu
-      const positionLightStatisticsIconMenu = document.createElement('div')
-      positionLightStatisticsIconMenu.className = 'custom-select-option-row'
+      const positionLightStatisticsIconMenu = domElement(document, 'div', 'custom-select-option-row')
       const positionNavigationIconMenu = document.createElement('button')
       return (
         (positionNavigationIconMenu.type = 'button'),

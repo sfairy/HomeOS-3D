@@ -14,6 +14,7 @@ import {
 } from '../sensor-views'
 import { componentContentUnitsPx } from '../content-units'
 
+import { domElement } from '@app/shared/util/dom-factory'
 export function register(registerComponent: (type: any, def: any) => void) {
   registerComponent('presence-sensor', {
     render(sensorViewComponent: any, sensorViewRenderEnvironment: any) {
@@ -151,24 +152,18 @@ export function register(registerComponent: (type: any, def: any) => void) {
         presenceSensorElement.style.setProperty('--hb-presence-copy-secondary-size', 10 * contentUnits.height + 'px'),
         presenceSensorElement.setAttribute('role', 'img'),
         presenceSensorElement.setAttribute('aria-label', '人在传感器：' + presencePresentation.label)
-      const presenceVisualElement = document.createElement('div')
-      presenceVisualElement.className = 'hb-presence-sensor-visual'
-      const presenceHaloElement = document.createElement('span')
-      presenceHaloElement.className = 'hb-presence-sensor-halo'
-      const presenceSpaceElement = document.createElement('span')
-      presenceSpaceElement.className = 'hb-presence-sensor-space'
+      const presenceVisualElement = domElement(document, 'div', 'hb-presence-sensor-visual')
+      const presenceHaloElement = domElement(document, 'span', 'hb-presence-sensor-halo')
+      const presenceSpaceElement = domElement(document, 'span', 'hb-presence-sensor-space')
       for (let spaceDotIndex = 0; spaceDotIndex < 3; spaceDotIndex += 1)
         presenceSpaceElement.append(document.createElement('i'))
-      const presencePersonElement = document.createElement('span')
-      presencePersonElement.className = 'hb-presence-sensor-person'
+      const presencePersonElement = domElement(document, 'span', 'hb-presence-sensor-person')
       const personHeadElement = document.createElement('i'),
         personTorsoElement = document.createElement('b'),
         personLeftArmElement = document.createElement('span')
       personLeftArmElement.className = 'arm left'
-      const personRightArmElement = document.createElement('span')
-      personRightArmElement.className = 'arm right'
-      const personLeftLegElement = document.createElement('span')
-      personLeftLegElement.className = 'leg left'
+      const personRightArmElement = domElement(document, 'span', 'arm right')
+      const personLeftLegElement = domElement(document, 'span', 'leg left')
       const personRightLegElement = document.createElement('span')
       ;(personRightLegElement.className = 'leg right'),
         presencePersonElement.append(
@@ -182,8 +177,7 @@ export function register(registerComponent: (type: any, def: any) => void) {
       const presenceFloorElement = document.createElement('span')
       ;(presenceFloorElement.className = 'hb-presence-sensor-floor'),
         presenceHaloElement.append(presenceSpaceElement, presenceFloorElement)
-      const presenceOrbitElement = document.createElement('span')
-      presenceOrbitElement.className = 'hb-presence-sensor-orbit'
+      const presenceOrbitElement = domElement(document, 'span', 'hb-presence-sensor-orbit')
       const presenceTravelerElement = document.createElement('span')
       if (
         ((presenceTravelerElement.className = 'hb-presence-sensor-traveler'),

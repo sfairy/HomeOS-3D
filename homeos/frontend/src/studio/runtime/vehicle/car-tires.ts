@@ -13,6 +13,7 @@
 
 import { formatEntityNumber } from '@app/shared/util/ha-number'
 
+import { domElement } from '@app/shared/util/dom-factory'
 /** 轮位轴：`side` 为车宽方向（左右轮），`front` 为车长方向（前后轮），
  *  `labelSide` 仅双轮车型使用 —— 前后轮都在中线上，靠这一侧把标签推到车身外侧。 */
 export type CarTireWheel = {
@@ -173,8 +174,7 @@ type CarTireRecord = {
 }
 
 export function createCarTires({ THREE, container }: { THREE: any; container: any }) {
-  const rootElement = document.createElement('div')
-  rootElement.className = 'i3d-car-tires'
+  const rootElement = domElement(document, 'div', 'i3d-car-tires')
   const lineCanvas = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
   lineCanvas.classList.add('i3d-car-tire-lines')
   rootElement.append(lineCanvas)

@@ -20,6 +20,7 @@ import {
 import { randomUuid as randomUuid2 } from '../../../shared/util/random-id'
 import { positionScaledPopupMenu } from '../../../shared/util/editor-floating-layout'
 
+import { domElement } from '@app/shared/util/dom-factory'
 export function createClimateDetailsControls(
   this: PanelRenderer,
   climateDetailsEntityId: any,
@@ -90,8 +91,7 @@ export function createClimateDetailsControls(
     (temperatureDecreaseButton.className = 'hb-climate-temperature-step'),
     (temperatureDecreaseButton.textContent = '−'),
     temperatureDecreaseButton.setAttribute('aria-label', '降低设定温度')
-  const temperatureDialBox = document.createElement('div')
-  temperatureDialBox.className = 'hb-climate-temperature-dial'
+  const temperatureDialBox = domElement(document, 'div', 'hb-climate-temperature-dial')
   const temperatureArcStartIcon = document.createElement('i')
   ;(temperatureArcStartIcon.className = 'hb-climate-arc-cap start'),
     temperatureArcStartIcon.setAttribute('aria-hidden', 'true')
@@ -102,10 +102,8 @@ export function createClimateDetailsControls(
   ;(temperatureThumbButton.type = 'button'),
     (temperatureThumbButton.className = 'hb-climate-temperature-thumb'),
     temperatureThumbButton.setAttribute('aria-label', '拖动调节设定温度')
-  const temperatureContentBox = document.createElement('div')
-  temperatureContentBox.className = 'hb-climate-temperature-content'
-  const temperatureSettingCaption = document.createElement('small')
-  temperatureSettingCaption.textContent = '设定温度'
+  const temperatureContentBox = domElement(document, 'div', 'hb-climate-temperature-content')
+  const temperatureSettingCaption = domElement(document, 'small', null, '设定温度')
   const temperatureValueLabel = document.createElement('strong'),
     temperatureCurrentLabel = document.createElement('span')
   ;(temperatureCurrentLabel.textContent = Number.isFinite(currentTemperature)
@@ -647,8 +645,7 @@ export function createClimateDetailsControls(
           (waterHeaterControlPanel || climateDetailsPanel).append(detailsGroupElement)
         return
       }
-      const detailsOptionsWrapper = document.createElement('div')
-      detailsOptionsWrapper.className = 'hb-climate-details-options'
+      const detailsOptionsWrapper = domElement(document, 'div', 'hb-climate-details-options')
       for (const detailsOptionValue of normalizedOptionValues) {
         const detailsOptionButton = document.createElement('button')
         ;(detailsOptionButton.type = 'button'),
@@ -829,11 +826,9 @@ export function createClimateDetailsControls(
       manualFanModes = fanModes.filter((fanModeOption) => fanModeOption !== autoFanMode),
       fanSliderSection = document.createElement('section')
     fanSliderSection.className = 'hb-climate-fan-slider'
-    const fanSliderHeading = document.createElement('span')
-    fanSliderHeading.className = 'hb-climate-fan-slider-heading'
+    const fanSliderHeading = domElement(document, 'span', 'hb-climate-fan-slider-heading')
     const fanSliderIcon = createUiIconSlot(document, 'fan')
-    const fanSliderLabel = document.createElement('strong')
-    fanSliderLabel.textContent = '风速'
+    const fanSliderLabel = domElement(document, 'strong', null, '风速')
     const fanSpeedBadge = document.createElement('output'),
       fanModeIndex = Math.max(0, manualFanModes.indexOf(attributes2.fan_mode))
     let committedFanModeIndex = fanModeIndex,
@@ -906,10 +901,8 @@ export function createClimateDetailsControls(
           }
         }
       })
-    const fanSliderLegend = document.createElement('span')
-    fanSliderLegend.className = 'hb-climate-fan-slider-legend'
-    const fanSliderMinLabel = document.createElement('small')
-    fanSliderMinLabel.textContent = fanModeDisplayLabel(0)
+    const fanSliderLegend = domElement(document, 'span', 'hb-climate-fan-slider-legend')
+    const fanSliderMinLabel = domElement(document, 'small', null, fanModeDisplayLabel(0))
     const fanSliderMaxLabel = document.createElement('small')
     ;(fanSliderMaxLabel.textContent = fanModeDisplayLabel(manualFanModes.length - 1)),
       fanSliderLegend.append(fanSliderMinLabel, fanSliderMaxLabel),
@@ -919,13 +912,10 @@ export function createClimateDetailsControls(
   }
   let fanCapabilitiesListener: any = null
   if (climateEntityDomain === 'fan' && climateNormalizedCapabilities.supportsFanPercentage) {
-    const fanPercentageSection = document.createElement('section')
-    fanPercentageSection.className = 'hb-climate-fan-slider'
-    const fanPercentageHeading = document.createElement('span')
-    fanPercentageHeading.className = 'hb-climate-fan-slider-heading'
+    const fanPercentageSection = domElement(document, 'section', 'hb-climate-fan-slider')
+    const fanPercentageHeading = domElement(document, 'span', 'hb-climate-fan-slider-heading')
     const fanPercentageIcon = createUiIconSlot(document, 'fan')
-    const fanPercentageLabel = document.createElement('strong')
-    fanPercentageLabel.textContent = '风速'
+    const fanPercentageLabel = domElement(document, 'strong', null, '风速')
     const fanPercentageBadge = document.createElement('output')
     let fanSpeedPercent = Math.max(0, Math.min(100, climateNormalizedCapabilities.fanPercentage))
     const fanPercentageSlider = document.createElement('input')
@@ -974,10 +964,8 @@ export function createClimateDetailsControls(
           fanPercentageSlider.disabled = false
         }
       })
-    const fanPercentageLegend = document.createElement('span')
-    fanPercentageLegend.className = 'hb-climate-fan-slider-legend'
-    const fanPercentageOffLabel = document.createElement('small')
-    fanPercentageOffLabel.textContent = '关闭'
+    const fanPercentageLegend = domElement(document, 'span', 'hb-climate-fan-slider-legend')
+    const fanPercentageOffLabel = domElement(document, 'small', null, '关闭')
     const fanPercentageMaxLabel = document.createElement('small')
     ;(fanPercentageMaxLabel.textContent = '最大'),
       fanPercentageLegend.append(fanPercentageOffLabel, fanPercentageMaxLabel),
@@ -1060,8 +1048,7 @@ export function createClimateDetailsControls(
   })
   let climateStateListener: any = null
   if (!climateDetailsPanel.childElementCount) {
-    const climateLoadingSection = document.createElement('section')
-    climateLoadingSection.className = 'hb-climate-details-loading'
+    const climateLoadingSection = domElement(document, 'section', 'hb-climate-details-loading')
     const climateLoadingIcon = document.createElement('i')
     climateLoadingIcon.setAttribute('aria-hidden', 'true')
     const climateLoadingLabel = document.createElement('strong'),

@@ -49,6 +49,7 @@ import {
 import { lightColorRgb, lightSupportsColor } from '@app/shared/device/light-runtime'
 import { selectedRelatedEntityIds as selectedRelatedEntityIds2 } from '../../../shared/related-entities'
 
+import { domElement } from '@app/shared/util/dom-factory'
 export function showEntityDetails(
   this: PanelRenderer,
   entityDetailsComponent: any,
@@ -288,10 +289,8 @@ export function showEntityDetails(
     entityDetailsDialog.classList.toggle('water-heater-details', climateDeviceType === 'water-heater'),
     entityDetailsDialog.classList.toggle('switch-details', isSwitchEntity),
     entityDetailsDialog.classList.toggle('momentary-button-details', isButtonEntity)
-  const entityDetailsCard = document.createElement('div')
-  entityDetailsCard.className = 'hb-entity-details-card'
-  const entityDetailsHeading = document.createElement('div')
-  entityDetailsHeading.className = 'hb-entity-details-heading'
+  const entityDetailsCard = domElement(document, 'div', 'hb-entity-details-card')
+  const entityDetailsHeading = domElement(document, 'div', 'hb-entity-details-heading')
   const entityDetailsHeadingRow = document.createElement('div'),
     entityDetailsTitle = document.createElement('strong')
   ;(entityDetailsTitle.textContent = isLightEntity
@@ -407,10 +406,8 @@ export function showEntityDetails(
       (lightVisualButton.className = 'hb-light-visual'),
       (lightVisualButton.inert = isEntityDetailsPreview),
       lightVisualButton.setAttribute('aria-disabled', String(isEntityDetailsPreview))
-    const lightAuraElement = document.createElement('div')
-    lightAuraElement.className = 'hb-light-visual-aura'
-    const lightLampElement = document.createElement('div')
-    lightLampElement.className = 'hb-light-visual-lamp'
+    const lightAuraElement = domElement(document, 'div', 'hb-light-visual-aura')
+    const lightLampElement = domElement(document, 'div', 'hb-light-visual-lamp')
     for (const lampPartName of ['cord', 'shade', 'bulb', 'filament']) {
       const lampPartElement = document.createElement('i')
       ;(lampPartElement.className = 'hb-light-visual-' + lampPartName),
@@ -503,18 +500,13 @@ export function showEntityDetails(
       (coverVisualButton.className = 'hb-cover-visual'),
       (coverVisualButton.inert = isEntityDetailsPreview),
       coverVisualButton.setAttribute('aria-disabled', String(isEntityDetailsPreview))
-    const coverRailElement = document.createElement('i')
-    coverRailElement.className = 'hb-cover-visual-rail'
-    const coverPanelLeftElement = document.createElement('i')
-    coverPanelLeftElement.className = 'hb-cover-visual-panel left'
-    const coverPanelRightElement = document.createElement('i')
-    coverPanelRightElement.className = 'hb-cover-visual-panel right'
-    const coverSlatsElement = document.createElement('span')
-    coverSlatsElement.className = 'hb-cover-visual-slats'
+    const coverRailElement = domElement(document, 'i', 'hb-cover-visual-rail')
+    const coverPanelLeftElement = domElement(document, 'i', 'hb-cover-visual-panel left')
+    const coverPanelRightElement = domElement(document, 'i', 'hb-cover-visual-panel right')
+    const coverSlatsElement = domElement(document, 'span', 'hb-cover-visual-slats')
     const coverSlatCount = 13
     for (let coverSlatIndex = 0; coverSlatIndex < coverSlatCount; coverSlatIndex += 1) {
-      const coverSlatElement = document.createElement('span')
-      coverSlatElement.className = 'hb-cover-visual-slat'
+      const coverSlatElement = domElement(document, 'span', 'hb-cover-visual-slat')
       const coverSlatDetailElement = document.createElement('i')
       coverSlatElement.style.setProperty('--hb-cover-slat-index', String(coverSlatIndex))
       const abs4 =
@@ -710,8 +702,7 @@ export function showEntityDetails(
       climateVisualButton.classList.toggle('is-water-heater', climateDeviceType === 'water-heater'),
       (climateVisualButton.inert = isEntityDetailsPreview),
       climateVisualButton.setAttribute('aria-disabled', String(isEntityDetailsPreview))
-    const climateVisualUnitElement = document.createElement('div')
-    climateVisualUnitElement.className = 'hb-climate-visual-unit'
+    const climateVisualUnitElement = domElement(document, 'div', 'hb-climate-visual-unit')
     const climateVisualBrandLabel = document.createElement('span')
     ;(climateVisualBrandLabel.className = 'hb-climate-visual-brand'),
       (climateVisualBrandLabel.textContent =
@@ -720,14 +711,11 @@ export function showEntityDetails(
           : climateDeviceType === 'water-heater'
             ? 'SMART WATER'
             : 'SMART AIR')
-    const climateVisualDisplayLabel = document.createElement('strong')
-    climateVisualDisplayLabel.className = 'hb-climate-visual-display'
-    const climateVisualVentElement = document.createElement('div')
-    climateVisualVentElement.className = 'hb-climate-visual-vent'
+    const climateVisualDisplayLabel = domElement(document, 'strong', 'hb-climate-visual-display')
+    const climateVisualVentElement = domElement(document, 'div', 'hb-climate-visual-vent')
     for (let ventIndex = 0; ventIndex < 5; ventIndex += 1) climateVisualVentElement.append(document.createElement('i'))
     climateVisualUnitElement.append(climateVisualBrandLabel, climateVisualDisplayLabel, climateVisualVentElement)
-    const climateVisualAirflowElement = document.createElement('div')
-    climateVisualAirflowElement.className = 'hb-climate-visual-airflow'
+    const climateVisualAirflowElement = domElement(document, 'div', 'hb-climate-visual-airflow')
     for (let airflowIndex = 0; airflowIndex < 3; airflowIndex += 1)
       climateVisualAirflowElement.append(document.createElement('i'))
     climateVisualButton.append(climateVisualUnitElement, climateVisualAirflowElement),
@@ -773,8 +761,7 @@ export function showEntityDetails(
   }
   const entityStateControl = document.createElement(isToggleable ? 'button' : 'div') as EntityStateControlElement
   ;(entityStateControl.className = 'hb-entity-details-state'), isToggleable && (entityStateControl.type = 'button')
-  const stateControlIcon = document.createElement('span')
-  stateControlIcon.textContent = isToggleable ? '⏻' : '当前状态'
+  const stateControlIcon = domElement(document, 'span', null, isToggleable ? '⏻' : '当前状态')
   const stateControlValueLabel = document.createElement('strong'),
     entityStateLabels = {
       off: '关闭',
@@ -1205,8 +1192,7 @@ export function showEntityDetails(
     lineChartCurrentVisualElement: any = null,
     lineChartCurrentValue: any = null,
     lineChartUnitLabel: any = null
-  const attributeList = document.createElement('dl')
-  attributeList.className = 'hb-entity-details-attributes'
+  const attributeList = domElement(document, 'dl', 'hb-entity-details-attributes')
   for (const [isEntityDetailsPreviewAttributeName, attributeValue] of Object.entries(entityAttributes).filter(
     ([attributeKey]) => attributeKey !== 'friendly_name',
   )) {
@@ -1256,8 +1242,7 @@ export function showEntityDetails(
         )
     else {
       if (isLightEntity) {
-        const lightDetailsLayout = document.createElement('div')
-        lightDetailsLayout.className = 'hb-light-details-layout'
+        const lightDetailsLayout = domElement(document, 'div', 'hb-light-details-layout')
         const lightDetailsPanel = document.createElement('section')
         ;(lightDetailsPanel.className = 'hb-light-details-panel'),
           lightDetailsPanel.append(...(coverVisualControllerElement ? [coverVisualControllerElement] : [])),
@@ -1271,8 +1256,7 @@ export function showEntityDetails(
             entityDetailsCard.append(entityDetailsHeading, switchDetailsLayout)
         } else {
           if (isCoverEntity) {
-            const coverDetailsLayout = document.createElement('div')
-            coverDetailsLayout.className = 'hb-cover-details-layout'
+            const coverDetailsLayout = domElement(document, 'div', 'hb-cover-details-layout')
             const coverDetailsPanel = document.createElement('section')
             ;(coverDetailsPanel.className = 'hb-cover-details-panel'),
               coverDetailsPanel.append(...(coverVisualControllerElement ? [coverVisualControllerElement] : [])),

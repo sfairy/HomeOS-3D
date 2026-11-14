@@ -2,6 +2,7 @@ import type { StudioAppRuntime } from '../runtime/studio-app-runtime'
 import { itemTypeCatalog, lampItemTypeSet } from '../../items/item-catalog'
 import { normalizeLightPropertyValue, formatLightPropertyValue } from '../../lights/studio-app-light-data'
 
+import { domElement } from '@app/shared/util/dom-factory'
 export function collectLightTargetInputs(
   runtime: StudioAppRuntime,
   lightTargetRoot = runtime.lightPropertyTargetListElement,
@@ -50,8 +51,7 @@ export function buildLightGroupList(runtime: StudioAppRuntime, listedLightGroup:
       (lightTargetToggleButton.dataset.lightTargetGroupToggle = ''),
       (lightTargetToggleButton.textContent = '取消全选'),
       lightGroupHeader.append(lightGroupHeading, lightGroupCountBadge, lightTargetToggleButton)
-    const lightTargetListContainer = document.createElement('div')
-    lightTargetListContainer.className = 'light-property-target-grid'
+    const lightTargetListContainer = domElement(document, 'div', 'light-property-target-grid')
     const lightItemCountsByType = new Map()
     for (const countedLightItem of lightGroupItems)
       lightItemCountsByType.set(countedLightItem.type, (lightItemCountsByType.get(countedLightItem.type) || 0) + 1)
@@ -60,8 +60,7 @@ export function buildLightGroupList(runtime: StudioAppRuntime, listedLightGroup:
       const downlight6 = (itemTypeCatalog as any)[indexedLightItem.type] || itemTypeCatalog.downlight,
         lightItemTypeIndex = (lightItemIndexByType.get(indexedLightItem.type) || 0) + 1
       lightItemIndexByType.set(indexedLightItem.type, lightItemTypeIndex)
-      const lightTargetLabel = document.createElement('label')
-      lightTargetLabel.className = 'light-property-target-item'
+      const lightTargetLabel = domElement(document, 'label', 'light-property-target-item')
       const lightTargetCheckbox = document.createElement('input')
       ;(lightTargetCheckbox.type = 'checkbox'),
         (lightTargetCheckbox.checked = true),

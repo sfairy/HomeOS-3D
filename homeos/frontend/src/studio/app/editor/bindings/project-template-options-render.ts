@@ -5,6 +5,7 @@
  * 像 `editorRenderer`（boot 后才赋值）/ `activeProject` 这类可变状态会被冻结在注册那一刻，
  * 而声明在注册语句下方的名字甚至会在 boot 当场触发 TDZ。故宿主一律传 getter。
  */
+import { domElement } from '@app/shared/util/dom-factory'
 interface SyncProjectTemplateOptionsDeps {
   projectTemplateOptionsElement: any
   cameraCommandState: any
@@ -66,8 +67,7 @@ export function syncProjectTemplateOptions(deps: SyncProjectTemplateOptionsDeps)
             (hideReactivateElement.dataset.projectPreviewAction = 'next'),
             hideReactivateElement.setAttribute('aria-label', '下一张预览'),
             (hideReactivateElement.textContent = '›')
-          const recoveryHintElement = document.createElement('div')
-          recoveryHintElement.className = 'project-template-carousel-meta'
+          const recoveryHintElement = domElement(document, 'div', 'project-template-carousel-meta')
           const featureSignatureElement = document.createElement('strong')
           featureSignatureElement.textContent = cameraCommandValue.previewLabels[0] || 'HomeOS预览'
           const focusedComponentRecordElement = document.createElement('span')
@@ -85,8 +85,7 @@ export function syncProjectTemplateOptions(deps: SyncProjectTemplateOptionsDeps)
               () => document.createElement('i'),
             ),
           )
-        const editStateElement = document.createElement('strong')
-        editStateElement.textContent = cameraCommandValue.name
+        const editStateElement = domElement(document, 'strong', null, cameraCommandValue.name)
         const hiddenContentElement = document.createElement('span')
         return (
           (hiddenContentElement.textContent = cameraCommandValue.description),

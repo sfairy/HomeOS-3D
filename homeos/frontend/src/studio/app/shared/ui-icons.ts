@@ -1,5 +1,5 @@
 /** 统一操作图标（0.8.6）：`<span class="hb-ui-icon">` + MDI SVG 遮罩，样式见 `/static/ui-icons.css`。 */
-
+import { domElement } from '@app/shared/util/dom-factory'
 const MDI_ICON_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 
 function uiIconUrl(name: string | null | undefined): string {
@@ -8,8 +8,7 @@ function uiIconUrl(name: string | null | undefined): string {
 }
 
 export function createUiIcon(doc: Document, name: string): HTMLSpanElement {
-  const icon = doc.createElement('span')
-  icon.className = 'hb-ui-icon'
+  const icon = domElement(doc, 'span', 'hb-ui-icon')
   icon.setAttribute('aria-hidden', 'true')
   const url = uiIconUrl(name)
   icon.hidden = !url

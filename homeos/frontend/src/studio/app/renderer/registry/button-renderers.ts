@@ -9,6 +9,7 @@ import {
 import { formatEntityState, isCoverComponentActive, resolveEntityIcon } from './cover-climate-state'
 import { componentContentUnitsPx } from './content-units'
 
+import { domElement } from '@app/shared/util/dom-factory'
 export const buttonComponentRenderers = {
   render(buttonComponent: any, buttonRenderEnvironment: any) {
     const buttonProperties = buttonComponent.properties || {},
@@ -288,8 +289,7 @@ export const buttonComponentRenderers = {
           deviceButtonElement.append(badgeElement)
       } else deviceButtonElement.append(buttonIconElement)
     }
-    const buttonTextElement = document.createElement('span')
-    buttonTextElement.className = 'hb-icon-button-text'
+    const buttonTextElement = domElement(document, 'span', 'hb-icon-button-text')
     const mainTextSize = clampNumberWithFallback(buttonProperties.mainSize, 6, 120, 25),
       primaryTextElement = document.createElement('strong')
     ;(primaryTextElement.textContent = isDeviceButton

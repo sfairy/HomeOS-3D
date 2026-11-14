@@ -131,6 +131,7 @@ import { showWeatherForecast } from './panel-seams/popups/weather-popup'
 import { showScenePopup } from './panel-seams/popups/scene-popup-dialog'
 import { showPresenceDetails } from './panel-seams/details/presence-details'
 import { showVacuumDetails } from './panel-seams/details/vacuum-details'
+import { domElement } from '@app/shared/util/dom-factory'
 import {
   startComponentsScale,
   startComponentsRotate,
@@ -1751,8 +1752,7 @@ export class PanelRenderer {
       airflowHandleComponent,
     )
     if (!airflowSelectionOverlay) return
-    const airflowBoundsElement = document.createElement('div')
-    airflowBoundsElement.className = 'hb-selection-bounds hb-airflow-selection-bounds'
+    const airflowBoundsElement = domElement(document, 'div', 'hb-selection-bounds hb-airflow-selection-bounds')
     for (const airflowCornerName of ['top-left', 'top-right', 'bottom-left', 'bottom-right']) {
       const airflowCornerElement = document.createElement('i')
       ;(airflowCornerElement.className = 'hb-corner-marker hb-corner-' + airflowCornerName),

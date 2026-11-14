@@ -8,14 +8,14 @@
 
 import { componentLabel as componentLabel2 } from '../editor-component-collections'
 
+import { domElement } from '@app/shared/util/dom-factory'
 export function createNavigationStyleApplyOption({
   value: optionValue,
   label: optionLabel,
   detail: optionDetail,
   target: isTarget = false,
 }: any) {
-  const deleteAssetRequestIdElement = document.createElement('label')
-  deleteAssetRequestIdElement.className = 'navigation-style-apply-option'
+  const deleteAssetRequestIdElement = domElement(document, 'label', 'navigation-style-apply-option')
   const deleteAssetRequestIdElementElement = document.createElement('input')
   ;(deleteAssetRequestIdElementElement.type = 'checkbox'),
     (deleteAssetRequestIdElementElement.checked = true),
@@ -82,8 +82,7 @@ export function renderNavigationStyleApplyTargets(
     scope: deleteAssetFolderClickEvent,
     components: onDeleteAssetFolderDialogClose,
   } of deleteAssetErrorById.values()) {
-    const onDeleteAssetFolderDialogCloseElement = document.createElement('section')
-    onDeleteAssetFolderDialogCloseElement.className = 'navigation-style-apply-page-group'
+    const onDeleteAssetFolderDialogCloseElement = domElement(document, 'section', 'navigation-style-apply-page-group')
     const onDeleteAssetFolderDialogCloseElementElement = document.createElement('div')
     onDeleteAssetFolderDialogCloseElementElement.className = 'navigation-style-apply-page-heading'
     const onDeleteAssetFolderDialogCloseElementPanel = document.createElement('strong')

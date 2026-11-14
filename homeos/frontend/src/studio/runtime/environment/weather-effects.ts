@@ -32,6 +32,7 @@ import { createSpriteCache } from './weather/sprites'
 import { createStarRenderer } from './weather/stars'
 import { createThunderRenderer } from './weather/thunder'
 
+import { domElement } from '@app/shared/util/dom-factory'
 /** 设备像素比上限与「画布总像素」预算。 */
 const MAX_DEVICE_PIXEL_RATIO = 1.5
 /**
@@ -110,8 +111,7 @@ function strokeGroundQuad(frame: WeatherFrame) {
 export function createWeatherEffects(host: any, postStageMessage?: (message: WeatherStageMessage) => void) {
   const doc = host.ownerDocument || document
   const win = doc.defaultView || window
-  const canvas = doc.createElement('canvas')
-  canvas.className = WEATHER_CANVAS_CLASS
+  const canvas = domElement(doc, 'canvas', WEATHER_CANVAS_CLASS)
   canvas.setAttribute('aria-hidden', 'true')
   Object.assign(canvas.style, {
     position: 'absolute',

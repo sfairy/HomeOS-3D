@@ -5,6 +5,7 @@
  * - 弹窗列出内置 8 款与已上传字体，支持预览、上传（原始字节 + `X-File-Name`）、删除；
  *   预览只作用于弹窗内的示例文字，关闭即撤销，不碰文档。
  */
+import { domElement } from '@app/shared/util/dom-factory'
 import {
   createDashboardFonts,
   type DashboardFontCatalog,
@@ -43,8 +44,7 @@ function query<T extends Element>(root: ParentNode, selector: string): T {
 }
 
 function fontNameLabel(font: DashboardFontEntry) {
-  const name = document.createElement('span')
-  name.textContent = font.name
+  const name = domElement(document, 'span', null, font.name)
   name.title = font.name
   name.dataset.overflowScrollPreview = 'true'
   name.dataset.overflowScrollFocus = 'true'
@@ -60,8 +60,7 @@ function rowButton(label: string, onClick: (button: HTMLButtonElement) => void) 
 }
 
 function licenseLink(url: string) {
-  const license = document.createElement('a')
-  license.textContent = '许可'
+  const license = domElement(document, 'a', null, '许可')
   license.className = 'dashboard-font-license'
   license.href = url
   license.target = '_blank'
@@ -236,13 +235,11 @@ class DashboardFontSettingsPanel implements DashboardFontSettings {
   }
 
   private fontRow(font: DashboardFontEntry): HTMLElement {
-    const row = document.createElement('div')
-    row.className = 'dashboard-font-row'
+    const row = domElement(document, 'div', 'dashboard-font-row')
     row.dataset.overflowScrollPreviewRow = 'true'
     const previewButton = rowButton('预览', () => this.previewFont(font, row))
     if (font.source === 'user') {
-      const size = document.createElement('small')
-      size.textContent = formatFontSize(font.size)
+      const size = domElement(document, 'small', null, formatFontSize(font.size))
       row.append(
         fontNameLabel(font),
         size,
@@ -265,9 +262,7 @@ class DashboardFontSettingsPanel implements DashboardFontSettings {
     userList.replaceChildren(...uploaded.map((font) => this.fontRow(font)))
     query<HTMLElement>(this.dialog, '[data-upload-count]').textContent = uploaded.length + ' 款'
     if (!uploaded.length) {
-      const empty = document.createElement('p')
-      empty.className = 'dashboard-font-empty'
-      empty.textContent = '还没有上传字体。'
+      const empty = domElement(document, 'p', 'dashboard-font-empty', '还没有上传字体。')
       userList.append(empty)
     }
   }

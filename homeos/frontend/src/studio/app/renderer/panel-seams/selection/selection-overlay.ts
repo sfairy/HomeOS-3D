@@ -6,6 +6,7 @@ import {
 import { syncInteraction3dUiScale as syncInteraction3dUiScale2 } from '../../../bridge/bridge'
 import type { PanelRenderer } from '../../panel-renderer'
 
+import { domElement } from '@app/shared/util/dom-factory'
 export function createComponentSelectionOverlay(
   self: PanelRenderer,
   overlayHostElement: any,
@@ -108,8 +109,7 @@ export function appendEffectSelectionBounds(
       transform: effectBoundsHostElement.style.transform,
       pointerEvents: 'none',
     })
-  const effectBoundsElement = document.createElement('div')
-  effectBoundsElement.className = 'hb-selection-bounds hb-effect-selection-bounds'
+  const effectBoundsElement = domElement(document, 'div', 'hb-selection-bounds hb-effect-selection-bounds')
   for (const cornerPositionName of ['top-left', 'top-right', 'bottom-left', 'bottom-right']) {
     const effectCornerMarkerElement = document.createElement('i')
     ;(effectCornerMarkerElement.className = 'hb-corner-marker hb-corner-' + cornerPositionName),
@@ -144,8 +144,7 @@ export function appendTransformHandles(
   handleTargetElement = handleHostElement,
 ) {
   if (!handleHostElement || !handleComponentRecord) return
-  const transformSelectionBoundsElement = document.createElement('div')
-  transformSelectionBoundsElement.className = 'hb-selection-bounds'
+  const transformSelectionBoundsElement = domElement(document, 'div', 'hb-selection-bounds')
   for (const boundsCornerName of ['top-left', 'top-right', 'bottom-left', 'bottom-right']) {
     const boundsCornerMarkerElement = document.createElement('i')
     ;(boundsCornerMarkerElement.className = 'hb-corner-marker hb-corner-' + boundsCornerName),

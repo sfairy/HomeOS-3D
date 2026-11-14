@@ -24,6 +24,7 @@ import {
 } from '@app/shared/device/light-runtime'
 import type { PanelRenderer } from '../../panel-renderer'
 
+import { domElement } from '@app/shared/util/dom-factory'
 export function createLightDetailsControls(
   this: PanelRenderer,
   lightEntityId: any,
@@ -110,14 +111,12 @@ export function createLightDetailsControls(
     const lightSliderField = document.createElement('label')
     ;(lightSliderField.className = ('hb-light-details-slider ' + sliderClassName).trim()),
       lightSliderField.classList.toggle('is-unavailable', !isSliderSupported)
-    const lightSliderHeading = document.createElement('span')
-    lightSliderHeading.className = 'hb-light-details-slider-heading'
+    const lightSliderHeading = domElement(document, 'span', 'hb-light-details-slider-heading')
     const lightSliderIcon = document.createElement('i')
     ;(lightSliderIcon.className = 'hb-light-details-slider-icon'),
       lightSliderIcon.setAttribute('aria-hidden', 'true'),
       lightSliderIcon.append(createUiIcon(document, sliderIcon))
-    const lightSliderLabel = document.createElement('strong')
-    lightSliderLabel.textContent = sliderLabel
+    const lightSliderLabel = domElement(document, 'strong', null, sliderLabel)
     const lightSliderOutputElement = document.createElement('output'),
       clampedSliderValue = Math.max(sliderMinimum, Math.min(sliderMaximum, sliderInitialValue))
     ;(lightSliderOutputElement.textContent = '' + Math.round(clampedSliderValue) + sliderSuffix),
@@ -183,10 +182,8 @@ export function createLightDetailsControls(
             this.options.onError?.(sliderCommitError), (lightSliderOutputElement.textContent = '设置失败')
           }
       })
-    const lightSliderLegend = document.createElement('span')
-    lightSliderLegend.className = 'hb-light-details-slider-legend'
-    const lightSliderMinimumLabel = document.createElement('small')
-    lightSliderMinimumLabel.textContent = sliderMinimumLabel
+    const lightSliderLegend = domElement(document, 'span', 'hb-light-details-slider-legend')
+    const lightSliderMinimumLabel = domElement(document, 'small', null, sliderMinimumLabel)
     const lightSliderMaximumLabel = document.createElement('small')
     ;(lightSliderMaximumLabel.textContent = sliderMaximumLabel),
       lightSliderLegend.append(lightSliderMinimumLabel, lightSliderMaximumLabel),
@@ -213,8 +210,7 @@ export function createLightDetailsControls(
       lightColorPickerPanel.setAttribute('role', 'slider'),
       lightColorPickerPanel.setAttribute('tabindex', isLightInteractive ? '0' : '-1'),
       lightColorPickerPanel.setAttribute('aria-label', '选择灯光颜色')
-    const colorPickerGlowIcon = document.createElement('i')
-    colorPickerGlowIcon.className = 'hb-light-color-picker-glow'
+    const colorPickerGlowIcon = domElement(document, 'i', 'hb-light-color-picker-glow')
     const colorPickerHandleIcon = document.createElement('i')
     ;(colorPickerHandleIcon.className = 'hb-light-color-picker-handle'),
       lightColorPickerPanel.append(colorPickerGlowIcon, colorPickerHandleIcon)
@@ -413,8 +409,7 @@ export function createLightDetailsControls(
   const lightPresetEntries = lightPresetDefinitions.map((presetDefinition) => {
     const lightPresetButton = document.createElement('button')
     ;(lightPresetButton.type = 'button'), (lightPresetButton.disabled = !startsWith3)
-    const lightPresetLabel = document.createElement('strong')
-    lightPresetLabel.textContent = presetDefinition.label
+    const lightPresetLabel = domElement(document, 'strong', null, presetDefinition.label)
     const lightPresetDetailElement = document.createElement('small')
     return (
       (lightPresetDetailElement.textContent = supportsBrightness ? presetDefinition.detail : '开启'),

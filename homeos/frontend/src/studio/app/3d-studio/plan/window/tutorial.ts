@@ -4,7 +4,7 @@
  * 为什么要教程：「画分隔线 / 点选窗格 / 预览开合」这套交互在户型图里没有先例，
  * 纯文字说明用户会直接跳过。图是内联 SVG（不依赖静态图片），跟着弹窗一起走。
  */
-
+import { domElement } from '@app/shared/util/dom-factory'
 interface TutorialStep {
   title: string
   tab: string
@@ -129,8 +129,7 @@ function figureMarkup(figure: TutorialStep['figure']): string {
 export function openWindowTutorial({ onClose = () => {} }: { onClose?: () => void } = {}): {
   close: () => void
 } {
-  const dialog = document.createElement('dialog')
-  dialog.className = 'window-tutorial'
+  const dialog = domElement(document, 'dialog', 'window-tutorial')
   dialog.setAttribute('aria-labelledby', 'wt-title')
   dialog.innerHTML =
     '<header><div><p>自定义窗户 · 图文教程</p><h2 id="wt-title">跟着做，五步画好一扇窗</h2></div>' +

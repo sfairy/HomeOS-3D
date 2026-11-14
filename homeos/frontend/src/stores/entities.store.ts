@@ -325,12 +325,8 @@ export const useEntitiesStore = defineStore('entities', () => {
    */
   function buildStateUpdateDeps() {
     return {
-      get entities() {
-        return entities
-      },
-      get totalCount() {
-        return totalCount
-      },
+      entities,
+      totalCount,
       get entityVisible() {
         return entityVisible
       },
@@ -349,27 +345,17 @@ export const useEntitiesStore = defineStore('entities', () => {
       get patchProjectionsFromChanges() {
         return (changes: Array<{ entity_id: string }>) => patchProjectionsFromChanges(changes, entities)
       },
-      get entitiesCacheHydrated() {
-        return entitiesCacheHydrated
-      },
+      entitiesCacheHydrated,
       get schedulePersistEntityCache() {
         return schedulePersistEntityCache
       },
       get markEntityCacheDirty() {
         return markEntityCacheDirty
       },
-      get haStateChanged() {
-        return haStateChanged
-      },
-      get shouldNotifyStateChange() {
-        return shouldNotifyStateChange
-      },
-      get resolveListenerOldState() {
-        return resolveListenerOldState
-      },
-      get logger() {
-        return logger
-      },
+      haStateChanged,
+      shouldNotifyStateChange,
+      resolveListenerOldState,
+      logger,
       get bumpEntityStateRevision() {
         return bumpEntityStateRevision
       },

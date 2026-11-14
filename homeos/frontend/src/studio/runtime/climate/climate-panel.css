@@ -760,7 +760,8 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(84px, 100%), 1fr));
 }
-.i3d-climate-panel.is-fan-panel .i3d-climate-choice {
+.i3d-climate-panel.is-fan-panel .i3d-climate-choice,
+.i3d-climate-panel.is-fan-panel .i3d-extra-select-trigger {
   white-space: normal;
   overflow-wrap: anywhere;
   height: auto;
@@ -787,11 +788,7 @@
   width: 100%;
   margin-right: 0;
 }
-.i3d-climate-panel.is-fan-panel .i3d-extra-select-trigger {
-  white-space: normal;
-  overflow-wrap: anywhere;
-  height: auto;
-}
+
 .i3d-extra-range {
   display: grid;
   grid-column: 1 / -1;

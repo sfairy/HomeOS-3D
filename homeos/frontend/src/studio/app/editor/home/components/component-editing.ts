@@ -12,6 +12,7 @@ import {
 import { copyComponentTargets as copyComponentTargets2 } from '../../component-page-copy'
 import { duplicateComponent } from '../../editor-component-collections'
 import { listComponentTemplates as listComponentTemplates2 } from '../../component-templates'
+import { domElement } from '@app/shared/util/dom-factory'
 import {
   renderInteraction3dThumbnail as renderInteraction3dThumbnail2,
   updateInteraction3dCard as updateInteraction3dCard2,
@@ -577,8 +578,7 @@ export function renderComponentList(
       listComponent.type === 'group' &&
         (itemIconElement.innerHTML =
           '<svg viewBox="0 0 24 24" focusable="false"><path d="M3.5 7.5h6l1.8 2h9.2v9.5h-17z"/><path d="M3.5 7.5v-1h6l1.8 2"/></svg>')
-    const itemLabelElement = document.createElement('span')
-    itemLabelElement.textContent = componentLabel2(listComponent)
+    const itemLabelElement = domElement(document, 'span', null, componentLabel2(listComponent))
     const isItemIsVisible = listComponent.style?.visible !== false,
       itemVisibilityButtonElement = document.createElement('button')
     ;(itemVisibilityButtonElement.type = 'button'),
@@ -839,10 +839,8 @@ export function renderComponentTemplates(deps: ComponentEditingDeps) {
           }
         }
       }
-      const templateCopyElement = document.createElement('span')
-      templateCopyElement.className = 'component-template-copy'
-      const templateNameElement = document.createElement('strong')
-      templateNameElement.textContent = componentTemplate.name
+      const templateCopyElement = domElement(document, 'span', 'component-template-copy')
+      const templateNameElement = domElement(document, 'strong', null, componentTemplate.name)
       const templateDescriptionElement = document.createElement('span')
       return (
         (templateDescriptionElement.textContent = componentTemplate.description),

@@ -1,5 +1,6 @@
 import type { StudioAppRuntime } from '../runtime/studio-app-runtime'
 import { remapOpeningsToWalls } from '../../../plan/studio-wall-openings'
+import { domElement } from '@app/shared/util/dom-factory'
 import {
   clampWindowT as clampWindowT2,
   mergeCollinearWallSegments as mergeCollinearWallSegments2,
@@ -109,8 +110,7 @@ export function renderStudioReadonlyBanner(runtime: StudioAppRuntime, bannerMess
     banner.style.cssText =
       'position:fixed;left:0;right:0;bottom:0;z-index:80;display:flex;gap:12px;align-items:center;' +
       'justify-content:center;padding:8px 16px;background:#7a2e2e;color:#fff;font-size:13px;'
-    const bannerLabel = document.createElement('span')
-    bannerLabel.className = 'studio-readonly-message'
+    const bannerLabel = domElement(document, 'span', 'studio-readonly-message')
     const retryLoadButton = document.createElement('button')
     retryLoadButton.type = 'button'
     retryLoadButton.textContent = '重试载入'

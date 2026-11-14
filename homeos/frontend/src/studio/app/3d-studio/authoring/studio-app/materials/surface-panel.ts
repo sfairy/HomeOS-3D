@@ -1,8 +1,8 @@
 import { syncHtmlRangeProgress as syncHtmlRangeProgress2 } from '../../../../shared/util/range-progress'
 
+import { domElement } from '@app/shared/util/dom-factory'
 export function createMaterialSlotSurfacePanel(slotEntry: any, isSurfaceExpanded: any) {
-  const surfacePanelElement = document.createElement('div')
-  surfacePanelElement.className = 'material-slot-surface'
+  const surfacePanelElement = domElement(document, 'div', 'material-slot-surface')
   surfacePanelElement.dataset.materialSlotSurface = slotEntry.name
   surfacePanelElement.hidden = !isSurfaceExpanded
   for (const surfaceField of [

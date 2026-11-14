@@ -16,6 +16,7 @@ import {
 } from '../metadata/editor-navigation-style-metadata'
 import { findComponent as findComponent2 } from '../component-tree'
 
+import { domElement } from '@app/shared/util/dom-factory'
 export interface NavigationPreviewDeps {
   editorCtx: EditorContext
   airConditionerPreviewStateByComponentId: any
@@ -172,25 +173,21 @@ export function collectPageImages(_deps: NavigationPreviewDeps, pageSource: any)
 }
 
 export function createImageAlignOption(deps: NavigationPreviewDeps, imageComponentOption: any, isChosenImage: any) {
-  const optionLabelElement = document.createElement('label')
-  optionLabelElement.className = 'effect-image-align-option'
+  const optionLabelElement = domElement(document, 'label', 'effect-image-align-option')
   const optionRadioElement = document.createElement('input')
   ;(optionRadioElement.type = 'radio'),
     (optionRadioElement.name = 'effect-image-align-target'),
     (optionRadioElement.value = imageComponentOption.id),
     (optionRadioElement.checked = isChosenImage)
-  const optionPreviewElement = document.createElement('span')
-  optionPreviewElement.className = 'effect-image-align-option-preview'
+  const optionPreviewElement = domElement(document, 'span', 'effect-image-align-option-preview')
   const sn4 = deps.findAssetById(imageComponentOption.properties?.assetId || ''),
     kp2 = deps.runExtraTwin(sn4)
   if (kp2) {
     const optionPreviewImage = document.createElement('img')
     ;(optionPreviewImage.src = kp2), (optionPreviewImage.alt = ''), optionPreviewElement.append(optionPreviewImage)
   } else optionPreviewElement.textContent = '无预览'
-  const optionCopyElement = document.createElement('span')
-  optionCopyElement.className = 'effect-image-align-option-copy'
-  const optionTitleElement = document.createElement('strong')
-  optionTitleElement.textContent = componentLabel2(imageComponentOption)
+  const optionCopyElement = domElement(document, 'span', 'effect-image-align-option-copy')
+  const optionTitleElement = domElement(document, 'strong', null, componentLabel2(imageComponentOption))
   const optionLayoutElement = document.createElement('small'),
     isFillLayout = imageComponentOption.properties?.layoutMode === 'fill',
     visibilityLabel = imageComponentOption.style?.visible === false ? '隐藏' : '显示',

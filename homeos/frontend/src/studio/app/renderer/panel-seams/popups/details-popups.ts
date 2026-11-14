@@ -6,6 +6,7 @@ import { entityMetadataIsAvailable as entityMetadataIsAvailable2 } from '@app/sh
 import { shellOpenMediaPlayer } from '@/studio/platform/shell-chrome'
 import type { PanelRenderer } from '../../panel-renderer'
 
+import { domElement } from '@app/shared/util/dom-factory'
 export function popupComponentForEntity(self: PanelRenderer, popupEntityId: any, popupLabel = '') {
   let resolvedEntityId = String(popupEntityId || ''),
     entityDomain = resolvedEntityId.split('.')[0]
@@ -172,10 +173,8 @@ export function showCapabilityDetails(
     capabilityDialog = document.createElement('dialog')
   capabilityDialog.className =
     'hb-entity-details-dialog capability-details' + (isAirPurifier ? ' air-purifier-details' : '')
-  const capabilityDialogCard = document.createElement('div')
-  capabilityDialogCard.className = 'hb-entity-details-card'
-  const capabilityDialogHeading = document.createElement('div')
-  capabilityDialogHeading.className = 'hb-entity-details-heading'
+  const capabilityDialogCard = domElement(document, 'div', 'hb-entity-details-card')
+  const capabilityDialogHeading = domElement(document, 'div', 'hb-entity-details-heading')
   const capabilityDialogTitleBox = document.createElement('div'),
     capabilityDialogTitle = document.createElement('strong')
   capabilityDialogTitle.textContent =
@@ -191,8 +190,7 @@ export function showCapabilityDetails(
     (capabilityDialogCloseButton.textContent = '×'),
     capabilityDialogCloseButton.setAttribute('aria-label', '关闭弹窗'),
     capabilityDialogHeading.append(capabilityDialogTitleBox, capabilityDialogCloseButton)
-  const capabilityDetailsBody = document.createElement('div')
-  capabilityDetailsBody.className = 'hb-capability-details-body'
+  const capabilityDetailsBody = domElement(document, 'div', 'hb-capability-details-body')
   const capabilityDetailsControls = self.createCapabilityDetailsControls(detailsEntityId, capabilityStateSnapshot, {
     interactive: !isPreviewMode,
     variant: isAirPurifier ? 'air-purifier' : '',
@@ -226,8 +224,7 @@ export function showCapabilityDetails(
       : [],
     metricValueByEntityId = new Map()
   if (slice2.length) {
-    const capabilityMetricsBox = document.createElement('div')
-    capabilityMetricsBox.className = 'hb-capability-metrics'
+    const capabilityMetricsBox = domElement(document, 'div', 'hb-capability-metrics')
     for (const { role: metricRoleKey, item: metricEntity } of slice2) {
       const capabilityMetricRow = document.createElement('div')
       capabilityMetricRow.className = 'hb-capability-metric hb-capability-metric--' + metricRoleKey
@@ -388,21 +385,16 @@ export function showElectricBedLoadingDetails(
   const electricBedLoadingDialog = document.createElement('dialog')
   ;(electricBedLoadingDialog.className = 'hb-entity-details-dialog electric-bed-details electric-bed-loading-details'),
     (electricBedLoadingDialog.tabIndex = -1)
-  const electricBedLoadingCard = document.createElement('div')
-  electricBedLoadingCard.className = 'hb-entity-details-card'
-  const electricBedLoadingHeading = document.createElement('div')
-  electricBedLoadingHeading.className = 'hb-entity-details-heading'
+  const electricBedLoadingCard = domElement(document, 'div', 'hb-entity-details-card')
+  const electricBedLoadingHeading = domElement(document, 'div', 'hb-entity-details-heading')
   const electricBedLoadingTitle = document.createElement('strong')
   ;(electricBedLoadingTitle.textContent = componentDialogTitle(electricBedComponent, '电动床')),
     electricBedLoadingHeading.append(electricBedLoadingTitle)
-  const electricBedLoadingBody = document.createElement('section')
-  electricBedLoadingBody.className = 'hb-electric-bed-loading-body'
-  const electricBedLoadingStateSection = document.createElement('section')
-  electricBedLoadingStateSection.className = 'hb-climate-details-loading is-loading'
+  const electricBedLoadingBody = domElement(document, 'section', 'hb-electric-bed-loading-body')
+  const electricBedLoadingStateSection = domElement(document, 'section', 'hb-climate-details-loading is-loading')
   const electricBedLoadingIcon = document.createElement('i')
   electricBedLoadingIcon.setAttribute('aria-hidden', 'true')
-  const electricBedLoadingLabel = document.createElement('strong')
-  electricBedLoadingLabel.textContent = '—'
+  const electricBedLoadingLabel = domElement(document, 'strong', null, '—')
   const electricBedLoadingHint = document.createElement('span')
   ;(electricBedLoadingHint.textContent = ''),
     electricBedLoadingStateSection.append(electricBedLoadingIcon, electricBedLoadingLabel, electricBedLoadingHint),
@@ -483,12 +475,9 @@ export function showElectricBedDetails(
       ),
     ].slice(0, 2)
   self.closeRuntimeDialog()
-  const electricBedDialog = document.createElement('dialog')
-  electricBedDialog.className = 'hb-entity-details-dialog electric-bed-details'
-  const electricBedCard = document.createElement('div')
-  electricBedCard.className = 'hb-entity-details-card'
-  const electricBedHeading = document.createElement('div')
-  electricBedHeading.className = 'hb-entity-details-heading'
+  const electricBedDialog = domElement(document, 'dialog', 'hb-entity-details-dialog electric-bed-details')
+  const electricBedCard = domElement(document, 'div', 'hb-entity-details-card')
+  const electricBedHeading = domElement(document, 'div', 'hb-entity-details-heading')
   const electricBedTitleRow = document.createElement('div'),
     electricBedTitle = document.createElement('strong')
   electricBedTitle.textContent = componentDialogTitle(
@@ -502,26 +491,18 @@ export function showElectricBedDetails(
     (electricBedCloseButton.textContent = '×'),
     electricBedCloseButton.setAttribute('aria-label', '关闭电动床详情'),
     electricBedHeading.append(electricBedTitleRow, electricBedCloseButton)
-  const electricBedBody = document.createElement('div')
-  electricBedBody.className = 'hb-electric-bed-details-body'
-  const electricBedVisualSection = document.createElement('section')
-  electricBedVisualSection.className = 'hb-electric-bed-visual'
-  const electricBedModelElement = document.createElement('div')
-  electricBedModelElement.className = 'hb-electric-bed-model'
-  const bedMattressElement = document.createElement('i')
-  bedMattressElement.className = 'hb-electric-bed-mattress'
-  const bedBackElement = document.createElement('i')
-  bedBackElement.className = 'hb-electric-bed-back'
-  const bedWaistElement = document.createElement('i')
-  bedWaistElement.className = 'hb-electric-bed-waist'
-  const bedLegsElement = document.createElement('i')
-  bedLegsElement.className = 'hb-electric-bed-legs'
+  const electricBedBody = domElement(document, 'div', 'hb-electric-bed-details-body')
+  const electricBedVisualSection = domElement(document, 'section', 'hb-electric-bed-visual')
+  const electricBedModelElement = domElement(document, 'div', 'hb-electric-bed-model')
+  const bedMattressElement = domElement(document, 'i', 'hb-electric-bed-mattress')
+  const bedBackElement = domElement(document, 'i', 'hb-electric-bed-back')
+  const bedWaistElement = domElement(document, 'i', 'hb-electric-bed-waist')
+  const bedLegsElement = domElement(document, 'i', 'hb-electric-bed-legs')
   const bedBaseElement = document.createElement('i')
   ;(bedBaseElement.className = 'hb-electric-bed-base'),
     electricBedModelElement.append(bedMattressElement, bedBackElement, bedWaistElement, bedLegsElement, bedBaseElement)
   const createAngleReadout = (readoutClassName: any, readoutLabel: any) => {
-      const angleReadoutElement = document.createElement('span')
-      angleReadoutElement.className = 'hb-electric-bed-angle-readout ' + readoutClassName
+      const angleReadoutElement = domElement(document, 'span', 'hb-electric-bed-angle-readout ' + readoutClassName)
       const angleReadoutValueLabel = document.createElement('strong'),
         angleReadoutLabel = document.createElement('small')
       return (
@@ -546,12 +527,9 @@ export function showElectricBedDetails(
     deviceStatusLabel,
     deviceStatusHint,
   )
-  const electricBedUtilitiesSection = document.createElement('section')
-  electricBedUtilitiesSection.className = 'hb-electric-bed-utilities'
-  const electricBedMainSection = document.createElement('section')
-  electricBedMainSection.className = 'hb-electric-bed-main'
-  const angleControlsSection = document.createElement('section')
-  angleControlsSection.className = 'hb-electric-bed-angle-controls'
+  const electricBedUtilitiesSection = domElement(document, 'section', 'hb-electric-bed-utilities')
+  const electricBedMainSection = domElement(document, 'section', 'hb-electric-bed-main')
+  const angleControlsSection = domElement(document, 'section', 'hb-electric-bed-angle-controls')
   const syncHandlersByEntityId = new Map(),
     controlCleanups: any = [],
     resolveAngleState = (angleEntityId: any) => {
@@ -575,8 +553,7 @@ export function showElectricBedDetails(
         angleControlSection = document.createElement('section')
       ;(angleControlSection.className = 'hb-electric-bed-control'),
         controlLabel === '模式' && angleControlSection.classList.add('hb-electric-bed-mode')
-      const angleControlLabel = document.createElement('strong')
-      angleControlLabel.textContent = controlLabel
+      const angleControlLabel = domElement(document, 'strong', null, controlLabel)
       const capabilityDetailsControls5 = self.createCapabilityDetailsControls(controlEntityId, controlAngleState, {
         interactive: !isElectricBedDetailsPreview,
         variant: controlVariant,
@@ -598,8 +575,7 @@ export function showElectricBedDetails(
   else {
     const modeControlSection = document.createElement('section')
     modeControlSection.className = 'hb-electric-bed-control hb-electric-bed-mode is-unavailable'
-    const modeControlLabel = document.createElement('strong')
-    modeControlLabel.textContent = '模式'
+    const modeControlLabel = domElement(document, 'strong', null, '模式')
     const modeSelect = document.createElement('select')
     ;(modeSelect.className = 'hb-capability-select'),
       (modeSelect.disabled = true),
@@ -610,20 +586,16 @@ export function showElectricBedDetails(
       modeControlSection.append(modeControlLabel, modeSelect),
       electricBedUtilitiesSection.append(modeControlSection)
   }
-  const memoryControlSection = document.createElement('section')
-  memoryControlSection.className = 'hb-electric-bed-memory'
-  const memoryControlLabel = document.createElement('strong')
-  memoryControlLabel.textContent = '记忆姿势'
-  const memoryControlList = document.createElement('div')
-  memoryControlList.className = 'hb-electric-bed-memory-list'
+  const memoryControlSection = domElement(document, 'section', 'hb-electric-bed-memory')
+  const memoryControlLabel = domElement(document, 'strong', null, '记忆姿势')
+  const memoryControlList = domElement(document, 'div', 'hb-electric-bed-memory-list')
   for (let memorySlotIndex = 0; memorySlotIndex < 2; memorySlotIndex += 1) {
     const memoryEntityId = slice6[memorySlotIndex] || '',
       memoryEntityMetadata = memoryEntityId ? self.entityMetadata.get(memoryEntityId) : null
     if (String(memoryEntityId).split('.', 1)[0] === 'select') {
       const memorySlotSection = document.createElement('section')
       memorySlotSection.className = 'hb-electric-bed-memory-control hb-electric-bed-control'
-      const memorySlotLabel = document.createElement('strong')
-      memorySlotLabel.textContent = '记忆姿势 ' + (memorySlotIndex + 1)
+      const memorySlotLabel = domElement(document, 'strong', null, '记忆姿势 ' + (memorySlotIndex + 1))
       const capabilityDetailsControls6 = self.createCapabilityDetailsControls(
         memoryEntityId,
         resolveAngleState(memoryEntityId),

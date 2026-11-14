@@ -2,6 +2,7 @@ import { normalizeFlowLine as normalizeFlowLine2, flowClamp as flowClamp2 } from
 import { inspectorComponentMetrics as inspectorComponentMetrics2 } from './basic'
 import { openFlowLinePathEditor as openFlowLinePathEditor2 } from '../../renderer/flow-line-editor'
 import type { DomControl } from '@app/shared/util/dom-control'
+import { domElement } from '@app/shared/util/dom-factory'
 const inspectorStateByHost = new WeakMap(),
   numericRangeByProperty = {
     width: [1, 40, 1],
@@ -83,8 +84,7 @@ export function renderFlowLineInspector(hostElement: any, inspectorComponent: an
       }),
       inspectorStateByHost.set(hostElement, inspectorState)
     const createInspectorSection = (sectionTitle: any) => {
-        const sectionElement = document.createElement('section')
-        sectionElement.className = 'inspector-section'
+        const sectionElement = domElement(document, 'section', 'inspector-section')
         const headingElement = document.createElement('h3')
         return (
           (headingElement.textContent = sectionTitle),

@@ -1,5 +1,6 @@
 /** Device popup related-entity picker. */
 import { findComponent as findComponent2 } from './component-tree'
+import { domElement } from '@app/shared/util/dom-factory'
 import {
   RELATED_ENTITY_DOMAIN_LABELS as RELATED_ENTITY_DOMAIN_LABELS2,
   manualRelatedEntityConfig as manualRelatedEntityConfig2,
@@ -85,10 +86,8 @@ function ensureRelatedPopupElement() {
     (relatedPopupDialogElement = document.createElement('dialog')),
     (relatedPopupDialogElement.id = 'popup-related-entity-dialog'),
     (relatedPopupDialogElement.className = 'popup-related-entity-dialog')
-  const dialogCardElement = document.createElement('div')
-  dialogCardElement.className = 'popup-related-entity-dialog-card'
-  const dialogHeadingElement = document.createElement('div')
-  dialogHeadingElement.className = 'popup-related-entity-dialog-heading'
+  const dialogCardElement = domElement(document, 'div', 'popup-related-entity-dialog-card')
+  const dialogHeadingElement = domElement(document, 'div', 'popup-related-entity-dialog-heading')
   const headingTextElement = document.createElement('div')
   relatedPopupDialogTitleElement = document.createElement('strong')
   const headingHintElement = document.createElement('span')
@@ -109,8 +108,7 @@ function ensureRelatedPopupElement() {
     searchLabelElement.append(relatedPopupSearchInputElement),
     (relatedPopupListElement = document.createElement('div')),
     (relatedPopupListElement.className = 'popup-related-entity-list')
-  const dialogFooterElement = document.createElement('div')
-  dialogFooterElement.className = 'popup-related-entity-dialog-footer'
+  const dialogFooterElement = domElement(document, 'div', 'popup-related-entity-dialog-footer')
   const doneButtonElement = document.createElement('button')
   return (
     (doneButtonElement.type = 'button'),

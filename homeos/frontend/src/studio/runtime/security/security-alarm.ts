@@ -1,3 +1,4 @@
+import { domElement } from '@app/shared/util/dom-factory'
 import {
   GAS_ENUM_STATES,
   SMOKE_ENUM_STATES,
@@ -311,19 +312,13 @@ export function renderSecurityAlarmCard(markerElement: HTMLElement, alarmConfig:
   if (!cardElement) {
     cardElement = documentNode.createElement('span')
     cardElement.className = 'i3d-alarm-card'
-    const iconElement = documentNode.createElement('i')
-    iconElement.className = 'i3d-alarm-icon'
+    const iconElement = domElement(documentNode, 'i', 'i3d-alarm-icon')
     iconElement.setAttribute('aria-hidden', 'true')
-    const textElement = documentNode.createElement('span')
-    textElement.className = 'i3d-alarm-card-text'
-    const titleElement = documentNode.createElement('strong')
-    titleElement.className = 'i3d-alarm-card-title'
-    const detailElement = documentNode.createElement('span')
-    detailElement.className = 'i3d-alarm-card-detail'
-    const batteryElement = documentNode.createElement('small')
-    batteryElement.className = 'i3d-alarm-card-battery'
-    const workElement = documentNode.createElement('em')
-    workElement.className = 'i3d-alarm-card-work'
+    const textElement = domElement(documentNode, 'span', 'i3d-alarm-card-text')
+    const titleElement = domElement(documentNode, 'strong', 'i3d-alarm-card-title')
+    const detailElement = domElement(documentNode, 'span', 'i3d-alarm-card-detail')
+    const batteryElement = domElement(documentNode, 'small', 'i3d-alarm-card-battery')
+    const workElement = domElement(documentNode, 'em', 'i3d-alarm-card-work')
     textElement.append(titleElement, detailElement, batteryElement)
     cardElement.append(iconElement, textElement, workElement)
     markerElement.replaceChildren(cardElement)
@@ -351,8 +346,7 @@ export function renderSecurityAlarmCard(markerElement: HTMLElement, alarmConfig:
   if (reading.sources?.length) {
     detailElement.replaceChildren(
       ...reading.sources.map((source: any) => {
-        const sourceElement = documentNode.createElement('span')
-        sourceElement.className = 'i3d-alarm-source'
+        const sourceElement = domElement(documentNode, 'span', 'i3d-alarm-source')
         sourceElement.dataset.status = source.status
         sourceElement.textContent = source.name + '：' + source.detail
         return sourceElement
@@ -418,15 +412,12 @@ export function createSecurityAlarmOverlay(hostElement: HTMLElement, { onDismiss
   }
   let shared = overlayRegistry.get(hostElement)
   if (!shared) {
-    const root = documentNode.createElement('div')
-    root.className = 'i3d-alarm-overlay'
+    const root = domElement(documentNode, 'div', 'i3d-alarm-overlay')
     root.hidden = true
     root.dataset.scope = hostElement === documentNode.body ? 'screen' : 'preview'
-    const glow = documentNode.createElement('div')
-    glow.className = 'i3d-alarm-glow'
+    const glow = domElement(documentNode, 'div', 'i3d-alarm-glow')
     glow.setAttribute('aria-hidden', 'true')
-    const list = documentNode.createElement('div')
-    list.className = 'i3d-alarm-messages'
+    const list = domElement(documentNode, 'div', 'i3d-alarm-messages')
     list.setAttribute('role', 'alert')
     list.setAttribute('aria-atomic', 'true')
     const dismiss = documentNode.createElement('button')
@@ -556,10 +547,8 @@ export function createSecurityAlarmOverlay(hostElement: HTMLElement, { onDismiss
       shared.timer = null
       shared.list.replaceChildren(
         ...active.map((reading) => {
-          const message = documentNode.createElement('div')
-          message.className = 'i3d-alarm-message'
-          const icon = documentNode.createElement('i')
-          icon.className = 'i3d-alarm-icon'
+          const message = domElement(documentNode, 'div', 'i3d-alarm-message')
+          const icon = domElement(documentNode, 'i', 'i3d-alarm-icon')
           icon.setAttribute('aria-hidden', 'true')
           const maskUrl = "url('" + MDI_SVG + reading.icon + ".svg')"
           icon.style.maskImage = maskUrl

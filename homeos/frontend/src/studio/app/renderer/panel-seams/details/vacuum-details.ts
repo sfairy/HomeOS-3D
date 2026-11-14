@@ -15,6 +15,7 @@ import {
 } from '@app/shared/device/vacuum-runtime'
 import { selectedRelatedEntityIds as selectedRelatedEntityIds2 } from '../../../shared/related-entities'
 
+import { domElement } from '@app/shared/util/dom-factory'
 export function showVacuumDetails(
   this: PanelRenderer,
   vacuumComponent: any,
@@ -35,44 +36,31 @@ export function showVacuumDetails(
     interaction3dInstance && vacuumDialog.classList.add('i3d-vacuum-details')
   const vacuumCard = document.createElement('div')
   ;(vacuumCard.className = 'hb-entity-details-card'), vacuumCard.classList.add('hb-vacuum-details-card')
-  const vacuumHeading = document.createElement('div')
-  vacuumHeading.className = 'hb-entity-details-heading'
+  const vacuumHeading = domElement(document, 'div', 'hb-entity-details-heading')
   const vacuumTitleRow = document.createElement('div'),
     vacuumTitle = document.createElement('strong'),
     vacuumTitleText =
       String(vacuumStateOptions.attributes?.friendly_name || '扫地机器人').replace(/^\d+/, '') || '扫地机器人'
   vacuumTitle.textContent = componentDialogTitle(vacuumComponent, vacuumTitleText)
-  const vacuumSubtitleLabel = document.createElement('span')
-  vacuumSubtitleLabel.className = 'hb-vacuum-details-subtitle'
+  const vacuumSubtitleLabel = domElement(document, 'span', 'hb-vacuum-details-subtitle')
   const vacuumCloseButton = document.createElement('button')
   ;(vacuumCloseButton.type = 'button'),
     vacuumCloseButton.setAttribute('aria-label', '关闭扫地机器人详情'),
     (vacuumCloseButton.textContent = '×'),
     vacuumTitleRow.append(vacuumTitle, vacuumSubtitleLabel),
     vacuumHeading.append(vacuumTitleRow, vacuumCloseButton)
-  const vacuumLayout = document.createElement('div')
-  vacuumLayout.className = 'hb-vacuum-details-layout'
+  const vacuumLayout = domElement(document, 'div', 'hb-vacuum-details-layout')
   // 内容滚动体：矮视口/多扩展控制时只滚内容，标题栏保持可见（见 renderer.css）。
-  const vacuumPopupBody = document.createElement('div')
-  vacuumPopupBody.className = 'i3d-vacuum-popup-body'
-  const vacuumOverviewSection = document.createElement('section')
-  vacuumOverviewSection.className = 'hb-vacuum-details-overview'
-  const vacuumVisualElement = document.createElement('div')
-  vacuumVisualElement.className = 'hb-vacuum-visual'
-  const vacuumBatteryRingElement = document.createElement('div')
-  vacuumBatteryRingElement.className = 'hb-vacuum-battery-ring'
-  const vacuumRobotElement = document.createElement('div')
-  vacuumRobotElement.className = 'hb-vacuum-robot'
-  const vacuumLidarElement = document.createElement('i')
-  vacuumLidarElement.className = 'hb-vacuum-robot-lidar'
-  const vacuumSensorElement = document.createElement('i')
-  vacuumSensorElement.className = 'hb-vacuum-robot-sensor'
-  const vacuumBumperElement = document.createElement('i')
-  vacuumBumperElement.className = 'hb-vacuum-robot-bumper'
-  const vacuumBrushElement = document.createElement('i')
-  vacuumBrushElement.className = 'hb-vacuum-robot-brush'
-  const vacuumMopLeftElement = document.createElement('i')
-  vacuumMopLeftElement.className = 'hb-vacuum-robot-mop left'
+  const vacuumPopupBody = domElement(document, 'div', 'i3d-vacuum-popup-body')
+  const vacuumOverviewSection = domElement(document, 'section', 'hb-vacuum-details-overview')
+  const vacuumVisualElement = domElement(document, 'div', 'hb-vacuum-visual')
+  const vacuumBatteryRingElement = domElement(document, 'div', 'hb-vacuum-battery-ring')
+  const vacuumRobotElement = domElement(document, 'div', 'hb-vacuum-robot')
+  const vacuumLidarElement = domElement(document, 'i', 'hb-vacuum-robot-lidar')
+  const vacuumSensorElement = domElement(document, 'i', 'hb-vacuum-robot-sensor')
+  const vacuumBumperElement = domElement(document, 'i', 'hb-vacuum-robot-bumper')
+  const vacuumBrushElement = domElement(document, 'i', 'hb-vacuum-robot-brush')
+  const vacuumMopLeftElement = domElement(document, 'i', 'hb-vacuum-robot-mop left')
   const vacuumMopRightElement = document.createElement('i')
   ;(vacuumMopRightElement.className = 'hb-vacuum-robot-mop right'),
     vacuumRobotElement.append(
@@ -83,15 +71,13 @@ export function showVacuumDetails(
       vacuumMopLeftElement,
       vacuumMopRightElement,
     )
-  const vacuumBatteryElement = document.createElement('div')
-  vacuumBatteryElement.className = 'hb-vacuum-battery'
+  const vacuumBatteryElement = domElement(document, 'div', 'hb-vacuum-battery')
   const vacuumBatteryPercentLabel = document.createElement('strong'),
     vacuumBatteryCaption = document.createElement('small')
   ;(vacuumBatteryCaption.textContent = '电量'),
     vacuumBatteryElement.append(vacuumBatteryPercentLabel, vacuumBatteryCaption),
     vacuumBatteryRingElement.append(vacuumRobotElement)
-  const vacuumStatusLabel = document.createElement('span')
-  vacuumStatusLabel.className = 'hb-vacuum-visual-status'
+  const vacuumStatusLabel = domElement(document, 'span', 'hb-vacuum-visual-status')
   // 栈 D（3D）：标题右上角只挂机器人+电量角标；加专用 class，避免标题 > div 样式误套。
   if (interaction3dInstance) {
     vacuumVisualElement.classList.add('i3d-vacuum-visual'),
@@ -102,8 +88,7 @@ export function showVacuumDetails(
       vacuumHeading.append(vacuumBatteryElement),
       vacuumOverviewSection.append(vacuumVisualElement)
   }
-  const vacuumStatsElement = document.createElement('div')
-  vacuumStatsElement.className = 'hb-vacuum-details-stats'
+  const vacuumStatsElement = domElement(document, 'div', 'hb-vacuum-details-stats')
   const createVacuumStat = (statLabel: any, statIcon: any) => {
       const vacuumStatElement = document.createElement('div'),
         vacuumStatValueLabel = document.createElement('span')
@@ -123,10 +108,8 @@ export function showVacuumDetails(
     vacuumAreaStatElement = createVacuumStat('本次面积', 'ruler-square'),
     vacuumTimeStatElement = createVacuumStat('清扫时长', 'timer-outline')
   vacuumOverviewSection.append(vacuumStatsElement)
-  const vacuumControlsSection = document.createElement('section')
-  vacuumControlsSection.className = 'hb-vacuum-details-controls'
-  const vacuumActions = document.createElement('div')
-  vacuumActions.className = 'hb-vacuum-details-actions'
+  const vacuumControlsSection = domElement(document, 'section', 'hb-vacuum-details-controls')
+  const vacuumActions = domElement(document, 'div', 'hb-vacuum-details-actions')
   const createVacuumAction = (actionTitle: any, descriptionText: any, actionIconValue: any, actionServiceName: any) => {
       const vacuumActionButton = document.createElement('button')
       ;(vacuumActionButton.type = 'button'),
@@ -197,16 +180,14 @@ export function showVacuumDetails(
       labels: optionLabelMap,
       onSelect: onOptionSelect,
     }: any) => {
-      const vacuumOptionGroupSection = document.createElement('section')
-      vacuumOptionGroupSection.className = 'hb-vacuum-details-option-group'
+      const vacuumOptionGroupSection = domElement(document, 'section', 'hb-vacuum-details-option-group')
       const vacuumOptionHeading = document.createElement('div'),
         vacuumOptionTitle = document.createElement('strong')
       vacuumOptionTitle.textContent = optionLabelText
       const vacuumOptionDetailLabel = document.createElement('small')
       ;(vacuumOptionDetailLabel.textContent = optionDetailText),
         vacuumOptionHeading.append(vacuumOptionTitle, vacuumOptionDetailLabel)
-      const vacuumOptionsContainer = document.createElement('div')
-      vacuumOptionsContainer.className = 'hb-vacuum-details-options'
+      const vacuumOptionsContainer = domElement(document, 'div', 'hb-vacuum-details-options')
       let vacuumOptionEntries: any = [],
         cachedOptionSignature = ''
       const syncVacuumOptions = (currentValueText: any, optionItems: any, isOptionSupported = true) => {

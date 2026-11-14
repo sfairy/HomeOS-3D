@@ -1,6 +1,7 @@
 import { randomUuid } from '../shared/util/random-id'
 import { componentActionIsSupported } from '../shared/action-rules'
 
+import { domElement } from '@app/shared/util/dom-factory'
 export const maxRuntimeEntitySubscriptions = 1000,
   defaultTargetOccupancy = 0.76,
   compactTargetOccupancy = 0.7
@@ -114,17 +115,14 @@ export function createAirerVisual(airerHostElement: any) {
   const ownerDocument = airerHostElement.ownerDocument,
     element = ownerDocument.createElement('span')
   element.className = 'hb-airer-visual'
-  const airerGlowElement = ownerDocument.createElement('i')
-  airerGlowElement.className = 'hb-airer-visual-glow'
-  const airerBodyElement = ownerDocument.createElement('span')
-  airerBodyElement.className = 'hb-airer-visual-body'
+  const airerGlowElement = domElement(ownerDocument, 'i', 'hb-airer-visual-glow')
+  const airerBodyElement = domElement(ownerDocument, 'span', 'hb-airer-visual-body')
   const airerLampElement = ownerDocument.createElement('i')
   ;(airerLampElement.className = 'hb-airer-visual-lamp'), airerBodyElement.append(airerLampElement)
   const airerLiftsElement = ownerDocument.createElement('span')
   ;(airerLiftsElement.className = 'hb-airer-visual-lifts'),
     airerLiftsElement.append(ownerDocument.createElement('i'), ownerDocument.createElement('i'))
-  const airerRackElement = ownerDocument.createElement('span')
-  airerRackElement.className = 'hb-airer-visual-rack'
+  const airerRackElement = domElement(ownerDocument, 'span', 'hb-airer-visual-rack')
   for (let rackShelfIndex = 0; rackShelfIndex < 4; rackShelfIndex += 1)
     airerRackElement.append(ownerDocument.createElement('i'))
   element.append(airerGlowElement, airerBodyElement, airerLiftsElement, airerRackElement),
@@ -155,14 +153,10 @@ export function createSwitchVisual({
     switchButtonElement.classList.toggle('is-momentary', isMomentary),
     (switchButtonElement.inert = !isInteractive),
     switchButtonElement.setAttribute('aria-disabled', String(!isInteractive))
-  const switchAuraElement = document.createElement('i')
-  switchAuraElement.className = 'hb-switch-visual-aura'
-  const switchPlateElement = document.createElement('span')
-  switchPlateElement.className = 'hb-switch-visual-plate'
-  const switchIndicatorElement = document.createElement('i')
-  switchIndicatorElement.className = 'hb-switch-visual-indicator'
-  const switchRockerElement = document.createElement('span')
-  switchRockerElement.className = 'hb-switch-visual-rocker'
+  const switchAuraElement = domElement(document, 'i', 'hb-switch-visual-aura')
+  const switchPlateElement = domElement(document, 'span', 'hb-switch-visual-plate')
+  const switchIndicatorElement = domElement(document, 'i', 'hb-switch-visual-indicator')
+  const switchRockerElement = domElement(document, 'span', 'hb-switch-visual-rocker')
   const switchOffMarkElement = document.createElement('i')
   ;(switchOffMarkElement.className = 'hb-switch-visual-mark off'), (switchOffMarkElement.textContent = '○')
   const switchOnMarkElement = document.createElement('i')

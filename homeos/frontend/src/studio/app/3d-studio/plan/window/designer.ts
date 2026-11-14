@@ -45,6 +45,7 @@ import { WindowPreview, createPreviewMotion } from './preview'
 import { drawWindowCanvas } from './designer-canvas'
 import { openWindowTutorial } from './tutorial'
 
+import { domElement } from '@app/shared/util/dom-factory'
 /** 窗型名称（检查器 / 窗格列表 / 提示文案共用）。 */
 const WINDOW_KIND_LABELS: Record<string, string> = {
   fixed: '固定玻璃',
@@ -340,9 +341,7 @@ export function openWindowDesigner({
     remarksHost.append(label)
 
     if (leafNode.kind === 'sliding') {
-      const hint = document.createElement('p')
-      hint.className = 'muted'
-      hint.textContent = '整组共用一份备注，在 3D 安防中添加一次即可。'
+      const hint = domElement(document, 'p', 'muted', '整组共用一份备注，在 3D 安防中添加一次即可。')
       remarksHost.append(hint)
       const panelRemarks = leafNode.panelIds
         .map((panelId) => value().windowDesign!.sashRemarks?.[panelId]?.trim())

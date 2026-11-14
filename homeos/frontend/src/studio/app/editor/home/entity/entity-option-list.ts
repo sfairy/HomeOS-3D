@@ -1,3 +1,4 @@
+import { domElement } from '@app/shared/util/dom-factory'
 /* 实体选项列表（弹窗模块 / 弹窗动作共用同一套「主按钮 + 名称行 + id 行」结构） */
 
 interface EntityOptionListEntity {
@@ -29,8 +30,7 @@ export function renderEntityOptionButtons<T extends EntityOptionListEntity>(
         (button.dataset[datasetKey] = entity.entityId),
         button.setAttribute('role', 'option'),
         button.setAttribute('aria-selected', String(entity.entityId === selectedId))
-      const content = document.createElement('span')
-      content.className = 'inspector-entity-option-content'
+      const content = domElement(document, 'span', 'inspector-entity-option-content')
       const nameLine = document.createElement('span')
       ;(nameLine.className = 'inspector-entity-option-line inspector-entity-name-line'),
         (nameLine.textContent = '[' + deps.runQueue(entity) + '] ' + deps.runSnapshot(entity))

@@ -1,6 +1,7 @@
 import { clampNumberWithFallback, normalizeCssColor } from './_shared'
 import { isClimatePoweredOn, resolveAirflowMotionKind } from './cover-climate-state'
 
+import { domElement } from '@app/shared/util/dom-factory'
 type RenderPropertyBag = any
 
 function buildAirflowSvg(airflowProperties: RenderPropertyBag = {}, airflowModeKind = 'other') {
@@ -208,8 +209,7 @@ export function renderAirConditionerAirflowLayer(airflowLayerComponent: any, air
     !isClimatePoweredOn(airflowLayerComponent, airflowLayerRenderEnvironment)
   )
     return null
-  const airflowLayerElement = document.createElement('div')
-  airflowLayerElement.className = 'hb-air-conditioner-airflow-layer'
+  const airflowLayerElement = domElement(document, 'div', 'hb-air-conditioner-airflow-layer')
   const airflowImageElement = document.createElement('img')
   return (
     (airflowImageElement.src = buildAirflowSvg(

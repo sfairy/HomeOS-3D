@@ -18,6 +18,7 @@ import { createMaterialStyleChip } from './style-chip'
 import { createMaterialSlotSurfacePanel } from './surface-panel'
 import { materialSlotGroupView } from '../ui/slot-group-view'
 
+import { domElement } from '@app/shared/util/dom-factory'
 export function materialSlotPanelSignatureFor(runtime: StudioAppRuntime, modelItem: any, materialSlotEntries: any) {
   return [
     modelItem?.id || '',
@@ -434,8 +435,7 @@ export function createMaterialSlotRow(runtime: StudioAppRuntime, slotEntry: any)
  * 三格各自一格色块，改哪格只写哪格里的材质（不会把尾灯刷成前灯色）。
  */
 export function createMaterialSlotVariantList(runtime: StudioAppRuntime, slotVariants: any[]) {
-  const variantListElement = document.createElement('div')
-  variantListElement.className = 'material-slot-variants'
+  const variantListElement = domElement(document, 'div', 'material-slot-variants')
   for (const slotVariant of slotVariants) {
     const variantElement = document.createElement('span'),
       variantNameElement = document.createElement('span'),

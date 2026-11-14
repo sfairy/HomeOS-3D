@@ -24,7 +24,7 @@
  * select 一起被移除，不会在弹窗里堆积游离节点。新插入的 select（弹窗、重绘）由
  * MutationObserver 兜住，`refresh()` 用于渲染结束后立即对齐一次。
  */
-
+import { domElement } from '@app/shared/util/dom-factory'
 /** 选项多到这个数就加筛选框（灯组/设备列表常见 30+ 条）。 */
 const SEARCHABLE_OPTION_COUNT = 8
 
@@ -358,8 +358,7 @@ export function attachSelectControls(root: HTMLElement, options: SelectControlsO
   }
 
   function decorate(select: HTMLSelectElement): SelectControl {
-    const wrapper = ownerDocument.createElement('span')
-    wrapper.className = 'custom-select i3d-select'
+    const wrapper = domElement(ownerDocument, 'span', 'custom-select i3d-select')
     const button = ownerDocument.createElement('button')
     ;(button.type = 'button'),
       (button.className = 'custom-select-button'),

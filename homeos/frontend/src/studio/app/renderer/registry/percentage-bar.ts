@@ -1,3 +1,4 @@
+import { domElement } from '@app/shared/util/dom-factory'
 import {
   percentageBarSeries as percentageBarSeries2,
   percentageBarDimensions as percentageBarDimensions2,
@@ -62,32 +63,26 @@ function renderPercentageBar(component: any, runtimeHost: any) {
   ])
     /^#[0-9a-f]{6}$/i.test(options[colorKey] || '') && element.style.setProperty(cssVariableName, options[colorKey])
   element.setAttribute('aria-label', options.title || '百分比柱状图')
-  const axisElement = document.createElement('div')
-  axisElement.className = 'hb-percentage-axis'
+  const axisElement = domElement(document, 'div', 'hb-percentage-axis')
   for (const tickPercentage of [100, 75, 50, 25, 0]) {
     const tickElement = document.createElement('span')
     ;(tickElement.textContent = tickPercentage + '%'), axisElement.append(tickElement)
   }
-  const plotElement = document.createElement('div')
-  plotElement.className = 'hb-percentage-plot'
+  const plotElement = domElement(document, 'div', 'hb-percentage-plot')
   const map = series.map((seriesPoint) => {
-    const columnElement = document.createElement('div')
-    columnElement.className = 'hb-percentage-column'
+    const columnElement = domElement(document, 'div', 'hb-percentage-column')
     const thicknessPx = Math.max(8, Math.min(96, Number(options.thickness) || 48))
     columnElement.style.setProperty('--bar-thickness', thicknessPx + 'px')
-    const valueElement = document.createElement('strong')
-    valueElement.className = 'hb-percentage-value'
+    const valueElement = domElement(document, 'strong', 'hb-percentage-value')
     const trackElement = document.createElement('div')
     ;(trackElement.className = 'hb-percentage-track'),
       trackElement.setAttribute('role', 'meter'),
       trackElement.setAttribute('aria-valuemin', '0'),
       trackElement.setAttribute('aria-valuemax', '100')
-    const fillElement = document.createElement('div')
-    fillElement.className = 'hb-percentage-fill'
+    const fillElement = domElement(document, 'div', 'hb-percentage-fill')
     const color = seriesPoint.color || options.color
     ;/^#[0-9a-f]{6}$/i.test(color || '') && columnElement.style.setProperty('--bar-color', color)
-    const labelElement = document.createElement('span')
-    labelElement.className = 'hb-percentage-label'
+    const labelElement = domElement(document, 'span', 'hb-percentage-label')
     const surfaceElement = document.createElement('div')
     return (
       (surfaceElement.className = 'hb-percentage-surface'),
@@ -140,8 +135,7 @@ function renderPercentageBar(component: any, runtimeHost: any) {
   )
 }
 export function renderPercentageBarControl(controlComponent: any, controlHost: any) {
-  const controlElement = document.createElement('div')
-  controlElement.className = 'hb-percentage-control'
+  const controlElement = domElement(document, 'div', 'hb-percentage-control')
   const percentageBar = renderPercentageBar(controlComponent, controlHost),
     dimensions = percentageBarDimensions2(controlComponent.properties, percentageBarSeries2(controlComponent).length)
   ;(percentageBar.style.width = dimensions.width + 'px'),

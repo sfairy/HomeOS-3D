@@ -10,6 +10,7 @@ import { climateDefaultIcon, resolveClimateDeviceType } from '@app/shared/device
 import { formatClimateStateLabel, isClimatePoweredOn } from '../cover-climate-state'
 import { componentContentUnitsPx } from '../content-units'
 
+import { domElement } from '@app/shared/util/dom-factory'
 export function register(registerComponent: (type: any, def: any) => void) {
   registerComponent('air-conditioner', {
     render(airConditionerComponent: any, airConditionerRenderEnvironment: any) {
@@ -83,8 +84,7 @@ export function register(registerComponent: (type: any, def: any) => void) {
               : configuredIconName || climateDefaultIcon(airConditionerDeviceType),
           resolvedIconUrl = resolveMdiIconUrl(resolvedIconName)
         if (resolvedIconUrl) {
-          const airConditionerIconElement = document.createElement('i')
-          airConditionerIconElement.className = 'hb-air-conditioner-icon'
+          const airConditionerIconElement = domElement(document, 'i', 'hb-air-conditioner-icon')
           const iconScalePercent = clampNumberWithFallback((symbolSizePx / badgeSizePx) * 100, 1, 100, 50)
           ;(airConditionerIconElement.style.width = iconScalePercent + '%'),
             (airConditionerIconElement.style.height = iconScalePercent + '%'),
@@ -95,8 +95,7 @@ export function register(registerComponent: (type: any, def: any) => void) {
         }
         airConditionerElement.append(iconBadgeElement)
       }
-      const airConditionerTextElement = document.createElement('span')
-      airConditionerTextElement.className = 'hb-air-conditioner-text'
+      const airConditionerTextElement = domElement(document, 'span', 'hb-air-conditioner-text')
       const mainTextSizePx = clampNumberWithFallback(airConditionerProperties.mainSize, 6, 120, 21),
         airConditionerMainTextElement = document.createElement('strong')
       ;(airConditionerMainTextElement.textContent =

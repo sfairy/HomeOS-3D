@@ -7,6 +7,7 @@ import {
 import { findComponent as findComponent2 } from '../../component-tree'
 import { createIconVisibilityVirtualEntity as createIconVisibilityVirtualEntity2 } from '../../../shared/virtual-entities'
 
+import { domElement } from '@app/shared/util/dom-factory'
 export interface EntityLabelsDeps {
   editorCtx: EditorContext
   ENTITY_DOMAIN_LABELS: any
@@ -383,8 +384,7 @@ export function renderLightStatisticsEntityList(deps: EntityLabelsDeps, componen
     const effectIconValueElement = document.createElement('small')
     ;(effectIconValueElement.textContent = mappedItemsName + ' · ' + xE2.label),
       effectIconPreviewElementPanel.append(effectIconPreviewElementSection, effectIconValueElement)
-    const effectIconPreviewElementCard = document.createElement('span')
-    effectIconPreviewElementCard.className = 'light-statistics-entity-actions'
+    const effectIconPreviewElementCard = domElement(document, 'span', 'light-statistics-entity-actions')
     const effectIconLabelElementElement = document.createElement('button')
     ;(effectIconLabelElementElement.type = 'button'),
       (effectIconLabelElementElement.dataset.lightStatisticsReplaceIndex = String(mappedItemsKey)),

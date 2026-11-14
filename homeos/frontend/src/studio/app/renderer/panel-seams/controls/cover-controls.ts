@@ -12,6 +12,7 @@ import {
 } from '../../controls/cover-runtime'
 import { applyRangeProgressCss as applyRangeProgressCss2 } from '../../../shared/util/range-progress'
 
+import { domElement } from '@app/shared/util/dom-factory'
 export function createCoverDetailsControls(
   this: PanelRenderer,
   coverDetailsEntityId: any,
@@ -34,10 +35,8 @@ export function createCoverDetailsControls(
 ): ComponentControllerElement {
   const coverControlsPanel: ComponentControllerElement = document.createElement('section')
   ;(coverControlsPanel.className = 'hb-cover-details-controls'), (coverControlsPanel.inert = !isCoverInteractive)
-  const coverPositionField = document.createElement('label')
-  coverPositionField.className = 'hb-cover-details-position'
-  const coverPositionHeading = document.createElement('span')
-  coverPositionHeading.className = 'hb-cover-details-position-heading'
+  const coverPositionField = domElement(document, 'label', 'hb-cover-details-position')
+  const coverPositionHeading = domElement(document, 'span', 'hb-cover-details-position-heading')
   const coverPositionLabel = document.createElement('strong')
   coverPositionLabel.textContent = isTilt ? '叶片角度' : isAirer ? '晾杆高度' : '开合位置'
   const coverPositionOutputElement = document.createElement('output')
@@ -80,8 +79,7 @@ export function createCoverDetailsControls(
             }),
           ),
     coverPositionField.append(coverPositionHeading, coverPositionSlider, coverPositionLegend)
-  const coverActionsRow = document.createElement('div')
-  coverActionsRow.className = 'hb-cover-details-actions'
+  const coverActionsRow = domElement(document, 'div', 'hb-cover-details-actions')
   const openCoverService = 'open_cover',
     stopCoverService = 'stop_cover',
     closeCoverService = 'close_cover',

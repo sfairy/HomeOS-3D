@@ -8,6 +8,7 @@ import { attributesOf } from '../device/entity-capabilities'
 import { formatEntityNumber } from '@app/shared/util/ha-number'
 import type { ExtraPanelViewModel } from './panel-utils'
 
+import { domElement } from '@app/shared/util/dom-factory'
 const ATTRIBUTE_LABELS: Record<string, string> = {
   air_quality_index: '空气质量指数',
   particulate_matter_2_5: 'PM2.5',
@@ -84,8 +85,7 @@ function displayExtraRows(entityId: string, state: any): [string, string][] {
 export function createDisplayExtraPanel({ element: hostElement }: { element: any }) {
   const ownerDocument = hostElement.ownerDocument || globalThis.document
   const statusElement = ownerDocument.createElement('p')
-  const rowsElement = ownerDocument.createElement('dl')
-  rowsElement.className = 'i3d-extra-display-rows'
+  const rowsElement = domElement(ownerDocument, 'dl', 'i3d-extra-display-rows')
   hostElement.replaceChildren(statusElement, rowsElement)
 
   return {
