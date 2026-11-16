@@ -182,6 +182,7 @@ const BREADCRUMB_CODE_MESSAGES = Object.freeze({
   'category-switch-applied': ['info', '3D 分类状态已应用'],
   'page-hide': ['info', '3D 所在页面离开'],
   'page-show': ['info', '3D 所在页面显示'],
+  'page-lifecycle': ['info', '3D 所在页面冻结状态变化'],
   'load-scene-change': ['info', '3D 户型切换，重新载入舞台'],
   'load-mode-change': ['info', '3D 灯光模式切换，重新载入舞台'],
   'load-bfcache': ['info', '3D 页面从返回缓存恢复，重新载入已释放的舞台'],
@@ -721,6 +722,20 @@ export function mountInteraction3d(
       lightStream?.suspend(),
       refreshActivityState()
   }
+  /**
+   * Page Lifecycle 的 `freeze` / `resume`：移动端切后台被冻结时，`pagehide` / `pageshow` /
+   * `visibilitychange` 都可能不来，只有这两个事件。不接管的话冻结期间心跳与重连定时器全部
+   * 停摆，回到前台只能等 65s 心跳超时，舞台一直停在旧值。
+   */
+  function handlePageLifecycle(isFrozen: boolean) {
+    if (isDisposed) return
+    reportRuntimeLifecycle('page-lifecycle', { persisted: false, frozen: isFrozen }),
+      (isPageFrozen = isFrozen),
+      isFrozen ? lightStream?.suspend() : lightStream?.resume(),
+      refreshActivityState()
+  }
+  const handlePageFreeze = () => handlePageLifecycle(true),
+    handlePageResume = () => handlePageLifecycle(false)
   function handlePageShow(pageShowEvent: any) {
     reportRuntimeLifecycle('page-show', {
       persisted: pageShowEvent?.persisted === true,
@@ -2118,6 +2133,10 @@ export function mountInteraction3d(
     listenerTarget.addEventListener('animationend', handleVisibilityChange, true),
     window.addEventListener('pagehide', handlePageHide),
     window.addEventListener('pageshow', handlePageShow),
+    // Page Lifecycle：`freeze` / `resume` 不在 lib.dom 的 DocumentEventMap 里，
+    // 走 EventTarget 的字符串重载注册。
+    (listenerTarget as EventTarget).addEventListener('freeze', handlePageFreeze),
+    (listenerTarget as EventTarget).addEventListener('resume', handlePageResume),
     window.addEventListener('blur', releaseHeldInput)
   const intersectionObserver =
     typeof IntersectionObserver > 'u'
@@ -2257,6 +2276,8 @@ export function mountInteraction3d(
           listenerTarget.removeEventListener('animationend', handleVisibilityChange, true),
           window.removeEventListener('pagehide', handlePageHide),
           window.removeEventListener('pageshow', handlePageShow),
+          (listenerTarget as EventTarget).removeEventListener('freeze', handlePageFreeze),
+          (listenerTarget as EventTarget).removeEventListener('resume', handlePageResume),
           stageFrameMountGate?.dispose(),
           window.removeEventListener('blur', releaseHeldInput),
           activeRequestsSet.forEach((abortedRequest) => abortedRequest.abort('lifecycle')),

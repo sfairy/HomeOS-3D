@@ -31,7 +31,8 @@ interface StreamSlot {
   ready: boolean
   /** socket 已关闭 / 已被退役。 */
   closed: boolean
-  closeSocket: () => void
+  /** @param force 为 true 时连 CONNECTING 的 socket 也立刻关闭（bfcache 冻结前必须强制）。 */
+  closeSocket: (force?: boolean) => void
   /**
    * 本槽的分片连接（一槽可能有多条 socket，见 `MAX_SUBSCRIBE_ENTITIES`）。
    *
@@ -172,7 +173,8 @@ export function createLightStream({
   /** 只关 socket、保留状态：bfcache 冻结 / 交接期需要「旧值继续供数」。 */
   function parkSlot(parkedSlot: StreamSlot | null) {
     if (!parkedSlot) return
-    parkedSlot.closeSocket()
+    // 冻结前必须强制关闭：握手期的连接等 `open` 再关是等不到的（见 closeSocket 注释）。
+    parkedSlot.closeSocket(true)
     parkedSlot.closed = true
   }
 
@@ -267,14 +269,16 @@ export function createLightStream({
       slotHeartbeatTimerId !== null && clearTimer(slotHeartbeatTimerId), (slotHeartbeatTimerId = null)
     }
     const slotIsAlive = () => !isDisposed && isStreamActive && !slot.closed
-    slot.closeSocket = () => {
+    slot.closeSocket = (force = false) => {
       clearSlotTimers()
       for (const cleanupChunkListeners of chunkListenerCleanups) cleanupChunkListeners()
       for (const chunk of slot.chunks)
         try {
-          // 握手期（CONNECTING）直接 close() 会被浏览器报
-          // “WebSocket is closed before the connection is established”：等握手完成再关。
-          chunk.socket.readyState === 0
+          // 正常退役（订阅切换 / 重连交班）时，握手期（CONNECTING）直接 close() 会被浏览器
+          // 报「WebSocket is closed before the connection is established」：等握手完成再关。
+          // 但 bfcache 冻结前必须强制关：冻结期间 `open` 永远不会来，连接只会被浏览器掐断，
+          // 既留下一条 `Page entered Back-Forward Cache`，服务端也要等心跳才发现这条死连接。
+          chunk.socket.readyState === 0 && !force
             ? chunk.socket.addEventListener('open', () => chunk.socket.close(), { once: true })
             : chunk.socket.close()
         } catch {

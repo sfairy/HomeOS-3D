@@ -576,9 +576,30 @@ export function createEntityWsState(deps: EntityWsStateDeps) {
   function ensureWsConnected() {
     if (!deps.isAuthenticated()) return
     const sock = getSocket()
-    if (sock?.connected) return
-    if (sock?.active) return
+    if (sock) {
+      // 握手 / polling→websocket 升级在途：不要拆，交给 socket.io 自己推进。
+      if (!sock.connected && sock.active) return
+      if (socketTransportIsAlive(sock)) return
+      // `connected === true` 但底层 engine 已不在 open：这是 bfcache 冻结 / 长时间后台
+      // 被浏览器掐断后的陈旧对象。不重建的话事件永远不再来，而 UI 仍显示「已连接」。
+      disconnect()
+    }
     connect()
+  }
+
+  /**
+   * 以 engine 的真实状态判断连接是否还活着。
+   *
+   * socket.io 的 `connected` 只表示「曾经收到过 CONNECT ack」，不会因为浏览器在 bfcache /
+   * 冻结时直接掐断 WebSocket 而立刻翻假；恢复后若只信这个标记，`ensureWsConnected` 会直接
+   * 返回，实时通道就永久停在断线状态（只剩心跳超时可以兜底，最长要等几十秒）。
+   *
+   * 取不到 engine 时不判坏：保留原有语义，避免把老版本 / 握手边缘误判成断开。
+   */
+  function socketTransportIsAlive(sock: Socket): boolean {
+    if (!sock.connected) return false
+    const engineReadyState = (sock.io as { engine?: { readyState?: string } | null } | undefined)?.engine?.readyState
+    return !engineReadyState || engineReadyState === 'open' || engineReadyState === 'opened'
   }
   // 回填 WS 连接确保桥接
   wsConnectBridge.ensure = ensureWsConnected
