@@ -59,9 +59,16 @@ def base_image(key: str) -> str:
     刻意**不在本文件重写一遍** tag 与摘要：写第二遍就等于给了它第二个漂移点，而
     真源与 Dockerfile / compose 须人工对账，本函数只是
     复用同一份真源（该门禁会连同镜像站改写逻辑一起做行为测试）。
+
+    ``digest`` 为空字符串表示该镜像**刻意浮动**（目前只有 caddy）：此时只返回 tag，
+    不拼 ``@sha256:`` —— 否则「写了 latest 却按旧摘要钉死」才是真正的静默陷阱：
+    构建日志里看着是最新，实际拉的是半年前的清单。
     """
     pins = json.loads(PINS_FILE.read_text(encoding='utf-8'))['images']
-    return f"{pins[key]['upstream_tag']}@{pins[key]['digest']}"
+    pin = pins[key]
+    digest = str(pin.get('digest') or '').strip()
+    tag = pin['upstream_tag']
+    return f'{tag}@{digest}' if digest else tag
 
 
 def load_env_file(path: Path) -> None:
