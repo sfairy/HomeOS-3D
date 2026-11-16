@@ -12,6 +12,10 @@
 #   1. PATH 里有 caddy → 直接用（本机 `brew install caddy`）；
 #   2. 否则在 CI 上下文（HOMEOS_GATE_CONTEXT=ci）里按 Dockerfile 的版本下载；
 #   3. 否则退出 3（= SKIP），并打印安装提示 —— 不假装校验过。
+#
+# CADDY_IMAGE 允许**浮动 tag**（当前是 `caddy:latest`，见 Dockerfile 的说明）：tag 里没有
+# 版本号时，改问 GitHub 的 latest release 拿真实版本 —— release 资产地址是
+# `/download/v<x.y.z>/`，用 tag 拼只会得到 404 的 HTML，再被 tar 当成损坏的 gzip。
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."
@@ -31,13 +35,56 @@ if [ -z "$caddy_bin" ]; then
     echo "::error::Dockerfile 里读不到 CADDY_IMAGE —— 版本单一来源断了，请修复本脚本的取值方式" >&2
     exit 1
   fi
-  caddy_version="${caddy_image#caddy:}"
-  caddy_version="${caddy_version%%-*}"
-  echo "caddy 版本（取自 Dockerfile）：${caddy_version}"
+  # `caddy:2.11.9-alpine@sha256:…` → `2.11.9`；`caddy:latest` → `latest`（下面再解析）。
+  caddy_ref="${caddy_image#caddy:}"
+  caddy_ref="${caddy_ref%%@*}"
+  caddy_version="${caddy_ref%%-*}"
+  caddy_version_source="Dockerfile"
+  if [[ ! "$caddy_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    # 浮动 tag（latest / 2-alpine / 2.11-alpine …）里没有完整版本号，拼不出 release URL。
+    # 改问 GitHub 的 latest release：它与 `caddy:latest` 同源，校验的就是构建将拿到的那个版本。
+    caddy_version="$(curl -fsSL --max-time 30 \
+      https://api.github.com/repos/caddyserver/caddy/releases/latest \
+      | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"v\{0,1\}\([0-9][0-9.]*\)".*/\1/p' | head -n1)"
+    caddy_version_source="GitHub latest release（CADDY_IMAGE=${caddy_image} 无版本号）"
+  fi
+  if [[ ! "$caddy_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "::error::解析不出 caddy 版本号（CADDY_IMAGE=${caddy_image}，得到 '${caddy_version}'）—— 无法定位 release 资产" >&2
+    exit 1
+  fi
+  echo "caddy 版本（${caddy_version_source}）：${caddy_version}"
 
-  curl -sSL -o /tmp/caddy.tar.gz \
-    "https://github.com/caddyserver/caddy/releases/download/v${caddy_version}/caddy_${caddy_version}_linux_amd64.tar.gz"
-  tar -xzf /tmp/caddy.tar.gz -C /tmp caddy
+  caddy_tarball=/tmp/caddy.tar.gz
+  # 平台映射：原先硬编码 linux_amd64 —— CI runner（ubuntu/amd64）刚好成立，但本机用
+  # `HOMEOS_GATE_CONTEXT=ci` 跑时会下到一个 Linux ELF，紧接着 `cannot execute binary file`。
+  # 按 uname 映射后两边都成立；未知平台直接报错，不猜。
+  case "$(uname -s)" in
+    Linux) caddy_os=linux ;;
+    # caddy 的 release 资产对 macOS 用的是 `mac`（不是 uname 的 `Darwin`）：
+    # 拼成 caddy_<ver>_darwin_arm64.tar.gz 会 404。
+    Darwin) caddy_os=mac ;;
+    *)
+      echo "::error::不支持的平台 $(uname -s)：无法确定 caddy release 资产" >&2
+      exit 1
+      ;;
+  esac
+  case "$(uname -m)" in
+    x86_64 | amd64) caddy_arch=amd64 ;;
+    arm64 | aarch64) caddy_arch=arm64 ;;
+    *)
+      echo "::error::不支持的架构 $(uname -m)：无法确定 caddy release 资产" >&2
+      exit 1
+      ;;
+  esac
+  # -f：4xx/5xx 直接失败，不要把一个 404 页面存成 .tar.gz 再让 tar 去猜。
+  curl -fsSL --max-time 120 -o "$caddy_tarball" \
+    "https://github.com/caddyserver/caddy/releases/download/v${caddy_version}/caddy_${caddy_version}_${caddy_os}_${caddy_arch}.tar.gz"
+  # 中间层仍可能回 200 + 错误页；这里确认一次，失败信息指向「下载」而不是「压缩包坏了」。
+  if ! gzip -t "$caddy_tarball" 2>/dev/null; then
+    echo "::error::下载到的 caddy 发包不是 gzip（版本 ${caddy_version}）—— 检查 release 资产名或网络中间层" >&2
+    exit 1
+  fi
+  tar -xzf "$caddy_tarball" -C /tmp caddy
   caddy_bin=/tmp/caddy
 fi
 
