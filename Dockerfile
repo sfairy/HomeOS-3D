@@ -1,6 +1,6 @@
 # 刻意不写 `# syntax=docker/dockerfile:1`：会额外出网拉前端镜像，且本文件未用到超出内置的语法。
 
-# 基础镜像：**默认按 digest 钉死**（tag 后面跟 @sha256:<manifest-list 摘要>）。
+# 基础镜像：**按 digest 钉死**（tag 后面跟 @sha256:<manifest-list 摘要>）。
 #
 # 只写 tag（`python:3.15-slim-bookworm`）是**可变引用**：上游随时重推同一个 tag，同一份
 # 源码在不同时间构建出的镜像不同，且此前构建过的产物无法复现 —— 对「出货给客户的私有化
@@ -8,9 +8,8 @@
 # 不可取消的 concurrency group 里跑的原因：单架构镜像已推、manifest list 没合成，就会留下
 # 一个谁也说不清成分的镜像）。
 #
-# **例外：CADDY_IMAGE 刻意浮动**（`caddy:latest`，见该 ARG 处的说明）。它只提供内置反代的
-# 静态二进制，不影响 Python 运行时；但它是 TLS 与路由入口，跟随上游意味着接受行为静默变化，
-# 且构建必须 --pull。python 基础镜像仍然钉死 —— 那才是决定产物能否复现的那一层。
+# caddy 曾短暂试过 `latest`（跟随上游），已收回：它是 TLS 终止与全部路由入口，浮动会让
+# 上游改默认值时静默改变线上行为，且构建结果取决于本机上次 `--pull` 过什么。现在仍钉 2.11.9。
 #
 # 钉的是 **manifest list 的摘要**，不是某个架构的镜像摘要 —— 这样 amd64 / arm64 各自
 # 仍从同一个多架构清单里解析，构建矩阵照旧（钉单架构摘要会让另一个架构直接拉不到）。
@@ -28,13 +27,9 @@
 # 两个 ARG 整体指向镜像站/私有仓库（ops/build.py 的 --base-mirror）：镜像站是**另一个仓库**，
 # 摘要必然不同，所以走镜像站时会显式去掉 `@sha256:…` 并在构建期打印警告（见 ops/build.py）。
 ARG PYTHON_IMAGE=python:3.15-slim-bookworm@sha256:4e03260adeeebafccd084f3584e6b84823aba5651cfb53ef8a078ed441ddf9cd
-#: 唯一**刻意浮动**的基础镜像：业主决定跟随上游最新版，不再钉摘要。
-#: 代价：① 失去可复现性（同一份源码不同时间构建出不同镜像）；② caddy 是本项目的 TLS 终止与
-#: 全部路由入口（`COPY --from=caddy-bin /usr/bin/caddy` + `ops/caddy/app.Caddyfile`），
-#: 上游改跨 minor 的默认值时会静默改变线上行为 —— 这类变化往往不报错。
-#: 因此构建**必须**带 --pull（否则复用守护进程缓存的 latest，结果取决于本机上次拉过什么），
-#: 发布后请记录实际版本：`docker run --rm <image> caddy version`。
-ARG CADDY_IMAGE=caddy:latest
+#: 与 python 同样按 digest 钉死。曾试过跟随 `latest`，因它是 TLS 终止与全部路由入口、
+#: 浮动会让上游改默认值时静默改变线上行为而收回（见文件顶部说明）。
+ARG CADDY_IMAGE=caddy:2.11.9-alpine@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0
 
 #: 版本号来自仓库根 package.json，构建期写成 <包>/_version.py 随源码编译。
 ARG CYTHON_VERSION=3.3.1

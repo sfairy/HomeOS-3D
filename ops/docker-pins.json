@@ -9,9 +9,8 @@
     "而不是一整行长字符串里悄悄换掉半截。digest 是 manifest list（多架构清单）的摘要 ——",
     "钉单架构摘要会让构建矩阵的另一个架构直接拉不到。",
     "",
-    "digest 留空字符串 = 该镜像**刻意浮动**（目前只有 caddy，业主决定跟随上游 latest）。",
-    "浮动时 build_image() 只返回 tag，不加 @sha256；构建前务必 --pull，否则会复用守护进程里",
-    "缓存的那份 latest。Python 基础镜像仍按摘要钉死。",
+    "digest 必须非空 —— 所有基础镜像都按摘要钉死。caddy 曾短暂改成浮动 `latest`，因为它是",
+    "TLS 终止与全部路由入口、上游改默认值会静默改变线上行为而收回。",
     "",
     "升级步骤：改 upstream_tag → 查 registry digest（或 docker buildx imagetools inspect <ref>）",
     "→ 写回 digest → 同步 Dockerfile / compose。",
@@ -24,11 +23,9 @@
       "role": "后端编译与运行基础镜像（app / store 两个运行镜像都基于它）"
     },
     "caddy": {
-      "upstream_tag": "caddy:latest",
-      "digest": "",
-      "floating": true,
-      "role": "内置反代（镜像内取静态二进制）+ 「可选：内置 Caddy 入口」段的 caddy-public 容器",
-      "why_floating": "业主决定跟随上游最新版，不再按摘要钉死。代价是失去「同源码同镜像」的可复现性，且上游重推 / 发布新版会直接改变生产入口的 TLS 与路由行为。因此：构建前必须 docker buildx build --pull（否则守护进程里缓存的 latest 会被复用，构建结果取决于本机上次拉过什么）；发布镜像后请记录实际版本（docker run --rm <image> caddy version）。PYTHON_IMAGE 仍按摘要钉死。"
+      "upstream_tag": "caddy:2.11.9-alpine",
+      "digest": "sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0",
+      "role": "内置反代（镜像内取静态二进制）+ 「可选：内置 Caddy 入口」段的 caddy-public 容器"
     }
   }
 }

@@ -13,8 +13,8 @@
 #   2. 否则在 CI 上下文（HOMEOS_GATE_CONTEXT=ci）里按 Dockerfile 的版本下载；
 #   3. 否则退出 3（= SKIP），并打印安装提示 —— 不假装校验过。
 #
-# CADDY_IMAGE 允许**浮动 tag**（当前是 `caddy:latest`，见 Dockerfile 的说明）：tag 里没有
-# 版本号时，改问 GitHub 的 latest release 拿真实版本 —— release 资产地址是
+# CADDY_IMAGE 允许浮动 tag（曾短暂用过 `caddy:latest`，现已回到钉死的 `caddy:2.11.9-alpine`）：
+# tag 里没有完整版本号时，改问 GitHub 的 latest release 拿真实版本 —— release 资产地址是
 # `/download/v<x.y.z>/`，用 tag 拼只会得到 404 的 HTML，再被 tar 当成损坏的 gzip。
 set -euo pipefail
 
