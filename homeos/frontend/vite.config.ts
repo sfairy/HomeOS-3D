@@ -12,7 +12,7 @@ import devNoCachePlugin from './vite-plugin-dev-no-cache.ts'
 import embedProxyFallbackPlugin from './vite-plugin-embed-fallback.ts'
 import rootAssetsPlugin from './vite-plugin-root-assets.ts'
 import { ensureLockParent, pidAlive, withFileLock } from './vite-file-lock.ts'
-import { SPA_ENTRY, assertSpaShellPresent } from '../../ops/vite/build-helpers.js'
+import { SPA_ENTRY, assertSpaShellPresent, stripCssComments } from '../../ops/vite/build-helpers.js'
 import {
   THREE_VENDOR,
   isRuntimeExternal,
@@ -145,52 +145,9 @@ function mirrorPublicDirIntoStaging(): void {
 }
 
 /**
- * 剥掉 CSS 注释（保留字符串里的内容与 `/*!` 许可声明）。public/static 下的 .css 是
- * 手写文档，注释占首屏样式体积的 ~39%（gzip）：例如 fonts.css 的字体策略说明、
- * scene.css 的分区注释。这些注释只在源码里有用，构建产物不需要；但 `/*!` 是第三方
- * 资产常见的许可声明，必须原样保留，否则会把许可信息从产物里删掉。
+ * 剥掉 CSS 注释（保留字符串里的内容与 `/*!` 许可声明），实现见
+ * `ops/vite/build-helpers.ts`：纯文本变换、无配置耦合，而本文件已顶在 file-size 基线。
  */
-function stripCssComments(css: string): string {
-  let out = ''
-  let i = 0
-  while (i < css.length) {
-    const ch = css[i]
-    if (ch === '"' || ch === "'") {
-      const quote = ch
-      out += ch
-      i += 1
-      while (i < css.length) {
-        const current = css[i]
-        out += current
-        i += 1
-        if (current === '\\' && i < css.length) {
-          out += css[i]
-          i += 1
-          continue
-        }
-        if (current === quote) break
-      }
-      continue
-    }
-    if (ch === '/' && css[i + 1] === '*') {
-      const end = css.indexOf('*/', i + 2)
-      if (end < 0) {
-        // 未闭合的样式表按原样保留剩余内容，避免构建期吞掉文件尾部。
-        out += css.slice(i)
-        break
-      }
-      const comment = css.slice(i, end + 2)
-      // `/*!` 是压缩器保留许可声明的约定；替换掉会把第三方许可从产物里删除。
-      out += comment.startsWith('/*!') ? comment : ' '
-      i = end + 2
-      continue
-    }
-    out += ch
-    i += 1
-  }
-  return out
-}
-
 function stripStagingCssComments(): void {
   for (const file of walkFiles(resolve(outDir, 'static'))) {
     if (!file.endsWith('.css')) continue
@@ -1001,6 +958,30 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
                 test: /node_modules/,
                 minSize: 20_000,
                 priority: 5,
+              },
+              {
+                /**
+                 * RUM 采集入口必须自成**叶子** chunk。
+                 *
+                 * 三个模块（本文件 + `client-metrics.util` + `webgl-context-loss-guard.util`）
+                 * 都是**零 import 的叶子**，但 entriesAware 兜底组会把它们与「同样被多处引用」
+                 * 的 3D studio 模块并进同一个 `shared-*` chunk。`main.ts` 在 idle 时 `import()`
+                 * 本文件启动 RUM，于是每个页面（含墙屏仪表盘）都在首屏之后白下载那份
+                 * 1.39MB / gzip 434KB 的 studio 代码 —— 实测线上 `shared-BHn98bmm.js`
+                 * （1,391.39 kB）就是从这个 34KB 的 chunk 被静态 import 进去的。
+                 *
+                 * 独立成组后本 chunk 只剩 rolldown-runtime 一个依赖（3.93KB / gzip 1.66KB）；
+                 * studio 子图留在自己的懒 chunk 里，只在打开 `/3d-studio` 时才取。
+                 *
+                 * 改动本组后请核对两件事：`index.html` 的 modulepreload 不出现本 chunk，
+                 * 且 `__vite__mapDeps` 里这次 idle import 只剩本 chunk 一个依赖。
+                 */
+                name: 'perf-instrumentation',
+                test: /src[\\/]shared[\\/]utils[\\/]perf[\\/](?:perf-instrumentation\.ts|client-metrics\.util\.ts|webgl-context-loss-guard\.util\.ts)/,
+                // 三个模块合计不到 10KB：不显式置 0 会被 codeSplitting.minSize(20_000) 判成
+                // 「不值得单独成 chunk」并退回兜底组，本组等于静默失效。
+                minSize: 0,
+                priority: 32,
               },
               {
                 // 必须独立成组：registry 下的纯工具（典型：settings-route.util.ts 的

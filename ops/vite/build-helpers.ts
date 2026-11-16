@@ -99,6 +99,56 @@ export function assertSpaShellPresent(outDir: string, hint: string): void {
 }
 
 /**
+ * 剥掉 CSS 注释，保留字符串里的内容与 `/*!` 许可声明。
+ *
+ * 原先写在 `homeos/frontend/vite.config.ts` 里（那里己顶到 file-size 基线），但它是纯文本
+ * 变换、不依赖任何构建配置，所以下沉到这里。`public/static` 下的 .css 是手写文档，注释占
+ * 首屏样式体积的 ~39%（gzip）：例如 fonts.css 的字体策略说明、scene.css 的分区注释。这些
+ * 注释只在源码里有用；而 `/*!` 是第三方资产常见的许可声明，必须原样保留，否则会把许可
+ * 信息从产物里删掉。
+ */
+export function stripCssComments(css: string): string {
+  let out = ''
+  let i = 0
+  while (i < css.length) {
+    const ch = css[i]
+    if (ch === '"' || ch === "'") {
+      const quote = ch
+      out += ch
+      i += 1
+      while (i < css.length) {
+        const current = css[i]
+        out += current
+        i += 1
+        if (current === '\\' && i < css.length) {
+          out += css[i]
+          i += 1
+          continue
+        }
+        if (current === quote) break
+      }
+      continue
+    }
+    if (ch === '/' && css[i + 1] === '*') {
+      const end = css.indexOf('*/', i + 2)
+      if (end < 0) {
+        // 未闭合的样式表按原样保留剩余内容，避免构建期吞掉文件尾部。
+        out += css.slice(i)
+        break
+      }
+      const comment = css.slice(i, end + 2)
+      // `/*!` 是压缩器保留许可声明的约定；替换掉会把第三方许可从产物里删除。
+      out += comment.startsWith('/*!') ? comment : ' '
+      i = end + 2
+      continue
+    }
+    out += ch
+    i += 1
+  }
+  return out
+}
+
+/**
  * chunk 基名唯一化：同一轮构建内「同基名不同源」的 chunk 依次加 `-2`、`-3`…
  *
  * 只收口**唯一化**这一件事；基名怎么算（Rolldown `entriesAware` 合并名 vs 源文件相对
