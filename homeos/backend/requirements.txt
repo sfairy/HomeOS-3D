@@ -9,19 +9,19 @@
 # 无需额外驱动。本地开发 `pip install -r requirements.txt`。
 # 版本下限已于 2026-11 对齐 PyPI 最新稳定版（与 homeos-store 的区间取齐）。
 
-fastapi>=0.162.0
+fastapi>=0.163.1
 uvicorn[standard]>=0.54.0
 python-socketio>=5.18.1
 msgpack>=1.2.4
-pydantic>=2.14.2
-python-multipart>=0.0.33
+pydantic>=2.14.3
+python-multipart>=0.0.34
 sqlalchemy>=2.1.8
 httpx>=0.28.1
 # HA 实时订阅需要较新的 websockets API。
 websockets>=17.4
 PyJWT>=2.15.1
 argon2-cffi>=25.1.0
-pyotp>=2.10.0
+pyotp>=2.12.0
 cryptography>=50.0.2
 prometheus-client>=0.26.0
 APScheduler>=3.11.3
