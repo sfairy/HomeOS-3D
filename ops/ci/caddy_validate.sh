@@ -90,6 +90,18 @@ fi
 
 "$caddy_bin" version
 
+# 格式门禁：`caddy fmt --diff` 在「需要重排」时退出 1（实测 v2.11.9；已格式化时退出 0）。
+# 以前只靠 validate 在 stderr 里报一句 warn —— 谁也不会去看，于是格式一直漂着。
+# 只检查仓库内的两份交付配置，不做 --overwrite：格式属于人工可审的改动。
+for caddyfile in ops/caddy/app.Caddyfile ops/deploy/Caddyfile.public.example; do
+  if ! fmt_diff="$("$caddy_bin" fmt --diff "$caddyfile" 2>&1)"; then
+    echo "::error::${caddyfile} 不符合 caddy fmt —— 运行：caddy fmt --overwrite ${caddyfile}" >&2
+    echo "$fmt_diff" >&2
+    exit 1
+  fi
+done
+echo "Caddyfile 格式校验通过（两份）。"
+
 # 两份配置各自要求不同的插值：主应用按域名/端口自取；公网示例必须显式给邮箱与商店域名
 # （ACME_EMAIL 是 `${ACME_EMAIL:?…}` 必填占位符，不给会先于语法检查失败）。
 ACME_EMAIL=ops@example.com STORE_DOMAIN=store.example.com \

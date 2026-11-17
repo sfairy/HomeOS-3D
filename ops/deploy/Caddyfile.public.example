@@ -23,7 +23,6 @@
 # 换成 nginx / OpenResty 时记得设 client_max_body_size 16m（见 openresty.store.conf.example）。
 #
 # 域名与邮箱都走环境变量，本文件不用改。
-
 {
 	admin off
 	# ACME 账号邮箱（证书到期/吊销通知用）。**必填**：Caddy 的 email 不接受空值，
@@ -44,8 +43,11 @@
 		# 用 hostport：域名在 443 上两者等价，但一旦换成非默认端口（本地调试常这么干），
 		# {host} 会摘掉端口，商店的 same_origin_request 按 netloc 比对就会 403。
 		header_up Host {http.request.hostport}
+		# X-Real-IP 不在 Caddy 的默认集合里，必须显式给。
 		header_up X-Real-IP {remote_host}
-		header_up X-Forwarded-Proto {scheme}
+		# 别加 `header_up X-Forwarded-Proto {scheme}`：Caddy 对 X-Forwarded-For /
+		# X-Forwarded-Proto / X-Forwarded-Host 默认就会传（v2.11 起显式写会报
+		# 「Unnecessary header_up ...」告警）。写了不改变行为，只是噪音。
 	}
 }
 
