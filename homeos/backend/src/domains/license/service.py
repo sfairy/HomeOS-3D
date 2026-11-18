@@ -61,6 +61,23 @@ def min_heartbeat_seconds() -> int:
     return max(1, value)
 
 
+def _heartbeat_seconds(raw: Any, default: int = 300) -> int:
+    """商店返回的心跳间隔（秒）。
+
+    ``heartbeatIn`` 是远端 JSON 字段：``None`` / ``"5m"`` / 列表都会让裸 ``int()`` 抛
+    ``TypeError``/``ValueError``，而这条路径上调用方只捕获 ``LicenseClientError`` ——
+    一次畸形响应就会把「已写入的激活状态」留在库里、却给用户一个 500。
+    """
+    if isinstance(raw, bool) or not isinstance(raw, (int, float, str)):
+        return default
+    try:
+        value = int(float(raw))
+    except (TypeError, ValueError):
+        logger.warning("商店返回的 heartbeatIn 非法，按默认 %s 秒处理: %r", default, raw)
+        return default
+    return value if value > 0 else default
+
+
 TERMINAL_STATES = {
     'INVALID',
     'REVOKED',
@@ -732,7 +749,9 @@ class LicenseService:
                 self._record_status(state.status, state.last_error)
                 raise LicenseClientError(state.last_error or '')
             state.feature_set = json.dumps(features)
-            state.heartbeat_interval_seconds = max(min_heartbeat_seconds(), int(response.get('heartbeatIn', 300)))
+            state.heartbeat_interval_seconds = max(
+                min_heartbeat_seconds(), _heartbeat_seconds(response.get('heartbeatIn'))
+            )
             state.last_error = None
             state.deactivated_at = None
             if state.activated_at is None:

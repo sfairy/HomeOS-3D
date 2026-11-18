@@ -62,8 +62,6 @@ def _cooldown_minutes(raw_value: Any) -> float:
     return max(0.0, parsed) if parsed is not None else float(DEFAULT_COOLDOWN_MINUTES)
 
 
-
-
 def _monotonic() -> float:
     """单调时钟（秒）。单测替换这一个函数即可推进时间，不影响 asyncio 的事件循环时钟。"""
     return time.monotonic()
@@ -219,10 +217,14 @@ class NotificationRulesHelper:
         self._watch_index.update_from_rules(self.rules_cache)
         self.rules_cache_stale = False
         # 已消失的规则留下的边沿锁存必须一并清掉，否则同一个 rule id 被重建后会因为
-        # 「上次已经是 True」而静默不触发。
+        # 「上次已经是 True」而静默不触发。``forSeconds`` / ``clearDelaySeconds`` 的
+        # 起始时刻同理：留着旧时间戳会让新配置的确认窗口被直接跳过（setdefault 命中旧值）。
         alive = {str(rule.get("id") or rule.get("name")) for rule in self.rules_cache}
         for edge_key in [key for key in self._match_state if key.split(":", 1)[0] not in alive]:
             del self._match_state[edge_key]
+        for timers in (self._pending_since, self._clear_since):
+            for edge_key in [key for key in timers if key.split(":", 1)[0] not in alive]:
+                del timers[edge_key]
 
     def _fetch_rules_from_db(self) -> list[dict[str, Any]]:
         with self._session_factory() as session:
@@ -410,6 +412,7 @@ class NotificationRulesHelper:
                     title=str(rule.get("title") or "").strip() or None,
                     for_seconds=int(non_negative_seconds(rule.get("forSeconds"))),
                     clear_delay_seconds=int(non_negative_seconds(rule.get("clearDelaySeconds"))),
+                    escalation_minutes=_escalation_minutes(rule.get("escalationMinutes")),
                 )
                 session.add(record)
                 session.commit()
@@ -463,6 +466,11 @@ class NotificationRulesHelper:
         prefix = f"{rule_id}:"
         for key in [key for key in self._match_state if key.startswith(prefix)]:
             del self._match_state[key]
+        # ``forSeconds`` / ``clearDelaySeconds`` 的起始时刻也要清：条件被编辑后旧的
+        # 计时起点经 ``setdefault`` 复用，会让「持续 10 分钟」直接成立，配置形同虚设。
+        for timers in (self._pending_since, self._clear_since):
+            for key in [key for key in timers if key.startswith(prefix)]:
+                del timers[key]
 
     def prime_latches(self, states: dict[str, tuple[str, dict[str, Any] | None]]) -> None:
         """启动时静默锁存：只记录当前匹配态，**不发通知**。
@@ -535,7 +543,7 @@ class NotificationRulesHelper:
         返回本轮升级条数。升级只发生一次：``AlertLifecycle`` 打标后不再重复。
         """
         minutes_of = {
-            str(rule.get("id") or rule.get("name")): non_negative_seconds(rule.get("escalationMinutes")) / 60
+            str(rule.get("id") or rule.get("name")): non_negative_seconds(rule.get("escalationMinutes"))
             for rule in self.rules_cache
         }
         due = self.lifecycle.due_escalations(minutes_of)
@@ -578,8 +586,18 @@ _RULE_FIELD_APPLIERS: dict[str, Any] = {
     "title": lambda row, value: setattr(row, "title", str(value).strip() or None),
     "forSeconds": lambda row, value: setattr(row, "for_seconds", int(non_negative_seconds(value))),
     "clearDelaySeconds": lambda row, value: setattr(row, "clear_delay_seconds", int(non_negative_seconds(value))),
-    "escalationMinutes": lambda row, value: setattr(row, "escalation_minutes", int(non_negative_seconds(value) / 60)),
+    "escalationMinutes": lambda row, value: setattr(row, "escalation_minutes", _escalation_minutes(value)),
 }
+
+
+def _escalation_minutes(value: Any) -> int:
+    """把「多少分钟后升级」归一成非负整数**分钟**。
+
+    入参本身就是分钟（DTO 与前端控件都是分钟）。历史实现按「秒」解析后除以 60，
+    运行侧又除了一次 60：填 60 会被存成 1，再被当成 1/60 分钟（约 1 秒）立即升级；
+    填 30 会被存成 0（等于不升级）。这里不做任何换算。
+    """
+    return int(non_negative_seconds(value))
 
 
 def _apply_rule_fields(existing: AlertRule, partial: dict[str, Any], old_condition: str) -> None:

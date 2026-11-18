@@ -433,6 +433,27 @@ def _ensure_alert_rule_escalation_column(
     )
 
 
+def _fix_alert_rule_escalation_units(
+    connection: sqlite3.Connection, _context: MigrationContext
+) -> None:
+    """修正 ``alert_rules.escalationMinutes`` 的历史单位错误。
+
+    旧实现把「分钟」当「秒」除以 60 后落库，运行侧又除了一次 60。这段代码是
+    ``escalationMinutes`` 的**唯一**写入方，所以库里任何非零值 v 都来自「原始分钟数
+    ÷ 60 取整」，即原始值落在 ``[60v, 60v+59]``。乘回 60 取该区间下界
+    （60 分钟 → 存成 1 → 还原 60）。0 无法区分「没填」与「填了不足 60」，
+    保持 0（= 不升级），不臆造数值。
+    """
+    if not _table_exists(connection, 'alert_rules'):
+        return
+    if 'escalationMinutes' not in _columns(connection, 'alert_rules'):
+        return
+    connection.execute(
+        'UPDATE alert_rules SET "escalationMinutes" = "escalationMinutes" * 60 '
+        'WHERE "escalationMinutes" > 0'
+    )
+
+
 def _add_home_mode_conditions_and_execution(
     connection: sqlite3.Connection, _context: MigrationContext
 ) -> None:
@@ -472,4 +493,5 @@ MIGRATIONS = (
     # 17 是开发期已写入数据库的历史版本（三列当时拆成两条迁移）。保留为幂等空操作，
     # 删掉会让已有该记录的库拒绝启动。校验和必须与数据库记录逐字一致。
     Migration(17, "alert-rule-escalation-column", "h0017-v1", _ensure_alert_rule_escalation_column),
+    Migration(18, "alert-rule-escalation-units", "h0018-v1", _fix_alert_rule_escalation_units),
 )

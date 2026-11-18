@@ -41,7 +41,10 @@ _NON_SERVICE_KINDS = frozenset({"notify", "security"})
 #: 但 ``script.*`` / ``scene.*`` / ``automation.*`` 仍在白名单里（它们有合法用途）。
 #: 家庭模式是**无人值守**执行的，所以这里再挡一层：脚本与自动化只能由人显式触发，
 #: 不能被一个定时模式带起来。
-_FORBIDDEN_ACTION_DOMAINS = frozenset({"shell_command", "python_script", "automation", "command_line"})
+#:
+#: ``script`` 必须一起挡：``script.turn_on`` 是白名单内的合法服务，漏掉它等于
+#: 允许「定时模式无人值守跑任意脚本」（开门、关摄像头这类动作都能写进脚本）。
+_FORBIDDEN_ACTION_DOMAINS = frozenset({"shell_command", "python_script", "automation", "command_line", "script"})
 
 
 class ModeActionRejected(ValueError):

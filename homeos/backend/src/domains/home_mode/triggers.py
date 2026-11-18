@@ -193,7 +193,11 @@ async def _fire_triggered_home_mode(
     if active is not None:
         incoming_priority = incoming.get("priority")
         active_priority = active.get("priority")
-        if (50 if incoming_priority is None else incoming_priority) <= (
+        # 严格小于才让位：同优先级视为「后触发的意图更新」，必须能切过去。
+        # 用 ``<=`` 会让两个预置模式（回家 / 离家，都没配 priority，默认都是 50）
+        # 同组互斥时永远卡在离家：回家开锁的触发器被判定为「让位」，家里保持关灯 +
+        # 布防，下一次移动就触发入侵告警。
+        if (50 if incoming_priority is None else incoming_priority) < (
             50 if active_priority is None else active_priority
         ):
             # 已评估但按优先级让位，同样消费冷却，避免每个状态变更都重复查库。
@@ -243,7 +247,7 @@ def _time_binding_due(
     binding: HomeModeTriggerBinding,
     now: datetime,
     parts: dict[str, Any],
-    weekday: str,
+    weekday: int,
     timezone_name: str | None,
 ) -> tuple[str, str] | None:
     """该时间绑定本次是否到期；到期返回 ``(at, occurrence)``，否则 ``None``。
@@ -255,6 +259,7 @@ def _time_binding_due(
     if trigger.get("type") != "time" or not isinstance(trigger.get("at"), str) or not trigger.get("at"):
         return None
     days = trigger.get("days")
+    # ``days`` 是 JS ``getDay()`` 口径的整数（0=周日 … 6=周六），与 zoned_date_parts 一致。
     if isinstance(days, list) and days and weekday not in days:
         return None
     at = normalize_home_mode_time_at(trigger["at"].strip())
@@ -274,7 +279,7 @@ async def _handle_time_binding(
     binding: HomeModeTriggerBinding,
     now: datetime,
     parts: dict[str, Any],
-    weekday: str,
+    weekday: int,
     day_key: str,
 ) -> None:
     """单个时间绑定的求值与执行（异常只影响自身）。"""

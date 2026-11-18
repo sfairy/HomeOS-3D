@@ -100,7 +100,12 @@ def _missing_secrets_response(
     job: dict[str, Any], payload: RestoreRequest
 ) -> JSONResponse | None:
     """备份包缺 secrets/ 且未勾选风险确认时，返回 400；通过则返回 None。"""
-    preview = job.get("preview") if isinstance(job.get("preview"), dict) else {}
+    # 先落到具名变量再判类型：直接写
+    # ``job.get("preview") if isinstance(job.get("preview"), dict) else {}``
+    # 时 pyright 对同一个 Call 表达式重复求值只做「收窄到 dict」，
+    # 返回类型仍是 ``dict | None``，下一行的 ``preview.get`` 就会报 Optional 成员访问。
+    raw_preview = job.get("preview")
+    preview: dict[str, Any] = raw_preview if isinstance(raw_preview, dict) else {}
     try:
         require_secrets_acknowledgment(
             bool(preview.get("hasSecrets")),
@@ -214,6 +219,21 @@ async def export_backup(
         raise
 
 
+async def _inspect_failure(gate, directory, error: Exception) -> JSONResponse:
+    """检查失败的统一出口：清 workspace 并返回 400。
+
+    非 ``BackupError``（清单字段类型异常等）也要清：解密后的载荷 + 解包文件可达数百 MB，
+    留到下次启动才回收会撑爆磁盘；对外仍按「内容非法」返回 400，不泄露内部异常类型。
+    """
+    if isinstance(error, BackupError):
+        detail = str(error)
+    else:
+        logger.warning("备份检查失败（已清理 workspace）", exc_info=True)
+        detail = "备份内容无效或已损坏，无法检查。"
+    await gate.cleanup_job_async(directory)
+    return JSONResponse(status_code=400, content={"detail": detail})
+
+
 @router.post("/inspect", status_code=200)
 async def inspect_backup(
     request: Request,
@@ -269,9 +289,8 @@ async def inspect_backup(
         preview = await durable_work(
             inspect_archive, request.app.state.settings, directory, password
         )
-    except BackupError as error:
-        await gate.cleanup_job_async(directory)
-        return JSONResponse(status_code=400, content={"detail": str(error)})
+    except Exception as error:
+        return await _inspect_failure(gate, directory, error)
     ticket = uuid4().hex
     gate.jobs[ticket] = {
         "directory": directory,

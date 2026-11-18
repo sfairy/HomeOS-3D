@@ -525,10 +525,22 @@ def _verify_archive(archive: ZipFile, manifest: dict[str, Any]) -> None:
     database = manifest.get("database")
     if isinstance(database, dict) and database.get("name"):
         _check(str(database["name"]), database)
-    for relative, meta in (manifest.get("files") or {}).items():
+    _verify_manifest_files(manifest, _check)
+
+
+def _verify_manifest_files(manifest: dict[str, Any], check: Any) -> None:
+    """校验 ``manifest.files``（清单是外部输入，类型必须显式判）。"""
+    files = manifest.get("files") or {}
+    if not isinstance(files, dict):
+        # ``files`` 写成 list / str 时 ``.items()`` 会抛 AttributeError，
+        # 那不是 BackupError，API 层只会 500 且跳过临时目录清理。
+        raise BackupError("备份清单的文件表无效。")
+    for relative, meta in files.items():
         if _safe_relative(relative) is None:
             raise BackupError("备份清单含非法路径。")
-        _check(relative, meta)
+        if not isinstance(meta, dict):
+            raise BackupError(f"备份清单的文件条目无效：{relative}")
+        check(relative, meta)
 
 
 def read_manifest(payload: Path) -> dict[str, Any]:
@@ -605,7 +617,12 @@ def validate_full_backup(value: dict[str, Any]) -> None:
     kind = value.get("kind")
     if kind != KIND:
         raise BackupError("不是 HomeOS 全量备份包。")
-    format_version = int(value.get("formatVersion") or 0)
+    try:
+        format_version = int(value.get("formatVersion") or 0)
+    except (TypeError, ValueError) as error:
+        # 外部清单的字段类型不能假定：``"abc"`` / ``[]`` 会让 int() 抛 ValueError，
+        # 而不是 BackupError，调用方的 400 分支与临时目录清理都会被跳过。
+        raise BackupError("备份格式版本无效。") from error
     if format_version > FORMAT_VERSION:
         raise BackupError(
             f"备份格式版本 {format_version} 高于当前程序支持的 {FORMAT_VERSION}，请先升级程序。"

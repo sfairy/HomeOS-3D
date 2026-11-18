@@ -178,10 +178,12 @@ async def reorder_modes(
 async def deactivate(
     request: Request,
     modeId: str | None = Query(default=None),
+    force: bool = Query(default=False),
     user: dict[str, Any] = Depends(require_user),
 ):
     # 多互斥组可同时激活：不带 modeId 时停用「当前主模式」，带则只停用该组的那一个。
-    return await _service(request).deactivate(modeId or None)
+    # force=true 仅在 HA 离线/设备恢复失败时使用：退出模式但保留快照，供手动恢复。
+    return await _service(request).deactivate(modeId or None, force=force)
 
 
 @router.post("/seed")

@@ -18,7 +18,7 @@ import json
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Any, TypedDict
+from typing import Any, NotRequired, TypedDict, cast
 
 from .execution_record import (
     build_action_trace,
@@ -293,6 +293,9 @@ async def _restore_mode_snapshot(deps: Any, mode: dict[str, Any]) -> HomeModeSna
         status = await deps.get_ha_status()
         if not status.get("connected"):
             outcome["incomplete"] = True
+            # 标记成「HA 离线」：此时 attempted=0，直接报「0/0 个设备恢复失败」既没线索
+            # 又让人以为设备真的失败了。停用流程据此给「可强制退出」的提示。
+            outcome["haOffline"] = True
             return outcome
         entries = list(snapshot.items())
         if not entries:
@@ -432,6 +435,9 @@ class HomeModeActivateResult(TypedDict, total=False):
     failedRestoreEntities: list[str]
     message: str
     error: str
+    skipped: bool
+    reason: str
+    unmetConditions: list[int]
 
 
 class HomeModeDeactivateResult(TypedDict, total=False):
@@ -446,6 +452,7 @@ class HomeModeDeactivateResult(TypedDict, total=False):
     failed: int
     incomplete: bool
     restoreIncomplete: bool
+    haOffline: bool
     skippedDomains: list[str]
     failedEntities: list[str]
     missingEntities: list[str]
@@ -464,6 +471,8 @@ class HomeModeSnapshotOutcome(TypedDict):
       它们不会进入 ``restored``，避免「已恢复 N 个设备」虚高。
     - ``failedEntities``：恢复失败的实体 id（用于前端点名提示）。
     - ``missingEntities``：激活时就没采集到快照的实体 id —— 它们无法恢复。
+    - ``haOffline``：HA 未连接导致根本没开始恢复（``attempted`` 为 0）。可选：
+      只有离线分支才写，其他分支不出现该键。
     """
 
     restored: int
@@ -474,6 +483,7 @@ class HomeModeSnapshotOutcome(TypedDict):
     skippedDomains: list[str]
     failedEntities: list[str]
     missingEntities: list[str]
+    haOffline: NotRequired[bool]
 
 
 def _already_active_home_mode_result(mode: dict[str, Any], mode_id: str) -> HomeModeActivateResult:
@@ -584,7 +594,13 @@ async def _abort_failed_activation(
     rollback_incomplete = bool(rollback.get("incomplete"))
     # 新模式还没提交 is_active（见 activate_home_mode 的两阶段顺序），这里只清掉
     # 上一次激活可能残留的快照列，避免下次激活拿旧快照回滚。
-    await deps.deactivate_in_db(trigger.mode_id, keep_snapshot=rollback_incomplete)
+    # 回滚不完整时把**本次**快照写进去：通知里承诺「已保留设备快照」，库里就必须真的
+    # 有可恢复内容 —— 只 keep 不清会留下 NULL 或上一次的旧快照。
+    await deps.deactivate_in_db(
+        trigger.mode_id,
+        keep_snapshot=rollback_incomplete,
+        snapshot=snapshot if rollback_incomplete and snapshot else None,
+    )
     if rollback_incomplete:
         await deps.notify(
             "warning",
@@ -793,7 +809,7 @@ async def activate_home_mode(
     # ①b 条件闸门：触发成立 ≠ 应该执行；不满足记为「跳过」（正常结果，不是失败）。
     conditions_ok, unmet = await check_mode_conditions(deps, mode)
     if not conditions_ok:
-        return skipped_result(deps, mode, mode_id, meta, unmet)
+        return cast(HomeModeActivateResult, skipped_result(deps, mode, mode_id, meta, unmet))
     entity_configs = _read_actions(mode.get("config"))
 
     assert_entity_targets_execute_authorized(
@@ -993,8 +1009,95 @@ async def _rollback_interrupted_activation(
         deps.warn(f"模式 {activation.mode['name']} 激活异常后回滚失败: {exc}")
 
 
+def _should_clear_group(group_ids: list[str], restore_incomplete: bool, force: bool) -> bool:
+    """是否清除同组激活标记：恢复成功，或用户显式强制退出。"""
+    if not group_ids:
+        return False
+    return not restore_incomplete or force
+
+
+def _should_report_incomplete(restore_incomplete: bool, force: bool) -> bool:
+    """是否需要以「停用未完成」返回（未强制退出时）。"""
+    return restore_incomplete and not force
+
+
+async def _forced_incomplete_note(
+    deps: Any,
+    mode: dict[str, Any],
+    restore_outcome: HomeModeSnapshotOutcome,
+    restore_incomplete: bool,
+    force: bool,
+    failed: int,
+    attempted: int,
+) -> tuple[str, bool]:
+    """强制退出时追加文案并发 warning 通知；返回 ``(结果后缀, 是否强制退出)``。"""
+    if not (restore_incomplete and force):
+        return "", False
+    ha_offline = bool(restore_outcome.get("haOffline"))
+    await deps.notify(
+        "warning",
+        f"模式 {mode['name']} 已退出，但设备状态未完全恢复"
+        + ("（HA 未连接）" if ha_offline else f"（{failed}/{attempted} 失败）")
+        + "，快照已保留",
+        "home-mode",
+    )
+    if ha_offline:
+        return "；HA 未连接，设备未恢复（已强制退出，快照保留供手动恢复）", True
+    return f"；{failed} 个设备恢复失败（已强制退出，快照保留供手动恢复）", True
+
+
+async def _report_incomplete_deactivate(
+    deps: Any,
+    mode: dict[str, Any],
+    restore_outcome: HomeModeSnapshotOutcome,
+    prev_mode_id: str,
+    group: str,
+) -> HomeModeDeactivateResult:
+    """恢复不完整且未强制退出：保持激活态、保留快照，并返回可重试的失败结果。
+
+    ``attempted`` 为 0 且 ``haOffline`` 时不能说「0/0 个设备恢复失败」—— 那不是设备
+    失败，而是根本没开始恢复（HA 未连接）。
+    """
+    ha_offline = bool(restore_outcome.get("haOffline"))
+    message = (
+        "HA 未连接，无法恢复设备状态（快照已保留，可稍后重试恢复或强制退出）"
+        if ha_offline
+        else (
+            f"模式 {mode['name']} 停用未完成："
+            f"{restore_outcome['failed']}/{restore_outcome['attempted']} 个设备恢复失败，已保留快照"
+        )
+    )
+    await deps.notify("warning", message, "home-mode")
+    deps.push_trigger_log(
+        {
+            "modeId": prev_mode_id,
+            "modeName": mode["name"],
+            "source": "deactivate",
+            "reason": f"恢复不完整：成功 {restore_outcome['restored']}、失败 {restore_outcome['failed']}",
+            "success": False,
+        }
+    )
+    return {
+        "success": False,
+        "modeId": prev_mode_id,
+        "modeName": mode["name"],
+        "active": True,
+        "restored": restore_outcome["restored"],
+        "unchanged": restore_outcome["unchanged"],
+        "failed": restore_outcome["failed"],
+        "incomplete": True,
+        "restoreIncomplete": True,
+        "haOffline": ha_offline,
+        "skippedDomains": restore_outcome["skippedDomains"],
+        "failedEntities": restore_outcome["failedEntities"],
+        "missingEntities": restore_outcome["missingEntities"],
+        "exclusiveGroup": group,
+        "message": message,
+    }
+
+
 async def deactivate_home_mode(
-    state: HomeModeActivateState, deps: Any, mode_id: str | None = None
+    state: HomeModeActivateState, deps: Any, mode_id: str | None = None, *, force: bool = False
 ) -> HomeModeDeactivateResult:
     """停用家庭模式（或指定的某一个互斥组）。
 
@@ -1009,6 +1112,8 @@ async def deactivate_home_mode(
         state: 进程内「当前激活模式 id」指针。
         deps: 领域依赖注入对象。
         mode_id: 目标模式 id；`None` 表示停用当前指针指向的模式。
+        force: HA 离线/部分恢复失败时仍允许退出模式（保留快照供手动恢复）。
+            默认 ``False``：保持「未完全恢复就不算退出」的严格语义。
     """
     target_id = mode_id or state.get_active_mode_id()
     if not target_id:
@@ -1039,8 +1144,10 @@ async def deactivate_home_mode(
 
     active_modes = await deps.list_active_modes()
     group_ids = [m["id"] for m in active_modes if (m.get("exclusiveGroup") or "default") == group]
-    if group_ids and not restore_incomplete:
-        await deps.clear_group_active(group_ids, restore_outcome["incomplete"])
+    # force=true 时即使恢复不完整也清激活标记；``incomplete=True`` 让
+    # ``clear_group_active`` **保留** device_snapshot，用户仍可手动恢复。
+    if _should_clear_group(group_ids, restore_incomplete, force):
+        await deps.clear_group_active(group_ids, restore_incomplete)
 
     still_active = await deps.find_first_active()
     state.set_active_mode_id(still_active["id"] if still_active else None)
@@ -1051,37 +1158,10 @@ async def deactivate_home_mode(
     remaining_active_ids = [m["id"] for m in await deps.list_active_modes() if m["id"] != prev_mode_id]
 
     # 恢复不完整时「已停用」是假象：模式仍是激活态、快照仍保留，用户可重试恢复。
-    if restore_incomplete:
-        await deps.notify(
-            "warning",
-            f"模式 {mode['name']} 停用未完成：{failed}/{attempted} 个设备恢复失败，已保留快照",
-            "home-mode",
-        )
-        deps.push_trigger_log(
-            {
-                "modeId": prev_mode_id,
-                "modeName": mode["name"],
-                "source": "deactivate",
-                "reason": f"恢复不完整：成功 {restored}、失败 {failed}",
-                "success": False,
-            }
-        )
-        return {
-            "success": False,
-            "modeId": prev_mode_id,
-            "modeName": mode["name"],
-            "active": True,
-            "restored": restored,
-            "unchanged": restore_outcome["unchanged"],
-            "failed": failed,
-            "incomplete": True,
-            "restoreIncomplete": True,
-            "skippedDomains": skipped_domains,
-            "failedEntities": failed_entities,
-            "missingEntities": missing_entities,
-            "exclusiveGroup": group,
-            "message": f"已恢复 {restored} 个设备，{failed} 个失败（快照已保留，可重试恢复）",
-        }
+    # ``force=true`` 是离线场景的逃生口：退出模式，但设备仍停在半执行状态，
+    # 必须明确告警并保留快照。
+    if _should_report_incomplete(restore_incomplete, force):
+        return await _report_incomplete_deactivate(deps, mode, restore_outcome, prev_mode_id, group)
 
     await deps.emit_home_mode_event(
         "homeMode.deactivated",
@@ -1102,6 +1182,10 @@ async def deactivate_home_mode(
             },
         )
     restored_message = f"已恢复 {restored} 个设备"
+    forced_note, forced_incomplete = await _forced_incomplete_note(
+        deps, mode, restore_outcome, restore_incomplete, force, failed, attempted
+    )
+    restored_message += forced_note
     if skipped_domains:
         restored_message += f"，{len(skipped_domains)} 类域不支持恢复（{'/'.join(skipped_domains)}）"
     if missing_entities:
@@ -1133,7 +1217,8 @@ async def deactivate_home_mode(
         "unchanged": restore_outcome["unchanged"],
         "failed": failed,
         "incomplete": False,
-        "restoreIncomplete": False,
+        "restoreIncomplete": forced_incomplete,
+        "haOffline": bool(restore_outcome.get("haOffline")),
         "skippedDomains": skipped_domains,
         "failedEntities": failed_entities,
         "missingEntities": missing_entities,

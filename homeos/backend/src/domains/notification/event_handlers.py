@@ -16,6 +16,26 @@ from ..earthquake.types import eew_catalog_cooldown_key
 from ..ha.config.ha_filters import HaStateChangeRouter
 from ...platform.core.runtime.background import spawn_background
 
+
+def _numeric_attribute(raw: Any) -> float | None:
+    """把实体属性里的数值归一成 ``float``；非数值返回 ``None``。
+
+    部分集成（模板传感器、第三方设备）把 ``battery_level`` 报成字符串 ``"15"``。
+    直接在字符串上比 ``< 20`` 会抛 ``TypeError``，整条通知处理链被跳过 ——
+    低电量告警永远不触发，而且每次状态变化都要再抛一次。
+    """
+    if isinstance(raw, bool) or raw is None:
+        return None
+    if isinstance(raw, (int, float)):
+        return float(raw)
+    if isinstance(raw, str):
+        try:
+            return float(raw.strip())
+        except ValueError:
+            logger.debug("属性值不是数值，按非数值处理: %r", raw)
+            return None
+    return None
+
 logger = logging.getLogger("homeos.notification.events")
 
 #: ``unknown`` 是这些域的正常态（没有动作可执行 / 尚未触发过），
@@ -408,7 +428,7 @@ class NotificationEventHandlersHelper:
         attributes = new_state.get("attributes") or {}
         name = attributes.get("friendly_name") or entity_id
         state = new_state.get("state")
-        battery_level = attributes.get("battery_level")
+        battery_level = _numeric_attribute(attributes.get("battery_level"))
         if state == "unavailable":
             _fire_and_forget(self._check_device_offline(entity_id, name))
         elif state == "unknown" and _unknown_reports_offline(entity_id):

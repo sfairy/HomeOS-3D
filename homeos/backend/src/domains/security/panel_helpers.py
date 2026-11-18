@@ -48,6 +48,48 @@ _APPLIANCE_RE = re.compile(
 )
 _DETECTOR_INTENT_RE = re.compile(r"detector|detect|alarm|sensor|leak|泄漏|报警|探测|检测|感应|感测")
 
+#: 「设备自身运行状态」而不是安防探测的实体特征。
+#:
+#: 与 ``_APPLIANCE_RE`` 分开是因为语义不同：后者是「危险源的载体」（热水器烧燃气，
+#: 不等于探测燃气），这里是「设备在做事情」（水流、冰箱门开合）。两者都会以危险源
+#: 或门窗关键词命名，但都不该进安防区域 —— 实测一次开热水就会在 ``armed_home`` 下
+#: 触发入侵告警，冰箱门开合同理。
+_NON_SECURITY_ENTITY_RE = re.compile(
+    r"水流|水压|水温|flowstatus|flow_status|water_flow|water_temp|water_pressure|"
+    r"冰箱|冷柜|冰柜|refrigerator|refrigerator2|freezer|fridge|"
+    r"洗衣机|washing_machine|washer|洗碗机|dishwasher|烤箱|oven|微波炉|microwave|"
+    r"热水器|water_heater|壁挂炉|boiler"
+)
+
+#: 明确**不是**入侵/危险源探测的 ``binary_sensor.device_class``。
+#: 其余未知值一律放行（老集成常见缺 device_class，用白名单会静默废掉正常门磁）。
+_NON_SECURITY_DEVICE_CLASSES = frozenset(
+    {
+        "battery",
+        "battery_charging",
+        "plug",
+        "power",
+        "running",
+        "connectivity",
+        "update",
+    }
+)
+
+
+def is_security_trigger_candidate(entity_id: str, attributes: dict[str, Any] | None = None) -> bool:
+    """该实体的状态变化是否值得作为安防触发边沿。
+
+    区域里的 ``sensors`` 是用户（或房间自动归组）勾选的列表，历史版本会把
+    「燃气热水器 水流状态」「冰箱门」这类实体收进来；光靠前端过滤不够 ——
+    已保存的配置仍会告警，所以运行时必须再挡一层。
+    """
+    attrs = attributes if isinstance(attributes, dict) else {}
+    device_class = str(attrs.get("device_class") or "").strip().lower()
+    if device_class in _NON_SECURITY_DEVICE_CLASSES:
+        return False
+    name = str(attrs.get("friendly_name") or "").lower()
+    return not _NON_SECURITY_ENTITY_RE.search(f"{entity_id.lower()} {name}")
+
 
 def classify_hazard_sensor(entity_id: str, attributes: dict[str, Any] | None, state: str) -> str | None:
     """识别危险探测器类型：smoke / gas / leak / None。"""
@@ -632,6 +674,50 @@ class SecurityAlarmHelper:
             return False
         return self._is_in_arm_exit_grace()
 
+    def _is_trigger_candidate(self, entity_id: str, new_state_obj: dict[str, Any]) -> bool:
+        """区域命中的实体是否真的值得告警（挡掉家电运行状态）。"""
+        if is_security_trigger_candidate(entity_id, new_state_obj.get("attributes")):
+            return True
+        logger.debug(
+            "安防触发候选过滤：%s 是设备运行状态（非入侵/危险源探测），已忽略",
+            entity_id,
+        )
+        return False
+
+    def _is_real_alarm_edge(
+        self,
+        entity_id: str,
+        new_state_obj: dict[str, Any],
+        old_state: Any,
+        new_state: Any,
+    ) -> bool:
+        """这一条状态变化是否算「真实告警边沿」。
+
+        三件事按顺序判，任一不成立就丢弃：
+
+        1. **候选过滤**：家电运行状态（水流、冰箱门…）不是入侵/危险源探测；
+        2. **出口宽限**：布防后 ``armExitGraceSeconds`` 内，开门离开不算入侵
+           （必须覆盖门磁/人体，只对 ``lock.unlocked`` 生效会让真实离开立刻告警）；
+        3. **边沿与基线**：重连/重启后补发的状态没有真实边沿。
+        """
+        if not self._is_trigger_candidate(entity_id, new_state_obj):
+            return False
+        if self._is_in_arm_exit_grace():
+            logger.debug(
+                "安防出口宽限：%s → %s 在布防后 %.0f 秒内，不视为入侵",
+                entity_id,
+                new_state,
+                float(self._config_reader().get("armExitGraceSeconds") or 0),
+            )
+            return False
+        if not is_security_alarm_trigger(
+            entity_id,
+            new_state,
+            self._is_lock_unlock_in_arm_exit_grace(entity_id, new_state),
+        ):
+            return False
+        return not self._is_baseline_event(entity_id, old_state, new_state)
+
     async def handle_sensor_trigger(self, event: dict[str, Any]) -> None:
         if self._get_current_mode() == "disarmed":
             return
@@ -652,25 +738,10 @@ class SecurityAlarmHelper:
         ]
         if not triggered:
             return
-        if self._is_in_arm_exit_grace():
-            # 出口宽限（armExitGraceSeconds）必须覆盖门磁/人体等所有传感器：
-            # 只对 lock.unlocked 生效会让「布防后开门离开」立刻变成真实告警。
-            logger.debug(
-                "安防出口宽限：%s → %s 在布防后 %.0f 秒内，不视为入侵",
-                entity_id,
-                new_state,
-                float(self._config_reader().get("armExitGraceSeconds") or 0),
-            )
-            return
-        if not is_security_alarm_trigger(
-            entity_id,
-            new_state,
-            self._is_lock_unlock_in_arm_exit_grace(entity_id, new_state),
-        ):
-            return
-        # 重连/重启后补发的状态没有真实的触发边沿：判完「像不像触发」再判基线，
-        # 这样只有候选告警才会留下 DEBUG 记录。
-        if self._is_baseline_event(entity_id, old_state, new_state):
+        # 已保存的区域配置可能含「家电运行状态」实体（水流、冰箱门…）。它们以危险源/
+        # 门窗关键词命名，但触发的是设备自身状态，不能算入侵。前端已不再收这类实体，
+        # 这里再挡一层，保证历史配置也不会误报。
+        if not self._is_real_alarm_edge(entity_id, new_state_obj, old_state, new_state):
             return
 
         cooldown_sec = int(self._config_reader().get("sensorAlertCooldownSec") or 0)

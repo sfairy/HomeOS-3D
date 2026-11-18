@@ -224,16 +224,25 @@ async def execute_service_call(
             details=traceback.format_exc(),
         )
         raise ServiceCallRejected(_BAD_GATEWAY, str(error)) from error
+    # verified 三态：True=确认已到达目标态；False=确认**没有**到达；None=未能确认。
+    # 旧实现把 False 当成「未确认」并记成 warning + 文案「状态未确认」，等于把
+    # 「设备确实没锁上」写成「已下发」，审计追溯时结论恰好相反。
+    verified = verification_fields.get("verified")
+    if verified is False:
+        level, prefix, suffix = "warning", "操作未生效", "（已确认设备未达到目标状态）"
+    elif verified is None:
+        level, prefix, suffix = "success", "操作成功", "（已下发，状态未确认）"
+    else:
+        level, prefix, suffix = "success", "操作成功", ""
     request.app.state.global_log.append(
-        "success" if verification_fields.get("verified") is not False else "warning",
+        level,
         "仪表盘编辑器",
         "设备操作",
-        f"操作成功：{payload.entity_id} · {payload.domain}.{payload.service}"
-        + ("（已下发，状态未确认）" if verification_fields.get("verified") is False else ""),
+        f"{prefix}：{payload.entity_id} · {payload.domain}.{payload.service}{suffix}",
         context={
             "entityId": payload.entity_id,
             "service": f"{payload.domain}.{payload.service}",
-            **({"verified": False} if verification_fields.get("verified") is False else {}),
+            **({"verified": False} if verified is False else {}),
         },
     )
     # 响应形状与 ``/services/call`` 保持一致：``ok`` 由统一判据算出（不是恒 True），

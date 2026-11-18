@@ -50,7 +50,6 @@ from .triggers import (
     parse_home_mode_trigger_bindings,
     prune_home_mode_trigger_cooldown,
 )
-from .validation import ModeActionRejected, validate_mode_actions  # noqa: F401  (re-export)
 from ...platform.core.db.db_exec import run_db
 from ...platform.core.db.models import HomeMode
 from ...platform.core.http.errors import api_error, bad_request, not_found
@@ -494,9 +493,9 @@ class HomeModeService:
         """异步取单个模式（把同步 DB 读放进线程池）。"""
         return await run_db(self.find_one, mode_id)
 
-    async def deactivate(self, mode_id: str | None = None) -> HomeModeDeactivateResult:
+    async def deactivate(self, mode_id: str | None = None, *, force: bool = False) -> HomeModeDeactivateResult:
         async with self._transition_lock:
-            return await deactivate_home_mode(self._activate_state, self._deps, mode_id)
+            return await deactivate_home_mode(self._activate_state, self._deps, mode_id, force=force)
 
     def get_active_mode_id(self) -> str | None:
         return self._active_mode_id
@@ -619,12 +618,23 @@ class HomeModeService:
             )
             session.commit()
 
-    def _deactivate_in_db(self, mode_id: str, *, keep_snapshot: bool = False) -> None:
+    def _deactivate_in_db(
+        self,
+        mode_id: str,
+        *,
+        keep_snapshot: bool = False,
+        snapshot: dict[str, Any] | None = None,
+    ) -> None:
         with self._session_factory() as session:
             mode = session.get(HomeMode, mode_id)
             if mode is not None:
                 mode.is_active = False
-                if not keep_snapshot:
+                if snapshot is not None:
+                    # 激活失败且回滚不完整：把**这一次**的快照写进去。只 keep 不清
+                    # 会让用户拿到上一次激活残留的快照（或 NULL），提示说「已保留」
+                    # 但库里根本没有可恢复的内容。
+                    mode.device_snapshot = json.dumps(snapshot, ensure_ascii=False)
+                elif not keep_snapshot:
                     mode.device_snapshot = None
                 session.commit()
 
@@ -736,8 +746,19 @@ class _HomeModeDeps:
             snapshot,
         )
 
-    async def deactivate_in_db(self, mode_id: str, *, keep_snapshot: bool = False) -> None:
-        await run_db(self._service._deactivate_in_db, mode_id, keep_snapshot=keep_snapshot)
+    async def deactivate_in_db(
+        self,
+        mode_id: str,
+        *,
+        keep_snapshot: bool = False,
+        snapshot: dict[str, Any] | None = None,
+    ) -> None:
+        await run_db(
+            self._service._deactivate_in_db,
+            mode_id,
+            keep_snapshot=keep_snapshot,
+            snapshot=snapshot,
+        )
 
     async def clear_group_active(self, group_ids: list[str], incomplete: bool) -> None:
         await run_db(self._service._clear_group_active, group_ids, incomplete)
