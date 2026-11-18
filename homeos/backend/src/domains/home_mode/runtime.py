@@ -201,6 +201,10 @@ class HomeModeRuntimeLogStore:
         limits = self._get_limits()
         return self._execution_history[: clamp_int(limit, 1, limits["maxExecHistory"])]
 
+    def find_execution_by_run_id(self, run_id: str) -> dict[str, Any] | None:
+        """按 ``runId`` 取单次激活记录（含逐动作 trace）；找不到返回 ``None``。"""
+        return next((e for e in self._execution_history if e.get("runId") == run_id), None)
+
     def find_execution_by_mode_id(self, mode_id: str) -> dict[str, Any] | None:
         return next((e for e in self._execution_history if e.get("modeId") == mode_id), None)
 
