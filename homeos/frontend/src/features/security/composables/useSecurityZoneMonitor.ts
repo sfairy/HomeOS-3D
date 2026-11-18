@@ -141,8 +141,8 @@ export function useSecurityZoneMonitor(
       .map((entityId) => {
         const ent = entitiesStore.entities[entityId]
         const name = getEntityDisplayName(entityId, ent)
-        // 分类传感器，获取类型标签
-        const cls = classifySecurityBinarySensor(entityId, name)
+        // 分类传感器，获取类型标签（device_class 优先，名字兜底）
+        const cls = classifySecurityBinarySensor(entityId, name, String(ent?.attributes?.device_class || ''))
         const state = ent?.state
         // 离线判定：实体不存在或状态为 unavailable
         const offline = !ent || state === 'unavailable'

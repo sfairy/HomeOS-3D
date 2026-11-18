@@ -276,17 +276,49 @@ async function refund(order: AdminOrder) {
   });
 }
 
+async function postOrderAction(
+  order: AdminOrder,
+  action: string,
+  extra: Record<string, unknown>,
+  overrideRevenue = false,
+) {
+  const suffix = overrideRevenue ? "?overrideRevenue=true" : "";
+  await adminApi(`/orders/${order.orderNo}/${action}${suffix}`, {
+    method: "POST",
+    body: JSON.stringify({ note: "后台操作", ...extra }),
+  });
+}
+
 async function runAction(order: AdminOrder, action: string, label: string, extra: Record<string, unknown> = {}) {
   try {
-    await adminApi(`/orders/${order.orderNo}/${action}`, {
-      method: "POST",
-      body: JSON.stringify({ note: "后台操作", ...extra }),
-    });
+    await postOrderAction(order, action, extra);
     toast.push(`订单已${label}`);
     refresh.bump("overview");
     await reload();
   } catch (error) {
-    toast.push(errorMessage(error, "操作失败"), "danger");
+    const message = errorMessage(error, "操作失败");
+    // 后端对「已入账订单的口径翻转」要求显式确认：再问一次，避免误点把
+    // 一笔真实收款从营收里抹掉（或凭空加上）。
+    if (message.includes("overrideRevenue")) {
+      const ok = await confirm.confirm({
+        title: "改写营收口径？",
+        message: `订单 ${order.orderNo} 已入账，此操作会改写财务报表口径。`,
+        detail: "仅在确认此前的人工入账记错时才继续；本次改写会写进审计日志。",
+        tone: "warning",
+        confirmLabel: "仍然改写",
+      });
+      if (!ok) return;
+      try {
+        await postOrderAction(order, action, extra, true);
+        toast.push(`订单已${label}`);
+        refresh.bump("overview");
+        await reload();
+      } catch (retryError) {
+        toast.push(errorMessage(retryError, "操作失败"), "danger");
+      }
+      return;
+    }
+    toast.push(message, "danger");
   }
 }
 

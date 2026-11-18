@@ -71,7 +71,7 @@ export function useSecurityZoneRooms() {
       // 未知传感器：从实体仓库推断名称与类型
       const ent = entitiesStore.entities[id]
       const name = getEntityDisplayName(id, ent)
-      const cls = classifySecurityBinarySensor(id, name)
+      const cls = classifySecurityBinarySensor(id, name, String(ent?.attributes?.device_class || ''))
       return {
         entity_id: id,
         name,

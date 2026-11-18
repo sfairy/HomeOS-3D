@@ -44,6 +44,67 @@ const LEAK_KEYS = ['leak', 'moisture', '漏水', '水浸']
 /** 一氧化碳类传感器关键词 */
 const CO_KEYS = ['co', 'carbon_monoxide', '一氧化碳']
 
+/**
+ * 载体/家电运行状态词：命中说明这条名字描述的是「某台设备的运行读数」，
+ * 而不是危险源或入侵探测本身。
+ *
+ * 两类真实误判（都出自本机数据）：
+ * - `binary_sensor.xxx_flowstatus`（「燃气热水器 水流状态」）因名字含「燃气」被判成
+ *   燃气泄漏探测 —— 每次开热水都会在 `armed_home` 下触发一次入侵告警；
+ * - `binary_sensor.xxx_refrigeratordoorstatus`（冰箱门）因含 `door` 被判成门窗磁 ——
+ *   开冰箱门同样会告警。
+ *
+ * 危险源/门窗类关键词只应在「探测器」语境下生效，不能因为设备烧燃气、或者设备
+ * 本身有门，就当成安防传感器。
+ */
+const NON_SECURITY_CARRIER_KEYS = [
+  // 水系统读数
+  '水流',
+  '水压',
+  '水温',
+  'flowstatus',
+  'flow_status',
+  'water_flow',
+  'water_temp',
+  'water_pressure',
+  // 热源设备
+  '热水器',
+  '壁挂炉',
+  '锅炉',
+  'water_heater',
+  'boiler',
+  // 家电门体（冰箱/冷柜/洗衣机/洗碗机/烤箱/微波炉）
+  '冰箱',
+  '冷柜',
+  '洗衣机',
+  '洗碗机',
+  '烤箱',
+  '微波炉',
+  'refrigerator',
+  'freezer',
+  'fridge',
+  'washing_machine',
+  'washer',
+  'dishwasher',
+  'oven',
+  'microwave',
+]
+
+/** HA `binary_sensor` 的 `device_class` → 安防分类（存在时的权威口径）。 */
+const DEVICE_CLASS_TYPES: Record<string, { type: string; label: string }> = {
+  gas: { type: 'gas', label: '燃气' },
+  smoke: { type: 'smoke', label: '烟感' },
+  carbon_monoxide: { type: 'co', label: 'CO' },
+  moisture: { type: 'leak', label: '水浸' },
+  door: { type: 'door', label: '门窗' },
+  window: { type: 'door', label: '门窗' },
+  garage_door: { type: 'door', label: '门窗' },
+  opening: { type: 'door', label: '门窗' },
+  motion: { type: 'motion', label: '移动' },
+  occupancy: { type: 'motion', label: '移动' },
+  presence: { type: 'motion', label: '移动' },
+}
+
 /** 传感器类型 → 中文标签映射 */
 const SENSOR_TYPE_LABELS: Record<string, string> = {
   smoke: '烟感',
@@ -68,27 +129,62 @@ function matchAny(id: string, name: string, keys: string[]) {
   return keys.some((k) => l.includes(k) || n.includes(k))
 }
 
+/** 名字兜底的关键词表，按优先级排列（烟感 > 燃气 > CO > 水浸 > 门窗 > 移动）。 */
+const KEYWORD_CLASSIFIERS: Array<{ keys: string[]; type: string }> = [
+  { keys: SMOKE_KEYS, type: 'smoke' },
+  { keys: GAS_KEYS, type: 'gas' },
+  { keys: CO_KEYS, type: 'co' },
+  { keys: LEAK_KEYS, type: 'leak' },
+  { keys: DOOR_KEYS, type: 'door' },
+  { keys: MOTION_KEYS, type: 'motion' },
+]
+
+/**
+ * 名字兜底分类（仅在实体没有 `device_class` 时使用）。
+ *
+ * @param id 小写化的 entity_id
+ * @param name 友好名称
+ * @returns 分类结果；没有命中返回 null
+ */
+function classifyByKeywords(id: string, name: string) {
+  for (const entry of KEYWORD_CLASSIFIERS) {
+    if (matchAny(id, name, entry.keys)) {
+      return { type: entry.type, label: SENSOR_TYPE_LABELS[entry.type] }
+    }
+  }
+  return null
+}
+
 /**
  * 对 binary_sensor 实体进行安防分类。
  *
- * 分类优先级：烟感 > 燃气 > CO > 水浸 > 门窗 > 移动。
+ * 两种口径，按可信度排序：
+ * 1. **家电/载体状态优先排除**：冰箱门、水流状态这类实体的名字里虽然带 `door`、
+ *    「燃气」，但它们描述的是设备自身运行，进安防区域只会制造误报。
+ * 2. **`device_class` 权威**：存在时直接映射，映射不到就判定「不是安防传感器」。
+ *    `device_class=running` 的水流状态、`battery`、`plug` 等都不会被误收。
+ * 3. **名字兜底**（老实体没有 `device_class`）：关键词匹配（见
+ *    `NON_SECURITY_CARRIER_KEYS` 已先排除载体）。
+ *
  * 公用事业类噪音实体（抄表/计价）直接返回 null 排除。
  *
  * @param entityId 实体 ID
- * @param friendlyName 友好名称
+ * @param friendlyName 实体友好名称
+ * @param deviceClass 实体的 `attributes.device_class`（有则优先，缺省走名字兜底）
  * @returns 分类结果（type + label）；无法分类返回 null
  */
-export function classifySecurityBinarySensor(entityId: string, friendlyName = '') {
+export function classifySecurityBinarySensor(entityId: string, friendlyName = '', deviceClass = '') {
   const name = friendlyName || ''
   if (isSecurityUtilityNoise(entityId, name)) return null
   const id = entityId.toLowerCase()
-  if (matchAny(id, name, SMOKE_KEYS)) return { type: 'smoke', label: SENSOR_TYPE_LABELS.smoke }
-  if (matchAny(id, name, GAS_KEYS)) return { type: 'gas', label: SENSOR_TYPE_LABELS.gas }
-  if (matchAny(id, name, CO_KEYS)) return { type: 'co', label: SENSOR_TYPE_LABELS.co }
-  if (matchAny(id, name, LEAK_KEYS)) return { type: 'leak', label: SENSOR_TYPE_LABELS.leak }
-  if (matchAny(id, name, DOOR_KEYS)) return { type: 'door', label: SENSOR_TYPE_LABELS.door }
-  if (matchAny(id, name, MOTION_KEYS)) return { type: 'motion', label: SENSOR_TYPE_LABELS.motion }
-  return null
+  // 家电/载体状态优先排除：`refrigerator` 里也有 `door`，顺序不能反。
+  if (matchAny(id, name, NON_SECURITY_CARRIER_KEYS)) return null
+  const dc = String(deviceClass || '')
+    .trim()
+    .toLowerCase()
+  // `device_class` 存在时以它为准：名字里的「燃气」是设备载体，不是探测对象。
+  if (dc) return DEVICE_CLASS_TYPES[dc] ?? null
+  return classifyByKeywords(id, name)
 }
 /**
  * 根据传感器类型集合推断区域类型。
@@ -152,6 +248,14 @@ function resolveRoomIdForEntity(
  * @param rooms 房间列表
  * @returns roomId → RoomSensorGroup 的映射（含 __unassigned__ 兜底分组）
  */
+/**
+ * 从实体快照里取该用的安防分类（把 `device_class` 一并交给分类器）。
+ * 不是安防传感器时返回 null。
+ */
+function classifyEntity(entityId: string, name: string, ent: { attributes?: Record<string, unknown> } | undefined) {
+  return classifySecurityBinarySensor(entityId, name, String(ent?.attributes?.device_class || ''))
+}
+
 export function groupSecuritySensorsByRoom(
   entities: EntitiesMap | Record<string, { state?: string; attributes?: Record<string, unknown> }>,
   rooms: RoomListItem[],
@@ -170,7 +274,8 @@ export function groupSecuritySensorsByRoom(
     if (!ent || ent.state === 'unavailable' || ent.state === 'unknown') continue
 
     const name = getEntityDisplayName(entityId, ent)
-    const cls = classifySecurityBinarySensor(entityId, name)
+    // device_class 是权威口径：传进去才能真正区分「燃气探测器」与「燃气热水器的水流状态」。
+    const cls = classifyEntity(entityId, name, ent)
     if (!cls) continue
 
     const ref: SecuritySensorRef = {

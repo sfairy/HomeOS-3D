@@ -154,9 +154,41 @@ export function useHomeModeSwitcher() {
       { type: 'danger', confirmText: '退出模式' },
     )
     if (!ok) return
-    const result = await deactivate(targetId)
+    const result = await deactivateWithForcePrompt(targetId, modeName)
     if (result) hapticAlert()
     loadModeContext()
+  }
+
+  /**
+   * 停用失败（HA 离线 / 设备恢复失败）时给一次「强制退出」的机会。
+   *
+   * 没有这个入口，HA 断连期间模式会永久卡在激活态：设备恢复不了、组标记清不掉、
+   * 连模式本身都删不掉。强制退出保留快照，用户可以在 HA 恢复后手动还原。
+   */
+  async function deactivateWithForcePrompt(targetId: string, modeName: string) {
+    const result = (await deactivate(targetId)) as {
+      success?: boolean
+      restoreIncomplete?: boolean
+      haOffline?: boolean
+    } | null
+    if (!result) return null
+    const incomplete = result.restoreIncomplete || result.success === false
+    if (!incomplete) return result
+    const ok = await useChromeStore().confirm(
+      forceExitPromptText(Boolean(result.haOffline), modeName),
+      '强制退出模式',
+      { type: 'danger', confirmText: '强制退出', cancelText: '先不退出' },
+    )
+    if (!ok) return null
+    return await deactivate(targetId, { force: true })
+  }
+
+  /** 强制退出确认文案：HA 离线与「部分设备恢复失败」是两回事，不能共用一句话。 */
+  function forceExitPromptText(haOffline: boolean, modeName: string): string {
+    if (haOffline) {
+      return `HA 当前未连接，无法还原设备状态。仍要退出「${modeName}」吗？快照会保留，可稍后手动恢复。`
+    }
+    return `「${modeName}」仍有设备未恢复。仍要强制退出吗？快照会保留，可稍后手动恢复。`
   }
 
   /**
@@ -218,7 +250,7 @@ export function useHomeModeSwitcher() {
     })
     if (!ok) return
     // 只退出当前主模式（多互斥组时其余组继续保持激活）
-    const result = await deactivate(activeMode.value.id)
+    const result = await deactivateWithForcePrompt(String(activeMode.value.id), name)
     // 高危操作触感反馈：退出模式成功时触发
     if (result) hapticAlert()
     loadModeContext()

@@ -198,6 +198,7 @@ import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 import { primaryDoorbellCameraId } from '@/shared/utils/layout/doorbell.util'
 import { normalizeSecurityCameras } from '@/shared/utils/layout/security-cameras.util'
 import { schedulePoll } from '@/shared/utils/core/poll-scheduler'
+import { GRID_MAX_ACTIVE_STREAMS } from '../constants'
 
 defineProps({
   active: { type: Boolean, default: true },
@@ -247,6 +248,8 @@ const activeCameraId = ref('')
 const streamErrors = reactive({})
 // 网格模式下按可见顺序排列的摄像头 key，用于限制同时拉流的槽位
 const gridVisibleOrder = ref([])
+// 用户主动提升进槽位的摄像头（点击占位卡片加载时写入），优先于可见顺序
+const promotedKeys = ref([])
 
 // 摄像头 key → 绑定项索引，渲染与轮巡统一按 key 取源
 const cameraByKey = computed(() => new Map(cameraItems.value.map((item) => [item.key, item])))
@@ -300,10 +303,13 @@ const monitorGridCols = computed(() => {
   return 'grid-cols-4'
 })
 
-// 取前 4 个可见摄像头分配拉流槽位，超出部分仅展示快照以保护性能
+// 槽位分配与卡片侧的挂流预算必须用同一个常量（见 ../constants）。
+// 只有前 GRID_MAX_ACTIVE_STREAMS 个可见摄像头拿到实时流，其余展示快照；
+// 用户点击占位卡片时把该路「提升」进槽位（见 promoteStream）。
 const gridActiveSlots = computed(() => {
   const slots = {}
-  gridVisibleOrder.value.slice(0, 4).forEach((camKey, slotIndex) => {
+  const ordered = [...promotedKeys.value, ...gridVisibleOrder.value.filter((key) => !promotedKeys.value.includes(key))]
+  ordered.slice(0, GRID_MAX_ACTIVE_STREAMS).forEach((camKey, slotIndex) => {
     slots[camKey] = slotIndex
   })
   return slots
@@ -399,6 +405,10 @@ function onGridTileVisibility({ camId, visible }) {
   if (visible && cameraIndex < 0) list.push(camId)
   else if (!visible && cameraIndex >= 0) list.splice(cameraIndex, 1)
   gridVisibleOrder.value = list
+  // 已不可见的摄像头不该继续占着实时流槽位。
+  if (!visible && promotedKeys.value.includes(camId)) {
+    promotedKeys.value = promotedKeys.value.filter((key) => key !== camId)
+  }
 }
 
 // 网格中点击某格：切到单路模式并聚焦该摄像头
@@ -412,9 +422,18 @@ function onStreamError(cameraKey) {
   if (cameraKey) streamErrors[cameraKey] = true
 }
 
-// 用户点击重试：清除错误标记以重新挂载流
+// 用户点击重试：清除错误标记以重新挂载流；被挤到快照位的摄像头顺带提升到槽位
 function retryStream(cameraKey) {
-  if (cameraKey) delete streamErrors[cameraKey]
+  if (!cameraKey) return
+  delete streamErrors[cameraKey]
+  promoteStream(cameraKey)
+}
+
+/** 把某路摄像头提升进实时流槽位（挤出最后一个占用者；它退回快照占位）。 */
+function promoteStream(cameraKey) {
+  const current = promotedKeys.value.filter((key) => key !== cameraKey)
+  current.unshift(cameraKey)
+  promotedKeys.value = current.slice(0, GRID_MAX_ACTIVE_STREAMS)
 }
 </script>
 

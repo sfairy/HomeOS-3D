@@ -163,26 +163,55 @@ export function createEntityInitHelpers(deps: EntityInitDeps) {
 
   /**
    * 同步写入实体列表（小数据量路径，无分批）。
-   * 清空已有 entities / friendlyNamesMap 后一次性写入。
+   *
+   * **不能「先清空再写入」**：REST 全量快照是异步拉取的，期间 WS 可能已经推来更新的
+   * 状态；清空重写会让旧快照最后落地并覆盖它们。HA 不会重推未变化的实体，界面就会
+   * 一直停在错误状态（例如灯实际开着、显示关闭），直到用户再操作一次。
+   * 与分批路径同口径：内存里更新的版本保留（可合并属性），快照里没有的实体才删除。
    * @param entityList 实体列表
    * @returns 可见实体数
    */
   function applyEntityListSync(entityList: HaEntityState[]): number {
-    for (const key of Object.keys(deps.entities)) delete deps.entities[key]
-    for (const key of Object.keys(deps.friendlyNamesMap)) delete deps.friendlyNamesMap[key]
-
+    const next: Record<string, HaEntityState> = {}
     let visibleCount = 0
     const len = entityList.length
     for (let i = 0; i < len; i++) {
       const entity = entityList[i]
-      if (!deps.entityVisible(entity.entity_id!)) continue
-      deps.entities[entity.entity_id!] = entity
+      const entityId = entity.entity_id!
+      if (!deps.entityVisible(entityId)) continue
+      next[entityId] = mergeWithNewerInMemory(entity)
       visibleCount++
-      const name = getEntityDisplayName(entity.entity_id!, entity)
-      if (name) deps.friendlyNamesMap[entity.entity_id!] = name
     }
+    // 只写变化的键、只删快照外的键：整表 delete+insert 会让每个 widget 重渲染两次。
+    for (const entityId of Object.keys(next)) {
+      if (deps.entities[entityId] !== next[entityId]) {
+        deps.entities[entityId] = next[entityId]
+      }
+    }
+    for (const entityId of Object.keys(deps.entities)) {
+      if (!(entityId in next)) delete deps.entities[entityId]
+    }
+    refreshFriendlyNames(next)
     deps.totalCount.value = visibleCount
     return visibleCount
+  }
+
+  /** 快照实体与内存态合并：内存里更新就保留它（可合并属性），否则用快照。 */
+  function mergeWithNewerInMemory(entity: HaEntityState): HaEntityState {
+    const previous = deps.entities[entity.entity_id!]
+    if (previous && isStaleState(entity.last_updated ?? entity.last_changed, previous)) {
+      return mergeChunkIntoNewerEntity(previous, entity)
+    }
+    return entity
+  }
+
+  /** 按最新实体表重建友好名称索引（整体替换，避免残留已删除实体的名字）。 */
+  function refreshFriendlyNames(next: Record<string, HaEntityState>): void {
+    for (const entityId of Object.keys(deps.friendlyNamesMap)) delete deps.friendlyNamesMap[entityId]
+    for (const entityId of Object.keys(next)) {
+      const name = getEntityDisplayName(entityId, next[entityId])
+      if (name) deps.friendlyNamesMap[entityId] = name
+    }
   }
 
   /**

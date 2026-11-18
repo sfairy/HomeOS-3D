@@ -233,12 +233,14 @@ async function activate(modeId: string | number) {
   }
 }
 
-async function deactivate(modeId?: string | number) {
+async function deactivate(modeId?: string | number, options?: { force?: boolean }) {
   if (acting.value) return null
   acting.value = true
   try {
-    const { data } = await deactivateHomeMode(modeId ? String(modeId) : undefined)
-    if (data?.restoreIncomplete) {
+    const { data } = await deactivateHomeMode(modeId ? String(modeId) : undefined, {
+      force: options?.force,
+    })
+    if (data?.restoreIncomplete && !options?.force) {
       // 恢复不完整：服务端仍把模式标为激活并保留快照，界面上不能假装已经退出，
       // 否则用户既看不到「还有设备没恢复」，也失去了重试入口。
       await fetchActive()
@@ -252,7 +254,8 @@ async function deactivate(modeId?: string | number) {
       activeMode.value = activeModes.value[0] ?? null
     }
     await fetchActive()
-    useChromeStore().notify(data?.message || '已退出当前模式', 'info')
+    // 强制退出（force）也走这条路径：模式已退出，但设备未完全恢复，按 warning 提示。
+    useChromeStore().notify(data?.message || '已退出当前模式', data?.restoreIncomplete ? 'warning' : 'info')
     return data
   } catch (e) {
     useChromeStore().notify(getApiErrorMessage(e, '退出模式失败'), 'error')

@@ -251,6 +251,8 @@ export function createLayoutPersistence({
 }: LayoutPersistenceDeps) {
   // loadConfig 的防抖定时器（200ms）
   let loadConfigDebounceTimer: ReturnType<typeof setTimeout> | null = null
+  // 防抖窗口内的等待者：定时器重排时要一起带走，否则前一个调用者的 Promise 永远不 settle
+  let loadConfigWaiters: Array<{ resolve: () => void; reject: (reason?: unknown) => void }> = []
   // 当前在途的 loadConfig Promise（用于去重并发请求）
   let loadConfigInFlight: Promise<void> | null = null
   // 在途请求对应的方案 ID：仅当目标方案一致时才复用在途请求，避免方案快速切换时复用旧方案响应导致配置不更新
@@ -459,7 +461,7 @@ export function createLayoutPersistence({
   /**
    * 加载当前方案的布局配置。
    * 关键路径，包含多重保护：
-   * - 200ms 防抖：合并快速连续调用
+   * - 200ms 防抖：合并快速连续调用（**所有等待者**共享同一次结果）
    * - 在途请求去重：并发调用复用同一 Promise
    * - requestId 竞态保护：方案切换后丢弃过期响应
    * - layoutParseError 容错：JSON 损坏时提示并回退空布局
@@ -469,71 +471,86 @@ export function createLayoutPersistence({
     const authStore = useAuthStore()
     if (!authStore.isAuthenticated) return Promise.resolve()
 
-    return new Promise((resolve, reject) => {
-      if (loadConfigDebounceTimer) {
-        clearTimeout(loadConfigDebounceTimer)
+    const promise = new Promise<void>((resolve, reject) => {
+      loadConfigWaiters.push({ resolve, reject })
+    })
+    // 重排定时器时必须保留已排队的等待者：旧实现只 clearTimeout，前一个调用的
+    // resolve/reject 随被清掉的回调一起消失，await loadConfig() 永远不 settle
+    // （切换方案后 200ms 内退出编辑模式 → 转圈不消失）。
+    if (loadConfigDebounceTimer) clearTimeout(loadConfigDebounceTimer)
+    loadConfigDebounceTimer = setTimeout(() => {
+      loadConfigDebounceTimer = null
+      const waiters = loadConfigWaiters
+      loadConfigWaiters = []
+      void settleLoadConfig(waiters)
+    }, 200)
+    return promise
+  }
+
+  async function settleLoadConfig(
+    waiters: Array<{ resolve: () => void; reject: (reason?: unknown) => void }>,
+  ): Promise<void> {
+    const resolveAll = () => {
+      for (const waiter of waiters) waiter.resolve()
+    }
+    const rejectAll = (err: unknown) => {
+      for (const waiter of waiters) waiter.reject(err)
+    }
+    // 复用在途请求，避免重复拉取；仅当目标方案一致时才复用，
+    // 否则方案切换后会复用旧方案的在途请求，导致新方案配置永不加载。
+    if (loadConfigInFlight && loadConfigInFlightProfile === activeProfileId.value) {
+      try {
+        await loadConfigInFlight
+        resolveAll()
+      } catch (err) {
+        rejectAll(err)
       }
+      return
+    }
 
-      loadConfigDebounceTimer = setTimeout(async () => {
-        loadConfigDebounceTimer = null
+    const requestId = ++loadConfigRequestId
+    const profileAtStart = activeProfileId.value
+    loadConfigInFlightProfile = profileAtStart
 
-        // 复用在途请求，避免重复拉取；仅当目标方案一致时才复用，
-        // 否则方案切换后会复用旧方案的在途请求，导致新方案配置永不加载。
-        if (loadConfigInFlight && loadConfigInFlightProfile === activeProfileId.value) {
-          try {
-            await loadConfigInFlight
-            resolve()
-          } catch (err) {
-            reject(err)
-          }
+    const inFlight = (async () => {
+      isConfigLoading.value = true
+      setSuppressDirtyTracking(true)
+
+      try {
+        const res = await fetchProject(profileAtStart)
+
+        // 竞态保护：若期间方案已切换则丢弃本次响应
+        if (requestId !== loadConfigRequestId || activeProfileId.value !== profileAtStart) {
           return
         }
-
-        const requestId = ++loadConfigRequestId
-        const profileAtStart = activeProfileId.value
-        loadConfigInFlightProfile = profileAtStart
-
-        const inFlight = (async () => {
-          isConfigLoading.value = true
-          setSuppressDirtyTracking(true)
-
-          try {
-            const res = await fetchProject(profileAtStart)
-
-            // 竞态保护：若期间方案已切换则丢弃本次响应
-            if (requestId !== loadConfigRequestId || activeProfileId.value !== profileAtStart) {
-              return
-            }
-            applyLoadedProjectPayload(res.data?.data, profileAtStart)
-          } catch (err) {
-            handleLoadConfigError(err, requestId)
-          } finally {
-            // 仅当当前请求仍为最新时才重置加载状态
-            if (requestId === loadConfigRequestId) {
-              isConfigLoading.value = false
-              layoutDirty.value = false
-              nextTick(() => {
-                setSuppressDirtyTracking(false)
-              })
-            }
-          }
-        })()
-        loadConfigInFlight = inFlight
-
-        try {
-          await inFlight
-          resolve()
-        } catch (err) {
-          reject(err)
-        } finally {
-          // 仅当未被更新的在途请求替换时才清理，避免误清新请求的去重状态
-          if (loadConfigInFlight === inFlight) {
-            loadConfigInFlight = null
-            loadConfigInFlightProfile = null
-          }
+        applyLoadedProjectPayload(res.data?.data, profileAtStart)
+      } catch (err) {
+        handleLoadConfigError(err, requestId)
+      } finally {
+        // 仅当当前请求仍为最新时才重置加载状态
+        if (requestId === loadConfigRequestId) {
+          isConfigLoading.value = false
+          layoutDirty.value = false
+          nextTick(() => {
+            setSuppressDirtyTracking(false)
+          })
         }
-      }, 200)
-    })
+      }
+    })()
+    loadConfigInFlight = inFlight
+
+    try {
+      await inFlight
+      resolveAll()
+    } catch (err) {
+      rejectAll(err)
+    } finally {
+      // 仅当未被更新的在途请求替换时才清理，避免误清新请求的去重状态
+      if (loadConfigInFlight === inFlight) {
+        loadConfigInFlight = null
+        loadConfigInFlightProfile = null
+      }
+    }
   }
 
   /**

@@ -1,5 +1,5 @@
 /** 支持域过滤、关键字搜索（防抖）、状态过滤、房间过滤、排序； */
-import { ref, watch, type Ref } from 'vue'
+import { onScopeDispose, ref, watch, type Ref } from 'vue'
 import { fetchEntities } from '@/services/api/entities'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import type { DeviceFilterState } from '@/shared/types/device'
@@ -115,10 +115,23 @@ export function usePaginatedEntityList({
     { immediate: true },
   )
 
-  // 域或搜索变化时重置回第 1 页
-  watch([domain, debouncedSearch], () => {
-    page.value = 1
-  })
+  // 过滤条件变化时重置回第 1 页。
+  // 只监听 domain/search 会留下越界页码：第 6 页切到只有 12 个设备的房间时，
+  // 请求仍带 page=6，服务端返回空列表，界面显示「没有设备」。
+  watch(
+    [
+      domain,
+      debouncedSearch,
+      () => filter?.value.status,
+      () => filter?.value.room,
+      () => filter?.value.sort,
+      () => filter?.value.controllableOnly,
+      () => roomAreaId?.value,
+    ],
+    () => {
+      page.value = 1
+    },
+  )
   // 任意过滤条件变化触发拉取。
   // 逐字段订阅而不是 deep 监听 filter 对象：fetchPage 只读取下面四个字段，字段级 getter
   // 同时覆盖「整体替换 filter」和「原地改字段」两种写法，且无需在每次变化时深遍历对象。
@@ -136,6 +149,16 @@ export function usePaginatedEntityList({
     fetchPage,
     { immediate: true },
   )
+
+  // 卸载后清掉搜索防抖定时器：否则离页后定时器仍会触发一次 fetchPage，
+  // 留下一个 60s 超时的孤儿请求和闭包引用。
+  onScopeDispose(() => {
+    if (searchTimer) {
+      clearTimeout(searchTimer)
+      searchTimer = null
+    }
+    fetchSeq++
+  })
 
   return {
     items,

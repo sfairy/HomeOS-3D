@@ -76,9 +76,11 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import HaCameraStream from '@/components/HaCameraStream.vue'
 import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
+import { GRID_MAX_ACTIVE_STREAMS } from '../constants'
 
-// 多路网格默认最多 2 路实时流（WebRTC/HLS），超出部分仅快照占位，避免平板/HA 过载
-const GRID_MAX_ACTIVE = 2
+// 多路网格默认最多 GRID_MAX_ACTIVE_STREAMS 路实时流（WebRTC/HLS），超出部分仅快照占位，
+// 避免平板/HA 过载。槽位分配在父组件，用同一个常量，不能各写一份。
+const GRID_MAX_ACTIVE = GRID_MAX_ACTIVE_STREAMS
 
 const props = defineProps({
   camId: { type: String, required: true },

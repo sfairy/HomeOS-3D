@@ -199,6 +199,9 @@ const raf = typeof requestAnimationFrame === 'function' ? requestAnimationFrame 
 
 let flushDeps: EntityStateListenerFlushDeps | null = null
 
+/** 后台标签页期间最多积压多少条；超出按实体合并、只保留最后一帧。 */
+const MAX_PENDING_NOTIFICATIONS = 500
+
 const FALLBACK_FLUSH_DEPS: EntityStateListenerFlushDeps = { logger }
 
 // 模块顶层一次性注册：监听器集合是模块级单例，可见性钩子无归属对象可挂，不配对移除。
@@ -250,8 +253,31 @@ export function enqueueStateListenerNotifications(
   if (!notifications?.length) return
   rememberFlushDeps(deps)
   pendingNotifications.push(...notifications)
+  // 隐藏标签页时这里只入队不派发（entity socket 仍然连着）：电表/传感器一秒钟十几条，
+  // 挂后台一小时就是几万条完整 state（含属性包）。按实体合并只留最后一帧，
+  // 仍超限就截断到最新的 N 条 —— 回前台不会因为一次性同步派发而卡死。
+  if (pendingNotifications.length > MAX_PENDING_NOTIFICATIONS) {
+    pendingNotifications = compactPendingNotifications(pendingNotifications)
+  }
   if (listenersPaused) return
   scheduleListenerFlush(deps)
+}
+
+/** 按实体只保留最后一次出现，并保持相对顺序；无 entity_id 的条目原样保留。 */
+function compactPendingNotifications(list: EntityStateListenerPayload[]): EntityStateListenerPayload[] {
+  const seen = new Set<string>()
+  const kept: EntityStateListenerPayload[] = []
+  for (let i = list.length - 1; i >= 0; i--) {
+    const payload = list[i]
+    const entityId = payload?.entity_id
+    if (entityId) {
+      if (seen.has(entityId)) continue
+      seen.add(entityId)
+    }
+    kept.push(payload)
+  }
+  kept.reverse()
+  return kept.length > MAX_PENDING_NOTIFICATIONS ? kept.slice(kept.length - MAX_PENDING_NOTIFICATIONS) : kept
 }
 
 /**

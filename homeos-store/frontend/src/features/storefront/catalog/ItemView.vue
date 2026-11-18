@@ -272,58 +272,68 @@ async function ownedPermanentLicense(productIdValue: string) {
   });
 }
 
-async function submit() {
-  const item = product.value;
-  if (!item) return;
-  if (item.soldOut) {
-    toast.show("该商品已售罄。", "err");
-    return;
-  }
-  if (!session.account) {
-    await confirm
-      .confirm({
-        kicker: "Login Required",
-        title: "请先登录后购买",
-        message: "未登录可以浏览商品，但不能购买或创建订单。",
-        confirmLabel: "去登录",
-        cancelLabel: "继续浏览",
-      })
-      .then((ok) => {
-        if (ok) router.push("/user/authentication/login");
-      });
-    return;
-  }
-  const owned = await ownedPermanentLicense(item.id);
-  if (owned) {
-    const proceed = await confirm.confirm({
-      kicker: "Duplicate Purchase",
-      title: "你可能已经买过这个授权",
-      message: `账号下已有一张有效期内的「${item.name}」授权。再买一张会额外签发一个新的激活码，而不是延长原有授权。`,
-      detail: "如果你只是想续期或升级，请到账号中心使用「升级为永久授权」，或联系客服处理。",
-      confirmLabel: "仍然购买新授权",
-      cancelLabel: "先不买了",
-    });
-    if (!proceed) {
-      toast.show("已取消，未创建订单。");
-      return;
-    }
-  }
+/** 组装下单请求体；增量包未选主授权时返回 `null`（已 toast）。 */
+function buildOrderPayload(item: NonNullable<typeof product.value>): Record<string, unknown> | null {
   const payload: Record<string, unknown> = {};
   if (!isManual.value) payload.couponCode = coupon.value.trim() || null;
   if (isAddon.value) {
     if (!targetLicenseId.value) {
       toast.show("请选择增量包要附加到的主授权。", "err");
-      return;
+      return null;
     }
     payload.targetLicenseId = targetLicenseId.value;
-  } else {
+  }
+  if (!isAddon.value) {
     const upgrade = new URLSearchParams(location.search).get("upgrade");
     if (upgrade && !catalog.isTrialProduct(item)) payload.upgradeLicenseId = upgrade;
   }
   if (paymentChannel.value) payload.paymentChannel = paymentChannel.value;
+  return payload;
+}
 
+async function submit() {
+  // 防重复提交：表单是 @submit.prevent，在优惠码输入框里按回车不受按钮
+  // disabled 约束；连按两次会真的创建两笔订单（限量库存/优惠码时后果更明显）。
+  if (submitting.value) return;
   submitting.value = true;
   try {
+    const item = product.value;
+    if (!item) return;
+    if (item.soldOut) {
+      toast.show("该商品已售罄。", "err");
+      return;
+    }
+    if (!session.account) {
+      await confirm
+        .confirm({
+          kicker: "Login Required",
+          title: "请先登录后购买",
+          message: "未登录可以浏览商品，但不能购买或创建订单。",
+          confirmLabel: "去登录",
+          cancelLabel: "继续浏览",
+        })
+        .then((ok) => {
+          if (ok) router.push("/user/authentication/login");
+        });
+      return;
+    }
+    const owned = await ownedPermanentLicense(item.id);
+    if (owned) {
+      const proceed = await confirm.confirm({
+        kicker: "Duplicate Purchase",
+        title: "你可能已经买过这个授权",
+        message: `账号下已有一张有效期内的「${item.name}」授权。再买一张会额外签发一个新的激活码，而不是延长原有授权。`,
+        detail: "如果你只是想续期或升级，请到账号中心使用「升级为永久授权」，或联系客服处理。",
+        confirmLabel: "仍然购买新授权",
+        cancelLabel: "先不买了",
+      });
+      if (!proceed) {
+        toast.show("已取消，未创建订单。");
+        return;
+      }
+    }
+    const payload = buildOrderPayload(item);
+    if (!payload) return;
     await order.createOrder(item.id, payload);
   } catch (error) {
     // 下单失败**已经**由 `stores/order.ts` 的 `createOrder` 弹过提示（它 toast 之后才 rethrow），
