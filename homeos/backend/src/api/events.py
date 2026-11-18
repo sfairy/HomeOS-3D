@@ -16,27 +16,34 @@ from ..platform.security.entity_access import is_entity_allowed, resolve_entity_
 
 router = NestRouter(prefix="/events", tags=["connect"])
 
+
 def _service(request: Request):
     return request.app.state.event_log
+
 
 def _parse_int(value: str | None, fallback: int) -> int:
     if value is None or value == "":
         return fallback
     try:
         return int(value, 10)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError):  # fmt: skip
         # 与 Nest parseIntParam 宽松语义一致：非法数字得到 NaN；Python 侧用 fallback 兜底
         return fallback
+
 
 def _parse_bool(value: str | None) -> bool:
     return (value or "").strip().lower() in ("1", "true")
 
+
 @router.get("/meta")
-async def get_meta(request: Request, user: dict[str, Any] = Depends(require_user)):
+def get_meta(request: Request, user: dict[str, Any] = Depends(require_user)):
+    # 保留天数要读一次 ``system_configs.data`` 全量 JSON；在事件循环里跑会和
+    # Socket.IO 状态广播抢同一个线程。同步 def 由 FastAPI 放进线程池执行。
     return _service(request).get_query_meta()
 
+
 @router.get("")
-async def get_history(
+def get_history(
     request: Request,
     entity_id: str | None = Query(default=None),
     domain: str | None = Query(default=None),
@@ -59,8 +66,9 @@ async def get_history(
         (domain or "").strip() or None,
     )
 
+
 @router.get("/timeline")
-async def get_timeline(
+def get_timeline(
     request: Request,
     entity_ids: str = Query(default=""),
     hours: str | None = Query(default=None),
@@ -80,8 +88,9 @@ async def get_timeline(
         _parse_bool(includeFullState),
     )
 
+
 @router.get("/stats")
-async def get_stats(
+def get_stats(
     request: Request,
     hours: str | None = Query(default=None),
     entity_id: str | None = Query(default=None),
@@ -100,8 +109,9 @@ async def get_stats(
         (domain or "").strip() or None,
     )
 
+
 @router.get("/reports/compare")
-async def get_report_compare(
+def get_report_compare(
     request: Request,
     metric: str | None = Query(default=None),
     granularity: str | None = Query(default=None),
@@ -128,10 +138,9 @@ async def get_report_compare(
         }
     )
 
+
 @router.delete("")
-async def clear_all(
-    request: Request, user: dict[str, Any] = Depends(require_user)
-):
+async def clear_all(request: Request, user: dict[str, Any] = Depends(require_user)):
     # 清空是全表分批删除（上限 500 批 × 默认 800 行），在事件循环里同步跑会把其它请求
     # 一起卡住（这与 ui_config / license 等路由的做法一致，统一走线程池）。
     return await asyncio.to_thread(_service(request).clear_all_records)

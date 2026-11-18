@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import threading
+import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -59,6 +60,18 @@ from .event_log_report import (
 #: 触顶不是错误（库里可能真有上百万行），但必须把 `complete=False` 如实返回给调用方。
 CLEAR_ALL_MAX_BATCHES = 500
 
+#: 能耗旁路缓冲上限。电表读数抖动不会无限堆积；超限丢最旧的一条，
+#: 差分口径下只损失一次增量精度，周期读数（max）不受影响。
+ENERGY_BUFFER_MAX = 2000
+
+#: 保留天数缓存有效期（秒）。
+#:
+#: `/events`、`/events/meta`、`/events/timeline`、`/events/stats` 每个请求都要读一次
+#: `system_configs.data` 全量 JSON 才能拿到保留天数；一次时间线查询内还会再取一次
+#: （路由取 meta 一次 + `query_timeline_events` 内部一次）。保留天数只在用户改设置时
+#: 变化，5 秒的窗口与 `domains/security/panel.py` 的配置缓存同一量级。
+RETENTION_CACHE_TTL_SECONDS = 5.0
+
 
 from .energy_aggregate import (
     _merge_backfill_daily,
@@ -89,6 +102,14 @@ class EventLogService(EventLogReportMixin):
         #: 返回能源绑定全貌（主表/口径/日表/月表），决定每一档粒度的权威读数来源。
         self._energy_bindings = energy_bindings
         self._buffer: list[dict[str, Any]] = []
+        #: 能耗旁路缓冲：电表读数**不受**「事件日志显示过滤」约束。
+        #:
+        #: 电表全是 ``sensor.*``，而默认 ``eventLogRecordBlockDomains`` 含 ``sensor``
+        #: （用户为了压掉传感器刷屏普遍会加上它）。两者共用同一份过滤条件时，能耗实时
+        #: 记账会被整体掐断：``event_logs`` 里一条 ``sensor.*`` 都没有，日/月用量永远
+        #: 不增，``/events/reports/compare?metric=energy`` 恒为 0。这里把「记账」与
+        #: 「显示」拆成两个缓冲：显示过滤挡不住的，记账照样进行。
+        self._energy_buffer: list[dict[str, Any]] = []
         self._flush_timer: asyncio.TimerHandle | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
         self._dropped_events = 0
@@ -98,6 +119,8 @@ class EventLogService(EventLogReportMixin):
         #: 清空之前抓取的批次会在删除之后提交，把刚清掉的记录重新写回去。
         self._clear_epoch = 0
         self._ops: dict[str, Any] = dict(DEFAULT_OPS)
+        #: 保留天数短缓存：(采样时刻, 天数)。见 ``RETENTION_CACHE_TTL_SECONDS``。
+        self._retention_cache: tuple[float, int] | None = None
         self._load_ops()
 
     # ---- 配置 ----
@@ -110,6 +133,7 @@ class EventLogService(EventLogReportMixin):
             self._ops = {**DEFAULT_OPS, **section}
         except Exception:
             self._ops = dict(DEFAULT_OPS)
+        self._retention_cache = None
         return self._ops
 
     @property
@@ -124,16 +148,27 @@ class EventLogService(EventLogReportMixin):
 
     # ---- 保留策略 / meta ----
     def get_retention_days(self) -> int:
+        cached = self._retention_cache
+        now = time.monotonic()
+        if cached is not None and now - cached[0] < RETENTION_CACHE_TTL_SECONDS:
+            return cached[1]
         with self._database.session_factory() as session:
             raw = load_raw_config(session)
         retention_source = raw.get("retention")
         retention = retention_source if isinstance(retention_source, dict) else {}
         value = retention.get("eventLog")
         if isinstance(value, (int, float)) and value > 0:
-            return resolve_event_log_retention_days(value)
-        other_source = raw.get("other")
-        other = other_source if isinstance(other_source, dict) else {}
-        return resolve_event_log_retention_days(other.get("eventlogRetentionDays"))
+            days = resolve_event_log_retention_days(value)
+        else:
+            other_source = raw.get("other")
+            other = other_source if isinstance(other_source, dict) else {}
+            days = resolve_event_log_retention_days(other.get("eventlogRetentionDays"))
+        self._retention_cache = (now, days)
+        return days
+
+    def invalidate_retention_cache(self) -> None:
+        """丢弃保留天数缓存（配置热更新 / 整库还原后调用）。"""
+        self._retention_cache = None
 
     def get_query_meta(self) -> dict[str, Any]:
         return build_event_log_public_meta(
@@ -158,6 +193,13 @@ class EventLogService(EventLogReportMixin):
                 continue
             if not self._is_entity_syncable(entity_id):
                 continue
+            # 从属进程不记账：能耗与事件日志一样是「只由 leader 写」，
+            # 否则多进程部署下每块电表会被重复累计 N 次。
+            if not self._is_leader():
+                continue
+            # 能耗记账必须先于「显示过滤」：电表是 sensor.*，被默认域黑名单挡住之后
+            # 就再也进不了 _apply_energy_side_effects，日/月用量与能耗报表会一直是 0。
+            self._collect_energy_row(event, entity_id)
             if not is_event_log_recordable(entity_id, record_filter):
                 continue
             old_s = _state_text(event.get("old_state"))
@@ -168,8 +210,6 @@ class EventLogService(EventLogReportMixin):
                 if not attr_change:
                     continue
                 state_diff = f"attr:{attr_change}"
-            if not self._is_leader():
-                continue
             tier = resolve_event_log_tier(
                 entity_id,
                 enabled=tier_cfg["enabled"],
@@ -199,6 +239,32 @@ class EventLogService(EventLogReportMixin):
                 self._schedule_flush(immediate=True)
         self._schedule_flush()
 
+    def _collect_energy_row(self, event: dict[str, Any], entity_id: str) -> None:
+        """把电表读数收进能耗旁路缓冲（不经过显示过滤，也不写 event_logs）。
+
+        ``serialize_event_log_states(..., "compact")`` 对电表只保留
+        ``state`` + ``device_class`` / ``unit_of_measurement``，正是
+        ``accumulate_energy_totals`` 判定与折算所需的全部字段。
+        """
+        old_state = event.get("old_state")
+        new_state = event.get("new_state")
+        if not is_energy_meter_state(entity_id, old_state, new_state):
+            return
+        old_serialized, new_serialized = serialize_event_log_states(event, "compact")
+        if old_serialized is None and new_serialized is None:
+            return
+        self._energy_buffer.append(
+            {
+                "entity_id": entity_id,
+                "old_state": old_serialized,
+                "new_state": new_serialized,
+            }
+        )
+        # 上界与显示缓冲同量级：能量表读数抖动不会无限堆积（超限丢最旧的，
+        # 差值口径下丢中间读数只影响一次增量精度，不影响周期读数）。
+        if len(self._energy_buffer) > ENERGY_BUFFER_MAX:
+            self._energy_buffer.pop(0)
+
     @staticmethod
     def _extract_changes(batch: Any) -> list[dict[str, Any]]:
         if not batch:
@@ -211,7 +277,7 @@ class EventLogService(EventLogReportMixin):
         return []
 
     def _schedule_flush(self, immediate: bool = False) -> None:
-        if not self._buffer:
+        if not self._buffer and not self._energy_buffer:
             return
         loop = self._loop
         if loop is None:
@@ -239,7 +305,7 @@ class EventLogService(EventLogReportMixin):
     def bind_loop(self, loop: asyncio.AbstractEventLoop) -> None:
         """绑定运行期事件循环（lifespan 内调用），供同步上下文安全调度 flush。"""
         self._loop = loop
-        if self._buffer:
+        if self._buffer or self._energy_buffer:
             self._schedule_flush()
 
     def _spawn(self, loop: asyncio.AbstractEventLoop, coro) -> None:
@@ -252,26 +318,45 @@ class EventLogService(EventLogReportMixin):
             loop.call_soon_threadsafe(lambda: loop.create_task(coro))
 
     async def flush(self) -> None:
-        if not self._buffer:
+        if not self._buffer and not self._energy_buffer:
             return
         batch = self._buffer
+        energy_batch = self._energy_buffer
         # 抓取世代：若提交前发生过「清空全部」，这一批就已经过时，必须丢弃。
         epoch = self._clear_epoch
         self._buffer = []
+        self._energy_buffer = []
         try:
-            await asyncio.to_thread(self._write_batch, batch, epoch)
+            await asyncio.to_thread(self._write_batch, batch, epoch, energy_batch)
         except Exception as error:
             max_requeue = int(self._ops.get("eventLogMaxRequeueBuffer") or 500)
             room = max(0, max_requeue - len(self._buffer))
             if room > 0:
                 self._buffer = batch[:room] + self._buffer
+                # 能耗行同样要回灌：它们是记账的唯一来源，丢了就是永久缺口。
+                self._energy_buffer = energy_batch[:room] + self._energy_buffer
                 logger.warning("批量写入事件失败: %s,已回灌 %s 条", error, min(room, len(batch)))
                 self._schedule_flush()
             else:
                 self._dropped_events += len(batch)
                 logger.error("事件日志批量写入失败且缓冲区满: %s", error)
 
-    def _write_batch(self, batch: list[dict[str, Any]], epoch: int) -> None:
+    def _write_batch(
+        self,
+        batch: list[dict[str, Any]],
+        epoch: int,
+        energy_batch: list[dict[str, Any]] | None = None,
+    ) -> None:
+        if batch:
+            self._write_display_rows(batch, epoch)
+        # 能耗记账与「事件日志显示」无关，也不受清空世代影响：用户清空日志不该
+        # 让日/月用量凭空少掉一批读数。``energy_batch`` 为空时回退用显示批次，
+        # 兼容旧调用路径（测试/直接调用）。
+        side_effects = energy_batch or batch
+        if side_effects:
+            self._apply_energy_side_effects(side_effects)
+
+    def _write_display_rows(self, batch: list[dict[str, Any]], epoch: int) -> None:
         with self._write_lock:
             # 世代比对与提交必须在同一把锁内：否则「比对通过 → 清空删除 → 本批提交」
             # 仍会把过时的记录写回一个刚被清空的库，而接口已经报过 complete。
@@ -295,7 +380,6 @@ class EventLogService(EventLogReportMixin):
                         )
                     )
                 session.commit()
-        self._apply_energy_side_effects(batch)
 
     def _resolve_energy_primary_entities(self) -> set[str]:
         """本次应计入总耗的电表集合；未绑定主电表时返回空集合（调用方回退全量）。"""
@@ -658,6 +742,7 @@ class EventLogService(EventLogReportMixin):
                 batch_size,
             )
         self._buffer = []
+        self._energy_buffer = []
         if self._flush_timer is not None:
             self._flush_timer.cancel()
             self._flush_timer = None

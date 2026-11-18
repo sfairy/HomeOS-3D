@@ -1295,6 +1295,13 @@ async def _start_ha_and_license(app: FastAPI, startup: _StartupContext) -> None:
     app.state.store_base_url_resolver = StoreBaseUrlResolver(app_settings)
 
 
+async def _shutdown_agent_timeline(app: FastAPI, shutdown: Callable[..., Awaitable[Any]]) -> None:
+    """把设备时序的写入队列落盘（必须在数据库 dispose 之前）。"""
+    timeline = getattr(app.state, "agent_timeline", None)
+    if timeline is not None:
+        await shutdown("设备时序刷盘", timeline.close)
+
+
 async def _shutdown_agent_automation(app: FastAPI, shutdown: Callable[..., Awaitable[Any]]) -> None:
     """停止看门狗与计划任务（先停巡检，避免停机过程中再触发设备控制）。"""
     for service, label in (
@@ -1355,6 +1362,8 @@ async def _shutdown_all(app: FastAPI, startup: _StartupContext) -> None:
     await shutdown("媒体代理连接池", close_shared_media_clients)
     await shutdown("Agent 共享 HTTP 连接池", close_shared_http_client)
     await shutdown("事件日志刷盘", startup.event_log_service.flush)
+    # 设备时序的写入队列要先落盘再释放数据库（否则关停窗口里的状态变更会丢）。
+    await _shutdown_agent_timeline(app, shutdown)
     # 全局日志最后刷盘：必须等所有组件停止后再关写线程，否则停机期间产生的诊断日志
     # 会滞留在内存队列里丢掉。
     if event_log is not None:

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import threading
 import time
 import traceback
 from collections.abc import Sequence
@@ -520,13 +521,72 @@ def list_entities(
     }
 
 
+#: ``/history`` 的短期结果缓存：图表会被反复打开，而 168h 的 HA 历史是一次数 MB 的
+#: JSON（每次都是新 TCP + 全量解析）。15s 足够吸收「打开 → 关掉 → 再打开」，
+#: 又不至于让曲线看起来停滞。
+HISTORY_CACHE_TTL_SECONDS = 15.0
+HISTORY_CACHE_MAX_ENTRIES = 64
+_history_cache: dict[tuple[str, int, str], tuple[float, list[dict[str, Any]]]] = {}
+_history_cache_lock = threading.Lock()
+
+
+def _history_cache_get(key: tuple[str, int, str]) -> list[dict[str, Any]] | None:
+    with _history_cache_lock:
+        entry = _history_cache.get(key)
+        if entry is None:
+            return None
+        expires_at, points = entry
+        if expires_at <= time.monotonic():
+            _history_cache.pop(key, None)
+            return None
+        return points
+
+
+def _history_cache_put(key: tuple[str, int, str], points: list[dict[str, Any]]) -> None:
+    with _history_cache_lock:
+        if len(_history_cache) >= HISTORY_CACHE_MAX_ENTRIES and key not in _history_cache:
+            # 简单清理：先摘过期的，仍满就丢最早写入的那一条。
+            now = time.monotonic()
+            for stale_key in [k for k, (exp, _) in _history_cache.items() if exp <= now]:
+                _history_cache.pop(stale_key, None)
+            if len(_history_cache) >= HISTORY_CACHE_MAX_ENTRIES:
+                _history_cache.pop(next(iter(_history_cache)), None)
+        _history_cache[key] = (time.monotonic() + HISTORY_CACHE_TTL_SECONDS, points)
+
+
+def _live_states(request: Request) -> list[dict[str, Any]] | None:
+    """StateStore 里的实时全量状态；尚未收到首帧快照时返回 ``None``。
+
+    ``/ha/percentage-sources``、``/ha/numeric-sources`` 只是对全量状态做过滤。
+    以前每次请求都新建一条 HA WebSocket 并 ``get_states`` 全量 dump：一次 TCP+TLS
+    握手加多 MB JSON 解析，而同一份数据已经由实时管道常驻在 StateStore 里
+    （``/entities`` 就走它）。首帧未到（刚启动）时才回退到直连。
+    """
+    store = getattr(getattr(request.app.state, "realtime", None), "state_store", None)
+    if store is None:
+        return None
+    states = store.get_all()
+    return states or None
+
+
+async def _source_states(request: Request, connection: Any) -> list[dict[str, Any]]:
+    """状态源列表的数据来源：优先 StateStore，首帧未到时回退一次直连 HA。"""
+    states = _live_states(request)
+    if states is not None:
+        return states
+    try:
+        return await (await request.app.state.studio_ha.client_for(connection)).fetch_all_states()
+    except (HAClientError, CredentialCipherError) as error:
+        raise HTTPException(status_code=502, detail=str(error)) from error
+
+
 @router.get('/percentage-sources')
 async def list_percentage_sources(
     request: Request,
     database: DatabaseSession,
     _user: LicensedUser,
 ) -> dict[str, Any]:
-    connection = active_connection(database)
+    connection = await asyncio.to_thread(active_connection, database)
     if connection is None:
         return {'items': []}
     allowed_ids = await run_db(
@@ -540,10 +600,7 @@ async def list_percentage_sources(
             ).all()
         )
     )
-    try:
-        states = await (await request.app.state.studio_ha.client_for(connection)).fetch_all_states()
-    except (HAClientError, CredentialCipherError) as error:
-        raise HTTPException(status_code=502, detail=str(error)) from error
+    states = await _source_states(request, connection)
     return {'items': percentage_sources(states, allowed_ids)}
 
 
@@ -553,7 +610,7 @@ async def list_numeric_sources(
     database: DatabaseSession,
     _user: LicensedUser,
 ) -> dict[str, Any]:
-    connection = active_connection(database)
+    connection = await asyncio.to_thread(active_connection, database)
     if connection is None:
         return {'items': []}
     allowed_ids = await run_db(
@@ -568,10 +625,7 @@ async def list_numeric_sources(
             ).all()
         )
     )
-    try:
-        states = await (await request.app.state.studio_ha.client_for(connection)).fetch_all_states()
-    except (HAClientError, CredentialCipherError) as error:
-        raise HTTPException(status_code=502, detail=str(error)) from error
+    states = await _source_states(request, connection)
     return {'items': numeric_sources(states, allowed_ids)}
 
 
@@ -641,6 +695,10 @@ async def entity_history(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='请先配置 Home Assistant 连接。')
     if not entity_exists:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='实体不存在、已禁用或已失联。')
+    cache_key = (str(connection.id), int(hours), entity_id)
+    cached = _history_cache_get(cache_key)
+    if cached is not None:
+        return {'entityId': entity_id, 'hours': hours, 'points': cached}
     start_time = (datetime.now(UTC) - timedelta(hours=hours)).isoformat()
     try:
         history = await request.app.state.studio_ha.fetch_history(connection, entity_id, start_time, hours)
@@ -658,6 +716,7 @@ async def entity_history(
     if len(points) > 480:
         step = len(points) / 480
         points = [points[min(len(points) - 1, int(index * step))] for index in range(480)]
+    _history_cache_put(cache_key, points)
     return {'entityId': entity_id, 'hours': hours, 'points': points}
 
 

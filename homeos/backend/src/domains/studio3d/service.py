@@ -3,13 +3,15 @@
 一次 PUT 的完整语义（顺序即约束）：
 
 1. 序列化并卡 64MB —— 在开事务前做，避免大对象持有写锁；
-2. ``BEGIN IMMEDIATE`` —— 先把写锁拿到手，再读当前 revision。旧实现先读文件、
-   再扫全表跑 ``plan_cleanup``、最后写文件，两个并发保存会双双通过 revision 比对，
-   后写的那个静默覆盖前一个；
-3. 比对 revision，不等就 409，并把 ``currentRevision`` 带回去让前端弹冲突框；
+2. **读侧计划全在写锁之外**：读快照、扫全表草稿、跑 ``plan_cleanup`` 都是几百毫秒级的
+   读 + JSON 解析。SQLite 的 ``BEGIN IMMEDIATE`` 是库级写锁，把这些夹在里面会让所有
+   并发写（事件日志、通知、任何 ``commit``）排队甚至 ``database is locked``；
+3. ``BEGIN IMMEDIATE`` 之后**重新**读一次 revision 并比对：不等就 409，并把
+   ``currentRevision`` 带回去让前端弹冲突框。并发保存靠这一步 + CAS 写入收敛，
+   后写的那个不会静默覆盖前一个；
 4. 只在「模型身份集合」变化时才跑级联清理（挪家具、调灯光也会触发保存，是常态）；
 5. 影响面非空时要求客户端回传一次性 ``confirmation_token``，否则 428；
-6. CAS 写草稿 → 逐份项目草稿更新 → 写回归档 → 提交。
+6. CAS 写草稿 → 逐份项目草稿更新（并校验计划期间的草稿 revision）→ 写回归档 → 提交。
 
 失败的每一条分支都显式 ``rollback``：SQLite 的写锁不释放，后续请求会全部撞
 ``database is locked``，表现成「保存一次失败后整个工作台再也存不上」。
@@ -19,7 +21,9 @@ from __future__ import annotations
 
 import json
 from contextlib import nullcontext
+from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import HTTPException, status
 from sqlalchemy import select, text
@@ -60,44 +64,85 @@ def save_draft(database: Session, settings, user, payload: Studio3DDraftUpdate, 
         if catalog is not None:
             validate_assets(catalog, payload.scene)
         scene_json = draft_repository.encode_scene(payload.scene)
+        # 读侧计划（快照 / 全表草稿扫描 / 影响面计算）先做完，再开写事务。
+        try:
+            plan = _plan_draft_save(database, settings, user, payload, catalog)
+        except Exception:
+            database.rollback()
+            raise
         # rollback 结束隐式事务且丢弃无关脏写；commit 会误落盘。
         database.rollback()
         database.execute(text("BEGIN IMMEDIATE"))
         try:
-            return _save_draft_locked(database, settings, user, payload, scene_json, catalog)
+            return _save_draft_locked(database, user, payload, scene_json, plan)
         except Exception:
             database.rollback()
             raise
 
 
-def _save_draft_locked(
+@dataclass(frozen=True)
+class _DraftPlan:
+    """写锁之外算好的保存计划（不持有 ORM 对象，避免会话回滚后失效）。"""
+
+    expected_revision: int
+    schema_version: int
+    changed: dict[str, dict]
+    archive: list | None
+    #: 计划期间读到的 ``ProjectDraft.revision``，仅含本次会被改写的项目。
+    draft_revisions: dict[str, int]
+
+
+def _plan_draft_save(
     database: Session,
     settings,
     user,
     payload: Studio3DDraftUpdate,
-    scene_json: str,
     catalog=None,
-) -> dict:
+) -> _DraftPlan:
+    """在写锁之外完成全部读操作与校验（revision 比对留到写事务里再做一次）。"""
     snapshot = draft_repository.read_snapshot(database)
     current_revision = snapshot.revision if snapshot is not None else 0
     if payload.revision != current_revision:
         raise _conflict(current_revision)
     previous_scene = snapshot.scene if snapshot is not None else {}
     schema_version = _schema_version(payload.scene, snapshot)
-    documents, changed, archive, impacts = _plan_interaction_cleanup(
+    documents, changed, archive, impacts, draft_revisions = _plan_interaction_cleanup(
         database, settings, previous_scene, payload.scene, catalog
     )
     if impacts:
         token = cleanup_service.confirmation_token(current_revision, payload.scene, documents, impacts)
         if payload.interactionConfirmation != token:
             raise _confirmation_required(database, token, impacts)
+    return _DraftPlan(
+        expected_revision=current_revision,
+        schema_version=schema_version,
+        changed=changed,
+        archive=archive,
+        draft_revisions={key: value for key, value in draft_revisions.items() if key in changed},
+    )
+
+
+def _save_draft_locked(
+    database: Session,
+    user,
+    payload: Studio3DDraftUpdate,
+    scene_json: str,
+    plan: _DraftPlan,
+) -> dict:
+    """写事务内：重读 revision → 校验项目草稿未被并发改写 → CAS 写 → 提交。"""
+    snapshot = draft_repository.read_snapshot(database)
+    current_revision = snapshot.revision if snapshot is not None else 0
+    if current_revision != plan.expected_revision:
+        # 计划到拿锁之间有人保存过：让客户端拿最新 revision 重试。
+        raise _conflict(current_revision)
+    _assert_draft_revisions_unchanged(database, plan.draft_revisions)
     timestamp = datetime.now(UTC)
     next_revision = current_revision + 1
     written = _write_snapshot(
         database,
         snapshot,
         revision=next_revision,
-        schema_version=schema_version,
+        schema_version=plan.schema_version,
         scene_json=scene_json,
         updated_at=timestamp.strftime("%Y-%m-%d %H:%M:%S.%f"),
         updated_by=getattr(user, "id", None),
@@ -105,9 +150,28 @@ def _save_draft_locked(
     if not written:
         latest = draft_repository.read_snapshot(database)
         raise _conflict(latest.revision if latest is not None else 0)
-    _apply_cleanup(database, changed, archive, getattr(user, "id", None))
+    _apply_cleanup(database, plan.changed, plan.archive, getattr(user, "id", None))
     database.commit()
     return {"revision": next_revision, "scene": payload.scene, "updatedAt": timestamp.isoformat()}
+
+
+def _assert_draft_revisions_unchanged(database: Session, expected: dict[str, int]) -> None:
+    """计划期间被改写的项目草稿要整体作废，否则级联清理会用旧文档覆盖别人的编辑。"""
+    if not expected:
+        return
+    rows: Any = database.execute(
+        select(ProjectDraft.project_id, ProjectDraft.revision).where(ProjectDraft.project_id.in_(list(expected)))
+    ).all()
+    current = dict(rows)
+    if any(current.get(project_id) != revision for project_id, revision in expected.items()):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "STUDIO3D_REVISION_CONFLICT",
+                "message": "关联的 3D 交互配置已被其它页面更新，请刷新后重试。",
+                "currentRevision": None,
+            },
+        )
 
 
 def _conflict(current_revision: int) -> HTTPException:
@@ -178,18 +242,20 @@ def _plan_interaction_cleanup(
     而不是把一条点了就 404 的配置放回用户面板。
     """
     if cleanup_service.identities(previous_scene) == cleanup_service.identities(scene):
-        return {}, {}, None, []
+        return {}, {}, None, [], {}
     archive = draft_repository.read_archive(database)
     documents = {}
+    revisions: dict[str, int] = {}
     for draft in database.scalars(select(ProjectDraft)).all():
         document = _decode_document(draft.document_json)
         if document is not None:
             documents[draft.project_id] = document
+            revisions[draft.project_id] = int(draft.revision or 0)
     asset_exists = catalog.asset_exists if catalog is not None else None
     changed, saved, impacts = cleanup_service.plan_cleanup(
         documents, previous_scene, scene, archive, settings, asset_exists=asset_exists
     )
-    return documents, changed, saved, impacts
+    return documents, changed, saved, impacts, revisions
 
 
 def _decode_document(raw) -> dict | None:

@@ -187,14 +187,13 @@ def export_global_logs(request: Request, _user: CurrentUser, level: str | None =
 
 @router.get('')
 def list_global_logs(request: Request, _user: CurrentUser, level: str | None = Query(None, pattern='^(info|success|warning|error)$'), category: str | None = Query(None, max_length=64), search: str | None = Query(None, max_length=128), limit: int = Query(500, ge=1, le=2000), offset: int = Query(0, ge=0, le=1000000)) -> dict:
-    matching = request.app.state.global_log.list_events(level=level, category=category, search=search, limit=None)
+    matching, categories = request.app.state.global_log.list_events_with_categories(
+        level=level,
+        category=category,
+        search=search,
+        limit=None,
+    )
     items = matching[offset:offset + limit]
-    all_items = request.app.state.global_log.list_events(limit=None)
-    categories = sorted({
-        str(item.get('category') or '')
-        for item in all_items
-        if item.get('category')
-    })
     store = request.app.state.global_log
     return {
         'items': items,

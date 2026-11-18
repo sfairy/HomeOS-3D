@@ -103,6 +103,36 @@ def _safe_text(value: Any, *, limit: int) -> str:
     return text[:limit]
 
 
+def _event_matches(
+    event: dict[str, Any],
+    *,
+    cutoff: datetime,
+    level: str | None,
+    category: str | None,
+    search_key: str,
+) -> bool:
+    """单条事件是否落在保留期内且满足 level/category/search 过滤。"""
+    try:
+        timestamp = datetime.fromisoformat(str(event.get("lastTimestamp") or event["timestamp"]))
+    except (TypeError, ValueError, KeyError):
+        return False
+    if timestamp.tzinfo is None:
+        timestamp = timestamp.replace(tzinfo=UTC)
+    if timestamp < cutoff:
+        return False
+    if level and event.get("level") != level:
+        return False
+    if category and event.get("category") != category:
+        return False
+    if search_key:
+        haystack = " ".join(
+            str(event.get(key) or "") for key in ("source", "category", "message", "context", "details")
+        ).casefold()
+        if search_key not in haystack:
+            return False
+    return True
+
+
 def safe_context(value: dict[str, Any] | None) -> dict[str, Any]:
     result = {}
     # 先落到局部变量再迭代：Cython 3.3.0 会在 `(value or {}).items()` 这种
@@ -426,40 +456,55 @@ class GlobalLogStore:
         limit: int | None = 500,
         offset: int = 0,
     ) -> list[dict[str, Any]]:
-        search_key = _safe_text(search, limit=128).casefold() if search else ""
         with self._lock:
             events = self._read_events()
-        result = []
+        return self._filter_events(events, level=level, category=category, search=search, limit=limit, offset=offset)
+
+    def list_events_with_categories(
+        self,
+        *,
+        level: str | None = None,
+        category: str | None = None,
+        search: str | None = None,
+        limit: int | None = 500,
+        offset: int = 0,
+    ) -> tuple[list[dict[str, Any]], list[str]]:
+        """一次读取同时返回过滤结果与分类清单。
+
+        ``/logs`` 页面两者都要：旧实现先 ``list_events(limit=None)`` 再
+        ``list_events(limit=None)`` 取分类 —— 每个请求两次全量 JSONL 解析 + 两次加锁，
+        而写线程也用同一把锁。
+        """
+        with self._lock:
+            events = self._read_events()
+        categories = sorted({str(item.get("category") or "") for item in events if item.get("category")})
+        filtered = self._filter_events(
+            events, level=level, category=category, search=search, limit=limit, offset=offset
+        )
+        return filtered, categories
+
+    def _filter_events(
+        self,
+        events: list[dict[str, Any]],
+        *,
+        level: str | None,
+        category: str | None,
+        search: str | None,
+        limit: int | None,
+        offset: int,
+    ) -> list[dict[str, Any]]:
+        search_key = _safe_text(search, limit=128).casefold() if search else ""
+        result: list[dict[str, Any]] = []
         cutoff = _utc_now() - timedelta(days=self.retention_days)
+        max_items = max(1, min(int(limit), 2000)) if limit is not None else None
         for event in reversed(events):
-            try:
-                timestamp = datetime.fromisoformat(
-                    str(event.get("lastTimestamp") or event["timestamp"])
-                )
-                if timestamp.tzinfo is None:
-                    timestamp = timestamp.replace(tzinfo=UTC)
-                if timestamp < cutoff:
-                    continue
-            except (TypeError, ValueError, KeyError):
+            if not _event_matches(event, cutoff=cutoff, level=level, category=category, search_key=search_key):
                 continue
-            if level and event.get("level") != level:
-                continue
-            if category and event.get("category") != category:
-                continue
-            if search_key:
-                haystack = " ".join(
-                    str(event.get(key) or "")
-                    for key in ("source", "category", "message", "context", "details")
-                ).casefold()
-                if search_key not in haystack:
-                    continue
             if offset > 0:
                 offset -= 1
                 continue
             result.append(event)
-            if limit is None:
-                continue
-            if len(result) >= max(1, min(int(limit), 2000)):
+            if max_items is not None and len(result) >= max_items:
                 break
         return result
 
