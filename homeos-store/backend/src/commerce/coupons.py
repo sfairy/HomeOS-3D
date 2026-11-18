@@ -194,8 +194,9 @@ def reoccupy_coupon(session: Session, order: Order) -> bool:
     """
     if not order.coupon_code:
         return True
+    # 优惠码落库时已统一大写，等值查询命中 ix_coupons_code（``func.lower`` 会让索引失效）。
     coupon = session.scalars(
-        select(Coupon).where(func.lower(Coupon.code) == order.coupon_code.lower())
+        select(Coupon).where(Coupon.code == order.coupon_code.strip().upper())
     ).first()
     if coupon is None:
         return True

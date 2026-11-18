@@ -6,7 +6,7 @@ import secrets
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
-from sqlalchemy import func, or_, select
+from sqlalchemy import or_, select
 
 from .catalog import (
     _account_license_state,
@@ -63,12 +63,16 @@ def _find_account_by_login(session, account_key: str) -> Account | None:
     if not key:
         return None
     key_lower = key.lower()
+    # 账号名与邮箱在写入时都已统一小写（``normalize_username`` / 注册时 ``email.lower()``），
+    # 因此用等值查询即可命中 ix_accounts_username / ix_accounts_email。
+    # 旧实现用 ``func.lower(column)`` 包了一层，唯一索引完全用不上 —— 每次登录都是全表扫描。
+    # 额外保留一个原始大小写的等值分支，兼容历史库里未归一化的账号名。
     return session.scalars(
         select(Account).where(
             or_(
                 Account.username == key,
-                func.lower(Account.username) == key_lower,
-                func.lower(Account.email) == key_lower,
+                Account.username == key_lower,
+                Account.email == key_lower,
             )
         )
     ).first()
@@ -96,7 +100,8 @@ def register(payload: RegisterRequest, request: Request, session: DbSession) -> 
 
     existing = session.scalars(
         select(Account).where(
-            or_(Account.username == username, func.lower(Account.email) == email)
+            # 写入侧两者都已归一化，等值查询命中唯一索引；``func.lower`` 会让索引失效。
+            or_(Account.username == username, Account.email == email)
         )
     ).first()
     if existing is not None:
@@ -293,7 +298,7 @@ def reset_password(payload: PasswordResetRequest, request: Request, session: DbS
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="两次输入的密码不一致。")
     _consume_verification(session, email=email, purpose="reset", code=payload.code)
 
-    account = session.scalars(select(Account).where(func.lower(Account.email) == email)).first()
+    account = session.scalars(select(Account).where(Account.email == email)).first()
     if account is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="该邮箱尚未注册。")
 

@@ -10,6 +10,7 @@ from datetime import datetime
 
 from fastapi import APIRouter
 from sqlalchemy import or_, select
+from sqlalchemy.orm import selectinload
 
 from ..shared import _naive_utc, _page
 from ....core.deps import AdminAccount, DbSession, order_or_404
@@ -35,7 +36,9 @@ def admin_list_orders(
     offset: int = 0,
 ) -> dict:
     """订单列表（分页 + 筛选）。过期收尾由支付巡检负责，列表读路径不再同步过期。"""
-    base = select(Order)
+    # 列表渲染 ``codeHint`` 要读 ``order.license``；不预加载时一页 500 条会多打
+    # 500 条 ``SELECT licenses``。
+    base = select(Order).options(selectinload(Order.license))
     wanted = [part.strip() for part in (status_filter or "").split(",") if part.strip()]
     if wanted:
         base = base.where(Order.status.in_(wanted))

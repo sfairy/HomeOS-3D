@@ -261,7 +261,13 @@ def sweep_once(database: Database, settings: StoreSettings) -> SweepResult | Non
 
     from ...commerce import delivery
 
-    delivered = delivery.sweep_undelivered(database, limit=max(1, int(settings.payment_sweep_batch or 25)))
+    # 邮件投递单独限时：SMTP 卡死时单封最多 20s，一轮里最多投几封就该收工，
+    # 否则对账/关单/退款升级会被一起拖住（旧实现 25 封 × 20s ≈ 8 分钟）。
+    delivered = delivery.sweep_undelivered(
+        database,
+        limit=min(10, max(1, int(settings.payment_sweep_batch or 25))),
+        time_budget_seconds=25.0,
+    )
     if delivered:
         logger.info("支付巡检：补发激活码邮件 %d 封", delivered)
     if result.queried or result.expired or result.stale_refunds:

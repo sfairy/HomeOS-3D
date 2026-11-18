@@ -12,7 +12,6 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ...commerce import coupons, fulfill, money, referrals
-from ...commerce.expiry import expire_stale_orders
 from ...commerce.order_status import (
     FULFILLABLE_STATUSES as ORDER_FULFILLABLE_STATUSES,
 )
@@ -276,8 +275,10 @@ def _low_stock_payload(product: Product) -> dict:
 def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) -> dict:
     """经营看板数据。
     """
+    del settings  # 读路径不做同步过期收尾，交由支付巡检
     setting = site_config.get_setting(session)
-    expire_stale_orders(session, settings)
+    # 以前这里会跑 ``expire_stale_orders``：看板是管理端入口的会话探针，每次打开后台
+    # 都会开一个可能改上百行的写事务。过期收尾已由 sweep_loop（30s）覆盖。
     moment = utcnow()
 
     revenue = _overview_revenue(session, moment)

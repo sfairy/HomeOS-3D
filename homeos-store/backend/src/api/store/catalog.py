@@ -7,9 +7,9 @@ from datetime import UTC
 from fastapi import HTTPException, Request, status
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import selectinload
 
 from ...commerce import coupons, money
-from ...commerce.expiry import expire_stale_orders
 from ...core.models import (
     Account,
     Coupon,
@@ -166,12 +166,12 @@ def _product_item(session, product: Product) -> dict:
 def _evaluate_coupon(
     session, *, account: Account, product: Product, code: str
 ) -> tuple[Coupon, int]:
-    normalized = (code or "").strip()
+    normalized = (code or "").strip().upper()
     if not normalized:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="请输入优惠码。")
-    coupon = session.scalars(
-        select(Coupon).where(func.lower(Coupon.code) == normalized.lower())
-    ).first()
+    # 优惠码写入时统一 ``.upper()``（见 ``api/admin/coupons.py``），等值查询才能命中
+    # ix_coupons_code；``func.lower(code)`` 会让唯一索引失效，每次结账都全表扫。
+    coupon = session.scalars(select(Coupon).where(Coupon.code == normalized)).first()
     if coupon is None or not coupon.active:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="优惠码无效。")
 
@@ -311,6 +311,9 @@ def _account_orders(
             .order_by(Order.created_at.desc())
             .limit(limit)
             .offset(offset)
+            # 列表要渲染 ``codeHint``（order.license.code_hint）；不预加载会变成
+            # 「每行一条 SELECT licenses」的 N+1（账号中心一页最多 100 条）。
+            .options(selectinload(Order.license))
         )
     )
 def _account_orders_total(session, account: Account) -> int:
@@ -327,7 +330,8 @@ def _account_orders_total(session, account: Account) -> int:
     )
 def _center_payload(session, request: Request, account: Account) -> dict:
     setting = site_config.get_setting(session)
-    expire_stale_orders(session, request.app.state.settings)
+    # 读接口不做 ``expire_stale_orders``：它会在 GET 上开写事务，一次可能改 200 笔订单
+    # 加商品与优惠码计数。过期收尾由支付巡检（30s 一轮）负责，列表最多滞后一轮。
     licenses = _account_licenses(session, account)
     entitlements = list(
         session.scalars(

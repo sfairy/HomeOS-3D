@@ -7,7 +7,7 @@ from datetime import timedelta
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from .catalog import (
     ACCOUNT_ORDER_PAGE_SIZE,
@@ -23,6 +23,7 @@ from .catalog import (
     _reconcile_payments,
     _resolve_upgrade_target,
 )
+from .products_cache import mark_products_changed
 from .shared import (
     _base_url,
     _customer_for,
@@ -115,7 +116,8 @@ def list_orders(
     # 列表路径不再逐笔串行查单（一笔慢渠道就能把响应拖到几十秒）：有界并发 + 总预算，
     # 超出预算的订单交给后台 payment_sweep_loop 巡检补账；响应字段与排序保持不变。
     _reconcile_payments(session, request, pending)
-    expire_stale_orders(session, settings)
+    # 读路径不再同步跑 ``expire_stale_orders``（GET 上开写事务、单次最多改 200 笔订单
+    # 加商品/优惠码计数）。过期收尾由支付巡检覆盖，列表最多滞后一轮（30s）。
     for item in pending:
         session.refresh(item)
     return {
@@ -315,6 +317,32 @@ def _complete_free_order(
     return JSONResponse(order_payload(order), status_code=status.HTTP_201_CREATED)
 
 
+def _mark_payment_failed(database, *, order_id: str, product_id: str | None) -> None:
+    """在**独立事务**里把建单失败落成 ``payment_failed`` 并归还库存预留与优惠码名额。
+
+    请求级会话在抛出 ``HTTPException`` 时会被 ``Database.session()`` 回滚 —— 补偿写在
+    同一会话里等于没写：订单凭空消失，而渠道侧可能已经建了一张没有本地订单的交易
+    （回调只能拿到「订单不存在」，巡检也永远关不掉它）。
+    """
+    try:
+        with database.session() as session:
+            claimed = session.execute(
+                update(Order)
+                .where(Order.id == order_id)
+                .where(Order.status == "pending")
+                .values(status="payment_failed")
+                .execution_options(synchronize_session=False)
+            )
+            if claimed.rowcount == 0:  # pyright: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
+                return
+            order = session.get(Order, order_id)
+            product = session.get(Product, product_id) if product_id else None
+            if order is not None:
+                fulfill.release_order_effects(session, order=order, product=product)
+    except Exception:
+        logger.exception("标记支付失败订单时出错 order_id=%s", order_id)
+
+
 def _open_channel_payment(
     request: Request,
     session,
@@ -323,13 +351,12 @@ def _open_channel_payment(
     product,
     chosen: str,
 ) -> JSONResponse:
-    """向渠道下单并落二维码；渠道不可用时回滚订单、释放库存与优惠码。"""
+    """向渠道下单并落二维码；渠道不可用时把订单落成 ``payment_failed`` 并归还预留。"""
+    database = request.app.state.database
     try:
         provider = request.app.state.resolve_payment_provider(setting, name=chosen)
     except PaymentError as error:
-        order.status = "payment_failed"
-        fulfill.release_order_effects(session, order=order, product=product)
-        session.flush()
+        _mark_payment_failed(database, order_id=order.id, product_id=product.id)
         logger.error("支付渠道解析失败 order=%s: %s", order.order_no, error)
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)) from error
 
@@ -341,9 +368,7 @@ def _open_channel_payment(
             base_url=_base_url(request),
         )
     except PaymentError as error:
-        order.status = "payment_failed"
-        fulfill.release_order_effects(session, order=order, product=product)
-        session.flush()
+        _mark_payment_failed(database, order_id=order.id, product_id=product.id)
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)) from error
 
     order.payment_payload_json = json.dumps(intent.payload, ensure_ascii=False)
@@ -421,10 +446,19 @@ def create_order(
     session.add(order)
     _flush_order_with_retry(session, order, account)
     _reserve_stock_and_coupon(session, order, product, coupon, account, discount)
+    # 预留会改 ``reserved_stock``、下单会改销量聚合，两者都出现在公开目录的响应里。
+    # 标记后由 after_commit 监听器失效缓存：否则最后一台被买走时，列表仍显示「在售」
+    # （默认 5s TTL 会自愈，但 TTL 可被调到 300s）。
+    mark_products_changed(session)
 
     if amount <= 0:
         return _complete_free_order(session, request, background, order, setting)
 
+    # 先把订单与库存/优惠码预留**提交**，再调支付渠道。
+    # SQLite 的写锁是库级的，而渠道下单是 15s 级别的 HTTP 调用；把它夹在事务里会让
+    # 所有并发写（含授权心跳的 nonce 插入、退款、其它下单）在 busy_timeout 后失败。
+    # 此时订单是 pending，未支付就由 TTL / 巡检关闭，语义不变。
+    session.commit()
     return _open_channel_payment(request, session, order, setting, product, chosen)
 
 
@@ -447,7 +481,7 @@ def get_order(
 
     if int(reconcile or 0):
         _reconcile_payment(session, request, order)
-    expire_stale_orders(session, request.app.state.settings)
+    # 过期收尾交给巡检：详情页读路径不开写事务（最多滞后一轮 30s）。
     session.refresh(order)
     response = JSONResponse(order_payload(order))
     response.headers["Cache-Control"] = "no-store"
@@ -494,6 +528,14 @@ def archive_order(order_no: str, session: DbSession, account: AuthedAccount) -> 
     order = order_or_404(session, order_no)
     if order.account_id != account.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="订单不存在。")
+    if order.status == "pending":
+        # 待支付订单不能归档：``_assert_no_pending_order`` 与部分唯一索引都不看
+        # ``archived_at``，归档后列表里看不到这笔单，但再下单仍会 409「你有一笔待支付
+        # 订单（…）」并指名一张看不见的订单。先取消再归档。
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="待支付订单不能归档，请先取消订单。",
+        )
     order.archived_at = utcnow()
     session.flush()
     return order_payload(order)

@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import logging
+import time
 
 from sqlalchemy import select, update
 from sqlalchemy.exc import SQLAlchemyError
@@ -119,13 +120,23 @@ def notify_license_issued(database: Database, *, order_id: str, force: bool = Fa
         return {"sent": False, "reason": "exception", "error": str(error)[:200]}
 
 
-def sweep_undelivered(database: Database, *, limit: int = 10) -> int:
+def sweep_undelivered(
+    database: Database,
+    *,
+    limit: int = 10,
+    time_budget_seconds: float = 25.0,
+) -> int:
     """巡检兜底：把「已履约但激活码邮件还没发出去」的订单补发一遍。
 
     即时发送可能因为进程重启、后台任务丢失、或当时 SMTP 抖了一下而没发生。
     没有这道网，「钱收了、码发了、信没到」就只能等买家来投诉。
     返回本轮真正发出去的封数。
+
+    ``time_budget_seconds`` 是**整轮**的墙钟上限：单封最多 20s（``mailer`` 的重试预算），
+    25 封串起来可以拖到 8 分钟 —— 那期间对账、关单、退款升级全部停摆。到预算就收工，
+    剩下的下一轮继续。
     """
+    deadline = time.monotonic() + max(1.0, float(time_budget_seconds))
     with database.session() as session:
         order_ids = list(
             session.scalars(
@@ -140,6 +151,9 @@ def sweep_undelivered(database: Database, *, limit: int = 10) -> int:
         )
     sent = 0
     for order_id in order_ids:
+        if time.monotonic() >= deadline:
+            logger.warning("激活码邮件补发达到本轮时间预算（%.0fs），剩余订单留给下一轮", time_budget_seconds)
+            break
         if notify_license_issued(database, order_id=order_id).get("sent"):
             sent += 1
     return sent

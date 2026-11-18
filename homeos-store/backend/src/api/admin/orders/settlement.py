@@ -1,15 +1,21 @@
 """「钱已经到账」侧的订单动作：人工补记、线下入账、履约、复核。
 
-两条入口（``mark-paid`` / ``settle-offline``）共用 ``_manual_payment``，差别只有一个布尔：
-人工补记**不计入营收**（``manual_settlement=False``），线下收款计入营收
-（``manual_settlement=True``）。这个差别直接决定财务报表，因此两条路由共用同一段实现，
-不允许各自复制一份再慢慢漂移。
+``manual_settlement`` 是**是否排除出营收**的标记（与 ``api/admin/shared.py`` 的
+``_billable_money_clause() = Order.manual_settlement.is_(False)`` 配套）：
+
+- 人工补记（``mark-paid``）→ ``manual_settlement=True``，**不计入营收**；
+- 线下收款入账（``settle-offline``）→ ``manual_settlement=False``，**计入营收**。
+
+这个标记直接决定财务报表，所以两条路由共用 ``_manual_payment``，并加了两道守卫：
+渠道已入账的订单不允许人工改写口径；已入账订单的口径翻转需要显式
+``overrideRevenue=true`` 并写进审计。
 """
 
 from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
 from sqlalchemy import select, update
@@ -33,6 +39,7 @@ from ....core.models import Order, StoreSetting
 from ....core.schemas import AdminOrderReviewRequest
 from ....core.serializers import order_payload
 from ....ops import site_settings as site_config
+from ....payments.common.channels import provider_label
 from ....security.security import utcnow
 
 logger = logging.getLogger("src.admin")
@@ -110,6 +117,7 @@ def admin_mark_paid(
     session: DbSession,
     background: BackgroundTasks,
     admin: AdminAccount,
+    overrideRevenue: bool = False,
 ) -> dict:
     """人工补记：把订单放行（发码），但**不计入营收**。"""
     return _manual_payment(
@@ -118,6 +126,7 @@ def admin_mark_paid(
         admin=admin,
         manual_settlement=True,
         on_fulfilled=_delivery_scheduler(request, background),
+        override_revenue=overrideRevenue,
     )
 
 
@@ -128,6 +137,7 @@ def admin_settle_offline(
     session: DbSession,
     background: BackgroundTasks,
     admin: AdminAccount,
+    overrideRevenue: bool = False,
 ) -> dict:
     """线下收款入账：人工确认这笔钱**已经收到**（转账/现金），计入营收。"""
     return _manual_payment(
@@ -136,7 +146,35 @@ def admin_settle_offline(
         admin=admin,
         manual_settlement=False,
         on_fulfilled=_delivery_scheduler(request, background),
+        override_revenue=overrideRevenue,
     )
+
+
+def _revenue_guard(order: Any, *, manual_settlement: bool, override_revenue: bool) -> bool:
+    """营收口径守卫；返回本次是否真的翻转了口径（供审计记录）。
+
+    - 渠道已入账（``paid_at`` 有值且 provider 不是 ``manual``）：营收口径由渠道流水
+      决定，人工动作一律 409 —— 否则一次误点就能把真实收款从报表里抹掉。
+    - 已入账订单的人工口径翻转：需要显式 ``overrideRevenue=true``，并写审计。
+    """
+    provider = str(getattr(order, "payment_provider", "") or "").strip()
+    if getattr(order, "paid_at", None) is not None and provider not in ("", "manual"):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"该订单已通过「{provider_label(provider)}」入账，营收口径由渠道决定，不能人工改写。",
+        )
+    previous_flag = bool(getattr(order, "manual_settlement", False))
+    flips = getattr(order, "paid_at", None) is not None and previous_flag != manual_settlement
+    if flips and not override_revenue:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "该订单已入账，本操作会改写营收口径（"
+                + ("移出营收" if manual_settlement else "计入营收")
+                + "）。确认要更正报表请重试并带上 overrideRevenue=true。"
+            ),
+        )
+    return flips
 
 
 def _manual_payment(
@@ -146,6 +184,7 @@ def _manual_payment(
     admin: AdminAccount,
     manual_settlement: bool,
     on_fulfilled: Callable[[str], None] | None = None,
+    override_revenue: bool = False,
 ) -> dict:
     """``mark-paid`` / ``settle-offline`` 的共用实现。"""
     setting = site_config.get_setting(session)
@@ -160,6 +199,12 @@ def _manual_payment(
                 f"只有{_FULFILLABLE_STATUS_TEXT}的订单可以标记支付。"
             ),
         )
+    previous_flag = bool(order.manual_settlement)
+    flips_revenue = _revenue_guard(
+        order,
+        manual_settlement=manual_settlement,
+        override_revenue=override_revenue,
+    )
     result = session.execute(
         update(Order)
         .where(Order.id == order.id)
@@ -177,12 +222,16 @@ def _manual_payment(
         logger.info("标记支付重复提交，已忽略 order=%s status=%s", order.order_no, order.status)
         return order_payload(order)
     session.refresh(order)
+    note = "" if manual_settlement else "人工确认已收到钱（线下），计入营收"
+    if flips_revenue:
+        delta = f"覆盖营收口径：manual_settlement {previous_flag} → {manual_settlement}"
+        note = f"{note}；{delta}" if note else delta
     _audit(
         session,
         _admin_actor(admin),
         "order.mark_paid" if manual_settlement else "order.settle_offline",
         order.order_no,
-        "" if manual_settlement else "人工确认已收到钱（线下），计入营收",
+        note,
     )
     if order.fulfillment_mode != "manual":
         return _fulfill_with_failure_state(
