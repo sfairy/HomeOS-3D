@@ -25,6 +25,7 @@ import {
 import { guardInteraction3dChanges as guardInteraction3dChanges2 } from '../../../bridge/editor'
 import { confirmAction } from '../../../shared/ui-confirm'
 import { validateGo2rtcDocument } from '@/studio/platform/go2rtc-url'
+import { beginEditorCanvasWelcome } from '../welcome/editor-canvas-welcome'
 
 export interface WorkspaceHistoryDeps {
   editorCtx: EditorContext
@@ -645,7 +646,18 @@ export async function historyEntry(deps: WorkspaceHistoryDeps, prunedEntry: any,
       deps.recoveryDialogElement.showModal())
 }
 
-export async function initialPagePath(deps: WorkspaceHistoryDeps, loadProjects: any = null) {
+export async function initialPagePath(deps: WorkspaceHistoryDeps, loadProjects: unknown = null) {
+  // 欢迎叠层（0.8.8）：载入期间铺在画布上，收尾时若还有「已挂载但未呈现」的 3D 宿主，
+  // `finish` 会等画面就绪再淡出（含可见 3D 户型的仪表盘不再先白屏再跳一下）。
+  const finishWelcome = beginEditorCanvasWelcome()
+  try {
+    await initialPagePathInner(deps, loadProjects)
+  } finally {
+    finishWelcome(deps.editorCanvasElement ?? null)
+  }
+}
+
+async function initialPagePathInner(deps: WorkspaceHistoryDeps, loadProjects: unknown = null) {
   if (
     ((deps.editorCtx.projects = (await deps.requestJson('/projects')).items || []),
     deps.projectSelectElement.replaceChildren(),

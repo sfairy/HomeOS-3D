@@ -1601,6 +1601,14 @@ dialog.hb-interaction3d-runtime.is-borrowed-editor::backdrop {
   grid-column: 1 / -1;
   margin-bottom: 0;
 }
+/* 安防「模型列表」与全局列表进度行同一套口径：网格里必须独占一行。
+   它的上一行是选择器 label（`margin:0`，网格也没有 row-gap），所以这里要自己留出
+   上间距，否则计数会贴在 picker 边框上。 */
+.i3d-editor .i3d-security-model-list > .i3d-configuration-counts {
+  grid-column: 1 / -1;
+  min-width: 0;
+  margin: 8px 0 10px;
+}
 .i3d-security-disclosure,
 .i3d-security-disclosure-body {
   min-width: 0;
@@ -1692,6 +1700,13 @@ dialog.hb-interaction3d-runtime.is-borrowed-editor::backdrop {
 .i3d-unified-settings .i3d-compact-list > .i3d-note {
   grid-column: 1 / -1;
   min-width: 0;
+}
+/* 灯光列表顶部的「灯组 N · 已配置 X · 未配置 Y」：独占一行，否则它会撑宽首列（auto）
+   把右侧「当前灯光 / 添加灯光」挤成一条窄缝。上下留白与「灯组/列表行」拉开一档。 */
+.i3d-unified-settings .i3d-compact-list > .i3d-configuration-counts {
+  grid-column: 1 / -1;
+  min-width: 0;
+  margin: 2px 0 8px;
 }
 .i3d-unified-settings .i3d-compact-list > .i3d-config-list-row {
   min-width: 0;
@@ -2391,10 +2406,11 @@ dialog.hb-interaction3d-runtime.is-borrowed-editor::backdrop {
 
 /* ------------------------------------------------------------------ *
  * 设备类别弹窗（0.7.8）：图标网格 + 分组标题，替代原生 <select>。
- * 固定 5 列，窄屏 1 列、中屏 4 列；高度按视口收口，超长目录内部滚动。
+ * 0.8.2 起对齐「模型选择」稿：标题区左对齐、选项 4 列大卡片、
+ * 「已配置」用绿色、「未配置」用强调色；窄屏逐级降到 3 / 2 / 1 列。
  * ------------------------------------------------------------------ */
 .i3d-device-category-dialog {
-  width: min(900px, calc(100vw - 32px));
+  width: min(1024px, calc(100vw - 32px));
   max-height: calc(100dvh - 32px);
   overflow: hidden;
 }
@@ -2404,10 +2420,72 @@ dialog.hb-interaction3d-runtime.is-borrowed-editor::backdrop {
 }
 .i3d-device-category-dialog .dialog-heading {
   flex: none;
+  align-items: flex-start;
+  padding: 18px 20px 16px;
+}
+.i3d-device-category-dialog .dialog-heading > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+}
+/* 标题区小标（MODEL SELECTION）：金色，与 app.css 的基础口径一致。
+   选择器带上 `.settings-dialog` 是为了压过 studio-native-dialogs.css 里
+   `.settings-dialog .dialog-heading > div > span:first-child` 的灰色小标口径。 */
+.settings-dialog.i3d-device-category-dialog .dialog-heading .i3d-picker-kicker {
+  display: block;
+  margin: 0 0 6px;
+  padding: 0 48px 0 0;
+  color: var(--accent-bright, var(--hos-color-accent));
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.i3d-device-category-dialog .dialog-heading h2 {
+  margin: 0 0 4px;
+  color: var(--hos-text-strong, rgba(255, 255, 255, 0.96));
+  font-size: 18px;
+  line-height: 1.35;
+}
+.i3d-device-category-dialog .dialog-heading .i3d-note {
+  margin: 0;
+  max-width: 82ch;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.65;
+}
+/* 配置进度行：必须压过 app.css / studio-native-dialogs.css 里
+   `.dialog-heading span` 的「小标」口径（block + 字距 + 大写 + 9/10px），
+   否则「模型 · 已配置 · 未配置」会被拆成多行、分隔点单独占一行。 */
+.i3d-device-category-dialog .dialog-heading .i3d-configuration-counts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  margin: 8px 0 0;
+  padding: 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.6;
+  text-transform: none;
+}
+.i3d-device-category-dialog .dialog-heading .i3d-configuration-count,
+.i3d-device-category-dialog .dialog-heading .i3d-configuration-separator {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+  text-transform: none;
 }
 .i3d-device-category-dialog .i3d-device-category-dialog-body {
   display: grid;
-  gap: 13px;
+  gap: 14px;
   min-height: 0;
   max-height: calc(100dvh - 126px);
   padding: 18px 20px 20px;
@@ -2416,11 +2494,11 @@ dialog.hb-interaction3d-runtime.is-borrowed-editor::backdrop {
 }
 .i3d-device-category-groups {
   display: grid;
-  gap: 13px;
+  gap: 14px;
 }
 .i3d-device-category-group {
   display: grid;
-  gap: 8px;
+  gap: 10px;
 }
 .i3d-device-category-group h3 {
   margin: 0;
@@ -2430,48 +2508,62 @@ dialog.hb-interaction3d-runtime.is-borrowed-editor::backdrop {
 }
 .i3d-device-category-options {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px 16px;
 }
 .i3d-device-category-option {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
   min-width: 0;
-  min-height: 40px;
-  gap: 8px;
-  padding: 6px 9px;
-  border: 1px solid #37414a;
-  border-radius: 7px;
-  color: var(--text, #e8ecef);
-  background: var(--field, #171d22);
+  min-height: 64px;
+  gap: 7px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--field);
   text-align: left;
   font: inherit;
   font-size: 12px;
   cursor: pointer;
+  transition:
+    border-color var(--hos-dur-fast) var(--hos-ease-standard, ease),
+    background var(--hos-dur-fast) var(--hos-ease-standard, ease);
 }
-.i3d-device-category-option:hover {
-  border-color: #687681;
-  background: #252e35;
+.i3d-device-category-option:hover:not(:disabled) {
+  border-color: var(--muted);
+  background: var(--surface-soft);
 }
 .i3d-device-category-option:focus-visible {
-  outline: 2px solid var(--hos-color-accent);
+  outline: 2px solid var(--accent-bright, var(--hos-color-accent));
   outline-offset: 2px;
 }
+/* 已配置 = 不可重复添加：整卡压暗，但「已配置」明细仍用绿色。 */
+.i3d-device-category-option:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+.i3d-device-category-option:disabled:hover {
+  border-color: var(--line);
+  background: var(--field);
+}
 .i3d-device-category-option.is-selected {
-  border-color: var(--hos-color-accent);
+  border-color: var(--accent-bright, var(--hos-color-accent));
   background: #2a2923;
   box-shadow: inset 0 0 0 1px #f2a20d33;
 }
 .i3d-device-category-icon {
   flex: none;
-  width: 18px;
-  height: 18px;
-  background: var(--muted, #89949d);
+  width: 16px;
+  height: 16px;
+  background: var(--muted);
   mask: center / contain no-repeat;
   -webkit-mask: center / contain no-repeat;
 }
 .i3d-device-category-option.is-selected .i3d-device-category-icon {
-  background: var(--hos-color-accent);
+  background: var(--accent-bright, var(--hos-color-accent));
 }
 .i3d-device-category-option-label {
   min-width: 0;
@@ -2479,10 +2571,13 @@ dialog.hb-interaction3d-runtime.is-borrowed-editor::backdrop {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.i3d-device-category-option:disabled .i3d-device-category-option-label {
+  color: var(--muted);
+}
 .i3d-device-category-option-current {
   margin-left: auto;
   flex: none;
-  color: var(--hos-color-accent);
+  color: var(--accent-bright, var(--hos-color-accent));
   font-size: 11px;
 }
 .i3d-device-category-dialog .i3d-note {
@@ -2494,6 +2589,11 @@ dialog.hb-interaction3d-runtime.is-borrowed-editor::backdrop {
 .i3d-device-category-dialog [hidden] {
   display: none !important;
 }
+@media (max-width: 900px) {
+  .i3d-device-category-options {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
 @media (max-width: 600px) {
   .i3d-device-category-dialog {
     width: calc(100vw - 20px);
@@ -2504,12 +2604,12 @@ dialog.hb-interaction3d-runtime.is-borrowed-editor::backdrop {
     padding: 14px;
   }
   .i3d-device-category-options {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
-@media (min-width: 600px) and (max-width: 1200px) {
+@media (max-width: 420px) {
   .i3d-device-category-options {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -2517,29 +2617,45 @@ dialog.hb-interaction3d-runtime.is-borrowed-editor::backdrop {
  * 配置进度与统一选择器（0.8.1）：
  * 选项上排是图标 + 名称（`.i3d-device-category-option-top`），第二行是
  * 「模型 12 · 已配置 8 · 未配置 4」计数，第三行是明细。计数用等宽数字，
- * 零值压暗，其余按状态配色（已配置 = 强调色，缺失 = 告警色）。
+ * 零值压暗，其余按状态配色（已配置 = 绿色，缺失 = 告警色，未配置 = 强调色）。
  * ------------------------------------------------------------------ */
 .i3d-configuration-counts {
   display: flex;
   flex-wrap: wrap;
-  gap: 2px;
-  color: var(--muted, #89949d);
+  align-items: baseline;
+  gap: 0;
+  color: var(--muted);
   font-size: 11px;
-  line-height: 1.6;
+  line-height: 1.7;
+}
+/* 分隔点必须靠 padding 撑开：flex 项会把 `' · '` 两端的空格吃掉，只剩间距 0 的 `·`，
+   整行就变成「模型 2·已配置 2·未配置 0」，读起来糊成一团。 */
+.i3d-configuration-counts > .i3d-configuration-separator {
+  padding: 0 5px;
+  color: var(--muted);
+  opacity: 0.8;
+}
+/* 直接挂在分区里的列表（环境标签 / 快捷指令 / 报警卡片）也给一档上下留白，
+   否则计数行会贴着上一行的按钮或输入框。 */
+.i3d-config-section > .i3d-configuration-counts {
+  margin: 6px 0 8px;
 }
 .i3d-configuration-number {
   font-variant-numeric: tabular-nums;
   font-weight: 650;
-  color: var(--text, #e8ecef);
-}
-.i3d-configuration-number.is-zero {
-  color: var(--muted, #89949d);
+  color: var(--text);
 }
 .i3d-configuration-number.is-configured {
-  color: var(--hos-color-accent);
+  color: var(--success, var(--hos-color-success));
+}
+.i3d-configuration-number.is-remaining {
+  color: var(--accent-bright, var(--hos-color-accent));
 }
 .i3d-configuration-number.is-missing {
   color: #e2725b;
+}
+.i3d-configuration-number.is-zero {
+  color: var(--muted);
 }
 .i3d-device-category-option-top {
   display: flex;
@@ -2547,34 +2663,146 @@ dialog.hb-interaction3d-runtime.is-borrowed-editor::backdrop {
   min-width: 0;
   gap: 8px;
 }
-.i3d-device-category-option {
-  flex-wrap: wrap;
-  row-gap: 2px;
-}
 .i3d-device-category-option-label.is-wrapped {
   overflow: visible;
   text-overflow: clip;
   white-space: normal;
 }
 .i3d-configuration-detail {
-  flex-basis: 100%;
   min-width: 0;
-  color: var(--muted, #89949d);
+  color: var(--muted);
   font-size: 11px;
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
 .i3d-configuration-detail.is-configured {
-  color: var(--hos-color-accent);
+  color: var(--success, var(--hos-color-success));
+}
+.i3d-configuration-detail.is-remaining {
+  color: var(--accent-bright, var(--hos-color-accent));
 }
 .i3d-configuration-detail.is-missing {
   color: #e2725b;
 }
 .i3d-configuration-controls {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  min-width: 0;
+}
+/* 控件行的字段标题与宿主面板同一口径（竖排：标题在上、控件在下）。 */
+.i3d-configuration-controls > label {
+  display: grid;
+  min-width: 0;
   gap: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+.i3d-configuration-controls > label > span {
+  color: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+/* 弹窗挂在 body 上，`.i3d-editor .i3d-picker-button` 够不到，这里补同款外观。 */
+.i3d-configuration-controls .i3d-picker-button {
+  display: flex;
   align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 32px;
+  padding: 6px 10px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  background: var(--field);
+  text-align: left;
+  font-size: 12px;
+  cursor: pointer;
+}
+.i3d-configuration-controls .i3d-picker-button > span {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.i3d-configuration-controls .i3d-picker-button:after {
+  content: "\2304";
+  margin-left: auto;
+  flex: none;
+  color: var(--muted);
+}
+.i3d-configuration-controls .i3d-picker-button:hover:not(:disabled) {
+  border-color: var(--muted);
+  background: var(--surface-soft);
+}
+.i3d-configuration-controls .i3d-picker-button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* 弹窗顶部的分段选择（如「设备类型：空调 / 浴霸」）：
+   与 `app.css` 的 `.navigation-segmented-options` 同一套视觉，但弹窗挂在
+   `document.body` 上、`.i3d-editor` 作用域够不到，故独立成 `.i3d-picker-*`。 */
+.i3d-picker-field {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+}
+.i3d-picker-field-label {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+.i3d-picker-segmented {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 160px;
+  justify-content: start;
+  gap: 3px;
+  width: fit-content;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--field);
+}
+.i3d-picker-segmented button {
+  min-width: 0;
+  min-height: 30px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 5px;
+  color: var(--muted);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    color var(--hos-dur-fast) var(--hos-ease-standard, ease),
+    background var(--hos-dur-fast) var(--hos-ease-standard, ease);
+}
+.i3d-picker-segmented button:hover:not(.is-active) {
+  color: var(--text);
+  background: var(--hos-bg-tint-1);
+}
+.i3d-picker-segmented button.is-active {
+  color: var(--hos-fg-1);
+  background: var(--accent-soft, var(--hos-color-accent-soft));
+  box-shadow: inset 0 0 0 1px var(--hos-color-accent-line);
+}
+.i3d-picker-segmented button:focus-visible {
+  outline: 2px solid var(--accent-bright, var(--hos-color-accent));
+  outline-offset: 2px;
+}
+@media (max-width: 600px) {
+  .i3d-picker-segmented {
+    width: 100%;
+    grid-auto-columns: minmax(0, 1fr);
+  }
 }
 
 /* 配置入口的楼层选择：单层直接进入，多层弹这一张列表。 */

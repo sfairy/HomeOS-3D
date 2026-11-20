@@ -206,7 +206,8 @@ function lightingStaleMessage(runtime: StudioAppRuntime): string | null {
   }
   const styleChanged =
     lightingPanelOpenedStyle != null && lightingPanelOpenedStyle !== String(runtime.appCtx.sceneStyle || 'default')
-  return styleChanged ? '材质风格已变化，请重新打开进阶设置。' : null
+  // 0.8.8 原文：主题 / 光影模式切换后旧面板的数值已不对应当前主题，必须重开。
+  return styleChanged ? '户型主题或光影模式已切换，请重新打开进阶设置。' : null
 }
 
 export function confirmLightingDialog(runtime: StudioAppRuntime) {

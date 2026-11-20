@@ -52,6 +52,7 @@ import { interaction3dPreviewSize, observeInteraction3dPreview } from '@app/brid
 import { createConfigurationFeedback } from '../config-ui/configuration-feedback'
 import { openConfigurationPicker } from '../config-ui/configuration-picker'
 import { configurationProgress } from '../config-ui/configuration-progress'
+import { appendConfigurationCounts } from '../config-ui/config-list-summary'
 import { domElement } from '@app/shared/util/dom-factory'
 import { normalizeSecurityDraftProperties } from '@app/shared/util/security-draft'
 import { isWarmSceneStyle } from '@app/shared/scene-styles'
@@ -378,6 +379,19 @@ export async function openSecurityEditor({
       ? categoryPickerHandle.close()
       : (activePickerHandle = categoryPickerHandle)
   }
+  /** 当前安防类别在本层的配置进度（类别弹窗 / 列表头 / 已配置选择器共用一份口径）。 */
+  function currentCategoryProgress() {
+    return configurationProgress({
+      ready: !!findSelectedFloor(),
+      requiresModel: !isAlarmKindValue(securityKind),
+      models: getFloorModelList() as ReadonlyArray<SecurityChoiceRecord>,
+      bindings: (getItemList() as ReadonlyArray<SecurityChoiceRecord>).filter(
+        (itemProbe) => itemProbe.floorId === selectedFloorId,
+      ),
+      modelKey: getCandidateModelId,
+      bindingKey: (bindingItem: SecurityChoiceRecord) => bindingItem?.modelId,
+    })
+  }
   /** 已配置列表选择器（上游 `v328`，kicker `CONFIGURED ITEMS`）。 */
   function openSecurityItemPicker(itemsInSelectedFloor: ReadonlyArray<SecurityChoiceRecord>) {
     const itemPickerGeneration = ++pickerGeneration,
@@ -392,12 +406,7 @@ export async function openSecurityEditor({
       kicker: 'CONFIGURED ITEMS',
       unit: getKindLabel(),
       description: '当前楼层：' + selectedFloorName() + '。选择已配置项继续编辑。最后点击“保存配置”应用修改。',
-      summary: configurationProgress({
-        ready: !!findSelectedFloor(),
-        requiresModel: !isAlarmKindValue(securityKind),
-        models: getFloorModelList() as ReadonlyArray<SecurityChoiceRecord>,
-        bindings: itemsInSelectedFloor,
-      }),
+      summary: currentCategoryProgress(),
       selectedId: selectedItemId,
       emptyMessage: '当前楼层还没有配置' + getKindLabel() + '。',
       sections: [
@@ -1090,14 +1099,19 @@ export async function openSecurityEditor({
       })
       ;(addCardButton.className = 'primary i3d-alarm-add-card'),
         (addCardButton.disabled = !selectedFloorId || !isAccessAllowed),
-        currentContainerElement.append(addCardButton),
-        currentContainerElement.append(
-          createElement(
-            'p',
-            'i3d-note',
-            '卡片可独立放置，也可在预览画面中拖动。报警提示覆盖整个仪表盘，与当前分类和楼层无关。',
-          ),
-        )
+        currentContainerElement.append(addCardButton)
+      // 报警卡片没有模型库：列表头只数「本层已配置」，与其它类别的进度行同一套口径。
+      appendConfigurationCounts(cardSectionElement, currentCategoryProgress(), {
+        document,
+        unit: getKindLabel(),
+      })
+      currentContainerElement.append(
+        createElement(
+          'p',
+          'i3d-note',
+          '卡片可独立放置，也可在预览画面中拖动。报警提示覆盖整个仪表盘，与当前分类和楼层无关。',
+        ),
+      )
       if (itemsInSelectedFloor.length) {
         createSelectField(
           '当前报警卡片',
@@ -1114,8 +1128,8 @@ export async function openSecurityEditor({
       }
     } else {
       const modelListSectionElement = createSectionHeading('模型列表')
-      ;(modelListSectionElement.className += ' i3d-security-model-list'),
-        (currentContainerElement = modelListSectionElement)
+      modelListSectionElement.className += ' i3d-security-model-list'
+      currentContainerElement = modelListSectionElement
       createPickerField(
         getKindLabel() + '列表',
         itemsInSelectedFloor.find((itemOption: any) => itemOption.id === selectedItemId)?.label ||
@@ -1123,12 +1137,14 @@ export async function openSecurityEditor({
           getKindLabel(),
         () => openSecurityItemPicker(itemsInSelectedFloor),
         !itemsInSelectedFloor.length,
-      ),
-        (currentContainerElement = createDisclosure(
-          '添加' + getKindLabel(),
-          'add:' + getSecurityCategory() + ':' + selectedFloorId,
-          modelListSectionElement,
-        ))
+      )
+      // 列表头常驻「模型 N · 已配置 X · 未配置 Y」，与类别弹窗、已配置选择器共用同一份数字。
+      appendConfigurationCounts(modelListSectionElement, currentCategoryProgress(), { document, unit: '模型' })
+      currentContainerElement = createDisclosure(
+        '添加' + getKindLabel(),
+        'add:' + getSecurityCategory() + ':' + selectedFloorId,
+        modelListSectionElement,
+      )
       createPickerField(
         '添加' + getKindLabel(),
         '选择' + getKindLabel() + '模型',

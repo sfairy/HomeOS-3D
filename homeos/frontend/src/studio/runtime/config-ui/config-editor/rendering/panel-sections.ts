@@ -24,6 +24,7 @@ import {
   indicatorEntitySupport as indicatorEntitySupport2,
 } from './indicator-condition-editor'
 import { normalizeInteraction3dLightingMode as normalizeInteraction3dLightingMode2 } from '@app/bridge/definition'
+import { appendConfigListSummary } from '../../config-list-summary'
 import { withInteractionLightEffects as withInteractionLightEffects2 } from '@app/bridge/presets/light-effect-policy'
 import {
   normalizeTemperatureHumidity as normalizeTemperatureHumidity2,
@@ -930,6 +931,8 @@ export function renderExtraControlsSection(deps: PanelSectionsDeps) {
   ;(addLabelButtonElement.className = 'primary'),
     (addLabelButtonElement.disabled = !editorHost.isAccessAllowed),
     labelListRowElement.append(addLabelButtonElement),
+    // 其它类别（灯光 / 模型列表）的列表头都带配置进度；环境标签没有模型库，只数本层已配置条目。
+    appendConfigListSummary(editorHost, labelListSectionElement),
     labelListSectionElement.append(
       editorHost.createElement('p', 'i3d-note', '环境标签是独立信息框，不绑定户型模型，不聚焦，不发送控制指令。'),
     ),
@@ -1223,10 +1226,11 @@ export function renderVacuumShortcutPanel(deps: PanelSectionsDeps) {
   shortcutSectionElement.className += ' i3d-compact-list'
   const shortcutHeaderRowElement = editorHost.createElement('div', 'i3d-config-list-row'),
     addShortcutButton = editorHost.createButton('添加快捷指令', openAddDialog)
+  shortcutHeaderRowElement.append(addShortcutButton), shortcutSectionElement.append(shortcutHeaderRowElement)
+  // 快捷指令没有模型库：列表头上只数「本层已配置」（与灯光列表同一套进度行）。
+  appendConfigListSummary(editorHost, shortcutSectionElement)
   if (
-    (shortcutHeaderRowElement.append(addShortcutButton),
-    shortcutSectionElement.append(shortcutHeaderRowElement),
-    editorHost.getItemList().some((existingShortcutProbe: any) => existingShortcutProbe.id === editorHost.text) ||
+    (editorHost.getItemList().some((existingShortcutProbe: any) => existingShortcutProbe.id === editorHost.text) ||
       (editorHost.text = editorHost.getItemList()[0]?.id || ''),
     !editorHost.text)
   ) {

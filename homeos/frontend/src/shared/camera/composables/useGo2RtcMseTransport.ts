@@ -19,6 +19,7 @@
  */
 import { onUnmounted, ref, watch, type Ref } from 'vue'
 import { logger } from '@/shared/utils/core/logger'
+import { supportedMseCodecType } from '@/shared/camera/mse-codec'
 
 /** 同源中继路径（后端 `api/go2rtc.py` 挂在 API 前缀 `/api/v1` 下）。 */
 const GO2RTC_WS_PATH = '/api/v1/go2rtc/ws'
@@ -315,7 +316,12 @@ export function createGo2RtcMseTransport(options: Go2RtcMseTransportOptions): Go
       if (!isCurrent() || hasSentSignaling) return
       if (mediaSource.readyState !== 'open' || socket.readyState !== WebSocket.OPEN) return
       const codecList = GO2RTC_CODEC_CANDIDATES.filter((codec) =>
-        mediaSourceCtor.isTypeSupported(`video/mp4; codecs="${codec}"`),
+        // 逐个候选走「fLaC 归一化优先、原串回落」：Safari 只认规范写法，直接用小写
+        // `flac` 探测会把整条流判成不支持（等于永远没有声音）。
+        supportedMseCodecType(
+          (mediaType) => mediaSourceCtor.isTypeSupported(mediaType),
+          `video/mp4; codecs="${codec}"`,
+        ),
       ).join(',')
       if (!codecList) {
         fail(generation, '当前浏览器不支持摄像头视频格式', { retry: false })
@@ -365,9 +371,13 @@ export function createGo2RtcMseTransport(options: Go2RtcMseTransportOptions): Go
         if (typeof messageEvent.data === 'string') {
           const payload = JSON.parse(messageEvent.data)
           if (payload?.type === 'mse') {
-            if (sourceBuffer || !mediaSourceCtor.isTypeSupported(String(payload.value)))
-              throw new Error('unsupported codec')
-            sourceBuffer = mediaSource.addSourceBuffer(String(payload.value))
+            // 中继回的串可能带小写 `flac`：先归一化再探测，并按**被接受的那个串**
+            // 添加 SourceBuffer（否则 Safari 上 addSourceBuffer 仍会抛 unsupported codec）。
+            const acceptedCodecType = sourceBuffer
+              ? ''
+              : supportedMseCodecType((mediaType) => mediaSourceCtor.isTypeSupported(mediaType), String(payload.value))
+            if (!acceptedCodecType) throw new Error('unsupported codec')
+            sourceBuffer = mediaSource.addSourceBuffer(acceptedCodecType)
             sourceBuffer.mode = 'segments'
             sourceBuffer.addEventListener('updateend', flushStreamQueue)
             sourceBuffer.addEventListener('error', () => fail(generation))

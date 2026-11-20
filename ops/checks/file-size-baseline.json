@@ -4,7 +4,7 @@
   "stats": {
     "homeos": {
       "files": 74,
-      "lines": 111201,
+      "lines": 111275,
       "gt1000": 51,
       "max": 4917
     },
@@ -64,7 +64,7 @@
     "homeos/frontend/src/studio/app/editor/home/inspectors/inspector-context-builders.ts": 1123,
     "homeos/frontend/src/studio/app/editor/home/lifecycle/boot.ts": 4917,
     "homeos/frontend/src/studio/app/editor/home/workspace/copy-backup-pickers.ts": 1046,
-    "homeos/frontend/src/studio/app/editor/home/workspace/workspace-history.ts": 1053,
+    "homeos/frontend/src/studio/app/editor/home/workspace/workspace-history.ts": 1065,
     "homeos/frontend/src/studio/app/editor/metadata/effect-preview-input-tables.ts": 1363,
     "homeos/frontend/src/studio/app/renderer/panel-renderer.ts": 2140,
     "homeos/frontend/src/studio/app/renderer/panel-seams/controls/climate-controls.ts": 1126,
@@ -78,17 +78,17 @@
     "homeos/frontend/src/studio/runtime/climate/climate-panel.ts": 1085,
     "homeos/frontend/src/studio/runtime/climate/purifier-extras.ts": 1353,
     "homeos/frontend/src/studio/runtime/config-ui/config-editor.ts": 1014,
-    "homeos/frontend/src/studio/runtime/config-ui/config-editor/rendering/panel-assembly.ts": 3459,
-    "homeos/frontend/src/studio/runtime/config-ui/config-editor/rendering/panel-dialogs.ts": 892,
-    "homeos/frontend/src/studio/runtime/config-ui/config-editor/rendering/panel-sections.ts": 1427,
+    "homeos/frontend/src/studio/runtime/config-ui/config-editor/rendering/panel-assembly.ts": 3475,
+    "homeos/frontend/src/studio/runtime/config-ui/config-editor/rendering/panel-dialogs.ts": 886,
+    "homeos/frontend/src/studio/runtime/config-ui/config-editor/rendering/panel-sections.ts": 1431,
     "homeos/frontend/src/studio/runtime/config-ui/light-range-editor.ts": 1568,
     "homeos/frontend/src/studio/runtime/core/runtime.ts": 2844,
-    "homeos/frontend/src/studio/runtime/core/stage.ts": 4856,
-    "homeos/frontend/src/studio/runtime/core/stage/stage-handlers.ts": 2047,
+    "homeos/frontend/src/studio/runtime/core/stage.ts": 4866,
+    "homeos/frontend/src/studio/runtime/core/stage/stage-handlers.ts": 2050,
     "homeos/frontend/src/studio/runtime/cover/cover-panel.ts": 825,
     "homeos/frontend/src/studio/runtime/environment/environment-scene.ts": 829,
     "homeos/frontend/src/studio/runtime/presence/presence-editor.ts": 923,
-    "homeos/frontend/src/studio/runtime/security/security-editor.ts": 2699,
+    "homeos/frontend/src/studio/runtime/security/security-editor.ts": 2715,
     "homeos/frontend/vite.config.ts": 1041
   }
 }

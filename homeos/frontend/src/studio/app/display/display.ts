@@ -14,6 +14,57 @@ import { componentFamiliesForDocument, ensureRegistryComponents } from '../rende
 import type { DomControl } from '@app/shared/util/dom-control'
 import { navigateInShell } from '@/studio/platform/shell-navigation'
 
+/**
+ * iPhone 主屏 PWA 的画布高度校正（0.8.8 `display.js` 的 `Y()`）。
+ *
+ * 返回 `0` 表示「不需要校正」；返回正数表示应当使用的高度（= `screen.height`）。
+ *
+ * 只在**同时**满足这些条件时生效（任一不满足都返回 0，宁可不动）：
+ * - iPhone（不含 iPad、HomeOS 原生壳 `HA-Bridge-Apple`）；
+ * - `display-mode: standalone`（从主屏幕打开）；
+ * - 视觉视口没有纵向偏移（地址栏展开/收起过程中 `offsetTop > 1` 时尺寸不可信）；
+ * - 横竖屏方向与 `screen` 一致，且宽度也对得上（否则说明取到的不是全屏尺寸）；
+ * - 当前焦点不是输入框（聚焦输入时 iOS 会顶起视口，此时对齐会锁死错误高度）；
+ * - `screen.height - 视口高度` 恰好等于底部安全区，或 `documentElement.clientHeight`
+ *   已经等于 `screen.height`（两种都说明「差的那一截」就是被裁掉的部分）。
+ */
+export function iphoneStandaloneDisplayHeight(
+  viewportWidth: number,
+  viewportHeight: number,
+  visualViewport: { offsetTop?: number } | null,
+): number {
+  const userAgent = navigator.userAgent || ''
+  if (!/iPhone/i.test(userAgent) || /\bHA-Bridge-Apple\//i.test(userAgent)) return 0
+  const isStandalone =
+    (navigator as Navigator & { standalone?: boolean }).standalone === true ||
+    window.matchMedia?.('(display-mode: standalone)').matches === true
+  if (!isStandalone) return 0
+  if (Math.abs(visualViewport?.offsetTop ?? 0) > 1) return 0
+  let screenWidth = Number(window.screen?.width) || 0
+  let screenHeight = Number(window.screen?.height) || 0
+  if (viewportWidth > viewportHeight !== screenWidth > screenHeight) {
+    ;[screenWidth, screenHeight] = [screenHeight, screenWidth]
+  }
+  const missingHeight = screenHeight - viewportHeight
+  if (Math.round(screenWidth) !== viewportWidth || !Number.isFinite(missingHeight) || missingHeight < 0) return 0
+  const activeElement = document.activeElement as (HTMLElement & { isContentEditable?: boolean }) | null
+  if (
+    activeElement?.isContentEditable ||
+    activeElement?.matches?.('textarea, input:not([type=range]):not([type=checkbox]):not([type=radio])')
+  )
+    return 0
+  const previousHeight =
+    Number.parseFloat(document.documentElement.style.getPropertyValue('--display-iphone-pwa-height')) || 0
+  // 已经不缺高度：保持上次结论（避免在「刚好相等」的两帧之间来回抖动）。
+  if (missingHeight === 0) return previousHeight === screenHeight ? screenHeight : 0
+  const bottomInset = Number.parseFloat(
+    window.getComputedStyle(document.documentElement).getPropertyValue('--display-safe-area-bottom'),
+  )
+  const matchesBottomInset = bottomInset > 0 && Math.abs(missingHeight - bottomInset) <= 1
+  const matchesClientHeight = document.documentElement.clientHeight === screenHeight
+  return matchesBottomInset || matchesClientHeight ? screenHeight : 0
+}
+
 function syncAppleDisplaySurface(boardConfig: any, env = window) {
   const { document: documentNode, navigator: nav } = env,
     isIosDevice =
@@ -133,48 +184,78 @@ export function bootDisplay(): void {
       /iPad|iPhone|iPod/i.test(userAgent) || (/Macintosh/i.test(userAgent) && Number(navigator.maxTouchPoints || 0) > 1)
     )
   }
-  function syncViewportSize() {
-    // 见文件头契约说明：视图已卸载时本函数只剩「让 resize 抛 null.style」这一副作用。
-    const displayShell = displayShellElement
-    if (!displayShell) return
-    const shouldUseScreenSize = !isEmbeddedFrame && isAppleMobile(),
-      // 嵌入总览时改用父容器（MainLayout 内容区）的布局尺寸：clientWidth/Height 不受
-      // ScaledViewport 的 transform: scale 影响，得到的正是 #display-shell 需要的未缩放尺寸。
-      embeddedParentElement = isEmbeddedOverview ? displayShell.parentElement : null
-    let widthPx = Math.round(
-        Number(shouldUseScreenSize ? window.screen?.width : window.visualViewport?.width) ||
+  /** 视口尺寸（苹果整屏设备优先用 `screen`，其余走 `visualViewport` → `innerWidth` 兜底）。 */
+  function viewportSizePx(useScreenSize: boolean) {
+    const widthPx = Math.round(
+        Number(useScreenSize ? window.screen?.width : window.visualViewport?.width) ||
           Number(window.innerWidth) ||
           Number(document.documentElement.clientWidth),
       ),
       heightPx = Math.round(
-        Number(shouldUseScreenSize ? window.screen?.height : window.visualViewport?.height) ||
+        Number(useScreenSize ? window.screen?.height : window.visualViewport?.height) ||
           Number(window.innerHeight) ||
           Number(document.documentElement.clientHeight),
       )
-    shouldUseScreenSize &&
-      window.innerWidth >= window.innerHeight !== widthPx >= heightPx &&
-      ([widthPx, heightPx] = [heightPx, widthPx]),
-      // 嵌入总览：以父容器尺寸覆盖视口尺寸（父容器尚未布局出尺寸时保留视口值兜底）。
-      embeddedParentElement &&
-        embeddedParentElement.clientWidth > 0 &&
-        embeddedParentElement.clientHeight > 0 &&
-        ((widthPx = Math.round(embeddedParentElement.clientWidth)),
-        (heightPx = Math.round(embeddedParentElement.clientHeight))),
-      !(!widthPx || !heightPx) &&
-        (isEmbeddedFrame &&
-          visibleBounds &&
-          ((widthPx = Math.min(widthPx, visibleBounds.width)),
-          (heightPx = Math.min(heightPx, visibleBounds.height)),
-          (displayShell.style.left = visibleBounds.left + 'px'),
-          (displayShell.style.top = visibleBounds.top + 'px')),
-        (displayShell.style.width = widthPx + 'px'),
-        (displayShell.style.height = heightPx + 'px'),
-        panelRenderer?.resize(),
-        shouldUseScreenSize &&
-          ((document.documentElement.style.width = widthPx + 'px'),
-          (document.documentElement.style.height = heightPx + 'px'),
-          (document.body.style.width = widthPx + 'px'),
-          (document.body.style.height = heightPx + 'px')))
+    return { widthPx, heightPx }
+  }
+  /**
+   * iPhone 主屏（standalone）的高度校正（0.8.8）。
+   *
+   * `100vh` 比真实屏幕矮一截（底部工具栏/圆角区域被算进视觉视口），画布底部与导航会被裁掉。
+   * 命中时返回 `screen.height` 并写进 CSS 变量，让 `html, body` 的高度一起跟上。
+   */
+  function applyIphonePwaHeight(widthPx: number, heightPx: number) {
+    const iphonePwaHeight = iphoneStandaloneDisplayHeight(widthPx, heightPx, window.visualViewport)
+    if (!iphonePwaHeight) {
+      document.documentElement.style.removeProperty('--display-iphone-pwa-height')
+      return heightPx
+    }
+    document.documentElement.style.setProperty('--display-iphone-pwa-height', `${iphonePwaHeight}px`)
+    return iphonePwaHeight
+  }
+  /** 计算画布尺寸（含横竖屏纠正、嵌入父容器覆盖、iPhone 主屏高度校正）。 */
+  function measureDisplaySize(displayShell: HTMLElement) {
+    const shouldUseScreenSize = !isEmbeddedFrame && isAppleMobile(),
+      // 嵌入总览时改用父容器（MainLayout 内容区）的布局尺寸：clientWidth/Height 不受
+      // ScaledViewport 的 transform: scale 影响，得到的正是 #display-shell 需要的未缩放尺寸。
+      embeddedParentElement = isEmbeddedOverview ? displayShell.parentElement : null
+    const viewport = viewportSizePx(shouldUseScreenSize)
+    let widthPx = viewport.widthPx
+    let heightPx = viewport.heightPx
+    if (shouldUseScreenSize && window.innerWidth >= window.innerHeight !== widthPx >= heightPx)
+      [widthPx, heightPx] = [heightPx, widthPx]
+    // 嵌入总览：以父容器尺寸覆盖视口尺寸（父容器尚未布局出尺寸时保留视口值兜底）。
+    if (embeddedParentElement && embeddedParentElement.clientWidth > 0 && embeddedParentElement.clientHeight > 0) {
+      widthPx = Math.round(embeddedParentElement.clientWidth)
+      heightPx = Math.round(embeddedParentElement.clientHeight)
+    }
+    if (!widthPx || !heightPx) return null
+    return { widthPx, heightPx: applyIphonePwaHeight(widthPx, heightPx), shouldUseScreenSize }
+  }
+  function applyDisplaySize(displayShell: HTMLElement, widthPx: number, heightPx: number, useScreenSize: boolean) {
+    let width = widthPx
+    let height = heightPx
+    if (isEmbeddedFrame && visibleBounds) {
+      width = Math.min(width, visibleBounds.width)
+      height = Math.min(height, visibleBounds.height)
+      displayShell.style.left = visibleBounds.left + 'px'
+      displayShell.style.top = visibleBounds.top + 'px'
+    }
+    displayShell.style.width = width + 'px'
+    displayShell.style.height = height + 'px'
+    panelRenderer?.resize()
+    if (!useScreenSize) return
+    document.documentElement.style.width = width + 'px'
+    document.documentElement.style.height = height + 'px'
+    document.body.style.width = width + 'px'
+    document.body.style.height = height + 'px'
+  }
+  function syncViewportSize() {
+    // 见文件头契约说明：视图已卸载时本函数只剩「让 resize 抛 null.style」这一副作用。
+    const displayShell = displayShellElement
+    if (!displayShell) return
+    const measured = measureDisplaySize(displayShell)
+    if (measured) applyDisplaySize(displayShell, measured.widthPx, measured.heightPx, measured.shouldUseScreenSize)
   }
   /** 带业务错误码的请求错误（后端 detail.code 原样带出）。 */
   type DisplayRequestError = Error & { code?: string }

@@ -1,8 +1,8 @@
 import { withPageAppearancePreset as withPageAppearancePreset } from './presets/page-appearance-presets'
 const INTERACTION3D_TYPE = 'interaction3d'
 export const INTERACTION3D_LIGHTING_MODES = [
-    ['standard', '标准光影'],
     ['region', '轻量柔光'],
+    ['standard', '标准光影'],
   ],
   /**
    * 光影模式归一（0.8.5）：只有「标准光影 + 版本 2」才是新管线，其余一律回落轻量柔光。
@@ -50,7 +50,9 @@ export const INTERACTION3D_LIGHTING_MODES = [
           wallOpacity: null as any,
           backgroundMotion: true,
           renderScale: 1,
-          lightingMode: 'standard',
+          // 0.8.8 对齐：默认轻量柔光（region）。默认标准光影会让「灯光配置 → 照射范围」
+          // 入口整段隐藏（`panel-assembly` 只在 region 模式渲染该区块）。
+          lightingMode: 'region',
           lightingModeVersion: 2,
           groundReflection: {
             mode: 'off',

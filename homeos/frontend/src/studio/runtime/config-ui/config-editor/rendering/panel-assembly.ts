@@ -14,6 +14,7 @@ import { genericDeviceProfile as genericDeviceProfile2 } from '../../../device/g
 import { resolveDeviceCategoryProfile } from './device-category-choices'
 import { ENVIRONMENT_CATEGORY_LABELS, bindPickerRow, openDeviceCategoryPicker } from './picker-row'
 import { openConfigurationPicker, type ConfigurationChoice } from '../../configuration-picker'
+import { appendConfigListSummary } from '../../config-list-summary'
 import {
   USER_IMAGE_ACCEPT,
   fetchUserImageJson,
@@ -22,6 +23,7 @@ import {
   uploadUserImage,
 } from '@app/shared/user-image-upload'
 import { configurationProgress } from '../../configuration-progress'
+import { appendLightLongPressSettings } from './light-long-press-section'
 import { appendBackgroundOpacityControl as appendBackgroundOpacityControl2 } from '../../../core/label-appearance'
 import { bathEffectEditor as bathEffectEditor2 } from '../../../bath-heater/bath-heater-editor'
 import {
@@ -361,6 +363,9 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
       (lightHeadingElement.className = 'i3d-config-list-row'),
       currentContainer.append(lightHeadingElement),
       lightHeadingElement.append(addEntryButton)
+    // 0.8.8：灯光列表顶部常驻「灯组 N · 已配置 X · 未配置 Y」进度，并在本层还没有灯组时
+    // 给出建组指引；同一段口径也覆盖模型列表 / 环境标签 / 快捷指令（见 config-list-summary）。
+    appendConfigListSummary(editorHost, currentContainer)
     const groupedCurtainModelIdSet = new Set(
         editorHost.isCoverMode
           ? editorHost.getCurtainGroupList().flatMap((sceneFloorProbe: any) => sceneFloorProbe.memberIds)
@@ -2970,6 +2975,17 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                       '开关类行为：已开启时直接关闭；已关闭时开启，并执行所选聚焦或弹窗。',
                     ),
                   )
+        // 0.8.8：逐灯「长按打开弹窗」+「长按时间（秒）」；非灯光由模块内部直接跳过。
+        appendLightLongPressSettings({
+          deviceKind: editorHost.deviceKind,
+          createElement: (tag: string, className?: string, text?: string) =>
+            editorHost.createElement(tag, className, text),
+          createSettingRow,
+          createNumberRow,
+          container: currentContainer,
+          vector,
+          refreshEditorPreview,
+        })
         const clickActionVisibilityRow = editorHost.createElement('div', 'i3d-button-visibility-row')
         currentContainer.append(clickActionVisibilityRow)
         const hiddenClickableCheckbox = editorHost.createElement('input')

@@ -226,7 +226,7 @@ export function planeCenterHandle(
     kind: 'plane',
     field: null,
     axisName: '',
-    label: '按住拖动平面移动',
+    label: '按住圆圈中心移动物件，方向键小步移动',
     short: '',
     color: '#ffc071',
     sign: 1,

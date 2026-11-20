@@ -142,7 +142,7 @@ interface EmbeddedLightingBridge {
     loadedDraft?: { revision?: number } | null
   }
   fetchStudioApi: StudioApiFetch
-  postBridgeState: (state: string) => void
+  postBridgeState: (state: string, message?: string) => void
   showToast?: (message: string, level?: 'success' | 'warning' | 'error') => void
   studioDocumentStore?: { advanceLoadedRevision?: (revision: number) => void }
 }
@@ -163,8 +163,12 @@ function saveEmbeddedLighting(deps: EmbeddedLightingBridge, lighting: Record<str
         if (appCtx.loadedDraft) appCtx.loadedDraft = { ...appCtx.loadedDraft, revision }
       },
       onSaved: () => postBridgeState('saved'),
-      // 失败不能报 saved（父页面会关面板，用户以为存上了）。
-      onError: (message: string) => deps.showToast?.(message, 'error'),
+      // 失败不能报 saved（父页面会关面板，用户以为存上了）；同时把原因回传给父页面，
+      // 让面板状态行显示具体失败原因而不是一直停在「正在保存并同步…」。
+      onError: (message: string) => {
+        deps.showToast?.(message, 'error')
+        postBridgeState('error', message)
+      },
     },
     normalizeSceneStyle2(appCtx.sceneStyle),
     lighting,

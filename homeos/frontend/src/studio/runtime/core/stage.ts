@@ -166,6 +166,7 @@ import { createStageContext } from './stage/stage-context'
 import { createWeatherGroundEmitter, type WeatherGroundBounds } from './stage/weather-ground'
 import { onPermanentPageHide } from './page-disposal'
 import { installNativeSelectionGuard } from './native-selection'
+import { createMarkerHold } from './marker-input'
 import { runStageDisposeSteps } from './stage/dispose-pagehide'
 import { settleControlRequest, trackControlRequest } from './stage/control-requests'
 import { createFocusExitListeners } from './stage/focus-exit-listeners'
@@ -254,6 +255,8 @@ export function mountStage(mountOptions: any) {
   ctx.startupProgress = mountOptions.onStartupEffectsProgress ? 0 : 1
   const markerLayerElement = createStageElement('div', 'i3d-markers'),
     vacuumWorkingLayerElement = createStageElement('div', 'i3d-vacuum-working-layer')
+  // 逐灯长按计时（0.8.8）：监听挂在舞台根的捕获阶段，必须早于标记自己的 click。
+  const markerHold = createMarkerHold(element)
   /** 四轮胎压叠加层：标签挂在标记层里，位置跟车模包围盒走。 */
   const carTires = createCarTires({ THREE: three, container: markerLayerElement })
   const scratchQuaternion = new three.Quaternion()
@@ -3504,6 +3507,10 @@ export function mountStage(mountOptions: any) {
   function activateMarker(activatedMarkerId: any, isShortcut = false) {
     return activateMarkerCore(stageCameraMotionDeps(), activatedMarkerId, isShortcut)
   }
+  /** 长按开面板（0.8.8）：以「panel」模式聚焦，不走按 `clickAction` 分支的 `activateMarker`。 */
+  function openMarkerPanel(panelMarkerId: string) {
+    return focusMarkerByIdCore(stageCameraMotionDeps(), panelMarkerId, 'panel')
+  }
   function beginMarkerDrag(dragStartEvent: any, dragMarkerId: any) {
     return beginMarkerDragCore(stageCameraMotionDeps(), dragStartEvent, dragMarkerId)
   }
@@ -4211,6 +4218,8 @@ export function mountStage(mountOptions: any) {
     })
   const stageHandlersHost: StageHandlersHost = {
     activateMarker,
+    markerHold,
+    openMarkerPanel,
     categoryDiagnostics: categoryTransitionDiagnostics,
     markerBindings,
     selectPreviewReference,
@@ -4784,6 +4793,7 @@ export function mountStage(mountOptions: any) {
         failCoverRequest(pendingSceneRequestId, '页面已关闭。')
       // P5：子系统 dispose 走可门禁小块（完整 mountStage 拆分另开，避免本轮 mega-split）
       runStageDisposeSteps([
+        { label: 'markerHold', run: () => markerHold.dispose() },
         { label: 'lightModeMenu', run: () => lightModeMenu.dispose() },
         { label: 'lightColorPicker', run: () => lightColorPicker.dispose() },
         { label: 'lightStateCache', run: () => lightStateCache.flush() },

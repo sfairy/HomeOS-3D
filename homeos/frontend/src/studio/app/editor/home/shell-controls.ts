@@ -14,6 +14,7 @@ import {
   clampNumber as clampNumber2,
 } from '../editor-utils'
 import { hexToRgbOrBlack as hexToRgb2 } from '@/shared/utils/ui/color.util'
+import { clearEditorCanvasWelcome as clearEditorCanvasWelcome2 } from './welcome/editor-canvas-welcome'
 
 export interface ShellControlsDeps {
   editorCtx: EditorContext
@@ -323,7 +324,10 @@ export function syncWorkspaceEmptyState(deps: ShellControlsDeps, hasPages: any) 
     (deps.pageNewElement.disabled = !hasPages),
     (deps.popupNewElement.disabled = !hasPages),
     hasPages ||
-      (deps.editorCanvasElement.removeAttribute('style'),
+      // 没有仪表盘时立刻收掉欢迎叠层（上游 `lu()` 的 `Bl.clear()`）：
+      // 否则「请从左侧新建仪表盘」会被一层「加载中…」盖住。
+      (clearEditorCanvasWelcome2(),
+      deps.editorCanvasElement.removeAttribute('style'),
       (deps.editorCanvasElement.innerHTML = '<div class="canvas-message"><strong>请从左侧新建仪表盘。</strong></div>'),
       deps.errorPhase(),
       deps.value()),

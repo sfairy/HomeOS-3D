@@ -46,6 +46,8 @@ const modules = await loadTsModules(
     path.join(AUTHORING, 'plan/plan-coords.ts'),
     // 灯带 gizmo 的屏幕几何：**不得把投影坐标取整**（否则相机连续旋转时整层灯位一跳一跳）。
     path.join(AUTHORING, 'interaction/editor-light-gizmo-paths.ts'),
+    // 逐灯「长按打开弹窗」的秒数契约：配置面板与运行时必须取同一份（0.8.8）。
+    path.join(REPO_ROOT, 'homeos/frontend/src/studio/app/shared/util/light-long-press.ts'),
   ],
   { prefix: 'studio-gesture' },
 )
@@ -68,6 +70,8 @@ const {
   screenToPlan,
   planeCenterHandle,
   lightGizmoHandles,
+  lightLongPressSeconds,
+  LIGHT_LONG_PRESS_SECONDS,
 } = modules
 
 // ---- snapEditorElevation：目标 > 步长 > 原值 ----
@@ -427,6 +431,20 @@ const {
     Boolean(ring?.path.includes('.')),
     ring?.path?.slice(0, 40),
   )
+}
+
+// ---- lightLongPressSeconds：区间内原样、区间外/非法一律回落默认值 ----
+{
+  check('默认长按 0.4 秒', LIGHT_LONG_PRESS_SECONDS.defaultValue === 0.4, JSON.stringify(LIGHT_LONG_PRESS_SECONDS))
+  check('长按区间是 0.3–1.5 秒', LIGHT_LONG_PRESS_SECONDS.min === 0.3 && LIGHT_LONG_PRESS_SECONDS.max === 1.5)
+  check('区间下限原样通过', lightLongPressSeconds(0.3) === 0.3)
+  check('区间上限原样通过', lightLongPressSeconds(1.5) === 1.5)
+  // 关键语义：**不夹取**。0.1 回落 0.4，而不是被悄悄改成 0.3。
+  check('低于下限回落默认值（不夹取）', lightLongPressSeconds(0.1) === 0.4, `got ${lightLongPressSeconds(0.1)}`)
+  check('高于上限回落默认值', lightLongPressSeconds(2) === 0.4, `got ${lightLongPressSeconds(2)}`)
+  check('非数字回落默认值', lightLongPressSeconds('0.5') === 0.4, `got ${lightLongPressSeconds('0.5')}`)
+  check('NaN 回落默认值', lightLongPressSeconds(Number.NaN) === 0.4)
+  check('缺省回落默认值', lightLongPressSeconds(undefined) === 0.4)
 }
 
 const summary = { assertions: assertions.assertions, failures: assertions.failures }

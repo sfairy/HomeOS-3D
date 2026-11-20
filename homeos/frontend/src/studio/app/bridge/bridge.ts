@@ -16,6 +16,11 @@ type Interaction3dHostElement = HTMLElement & {
   setInteraction3dEditable?: (editable: boolean) => void
   /** 内容更新：组件定义或宿主文档变化时调用。 */
   updateInteraction3d?: (nextComponent: any, contentDocument: any) => void
+  /**
+   * 3D 画面是否「已挂载但尚未呈现」（0.8.8 `editor-canvas-welcome.js` 的探针）。
+   * 编辑器欢迎叠层据此决定是否继续等这一块 3D 出画面。
+   */
+  isInteraction3dPresentationPending?: () => boolean
 }
 
 /** 3D 交互实例（runtime.mountInteraction3d 的返回值）。 */
@@ -184,9 +189,13 @@ export function renderInteraction3d(component: any, options: Interaction3dRender
   let isDisposed = false,
     isMounting = false,
     isMounted = false,
+    isPresented = false,
     operationCount = 0,
     interaction3dInstance: any,
     isPageVisible = options.prewarmStage !== true
+  // 欢迎叠层的探针：只有「已挂载 + 还没呈现」才算待定。授权中/失败、已销毁都返回 false，
+  // 否则授权被拒时欢迎层会一直盖着画布（上游同样只在真正等画面时返回 true）。
+  hostElement.isInteraction3dPresentationPending = () => isMounted && !isPresented
   hostElement.setInteraction3dPageVisible = (shouldShowPage) => {
     ;(isPageVisible = shouldShowPage !== false), interaction3dInstance?.setPageVisible?.(isPageVisible)
   }
@@ -220,6 +229,7 @@ export function renderInteraction3d(component: any, options: Interaction3dRender
       (operationCount += 1),
       (isMounting = false),
       (isMounted = false),
+      (isPresented = false),
       editorViewsById.get(component.id) === interaction3dInstance && editorViewsById.delete(component.id),
       isDisposed || emitEditorViewEvent(component.id, new Error('3D 户型暂不可用，请检查授权或重新载入。')),
       interaction3dInstance?.(),
@@ -308,11 +318,13 @@ export function renderInteraction3d(component: any, options: Interaction3dRender
           childNode !== styleLinkElement && childNode.remove()
         }),
         hostElement.append(mountElement),
+        (isPresented = false),
         (interaction3dInstance = runtimeModule.mountInteraction3d(mountElement, {
           component: component,
           context: options,
           onPresented: () => {
-            focusLayout.refresh(), options.editable && emitEditorViewEvent(component.id)
+            // 画面就绪：欢迎叠层据此收尾（此前一直是 pending）。
+            ;(isPresented = true), focusLayout.refresh(), options.editable && emitEditorViewEvent(component.id)
           },
           onLoadError: (loadError: any) => {
             options.editable && emitEditorViewEvent(component.id, loadError)

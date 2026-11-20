@@ -13,7 +13,7 @@
 
 import { CARD_TEXT_SIZE_PX } from '@app/bridge/presets/card-text-size'
 import { DEFAULT_BUTTON_SIZE, buttonIconSize } from '@app/bridge/presets/button-icon-size'
-import { openConfigurationPicker } from '../../configuration-picker'
+import { openConfigurationPicker, configurationSegmentedControl } from '../../configuration-picker'
 import { bindPickerRow, openDeviceCategoryPicker } from './picker-row'
 import { resolveDeviceCategoryProfile } from './device-category-choices'
 import { configurationProgress } from '../../configuration-progress'
@@ -128,15 +128,7 @@ function currentConfigurationProgress(editorHost: AddDialogProgressHost) {
  */
 export function openAddDialog(deps: PanelDialogsDeps, addDialogTriggerEvent: any = undefined) {
   // 只解构本函数用到的子集（解构全集会被 no-unused-vars 判红）。
-  const {
-    editorHost,
-    createSelectRow,
-    createSettingRow,
-    refreshEditorPreview,
-    renderPanel,
-    listAddableModels,
-    switchEditorKind,
-  } = deps
+  const { editorHost, createSettingRow, refreshEditorPreview, renderPanel, listAddableModels, switchEditorKind } = deps
   if (
     editorHost.isDisposed ||
     !editorHost.isAccessAllowed ||
@@ -181,17 +173,19 @@ export function openAddDialog(deps: PanelDialogsDeps, addDialogTriggerEvent: any
         }),
     })
   editorHost.deviceKind === 'climate' &&
-    createSelectRow(
-      pickerControlsElement,
-      '设备类型',
-      [
-        ['air-conditioner', '空调'],
-        ['bath-heater', '浴霸'],
-      ],
-      selectedModelKind,
-      (addDialogModelLabel: any) => {
-        selectedModelKind = addDialogModelLabel
-      },
+    pickerControlsElement.append(
+      configurationSegmentedControl({
+        document: editorHost.editorDialogElement.ownerDocument,
+        label: '设备类型',
+        options: [
+          ['air-conditioner', '空调'],
+          ['bath-heater', '浴霸'],
+        ],
+        value: selectedModelKind,
+        onChange: (pickedModelKind: string) => {
+          selectedModelKind = pickedModelKind
+        },
+      }),
     )
   const pickerChoices = floorModelList.map((floorModelEntry) => {
       const modelKey = JSON.stringify([currentFloorRecord?.id, floorModelEntry.id]),

@@ -16,6 +16,17 @@ import {
  */
 const savedAutoDiagramCameraSignatures = new Map<string, string>()
 
+/**
+ * 内嵌自动导图「基础光照」面板的状态文案（0.8.8 原文）。
+ *
+ * `error` 不在这里：它的文案来自 iframe 回传的 `message`，缺省才回落到通用失败提示。
+ */
+const BASE_LIGHTING_STATUS_TEXT: Record<string, string> = {
+  saved: '当前户型主题光照已保存并同步到导图。',
+  saving: '正在保存并同步…',
+  ready: '修改会实时同步到当前3D预览。',
+}
+
 export function bindFloorplanAutoDiagramMessages(deps: Record<string, any>): void {
   // 依赖名见 boot.ts 的调用点；此处解构一次，正文保持与搬出前逐字一致。
   const {
@@ -71,6 +82,23 @@ export function bindFloorplanAutoDiagramMessages(deps: Record<string, any>): voi
       savedAutoDiagramCameraSignatures,
     )
   })
+  /**
+   * 应用一条「基础光照状态」消息（0.8.8 四种状态：ready / saved / saving / error）。
+   *
+   * `error` 必须单独处理 —— 此前没有这一支，保存失败时面板会永远停在「正在保存并同步…」，
+   * 用户既不知道失败也不知道原因。状态文案走查表，避免给主 listener 再堆一层 else-if。
+   */
+  function applyBaseLightingStateMessage(data: Record<string, unknown>) {
+    const status = String(data.status || '')
+    if (status === 'ready' || status === 'saved') {
+      editorCtx.baseLightingSettings = normalizeBaseLighting2(data.savedLighting || data.lighting)
+      openLightingPanel(data.lighting || editorCtx.baseLightingSettings)
+    }
+    floorplanAutoLightingPanelElement.setAttribute('aria-busy', status === 'saving' ? 'true' : 'false')
+    const statusText =
+      status === 'error' ? String(data.message || '光照保存失败，请重试。') : BASE_LIGHTING_STATUS_TEXT[status]
+    if (statusText) floorplanAutoLightingStatusElement.textContent = statusText
+  }
   window.addEventListener('message', (lightingStateFrameState) => {
     if (lightingStateFrameState.origin !== window.location.origin) return
     const data = lightingStateFrameState.data
@@ -83,13 +111,7 @@ export function bindFloorplanAutoDiagramMessages(deps: Record<string, any>): voi
         lightingStateFrame !== editorCtx.baseLightingComponentId
       )
         return
-      ;(data.status === 'ready' || data.status === 'saved') &&
-        ((editorCtx.baseLightingSettings = normalizeBaseLighting2(data.savedLighting || data.lighting)),
-        openLightingPanel(data.lighting || editorCtx.baseLightingSettings)),
-        floorplanAutoLightingPanelElement.setAttribute('aria-busy', 'false'),
-        data.status === 'saved'
-          ? (floorplanAutoLightingStatusElement.textContent = '已保存，并同步到实时预览、手动导图和自动导图。')
-          : data.status === 'ready' && (floorplanAutoLightingStatusElement.textContent = '修改会实时同步到当前3D预览。')
+      applyBaseLightingStateMessage(data)
       return
     }
     if (data?.type === 'homeos-floorplan-auto-diagram-ready') {

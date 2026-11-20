@@ -67,7 +67,7 @@ export function deleteLightGroup(runtime: StudioAppRuntime, lightGroupToDelete: 
       isPlacedItemLocked(runtime.appCtx, groupLamp.id),
   )
   if (lockedLampInGroup) {
-    runtime.showToast('请先解锁组内灯光，再删除整个灯组。', 'warning')
+    runtime.showToast('灯组中有已锁定的灯光，请先解锁后再删除。', 'warning')
     return
   }
   runtime.deselectAll()

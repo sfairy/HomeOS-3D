@@ -1,0 +1,98 @@
+/*
+ * 编辑器画布「手写欢迎」叠层（0.8.8 的 `.editor-canvas-welcome*`）。
+ *
+ * 叠层挂在 `.workspace` 里、铺满工作区，`background: inherit` 让它继承工作区的底色与
+ * 网格纹理 —— 淡出时不会有色块跳变。`#editor-canvas[hidden]` 时整块不参与布局
+ * （切到「仪表盘」页签时画布隐藏，欢迎层不能单独留在屏幕上）。
+ *
+ * 手写笔迹画在 `<canvas>` 里（见 `editor-canvas-welcome.ts`）；`span` 只是
+ * 「2D 上下文不可用」时的纯文字兜底，`has-ink` 时隐藏 —— 与上游同一套 class 契约。
+ */
+.editor-canvas-welcome {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(5px, 1.4vw, 12px);
+  padding-bottom: 2%;
+  background: inherit;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity var(--hos-dur-slower) var(--hos-ease-standard),
+    visibility 0s linear var(--hos-dur-slower);
+}
+.editor-canvas-welcome.is-loading {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition: none;
+}
+#editor-canvas[hidden] ~ .editor-canvas-welcome {
+  display: none;
+}
+.editor-canvas-welcome-art {
+  width: min(86%, 570px);
+  text-align: center;
+}
+.editor-canvas-welcome-art canvas {
+  display: none;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 796 / 136;
+}
+/* 兜底文字：与笔迹同样的手写字族，避免某些环境退成衬线体。 */
+.editor-canvas-welcome-art span {
+  color: var(--text);
+  font-family:
+    "Savoye LET", "Snell Roundhand", "Bradley Hand", "Noteworthy", "Hannotate SC", cursive,
+    var(--hos-font-sans, sans-serif);
+  font-size: clamp(20px, 5vw, 38px);
+  font-weight: var(--hos-fw-regular);
+  line-height: var(--hos-lh-tight);
+}
+.editor-canvas-welcome.has-ink canvas {
+  display: block;
+}
+.editor-canvas-welcome.has-ink .editor-canvas-welcome-art span {
+  display: none;
+}
+.editor-canvas-welcome-caption {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: var(--hos-fs-3);
+  font-weight: var(--hos-fw-medium);
+  letter-spacing: 0.055em;
+}
+.editor-canvas-welcome-caption::before {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--muted);
+  content: "";
+}
+.editor-canvas-welcome.is-loading .editor-canvas-welcome-caption::before {
+  animation: editor-canvas-loading-pulse var(--hos-dur-slower) ease-in-out infinite alternate;
+}
+@keyframes editor-canvas-loading-pulse {
+  0% {
+    opacity: 0.4;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .editor-canvas-welcome {
+    transition: none;
+  }
+  .editor-canvas-welcome.is-loading .editor-canvas-welcome-caption::before {
+    animation: none;
+  }
+}

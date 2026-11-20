@@ -100,7 +100,7 @@
 }
 
 .scale-dialog .dialog-index,
-.settings-dialog .dialog-heading span {
+.settings-dialog .dialog-heading > div > span:first-child {
   display: block;
   margin: 0 0 6px;
   padding-right: 48px;

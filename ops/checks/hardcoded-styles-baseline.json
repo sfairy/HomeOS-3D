@@ -1,7 +1,7 @@
 {
   "totals": {
-    "files": 374,
-    "color": 4285,
+    "files": 375,
+    "color": 4282,
     "duration": 1421,
     "important": 363
   },
@@ -1501,6 +1501,11 @@
       "duration": 0,
       "important": 0
     },
+    "homeos/frontend/src/studio/app/editor/home/welcome/editor-canvas-welcome.ts": {
+      "color": 7,
+      "duration": 0,
+      "important": 0
+    },
     "homeos/frontend/src/studio/app/editor/inspectors/flow-line-inspector.ts": {
       "color": 4,
       "duration": 0,
@@ -1757,7 +1762,7 @@
       "important": 0
     },
     "homeos/frontend/src/studio/runtime/core/runtime.css": {
-      "color": 263,
+      "color": 253,
       "duration": 13,
       "important": 16
     },

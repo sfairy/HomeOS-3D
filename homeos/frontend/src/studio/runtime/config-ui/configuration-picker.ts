@@ -74,11 +74,8 @@ export function configurationSummary(
     : [['已配置', progress.configured, 'configured']]
   if (progress.missing) entries.push([unit === '灯组' ? '灯组缺失' : '模型缺失', progress.missing, 'missing'])
   entries.forEach(([labelText, countValue, stateName], entryIndex) => {
-    if (entryIndex) {
-      const separatorElement = domElement(ownerDocument, 'span', null, ' · ')
-      summaryElement.append(separatorElement)
-    }
-    const labelElement = domElement(ownerDocument, 'span', null, labelText + ' ')
+    if (entryIndex) summaryElement.append(domElement(ownerDocument, 'span', 'i3d-configuration-separator', ' · '))
+    const labelElement = domElement(ownerDocument, 'span', 'i3d-configuration-count', labelText + ' ')
     const countElement = ownerDocument.createElement('b')
     const resolvedCount = countValue ?? 0
     countElement.className = 'i3d-configuration-number is-' + (resolvedCount === 0 ? 'zero' : stateName)
@@ -87,6 +84,59 @@ export function configurationSummary(
     summaryElement.append(labelElement)
   })
   return summaryElement
+}
+
+export interface ConfigurationSegmentedControlOptions {
+  document: Document
+  /** 控件上方的小标题（为空则不渲染）。 */
+  label?: string
+  /** [值, 文案] 列表，顺序即按钮顺序。 */
+  options: ReadonlyArray<readonly [string, string]>
+  value: string
+  onChange: (nextValue: string) => void
+}
+
+/**
+ * 分段选择（0.8.1 弹窗顶部的「设备类型」）：与 `app.css` 的
+ * `.navigation-segmented-options` 同一套视觉，但自带字段标题，且不依赖原生 `<select>`
+ * 的下拉层。弹窗挂在 `document.body` 上，`.i3d-editor` 作用域规则够不到，
+ * 所以样式落在 `runtime.css` 的 `.i3d-picker-*` 上。
+ */
+export function configurationSegmentedControl({
+  document: ownerDocument,
+  label,
+  options,
+  value,
+  onChange,
+}: ConfigurationSegmentedControlOptions): HTMLElement {
+  const fieldElement = domElement(ownerDocument, 'div', 'i3d-picker-field')
+  label && fieldElement.append(domElement(ownerDocument, 'span', 'i3d-picker-field-label', label))
+  const groupElement = domElement(ownerDocument, 'div', 'i3d-picker-segmented')
+  groupElement.setAttribute('role', 'group')
+  label && groupElement.setAttribute('aria-label', label)
+  let currentValue = value
+  const optionButtons: HTMLButtonElement[] = []
+  const syncPressedState = () => {
+    optionButtons.forEach((optionButton) => {
+      const isActive = optionButton.dataset.pickerValue === currentValue
+      optionButton.classList.toggle('is-active', isActive)
+      optionButton.setAttribute('aria-pressed', String(isActive))
+    })
+  }
+  options.forEach(([optionValue, optionLabel]) => {
+    const optionButton = domElement(ownerDocument, 'button', '', optionLabel) as HTMLButtonElement
+    ;(optionButton.type = 'button'), (optionButton.dataset.pickerValue = optionValue)
+    optionButton.addEventListener('click', () => {
+      if (currentValue === optionValue) return
+      currentValue = optionValue
+      syncPressedState()
+      onChange(currentValue)
+    })
+    optionButtons.push(optionButton), groupElement.append(optionButton)
+  })
+  syncPressedState()
+  fieldElement.append(groupElement)
+  return fieldElement
 }
 
 export function openConfigurationPicker({
@@ -124,7 +174,7 @@ export function openConfigurationPicker({
   }
   const headingElement = create('div', 'dialog-heading'),
     headingTextElement = create('div')
-  headingTextElement.append(create('span', '', kicker), create('h2', '', title))
+  headingTextElement.append(create('span', 'i3d-picker-kicker', kicker), create('h2', '', title))
   description && headingTextElement.append(create('p', 'i3d-note', description))
   summary && headingTextElement.append(configurationSummary(summary, { document: ownerDocument, unit }))
   const closeButtonElement = create('button', 'icon-button', '×') as HTMLButtonElement

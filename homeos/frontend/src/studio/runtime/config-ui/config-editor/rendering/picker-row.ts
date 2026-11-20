@@ -35,7 +35,7 @@ interface PickerRecord {
 }
 
 /** `editorHost` 在本模块用到的面（配置编辑器上下文对象）。 */
-interface PickerEditorHost {
+export interface PickerEditorHost {
   createElement: (tagName: string, className?: string, textContent?: string) => HTMLElement
   deviceKind: string
   isDisposed: boolean
@@ -51,6 +51,8 @@ interface PickerEditorHost {
   structuredClone2?: {
     devices?: Record<string, unknown>
     environment?: Record<string, unknown>
+    /** 灯光条目（`groupId` 是灯组归属，列表进度按它算「已配置」）。 */
+    lights?: ReadonlyArray<{ floorId?: string; groupId?: string; modelId?: string }>
   } | null
   getItemList: () => ReadonlyArray<PickerRecord>
 }

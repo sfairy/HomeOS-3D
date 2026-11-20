@@ -34,6 +34,7 @@ import {
 import EditorAlignBar from "@/studio/chrome/EditorAlignBar.vue";
 import "@/studio/chrome/studio-chrome.css";
 import "@/studio/chrome/studio-native-dialogs.css";
+import "@/studio/chrome/studio-canvas-welcome.css";
 import { Undo2, Redo2, Shapes } from "@lucide/vue";
 import { SETTINGS_ROUTES } from "@/shared/utils/registry/settings-route.util";
 import EditorMediaInspectors from "@/studio/chrome/editor/EditorMediaInspectors.vue";
@@ -43,6 +44,7 @@ import EditorButtonInspectors from "@/studio/chrome/editor/EditorButtonInspector
 import EditorLayoutInspectors from "@/studio/chrome/editor/EditorLayoutInspectors.vue";
 import EditorDialogs from "@/studio/chrome/editor/EditorDialogs.vue";
 import EditorOverlays from "@/studio/chrome/editor/EditorOverlays.vue";
+import { disposeEditorCanvasWelcome } from "@app/editor/home/welcome/editor-canvas-welcome";
 
 const router = useRouter();
 const editorStore = useStudioEditorStore();
@@ -108,6 +110,9 @@ onBeforeUnmount(() => {
   document.documentElement.style.removeProperty("--sc-canvas-zoom");
   document.getElementById("editor-canvas")?.classList.remove("sc-canvas-zoom");
   document.getElementById("dashboard-preview")?.classList.remove("sc-canvas-zoom");
+  // 欢迎叠层的动画帧与轮询都在模块闭包里，离开编辑器必须主动收：否则路由切换后
+  // 它仍会每帧 draw 一块已经被 Vue 拆掉的 canvas。
+  disposeEditorCanvasWelcome();
   const dispose = teardownEditor;
   teardownEditor = null;
   // onBeforeUnmount 是同步的：异步回收交给模块级串行链，失败只记日志；下一次挂载前会等它。
@@ -314,6 +319,19 @@ watch(
                     <div class="canvas-message"><strong>请从左侧新建仪表盘。</strong></div>
                 </div>
                 <div id="custom-popup-editor" class="workspace-mode-surface custom-popup-editor" hidden></div>
+                <!--
+                  手写欢迎叠层（0.8.8）：铺满工作区，`background: inherit` 继承网格底纹。
+                  有页面的仪表盘在画面就绪后由 `shell-controls` / `workspace-history` 收尾；
+                  没有仪表盘时由 `syncWorkspaceEmptyState` 立刻收掉。
+                  文案由 CSS 做「由左向右」的渐变揭示（进度写在 `--welcome-reveal` 上）。
+                -->
+                <div id="editor-canvas-welcome" class="editor-canvas-welcome" role="status" aria-hidden="true">
+                    <div class="editor-canvas-welcome-art" aria-hidden="true">
+                        <canvas width="796" height="136"></canvas>
+                        <span>Welcome to HomeOS</span>
+                    </div>
+                    <span class="editor-canvas-welcome-caption">加载中…</span>
+                </div>
                 <!--
                   情景弹窗编辑器不在这里开宿主：0.8.4 直接把编辑器挂到 `<main class="editor-shell">`
                   （上游 `host: document.querySelector("main")`），绝对定位铺满整个编辑器区域，

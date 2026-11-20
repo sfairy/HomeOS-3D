@@ -194,8 +194,12 @@ function createPreviewPresenter(
     } catch (error) {
       if (current !== epochOf()) return
       nodes.image.hidden = true
-      nodes.status.textContent = '预览暂不可用，移开后可重试'
-      panel.dataset.previewError = (error as Error)?.message || String(error)
+      // 0.8.8 把「模型还没准备好」与「渲染失败」分成两种状态：前者等模型加载完再悬停一次就会好，
+      // 后者要看 `previewError`（目前只有「预览已释放」这类）。缩略图渲染器抛出的是
+      // `模型尚未就绪` / `模型未就绪`，据此区分。
+      const previewFailureReason = (error as Error)?.message || String(error)
+      nodes.status.textContent = /^模型/.test(previewFailureReason) ? '模型未就绪' : '预览暂不可用，移开后可重试'
+      panel.dataset.previewError = previewFailureReason
       options.onError?.(error, record)
     }
     placePanel(panel, target)

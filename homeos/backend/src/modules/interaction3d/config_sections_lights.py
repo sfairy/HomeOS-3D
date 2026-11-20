@@ -57,6 +57,8 @@ LIGHT_FIELDS = frozenset(
         'fadeDuration',
         'effectDefaults',
         'hiddenClickable',
+        'longPressSeconds',
+        'longPressOpensPanel',
         'temperatureFallback',
         'standardLightEffects',
     }
@@ -66,7 +68,11 @@ LIGHT_TEXT_FIELDS = ('id', 'floorId', 'groupId', 'entityId', 'label')
 #: 光效色温兜底：``default`` 默认暖白 3500K，``floorplan`` 跟随户型灯具色温。
 LIGHT_TEMPERATURE_FALLBACKS = frozenset({'default', 'floorplan'})
 #: 灯光卡片数值字段：出现即必须在区间内。
-LIGHT_NUMBER_BOUNDS: tuple[tuple[str, float, float], ...] = (('fadeDuration', 0, 10),)
+#: ``longPressSeconds`` 与上游 0.8.8 一致收在 0.3–1.5 秒（前端滑杆同区间）。
+LIGHT_NUMBER_BOUNDS: tuple[tuple[str, float, float], ...] = (
+    ('fadeDuration', 0, 10),
+    ('longPressSeconds', 0.3, 1.5),
+)
 #: 灯光卡片「出现即必须为正数」的字段（尺寸另判：必须存在）。
 LIGHT_POSITIVE_FIELDS = ('iconSize', 'hitSize')
 #: 灯光卡片共用骨架。尺寸不交给骨架：灯的 ``size`` 是**必须存在**且为正，而骨架只做「出现即正」。
@@ -75,7 +81,9 @@ LIGHT_RULES = WidgetRules(
     click_actions=CLICK_ACTIONS,
     default_click_action='focus',
     icon_pattern=MDI_ICON_PATTERN,
-    flag_fields=WIDGET_FLAG_FIELDS,
+    # 0.8.8：逐灯「长按打开弹窗」开关。灯光是唯一带这个开关的控件，
+    # 所以不从 WIDGET_FLAG_FIELDS 全局扩，避免其它控件跟着放宽。
+    flag_fields=(*WIDGET_FLAG_FIELDS, 'longPressOpensPanel'),
     position_bounds=POSITION_BOUNDS,
     size_fields=(),
     position_required=True,

@@ -39,6 +39,7 @@ import {
   MIN_LABEL_ICON_SIZE as minLabelIconSize,
 } from '@app/bridge/temperature-humidity'
 import { createMarkerTouch, nearestMarkerTarget } from '../marker-input'
+import { bindMarkerLongPress, type MarkerLongPressHost } from './marker-long-press'
 import { buttonIconSize as resolveButtonIconSize } from '@app/bridge/presets/button-icon-size'
 import { CARD_TEXT_SIZE_PX as cardTextSizePx } from '@app/bridge/presets/card-text-size'
 import { withRegionLightingPreset as applyRegionLightingPreset } from '@app/bridge/presets/region-lighting-presets'
@@ -611,6 +612,8 @@ export function createSyncMarkers(host: StageHandlersHost) {
         syncMarkerElement.addEventListener('pointerdown', (dragDownEvent: any) => {
           host.isEditing || ms2.down(dragDownEvent)
         }),
+          // 0.8.8：逐灯「长按打开弹窗」（判定与计时见 `marker-long-press.ts`）。
+          bindMarkerLongPress(host as unknown as MarkerLongPressHost, syncMarkerElement, syncMarkerItem.id),
           syncMarkerElement.addEventListener('pointermove', (dragMoveEvent: any) => ms2.move(dragMoveEvent)),
           syncMarkerElement.addEventListener('pointerup', (dragUpEvent: any) => ms2.up(dragUpEvent)),
           syncMarkerElement.addEventListener('pointercancel', () => ms2.cancel()),

@@ -1,4 +1,8 @@
 :root {
+  /* 0.8.8：安全区尺寸暴露成自定义属性，供 `display.ts` 判断「缺的那一截」是否就是底部安全区。
+     `env()` 写在自定义属性里会在计算值阶段换成 px，`getPropertyValue` 读到的就是 "34px"。 */
+  --display-safe-area-top: env(safe-area-inset-top, 0px);
+  --display-safe-area-bottom: env(safe-area-inset-bottom, 0px);
   color-scheme: dark;
   background: var(--display-surface-background, #070b0e);
 }
@@ -10,7 +14,9 @@ html,
 body {
   width: 100%;
   min-width: 100%;
-  height: 100%;
+  /* 0.8.8：iPhone 从主屏幕打开时由 `display.ts` 写入 `--display-iphone-pwa-height`
+     （= screen.height）；未写入时仍是 100%，与旧行为一致。 */
+  height: var(--display-iphone-pwa-height, 100%);
   min-height: 100%;
   margin: 0;
   padding: 0;

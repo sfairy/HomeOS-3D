@@ -133,7 +133,7 @@ export function readOverlayState(
     length: handle.length,
     tip: handle.tip,
     editable: editableOf(runtime, item, modelPending),
-    reason: modelPending ? '模型正在准备，完成后可调整高度' : '',
+    reason: modelPending ? '模型与灯光正在准备' : '',
     // 竖直轴锚点必须与被拖动的那个点同高（顶面），否则射线参数差会整体偏移。
     axisAvailable: axisAvailableOf(runtime, geometry, topPoint, true),
     // 0.8.7 `editNumberText`：`String(Number(v.toFixed(6)))` —— `0` 显示成 `0 m`，
@@ -194,9 +194,9 @@ export function elevationTargetsOf(
 /** 手势校验（0.8.7 `gw()` 的中文化）：层 / 选择 / 锁定 / 模型就绪。 */
 export function validateGestureOf(runtime: StudioAppRuntime, id: string): string | null {
   const item = findItem(runtime, id)
-  if (!item) return '物品、楼层或分类已变化，操作已取消'
+  if (!item) return '当前分类已变化，操作已取消'
   const selected = runtime.appCtx.selectedItem as EditorPick | null | undefined
-  if (selected?.kind !== 'item' || String(selected.id) !== id) return '物品、楼层或分类已变化，操作已取消'
+  if (selected?.kind !== 'item' || String(selected.id) !== id) return '当前分类已变化，操作已取消'
   if (isPlacedItemHidden(runtime.appCtx, id) || isPlacedItemLocked(runtime.appCtx, id)) {
     return '物品已锁定或隐藏，请先从已放置列表解锁/显示'
   }

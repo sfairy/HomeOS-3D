@@ -4,7 +4,7 @@ import {
   normalizeBaseLighting as normalizeBaseLighting2,
 } from '../../../loaders/studio-normalization'
 
-export function postBridgeState(runtime: StudioAppRuntime, bridgeStateName = 'ready') {
+export function postBridgeState(runtime: StudioAppRuntime, bridgeStateName = 'ready', bridgeMessage = '') {
   !runtime.isAutoDiagramEmbed ||
     !runtime.autoDiagramComponentId ||
     window.parent === window ||
@@ -14,6 +14,8 @@ export function postBridgeState(runtime: StudioAppRuntime, bridgeStateName = 're
         type: 'homeos-floorplan-auto-diagram-base-lighting-state',
         componentId: runtime.autoDiagramComponentId,
         status: bridgeStateName,
+        // 失败原因由父页面直接显示在面板状态行（0.8.8 的 `data.message`）。
+        ...(bridgeMessage ? { message: bridgeMessage } : {}),
         lighting: normalizeBaseLighting2(runtime.appCtx.baseLightingSettings),
         savedLighting: normalizeBaseLighting2(runtime.appCtx.studioProject.baseLighting),
         defaults: normalizeBaseLighting2(DEFAULT_BASE_LIGHTING2),

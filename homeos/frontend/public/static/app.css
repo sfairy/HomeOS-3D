@@ -1265,7 +1265,8 @@ h2 {
   place-items: center;
   overflow: hidden;
   border: 1px solid #303b44;
-  border-radius: 8px;
+  /* 0.8.8：编辑器画布、仪表盘预览与 3D 交互背景统一为直角（原为 8px 圆角）。 */
+  border-radius: 0;
   background: linear-gradient(145deg, #171e24, #11161b);
   box-shadow: 0 18px 55px #00000047;
 }
