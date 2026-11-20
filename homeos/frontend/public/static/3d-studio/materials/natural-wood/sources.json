@@ -1,0 +1,192 @@
+{
+  "license": "CC0-1.0",
+  "licenseURL": "https://polyhaven.com/license",
+  "licenseVerifiedOn": "2026-11-09",
+  "licenseStatement": "Our assets are all licensed as CC0",
+  "retrieved": "2026-11-09",
+  "assets": [
+    {
+      "id": "oak_veneer_01",
+      "name": "Oak Veneer 01",
+      "author": "Jenelle van Heerden",
+      "textureDimensionsMeters": [
+        1.83,
+        1.83
+      ],
+      "url": "https://polyhaven.com/a/oak_veneer_01"
+    },
+    {
+      "id": "brown_leather",
+      "name": "Brown Leather",
+      "url": "https://polyhaven.com/a/brown_leather"
+    }
+  ],
+  "purpose": "Natural Wood runtime maps; 512px derivatives of the recorded CC0 originals",
+  "files": [
+    {
+      "file": "oak-color.jpg",
+      "source": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/oak_veneer_01/oak_veneer_01_diff_1k.jpg",
+      "bytes": 90609,
+      "md5": "5217cf937c5bf73e940f8daed684103c",
+      "sha256": "0d89350af6c8aab049f7b2106804ad3b9a8e6c8e4b421973a70400134ea6d445",
+      "original": {
+        "bytes": 641756,
+        "md5": "39a99df4e328d62d74f3122722a64a95",
+        "sha256": "c14681f72f59f17bff568cae7a837641443b607b899f0c279cd64a5638f877a7"
+      },
+      "derivation": {
+        "sourceCommit": "2c3ba5cd4a51bcaa745cc6bdb25f0a34f900755e",
+        "sourceSize": [
+          1024,
+          1024
+        ],
+        "size": [
+          512,
+          512
+        ],
+        "tool": "Pillow 12.3.0",
+        "resample": "linear-light Lanczos",
+        "jpegQuality": 95,
+        "jpegSubsampling": 0
+      }
+    },
+    {
+      "file": "oak-roughness.jpg",
+      "source": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/oak_veneer_01/oak_veneer_01_rough_1k.jpg",
+      "bytes": 123341,
+      "md5": "7fde926ddfcde9035564b23233b34abf",
+      "sha256": "6a429682ed7e4f5421570338f120421847a0eab8c4ca23dc65d8e42e44ff034a",
+      "original": {
+        "bytes": 865194,
+        "md5": "a19b44176a078b9ae93314133848c9aa",
+        "sha256": "ca2af5649b628ef05f196793d68cdca874c12ceb6e9ae566976546d9dd5a2604"
+      },
+      "derivation": {
+        "sourceCommit": "2c3ba5cd4a51bcaa745cc6bdb25f0a34f900755e",
+        "sourceSize": [
+          1024,
+          1024
+        ],
+        "size": [
+          512,
+          512
+        ],
+        "tool": "Pillow 12.3.0",
+        "resample": "raw R-channel Lanczos",
+        "jpegQuality": 95,
+        "jpegSubsampling": 0
+      }
+    },
+    {
+      "file": "oak-height.jpg",
+      "source": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/oak_veneer_01/oak_veneer_01_disp_1k.jpg",
+      "bytes": 3779,
+      "md5": "39b610095946a03577dcb10cae78c708",
+      "sha256": "53bab79a3ae6da4cbd3667ebbf785b0a143d943a5b9a93eb18be7485995f3d1e",
+      "original": {
+        "bytes": 23526,
+        "md5": "4f7dff5974628568e056edd33c0df9b3",
+        "sha256": "7870aa682808e40a18bd6fb18e820182a70f8f24a375db4ae9be6196cdea928a"
+      },
+      "derivation": {
+        "sourceCommit": "2c3ba5cd4a51bcaa745cc6bdb25f0a34f900755e",
+        "sourceSize": [
+          1024,
+          1024
+        ],
+        "size": [
+          512,
+          512
+        ],
+        "tool": "Pillow 12.3.0",
+        "resample": "raw R-channel Lanczos",
+        "jpegQuality": 95,
+        "jpegSubsampling": 0
+      }
+    },
+    {
+      "file": "leather-color.jpg",
+      "asset": "brown_leather",
+      "source": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/brown_leather/brown_leather_albedo_1k.jpg",
+      "bytes": 111024,
+      "md5": "28c073b18d38a673341219b3aaa95c09",
+      "sha256": "a4bfcee10cf012912f8e7414efaad4710ddfd28f43a695eb70c0457ef17aabd6",
+      "original": {
+        "bytes": 503348,
+        "md5": "080b3bf1372766ff2c7ff121ed07b5e8",
+        "sha256": "7e9e1d6566d1fd91d4ceb4966c4820361e85d53a7a828b6bab3b2a093a876cd1"
+      },
+      "derivation": {
+        "sourceCommit": "2c3ba5cd4a51bcaa745cc6bdb25f0a34f900755e",
+        "sourceSize": [
+          1024,
+          1024
+        ],
+        "size": [
+          512,
+          512
+        ],
+        "tool": "Pillow 12.3.0",
+        "resample": "linear-light Lanczos",
+        "jpegQuality": 95,
+        "jpegSubsampling": 0
+      }
+    },
+    {
+      "file": "leather-roughness.jpg",
+      "asset": "brown_leather",
+      "source": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/brown_leather/brown_leather_rough_1k.jpg",
+      "bytes": 177520,
+      "md5": "a267d913af16fc67228b55b45bf7d245",
+      "sha256": "58fa5636ba98bfee400b6baa8e9e438a6b323817afdc83c1d137ed21885e4bdb",
+      "original": {
+        "bytes": 686142,
+        "md5": "0f3a0148c8d2d25fbeca67e64e79bca0",
+        "sha256": "f9739ef2da2e3d17b9ec253f5042f61b10dc10f3ae28f6cf6491650d3d1b0ca3"
+      },
+      "derivation": {
+        "sourceCommit": "2c3ba5cd4a51bcaa745cc6bdb25f0a34f900755e",
+        "sourceSize": [
+          1024,
+          1024
+        ],
+        "size": [
+          512,
+          512
+        ],
+        "tool": "Pillow 12.3.0",
+        "resample": "raw R-channel Lanczos",
+        "jpegQuality": 95,
+        "jpegSubsampling": 0
+      }
+    },
+    {
+      "file": "leather-height.jpg",
+      "asset": "brown_leather",
+      "source": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/brown_leather/brown_leather_disp_1k.jpg",
+      "bytes": 112715,
+      "md5": "b669b15e414a83db67bad54d5425fcdf",
+      "sha256": "5c249177d685e79432ee247420cddbff8a2416c989ab3c5e89a65dae95c380f0",
+      "original": {
+        "bytes": 359644,
+        "md5": "fff4890194163eca49dd3e88f2b73b81",
+        "sha256": "61851ee80242aecfafba907d7bc0ed954f6a9bd8e5ba9a870afa11490418d0dd"
+      },
+      "derivation": {
+        "sourceCommit": "2c3ba5cd4a51bcaa745cc6bdb25f0a34f900755e",
+        "sourceSize": [
+          1024,
+          1024
+        ],
+        "size": [
+          512,
+          512
+        ],
+        "tool": "Pillow 12.3.0",
+        "resample": "raw R-channel Lanczos",
+        "jpegQuality": 95,
+        "jpegSubsampling": 0
+      }
+    }
+  ]
+}

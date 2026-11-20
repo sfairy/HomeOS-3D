@@ -49,6 +49,18 @@ import {
 import { stripLoadRecord } from '../../lights/strip-light/strip-light-spec'
 import { remapOpeningsToWalls } from '../../../plan/studio-wall-openings'
 
+/**
+ * 智能屏安装方式字段：只有智能屏才有；缺失时按 type 反推（老文档只有 `smart-display-wall`）。
+ * 抽成函数是为了不给下面那个巨型归一化函数再加两个分支（它有复杂度预算）。
+ */
+function smartDisplayMountRecord(item: Record<string, unknown> | null | undefined): Record<string, string> {
+  const type = String(item?.type || '')
+  if (!type.startsWith('smart-display')) return {}
+  return {
+    smartDisplayMount: item?.smartDisplayMount === 'wall' || type === 'smart-display-wall' ? 'wall' : 'tabletop',
+  }
+}
+
 export const maxTextureUnitLimit = 8,
   planLabelDefaultColor = '#e8eef6',
   planLabelAccentAlpha = 0.72,
@@ -117,6 +129,9 @@ export function createStudioDocument() {
       snapAngles: true,
       snapGrid: true,
       snapSurfaces: true,
+      // 物件拖动的两类吸附（0.8.7）：贴墙 / 边缘与中心对齐。默认都开。
+      snapObjectWalls: true,
+      snapModels: true,
       snapTolerance: 13,
       previewPanelRatio: 0.52,
       detailsPanelWidthRatio: 0.29,
@@ -541,6 +556,8 @@ export function normalizeScenePayload(rawScene: any, externalModelRegistry: any)
                     pipelineDispenserStyle: normalizePipelineDispenserStyle(rawItemRecord?.pipelineDispenserStyle),
                   }
                 : {}),
+              // 智能屏安装方式：0.8.7 作为独立字段保存；老文档缺字段时按 type 反推。
+              ...smartDisplayMountRecord(rawItemRecord),
               ...(rawItemRecord?.type === 'curtain'
                 ? {
                     curtainPosition: ['left', 'right', 'split'].includes(rawItemRecord?.curtainPosition)
@@ -647,6 +664,8 @@ export function normalizeScenePayload(rawScene: any, externalModelRegistry: any)
       snapAngles: rawScene.settings?.snapAngles !== false,
       snapGrid: rawScene.settings?.snapGrid !== false,
       snapSurfaces: rawScene.settings?.snapSurfaces !== false,
+      snapObjectWalls: rawScene.settings?.snapObjectWalls !== false,
+      snapModels: rawScene.settings?.snapModels !== false,
       snapTolerance: clamp2(Math.round(finite2(rawScene.settings?.snapTolerance, 13)), 6, 24),
       previewPanelRatio: clamp2(finite2(rawScene.settings?.previewPanelRatio, 0.52), 0.06, 0.94),
       detailsPanelWidthRatio: clamp2(finite2(rawScene.settings?.detailsPanelWidthRatio, 0.29), 0.08, 0.86),

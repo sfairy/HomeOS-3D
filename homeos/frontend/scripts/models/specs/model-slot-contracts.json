@@ -916,7 +916,7 @@
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
         "generatedAt": "2026-10-28T15:42:02.487Z",
-        "geometry": "homeos/frontend/public/static/3d-studio/models/电器/环境设备/出风口.glb"
+        "geometry": "homeos/frontend/public/static/3d-studio/models/电器/环境设备/空调出风口.glb"
       }
     },
     {

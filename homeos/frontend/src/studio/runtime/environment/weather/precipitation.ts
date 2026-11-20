@@ -215,10 +215,18 @@ export function drawPrecipitation(frame: WeatherFrame) {
   const tilt = rainTilt(frame.windSpeed, frame.gust)
   const tiltIndex = rainTiltBucket(tilt)
   frame.ctx.save()
-  frame.ctx.strokeStyle = WEATHER_COLOR
-  frame.ctx.fillStyle = WEATHER_COLOR
-  if (preset.rain) drawRain(frame, tiltIndex)
-  if (preset.snow) drawSnow(frame)
+  // 雨与雪分开取色：浅底图上「暖白雨丝」会整个糊掉，深一档的冷灰才看得见；
+  // 雪反过来要更实，否则在暖砂底上只剩一片几乎透明的斑点。
+  if (preset.rain) {
+    frame.ctx.strokeStyle = frame.rainColor
+    frame.ctx.fillStyle = frame.rainColor
+    drawRain(frame, tiltIndex)
+  }
+  if (preset.snow) {
+    frame.ctx.strokeStyle = frame.snowColor
+    frame.ctx.fillStyle = frame.snowColor
+    drawSnow(frame)
+  }
   frame.ctx.restore()
   frame.ctx.globalAlpha = 1
 }

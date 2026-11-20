@@ -377,6 +377,8 @@ export function applyToolSetting(deps: ApplyToolSettingDeps, selectedToolName: a
                 (toolPlacedElement.depth = itemTypeCatalog.tv.depth)),
               (toolPlacedElement.tvMountStyle = tvMountStyleValue)
           }
+          // 智能屏安装方式（0.8.7）：无条件调用，判断类型与是否需要换模型都在 helper 里。
+          syncSmartDisplayMount(toolPlacedElement, selectElement('#smart-display-mount').value)
           STORAGE_SECTION_TYPES.has(toolPlacedElement.type) &&
             (toolPlacedElement.cabinetSections = storageSectionStyle({
               type: toolPlacedElement.type,
@@ -395,12 +397,15 @@ export function applyToolSetting(deps: ApplyToolSettingDeps, selectedToolName: a
                     -90,
                     90,
                   )),
+              // 手调安装倾斜 / 出光方向 → 自动落成「自定义角度」，安装方式下拉要跟着回刷。
+              // 同一笔提交里换过安装方式时以安装方式为准（见 helper 的 `mountChanged`）。
               toolPlacedElement.type === 'striplight' &&
-                applyStripInspectorPose(
+                (stripMountChanged = applyStripInspectorPose(
                   toolPlacedElement,
                   itemStripRollInput.value,
                   itemLightSourceVisibleInput.checked,
-                ),
+                  stripMountChanged,
+                )),
               (toolPlacedElement.lightGroupId = appCtx.studioState.lightGroups.some(
                 (matchingLightGroup) => matchingLightGroup.id === selectElement('#light-group').value,
               )
@@ -455,4 +460,54 @@ export function applyToolSetting(deps: ApplyToolSettingDeps, selectedToolName: a
     syncLightShapeAndRepaint(appCtx, [toolPlacedElement]),
     refreshScopeItems(yr2),
     markDocumentDirty()
+}
+
+type SmartDisplayMount = 'tabletop' | 'wall'
+
+/** 智能屏两种安装方式对应的 item type（模型与外形随之一并切换）。 */
+const SMART_DISPLAY_TYPES = {
+  tabletop: 'smart-display',
+  wall: 'smart-display-wall',
+} as const satisfies Record<SmartDisplayMount, keyof typeof itemTypeCatalog>
+
+/** 只读需要的字段：不引入宽类型，也就能对尺寸做静态检查。 */
+interface SmartDisplayItem {
+  type: string
+  width: number
+  height: number
+  depth: number
+  elevation: number
+  smartDisplayMount?: string
+}
+
+/** 从下拉值读出安装方式（任何非法值都按桌面款处理）。 */
+export function syncSmartDisplayMount(item: SmartDisplayItem, rawMount: unknown): void {
+  if (!item.type.startsWith('smart-display')) return
+  applySmartDisplayMount(item, rawMount === 'wall' ? 'wall' : 'tabletop')
+}
+
+/**
+ * 切换智能屏的安装方式。
+ *
+ * 与 0.8.7 一致的只有「等比例缩放」这一步：新尺寸 = 旧尺寸 × (新模板 / 旧模板)，
+ * 这样用户把屏幕拉宽过之后，切到壁挂仍然是同样的长宽比，而不是跳回模板默认值。
+ * 离地高度跟着模板走：桌面款放在柜面上、壁挂款贴墙抬高，不跟着缩放（否则壁挂会贴地）。
+ */
+function applySmartDisplayMount(item: SmartDisplayItem, nextMount: SmartDisplayMount): void {
+  const currentMount: SmartDisplayMount =
+    item.smartDisplayMount === 'wall' || item.type === 'smart-display-wall' ? 'wall' : 'tabletop'
+  if (currentMount !== nextMount) {
+    const previousDefinition = itemTypeCatalog[SMART_DISPLAY_TYPES[currentMount]]
+    const nextDefinition = itemTypeCatalog[SMART_DISPLAY_TYPES[nextMount]]
+    const previousSize = [previousDefinition.width, previousDefinition.height, previousDefinition.depth]
+    const nextSize = [nextDefinition.width, nextDefinition.height, nextDefinition.depth]
+    const currentSize = [Number(item.width || 0), Number(item.height || 0), Number(item.depth || 0)]
+    const scaled = nextSize.map((value, index) =>
+      previousSize[index] > 0 ? (value * currentSize[index]) / previousSize[index] : value,
+    )
+    ;[item.width, item.height, item.depth] = scaled
+    item.type = SMART_DISPLAY_TYPES[nextMount]
+    item.elevation = nextDefinition.elevation
+  }
+  item.smartDisplayMount = nextMount
 }

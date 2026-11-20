@@ -1205,7 +1205,8 @@ export const itemTypeCatalog = {
       color: '#b8c3c8',
     },
     airoutlet: {
-      name: '出风口',
+      // 显示名保持与模型文件名一致（空调出风口.glb）：资产审计按名字做 1:1 映射，改名会变成孤儿模型。
+      name: '空调出风口',
       glyph: '▥',
       width: 0.188,
       depth: 2,

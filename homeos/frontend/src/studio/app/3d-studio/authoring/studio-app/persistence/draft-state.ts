@@ -6,6 +6,10 @@ import {
   mergeCollinearWallSegments as mergeCollinearWallSegments2,
   remapWallAttachment as remapWallAttachment2,
 } from '../../../plan/geometry'
+import {
+  remapWindowOrientation as remapWindowOrientation2,
+  type WindowWallSegment,
+} from '@app/shared/scene/window/window-deletion'
 
 export function markWallsChanged(runtime: StudioAppRuntime) {
   const tf3 = remapOpeningsToWalls(
@@ -39,10 +43,24 @@ export function rebuildWallIndex(runtime: StudioAppRuntime) {
         remappedAttachment
       )
     },
+    /**
+     * 窗的 `t` 重算之后还要修正**朝向**：合并可能把墙的 start/end 对调，
+     * 位置不变但「内开 / 外开」会翻面（见 `remapWindowOrientation`）。
+     * 只对窗做 —— 门没有 `wallDirection`，栏杆也没有。
+     */
+    remapWindowAttachment = (windowRecord: Record<string, unknown> & { wallId?: string }) => {
+      const remappedWindow = remapWallAttachment(windowRecord),
+        sourceWallRecord = wallByIdBeforeMerge.get(windowRecord.wallId) as WindowWallSegment | undefined,
+        targetWallRecord = wallByIdAfterMerge.get(mergedWallResult.wallIdMap.get(windowRecord.wallId)) as
+          | WindowWallSegment
+          | undefined
+      if (!sourceWallRecord || !targetWallRecord) return remappedWindow
+      return remapWindowOrientation2(remappedWindow as never, sourceWallRecord, targetWallRecord)
+    },
     removedWallCount = runtime.appCtx.studioState.walls.length - mergedWallResult.walls.length
   return (
     (runtime.appCtx.studioState.walls = mergedWallResult.walls),
-    (runtime.appCtx.studioState.windows = runtime.appCtx.studioState.windows.map(remapWallAttachment)),
+    (runtime.appCtx.studioState.windows = runtime.appCtx.studioState.windows.map(remapWindowAttachment)),
     (runtime.appCtx.studioState.doors = runtime.appCtx.studioState.doors.map(remapWallAttachment)),
     (runtime.appCtx.studioState.railings = runtime.appCtx.studioState.railings.map(remapWallAttachment)),
     removedWallCount

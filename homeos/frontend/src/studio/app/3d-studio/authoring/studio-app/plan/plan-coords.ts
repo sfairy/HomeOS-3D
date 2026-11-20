@@ -289,11 +289,42 @@ export function buildHandleGeometry(runtime: StudioAppRuntime, geometryItem: any
         handleCenterY - handleDirections.y * halfItemDepth,
       ),
     })),
-    rotationStem: runtime.rotateLocalPoint(geometryItem, handleCenterX, handleCenterY - halfItemDepth),
-    rotationHandle: runtime.rotateLocalPoint(
-      geometryItem,
-      handleCenterX,
-      handleCenterY - halfItemDepth - 17 / Math.max(runtime.appCtx.planView.zoom, 0.01),
-    ),
+    // 0.8.7：四条边的中点手柄（只改一个维度），与四角手柄并存。
+    edges: [
+      { x: 0, y: -1 },
+      { x: 1, y: 0 },
+      { x: 0, y: 1 },
+      { x: -1, y: 0 },
+    ].map((edgeDirections) => ({
+      ...edgeDirections,
+      point: runtime.rotateLocalPoint(
+        geometryItem,
+        handleCenterX + edgeDirections.x * halfItemWidth,
+        handleCenterY + edgeDirections.y * halfItemDepth,
+      ),
+      opposite: runtime.rotateLocalPoint(
+        geometryItem,
+        handleCenterX - edgeDirections.x * halfItemWidth,
+        handleCenterY - edgeDirections.y * halfItemDepth,
+      ),
+    })),
+    // 0.8.7 `rotationControlLocal`：出风口（airoutlet）的旋转手柄横置在右侧，
+    // 其余物件放在上方 —— 出风口的「方向」是水平出风，竖着放会被机身挡住。
+    rotationStem:
+      geometryItem.type === 'airoutlet'
+        ? runtime.rotateLocalPoint(geometryItem, handleCenterX + halfItemWidth, handleCenterY)
+        : runtime.rotateLocalPoint(geometryItem, handleCenterX, handleCenterY - halfItemDepth),
+    rotationHandle:
+      geometryItem.type === 'airoutlet'
+        ? runtime.rotateLocalPoint(
+            geometryItem,
+            handleCenterX + halfItemWidth + 17 / Math.max(runtime.appCtx.planView.zoom, 0.01),
+            handleCenterY,
+          )
+        : runtime.rotateLocalPoint(
+            geometryItem,
+            handleCenterX,
+            handleCenterY - halfItemDepth - 17 / Math.max(runtime.appCtx.planView.zoom, 0.01),
+          ),
   }
 }

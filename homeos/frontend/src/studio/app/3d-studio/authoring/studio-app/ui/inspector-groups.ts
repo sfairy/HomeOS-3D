@@ -40,31 +40,16 @@ export function countInspectorGroupFields(_runtime: StudioAppRuntime, inspectorG
   return visibleFieldCount
 }
 
-/** 收敛分组：空组整组隐藏、组标题随选中类型换说法、折叠态回放、计数徽标只在折叠时出现。 */
+/**
+ * 收敛分组：**只做「组内没有可见字段就整组收起」**。
+ *
+ * 0.8.7 的属性面板是平铺的 `.field-section` 堆栈，没有分组标题、也没有折叠；
+ * 这里保留 `inspector-group` 外壳纯粹是为了按「语义组」做空组回收 ——
+ * 否则每组都要自己维护「我的所有字段都 hidden 了吗」，散落在各处必然会漏。
+ */
 export function syncInspectorGroups(runtime: StudioAppRuntime) {
-  const architectureKind = (runtime.INSPECTOR_GROUP_TITLE_BY_ARCHITECTURE_KIND as any)[
-    runtime.appCtx.selectedItem?.kind
-  ]
-    ? runtime.appCtx.selectedItem.kind
-    : ''
   for (const inspectorGroupElement of runtime.inspectorGroupsElement) {
-    const groupName = inspectorGroupElement.dataset.inspectorGroup,
-      isCollapsed = runtime.appCtx.inspectorGroupCollapseState[groupName!] === true,
-      hasVisibleField = runtime.inspectorGroupHasVisibleField(inspectorGroupElement)
-    inspectorGroupElement.hidden = !hasVisibleField
-    inspectorGroupElement.classList.toggle('is-collapsed', isCollapsed)
-    const groupTitleElement = inspectorGroupElement.querySelector('.inspector-group-title'),
-      groupCountElement = inspectorGroupElement.querySelector('.inspector-group-count') as HTMLElement | null
-    groupName === 'geometry' &&
-      architectureKind &&
-      groupTitleElement &&
-      (groupTitleElement.textContent = (runtime.INSPECTOR_GROUP_TITLE_BY_ARCHITECTURE_KIND as any)[architectureKind])
-    inspectorGroupElement.querySelector('.inspector-group-header')?.setAttribute('aria-expanded', String(!isCollapsed))
-    if (groupCountElement) {
-      const visibleFieldCount = hasVisibleField ? runtime.countInspectorGroupFields(inspectorGroupElement) : 0
-      ;(groupCountElement.textContent = visibleFieldCount ? visibleFieldCount + ' 项' : ''),
-        (groupCountElement.hidden = !isCollapsed || !visibleFieldCount)
-    }
+    inspectorGroupElement.hidden = !runtime.inspectorGroupHasVisibleField(inspectorGroupElement)
   }
 }
 

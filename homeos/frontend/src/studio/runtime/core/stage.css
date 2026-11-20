@@ -4,6 +4,7 @@
 @import "../climate/climate-panel.css";
 @import "../cover/cover-panel.css";
 @import "./stage-device-visual.css";
+@import "/static/modules/interaction3d/natural-theme.css";
 /* U18: bridge --i3d visual tokens onto --hos so stage HUD follows design system */
 .interaction3d-stage {
   --i3d-fs-micro: var(--hos-fs-1, 11px);
@@ -180,16 +181,20 @@
   background: #463925cc;
   cursor: pointer;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-lock-panel h3 {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-lock-panel h3,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-lock-panel h3 {
   color: #3f382e;
 }
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-lock-panel .i3d-nas-status,
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-lock-panel .i3d-lock-detail {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-lock-panel .i3d-lock-detail,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-lock-panel .i3d-nas-status,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-lock-panel .i3d-lock-detail {
   color: #716657;
   background: #ede4d580;
   border-color: #bca98c66;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-lock-panel .i3d-nas-meta {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-lock-panel .i3d-nas-meta,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-lock-panel .i3d-nas-meta {
   color: #716657;
 }
 .interaction3d-stage .i3d-device-panel .i3d-nas-meta {
@@ -211,10 +216,12 @@
   background: transparent;
   color: #7e898f;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-device-panel .i3d-nas-meta {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-device-panel .i3d-nas-meta,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-device-panel .i3d-nas-meta {
   color: #716657;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-device-panel .i3d-nas-status {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-device-panel .i3d-nas-status,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-device-panel .i3d-nas-status {
   background: transparent;
   color: #716657;
 }
@@ -2521,7 +2528,8 @@ body.interaction3d-stage.is-background-hidden,
 .interaction3d-stage .i3d-alarm-card [hidden] {
   display: none !important;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-alarm-card {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-alarm-card,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-alarm-card {
   --meter-top: #fcf8f0;
   --meter-bottom: #eee7db;
   /* 与基础变体同步：主题切换后也不能回退掉随字号放大的最小宽度。 */
@@ -2529,7 +2537,8 @@ body.interaction3d-stage.is-background-hidden,
   color: #4e4438;
   border-color: #b7a489;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-alarm-card:before {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-alarm-card:before,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-alarm-card:before {
   box-shadow:
     0 8px 20px #59492940,
     inset 0 1px #fff;
@@ -2882,7 +2891,8 @@ body.interaction3d-stage.is-background-hidden,
   color: #f4f7f8;
   pointer-events: none;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-car-tires {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-car-tires,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-car-tires {
   color: #4e4438;
 }
 .interaction3d-stage .i3d-car-tire-lines {
@@ -3103,13 +3113,15 @@ body.interaction3d-stage.is-background-hidden,
 .interaction3d-stage .i3d-environment-battery.is-unavailable {
   color: #aab6bf;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-temperature-humidity-card {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-temperature-humidity-card,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-temperature-humidity-card {
   --meter-top: #fcf8f0;
   --meter-bottom: #eee7db;
   color: #4e4438;
   border-color: #b7a489;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-temperature-humidity-card:before {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-temperature-humidity-card:before,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-temperature-humidity-card:before {
   box-shadow:
     0 8px 20px #59492940,
     inset 0 1px #fff;
@@ -3117,14 +3129,17 @@ body.interaction3d-stage.is-background-hidden,
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-temperature-humidity-card:after {
   border-color: #b7a489;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-temperature-humidity-values {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-temperature-humidity-values,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-temperature-humidity-values {
   border-top-color: #cbbb9f;
   color: #51483a;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-meter-icon {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-meter-icon,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-meter-icon {
   color: #467482;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .is-temperature .i3d-meter-icon {
+.interaction3d-stage[data-scene-style="warm-wood"] .is-temperature .i3d-meter-icon,
+.interaction3d-stage[data-scene-style="natural-wood"] .is-temperature .i3d-meter-icon {
   color: #9c683b;
 }
 .interaction3d-stage .is-sensor-choice > .i3d-marker-icon {
@@ -3159,7 +3174,9 @@ body.interaction3d-stage.is-background-hidden,
   border-color: #dba45a;
 }
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-floor-tabs,
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-navigation .i3d-module-tabs {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-navigation .i3d-module-tabs,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-floor-tabs,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-navigation .i3d-module-tabs {
   background: #f8f4eadb;
   border-color: #89745633;
   box-shadow:
@@ -3167,11 +3184,15 @@ body.interaction3d-stage.is-background-hidden,
     inset 0 1px #ffffffa6;
 }
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-floor-tabs button,
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-navigation .i3d-module-tabs button {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-navigation .i3d-module-tabs button,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-floor-tabs button,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-navigation .i3d-module-tabs button {
   color: #77766b;
 }
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-floor-tabs button:hover,
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-navigation .i3d-module-tabs button:hover {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-navigation .i3d-module-tabs button:hover,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-floor-tabs button:hover,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-navigation .i3d-module-tabs button:hover {
   color: #514a3d;
 }
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-floor-tabs button[aria-pressed="true"],
@@ -3179,15 +3200,19 @@ body.interaction3d-stage.is-background-hidden,
   color: #54432d;
 }
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-floor-tabs button:before,
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-navigation .i3d-module-tabs button[aria-pressed="true"] {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-navigation .i3d-module-tabs button[aria-pressed="true"],
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-floor-tabs button:before {
   background: #ceb79280;
   box-shadow: inset 0 1px #ffffff80;
 }
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-floor-tabs button:focus-visible,
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-navigation .i3d-module-tabs button:focus-visible {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-navigation .i3d-module-tabs button:focus-visible,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-floor-tabs button:focus-visible,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-navigation .i3d-module-tabs button:focus-visible {
   outline-color: #8c734b;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-navigation .i3d-toolbar button {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-navigation .i3d-toolbar button,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-navigation .i3d-toolbar button {
   background: #f8f4eae6;
   color: #62523d;
   border-color: #89745640;
@@ -3196,12 +3221,14 @@ body.interaction3d-stage.is-background-hidden,
   background: #ddccb0;
   color: #54432d;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-floor-tabs {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-floor-tabs,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-floor-tabs {
   background: transparent;
   border: 0;
   box-shadow: none;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-light-panel {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-light-panel,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-light-panel {
   color: #493f34;
   border-color: #89745652;
   background: linear-gradient(
@@ -3214,7 +3241,9 @@ body.interaction3d-stage.is-background-hidden,
     inset 0 1px #fff9;
 }
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-light-panel,
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-light-panel,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-climate-panel {
   --i3d-wood-ink: #493f34;
   --i3d-wood-heading: #3f382e;
   --i3d-wood-muted: #716657;
@@ -3309,7 +3338,8 @@ body.interaction3d-stage.is-background-hidden,
   background: #e6d5b8;
   box-shadow: inset 0 0 0 0.2px #8a5c23;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .hb-cover-details-actions i {
+.interaction3d-stage[data-scene-style="warm-wood"] .hb-cover-details-actions i,
+.interaction3d-stage[data-scene-style="natural-wood"] .hb-cover-details-actions i {
   color: inherit;
 }
 .interaction3d-stage[data-scene-style="warm-wood"]
@@ -3337,7 +3367,8 @@ body.interaction3d-stage.is-background-hidden,
     #ddd2c0 100%
   ) !important;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-temperature input {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-temperature input,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-temperature input {
   background:
     linear-gradient(
       90deg,
@@ -3348,7 +3379,8 @@ body.interaction3d-stage.is-background-hidden,
     ),
     linear-gradient(90deg, #e4ad6b, #f3ead9, #a8c7dd) !important;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .hb-cover-details-position input {
+.interaction3d-stage[data-scene-style="warm-wood"] .hb-cover-details-position input,
+.interaction3d-stage[data-scene-style="natural-wood"] .hb-cover-details-position input {
   background: linear-gradient(
     90deg,
     #ae8c59 0%,
@@ -3357,7 +3389,8 @@ body.interaction3d-stage.is-background-hidden,
     #ded4c3 100%
   ) !important;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-climate-panel {
   --i3d-climate-accent: #655947;
   --hb-climate-accent-soft: color-mix(in srgb, var(--i3d-climate-accent) 12%, #fff9ed);
 }
@@ -3375,20 +3408,24 @@ body.interaction3d-stage.is-background-hidden,
   border-color: var(--i3d-climate-accent);
   background: var(--hb-climate-accent-soft);
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel.is-on .i3d-climate-heading p {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel.is-on .i3d-climate-heading p,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-climate-panel.is-on .i3d-climate-heading p {
   color: var(--i3d-climate-accent);
 }
 .interaction3d-stage[data-scene-style="warm-wood"] :is(.i3d-nas-metric, .i3d-nas-status) {
   background: #ede4d580;
   border-color: #bca98c66;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-nas-metric.is-warning strong {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-nas-metric.is-warning strong,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-nas-metric.is-warning strong {
   color: #94601d;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-nas-metric.is-unavailable strong {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-nas-metric.is-unavailable strong,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-nas-metric.is-unavailable strong {
   color: #81796e;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-nas-bar {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-nas-bar,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-nas-bar {
   background: #527b57;
 }
 .interaction3d-stage[data-scene-style="warm-wood"]
@@ -3413,7 +3450,8 @@ body.interaction3d-stage.is-background-hidden,
   :is(.i3d-climate-option-group h4, .i3d-extra-description h4, .i3d-extra-state .i3d-extra-description h4) {
   color: var(--i3d-wood-heading);
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel .i3d-extra-card {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel .i3d-extra-card,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-climate-panel .i3d-extra-card {
   color: var(--i3d-wood-ink);
   border-color: #c9b99e;
   background: #f8f2e8;
@@ -3481,19 +3519,25 @@ body.interaction3d-stage.is-background-hidden,
   > button[role="switch"]:disabled {
   opacity: 0.7;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel .i3d-extra-card.is-dragging {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel .i3d-extra-card.is-dragging,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-climate-panel .i3d-extra-card.is-dragging {
   background: var(--hb-climate-accent-soft);
 }
 .interaction3d-stage[data-scene-style="warm-wood"]
+  .i3d-climate-panel
+  .i3d-extra-card.is-selected:not(.is-dragging):not(.is-drop-target),
+.interaction3d-stage[data-scene-style="natural-wood"]
   .i3d-climate-panel
   .i3d-extra-card.is-selected:not(.is-dragging):not(.is-drop-target) {
   outline: 1.2px solid #8a5c23;
   outline-offset: -1.2px;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel .i3d-climate-error {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel .i3d-climate-error,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-climate-panel .i3d-climate-error {
   color: #a13f2c;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel .i3d-extra-resize:after {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel .i3d-extra-resize:after,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-climate-panel .i3d-extra-resize:after {
   border-color: #8a6b3e;
 }
 .interaction3d-stage[data-scene-style="warm-wood"] :is(button, input):focus-visible {
@@ -3503,7 +3547,9 @@ body.interaction3d-stage.is-background-hidden,
   :is(.i3d-slider input, input.i3d-control-range)::-webkit-slider-thumb,
 .interaction3d-stage[data-scene-style="warm-wood"] .hb-cover-details-position input::-webkit-slider-thumb,
 .interaction3d-stage[data-scene-style="warm-wood"] :is(.i3d-slider input, input.i3d-control-range)::-moz-range-thumb,
-.interaction3d-stage[data-scene-style="warm-wood"] .hb-cover-details-position input::-moz-range-thumb {
+.interaction3d-stage[data-scene-style="warm-wood"] .hb-cover-details-position input::-moz-range-thumb,
+.interaction3d-stage[data-scene-style="natural-wood"] .hb-cover-details-position input::-webkit-slider-thumb,
+.interaction3d-stage[data-scene-style="natural-wood"] .hb-cover-details-position input::-moz-range-thumb {
   background: linear-gradient(145deg, #fdf8ed, #d5be98) padding-box;
   filter: drop-shadow(0 2px 3px #6e542444);
   box-shadow: inset 0 1px #fff;
@@ -3525,7 +3571,8 @@ body.interaction3d-stage.is-background-hidden,
   :is(.i3d-nas-heading h3, .i3d-device-panel .i3d-climate-heading h3, .i3d-lock-panel h3) {
   color: var(--i3d-popup-heading);
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-device-panel .i3d-device-status {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-device-panel .i3d-device-status,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-device-panel .i3d-device-status {
   flex: none;
   margin: 0 0 0 auto;
   color: var(--i3d-popup-muted) !important;
@@ -3533,7 +3580,8 @@ body.interaction3d-stage.is-background-hidden,
   line-height: 1.4;
   white-space: nowrap;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-lock-panel .i3d-nas-status {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-lock-panel .i3d-nas-status,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-lock-panel .i3d-nas-status {
   min-height: 0;
   padding: 6px 10px;
   border: 1px solid #bca98c66;
@@ -3577,10 +3625,12 @@ body.interaction3d-stage.is-background-hidden,
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-lock-panel .i3d-lock-detail.is-unknown {
   color: var(--i3d-popup-muted);
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-lock-details {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-lock-details,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-lock-details {
   gap: 6px;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-lock-panel .i3d-lock-detail {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-lock-panel .i3d-lock-detail,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-lock-panel .i3d-lock-detail {
   min-height: 28px;
   border-color: #bca98c66;
   border-radius: 8px;
@@ -3633,20 +3683,24 @@ body.interaction3d-stage.is-background-hidden,
   background: rgba(241, 234, 223, var(--i3d-warm-card-opacity, var(--i3d-panel-opacity, 0.74)));
   border-color: #c4b59e;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-marker {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-marker,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-marker {
   color: #736b5e;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-marker:before {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-marker:before,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-marker:before {
   background: #f8f4eaf0;
   border-color: #a9977770;
   box-shadow:
     0 3px 10px #59493326,
     inset 0 1px #ffffffb3;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-marker.is-on {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-marker.is-on,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-marker.is-on {
   color: #815827;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-marker.is-on:before {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-marker.is-on:before,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-marker.is-on:before {
   background: #ead5aff5;
   border-color: #ad8752b3;
   box-shadow:
@@ -3654,13 +3708,17 @@ body.interaction3d-stage.is-background-hidden,
     inset 0 1px #fff4ddcc;
 }
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-marker.is-selected:after,
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-marker:focus-visible:after {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-marker:focus-visible:after,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-marker.is-selected:after,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-marker:focus-visible:after {
   border-color: #96713d;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-marker.is-nas.is-on {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-marker.is-nas.is-on,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-marker.is-nas.is-on {
   color: #4e7054;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-marker.is-nas.is-on:before {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-marker.is-nas.is-on:before,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-marker.is-nas.is-on:before {
   background: #e1e9d9f5;
   border-color: #829c7499;
   animation-name: i3d-warm-nas-breathe;
@@ -3679,7 +3737,8 @@ body.interaction3d-stage.is-background-hidden,
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .interaction3d-stage[data-scene-style="warm-wood"] .i3d-marker.is-nas.is-on:before {
+  .interaction3d-stage[data-scene-style="warm-wood"] .i3d-marker.is-nas.is-on:before,
+  .interaction3d-stage[data-scene-style="natural-wood"] .i3d-marker.is-nas.is-on:before {
     animation: none;
     box-shadow: 0 3px 10px #61784c26;
   }
@@ -3697,13 +3756,16 @@ body.interaction3d-stage.is-background-hidden,
 .interaction3d-stage[data-scene-style="warm-wood"] :is(.i3d-vacuum-status-detail, .i3d-security-label > span) {
   color: #736b5e;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .is-on .i3d-vacuum-status {
+.interaction3d-stage[data-scene-style="warm-wood"] .is-on .i3d-vacuum-status,
+.interaction3d-stage[data-scene-style="natural-wood"] .is-on .i3d-vacuum-status {
   border-color: #829c74aa;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .is-on .i3d-vacuum-status-text {
+.interaction3d-stage[data-scene-style="warm-wood"] .is-on .i3d-vacuum-status-text,
+.interaction3d-stage[data-scene-style="natural-wood"] .is-on .i3d-vacuum-status-text {
   color: #4e7054;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-vacuum-quip {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-vacuum-quip,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-vacuum-quip {
   color: #80613a;
   border-color: #a9977733;
 }
@@ -3716,7 +3778,8 @@ body.interaction3d-stage.is-background-hidden,
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-security-label.is-camera-offline > span:before {
   background: #948c7e;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .is-sensor-choice.is-selected .i3d-security-label {
+.interaction3d-stage[data-scene-style="warm-wood"] .is-sensor-choice.is-selected .i3d-security-label,
+.interaction3d-stage[data-scene-style="natural-wood"] .is-sensor-choice.is-selected .i3d-security-label {
   color: #815827;
   background: #ead5aff5;
   border-color: #ad8752b3;
@@ -4137,12 +4200,14 @@ body.interaction3d-stage.is-background-hidden,
   flex-shrink: 0;
   margin: 0;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-speaker-media-dialog {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-speaker-media-dialog,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-speaker-media-dialog {
   color: #554632;
   border-color: #bca98c;
   background: #f6f0e5;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-speaker-media-dialog button {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-speaker-media-dialog button,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-speaker-media-dialog button {
   color: #554632;
   border-color: #bca98c;
   background: #e6d5b8;
@@ -4197,7 +4262,8 @@ body.interaction3d-stage.is-background-hidden,
 .interaction3d-stage .i3d-car-card:before {
   border: 1px solid #697581;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-car-card:before {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-car-card:before,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-car-card:before {
   border-color: #b7a489;
 }
 .interaction3d-stage .i3d-car-name {
@@ -4277,11 +4343,13 @@ body.interaction3d-stage.is-background-hidden,
   --label-border: #a9977770;
   --label-shadow: 0 3px 10px #59493326;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .is-on .i3d-vacuum-status {
+.interaction3d-stage[data-scene-style="warm-wood"] .is-on .i3d-vacuum-status,
+.interaction3d-stage[data-scene-style="natural-wood"] .is-on .i3d-vacuum-status {
   --label-border: #829c74aa;
 }
 .interaction3d-stage[data-scene-style="warm-wood"] .is-on .i3d-vacuum-status,
-.interaction3d-stage :is(.i3d-vacuum-status, .i3d-security-label.is-lock-status, .i3d-security-label.is-camera-status) {
+.interaction3d-stage :is(.i3d-vacuum-status, .i3d-security-label.is-lock-status, .i3d-security-label.is-camera-status),
+.interaction3d-stage[data-scene-style="natural-wood"] .is-on .i3d-vacuum-status {
   isolation: isolate;
   background: transparent;
   border-color: transparent;
@@ -4551,7 +4619,8 @@ body.interaction3d-stage.is-background-hidden,
   min-width: 150px;
   max-width: 100%;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-game-main button {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-game-main button,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-game-main button {
   border-color: #bca98c;
   background: #f6f0e5;
   color: #554632;
@@ -4577,4 +4646,33 @@ body.interaction3d-stage.is-background-hidden,
   .interaction3d-stage .i3d-security-label.is-contact-auto-label.is-contact-closed {
     transition: none;
   }
+}
+
+/* ===== 0.8.7：3D 楼层 / 分类按钮点击后文字变模糊 ===== */
+/*
+ * 根因不是字体渲染设置，而是**缩放的栅格化时机**：
+ *   `.i3d-floor-tabs` 与分类条都套着 `transform: scale(var(--i3d-…-scale, 2))`，
+ *   按钮的 `:before` 又做 `scale(0.85) → scale(1)` 过渡。点击触发过渡时，浏览器会把
+ *   整块按钮以**未缩放**的尺寸重新栅格化一次，再由父级 2 倍放大 —— 文字因此变虚；
+ *   过渡结束后也不会自动补回高分辨率，直到下一次重新布局。
+ *
+ * 修法两条，各自解决一半：
+ * 1. 把缩放容器提升为独立合成层（`will-change: transform`），栅格化发生在**缩放后**；
+ * 2. 文字不参与父级的位图放大：`backface-visibility: hidden` 让浏览器按最终变换渲染文本。
+ * 两者都只影响合成策略，不改尺寸与位置。
+ */
+.interaction3d-stage .i3d-floor-tabs,
+.interaction3d-stage .i3d-module-tabs {
+  will-change: transform;
+  backface-visibility: hidden;
+}
+.interaction3d-stage .i3d-floor-tabs button,
+.interaction3d-stage .i3d-module-tabs button {
+  /* 文字自身不要再叠加变换：`:before` 的缩放只作用于背景块。 */
+  backface-visibility: hidden;
+  text-rendering: optimizeLegibility;
+}
+.interaction3d-stage .i3d-floor-tabs button:before {
+  /* 背景块的缩放必须留在自己的图层里，否则每帧都要重栅格化它所在按钮的文字。 */
+  will-change: transform;
 }

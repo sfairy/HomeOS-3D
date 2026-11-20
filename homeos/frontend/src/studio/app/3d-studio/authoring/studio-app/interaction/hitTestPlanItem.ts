@@ -11,6 +11,7 @@ import {
 
 import { isCourtyardDrawing as isCourtyardDrawing2 } from '../../../loaders/studio-normalization'
 import { itemWithPlanFootprint as itemWithPlanFootprint2 } from '../../items/studio-item-posture'
+import { isPlacedItemHidden } from '../../items/placed-item-state'
 
 import type { StudioAppContext } from '../studio-app-context'
 export interface HitTestPlanItemDeps {
@@ -26,7 +27,10 @@ export function hitTestPlanItem(deps: HitTestPlanItemDeps, planHitPoint: any) {
 
   const itemPixelsPerMeter = getPixelsPerMeter() || 100,
     isLightCategoryHit = appCtx.activeLibraryCategory === 'light'
-  for (const hitCandidateItem of [...appCtx.studioState.items].reverse()) {
+  // 已隐藏的物件本次编辑内不画，也不参与命中：先过滤掉，正文的判定条件保持原样。
+  for (const hitCandidateItem of [...appCtx.studioState.items]
+    .reverse()
+    .filter((candidate) => !isPlacedItemHidden(appCtx, candidate.id))) {
     if (!isPlanItemVisible(hitCandidateItem) || hitCandidateItem.type === 'courtyard-area') continue
     const hitTestRect =
       hitCandidateItem.type === 'smart-socket-86'

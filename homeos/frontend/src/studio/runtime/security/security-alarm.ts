@@ -5,6 +5,7 @@ import {
   SMOKE_EVENT_TYPE,
   securityAlarmEntityMode,
 } from '@/studio/platform/security-alarm-profile'
+import { isWarmSceneStyle } from '@app/shared/scene-styles'
 
 const MDI_SVG = '/static/vendor/mdi/7.4.47/svg/'
 
@@ -581,7 +582,7 @@ export function createSecurityAlarmOverlay(hostElement: HTMLElement, { onDismiss
     update(readings: any[] = [], enabled = true, sceneStyle = 'default') {
       if (disposed) return
       if (shared.root.parentNode !== hostElement) hostElement.append(shared.root)
-      shared.sceneStyles.set(ownerKey, sceneStyle === 'warm-wood' ? 'warm-wood' : 'default')
+      shared.sceneStyles.set(ownerKey, isWarmSceneStyle(sceneStyle) ? 'warm-wood' : 'default')
       shared.eventSources.set(
         ownerKey,
         new Set(

@@ -8,10 +8,13 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
+
+_logger = logging.getLogger(__name__)
 
 #: 本包目录：源码是 ``homeos/backend/src``，镜像是 ``/app/app``
 #: （构建期把源码目录 ``src`` 映射成 ``app``，见根 Dockerfile）。
@@ -73,6 +76,54 @@ def _environment_non_negative_float(name: str, default: float) -> float:
     except ValueError:
         return default
     return parsed if parsed >= 0 else default
+
+
+def _valid_public_origin(value: str) -> bool:
+    """一个「额外公开来源」是否合法（完整 ``scheme://host:port``，无路径/凭据/列表）。
+
+    刻意与 :func:`platform.security.request_origin.parse_origin` 同口径而**不**在这里导入它：
+    ``config`` 属于只许用标准库的 base 层（``check:backend-deps`` 的 B6 规则），
+    导入 platform 会把配置层拖进请求层。两处的一致性由
+    ``tests/test_studio_lighting_and_origins.py`` 的同一组用例保证。
+    """
+    from ipaddress import ip_address
+    from urllib.parse import urlsplit
+
+    if not value or "," in value or "\\" in value:
+        return False
+    parsed = urlsplit(value.strip())
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        return False
+    if parsed.username is not None or parsed.password is not None:
+        return False
+    if parsed.path or parsed.query or parsed.fragment:
+        return False
+    host = (parsed.hostname or "").strip().lower()
+    if not host:
+        return False
+    try:
+        ip_address(host)
+    except ValueError:
+        # 不是 IP：按域名字符集校验（IDNA 压缩后的形态）。
+        _logger.debug("公开来源主机名不是 IP，按域名字符集校验：%r", host)
+        return all(character in "abcdefghijklmnopqrstuvwxyz0123456789-." for character in host)
+    return True
+
+
+def _validated_public_origins() -> tuple[str, ...]:
+    """解析并校验 ``APP_ADDITIONAL_PUBLIC_ORIGINS``（逗号分隔的完整来源列表）。
+
+    校验放在启动期而不是首次请求：写错的来源如果在请求时才拒绝，表现是「这个入口
+    偶尔 403」，而正确做法是**启动就失败**并给出中文原因。
+    """
+    values = _environment_csv("APP_ADDITIONAL_PUBLIC_ORIGINS")
+    if not values:
+        return ()
+    if any(not _valid_public_origin(item) for item in values):
+        raise ValueError(
+            "APP_ADDITIONAL_PUBLIC_ORIGINS 必须为完整 HTTP/HTTPS 来源，包含实际端口且不带路径。"
+        )
+    return values
 
 
 #: 服务器全量备份包目录名（Nest 约定：仓库根 ``backups/``）。
@@ -168,6 +219,10 @@ class Settings:
     is_production: bool = False
     # 接入层
     allowed_origins: tuple[str, ...] = ()
+    #: 「额外公开访问来源」（``APP_ADDITIONAL_PUBLIC_ORIGINS``）：一台机器同时被多个反向
+    #: 代理地址访问时，除 ``APP_BASE_URL`` 之外的其余入口。必须是**完整来源**
+    #: （``scheme://host:port``，带实际端口、不带路径），启动时逐项校验，写错即启动失败。
+    additional_public_origins: tuple[str, ...] = ()
     #: 可信反向代理网段（``APP_TRUSTED_PROXIES``，IP 或 CIDR，逗号分隔）。
     #: **唯一消费者**是 ``platform/security/client_address.py``：只有当 TCP 对端落在这些网段内，
     #: 才采信 ``X-Forwarded-For``。留空 = 不信任任何代理 = 转发头一律忽略（安全默认）。
@@ -450,6 +505,7 @@ def load_settings() -> Settings:
     data_dir = Path(
         os.getenv("HOMEOS_DATA_DIR") or PROJECT_ROOT.parent / "data"
     ).expanduser().resolve()
+    additional_public_origins = _validated_public_origins()
     return Settings(
         data_dir=data_dir,
         store_url=os.getenv("APP_STORE_URL", "").strip().rstrip("/"),
@@ -465,6 +521,7 @@ def load_settings() -> Settings:
         metrics_token=os.getenv("METRICS_TOKEN", "").strip(),
         is_production=environment_is_production(),
         allowed_origins=_environment_csv("CORS_ORIGINS"),
+        additional_public_origins=additional_public_origins,
         # 默认信回环（镜像内置反代就在同容器回环上）。留空字符串会显式关掉代理信任，
         # 因此这里只在**未设置**时才用默认值 —— `_environment_csv` 对空串返回 ()，故手动兜底。
         trusted_proxies=(

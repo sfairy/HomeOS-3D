@@ -160,6 +160,9 @@ export function patchLightsParsBegin(THREE: ThreeShaderChunkOwner) {
       'uniform SpotLight spotLights[ NUM_SPOT_LIGHTS ];',
       '#if NUM_SPOT_LIGHTS > 0\nuniform SpotLight spotLights[ NUM_SPOT_LIGHTS ];\n#endif',
     )
+  // 注意：零强度聚光灯的跳过**不在**这里 —— `lights_pars_begin` 只有声明，没有循环。
+  // 循环在 `lights_fragment_begin`，由 `guardZeroContributionSpotLights` 注入
+  // `HB_SKIP_ZERO_SPOT_LIGHT` 守卫（见本文件下方）。在 pars 里找循环串是做无用功。
 }
 /**
  * 面光的 LTC 查找表换成本模块自己的 uniform。

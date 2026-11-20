@@ -11,6 +11,8 @@ CSRF 走「双提交 Cookie + 头部令牌」；对**无请求体**的写操作�
 
 from __future__ import annotations
 
+import logging
+from ipaddress import ip_address
 from urllib.parse import urlsplit
 
 from fastapi import Request
@@ -18,7 +20,120 @@ from fastapi import Request
 from ..core.http.errors import RequestRejected
 from ..core.http.hostnames import browser_reachable
 
+logger = logging.getLogger(__name__)
+
 _REJECTION = "此操作只允许从当前应用页面发起。"
+
+#: 允许出现在主机名里的字符（IDNA 压缩后的形态）。出现其它字符一律判为非法来源。
+_HOST_CHARS = frozenset("abcdefghijklmnopqrstuvwxyz0123456789-.")
+
+
+def parse_origin(value: str, *, allow_path: bool = False) -> tuple[str, str, int] | None:
+    """把浏览器来源规整成 ``(scheme, host, port)``；非法返回 ``None``。
+
+    拒绝：凭据（``user:pass@``）、通配、逗号分隔的多来源、非 ASCII 主机名、
+    越界端口，以及（``allow_path=False`` 时）任何路径 / 查询 / 片段。
+    """
+    if not value or "," in value or "\\" in value:
+        return None
+    parsed = urlsplit(value.strip())
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        return None
+    if parsed.username is not None or parsed.password is not None:
+        return None
+    if not allow_path and (parsed.path or parsed.query or parsed.fragment):
+        return None
+    host = (parsed.hostname or "").strip().lower()
+    if not host or any(character not in _HOST_CHARS for character in host):
+        return None
+    try:
+        port = parsed.port
+    except ValueError:
+        logger.debug("来源端口非法，按拒绝处理：%r", value)
+        return None
+    try:
+        ip_address(host)
+        normalized_host = host
+    except ValueError:
+        try:
+            normalized_host = host.encode("idna").decode("ascii").casefold()
+        except UnicodeError:
+            logger.debug("来源主机名无法做 IDNA 规整，按拒绝处理：%r", value)
+            return None
+    scheme = parsed.scheme
+    return scheme, normalized_host, port if port is not None else (443 if scheme == "https" else 80)
+
+
+def _allowed_origins(settings) -> set[tuple[str, str, int]]:
+    """允许来源集合 = 配置的额外来源 ∪ CORS 白名单 ∪ ``APP_BASE_URL``。"""
+    candidates: list[str] = list(getattr(settings, "additional_public_origins", ()) or ())
+    candidates.extend(getattr(settings, "allowed_origins", ()) or ())
+    base = str(getattr(settings, "app_base_url", "") or "").strip()
+    if base:
+        candidates.append(base)
+    parsed = {parse_origin(item) for item in candidates if isinstance(item, str)}
+    return {item for item in parsed if item is not None}
+
+
+def browser_origin_allowed(
+    connection: Request,
+    *,
+    websocket: bool = False,
+    public_report: bool = False,
+) -> bool:
+    """统一的浏览器来源判定（HTTP 写操作 / WebSocket 握手 / 匿名上报共用）。
+
+    判据按强度递进：
+
+    1. ``Sec-Fetch-Site`` 存在且不是 ``same-origin`` → 直接拒绝（浏览器自己算的，跨站伪造不了）；
+    2. 取 ``Origin``（WS 必带；匿名上报允许只带 ``Referer``）；
+    3. 无任何来源头 → 脚本 / 测试客户端放行，但**匿名上报与 WS 必须带**；
+    4. 主机名等于本次请求的 ``Host`` → 同源，放行（覆盖反代把端口摘掉的部署）；
+    5. 否则要求 ``(scheme, host, port)`` 命中配置的额外来源 / 白名单 / ``APP_BASE_URL``。
+    """
+    site = (connection.headers.get("sec-fetch-site") or "").strip().lower()
+    if site and site != "same-origin":
+        return False
+    origin = connection.headers.get("origin")
+    source = origin if origin is not None else connection.headers.get("referer")
+    if not source:
+        # 脚本 / 测试客户端没有来源头：HTTP 写操作放行（CSRF 另有双提交 Cookie 兜底）。
+        # 匿名上报要求「带来源或至少带同源标记」——只靠网络层证据时，sendBeacon 在部分
+        # 浏览器会省掉 Origin，此时 `Sec-Fetch-Site: same-origin` 是浏览器自己算的，够用。
+        return not websocket and (not public_report or site == "same-origin")
+    parsed = parse_origin(source, allow_path=origin is None)
+    if parsed is None:
+        return False
+    scheme, host, port = parsed
+    request_host = (connection.headers.get("host") or "").strip()
+    if request_host and _same_host(host, port, request_host, scheme, connection.url.scheme):
+        return True
+    configured = _allowed_origins(connection.app.state.settings)
+    return parsed in configured
+
+
+def _same_host(host: str, port: int, request_host: str, scheme: str, request_scheme: str) -> bool:
+    """来源主机是否就是本次请求的主机（端口缺失时按目标 scheme 的默认端口比对）。"""
+    try:
+        target = urlsplit(f"//{request_host}")
+        target_host = (target.hostname or "").strip().lower()
+        target_port = target.port
+    except ValueError:
+        logger.debug("请求 Host 无法解析，按不同源处理：%r", request_host)
+        return False
+    if target_host != host:
+        return False
+    expected_port = target_port if target_port is not None else (443 if scheme == "https" else 80)
+    if port != expected_port:
+        # 反代会把 Host 的端口摘掉，此时浏览器 Origin 带的是真实外部端口；
+        # 只要 scheme 与请求协议一致（或 Sec-Fetch-Site 已判同源）就认。
+        return scheme == request_scheme
+    return True
+
+
+def require_same_origin_write(request: Request) -> None:
+    if not browser_origin_allowed(request):
+        raise RequestRejected(_REJECTION)
 
 
 def browser_origin(request: Request) -> str:
@@ -54,65 +169,4 @@ def browser_origin(request: Request) -> str:
     return f"{request.url.scheme}://{host}" if host else ""
 
 
-def require_same_origin_write(request: Request) -> None:
-    site = request.headers.get("sec-fetch-site", "").strip().lower()
-    if site and site != "same-origin":
-        raise RequestRejected(_REJECTION)
-    origin = request.headers.get("origin")
-    referer = request.headers.get("referer") if origin is None else None
-    raw_source = origin if origin is not None else referer
-    if raw_source is None:
-        # 无 Origin/Referer：脚本 / 测试客户端放行；若已带 Sec-Fetch-Site 则上面已校验同源。
-        return
-    try:
-        source = urlsplit(raw_source.strip())
-        valid = (
-            source.scheme in {"http", "https"}
-            and bool(source.netloc)
-            and source.username is None
-            and source.password is None
-        )
-        if origin is not None:
-            valid = valid and not (source.path or source.query or source.fragment)
-        configured = getattr(getattr(request.app.state, "settings", None), "app_base_url", "") or ""
-        host = request.headers.get("host", "").strip()
-        # 浏览器用的 Host 就是本请求的 Host —— 这本身就是同源，与「配没配 APP_BASE_URL」无关。
-        same_host = bool(host) and source.netloc.casefold() == host.casefold()
-        if not same_host and site == "same-origin" and host:
-            # 入口层把 Host 的端口摘掉时（Caddy 的 {host}、nginx 的 $host 都只保留主机名），
-            # 上面的 netloc 逐字比对必然对不上：Origin 是浏览器按真实地址写的
-            # ``https://192.168.1.20:8803``，而 Host 只剩 ``192.168.1.20``，于是登录 / 备份 /
-            # 授权在 8803（内置 HTTPS）这类非默认端口入口上全部 403。
-            # ``Sec-Fetch-Site: same-origin`` 是浏览器自己按「协议 + 主机 + 端口」算出来的，
-            # 跨站页面无法伪造；再叠加主机名一致，就足以认定同源，且不比原判定宽松到危险的
-            # 程度（攻击页面的 Origin 主机名不可能等于它正在请求的 Host）。
-            try:
-                host_name = (urlsplit(f"//{host}").hostname or "").casefold()
-            except ValueError:
-                host_name = ""
-            same_host = bool(host_name) and source.hostname == host_name
-        if configured:
-            expected = urlsplit(configured)
-            valid = valid and (
-                (source.scheme, source.netloc.casefold())
-                == (expected.scheme, expected.netloc.casefold())
-                # ``APP_BASE_URL`` 是「主用对外地址」，不是「唯一允许的地址」。内网穿透部署
-                # 里它写公网域名，但同一套服务仍然会被局域网 IP 直接访问（用户就在现场），
-                # 只认配置值会让登录 / 备份 / 授权重试在这些入口下一起被拒（403）。
-                # 放行 same_host 不会放宽 CSRF 面：攻击页面发来的 Origin 是攻击者的源，
-                # 不可能等于它请求的 Host。
-                or same_host
-            )
-        else:
-            valid = (
-                valid
-                and same_host
-                and (source.scheme == request.url.scheme or site == "same-origin")
-            )
-    except ValueError:
-        valid = False
-    if not valid:
-        raise RequestRejected(_REJECTION)
-
-
-__all__ = ["browser_origin", "require_same_origin_write"]
+__all__ = ["browser_origin", "browser_origin_allowed", "parse_origin", "require_same_origin_write"]

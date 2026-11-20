@@ -8,6 +8,7 @@
 import { attributesOf, extraContextChanged, featureFlags } from '../device/entity-capabilities'
 import { attachFeedback, createVisibilityGate } from './panel-utils'
 import type { ExtraPanelViewModel, FeedbackSlot } from './panel-utils'
+import { createCameraAudio, mountCameraAudioButton, type CameraAudioHandle } from '@app/shared/camera/camera-audio'
 
 /** 摄像头能力位：1=支持开关；2=支持实时流。 */
 const CAMERA_TURN_ON = 0x1
@@ -49,7 +50,10 @@ export function createCameraExtraPanel(
   actionsElement.className = 'i3d-extra-actions i3d-extra-camera-actions'
   errorElement.className = 'i3d-climate-error'
   errorElement.setAttribute('role', 'status')
-  hostElement.replaceChildren(actionsElement, frameElement, errorElement)
+  // 声音开关挂在画面下方的工具条里：与画面同一视觉组，不挤占开关按钮区。
+  const toolbarElement = ownerDocument.createElement('div')
+  toolbarElement.className = 'i3d-extra-camera-toolbar'
+  hostElement.replaceChildren(actionsElement, frameElement, toolbarElement, errorElement)
 
   let viewModel: ExtraPanelViewModel | null = null
   let pending = false
@@ -57,6 +61,8 @@ export function createCameraExtraPanel(
   let mountedSignature = ''
   let cleanupCallbacks: Array<() => void> = []
   let disposed = false
+  /** 当前挂载的摄像头音频控制器（0.8.7：弹窗默认静音，可手动开启）。 */
+  let cameraAudio: CameraAudioHandle | null = null
 
   const powerButtons = (
     [
@@ -100,12 +106,68 @@ export function createCameraExtraPanel(
     generation++
     mountedSignature = ''
     for (const cleanup of cleanupCallbacks.splice(0)) cleanup()
+    cameraAudio?.dispose()
+    cameraAudio = null
     frameElement.classList.remove?.('is-ready', 'is-connecting', 'is-unavailable', 'is-suspended')
     frameElement.setAttribute('aria-busy', 'false')
     frameElement.dataset.cameraState = 'suspended'
     delete frameElement.dataset.cameraTransport
     frameElement.replaceChildren(placeholderElement)
     placeholderElement.hidden = false
+  }
+
+  /** 挂载实时流 / 快照，并顺带绑定声音开关（视频元素建好后才有音轨可探测）。 */
+  async function mountMedia(item: ExtraPanelViewModel['item'], streamEnabled: boolean, requestGeneration: number) {
+    const stillCurrent = () => !disposed && requestGeneration === generation && gate.visible()
+    const shared = {
+      container: frameElement,
+      entityId: item.entityId,
+      label: item.label || item.entityId,
+      objectFit: 'contain' as const,
+      placeholder: placeholderElement,
+      cleanup: (cleanup: () => void) => cleanupCallbacks.push(cleanup),
+      onVideoReady: (video: HTMLVideoElement) => {
+        if (stillCurrent()) attachCameraAudio(video, requestGeneration)
+      },
+      onAudioAvailability: (supported: boolean, hasAudio: boolean | null) => {
+        cameraAudio?.setMedia(supported, hasAudio)
+      },
+    }
+    try {
+      const media = await loadMedia()
+      if (!stillCurrent() || viewModel?.editing) return
+      if (!streamEnabled) {
+        media.mountCameraSnapshot({ ...shared, refreshInterval: 10 })
+        return
+      }
+      media.mountCameraMedia({
+        ...shared,
+        onReady: () => cameraAudio?.setReady(true),
+        onUnavailable: () => cameraAudio?.setReady(false),
+      })
+    } catch {
+      if (!stillCurrent()) return
+      frameElement.dataset.cameraState = 'load-failed'
+      placeholderElement.hidden = false
+      placeholderElement.textContent = '摄像头画面暂时无法加载，请重新打开弹窗'
+    }
+  }
+
+  function attachCameraAudio(video: HTMLVideoElement, requestGeneration: number) {
+    cameraAudio = createCameraAudio({
+      video,
+      isCurrent: () => !disposed && requestGeneration === generation && gate.visible(),
+      onError: () => {
+        if (!disposed && requestGeneration === generation) {
+          errorElement.textContent = '摄像头声音未能开启，请再次点击声音按钮。'
+        }
+      },
+    })
+    mountCameraAudioButton({
+      host: toolbarElement,
+      audio: cameraAudio,
+      cleanup: (cleanup: () => void) => cleanupCallbacks.push(cleanup),
+    })
   }
 
   async function refresh() {
@@ -152,27 +214,7 @@ export function createCameraExtraPanel(
     unmountMedia()
     mountedSignature = signature
     placeholderElement.textContent = '正在加载摄像头画面'
-    const requestGeneration = generation
-    try {
-      const media = await loadMedia()
-      if (disposed || requestGeneration !== generation || !gate.visible() || viewModel.editing) return
-      const mountOptions = {
-        container: frameElement,
-        entityId: item.entityId,
-        label: item.label || item.entityId,
-        objectFit: 'contain',
-        placeholder: placeholderElement,
-        cleanup: (cleanup: () => void) => cleanupCallbacks.push(cleanup),
-      }
-      if (streamEnabled) media.mountCameraMedia(mountOptions)
-      else media.mountCameraSnapshot({ ...mountOptions, refreshInterval: 10 })
-    } catch {
-      if (!disposed && requestGeneration === generation) {
-        frameElement.dataset.cameraState = 'load-failed'
-        placeholderElement.hidden = false
-        placeholderElement.textContent = '摄像头画面暂时无法加载，请重新打开弹窗'
-      }
-    }
+    await mountMedia(item, streamEnabled, generation)
   }
 
   const releaseFeedback = attachFeedback(feedbackSlot, errorElement, {

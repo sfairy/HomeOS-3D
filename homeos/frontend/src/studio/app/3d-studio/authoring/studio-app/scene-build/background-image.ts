@@ -6,6 +6,7 @@ import {
   type BackgroundImportDiagnostics,
 } from '../../../plan/background-import'
 import { WARM_WOOD_STYLE as WARM_WOOD_STYLE2 } from '../../scene/studio-scene-style'
+import { NATURAL_WOOD_STYLE } from '../../scene/studio-natural-wood-style'
 import { withRequestTimeout as withRequestTimeout2 } from '../../../../shared/util/request-timeout'
 import { defaultViewSettings } from '../../scene/payload/studio-view-settings'
 
@@ -123,6 +124,12 @@ export async function importBackgroundFile(runtime: StudioAppRuntime, background
 }
 
 export function backgroundSettings(runtime: StudioAppRuntime): BackgroundViewSettings {
+  if (runtime.appCtx.sceneStyle === 'natural-wood') {
+    return {
+      ...defaultViewSettings,
+      ...NATURAL_WOOD_STYLE,
+    }
+  }
   return runtime.appCtx.sceneStyle === 'warm-wood'
     ? {
         ...defaultViewSettings,

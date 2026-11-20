@@ -9,6 +9,7 @@ import { cacheObjectTransforms as cacheObjectTransforms2 } from '../../../../bri
 import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
 import { mergeGeometries as mergeGeometries2 } from '/static/vendor/three/0.187.0/BufferGeometryUtils.js'
 import { lampItemTypeSet } from '../../items/item-catalog'
+import { isPlacedItemHidden, placedVisibilityKey } from '../../items/placed-item-state'
 import { applyItemOrientation } from '../geometry/item-orientation'
 
 export function previewTransformContext(runtime: StudioAppRuntime) {
@@ -20,6 +21,9 @@ export function previewTransformContext(runtime: StudioAppRuntime) {
       runtime.appCtx.activeFloorId,
       runtime.getPreviewFloorMode(),
       previewTransformOrigin,
+      // 0.8.7 `vy()` 的键里带着 `visibilityKey`：隐藏 / 显示后位姿缓存必须失效，
+      // 否则「隐藏再显示」会把隐藏前缓存的位移当成新位姿套回去。
+      placedVisibilityKey(runtime.appCtx),
       runtime.backgroundSettings(),
       runtime.appCtx.baseLightingSettings,
       runtime.appCtx.studioState.settings,
@@ -32,6 +36,7 @@ export function previewTransformContext(runtime: StudioAppRuntime) {
     isEligible: (previewCandidate: any) =>
       !lampItemTypeSet.has(previewCandidate.type) &&
       previewCandidate.type !== 'flooropening' &&
+      !isPlacedItemHidden(runtime.appCtx, previewCandidate.id) &&
       !isCourtyardPlanItem2(previewCandidate),
     isSelected: (previewCandidate: any) => runtime.createSelectionRef('item', previewCandidate.id),
   }
@@ -161,6 +166,12 @@ export function buildLayerGroup(
         (vu3.userData.environmentFloorId = runtime.appCtx.activeFloorId)),
       vu3.position.set(world.x, layerItem.elevation || 0, world.z),
       applyItemOrientation(vu3, layerItem),
+      /*
+       * 3D 视口编辑（0.8.7）的拾取依据。
+       * 合批时原件会被移除、只剩 InstancedMesh 的 `instanceItemIds`，所以两处都要能定位物件：
+       * 未合批的 Group 靠这里的 tag，合批的靠实例表。
+       */
+      (vu3.userData.editorItemId = layerItem.id),
       (vu3.userData.modelLayer = layerKey),
       runtime.appCtx.sceneRootNode.add(vu3),
       isLightsLayer ||

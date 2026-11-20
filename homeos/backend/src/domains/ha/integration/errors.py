@@ -1,9 +1,107 @@
 '''配置阶段与历史/运行时失败所用的连接提示消息（中文）。'''
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 
 import httpx
+
+#: HA 侧稳定错误码 → 中文排查建议。与前端日志的分类词表互补：码给机器，建议给人。
+HA_CODE_HINTS: dict[str, str] = {
+    'HA_CONNECTION_FAILED': '检查 HomeOS 所在设备到 HA 的连接、端口、DNS及反向代理；原始异常保留在详情。',
+    'HA_CREDENTIAL_UNREADABLE': '检查原 secrets 密钥文件是否保留且可读取；确认凭据来源后再处理连接配置。',
+    'HA_ACCESS_DENIED': '检查 HA 访问令牌、账号权限及反向代理访问限制。',
+    'HA_REQUEST_TIMEOUT': '检查 HA 服务响应、网络及反向代理超时设置。',
+    'HA_SERVICE_NOT_FOUND': '检查日志中的实体和服务是否仍由对应集成提供，可在 Home Assistant 开发者工具核对。',
+    'HA_SERVICE_PARAMETERS_REJECTED': '核对该实体支持的服务及参数要求；日志仅记录参数字段，不记录提交值。',
+    'HA_UPSTREAM_UNAVAILABLE': '检查 HA 及反向代理的服务日志，服务恢复后再核对本次操作结果。',
+    'HA_OPERATION_FAILED': '根据具体实体、服务和关联后台记录检查；设备操作请先核对实际状态。',
+    'HA_HISTORY_ENDPOINT_UNAVAILABLE': '检查 HA 的历史记录功能及反向代理接口路径；这与本地实体目录缺失是不同的来源。',
+}
+
+#: HA 侧稳定错误码 → 一句话原因。
+HA_CODE_REASONS: dict[str, str] = {
+    'HA_CONNECTION_FAILED': '无法连接 Home Assistant。',
+    'HA_CREDENTIAL_UNREADABLE': '无法读取已保存的 Home Assistant 连接凭据。',
+    'HA_ACCESS_DENIED': 'Home Assistant 拒绝了本次访问或设备操作。',
+    'HA_REQUEST_TIMEOUT': 'Home Assistant 请求超时。',
+    'HA_SERVICE_NOT_FOUND': 'Home Assistant 未找到请求的设备服务或目标实体。',
+    'HA_SERVICE_PARAMETERS_REJECTED': 'Home Assistant 拒绝了本次服务参数。',
+    'HA_UPSTREAM_UNAVAILABLE': 'Home Assistant 或反向代理返回异常。',
+    'HA_HISTORY_ENDPOINT_UNAVAILABLE': 'Home Assistant 未提供可访问的历史查询接口。',
+    'HA_OPERATION_FAILED': 'Home Assistant 操作未完成，具体异常已保留在详情中。',
+}
+
+
+def _cause_chain(error: BaseException | str | None) -> list[BaseException | str]:
+    if error is None:
+        return []
+    causes: list[BaseException | str] = [error]
+    while isinstance(causes[-1], BaseException) and (cause := causes[-1].__cause__) is not None and len(causes) < 6:
+        causes.append(cause)
+    return causes
+
+
+def _classify_ha_error(error: BaseException | str | None, operation: str) -> str:
+    """把异常收敛成稳定错误码（顺序即优先级：越具体越前）。"""
+    causes = _cause_chain(error)
+    text = ' '.join(str(cause) for cause in causes)
+    detail = text.casefold()
+    if '解密' in text or '密钥文件' in text:
+        return 'HA_CREDENTIAL_UNREADABLE'
+    if any(isinstance(cause, (TimeoutError, httpx.TimeoutException)) for cause in causes) or 'timed out' in detail:
+        return 'HA_REQUEST_TIMEOUT'
+    if any(word in detail for word in ('not found', 'service_not_found', 'unknown service')) or re.search(r'\b404\b', detail):
+        return 'HA_SERVICE_NOT_FOUND' if operation == 'service' else 'HA_HISTORY_ENDPOINT_UNAVAILABLE'
+    if any(word in detail for word in ('invalid_parameters', 'invalid_format', '400')) and operation == 'service':
+        return 'HA_SERVICE_PARAMETERS_REJECTED'
+    if any(word in detail for word in ('token', 'auth_invalid', 'unauthorized', 'forbidden')) or re.search(r'\b(401|403)\b', detail):
+        return 'HA_ACCESS_DENIED'
+    if any(word in detail for word in ('certificate', 'cert_verify')):
+        return 'HA_CONNECTION_FAILED'
+    if any(word in detail for word in ('refused', 'no route', 'network is unreachable', 'getaddrinfo', 'name or service not known', 'connection reset', 'connection aborted')):
+        return 'HA_CONNECTION_FAILED'
+    if re.search(r'\b5\d\d\b', detail):
+        return 'HA_UPSTREAM_UNAVAILABLE'
+    return 'HA_OPERATION_FAILED'
+
+
+def ha_error_context(error: BaseException | str | None, *, operation: str) -> dict[str, str]:
+    """描述传输层事实，**不改动 HA 状态、也不改异常载荷**。
+
+    ``operation`` 取 ``connect`` / ``history`` / ``service`` / ``control``，
+    决定「404 是历史接口缺失还是服务不存在」这类同码不同因的归因。
+    """
+    code = _classify_ha_error(error, operation)
+    return {
+        'code': code,
+        'reason': HA_CODE_REASONS[code],
+        'hint': HA_CODE_HINTS[code],
+    }
+
+
+def connection_diagnostic_context(connection: object) -> dict[str, str]:
+    """连接的可关联指纹：名称 + 配置版本（**不含**凭据本身）。
+
+    指纹把 ``id / base_url / verify_tls / 加密令牌`` 一起哈希，因此「同一台 HA 换了地址
+    或令牌」会被识别成不同的版本，日志里不会把两次不同的连接失败混成一组。
+    """
+    if not isinstance(getattr(connection, 'id', None), (str, int)) or not isinstance(getattr(connection, 'base_url', None), str):
+        return {}
+    identity = json.dumps(
+        [
+            str(connection.id),
+            connection.base_url,
+            getattr(connection, 'verify_tls', None),
+            getattr(connection, 'encrypted_access_token', ''),
+        ],
+        separators=(',', ':'),
+    )
+    return {
+        'connectionName': str(getattr(connection, 'name', '') or ''),
+        'connectionRevision': hashlib.sha256(identity.encode()).hexdigest()[:16],
+    }
 
 
 def is_certificate_error(error: Exception) -> bool:

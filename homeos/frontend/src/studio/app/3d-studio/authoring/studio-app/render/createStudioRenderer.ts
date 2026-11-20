@@ -71,6 +71,12 @@ export interface CreateStudioRendererDeps {
   recordFrameTime: any
   recordRenderTiming: any
   refreshBaseLighting: any
+  /**
+   * 每帧画完重算 3D 编辑叠层（0.8.7 渲染函数末尾的 `overlay.update()`）。
+   * 灯位圆点是「世界坐标 × 当前相机」的投影；挂在 orbitControls 的 `change` 上不够 ——
+   * 相机模式切换会 dispose 并重建 controls，旧监听静默失效，圆点就停在旧位置。
+   */
+  refreshEditorOverlay: () => void
   renderStudioFrame: any
   resizeStudioRenderer: any
   scheduleLightPrecompile: any
@@ -143,6 +149,43 @@ function resolveContactShadowCaptureCap(isEmbeddedStage: boolean): number {
   return isStudioCompatMode() ? STUDIO_COMPAT_CAPTURES_PER_SYNC : EDITOR_CONTACT_SHADOW_CAPTURES_PER_SYNC
 }
 
+/**
+ * 让「每一次主画面出图」都顺带刷新一次 3D 编辑叠层。
+ *
+ * 为什么包 `renderer.render` 而不是挂在帧循环 / `orbitControls` 事件上：
+ * - 帧循环尾部会在 `isLightCachePending` 的分支里提前返回，叠层就漏刷；
+ * - `orbitControls` 在相机模式切换时会被 dispose 重建，旧实例上的监听静默失效；
+ * - 直接 `renderStudioFrame` / 灯光缓存 / 静止画面缓存都不经过帧循环。
+ * 而**画面变了叠层必须变**，所以唯一可靠的锚点就是「主相机出图」这一件事本身。
+ * 子相机（阴影图集 / 反射探针 / 导出用的离屏相机）与 render target 出图一律跳过。
+ */
+function installOverlayRefreshHook(
+  appCtx: {
+    threeRenderer: {
+      render: (scene: unknown, camera: unknown) => unknown
+      getRenderTarget?: () => unknown
+    }
+    threeCamera: unknown
+  },
+  refresh: () => void,
+): void {
+  const renderer = appCtx.threeRenderer
+  if (!renderer || typeof renderer.render !== 'function') return
+  const baseRender = renderer.render.bind(renderer)
+  renderer.render = (scene: unknown, camera: unknown) => {
+    const result = baseRender(scene, camera)
+    // 只在「主相机 → 屏幕」这一路刷新；shadow atlas / 反射 / 导出都用自己的相机或帧缓冲。
+    if (camera === appCtx.threeCamera && !renderer.getRenderTarget?.())
+      // 叠层是纯 DOM：它出错绝不能把 3D 出帧一起带崩（否则表现为「转一下画面就停了」）。
+      try {
+        refresh()
+      } catch (overlayError) {
+        console.warn('[studio] 编辑叠层刷新失败', overlayError)
+      }
+    return result
+  }
+}
+
 export function createStudioRenderer(deps: CreateStudioRendererDeps) {
   const {
     appCtx,
@@ -168,6 +211,7 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps) {
     recordFrameTime,
     recordRenderTiming,
     refreshBaseLighting,
+    refreshEditorOverlay,
     renderStudioFrame,
     resizeStudioRenderer,
     scheduleLightPrecompile,
@@ -259,6 +303,10 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps) {
       (appCtx.threeCamera = new ns2.OrthographicCamera(-5, 5, 5, -5, 0.05, 200)),
       appCtx.threeCamera.layers.enable(lampsLayerIndex),
       (appCtx.threeRenderer = createRendererWithFallback()),
+      // 0.8.7 在渲染函数末尾统一刷一次编辑叠层（灯位圆点 / 圆环 / 高度手柄）。
+      // 这里包住 `render` 建立同一个不变量：**画面更新 ⇒ 叠层更新**，与走哪条渲染路径无关
+      // （帧循环、直接 `renderStudioFrame`、灯光缓存、静止画面缓存）。
+      installOverlayRefreshHook(appCtx, refreshEditorOverlay),
       // 0.8.1：非嵌入舞台（= 编辑态）才追踪上下文资源；嵌入舞台用的是宿主页面共享的渲染上下文。
       isEmbedStageMode || (appCtx.contextResources = createContextResourceTracker(appCtx.threeRenderer)),
       // 灯光补丁的编译兜底会临时打开 checkShaderErrors（见 installLightingShaderFailsafe），

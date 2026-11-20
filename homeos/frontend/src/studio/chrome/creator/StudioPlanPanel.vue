@@ -163,8 +163,14 @@ const floorplanStore = useStudioFloorplanStore()
                                         data-snap-setting="snapAngles" name="snap-setting-snapAngles"
                                         checked><span>15° 角度</span></label> <label><input type="checkbox"
                                         data-snap-setting="snapGrid" name="snap-setting-snapGrid"
-                                        checked><span>网格</span></label> <label
-                                    title="新增或单独拖动桌面物件时自动贴合台面"><input type="checkbox" data-snap-setting="snapSurfaces"
+                                        checked><span>网格</span></label>
+                                <label title="拖动桌面物件时预览支撑目标和高度，松手提交已显示结果"><input type="checkbox"
+                                        data-snap-setting="snapModels" name="snap-setting-snapModels"
+                                        checked><span>物件边缘／中心</span></label>
+                                <label title="拖动物件贴合墙的实际表面"><input type="checkbox"
+                                        data-snap-setting="snapObjectWalls" name="snap-setting-snapObjectWalls"
+                                        checked><span>物件贴墙</span></label>
+                                <label title="桌面支撑高度"><input type="checkbox" data-snap-setting="snapSurfaces"
                                         name="snap-setting-snapSurfaces" checked><span>台面</span></label>
                             </div> <label class="snap-distance"><span>吸附距离</span><input id="snap-tolerance"
                                     class="hos-range-ui" type="range" min="6" max="24" step="1" value="13"><output
@@ -176,13 +182,17 @@ const floorplanStore = useStudioFloorplanStore()
                 </div>
             </div>
             <div id="plan-stage" class="plan-stage"> <canvas id="plan-canvas" tabindex="0" aria-label="户型描摹画布"></canvas>
+                <!-- 操作提示留在画布左上角 HUD 内（与 0.8.7 一致）：`#tool-help` 是对外契约，
+                     副视图里由 CSS 隐藏，主视图里始终跟着工具名显示。 -->
+                <div class="canvas-hud top-left"><span id="active-tool-label">选择工具</span><small
+                        id="tool-help">单击精确选择，空白处拖拽框选；滚轮缩放，空格拖动画布</small></div>
+                <div id="overlap-items" class="overlap-items" role="group" aria-label="重叠物件" hidden></div>
+                <div id="asset-preview" class="studio-asset-preview" role="tooltip" hidden></div>
                 <div id="canvas-empty" class="canvas-empty">
                     <div><span>01</span><strong>先导入一张户型图</strong>
                         <p>支持 PNG、JPG 和 WebP，随后画参考线确定真实比例。</p>
                     </div>
                 </div>
-                <div class="canvas-hud top-left"><span id="active-tool-label">选择工具</span><small
-                        id="tool-help">单击精确选择，空白处拖拽框选；滚轮缩放，空格拖动画布</small></div>
                 <div class="canvas-hud bottom-left"><span id="cursor-position">X 0.00 m · Y 0.00 m</span><span
                         id="snap-indicator">吸附：开启</span></div>
                 <div class="canvas-hud bottom-right"><button id="zoom-out" type="button">−</button><span

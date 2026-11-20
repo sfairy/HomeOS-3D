@@ -23,15 +23,50 @@ from ..dependencies import DatabaseSession, LicensedUser
 from ..domains.studio3d import export_service, service
 from ..domains.studio3d.schemas import Studio3DDraftUpdate
 from ..panel.asset_refs import studio_asset_ids
+from ..platform.core.http.diagnostics import update_request_context
 from ..platform.core.http.upload_limits import MAX_STUDIO3D_EXPORT_ARCHIVE_BYTES
 from ..platform.core.runtime.async_work import durable_work
 
 router = APIRouter(prefix="/studio3d", tags=["studio3d"])
 
+#: 户型文件交付的连续失败次数（进程级）：恢复到 0 时补一条 RECOVERED 事件。
+_delivery_failure_count = 0
+
 
 @router.get("")
 def get_studio3d_draft(request: Request, database: DatabaseSession, _user: LicensedUser) -> dict:
-    draft = service.get_draft(database)
+    # 0.8.7：户型文件交付是「读草稿 → 交付文件」两步，读失败过一次之后再成功要点一条恢复。
+    global _delivery_failure_count
+    try:
+        draft = service.get_draft(database)
+    except Exception:
+        _delivery_failure_count += 1
+        request.app.state.global_log.append(
+            "error",
+            "3D户型图编辑器",
+            "配置",
+            "3D 户型图文件交付失败，可稍后重试打开。",
+            context={
+                "eventType": "运行故障",
+                "code": "STUDIO_FILE_DELIVERY_FAILED",
+                "phase": "studio-file-delivery",
+                "hint": "刷新页面或稍后重试；若持续失败，导出日志并检查草稿文件是否可读。",
+            },
+        )
+        raise
+    if _delivery_failure_count:
+        request.app.state.global_log.append(
+            "success",
+            "3D户型图编辑器",
+            "配置",
+            f"3D 户型图文件交付已恢复（此前失败 {_delivery_failure_count} 次）。",
+            context={
+                "eventType": "故障恢复",
+                "code": "STUDIO_FILE_DELIVERY_RECOVERED",
+                "phase": "studio-file-delivery",
+            },
+        )
+        _delivery_failure_count = 0
     # 场景里引用的可变素材（user: / studio3d:）：素材管理据此标记「使用中」。
     # 与素材目录的增删共用一把锁，避免读到「草稿已引用、目录还没登记」的中间态。
     catalog = request.app.state.asset_catalog
@@ -55,7 +90,23 @@ def update_studio3d_draft(
         catalog=request.app.state.asset_catalog,
     )
     request.app.state.global_log.append(
-        "success", "3D户型图编辑器", "配置", f"3D 户型图草稿已保存（修订 {updated['revision']}）"
+        "success",
+        "3D户型图编辑器",
+        "配置",
+        f"3D 户型图草稿已保存（修订 {updated['revision']}）",
+        context=update_request_context(
+            request,
+            finished=True,
+            revision=updated["revision"],
+            # 0.8.7 的日志上下文带「上一修订」，全局日志里能直接看出「这次改动从哪一版来」。
+            previousRevision=updated["previousRevision"],
+            code="STUDIO_DRAFT_SAVED",
+            eventType="操作记录",
+            operation="保存户型草稿",
+            # 文案与响应里的 `persistenceState` 同源：本项目草稿即数据库单行，没有待补写的镜像文件。
+            persistenceState=updated["persistenceState"],
+            phase="studio-save",
+        ),
     )
     return updated
 

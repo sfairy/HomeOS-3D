@@ -13,6 +13,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from .client import HAClientError
+from .errors import connection_diagnostic_context
 from .handshake_capture import LIVE_BOOTSTRAP_MAX_FRAMES, HandshakeCapture
 from .live_entities import CompressedStateDecoder, ShadowStateTracker
 from .live_events import (
@@ -151,6 +152,25 @@ class HALiveMixin(HAConnectorHost):
         self._failure_kind = None
         self._failure_logged_at = 0.0
         self._offline_since = None
+
+    async def _log_connected(self, connection_id: str | None) -> None:
+        """连上后的那一条：给出连接指纹，并在故障后补一条「已恢复」。"""
+        recovering = self._offline_since is not None
+        context: dict[str, Any] = {'eventType': '状态变化'}
+        if connection_id:
+            try:
+                connection = await self._run_database(self._load_connection, connection_id)
+            except Exception:
+                # 连上后的日志上下文取不到不影响连接本身，但要留痕：否则「日志里没有连接指纹」
+                # 会被误判成版本采集失效。
+                LOGGER.debug('连接建立后读取 HA 连接快照失败：%s', connection_id, exc_info=True)
+                connection = None
+            context |= connection_diagnostic_context(connection)
+        await self._log_event('success', '连接', '已连接 Home Assistant，实时状态同步正常', context=context)
+        if not recovering:
+            return
+        recovered = {'code': 'HA_CONNECTION_RECOVERED', 'eventType': '故障恢复'}
+        await self._log_event('success', '连接', 'Home Assistant 连接已恢复，实时状态继续同步。', context=recovered)
 
     def _log_cycle_failure(
         self,
@@ -329,7 +349,7 @@ class HALiveMixin(HAConnectorHost):
             # 真正连上才算恢复：同步成功但 WebSocket 被反代挡住时，失败原因并没有变，
             # 不该因此每轮都重新打一遍完整说明。
             self._reset_failure_state()
-            await self._log_event("success", "连接", "已连接 Home Assistant，实时状态同步正常")
+            await self._log_connected(connection_id)
             # ``connection`` 是本轮建连前读出的快照，首连时 ``ha_version`` 可能还是空的；
             # 同步流程刚刷新过的内存镜像才是当前值（广播出去前端才有版本可显示）。
             await self._notify_connection(

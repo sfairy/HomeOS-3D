@@ -577,9 +577,17 @@ body.interaction3d-stage.is-background-hidden #preview-3d {
   padding: 8px 10px;
 }
 
-.studio-chrome-root .preview-heading-copy .eyebrow,
-.studio-chrome-root .preview-heading-tip {
-  display: none;
+/*
+ * 这块「tips 行」在 0.8.7 里只由一条容器查询控制：预览卡窄于 700px 时收起操作提示文案
+ * （`@container editor-preview (max-width:700px)`，见 studio.css），
+ * 但 **`#open-base-lighting`（进阶设置）始终可见** —— 它是编辑器里唯一的光照入口。
+ *
+ * 早先壳层把整个 `.preview-heading-tip` 连同 `.eyebrow` 一起 display:none 压掉，
+ * 结果「LIVE MODEL」和「进阶设置」在编辑器里彻底消失，与 0.8.7 不一致。
+ * 现在只管压缩留白，可见性交回给上游那条容器查询。
+ */
+.studio-chrome-root .preview-heading .eyebrow {
+  line-height: 1.2;
 }
 
 .studio-chrome-root .preview-heading-actions {

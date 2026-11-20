@@ -372,11 +372,20 @@ class LicenseService:
             if error.is_confirmed_revocation:
                 self._log_event('warning', f'''联网确认绑定失败（已吊销）：{error}''')
 
-    def _log_event(self, level: str, message: str) -> None:
+    def _log_event(
+        self,
+        level: str,
+        message: str,
+        *,
+        context: dict[str, object] | None = None,
+        details: str | None = None,
+    ) -> None:
         if self.event_log is None:
             return
         try:
-            self.event_log.append(level, '授权服务', '授权', message)
+            self.event_log.append(
+                level, '授权服务', '授权', message, context=context, details=details
+            )
         except Exception as exc:
             # 授权事件写不进日志不阻塞授权流程，但必须留痕：否则「授权失败」会查无实据。
             logger.warning('授权事件写入失败 level=%s message=%s: %s', level, message, exc)
@@ -388,15 +397,22 @@ class LicenseService:
             if previous == status:
                 return
             self._observed_status = status
-            message = f'''授权状态：{labels.get(status, status)}'''
-            if previous is not None:
-                message = f'''授权状态变化：{labels.get(previous, previous)} → {labels.get(status, status)}'''
+            # 未知状态必须显式写出来：只显示一个裸状态码，排障时会被当成已知状态忽略。
+            current_label = labels.get(status, f'未知状态（{status}）')
+            previous_label = labels.get(previous, f'未知状态（{previous}）') if previous else None
+            message = f'''授权状态：{current_label}'''
+            if previous_label is not None:
+                message = f'''授权状态变化：{previous_label} → {current_label}'''
             if reason:
                 message += f'''；原因：{reason}'''
             level = 'success' if status == 'ACTIVE' else 'info' if status in {'DEACTIVATED', 'UNACTIVATED'} else 'warning'
             if status in {'INVALID', 'REVOKED', 'CLOCK_ROLLBACK', 'INSTANCE_MISMATCH', 'RECOVERY_REQUIRED', 'REMOTE_REJECTED'}:
                 level = 'error'
-            self._log_event(level, message)
+            self._log_event(
+                level,
+                message,
+                context={'code': f'LICENSE_STATE_{status}'[:128], 'reason': reason, 'eventType': '状态变化'},
+            )
             # 锁内只取快照：监听器可能做 I/O（如断开 WebSocket），不能一直占着事件日志的锁。
             listeners = tuple(self._status_listeners)
         for listener in listeners:
@@ -423,7 +439,20 @@ class LicenseService:
             failure.update(logged_at=now, reason=reason)
             status_code = getattr(error, 'status_code', None)
             suffix = f'''，HTTP {status_code}''' if status_code else ''
-            self._log_event('error' if operation in {'激活', '本地校验'} else 'warning', f'''授权{operation}失败（累计 {failure['count']} 次{suffix}）：{reason}''')
+            diagnostic_code = str(getattr(error, 'code', '') or 'LICENSE_OPERATION_FAILED')[:128]
+            self._log_event(
+                'error' if operation in {'激活', '本地校验'} else 'warning',
+                f'''授权{operation}失败（累计 {failure['count']} 次{suffix}）：{reason}''',
+                context={
+                    'eventType': '授权操作',
+                    'code': 'LICENSE_OPERATION_FAILED',
+                    'diagnostic_code': diagnostic_code,
+                    'operation': operation,
+                    # 0.8.7：中文原因单独给一个键，日志面板不必再解析 message。
+                    'chinese_reason': reason[:512],
+                    'hint': '核对激活码与本机时间、网络；持续失败时携带诊断代码联系厂商。',
+                },
+            )
 
     def _record_online_success(self, operation: str) -> None:
         self._rate_limited_until = 0.0
@@ -434,7 +463,16 @@ class LicenseService:
                 self._log_event('success', f'''授权连接已恢复，{operation}成功；此前{counts}。''')
             if operation == '激活':
                 self._event_failures.pop('激活', None)
-                self._log_event('success', '授权激活成功。')
+                self._log_event(
+                    'success',
+                    '授权激活成功。',
+                    context={
+                        'eventType': '授权操作',
+                        'code': 'LICENSE_OPERATION_COMPLETED',
+                        'operation': operation,
+                        'chinese_reason': '激活成功。',
+                    },
+                )
 
     def _record_local_success(self) -> None:
         with self._event_lock:

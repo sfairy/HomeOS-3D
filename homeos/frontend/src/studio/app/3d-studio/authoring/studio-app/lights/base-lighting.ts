@@ -7,7 +7,9 @@ import {
   DEFAULT_BASE_LIGHTING as DEFAULT_BASE_LIGHTING2,
   finite as finite2,
   normalizeBaseLighting as normalizeBaseLighting2,
+  normalizeBaseLightingByTheme as normalizeBaseLightingByTheme2,
 } from '../../../loaders/studio-normalization'
+import { normalizeSceneStyle } from '../../../../shared/scene-styles'
 import { minTextureSize } from '../../scene/payload/studio-scene-payload'
 
 export function refreshBaseLighting(runtime: StudioAppRuntime) {
@@ -131,11 +133,53 @@ export function applyBaseLighting(runtime: StudioAppRuntime, baseLightingConfig:
     })
 }
 
+/**
+ * 当前风格下应该生效的基础光照。
+ *
+ * 0.8.7 起每个风格各自保存一份：优先取 `baseLightingByTheme[当前风格]`，没调过才回落到
+ * 文档级 `baseLighting`（老户型的兼容路径）。**不要**在别处直接读 `studioProject.baseLighting`，
+ * 否则切到自然木语后仍然套着默认风格的光照。
+ */
+export function baseLightingForCurrentStyle(runtime: StudioAppRuntime) {
+  const project = runtime.appCtx.studioProject
+  if (!project) return DEFAULT_BASE_LIGHTING2
+  const byTheme = normalizeBaseLightingByTheme2(project.baseLightingByTheme)
+  const style = normalizeSceneStyle(runtime.appCtx.sceneStyle)
+  return normalizeBaseLighting2(byTheme[style] ?? project.baseLighting ?? DEFAULT_BASE_LIGHTING2)
+}
+
+/** 把当前编辑中的光照写回**当前风格**那一格（另一风格不受影响）。 */
+function persistBaseLightingForCurrentStyle(runtime: StudioAppRuntime, lighting: unknown) {
+  const project = runtime.appCtx.studioProject
+  if (!project) return
+  const style = normalizeSceneStyle(runtime.appCtx.sceneStyle)
+  const normalized = normalizeBaseLighting2(lighting)
+  project.baseLightingByTheme = {
+    ...normalizeBaseLightingByTheme2(project.baseLightingByTheme),
+    [style]: normalized,
+  }
+  // 文档级 `baseLighting` 只作为「默认风格」的镜像，老版本读取时才不会丢。
+  if (style === 'default') project.baseLighting = normalized
+}
+
+/**
+ * 打开进阶光照面板时的本地修订（过期守卫用）。
+ *
+ * 放在模块级而不是 `appCtx`：它只服务「打开 → 保存」这一对动作，
+ * 进文档或进运行时上下文都会变成一份需要同步的影子状态。
+ */
+let lightingPanelOpenedRevision: number | null = null
+/** 打开面板时的场景风格：切了风格（材质/光影预设变了）就不能沿用面板里的数值。 */
+let lightingPanelOpenedStyle: string | null = null
+
 export function saveBaseLightingEdit(runtime: StudioAppRuntime) {
   if (!runtime.appCtx.studioProject || !runtime.baseLightControlsElement) return
+  // 记下打开面板时的修订：保存时据此判断「面板打开期间别的页面是否写过」。
+  lightingPanelOpenedRevision = runtime.appCtx.localSaveRevision
+  lightingPanelOpenedStyle = String(runtime.appCtx.sceneStyle || 'default')
   const en2 = runtime.exportDialogElement?.open ? runtime.exportDialogElement : document.body
   runtime.baseLightControlsElement.parentElement !== en2 && en2.append(runtime.baseLightControlsElement),
-    runtime.baseLightControlsElement.hidden && runtime.applyBaseLighting(runtime.appCtx.studioProject.baseLighting),
+    runtime.baseLightControlsElement.hidden && runtime.applyBaseLighting(baseLightingForCurrentStyle(runtime)),
     (runtime.baseLightControlsElement.hidden = false)
   const panelBoundingRect = runtime.baseLightControlsElement.getBoundingClientRect()
   ;(panelBoundingRect.right > window.innerWidth - 8 ||
@@ -151,14 +195,40 @@ export function saveBaseLightingEdit(runtime: StudioAppRuntime) {
 
 export function openLightingDialog(runtime: StudioAppRuntime) {
   runtime.baseLightControlsElement &&
-    (runtime.appCtx.studioProject && runtime.applyBaseLighting(runtime.appCtx.studioProject.baseLighting),
+    (runtime.appCtx.studioProject && runtime.applyBaseLighting(baseLightingForCurrentStyle(runtime)),
     (runtime.baseLightControlsElement.hidden = true))
+}
+
+/** 面板过期判定：修订变了或场景风格变了都要让用户重开面板。 */
+function lightingStaleMessage(runtime: StudioAppRuntime): string | null {
+  if (lightingPanelOpenedRevision != null && lightingPanelOpenedRevision !== runtime.appCtx.localSaveRevision) {
+    return '户型已在其他页面更新，请重新保存光照。'
+  }
+  const styleChanged =
+    lightingPanelOpenedStyle != null && lightingPanelOpenedStyle !== String(runtime.appCtx.sceneStyle || 'default')
+  return styleChanged ? '材质风格已变化，请重新打开进阶设置。' : null
 }
 
 export function confirmLightingDialog(runtime: StudioAppRuntime) {
   if (!runtime.appCtx.studioProject) return
+  /**
+   * 过期守卫（0.8.7）：面板打开期间别的页面可能保存过新修订。
+   * 此时继续写会把对方的光照盖掉，所以要求重新打开面板再保存。
+   */
+  if (lightingStaleMessage(runtime)) {
+    runtime.showToast(lightingStaleMessage(runtime)!, 'warning')
+    return
+  }
   const normalizedBaseLighting = normalizeBaseLighting2(runtime.appCtx.baseLightingSettings)
-  ;(runtime.appCtx.studioProject.baseLighting = normalizedBaseLighting),
+  try {
+    persistBaseLightingForCurrentStyle(runtime, normalizedBaseLighting)
+  } catch (error) {
+    // 0.8.7：保存失败要给可执行的提示，而不是静默停在旧值。
+    runtime.showToast('光照保存失败，请重试。', 'error')
+    globalThis.window?.HomeOSLog?.error?.('光照保存失败', { phase: 'studio-base-lighting', reason: String(error) })
+    return
+  }
+  ;(runtime.appCtx.studioProject.baseLighting = runtime.appCtx.studioProject.baseLighting ?? normalizedBaseLighting),
     runtime.applyBaseLighting(normalizedBaseLighting),
     runtime.markDocumentDirty(),
     runtime.appCtx.lightPreviewWorker?.postMessage({
@@ -166,7 +236,7 @@ export function confirmLightingDialog(runtime: StudioAppRuntime) {
       lighting: normalizedBaseLighting,
     }),
     runtime.flushAutosave(),
-    runtime.showToast('基础光设置已保存，导图和自动化控件已同步。', 'success')
+    runtime.showToast('当前主题光照已保存。', 'success')
 }
 
 export function updateBaseLightingFromInput(runtime: StudioAppRuntime, lightingInput: any) {

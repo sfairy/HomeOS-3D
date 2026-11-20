@@ -8,6 +8,7 @@ import { createSecurityAlarmOverlay, overlayEligibleAlarms, securityAlarmReading
 import { cameraSourceConfigured } from '../camera/camera-status'
 import { carTireEntities, carTireModelType } from '../vehicle/car-tires'
 import { createWeatherEffects } from '../environment/weather-effects'
+import { isWarmSceneStyle, normalizeSceneStyle } from '@app/shared/scene-styles'
 import { normalizeGroundQuad, type WeatherGroundQuad } from '../environment/weather/ground-quad'
 import { boundWeatherEntityId, weatherEntityIds, weatherEntityState } from '@/studio/platform/weather-settings'
 import { createWeatherAtmospherePublisher } from './weather-atmosphere-publish'
@@ -1192,7 +1193,7 @@ export function mountInteraction3d(
         states ?? getCurrentStates(),
       ),
       true,
-      componentProperties.sceneStyle === 'warm-wood' ? 'warm-wood' : 'default',
+      isWarmSceneStyle(componentProperties.sceneStyle) ? 'warm-wood' : 'default',
     )
   }
   // 天气特效层：只在「绑定了天气实体」或「编辑器正在预览某个天气态」时创建 canvas，
@@ -1282,6 +1283,8 @@ export function mountInteraction3d(
     if (!weatherEffects && isActive && (weatherTargetId || weatherPreview.condition))
       (weatherEffects = createWeatherEffects(hostElement, postToStageFrame)),
         weatherEffects.setGround?.(weatherGroundQuad)
+    // 风格必须先下发：浅底图（自然木语）要换一组降水色，否则雨雪肉眼不可见。
+    weatherEffects?.setSceneStyle?.(normalizeSceneStyle(componentProperties.sceneStyle))
     weatherEffects?.update(
       weatherPreview.condition
         ? { state: weatherPreview.condition }
@@ -1525,7 +1528,10 @@ export function mountInteraction3d(
   }
   function syncBackgroundHidden() {
     hostElement.classList.toggle('is-background-hidden', componentProperties.backgroundVisible === false),
-      (hostElement.dataset.sceneStyle = componentProperties.sceneStyle === 'warm-wood' ? 'warm-wood' : 'default')
+      // CSS 侧 177 条规则写的是 `[data-scene-style="warm-wood"]` 且用**字面量颜色**，
+      // 不是变量，所以这里必须折成两值：自然木语与暖阳原木同属浅色主题，共用这批规则。
+      // 需要区分三档的逻辑（天气配色、区域光预设）直接吃 normalizeSceneStyle，不走 dataset。
+      (hostElement.dataset.sceneStyle = isWarmSceneStyle(componentProperties.sceneStyle) ? 'warm-wood' : 'default')
   }
   function setFocusActive(nextFocusActive: any) {
     isFocusActive !== nextFocusActive && ((isFocusActive = nextFocusActive), onFocusChange(nextFocusActive))

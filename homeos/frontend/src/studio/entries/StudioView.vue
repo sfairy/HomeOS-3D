@@ -35,9 +35,11 @@ import { Undo2, Redo2, Focus, PanelsTopLeft } from "@lucide/vue";
 import { studioStartupFail, studioStartupPhase } from "@/shared/utils/ui/studio-startup";
 // bootStudio 在 onMounted 同步读 #plan-canvas / 对话框等节点：这些壳必须同步挂载，不能 defineAsyncComponent。
 import StudioPlanPanel from "@/studio/chrome/creator/StudioPlanPanel.vue";
+import StudioPlacedPanel from "@/studio/chrome/creator/StudioPlacedPanel.vue";
 import StudioDialogs from "@/studio/chrome/creator/StudioDialogs.vue";
 import StudioOverlays from "@/studio/chrome/creator/StudioOverlays.vue";
 import { WORKFLOW_STEPS } from "./studio-creator-async";
+import { LEAVE_PLAN_FOCUS_EVENT } from "@app/3d-studio/authoring/studio-app/ui/workspace-events";
 
 const route = useRoute();
 const router = useRouter();
@@ -86,7 +88,18 @@ function jumpStep(step: string) {
   floorplanStore.command({ type: "setWorkflowStep", step });
 }
 
+/**
+ * 「平面聚焦」把右栏压成 0 宽（见 studio-chrome.css），而「3D为主」要把 3D 面板搬进那一列：
+ * 引擎在切换前发这个事件，这里退出聚焦，避免 3D 画布量成 0×0、连切换条都一起隐身。
+ * 必须走 store（根类由 `floorplanStore.planFocus` 算出），只改 class 会被下一次渲染覆盖回去。
+ */
+function leavePlanFocusForWorkspace() {
+  floorplanStore.leavePlanFocus();
+}
+
 onMounted(async () => {
+  // 引擎侧的工作区切换会发这个事件：先挂监听，别等 boot 完成才收得到。
+  window.addEventListener(LEAVE_PLAN_FOCUS_EVENT, leavePlanFocusForWorkspace);
   // 界面顶栏已经挂上，但 3D 那半边还没影子：遮罩文案从这里开始接管，直到 boot 自己
   // 走完「准备模型 → 读取户型 → 构建户型 → 准备预览」四段并把遮罩撤掉。
   // 动态 import 的失败不归 boot 管（boot 还没跑），所以单独接在 try 里交给遮罩。
@@ -126,6 +139,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   disposed = true;
+  window.removeEventListener(LEAVE_PLAN_FOCUS_EVENT, leavePlanFocusForWorkspace);
   if (embeddedResizeFrame) cancelAnimationFrame(embeddedResizeFrame);
   embeddedResizeFrame = 0;
   if (facadeBound) {
@@ -296,6 +310,12 @@ onBeforeUnmount(() => {
                             value="25"></label><span class="floor-edge-label">橙边</span><button id="toggle-floor-edge"
                         type="button" aria-pressed="true">显示</button></div>
             </section>
+            <div class="library-mode-tabs" role="group" aria-label="物品面板">
+                <button type="button" data-library-mode="assets" class="active"
+                    aria-pressed="true">素材库</button>
+                <button type="button" data-library-mode="placed" aria-pressed="false">已放置</button>
+            </div>
+            <StudioPlacedPanel />
             <section class="asset-library-card">
                 <div class="section-heading">
                     <div><span class="eyebrow">OBJECTS</span>
@@ -413,28 +433,28 @@ onBeforeUnmount(() => {
                     <button class="asset-card" type="button" draggable="true" data-item-type="suitcase"
                         data-library-category="home" data-library-group="entry" data-library-name="行李箱"
                         data-asset-subcategory="entry"><i>▤</i><span>行李箱</span><small>独立模型</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="slim-recessed-cabinet"
+                        data-library-category="home" data-library-group="entry" data-library-name="窄高置物柜"
+                        data-asset-subcategory="dining"><i>▤</i><span>窄高置物柜</span><small>独立模型</small></button>
                     <button class="asset-card" type="button" draggable="true" data-item-type="entryway-niche-cabinet"
                         data-library-category="home" data-library-group="entry" data-library-name="玄关到顶柜"
                         data-asset-subcategory="entry"><i>▤</i><span>玄关到顶柜</span><small>1.30 × 0.68m</small></button>
                     <button class="asset-card" type="button" draggable="true" data-item-type="arched-glass-console"
                         data-library-category="home" data-library-group="entry" data-library-name="拱形玻璃玄关台"
                         data-asset-subcategory="entry"><i>▤</i><span>拱形玻璃玄关台</span><small>0.78 × 0.60m</small></button>
-                    <button class="asset-card" type="button" draggable="true" data-item-type="slim-recessed-cabinet"
-                        data-library-category="home" data-library-group="entry" data-library-name="窄高置物柜"
-                        data-asset-subcategory="dining"><i>▤</i><span>窄高置物柜</span><small>独立模型</small></button>
                     <div class="asset-group-heading" data-asset-heading-category="home" data-library-group="bedroom">卧室家具</div>
                     <button class="asset-card" type="button" draggable="true" data-item-type="bed"
                         data-library-category="home" data-library-group="bedroom" data-library-name="双人床"
                         data-asset-subcategory="bedroom"><i>▤</i><span>双人床</span><small>1.92 × 2.18m</small></button>
-                    <button class="asset-card" type="button" draggable="true" data-item-type="bunk-bed"
-                        data-library-category="home" data-library-group="bedroom" data-library-name="上下铺"
-                        data-asset-subcategory="bedroom"><i>▤</i><span>上下铺</span><small>1.18 × 2.06m</small></button>
                     <button class="asset-card" type="button" draggable="true" data-item-type="loft-bed-circle"
                         data-library-category="home" data-library-group="bedroom" data-library-name="圆孔高架床"
                         data-asset-subcategory="bedroom"><i>▤</i><span>圆孔高架床</span><small>2.40 × 1.83m</small></button>
                     <button class="asset-card" type="button" draggable="true" data-item-type="double-open-wardrobe"
                         data-library-category="home" data-library-group="bedroom" data-library-name="双列开放衣柜"
                         data-asset-subcategory="bedroom"><i>▤</i><span>双列开放衣柜</span><small>1.18 × 0.59m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="bunk-bed"
+                        data-library-category="home" data-library-group="bedroom" data-library-name="上下铺"
+                        data-asset-subcategory="bedroom"><i>▤</i><span>上下铺</span><small>1.18 × 2.06m</small></button>
                     <button class="asset-card" type="button" draggable="true" data-item-type="nightstand"
                         data-library-category="home" data-library-group="bedroom" data-library-name="床头柜"
                         data-asset-subcategory="bedroom"><i>▣</i><span>床头柜</span><small>0.50 × 0.42m</small></button>
@@ -898,9 +918,6 @@ onBeforeUnmount(() => {
                     <button class="asset-card" type="button" draggable="true" data-item-type="magazine-rack"
                         data-library-category="appliance" data-library-group="media" data-library-name="杂志架"
                         data-asset-subcategory="media"><i>▤</i><span>杂志架</span><small>独立模型</small></button>
-                    <button class="asset-card" type="button" draggable="true" data-item-type="smart-display-wall"
-                        data-library-category="appliance" data-library-group="media" data-library-name="智慧屏上墙"
-                        data-asset-subcategory="media"><i>▤</i><span>智慧屏上墙</span><small>独立模型</small></button>
                     <div class="asset-group-heading" data-asset-heading-category="appliance" data-library-group="kitchen-devices">厨房电器</div>
                     <button class="asset-card" type="button" draggable="true" data-item-type="fridge"
                         data-library-category="appliance" data-library-group="kitchen-devices" data-library-name="冰箱"
@@ -1013,6 +1030,9 @@ onBeforeUnmount(() => {
                     <button class="asset-card" type="button" draggable="true" data-item-type="home-network-cabinet"
                         data-library-category="appliance" data-library-group="office-devices" data-library-name="家用网络机柜"
                         data-asset-subcategory="office"><i>▤</i><span>家用网络机柜</span><small>0.55 × 0.46m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="smart-display-wall"
+                        data-library-category="appliance" data-library-group="media" data-library-name="智慧屏上墙"
+                        data-asset-subcategory="media"><i>▤</i><span>智慧屏上墙</span><small>独立模型</small></button>
                     <button class="asset-card" type="button" draggable="true" data-item-type="smart-display"
                         data-library-category="appliance" data-library-group="office-devices" data-library-name="智慧屏"
                         data-asset-subcategory="office"><i>▤</i><span>智慧屏</span><small>独立模型</small></button>
@@ -1060,8 +1080,8 @@ onBeforeUnmount(() => {
                         data-library-category="appliance" data-library-group="environment" data-library-name="取暖器"
                         data-asset-subcategory="environment"><i>▤</i><span>取暖器</span><small>0.52 × 0.29m</small></button>
                     <button class="asset-card" type="button" draggable="true" data-item-type="airoutlet"
-                        data-library-category="appliance" data-library-group="environment" data-library-name="出风口"
-                        data-asset-subcategory="environment"><i>▥</i><span>出风口</span><small>0.19 × 2.00m</small></button>
+                        data-library-category="appliance" data-library-group="environment" data-library-name="空调出风口"
+                        data-asset-subcategory="environment"><i>▥</i><span>空调出风口</span><small>0.19 × 2.00m</small></button>
                     <button class="asset-card" type="button" draggable="true" data-item-type="ceiling-fan"
                         data-library-category="appliance" data-library-group="environment" data-library-name="吊扇"
                         data-asset-subcategory="environment"><i>◉</i><span>吊扇</span><small>1.32 × 1.32m</small></button>
@@ -1279,18 +1299,17 @@ onBeforeUnmount(() => {
                 </div>
             </section>
         </aside>
-        <!-- 嵌入舞台也必须挂载：bootStudio 同步依赖 #plan-canvas / 冲突对话框等 DOM，不能用 v-if 裁掉。 -->
-        <StudioPlanPanel />
+        <div class="editor-main-view"><div class="editor-primary-view"></div></div><!-- 嵌入舞台也必须挂载：boot 依赖 #plan-canvas 等 DOM，不能用 v-if 裁掉。 --><StudioPlanPanel />
         <aside
           class="details-panel"
           :class="{ 'is-collapsed': floorplanStore.planFocus }"
           :aria-hidden="floorplanStore.planFocus"
         >
-            <section class="preview-card panel-surface">
+            <div class="editor-secondary-view"></div><section class="preview-card panel-surface">
                 <div class="preview-heading">
                     <div class="preview-heading-copy"><span class="eyebrow">LIVE MODEL</span>
                         <div class="preview-title-row">
-                            <h2>3D 实时预览</h2><button id="refresh-preview" class="refresh-preview" type="button" hidden
+                            <h2>3D 实时预览</h2><select data-floating-menu id="editor-scene-style" aria-label="编辑预览风格"><option value="default">默认风格</option><option value="warm-wood">暖阳原木</option><option value="natural-wood">自然木语</option></select><button id="refresh-preview" class="refresh-preview" type="button" hidden
                                 disabled>已更新</button><span id="preview-quality-status"
                                 class="preview-quality-status" hidden></span>
                         </div>
@@ -1434,13 +1453,9 @@ onBeforeUnmount(() => {
                                 id="model-remark" maxlength="60" autocomplete="off" placeholder="例如：主卧窗边"
                                 aria-describedby="model-remark-hint"></label>
                     </div>
-                    <!-- 属性检查器按语义分组：组标题粘性吸顶、可折叠、组内无可见字段时整组自动隐藏
-                         （见 studio-app 的 syncInspectorGroups），所以每组都能安全地常驻在标记里。 -->
+                    <!-- 属性检查器（0.8.7 布局）：平铺 field-section，没有分组标题与折叠。
+                         外层 section 只用于「整组字段都隐藏时收起」，由 syncInspectorGroups 驱动。 -->
                     <section class="inspector-group" data-inspector-group="geometry">
-                        <button class="inspector-group-header" type="button" aria-expanded="true"><span
-                                class="inspector-group-caret" aria-hidden="true"></span><span
-                                class="inspector-group-title">尺寸与开口</span><span
-                                class="inspector-group-count" hidden></span></button>
                         <div class="inspector-group-body">
                             <div id="wall-fields" class="field-section" hidden> <label>墙长<input id="wall-length"
                                 readonly></label>
@@ -1503,10 +1518,6 @@ onBeforeUnmount(() => {
                     </section>
                     <div id="item-fields" class="field-section" hidden>
                         <section class="inspector-group" data-inspector-group="style">
-                            <button class="inspector-group-header" type="button" aria-expanded="true"><span
-                                    class="inspector-group-caret" aria-hidden="true"></span><span
-                                    class="inspector-group-title">类型与样式</span><span
-                                    class="inspector-group-count" hidden></span></button>
                             <div class="inspector-group-body"> <label id="courtyard-gate-style-field"
                             class="door-type-field" hidden>庭院门款式<select id="courtyard-gate-style">
                                 <option value="garden-gate">庭院木栅门</option>
@@ -1571,7 +1582,8 @@ onBeforeUnmount(() => {
                                 <option value="standard">壁挂电视</option>
                                 <option value="tabletop">桌面底座</option>
                                 <option value="mobile">移动支架</option>
-                            </select></label> <label id="storage-section-field" class="door-type-field"
+                            </select></label>
+                        <label id="smart-display-mount-field" class="door-type-field" hidden><span>安装方式</span><select id="smart-display-mount"><option value="tabletop">桌面放置</option><option value="wall">墙面安装</option></select></label> <label id="storage-section-field" class="door-type-field"
                             hidden><span>柜门结构</span><select id="storage-section">
                                 <option value="full">整门</option>
                                 <option value="two-section">上下两节（下小上大）</option>
@@ -1615,10 +1627,6 @@ onBeforeUnmount(() => {
                             </div>
                         </section>
                         <section class="inspector-group" data-inspector-group="mount">
-                            <button class="inspector-group-header" type="button" aria-expanded="true"><span
-                                    class="inspector-group-caret" aria-hidden="true"></span><span
-                                    class="inspector-group-title">安装参数</span><span
-                                    class="inspector-group-count" hidden></span></button>
                             <div class="inspector-group-body">
                         <div id="airer-model-fields" class="field-grid" hidden><label>结构款式<select id="airer-style"><option value="double">电动晾衣架（双杆剪叉）</option><option value="single">电动单杆晾衣架（吊线）</option></select></label><label>最大伸展距离（m）<input
                                     id="airer-extension" type="number" min="0.3" max="2.4" step="0.05" value="1.2"
@@ -1632,10 +1640,6 @@ onBeforeUnmount(() => {
                             </div>
                         </section>
                         <section class="inspector-group" data-inspector-group="text">
-                            <button class="inspector-group-header" type="button" aria-expanded="true"><span
-                                    class="inspector-group-caret" aria-hidden="true"></span><span
-                                    class="inspector-group-title">文字标注</span><span
-                                    class="inspector-group-count" hidden></span></button>
                             <div class="inspector-group-body">
                                 <div id="label-text-fields" class="label-text-fields" hidden><label>中文标题<input
                                             id="label-title" maxlength="24"
@@ -1651,10 +1655,6 @@ onBeforeUnmount(() => {
                             </div>
                         </section>
                         <section class="inspector-group" data-inspector-group="light">
-                            <button class="inspector-group-header" type="button" aria-expanded="true"><span
-                                    class="inspector-group-caret" aria-hidden="true"></span><span
-                                    class="inspector-group-title">灯光</span><span class="inspector-group-count"
-                                    hidden></span></button>
                             <div class="inspector-group-body">
                                 <div id="light-fields" class="light-fields" hidden><label>所属灯组<select
                                             id="light-group"></select></label>
@@ -1690,10 +1690,6 @@ onBeforeUnmount(() => {
                             </div>
                         </section>
                         <section class="inspector-group" data-inspector-group="pose">
-                            <button class="inspector-group-header" type="button" aria-expanded="true"><span
-                                    class="inspector-group-caret" aria-hidden="true"></span><span
-                                    class="inspector-group-title">摆放与尺寸</span><span
-                                    class="inspector-group-count" hidden></span></button>
                             <div class="inspector-group-body">
                                 <div class="field-grid"><label>X（m）<input id="item-x" type="number"
                                     step="0.05"></label><label>Y（m）<input id="item-y" type="number"
@@ -1708,7 +1704,7 @@ onBeforeUnmount(() => {
                         </div>
                         <div class="field-grid item-transform-fields">
                             <div id="item-elevation-field" class="light-batch-control">
-                                <div><label for="item-elevation">离地（m）</label><button class="light-apply-button"
+                                <div><label for="item-elevation"><span id="item-elevation-label">底部离地</span>（m）</label><button class="light-apply-button"
                                         type="button" data-apply-light-property="elevation">应用到所有</button></div><input
                                     id="item-elevation" type="number" min="0" max="6" step="0.05">
                             </div><label id="item-rotation-field"><span id="item-rotation-label">旋转角度（°）</span><input
@@ -1721,6 +1717,8 @@ onBeforeUnmount(() => {
                                 id="item-strip-roll-field" title="灯带围绕自身长度轴调整照射方向，支持完整 360°" hidden>出光方向（°）<input
                                     id="item-strip-roll" type="number" min="0" max="360" step="1" value="0"></label>
                         </div>
+                        <p id="item-height-explanation" class="item-height-explanation"></p>
+                        <button id="item-place-surface" type="button">贴合台面</button>
                         <div id="item-rotation-actions" class="rotation-actions"><button type="button"
                                 data-rotate="-15">−15°</button><button type="button"
                                 data-rotate="-90">−90°</button><button type="button"
@@ -1729,10 +1727,6 @@ onBeforeUnmount(() => {
                         </section>
                     </div>
                     <section class="inspector-group" data-inspector-group="material">
-                        <button class="inspector-group-header" type="button" aria-expanded="true"><span
-                                class="inspector-group-caret" aria-hidden="true"></span><span
-                                class="inspector-group-title">材质属性</span><span class="inspector-group-count"
-                                hidden></span></button>
                         <div class="inspector-group-body">
                             <!-- 这一组在 #item-fields 之外：门（户型洞口）是程序化几何、没有 GLB 槽位，
                                  但它同样要有「材质属性」（门框 / 门扇 / 玻璃 / 五金 / 卷帘…）。

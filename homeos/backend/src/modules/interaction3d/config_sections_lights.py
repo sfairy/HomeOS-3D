@@ -20,24 +20,16 @@ from .config_ctx import (
     WidgetRules,
     validate_layout_widget,
 )
+from ...domains.studio3d.lighting import (
+    BASE_LIGHTING_BOUNDS as LIGHTING_BOUNDS,
+)
+from ...domains.studio3d.lighting import (
+    valid_base_lighting_by_theme,
+)
 
-#: ``baseLighting`` 的字段与边界（键表即白名单）。
-BASE_LIGHTING_BOUNDS: dict[str, tuple[float, float]] = {
-    'exposure': (0.5, 2),
-    'hemisphereIntensity': (0, 3),
-    'ambientIntensity': (0, 2),
-    'mainIntensity': (0, 5),
-    'mainAzimuth': (-180, 180),
-    'mainElevation': (5, 89),
-    'mainShadowIntensity': (0, 1),
-    'fillIntensity': (0, 3),
-    'fillAzimuth': (-180, 180),
-    'fillElevation': (0, 89),
-    'topIntensity': (0, 3),
-    'topAzimuth': (-180, 180),
-    'topElevation': (0, 89),
-    'floorBrightness': (50, 150),
-}
+#: ``baseLighting`` 的字段与边界（键表即白名单）。**唯一真源**在
+#: :mod:`domains.studio3d.lighting` —— 户型草稿保存与这里的控件校验必须用同一份区间。
+BASE_LIGHTING_BOUNDS: dict[str, tuple[float, float]] = dict(LIGHTING_BOUNDS)
 #: 顶层文本属性：出现即必须是长度受限文本。
 TEXT_PROPERTY_KEYS = ('label', 'instanceName', 'floorSelection')
 #: 场景 id：32 位小写十六进制（与前端 sceneId 生成口径一致）。
@@ -117,6 +109,10 @@ class LightsSectionValidator:
     def validate(self, properties: dict) -> None:
         ctx = self._ctx
         if not ctx.bounded_map(properties.get('baseLighting', {}), BASE_LIGHTING_BOUNDS):
+            ctx.fail()
+        if 'baseLightingByTheme' in properties and not valid_base_lighting_by_theme(
+            properties['baseLightingByTheme']
+        ):
             ctx.fail()
         for key in TEXT_PROPERTY_KEYS:
             if key in properties and not ctx.text(properties[key]):

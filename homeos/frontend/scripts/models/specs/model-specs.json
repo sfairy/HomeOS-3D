@@ -164,7 +164,7 @@
       "itemTypes": [
         "airoutlet"
       ],
-      "name": "出风口",
+      "name": "空调出风口",
       "folder": "appliance/environment",
       "category": "appliance/environment",
       "mount": "wall",

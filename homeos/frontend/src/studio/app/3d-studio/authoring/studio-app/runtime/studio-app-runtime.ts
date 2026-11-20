@@ -155,6 +155,8 @@ export interface StudioAppRuntime {
   readonly drawingToolSections: any
   readonly effectCache: any
   readonly emitRuntimeDiagnostic: any
+  /** 自然木语启停（贴图预载 + PMREM 环境）：由风格切换调用。 */
+  readonly naturalWoodSync: (sceneStyle: string, backgroundTheme?: string) => void
   readonly endStudioGesture: any
   readonly ensureCalibrationReady: any
   readonly ensureCustomMaterialStylesLoaded: any
@@ -408,6 +410,8 @@ export interface StudioAppRuntime {
   readonly refreshStudioUi: any
   readonly refreshStudioUiInner: any
   readonly refreshStudioView: any
+  /** 工作区主视图条刷新（切层 / 切全楼后更新提示）。 */
+  readonly refreshWorkspaceView: () => void
   readonly removePlanButton: any
   readonly renderCacheWriter: any
   readonly renderExportImage: any
@@ -424,6 +428,8 @@ export interface StudioAppRuntime {
   readonly resetFrameSamples: any
   readonly resetPlanInteraction: any
   readonly resetView: any
+  /** 按当前 `#plan-stage` 的 DOM 尺寸重设画布（切换工作区主视图后必须先量再适应）。 */
+  readonly resizePlanStage: () => void
   readonly resizeRenderCanvas: any
   readonly resizeStudioRenderer: any
   readonly resolveFloorDefaultGroup: any

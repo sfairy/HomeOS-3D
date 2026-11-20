@@ -227,7 +227,7 @@ export const MODEL_FILE_STEMS: Readonly<Record<string, string>> = Object.freeze(
   scanner: '扫描仪',
   'smart-display': '智慧屏',
   'smart-socket-86': '86型智能插座',
-  'air-outlet': '出风口',
+  'air-outlet': '空调出风口',
   airpurifier: '空气净化器',
   'aroma-diffuser': '香氛机',
   'ceiling-fan': '吊扇',

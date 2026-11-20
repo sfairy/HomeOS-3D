@@ -1,7 +1,7 @@
 {
   "totals": {
-    "files": 370,
-    "color": 4284,
+    "files": 374,
+    "color": 4285,
     "duration": 1421,
     "important": 363
   },
@@ -1366,6 +1366,11 @@
       "duration": 0,
       "important": 0
     },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/interaction/editor-light-gizmo-paths.ts": {
+      "color": 8,
+      "duration": 0,
+      "important": 0
+    },
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/interaction/marquee.ts": {
       "color": 1,
       "duration": 0,
@@ -1397,7 +1402,12 @@
       "important": 0
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/refreshStudioView.ts": {
-      "color": 33,
+      "color": 32,
+      "duration": 0,
+      "important": 0
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/studio-distance-rulers-wiring.ts": {
+      "color": 1,
       "duration": 0,
       "important": 0
     },
@@ -1413,6 +1423,11 @@
     },
     "homeos/frontend/src/studio/app/3d-studio/plan/courtyard-drawing-editor.ts": {
       "color": 16,
+      "duration": 0,
+      "important": 0
+    },
+    "homeos/frontend/src/studio/app/3d-studio/plan/studio-handle-drawing.ts": {
+      "color": 2,
       "duration": 0,
       "important": 0
     },
@@ -1762,7 +1777,7 @@
       "important": 0
     },
     "homeos/frontend/src/studio/runtime/core/stage.css": {
-      "color": 549,
+      "color": 537,
       "duration": 60,
       "important": 34
     },
@@ -1821,8 +1836,13 @@
       "duration": 0,
       "important": 0
     },
+    "homeos/frontend/src/studio/runtime/environment/weather/palette.ts": {
+      "color": 4,
+      "duration": 0,
+      "important": 0
+    },
     "homeos/frontend/src/studio/runtime/environment/weather/stars.ts": {
-      "color": 2,
+      "color": 1,
       "duration": 0,
       "important": 0
     },

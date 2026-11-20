@@ -55,9 +55,32 @@ export function itemMinimumElevation(elevationItemType: unknown) {
   return NEGATIVE_ELEVATION_ITEM_TYPES.includes(elevationItemType) ? -6 : 0
 }
 /** 属性面板「离地（m）」的悬停提示。 */
+/**
+ * 「离地」字段的类型化语义（0.8.7 `elevationMeaning`）：
+ * 标签 + 提示都随类型变化 —— 同一件家具，「底座安装点」与「机身顶部安装面」
+ * 是两个完全不同的基准面，只写「离地」会让人按相反方向调。
+ */
+export function itemElevationMeaning(elevationItemType: unknown): { label: string; hint: string } {
+  if (elevationItemType === 'ceilingfan' || elevationItemType === 'ceiling-fan') {
+    return { label: '顶部安装高度', hint: '吊扇顶部安装面距本层地面的高度，扇体向下延伸。' }
+  }
+  if (['downlight', 'ceilinglight', 'striplight'].includes(elevationItemType as string)) {
+    return { label: '光源安装高度', hint: '沿用当前灯具的安装基准；发光尺寸和出光角度独立调整。' }
+  }
+  if (elevationItemType === 'airer') {
+    return { label: '顶部安装高度', hint: '机身顶部安装面距本层地面的高度；伸降长度独立调整。' }
+  }
+  if (itemMinimumElevation(elevationItemType) < 0) {
+    return { label: '安装偏移', hint: '相对模型原有安装高度的偏移；允许负值，保留旧户型含义。' }
+  }
+  if (['camera', 'presence'].includes(elevationItemType as string)) {
+    return { label: '底座安装高度', hint: '底座安装点距本层地面的高度；旋转后几何上下界随姿态变化。' }
+  }
+  return { label: '底部离地', hint: '保留模型原点的离地值；下方实际高度范围按已加载的三维几何显示。' }
+}
+/** 兼容旧签名：只要提示文本。 */
 export function itemElevationHint(elevationItemType: unknown) {
-  if (elevationItemType === 'airer') return '顶部机身安装面距本层地面的高度'
-  return itemMinimumElevation(elevationItemType) < 0 ? '支持负数，负值可将模型向下移动' : ''
+  return itemElevationMeaning(elevationItemType).hint
 }
 export function normalizePoint(rawPoint: any) {
   return {
@@ -164,6 +187,36 @@ export const DEFAULT_BASE_LIGHTING = Object.freeze({
   topAzimuth: 90,
   topElevation: 86,
 })
+/**
+ * 支持的风格主题（与 `SCENE_STYLES` 的 id 逐一对应）。
+ *
+ * 0.8.7 起「基础光照」按主题分别保存：默认风格、暖阳原木、自然木语各自独立，
+ * 互不影响。这份键表是前端唯一的真源，后端 `domains/studio3d/lighting.py` 与本表同源。
+ */
+export const LIGHTING_THEMES = ['default', 'warm-wood', 'natural-wood'] as const
+export type LightingTheme = (typeof LIGHTING_THEMES)[number]
+
+/** `{theme: baseLighting}` 的收敛：未知名丢弃、每份光照按同一套区间规整。 */
+export function normalizeBaseLightingByTheme(
+  value: unknown,
+): Partial<Record<LightingTheme, ReturnType<typeof normalizeBaseLighting>>> {
+  const source = value && typeof value == 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {}
+  const result: Partial<Record<LightingTheme, ReturnType<typeof normalizeBaseLighting>>> = {}
+  for (const theme of LIGHTING_THEMES) {
+    if (source[theme] !== undefined) result[theme] = normalizeBaseLighting(source[theme])
+  }
+  return result
+}
+
+/** 取某个主题的光照；该主题还没调过时回落到当前编辑用的那份。 */
+export function baseLightingForTheme(byTheme: unknown, theme: unknown, fallback: unknown) {
+  const normalized = normalizeBaseLightingByTheme(byTheme)
+  const key: LightingTheme = (LIGHTING_THEMES as readonly string[]).includes(String(theme))
+    ? (theme as LightingTheme)
+    : 'default'
+  return normalized[key] ?? fallback
+}
+
 export function normalizeBaseLighting(baseLighting: any) {
   const lightingConfig = baseLighting && typeof baseLighting == 'object' ? baseLighting : {}
   return {

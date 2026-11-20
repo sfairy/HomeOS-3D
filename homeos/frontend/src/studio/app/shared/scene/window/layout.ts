@@ -36,7 +36,7 @@ const MAX_REMARK_TEXT = 60
 /** 撤销栈深度。 */
 const HISTORY_DEPTH = 80
 
-type WindowKind = (typeof WINDOW_KINDS)[number]
+export type WindowKind = (typeof WINDOW_KINDS)[number]
 type WindowAxis = 'x' | 'y'
 type WindowHinge = 'left' | 'right'
 type WindowSwing = 'in' | 'out'

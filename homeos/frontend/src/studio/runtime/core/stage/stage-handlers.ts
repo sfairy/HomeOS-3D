@@ -60,6 +60,7 @@ import {
 } from '@app/bridge/temperature-humidity'
 import { DEFAULT_BUTTON_SIZE as defaultButtonSize } from '@app/bridge/presets/button-icon-size'
 import { applyLabelConfigPatch, labelPatchAffects } from '../state-update-plan'
+import { isWarmSceneStyle, normalizeSceneStyle } from '@app/shared/scene-styles'
 
 export interface StageHandlersHost {
   [key: string]: any
@@ -1225,7 +1226,7 @@ export function createSyncMarkers(host: StageHandlersHost) {
     host.securityAlarmOverlay.update(
       securityAlarmReadings(overlayEligibleAlarms(host.options.security?.alarms || []), host.deviceStates),
       false,
-      host.options.sceneStyle === 'warm-wood' ? 'warm-wood' : 'default',
+      isWarmSceneStyle(host.options.sceneStyle) ? 'warm-wood' : 'default',
     )
     ;(!markerChange || markerChange.lighting) && host.applyLightStates(undefined, markerChange),
       (!markerChange || markerChange.environment) && host.refreshStageUi()
@@ -1421,7 +1422,9 @@ export function createHandleHostMessage(host: StageHandlersHost) {
           (host.isNavigationVisible = data.editorCanvas === true && !host.isEditing),
           (host.navigationEditing = data.navigationEditing === true && host.isNavigationVisible),
           document.body?.dataset &&
-            (document.body.dataset.sceneStyle = host.options.sceneStyle === 'warm-wood' ? 'warm-wood' : 'default'),
+            // 0.8.7：这里写的是**真实三值**。以前折成两值是因为 CSS 只有 warm-wood 分支；
+            // 补上 natural-wood 成对规则后必须写真值，否则自然木语的 121 条规则永远不生效。
+            (document.body.dataset.sceneStyle = normalizeSceneStyle(host.options.sceneStyle)),
           host.sceneBackgroundController.configure(host.options.backgroundTheme, host.options),
           (host.isControlReady = !host.isEditing && data.interactive === true),
           (host.editingVacuumId = data.editingVacuumId || ''),

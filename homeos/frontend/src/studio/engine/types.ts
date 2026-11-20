@@ -2,6 +2,18 @@
 
 type SaveStateKind = 'idle' | 'dirty' | 'saving' | 'saved' | 'error'
 
+/**
+ * 工作区主视图。
+ *
+ * - `plan`：平面绘制为主（默认）。中栏画布最大，右栏是 3D 预览 + 属性。
+ * - `model`：3D 预览为主。右栏放大成主编辑区，中栏收窄成辅助画布。
+ *
+ * 只切列宽与面板权重，**不移动 DOM**：3D 画布一旦离开原节点就会丢 WebGL 上下文，
+ * 重建比切布局贵两个数量级。状态唯一真源在 `studio-floorplan.store`，壳层直接读它，
+ * 不进 facade（facade 是引擎向壳层单向广播的通道，壳层自有的视图偏好不该塞进去）。
+ */
+export type WorkspaceView = 'plan' | 'model'
+
 export interface HistoryStateSnapshot {
   canUndo: boolean
   canRedo: boolean

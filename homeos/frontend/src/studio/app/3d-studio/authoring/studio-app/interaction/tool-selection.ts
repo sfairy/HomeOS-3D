@@ -200,29 +200,51 @@ export function clearSelection(runtime: StudioAppRuntime) {
     runtime.markDocumentDirty()
 }
 
-export function finalizeAddedItem(runtime: StudioAppRuntime, addedItem: any, movingIds = [addedItem.id]) {
+/**
+ * 落台（拖动松手 / 新建物件 / 属性面板的「贴合台面」共用的唯一入口）。
+ *
+ * `explicit` 对应用户**主动**要求贴台面（属性面板那个按钮）：此时忽略「吸附」总开关与
+ * `snapSurfaces` 设置 —— 与 0.8.7 `h0(..., { explicit: true })` 同口径。用户把吸附关掉
+ * 是不想要「拖到哪都自动吸」，不是禁止「点一下贴上去」。
+ */
+export function finalizeAddedItem(
+  runtime: StudioAppRuntime,
+  addedItem: any,
+  movingIds = [addedItem.id],
+  explicit = false,
+) {
   /**
    * 排气扇只吸墙、不参与台面吸附（0.8.0 在这里明确 `return`）。
    * 朝向保持拖动后的状态，只有新建路径才会先按墙走向对齐。
    */
   if (addedItem?.type === 'exhaust-fan') {
     snapExhaustFan(addedItem, runtime.appCtx.studioState.walls, runtime.getPixelsPerMeter())
-    return
+    return null
   }
-  return snapItemToSurface2({
-    THREE: ns2,
-    item: addedItem,
-    items: runtime.appCtx.studioState.items,
-    pixelsPerMeter: runtime.getPixelsPerMeter(),
-    enabled: runtime.isSnapEnabled() && runtime.appCtx.studioState.settings.snapSurfaces !== false,
-    movingIds: movingIds,
-    mountModel: (mountedModelItem: any, externalModel: any) =>
-      runtime.externalModelRegistry.addExternalItemModel(
-        mountedModelItem,
-        externalModel,
-        runtime.materialLoadOptionsForItem(mountedModelItem),
-      ),
-  })
+  // 量高度用的支撑物模型只活这一笔操作：不传缓存时每个候选都会 clone 一份且无人释放。
+  const surfaceModels = new Map<string, unknown>()
+  try {
+    return snapItemToSurface2({
+      THREE: ns2,
+      item: addedItem,
+      items: runtime.appCtx.studioState.items,
+      pixelsPerMeter: runtime.getPixelsPerMeter(),
+      enabled: explicit || (runtime.isSnapEnabled() && runtime.appCtx.studioState.settings.snapSurfaces !== false),
+      movingIds: movingIds,
+      modelCache: surfaceModels,
+      mountModel: (mountedModelItem: any, externalModel: any) =>
+        runtime.externalModelRegistry.addExternalItemModel(
+          mountedModelItem,
+          externalModel,
+          runtime.materialLoadOptionsForItem(mountedModelItem),
+        ),
+    })
+  } finally {
+    for (const surfaceModel of surfaceModels.values()) {
+      surfaceModel && runtime.disposeObjectTree?.(surfaceModel)
+    }
+    surfaceModels.clear()
+  }
 }
 
 export function duplicateSelection(runtime: StudioAppRuntime) {

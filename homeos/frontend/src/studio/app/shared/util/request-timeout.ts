@@ -17,7 +17,7 @@ export async function withRequestTimeout(
     abortFromSignal = () =>
       abortWith(
         externalSignal!.reason ||
-          Object.assign(new Error('Request aborted'), {
+          Object.assign(new Error('请求已取消'), {
             name: 'AbortError',
           }),
       )
@@ -28,7 +28,7 @@ export async function withRequestTimeout(
   const timerId = setTimeout(
     () =>
       abortWith(
-        Object.assign(new Error('Request timed out'), {
+        Object.assign(new Error('请求超时'), {
           name: 'TimeoutError',
         }),
       ),

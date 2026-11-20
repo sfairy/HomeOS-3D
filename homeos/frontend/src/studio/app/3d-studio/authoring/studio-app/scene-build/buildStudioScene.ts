@@ -1,3 +1,4 @@
+import { isWarmSceneStyle } from '../../../../shared/scene-styles'
 import { compactStaticDeviceParts as compactStaticDeviceParts2 } from '../../items/studio-device-batching'
 
 import { sceneModelOrigin as sceneModelOrigin2 } from '../../../plan/courtyard-drawing'
@@ -20,6 +21,7 @@ import { polygonArea as polygonArea2, subtractPolygonLoops as subtractPolygonLoo
 import { isCourtyardDrawing as isCourtyardDrawing2 } from '../../../loaders/studio-normalization'
 
 import { lampItemTypeSet } from '../../items/item-catalog'
+import { isPlacedItemHidden } from '../../items/placed-item-state'
 
 import { applyItemOrientation } from '../geometry/item-orientation'
 import { createGroundGrid } from '../geometry/ground-grid'
@@ -144,7 +146,11 @@ export function buildStudioScene(deps: BuildStudioSceneDeps, { preserveLightCach
     mr2 = closedWallLoops(buildStudioSceneScenePixelsPerMeter)
   ;(appCtx.sceneRootNode.userData.floorEdgeIndoorLoops = []), delete appCtx.sceneRootNode.userData.floorEdgeKey
   const floorOpeningLoops = appCtx.studioState.items
-    .filter((buildStudioSceneFloorOpeningItem) => buildStudioSceneFloorOpeningItem.type === 'flooropening')
+    .filter(
+      (buildStudioSceneFloorOpeningItem) =>
+        buildStudioSceneFloorOpeningItem.type === 'flooropening' &&
+        !isPlacedItemHidden(appCtx, buildStudioSceneFloorOpeningItem.id),
+    )
     .map((floorOpeningDrawing) =>
       floorOpeningPolygon2(floorOpeningDrawing, buildStudioSceneScenePixelsPerMeter).map((floorOpeningPoint) => {
         const floorOpeningWorldPoint = planPointToWorld(floorOpeningPoint)
@@ -298,10 +304,16 @@ export function buildStudioScene(deps: BuildStudioSceneDeps, { preserveLightCach
       floorSurfaceY: groundPlaneY,
     })
   const $u2 = collectLightSourceSpecs(),
-    placedItemRecords: any[] = []
-  for (const placedItem of appCtx.studioState.items) {
+    placedItemRecords: Array<{ item: { id: string }; group: unknown }> = [],
+    // 0.8.7 建场景时逐个跳过 `!En(item)`（`if (type==='flooropening' || !En(item)) continue`）：
+    // 「已放置」里的隐藏是**本次编辑内真的不画**，不只是 2D 少一笔 —— 灯具因此也不再发光。
+    // 用 filter 而不是循环里的 continue：回调是独立函数，不吃建场景那一段的复杂度棘轮。
+    drawableItemRecords = appCtx.studioState.items.filter(
+      (sceneItemCandidate: { type?: string; id: string }) =>
+        sceneItemCandidate.type !== 'flooropening' && !isPlacedItemHidden(appCtx, sceneItemCandidate.id),
+    )
+  for (const placedItem of drawableItemRecords) {
     const placedItemWorldPoint = planPointToWorld(placedItem)
-    if (placedItem.type === 'flooropening') continue
     const vu2 = buildItemModel(placedItem, $u2)
     isEmbeddedStage &&
       !createSelectionRef('item', placedItem.id) &&
@@ -387,7 +399,7 @@ export function buildStudioScene(deps: BuildStudioSceneDeps, { preserveLightCach
     }),
     applyShadowReceiverTrial2(appCtx.sceneRootNode),
     isEmbeddedStage && cacheObjectTransforms2(appCtx.sceneRootNode, ns2.Object3D),
-    appCtx.sceneStyle === 'warm-wood' &&
+    isWarmSceneStyle(appCtx.sceneStyle) &&
       appCtx.sceneRootNode.traverse((sceneNodeVisibility: any) => {
         ;(['background', 'grid'].includes(sceneNodeVisibility.userData?.exportRole) ||
           sceneNodeVisibility.userData?.floorPlanGroundShadow === true ||

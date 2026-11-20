@@ -29,4 +29,13 @@ export type WeatherFrame = {
   sprites: SpriteCache
   preset: WeatherEffectPreset
   particles: WeatherParticlePool
+  /**
+   * 降水主色（`#rrggbb`）与雪花色。
+   *
+   * 深色舞台用暖白（`#fff6dd`）才不发灰；自然木语的底图是暖砂色，暖白画上去几乎看不见，
+   * 必须换成深一档的冷灰（雨）与更实的白（雪）。颜色由宿主按风格下发，
+   * 图层只负责用，不在渲染代码里判断风格。
+   */
+  rainColor: string
+  snowColor: string
 }

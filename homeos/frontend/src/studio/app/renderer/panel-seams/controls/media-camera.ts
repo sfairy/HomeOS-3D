@@ -10,6 +10,7 @@ import { popupPlacement as popupPlacement2 } from '../../../bridge/presets/popup
 import type { PanelRenderer } from '../../panel-renderer'
 
 import { domElement } from '@app/shared/util/dom-factory'
+import { createCameraAudio, mountCameraAudioButton, type CameraAudioHandle } from '@app/shared/camera/camera-audio'
 export async function browseMedia(
   _self: PanelRenderer,
   mediaEntityId: any,
@@ -392,19 +393,23 @@ export function showCameraPreview(
     cameraPreviewStage.classList.toggle('media-hidden', !isMediaVisible)
   const cameraCleanupCallbacks: any = []
   let isCameraReady = false
+  /** 声音控制器（0.8.7）。声明必须早于 handleCameraReady —— 回调里会引用它。 */
+  let cameraAudio: CameraAudioHandle | null = null
   const handleCameraReady = () => {
-      isCameraReady ||
-        ((isCameraReady = true),
-        (cameraPreviewStatus.textContent = '实时画面'),
-        cameraPreviewStatus.classList.remove('is-connecting', 'is-unavailable'),
-        cameraPreviewStatus.classList.add('is-live'),
-        cameraDeviceVisualSection.classList.remove('is-unavailable'),
-        cameraDeviceVisualSection.classList.add('is-live'),
-        cameraPreviewStage.classList.remove('is-connecting', 'is-unavailable', 'is-revealing'),
-        cameraPreviewStage.classList.add('is-ready'))
+      cameraAudio?.setReady(true),
+        isCameraReady ||
+          ((isCameraReady = true),
+          (cameraPreviewStatus.textContent = '实时画面'),
+          cameraPreviewStatus.classList.remove('is-connecting', 'is-unavailable'),
+          cameraPreviewStatus.classList.add('is-live'),
+          cameraDeviceVisualSection.classList.remove('is-unavailable'),
+          cameraDeviceVisualSection.classList.add('is-live'),
+          cameraPreviewStage.classList.remove('is-connecting', 'is-unavailable', 'is-revealing'),
+          cameraPreviewStage.classList.add('is-ready'))
     },
     handleCameraUnavailable = () => {
-      ;(cameraPreviewStatus.textContent = '画面不可用'),
+      cameraAudio?.setReady(false),
+        (cameraPreviewStatus.textContent = '画面不可用'),
         cameraPreviewStatus.classList.remove('is-connecting', 'is-live'),
         cameraPreviewStatus.classList.add('is-unavailable'),
         cameraDeviceVisualSection.classList.remove('is-live'),
@@ -441,6 +446,26 @@ export function showCameraPreview(
         },
         onReady: handleCameraReady,
         onUnavailable: handleCameraUnavailable,
+        // 视频元素一建好就绑定声音控制器；音轨探测结果随后通过 setMedia 回填。
+        onVideoReady: (videoElement: HTMLVideoElement) => {
+          cameraAudio = createCameraAudio({
+            video: videoElement,
+            isCurrent: () => cameraPreviewDialog.isConnected,
+            onError: () => {
+              // 0.8.7 文案：把「怎么办」一起说出来，否则用户只会反复点同一个按钮。
+              if (cameraPreviewDialog.isConnected)
+                cameraPreviewStatus.textContent = '摄像头声音未能开启，请再次点击声音按钮。'
+            },
+          })
+          mountCameraAudioButton({
+            host: cameraPreviewHeading,
+            audio: cameraAudio,
+            cleanup: (register: () => void) => cameraCleanupCallbacks.push(register),
+          })
+        },
+        onAudioAvailability: (supported: boolean, hasAudio: boolean | null) => {
+          cameraAudio?.setMedia(supported, hasAudio)
+        },
         go2rtcUrl: cameraGo2rtcUrl,
         // 显式传入优先：3D 场景里 componentId 是 interaction3d 组件、cameraId 是标记 id。
         projectId: cameraPreviewProjectId || self.document?.projectId || '',

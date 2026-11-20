@@ -26,6 +26,7 @@ import { createGroundRenderer } from './weather/ground'
 import { fallbackGroundQuad, type WeatherGroundQuad } from './weather/ground-quad'
 import { createParticlePool, disposeParticlePool } from './weather/particles'
 import { drawPrecipitation } from './weather/precipitation'
+import { weatherPalette, type WeatherPalette } from './weather/palette'
 import { WEATHER_EFFECT_PRESETS, type WeatherEffectPreset } from './weather/presets'
 import { createQualityGovernor } from './weather/quality'
 import { createSpriteCache } from './weather/sprites'
@@ -72,6 +73,22 @@ const GUST_BASE = 0.55
 const GUST_SWING = 0.45
 
 const WEATHER_CANVAS_CLASS = 'i3d-weather-effects'
+
+/**
+ * 把配色叠到预设上，得到本帧实际使用的预设。
+ *
+ * 只覆盖**云**相关的三个字段：云色/云底/云层不透明度。降水颜色走 `frame.rainColor` /
+ * `frame.snowColor`（雨与雪要分开取色，见 `weather/frame.ts`）。
+ */
+function palettePreset(preset: WeatherEffectPreset, palette: WeatherPalette): WeatherEffectPreset {
+  if (!preset.clouds) return preset
+  return {
+    ...preset,
+    cloudTint: palette.cloudTint,
+    cloudBottom: palette.cloudBottom,
+    cloudAlpha: (preset.cloudAlpha ?? 1) * palette.cloudAlphaScale,
+  }
+}
 
 /** 下发给 3D 舞台的天气消息（目前只有放电事件；天气态本身由宿主统一发布）。 */
 export type WeatherStageMessage = {
@@ -138,6 +155,8 @@ export function createWeatherEffects(host: any, postStageMessage?: (message: Wea
   const groundDebug = isGroundDebugEnabled(win)
 
   let reducedMotion = reducedMotionQuery?.matches === true
+  /** 当前场景风格：天气配色与云层不透明度都跟着它变。 */
+  let sceneStyle: unknown = 'default'
   let cssWidth = 1
   let cssHeight = 1
   let state: WeatherEffectKey | '' = ''
@@ -212,6 +231,7 @@ export function createWeatherEffects(host: any, postStageMessage?: (message: Wea
   function render(deltaSeconds: number) {
     if (!ctx || !preset) return
     clearFrame()
+    const palette = weatherPalette(sceneStyle)
     const frame: WeatherFrame = {
       ctx,
       width: cssWidth,
@@ -227,8 +247,11 @@ export function createWeatherEffects(host: any, postStageMessage?: (message: Wea
       reducedMotion,
       ground: groundQuad,
       sprites,
-      preset,
+      // 云色与不透明度按风格覆盖：浅底图上压暗云会变成一块脏斑。
+      preset: palettePreset(preset, palette),
       particles,
+      rainColor: palette.rain,
+      snowColor: palette.snow,
     }
     // 闪电强度要先算：湿地反光要用它把地面提亮，不能等画到闪电层才知道。
     frame.flash = thunder.advance(frame, preset.thunder === true)
@@ -354,6 +377,17 @@ export function createWeatherEffects(host: any, postStageMessage?: (message: Wea
       groundQuad = quad || fallbackGroundQuad()
       // 帧循环在跑时下一帧自然用新四边形重画；只有定格态（减弱动效 / 停帧）才需要
       // 立刻补一帧。否则相机一动，每条地面投影消息都会多整屏重绘一次。
+      if (!isLoopRunning && !doc.hidden && ready && preset && ctx) render(0)
+    },
+    /**
+     * 场景风格变化（默认 / 暖阳原木 / 自然木语）。
+     *
+     * 天气层的颜色是画在 3D 背景上的：浅底图必须换一组降水色，否则雨雪肉眼不可见。
+     * 循环在跑时下一帧自然吃到新配色；定格态要立刻补一帧，否则切风格后画面还是旧色。
+     */
+    setSceneStyle(style: unknown) {
+      if (disposed || style === sceneStyle) return
+      sceneStyle = style
       if (!isLoopRunning && !doc.hidden && ready && preset && ctx) render(0)
     },
     resize: measure,

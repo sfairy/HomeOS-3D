@@ -187,23 +187,55 @@ export function applyStripMountSelection(item: StripLightLike, rawMount: unknown
   const previous = resolveStripMount(item),
     next = normalizeStripMount(rawMount) ?? previous
   item.stripMount = next
-  if (next !== 'custom') Object.assign(item, stripLegacyFields(next))
+  if (next === 'custom') {
+    /**
+     * `stripAxis` 是看不见的旧口径：`vertical` 会整体绕 Z 立起 90°，让「安装倾斜」绕竖轴转。
+     * 从「竖装」切到自定义时它会把自定义角度解释成立装 —— 输入框里的数字和画面对不上。
+     * 自定义 = 平躺灯带的自由倾斜 / 翻滚，立装是独立预设，不该在这里继续隐式生效。
+     */
+    if (previous === 'vertical') item.stripAxis = 'horizontal'
+  } else Object.assign(item, stripLegacyFields(next))
   if (next === previous) return false
   const elevation = suggestedStripElevation(next, wallHeight)
   if (elevation !== null) item.elevation = Math.round(elevation * 100) / 100
   return true
 }
 
-/** 检查器提交位姿输入：翻滚只在自定义安装时可改，其余安装方式的旧字段由规格决定。 */
+/**
+ * 检查器提交位姿输入。0.8.7 的「安装倾斜 / 出光方向」对**每条**灯带都可见可改，
+ * 所以不能用「非自定义安装就把输入写回预设值」—— 那会让输入框看起来能改、改完弹回去。
+ *
+ * 口径与 3D 手柄一致：预设安装方式下输入框显的就是该方式的规范角度，改了任一轴就落成
+ * 「自定义角度」；照旧时仍把旧字段收拢成预设值，保证两套口径不打架。
+ *
+ * `mountChanged` 是同一笔提交里「安装方式下拉换过」：此时输入框里还是切换前的角度，
+ * 以安装方式为准（只把旧字段收拢成预设值），不能让上一组角度把刚选的预设顶成自定义。
+ *
+ * 返回检查器是否需要回刷：切成了自定义，或这笔提交本来就换过安装方式（下拉 / 旧字段都变了）。
+ */
 export function applyStripInspectorPose(
   item: StripLightLike & { lightSourceVisible?: boolean },
   rollValue: unknown,
   lightSourceVisible: boolean,
-) {
-  item.stripRollRotation = normalizeFullRotation(rollValue, finite2(item.stripRollRotation, 0))
+  mountChanged = false,
+): boolean {
+  const roll = normalizeFullRotation(rollValue, finite2(item.stripRollRotation, 0))
+  item.stripRollRotation = roll
   item.lightSourceVisible = lightSourceVisible
   const mount = resolveStripMount(item)
-  if (mount !== 'custom') Object.assign(item, stripLegacyFields(mount))
+  if (mount === 'custom') return mountChanged
+  const preset = stripLegacyFields(mount)
+  const matchesPreset =
+    nearAngle(normalizeFullRotation(item.verticalRotation), preset.verticalRotation) &&
+    nearAngle(roll, preset.stripRollRotation)
+  if (mountChanged || matchesPreset) {
+    Object.assign(item, preset)
+    return mountChanged
+  }
+  // 手调角度 → 自定义角度；竖装切过来时同步把旧口径的「立装」标记收回（见 applyStripMountSelection）。
+  if (mount === 'vertical') item.stripAxis = 'horizontal'
+  item.stripMount = 'custom'
+  return true
 }
 
 /** 旧口径「倾斜 → 翻滚 → 朝下」的长度轴与出光方向（自定义安装用）。 */

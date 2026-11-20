@@ -107,6 +107,12 @@ const GATE_GROUPS = {
     // 平面多边形布尔内核的数学不变量（空集恒等 / 幂等 / 面积守恒 / 洞语义 / 点归属）。
     // 「模型门禁」看的是 GLB 文件，「这条」看的是户型绘制用的并集/差集内核，两者互不覆盖。
     { name: 'check:plan-geometry', ...bun('run', 'check:plan-geometry') },
+    // 毫米标尺与拖动吸附的几何不变量（OBB 四角 / 墙厚表面 / 往返一致 / freedom / previous）。
+    { name: 'check:studio-placement', ...bun('run', 'check:studio-placement') },
+    // 3D 视口编辑 / 标尺的**语义**不变量（目标优先的离地吸附 / 量化基准 / 竖直容差 / 指纹 / 取景保持）。
+    { name: 'check:studio-gesture', ...bun('run', 'check:studio-gesture') },
+    // 窗型「删扇撤销 / 墙体合并朝向」不变量（只加回消失的窗扇、朝反向才翻转）。
+    { name: 'check:studio-window-undo', ...bun('run', 'check:studio-window-undo') },
     // 存草稿兼容层：老草稿经归一化载入、编辑后整份写回，漏挑一个字段就是静默丢数据。
     { name: 'check:scene-payload', ...bun('run', 'check:scene-payload') },
     { name: 'check:styles', ...bun('run', 'check:styles') },

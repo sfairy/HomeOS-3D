@@ -57,6 +57,44 @@
         </form>
     </dialog>
 
+    <!-- 删除楼层确认（0.8.7）：删除不可撤销，必须先让用户看到楼层名再确认。 -->
+    <dialog id="floor-delete-dialog" class="scale-dialog floor-delete-dialog">
+        <form id="floor-delete-form" method="dialog">
+            <button id="floor-delete-close" class="dialog-close" type="button" aria-label="关闭删除楼层提示">×</button>
+            <span class="dialog-index">DELETE FLOOR</span>
+            <h2>删除这个楼层？</h2>
+            <p>确定删除“<strong id="floor-delete-name"></strong>”吗？这一层的绘图数据不会保留，此操作无法撤销。</p>
+            <div class="dialog-actions"><button id="floor-delete-cancel" type="button">取消</button><button
+                    id="floor-delete-confirm" class="floor-delete-confirm" type="submit">删除楼层</button></div>
+        </form>
+    </dialog>
+
+    <!-- 删除导出存档确认（0.8.7）：只删保存的视角与设置，不动楼层与户型。 -->
+    <dialog id="export-preset-delete-dialog" class="scale-dialog floor-delete-dialog">
+        <form id="export-preset-delete-form" method="dialog">
+            <button id="export-preset-delete-close" class="dialog-close" type="button" aria-label="关闭删除存档提示">×</button>
+            <span class="dialog-index">DELETE PRESET</span>
+            <h2>删除这个导出存档？</h2>
+            <p>确定删除“<strong id="export-preset-delete-name"></strong>”吗？只会删除保存的导出视角和设置，不会删除楼层或户型。</p>
+            <div class="dialog-actions"><button id="export-preset-delete-cancel" type="button">取消</button><button
+                    id="export-preset-delete-confirm" class="floor-delete-confirm" type="submit">删除存档</button></div>
+        </form>
+    </dialog>
+
+    <!-- 灯光性能提示（0.8.7）：同时开启较多灯时提醒一次，避免用户以为是卡顿。 -->
+    <dialog id="drawing-light-notice-dialog" class="scale-dialog export-notice-dialog"
+        aria-labelledby="drawing-light-notice-title">
+        <form method="dialog">
+            <button class="dialog-close" type="submit" aria-label="关闭灯光性能提示">×</button>
+            <span class="dialog-index">LIGHTING NOTICE</span>
+            <h2 id="drawing-light-notice-title">灯光开启较多</h2>
+            <p>同时开启较多灯光可能导致卡顿，建议配置完成后关闭，需要时再开启。</p>
+            <div class="export-notice-summary"><span>当前已开启</span><strong id="drawing-light-notice-count"></strong>
+            </div>
+            <div class="dialog-actions"><button class="primary-action" type="submit" autofocus>知道了</button></div>
+        </form>
+    </dialog>
+
     <dialog id="export-preset-rename-dialog" class="scale-dialog light-group-rename-dialog">
         <form id="export-preset-rename-form" method="dialog"> <button id="export-preset-rename-close"
                 class="dialog-close" type="button" aria-label="关闭">×</button> <span class="dialog-index">EXPORT
@@ -170,6 +208,7 @@
             <header class="export-heading">
                 <div><span class="dialog-index">EXPORT WORKSPACE</span>
                     <h2>导出3D户型图</h2>
+                    <small>当前风格：<span id="export-scene-style">默认风格</span> · 导出包含临时隐藏物品</small>
                     <p>先确定图像比例，再拖动、缩放和旋转户型，所有导出层将使用完全相同的视角。</p>
                 </div><button id="export-close" type="button" aria-label="关闭导图工作区">×</button>
             </header>

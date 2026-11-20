@@ -204,12 +204,46 @@ function paddingPx(value: string) {
  *
  * @returns 可用内容盒尺寸；无 DOM / 量不到正尺寸时返回 null
  */
+/**
+ * iOS / iPadOS 的 `100vh` 是**大视口**（含被地址栏 / 工具栏盖住的那一段），而用户实际
+ * 看到的是 visualViewport。两者不等时按前者算缩放比，画布会「按看不见的那段高度」等比缩，
+ * 视觉上就是上下留白（或裁切）。
+ *
+ * 只**收紧**不放大：visualViewport 更大时不采信（双指缩放的 reported height 会变，
+ * 采信会让整页跟着抖动）。软键盘不触发本函数 —— 它在输入聚焦时才变，而布局重算由
+ * 壳层 ResizeObserver 驱动。
+ */
+function visibleHeightCap(style: CSSStyleDeclaration): number {
+  const visualViewport = typeof window !== 'undefined' ? window.visualViewport : null
+  if (!visualViewport || !(visualViewport.height > 0)) return Number.POSITIVE_INFINITY
+  const insets = paddingPx(style.paddingTop) + paddingPx(style.paddingBottom)
+  return Math.round(visualViewport.height - insets)
+}
+
+/**
+ * 读取当前视口的「安全区内容盒」尺寸。
+ *
+ * 不用 visualViewport 的**宽度**：它会把软键盘、双指缩放也当成尺寸变化，导致整页反复重排；
+ * 也不含 `env(safe-area-inset-*)`（安全区只写在 `.viewport-frame` 的 padding 上），
+ * 直接用它会让缩放后的画布超出异形屏可用区域并被裁掉。壳层 clientWidth/Height 是
+ * 布局视口尺寸，减去 padding 即安全区内的可用画布尺寸。
+ *
+ * 高度额外被 :func:`visibleHeightCap` 收紧，见那里的说明。
+ *
+ * 导出给屏保等「不在 .viewport-frame 里但需要同一视口基准」的模块复用，
+ * 避免各处分别读 innerWidth / visualViewport 导致安全区与滚动条算法不一致。
+ *
+ * @returns 可用内容盒尺寸；无 DOM / 量不到正尺寸时返回 null
+ */
 export function readViewportBox(): { width: number; height: number } | null {
   const frame = typeof document === 'undefined' ? null : document.querySelector<HTMLElement>('.viewport-frame')
   if (!frame) return null
   const style = getComputedStyle(frame)
   const width = frame.clientWidth - paddingPx(style.paddingLeft) - paddingPx(style.paddingRight)
-  const height = frame.clientHeight - paddingPx(style.paddingTop) - paddingPx(style.paddingBottom)
+  const height = Math.min(
+    frame.clientHeight - paddingPx(style.paddingTop) - paddingPx(style.paddingBottom),
+    visibleHeightCap(style),
+  )
   // 隐藏 / 折叠时任一边会是 0 甚至负数；取 min 一次判掉，省掉一个 `||`。
   if (Math.min(width, height) <= 0) return null
   return { width, height }

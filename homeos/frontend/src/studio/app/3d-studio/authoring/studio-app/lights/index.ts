@@ -23,6 +23,12 @@ export {
 } from './base-lighting'
 export { beginLightingPreview } from './beginLightingPreview'
 export type { BeginLightingPreviewDeps } from './beginLightingPreview'
+export { sameBaseLighting, saveAutoDiagramLighting, saveEmbeddedBaseLighting } from './save-auto-diagram-lighting'
+export type {
+  EmbeddedBaseLightingTarget,
+  StudioApiFetch,
+  StudioDraftResponse,
+} from './save-auto-diagram-lighting'
 export {
   moveAreaRow,
   moveLightGroupToArea,

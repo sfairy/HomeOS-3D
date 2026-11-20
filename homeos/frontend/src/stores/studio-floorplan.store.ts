@@ -84,6 +84,16 @@ export const useStudioFloorplanStore = defineStore('studioFloorplan', () => {
     command({ type: 'setPlanFocus', focus: planFocus.value })
   }
 
+  /**
+   * 「平面聚焦」把右栏收成 0 宽；切到「3D 为主」前要先退出，否则两块视图抢同一列。
+   * 供 `bootStudio` 的工作区切换器在 `beforeChange` 里调用。
+   */
+  function leavePlanFocus() {
+    if (!planFocus.value) return
+    planFocus.value = false
+    command({ type: 'setPlanFocus', focus: false })
+  }
+
   return {
     facade,
     libraryCollapsed,
@@ -102,5 +112,6 @@ export const useStudioFloorplanStore = defineStore('studioFloorplan', () => {
     command,
     toggleLibrary,
     togglePlanFocus,
+    leavePlanFocus,
   }
 })

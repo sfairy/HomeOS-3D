@@ -84,6 +84,12 @@ def resolve_allowed_origins() -> list[str]:
     base = _origin_of(os.getenv("APP_BASE_URL", ""))
     if base and base not in origins:
         origins.append(base)
+    # 「额外公开访问来源」：一台机器被多个反代地址访问时的其余入口。与 ``APP_BASE_URL``
+    # 同源处理 —— socket.io / WebSocket 来源校验读的也是这份清单。
+    for item in os.getenv("APP_ADDITIONAL_PUBLIC_ORIGINS", "").split(","):
+        origin = _origin_of(item.strip())
+        if origin and origin not in origins:
+            origins.append(origin)
     return origins
 
 

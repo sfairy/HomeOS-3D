@@ -25,8 +25,21 @@
       'column',
       'userAgent',
       'phase',
+      'pageSessionId',
+      'clientFrontendRevision',
+      'droppedEvents',
     ]),
-    isPublicPage = /^\/(?:login|setup)(?:\/|$)/.test(bridgeWindow.location.pathname)
+    isPublicPage = /^\/(?:login|setup)(?:\/|$)/.test(bridgeWindow.location.pathname),
+    /** 丢失计数：队满丢弃 / 等待过期 / 上报被永久拒绝。0.8.7 的 `ha-bridge-client-log-loss-v1`。 */
+    lossCounters = { count: 0, capacity: 0, expired: 0, invalid: 0 },
+    /** 本次页面编号：同一页面刷新前后的日志能串起来。 */
+    pageSessionId =
+      bridgeWindow.crypto?.randomUUID?.() || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`,
+    /** 浏览器前端修订：取当前脚本的 `?v=`，与服务端日志里的 frontendRevision 对照。 */
+    clientFrontendRevision =
+      /[?&]v=([0-9a-f]{8,32})/.exec(
+        String((bridgeWindow.document?.currentScript as HTMLScriptElement | null)?.src || ''),
+      )?.[1] || ''
   let publicMode = isPublicPage,
     eventQueue: any = [],
     flushTimer: any = null,
@@ -223,13 +236,23 @@
   }
   function pruneQueue() {
     const cutoffTime = Date.now() - MAX_EVENT_AGE_MS
-    for (
-      eventQueue = eventQueue
-        .filter((prunedEntry: any) => prunedEntry.queuedAt >= cutoffTime)
-        .slice(-MAX_QUEUED_EVENT_COUNT);
-      eventQueue.length && JSON.stringify(eventQueue).length > MAX_QUEUE_BYTES;
-    )
+    const beforePrune = eventQueue.length
+    const keptEntries = eventQueue.filter((prunedEntry: any) => prunedEntry.queuedAt >= cutoffTime)
+    // 0.8.7：过期丢弃要计数，否则用户只会看到「日志缺了几条」而不知道为什么。
+    lossCounters.expired += beforePrune - keptEntries.length
+    lossCounters.count += beforePrune - keptEntries.length
+    eventQueue = keptEntries.slice(-MAX_QUEUED_EVENT_COUNT)
+    const overflow = keptEntries.length - eventQueue.length
+    if (overflow > 0) {
+      lossCounters.capacity += overflow
+      lossCounters.count += overflow
+    }
+    for (;;) {
+      if (!eventQueue.length || JSON.stringify(eventQueue).length <= MAX_QUEUE_BYTES) break
       eventQueue.shift()
+      lossCounters.capacity += 1
+      lossCounters.count += 1
+    }
   }
   function persistQueue() {
     pruneQueue()
@@ -264,6 +287,8 @@
       context: pickPayload({
         page: bridgeWindow.location.pathname,
         userAgent: bridgeWindow.navigator?.userAgent || '',
+        pageSessionId,
+        ...(clientFrontendRevision ? { clientFrontendRevision } : {}),
         ...logPayload,
         ...reportFields,
       }),
@@ -308,13 +333,48 @@
       errorObject
     )
   }
+  /**
+   * 丢失计数的告警事件（0.8.7 `CLIENT_LOG_DROPPED`）。
+   *
+   * 只有在队列里没有同类告警时才插一条，避免「丢了 1 条 → 告警 → 又丢 1 条 → 再告警」刷屏。
+   * `lossSnapshot` 记下报的是哪一批，发送成功后再把计数减掉。
+   */
+  function queueLossWarning() {
+    if (!lossCounters.count) return
+    const hasPendingWarning = eventQueue.some((queuedEntry: { lossSnapshot?: unknown }) => queuedEntry.lossSnapshot)
+    if (hasPendingWarning) return
+    const snapshot = { ...lossCounters }
+    eventQueue.unshift({
+      event: {
+        level: 'warning',
+        source: currentSourceName(),
+        category: '日志采集',
+        message: `有 ${lossCounters.count} 条浏览器日志未能保留，排查信息可能不完整。`,
+        details: `队列容量丢弃：${lossCounters.capacity} 条；等待过期：${lossCounters.expired} 条；上报被永久拒绝：${lossCounters.invalid} 条。`,
+        context: pickPayload({
+          page: bridgeWindow.location.pathname,
+          pageSessionId,
+          ...(clientFrontendRevision ? { clientFrontendRevision } : {}),
+          code: 'CLIENT_LOG_DROPPED',
+          droppedEvents: lossCounters.count,
+          hint: '请在问题出现后及时导出日志，并一并说明当时的操作和时间。',
+        }),
+        clientTimestamp: new Date().toISOString(),
+      },
+      queuedAt: Date.now(),
+      lossSnapshot: snapshot,
+    })
+  }
+
   async function flushQueue() {
     if (isFlushing || bridgeWindow.navigator?.onLine === false) return
     if (Date.now() < nextRetryAt) {
       scheduleFlush(nextRetryAt - Date.now())
       return
     }
-    if ((pruneQueue(), !eventQueue.length)) {
+    pruneQueue()
+    queueLossWarning()
+    if (!eventQueue.length) {
       persistQueue()
       return
     }
@@ -355,6 +415,12 @@
           bridgeWindow.clearTimeout(timeoutId)
         }
         if (sendResponse.ok) {
+          // 丢失告警投递成功：把这条报过的那批计数减掉（保留之后新增的）。
+          if (batchEntry.lossSnapshot) {
+            for (const lossKey of ['count', 'capacity', 'expired', 'invalid'] as const) {
+              lossCounters[lossKey] = Math.max(0, lossCounters[lossKey] - Number(batchEntry.lossSnapshot[lossKey] || 0))
+            }
+          }
           removeQueuedEntry(batchEntry), (retryDelayMs = 1000)
           continue
         }
@@ -368,6 +434,9 @@
             (retryDelayMs = Math.min(60000, retryDelayMs * 2))
           break
         }
+        // 其余 4xx 属于永久拒绝：条目被丢弃，计入「上报被永久拒绝」。
+        lossCounters.invalid += 1
+        lossCounters.count += 1
         removeQueuedEntry(batchEntry)
       }
     } catch {

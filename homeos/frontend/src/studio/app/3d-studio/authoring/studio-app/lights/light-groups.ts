@@ -3,6 +3,7 @@ import { syncStudioSelect as syncStudioSelect2 } from '../../ui/studio-widgets'
 import { lampItemTypeSet } from '../../items/item-catalog'
 import type { ListDragRowSession } from '../../types/studio-app-types'
 import { generateId } from '../../ui/studio-app-helpers'
+import { isPlacedItemLocked } from '../../items/placed-item-state'
 
 export function getLightGroups(runtime: StudioAppRuntime) {
   const lightGroups = runtime.appCtx.studioState.lightGroups || (runtime.appCtx.studioState.lightGroups = [])
@@ -54,6 +55,21 @@ export function showLightGroupActionMenu(runtime: StudioAppRuntime, lightGroupRo
 
 export function deleteLightGroup(runtime: StudioAppRuntime, lightGroupToDelete: any) {
   if (!lightGroupToDelete || runtime.appCtx.studioState.lightGroups.length <= 1) return
+  /**
+   * 锁定守卫（0.8.7）：组内有已锁定的灯时拒绝删除。
+   * 「已放置」面板把锁当作「别动它」的承诺，删灯组会把锁定件一起删掉，
+   * 那是用户明确要求不要发生的事，所以这里必须挡下来而不是弹二次确认。
+   */
+  const lockedLampInGroup = runtime.appCtx.studioState.items.some(
+    (groupLamp) =>
+      lampItemTypeSet.has(groupLamp.type) &&
+      groupLamp.lightGroupId === lightGroupToDelete.id &&
+      isPlacedItemLocked(runtime.appCtx, groupLamp.id),
+  )
+  if (lockedLampInGroup) {
+    runtime.showToast('请先解锁组内灯光，再删除整个灯组。', 'warning')
+    return
+  }
   runtime.deselectAll()
   const fallbackLightGroup = runtime.appCtx.studioState.lightGroups.find(
       (otherLightGroup) => otherLightGroup.id !== lightGroupToDelete.id,

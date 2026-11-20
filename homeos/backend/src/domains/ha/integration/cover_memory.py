@@ -57,7 +57,7 @@ def number(value: Any) -> float | None:
         return None
     try:
         result = float(value)
-    except (ValueError, OverflowError):
+    except (ValueError, OverflowError):  # fmt: skip
         return None
     if not math.isfinite(result):
         return None
@@ -81,13 +81,13 @@ def _finite(value: Any) -> float | None:
 
 def report_time(state: dict) -> float | None:
     """把 ``updatedAt`` / ``last_updated`` 解析成毫秒时间戳；解析不出来返回 ``None``。"""
-    raw = state.get('updatedAt') or state.get('last_updated')
+    raw = state.get("updatedAt") or state.get("last_updated")
     if not isinstance(raw, str) or not raw:
         return None
     try:
         # Python 3.11+ 的 ``fromisoformat`` 直接认 ``Z`` 后缀，不必再手工替换。
         return datetime.fromisoformat(raw).timestamp() * 1000
-    except (ValueError, OverflowError):
+    except (ValueError, OverflowError):  # fmt: skip
         return None
 
 
@@ -97,12 +97,12 @@ def native_tilt(attributes: dict) -> bool:
     ``supported_features`` 的 240 位（16+32+64+128）是 tilt 家族；
     或者实体直接报了 ``current_tilt_position``。两者任一成立即视为有叶片。
     """
-    raw = attributes.get('supported_features')
+    raw = attributes.get("supported_features")
     try:
         features = int(float(raw)) if raw is not None else 0
-    except (ValueError, TypeError, OverflowError):
+    except (ValueError, TypeError, OverflowError):  # fmt: skip
         features = 0
-    return bool(features & 240) or number(attributes.get('current_tilt_position')) is not None
+    return bool(features & 240) or number(attributes.get("current_tilt_position")) is not None
 
 
 def memory_axis(binding: dict, *, airer: bool = False) -> str:
@@ -113,29 +113,26 @@ def memory_axis(binding: dict, *, airer: bool = False) -> str:
       因为梦幻帘的"位置"还混着叶片状态。
     """
     if airer:
-        return (
-            f"airer:{int(binding.get('positionReversed') is True)}:"
-            f"{int(binding.get('liftReversed') is True)}"
-        )
-    return 'dream' if binding.get('coverKind') == 'dream' else 'rail'
+        return f"airer:{int(binding.get('positionReversed') is True)}:{int(binding.get('liftReversed') is True)}"
+    return "dream" if binding.get("coverKind") == "dream" else "rail"
 
 
 def sample(value: dict, now: float) -> dict[str, Any] | None:
     """把一次「位置 → 目标」的观察压缩成一条补间样本。"""
     if not isinstance(value, dict):
         return None
-    target = number(value.get('target'))
-    start = number(value.get('position'))
+    target = number(value.get("target"))
+    start = number(value.get("position"))
     if target is None and start is None:
         return None
-    result: dict[str, Any] = {'at': now}
+    result: dict[str, Any] = {"at": now}
     if start is not None:
-        result['position'] = start
+        result["position"] = start
     if target is not None:
-        result['target'] = target
-    duration = _finite(value.get('duration'))
+        result["target"] = target
+    duration = _finite(value.get("duration"))
     if duration is not None and 0 < duration <= 600:
-        result['duration'] = duration
+        result["duration"] = duration
     return result
 
 
@@ -144,7 +141,19 @@ class CoverMemory:
 
     线程 / 任务模型：全部方法都在事件循环里调用；写盘用 ``asyncio.to_thread`` 抖动到
     后台，调用方永远不被磁盘阻塞（磁盘慢的时候宁可少写一次）。
+
+    0.8.7 起多了两件事：
+
+    * **失败可诊断**：读 / 写 / 凭据身份失败各自有稳定码与中文原因，同一码只报一次，
+      恢复时补一条「已恢复」；不再只有一行 ``LOGGER.warning``。
+    * **在途读取可作废**：重建连接时 ``invalidate_requests()`` 让上一次读取的结果作废，
+      避免「旧凭据算出来的位置」覆盖新作用域。
     """
+
+    #: 读 / 写 / 身份三类失败的稳定码（日志里按码去重）。
+    READ_FAILED = "COVER_HISTORY_READ_FAILED"
+    WRITE_FAILED = "COVER_HISTORY_WRITE_FAILED"
+    IDENTITY_FAILED = "COVER_HISTORY_IDENTITY_FAILED"
 
     def __init__(
         self,
@@ -152,11 +161,14 @@ class CoverMemory:
         *,
         now: Callable[[], float] = time.time,
         credential: Callable[[], str] | None = None,
+        event_log: Any = None,
     ) -> None:
         self.path = Path(path)
         self.now = now
         self.credential = credential
-        self.scope = ''
+        #: 全局日志（可选）：只在状态变化时写一条，不参与控制链路。
+        self.event_log = event_log
+        self.scope = ""
         self.entries: dict[str, dict[str, Any]] = {}
         self.generation = object()
         self._timer: asyncio.TimerHandle | None = None
@@ -164,6 +176,8 @@ class CoverMemory:
         self._dirty = False
         self._tokens: dict[str, dict[str, Any]] = {}
         self._sequence = 0
+        #: 已报过、尚未恢复的失败码（同一故障只记一次，避免磁盘坏掉时刷屏）。
+        self._reported_failures: set[str] = set()
         #: 每实体最近一次**完成**的下发序号。并发下发时完成顺序可能与发起顺序相反，
         #: 用它丢弃「晚到但更早发起」的那一次（见 ``complete``）。
         self._last_completed_sequence: dict[str, int] = {}
@@ -175,19 +189,72 @@ class CoverMemory:
         path = self.path
         now = self.now
         credential = self.credential
-        self.__init__(path, now=now, credential=credential)
+        event_log = self.event_log
+        self.__init__(path, now=now, credential=credential, event_log=event_log)
+
+    def invalidate_requests(self) -> None:
+        """作废在途读取与估算（保留已确认的历史）。"""
+        self.generation = object()
+        self._tokens.clear()
+
+    # ---- 诊断 -------------------------------------------------------------
+
+    def _reason_for(self, code: str, error: BaseException | None) -> str:
+        errno_value = getattr(error, "errno", None)
+        reasons = {
+            5: "存储设备读写失败。",
+            13: "当前进程没有访问数据文件的权限。",
+            28: "磁盘剩余空间不足。",
+            30: "目标存储为只读，本次写入未完成。",
+        }
+        if isinstance(errno_value, int) and errno_value in reasons:
+            return reasons[errno_value]
+        if code == self.IDENTITY_FAILED:
+            return "暂时无法确认 Home Assistant 身份，位置记忆已暂停。"
+        if code == self.READ_FAILED:
+            return "位置记忆文件格式损坏或不完整。"
+        return "存储操作失败，原始异常已保留在详情中。"
+
+    def _diagnostic(self, code: str, level: str, message: str, error: BaseException | None, hint: str) -> None:
+        """同码只报一次；没有日志对象时退化为原样忽略（不影响控制）。"""
+        if self.event_log is None or code in self._reported_failures:
+            return
+        self._reported_failures.add(code)
+        self.event_log.append(
+            level,
+            "窗帘位置记忆",
+            "窗帘位置记忆",
+            message,
+            context={"code": code, "reason": self._reason_for(code, error), "hint": hint},
+            details=str(error) if error is not None else None,
+        )
+
+    def _recovered(self, code: str, message: str) -> None:
+        if code not in self._reported_failures:
+            return
+        self._reported_failures.discard(code)
+        if self.event_log is None:
+            return
+        self.event_log.append("success", "窗帘位置记忆", "故障恢复", message, context={"code": f"{code}_RECOVERED"})
 
     def connection_scope(self) -> str:
         """由凭据派生的作用域：不同 HA 连接的同一 ``entity_id`` 不能共用历史。"""
         if self.credential is None:
             return self.scope
         try:
-            secret = str(self.credential() or '')
-        except Exception:
-            secret = ''
+            secret = str(self.credential() or "")
+        except Exception as error:
+            self._diagnostic(
+                self.IDENTITY_FAILED,
+                "warning",
+                "无法读取 Home Assistant 连接凭据。",
+                error,
+                "检查 Home Assistant 连接凭据是否可用；位置记忆不提供设备控制权限。",
+            )
+            secret = ""
         if not secret:
-            return ''
-        return hashlib.sha256(secret.encode('utf-8')).hexdigest()[:32]
+            return ""
+        return hashlib.sha256(secret.encode("utf-8")).hexdigest()[:32]
 
     def activate(self) -> None:
         """在当前作用域下重新加载历史（凭据变化时会自动清空）。"""
@@ -196,27 +263,38 @@ class CoverMemory:
     def activate_scope(self, scope: str) -> None:
         if scope == self.scope and self.entries:
             return
+        if scope != self.scope:
+            # 换作用域＝换了一套凭据：在途读取必须作废，否则旧凭据的结果会写进新作用域。
+            self.invalidate_requests()
         self.scope = scope
         self.entries = {}
         self._tokens = {}
         self._last_completed_sequence = {}
         if not scope:
             return
+        self._recovered(self.IDENTITY_FAILED, "Home Assistant 身份已恢复，位置记忆可以继续使用。")
         self._load()
 
     def _load(self) -> None:
         try:
-            payload = json.loads(self.path.read_text(encoding='utf-8'))
+            payload = json.loads(self.path.read_text(encoding="utf-8"))
         except FileNotFoundError:
             return
-        except (OSError, ValueError):
-            LOGGER.warning('窗帘姿态历史读取失败，按空历史处理：%s', self.path, exc_info=True)
+        except (OSError, ValueError) as error:
+            LOGGER.warning("窗帘姿态历史读取失败，按空历史处理：%s", self.path, exc_info=True)
+            self._diagnostic(
+                self.READ_FAILED,
+                "warning",
+                "窗帘位置记忆读取失败，暂时使用当前设备回报。",
+                error,
+                "检查数据目录的读取权限和磁盘状态；此提示不代表设备已移动或控制失败。",
+            )
             return
-        if not isinstance(payload, dict) or payload.get('version') != FILE_VERSION:
+        if not isinstance(payload, dict) or payload.get("version") != FILE_VERSION:
             return
-        if payload.get('scope') != self.scope:
+        if payload.get("scope") != self.scope:
             return
-        entries = payload.get('entries')
+        entries = payload.get("entries")
         if not isinstance(entries, dict):
             return
         self.entries = {
@@ -232,7 +310,7 @@ class CoverMemory:
             return
         ordered = sorted(
             self.entries.items(),
-            key=lambda pair: pair[1].get('reportAt') or 0,
+            key=lambda pair: pair[1].get("reportAt") or 0,
         )
         for key, _ in ordered[: len(self.entries) - MAX_ENTRIES]:
             self.entries.pop(key, None)
@@ -275,10 +353,18 @@ class CoverMemory:
             ensure_private_dir(self.path.parent)
             atomic_write_text(
                 self.path,
-                json.dumps(payload, ensure_ascii=False, separators=(',', ':')),
+                json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
             )
-        except OSError:
-            LOGGER.warning('窗帘姿态历史写入失败（忽略，不影响控制）：%s', self.path, exc_info=True)
+            self._recovered(self.WRITE_FAILED, "窗帘位置记忆存储已恢复，已保存当前记忆。")
+        except OSError as error:
+            LOGGER.warning("窗帘姿态历史写入失败（忽略，不影响控制）：%s", self.path, exc_info=True)
+            self._diagnostic(
+                self.WRITE_FAILED,
+                "warning",
+                "窗帘位置记忆保存失败，本次变化仍保留在内存中。",
+                error,
+                "检查数据目录写入权限和剩余空间；重启前请先恢复存储，否则本次记忆可能丢失。",
+            )
 
     async def _write(self) -> None:
         async with self._write_lock:
@@ -288,67 +374,78 @@ class CoverMemory:
                     self._write_sync,
                     payload,
                 )
-            except OSError:
-                LOGGER.warning('窗帘姿态历史写入失败（忽略，不影响控制）：%s', self.path, exc_info=True)
+            except OSError as error:
+                LOGGER.warning("窗帘姿态历史写入失败（忽略，不影响控制）：%s", self.path, exc_info=True)
+                self._diagnostic(
+                    self.WRITE_FAILED,
+                    "warning",
+                    "窗帘位置记忆保存失败，本次变化仍保留在内存中。",
+                    error,
+                    "检查数据目录写入权限和剩余空间；重启前请先恢复存储，否则本次记忆可能丢失。",
+                )
+                return
+            self._recovered(self.WRITE_FAILED, "窗帘位置记忆存储已恢复，已保存当前记忆。")
 
     def _write_sync(self, payload: dict) -> None:
         ensure_private_dir(self.path.parent)
         atomic_write_text(
             self.path,
-            json.dumps(payload, ensure_ascii=False, separators=(',', ':')),
+            json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
         )
 
     def _payload(self) -> dict[str, Any]:
         return {
-            'version': FILE_VERSION,
-            'scope': self.scope,
-            'entries': self.entries,
+            "version": FILE_VERSION,
+            "scope": self.scope,
+            "entries": self.entries,
         }
 
     # ---- 观察与指令 -------------------------------------------------------
 
-    def observe(self, entity_id: str, state: dict | None, *, axis: str = 'rail') -> None:
+    def observe(self, entity_id: str, state: dict | None, *, axis: str = "rail") -> None:
         """记录一次实体状态（HA 推送 / 轮询都会走这里）。"""
         if not isinstance(state, dict):
             return
-        attributes = state.get('attributes') or {}
+        attributes = state.get("attributes") or {}
         if not isinstance(attributes, dict):
             attributes = {}
-        current = number(attributes.get('current_position'))
-        tilt = number(attributes.get('current_tilt_position'))
+        current = number(attributes.get("current_position"))
+        tilt = number(attributes.get("current_tilt_position"))
         reported = report_time(state)
         entry = self.entries.get(entity_id) or {}
-        last_state = entry.get('lastState')
-        previous = entry.get('open')
-        entry.update({
-            'entityId': entity_id,
-            'identity': axis,
-            'available': state.get('available') is not False,
-            'state': str(state.get('state') or '')[:32],
-            'lastState': last_state,
-            'reportAt': reported if reported is not None else self.now() * 1000,
-            'nativeTilt': native_tilt(attributes),
-            'attributes': {
-                'current_position': current,
-                'tilt': tilt,
-            },
-        })
+        last_state = entry.get("lastState")
+        previous = entry.get("open")
+        entry.update(
+            {
+                "entityId": entity_id,
+                "identity": axis,
+                "available": state.get("available") is not False,
+                "state": str(state.get("state") or "")[:32],
+                "lastState": last_state,
+                "reportAt": reported if reported is not None else self.now() * 1000,
+                "nativeTilt": native_tilt(attributes),
+                "attributes": {
+                    "current_position": current,
+                    "tilt": tilt,
+                },
+            }
+        )
         if current is not None:
-            entry['open'] = current
+            entry["open"] = current
             if current <= 0 or current >= 100:
-                entry['closedAt'] = entry['reportAt']
-                entry['closedNative'] = True
+                entry["closedAt"] = entry["reportAt"]
+                entry["closedNative"] = True
             else:
-                entry['closedNative'] = False
+                entry["closedNative"] = False
         if previous is not None and current is not None and previous != current:
             estimate = sample(
-                {'position': previous, 'target': current, 'duration': entry.get('duration')},
+                {"position": previous, "target": current, "duration": entry.get("duration")},
                 self.now(),
             )
             if estimate is not None:
-                entry.setdefault('estimates', []).append(estimate)
+                entry.setdefault("estimates", []).append(estimate)
                 # 只留最近 8 条：动画只用得上最后一段。
-                entry['estimates'] = entry['estimates'][-8:]
+                entry["estimates"] = entry["estimates"][-8:]
         self.entries[entity_id] = entry
         self._prune()
         self._changed()
@@ -368,13 +465,13 @@ class CoverMemory:
         for state in states:
             if not isinstance(state, dict):
                 continue
-            entity_id = str(state.get('entityId') or '')
-            if not entity_id.startswith('cover.'):
+            entity_id = str(state.get("entityId") or "")
+            if not entity_id.startswith("cover."):
                 continue
             entry = self.entries.get(entity_id)
-            axis = entry.get('identity') if isinstance(entry, dict) else None
+            axis = entry.get("identity") if isinstance(entry, dict) else None
             before = deepcopy(entry) if isinstance(entry, dict) else None
-            self.observe(entity_id, state, axis=str(axis or 'rail'))
+            self.observe(entity_id, state, axis=str(axis or "rail"))
             if self.entries.get(entity_id) != before:
                 changed.append(entity_id)
         return changed
@@ -382,28 +479,26 @@ class CoverMemory:
     def identify(self, entity_id: str, axis: str) -> dict[str, Any] | None:
         """取某实体在某条记忆轴上的历史条目。"""
         entry = self.entries.get(entity_id)
-        if not isinstance(entry, dict) or entry.get('identity') != axis:
+        if not isinstance(entry, dict) or entry.get("identity") != axis:
             return None
         return deepcopy(entry)
 
     def snapshot(self, axis: str | None = None) -> dict[str, Any]:
         """给 ``GET /cover-memory`` 用的只读快照。"""
         entries = {
-            key: deepcopy(value)
-            for key, value in self.entries.items()
-            if axis is None or value.get('identity') == axis
+            key: deepcopy(value) for key, value in self.entries.items() if axis is None or value.get("identity") == axis
         }
-        return {'version': FILE_VERSION, 'scope': self.scope, 'entries': entries}
+        return {"version": FILE_VERSION, "scope": self.scope, "entries": entries}
 
-    def begin(self, token: str, entity_id: str, *, target: float | None, axis: str = 'rail') -> None:
+    def begin(self, token: str, entity_id: str, *, target: float | None, axis: str = "rail") -> None:
         """登记一次下发（在**网络 I/O 之前**），保证失败时能回滚顺序。"""
         self._sequence += 1
         self._tokens[token] = {
-            'entityId': entity_id,
-            'axis': axis,
-            'target': target,
-            'at': self.now(),
-            'sequence': self._sequence,
+            "entityId": entity_id,
+            "axis": axis,
+            "target": target,
+            "at": self.now(),
+            "sequence": self._sequence,
         }
 
     def complete(self, token: str, *, ok: bool) -> None:
@@ -415,8 +510,8 @@ class CoverMemory:
         record = self._tokens.pop(token, None)
         if record is None:
             return
-        entity_id = record['entityId']
-        completed_sequence = int(record.get('sequence') or 0)
+        entity_id = record["entityId"]
+        completed_sequence = int(record.get("sequence") or 0)
         # 同一实体两次下发并发时，完成顺序可能与发起顺序相反（后发的先返回）。
         # 若按完成顺序追加，动画会朝「先发的那次目标」跑，而设备实际停在「后发的那次」上。
         if completed_sequence < int(self._last_completed_sequence.get(entity_id) or 0):
@@ -427,19 +522,21 @@ class CoverMemory:
         if not ok:
             return
         entry = self.entries.get(entity_id) or {}
-        previous = entry.get('open')
+        previous = entry.get("open")
         estimate = sample(
-            {'position': previous, 'target': record['target'], 'duration': entry.get('duration')},
+            {"position": previous, "target": record["target"], "duration": entry.get("duration")},
             self.now(),
         )
-        entry.update({
-            'entityId': entity_id,
-            'identity': record['axis'],
-            'reportAt': self.now() * 1000,
-        })
+        entry.update(
+            {
+                "entityId": entity_id,
+                "identity": record["axis"],
+                "reportAt": self.now() * 1000,
+            }
+        )
         if estimate is not None:
-            entry.setdefault('estimates', []).append(estimate)
-            entry['estimates'] = entry['estimates'][-8:]
+            entry.setdefault("estimates", []).append(estimate)
+            entry["estimates"] = entry["estimates"][-8:]
         self.entries[entity_id] = entry
         self._prune()
         self._changed()

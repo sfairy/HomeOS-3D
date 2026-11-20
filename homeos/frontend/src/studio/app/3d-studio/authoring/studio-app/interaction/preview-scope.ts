@@ -18,6 +18,8 @@ export function createSelectionRef(runtime: StudioAppRuntime, selectionKind: any
 
 export function refreshSelection(runtime: StudioAppRuntime) {
   ;(runtime.appCtx.selectedItem = null), (runtime.appCtx.selectedItems = [])
+  // 「全楼视图仅编辑当前楼层」提示跟着一次刷新（上游 `ch()` 在选中变化时也调用）。
+  runtime.refreshWorkspaceView?.()
 }
 
 export function isPlanItemVisible(runtime: StudioAppRuntime, planItemRef: any) {
@@ -45,6 +47,7 @@ export function selectSceneObject(runtime: StudioAppRuntime, objectKind: any, ob
         }
       : null),
     (runtime.appCtx.selectedItems = [])
+  runtime.refreshWorkspaceView?.()
 }
 
 export function getDefaultSelectionScope(runtime: StudioAppRuntime) {

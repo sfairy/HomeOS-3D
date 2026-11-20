@@ -41,9 +41,33 @@ export const WARM_WOOD_STYLE = Object.freeze({
 })
 export function decorateWarmFloor(material: any, style: any) {
   if (!style.warmWood) return
-  ;(material.roughness = 0.92), (material.emissiveIntensity = 0.075), (material.roughness = 0.84)
+  // 自然木语用胡桃色 + 更窄的板宽与更密的木纹；暖阳原木保持浅橡木。共用同一段 shader 结构，
+  // 只换常量 —— 两套 GLSL 各自演化的话，改一处必然忘另一处。
+  const isNatural = style.naturalWood === true,
+    plankWidth = isNatural ? '0.19' : '0.28',
+    plankLength = isNatural ? '1.80' : '2.40',
+    grainFrequency = isNatural ? '128.0' : '94.0',
+    grainAmplitude = isNatural ? '0.014' : '0.008',
+    seamStrength = isNatural ? '0.14' : '0.10',
+    programTag = isNatural ? ':natural-walnut-v1' : ':warm-pale-oak-v1'
+  ;(material.roughness = 0.92), (material.emissiveIntensity = isNatural ? 0.06 : 0.075), (material.roughness = 0.84)
   const originalBeforeCompile = material.onBeforeCompile,
     originalProgramKey = material.customProgramCacheKey.bind(material)()
+  const woodGrainChunk =
+    '#include <color_fragment>\n        vec2 oakP = hbOakPosition;\n' +
+    `        float oakRow = floor(oakP.y / ${plankWidth});\n` +
+    `        float oakV = fract(oakP.y / ${plankWidth});\n` +
+    `        float oakU = fract(oakP.x / ${plankLength} + mod(oakRow, 3.0) / 3.0);\n` +
+    `        float oakAcross = min(oakV, 1.0 - oakV) * ${plankWidth};\n` +
+    `        float oakEnd = min(oakU, 1.0 - oakU) * ${plankLength};\n` +
+    '        vec2 oakAA = max(fwidth(oakP), vec2(0.0001));\n' +
+    '        float oakSeam = (1.0 - smoothstep(0.001, 0.001 + oakAA.y, oakAcross)) * min(1.0, 0.003 / oakAA.y);\n' +
+    '        float oakJoint = (1.0 - smoothstep(0.001, 0.001 + oakAA.x, oakEnd)) * min(1.0, 0.003 / oakAA.x);\n' +
+    `        float oakGrain = sin(oakP.y * ${grainFrequency} + sin(oakP.x * 1.15 + oakRow) * 1.5);\n` +
+    '        float oakDetail = 1.0 - smoothstep(0.012, 0.05, oakAA.y);\n' +
+    `        float oakTone = 1.0 + sin(oakRow * 2.31) * 0.006 + oakGrain * oakDetail * ${grainAmplitude}\n` +
+    `          - max(oakSeam, oakJoint) * ${seamStrength};\n` +
+    '        diffuseColor.rgb *= mix(1.0, oakTone, step(0.8, hbOakTop));\n      '
   ;(material.onBeforeCompile = function (shader: any, renderer: any) {
     originalBeforeCompile.call(this, shader, renderer),
       (shader.vertexShader = shader.vertexShader
@@ -54,10 +78,7 @@ export function decorateWarmFloor(material: any, style: any) {
         )),
       (shader.fragmentShader = shader.fragmentShader
         .replace('#include <common>', '#include <common>\nvarying vec2 hbOakPosition;\nvarying float hbOakTop;')
-        .replace(
-          '#include <color_fragment>',
-          '#include <color_fragment>\n        vec2 oakP = hbOakPosition;\n        float oakRow = floor(oakP.y / 0.28);\n        float oakV = fract(oakP.y / 0.28);\n        float oakU = fract(oakP.x / 2.4 + mod(oakRow, 3.0) / 3.0);\n        float oakAcross = min(oakV, 1.0 - oakV) * 0.28;\n        float oakEnd = min(oakU, 1.0 - oakU) * 2.4;\n        vec2 oakAA = max(fwidth(oakP), vec2(0.0001));\n        float oakSeam = (1.0 - smoothstep(0.001, 0.001 + oakAA.y, oakAcross)) * min(1.0, 0.003 / oakAA.y);\n        float oakJoint = (1.0 - smoothstep(0.001, 0.001 + oakAA.x, oakEnd)) * min(1.0, 0.003 / oakAA.x);\n        float oakGrain = sin(oakP.y * 94.0 + sin(oakP.x * 1.15 + oakRow) * 1.5);\n        float oakDetail = 1.0 - smoothstep(0.012, 0.05, oakAA.y);\n        float oakTone = 1.0 + sin(oakRow * 2.31) * 0.006 + oakGrain * oakDetail * 0.008\n          - max(oakSeam, oakJoint) * 0.1;\n        diffuseColor.rgb *= mix(1.0, oakTone, step(0.8, hbOakTop));\n      ',
-        ))
+        .replace('#include <color_fragment>', woodGrainChunk))
   }),
-    (material.customProgramCacheKey = () => originalProgramKey + ':warm-pale-oak-v1')
+    (material.customProgramCacheKey = () => originalProgramKey + programTag)
 }

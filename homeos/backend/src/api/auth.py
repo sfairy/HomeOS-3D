@@ -38,6 +38,7 @@ from ..domains.store import (
 )
 from ..platform.core.db.db_exec import run_db
 from ..platform.core.db.models import LoginSession, User
+from ..platform.core.http.diagnostics import update_request_context
 from ..platform.core.http.errors import BusinessException
 from ..platform.security.auth_context import invalidate_session_cache
 from ..platform.security.client_address import (
@@ -525,7 +526,11 @@ def _login(session: Session, payload: LoginRequest, request: Request, response: 
         request=request,
     )
     request.app.state.global_log.append(
-        "success", "系统后台", "账号", f"账号 {user.username} 已登录"
+        "success",
+        "系统后台",
+        "账号",
+        f"账号 {user.username} 已登录",
+        context=update_request_context(request, finished=True, actor=user.username, code="ADMIN_LOGIN_SUCCEEDED", eventType="操作记录", operation="管理员登录"),
     )
     return public_user(user)
 
@@ -578,7 +583,13 @@ async def reset_password(
     invalidate_session_cache(None)
     clear_session_cookie(response, request.app.state.settings, request)
     request.app.state.global_log.append(
-        "success", "系统后台", "账号", f"账号 {username} 通过邮箱验证码重置了密码"
+        "success",
+        "系统后台",
+        "账号",
+        f"账号 {username} 通过邮箱验证码重置了密码",
+        context=update_request_context(
+            request, finished=True, actor=username, code="ADMIN_ACCOUNT_CONFIGURED", eventType="操作记录"
+        ),
     )
     # 光删 DB 会话不够：WS 在握手时一次性鉴权、之后不再查库，必须显式切断。
     await _disconnect_realtime(request, user_id)
@@ -639,12 +650,27 @@ async def logout(
     token = request.cookies.get(settings.cookie_name, "")
     username = "用户"
     revoked_user_id: str | None = None
+    ended = False
     if token:
         session_factory = request.app.state.database.session_factory
         username, revoked_user_id = await run_db(_logout_in_db, session_factory, token)
         invalidate_session_cache(token)
+        ended = revoked_user_id is not None
+    # 找不到会话（重复登出 / Cookie 已被清）也要留一条：只清登录标记，不算「已退出」。
+    message = f"{username} 已退出登录" if ended else "已处理退出请求：未找到已有会话，返回清除登录标记。"
     request.app.state.global_log.append(
-        "info", "系统后台", "账号", f"{username} 已退出登录"
+        "info",
+        "系统后台",
+        "账号",
+        message,
+        context=update_request_context(
+            request,
+            finished=True,
+            actor=username,
+            code="LOGIN_SESSION_ENDED" if ended else "LOGIN_MARKER_CLEARED",
+            eventType="操作记录",
+            operation="结束管理员登录",
+        ),
     )
     clear_session_cookie(response, settings, request)
     # 光删 DB 会话不够：WS 连接在握手时一次性鉴权、之后不再查库，所以登出后那条连接

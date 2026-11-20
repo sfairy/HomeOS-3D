@@ -33,6 +33,7 @@ from ..domains.backup.business_backup import (
     restore_business,
 )
 from ..domains.backup.secrets_ack import require_secrets_acknowledgment
+from ..platform.core.http.diagnostics import update_request_context
 from ..platform.security.auth_context import require_user
 from ..platform.security.request_origin import require_same_origin_write
 
@@ -192,12 +193,26 @@ async def export_backup(
             content={"detail": "恢复回退尚未完成，请重启程序后再操作。"},
         )
     directory = gate.workspace()
+    request.app.state.global_log.append(
+        "info",
+        "备份与恢复",
+        "业务备份",
+        "正在生成业务备份。",
+        context={"eventType": "备份", "code": "BUSINESS_BACKUP_PREPARING", "phase": "backup-generate"},
+    )
     try:
         archive = await gate.run_exclusive(
             create_archive,
             request.app.state.settings,
             directory,
             payload.password,
+        )
+        request.app.state.global_log.append(
+            "success",
+            "备份与恢复",
+            "业务备份",
+            "业务备份已生成。",
+            context={"eventType": "备份", "code": "BUSINESS_BACKUP_GENERATED", "phase": "backup-generate"},
         )
         version = request.app.state.settings.version.replace("/", "-")
         filename = f"HomeOS-{version}.habackup"
@@ -292,6 +307,13 @@ async def inspect_backup(
     except Exception as error:
         return await _inspect_failure(gate, directory, error)
     ticket = uuid4().hex
+    request.app.state.global_log.append(
+        "success",
+        "备份与恢复",
+        "业务备份",
+        "业务备份检查完成。",
+        context={"eventType": "备份", "code": "BUSINESS_BACKUP_INSPECTED", "phase": "backup-inspect"},
+    )
     gate.jobs[ticket] = {
         "directory": directory,
         "preview": preview,
@@ -360,6 +382,14 @@ async def restore_backup(
                 "系统后台",
                 "备份",
                 "全量业务数据（含账号、授权、素材与数据库）已恢复；中控设备需重新配对",
+                context=update_request_context(
+                    request,
+                    finished=True,
+                    code="BUSINESS_RESTORE_COMPLETED",
+                    eventType="操作记录",
+                    operation="恢复业务备份",
+                    persistenceState="已提交",
+                ),
             )
         except Exception:  # 恢复结果已落定，这条只是全局日志提示，不得因写日志失败把成功变成 5xx
             logger.warning("恢复成功后写全局日志提示失败（不影响恢复结果）", exc_info=True)

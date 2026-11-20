@@ -10,6 +10,8 @@ import { ensureHls, isExpiredStreamAddressError, prefetchHlsOnIdle, canPlayNativ
 import { clampNumberWithFallback, normalizeCssColor, appendSvgElement, createCameraVisualState } from './_shared'
 import { cameraStreamBudget, withCameraHttpSlot } from '@/studio/platform/camera/camera-budget'
 import { createCameraMjpegStream } from '@/studio/platform/camera/camera-mjpeg'
+import { cameraPlaybackDiagnostic } from '@app/shared/camera/camera-diagnostics'
+import { createCameraLiveSync, type CameraLiveSyncHandle } from '@app/shared/camera/camera-live-sync'
 
 import { domElement } from '@app/shared/util/dom-factory'
 /**
@@ -358,6 +360,30 @@ export function mountCameraSnapshot({
  * 注意：勿因 CODECS=hvc1 立刻弃 HLS。本机 Chrome 对 hvc1 报 probably，
  * 而 HA 通用摄像头的 MJPEG 常返回 Content-Length:0 空体；过早降级反而必挂。
  */
+/**
+ * 播放一句：自动播放被浏览器拦截时记一个标记，用户手势后成功播放再补一条 info。
+ *
+ * 0.8.7 的原话是「摄像头视频已开始播放（此前自动播放被浏览器阻止）」——
+ * 这条日志是排查「黑屏但流是好的」的关键：有它说明只是被策略拦了一帧。
+ */
+function playCameraVideo(video: HTMLVideoElement, host: HTMLElement): void {
+  video
+    .play()
+    .then(() => {
+      if (host.dataset.cameraAutoplayBlocked !== '1') return
+      delete host.dataset.cameraAutoplayBlocked
+      window.HomeOSLog?.report?.('info', '摄像头', '摄像头视频已开始播放（此前自动播放被浏览器阻止）', {
+        phase: 'camera-autoplay',
+        code: 'CAMERA_AUTOPLAY_BLOCKED',
+      })
+    })
+    .catch((error: unknown) => {
+      if ((error as { name?: string } | null)?.name === 'NotAllowedError') {
+        host.dataset.cameraAutoplayBlocked = '1'
+      }
+    })
+}
+
 export function mountCameraMedia({
   container: legacyContainerElement,
   entityId: legacySnapshotEntityId,
@@ -372,6 +398,8 @@ export function mountCameraMedia({
   projectId: cameraProjectId = '',
   componentId: cameraComponentId = '',
   cameraId: cameraMarkerId = '',
+  onVideoReady: onVideoElementReady = (_video: HTMLVideoElement) => {},
+  onAudioAvailability: onAudioAvailability = (_supported: boolean, _hasAudio: boolean | null) => {},
 }: any) {
   const cameraVideoElement = domElement(document, 'video', 'hb-camera-video')
   cameraVideoElement.setAttribute('aria-label', legacyCameraLabel || legacySnapshotEntityId)
@@ -403,6 +431,13 @@ export function mountCameraMedia({
   let isPageHidden = document.visibilityState === 'hidden'
   // go2rtc MSE：传输本体与视觉状态机都由共享实现负责，这里只持有句柄以便释放。
   let go2rtcTransport: Go2RtcMseTransportHandle | null = null
+  /**
+   * 直播沿纠偏器：只在「恢复」这一刻把播放头拉到实时位置。
+   *
+   * 与 MSE 内部的持续追赶不同 —— 那是几十次小跳（画面一顿一顿快进），
+   * 这里压成一次不可见跳转，并短暂静音盖掉跳转那一帧的花屏。
+   */
+  let liveSync: CameraLiveSyncHandle | null = null
   let legacyMjpegStream: ReturnType<typeof createCameraMjpegStream> | null = null
   let legacyStreamLease: { release: () => void } | null = null
   const cameraVisualState = createCameraVisualState(legacyContainerElement, onVisualStateChange)
@@ -425,6 +460,8 @@ export function mountCameraMedia({
     transportGeneration += 1
     transportMode = 'idle'
     clearTransportTimers()
+    liveSync?.dispose()
+    liveSync = null
     go2rtcTransport?.dispose()
     go2rtcTransport = null
     legacyMjpegStream?.dispose()
@@ -454,7 +491,37 @@ export function mountCameraMedia({
     hasVideoStarted = true
     clearTransportTimers()
     legacyPlaceholderElement.hidden = true
+    reportAudioAvailability()
+    // 恢复瞬间就纠偏：等传输层下一次 append 发现「落后 3s」已经晚了 ——
+    // 那之前浏览器会先把积压缓冲播完，正是「连续跳帧追赶」的来源。
+    liveSync?.notifyReady()
     onTransportReady()
+  }
+
+  /**
+   * 探测当前媒体流是否带音轨并回报给调用方（0.8.7 摄像头声音开关）。
+   *
+   * 判据优先级：
+   * 1. `video.audioTracks`（Safari / Firefox 提供，最准）；
+   * 2. MSE / HLS 的 `audioTracks` 属性；
+   * 3. 都没有时按「未知」处理（`null`），由 UI 允许用户尝试一次 —— 试失败会给出提示。
+   */
+  const reportAudioAvailability = () => {
+    if (isTransportDisposed) return
+    type TrackList = { length?: number }
+    type TrackCapableVideo = HTMLVideoElement & {
+      audioTracks?: TrackList
+      webkitAudioDecodedByteCount?: number
+    }
+    const video = cameraVideoElement as TrackCapableVideo
+    const audioTracks = video.audioTracks
+    let hasAudio: boolean | null = null
+    if (audioTracks && typeof audioTracks.length === 'number') {
+      hasAudio = audioTracks.length > 0
+    } else if (typeof video.webkitAudioDecodedByteCount === 'number') {
+      hasAudio = video.webkitAudioDecodedByteCount > 0 ? true : null
+    }
+    onAudioAvailability?.(true, hasAudio)
   }
 
   const reportTransportUnavailable = (unavailableMessage = '摄像头实时预览不可用') => {
@@ -594,6 +661,8 @@ export function mountCameraMedia({
     scheduleFallbackRequest()
   })
   legacyContainerElement.prepend(cameraVideoElement)
+  // 视频元素一旦进 DOM 就交给调用方（摄像头声音开关需要绑定同一元素）。
+  onVideoElementReady(cameraVideoElement)
 
   const startHlsPlayback = async (playbackGeneration: number) => {
     // hls.js 脚本按需加载：与流地址换票并行启动，避免首帧多等一个 RTT；失败时按原逻辑走快照/MJPEG。
@@ -630,7 +699,7 @@ export function mountCameraMedia({
           if (!isCurrent()) return
           hlsAddressRetries = 0
           legacyContainerElement.dataset.cameraState = 'manifest-parsed'
-          cameraVideoElement.play().catch(() => {})
+          playCameraVideo(cameraVideoElement, legacyContainerElement)
         })
         player.on(hlsRuntime.Events.ERROR, (_ev: any, hlsErrorPayload: any) => {
           if (!isCurrent() || !hlsErrorPayload?.fatal) return
@@ -646,7 +715,19 @@ export function mountCameraMedia({
           window.HomeOSLog?.report?.(
             'error',
             '摄像头',
-            '摄像头播放失败：' + (hlsErrorPayload.type || '') + ' / ' + (hlsErrorPayload.details || ''),
+            (() => {
+              // 归因后再报：一句话里混着「授权 / 编码 / 地址过期 / 网络」时，
+              // 用户与维修者都只能靠猜。分类见 `app/shared/camera/camera-diagnostics`。
+              const diagnostic = cameraPlaybackDiagnostic({
+                phase: 'hls-playback',
+                type: hlsErrorPayload.type,
+                details: hlsErrorPayload.details,
+                status: hlsErrorPayload.response?.code || 0,
+                reason: hlsErrorPayload.reason || hlsErrorPayload.error?.message || '',
+              })
+              legacyContainerElement.dataset.cameraDiagnostic = diagnostic.code
+              return '摄像头视频流播放失败：' + diagnostic.reason
+            })(),
             {
               entityId: legacySnapshotEntityId,
               phase: 'hls-playback',
@@ -685,11 +766,13 @@ export function mountCameraMedia({
         player.attachMedia(cameraVideoElement)
       } else if (supportsNativeHls) {
         cameraVideoElement.src = hlsSourceUrl
-        cameraVideoElement.play().catch(() => {})
+        playCameraVideo(cameraVideoElement, legacyContainerElement)
       } else {
         // 脚本没加载出来（离线 / 被拦截）且浏览器也不支持原生 HLS：
         // 上游在这里抛「摄像头播放器加载失败」，我们保留 MJPEG 降级但把文案带上。
-        reportTransportUnavailable('摄像头播放器加载失败')
+        const setupDiagnostic = cameraPlaybackDiagnostic({ phase: 'hls-setup', reason: '摄像头播放器加载失败' })
+        legacyContainerElement.dataset.cameraDiagnostic = setupDiagnostic.code
+        reportTransportUnavailable(setupDiagnostic.reason)
         switchToLegacyTransport(playbackGeneration)
       }
     } catch (hlsPlaybackError: any) {
@@ -718,6 +801,11 @@ export function mountCameraMedia({
   const startGo2rtcPlayback = (playbackGeneration: number) => {
     const generation = playbackGeneration
     transportMode = 'go2rtc'
+    liveSync?.dispose()
+    liveSync = createCameraLiveSync({
+      video: cameraVideoElement,
+      isCurrent: () => !isTransportDisposed && !isPageHidden && generation === transportGeneration,
+    })
     legacyContainerElement.dataset.cameraTransport = GO2RTC_TRANSPORT_NAME
     legacyContainerElement.dataset.cameraState = 'starting'
     go2rtcTransport = createGo2RtcMseTransport({

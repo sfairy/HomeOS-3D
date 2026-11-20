@@ -92,6 +92,21 @@ export interface StudioAppContext {
   doorPlacement: any
   railingPlacement: any
   marqueeBox: any
+  /**
+   * 拖动中的对齐引导线（0.8.7）。只在平面手势期间有值，
+   * 松手 / 取消时由 `handlePointerUp` 清空 —— 它不进文档，也不参与场景指纹。
+   */
+  placementGuides: Array<{
+    start: { x: number; y: number }
+    end: { x: number; y: number }
+    targetId: string
+    label: string
+  }>
+  /**
+   * 拖动中的画布反馈（0.8.7 `Bo`）：`point` 是标签锚点，`label` 是「移动 1.23 m · 边缘对齐 · 沙发」。
+   * 与 `placementGuides` 同生命周期，都不进文档。
+   */
+  dragFeedback: { point: { x: number; y: number }; label: string; guides: unknown[] } | null
   isMiddleButtonPanning: boolean
   isForceSnapDisabled: boolean
   isSnapTemporarilyOff: boolean
@@ -308,6 +323,8 @@ export function createStudioAppContext(): StudioAppContext {
     doorPlacement: null,
     railingPlacement: null,
     marqueeBox: null,
+    placementGuides: [],
+    dragFeedback: null,
     isMiddleButtonPanning: false,
     isForceSnapDisabled: false,
     isSnapTemporarilyOff: false,

@@ -4,6 +4,7 @@
  * 只有 `animationEntityId` 是开关类实体、并且已作为附加控件暴露时，
  * 喷雾才会跟随实体开关；否则保持静止并给出提示文案。
  */
+import { isWarmSceneStyle } from '@app/shared/scene-styles'
 
 /** 可作为喷雾开关的实体 id（域 + object_id）。 */
 export const isDeviceMistSource = (entityId: any) =>
@@ -263,7 +264,7 @@ export function createDeviceMist({
   return {
     sync({ root, revision, bindings = [], states = {}, enabled = true, sceneStyle = 'default' }) {
       if (isDisposed) return
-      mistContrast = sceneStyle === 'warm-wood' ? 1 : 0.35
+      mistContrast = isWarmSceneStyle(sceneStyle) ? 1 : 0.35
       const didSceneChange = rootObject !== root || rootRevision !== revision
       didSceneChange &&
         ((rootObject = root),

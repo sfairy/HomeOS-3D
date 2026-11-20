@@ -3432,7 +3432,7 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                           : editorHost.isClimateMode
                             ? addItemButton.length
                               ? '点击“添加空调/浴霸”，选择设备类型和关联模型。'
-                              : '当前楼层暂无可关联模型，请先在 3D 户型图绘制中添加壁挂空调、柜机或出风口后更新户型。'
+                              : '当前楼层暂无可关联模型，请先在 3D 户型图绘制中添加壁挂空调、柜机或空调出风口后更新户型。'
                             : addItemButton.length
                               ? '点击“添加灯光”，选择需要控制的灯组。'
                               : '当前楼层暂无灯组，请先在 3D 户型图绘制中添加灯组后更新户型。',

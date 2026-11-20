@@ -314,3 +314,23 @@
 .hb-percentage-chart.hide-values:not(.is-horizontal) {
   padding-top: 0;
 }
+
+/*
+ * 0.8.7：修「数量统计标题底部被裁切」。
+ *
+ * 原因：标签行高是 `--label-height = label-gap + label-size * 2.9`（按**两行**估的），
+ * 而图表容器的 `padding-bottom` 是 0、列高又由 `--length` 定死，于是标签一旦换行到
+ * 第二行，第二行的下缘就压在了容器边界上 —— 视觉上是「底部被切掉一条」。
+ *
+ * 只补两处，不动既有尺寸计算：
+ * 1. 图表底部留出标签行高（不是再叠一层固定值，避免与 `--label-height` 打架）；
+ * 2. 标签自身允许溢出显示，避免 `overflow: hidden` 的祖先把它剪掉。
+ */
+.hb-percentage-chart {
+  padding-bottom: var(--label-height);
+}
+.hb-percentage-label {
+  overflow: visible;
+  min-height: var(--label-height);
+  line-height: 1.35;
+}

@@ -66,6 +66,7 @@ def validate_core_sections(ctx: ValidationContext, properties: dict) -> None:
         'backgroundVisible',
         'motionRenderScale',
         'warmBackgroundTheme',
+        'baseLightingByTheme',
         'lightRegionOverrides',
         'uniformOverviewStack',
         'focusVignetteStrength',

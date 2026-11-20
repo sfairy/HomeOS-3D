@@ -23,10 +23,25 @@ const REGION_LIGHTING_PRESETS = Object.freeze({
     exposure: 0.6,
     floorBrightness: 50,
   }),
+  // 自然木语的墙面自发光更高（暖砂墙 + 木饰面），区域光再按暖木那档压到 0.6 会糊成一片；
+  // 曝光取中值、地面亮度略提，让踢脚与家具阴影还能分辨。
+  'natural-wood': Object.freeze({
+    ...baseLightingPreset,
+    exposure: 0.72,
+    floorBrightness: 62,
+  }),
 })
+
+/** 风格 → 区域光预设键。未知风格回落到默认档。 */
+function regionPresetKey(sceneStyle: unknown): 'default' | 'warm-wood' | 'natural-wood' {
+  if (sceneStyle === 'warm-wood') return 'warm-wood'
+  if (sceneStyle === 'natural-wood') return 'natural-wood'
+  return 'default'
+}
+
 export function withRegionLightingPreset(sceneConfig: any) {
   if (sceneConfig.lightingMode !== 'region') return sceneConfig
-  const presetKey = sceneConfig.sceneStyle === 'warm-wood' ? 'warm-wood' : 'default'
+  const presetKey = regionPresetKey(sceneConfig.sceneStyle)
   return {
     ...sceneConfig,
     baseLighting: {

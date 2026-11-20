@@ -296,7 +296,7 @@ import {
   isSnapEnabled as isSnapEnabledImpl, setSnapSettingsOpen as setSnapSettingsOpenImpl,
   syncSnapControls as syncSnapControlsImpl, applySnapTolerance as applySnapToleranceImpl,
   filterAssetList as filterAssetListImpl, setAssetCategory as setAssetCategoryImpl,
-  toggleAssetGroup as toggleAssetGroupImpl, closeOpenPopovers as closeOpenPopoversImpl,
+  closeOpenPopovers as closeOpenPopoversImpl,
   applyLightGroupRename as applyLightGroupRenameImpl, createLightGroup as createLightGroupImpl,
   applyWallHeightInput as applyWallHeightInputImpl, applyWallThicknessInput as applyWallThicknessInputImpl,
   applyWallOpacityInput as applyWallOpacityInputImpl, scheduleWallApply as scheduleWallApplyImpl,
@@ -304,6 +304,16 @@ import {
   commitWallOpacity as commitWallOpacityImpl, bindToolOptionWiring, bindWindowDesignerWiring, bindExportDialogWiring,
   refreshStepChecklist, prepareSaveConflictDialog,
 } from "./ui";
+import { installPlacedItemsPanel } from "./ui/placed-items-wiring";
+import { installScrollbarReveal } from "./ui/scrollbar-reveal";
+import { refreshDistanceRulers } from "./ui/studio-distance-rulers-wiring";
+import { bindStudioChrome } from "./ui/studio-chrome-bindings";
+import { refreshWorkspaceViewFor } from "./ui/studio-workspace-view";
+import { naturalWoodRuntimeFor } from "./ui/studio-natural-wood-runtime";
+import { placeSelectedItemOnSurface } from "./ui/place-surface-action";
+import { installOverlapAndPreview, offerOverlapPicker } from "./ui/overlap-and-preview-wiring";
+import { exactHeightBoundsOf } from "./ui/editor-3d-geometry";
+import { refreshEditor3D } from "./ui/editor-3d-wiring";
 import { positionLightFromAngles as positionLightFromAnglesImpl } from "../lights/studio-light-placement";
 import type { StudioAppRuntime } from "./runtime/studio-app-runtime";
 let planPainter: any = null,
@@ -619,7 +629,7 @@ export function bootStudio(): void {
     get drawPointMarker() { return drawPointMarker; },
     get drawingToolSections() { return drawingToolSections; },
     get effectCache() { return effectCache; },
-    get emitRuntimeDiagnostic() { return emitRuntimeDiagnostic; },
+    get emitRuntimeDiagnostic() { return emitRuntimeDiagnostic; }, get naturalWoodSync() { return naturalWoodRuntimeFor(appCtx).sync; },
     get endStudioGesture() { return endStudioGesture; },
     get ensureCalibrationReady() { return ensureCalibrationReady; },
     get ensureCustomMaterialStylesLoaded() { return ensureCustomMaterialStylesLoaded; },
@@ -875,7 +885,7 @@ export function bootStudio(): void {
     get refreshSelection() { return refreshSelection; },
     get refreshStudioUi() { return refreshStudioUi; },
     get refreshStudioUiInner() { return refreshStudioUiInner; },
-    get refreshStudioView() { return refreshStudioView; },
+    get refreshStudioView() { return refreshStudioView; }, get refreshWorkspaceView() { return () => refreshWorkspaceViewFor(appCtx); },
     get removePlanButton() { return removePlanButton; },
     get renderCacheWriter() { return renderCacheWriter; },
     get renderExportImage() { return renderExportImage; },
@@ -892,6 +902,7 @@ export function bootStudio(): void {
     get resetFrameSamples() { return resetFrameSamples; },
     get resetPlanInteraction() { return resetPlanInteraction; },
     get resetView() { return resetView; },
+    get resizePlanStage() { return resizePlanStage; },
     get resizeRenderCanvas() { return resizeRenderCanvas; },
     get resizeStudioRenderer() { return resizeStudioRenderer; },
     get resolveFloorDefaultGroup() { return resolveFloorDefaultGroup; },
@@ -1502,7 +1513,6 @@ export function bootStudio(): void {
   const commitWallThickness = (...args: any[]): any => (commitWallThicknessImpl as any)(studioRuntime, ...args);
   const commitWallOpacity = (...args: any[]): any => (commitWallOpacityImpl as any)(studioRuntime, ...args);
   const filterAssetList = (...args: any[]): any => (filterAssetListImpl as any)(studioRuntime, ...args);
-  const toggleAssetGroup = (...args: any[]): any => (toggleAssetGroupImpl as any)(studioRuntime, ...args);
   const setAssetCategory = (...args: any[]): any => (setAssetCategoryImpl as any)(studioRuntime, ...args);
   const closeOpenPopovers = (...args: any[]): any => (closeOpenPopoversImpl as any)(studioRuntime, ...args);
   const applyLightGroupRename = (...args: any[]): any => (applyLightGroupRenameImpl as any)(studioRuntime, ...args);
@@ -1630,6 +1640,7 @@ const planCanvasElement = selectElement("#plan-canvas"),
   lightFieldsElement = selectElement("#light-fields"),
   itemHeightFieldElement = selectElement("#item-height-field"),
   itemElevationFieldElement = selectElement("#item-elevation-field"),
+  itemPlaceSurfaceButton = selectElement("#item-place-surface"),
   itemRotationFieldElement = selectElement("#item-rotation-field"),
   itemRotationActionsElement = selectElement("#item-rotation-actions"),
   itemVerticalRotationFieldElement = selectElement("#item-vertical-rotation-field"),
@@ -1809,8 +1820,7 @@ window.addEventListener(
       scheduleModelLoadFlush());
   }));
 const externalModelRegistry = createExternalModelManager2({
-    THREE: ns2,
-    geometryCache: isEmbeddedStage ? stageStartup2?.furnitureCache : null,
+    THREE: ns2, geometryCache: isEmbeddedStage ? stageStartup2?.furnitureCache : null,
     loader: modelAssetLoader,
     stairItemTypes: stairItemTypeSet,
     isModelInUse: checkModelInUse,
@@ -2001,6 +2011,10 @@ try {
 } catch { /* Worker / 广播通道不可用（环境不支持或扩展未加载）：功能降级为单通道，不影响主流程 */ }
 appCtx.lightGroupCacheByFloor = new Map();
 appCtx.lightGainByFloor = new Map();
+installPlacedItemsPanel(studioRuntime) // 必须在 appCtx 初始化之后：安装时读 runtime.appCtx
+// 侧栏滚动条「滚动时显形」：全局单例监听，与 runtime 无关，放在面板安装之后即可。
+installScrollbarReveal();
+installOverlapAndPreview(studioRuntime);
 const disposedMaterialSet = new WeakSet();
 const precompiledMaterialKeySet = new Set(),
   maxPrecompileBatchSize = 16;
@@ -2258,9 +2272,9 @@ function refreshStudioView(...args: any[]): any {
 }
 function refreshStudioViewDeps(): RefreshStudioViewDeps {
   return {
-
     activeDoorType,
     appCtx,
+    refreshDistanceRulers: () => refreshDistanceRulers(studioRuntime),
     computeWallPolygons,
     createSelectionRef,
     drawCourtyardArea,
@@ -2283,7 +2297,7 @@ function refreshStudioViewDeps(): RefreshStudioViewDeps {
     wallWindowSpan,
     worldPointForFloor,
     zoomValueElement,
-  };
+    buildHandleGeometry: studioRuntime.buildHandleGeometry };
 }
 function hitTestPlanItem(...args: any[]): any {
   return (hitTestPlanItemImpl as any)(hitTestPlanItemDeps(), ...args);
@@ -2312,6 +2326,7 @@ function refreshStudioUiInnerDeps(): RefreshStudioUiInnerDeps {
     getLightGroups,
     getPixelsPerMeter,
     getSelectedObject,
+    heightBoundsOf: (id: string) => exactHeightBoundsOf(studioRuntime, id),
     inspectorEmptyElement,
     itemDepthLabelElement,
     itemElevationFieldElement,
@@ -2522,6 +2537,8 @@ function createStudioRendererDeps(): CreateStudioRendererDeps {
     recordFrameTime,
     recordRenderTiming,
     refreshBaseLighting,
+    // 每帧绘制完重算叠层：灯位圆点跟随户型旋转 / 缩放（0.8.7 渲染函数末尾的 overlay.update）。
+    refreshEditorOverlay: () => refreshEditor3D(appCtx),
     renderStudioFrame,
     resizeStudioRenderer,
     scheduleLightPrecompile,
@@ -2717,6 +2734,7 @@ const studioPlanItemDrawingDeps = () => ({
   resolveDoorPartMaterials,
   doorPartDisplayColor,
   backgroundSettings,
+  heightBoundsOf: (itemId: string) => exactHeightBoundsOf(studioRuntime, itemId),
 });
 /** 导出图层清单渲染的外部状态（见 `ui/studio-export-layers`）：容器元素 + 三个取数助手。 */
 const studioExportLayerDeps = () => ({
@@ -2851,6 +2869,7 @@ function handlePointerDownDeps(): HandlePointerDownDeps {
     getPreviewScopeSelection,
     hitTestHandle,
     hitTestPlanItem,
+    offerOverlapPicker: (planPoint: unknown, screenPoint: unknown) => offerOverlapPicker(studioRuntime, planPoint, screenPoint),
     isSameAlignmentFloor,
     markDocumentDirty,
     markWallsChanged,
@@ -2994,16 +3013,6 @@ toggleFloorEdgeButton.addEventListener("click", () => {
 });
 // 分组标题在标记里是普通 div：这里补上按钮语义，点标题或按 Enter / 空格都能展开整组。
 // 展开态默认全收起（`data-asset-expanded="false"`），且一次只展开一个分组。
-for (const assetGroupHeadingControl of assetHeadingCategoryControls)
-  (assetGroupHeadingControl.setAttribute("role", "button"),
-    (assetGroupHeadingControl.tabIndex = 0),
-    (assetGroupHeadingControl.dataset.assetExpanded = "false"),
-    assetGroupHeadingControl.setAttribute("aria-expanded", "false"),
-    assetGroupHeadingControl.addEventListener("click", () => toggleAssetGroup(assetGroupHeadingControl)),
-    assetGroupHeadingControl.addEventListener("keydown", (event) => {
-      (event.key !== "Enter" && event.key !== " ") ||
-        (event.preventDefault(), toggleAssetGroup(assetGroupHeadingControl));
-    }));
 for (const assetCategoryClickButton of assetCategoryButtons)
   assetCategoryClickButton.addEventListener("click", () =>
     setAssetCategory(assetCategoryClickButton.dataset.assetCategory),
@@ -3330,10 +3339,12 @@ bindAutoDiagramMessages({
   DEFAULT_BASE_LIGHTING2, appCtx, applyBaseLighting, applyCameraFocalLength, applyCameraState,
   autoDiagramComponentId, baseLightControlsElement, cameraSettings, clamp2, confirmLightingDialog,
   exportDialogElement, exportFolderNameInput, exportHeightInput, exportLockRatioInput, exportWidthInput,
-  finite2, generateExportBundle, getActiveFloor, getCameraFocalLength, getCameraTopRotation, isAutoDiagramEmbed,
-  openLightingDialog, postBridgeFloors, postBridgeState, refreshCanvasSizeUi, refreshSceneRender,
+  fetchStudioApi, finite2, generateExportBundle, getActiveFloor, getCameraFocalLength, getCameraTopRotation,
+  isAutoDiagramEmbed, showToast, studioDocumentStore,
+  getCameraMode, getCameraView, getPreviewFloorMode, captureOverviewCamera, openLightingDialog, postBridgeFloors,
+  postBridgeState, refreshCanvasSizeUi, refreshSceneRender,
   saveBaseLightingEdit, selectPreviewFloor, setCameraMode, setCameraView
-});
+}); const studioChrome = bindStudioChrome(studioRuntime); // 3D 视口编辑 / 预览风格 / 工作区主视图
 for (const previewSyncMenuRow of previewSyncControls)
   previewSyncMenuRow.addEventListener("click", () => {
     const isPreviewSyncEnabled = previewSyncMenuRow.dataset.previewSync !== "manual";
@@ -3733,6 +3744,13 @@ bindWindowDesignerWiring({
   appCtx, applyPlacementChange, backgroundSettings, captureUndoSnapshot, getActiveFloor, getPixelsPerMeter,
   getSelectedObject, isEmbeddedStage, markDocumentDirty, refreshScopeItems, selectElement, showToast
 });
+// 「贴合台面」：把选中物件的离地高度落到它当前所在的支撑面上（实现在 ui/place-surface-action.ts）。
+itemPlaceSurfaceButton.addEventListener("click", () =>
+  placeSelectedItemOnSurface({
+    appCtx, getSelectedObject, captureUndoSnapshot, validateSelectionChange, applyPlacementChange,
+    refreshScopeItems, resolvePreviewScope, markDocumentDirty, refreshStudioView, finalizeAddedItem, showToast,
+    modelLoadState: externalModelRegistry.modelLoadState }),
+);
 for (const rotateControlButton of document.querySelectorAll<StudioControlElement>("[data-rotate]"))
   rotateControlButton.addEventListener("click", () => {
     const rotatePlacedElement = getSelectedObject();
@@ -4048,10 +4066,9 @@ startupStudio(studioBootDeps());
   });
   refreshStepChecklist(appCtx);
   syncStudioHistoryFacade();
-
   // ── 显式回收：需要访问引导体内作用域的资源 ──────────────────────────────
   return () => {
-    registerStudioCommandHandler(null);
+    registerStudioCommandHandler(null); studioChrome.dispose(); naturalWoodRuntimeFor(appCtx).dispose();
     // SPA 内路由不会触发 pagehide / beforeunload（那是整页导航的路径），所以在拆场景之前
     // 尽力提交一次未保存修改；「不保存并退出」（isLeavingStudio）时按用户意愿跳过。
     if (!isEmbeddedStage && !appCtx.isLeavingStudio && hasUnsavedChanges()) {

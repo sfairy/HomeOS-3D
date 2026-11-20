@@ -12783,8 +12783,10 @@
 
 /* 0.8.4 天气预报弹窗（从 renderer.css 按选择器合并） */
 .hb-entity-details-dialog.weather-details {--wf-ink:#f4f5f6;--wf-copy:#bdc6cc;--wf-muted:#85929b;--wf-low:#9eacb7;--wf-edge:rgba(160,170,178,.56);--wf-rule:rgba(146,164,174,.095);--wf-track:rgba(141,159,171,.095);--wf-range-low:#9fbb9c;--wf-range-high:#d5bd82;--wf-tab-track:rgba(2,7,11,.22);--wf-selected:#303b44;--wf-chart:#bdc69d;--wf-panel:linear-gradient(145deg,#1b2228 0%,#12181d 48%,#0d1216 100%);width:760px;border-color:var(--wf-edge);border-radius:22px;color:var(--wf-ink);background:var(--wf-panel);box-shadow:0 30px 90px #000b,inset 0 1px #e2eaef13;font-family:Helvetica Neue,PingFang SC,Microsoft YaHei,sans-serif;font-weight:400;color-scheme:dark}
-.hb-entity-details-dialog.weather-details[data-weather-theme=warm-wood] {--wf-ink:#3d3b35;--wf-copy:#65665d;--wf-muted:#777a70;--wf-low:#747e76;--wf-edge:rgba(132,120,100,.3);--wf-rule:rgba(118,107,86,.12);--wf-track:rgba(134,143,120,.15);--wf-range-low:#8e9f7a;--wf-range-high:#bd9e62;--wf-tab-track:rgba(133,120,93,.06);--wf-selected:#e6e2d7;--wf-chart:#8c9c70;--wf-panel:linear-gradient(145deg,#fdfbf6 0%,#f7f3eb 48%,#efe9df 100%);box-shadow:0 30px 90px #41351f36,inset 0 1px #fffd;color-scheme:light}
-.hb-renderer-runtime-dialog-layer[data-runtime-dialog-theme=warm-wood] {background:#322b1f3b;animation:none}
+.hb-entity-details-dialog.weather-details[data-weather-theme=warm-wood],
+.hb-entity-details-dialog.weather-details[data-weather-theme=natural-wood] {--wf-ink:#3d3b35;--wf-copy:#65665d;--wf-muted:#777a70;--wf-low:#747e76;--wf-edge:rgba(132,120,100,.3);--wf-rule:rgba(118,107,86,.12);--wf-track:rgba(134,143,120,.15);--wf-range-low:#8e9f7a;--wf-range-high:#bd9e62;--wf-tab-track:rgba(133,120,93,.06);--wf-selected:#e6e2d7;--wf-chart:#8c9c70;--wf-panel:linear-gradient(145deg,#fdfbf6 0%,#f7f3eb 48%,#efe9df 100%);box-shadow:0 30px 90px #41351f36,inset 0 1px #fffd;color-scheme:light}
+.hb-renderer-runtime-dialog-layer[data-runtime-dialog-theme=warm-wood],
+.hb-renderer-runtime-dialog-layer[data-runtime-dialog-theme=natural-wood] {background:#322b1f3b;animation:none}
 .hb-climate-details-options button i > .hb-ui-icon {
   width: 100%;
   height: 100%;
@@ -12913,3 +12915,26 @@
 
 /* ---- 0.8.4 选择器级补丁 ---- */
 #weather-forecast-section .inspector-hint { color:var(--muted,#87949d);font-size:12px;line-height:1.6;margin:10px 0 0 }
+
+/* ===== 0.8.7：普通 / 3D / 组合摄像头弹窗的声音开关 ===== */
+.has-camera-audio {--hb-camera-audio-size:clamp(calc(32px / var(--hb-camera-control-scale,var(--hb-runtime-dialog-scale,1))),44px,calc(44px / var(--hb-camera-control-scale,var(--hb-runtime-dialog-scale,1))))}
+.hb-camera-preview-heading>.hb-camera-preview-text.has-camera-audio {position:relative;width:calc(100% - 210px);max-width:calc(100% - 210px);min-height:var(--hb-camera-audio-size)}
+.hb-camera-preview-text.has-camera-audio>strong {width:100%;max-width:100%;padding-right:calc(var(--hb-camera-audio-size) + 12px);box-sizing:border-box}
+.i3d-camera-details .hb-camera-preview-heading>.hb-camera-preview-text.has-camera-audio {width:100%;max-width:none}
+.hb-camera-audio-control {position:absolute;top:0;right:0;display:inline-flex;flex:0 0 auto;align-items:center}
+.hb-camera-preview-heading button.hb-camera-audio-toggle,.hb-custom-popup-module--camera button.hb-camera-audio-toggle {display:grid;width:var(--hb-camera-audio-size);height:var(--hb-camera-audio-size);min-width:0;min-height:0;align-items:center;justify-items:center;padding:0;margin:0;border:1px solid color-mix(in srgb,currentColor 22%,transparent);border-radius:50%;color:inherit;background:color-mix(in srgb,currentColor 6%,transparent);box-shadow:none;cursor:pointer;touch-action:manipulation}
+.hb-camera-preview-heading button.hb-camera-audio-toggle[aria-pressed=true],.hb-custom-popup-module--camera button.hb-camera-audio-toggle[aria-pressed=true] {border-color:color-mix(in srgb,currentColor 65%,transparent);background:color-mix(in srgb,currentColor 15%,transparent)}
+.hb-camera-audio-toggle .hb-ui-icon {width:clamp(calc(18px / var(--hb-camera-control-scale,var(--hb-runtime-dialog-scale,1))),20px,calc(22px / var(--hb-camera-control-scale,var(--hb-runtime-dialog-scale,1))));height:clamp(calc(18px / var(--hb-camera-control-scale,var(--hb-runtime-dialog-scale,1))),20px,calc(22px / var(--hb-camera-control-scale,var(--hb-runtime-dialog-scale,1))))}
+.hb-camera-audio-toggle .hb-ui-icon[hidden] {display:none}
+.hb-camera-audio-toggle:disabled {opacity:.32;cursor:default}
+.hb-camera-audio-toggle:focus-visible {outline:2px solid currentColor;outline-offset:3px}
+.hb-camera-audio-feedback {position:absolute;z-index:8;top:calc(100% + 6px);right:0;width:max-content;max-width:min(260px,75vw);padding:7px 9px;border:1px solid color-mix(in srgb,currentColor 25%,transparent);border-radius:8px;color:CanvasText;background:color-mix(in srgb,Canvas 94%,transparent);font-size:max(12px,calc(11px / var(--hb-camera-control-scale,var(--hb-runtime-dialog-scale,1))));line-height:1.4;text-align:left}
+.hb-camera-audio-feedback[hidden] {display:none}
+.hb-custom-popup-module--camera .has-camera-audio>.hb-camera-audio-control {right:132px}
+.hb-custom-popup-module--camera .has-camera-audio>strong {max-width:calc(100% - 144px - var(--hb-camera-audio-size));overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hb-camera-preview-heading>.hb-camera-preview-text.has-camera-audio {width:100%;max-width:none}
+
+/* 0.8.7：非 3D 详情弹窗里不显示设备缩略图（占位会顶掉标题行）。 */
+.hb-camera-preview-dialog:not(.i3d-camera-details) .hb-camera-device-visual {
+  display: none;
+}

@@ -10,6 +10,7 @@ import {
 import type { Interaction3dEditorView } from './bridge'
 import { createInteraction3dCover, updateInteraction3dCoverMessage } from './cover'
 import { withRequestTimeout } from '../shared/util/request-timeout'
+import { isWarmSceneStyle, normalizeSceneStyle, SCENE_STYLES, warmBackgroundChoices } from '../shared/scene-styles'
 import {
   FLOOR_CATEGORY_CHOICES,
   configuredModuleKinds,
@@ -276,8 +277,29 @@ export function renderInteraction3dInspector(hostElement: any, targetComponent: 
     canvasHeightPx = Number(sourceCanvas.height || 1940),
     componentWidthPx = Number(position.width || 100),
     componentHeightPx = Number(position.height || 100),
-    layoutSection = createSection('布局与位置'),
-    layoutModeGroupElement = createElement('div', 'image-layout-options')
+    layoutSection = createSection('基础'),
+    layoutSectionLabelElement = createElement('div', 'inspector-grid two-columns'),
+    layoutSectionTypeInput = createElement('input'),
+    layoutSectionRemarkInput = createElement('input')
+  Object.assign(layoutSectionTypeInput, { type: 'text', value: '3D 交互', readOnly: true })
+  createLabeledField(layoutSectionLabelElement, '类型', layoutSectionTypeInput)
+  Object.assign(layoutSectionRemarkInput, {
+    id: 'interaction3d-label',
+    name: 'i3d-label',
+    type: 'text',
+    maxLength: 128,
+    value: properties.label || '',
+    placeholder: '给这个 3D 控件起个容易辨认的名字',
+  })
+  // 备注是编辑期元数据：只用于在编辑器里分辨同款控件，不参与场景渲染。
+  layoutSectionRemarkInput.addEventListener('change', () => {
+    const nextLabel = String(layoutSectionRemarkInput.value || '').trim()
+    if (nextLabel === String(properties.label || '')) return
+    commitChange({ properties: { label: nextLabel } })
+  })
+  createLabeledField(layoutSectionLabelElement, '备注', layoutSectionRemarkInput)
+  layoutSection.append(layoutSectionLabelElement)
+  const layoutModeGroupElement = createElement('div', 'image-layout-options')
   layoutModeGroupElement.setAttribute('role', 'group'), layoutModeGroupElement.setAttribute('aria-label', '3D 交互布局')
   const isFillLayout = properties.layoutMode === 'fill'
   for (const [layoutModeValue, layoutModeLabel] of [
@@ -1815,15 +1837,13 @@ export function renderInteraction3dInspector(hostElement: any, targetComponent: 
     displaySection.append(backgroundVisibilityControlElement)
   const sceneStyleSelect = createElement('select')
   ;(sceneStyleSelect.name = 'i3d-scene-style'), sceneStyleSelect.setAttribute('aria-label', '材质风格')
-  for (const [styleValue, styleLabel] of [
-    ['default', '默认风格'],
-    ['warm-wood', '暖阳原木'],
-  ]) {
+  for (const [styleValue, styleLabel] of SCENE_STYLES) {
     const styleOptionElement = createElement('option', '', styleLabel)
     ;(styleOptionElement.value = styleValue), sceneStyleSelect.append(styleOptionElement)
   }
-  const isWarmWood = properties.sceneStyle === 'warm-wood'
-  ;(sceneStyleSelect.value = isWarmWood ? 'warm-wood' : 'default'),
+  const currentSceneStyle = normalizeSceneStyle(properties.sceneStyle)
+  const isWarmWood = isWarmSceneStyle(currentSceneStyle)
+  ;(sceneStyleSelect.value = currentSceneStyle),
     sceneStyleSelect.addEventListener('change', () => {
       if (programmaticControlSet.has(sceneStyleSelect)) return
       const sceneStyleValue = sceneStyleSelect.value
@@ -1836,12 +1856,7 @@ export function renderInteraction3dInspector(hostElement: any, targetComponent: 
     createLabeledField(displaySection, '材质风格', sceneStyleSelect)
   const backgroundThemeSelect = createElement('select')
   ;(backgroundThemeSelect.name = 'i3d-background-theme'), backgroundThemeSelect.setAttribute('aria-label', '背景主题')
-  for (const [themeValue, themeLabel] of isWarmWood
-    ? [
-        ['warm-sunlight', '暖阳微光'],
-        ['warm-dusk', '暖阳暮色'],
-      ]
-    : BACKGROUND_THEMES) {
+  for (const [themeValue, themeLabel] of isWarmWood ? warmBackgroundChoices(currentSceneStyle) : BACKGROUND_THEMES) {
     const themeOptionElement = createElement('option', '', themeLabel)
     ;(themeOptionElement.value = themeValue), backgroundThemeSelect.append(themeOptionElement)
   }

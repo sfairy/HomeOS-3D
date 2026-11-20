@@ -54,6 +54,7 @@ import { openConfigurationPicker } from '../config-ui/configuration-picker'
 import { configurationProgress } from '../config-ui/configuration-progress'
 import { domElement } from '@app/shared/util/dom-factory'
 import { normalizeSecurityDraftProperties } from '@app/shared/util/security-draft'
+import { isWarmSceneStyle } from '@app/shared/scene-styles'
 export async function openSecurityEditor({
   component: component,
   panelDocument: documentApi,
@@ -1431,7 +1432,7 @@ export async function openSecurityEditor({
                 },
               ],
           true,
-          draftProperties.sceneStyle === 'warm-wood' ? 'warm-wood' : 'default',
+          isWarmSceneStyle(draftProperties.sceneStyle) ? 'warm-wood' : 'default',
         )
         previewButton.dataset.running = String(!wasRunning)
         previewButton.textContent = wasRunning ? '预览报警' : '结束预览'

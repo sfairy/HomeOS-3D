@@ -1,4 +1,5 @@
 import { createBackgroundTheme } from './background-theme'
+import { isWarmSceneStyle } from '@app/shared/scene-styles'
 
 /** 背景外观配置：只列本模块读的键。 */
 type BackgroundAppearanceConfig = {
@@ -188,7 +189,7 @@ export function createSceneBackground(stageOptions: any, requestFrame = () => {}
     },
 
     configure(configuredTheme: any, config: BackgroundAppearanceConfig = {}) {
-      const isWarmWoodNext = config.sceneStyle === 'warm-wood',
+      const isWarmWoodNext = isWarmSceneStyle(config.sceneStyle),
         nextWarmDusk = isWarmWoodNext && (config.warmBackgroundTheme || config.backgroundTheme) === 'warm-dusk',
         nextBackgroundEnabled = config.backgroundVisible !== false,
         didChange =

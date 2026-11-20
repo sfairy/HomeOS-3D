@@ -26,6 +26,7 @@ import {
   itemMinimumHeight as itemMinimumHeight2,
   itemMinimumElevation,
   itemElevationHint,
+  itemElevationMeaning,
   itemMinimumFootprint as itemMinimumFootprint2,
   normalizeFullRotation as normalizeFullRotation2,
 } from '../../../loaders/studio-normalization'
@@ -61,6 +62,8 @@ export interface RefreshStudioUiInnerDeps {
   getLightGroups: any
   getPixelsPerMeter: any
   getSelectedObject: any
+  /** 真实高度包围盒（0.8.7 `Ii()`）：说明行要写「实际高度 min–max m」。 */
+  heightBoundsOf?: (id: string) => { min: number; max: number; exact: boolean } | null
   inspectorEmptyElement: any
   itemDepthLabelElement: any
   itemElevationFieldElement: any
@@ -109,22 +112,49 @@ function doorOpeningInputValue(door: { defaultOpening?: number }) {
 }
 
 /**
- * 灯带专有的检查器显隐。灯带是面光：没有锥角，也没有距离截断（亮度随距离自然衰减），
- * 光束角和照射范围对它都无效；倾斜 / 翻滚只在「自定义角度」安装时有意义。
+ * 离地字段下方的说明行（0.8.7：`hint + 读数 + 拖拽提示`）。
+ *
+ * 读数照 0.8.7 `t0()` 的口径：能拿到模型包围盒时写「实际高度 min–max m」（数字走
+ * `editNumberText`，最多 6 位小数，所以会出现 1.944703 这种读数）；拿不到时退回
+ * 类型化的离地值（「光源安装高度 2.70 m」）。
  */
-function syncStripInspectorFields(
-  item: { type?: string; stripMount?: unknown },
+function itemHeightExplanation(
+  item: { id?: unknown; type?: string; elevation?: unknown },
+  heightBoundsOf?: (id: string) => { min: number; max: number; exact: boolean } | null,
+): string {
+  const bounds = item.id ? heightBoundsOf?.(String(item.id)) : null
+  const reading = bounds?.exact
+    ? `实际高度 ${editNumberText(bounds.min)}–${editNumberText(bounds.max)} m`
+    : `${itemElevationMeaning(item.type).label} ${editNumberText(finite2(item.elevation, 0))} m`
+  return `${itemElevationHint(item.type)} ${reading}。拖角改宽深，Shift 整体等比；拖边只改一项尺寸。`
+}
+
+/**
+ * 灯带专有的检查器显隐。灯带是面光：没有锥角，也没有距离截断（亮度随距离自然衰减），
+ * 光束角和照射范围对它都无效。
+ *
+ * 「安装倾斜 / 出光方向」不在这里按安装方式隐藏（0.8.7 对每条灯带都显示这两项）：
+ * 预设安装方式下输入框显的是该方式的规范角度，改动即由 `applyStripInspectorPose`
+ * 落成「自定义角度」。显隐只由类型决定，见主流程里那三行 `hidden =`。
+ */
+/**
+ * 「贴合台面」的显隐（0.8.7 `#item-place-surface`）：灯具（面光 / 点光都不落台面）与
+ * 户型铭牌不显示；庭院绘制在主流程里提前 `return`，整块字段连按钮一起隐藏。
+ */
+function syncPlaceSurfaceVisibility(
   selectElement: (selector: string) => HTMLElement,
-  angleFields: HTMLElement[],
+  isLightItem: boolean,
+  isPlanLabel: boolean,
 ) {
+  selectElement('#item-place-surface').hidden = isLightItem || isPlanLabel
+}
+
+function syncStripInspectorFields(item: { type?: string }, selectElement: (selector: string) => HTMLElement) {
   const isStripLight = item.type === 'striplight'
   for (const selector of ['#light-angle', '#light-range']) {
     const control = selectElement(selector).closest('.light-batch-control') as HTMLElement | null
     if (control) control.hidden = isStripLight
   }
-  if (!isStripLight) return
-  const showAngles = resolveStripMount(item) === 'custom'
-  for (const field of angleFields) field.hidden = !showAngles
 }
 
 export function refreshStudioUiInner(deps: RefreshStudioUiInnerDeps, shouldClearActiveElement = false) {
@@ -137,6 +167,7 @@ export function refreshStudioUiInner(deps: RefreshStudioUiInnerDeps, shouldClear
     getLightGroups,
     getPixelsPerMeter,
     getSelectedObject,
+    heightBoundsOf,
     inspectorEmptyElement,
     itemDepthLabelElement,
     itemElevationFieldElement,
@@ -360,6 +391,10 @@ export function refreshStudioUiInner(deps: RefreshStudioUiInnerDeps, shouldClear
             if (
               ((selectElement('#item-elevation').min = String(itemMinimumElevation(at4.type))),
               (selectElement('#item-elevation').title = itemElevationHint(at4.type)),
+              // 0.8.7：字段标签本身随类型变化（底部离地 / 安装偏移 / 光源安装高度 …）。
+              (selectElement('#item-elevation-label').textContent = itemElevationMeaning(at4.type).label),
+              // 「底部离地」下方的说明行（0.8.7 同）：提示 + 实际高度读数 + 缩放操作提示。
+              (selectElement('#item-height-explanation').textContent = itemHeightExplanation(at4, heightBoundsOf)),
               (selectElement('#fan-model-fields').hidden = at4.type !== 'fan'),
               at4.type === 'fan')
             ) {
@@ -388,6 +423,7 @@ export function refreshStudioUiInner(deps: RefreshStudioUiInnerDeps, shouldClear
                 : ''),
               (itemStripRollFieldElement.hidden = at4.type !== 'striplight'),
               (itemStripOrientationHeadingElement.hidden = at4.type !== 'striplight'),
+              syncPlaceSurfaceVisibility(selectElement, isLightItem, isPlanLabel),
               (itemLightSourceVisibilityFieldElement.hidden = at4.type !== 'striplight'),
               (pillarShapeFieldElement.hidden = at4.type !== 'pillar'),
               (pillarAxisFieldElement.hidden = at4.type !== 'pillar'),
@@ -401,6 +437,9 @@ export function refreshStudioUiInner(deps: RefreshStudioUiInnerDeps, shouldClear
                 syncStudioSelect2(selectElement('#sofa-chaise-side'))),
               (stairDirectionFieldElement.hidden = !openStairTypeSet.has(at4.type)),
               (tvMountStyleFieldElement.hidden = at4.type !== 'tv'),
+              // 智能屏：安装方式决定模型（桌面款 / 壁挂款）与外形尺寸，切换由 applyToolSetting 落地。
+              // 智能屏安装方式：字段可见性与取值同步都收进 helper，不给巨型函数加分支。
+              syncSmartDisplayMountField(at4),
               (selectElement('#storage-section-field').hidden = !STORAGE_SECTION_TYPES.has(at4.type)),
               STORAGE_SECTION_TYPES.has(at4.type) &&
                 ((selectElement('#storage-section').value = storageSectionStyle(at4)),
@@ -418,11 +457,7 @@ export function refreshStudioUiInner(deps: RefreshStudioUiInnerDeps, shouldClear
               (selectElement('#item-vertical-rotation').max =
                 at4.type === 'striplight' ? '360' : includes ? '180' : '90')
             for (const lightControlElement of applyLightPropertyControls) lightControlElement.hidden = !isLightItem
-            syncStripInspectorFields(at4, selectElement, [
-              itemVerticalRotationFieldElement,
-              itemStripRollFieldElement,
-              itemStripOrientationHeadingElement,
-            ])
+            syncStripInspectorFields(at4, selectElement)
             if (
               ((itemWidthLabelElement.textContent =
                 at4.type === 'flooropening'
@@ -580,4 +615,22 @@ export function refreshStudioUiInner(deps: RefreshStudioUiInnerDeps, shouldClear
       }
     }
   }
+}
+
+/**
+ * 智能屏安装方式字段：可见性 + 当前值。
+ *
+ * 字段在两种安装方式下都要显示（它们对应两个不同的 item type），
+ * 取值缺失时按 type 反推，与草稿归一化里的规则保持一致。
+ */
+function syncSmartDisplayMountField(item: { type?: string; smartDisplayMount?: string }): void {
+  const field = globalThis.document.getElementById('smart-display-mount-field')
+  if (!field) return
+  const isSmartDisplay = String(item.type || '').startsWith('smart-display')
+  // 直接按 id 取：这两个元素只在这里用，没必要再穿一层 deps。
+  field.hidden = !isSmartDisplay
+  const select = globalThis.document.getElementById('smart-display-mount') as HTMLSelectElement | null
+  if (!isSmartDisplay || !select) return
+  select.value = item.smartDisplayMount === 'wall' ? 'wall' : 'tabletop'
+  syncStudioSelect2(select)
 }

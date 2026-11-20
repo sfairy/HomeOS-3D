@@ -7,10 +7,12 @@
  */
 
 import { clamp as clamp2 } from '../../../plan/geometry'
+import { normalizeSceneStyle } from '../../../../shared/scene-styles'
 import { createStudioDocument, normalizeScenePayload } from './studio-scene-payload'
 import {
   finite as finite2,
   normalizeBaseLighting as normalizeBaseLighting2,
+  normalizeBaseLightingByTheme as normalizeBaseLightingByTheme2,
   normalizeCameraSettings as normalizeCameraSettings2,
   normalizeFixedCameraView as normalizeFixedCameraView2,
   normalizeLabelText as normalizeLabelText2,
@@ -102,6 +104,9 @@ export function normalizeStudioDocument(rawDocument: any, deps: StudioDocumentDe
     combinedCameraSettings: normalizeCameraSettings2(rawDocument?.combinedCameraSettings),
     combinedFixedCameraView: normalizeFixedCameraView2(rawDocument?.combinedFixedCameraView),
     baseLighting: normalizeBaseLighting2(rawDocument?.baseLighting),
+    // 「分主题基础光照」：每个风格各自一份。没调过的主题不写键，读取时回落到 baseLighting。
+    baseLightingByTheme: normalizeBaseLightingByTheme2(rawDocument?.baseLightingByTheme),
+    sceneStyle: normalizeSceneStyle(rawDocument?.sceneStyle),
     exportPresets: exportPresetSlots,
     activeExportPresetSlot: normalizeActiveExportPresetSlot2(
       rawDocument?.activeExportPresetSlot,

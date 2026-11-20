@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import json
+import logging
 import threading
 import time
 from collections import OrderedDict, deque
 from datetime import datetime
 from typing import Annotated
-from urllib.parse import urlsplit
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 from fastapi.responses import PlainTextResponse
@@ -16,11 +16,14 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 from ..dependencies import CurrentUser, CurrentViewer, DatabaseSession, authenticated_viewer
 from ..domains.logs.global_log import event_context, format_log_context, safe_context
+from ..platform.core.http.frontend_resources import read_resource_revision
 from ..platform.core.runtime.client_metrics import record_client_metric
 from ..platform.security.client_address import resolve_client_address_from_request
 from ..platform.security.login_limiter import retry_after_headers
+from ..platform.security.request_origin import browser_origin_allowed
 
 router = APIRouter(prefix='/logs', tags=['global-logs'])
+logger = logging.getLogger(__name__)
 
 
 class ClientLogEvent(BaseModel):
@@ -31,15 +34,17 @@ class ClientLogEvent(BaseModel):
     category: str = Field(default='界面', min_length=1, max_length=64)
     message: str = Field(min_length=1, max_length=1000)
     details: str | None = Field(default=None, max_length=8000)
-    context: dict[str, Annotated[str, StringConstraints(max_length=512)] | int | float | bool | None] = Field(default_factory=dict, max_length=20)
+    context: dict[str, Annotated[str, StringConstraints(max_length=512)] | int | float | bool | None] = Field(default_factory=dict, max_length=32)
     clientTimestamp: datetime | None = None
 
 
 CLIENT_CONTEXT_KEYS = {
     'code',
+    'hint',
     'line',
     'page',
     'path',
+    'hours',
     'phase',
     'column',
     'method',
@@ -51,6 +56,19 @@ CLIENT_CONTEXT_KEYS = {
     'userAgent',
     'durationMs',
     'componentId',
+    'reason',
+    'eventType',
+    'operation',
+    'modelType',
+    'appVersion',
+    'entityName',
+    'projectName',
+    'componentName',
+    'componentIds',
+    'correlationId',
+    'droppedEvents',
+    'pageSessionId',
+    'clientFrontendRevision',
 }
 PUBLIC_PAGES = {
     '/',
@@ -73,16 +91,79 @@ class ClientMetricSample(BaseModel):
 
 
 def _require_same_origin(request: Request) -> None:
-    host = request.headers.get('host', '').casefold()
-    raw_origin = request.headers.get('origin', '')
-    if not raw_origin:
-        # sendBeacon / fetch keepalive 在部分浏览器不发送 Origin（同源请求允许省略）。
-        # 该端点只写聚合计数、无鉴权无副作用，匿名滥用由限流兜底，因此缺省放行；
-        # 一旦浏览器带了 Origin（跨站请求必带），仍按同源校验拦截。
-        return
-    origin = urlsplit(raw_origin)
-    if origin.scheme not in {'http', 'https'} or origin.netloc.casefold() != host:
+    """匿名上报只允许同源页面（判据与写操作共用 :func:`browser_origin_allowed`）。"""
+    if not browser_origin_allowed(request, public_report=True):
         raise HTTPException(status_code=403, detail='只允许同源页面上报。')
+
+
+def _matches_request_id(item: dict, request_id: str) -> bool:
+    context = item.get('context') or {}
+    if item.get('id') == request_id:
+        return True
+    if request_id in {context.get('requestId'), context.get('firstRequestId'), context.get('lastRequestId')}:
+        return True
+    recent = context.get('requestIds')
+    return isinstance(recent, list) and request_id in recent
+
+
+def _matches_correlation(item: dict, correlation_id: str) -> bool:
+    if item.get('id') == correlation_id:
+        return True
+    return (item.get('context') or {}).get('correlationId') == correlation_id
+
+
+def _event_request_ids(item: dict) -> set[str]:
+    """一条事件里出现过的全部请求编号（含合并后的首次 / 最近 / 近期）。"""
+    context = item.get('context') or {}
+    found = {str(context[key]) for key in ('requestId', 'firstRequestId', 'lastRequestId') if context.get(key)}
+    recent = context.get('requestIds')
+    if isinstance(recent, list):
+        found.update(str(value) for value in recent if value)
+    return found
+
+
+def _related_items(items: list[dict], request_id: str | None, correlation_id: str | None) -> list[dict]:
+    """按 `requestId` / `correlationId` 取「同一次故障」的完整事件组。
+
+    先选中锚点（编号直接命中），再把锚点里的关联编号与近期请求编号展开一轮 —— 这样
+    一条被合并计数的事件能把它合并过的所有请求一起带出来。
+    """
+    if not request_id and not correlation_id:
+        return items
+    selected = {
+        index
+        for index, item in enumerate(items)
+        if (request_id and _matches_request_id(item, request_id))
+        or (correlation_id and _matches_correlation(item, correlation_id))
+    }
+    if not selected:
+        return []
+    correlations = {
+        (items[index].get('context') or {}).get('correlationId') for index in selected
+    }
+    correlations.discard(None)
+    request_ids: set[str] = set()
+    for index in selected:
+        request_ids.update(_event_request_ids(items[index]))
+    for index, item in enumerate(items):
+        context = item.get('context') or {}
+        if context.get('correlationId') in correlations or context.get('requestId') in request_ids:
+            selected.add(index)
+    return [item for index, item in enumerate(items) if index in selected]
+
+
+def _export_heading(store, *, version: str, revision: str | None, count: int) -> str:
+    """导出文件头：版本与保留策略写清楚，避免「日志看起来少」被误解为「没发生」。"""
+    storage = store.storage_status()
+    return (
+        'HomeOS 全局诊断日志\n'
+        f'导出时程序版本：{version or "未知"}\n'
+        f'导出时前端修订：{revision or "未知"}\n'
+        f'本次筛选事件：{count} 条；保留最近 {store.retention_days} 天，上限 {store.max_bytes // 1048576} MB\n'
+        f'存储待写：{storage.get("pendingEvents", 0)} 条；存储累计丢弃：{storage.get("droppedEvents", 0)} 条\n'
+        '同一故障可能合并计数；关联事件编号连接完整故障组，首次/最近及近期请求编号保留具体请求线索。\n'
+        '旧记录缺少的字段表示当时未采集；未记录不代表未发生。\n\n'
+    )
 
 
 class ClientLogLimiter:
@@ -160,8 +241,9 @@ def _append_client_event(payload: ClientLogEvent, request: Request, viewer=None)
 
 
 @router.get('/export', response_class=PlainTextResponse)
-def export_global_logs(request: Request, _user: CurrentUser, level: str | None = Query(None, pattern='^(info|success|warning|error)$'), category: str | None = Query(None, max_length=64), search: str | None = Query(None, max_length=128)) -> PlainTextResponse:
+def export_global_logs(request: Request, _user: CurrentUser, level: str | None = Query(None, pattern='^(info|success|warning|error)$'), category: str | None = Query(None, max_length=64), search: str | None = Query(None, max_length=128), requestId: str | None = Query(None, max_length=64), correlationId: str | None = Query(None, max_length=64)) -> PlainTextResponse:
     items = list(reversed(request.app.state.global_log.list_events(limit=None, level=level, category=category, search=search)))
+    items = _related_items(items, requestId, correlationId)
     level_labels = {'info': '信息', 'success': '成功', 'warning': '警告', 'error': '错误'}
     content = '\n'.join(
         ' | '.join(
@@ -182,17 +264,34 @@ def export_global_logs(request: Request, _user: CurrentUser, level: str | None =
         )
         for item in items
     )
-    return PlainTextResponse(content, media_type='text/plain; charset=utf-8', headers={'Content-Disposition': 'attachment; filename="homeos-global-log.txt"'})
+    settings = request.app.state.settings
+    heading = _export_heading(
+        request.app.state.global_log,
+        version=getattr(settings, 'version', ''),
+        revision=_frontend_revision(settings),
+        count=len(items),
+    )
+    return PlainTextResponse(heading + content, media_type='text/plain; charset=utf-8', headers={'Content-Disposition': 'attachment; filename="homeos-global-log.txt"'})
+
+
+def _frontend_revision(settings) -> str | None:
+    """读取构建期资源修订；读不到（源码态未构建）时只记 debug，不阻塞导出。"""
+    try:
+        return read_resource_revision(settings.frontend_dir)
+    except (OSError, ValueError, KeyError):
+        logger.debug('读取前端资源修订失败，导出头回落到「未知」', exc_info=True)
+        return None
 
 
 @router.get('')
-def list_global_logs(request: Request, _user: CurrentUser, level: str | None = Query(None, pattern='^(info|success|warning|error)$'), category: str | None = Query(None, max_length=64), search: str | None = Query(None, max_length=128), limit: int = Query(500, ge=1, le=2000), offset: int = Query(0, ge=0, le=1000000)) -> dict:
+def list_global_logs(request: Request, _user: CurrentUser, level: str | None = Query(None, pattern='^(info|success|warning|error)$'), category: str | None = Query(None, max_length=64), search: str | None = Query(None, max_length=128), limit: int = Query(500, ge=1, le=2000), offset: int = Query(0, ge=0, le=1000000), requestId: str | None = Query(None, max_length=64), correlationId: str | None = Query(None, max_length=64)) -> dict:
     matching, categories = request.app.state.global_log.list_events_with_categories(
         level=level,
         category=category,
         search=search,
         limit=None,
     )
+    matching = _related_items(matching, requestId, correlationId)
     items = matching[offset:offset + limit]
     store = request.app.state.global_log
     return {
@@ -204,6 +303,7 @@ def list_global_logs(request: Request, _user: CurrentUser, level: str | None = Q
         'hasMore': offset + len(items) < len(matching),
         'nextOffset': offset + len(items),
         'storage': store.storage_status(),
+        'related': bool(requestId or correlationId),
     }
 
 

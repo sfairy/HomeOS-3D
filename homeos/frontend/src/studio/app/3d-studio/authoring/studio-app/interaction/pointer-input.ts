@@ -113,8 +113,10 @@ export function updateSnapIndicator(runtime: StudioAppRuntime, snapWallTarget = 
             (runtime.appCtx.railingPlacement = null),
             (runtime.snapIndicatorElement.textContent = runtime.isSnapEnabled() ? '吸附：开启' : snapStatusLabel)
           const df2 = runtime.hitTestHandle(runtime.appCtx.hoverPoint)
+          // 边手柄只改一个方向：上下边用 ns-resize，左右边用 ew-resize。
+          const edgeCursor = df2?.edge ? (df2.edge.x !== 0 ? 'ew-resize' : 'ns-resize') : null
           runtime.planCanvasElement.style.cursor =
-            df2?.type === 'rotate-item' ? 'grab' : df2?.type === 'resize-item' ? 'nwse-resize' : ''
+            df2?.type === 'rotate-item' ? 'grab' : df2?.type === 'resize-item' ? (edgeCursor ?? 'nwse-resize') : ''
         }
       }
     }
@@ -173,6 +175,16 @@ export function handleCanvasWheel(runtime: StudioAppRuntime, wheelEvent: any) {
           (cancelAnimationFrame(runtime.appCtx.renderLoopFrameId), runtime.scheduleDragUpdate()),
         runtime.endStudioGesture()
     }, 90))
+}
+
+/**
+ * 手势结束时的重绘判定（0.8.7）。
+ *
+ * 单独成函数是因为内联要把三个条件叠在一行里（`||` / `&&` 都计复杂度），
+ * 而 `finishPointerDrag` 已在棘轮阈值上。
+ */
+function withGuidesRepaint(runtime: StudioAppRuntime, isPan: boolean, hadGuides: boolean, hadFeedback: boolean): void {
+  if (isPan || hadGuides || hadFeedback) runtime.refreshStudioView()
 }
 
 export function finishPointerDrag(runtime: StudioAppRuntime, pointerCancelEvent: any) {
@@ -287,8 +299,14 @@ export function finishPointerDrag(runtime: StudioAppRuntime, pointerCancelEvent:
   } catch {
     /* 指针捕获：指针已失效（pointercancel / 元素已卸载）时规范要求抛错，忽略即可 */
   }
+  const hadGuides = (runtime.appCtx.placementGuides?.length ?? 0) > 0
+  const hadFeedback = Boolean(runtime.appCtx.dragFeedback)
   ;(runtime.appCtx.marqueeBox = null),
-    activeDragGesture.type === 'pan' && runtime.refreshStudioView(),
+    // 引导线与拖动反馈只属于拖动过程：手势结束就清，否则松手后画面还挂着一组虚线。
+    (runtime.appCtx.placementGuides = []),
+    (runtime.appCtx.dragFeedback = null),
+    // 清掉引导线必须重绘一次：`move-items` 结束后原本不重绘（上面只给 `pan` 补了）。
+    withGuidesRepaint(runtime, activeDragGesture.type === 'pan', hadGuides, hadFeedback),
     runtime.endStudioGesture()
 }
 

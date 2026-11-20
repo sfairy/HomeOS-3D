@@ -153,6 +153,10 @@ services:
       # 主应用公网地址（穿透后的域名）。同源校验、WebSocket 来源、socket.io 白名单都认它；
       # 填了之后局域网 IP 直连仍然可用（校验同时接受与本请求 Host 同源）。
       APP_BASE_URL: ${APP_BASE_URL:-https://homelife.iepose.cn}
+      # 「额外公开访问来源」：同一台机器被多个反代地址访问时的其余入口。
+      # 逗号分隔，每项必须是完整来源（scheme://host:port，带实际端口、不带路径）。
+      # 校验在启动期完成：写错会直接启动失败并给出中文原因，而不是「这个入口偶尔 403」。
+      APP_ADDITIONAL_PUBLIC_ORIGINS: ${APP_ADDITIONAL_PUBLIC_ORIGINS:-}
       # 内网 HTTPS(8803) 的证书签给谁：用 IP 访问时填那个 IP（用主机名访问可不改）。
       APP_HTTPS_DEFAULT_SNI: ${APP_HTTPS_DEFAULT_SNI:-homeos.local}
       # 内置反代的访问日志：默认 discard（不写），排查反代层问题（502 / TLS / 跨域 /

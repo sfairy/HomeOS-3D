@@ -1152,6 +1152,101 @@ function roundResizeLength(rawLength: number) {
     : rawLength
 }
 
+/** 由「相对锚点的半宽 / 半深」反算旋转后的中心点（角手柄与边手柄共用）。 */
+function rotatedCenterFromSpan(
+  anchorPosition: { x: number; y: number },
+  halfWidthSpan: number,
+  halfDepthSpan: number,
+  rotationDegrees: number | undefined,
+): { x: number; y: number } {
+  const radians = ((Number(rotationDegrees) || 0) * Math.PI) / 180
+  return {
+    x: anchorPosition.x + halfWidthSpan * Math.cos(radians) - halfDepthSpan * Math.sin(radians),
+    y: anchorPosition.y + halfWidthSpan * Math.sin(radians) + halfDepthSpan * Math.cos(radians),
+  }
+}
+
+/** 边手柄缩放（0.8.7 `resizeItemFromEdge`）：只改拖的那一个方向，另一个维度保持。 */
+export interface PlanResizePoint {
+  x: number
+  y: number
+}
+
+/** 边手柄某一维度的取值：未拖的那一维保持原值。 */
+function edgeResizeDimension(
+  enabled: boolean,
+  localDelta: number,
+  referenceSpan: number,
+  originalValue: number,
+  minimum: number,
+  maximum: number,
+  step: number,
+): number {
+  if (!enabled) return Math.max(originalValue, minimum)
+  return clamp(roundResizeLength(snapEditDelta(Math.abs(localDelta) / referenceSpan, step)), minimum, maximum)
+}
+
+/** 把「锚点 → 指针」换算到物件本地坐标（绕 Z 反向旋转）。 */
+function edgeLocalDelta(
+  rotationDegrees: number | undefined,
+  anchorPosition: PlanResizePoint,
+  targetPosition: PlanResizePoint,
+): PlanResizePoint {
+  const radians = (-Number(rotationDegrees || 0) * Math.PI) / 180
+  const deltaX = targetPosition.x - anchorPosition.x
+  const deltaY = targetPosition.y - anchorPosition.y
+  return {
+    x: deltaX * Math.cos(radians) - deltaY * Math.sin(radians),
+    y: deltaX * Math.sin(radians) + deltaY * Math.cos(radians),
+  }
+}
+
+/** 尺寸上下限（未配置时给与角手柄一致的默认值）。 */
+function resizeBoundsOf(sizeLimits: ResizeSizeLimits): { minimum: number; maximum: number } {
+  const minimum = Math.max(Number(sizeLimits.minimumDimension) || 0.1, 1e-7)
+  return { minimum, maximum: Math.max(Number(sizeLimits.maximumDimension) || 8, minimum) }
+}
+
+export function resizeRotatedItemFromEdge(
+  sourceRectangle: ResizedRectangle & { rotation?: number },
+  directionVector: PlanResizePoint,
+  anchorPosition: PlanResizePoint,
+  targetPosition: PlanResizePoint,
+  referenceDistance: number,
+  sizeLimits: ResizeSizeLimits = {},
+) {
+  const referenceSpan = Math.max(Number(referenceDistance) || 0, 1e-7)
+  const directionSignX = Math.sign(Number(directionVector?.x) || 0)
+  const directionSignY = Math.sign(Number(directionVector?.y) || 0)
+  const localDelta = edgeLocalDelta(sourceRectangle.rotation, anchorPosition, targetPosition)
+  const { minimum: minimumDimension, maximum: maximumDimension } = resizeBoundsOf(sizeLimits)
+  const scaledWidth = edgeResizeDimension(
+    directionSignX !== 0,
+    localDelta.x,
+    referenceSpan,
+    Number(sourceRectangle.width) || minimumDimension,
+    minimumDimension,
+    maximumDimension,
+    Number(sizeLimits.widthStep) || 0,
+  )
+  const scaledDepth = edgeResizeDimension(
+    directionSignY !== 0,
+    localDelta.y,
+    referenceSpan,
+    Number(sourceRectangle.depth) || minimumDimension,
+    minimumDimension,
+    maximumDimension,
+    Number(sizeLimits.depthStep) || 0,
+  )
+  const center = rotatedCenterFromSpan(
+    anchorPosition,
+    (directionSignX * scaledWidth * referenceSpan) / 2,
+    (directionSignY * scaledDepth * referenceSpan) / 2,
+    sourceRectangle.rotation,
+  )
+  return { ...center, width: scaledWidth, depth: scaledDepth }
+}
+
 export function resizeRotatedItemFromCorner(
   sourceRectangle: any,
   directionVector: any,
@@ -1198,21 +1293,16 @@ export function resizeRotatedItemFromCorner(
   // 像素 → 米的换算会留下一串浮点尾巴（0.47299999999999997），去尾巴但不量化：
   // 任意尺寸仍然任意，只是不会把垃圾位数写进属性面板和草稿。
   ;(scaledWidth = roundResizeLength(scaledWidth)), (scaledDepth = roundResizeLength(scaledDepth))
-  const scaledHalfWidth = (directionSignX * scaledWidth * referenceSpan) / 2,
-    scaledHalfDepth = (directionSignY * scaledDepth * referenceSpan) / 2,
-    rectangleRotationRadians = ((Number(sourceRectangle.rotation) || 0) * Math.PI) / 180,
-    snappedRectangle: ResizedRectangle = {
-      x:
-        anchorPosition.x +
-        scaledHalfWidth * Math.cos(rectangleRotationRadians) -
-        scaledHalfDepth * Math.sin(rectangleRotationRadians),
-      y:
-        anchorPosition.y +
-        scaledHalfWidth * Math.sin(rectangleRotationRadians) +
-        scaledHalfDepth * Math.cos(rectangleRotationRadians),
-      width: scaledWidth,
-      depth: scaledDepth,
-    }
+  const snappedRectangle: ResizedRectangle = {
+    ...rotatedCenterFromSpan(
+      anchorPosition,
+      (directionSignX * scaledWidth * referenceSpan) / 2,
+      (directionSignY * scaledDepth * referenceSpan) / 2,
+      sourceRectangle.rotation,
+    ),
+    width: scaledWidth,
+    depth: scaledDepth,
+  }
   return (
     Number.isFinite(rectangleHeight) &&
       rectangleHeight > 0 &&

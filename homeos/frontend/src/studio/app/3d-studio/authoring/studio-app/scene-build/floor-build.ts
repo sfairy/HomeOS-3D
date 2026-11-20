@@ -1,3 +1,4 @@
+import { isWarmSceneStyle } from '../../../../shared/scene-styles'
 import type { StudioAppRuntime } from '../runtime/studio-app-runtime'
 import {
   courtyardFootprintLoops as courtyardFootprintLoops2,
@@ -165,7 +166,7 @@ export function buildGroundShadow(
       (groundShadowMesh.position.y = groundShadowHeight + 0.001 + shadowLayerIndex * 0.00015),
       (groundShadowMesh.userData.floorPlanGroundShadow = true),
       (groundShadowMesh.userData.exportRole = 'background'),
-      (groundShadowMesh.visible = runtime.appCtx.sceneStyle !== 'warm-wood'),
+      (groundShadowMesh.visible = !isWarmSceneStyle(runtime.appCtx.sceneStyle)),
       (groundShadowMesh.renderOrder = 1 + shadowLayerIndex),
       runtime.appCtx.sceneRootNode.add(groundShadowMesh)
   })
@@ -204,6 +205,8 @@ export function setPreviewFloor(
     Promise.allSettled(runtime.preloadDefaultModels()),
     runtime.rebuildFloorLayers(),
     runtime.updateCameraView(),
+    // 切层 / 切「全楼」后刷新工作区提示（「全楼视图仅编辑当前楼层」）。
+    runtime.refreshWorkspaceView?.(),
     shouldPersistPreview && runtime.markDocumentDirty())
 }
 
@@ -388,6 +391,9 @@ export function createFloorWorldMapper(runtime: StudioAppRuntime) {
     floorMapperOriginY = nn5.y
   return {
     ppm: floorMapperPpm,
+    // 0.8.7 3D 视口编辑要在地图像素与世界米之间来回换算，原点必须一起返回，
+    // 否则调用方只能再推导一遍（两处推导迟早会漂移）。
+    origin: { x: floorMapperOriginX, y: floorMapperOriginY },
     floorSurfaceY: -0.008,
     floorPolygons: runtime.closedWallLoops(floorMapperPpm),
     toWorld: (mapperPoint: any) => ({

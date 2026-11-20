@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import errno
+import json
 import os
 import pwd
 import shutil
@@ -271,10 +272,41 @@ def initialize_permissions(
     environment["HOME"] = account.pw_dir
 
 
+def initialize_addon_options(environment: MutableMapping[str, str]) -> None:
+    """在降权前读取 HA Add-on 的 ``options.json`` 里唯一受支持的网络选项。
+
+    本项目**没有**发布 Home Assistant Add-on：这个函数是为「将来按 Add-on 形态分发」
+    预留的前向兼容钩子，因此默认什么都不做，只在同时满足两个条件时才生效：
+
+    1. ``APP_UPDATE_CHANNEL=addon``（未显式声明渠道时一律不读）；
+    2. ``APP_ADDON_OPTIONS_FILE`` 指向一个存在且可解析的 JSON。
+
+    显式环境变量优先：已经设置了 ``APP_ADDITIONAL_PUBLIC_ORIGINS`` 时不再覆盖。
+    """
+    path = (environment.get("APP_ADDON_OPTIONS_FILE") or "").strip()
+    if not path or environment.get("APP_UPDATE_CHANNEL") != "addon":
+        return
+    if "APP_ADDITIONAL_PUBLIC_ORIGINS" in environment:
+        return  # 显式配置优先，别让 Add-on 选项把它盖掉。
+    try:
+        options = json.loads(Path(path).read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return  # 手工安装 / 旧版镜像可能没有 Supervisor 选项。
+    except (OSError, ValueError) as error:
+        raise SystemExit("HomeOS 无法读取应用配置 options.json。") from error
+    origins = options.get("additional_public_origins", []) if isinstance(options, dict) else None
+    if not isinstance(origins, list) or any(not isinstance(value, str) or "," in value for value in origins):
+        raise SystemExit("additional_public_origins 必须是完整 HTTP/HTTPS 来源地址列表。")
+    environment["APP_ADDITIONAL_PUBLIC_ORIGINS"] = ",".join(
+        value.strip() for value in origins if value.strip()
+    )
+
+
 def main(arguments: Sequence[str] | None = None) -> None:
     command = list(arguments if arguments is not None else sys.argv[1:])
     if not command:
         raise SystemExit("HomeOS container command is missing.")
+    initialize_addon_options(os.environ)
     sync_license_keys(os.environ)
     # 必须在 initialize_permissions 之前：它末尾会 setuid 降权，之后就没法在 bind mount
     # 里建目录 / 改属主了。

@@ -11,6 +11,13 @@
  *   interaction3d 运行时快照轮询（C4）**只能**读它，不能改写它。
  */
 
+import type { WindowRecord } from '@app/shared/scene/window/layout'
+import {
+  restoreWindowDeletion as restoreWindowDeletion2,
+  windowDeletionChange as windowDeletionChange2,
+  windowSashTargets as windowSashTargets2,
+} from '@app/shared/scene/window/window-deletion'
+
 export interface StudioDraftPayload {
   revision: number
   scene: any
@@ -36,7 +43,7 @@ interface RemoveItemsPatch extends FloorScenePatch {
 
 interface UpdateItemsPatch extends FloorScenePatch {
   kind: 'update'
-  changes: Array<{ itemId: string; before: any; after: any }>
+  changes: Array<{ itemId: string; before: any; after: any; sashRestore?: boolean }>
 }
 
 interface MoveItemsPatch extends FloorScenePatch {
@@ -166,8 +173,10 @@ export function canApplyDocumentPatch(document: any, patch: DocumentPatch): bool
   }
 }
 
-/** 就地覆盖字段、保留对象引用（three 场景/选中集持的是同一个物件对象）。 */
-function replaceItemInPlace(target: any, replacement: any): void {
+/** 就地覆盖字段、保留对象引用（three 场景/选中集持的是同一个物件对象）。 */ function replaceItemInPlace(
+  target: any,
+  replacement: any,
+): void {
   for (const key of Object.keys(target)) {
     if (!Object.hasOwn(replacement, key)) delete target[key]
   }
@@ -175,6 +184,31 @@ function replaceItemInPlace(target: any, replacement: any): void {
 }
 
 /** 应用补丁（就地修改文档）；先 canApply 校验，失败不落任何修改。 */
+/** 这条 update 是不是一次「删掉可删窗扇」（前向）。只有它才值得在反向时做窗扇级合并。 */
+function isWindowSashReduction(change: { before: unknown; after: unknown }): boolean {
+  return (
+    windowSashTargets2(change.before as WindowRecord).length > windowSashTargets2(change.after as WindowRecord).length
+  )
+}
+
+/** 窗扇级撤销：只把消失的窗扇加回来；结构已被再次修改时返回 false（不猜）。 */
+function applyWindowDeletionRestore(
+  item: Record<string, unknown>,
+  change: { before: unknown; after: unknown },
+): boolean {
+  // 反向补丁的 before = 删之后、after = 删之前；`windowDeletionChange` 要的正是这个顺序的反面。
+  const deletionChange = windowDeletionChange2(change.after as WindowRecord, change.before as WindowRecord)
+  if (!deletionChange) return false
+  try {
+    replaceItemInPlace(item, restoreWindowDeletion2(item as WindowRecord, deletionChange))
+    return true
+  } catch {
+    // 三方合并判定结构已被再次修改（或校验不过）：返回 false 让调用方走「冲突」出口，
+    // 而不是把异常抛到文档层之外 —— 历史 store 只认布尔。
+    return false
+  }
+}
+
 export function applyDocumentPatch(document: any, patch: DocumentPatch): boolean {
   if (!canApplyDocumentPatch(document, patch)) return false
   if (patch.kind === 'batch') {
@@ -227,11 +261,21 @@ export function applyDocumentPatch(document: any, patch: DocumentPatch): boolean
     return true
   }
   const changes = patch.kind === 'update' ? patch.changes : patch.moves
-  for (const change of changes) {
-    const item = itemList.find((candidate: any) => candidate?.id === change.itemId)
-    if (!item) return false
-    replaceItemInPlace(item, change.after)
-  }
+  const isWindowsField = patchSceneField(patch) === 'windows'
+  for (const change of changes) if (!applyChangedItem(itemList, change, isWindowsField)) return false
+  return true
+}
+
+/** 一条 update/move：带 `sashRestore` 标记才走窗扇级合并，其余整件替换。 */
+function applyChangedItem(
+  itemList: Array<Record<string, unknown>>,
+  change: { itemId: string; before: unknown; after: unknown; sashRestore?: boolean },
+  isWindowsField: boolean,
+): boolean {
+  const item = itemList.find((candidate) => String(candidate?.id ?? '') === change.itemId)
+  if (!item) return false
+  if (isWindowsField && change.sashRestore === true) return applyWindowDeletionRestore(item, change)
+  replaceItemInPlace(item, change.after)
   return true
 }
 
@@ -260,6 +304,14 @@ export function invertDocumentPatch(patch: DocumentPatch): DocumentPatch {
           itemId: change.itemId,
           before: change.after,
           after: change.before,
+          /**
+           * 反向补丁 = 「把删掉的窗扇放回来」时打标，供 `applyDocumentPatch` 走窗扇级合并。
+           *
+           * 为什么不能靠数量差推断：正向的「在窗型编辑器里加一扇」与反向的「撤销删扇」
+           * 在 before/after 上完全同形（都是 after 扇更多），只看数量会把加扇也当成撤销。
+           * 这里只在**前向确实是删扇**（before 扇更多）时才给反向补丁打标，语义唯一。
+           */
+          ...(isWindowSashReduction(change) ? { sashRestore: true } : {}),
         })),
       }
     case 'move':
@@ -353,6 +405,17 @@ export class StudioDocumentStore {
   /** PUT 成功（语义同 applyLoaded，命名让调用点表达保存成功）。 */
   applySaved(payload: StudioDraftPayload): void {
     this.applyLoaded(payload, 0)
+  }
+
+  /**
+   * 只推进服务端版本号，不采纳文档内容。
+   *
+   * 用于**定向写入**（内嵌自动导图只合并当前主题的光照）：服务器 revision 已经前进，
+   * 但本地文档就是写入源，替换整篇反而会丢掉本地视图态。不推进的话，下一次自动保存
+   * 会拿着旧 revision 撞 409。
+   */
+  advanceLoadedRevision(revision: number): void {
+    this.loadedRevisionValue = Math.max(this.loadedRevisionValue, Math.max(0, Math.trunc(Number(revision) || 0)))
   }
 
   /**

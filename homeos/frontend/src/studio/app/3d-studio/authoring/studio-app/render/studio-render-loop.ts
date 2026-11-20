@@ -1,4 +1,5 @@
 import { trimRetainedFloors as trimRetainedFloors2 } from '../../scene/floor/studio-floor-cache-budget'
+import { normalizeSceneStyle } from '../../../../shared/scene-styles'
 
 import { sceneModelOrigin as sceneModelOrigin2 } from '../../../plan/courtyard-drawing'
 import { createInteractionBatches as createInteractionBatches2 } from '../../studio-interaction-batches'
@@ -2404,7 +2405,7 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
       ctx.unusedRenderHandle = clampedFloorGap
     },
     appearance(appearanceSettings: any) {
-      const appearanceSceneStyle = appearanceSettings.sceneStyle === 'warm-wood' ? 'warm-wood' : 'default',
+      const appearanceSceneStyle = normalizeSceneStyle(appearanceSettings.sceneStyle),
         appearanceWallOpacity =
           typeof appearanceSettings.wallOpacity == 'number' && Number.isFinite(appearanceSettings.wallOpacity)
             ? clamp2(appearanceSettings.wallOpacity, 0, 1)

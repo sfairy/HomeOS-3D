@@ -23,13 +23,13 @@
     "ops"
   ],
   "totals": {
-    "sources": 3326,
-    "lines": 647626,
-    "clones": 160,
-    "duplicatedLines": 2719,
-    "percentage": 0.4198,
-    "tokens": 3769657,
-    "duplicatedTokens": 12887
+    "sources": 3424,
+    "lines": 667278,
+    "clones": 157,
+    "duplicatedLines": 2623,
+    "percentage": 0.3931,
+    "tokens": 3901424,
+    "duplicatedTokens": 12659
   },
   "byFormat": {
     "css": {
@@ -40,36 +40,36 @@
       "clones": 0
     },
     "html": {
-      "sources": 404,
-      "lines": 27896,
+      "sources": 405,
+      "lines": 27952,
       "duplicatedLines": 275,
-      "percentage": 0.9858,
+      "percentage": 0.9838,
       "clones": 20
     },
     "javascript": {
-      "sources": 263,
-      "lines": 35366,
+      "sources": 282,
+      "lines": 39150,
       "duplicatedLines": 188,
-      "percentage": 0.5316,
+      "percentage": 0.4802,
       "clones": 13
     },
     "python": {
-      "sources": 604,
-      "lines": 144967,
-      "duplicatedLines": 505,
-      "percentage": 0.3484,
-      "clones": 38
+      "sources": 607,
+      "lines": 147595,
+      "duplicatedLines": 494,
+      "percentage": 0.3347,
+      "clones": 37
     },
     "typescript": {
-      "sources": 1608,
-      "lines": 354386,
-      "duplicatedLines": 1751,
-      "percentage": 0.4941,
-      "clones": 89
+      "sources": 1682,
+      "lines": 367421,
+      "duplicatedLines": 1666,
+      "percentage": 0.4534,
+      "clones": 87
     },
     "vue": {
-      "sources": 413,
-      "lines": 82246,
+      "sources": 414,
+      "lines": 82395,
       "duplicatedLines": 0,
       "percentage": 0,
       "clones": 0
@@ -347,6 +347,12 @@
       "lines": 12
     },
     {
+      "fingerprint": "47a5112210ae6455a7e6cc47c372c0922bc6a76c",
+      "first": "homeos/frontend/src/features/security/composables/useSecuritySensors.ts",
+      "second": "homeos/frontend/src/features/security/utils/zone-room.util.ts",
+      "lines": 14
+    },
+    {
       "fingerprint": "47b92551c58edcf2a9fd13321ea8152841f73eca",
       "first": "homeos/frontend/scripts/models/lib/glb-io.mjs",
       "second": "homeos/frontend/scripts/models/organize-models.mjs",
@@ -419,12 +425,6 @@
       "lines": 13
     },
     {
-      "fingerprint": "522d802d8a1798327dad41956d0cd2b6a1dc70e1",
-      "first": "homeos/backend/src/api/ha/routes.py",
-      "second": "homeos/backend/src/api/ha/routes.py",
-      "lines": 14
-    },
-    {
       "fingerprint": "541d4f874c4ff1ff4f1abf8c49757d5dc758d4a9",
       "first": "homeos/frontend/src/components/common/entity-multi-select/EntityMultiSelect.vue",
       "second": "homeos/frontend/src/components/common/entity-multi-select/useEntityMultiSelect.ts",
@@ -479,12 +479,6 @@
       "lines": 15
     },
     {
-      "fingerprint": "6a541a9329ed8830db2a07117c9fd0afb1f7231b",
-      "first": "homeos/backend/src/bootstrap/exception_handlers.py",
-      "second": "homeos/backend/src/bootstrap/exception_handlers.py",
-      "lines": 11
-    },
-    {
       "fingerprint": "6b11fa48f5fcc601d49b901dacb9d452f3205f14",
       "first": "homeos/frontend/src/studio/app/editor/component-templates.ts",
       "second": "homeos/frontend/src/studio/app/editor/metadata/editor-navigation-style-metadata.ts",
@@ -507,12 +501,6 @@
       "first": "homeos/frontend/src/components/entities/EntityPickModal.vue",
       "second": "homeos/frontend/src/components/entities/device-group/DeviceGroupModal.vue",
       "lines": 13
-    },
-    {
-      "fingerprint": "76a11205b7194c449e54a0505910c2b2c66643a4",
-      "first": "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/boot.ts",
-      "second": "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/refreshStudioView.ts",
-      "lines": 27
     },
     {
       "fingerprint": "7ba7a42a3d91af96084a6da5ebd7c3b5e91843c6",
@@ -561,12 +549,6 @@
       "first": "homeos/frontend/src/features/settings/interact/AlertRulesPanel.vue",
       "second": "homeos/frontend/src/features/settings/interact/AlertRulesPanel.vue",
       "lines": 15
-    },
-    {
-      "fingerprint": "866f4ae7be48cf3bd3dec52401723eb4ff9471a9",
-      "first": "homeos/frontend/src/features/security/composables/useSecuritySensors.ts",
-      "second": "homeos/frontend/src/features/security/utils/zone-room.util.ts",
-      "lines": 21
     },
     {
       "fingerprint": "8751f898db38df6017ddfe75112deaaabab0633a",
@@ -695,12 +677,6 @@
       "lines": 15
     },
     {
-      "fingerprint": "a21a6915686c549f32d13a0e065d82362d9df728",
-      "first": "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/boot.ts",
-      "second": "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/interaction/handlePointerDown.ts",
-      "lines": 42
-    },
-    {
       "fingerprint": "a26024e004da6a35ea31bb8ece89944968286070",
       "first": "homeos/frontend/src/features/settings/connect/bindings/AccountListEditor.vue",
       "second": "homeos/frontend/src/features/settings/connect/bindings/AccountListRows.vue",
@@ -797,16 +773,16 @@
       "lines": 11
     },
     {
-      "fingerprint": "bb8afe9cce99f8352c2c90d28be9eba8cd876e98",
-      "first": "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/boot.ts",
-      "second": "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/refreshStudioUiInner.ts",
-      "lines": 51
-    },
-    {
       "fingerprint": "bbaa3d7ad01f81a4c38b776b2f655f9e7671de48",
       "first": "homeos/frontend/scripts/build-three-vendor.mjs",
       "second": "ops/dev.mjs",
       "lines": 11
+    },
+    {
+      "fingerprint": "bcc83b2d9cd894e9f0f748e5e1534388e95613e2",
+      "first": "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/boot.ts",
+      "second": "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/refreshStudioUiInner.ts",
+      "lines": 42
     },
     {
       "fingerprint": "bf848fa91fc17809df130857ef0c1b8bdbfbfb89",
@@ -999,6 +975,12 @@
       "first": "homeos/frontend/src/features/settings/connect/bindings/HazardBindingsSection.vue",
       "second": "homeos/frontend/src/features/settings/connect/bindings/HazardBindingsSection.vue",
       "lines": 13
+    },
+    {
+      "fingerprint": "f5f66027b5c6291c266c4abff6c7257d93ca3000",
+      "first": "homeos/backend/src/api/ha/routes.py",
+      "second": "homeos/backend/src/api/ha/routes.py",
+      "lines": 14
     },
     {
       "fingerprint": "f6335160ea1e68c66874519e05bd95c21d3889f6",

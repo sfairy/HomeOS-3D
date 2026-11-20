@@ -1,5 +1,6 @@
 import { courtyardPalette } from './courtyard-models'
 import { decorateWarmFloor } from '../authoring/scene/studio-scene-style'
+import { activeNaturalWoodLibrary } from '../materials/natural-wood/natural-wood-model-theme'
 import {
   localPoints,
   pathPoints,
@@ -11,6 +12,83 @@ import {
   hedgeSamples,
   courtyardSurfaceRise,
 } from './courtyard-drawing'
+/**
+ * 庭院构件 → 自然木语的**地表种类**（0.8.7 `naturalCourtyardSurface` 的收敛版）。
+ *
+ * 上游按「节点类型 + 部位角色」逐条判（水 / 草 / 叶 / 土 / 麻 / 石 / 玻璃 / 木）。
+ * 本项目的地面是按**颜色分组批量合并**的，手里只有「最终颜色 + 调色板」，所以这里
+ * 用「颜色等于哪个调色键」反推角色，再叠加节点类型与样式判断 —— 结论一致，
+ * 不会出现「草坪被当成石材」这类错配。
+ */
+/** 铺装样式 → 地表种类（没有登记的样式一律按石材）。 */
+const SURFACE_BY_STYLE: Readonly<Record<string, 'grass' | 'wood'>> = Object.freeze({
+  lawn: 'grass',
+  deck: 'wood',
+})
+
+function courtyardNaturalSurface(
+  courtyardNode: { type?: string; drawing?: { style?: string } },
+  color: number,
+  palette: Record<string, number>,
+  options: Record<string, unknown>,
+): 'grass' | 'stone' | 'wood' | 'water' {
+  const byStyle = SURFACE_BY_STYLE[courtyardNode.drawing?.style ?? '']
+  if (courtyardNode.type === 'courtyard-area') {
+    // 地面自己那一格跟随铺装样式；其它格（边缘、台阶）只在草坪上保持草色。
+    if (color === options.floor) return byStyle ?? 'stone'
+    return byStyle === 'grass' ? 'grass' : 'stone'
+  }
+  if (color === palette.leaf) return 'grass'
+  if (color === palette.water) return 'water'
+  return color === palette.dark || courtyardNode.type === 'courtyard-path' ? 'stone' : 'wood'
+}
+
+/** 本函数只用到的 three 构造器（结构化声明，避免为一次调用引入宽类型）。 */
+type CourtyardThree = {
+  MeshStandardMaterial: new (options: Record<string, unknown>) => Record<string, unknown>
+  Color: new (value: number) => Record<string, unknown>
+}
+
+/**
+ * 一块庭院地面的材质：自然木语开着时按「地表种类」取库材质，否则用原来的暖木/标准材质。
+ *
+ * 抽成函数而不是写在循环里：`createCourtyardDrawingModel` 已是全仓库最复杂的几个函数
+ * 之一（复杂度棘轮按函数计），这里再叠 5 个分支就会把它推过阈值。
+ */
+function courtyardGroundMaterial(
+  three: CourtyardThree,
+  context: {
+    color: number
+    isWarmFloor: boolean
+    courtyardNode: { type?: string; drawing?: { style?: string } }
+    palette: Record<string, number>
+    options: Record<string, unknown>
+    mergedGeometry: unknown
+  },
+) {
+  const { color, isWarmFloor, courtyardNode, palette, options, mergedGeometry } = context
+  const emissiveIntensity = isWarmFloor ? 0.025 : options.warmWood ? 0.045 : 0.025
+  const library = activeNaturalWoodLibrary()
+  if (!library) {
+    const standardMaterial = new three.MeshStandardMaterial({
+      color,
+      roughness: isWarmFloor ? 0.96 : 0.92,
+      metalness: 0,
+      emissive: color,
+      emissiveIntensity,
+    })
+    if (isWarmFloor) decorateWarmFloor(standardMaterial, options)
+    return standardMaterial
+  }
+  // 自然木语：库材质没有自发光，按原口径补一点，免得庭院比屋内暗一档。
+  const naturalMaterial = Object.assign(
+    library.courtyardSurface(courtyardNaturalSurface(courtyardNode, color, palette, options), color),
+    { emissive: new three.Color(color), emissiveIntensity },
+  )
+  library.prepareGeometry({ geometry: mergedGeometry, material: naturalMaterial })
+  return naturalMaterial
+}
+
 export function createCourtyardDrawingModel(
   three: any,
   mergeGeometries: any,
@@ -495,14 +573,14 @@ export function createCourtyardDrawingModel(
     const mergedGeometry = mergeGeometries(colorGeometries, false)
     if ((colorGeometries.forEach((disposedGeometry: any) => disposedGeometry.dispose()), !mergedGeometry)) continue
     const isWarmFloor = courtyardNode.type === 'courtyard-area' && color === options.floor,
-      meshMaterial = new three.MeshStandardMaterial({
-        color: color,
-        roughness: isWarmFloor ? 0.96 : 0.92,
-        metalness: 0,
-        emissive: color,
-        emissiveIntensity: isWarmFloor ? 0.025 : options.warmWood ? 0.045 : 0.025,
+      meshMaterial = courtyardGroundMaterial(three as CourtyardThree, {
+        color,
+        isWarmFloor,
+        courtyardNode,
+        palette,
+        options,
+        mergedGeometry,
       })
-    isWarmFloor && decorateWarmFloor(meshMaterial, options)
     const mesh = new three.Mesh(mergedGeometry, meshMaterial)
     ;(mesh.castShadow = true),
       (mesh.receiveShadow = true),

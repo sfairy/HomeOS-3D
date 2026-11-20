@@ -9,6 +9,21 @@ import {
 import { isPointInBounds } from '../geometry/bounds'
 import { boundsIntersectSegment } from '../geometry/bounds'
 
+/**
+ * 旋转控制只认圆点（0.8.7 的 `9/zoom` 命中半径）。
+ *
+ * 上一版把整圈都当成命中带（并因此画了一圈旋转环），但 0.8.7 的旋转控制是
+ * 「顶边引线 + 一个半径 3.5 的圆点」：环上任意位置可抓会让用户点在本体附近
+ * 就被切进旋转，和「拖本体=移动」冲突。
+ */
+function hitsRotationControl(
+  handles: { rotationHandle: { x: number; y: number } },
+  pointerPoint: { x: number; y: number },
+  hitRadius: number,
+): boolean {
+  return distance2(pointerPoint, handles.rotationHandle) <= hitRadius
+}
+
 export function hitTestHandle(runtime: StudioAppRuntime, pointerPoint: any) {
   if (
     runtime.appCtx.activeToolName !== 'select' ||
@@ -20,26 +35,33 @@ export function hitTestHandle(runtime: StudioAppRuntime, pointerPoint: any) {
   if (!at3 || isCourtyardDrawing2(at3)) return null
   const ky2 = runtime.buildHandleGeometry(at3),
     handleHitRadius = 9 / Math.max(runtime.appCtx.planView.zoom, 0.01)
-  if (distance2(pointerPoint, ky2.rotationHandle) <= handleHitRadius)
+  if (hitsRotationControl(ky2, pointerPoint, handleHitRadius))
     return {
       type: 'rotate-item',
       item: at3,
       controls: ky2,
     }
-  if (
-    at3.type === 'smart-socket-86' &&
-    Math.min(at3.width, at3.depth) * runtime.getPixelsPerMeter() * runtime.appCtx.planView.zoom < 18
-  )
-    return null
+  // 0.8.7：短边不足 18 屏幕像素时收起缩放手柄（旋转圆点仍然可抓）。
+  if (Math.min(at3.width, at3.depth) * runtime.getPixelsPerMeter() * runtime.appCtx.planView.zoom < 18) return null
   const hitCorner = ky2.corners.find(
     (cornerCandidate: any) => distance2(pointerPoint, cornerCandidate.point) <= handleHitRadius,
   )
-  return hitCorner
+  if (hitCorner)
+    return {
+      type: 'resize-item',
+      item: at3,
+      controls: ky2,
+      corner: hitCorner,
+    }
+  // 0.8.7：边中点手柄 —— 只改宽度或只改深度（角手柄是两维一起改）；风扇不画边手柄。
+  const edgeHandles = at3.type === 'fan' ? [] : (ky2.edges as Array<{ point: { x: number; y: number } }>)
+  const hitEdge = edgeHandles.find((edgeCandidate) => distance2(pointerPoint, edgeCandidate.point) <= handleHitRadius)
+  return hitEdge
     ? {
         type: 'resize-item',
         item: at3,
         controls: ky2,
-        corner: hitCorner,
+        edge: hitEdge,
       }
     : null
 }

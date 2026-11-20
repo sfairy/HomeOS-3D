@@ -82,9 +82,7 @@ HOMEOS_PRIVATE_COOKIES = frozenset({"auth_token", "csrf_token"})
 #: HomeOS 内部 Cookie 名前缀（内嵌上下文标记）
 HOMEOS_PRIVATE_COOKIE_PREFIX = "embed_ctx__"
 #: HomeOS 用户/UI 态 cookie，对内嵌站无意义
-HOMEOS_NON_AUTH_COOKIES = frozenset(
-    {"fusra_session_id", "fusra_user_info", "lastloginusername", "trim-mc-token"}
-)
+HOMEOS_NON_AUTH_COOKIES = frozenset({"fusra_session_id", "fusra_user_info", "lastloginusername", "trim-mc-token"})
 
 #: 根相对静态资源引用的扩展名（据扩展名识别 JS/CSS 里的资源引用）
 EMBED_STATIC_ASSET_EXT = (
@@ -158,9 +156,7 @@ def validate_embed_target_url(url_string: str):
     return parts
 
 
-def is_embed_same_origin_as_request(
-    embed_base: str, req_host: str | None, req_secure: bool = False
-) -> bool:
+def is_embed_same_origin_as_request(embed_base: str, req_host: str | None, req_secure: bool = False) -> bool:
     """内嵌目标与当前请求是否同一 origin（用于本地 dist 伺服短路）。"""
     try:
         embed_origin = url_origin(embed_base)
@@ -168,9 +164,7 @@ def is_embed_same_origin_as_request(
         if not host:
             return False
         protocol = "https" if req_secure else "http"
-        req_origin = (
-            url_origin(host) if "://" in host else url_origin(f"{protocol}://{host}")
-        )
+        req_origin = url_origin(host) if "://" in host else url_origin(f"{protocol}://{host}")
         return embed_origin == req_origin
     except Exception:
         return False
@@ -240,9 +234,7 @@ def rewrite_embed_location(location: str, embed_base: str, proxy_prefix: str) ->
         if loc is not None and url_origin(loc) == base_origin:
             suffix = _url_suffix(loc)
             path_part = suffix.removeprefix("/")
-            return rewrite_embed_same_origin_urls(
-                f"{proxy_prefix}{path_part}", embed_base, proxy_root
-            )
+            return rewrite_embed_same_origin_urls(f"{proxy_prefix}{path_part}", embed_base, proxy_root)
         # 跨域跳转：地址本身不动，但其查询串里仍可能含上游同源地址
         return rewrite_embed_same_origin_urls(location, embed_base, proxy_root)
     except Exception:
@@ -320,9 +312,7 @@ def build_embed_forward_body(
         if "application/x-www-form-urlencoded" in ct:
             from urllib.parse import urlencode
 
-            encoded = urlencode(
-                {str(k): "" if v is None else str(v) for k, v in body.items()}
-            )
+            encoded = urlencode({str(k): "" if v is None else str(v) for k, v in body.items()})
             return encoded or None
         return json.dumps(body, ensure_ascii=False)
     return None
@@ -338,14 +328,10 @@ def rewrite_embed_same_origin_urls(content: str, embed_base: str, proxy_root: st
         return content
     out = re.sub(escape_reg_exp(origin), proxy_root, content, flags=re.IGNORECASE)
     escaped_slash_origin = origin.replace("/", "\\/")
-    out = re.sub(
-        escape_reg_exp(escaped_slash_origin), proxy_root, out, flags=re.IGNORECASE
-    )
+    out = re.sub(escape_reg_exp(escaped_slash_origin), proxy_root, out, flags=re.IGNORECASE)
     encoded_origin = quote(origin, safe="")
     out = re.sub(escape_reg_exp(encoded_origin), proxy_root, out, flags=re.IGNORECASE)
-    out = re.sub(
-        rf"(?<!:)//{escape_reg_exp(host)}", proxy_root, out, flags=re.IGNORECASE
-    )
+    out = re.sub(rf"(?<!:)//{escape_reg_exp(host)}", proxy_root, out, flags=re.IGNORECASE)
     return out
 
 
@@ -383,19 +369,38 @@ def rewrite_embed_root_relative_html(html: str, proxy_root: str) -> str:
 
     def _srcset(match: re.Match[str]) -> str:
         quote_char, value = match.group(1), match.group(2)
-        rewritten = re.sub(
-            r"(^|,\s*)/(?!/)", lambda m: f"{m.group(1)}{proxy_root}/", value
-        )
+        rewritten = re.sub(r"(^|,\s*)/(?!/)", lambda m: f"{m.group(1)}{proxy_root}/", value)
         return f"srcset={quote_char}{rewritten}{quote_char}"
 
     return re.sub(r"\bsrcset\s*=\s*([\"'])([^\"']*)\1", _srcset, out, flags=re.IGNORECASE)
 
 
 def rewrite_embed_root_relative_asset_paths(content: str, proxy_root: str) -> str:
-    """改写 JS/CSS/HTML 中根相对的静态资源引用（按扩展名识别）。"""
+    """改写 JS/CSS/HTML 中根相对的静态资源引用（按扩展名识别）。
+
+    `@import` 必须单独处理：它的路径**不一定带扩展名**常见的写法有三种 ——
+
+        @import "/x.css";      ← 带引号且带扩展名，下面的通用规则已覆盖
+        @import url(/x.css);   ← url() 无引号，`url(` 规则已覆盖
+        @import"/x.css";       ← 引号紧贴 @import（压缩产物常见），通用规则要求引号前是
+                                  `=`/`(`/`,` 之类，这条会漏
+
+    漏掉的后果不是「样式略旧」而是**整个内嵌页掉样式**：`@import` 未改写的绝对路径会指向
+    HomeOS 自己的 `/x.css`，直接 404。0.8.7 把上游正则从 `(@import\\s+["'])` 放宽成
+    `(@import\\s*["'])` 正是为了这一条。
+    """
 
     def _prefixed(path: str) -> bool:
         return f"/{path}" == proxy_root or f"/{path}".startswith(f"{proxy_root}/")
+
+    # 先单独吃掉 @import 的两种引号写法（允许 `@import` 与引号之间没有空格）。
+    def _import_path(match: re.Match[str]) -> str:
+        gap, quote_char, path = match.group(1), match.group(2), match.group(3)
+        if _prefixed(path):
+            return match.group(0)
+        return f"@import{gap}{quote_char}{proxy_root}/{path}{quote_char}"
+
+    out = re.sub(r"@import(\s*)([\"'])/(?!/)([^\"'?#]+)\2", _import_path, content)
 
     def _quoted(match: re.Match[str]) -> str:
         quote_char, path = match.group(1), match.group(2)
@@ -404,7 +409,7 @@ def rewrite_embed_root_relative_asset_paths(content: str, proxy_root: str) -> st
     out = re.sub(
         rf"([\"'`])/(?!/)([^\"'`\s?#]*?\.(?:{EMBED_STATIC_ASSET_EXT}))",
         _quoted,
-        content,
+        out,
         flags=re.IGNORECASE,
     )
 
@@ -469,9 +474,7 @@ def rewrite_embed_html(
 
     # 先在原始 HTML 上重写根相对属性 URL（须早于注入 <base>）
     out = rewrite_embed_root_relative_html(html, proxy_root)
-    out = re.sub(
-        r'<meta[^>]+name=["\']referrer["\'][^>]*>', "", out, flags=re.IGNORECASE
-    )
+    out = re.sub(r'<meta[^>]+name=["\']referrer["\'][^>]*>', "", out, flags=re.IGNORECASE)
     if re.search(r"<head[^>]*>", out, flags=re.IGNORECASE):
         out = re.sub(
             r"<head([^>]*)>",
@@ -498,9 +501,7 @@ def rewrite_embed_html(
     return rewrite_embed_app_base_path(out, base_path, proxy_root)
 
 
-def rewrite_embed_asset_content(
-    content: str, embed_base: str, embed_id: str, base_path: str | None = None
-) -> str:
+def rewrite_embed_asset_content(content: str, embed_base: str, embed_id: str, base_path: str | None = None) -> str:
     """改写静态资源（JS/CSS/JSON）内容（不注入 base / 垫片）。"""
     ws_proxy_prefix = build_embed_ws_proxy_prefix(embed_id)
     proxy_root = build_embed_proxy_prefix(embed_id)
@@ -524,9 +525,7 @@ def is_embed_rewriteable_content_type(content_type: str | None) -> bool:
     ct = content_type.lower()
     if is_html_content_type(ct):
         return True
-    return any(
-        key in ct for key in ("javascript", "ecmascript", "json", "css")
-    )
+    return any(key in ct for key in ("javascript", "ecmascript", "json", "css"))
 
 
 # 逃逸子资源兜底（对齐 shared/embed/fallback-core.util.ts）
@@ -587,6 +586,7 @@ def parse_embed_id_from_context_cookie(cookie_header: str | None) -> str | None:
     """从 ``embed_ctx__{id}`` Cookie 解析内嵌上下文 embedId。"""
     return _parse_embed_id(r"(?:^|;\s*)embed_ctx__([^=;]+)=", cookie_header)
 
+
 def resolve_embed_proxy_fallback_redirect(
     method: str, path: str, original_url: str, headers: dict[str, Any]
 ) -> dict[str, str] | None:
@@ -606,9 +606,7 @@ def resolve_embed_proxy_fallback_redirect(
 
     referer = _header_value(headers.get("referer"))
     if not referer:
-        cookie_embed_id = parse_embed_id_from_context_cookie(
-            _header_value(headers.get("cookie"))
-        )
+        cookie_embed_id = parse_embed_id_from_context_cookie(_header_value(headers.get("cookie")))
         if cookie_embed_id:
             return {
                 "embedId": cookie_embed_id,
@@ -638,7 +636,7 @@ def _url_suffix(url: str) -> str:
 
 #: 运行时垫片脚本（占位符 ``__PREFIX__`` 由 ``build_embed_runtime_shim_script`` 替换）
 _RUNTIME_SHIM_TEMPLATE = (
-    '<script data-homeos-embed-shim>(function(){if(window.__homeos_embed_patched)return;'
+    "<script data-homeos-embed-shim>(function(){if(window.__homeos_embed_patched)return;"
     "window.__homeos_embed_patched=1;var P='__PREFIX__';"
     "function A(u){if(typeof u!=='string'||!u)return u;"
     "if(u.charAt(0)==='/'&&u.charAt(1)!=='/'&&u!==P&&u.lastIndexOf(P+'/',0)!==0)return P+u;"

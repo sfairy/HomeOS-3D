@@ -1,0 +1,1043 @@
+/**
+ * 自然木语的主题变量与面板规则。
+ *
+ * 为什么单独成文件：`stage.css` 里的浅色面板分支原本只写了 `warm-wood` 半边，
+ * 补出来的 natural 半边有几十条；直接塞进 stage.css 会让那份 4,900 行的文件更难读。
+ *
+ * `--nw-*` 是自然木语的语义色板（墨 / 正文 / 次要 / 描边 / 弱描边 / 输入底 / 顶光），
+ * 与 `NATURAL_WOOD_PALETTE` 同源；改色时两处一起改。
+ */
+
+/* 浅色面板的变量基线：暖阳原木与自然木语共用同一套语义键，只有取值不同。 */
+:is(
+  [data-scene-style="natural-wood"],
+  [data-theme="natural-wood"],
+  [data-weather-theme="natural-wood"],
+  [data-runtime-dialog-theme="natural-wood"],
+  [data-scene-theme="natural-wood"]
+) {
+  --nw-ink: #3f382e;
+  --nw-copy: #554632;
+  --nw-muted: #716657;
+  --nw-line: #bca98c;
+  --nw-line-soft: #bca98c66;
+  --nw-field: #ede4d580;
+  --nw-top: #fffdf8;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-device-panel, .i3d-climate-panel) .i3d-extra-card {
+  color: var(--i3d-wood-ink, var(--nw-copy, #554632));
+  border-color: #c9b99e;
+  background: #f8f2e8;
+  box-shadow:
+    inset 0 1px var(--nw-top, #fffdf8),
+    0 2px 7px #614c2810;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-device-panel, .i3d-climate-panel) .i3d-extra-card h4,
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-device-panel, .i3d-climate-panel) .i3d-extra-card p,
+.interaction3d-stage[data-scene-style="natural-wood"]
+  :is(.i3d-device-panel, .i3d-climate-panel)
+  .i3d-extra-card
+  strong {
+  color: var(--i3d-wood-ink, var(--nw-copy, #554632));
+  opacity: 1;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"]
+  :is(.i3d-device-panel, .i3d-climate-panel)
+  .i3d-extra-card
+  .i3d-extra-description
+  p {
+  color: var(--nw-muted, #716657);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-device-panel, .i3d-climate-panel) .i3d-extra-card select,
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-device-panel, .i3d-climate-panel) .i3d-extra-card input,
+.interaction3d-stage[data-scene-style="natural-wood"]
+  :is(.i3d-device-panel, .i3d-climate-panel)
+  .i3d-extra-select-trigger {
+  color: var(--nw-copy, #554632);
+  border-color: var(--nw-line, #bca98c);
+  background: var(--nw-surface, #f6f0e5);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .is-curtain-group > .i3d-curtain-group-icon {
+  color: #91877a;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .is-curtain-group > .i3d-curtain-group-icon.is-on {
+  color: #9d681f;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-floor-tabs button[aria-pressed="true"],
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-navigation .i3d-module-tabs button[aria-pressed="true"] {
+  color: #54432d;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-navigation .i3d-module-tabs:before {
+  background: #ceb79280;
+  box-shadow: inset 0 1px #ffffff80;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-floor-tabs button[aria-pressed="true"]:after {
+  content: "";
+  position: absolute;
+  width: 4px;
+  height: 7px;
+  right: 2px;
+  top: 4px;
+  border-radius: 5px 0;
+  background: #819970;
+  pointer-events: none;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-navigation .i3d-toolbar button[aria-pressed="true"] {
+  background: #ddccb0;
+  color: #54432d;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"]
+  :is(
+    .i3d-light-panel header strong,
+    .i3d-cover-heading h3,
+    .i3d-climate-heading h3,
+    .i3d-climate-target,
+    .i3d-nas-heading h3,
+    .i3d-tv-details strong
+  ) {
+  color: var(--nw-ink, #3f382e);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"]
+  :is(.i3d-device-status, .i3d-slider-heading, .i3d-cover-panel, .i3d-climate-panel, .i3d-nas-panel) {
+  color: #554c40;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"]
+  :is(.i3d-slider output, .hb-cover-details-position output, .i3d-device-status.is-on) {
+  color: #815827;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"]
+  :is(
+    .i3d-slider-legend small,
+    .i3d-light-preset small,
+    .i3d-cover-heading p,
+    .i3d-cover-feedback,
+    .i3d-cover-blade-hint,
+    .hb-cover-details-position-legend small,
+    .i3d-climate-heading p,
+    .i3d-climate-option-group h4,
+    .i3d-climate-temperature-content small,
+    .i3d-climate-temperature-content span,
+    .i3d-climate-temperature-interval,
+    .i3d-climate-empty,
+    .i3d-nas-status,
+    .i3d-nas-group h4,
+    .i3d-nas-metric span,
+    .i3d-nas-meta,
+    .i3d-tv-status,
+    .i3d-tv-details span
+  ) {
+  color: var(--nw-muted, #716657);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"]
+  :is(
+    .i3d-light-preset,
+    .hb-cover-details-actions button,
+    .hb-climate-temperature-step,
+    .i3d-climate-choice,
+    .i3d-climate-power,
+    .i3d-tv-power,
+    .i3d-tv-actions button
+  ) {
+  color: var(--nw-copy, #554632);
+  border-color: var(--nw-line, #bca98c);
+  background: var(--nw-surface, #f6f0e5);
+  box-shadow:
+    inset 0 1px #fffb,
+    0 3px 9px #614c2810;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"]
+  :is(
+    .i3d-light-preset.is-active,
+    .hb-cover-details-actions button.is-active,
+    .hb-cover-details-actions button:hover:not(:disabled),
+    .i3d-tv-actions button:hover:not(:disabled),
+    .i3d-tv-power:hover:not(:disabled)
+  ) {
+  color: var(--nw-selected-ink, #67471e);
+  border-color: var(--nw-accent, #a48351);
+  background: var(--nw-selected, #e6d5b8);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"]
+  :is(.i3d-slider input, input.i3d-control-range, .hb-cover-details-position input) {
+  border-color: #ece2d2;
+  box-shadow:
+    0 0 0 1px #b6a78f,
+    inset 0 1px 3px #6a513322;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-slider input, input.i3d-control-range) {
+  background: linear-gradient(90deg, #d9cbb5, #b88c4c);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-climate-panel[data-climate-mode="cool"] {
+  --i3d-climate-accent: #28677f;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-climate-panel[data-climate-mode="heat"] {
+  --i3d-climate-accent: #a4472a;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-climate-panel[data-climate-mode="off"] {
+  --i3d-climate-accent: #70685d;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"]
+  :is(.i3d-climate-choice, .i3d-climate-power)[aria-pressed="true"] {
+  color: var(--i3d-climate-accent);
+  border-color: var(--i3d-climate-accent);
+  background: var(--hb-climate-accent-soft);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-nas-metric, .i3d-nas-status) {
+  background: var(--nw-field, #ede4d580);
+  border-color: var(--nw-line-soft, #bca98c66);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"]
+  :is(.i3d-control-error, .i3d-climate-error, .i3d-cover-feedback.is-error, .i3d-tv-error) {
+  color: #a13f2c;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"]
+  :is(
+    .i3d-climate-heading p,
+    .i3d-climate-option-group h4,
+    .i3d-climate-temperature-content small,
+    .i3d-climate-temperature-content span,
+    .i3d-climate-temperature-interval,
+    .i3d-climate-empty,
+    .i3d-extra-description p,
+    .i3d-extra-state .i3d-extra-description p
+  ) {
+  color: var(--i3d-wood-muted);
+  opacity: 1;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"]
+  :is(.i3d-climate-option-group h4, .i3d-extra-description h4, .i3d-extra-state .i3d-extra-description h4) {
+  color: var(--i3d-wood-heading);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"]
+  :is(
+    .i3d-climate-panel .i3d-extra-card select,
+    .i3d-climate-panel .i3d-extra-card input,
+    .i3d-climate-panel .i3d-extra-select-trigger,
+    .i3d-climate-panel .i3d-climate-choice
+  ) {
+  color: var(--i3d-wood-ink);
+  border-color: var(--i3d-wood-border);
+  background: var(--i3d-wood-field);
+  text-shadow: none;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"]
+  :is(
+    .i3d-climate-panel .i3d-extra-card select:hover,
+    .i3d-climate-panel .i3d-extra-card input:hover,
+    .i3d-climate-panel .i3d-extra-select-trigger:hover,
+    .i3d-climate-panel .i3d-climate-choice:hover:not(:disabled)
+  ) {
+  background: var(--i3d-wood-field-hover);
+  border-color: var(--nw-accent, #a48351);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"]
+  .i3d-climate-panel
+  :is(.i3d-climate-choice, .i3d-climate-power)[aria-pressed="true"] {
+  color: var(--i3d-climate-accent);
+  border-color: var(--i3d-climate-accent);
+  background: var(--hb-climate-accent-soft);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"]
+  :is(.i3d-climate-panel button:disabled, .i3d-climate-panel input:disabled, .i3d-climate-panel select:disabled) {
+  color: #73695b;
+  border-color: #d4c7b4;
+  background: #eee8dc;
+  opacity: 1;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"]
+  :is(.i3d-climate-panel .i3d-extra-card, .i3d-extra-light)
+  button[role="switch"] {
+  color: #766b5e;
+  background: #e1d8ca;
+  border-color: var(--nw-line, #bca98c);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"]
+  :is(.i3d-climate-panel .i3d-extra-card, .i3d-extra-light)
+  button[role="switch"][aria-checked="true"] {
+  color: #fffaf0;
+  background: #a4773f;
+  border-color: var(--nw-accent-strong, #8a5c23);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"]
+  :is(.i3d-climate-panel .i3d-extra-card, .i3d-extra-light)
+  button[role="switch"]:disabled {
+  opacity: 0.7;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-extra-light button[role="switch"][aria-checked="true"] {
+  color: var(--nw-selected-ink, #67471e);
+  background: var(--nw-selected, #e6d5b8);
+  border-color: var(--nw-accent, #a48351);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(button, input):focus-visible {
+  outline-color: #886333;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"]
+  :is(.i3d-slider input, input.i3d-control-range)::-webkit-slider-thumb,
+.interaction3d-stage[data-scene-style="natural-wood"]
+  :is(.i3d-slider input, input.i3d-control-range)::-moz-range-thumb {
+  background: linear-gradient(145deg, var(--nw-highlight, #fdf8ed), var(--nw-selected, #d5be98)) padding-box;
+  filter: drop-shadow(0 2px 3px var(--nw-shadow, #6e542444));
+  box-shadow: inset 0 1px #fff;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-nas-panel, .i3d-device-panel, .i3d-lock-panel) {
+  --i3d-popup-ink: var(--nw-copy, #554632);
+  --i3d-popup-heading: var(--nw-ink, #3f382e);
+  --i3d-popup-muted: var(--nw-muted, #716657);
+  --i3d-popup-border: var(--nw-line, #bca98c);
+  color: var(--i3d-popup-ink);
+  gap: 10px;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-nas-heading, .i3d-device-panel .i3d-climate-heading) {
+  min-height: 0;
+  margin: 0;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"]
+  :is(.i3d-nas-heading h3, .i3d-device-panel .i3d-climate-heading h3, .i3d-lock-panel h3) {
+  color: var(--i3d-popup-heading);
+  font-size: 21px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: 0.025em;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-lock-panel button {
+  border-color: var(--i3d-popup-border);
+  border-radius: 9px;
+  background: var(--nw-surface, #f6f0e5);
+  color: var(--i3d-popup-ink);
+  box-shadow:
+    inset 0 1px #fffb,
+    0 3px 9px #614c2810;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-lock-panel button:hover:not(:disabled) {
+  border-color: var(--nw-accent, #a48351);
+  background: var(--nw-selected, #e6d5b8);
+  color: var(--nw-selected-ink, #67471e);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"]
+  :is(.i3d-nas-metric, .i3d-lock-detail, .i3d-device-panel .i3d-extra-card) {
+  box-shadow:
+    inset 0 1px var(--nw-top, #fffdf8),
+    0 2px 7px #614c2810;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"]
+  .i3d-light-panel:has(.i3d-nas-panel, .i3d-climate-panel, .i3d-television-panel, .i3d-lock-panel) {
+  --i3d-warm-popup-opacity: var(--i3d-panel-opacity, 0.74);
+  --i3d-warm-card-opacity: min(1, calc(var(--i3d-warm-popup-opacity) + 0.12));
+  background: linear-gradient(
+    145deg,
+    rgba(var(--nw-panel-top, 255, 253, 247), var(--i3d-warm-popup-opacity)),
+    rgba(var(--nw-panel-bottom, 243, 237, 225), var(--i3d-warm-popup-opacity))
+  );
+  border-color: #89745661;
+  box-shadow:
+    0 12px 32px #43342133,
+    inset 0 1px #fff9;
+  backdrop-filter: blur(18px);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"]
+  :is(
+    .i3d-nas-metric,
+    .i3d-nas-status,
+    .i3d-lock-detail,
+    .i3d-device-panel .i3d-extra-card,
+    .i3d-climate-panel .i3d-extra-card
+  ) {
+  background: rgba(241, 234, 223, var(--i3d-warm-card-opacity, var(--i3d-panel-opacity, 0.74)));
+  border-color: #c4b59e;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-vacuum-status, .i3d-security-label, .i3d-room-label) {
+  background: #f8f4eaf0;
+  color: #554b3d;
+  border-color: #a9977770;
+  box-shadow: 0 3px 10px #59493326;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-vacuum-status-detail, .i3d-security-label > span) {
+  color: #736b5e;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-security-label.is-camera-status > .i3d-marker-icon {
+  color: inherit;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-security-label.is-camera-status > span:before {
+  background: #648566;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"]
+  .i3d-security-label:is(.is-camera-offline, .is-camera-unverified)
+  > span:before {
+  background: #948c7e;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"]
+  .i3d-speaker-panel
+  :is(.i3d-speaker-settings button, .i3d-speaker-settings select, .i3d-speaker-browse) {
+  color: var(--nw-copy, #554632);
+  border-color: var(--nw-line, #bca98c);
+  background: var(--nw-surface, #f6f0e5);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"]
+  :is(
+    .i3d-light-preset.is-active,
+    .hb-cover-details-actions button.is-active,
+    .i3d-speaker-settings button[aria-pressed="true"]
+  ):not(:disabled),
+.interaction3d-stage[data-scene-style="natural-wood"]
+  .i3d-climate-panel:not([data-climate-mode="cool"]):not([data-climate-mode="heat"])
+  :is(.i3d-climate-choice, .i3d-climate-power):is([aria-pressed="true"], [role="switch"][aria-checked="true"]):is(
+    :not(:disabled),
+    .is-layout-editing *
+  ) {
+  color: var(--nw-selected-ink, #67471e);
+  border-color: var(--nw-accent-strong, #8a5c23);
+  background: var(--nw-selected, #e6d5b8);
+  box-shadow: inset 0 0 0 0.2px var(--nw-accent-strong, #8a5c23);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"]
+  :is(.i3d-vacuum-status, .i3d-security-label.is-lock-status, .i3d-security-label.is-camera-status) {
+  --label-surface: #f8f4eaf0;
+  --label-border: #a9977770;
+  --label-shadow: 0 3px 10px #59493326;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-popup-body, .i3d-nas-metrics, .i3d-speaker-media-list) {
+  scrollbar-color: var(--nw-line, #bca98c) transparent;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"]
+  :is(.i3d-popup-body, .i3d-nas-metrics, .i3d-speaker-media-list)::-webkit-scrollbar-thumb {
+  background: var(--nw-line, #bca98c);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"]
+  .i3d-alarm-card:is([data-status="alarm"], [data-status="fault"], [data-status="expired"], [data-status="dirty"]) {
+  border-color: currentColor;
+  color: #a13f2c;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"]
+  .i3d-alarm-card:is(
+    [data-status="unknown"],
+    [data-status="unavailable"],
+    [data-status="unbound"],
+    [data-status="warming"],
+    [data-status="testing"],
+    [data-status="event-idle"]
+  ) {
+  color: var(--nw-muted, #716657);
+}
+
+/* 补齐：0.8.7 里与 warm-wood 成对、但我们原 CSS 没有同形选择器的规则。 */
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-lock-panel h3 {
+  color:var(--nw-ink,#3f382e);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-lock-panel .i3d-nas-status,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-lock-panel .i3d-lock-detail {
+  color:var(--nw-muted,#716657);
+  background:var(--nw-field,#ede4d580);
+  border-color:var(--nw-line-soft,#bca98c66);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-lock-panel .i3d-nas-meta {
+  color:var(--nw-muted,#716657);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-device-panel .i3d-nas-meta {
+  color:var(--nw-muted,#716657);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-device-panel .i3d-nas-status {
+  background:transparent;
+  color:var(--nw-muted,#716657);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-device-panel,.i3d-climate-panel) .i3d-extra-card {
+  color:var(--i3d-wood-ink,var(--nw-copy,#554632));
+  border-color:#c9b99e;
+  background:#f8f2e8;
+  box-shadow:inset 0 1px var(--nw-top,#fffdf8),0 2px 7px #614c2810;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-device-panel,.i3d-climate-panel) .i3d-extra-card h4,
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-device-panel,.i3d-climate-panel) .i3d-extra-card p,
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-device-panel,.i3d-climate-panel) .i3d-extra-card strong {
+  color:var(--i3d-wood-ink,var(--nw-copy,#554632));
+  opacity:1;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-device-panel,.i3d-climate-panel) .i3d-extra-card .i3d-extra-description p {
+  color:var(--nw-muted,#716657);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-device-panel,.i3d-climate-panel) .i3d-extra-card select,
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-device-panel,.i3d-climate-panel) .i3d-extra-card input,
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-device-panel,.i3d-climate-panel) .i3d-extra-select-trigger {
+  color:var(--nw-copy,#554632);
+  border-color:var(--nw-line,#bca98c);
+  background:var(--nw-surface,#f6f0e5);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-game-main button {
+  border-color:var(--nw-line,#bca98c);
+  background:var(--nw-surface,#f6f0e5);
+  color:var(--nw-copy,#554632);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .is-curtain-group>.i3d-curtain-group-icon {
+  color:#91877a;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .is-curtain-group>.i3d-curtain-group-icon.is-on {
+  color:#9d681f;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-temperature-humidity-card {
+  --meter-top:var(--nw-top,#fcf8f0);
+  --meter-bottom:var(--nw-bottom,#eee7db);
+  color:var(--nw-ink,#4e4438);
+  border-color:var(--nw-line,#b7a489);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-temperature-humidity-card:before {
+  box-shadow:0 8px 20px var(--nw-shadow,#59492940),inset 0 1px #fff;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-temperature-humidity-values {
+  border-top-color:#cbbb9f;
+  color:#51483a;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-meter-icon {
+  color:#467482;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .is-temperature .i3d-meter-icon {
+  color:#9c683b;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-floor-tabs,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-navigation .i3d-module-tabs {
+  background:#f8f4eadb;
+  border-color:#89745633;
+  box-shadow:0 6px 20px #59493317,inset 0 1px #ffffffa6;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-floor-tabs button,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-navigation .i3d-module-tabs button {
+  color:#77766b;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-floor-tabs button:hover,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-navigation .i3d-module-tabs button:hover {
+  color:#514a3d;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-floor-tabs button[aria-pressed=true],
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-navigation .i3d-module-tabs button[aria-pressed=true] {
+  color:#54432d;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-floor-tabs button:before {
+  background:#ceb79280;
+  box-shadow:inset 0 1px #ffffff80;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-floor-tabs button:focus-visible,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-navigation .i3d-module-tabs button:focus-visible {
+  outline-color:#8c734b;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-floor-tabs button[aria-pressed=true]:after {
+  content:"";
+  position:absolute;
+  width:4px;
+  height:7px;
+  right:2px;
+  top:4px;
+  border-radius:5px 0;
+  background:#819970;
+  pointer-events:none;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-navigation .i3d-toolbar button {
+  background:#f8f4eae6;
+  color:#62523d;
+  border-color:#89745640;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-navigation .i3d-toolbar button[aria-pressed=true] {
+  background:#ddccb0;
+  color:#54432d;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-light-panel {
+  color:var(--nw-ink,#493f34);
+  border-color:#89745652;
+  background:linear-gradient(145deg,rgba(var(--nw-panel-top,255,253,247),var(--i3d-panel-opacity,.74)),rgba(var(--nw-panel-bottom,243,237,225),var(--i3d-panel-opacity,.74)));
+  box-shadow:0 12px 32px #4334212b,inset 0 1px #fff9;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-climate-panel {
+  --i3d-wood-ink:var(--nw-ink,#493f34);
+  --i3d-wood-heading:var(--nw-ink,#3f382e);
+  --i3d-wood-muted:var(--nw-muted,#716657);
+  --i3d-wood-border:var(--nw-line,#bca98c);
+  --i3d-wood-field:var(--nw-surface,#f6f0e5);
+  --i3d-wood-field-hover:#eee3d0;
+  --i3d-device-status-normal:#386b43;
+  --i3d-device-status-warning:#8b5518;
+  --i3d-device-status-unknown:var(--nw-muted,#716657);
+  --i3d-device-status-off:var(--nw-muted,#716657);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-light-panel header strong,.i3d-cover-heading h3,.i3d-climate-heading h3,.i3d-climate-target,.i3d-nas-heading h3,.i3d-tv-details strong) {
+  color:var(--nw-ink,#3f382e);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-device-status,.i3d-slider-heading,.i3d-cover-panel,.i3d-climate-panel,.i3d-nas-panel) {
+  color:#554c40;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-slider output,.hb-cover-details-position output,.i3d-device-status.is-on) {
+  color:#815827;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-slider-legend small,.i3d-light-preset small,.i3d-cover-heading p,.i3d-cover-feedback,.i3d-cover-blade-hint,.hb-cover-details-position-legend small,.i3d-climate-heading p,.i3d-climate-option-group h4,.i3d-climate-temperature-content small,.i3d-climate-temperature-content span,.i3d-climate-temperature-interval,.i3d-climate-empty,.i3d-nas-status,.i3d-nas-group h4,.i3d-nas-metric span,.i3d-nas-meta,.i3d-tv-status,.i3d-tv-details span) {
+  color:var(--nw-muted,#716657);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-light-preset,.hb-cover-details-actions button,.hb-climate-temperature-step,.i3d-climate-choice,.i3d-climate-power,.i3d-tv-power,.i3d-tv-actions button) {
+  color:var(--nw-copy,#554632);
+  border-color:var(--nw-line,#bca98c);
+  background:var(--nw-surface,#f6f0e5);
+  box-shadow:inset 0 1px #fffb,0 3px 9px #614c2810;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-light-preset.is-active,.hb-cover-details-actions button.is-active,.hb-cover-details-actions button:hover:not(:disabled),.i3d-tv-actions button:hover:not(:disabled),.i3d-tv-power:hover:not(:disabled)) {
+  color:var(--nw-selected-ink,#67471e);
+  border-color:var(--nw-accent,#a48351);
+  background:var(--nw-selected,#e6d5b8);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .hb-cover-details-actions i {
+  color:inherit;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-slider input,input.i3d-control-range,.hb-cover-details-position input) {
+  border-color:#ece2d2;
+  box-shadow:0 0 0 1px #b6a78f,inset 0 1px 3px #6a513322;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-slider input,input.i3d-control-range) {
+  background:linear-gradient(90deg,#d9cbb5,#b88c4c);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-temperature input {
+  background:linear-gradient(90deg,#e4ad6b,#f3ead9,#a8c7dd);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .hb-cover-details-position input {
+  background:linear-gradient(90deg,var(--nw-accent,#ae8c59) var(--hb-cover-position-progress,0%),var(--nw-track,#ded4c3) var(--hb-cover-position-progress,0%));
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-climate-panel[data-climate-mode=cool] {
+  --i3d-climate-accent:#28677f;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-climate-panel[data-climate-mode=heat] {
+  --i3d-climate-accent:#a4472a;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-climate-panel[data-climate-mode=off] {
+  --i3d-climate-accent:#70685d;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-climate-choice,.i3d-climate-power)[aria-pressed=true] {
+  color:var(--i3d-climate-accent);
+  border-color:var(--i3d-climate-accent);
+  background:var(--hb-climate-accent-soft);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-climate-panel.is-on .i3d-climate-heading p {
+  color:var(--i3d-climate-accent);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-nas-metric,.i3d-nas-status) {
+  background:var(--nw-field,#ede4d580);
+  border-color:var(--nw-line-soft,#bca98c66);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-nas-metric.is-warning strong {
+  color:#94601d;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-nas-metric.is-unavailable strong {
+  color:#81796e;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-nas-bar {
+  background:#527b57;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-control-error,.i3d-climate-error,.i3d-cover-feedback.is-error,.i3d-tv-error) {
+  color:#a13f2c;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-climate-heading p,.i3d-climate-option-group h4,.i3d-climate-temperature-content small,.i3d-climate-temperature-content span,.i3d-climate-temperature-interval,.i3d-climate-empty,.i3d-extra-description p,.i3d-extra-state .i3d-extra-description p) {
+  color:var(--i3d-wood-muted);
+  opacity:1;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-climate-option-group h4,.i3d-extra-description h4,.i3d-extra-state .i3d-extra-description h4) {
+  color:var(--i3d-wood-heading);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-climate-panel .i3d-extra-card {
+  color:var(--i3d-wood-ink);
+  border-color:#c9b99e;
+  background:#f8f2e8;
+  box-shadow:inset 0 1px var(--nw-top,#fffdf8),0 2px 7px #614c2810;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-climate-panel .i3d-extra-card select,.i3d-climate-panel .i3d-extra-card input,.i3d-climate-panel .i3d-extra-select-trigger,.i3d-climate-panel .i3d-climate-choice) {
+  color:var(--i3d-wood-ink);
+  border-color:var(--i3d-wood-border);
+  background:var(--i3d-wood-field);
+  text-shadow:none;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-climate-panel .i3d-extra-card select:hover,.i3d-climate-panel .i3d-extra-card input:hover,.i3d-climate-panel .i3d-extra-select-trigger:hover,.i3d-climate-panel .i3d-climate-choice:hover:not(:disabled)) {
+  background:var(--i3d-wood-field-hover);
+  border-color:var(--nw-accent,#a48351);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-climate-panel :is(.i3d-climate-choice,.i3d-climate-power)[aria-pressed=true] {
+  color:var(--i3d-climate-accent);
+  border-color:var(--i3d-climate-accent);
+  background:var(--hb-climate-accent-soft);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-climate-panel button:disabled,.i3d-climate-panel input:disabled,.i3d-climate-panel select:disabled) {
+  color:#73695b;
+  border-color:#d4c7b4;
+  background:#eee8dc;
+  opacity:1;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-climate-panel .i3d-extra-card,.i3d-extra-light) button[role=switch] {
+  color:#766b5e;
+  background:#e1d8ca;
+  border-color:var(--nw-line,#bca98c);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-climate-panel .i3d-extra-card,.i3d-extra-light) button[role=switch][aria-checked=true] {
+  color:#fffaf0;
+  background:#a4773f;
+  border-color:var(--nw-accent-strong,#8a5c23);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-climate-panel .i3d-extra-card,.i3d-extra-light) button[role=switch]:disabled {
+  opacity:.7;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-extra-light button[role=switch][aria-checked=true] {
+  color:var(--nw-selected-ink,#67471e);
+  background:var(--nw-selected,#e6d5b8);
+  border-color:var(--nw-accent,#a48351);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-climate-panel .i3d-extra-card.is-dragging {
+  background:var(--hb-climate-accent-soft);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-climate-panel .i3d-climate-error {
+  color:#a13f2c;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-climate-panel .i3d-extra-resize:after {
+  border-color:#8a6b3e;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(button,input):focus-visible {
+  outline-color:#886333;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-slider input,input.i3d-control-range)::-webkit-slider-thumb {
+  background:linear-gradient(145deg,var(--nw-highlight,#fdf8ed),var(--nw-selected,#d5be98)) padding-box;
+  filter:drop-shadow(0 2px 3px var(--nw-shadow,#6e542444));
+  box-shadow:inset 0 1px #fff;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .hb-cover-details-position input::-webkit-slider-thumb {
+  background:linear-gradient(145deg,var(--nw-highlight,#fdf8ed),var(--nw-selected,#d5be98)) padding-box;
+  filter:drop-shadow(0 2px 3px var(--nw-shadow,#6e542444));
+  box-shadow:inset 0 1px #fff;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-slider input,input.i3d-control-range)::-moz-range-thumb {
+  background:linear-gradient(145deg,var(--nw-highlight,#fdf8ed),var(--nw-selected,#d5be98)) padding-box;
+  filter:drop-shadow(0 2px 3px var(--nw-shadow,#6e542444));
+  box-shadow:inset 0 1px #fff;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .hb-cover-details-position input::-moz-range-thumb {
+  background:linear-gradient(145deg,var(--nw-highlight,#fdf8ed),var(--nw-selected,#d5be98)) padding-box;
+  filter:drop-shadow(0 2px 3px var(--nw-shadow,#6e542444));
+  box-shadow:inset 0 1px #fff;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-nas-panel,.i3d-device-panel,.i3d-lock-panel) {
+  --i3d-popup-ink:var(--nw-copy,#554632);
+  --i3d-popup-heading:var(--nw-ink,#3f382e);
+  --i3d-popup-muted:var(--nw-muted,#716657);
+  --i3d-popup-border:var(--nw-line,#bca98c);
+  color:var(--i3d-popup-ink);
+  gap:10px;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-nas-heading,.i3d-device-panel .i3d-climate-heading) {
+  min-height:0;
+  margin:0;
+  align-items:baseline;
+  gap:10px;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-nas-heading h3,.i3d-device-panel .i3d-climate-heading h3,.i3d-lock-panel h3) {
+  color:var(--i3d-popup-heading);
+  font-size:21px;
+  font-weight:600;
+  line-height:1.25;
+  letter-spacing:.025em;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-device-panel .i3d-device-status {
+  flex:none;
+  margin:0 0 0 auto;
+  color:var(--i3d-popup-muted)!important;
+  font-size:10px;
+  line-height:1.4;
+  white-space:nowrap;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-lock-details {
+  gap:6px;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-nas-metric,.i3d-lock-detail,.i3d-device-panel .i3d-extra-card) {
+  box-shadow:inset 0 1px var(--nw-top,#fffdf8),0 2px 7px #614c2810;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-light-panel:has(.i3d-nas-panel,.i3d-climate-panel,.i3d-television-panel,.i3d-lock-panel) {
+  --i3d-warm-popup-opacity:var(--i3d-panel-opacity,.74);
+  --i3d-warm-card-opacity:min(1,calc(var(--i3d-warm-popup-opacity) + .12));
+  background:linear-gradient(145deg,rgba(var(--nw-panel-top,255,253,247),var(--i3d-warm-popup-opacity)),rgba(var(--nw-panel-bottom,243,237,225),var(--i3d-warm-popup-opacity)));
+  border-color:#89745661;
+  box-shadow:0 12px 32px #43342133,inset 0 1px #fff9;
+  backdrop-filter:blur(18px);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-nas-metric,.i3d-nas-status,.i3d-lock-detail,.i3d-device-panel .i3d-extra-card,.i3d-climate-panel .i3d-extra-card) {
+  background:rgba(241,234,223,var(--i3d-warm-card-opacity,var(--i3d-panel-opacity,.74)));
+  border-color:#c4b59e;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-marker {
+  color:#736b5e;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-marker:before {
+  background:#f8f4eaf0;
+  border-color:#a9977770;
+  box-shadow:0 3px 10px #59493326,inset 0 1px #ffffffb3;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-marker.is-on {
+  color:#815827;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-marker.is-on:before {
+  background:#ead5aff5;
+  border-color:#ad8752b3;
+  box-shadow:0 3px 12px #9870392e,inset 0 1px #fff4ddcc;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-marker.is-selected:after,
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-marker:focus-visible:after {
+  border-color:#96713d;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-marker.is-nas.is-on {
+  color:#4e7054;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-marker.is-nas.is-on:before {
+  background:#e1e9d9f5;
+  border-color:#829c7499;
+  animation-name:i3d-warm-nas-breathe;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-vacuum-status,.i3d-security-label,.i3d-room-label) {
+  background:#f8f4eaf0;
+  color:#554b3d;
+  border-color:#a9977770;
+  box-shadow:0 3px 10px #59493326;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-vacuum-status-detail,.i3d-security-label>span) {
+  color:#736b5e;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .is-on .i3d-vacuum-status {
+  border-color:#829c74aa;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .is-on .i3d-vacuum-status-text {
+  color:#4e7054;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-vacuum-quip {
+  color:#80613a;
+  border-color:#a9977733;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-security-label.is-camera-status>.i3d-marker-icon {
+  color:inherit;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-security-label.is-camera-status>span:before {
+  background:#648566;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-security-label:is(.is-camera-offline,.is-camera-unverified)>span:before {
+  background:#948c7e;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .is-sensor-choice.is-selected .i3d-security-label {
+  color:#815827;
+  background:#ead5aff5;
+  border-color:#ad8752b3;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-speaker-panel :is(.i3d-speaker-settings button,.i3d-speaker-settings select,.i3d-speaker-browse) {
+  color:var(--nw-copy,#554632);
+  border-color:var(--nw-line,#bca98c);
+  background:var(--nw-surface,#f6f0e5);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-light-preset.is-active,.hb-cover-details-actions button.is-active,.i3d-speaker-settings button[aria-pressed=true]):not(:disabled),
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-climate-panel:not([data-climate-mode=cool]):not([data-climate-mode=heat]) :is(.i3d-climate-choice,.i3d-climate-power):is([aria-pressed=true],[role=switch][aria-checked=true]):is(:not(:disabled),.is-layout-editing *) {
+  color:var(--nw-selected-ink,#67471e);
+  border-color:var(--nw-accent-strong,#8a5c23);
+  background:var(--nw-selected,#e6d5b8);
+  box-shadow:inset 0 0 0 .2px var(--nw-accent-strong,#8a5c23);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-climate-panel .i3d-extra-card.is-selected:not(.is-dragging):not(.is-drop-target) {
+  outline:1.2px solid var(--nw-accent-strong,#8a5c23);
+  outline-offset:-1.2px;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-speaker-media-dialog {
+  color:var(--nw-copy,#554632);
+  border-color:var(--nw-line,#bca98c);
+  background:var(--nw-surface,#f6f0e5);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-speaker-media-dialog button {
+  color:var(--nw-copy,#554632);
+  border-color:var(--nw-line,#bca98c);
+  background:var(--nw-selected,#e6d5b8);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-car-card:before {
+  border-color:var(--nw-line,#b7a489);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-vacuum-status,.i3d-security-label.is-lock-status,.i3d-security-label.is-camera-status) {
+  --label-surface:#f8f4eaf0;
+  --label-border:#a9977770;
+  --label-shadow:0 3px 10px #59493326;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-popup-body,.i3d-nas-metrics,.i3d-speaker-media-list) {
+  scrollbar-color:var(--nw-line,#bca98c) transparent;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-popup-body,.i3d-nas-metrics,.i3d-speaker-media-list)::-webkit-scrollbar-thumb {
+  background:var(--nw-line,#bca98c);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-alarm-card {
+  --meter-top:var(--nw-top,#fcf8f0);
+  --meter-bottom:var(--nw-bottom,#eee7db);
+  color:var(--nw-ink,#4e4438);
+  border-color:var(--nw-line,#b7a489);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-alarm-card:before {
+  box-shadow:0 8px 20px var(--nw-shadow,#59492940),inset 0 1px #fff;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-alarm-card:is([data-status=alarm],[data-status=fault],[data-status=expired],[data-status=dirty]) {
+  border-color:currentColor;
+  color:#a13f2c;
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-alarm-card:is([data-status=unknown],[data-status=unavailable],[data-status=unbound],[data-status=warming],[data-status=testing],[data-status=event-idle]) {
+  color:var(--nw-muted,#716657);
+}
+
+.interaction3d-stage[data-scene-style="natural-wood"] .i3d-car-tires {
+  color:var(--nw-ink,#4e4438);
+}

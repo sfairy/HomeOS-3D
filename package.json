@@ -1,7 +1,7 @@
 {
   "name": "homeos-monorepo",
   "private": true,
-  "version": "0.8.6",
+  "version": "0.8.7",
   "type": "module",
   "packageManager": "bun@1.4.4",
   "scripts": {
@@ -56,6 +56,11 @@
     "check:dom-factory": "node ops/checks/dom-factory-equivalence.mjs",
     "check:geometry-calls": "node ops/checks/geometry-call-golden.mjs --check",
     "check:plan-geometry": "node ops/checks/plan-geometry-invariants.mjs",
+    "check:studio-placement": "node ops/checks/studio-placement-invariants.mjs",
+    "check:studio-gesture": "node ops/checks/studio-editor-gesture-invariants.mjs",
+    "check:studio-parity": "bun ops/checks/studio/visual-parity.mjs",
+    "dev:ref": "bun ops/dev/ref-087-proxy.mjs",
+    "check:studio-window-undo": "node ops/checks/studio-window-undo.mjs",
     "check:scene-payload": "node ops/checks/scene-payload-invariants.mjs",
     "check:scene-payload-mutations": "node ops/checks/scene-payload-mutation-check.mjs",
     "check:plan-geometry-mutations": "node ops/checks/plan-geometry-mutation-check.mjs",

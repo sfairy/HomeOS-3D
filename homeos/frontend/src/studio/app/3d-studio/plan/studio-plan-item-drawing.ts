@@ -1,10 +1,8 @@
 /**
- * 平面图「按物品绘制」（`drawDoor` 门符号 / `drawCourtyardArea` 庭院区与部件）：
- * 把 item 的平面表示画到 `planCanvasRenderer` 上，含门口预览、庭院面材质与部件配色。
- *
- * 从 studio-app.ts 单体切出（P4，第二刀）。与门配色同族的私有助手（`doorPlanColor` /
- * `doorPlanPartMaterial` / `planColorLuminance` / `PLAN_DOOR_*`）随切片一起搬入，
- * 使本域自持；其余 15 个句柄经 `StudioPlanItemDrawingDeps` 显式传入。
+ * 平面图「按物品绘制」（`drawDoor` 门符号 / `drawCourtyardArea` 庭院区与部件）：把 item 的
+ * 平面表示画到 `planCanvasRenderer` 上，含门口预览、庭院面材质与部件配色。从 studio-app.ts
+ * 单体切出（P4，第二刀）：与门配色同族的私有助手随切片搬入使本域自持，其余句柄经
+ * `StudioPlanItemDrawingDeps` 显式传入。
  */
 
 import type { PlanEditPreviewFlags } from '../authoring/types/studio-app-types'
@@ -39,6 +37,7 @@ import {
 } from '../authoring/items/studio-item-posture'
 import { itemTypeCatalog, lampItemTypeSet, roundTableTypeSet, stairItemTypeSet } from '../authoring/items/item-catalog'
 import { drawStripLightPlanGlyph as drawStripLightPlanGlyph2 } from './strip-light-glyph'
+import { applySuspendedItemStyle, type PlanSuspendStyleDeps } from './studio-plan-item-ghosting'
 import { planLabelThemeColors } from '../authoring/scene/payload/studio-scene-payload'
 import { dashboardCanvasFont } from '../../shared/dashboard-fonts'
 
@@ -63,7 +62,7 @@ const PIPELINE_DISPENSER_PLAN_TYPES: ReadonlySet<string> = new Set([
  * 配色（`isLampEnabled` / `planLabelAccentColor`）与门口材质通道
  * （`resolveDoorPartMaterials` / `doorPartDisplayColor`）——后两个同时被宿主 15581 / 15585 行用着。
  */
-interface StudioPlanItemDrawingDeps {
+interface StudioPlanItemDrawingDeps extends PlanSuspendStyleDeps {
   /** 平面画布 2D 上下文（`planCanvasElement.getContext("2d")`）。 */
   planCanvasRenderer: any
   /** 平面视图状态（缩放 / 偏移 / 楼层）。 */
@@ -496,9 +495,10 @@ export function drawCourtyardArea(deps: StudioPlanItemDrawingDeps, planItem: any
     pillarShape = normalizePillarShape2(planItem.pillarShape),
     planPillarInset = Math.min(itemPixelWidth, itemPixelDepth) * 0.18,
     ne3 = createSelectionRef('item', planItem.id)
-  planCanvasRenderer.save(),
-    planCanvasRenderer.translate(zr3.x, zr3.y),
-    planCanvasRenderer.rotate((planItem.rotation * Math.PI) / 180)
+  planCanvasRenderer.save()
+  applySuspendedItemStyle(deps, planItem, Boolean(ne3))
+  planCanvasRenderer.translate(zr3.x, zr3.y)
+  planCanvasRenderer.rotate((planItem.rotation * Math.PI) / 180)
   const color = isCourtyardPlanItem2(planItem) ? courtyardPlanColor2(planItem, itemTypeCatalog) : planItem.color
   if (
     ((planCanvasRenderer.fillStyle = color + 'c7'),

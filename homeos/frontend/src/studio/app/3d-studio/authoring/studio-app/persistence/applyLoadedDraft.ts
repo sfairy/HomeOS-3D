@@ -1,4 +1,8 @@
 import { normalizeStudioDocument } from '../../scene/payload/studio-document-payload'
+import { normalizeBaseLightingByTheme as normalizeBaseLightingByTheme2 } from '../../../loaders/studio-normalization'
+import { normalizeSceneStyle as normalizeSceneStyle2 } from '../../../../shared/scene-styles'
+import { previewStyleOrDefault, syncPreviewStyleSelect } from '../ui/studio-preview-style'
+import { syncNaturalWoodForAppCtx } from '../ui/studio-natural-wood-runtime'
 
 import type { StudioAppContext } from '../studio-app-context'
 export interface ApplyLoadedDraftDeps {
@@ -41,6 +45,22 @@ export interface ApplyLoadedDraftDeps {
   syncStudioHistoryFacade: any
   updateCameraView: any
   updateFloorPreviewButtons: any
+}
+
+/**
+ * 草稿加载时生效的基础光照：优先**当前预览风格**那一份，老文档回落到文档级 `baseLighting`。
+ *
+ * 风格来源不直接用 `project.sceneStyle`：编辑器里的预览偏好（localStorage）优先级更高，
+ * 与 `#editor-scene-style` 的选择保持一致，否则「选了自然木语但打开是默认光照」。
+ */
+function draftBaseLighting(
+  runtime: { appCtx: { sceneStyle: string } },
+  project: Record<string, unknown> | null | undefined,
+) {
+  const style = previewStyleOrDefault(project?.sceneStyle)
+  runtime.appCtx.sceneStyle = style
+  const byTheme = normalizeBaseLightingByTheme2(project?.baseLightingByTheme)
+  return byTheme[normalizeSceneStyle2(style)] ?? project?.baseLighting
 }
 
 export async function applyLoadedDraft(deps: ApplyLoadedDraftDeps, draftPayload: any, draftScene: any = null) {
@@ -116,7 +136,14 @@ export async function applyLoadedDraft(deps: ApplyLoadedDraftDeps, draftPayload:
       livePreviewFloor.scene.settings.livePreviewEnabled = true
   }
   if (
-    (applyBaseLighting(appCtx.studioProject.baseLighting),
+    (applyBaseLighting(draftBaseLighting({ appCtx }, appCtx.studioProject)),
+    syncPreviewStyleSelect({ appCtx, isEmbeddedStage }),
+    // 载入时风格就已经是自然木语的话，也必须补一次启停（否则贴图与环境永远不加载）。
+    syncNaturalWoodForAppCtx(
+      appCtx,
+      normalizeSceneStyle2(appCtx.sceneStyle),
+      (appCtx.studioState?.settings as Record<string, unknown> | undefined)?.warmBackgroundTheme as string | undefined,
+    ),
     (appCtx.activeFloorId = appCtx.studioProject.activeFloorId),
     isAutoDiagramEmbed && appCtx.studioProject.floors.length > 1 && (appCtx.studioProject.previewFloorMode = 'all'),
     isAutoDiagramEmbed && floorSelectionId !== null)

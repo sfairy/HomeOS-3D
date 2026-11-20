@@ -1,7 +1,10 @@
 @import "../ui-icons.css";
+@import "/static/modules/interaction3d/natural-theme.css";
 
 :root {
   color-scheme: dark;
+  /* 0.8.7：页头高度做成变量 —— 工作区切换后的 toast / 视口计算都要复用它。 */
+  --studio-header-height: 70px;
   --bg: #0a0f14;
   --surface: #111820;
   --surface-soft: #1b2631;
@@ -111,6 +114,18 @@ input[type="number"]::-webkit-outer-spin-button {
   border-right: 3px solid transparent;
   border-left: 3px solid transparent;
 }
+/*
+ * 上下三角的「横向边」：上面的 `:before` 只给了左右透明边，没有这一横就没有图形。
+ * 这两个类名由 `studio-widgets.ts` / `number-stepper.ts` 用
+ * `'number-stepper-' + direction` 动态拼出来，静态扫描看不到字面量 ——
+ * 别把它们当无引用类删掉（a7b481162 曾误删，按钮只剩空方块）。
+ */
+.number-stepper .number-stepper-up:before {
+  border-bottom: 4px solid currentColor;
+}
+.number-stepper .number-stepper-down:before {
+  border-top: 4px solid currentColor;
+}
 .number-stepper .number-stepper-button:hover:not(:disabled) {
   border-color: #ffa73a6b;
   color: #ffc071;
@@ -152,7 +167,7 @@ button:disabled {
   opacity: 0.38;
 }
 .studio-header {
-  height: 70px;
+  height: var(--studio-header-height);
   display: grid;
   grid-template-columns: minmax(180px, 1fr) auto minmax(180px, 1fr);
   align-items: center;
@@ -335,7 +350,7 @@ canvas:focus-visible {
   }
 }
 .studio-shell {
-  height: calc(100% - 70px);
+  height: calc(100% - var(--studio-header-height));
   display: grid;
   grid-template-columns: 204px minmax(400px, 1fr) minmax(420px, var(--details-panel-width, 29vw));
   grid-template-areas: "library plan details";
@@ -406,6 +421,15 @@ canvas:focus-visible {
  * 这里给 shell 一个地板宽并让容器自己横向滚动，而不是继续压缩中间画布。
  */
 @media (max-width: 1080px) {
+  /*
+   * 0.8.7：窄窗口下 body 也要能横向滚动。
+   * 这里给了 `min-width`（下面 1380 断点还有 1080px 地板宽），但如果 body 不允许滚动，
+   * 超出视口的部分会被直接裁掉、鼠标也拖不出来。嵌入态（仪表盘 iframe）与 3D 舞台
+   * 例外：它们必须严格跟随宿主尺寸，绝不能出现自己的横向滚动条。
+   */
+  body:not(.interaction3d-stage, .auto-diagram-embedded) {
+    overflow-x: auto;
+  }
   .studio-shell {
     min-width: 980px;
     overflow-x: auto;
@@ -423,13 +447,154 @@ canvas:focus-visible {
   background: #111820ed;
   box-shadow: 0 18px 60px #0000002e;
 }
+/*
+ * 侧栏分两段：头部的「户型底图 / 楼层 / 墙体 / 页签」固定不动，
+ * 只有下面的模型列表（素材库 / 已放置）自己滚动。
+ */
 .library-panel {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  /* 整栏不再滚动：滚动条由下面两段各自持有（列表 / 楼层），头部永远不跟着走。 */
+  overflow: hidden;
+}
+/* 固定段：永不参与滚动，也不会被列表挤扁。 */
+.library-panel > :is(.start-card, .model-settings-card, .library-mode-tabs) {
+  flex: 0 0 auto;
+}
+/*
+ * 楼层卡是「半固定」段：楼少时按内容高，楼多时先封顶再让位。
+ * 只封顶不让位的话，矮窗口 + 十几层楼会把下面的模型库挤到只剩几十像素。
+ */
+.library-panel > .floor-manager-card {
+  display: flex;
+  flex-direction: column;
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: min(232px, 34%);
+  overflow: hidden;
+}
+.floor-manager-card > .start-card-row {
+  flex: 0 0 auto;
+}
+/* 弹性段：占满剩余高度，内部再分「静态表头 + 可滚动列表」。 */
+.library-panel > :is(#placed-items-panel, .asset-library-card):not([hidden]) {
+  /* 基数为 0：这块永远拿「固定段之外的全部高度」，与自身内容多少无关。 */
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+/*
+ * 弹性段内部的静态表头（标题 / 分类页签 / 灯具行 / 占位文案）：
+ * 一律不许被列表挤压，否则窗口一矮这几个 30px 的行就会先被压扁、页签文字被裁。
+ */
+.asset-library-card > :is(.section-heading, .asset-category-tabs, .light-asset-row, .asset-search-empty),
+#placed-items-panel > :is(.placed-heading, #placed-search, .placed-session-note) {
+  flex: 0 0 auto;
+}
+/*
+ * 可滚动列表：素材库网格 / 已放置清单。
+ * 底部留白是必须的 —— 卡片各自有边框，不留白时最后一行会正好被面板圆角切一半，
+ * 看起来像布局塌了，而不是「下面还有内容」。
+ */
+.asset-library-card:not([hidden]) > #asset-grid,
+#placed-items-panel:not([hidden]) > .placed-items-list {
+  flex: 1 1 auto;
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
+  align-content: start;
+  overscroll-behavior: contain;
+  scroll-padding-block: 6px;
+  padding-bottom: 8px;
+  /* 卡片边缘与滚动条之间留 3px，滑块不会贴着卡片描边，看起来像被卡片"切"了。 */
+  padding-right: 3px;
+  /*
+   * 切分类时「有 / 无滚动条」不改变卡片宽度，列表不会左右跳。
+   *
+   * 这里**绝对不能**再写 `scrollbar-width` / `scrollbar-color`：Chromium 一旦看到这两个
+   * 标准属性，就会整套忽略下面的 `::-webkit-scrollbar`，退回 macOS 的**浮层**滚动条 ——
+   * 那条细条不占宽度、直接画在内容上，右侧那一列卡片会被盖住一截（见 0.8.7 截图）。
+   * 只留 webkit 伪元素，滚动条才真正占位：滑块平时透明，滚动时才点亮（见下）。
+   */
   scrollbar-gutter: stable;
-  scrollbar-width: thin;
-  scrollbar-color: #35414c transparent;
+}
+/*
+ * 侧栏内滚区（模型网格 / 已放置清单 / 灯组 / 楼层）共用一套细滚动条。
+ *
+ * 滑块默认**完全透明**：面板只有 204px，常显一条灰条太抢眼，也容易看成"压着卡片"；
+ * 只有真正滚动时才点亮，停下 0.8s 由 `installScrollbarReveal()` 摘掉 `.is-scrolling`
+ * 自动隐回去（纯 CSS 不知道内容正在被滚，必须由 scroll 事件驱动）。
+ *
+ * 槽位仍常驻 6px（列表上的 `scrollbar-gutter: stable`）：滚动条出现 / 消失不会改变
+ * 卡片宽度，也不会像系统浮层条那样画在卡片边框上。
+ */
+.library-panel
+  :is(#asset-grid, .placed-items-list, #light-layer-panel, .floor-list)::-webkit-scrollbar {
+  width: 6px;
+}
+.library-panel
+  :is(#asset-grid, .placed-items-list, #light-layer-panel, .floor-list)::-webkit-scrollbar-track {
+  background: transparent;
+}
+.library-panel
+  :is(#asset-grid, .placed-items-list, #light-layer-panel, .floor-list)::-webkit-scrollbar-thumb {
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  background-clip: padding-box;
+}
+.library-panel
+  :is(#asset-grid, .placed-items-list, #light-layer-panel, .floor-list).is-scrolling::-webkit-scrollbar-thumb {
+  background: #5a6874;
+  background-clip: padding-box;
+}
+/*
+ * Firefox 不走 `::-webkit-scrollbar`，只能退回标准属性。
+ * 用 `@supports not selector(...)` 包起来：Chromium 命中上面那段时不会覆盖，
+ * 否则又会出现「标准属性把 webkit 定制整套顶掉」的浮层条问题。
+ * 标准属性同样能跟着 `.is-scrolling` 切换 —— 那边是即时生效的。
+ */
+@supports not selector(::-webkit-scrollbar) {
+  .library-panel :is(#asset-grid, .placed-items-list, #light-layer-panel, .floor-list) {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+  .library-panel :is(#asset-grid, .placed-items-list, #light-layer-panel, .floor-list).is-scrolling {
+    scrollbar-color: #5a6874 transparent;
+  }
+}
+/*
+ * 灯组面板可能很长：限高并自己滚，不要顶掉下面的模型网格。
+ * 但「灯光」分类下模型网格本身是 `hidden`（asset-library.ts 直接切换 hidden），
+ * 这时它就是唯一的内容区，应该吃掉整块剩余高度，而不是卡在 42%。
+ */
+#light-layer-panel:not([hidden]) {
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: min(240px, 42%);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* 滚动条外观统一在 `.library-panel :is(...)` 里，这里不再重复。 */
+}
+.asset-library-card:not([hidden]):has(> #asset-grid[hidden]) > #light-layer-panel:not([hidden]) {
+  flex: 1 1 auto;
+  max-height: none;
+}
+/*
+ * 楼层列表：高度交给外层楼层卡（`max-height` + flex 收缩），这里只负责内部滚动。
+ * 以前整栏可滚时靠外层滚动兜底；头部固定后不设限，列表会一直长下去。
+ */
+.floor-manager-card .floor-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-padding-block: 4px;
+  padding-bottom: 2px;
 }
 .library-panel section {
   padding: 12px;
@@ -1150,12 +1315,8 @@ html.list-drag-active * {
 .asset-grid[hidden] {
   display: none;
 }
-/* 分组标题兼作收叠开关：左侧三角、右侧数量徽标，整行可点。 */
 .asset-group-heading {
   grid-column: 1 / -1;
-  display: flex;
-  align-items: center;
-  gap: 6px;
   margin: 5px 1px 0;
   padding: 6px 2px 3px;
   border-bottom: 1px solid rgba(124, 140, 151, 0.14);
@@ -1163,46 +1324,6 @@ html.list-drag-active * {
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.04em;
-  cursor: pointer;
-  user-select: none;
-}
-.asset-group-heading:hover,
-.asset-group-heading:focus-visible {
-  color: #c6cfd6;
-  border-bottom-color: rgba(124, 140, 151, 0.32);
-  outline: none;
-}
-/* 三角用边框画，和属性检查器的分组箭头保持同一套观感。 */
-.asset-group-heading::before {
-  content: "";
-  width: 0;
-  height: 0;
-  flex: none;
-  border-top: 4px solid transparent;
-  border-bottom: 4px solid transparent;
-  border-left: 5px solid currentColor;
-  transform: rotate(90deg);
-  transition: transform 0.14s ease;
-}
-.asset-group-heading.is-collapsed::before {
-  transform: rotate(0deg);
-}
-.asset-group-heading::after {
-  content: attr(data-asset-count);
-  min-width: 16px;
-  margin-left: auto;
-  padding: 1px 6px;
-  border-radius: 999px;
-  color: #93a1ac;
-  background: #ffffff0f;
-  font-weight: 500;
-  letter-spacing: 0;
-  text-align: center;
-  white-space: nowrap;
-}
-/* 搜索是扁平结果视图，分组强制展开，标题只当分隔线用。 */
-.asset-grid-searching .asset-group-heading {
-  cursor: default;
 }
 .asset-group-heading:first-child {
   margin-top: 0;
@@ -1306,135 +1427,6 @@ html.list-drag-active * {
   align-items: stretch;
   gap: 8px;
 }
-.drawing-tool-section {
-  position: relative;
-  display: flex;
-  align-items: stretch;
-}
-.drawing-tool-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 38px;
-  padding: 0 11px;
-  border: 1px solid var(--line);
-  border-radius: 11px;
-  color: var(--muted);
-  background: var(--surface);
-  font-size: 11px;
-  font-weight: 650;
-  white-space: nowrap;
-  cursor: pointer;
-}
-.drawing-tool-toggle:hover {
-  color: #d8dee3;
-  border-color: var(--line-strong);
-}
-.drawing-tool-section--indoor .drawing-tool-toggle-label {
-  color: var(--hos-color-accent);
-}
-.drawing-tool-section--courtyard .drawing-tool-toggle-label {
-  color: var(--cyan);
-}
-.drawing-tool-active {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  max-width: 96px;
-  padding-left: 7px;
-  margin-left: 1px;
-  border-left: 1px solid var(--line-strong);
-  color: #e6ebef;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.drawing-tool-active[hidden] {
-  display: none;
-}
-.drawing-tool-active i {
-  color: var(--hos-color-accent);
-  font-style: normal;
-}
-.drawing-tool-caret {
-  color: var(--muted);
-  font-size: 9px;
-  transition: transform 0.16s ease;
-}
-.drawing-tool-section.has-active .drawing-tool-toggle {
-  color: #fff;
-  border-color: #ff9d2e4d;
-  background: var(--accent-soft);
-}
-.drawing-tool-section.has-active .drawing-tool-toggle-label {
-  color: #fff;
-}
-.drawing-tool-section.has-active .drawing-tool-caret {
-  color: var(--hos-color-accent);
-}
-.drawing-tool-section.open .drawing-tool-toggle {
-  color: #f0f3f6;
-  border-color: var(--line-strong);
-}
-.drawing-tool-section.open .drawing-tool-caret {
-  transform: rotate(180deg);
-}
-.drawing-tool-buttons {
-  position: absolute;
-  z-index: 35;
-  top: calc(100% + 6px);
-  left: 0;
-  min-width: 196px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 5px;
-  border: 1px solid var(--line-strong);
-  border-radius: 12px;
-  background: #131b23fa;
-  box-shadow: 0 18px 48px #0000006b;
-}
-.drawing-tool-buttons[hidden] {
-  display: none;
-}
-.drawing-tool-buttons .tool-button {
-  width: 100%;
-  min-width: 0;
-  height: 36px;
-  flex-direction: row;
-  justify-content: flex-start;
-  gap: 8px;
-  padding: 0 9px;
-  border-radius: 8px;
-  font-size: 11px;
-  line-height: 1.1;
-  text-align: left;
-}
-.drawing-tool-buttons .tool-button i {
-  width: 18px;
-  flex: 0 0 18px;
-  font-size: 15px;
-  text-align: center;
-}
-.drawing-tool-buttons .tool-button span {
-  flex: 0 0 auto;
-}
-.drawing-tool-buttons .tool-button small {
-  min-width: 0;
-  margin-left: auto;
-  color: var(--muted);
-  font-size: 9px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.drawing-tool-buttons .tool-button:not(.active):hover {
-  color: #eef2f5;
-  background: #ffffff0f;
-}
-.drawing-tool-buttons .tool-button.active small {
-  color: #ffc687;
-}
 .toolbar-actions {
   flex: 0 0 auto;
   margin-left: auto;
@@ -1522,16 +1514,7 @@ html.list-drag-active * {
 }
 /* 撤销 / 重做：禁用态必须能看出「历史栈为空」，所以不用 opacity 而是压暗图标色。 */
 /* 复制 / 粘贴：与撤销重做同款按钮，单独一段分组并在其后留同一条分隔线。 */
-.plan-history-actions,
-.plan-clipboard-actions,
-.plan-edit-actions {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  padding-right: 7px;
-  margin-right: 2px;
-  border-right: 1px solid var(--line);
-}
+
 .toolbar-actions .plan-history-button {
   width: 32px;
   min-width: 32px;
@@ -1607,10 +1590,7 @@ html.list-drag-active * {
   transition: opacity 0.12s ease, transform 0.12s ease;
 }
 /* 最右一个图标贴着面板右缘，提示框改成右对齐，否则会被 panel 的 overflow 裁掉。 */
-.toolbar-actions .plan-edit-actions .plan-history-button:last-child[aria-label]::after {
-  left: auto;
-  right: 0;
-}
+
 .toolbar-actions .plan-history-button[aria-label]:hover::after,
 .toolbar-actions .plan-history-button[aria-label]:focus-visible::after {
   opacity: 1;
@@ -2120,6 +2100,10 @@ html.list-drag-active * {
   align-items: center;
   gap: 6px;
 }
+/* 0.8.7：副控件区内的按钮可以换行（窄窗口下不再挤成一排）。 */
+.preview-secondary-controls {
+  flex-wrap: wrap;
+}
 .preview-control-label {
   width: 28px;
   flex: 0 0 28px;
@@ -2555,9 +2539,13 @@ html.list-drag-active * {
   .preview-scope-controls {
     gap: 2px;
   }
-  .preview-primary-controls > .preview-control-label {
-    display: none;
-  }
+  /*
+   * 0.8.7 在这里**单独**藏掉「预览」标签（「相机」仍然显示）。
+   * 后果是 420–480px 这一段两行标签不对称：第二行有「相机」缩进 28px，
+   * 第一行却从最左边直接是「实时」，看起来就像少画了一个字。
+   * 标签要么两行一起有、要么一起没有，所以这里不再单独隐藏主标签，
+   * 统一交给下方 (max-width: 420px) 那条规则一起收起。
+   */
   .preview-heading button {
     padding-inline: 4px;
   }
@@ -2677,84 +2665,24 @@ html.list-drag-active * {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* 属性检查器：语义分组 */
-
-/* 组标题吸顶：滚动时当前组始终可见，折叠后整份表单就是一张目录。 */
+/* 属性检查器：0.8.7 是平铺的 `.field-section` 堆栈，没有分组标题、没有折叠。
+ * 外层 `.inspector-group` 保留，只用于「整组字段都隐藏时整组收起」，
+ * 视觉上完全透明 —— 间距全部由内部 `.field-section` 自己的 padding 承担。 */
 .inspector-group {
-  border-top: 1px solid var(--line);
+  border-top: 0;
   padding: 0;
 }
 .inspector-group[hidden] {
   display: none;
 }
-.inspector-group-header {
-  position: sticky;
-  z-index: 2;
-  top: 0;
-  width: 100%;
-  display: grid;
-  grid-template-columns: 12px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 7px;
-  padding: 9px 0 8px;
-  border: 0;
-  color: var(--text);
-  background: #111820;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.2px;
-  text-align: left;
-  cursor: pointer;
-}
-.inspector-group-header::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 1px;
-  background: var(--line);
-}
-.inspector-group-header:hover .inspector-group-title {
-  color: var(--hos-color-accent);
-}
-.inspector-group-caret {
-  width: 0;
-  height: 0;
-  border-top: 4px solid transparent;
-  border-bottom: 4px solid transparent;
-  border-left: 5px solid var(--muted);
-  transform: rotate(90deg);
-  transition: transform 0.14s ease;
-}
-.inspector-group.is-collapsed .inspector-group-caret {
-  transform: rotate(0deg);
-}
-.inspector-group-count {
-  padding: 1px 6px;
-  border-radius: 999px;
-  color: var(--muted);
-  background: var(--surface-soft);
-  font-size: 10px;
-  font-weight: 500;
-}
 .inspector-group-body {
-  padding-bottom: 8px;
+  padding-bottom: 0;
 }
-.inspector-group-count[hidden],
-.inspector-group.is-collapsed > .inspector-group-body {
-  display: none;
-}
-/* 组内第一个 field-section 不再自带上下留白（留白由组承担）。 */
 .inspector-group-body > .field-section,
 .inspector-group-body > .field-grid,
 .inspector-group-body > .light-fields,
 .inspector-group-body > .label-text-fields {
   margin-top: 0;
-}
-.inspector-group-body > .field-section,
-.selection-inspector > #item-fields {
-  padding: 0;
 }
 .field-section {
   padding: 12px 0 4px;
@@ -4019,6 +3947,12 @@ select option:disabled {
   font-family: ui-monospace, monospace;
 }
 body.auto-diagram-embedded {
+  /*
+   * 0.8.7：`min-width: 0` 是「自动导图预览底部横向滚动条」的根因修复。
+   * 嵌入态下 body 是 iframe 里的根盒，`min-width: auto` 会让它按内容（3D 舞台按
+   * 仪表盘宽度算出的画布）撑开，比 iframe 视口宽一点 → 底部冒出横向滚动条。
+   */
+  min-width: 0;
   overflow: hidden;
   background: #0b1116;
 }
@@ -4649,3 +4583,1258 @@ body.auto-diagram-embedded .export-preview-frame {
 
 #door-opening-field{margin-top:10px}
 #door-opening-field p{margin:8px 0 0;color:var(--muted);font-size:10px;line-height:1.6}
+
+/* ===== 0.8.7 素材库 / 已放置 双页签 ===== */
+.library-mode-tabs {
+  display: flex;
+  gap: 3px;
+  margin: 8px 10px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #00000029;
+}
+.library-mode-tabs button {
+  flex: 1;
+  padding: 7px 4px;
+}
+.library-mode-tabs button.active {
+  border-color: #ce995f;
+  color: #ffd49d;
+  background: #302a25;
+}
+.library-mode-tabs button:focus-visible {
+  outline: 2px solid var(--focus-ring, #7cc4ff);
+  outline-offset: 1px;
+}
+/* 0.8.7：切换页签 / 隐藏项 / 弹层统一用 `hidden` 收敛显示，避免各写一份 display。 */
+#placed-items-panel[hidden],
+.asset-library-card[hidden],
+.studio-asset-preview[hidden],
+.overlap-items[hidden],
+.distance-rulers[hidden],
+.distance-ruler-label[hidden] {
+  display: none;
+}
+
+/*
+ * 已放置模式：把素材库那一批**直接子节点**整片隐掉。
+ * 用直接子选择器而不是给每块加类名，是为了新增分组标题 / 灯具行时不必回来补一次。
+ */
+
+
+
+.placed-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.placed-heading button {
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface-raised, rgba(255, 255, 255, 0.06));
+  color: #c8d0d6;
+  font-size: 11px;
+  cursor: pointer;
+}
+#placed-search {
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #10171e;
+  color: #d9e0e5;
+  font-size: 12px;
+  font-family: inherit;
+  outline: 0;
+  appearance: none;
+}
+#placed-search::placeholder {
+  color: #71808c;
+}
+#placed-search:focus {
+  border-color: #ff9d2ea6;
+  box-shadow: 0 0 0 2px #ff9d2e1a;
+}
+
+
+.placed-item-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 3px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 5px;
+  min-width: 0;
+}
+.placed-item-row button {
+  font-size: 11px;
+  padding: 4px;
+  min-width: 0;
+}
+.placed-item-row.selected {
+  border-color: #dfaa67;
+  background: #dfaa6712;
+}
+.placed-item-row.muted .placed-item-pick {
+  opacity: 0.55;
+}
+.placed-item-pick {
+  grid-column: 1 / -1;
+  display: grid;
+  text-align: left;
+  gap: 3px;
+  border: 0 !important;
+  background: transparent !important;
+}
+.placed-item-pick strong,
+.placed-item-pick span,
+.placed-item-pick small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.placed-item-pick span {
+  color: #b0bac5;
+}
+.placed-item-pick small {
+  color: #87949f;
+}
+
+/* ===== 0.8.7 工作区主视图（物理对调平面 / 3D 面板） ===== */
+/*
+ * 结构由 `bootStudio` 的 `createWorkspaceView` 驱动：
+ *   .studio-shell > .editor-main-view > .editor-primary-view  ← 主视图
+ *   .details-panel > .editor-secondary-view                   ← 次视图
+ * 两块面板在两者之间搬移，切换条绝对定位在当前主视图右上角。
+ */
+.editor-main-view,
+.editor-primary-view,
+.editor-secondary-view {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.editor-main-view {
+  gap: 7px;
+}
+.editor-primary-view {
+  flex: 1;
+}
+.editor-primary-view > .plan-panel,
+.editor-primary-view > .preview-card,
+.editor-secondary-view > .plan-panel,
+.editor-secondary-view > .preview-card {
+  flex: 1;
+  min-height: 0;
+}
+.editor-workspace-bar {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  max-width: calc(100% - 20px);
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #101820ed;
+  box-shadow: 0 2px 8px #0004;
+}
+.editor-workspace-bar button {
+  min-height: 30px;
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #17212b;
+  color: #aebbc5;
+  font-size: 11px;
+  line-height: 1.3;
+}
+.editor-workspace-bar button.active,
+.editor-workspace-bar button[aria-pressed='true'] {
+  border-color: #ff9d2e80;
+  color: #ffd097;
+  background: #30281f;
+}
+.workspace-floor-note {
+  font-size: 10px;
+  color: #83919c;
+  margin-left: auto;
+}
+.workspace-floor-note[hidden] {
+  display: none;
+}
+.editor-secondary-view .toolbar-actions {
+  gap: 3px;
+}
+.editor-secondary-view .toolbar-actions button {
+  font-size: 10px;
+  padding: 4px 5px;
+}
+.editor-secondary-view .tool-group {
+  display: none !important;
+}
+.editor-secondary-view .plan-toolbar {
+  min-height: 31px;
+}
+.editor-secondary-view .plan-toolbar:before {
+  content: '平面副视图';
+  color: #8499a9;
+  font-size: 10px;
+  flex: 1;
+}
+/*
+ * 副视图只保留「删除」与「适应画布」。
+ *
+ * 上游的 `.toolbar-actions > :not(#delete-selection):not(#fit-view)` 成立，是因为它的
+ * 按钮都是 `.toolbar-actions` 的直接子级。本项目多了一层分组包装（撤销/剪贴板/编辑），
+ * 直接子选择器只会把整组连同里面的删除按钮一起隐藏 —— 所以分组要显式列出，
+ * 删除按钮所在的分组只保留它自己。
+ */
+.editor-secondary-view .plan-history-actions,
+.editor-secondary-view .plan-clipboard-actions,
+.editor-secondary-view .snap-control,
+.editor-secondary-view .plan-edit-actions > :not(#delete-selection),
+.editor-secondary-view .toolbar-actions > :not(#delete-selection):not(#fit-view) {
+  display: none;
+}
+@media (max-width: 760px) {
+  .studio-shell[data-editor-workspace] > .editor-main-view {
+    flex: 0 0 560px;
+    min-height: 560px;
+  }
+  .workspace-floor-note {
+    flex-basis: 100%;
+    margin-left: 0;
+  }
+}
+
+/* ===== 0.8.7 「底部离地」说明行与贴合台面 ===== */
+.item-height-explanation {
+  grid-column: 1 / -1;
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+/*
+ * 贴合台面（0.8.7 `#item-place-surface` 只有 `width:100%; margin-bottom:8px`）。
+ *
+ * 外观完整交给上面那条通用 `button` 规则 —— 早期这里又补了 padding / 圆角 / 字号 / 灰字，
+ * 按钮就缩成一颗和同面板「旋转 ±15°」那一排明显不同套的小药丸。少写几条而不是多写。
+ */
+#item-place-surface {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+/* ===== 0.8.7 重叠物件拾取 ===== */
+.overlap-items {
+  position: fixed;
+  z-index: 10000;
+  display: grid;
+  gap: 4px;
+  min-width: 176px;
+  max-width: min(320px, calc(100vw - 16px));
+  max-height: 260px;
+  padding: 8px;
+  border: 1px solid #62707d;
+  border-radius: 8px;
+  background: #17212b;
+  box-shadow: 0 8px 24px #0007;
+  overflow: auto;
+}
+.overlap-heading {
+  margin: 0 0 2px;
+  padding: 0 4px;
+  color: #aebbc5;
+  font-size: 10px;
+}
+.overlap-items strong {
+  font-size: 12px;
+  color: #e1e8ec;
+}
+.overlap-items button {
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  padding: 7px;
+  font-size: 12px;
+}
+.overlap-items > button {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.overlap-items > button:hover,
+.overlap-items > button.is-active {
+  border-color: var(--accent, #e0a95e);
+  background: var(--surface-subtle, rgba(255, 255, 255, 0.06));
+}
+
+/* ===== 0.8.7 素材悬停预览 ===== */
+/* 挂在 body 上、fixed 定位：浮层必须能超出素材库与画布的裁剪边界。 */
+.studio-asset-preview {
+  position: fixed;
+  z-index: 10010;
+  pointer-events: none;
+  width: 240px;
+  padding: 8px;
+  border: 1px solid #62707d;
+  border-radius: 8px;
+  background: #17212b;
+  box-shadow: 0 8px 24px #0007;
+  display: grid;
+  gap: 6px;
+  color: #e1e8ec;
+}
+.studio-asset-preview strong,
+.studio-asset-preview small,
+.studio-asset-preview span {
+  overflow-wrap: anywhere;
+}
+.studio-asset-preview strong {
+  font-size: 12px;
+  font-weight: 600;
+}
+.studio-asset-preview small,
+.studio-asset-preview span {
+  font-size: 11px;
+  color: #aebbc5;
+}
+.studio-asset-preview img {
+  width: 224px;
+  height: 168px;
+  object-fit: contain;
+  background: #26303b;
+  border-radius: 4px;
+}
+.studio-asset-preview small.is-status {
+  color: #ffd49d;
+}
+
+
+/* ===== 0.8.7：3D 视口编辑叠层 ===== */
+/*
+ * 叠层本身不吃指针（`pointer-events: none`），只有手柄可拖 —— 否则它会盖住画布，
+ * 用户连转视角都点不动。
+ */
+/*
+ * 叠层本身不吃指针（`pointer-events: none`），只有手柄可拖 —— 否则它会盖住画布。
+ * **不设** `z-index` / `opacity`：一旦成为层叠上下文，内部手柄的 `z-index: 7`
+ * 就只在这个上下文里比较，压不住灯带工具条（7）与切换条（8）。
+ * 上游同样是「叠层无 z-index、手柄各自带 z-index」。
+ */
+.editor-3d-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+/* 0.8.7 契约：高度手柄是「竖条箭头 + 数值」，不是圆点。
+ * `--editor-height-angle` 让它沿屏幕上的竖直方向倾斜（相机俯仰时仍贴合物件）。
+ * 按钮本身不吃指针，只有内部形状可拖 —— 否则箭头会挡住画布。 */
+.editor-height-arrow {
+  position: absolute;
+  z-index: 7;
+  transform: translate(-50%, -100%) rotate(var(--editor-height-angle, 0rad));
+  transform-origin: 50% 100%;
+  width: 30px;
+  height: var(--editor-height-length, 48px);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #73c9ef;
+  cursor: ns-resize;
+  touch-action: none;
+  pointer-events: none;
+  transition: color 0.14s ease, opacity 0.14s ease;
+}
+.editor-height-arrow:active:not(:disabled) {
+  transform: translate(-50%, -100%) rotate(var(--editor-height-angle, 0rad));
+}
+.editor-height-arrow[hidden] {
+  display: none;
+}
+.editor-height-arrow:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.editor-height-arrow:focus-visible {
+  outline: 2px solid #ffc071;
+  outline-offset: 4px;
+  border-radius: 5px;
+}
+.editor-height-arrow-shape {
+  position: absolute;
+  left: 12px;
+  top: 13px;
+  width: 5px;
+  height: calc(var(--editor-height-length, 48px) - 17px);
+  min-height: 1px;
+  border-radius: 3px;
+  background: #73c9ef;
+  box-shadow: 0 0 0 1px #183b50;
+  pointer-events: auto;
+}
+.editor-height-arrow-shape:after {
+  content: "";
+  position: absolute;
+  inset: -5px -6px -4px;
+}
+.editor-height-arrow-shape:before {
+  content: "";
+  position: absolute;
+  top: -9px;
+  left: -5.5px;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 12px solid #73c9ef;
+}
+.editor-height-value {
+  position: absolute;
+  z-index: 7;
+  transform: translate(-50%, -50%);
+  padding: 3px 5px;
+  border: 1px solid #456879;
+  border-radius: 5px;
+  white-space: nowrap;
+  background: #12242fed;
+  color: #b8e2f5;
+  font: 10px system-ui;
+  pointer-events: none;
+  max-width: calc(100% - 14px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.editor-height-value[hidden],
+.editor-orbit-caption[hidden] {
+  display: none;
+}
+.editor-orbit-marker {
+  position: absolute;
+  z-index: 5;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  border: 1px solid #ffc071;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+}
+.editor-orbit-marker[hidden] {
+  display: none;
+}
+.editor-orbit-marker:before,
+.editor-orbit-marker:after {
+  content: "";
+  position: absolute;
+  background: #ffc071;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+.editor-orbit-marker:before {
+  width: 26px;
+  height: 1px;
+}
+.editor-orbit-marker:after {
+  height: 26px;
+  width: 1px;
+}
+.editor-orbit-caption {
+  position: absolute;
+  z-index: 5;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  color: #ffd097;
+  text-shadow: 0 1px 3px #000;
+  font: 10px system-ui;
+  white-space: nowrap;
+}
+/*
+ * 灯带方向工具条（0.8.7）：固定在画布左上角，横排换行。
+ *
+ * 早期是跟随灯位浮动的 172px 竖排面板 —— 灯带一拖走，工具条跟着跑，
+ * 「现在在调哪根轴」的上下文就丢了。上游把它钉在左上角，这里照做。
+ * 显隐只由 `hidden` 控制（不再叠 `display:none` + `.is-visible`）。
+ */
+.editor-light-toolbar {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 7;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 5px;
+  padding: 6px 8px;
+  border: 1px solid #3d4e5b;
+  border-radius: 9px;
+  background: linear-gradient(180deg, #13212dee, #0c1620ee);
+  box-shadow: 0 6px 18px #00000059, inset 0 1px 0 #ffffff0f;
+  /* 宽度只由内容决定：行容器是普通流内 flex 行，不再用 100% 的换行占位撑满画布。 */
+  width: max-content;
+  max-width: calc(100% - 20px);
+  font: 11px system-ui;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.editor-light-toolbar[hidden] {
+  display: none;
+}
+/* 每一行：按内容排布，允许换行但默认不换（按钮都很短，换行只会在窄屏兜底）。 */
+.editor-light-toolbar-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+/* 模式行不换行：换行会让「移动 / 旋转」竖着排，反而不像 toolbar。 */
+.editor-light-toolbar-row.is-tools {
+  flex-wrap: nowrap;
+}
+.editor-light-toolbar-row.is-axes {
+  gap: 5px;
+  padding-top: 5px;
+  border-top: 1px solid #263440;
+}
+/* 折叠时必须真正消失：`display: grid` 会覆盖 `[hidden]` 的 `display: none`。 */
+/* ===== 0.8.7 灯带三轴 gizmo（SVG 圆环） ===== */
+.editor-light-gizmo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 6;
+  pointer-events: none;
+  overflow: hidden;
+  touch-action: none;
+}
+.editor-light-gizmo[hidden],
+.editor-light-toolbar[hidden],
+.editor-light-toolbar button[hidden] {
+  display: none;
+}
+.editor-light-point {
+  fill: #f6be6c;
+  stroke: #fff0cb;
+  stroke-width: 1.5;
+  pointer-events: all;
+  cursor: pointer;
+}
+.editor-light-point[aria-pressed="true"] {
+  fill: #fff2ca;
+  stroke: #ffb348;
+  stroke-width: 3;
+}
+/*
+ * 嵌入舞台（`/api/v1/modules/interaction3d/stage.html`）是**只读**交互图：
+ * 没有灯具选中 / 拖动，灯位圆点（上图）只会变成盖在户型上的一片橙斑。
+ * 0.8.7 的舞台同样不画这层（`studio-editor-light-gizmo.js` 只在家居编辑 / 灯光模块 /
+ * 已放置面板里渲染 markers）。JS 侧已加 `isEmbeddedStage` 守卫，这里再兜一层：
+ * 舞台的 CSS 是稳定 URL（`?v=` 会随内容变），即使浏览器还挂着旧 JS chunk 也不会漏出来。
+ */
+.interaction3d-stage .editor-light-gizmo {
+  display: none;
+}
+.light-handle-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 21;
+  pointer-events: stroke;
+  cursor: grab;
+}
+.light-handle-line {
+  fill: none;
+  stroke: var(--light-axis-color);
+  stroke-width: 4;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 2px #000);
+}
+.light-handle-head {
+  fill: var(--light-axis-color);
+  stroke: #14212d;
+  stroke-width: 1;
+  pointer-events: all;
+  cursor: grab;
+}
+.light-handle-label {
+  fill: var(--light-axis-color);
+  stroke: #111d27;
+  stroke-width: 3;
+  paint-order: stroke;
+  font: 11px system-ui;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  pointer-events: none;
+}
+.editor-light-gizmo [data-light-handle]:focus,
+.editor-light-gizmo [data-light-handle]:focus-visible {
+  outline: none !important;
+  box-shadow: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.editor-light-gizmo [data-light-handle]:is(:focus, :hover) .light-handle-line,
+.editor-light-gizmo .is-selected-axis .light-handle-line {
+  stroke-width: 6;
+}
+.editor-light-gizmo [data-light-handle="move-center"] .light-handle-hit {
+  stroke-linecap: round;
+}
+.editor-light-gizmo [data-light-handle="move-center"] .light-handle-line {
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+.editor-light-gizmo [data-light-handle="move-center"]:is(:focus, :hover) .light-handle-line {
+  stroke-width: 4;
+}
+.editor-light-gizmo [data-light-handle="move-center"]:active .light-handle-hit {
+  cursor: grabbing;
+}
+.editor-light-gizmo [data-light-handle]:is(:focus, :hover) .light-handle-label {
+  font-weight: 800;
+}
+.editor-light-gizmo .is-inactive-axis {
+  opacity: 0.2;
+}
+.editor-light-gizmo .is-inactive-axis .light-handle-hit,
+.editor-light-gizmo .is-inactive-axis .light-handle-head {
+  pointer-events: none;
+}
+.editor-light-gizmo .is-inactive-axis .light-handle-label {
+  visibility: hidden;
+}
+.editor-light-gizmo .disabled {
+  opacity: 0.4;
+}
+.editor-light-gizmo .disabled .light-handle-hit,
+.editor-light-gizmo .disabled .light-handle-head {
+  cursor: not-allowed;
+}
+/* 0.8.7 工具条里那批按钮规则（本项目面板沿用滑杆布局，只补按钮外观）。 */
+.editor-light-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 4px 8px;
+  min-height: 26px;
+  border: 1px solid #35485a;
+  border-radius: 6px;
+  background: #16242f;
+  color: #b7c8d4;
+  font: 11px/1.2 system-ui;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.editor-light-toolbar button:hover {
+  border-color: #4d6478;
+  background: #1d3041;
+  color: #e2eef6;
+}
+.editor-light-toolbar button:active {
+  background: #203648;
+}
+.editor-light-toolbar button:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+.editor-light-toolbar button[aria-pressed="true"] {
+  border-color: #d3a266;
+  color: #ffdcaa;
+  background: #33291c;
+}
+.editor-light-toolbar button:focus-visible {
+  outline: 2px solid #ffc071;
+  outline-offset: 1px;
+}
+/* 换行占位已不再使用（改成了真实行容器），保留声明只为兼容旧 chunk 里的 DOM。 */
+.editor-light-toolbar-break {
+  display: none;
+}
+.editor-light-toolbar-group-label {
+  padding: 0 1px 0 2px;
+  color: #7c93a4;
+  font: 10px system-ui;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+.editor-light-toolbar [data-light-axis] {
+  padding-left: 7px;
+  background: #131e27;
+  color: var(--light-axis-color);
+}
+/* 轴前面的颜色点：与 3D 圆环 / 箭头同色，工具栏和画面对得上。 */
+.editor-light-toolbar [data-light-axis]::before {
+  content: "";
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 6px currentColor;
+}
+.editor-light-toolbar [data-light-axis]:hover {
+  background: #1a2b36;
+}
+.editor-light-toolbar [data-light-axis][aria-pressed="true"] {
+  border-color: var(--light-axis-color);
+  color: var(--light-axis-color);
+  background: #16232d;
+  font-weight: 750;
+  box-shadow: 0 0 10px -3px var(--light-axis-color);
+}
+.editor-light-toolbar-axis-value {
+  color: #8ba3b4;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+.editor-light-toolbar-axis-value:empty {
+  display: none;
+}
+.editor-light-toolbar [data-light-axis][aria-pressed="true"] .editor-light-toolbar-axis-value {
+  color: inherit;
+  opacity: 0.85;
+}
+/* 状态行：独占一行、贴左，长文案只在极端情况下换行（不给容器撑宽）。 */
+.editor-light-status {
+  display: block;
+  margin: 0;
+  padding: 0 2px;
+  color: #8fa6b5;
+  font: 10px/1.4 system-ui;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 拖动中（带 `data-dragging` 属性）把状态文字提亮一点，反馈更醒目。 */
+.editor-light-toolbar[data-dragging] .editor-light-status {
+  color: #ffd097;
+}
+
+/* ===== 0.8.7 楼层删除确认（与通用 scale-dialog 同族，只是更窄 + 危险动作配色） ===== */
+.floor-delete-dialog {
+  width: min(440px, calc(100vw - 40px));
+}
+.floor-delete-dialog p {
+  margin-bottom: 24px;
+}
+.floor-delete-dialog p strong {
+  color: #ff9ca0;
+  font-weight: 750;
+}
+.floor-delete-dialog .floor-delete-confirm {
+  border-color: #d851587a;
+  color: #ffe1e2;
+  background: #b03037b8;
+}
+.floor-delete-dialog .floor-delete-confirm:hover,
+.floor-delete-dialog .floor-delete-confirm:focus-visible {
+  border-color: #ff8187b8;
+  background: #c53940e6;
+  outline: 0;
+}
+
+/* 浮动菜单（0.8.7 `data-floating-menu`）：菜单挂在 body 上，位置由 JS 按触发器算。 */
+.studio-select-menu.studio-select-floating-menu {
+  position: fixed;
+  top: auto;
+  right: auto;
+  left: auto;
+  z-index: 120;
+  width: auto;
+  min-width: 124px;
+}
+
+
+/* ===== 0.8.7：工作区主视图（逐条对齐上游 studio.css，media 上下文必须一致） ===== */
+/* 注意：`data-editor-workspace` 在初始化时就会写上，所以这里**不能**出现
+ * 「纵向堆叠」这类只在窄屏成立的声明 —— 上游把它们放在 @media (max-width:760px) 里，
+ * 无条件生效会把三栏 grid 变成竖排，整个编辑器高度塌掉。 */
+.studio-shell[data-editor-workspace] {
+  grid-template-columns: clamp(168px, 16vw, 204px) minmax(260px, 1fr) minmax(280px, var(--details-panel-width, 29vw));
+}
+.studio-shell[data-editor-workspace] .plan-toolbar {
+  padding: 6px;
+  gap: 5px;
+  flex-flow: row wrap;
+  align-items: center;
+}
+.studio-shell[data-editor-workspace] .tool-group {
+  display: flex;
+  max-width: 100%;
+  padding: 0;
+  gap: 4px;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.studio-shell[data-editor-workspace] .toolbar-actions {
+  justify-content: flex-end;
+  flex: 0 0 auto;
+}
+.studio-shell[data-editor-workspace] .tool-button {
+  min-width: 35px;
+  min-height: 35px;
+  padding: 3px 4px;
+  gap: 2px;
+  font-size: 10px;
+  border-radius: 6px;
+}
+.studio-shell[data-editor-workspace] .tool-button i {
+  width: 16px;
+  height: 16px;
+  font-size: 16px;
+}
+.studio-shell[data-editor-workspace] .canvas-hud.top-left {
+  max-width: calc(100% - 20px);
+  left: 10px;
+  top: 10px;
+  padding: 5px 8px;
+  border-radius: 6px;
+}
+.studio-shell[data-editor-workspace] .canvas-hud.top-left span {
+  font-size: 10px;
+}
+.studio-shell[data-editor-workspace] .preview-card {
+  container-type: inline-size;
+  container-name: editor-preview;
+}
+.studio-shell[data-editor-workspace] .preview-heading:has(#editor-scene-style) {
+  height: auto;
+  min-height: 0;
+  flex: 0 0 auto;
+  overflow: visible;
+  row-gap: 7px;
+  align-content: start;
+}
+.studio-shell[data-editor-workspace] .preview-heading-actions {
+  display: flex;
+  flex-wrap: wrap;
+  grid-template-rows: none;
+  min-height: 0;
+  gap: 7px 12px;
+  overflow: visible;
+}
+.studio-shell[data-editor-workspace] .preview-primary-controls,
+.studio-shell[data-editor-workspace] .preview-secondary-controls {
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  row-gap: 5px;
+}
+.studio-shell[data-editor-workspace] .preview-scope-controls,
+.studio-shell[data-editor-workspace] .preview-camera-settings {
+  flex-wrap: wrap;
+  row-gap: 5px;
+}
+.studio-shell[data-editor-workspace] .preview-control-spacer {
+  display: none;
+}
+.studio-shell[data-editor-workspace] ~ .toast {
+  top: calc(var(--studio-header-height) + 12px);
+  bottom: auto;
+  width: max-content;
+  max-width: min(560px, calc(100vw - 32px));
+  padding: 10px 16px;
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+body:has(.studio-shell[data-editor-workspace]) {
+  min-width: 0;
+  overflow-x: hidden;
+}
+body:has(.studio-shell[data-editor-workspace]) .studio-header {
+  gap: 8px;
+  padding-inline: 12px;
+}
+@media (max-width: 1100px) {
+  body:has(.studio-shell[data-editor-workspace]) .header-leading p,
+  body:has(.studio-shell[data-editor-workspace]) .studio-help-link {
+    display: none;
+  }
+  body:has(.studio-shell[data-editor-workspace]) .back-link span {
+    display: none;
+  }
+  body:has(.studio-shell[data-editor-workspace]) .header-title-row {
+    gap: 5px;
+  }
+}
+@media (max-width: 900px) {
+  body:has(.studio-shell[data-editor-workspace]) .workflow-center {
+    display: none;
+  }
+  body:has(.studio-shell[data-editor-workspace]) .studio-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+/* 窄屏才改成纵向堆叠（上游同款断点）；无条件生效会把三栏 grid 压成竖排。 */
+@media (max-width: 760px) {
+  .studio-shell[data-editor-workspace] {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .studio-shell[data-editor-workspace] > .library-panel {
+    flex: 0 0 210px;
+    max-height: 210px;
+  }
+  .studio-shell[data-editor-workspace] > .editor-main-view {
+    flex: 0 0 560px;
+    min-height: 560px;
+  }
+  .studio-shell[data-editor-workspace] > .details-panel {
+    flex: 0 0 590px;
+    min-height: 590px;
+  }
+}
+
+.preview-heading-tip {
+  grid-area: tip;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.preview-heading-tip .open-base-lighting {
+  flex: 0 0 auto;
+  color: #aeb9c3;
+}
+/* ===== 0.8.7：预览标题行的风格选择器（#editor-scene-style） ===== */
+#editor-scene-style {
+  width: 115px;
+  font-size: 11px;
+  padding: 3px 6px;
+}
+.interaction3d-stage #editor-scene-style {
+  display: none;
+}
+.is-exporting #editor-scene-style {
+  pointer-events: none;
+}
+.preview-heading:has(#editor-scene-style) {
+  height: auto;
+  min-height: 132px;
+  flex: 0 0 auto;
+  grid-template-columns: minmax(124px, max-content) minmax(0, 1fr);
+}
+.preview-title-row:has(#editor-scene-style) {
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.preview-title-row:has(#editor-scene-style) h2 {
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+.preview-title-row .studio-select:has(#editor-scene-style) {
+  flex: 0 0 124px;
+  width: 124px;
+  min-width: 124px;
+}
+.preview-title-row .studio-select:has(#editor-scene-style) .studio-select-trigger {
+  height: 30px;
+  line-height: 28px;
+  padding: 0 28px 0 9px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+@container editor-preview (max-width: 700px) {
+  .preview-heading-tip .preview-control-tip {
+    display: none;
+  }
+}
+.studio-select-floating-menu {
+  position: fixed;
+  z-index: 10030;
+  box-sizing: border-box;
+}
+.studio-select-floating-menu .studio-select-option {
+  font-size: 12px;
+  white-space: nowrap;
+  padding: 8px 10px;
+}
+
+/* 0.8.7：已放置行的按钮与页签共用同一套外观。 */
+.placed-heading button,
+.placed-item-row > button {
+  min-height: 27px;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #ffffff09;
+  color: #aab7c1;
+  line-height: 1.3;
+}
+.placed-heading button:hover,
+.placed-item-row > button:hover {
+  border-color: #617181;
+  color: #edf2f6;
+  background: #ffffff12;
+}
+.library-mode-tabs button:focus-visible,
+.placed-item-row button:focus-visible {
+  outline: 2px solid rgba(255, 157, 46, 0.6);
+  outline-offset: 2px;
+}
+.studio-select-option { width:100%;min-height:32px;padding:6px 9px;border:0;border-radius:5px;color:#c8d0d6;background:transparent;font-size:10px;line-height:1.35;text-align:left }
+.studio-select-option:hover,.studio-select-option:focus-visible { color:#eef3f6;background:#ffffff0f;outline:0 }
+.studio-select-option.selected { color:#ffc071;background:#ff9d2e1f }
+.studio-select-option:disabled { color:#65717c;background:transparent }
+.library-mode-tabs { display:flex;gap:5px;padding:10px;border-bottom:1px solid var(--line) }
+.library-mode-tabs button { flex:1;padding:7px 4px }
+.library-mode-tabs button.active { border-color:#ce995f;color:#ffd49d;background:#302a25 }
+#placed-items-panel[hidden],.asset-library-card[hidden],.studio-asset-preview[hidden],.overlap-items[hidden] { display:none }
+.placed-heading { display:flex;align-items:center;justify-content:space-between;gap:4px;margin-bottom:8px }
+.placed-session-note,.placed-empty,.item-height-explanation { font-size:11px;line-height:1.6;color:#a4b0ba }
+.placed-items-list { display:grid;gap:6px;margin-top:9px }
+.placed-item-row { display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;border:1px solid var(--line);border-radius:7px;padding:5px;min-width:0 }
+.placed-item-row.selected { border-color:#dfaa67;background:#dfaa6712 }
+.placed-item-row.muted .placed-item-pick { opacity:.55 }
+.placed-item-row button { font-size:11px;padding:4px;min-width:0 }
+.placed-item-pick { grid-column:1/-1;display:grid;text-align:left;gap:3px;border:0!important;background:transparent!important }
+.placed-item-pick strong,.placed-item-pick span,.placed-item-pick small { overflow:hidden;text-overflow:ellipsis;white-space:nowrap }
+.placed-item-pick span { color:#b0bac5 }
+.placed-item-pick small { color:#87949f }
+.studio-asset-preview { position:fixed;z-index:10010;pointer-events:none;width:240px;padding:8px;border:1px solid #62707d;border-radius:8px;background:#17212b;box-shadow:0 8px 24px #0007;display:grid;gap:6px;color:#e1e8ec }
+.studio-asset-preview strong,.studio-asset-preview small,.studio-asset-preview span { overflow-wrap:anywhere }
+.studio-asset-preview small,.studio-asset-preview span { font-size:11px;color:#aebbc5 }
+.studio-asset-preview img { width:224px;height:168px;object-fit:contain;background:#26303b;border-radius:4px }
+.overlap-items { position:fixed;z-index:10000;max-width:min(320px,calc(100vw - 16px));max-height:260px;overflow:auto;padding:8px;border:1px solid #62707d;border-radius:8px;background:#17212b;display:grid;gap:4px;box-shadow:0 8px 24px #0007 }
+.overlap-items strong { font-size:12px;color:#e1e8ec }
+.overlap-items button { text-align:left;white-space:normal;overflow-wrap:anywhere;padding:7px;font-size:12px }
+#editor-scene-style { width:115px;font-size:11px;padding:3px 6px }
+.interaction3d-stage #editor-scene-style { display:none }
+.is-exporting #editor-scene-style { pointer-events:none }
+.preview-heading:has(#editor-scene-style) { height:auto;min-height:132px;flex:0 0 auto;grid-template-columns:minmax(124px,max-content) minmax(0,1fr) }
+.preview-title-row:has(#editor-scene-style) { flex-wrap:wrap;gap:7px }
+.preview-title-row:has(#editor-scene-style) h2 { white-space:nowrap;flex:0 0 auto }
+.preview-title-row .studio-select:has(#editor-scene-style) { flex:0 0 124px;width:124px;min-width:124px }
+.preview-title-row .studio-select:has(#editor-scene-style) .studio-select-trigger { height:30px;line-height:28px;padding:0 28px 0 9px;font-size:11px;white-space:nowrap }
+.studio-select-floating-menu { position:fixed;z-index:10030;box-sizing:border-box }
+.studio-select-floating-menu .studio-select-option { font-size:12px;white-space:nowrap;padding:8px 10px }
+.library-mode-tabs { margin:8px 10px;padding:3px;gap:3px;border:1px solid var(--line);border-radius:9px;background:#00000029 }
+.library-mode-tabs button { min-height:30px;border:0;border-radius:6px;color:#99a7b2;background:transparent;font-size:12px;line-height:1.3 }
+.library-mode-tabs button.active { color:#ffd097;background:#ff9d2e1f;box-shadow:inset 0 0 0 1px #ff9d2e66 }
+.placed-heading button,.placed-item-row>button { min-height:27px;padding:4px 8px;border:1px solid var(--line);border-radius:6px;background:#ffffff09;color:#aab7c1;line-height:1.3 }
+.placed-heading button:hover,.placed-item-row>button:hover { border-color:#617181;color:#edf2f6;background:#ffffff12 }
+.placed-item-row>button[aria-pressed=true] { color:#ffd097;border-color:#ff9d2e66;background:#ff9d2e1a }
+.library-mode-tabs button:focus-visible,.placed-item-row button:focus-visible { outline:2px solid rgba(255,157,46,.6);outline-offset:2px }
+.editor-main-view,.editor-primary-view,.editor-secondary-view { min-width:0;min-height:0;display:flex;flex-direction:column }
+.editor-main-view { gap:7px }
+.editor-primary-view { flex:1 }
+.editor-primary-view>.plan-panel,.editor-primary-view>.preview-card,.editor-secondary-view>.plan-panel,.editor-secondary-view>.preview-card { flex:1;min-height:0 }
+.editor-workspace-bar { position:absolute;right:10px;top:10px;z-index:8;display:flex;align-items:center;flex-wrap:wrap;gap:5px;max-width:calc(100% - 20px);padding:3px;border:1px solid var(--line);border-radius:8px;background:#101820ed;box-shadow:0 2px 8px #0004 }
+.editor-workspace-bar button { min-height:30px;padding:5px 9px;border:1px solid var(--line);border-radius:7px;background:#17212b;color:#aebbc5;font-size:11px;line-height:1.3 }
+.editor-workspace-bar button.active,.editor-workspace-bar button[aria-pressed=true] { border-color:#ff9d2e80;color:#ffd097;background:#30281f }
+.editor-secondary-view .toolbar-actions { gap:3px }
+.editor-secondary-view .toolbar-actions button { font-size:10px;padding:4px 5px }
+/*
+ * 毫米标尺标签：字号与对比度比 0.8.7 上调一档（10px / 9px）。
+ * 上游 9px/8px 在平板尺寸的户型图上几乎读不出四角读数；这一处是有意偏离，
+ * `ops/checks/studio/visual-parity.mjs` 的 fontSize 对照会看到该差异。
+ */
+.distance-rulers { position:absolute;inset:0;pointer-events:none;z-index:5;overflow:hidden }
+.distance-rulers[hidden],.distance-ruler-label[hidden] { display:none }
+.distance-ruler-label { position:absolute;display:flex;align-items:center;gap:3px;transform:translate(-50%,-50%);padding:2px 5px;border:1px solid #5d8298;border-radius:5px;background:#12202bf2;box-shadow:0 2px 8px #0005;pointer-events:auto;color:#e6f1f7;font:10px ui-monospace,monospace }
+.distance-ruler-label>span { position:absolute;bottom:100%;left:50%;max-width:110px;transform:translate(-50%);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:9px system-ui;color:#b9cfdb;background:#0e1922e6;border-radius:3px;padding:1px 4px;pointer-events:none }
+.distance-ruler-label input { width:54px;min-width:0;height:19px;padding:1px 3px;border:0;border-radius:3px;outline:0;background:transparent;color:inherit;text-align:right;font:inherit;cursor:text }
+.distance-ruler-label:focus-within { z-index:2;padding:5px 7px;border-color:#80bddc;border-radius:7px;font-size:13px;background:#142c3af7 }
+.distance-ruler-label:focus-within input { width:88px;height:27px;padding:2px 4px }
+.distance-ruler-label:focus-within>span { max-width:160px;font-size:10px }
+.distance-ruler-label input:focus { background:#243b4c;box-shadow:0 0 0 1px #80bddc }
+.distance-ruler-label input[readonly] { color:#8fa5b2 }
+.distance-ruler-label small { color:#9fb6c4;font-size:9px }
+.distance-ruler-label:focus-within small { font-size:10px }
+@media (max-width:760px) {
+  .studio-shell[data-editor-workspace]>.editor-main-view { flex:0 0 560px;min-height:560px }
+}
+.editor-secondary-view .tool-group { display:none!important }
+.editor-secondary-view .plan-toolbar { min-height:31px }
+.editor-secondary-view .plan-toolbar:before { content:"\5e73\9762\526f\89c6\56fe";color:#8499a9;font-size:10px;flex:1 }
+.studio-shell[data-editor-workspace] .preview-heading:has(#editor-scene-style) { height:auto;min-height:0;flex:0 0 auto;overflow:visible;row-gap:7px;align-content:start }
+
+/* ===== 绘图工具条：三组折叠下拉（本项目形态，按用户要求恢复） ===== */
+.drawing-tool-section {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+}
+.drawing-tool-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  color: var(--muted);
+  background: var(--surface);
+  font-size: 11px;
+  font-weight: 650;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.drawing-tool-toggle:hover {
+  color: #d8dee3;
+  border-color: var(--line-strong);
+}
+.drawing-tool-section--indoor .drawing-tool-toggle-label {
+  color: var(--hos-color-accent);
+}
+.drawing-tool-section--courtyard .drawing-tool-toggle-label {
+  color: var(--cyan);
+}
+.drawing-tool-active {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 96px;
+  padding-left: 7px;
+  margin-left: 1px;
+  border-left: 1px solid var(--line-strong);
+  color: #e6ebef;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.drawing-tool-active[hidden] {
+  display: none;
+}
+.drawing-tool-active i {
+  color: var(--hos-color-accent);
+  font-style: normal;
+}
+.drawing-tool-caret {
+  color: var(--muted);
+  font-size: 9px;
+  transition: transform 0.16s ease;
+}
+.drawing-tool-section.has-active .drawing-tool-toggle {
+  color: #fff;
+  border-color: #ff9d2e4d;
+  background: var(--accent-soft);
+}
+.drawing-tool-section.has-active .drawing-tool-toggle-label {
+  color: #fff;
+}
+.drawing-tool-section.has-active .drawing-tool-caret {
+  color: var(--hos-color-accent);
+}
+.drawing-tool-section.open .drawing-tool-toggle {
+  color: #f0f3f6;
+  border-color: var(--line-strong);
+}
+.drawing-tool-section.open .drawing-tool-caret {
+  transform: rotate(180deg);
+}
+.drawing-tool-buttons {
+  position: absolute;
+  z-index: 35;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 196px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 5px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: #131b23fa;
+  box-shadow: 0 18px 48px #0000006b;
+}
+.drawing-tool-buttons[hidden] {
+  display: none;
+}
+.drawing-tool-buttons .tool-button {
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 0 9px;
+  border-radius: 8px;
+  font-size: 11px;
+  line-height: 1.1;
+  text-align: left;
+}
+.drawing-tool-buttons .tool-button i {
+  width: 18px;
+  flex: 0 0 18px;
+  font-size: 15px;
+  text-align: center;
+}
+.drawing-tool-buttons .tool-button span {
+  flex: 0 0 auto;
+}
+.drawing-tool-buttons .tool-button small {
+  min-width: 0;
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 9px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.drawing-tool-buttons .tool-button:not(.active):hover {
+  color: #eef2f5;
+  background: #ffffff0f;
+}
+.drawing-tool-buttons .tool-button.active small {
+  color: #ffc687;
+}
+/* 副视图里的平面面板退化成一条紧凑工具条：只留画布与两个必要动作。 */
+.studio-shell[data-editor-workspace] .canvas-hud.top-left small,
+.editor-secondary-view .drawing-tool-toggle {
+  display: none;
+}
+.studio-shell[data-editor-workspace] .drawing-tool-section {
+  padding: 3px 4px;
+  gap: 3px;
+  border-radius: 6px;
+}
+.studio-shell[data-editor-workspace] .drawing-tool-heading {
+  font-size: 9px;
+}
+.studio-shell[data-editor-workspace] .drawing-tool-buttons {
+  gap: 2px;
+}
+.studio-shell[data-editor-workspace] .canvas-hud.top-left small,
+.editor-secondary-view .drawing-tool-heading {
+  display: none;
+}
+
+/* ===== 操作区分组（本项目形态，按用户要求恢复）：撤销/重做 · 复制/粘贴 · 删除/旋转 ===== */
+/* 撤销 / 重做：禁用态必须能看出「历史栈为空」，所以不用 opacity 而是压暗图标色。 */
+/* 复制 / 粘贴：与撤销重做同款按钮，单独一段分组并在其后留同一条分隔线。 */
+.plan-history-actions,
+.plan-clipboard-actions,
+.plan-edit-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: 7px;
+  margin-right: 2px;
+  border-right: 1px solid var(--line);
+}
+/* 最右一个图标贴着面板右缘，提示框改成右对齐，否则会被 panel 的 overflow 裁掉。 */
+.toolbar-actions .plan-edit-actions .plan-history-button:last-child[aria-label]::after {
+  left: auto;
+  right: 0;
+}

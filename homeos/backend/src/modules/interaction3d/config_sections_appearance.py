@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 
 from fastapi import HTTPException
 
@@ -24,6 +25,18 @@ BEHAVIOR_FIELDS = frozenset(
 )
 #: 弹窗/导航放置字段。
 PLACEMENT_FIELDS = frozenset({'x', 'y', 'scale'})
+
+#: 弹窗放置的**额外**字段（0.8.7）：`custom` 显式标记「自定义大小与位置」，
+#: `maxHeight` 是面板最大高度占画布的百分比（内容超出时面板内部滚动）。
+#: 前端 `bridge/editor.ts` 一直是把这两个键一起写进来的，这里不收就等于「一勾选就 422」。
+POPUP_PLACEMENT_FIELDS = PLACEMENT_FIELDS | {'custom', 'maxHeight'}
+
+#: 弹窗缩放区间。上游校验器给到 0.5–10（前端滑杆实际只到 200%），按上游口径放行，
+#: 避免「前端将来放宽」时后端成为唯一的失败点。
+POPUP_SCALE_RANGE = (0.5, 10.0)
+
+#: 面板最大高度占画布的百分比区间（与前端滑杆 min/max 一致）。
+POPUP_MAX_HEIGHT_RANGE = (30.0, 95.0)
 #: 顶部导航偏移上限。
 MAX_NAVIGATION_OFFSET = 300
 #: 楼层字典上限（编号与相机共用）。
@@ -192,20 +205,34 @@ def _validate_floors(ctx: ValidationContext, properties: dict) -> None:
         ctx.validate_camera(camera)
 
 
+def _validate_popup_placement(ctx: ValidationContext, placement: Any) -> None:
+    """单个弹窗放置：键集合 + `custom` 必须是真布尔 + `maxHeight` 区间 + 其余数值区间。
+
+    `custom` 用 ``type(...) is bool`` 而不是 ``isinstance``：``1`` 也是 ``int`` 的子类实例，
+    ``isinstance(1, bool)`` 为 False 但 ``bool(1)`` 会被后续逻辑当开关用 —— 这里要求它
+    写出来就是 ``true`` / ``false``，与上游一致。
+    """
+    if not isinstance(placement, dict) or set(placement) - POPUP_PLACEMENT_FIELDS:
+        ctx.fail()
+    if 'custom' in placement and type(placement['custom']) is not bool:
+        ctx.fail()
+    if 'maxHeight' in placement and not ctx.number(placement['maxHeight'], *POPUP_MAX_HEIGHT_RANGE):
+        ctx.fail()
+    for axis, axis_value in placement.items():
+        # `custom` / `maxHeight` 已单独校验；其余按「scale 用缩放区间、其他按百分比」判。
+        if axis in {'custom', 'maxHeight'}:
+            continue
+        bounds = POPUP_SCALE_RANGE if axis == 'scale' else (0, 100)
+        if not ctx.number(axis_value, *bounds):
+            ctx.fail()
+
+
 def _validate_popup_layout(ctx: ValidationContext, properties: dict) -> None:
     popup_layout = properties.get('popupLayout', {})
     if not isinstance(popup_layout, dict) or set(popup_layout) - {'general', 'camera'}:
         ctx.fail()
     for placement in popup_layout.values():
-        if not isinstance(placement, dict) or set(placement) - PLACEMENT_FIELDS:
-            ctx.fail()
-        if any(
-            not ctx.number(axis_value, 0.5, 2)
-            if axis == 'scale'
-            else not ctx.number(axis_value, 0, 100)
-            for axis, axis_value in placement.items()
-        ):
-            ctx.fail()
+        _validate_popup_placement(ctx, placement)
 
 
 def _validate_navigation(ctx: ValidationContext, properties: dict) -> None:

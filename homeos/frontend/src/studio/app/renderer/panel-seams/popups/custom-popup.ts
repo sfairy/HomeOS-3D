@@ -35,7 +35,6 @@ import {
 } from '@app/shared/device/climate'
 import {
   formatLineChartValue as formatLineChartValue2,
-  mountCameraMedia as mountCameraMedia2,
   renderLineChartDetails as renderLineChartDetails2,
 } from '../../registry/index'
 import { lightColorRgb, lightSupportsColor } from '@app/shared/device/light-runtime'
@@ -48,6 +47,7 @@ import { syncHtmlRangeProgress as syncHtmlRangeProgress2 } from '../../../shared
 import { syncedLineChartProperties as syncedLineChartProperties2 } from '../../panel-document'
 
 import { domElement } from '@app/shared/util/dom-factory'
+import { createPopupCameraStage } from './custom-popup-camera'
 export function showCustomPopup(
   this: PanelRenderer,
   customPopupModule: any,
@@ -434,64 +434,19 @@ export function showCustomPopup(
             popupCleanupCallbacks.push(() => {
               window.clearTimeout(popupCameraMotionTimeoutId), popupCameraMotionAnimation?.cancel()
             })
-          const popupCameraStage = document.createElement('div')
-          ;(popupCameraStage.className = 'hb-custom-popup-camera-stage is-connecting'),
-            (popupModuleStatus.textContent = isCustomPopupPreview ? '预览模式' : '正在连接'),
-            popupModuleStatus.classList.add('is-connecting')
-          const popupCameraRevealVeilIcon = domElement(document, 'i', 'hb-camera-preview-reveal-veil')
-          const popupCameraScanLineIcon = document.createElement('i')
-          ;(popupCameraScanLineIcon.className = 'hb-camera-preview-scan-line'),
-            popupCameraStage.append(popupCameraRevealVeilIcon, popupCameraScanLineIcon)
-          const popupCameraPlaceholderElement = document.createElement('span')
-          ;(popupCameraPlaceholderElement.textContent = isCustomPopupPreview
-            ? '预览模式不获取实时画面'
-            : '正在载入摄像头实时预览'),
-            popupCameraStage.append(popupCameraPlaceholderElement),
-            isCustomPopupPreview
-              ? (popupModuleStatus.classList.remove('is-connecting'),
-                popupCameraStage.classList.remove('is-connecting'),
-                popupCameraStage.classList.add('is-ready'))
-              : mountCameraMedia2({
-                  container: popupCameraStage,
-                  entityId: entityId,
-                  label: popupModuleTitle.textContent,
-                  objectFit: 'fill',
-                  placeholder: popupCameraPlaceholderElement,
-                  // 弹窗模块是按 HA 设备档案（实体）驱动的，默认走 HLS；只有当模块属性显式
-                  // 配了 go2rtc 来源才把地址透传下去，projectId/componentId 供中继取权威地址。
-                  go2rtcUrl:
-                    moduleDeviceProfile.properties?.cameraSource === 'go2rtc'
-                      ? String(moduleDeviceProfile.properties?.go2rtcUrl || '')
-                      : '',
-                  projectId: this.document?.projectId || '',
-                  componentId: this.activePopupId || '',
-                  onStateChange: (popupCameraVisualState: string) => {
-                    if (popupCameraVisualState === 'reconnecting') popupModuleStatus.textContent = '正在重连'
-                    else if (popupCameraVisualState === 'suspended') popupModuleStatus.textContent = '后台已暂停'
-                  },
-                  onReady: () => {
-                    ;(popupModuleStatus.textContent = '实时画面'),
-                      popupModuleStatus.classList.remove('is-connecting', 'is-unavailable'),
-                      popupModuleStatus.classList.add('is-live'),
-                      popupCameraVisualElement.classList.remove('is-unavailable'),
-                      popupCameraVisualElement.classList.add('is-live'),
-                      popupCameraStage.classList.remove('is-connecting', 'is-unavailable', 'is-revealing'),
-                      popupCameraStage.classList.add('is-ready')
-                  },
-                  onUnavailable: () => {
-                    ;(popupModuleStatus.textContent = '画面不可用'),
-                      popupModuleStatus.classList.remove('is-connecting', 'is-live'),
-                      popupModuleStatus.classList.add('is-unavailable'),
-                      popupCameraVisualElement.classList.remove('is-live'),
-                      popupCameraVisualElement.classList.add('is-unavailable'),
-                      popupCameraStage.classList.remove('is-connecting', 'is-revealing'),
-                      popupCameraStage.classList.add('is-unavailable')
-                  },
-                  cleanup: (popupCleanupCallback: any) => {
-                    popupCleanupCallbacks.push(popupCleanupCallback)
-                  },
-                }),
-            popupModuleSection.append(popupCameraStage)
+          const popupCameraStage = createPopupCameraStage({
+            preview: isCustomPopupPreview,
+            entityId,
+            profile: moduleDeviceProfile,
+            title: popupModuleTitle,
+            status: popupModuleStatus,
+            heading: popupModuleHeading,
+            visual: popupCameraVisualElement,
+            cleanups: popupCleanupCallbacks,
+            projectId: this.document?.projectId || '',
+            componentId: this.activePopupId || '',
+          })
+          popupModuleSection.append(popupCameraStage)
         } else {
           if (moduleDeviceProfile.type === 'line-chart') {
             const lineChartModuleOptions = {

@@ -1,4 +1,5 @@
 import { createRenderLightIndex } from '../../../../bridge/scene/render-light-index'
+import { layerLightFailed, layerLightRecovered } from '@app/shared/diagnostics/degradation'
 import {
   createFloorDirectionalShadow,
   floorDirectionalShader,
@@ -545,8 +546,12 @@ export function createSpotShadowAtlasController({
         // update/prepare 可能因单层超容量把 enabled 翻成 false：此时 UBO 已不可用，
         // 必须立刻摘掉材质上的 HB_FLOOR_*，否则面光只读空缓冲、场景里灯带全黑。
         if (!floorLights.enabled) {
-          prepareRoot(renderedScene), (syncedLights = null), console.warn('分层灯光缓冲超容量，恢复原生灯光。')
+          prepareRoot(renderedScene),
+            (syncedLights = null),
+            console.warn('分层灯光缓冲超容量，恢复原生灯光。'),
+            layerLightFailed(new Error('分层灯光缓冲超容量'))
         } else {
+          layerLightRecovered() // 此前回退过才算恢复
           ;(renderer.domElement.dataset.activeUserLights = String(activeUserLightCount ?? 0)),
             (renderer.domElement.dataset.spotShadowTextureUnits = '1'),
             (renderer.domElement.dataset.shadowParameterSource = 'floor-buffer'),
@@ -554,13 +559,13 @@ export function createSpotShadowAtlasController({
           return
         }
       } catch (floorError) {
-        // 分层缓冲在驱动上不可用（UBO 分配失败 / 灯光超容量）：整体退回原生灯光路径，
-        // 并让所有材质重新编译一次，把 `HB_FLOOR_*` 拿掉。
+        // 分层缓冲在驱动上不可用（UBO 分配失败 / 超容量）：退回原生灯光并重编译材质。
         floorLights.setEnabled(false),
           floorLights.release(),
           prepareRoot(renderedScene),
           (syncedLights = null),
-          console.warn('分层灯光缓冲不可用，恢复原生灯光。', floorError)
+          console.warn('分层灯光缓冲不可用，恢复原生灯光。', floorError),
+          layerLightFailed(floorError)
       }
     directionalShadow.sync(false), shadowParameters.bind()
     lightIndex ||= createRenderLightIndex()

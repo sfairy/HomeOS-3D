@@ -80,6 +80,9 @@ services:
       # 额外接受「与本请求 Host 同源」）；不填时公网域名的实时通道也能靠这条同源兜底建立，
       # 填它只是为了在反代改写 Host 的场景下更稳。
       APP_BASE_URL: ${HOMEOS_PUBLIC_URL:-}
+      # 「额外公开访问来源」：客户机同时挂多个域名 / 端口反代时，把其余入口写在这里。
+      # 逗号分隔，每项必须是完整来源（scheme://host:port，带实际端口、不带路径）。
+      APP_ADDITIONAL_PUBLIC_ORIGINS: ${APP_ADDITIONAL_PUBLIC_ORIGINS:-}
       # 内网 HTTPS(8803) 的证书签给谁：用 IP 访问时填那个 IP（用主机名访问可不改）。
       APP_HTTPS_DEFAULT_SNI: ${APP_HTTPS_DEFAULT_SNI:-homeos.local}
       # 内置反代的访问日志：默认 discard（不写），排查反代层问题（502 / TLS / 跨域 /

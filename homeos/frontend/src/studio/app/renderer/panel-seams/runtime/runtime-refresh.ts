@@ -21,6 +21,18 @@ import {
 import { vacuumMapAvailable as vacuumMapAvailable2 } from '@app/shared/device/vacuum-map-state'
 import type { PanelRenderer } from '../../panel-renderer'
 import { createSceneActionRequests } from '../../scene-mode'
+import {
+  handleEntityRecovered,
+  noteEntityAvailability,
+  resetEntityRecovery,
+  type HistoryRecoveryTarget,
+} from './entity-recovery'
+import {
+  deferComponentRefresh,
+  forgetComponentRefresh,
+  hostIsHidden,
+  resetComponentVisibilityPause,
+} from './visibility-pause'
 
 export function scheduleInteraction3dPrewarm(self: PanelRenderer) {
   clearTimeout(self.stagePrewarmTimer ?? undefined),
@@ -127,7 +139,15 @@ export function registerHistoryChartRefresher(
     : self.cleanups.push(deregisterHistoryRefresher)
 }
 export function applyRuntimeStateHandlers(self: PanelRenderer, handledEntityId: any, entityStateSnapshot: any) {
-  for (const entityStateHandler of self.runtimeStateHandlers.get(String(handledEntityId || '')) || [])
+  const handledEntityKey = String(handledEntityId || '')
+  // 「实体恢复可用」必须在这里判定：只有这条路径同时看得见上一帧与这一帧。
+  // 恢复时清历史缓存并合并成一次刷新，否则折线图会停在停机前的旧数据上。
+  if (noteEntityAvailability(self, handledEntityKey, entityStateSnapshot)) {
+    handleEntityRecovered(self, handledEntityKey, self as unknown as HistoryRecoveryTarget, () =>
+      refreshHistorySeries(self),
+    )
+  }
+  for (const entityStateHandler of self.runtimeStateHandlers.get(handledEntityKey) || [])
     entityStateHandler(entityStateSnapshot)
 }
 export function pushEventLogWallEntries(
@@ -200,6 +220,15 @@ export function refreshRuntimeComponent(self: PanelRenderer, refreshComponentId:
   const refreshComponentRecord = self.componentRecords.get(refreshComponentId),
     refreshHostElement = self.componentHosts.get(refreshComponentId)
   if (!refreshComponentRecord || !refreshHostElement || !refreshHostElement.isConnected) return
+  // 隐藏的控件先不动：把这次刷新挂起，等重新显示时由 IntersectionObserver 补一次。
+  // 编辑态例外 —— 编辑器里隐藏的控件仍要能被选中并显示数据。
+  if (!self.options.editable && hostIsHidden(refreshHostElement)) {
+    deferComponentRefresh(self, String(refreshComponentId), refreshHostElement, () =>
+      refreshRuntimeComponent(self, refreshComponentId),
+    )
+    return
+  }
+  forgetComponentRefresh(self, String(refreshComponentId))
   if (refreshComponentRecord.type === 'interaction3d') {
     refreshHostElement
       .querySelector('.hb-interaction3d-host')
@@ -563,7 +592,11 @@ export function disconnectRuntime(self: PanelRenderer) {
     window.clearTimeout(self.reconnectTimer!),
     (self.reconnectTimer = null),
     window.clearTimeout(self.runtimeHydrationRetryTimer!),
-    (self.runtimeHydrationRetryTimer = null)
+    (self.runtimeHydrationRetryTimer = null),
+    // 断连后重置恢复判定：否则重连回来的第一帧会被当成「恢复」，白清一遍历史缓存。
+    resetEntityRecovery(self),
+    // 隐藏控件的观察器与待刷新回调同样要清：它们闭包住整棵组件树。
+    resetComponentVisibilityPause(self)
   const socket = self.socket
   if (((self.socket = null), (self.runtimeSubscription = null), !socket || socket.readyState >= WebSocket.CLOSING))
     return

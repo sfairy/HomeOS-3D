@@ -104,6 +104,22 @@ async def call_service(command: HAServiceCallRequest, request: Request, database
     except ServiceCallRejected as error:
         raise HTTPException(status_code=error.status_code, detail=error.detail) from error
     mark_local(request, command.entity_id)  # 归因：三条控制入口都要打
+    # 0.8.7：控件操作单独成一条日志，并标出状态来源（本地 / 实时状态同步）。
+    _global_log = getattr(request.app.state, 'global_log', None)
+    if _global_log is not None:
+        _global_log.append(
+            'info',
+            '仪表盘编辑器',
+            '3D 控件',
+            '控件操作已下发',
+            context={
+                'eventType': '控件操作',
+                'phase': 'interaction3d-control',
+                'code': 'INTERACTION3D_CONTROL',
+                'state_source': 'local',
+                'entityId': command.entity_id,
+            },
+        )
     return result
 
 def component_properties(database, project_id: str | None, component_id: str | None) -> dict:

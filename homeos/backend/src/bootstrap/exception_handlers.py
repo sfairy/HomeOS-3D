@@ -16,6 +16,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.requests import ClientDisconnect
 
 from ..config import Settings
+from ..platform.core.http.diagnostics import tag_error, validation_reason
 from ..platform.core.http.errors import (
     BusinessException,
     ErrorCode,
@@ -110,6 +111,41 @@ def _response_headers(exc: Exception) -> dict[str, str] | None:
     return normalized or None
 
 
+def _finalized_error_response(
+    request: Request,
+    exc: Exception,
+    *,
+    status: int,
+    error_code: str,
+    message: str,
+    error: str,
+    is_production: bool,
+    detail: object | None = None,
+) -> JSONResponse:
+    """统一收尾：本地化文案、打诊断标记、拼 Nest 信封、透传异常自带响应头。
+
+    这段逻辑在「业务异常」与「HTTP 异常」两个处理器里逐字相同（重复代码门禁也指出来了）；
+    抽成一处后，``tag_error``（稳定错误码进响应头）与 5xx 文案脱敏只会有一种行为。
+    """
+    message = localize_http_exception_message(message, status, error)
+    display = _SENSITIVE_5XX_MESSAGE if status >= 500 and is_production else message
+    trace_id = get_trace_id() or request.headers.get("x-trace-id")
+    tag_error(request, error_code=error_code, message=message)
+    return JSONResponse(
+        status_code=status,
+        content=nest_error_payload(
+            status=status,
+            error_code=error_code,
+            message=display,
+            error=error,
+            request=request,
+            trace_id=trace_id,
+            detail=detail,
+        ),
+        headers=_response_headers(exc),
+    )
+
+
 def business_exception_json(
     request: Request,
     exc: BusinessException,
@@ -124,20 +160,14 @@ def business_exception_json(
     # 排查时会被这行字带到完全错误的方向。口径与 StarletteHTTPException 分支对齐：
     # 业务异常没有专属 error_name，就用状态码的 reason phrase（Unauthorized / Forbidden）。
     error = getattr(exc, "error_name", None) or reason_phrase(status)
-    message = localize_http_exception_message(message, status, error)
-    display = _SENSITIVE_5XX_MESSAGE if status >= 500 and is_production else message
-    trace_id = get_trace_id() or request.headers.get("x-trace-id")
-    return JSONResponse(
-        status_code=status,
-        content=nest_error_payload(
-            status=status,
-            error_code=error_code,
-            message=display,
-            error=error,
-            request=request,
-            trace_id=trace_id,
-        ),
-        headers=_response_headers(exc),
+    return _finalized_error_response(
+        request,
+        exc,
+        status=status,
+        error_code=error_code,
+        message=message,
+        error=error,
+        is_production=is_production,
     )
 
 
@@ -193,24 +223,15 @@ def register_exception_handlers(app: FastAPI, settings: Settings) -> None:
         # 异常可自带稳定错误码（``RequestRejected``）；没带就沿用 UNKNOWN（复刻 Nest 行为，
         # 例如 ``ConfigValidationError`` 必须是 UNKNOWN）。
         error_code = str(getattr(exc, "error_code", None) or ErrorCode.UNKNOWN)
-        message = localize_http_exception_message(message, status, error)
-        display = _SENSITIVE_5XX_MESSAGE if status >= 500 and settings.is_production else message
-        trace_id = get_trace_id() or request.headers.get("x-trace-id")
-        return JSONResponse(
-            status_code=status,
-            content=nest_error_payload(
-                status=status,
-                error_code=error_code,
-                message=display,
-                error=error,
-                request=request,
-                trace_id=trace_id,
-                detail=raw_detail,
-            ),
-            # 异常自带的响应头必须透传：限流 429 的 ``Retry-After``、401 的
-            # ``WWW-Authenticate`` 都只从这里出去。此前统一信封丢掉了它们，
-            # 客户端只能盲目重试（登录限流分支已经写好了 Retry-After 却发不出去）。
-            headers=_response_headers(exc),
+        return _finalized_error_response(
+            request,
+            exc,
+            status=status,
+            error_code=error_code,
+            message=message,
+            error=error,
+            is_production=settings.is_production,
+            detail=raw_detail,
         )
 
     @app.exception_handler(RequestValidationError)
@@ -222,9 +243,10 @@ def register_exception_handlers(app: FastAPI, settings: Settings) -> None:
             loc = ".".join(str(part) for part in item.get("loc", []) if part != "body")
             msg = str(item.get("msg", "")).replace("Value error, ", "")
             parts.append(f"{loc}: {msg}" if loc else msg)
-        message = "；".join(dict.fromkeys(parts)) or "请求无效"
+        message = "；".join(dict.fromkeys(parts)) or validation_reason(exc.errors())
         message = localize_http_exception_message(message, status, "Bad Request")
         trace_id = get_trace_id() or request.headers.get("x-trace-id")
+        tag_error(request, error_code=str(ErrorCode.UNKNOWN), message=message)
         # 追加 homeos-3d 形状的 ``detail``（pydantic 原始条目，保留 ``Value error, `` 前缀）：
         # 3D 前端 setup.ts 读 ``detail[0].msg``，与 3D 后端原生 422 响应逐字一致。
         detail = [

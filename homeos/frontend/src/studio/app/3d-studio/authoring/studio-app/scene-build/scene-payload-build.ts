@@ -1,3 +1,4 @@
+import { isWarmSceneStyle } from '../../../../shared/scene-styles'
 import type { StudioAppRuntime } from '../runtime/studio-app-runtime'
 import {
   MATERIAL_STYLE_AUTO,
@@ -18,6 +19,7 @@ import { tvMountStyleSet } from '../../items/item-catalog'
 import { STORAGE_SECTION_TYPES, storageSectionModelType } from '../../items/studio-storage-sections'
 import { normalizeMaterialSurfaceOverrides } from '../../scene/payload/studio-scene-payload'
 import { normalizeStudioDocument } from '../../scene/payload/studio-document-payload'
+import { placedVisibilityKeyFor } from '../../items/placed-item-state'
 
 export function sceneCacheDescriptor(runtime: StudioAppRuntime, descriptorWidth: any, descriptorHeight: any) {
   const floors =
@@ -45,6 +47,12 @@ export function sceneCacheDescriptor(runtime: StudioAppRuntime, descriptorWidth:
         regionLightGain: 'v3-default80',
         wallUnion: 'v3-near-collinear',
         scene: cacheSceneDescriptor2(floors),
+        // 0.8.7 `Pc().contextKey` 的第一项：隐藏 / 显示会改变这一层该画什么，
+        // 缓存描述里不带它就会复用隐藏前的渲染结果。**逐层**取指纹 ——
+        // 全楼视图下在第 2 层隐藏物件，第 1 层是当前层，只取当前层会漏。
+        placedVisibility: floors
+          .map((floorRecord: { id: string }) => placedVisibilityKeyFor(runtime.appCtx, floorRecord.id))
+          .join('|'),
         mode: runtime.getPreviewFloorMode(),
         gap: runtime.appCtx.studioProject.previewFloorGap,
         uniformOverviewStack: runtime.appCtx.studioProject.uniformOverviewStack === true,
@@ -53,7 +61,7 @@ export function sceneCacheDescriptor(runtime: StudioAppRuntime, descriptorWidth:
               overviewProjection: 'saved-camera-v1',
             }
           : {}),
-        ...(runtime.isEmbedStageMode && runtime.appCtx.sceneStyle === 'warm-wood'
+        ...(runtime.isEmbedStageMode && isWarmSceneStyle(runtime.appCtx.sceneStyle)
           ? {
               warmRegionLighting: 'v13-balanced-wash',
             }

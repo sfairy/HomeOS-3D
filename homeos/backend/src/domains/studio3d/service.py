@@ -32,10 +32,14 @@ from sqlalchemy.orm import Session
 from . import cleanup as cleanup_service
 from . import draft_repository
 from .doors import validate_door_openings
+from .lighting import valid_base_lighting_by_theme
 from .schemas import Studio3DDraftUpdate
 from .windows import validate_window_designs
 from ...panel.asset_refs import validate_assets
 from ...platform.core.db.models import Project, ProjectDraft
+
+#: 保存成功后回给客户端 / 写进日志的持久化状态（一档，见 ``_save_draft_locked``）。
+DRAFT_PERSISTED_STATE = "草稿已保存"
 
 
 def get_draft(database: Session) -> dict:
@@ -44,6 +48,17 @@ def get_draft(database: Session) -> dict:
     if snapshot is None:
         return {"revision": 0, "scene": None, "updatedAt": None}
     return {"revision": snapshot.revision, "scene": snapshot.scene, "updatedAt": snapshot.updated_at}
+
+
+def validate_base_lighting_by_theme(scene: Any) -> None:
+    """草稿里的分主题基础光照必须合法（0.8.7 起每个风格各自保存一份）。"""
+    if not isinstance(scene, dict) or "baseLightingByTheme" not in scene:
+        return
+    if not valid_base_lighting_by_theme(scene["baseLightingByTheme"]):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="户型图的主题光照设置无效。",
+        )
 
 
 def save_draft(database: Session, settings, user, payload: Studio3DDraftUpdate, catalog=None) -> dict:
@@ -59,6 +74,7 @@ def save_draft(database: Session, settings, user, payload: Studio3DDraftUpdate, 
     # 那会把请求里无关的脏对象一并持久化（并发保存会丢别人的稿）。
     lock = catalog.mutation_lock if catalog is not None else nullcontext()
     with lock:
+        validate_base_lighting_by_theme(payload.scene)
         validate_window_designs(payload.scene)
         validate_door_openings(payload.scene)
         if catalog is not None:
@@ -152,7 +168,17 @@ def _save_draft_locked(
         raise _conflict(latest.revision if latest is not None else 0)
     _apply_cleanup(database, plan.changed, plan.archive, getattr(user, "id", None))
     database.commit()
-    return {"revision": next_revision, "scene": payload.scene, "updatedAt": timestamp.isoformat()}
+    return {
+        "revision": next_revision,
+        "scene": payload.scene,
+        "updatedAt": timestamp.isoformat(),
+        # 0.8.7 的保存响应带「上一修订」与「持久化状态」：全局日志据此显示
+        # 「原修订 / 持久化状态」两列（前端 `global-log.ts` 已有这两个标签）。
+        # 本项目的草稿是 ``studio_drafts`` 单行，提交即生效，没有上游那种
+        # 「DB 已提交、镜像文件待补写」的中间态，所以状态只有一档。
+        "previousRevision": current_revision,
+        "persistenceState": DRAFT_PERSISTED_STATE,
+    }
 
 
 def _assert_draft_revisions_unchanged(database: Session, expected: dict[str, int]) -> None:

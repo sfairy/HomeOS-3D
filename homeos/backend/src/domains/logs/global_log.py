@@ -36,8 +36,71 @@ CONTEXT_KEYS = frozenset(
         "userAgent",
         "durationMs",
         "componentId",
+        # 0.8.7 新增：请求关联、对象名、模型/事件类型、性能与存储状态。
+        "hint",
+        "reason",
+        "reasonCode",
+        "peer",
+        "hours",
+        "revision",
+        "previousRevision",
+        "eventType",
+        "operation",
+        "modelType",
+        "appVersion",
+        "frontendRevision",
+        "clientFrontendRevision",
+        "entityName",
+        "projectName",
+        "componentName",
+        "componentIds",
+        "pairingId",
+        "displayId",
+        "displayName",
+        "bindingId",
+        "bindingFloorId",
+        "bindingModelId",
+        "connectionName",
+        "connectionRevision",
+        "correlationId",
+        "requestIds",
+        "firstRequestId",
+        "lastRequestId",
+        "pageSessionId",
+        "droppedEvents",
+        "durationMinMs",
+        "durationMaxMs",
+        "parameterFields",
+        "persistenceState",
+        "retryAfterSeconds",
+        # 0.8.7：控件操作的状态来源（本地下发 / 实时状态同步）。
+        "state_source",
+        # 0.8.7：授权事件的中文原因与稳定诊断代码。
+        "chinese_reason",
+        "diagnostic_code",
     }
 )
+
+#: 参与「同一条故障」判定的键要排除这些**每次请求都变**的字段，否则关联永远合不到一起。
+SIGNATURE_EXCLUDED_KEYS = frozenset(
+    {
+        "requestId",
+        "requestIds",
+        "correlationId",
+        "firstRequestId",
+        "lastRequestId",
+        "pageSessionId",
+        "droppedEvents",
+        "durationMs",
+        "durationMinMs",
+        "durationMaxMs",
+        "retryAfterSeconds",
+        "status",
+    }
+)
+
+#: 合并计数时保留的近期请求编号条数。
+RECENT_REQUEST_IDS = 6
 
 # 上下文键的中文标签：仅用于把诊断日志渲染成人能读的段落（api/global_logs 导出）。
 # 未在表内的键回退成键名本身，保证新增字段不会静默丢失。
@@ -58,6 +121,45 @@ CONTEXT_LABELS = {
     "line": "行号",
     "column": "列号",
     "phase": "发生阶段",
+    "hint": "建议检查",
+    "reason": "失败原因",
+    "reasonCode": "具体原因代码",
+    "peer": "请求来源地址（服务端观察）",
+    "hours": "历史范围（小时）",
+    "revision": "当前修订",
+    "previousRevision": "原修订",
+    "eventType": "事件类型",
+    "operation": "相关操作",
+    "modelType": "模型类型",
+    "appVersion": "程序版本",
+    "frontendRevision": "服务端前端修订",
+    "clientFrontendRevision": "浏览器前端修订",
+    "entityName": "实体名称",
+    "projectName": "仪表盘名称",
+    "componentName": "控件名称",
+    "componentIds": "关联控件编号（最多 6 项）",
+    "pairingId": "配对入口编号",
+    "displayId": "显示设备编号",
+    "displayName": "显示设备",
+    "bindingId": "三维绑定编号",
+    "bindingFloorId": "楼层编号",
+    "bindingModelId": "三维模型编号",
+    "connectionName": "HA 连接名称",
+    "connectionRevision": "HA 配置版本指纹（不含凭据）",
+    "correlationId": "关联事件编号",
+    "requestIds": "近期请求编号",
+    "firstRequestId": "首次请求编号",
+    "lastRequestId": "最近请求编号",
+    "pageSessionId": "本次页面编号",
+    "droppedEvents": "浏览器丢失条数",
+    "durationMinMs": "最短耗时（毫秒）",
+    "durationMaxMs": "最长耗时（毫秒）",
+    "parameterFields": "服务参数字段（不含值）",
+    "persistenceState": "保存进度",
+    "retryAfterSeconds": "计划重试间隔（秒）",
+    "state_source": "状态来源",
+    "chinese_reason": "中文原因",
+    "diagnostic_code": "诊断代码",
 }
 
 
@@ -98,7 +200,13 @@ def _safe_text(value: Any, *, limit: int) -> str:
         text = pattern.sub(
             lambda match: f"{match.group(1) if match.lastindex else ''}***", text
         )
-    text = re.sub("((?:https?|rtsps?)://[^\\s?#]+)[?#][^\\s]*", "\\1?***", text, flags=re.IGNORECASE)
+    # 一次性的业务票据同样是凭据：备份检查单、备份工作目录都不该进日志。
+    text = re.sub("(/api/v1/backups/jobs/)[A-Za-z0-9_-]+", "\\1[inspection]", text)
+    text = re.sub("([/\\\\]backup-work[/\\\\])[0-9a-f]{32}", "\\1[inspection]", text)
+    # 协议从 http/rtsp 扩到含 ws/wss：实时通道的地址同样带一次性凭据。
+    text = re.sub(
+        "((?:https?|rtsps?|wss?)://[^\\s?#]+)[?#][^\\s]*", "\\1?***", text, flags=re.IGNORECASE
+    )
     text = re.sub('/api/hls/[^\\s\\"\'<>]*', "/api/hls/[stream]", text)
     return text[:limit]
 
@@ -188,20 +296,71 @@ def _build_log_event(
     return event, metadata
 
 
+def signature_context(metadata: dict[str, Any]) -> dict[str, Any]:
+    """用于「同一条故障」判定的上下文副本（剔除每次请求都变的字段）。"""
+    return {key: value for key, value in metadata.items() if key not in SIGNATURE_EXCLUDED_KEYS}
+
+
 def _event_signature(event: dict[str, Any], metadata: dict[str, Any]) -> str:
-    """事件去重签名：同级别 / 来源 / 分类 / 正文 / 上下文 / 明细视为同一条。"""
+    """事件去重签名：同级别 / 来源 / 分类 / 正文 / 稳定上下文 / 明细视为同一条。
+
+    `metadata` 里剔除 ``SIGNATURE_EXCLUDED_KEYS`` 后才参与签名 —— 否则带 ``requestId`` 的
+    两条记录永远签不上，前端「关联日志」也就永远只能看到一条。
+    """
     return json.dumps(
         [
             event["level"],
             event["source"],
             event["category"],
             event["message"],
-            metadata,
+            signature_context(metadata),
             event.get("details"),
         ],
         ensure_ascii=False,
         sort_keys=True,
     )
+
+
+def _as_number(value: Any) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return float(value)
+
+
+def _accumulate_request_ids(context: dict[str, Any], previous: dict[str, Any]) -> None:
+    """把「首次 / 最近 / 近期」请求编号累积到合并后的事件上。"""
+    request_id = str(context.get("requestId") or "")
+    first = previous.get("firstRequestId") or previous.get("requestId") or request_id
+    recent = [str(item) for item in (previous.get("requestIds") or []) if item]
+    if request_id:
+        recent = [request_id, *[item for item in recent if item != request_id]][:RECENT_REQUEST_IDS]
+    if first:
+        context["firstRequestId"] = first
+    if request_id:
+        context["lastRequestId"] = request_id
+    if recent:
+        context["requestIds"] = recent
+
+
+def _accumulate_durations(context: dict[str, Any], previous: dict[str, Any]) -> None:
+    """耗时区间：合并后保留最短 / 最长，而不是只留最后一条。"""
+    current = _as_number(context.get("durationMs"))
+    if current is None:
+        return
+    candidates = [current, _as_number(previous.get("durationMinMs")), _as_number(previous.get("durationMaxMs"))]
+    numbers = [value for value in candidates if value is not None]
+    context["durationMinMs"] = round(min(numbers), 1)
+    context["durationMaxMs"] = round(max(numbers), 1)
+
+
+def _accumulate_aggregates(event: dict[str, Any], previous: dict[str, Any]) -> None:
+    """合并重复事件时补齐聚合字段（关联编号与耗时区间）。"""
+    context = dict(event.get("context") or {})
+    previous_context = previous.get("context") or {}
+    _accumulate_request_ids(context, previous_context)
+    _accumulate_durations(context, previous_context)
+    if context:
+        event["context"] = context
 
 
 class GlobalLogStore:
@@ -334,6 +493,7 @@ class GlobalLogStore:
             event["timestamp"] = recent[1]["timestamp"]
             event["repeatCount"] = recent[1].get("repeatCount", 1) + 1
             event["lastTimestamp"] = now.isoformat()
+            _accumulate_aggregates(event, recent[1])
             if event.get("clientTimestamp"):
                 event["lastClientTimestamp"] = event["clientTimestamp"]
                 event["clientTimestamp"] = recent[1].get(

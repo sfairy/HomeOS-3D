@@ -69,6 +69,7 @@ class HAConnectorService(
         self.cover_memory = CoverMemory(
             settings.data_dir / 'modules' / 'interaction3d' / 'cover-memory' / 'history.json',
             credential=self._active_credential,
+            event_log=event_log,
         )
         self.state_hub = StateHub(observe=self._observe_states)
         self._runner = None
@@ -197,12 +198,22 @@ class HAConnectorService(
         return cfg
 
     async def _log_event(
-        self, level: str, category: str, message: str, *, details: str | None = None
+        self,
+        level: str,
+        category: str,
+        message: str,
+        *,
+        details: str | None = None,
+        context: dict[str, Any] | None = None,
     ) -> None:
-        """把一条 HA 运行日志写进全局日志（异步：不占事件循环做写盘）。"""
+        """把一条 HA 运行日志写进全局日志（异步：不占事件循环做写盘）。
+
+        ``context`` 承载稳定事实（错误码 / 连接指纹 / 参数字段），与前端日志的分类词表
+        对齐，供「关联日志」按同一请求 / 同一连接聚合。
+        """
         if self.event_log is not None:
             await self.event_log.append_async(
-                level, 'Home Assistant', category, message, details=details
+                level, 'Home Assistant', category, message, details=details, context=context
             )
 
     @property

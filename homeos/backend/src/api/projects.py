@@ -43,6 +43,7 @@ from ..panel.documents import create_blank_project
 from ..panel.schema import validate_panel_document
 from ..platform.core.db.db_exec import run_db
 from ..platform.core.db.models import GlobalCustomPopupState, Project, ProjectDraft
+from ..platform.core.http.diagnostics import update_request_context
 from ..platform.http_cache import make_etag, not_modified, request_etag_matches, set_private_revalidate
 from ..schemas import (
     ProjectBindingCheckRequest,
@@ -218,7 +219,22 @@ def create_project(body: ProjectCreateRequest, request: Request, database: Datab
     database.add_all([project, draft])
     commit_project_name(database)
     database.refresh(project)
-    request.app.state.global_log.append('success', '仪表盘编辑器', '配置', f'已创建仪表盘：{project.name}')
+    request.app.state.global_log.append(
+        'success',
+        '仪表盘编辑器',
+        '配置',
+        f'已创建仪表盘：{project.name}',
+        context=update_request_context(
+            request,
+            finished=True,
+            projectId=project.id,
+            projectName=project.name,
+            revision=1,
+            code='PROJECT_CREATED',
+            eventType='操作记录',
+            phase='project-create',
+        ),
+    )
     return project_body(project, draft)
 
 
@@ -265,7 +281,21 @@ def duplicate_project(project_id: str, body: ProjectDuplicateRequest, request: R
     database.add_all([duplicate, duplicate_draft])
     commit_project_name(database)
     database.refresh(duplicate)
-    request.app.state.global_log.append('success', '仪表盘编辑器', '配置', f'已复制仪表盘：{source.name} → {duplicate.name}')
+    request.app.state.global_log.append(
+        'success',
+        '仪表盘编辑器',
+        '配置',
+        f'已复制仪表盘：{source.name} → {duplicate.name}',
+        context=update_request_context(
+            request,
+            finished=True,
+            projectId=duplicate.id,
+            projectName=duplicate.name,
+            code='PROJECT_DUPLICATED',
+            eventType='操作记录',
+            phase='project-copy',
+        ),
+    )
     return project_body(duplicate, duplicate_draft)
 
 
@@ -280,7 +310,21 @@ def delete_project(project_id: str, body: ProjectDeleteRequest, request: Request
     project_name = project.name
     database.delete(project)
     database.commit()
-    request.app.state.global_log.append('warning', '仪表盘编辑器', '配置', f'已删除仪表盘：{project_name}')
+    request.app.state.global_log.append(
+        'warning',
+        '仪表盘编辑器',
+        '配置',
+        f'已删除仪表盘：{project_name}',
+        context=update_request_context(
+            request,
+            finished=True,
+            projectId=project_id,
+            projectName=project_name,
+            code='PROJECT_DELETED',
+            eventType='操作记录',
+            phase='project-delete',
+        ),
+    )
     background_tasks.add_task(request.app.state.studio_ha.refresh_persistent_entity_ids, ensure_states=False)
 
 
@@ -469,7 +513,22 @@ def _draft_update_response(
     draft = database.get(ProjectDraft, project_id)
     if draft is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='项目草稿不存在。')
-    request.app.state.global_log.append('success', '仪表盘编辑器', '配置', f'仪表盘已保存：{project_name}（修订 {draft.revision}）')
+    request.app.state.global_log.append(
+        'success',
+        '仪表盘编辑器',
+        '配置',
+        f'仪表盘已保存：{project_name}（修订 {draft.revision}）',
+        context=update_request_context(
+            request,
+            finished=True,
+            projectId=project_id,
+            projectName=project_name,
+            revision=draft.revision,
+            code='PROJECT_SAVED',
+            eventType='操作记录',
+            phase='project-save',
+        ),
+    )
     hydrated_document = hydrate_document_popups(database, json.loads(draft.document_json))
     draft_body = {
         'projectId': project_id,
@@ -540,4 +599,21 @@ def update_project_draft(project_id: str, body: ProjectDraftUpdate, request: Req
         _write_draft_document(database, user.id, project_id, body.revision, serialized_document, document['schemaVersion'])
         database.execute(update(Project).where(Project.id == project_id).values(name=document['name']))
         commit_project_name(database)
+    # 0.8.7：仪表盘草稿保存也单独记一条（此前只有创建 / 复制 / 删除有事件）。
+    request.app.state.global_log.append(
+        'success',
+        '仪表盘编辑器',
+        '配置',
+        f'仪表盘草稿已保存：{document["name"]}',
+        context=update_request_context(
+            request,
+            finished=True,
+            projectId=project_id,
+            projectName=document['name'],
+            revision=body.revision + 1,
+            eventType='操作记录',
+            code='PROJECT_DRAFT_SAVED',
+            phase='project-save',
+        ),
+    )
     return _draft_update_response(request, background_tasks, database, project_id, document['name'])

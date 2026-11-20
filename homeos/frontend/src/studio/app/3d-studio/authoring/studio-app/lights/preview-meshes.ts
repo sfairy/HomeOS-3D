@@ -5,6 +5,7 @@ import { clamp as clamp2, selectShadowCastingLightIds as selectShadowCastingLigh
 import { drawTrackedText as drawTrackedText2 } from '../../../plan/studio-plan-drawing'
 import { finite as finite2, normalizeLabelText as normalizeLabelText2 } from '../../../loaders/studio-normalization'
 import { lampItemTypeSet } from '../../items/item-catalog'
+import { isPlacedItemHidden } from '../../items/placed-item-state'
 import { lightPresetCatalog } from '../../lights/studio-app-light-data'
 import { addStripFixture } from '../../lights/strip-light/strip-light-model'
 import { lightEffectColorHex } from '../../../../bridge/light-motion'
@@ -162,9 +163,13 @@ export function createPlanLabel(runtime: StudioAppRuntime, labelSpec: any) {
 }
 
 export function collectLightSourceSpecs(runtime: StudioAppRuntime) {
+  const lightItems = runtime.appCtx.studioState.items
+    // 0.8.7 `Fr()`：灯源清单只收 `En(item)` 的灯。隐藏的灯不建对象，也就不该占
+    // 「投射阴影的灯」名额 —— 否则隐藏几盏之后真实灯具的阴影会被挤掉。
+    .filter((lightSourceItem) => !isPlacedItemHidden(runtime.appCtx, lightSourceItem.id))
   return new Set(
     selectShadowCastingLightIds2(
-      runtime.appCtx.studioState.items.map((lightSourceItem) => ({
+      lightItems.map((lightSourceItem) => ({
         id: lightSourceItem.id,
         groupId: lightSourceItem.lightGroupId,
         type: lightSourceItem.type,

@@ -50,6 +50,7 @@ export function bindToolOptionWiring(deps: Record<string, any>): void {
   } = deps
   selectElement('#stair-direction').addEventListener('change', () => applyToolSetting('item')),
     selectElement('#tv-mount-style').addEventListener('change', () => applyToolSetting('item')),
+    selectElement('#smart-display-mount').addEventListener('change', () => applyToolSetting('item')),
     selectElement('#storage-section').addEventListener('change', () => applyToolSetting('item')),
     selectElement('#pillar-shape').addEventListener('change', () => applyToolSetting('item')),
     selectElement('#pillar-axis').addEventListener('change', () => applyToolSetting('item')),

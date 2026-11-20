@@ -250,7 +250,7 @@ export function buildMetadata(
                 (airConditionerMetadataItem.type === 'airpurifier'
                   ? '空气净化器'
                   : airConditionerMetadataItem.type === 'airoutlet'
-                    ? '出风口'
+                    ? '空调出风口'
                     : airConditionerMetadataItem.type === 'wallac'
                       ? '挂机空调'
                       : '柜机空调') +

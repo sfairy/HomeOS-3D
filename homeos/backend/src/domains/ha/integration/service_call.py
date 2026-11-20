@@ -72,6 +72,13 @@ class ServiceCallRejected(Exception):
         self.detail = detail
 
 
+def _parameter_field_context(data: Any) -> dict[str, Any]:
+    """只记服务参数的**字段名**（不记值）：值可能含令牌、密码等敏感内容。"""
+    if not isinstance(data, dict) or not data:
+        return {}
+    return {"parameterFields": ",".join(sorted(str(key) for key in data)[:24])[:256]}
+
+
 def ha_entity_conditions(
     connection_id: str,
     entity_id: str,
@@ -215,11 +222,17 @@ async def execute_service_call(
             "error",
             "仪表盘编辑器",
             "设备操作",
-            f"操作失败：{payload.entity_id} · {payload.domain}.{payload.service} · {error}",
+            f"设备服务调用失败：{payload.entity_id} · {payload.domain}.{payload.service}",
             context={
                 "entityId": payload.entity_id,
                 "service": f"{payload.domain}.{payload.service}",
                 "status": _BAD_GATEWAY,
+                "eventType": "设备控制",
+                "phase": "device-control",
+                "code": "HA_SERVICE_CALL_FAILED",
+                "reason": str(error),
+                "hint": "检查设备实体状态与 HA 服务日志；参数只记字段名，不记提交值。",
+                **_parameter_field_context(payload.data),
             },
             details=traceback.format_exc(),
         )
@@ -228,21 +241,21 @@ async def execute_service_call(
     # 旧实现把 False 当成「未确认」并记成 warning + 文案「状态未确认」，等于把
     # 「设备确实没锁上」写成「已下发」，审计追溯时结论恰好相反。
     verified = verification_fields.get("verified")
-    if verified is False:
-        level, prefix, suffix = "warning", "操作未生效", "（已确认设备未达到目标状态）"
-    elif verified is None:
-        level, prefix, suffix = "success", "操作成功", "（已下发，状态未确认）"
-    else:
-        level, prefix, suffix = "success", "操作成功", ""
+    # 「已确认没到达目标态」必须记 warning：把它写成 success 会让审计结论正好相反。
+    level = "warning" if verified is False else "success"
     request.app.state.global_log.append(
         level,
         "仪表盘编辑器",
         "设备操作",
-        f"{prefix}：{payload.entity_id} · {payload.domain}.{payload.service}{suffix}",
+        f"设备服务调用已返回：{payload.entity_id} · {payload.domain}.{payload.service}（实际动作以设备回报为准）",
         context={
             "entityId": payload.entity_id,
             "service": f"{payload.domain}.{payload.service}",
+            "eventType": "操作记录",
+            "phase": "device-control",
+            "code": "HA_SERVICE_RETURNED",
             **({"verified": False} if verified is False else {}),
+            **_parameter_field_context(payload.data),
         },
     )
     # 响应形状与 ``/services/call`` 保持一致：``ok`` 由统一判据算出（不是恒 True），

@@ -8,6 +8,10 @@ import { decorateWarmFloor } from '../authoring/scene/studio-scene-style'
 import { pipelineDispenserModelType } from '../authoring/items/pipeline-dispenser'
 import { storageSectionModelType } from '../authoring/items/studio-storage-sections'
 import { enlargeWarmLeaves } from '../materials/studio-warm-foliage'
+import {
+  applyNaturalWoodCurtainCloth,
+  applyNaturalWoodThemeIfActive,
+} from '../materials/natural-wood/natural-wood-model-theme'
 import { applyCarFinish, smoothCarSurfaceNormals } from '../materials/studio-car-finish'
 import {
   repairGlassCabinetBack,
@@ -2219,6 +2223,8 @@ export function createExternalModelManager({
 
     applyMaterialSurfaceOverride(resolvedMaterial, sourceMaterial.name, palette)
 
+    applyNaturalWoodThemeIfActive(itemType, sourceMaterial.name, resolvedMaterial) // 自然木语：最后盖一层
+
     applySurfaceDetailFinish(resolvedMaterial, sourceMaterial.name, itemType, palette)
     // 最后一道：所有颜色 / 粗糙度 / 档位都算完之后，只按最终 metalness 决定要不要补 IBL 替身。
     applyMetalEnvironmentFinish(resolvedMaterial, threeNamespace, itemType)
@@ -2351,6 +2357,9 @@ export function createExternalModelManager({
                 : (curtainPart === 'split' ? [2, 3] : [4, 5]).includes(curtainMaterialNumber)
                   ? 'cloth'
                   : 'band'
+          // 帘布：局部坐标采样；纱帘（sheer）由函数内部跳过，别把半透明纱换成实心亚麻。
+          modelMesh.userData.curtainPart === 'cloth' &&
+            applyNaturalWoodCurtainCloth(modelMesh, targetSize?.curtainFabric)
         }
         const panelMaterialIndex = meshMaterials.findIndex(
           (panelMaterialEntry: any) =>

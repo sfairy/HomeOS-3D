@@ -1,3 +1,4 @@
+import { isWarmSceneStyle } from '@app/shared/scene-styles'
 import { drawTelevisionGlass as drawGlass } from '@app/shared/scene/studio-television-glass'
 import { drawTelevisionPoster as drawPosterArt } from '@app/shared/scene/studio-television-poster'
 import { televisionState } from './television-state'
@@ -65,7 +66,7 @@ export function createTelevisionScreens({
       ((screenPainter.fillStyle = '#050609'),
       state.on
         ? screenPainter.fillRect(0, 0, canvas.width, canvas.height)
-        : drawGlass(canvas, screenPainter, entry.screen.userData?.sceneStyle === 'warm-wood'),
+        : drawGlass(canvas, screenPainter, isWarmSceneStyle(entry.screen.userData?.sceneStyle)),
       state.on && image)
     ) {
       // 铺满（cover）而不是等比内嵌（contain）：电视上留黑边就是「画面没有全屏」。

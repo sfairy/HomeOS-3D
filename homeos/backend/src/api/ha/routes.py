@@ -12,7 +12,6 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
-from urllib.parse import urlsplit
 from uuid import uuid4
 
 from anyio import CancelScope, create_task_group
@@ -49,6 +48,7 @@ from ...platform.core.db.database import Database
 from ...platform.core.db.db_exec import run_db
 from ...platform.core.db.models import HAArea, HAConnection, HADevice, HAEntity, HASyncState, LoginSession, User
 from ...platform.core.runtime.observability import record_ha_counter
+from ...platform.security.request_origin import browser_origin_allowed
 from ...platform.security.session_store import session_token_hash
 from ...platform.security.viewer_scope import require_viewer_entity
 from ...schemas import (
@@ -930,32 +930,13 @@ def websocket_viewer(websocket: WebSocket) -> ViewerPrincipal | None:
 
 
 def websocket_origin_allowed(websocket: WebSocket) -> bool:
-    """要求浏览器 WebSocket 必须源自本应用（配置的对外地址，或本请求的 Host）。"""
-    origin = websocket.headers.get('origin', '').strip()
-    if not origin:
-        return False
-    parsed_origin = urlsplit(origin)
-    if (
-        parsed_origin.scheme not in {'http', 'https'}
-        or not parsed_origin.netloc
-        or parsed_origin.username is not None
-        or parsed_origin.password is not None
-        or parsed_origin.path not in {'', '/'}
-        or parsed_origin.query
-        or parsed_origin.fragment
-    ):
-        return False
-    configured_base_url = websocket.app.state.settings.app_base_url
-    if configured_base_url:
-        parsed = urlsplit(configured_base_url)
-        if parsed.scheme in {'http', 'https'} and parsed.netloc:
-            if origin.casefold() == f'{parsed.scheme}://{parsed.netloc}'.casefold():
-                return True
-    # 内网穿透部署里 ``APP_BASE_URL`` 写的是公网域名，但同一套服务仍可能从局域网 IP 直接
-    # 访问：那条连接的 Origin 与 Host 同值，也是同源。只认配置值会让这种访问的实时通道
-    # 一律 403（表现为面板连上又掉、状态不刷新）。
-    host = websocket.headers.get('host', '').strip()
-    return bool(host) and parsed_origin.netloc.casefold() == host.casefold()
+    """要求浏览器 WebSocket 必须源自本应用。
+
+    判据统一到 :func:`platform.security.request_origin.browser_origin_allowed`：
+    除了 ``APP_BASE_URL`` 与本次请求的 Host，还会认「额外公开访问来源」，并且容忍
+    反代把 Host 的端口摘掉（这是「自定义域名/端口反代时实时状态连不上」的根因）。
+    """
+    return browser_origin_allowed(websocket, websocket=True)
 
 
 @runtime_router.websocket('/ws/runtime')

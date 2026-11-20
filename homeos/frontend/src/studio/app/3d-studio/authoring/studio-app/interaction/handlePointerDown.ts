@@ -13,6 +13,7 @@ import {
 } from '../../../plan/geometry'
 
 import { itemTypeCatalog } from '../../items/item-catalog'
+import { isPlacedItemLocked } from '../../items/placed-item-state'
 
 import { generateId } from '../../ui/studio-app-helpers'
 
@@ -38,6 +39,8 @@ export interface HandlePointerDownDeps {
   getPreviewScopeSelection: any
   hitTestHandle: any
   hitTestPlanItem: any
+  /** 重叠拾取（可选）：有 ≥2 个候选时返回 true 表示已接管本次点击。 */
+  offerOverlapPicker?: (planPoint: unknown, screenPoint: unknown) => boolean
   isSameAlignmentFloor: any
   markDocumentDirty: any
   markWallsChanged: any
@@ -59,6 +62,44 @@ export interface HandlePointerDownDeps {
   showToast: any
   updateMarqueeOverlay: any
   validateSelectionChange: any
+}
+
+/**
+ * 是否先弹重叠候选：命中物件、当前是选择工具、按住的不是 Alt（Alt 是「复制并拖动」）。
+ *
+ * 收在模块级而不是内联，是因为内联要占 4 个分支（`?.` / `===` / `!` / `===`），
+ * 会把 `handlePointerDown` 顶过复杂度预算。
+ */
+function shouldOfferOverlap(
+  deps: HandlePointerDownDeps,
+  hit: { kind: string; id: string } | null,
+  planPoint: unknown,
+  screenPoint: unknown,
+  event: { altKey?: boolean },
+): boolean {
+  if (hit?.kind !== 'item') return false
+  if (deps.appCtx.activeToolName !== 'select') return false
+  if (event.altKey) return false
+  return deps.offerOverlapPicker?.(planPoint, screenPoint) === true
+}
+
+/**
+ * 命中物件后是否进入「拖动」手势。
+ *
+ * 锁定的物件仍要能选中（否则没法在面板里解锁），但拒绝拖动 —— 只建立选中态。
+ * 判定收在模块级而不是内联，是为了不推高 `handlePointerDown` 的分支数（它有行数/复杂度预算）。
+ */
+function canStartItemDrag(appCtx: StudioAppContext, hit: { kind: string; id: string } | null): boolean {
+  return hit?.kind === 'item' && !isPlacedItemLocked(appCtx, hit.id)
+}
+
+/** 角手柄与边手柄的公共字段：谁命中就用谁的坐标。 */
+function resizeHandleOf(hit: {
+  corner?: { x: number; y: number; opposite: unknown }
+  edge?: { x: number; y: number; opposite: unknown }
+}) {
+  const handle = hit.corner ?? hit.edge!
+  return { edge: hit.edge ?? null, handle: { x: handle.x, y: handle.y }, anchor: { ...(handle.opposite as object) } }
 }
 
 export function handlePointerDown(deps: HandlePointerDownDeps, handlePointerDownPointerDownEvent: any) {
@@ -361,13 +402,8 @@ export function handlePointerDown(deps: HandlePointerDownDeps, handlePointerDown
             type: 'resize-item',
             pointerId: handlePointerDownPointerDownEvent.pointerId,
             originalItem: newItemRecord,
-            handle: {
-              x: df3.corner!.x,
-              y: df3.corner!.y,
-            },
-            anchor: {
-              ...df3.corner!.opposite,
-            },
+            // 角手柄与边手柄共用一个字段：`handle` 是 ±1 方向向量，`press` 才是按下时命中的是哪一种。
+            ...resizeHandleOf(df3),
             // 拖拽起点的真实平面坐标：`handle` 只是 ±1 的方向向量，不能当点用。
             startPointer: {
               ...pr3,
@@ -394,6 +430,7 @@ export function handlePointerDown(deps: HandlePointerDownDeps, handlePointerDown
   }
   const ao5 = getPreviewScopeSelection(),
     fy2 = hitTestPlanItem(pr3)
+  if (shouldOfferOverlap(deps, fy2, pr3, pointerDownPoint, handlePointerDownPointerDownEvent)) return
   if (!fy2) {
     resetPlanInteraction(),
       handlePointerDownPointerDownEvent.shiftKey || refreshSelection(),
@@ -451,7 +488,7 @@ export function handlePointerDown(deps: HandlePointerDownDeps, handlePointerDown
   } else selectSceneObject(fy2.kind, fy2.id)
   refreshStudioUi(), refreshStudioView(), setPreviewScope(ao5)
   const qa4 = getCurrentPreviewScope()
-  fy2.kind === 'item'
+  canStartItemDrag(appCtx, fy2)
     ? (appCtx.marqueeBox = {
         type: 'move-items',
         pointerId: handlePointerDownPointerDownEvent.pointerId,

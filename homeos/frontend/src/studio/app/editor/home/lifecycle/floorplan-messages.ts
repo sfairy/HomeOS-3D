@@ -4,6 +4,17 @@
  * `editorCtx` 与几个纯函数，不与引导期其余状态共享可变绑定（写入都落在对象/Map 上）。
  * 依赖以单个 deps 袋注入，避免把半个闭包导出成公共类型。
  */
+import {
+  applyAutoDiagramCameraState,
+  autoDiagramCameraSignature,
+  normalizeAutoDiagramCamera,
+} from './auto-diagram-camera'
+
+/**
+ * 已落盘的构图签名（按组件 id）。iframe 拖动时会持续回传，靠它压掉重复的 `mutateDocument`
+ * —— 每次写入都会进撤销栈，不压的话拖一下能塞进几十条历史。
+ */
+const savedAutoDiagramCameraSignatures = new Map<string, string>()
 
 export function bindFloorplanAutoDiagramMessages(deps: Record<string, any>): void {
   // 依赖名见 boot.ts 的调用点；此处解构一次，正文保持与搬出前逐字一致。
@@ -36,6 +47,30 @@ export function bindFloorplanAutoDiagramMessages(deps: Record<string, any>): voi
     renderComponentLists,
     syncSharedComponentReferenceOrder2,
   } = deps
+  /*
+   * 构图回传（0.8.7）单独一个监听器。
+   *
+   * 不并进上面那个按 `type` 串联的大 listener：复杂度棘轮按**函数**计，主 listener 已经
+   * 贴着基线，再加分支就会红。这里只认一种消息，分支极少。
+   */
+  window.addEventListener('message', (cameraStateMessageEvent) => {
+    if (cameraStateMessageEvent.origin !== window.location.origin) return
+    const cameraStateMessage = cameraStateMessageEvent.data
+    if (cameraStateMessage?.type !== 'homeos-floorplan-auto-diagram-camera-state') return
+    applyAutoDiagramCameraState(
+      {
+        componentId: String(cameraStateMessage.componentId || ''),
+        source: cameraStateMessageEvent.source,
+        camera: cameraStateMessage.camera,
+        signatureOf: (snapshot) =>
+          autoDiagramCameraSignature(String(cameraStateMessage.floorSelection || ''), snapshot),
+        document: () => editorCtx.activeProject?.document,
+        findComponent: findComponent2,
+        mutate: mutateDocument,
+      },
+      savedAutoDiagramCameraSignatures,
+    )
+  })
   window.addEventListener('message', (lightingStateFrameState) => {
     if (lightingStateFrameState.origin !== window.location.origin) return
     const data = lightingStateFrameState.data
@@ -101,6 +136,8 @@ export function bindFloorplanAutoDiagramMessages(deps: Record<string, any>): voi
                 mode: readyComponent.properties?.cameraMode || 'orthographic',
                 topRotation: Number(readyComponent.properties?.cameraTopRotation || 0),
                 focalLength: Number(readyComponent.properties?.cameraFocalLength || 50),
+                // 0.8.7：把保存过的构图一并送进 iframe，重开 / 撤销后才回到原视角。
+                snapshot: normalizeAutoDiagramCamera(readyComponent.properties?.cameraSnapshot),
               },
             },
             window.location.origin,

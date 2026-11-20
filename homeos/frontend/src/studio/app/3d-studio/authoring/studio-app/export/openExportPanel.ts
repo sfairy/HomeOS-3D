@@ -1,4 +1,5 @@
 import { clamp as clamp2 } from '../../../plan/geometry'
+import { syncExportSceneStyleLabel } from '../ui/studio-preview-style'
 
 import { normalizeActiveExportPresetSlot as normalizeActiveExportPresetSlot2 } from '../../../export/export-presets'
 
@@ -182,6 +183,7 @@ export function openExportPanel(deps: OpenExportPanelDeps) {
       exportFolderQueryValue && (exportFolderNameInput.value = exportFolderQueryValue),
       refreshCanvasSizeUi()
   }
+  syncExportSceneStyleLabel({ appCtx } as never)
   exportDialogElement.showModal(), exportPreviewStageElement.append(appCtx.threeRenderer.domElement)
   const resolvedPresetSlot = normalizeActiveExportPresetSlot2(
       appCtx.studioProject.activeExportPresetSlot,
