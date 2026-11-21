@@ -49,6 +49,16 @@ from zipfile import ZipFile
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 
+from .scope import (
+    DB_NAME,
+    DB_SIDECARS,
+    EXCLUDED_DB_TABLES,
+    EXCLUDED_TOP_DIRS,
+    MAX_EXPANDED,
+    MAX_FILES,
+    is_excluded,
+    oversize_message,
+)
 from ...platform.core.db.schema import prepare_schema
 from ...platform.core.http.upload_limits import MAX_BACKUP_ARCHIVE_BYTES
 from ...platform.core.runtime.async_work import durable_work as _durable_work
@@ -61,13 +71,9 @@ MAGIC = b"HABACKUP\x01"
 #: 归档本体上限（与 ``platform.core.upload_limits.MAX_BACKUP_ARCHIVE_BYTES`` 同源）：
 #: 请求体门禁按同一数字放行 ``/backups/inspect``，否则这里连同它的报错文案都够不着。
 MAX_ARCHIVE = MAX_BACKUP_ARCHIVE_BYTES
-MAX_EXPANDED = 4 * 1024 * 1024 * 1024
-MAX_FILES = 50_000
 MAX_JSON = 128 * 1024 * 1024
 JOB_TTL_SECONDS = 10 * 60
 
-DB_NAME = "homeos.db"
-DB_SIDECARS = ("-wal", "-shm", "-journal")
 MANIFEST_NAME = "manifest.json"
 PAYLOAD_NAME = "payload.zip"
 
@@ -81,45 +87,6 @@ ROLLBACK_KEEP = 1
 PRODUCT = "HomeOS"
 KIND = "homeos-full-backup"
 FORMAT_VERSION = 2
-
-#: 数据目录中不进入备份的顶层目录（运行时产物，与业务数据无关）
-EXCLUDED_TOP_DIRS = frozenset({"cache", "logs", "backup-work", "backup-recovery"})
-#: 需要整体排除的相对路径前缀
-EXCLUDED_REL_PREFIXES = ("modules/interaction3d/render-cache",)
-
-#: 0.8.4 起必须进包的业务根目录（与上游 ``ROOTS`` 对齐，便于对照审查）。
-#: 本实现打包**整个** ``data_dir``，这份清单只用来断言「别把它们误加进排除项」：
-#: ``modules/interaction3d/cover-memory`` 是窗帘/晾衣架「上次开合位置」记忆，
-#: 不是可重建缓存 —— 换机还原后用户看到的开合度必须和备份时一致。
-BACKUP_ROOTS = (
-    "assets",
-    "exports",
-    "studio3d",
-    "modules/interaction3d/scenes",
-    "modules/interaction3d/cover-memory",
-)
-
-#: 不进全量备份的历史 / 日志 / 时序 / 运行时缓存表：快照后清空其数据（保留表结构）。
-#: 分三类——
-#:   历史事件与日志：实体状态变化、安防审计、通知记录、地震预警、环境与能耗时序；
-#:   运行时缓存：登录会话（还原后必须重新登录）、可随 HA 连接自动重建的实体/设备/区域目录。
-EXCLUDED_DB_TABLES: tuple[str, ...] = (
-    # 历史事件 / 日志 / 时序
-    "event_logs",
-    "security_events",
-    "notifications",
-    "earthquake_alert_history",
-    "environment_records",
-    "energy_usage_daily",
-    "energy_usage_monthly",
-    "device_usage_stats",
-    # 运行时缓存（会话 / 可重建目录）
-    "sessions",
-    "ha_entities",
-    "ha_devices",
-    "ha_areas",
-    "ha_sync_state",
-)
 
 
 class BackupError(RuntimeError):
@@ -171,19 +138,6 @@ def _safe_relative(name: str) -> str | None:
     return name
 
 
-def _is_excluded(relative: str) -> bool:
-    parts = PurePosixPath(relative).parts
-    if parts and parts[0] in EXCLUDED_TOP_DIRS:
-        return True
-    if any(
-        relative == prefix or relative.startswith(prefix + "/")
-        for prefix in EXCLUDED_REL_PREFIXES
-    ):
-        return True
-    name = parts[-1] if parts else relative
-    return name == DB_NAME or name in {f"{DB_NAME}{suffix}" for suffix in DB_SIDECARS}
-
-
 def _resolved(path: Any) -> Path | None:
     if path is None:
         return None
@@ -221,11 +175,7 @@ def _overlaps_backups_dir(settings: Any, target: Path) -> bool:
     candidate = _resolved(target)
     if backups is None or candidate is None:
         return False
-    return (
-        candidate == backups
-        or candidate in backups.parents
-        or backups in candidate.parents
-    )
+    return candidate == backups or candidate in backups.parents or backups in candidate.parents
 
 
 def _key(password: str | bytes, salt: bytes) -> bytes:
@@ -293,10 +243,7 @@ def _validate_database_file(path: Path) -> None:
             raise BackupError(f"数据库完整性校验失败：{detail}")
         if connection.execute("PRAGMA foreign_key_check").fetchall():
             raise BackupError("数据库外键校验失败。")
-        live = {
-            str(row[0])
-            for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
-        }
+        live = {str(row[0]) for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
     missing = sorted(required - live)
     if missing:
         raise BackupError(f"数据库缺少业务表：{', '.join(missing)}")
@@ -338,10 +285,7 @@ def purge_excluded_tables(path: Path) -> list[str]:
     try:
         connection.execute("PRAGMA busy_timeout=5000")
         existing = {
-            str(row[0])
-            for row in connection.execute(
-                "SELECT name FROM sqlite_master WHERE type='table'"
-            ).fetchall()
+            str(row[0]) for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
         }
         for table in EXCLUDED_DB_TABLES:
             if table not in existing:
@@ -402,14 +346,12 @@ def _data_files(settings: Any) -> list[tuple[Path, str]]:
     backups_prefix = _backups_prefix_in_data_dir(settings)
     for path in sorted(base.rglob("*")):
         relative = path.relative_to(base).as_posix()
-        if _is_excluded(relative):
+        if is_excluded(relative):
             continue
         # 备份包目录可能就在 data_dir 内（容器即如此）：不排除的话，新包会把所有旧备份
         # 连同「正在写入的自己」一起装进去 —— 体积逐次翻倍，磁盘最满时备份功能先死，
         # 而且包里多出的顶层 ``backups/`` 会让恢复把当前备份目录整块挪走。
-        if backups_prefix and (
-            relative == backups_prefix or relative.startswith(backups_prefix + "/")
-        ):
+        if backups_prefix and (relative == backups_prefix or relative.startswith(backups_prefix + "/")):
             continue
         if path.is_symlink():
             raise BackupError(f"数据目录含符号链接，无法创建完整备份：{relative}")
@@ -426,6 +368,8 @@ def create_payload(settings: Any, directory: Path) -> Path:
     purged_tables = purge_excluded_tables(db_snapshot)
     payload = directory / PAYLOAD_NAME
     files: dict[str, dict[str, Any]] = {}
+    #: 已收集条目里最大的几项，仅用于超限时的报错（不参与判定）。
+    biggest: list[tuple[int, str]] = [(db_snapshot.stat().st_size, DB_NAME)]
     total = db_snapshot.stat().st_size
     try:
         with ZipFile(payload, "w", compression=zipfile.ZIP_DEFLATED, allowZip64=True) as archive:
@@ -433,10 +377,15 @@ def create_payload(settings: Any, directory: Path) -> Path:
             for path, relative in _data_files(settings):
                 size = path.stat().st_size
                 total += size
-                if total > MAX_EXPANDED or len(files) + 1 >= MAX_FILES:
+                if total > MAX_EXPANDED:
                     raise BackupError(
-                        "业务数据超过本版备份限制（展开后 4 GB、最多 50000 个文件）。"
+                        oversize_message(f"展开后上限 {MAX_EXPANDED / 1024**3:.0f} GB", total, len(files) + 1, biggest)
                     )
+                if len(files) + 1 >= MAX_FILES:
+                    raise BackupError(oversize_message(f"文件数上限 {MAX_FILES}", total, len(files) + 1, biggest))
+                biggest.append((size, relative))
+                biggest.sort(reverse=True)
+                del biggest[8:]
                 files[relative] = {"sha256": _hash(path), "size": size}
                 archive.write(path, arcname=relative)
             manifest = {
@@ -456,9 +405,7 @@ def create_payload(settings: Any, directory: Path) -> Path:
                 "hasSecrets": "secrets/ha_credentials.key" in files
                 or any(name.startswith("secrets/") for name in files),
             }
-            encoded = json.dumps(manifest, ensure_ascii=False, separators=(",", ":")).encode(
-                "utf-8"
-            )
+            encoded = json.dumps(manifest, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
             if len(encoded) > MAX_JSON:
                 raise BackupError("备份清单过大。")
             archive.writestr(MANIFEST_NAME, encoded)
@@ -649,9 +596,7 @@ def validate_full_backup(value: dict[str, Any]) -> None:
         # 而不是 BackupError，调用方的 400 分支与临时目录清理都会被跳过。
         raise BackupError("备份格式版本无效。") from error
     if format_version > FORMAT_VERSION:
-        raise BackupError(
-            f"备份格式版本 {format_version} 高于当前程序支持的 {FORMAT_VERSION}，请先升级程序。"
-        )
+        raise BackupError(f"备份格式版本 {format_version} 高于当前程序支持的 {FORMAT_VERSION}，请先升级程序。")
     database = value.get("database")
     if not isinstance(database, dict) or not database.get("name"):
         raise BackupError("备份缺少数据库快照。")
@@ -663,9 +608,7 @@ def _recovery_root(settings: Any) -> Path:
 
 
 def _write_journal(rollback_dir: Path, journal: dict[str, Any]) -> None:
-    (rollback_dir / RECOVERY_JOURNAL).write_text(
-        json.dumps(journal, ensure_ascii=False), encoding="utf-8"
-    )
+    (rollback_dir / RECOVERY_JOURNAL).write_text(json.dumps(journal, ensure_ascii=False), encoding="utf-8")
 
 
 def _copy_bounded(source: Any, destination: Any, *, limit: int, what: str) -> int:
@@ -686,9 +629,7 @@ def _copy_bounded(source: Any, destination: Any, *, limit: int, what: str) -> in
     return total
 
 
-def _extract_data_files(
-    archive: ZipFile, extract_root: Path, allowed: set[str]
-) -> None:
+def _extract_data_files(archive: ZipFile, extract_root: Path, allowed: set[str]) -> None:
     """把归档里的数据文件解到 ``extract_root``，并在此**重新**校验规模上限与清单成员。
 
     写入侧（``create_payload``）有 4 GB / 50000 文件的上限，但那只约束「我们自己造包时」；
@@ -717,7 +658,6 @@ def _extract_data_files(
             total += _copy_bounded(source, destination, limit=MAX_EXPANDED - total, what="备份数据")
 
 
-
 def _restore_data_files(
     settings: Any,
     payload: Path,
@@ -731,9 +671,7 @@ def _restore_data_files(
         shutil.rmtree(extract_root)
     extract_root.mkdir(parents=True, exist_ok=True)
     with ZipFile(payload, "r") as archive:
-        _extract_data_files(
-            archive, extract_root, set((manifest.get("files") or {}).keys())
-        )
+        _extract_data_files(archive, extract_root, set((manifest.get("files") or {}).keys()))
 
     created: list[str] = journal.setdefault("created", [])
     moved: dict[str, str] = journal.setdefault("moved", {})
@@ -743,6 +681,13 @@ def _restore_data_files(
         if top in {DB_NAME, MANIFEST_NAME}:
             continue
         target = settings.data_dir / top
+        # 归档里的备份 / 恢复点目录一律跳过：``backups`` 是内部目录（迁移快照与备份包），
+        # 挪走它等于把恢复自己的工作材料挪走，用归档里的旧副本覆盖当前恢复历史同样是错的。
+        # 旧版本的包里可能带着它（见 ``EXCLUDED_TOP_DIRS`` 的说明），所以这里必须兜一层，
+        # 不能只靠「我们不再打包它」。
+        if top in EXCLUDED_TOP_DIRS:
+            logger.warning("备份包含内部目录条目，已跳过：%s", top)
+            continue
         # 归档里的备份目录条目一律跳过：挪走它等于把恢复自己的工作目录挪走，而用归档里的
         # 旧备份覆盖当前备份历史同样是错的。
         if _overlaps_backups_dir(settings, target):
@@ -895,7 +840,7 @@ def recover_interrupted_restore(settings: Any) -> bool:
             continue
         try:
             journal = json.loads(journal_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
+        except (OSError, json.JSONDecodeError):  # fmt: skip
             shutil.rmtree(rollback_dir, ignore_errors=True)
             continue
         phase = journal.get("phase")
@@ -904,14 +849,10 @@ def recover_interrupted_restore(settings: Any) -> bool:
         try:
             _rollback_restore(settings, rollback_dir, journal, None)
             shutil.rmtree(rollback_dir, ignore_errors=True)
-            logger.warning(
-                "检测到上次全量恢复未完成，已自动回滚到恢复前状态（中断阶段：%s）", phase
-            )
+            logger.warning("检测到上次全量恢复未完成，已自动回滚到恢复前状态（中断阶段：%s）", phase)
         except Exception:
             failed = True
-            logger.exception(
-                "检测到未完成的全量恢复，自动回滚失败（中断阶段：%s），请检查数据目录", phase
-            )
+            logger.exception("检测到未完成的全量恢复，自动回滚失败（中断阶段：%s），请检查数据目录", phase)
     return failed
 
 
@@ -978,9 +919,7 @@ class BackupCoordinator:
         self.recovery_required = False
         self.maintenance = False
         self._lock = asyncio.Lock()
-        self.backup_password_limiter = LoginAttemptLimiter(
-            max_failures=5, window_seconds=300, block_seconds=600
-        )
+        self.backup_password_limiter = LoginAttemptLimiter(max_failures=5, window_seconds=300, block_seconds=600)
 
     async def run_exclusive(self, function: Any, *args: Any, **kwargs: Any) -> Any:
         """串行执行备份 / 恢复类作业（本进程内的唯一串行点）。
@@ -1038,9 +977,7 @@ class BackupCoordinator:
         ``rmtree`` 这种纯文件系统动作才值得跨线程。
         """
         now = time.time()
-        expired = [
-            ticket for ticket, job in list(self.jobs.items()) if job["expiresAt"] <= now
-        ]
+        expired = [ticket for ticket, job in list(self.jobs.items()) if job["expiresAt"] <= now]
         if not expired:
             return
         directories: list[Path | None] = []
@@ -1076,7 +1013,7 @@ class BackupCoordinator:
                 continue
             try:
                 journal = json.loads(journal_path.read_text(encoding="utf-8"))
-            except (OSError, json.JSONDecodeError):
+            except (OSError, json.JSONDecodeError):  # fmt: skip
                 logger.warning("还原回退目录的 journal 无法解析，已保留：%s", path.name)
                 continue
             if not isinstance(journal, dict) or journal.get("phase") != "done":
@@ -1084,7 +1021,7 @@ class BackupCoordinator:
                 continue
             finished.append(path)
         finished.sort(key=lambda path: path.stat().st_mtime, reverse=True)
-        for stale in finished[max(0, keep):]:
+        for stale in finished[max(0, keep) :]:
             shutil.rmtree(stale, ignore_errors=True)
 
     async def prune_rollbacks_async(self, keep: int = ROLLBACK_KEEP) -> None:
@@ -1097,6 +1034,8 @@ __all__ = [
     "JOB_TTL_SECONDS",
     "KIND",
     "MAX_ARCHIVE",
+    "MAX_EXPANDED",
+    "MAX_FILES",
     "BackupCoordinator",
     "BackupError",
     "create_archive",
@@ -1106,6 +1045,8 @@ __all__ = [
     "durable_work",
     "inspect_archive",
     "inspect_payload",
+    "is_excluded",
+    "oversize_message",
     "purge_excluded_tables",
     "read_manifest",
     "recover_interrupted_restore",

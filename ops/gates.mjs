@@ -138,6 +138,9 @@ const GATE_GROUPS = {
     // 设备画像的纯逻辑自检（分类 / 别名 / 确认与审计 / 温控校验 / 快路径消歧）。
     // 没有 pytest 依赖：直接跑脚本，失败即非零退出。
     { name: 'check:device-profile', ...bun('run', 'check:device-profile') },
+    // 备份域自检：排除项语义、超限报错可用性、迁移快照按字节预算清理。
+    // 「备份把上一批备份装进去」这类回归不会让任何编译失败，只会在夜里静默失败。
+    { name: 'check:backup', ...bun('run', 'check:backup') },
     { name: 'check:python-format', ...bun('run', 'check:python-format') },
     // 以下四条原属 test 组：它们只读源码、不跑用例，测试移除后并入 static，避免门禁丢项。
     { name: 'check:studio-split', ...bun('run', 'check:studio-split') },

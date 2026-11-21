@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-21T18:02:30.477Z",
+  "generatedAt": "2026-11-21T23:44:49.979Z",
   "roots": [
     "homeos/frontend/src",
     "homeos/backend/src",
@@ -35,16 +35,16 @@
       }
     },
     "homeos/backend/src": {
-      "code": 105206,
-      "comment": 5791,
-      "blank": 17506,
-      "chars": 3287229,
-      "files": 549,
+      "code": 105236,
+      "comment": 5823,
+      "blank": 17520,
+      "chars": 3288931,
+      "files": 550,
       "byExt": {
         ".py": {
-          "code": 105206,
-          "chars": 3287229,
-          "files": 549
+          "code": 105236,
+          "chars": 3288931,
+          "files": 550
         }
       }
     },
@@ -111,30 +111,30 @@
       }
     },
     "packages/shared-py": {
-      "code": 1937,
-      "comment": 112,
-      "blank": 424,
-      "chars": 56996,
+      "code": 1976,
+      "comment": 121,
+      "blank": 428,
+      "chars": 57575,
       "files": 17,
       "byExt": {
         ".py": {
-          "code": 1937,
-          "chars": 56996,
+          "code": 1976,
+          "chars": 57575,
           "files": 17
         }
       }
     },
     "ops": {
-      "code": 16268,
-      "comment": 3041,
-      "blank": 2087,
-      "chars": 508470,
-      "files": 86,
+      "code": 16596,
+      "comment": 3113,
+      "blank": 2140,
+      "chars": 519033,
+      "files": 88,
       "byExt": {
         ".py": {
-          "code": 4586,
-          "chars": 144811,
-          "files": 30
+          "code": 4692,
+          "chars": 148689,
+          "files": 31
         },
         ".ts": {
           "code": 257,
@@ -142,18 +142,18 @@
           "files": 2
         },
         ".mjs": {
-          "code": 11425,
-          "chars": 355810,
-          "files": 54
+          "code": 11647,
+          "chars": 362495,
+          "files": 55
         }
       }
     }
   },
   "total": {
-    "code": 602831,
-    "comment": 54359,
-    "blank": 54627,
-    "chars": 18171544,
-    "files": 3003
+    "code": 603228,
+    "comment": 54472,
+    "blank": 54698,
+    "chars": 18184388,
+    "files": 3006
   }
 }

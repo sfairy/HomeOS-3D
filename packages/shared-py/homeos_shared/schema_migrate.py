@@ -30,6 +30,12 @@ BASELINE_NAME = "baseline"
 BASELINE_CHECKSUM = "baseline"
 #: 迁移前快照默认保留份数。
 MIGRATION_BACKUP_KEEP = 10
+#: 迁移前快照的总字节预算（默认 8 GiB）。
+#:
+#: 只按「份数」保留在库很小的时候没问题，但快照是整库副本：实测一个 9.9 GB 的库配 10 份
+#: 就是 ~99 GB —— 客户机磁盘先满，然后迁移快照写失败、应用起不来。所以份数只是上限，
+#: 真正约束是总字节预算：超出就从最旧的开始删，**至少保留最新 1 份**（那是唯一有用的那份）。
+MIGRATION_BACKUP_BYTES = 8 * 1024**3
 
 
 class SchemaMigrationError(RuntimeError):
@@ -101,8 +107,7 @@ def _validate_mode(mode: str) -> str:
 def has_business_tables(connection: sqlite3.Connection) -> bool:
     """库里除迁移版本表外是否已有业务表。"""
     rows = connection.execute(
-        "SELECT name FROM sqlite_master WHERE type = 'table' "
-        "AND name NOT LIKE 'sqlite_%' AND name != ?",
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name != ?",
         (MIGRATIONS_TABLE,),
     ).fetchall()
     return bool(rows)
@@ -183,12 +188,47 @@ def backup_database(database_path: Path, backup_dir: Path, *, label: str = "befo
     return destination
 
 
-def prune_backups(backup_dir: Path, database_stem: str, *, keep: int = MIGRATION_BACKUP_KEEP) -> None:
+def prune_backups(
+    backup_dir: Path,
+    database_stem: str,
+    *,
+    keep: int = MIGRATION_BACKUP_KEEP,
+    budget_bytes: int = MIGRATION_BACKUP_BYTES,
+) -> None:
+    """按「份数上限 + 总字节预算」清理旧快照，至少保留最新 1 份。
+
+    只按份数保留时，快照总量 ≈ ``keep × 库大小``：库涨到 10 GB 就意味着 100 GB 的
+    恢复点，客户机磁盘会先满。字节预算让「保留多少份」随库变大自动收紧。
+    **不保留 0 份**：迁移失败时最新那份是唯一能回退的东西。
+    """
     if keep < 1:
         return
     backups = sorted(backup_dir.glob(f"{database_stem}-before-migrate-*.db"))
-    for stale in backups[:-keep]:
-        stale.unlink(missing_ok=True)
+    if not backups:
+        return
+
+    def size_of(path: Path) -> int:
+        try:
+            return path.stat().st_size
+        except OSError:
+            return 0
+
+    # 1) 份数：超出 keep 的最旧部分。
+    stale = backups[:-keep]
+    # 2) 预算：从最旧的开始删，直到总量不超过预算；最新的那份永远保留。
+    survivors = [path for path in backups if path not in stale]
+    total = sum(size_of(path) for path in survivors)
+    index = 0
+    while total > budget_bytes and index < len(survivors) - 1:
+        victim = survivors[index]
+        total -= size_of(victim)
+        stale.append(victim)
+        index += 1
+
+    for path in stale:
+        path.unlink(missing_ok=True)
+    if stale:
+        LOGGER.info("已清理 %s 份迁移前快照（预算 %.1f GiB）", len(stale), budget_bytes / 1024**3)
 
 
 def _integrity_check(connection: sqlite3.Connection) -> None:
@@ -256,13 +296,20 @@ def run_migrations(
         if fresh:
             if normalized_mode == "check":
                 raise MigrationPending(
-                    f"{app} 数据库尚未创建；待执行迁移："
-                    + ", ".join(str(item.version) for item in migration_list)
+                    f"{app} 数据库尚未创建；待执行迁移：" + ", ".join(str(item.version) for item in migration_list)
                 )
             if normalized_mode == "off":
                 return MigrationReport(
-                    app, database_path, normalized_mode, True, False, 0, 0, (),
-                    tuple(item.version for item in migration_list), None,
+                    app,
+                    database_path,
+                    normalized_mode,
+                    True,
+                    False,
+                    0,
+                    0,
+                    (),
+                    tuple(item.version for item in migration_list),
+                    None,
                 )
             create_schema()
             with closing(sqlite3.connect(database_path)) as connection:
@@ -305,8 +352,7 @@ def run_migrations(
                         )
                     if checksum != migration.checksum:
                         raise SchemaMigrationError(
-                            f"迁移 {version}（{name}）的 checksum 与数据库记录不一致；"
-                            "说明代码被改动但版本号未递增。"
+                            f"迁移 {version}（{name}）的 checksum 与数据库记录不一致；说明代码被改动但版本号未递增。"
                         )
                 current_now = max(applied)
                 if current_now > latest:
@@ -318,13 +364,19 @@ def run_migrations(
             pending = tuple(item for item in migration_list if item.version not in applied)
             if normalized_mode == "check":
                 if pending:
-                    raise MigrationPending(
-                        f"{app} 待执行迁移：" + ", ".join(str(item.version) for item in pending)
-                    )
+                    raise MigrationPending(f"{app} 待执行迁移：" + ", ".join(str(item.version) for item in pending))
                 _integrity_check(connection)
                 return MigrationReport(
-                    app, database_path, normalized_mode, fresh, adopted,
-                    current_version, current_version, (), (), None,
+                    app,
+                    database_path,
+                    normalized_mode,
+                    fresh,
+                    adopted,
+                    current_version,
+                    current_version,
+                    (),
+                    (),
+                    None,
                 )
 
             backup_path: Path | None = None

@@ -207,7 +207,7 @@ bun run dev -- --lan     # 局域网
 
 | 组 | 管什么 | 项 |
 | --- | --- | --- |
-| `static` | typecheck / Biome / ruff / node 类型、**工具链版本一致性**、场景资源、`any` 与重复代码棘轮、画布断点与缩放、DOM 工厂、多边形与场景载荷不变量、样式棘轮、静默 `except`、async DB、Python 锁与镜像导入、PEP 758、WS 鉴权、路由基线与 API 契约、文件体积 / 复杂度、**设备画像自检**、studio 拆分、前后端依赖方向 | 41 |
+| `static` | typecheck / Biome / ruff / node 类型、**工具链版本一致性**、场景资源、`any` 与重复代码棘轮、画布断点与缩放、DOM 工厂、多边形与场景载荷不变量、样式棘轮、静默 `except`、async DB、Python 锁与镜像导入、PEP 758、WS 鉴权、路由基线与 API 契约、文件体积 / 复杂度、**设备画像自检**、**备份域自检**、studio 拆分、前后端依赖方向 | 42 |
 | `model` | 几何、槽位、槽位角色、材质角色、资产、目录布局、中文名索引 | 7 |
 | `build` | 清 `dist` → 构建与产物断言 → 预压缩 → chunk 初始化顺序 → 字体子集 | 4 |
 | `infra` | shellcheck / actionlint / compose ×3 / Caddy 格式与校验 / Cython | 9 |
@@ -229,10 +229,15 @@ bun run dev -- --lan     # 局域网
 （上游工具链常还没支持最新 minor，强行要求相等会把「升 Python」卡在工具上），但绝不允许超前 ——
 超前等于放行跑不了的语法。
 
-`check:device-profile` 是业务规则层唯一「跑断言」的门禁（`ops/checks/device_profile_selftest.py`，52 项，
-标准库 + 运行期依赖，不需要 pytest）：分类规则、别名归一与房间作用域、在线 / 可用二分、确认与审计、
-房间默认设备校验、climate / water_heater 命令校验、快路径不 fail-open。仓库没有通用测试套件，
-其余 `check:*` 都是「读源码 / 读产物做不变量断言」（几何、场景载荷、DOM 工厂等）。
+`check:device-profile`（52 项）与 `check:backup`（29 项）是业务规则层「跑断言」的门禁
+（`ops/checks/*_selftest.py`，标准库 + 运行期依赖，不需要 pytest）：
+
+- 设备画像：分类规则、别名归一与房间作用域、在线 / 可用二分、确认与审计、房间默认设备校验、
+  climate / water_heater 命令校验、快路径不 fail-open；
+- 备份：排除项语义（`backups/` 永不算业务数据）、超限报错必须点名占位最大项、
+  迁移快照按字节预算清理且永不清空。
+
+仓库没有通用测试套件，其余 `check:*` 都是「读源码 / 读产物做不变量断言」（几何、场景载荷、DOM 工厂等）。
 
 ### 调试
 
@@ -317,6 +322,23 @@ bfcache 交接在 `shared/utils/page-cache-lifecycle.ts`：`pagehide(persisted)`
 | `rebuild:items` | 按配方重建精修件 |
 
 无 `repair:*` 层。模型坏了用 `audit:*` 定位后重导出或 `rebuild:items`。
+
+### 备份包含什么
+
+`domains/backup/business_backup.py` 的口径是「配置 + 实体目录」，**不是**整机快照：
+
+| 进包 | 不进包 |
+| --- | --- |
+| 数据库（清空历史 / 时序 / 运行时缓存表后） | `data/backups/`（迁移快照与备份包自身） |
+| `secrets/`（HA 令牌与授权凭据的加密密钥） | `cache/`、`logs/`、`backup-work/`、`backup-recovery/` |
+| `assets/`、`studio3d/`、`exports/`、场景与窗帘记忆 | `event_logs`、`notifications`、能耗与时序、`agent_context_timeline`、`sessions`、HA 目录缓存 |
+
+两条容易踩的边界：
+
+- **排除项必须覆盖 `data_dir/backups`**。迁移前快照默认落在 `backups/schema/*.db`，每份都是整库的
+  `VACUUM INTO` 副本；漏排时备份会把自己装进去（实测 9.9 GB 的库被收成 54 GB 而失败）。
+- **上限是「展开后 4 GB / 50000 文件」**，超限报错必须点名占位最大的几项，否则排查只能靠猜。
+  `check:backup` 钉住这两条。
 
 ## 6. 部署
 
