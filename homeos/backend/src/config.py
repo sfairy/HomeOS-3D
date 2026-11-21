@@ -83,8 +83,7 @@ def _valid_public_origin(value: str) -> bool:
 
     刻意与 :func:`platform.security.request_origin.parse_origin` 同口径而**不**在这里导入它：
     ``config`` 属于只许用标准库的 base 层（``check:backend-deps`` 的 B6 规则），
-    导入 platform 会把配置层拖进请求层。两处的一致性由
-    ``tests/test_studio_lighting_and_origins.py`` 的同一组用例保证。
+    导入 platform 会把配置层拖进请求层。两处必须保持同一套解析口径。
     """
     from ipaddress import ip_address
     from urllib.parse import urlsplit

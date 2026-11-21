@@ -25,7 +25,7 @@
   },
   "dependencies": {
     "@homeos/shared": "workspace:*",
-    "@lucide/vue": "^1.73.0",
+    "@lucide/vue": "^1.77.0",
     "axios": "^1.21.1",
     "comlink": "^4.4.2",
     "echarts": "^6.1.0",
@@ -34,14 +34,14 @@
     "socket.io-client": "^4.8.4",
     "socket.io-msgpack-parser": "^3.0.2",
     "three": "0.187.0",
-    "vue": "^3.5.45",
+    "vue": "^3.5.46",
     "vue-router": "^5.5.1"
   },
   "devDependencies": {
     "@types/three": "0.187.0",
     "@tailwindcss/vite": "^4.3.5",
     "@vitejs/plugin-vue": "^6.0.11",
-    "autoprefixer": "^10.6.2",
+    "autoprefixer": "^10.7.0",
     "esbuild": "^0.28.2",
     "postcss": "^8.5.33",
     "rollup-plugin-visualizer": "^7.1.3",

@@ -4,11 +4,11 @@
 # `homeos/backend/requirements.txt` 合并解析出的精确版本 + sha256 锁，由
 # `python3 ops/ci/python_lock.py generate` 生成。改动本文件后必须重新生成锁，否则
 # 改动不会进镜像（CI 的 checks 工作流会比对指纹并拦住这种漂移）。
-fastapi>=0.163.1
+fastapi>=0.165.0
 uvicorn>=0.54.0
-sqlalchemy>=2.1.8
+sqlalchemy>=2.1.9
 cryptography>=50.0.2
-pydantic>=2.14.3
+pydantic>=2.14.4
 httpx>=0.28.1
 websockets>=17.4
 Pillow>=13.0.0

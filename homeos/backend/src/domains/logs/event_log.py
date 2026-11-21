@@ -245,6 +245,10 @@ class EventLogService(EventLogReportMixin):
         ``serialize_event_log_states(..., "compact")`` 对电表只保留
         ``state`` + ``device_class`` / ``unit_of_measurement``，正是
         ``accumulate_energy_totals`` 判定与折算所需的全部字段。
+
+        ``created_at`` 必须一并带：它是 ``accumulate_energy_totals`` 的日/月分桶键，旁路
+        缓冲拿不到显示缓冲那份，缺了会 KeyError → 整批 flush 失败并无限回灌（见运行日志
+        「批量写入事件失败:'created_at',已回灌0条」）。
         """
         old_state = event.get("old_state")
         new_state = event.get("new_state")
@@ -258,6 +262,7 @@ class EventLogService(EventLogReportMixin):
                 "entity_id": entity_id,
                 "old_state": old_serialized,
                 "new_state": new_serialized,
+                "created_at": _resolve_event_occurred_at(event),
             }
         )
         # 上界与显示缓冲同量级：能量表读数抖动不会无限堆积（超限丢最旧的，

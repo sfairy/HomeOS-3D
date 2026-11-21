@@ -74,7 +74,7 @@ jobs:
       # 版本与开发机 `.venv-store` 对齐；`lint:py` 走 `python -m ruff`，所以装进解释器而不是
       # 只放二进制（node ops/lib/py.mjs -m ruff check .）。
       - name: Install ruff
-        run: pip install "ruff==0.17.3"
+        run: pip install "ruff==0.17.6"
 
       # `check:routes` 导入真实路由注册表（fastapi / sqlalchemy 在导入链上），
       # 装开区间的 requirements.txt，不碰 requirements.lock（镜像用的才是那份锁）。

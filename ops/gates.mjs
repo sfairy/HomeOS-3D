@@ -16,8 +16,7 @@
  *
  * 分组口径
  * --------
- * - `static`：不依赖构建产物的静态检查（类型、lint、ruff、结构规则、棘轮）；
- * - `test`：单元测试与架构门禁用例（含依赖 DAG、路由基线）；
+ * - `static`：不依赖构建产物的静态检查（类型、lint、ruff、结构规则、棘轮、依赖 DAG 与路由基线）；
  * - `model`：3D 模型库的只读审计（几何 / 槽位 / 材质 / 资产 / 目录与命名索引）；
  * - `build`：需要前端产物的检查（构建 + 结构断言 + 体积预算 + chunk 初始化顺序）；
  * - `infra`：shell / workflow / compose / Caddyfile / Cython 兼容性。
