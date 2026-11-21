@@ -24,3 +24,11 @@ export * from './media'
 export * from './agent'
 
 export * from './backups'
+
+export * from './energy'
+
+export * from './automation'
+
+export * from './device-profiles'
+
+export * from './media-library'

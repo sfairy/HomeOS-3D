@@ -56,7 +56,7 @@ def resolve_zone(timezone_name: str) -> ZoneInfo | None:
         return None
     try:
         return ZoneInfo(name)
-    except (ZoneInfoNotFoundError, ValueError):
+    except (ZoneInfoNotFoundError, ValueError):  # fmt: skip - 括号不能省，Cython 会把 PEP 758 形式误解析
         logger.debug("时区不可用，回退 UTC: %s", name)
         return None
 
@@ -100,7 +100,7 @@ def delay_minutes(value: Any) -> float | None:
         return None
     try:
         minutes = float(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError):  # fmt: skip - 括号不能省，Cython 会把 PEP 758 形式误解析
         logger.debug("delayMinutes 不是数字: %r", value)
         return None
     return max(0.0, min(MAX_DELAY_MINUTES, minutes))

@@ -1,4 +1,6 @@
 /** 顶栏导航 Tab 工具。 */
+import { resolveMoviePilotUrl } from './moviepilot-url.util'
+
 /** 内置品牌 Logo（仓库根 assets/logo/logo.svg，可替换；Nest 托管 /logo/*） */
 export const DEFAULT_BRAND_LOGO_URL = '/logo/logo.svg'
 
@@ -46,6 +48,8 @@ export function embedNavTabId(embedId: string): string {
 type EmbedNavTabLayoutFields = {
   customEmbeds?: Array<{ id?: string | null }> | null
   moviePilotUrl?: string | null
+  /** 媒体库里的同一台 MoviePilot 地址（与 moviePilotUrl 二选一即可） */
+  mediaConfig?: { mpUrl?: string | null } | null
   navTabOrder?: string[] | null
   navTabVisibility?: Record<string, boolean | undefined> | null
   navTabPlacement?: Record<string, NavTabPlacement | undefined> | null
@@ -93,7 +97,8 @@ export function normalizeEmbedNavTabLayoutFields(layout: EmbedNavTabLayoutFields
     liveTabIds.add(embedNavTabId(embedId))
   }
 
-  if (embeds.length === 0 && String(layout.moviePilotUrl || '').trim()) {
+  // 只在「媒体与入库」填了 mpUrl 也算已配置：两个字段描述同一台服务（见 moviepilot-url.util）
+  if (embeds.length === 0 && resolveMoviePilotUrl(layout)) {
     liveTabIds.add('media')
   }
 

@@ -10,6 +10,11 @@
   touch-action: none;
 }
 
+/* 强预警档位（本地烈度 >= 4.0）：背景更饱和，弱预警保持原样。 */
+.eew-root.eew-strong .eew-pulse-bg {
+  background: rgb(120 8 8 / 0.88);
+}
+
 .eew-pulse-bg {
   position: absolute;
   inset: 0;

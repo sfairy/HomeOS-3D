@@ -4,6 +4,7 @@
     <div
       v-if="showOverlay"
       class="eew-root"
+      :class="{ 'eew-strong': event?.alertLevel === 'strong' }"
       role="alertdialog"
       aria-modal="true"
       aria-label="地震预警"

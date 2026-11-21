@@ -366,7 +366,7 @@ def lunar_text(moment: date, *, with_zodiac: bool = True) -> str:
     """
     try:
         lunar = solar_to_lunar(moment)
-    except (ValueError, OverflowError):
+    except (ValueError, OverflowError):  # fmt: skip - 括号不能省，Cython 会把 PEP 758 形式误解析
         logger.debug("公历 %s 超出农历年表范围，跳过农历文案", moment)
         return ""
     if with_zodiac:

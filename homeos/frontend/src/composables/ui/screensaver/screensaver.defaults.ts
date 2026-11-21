@@ -3,34 +3,13 @@
  * @module frontend/src/composables/ui
  */
 
-/** 屏保默认配置（与配置文件合并使用） */
-export const SS_DEFAULTS = {
-  scale: 1.35,
-  defaultMode: 'clock',
-  enableWeatherMode: false,
-  instantEnter: true,
-  instantLeave: true,
-  brightness: 1,
-  showBrand: true,
-  showSeconds: true,
-  showGregorianDate: true,
-  showLunar: true,
-  showWeatherIcon: true,
-  showWeatherDesc: true,
-  showWeatherStats: true,
-  showWeatherMeta: true,
-  timeSizeVw: 24,
-  sepSizeVw: 17,
-  secSizeVw: 7,
-  metaSizeVw: 3,
-  subMetaSizeVw: 2,
-  brandSizePx: 26,
-  weatherTempSizeVw: 22,
-  weatherIconSizeVw: 10,
-  weatherStatsSizePx: 15,
-  brandTopVh: 5,
-  contentShiftVh: 0,
-}
+/**
+ * 屏保默认配置的唯一真源在 `shared/constants/screensaver-defaults`：
+ * 配置兜底（shared/utils/config/frontend-config.ts）与面板草稿必须用同一份数字，
+ * 而 `shared/**` 不能反向引用 composables，所以常量放在 shared、这里只做转出。
+ */
+export { SS_DEFAULTS } from '@/shared/constants/screensaver-defaults'
+export type { ScreensaverDefaults } from '@/shared/constants/screensaver-defaults'
 
 /** 天气状态 → emoji 映射（与 WEATHER_LABELS 键对齐） */
 export const WEATHER_ICON_EMOJI = {

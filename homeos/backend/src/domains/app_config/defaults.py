@@ -12,13 +12,6 @@ from .rooms import DEFAULT_ROOM_CATALOG
 from ...platform.core.db.retention import DEFAULT_RETENTION
 from ...platform.security.entity_access import WS_PUSH_CRITICAL_DOMAINS
 
-#: 认证安全默认值（对齐 ``@homeos/shared`` DEFAULT_AUTH_SECURITY）。
-DEFAULT_AUTH_SECURITY: dict[str, int] = {
-    "lockoutMaxAttempts": 5,
-    "lockoutMinutes": 15,
-    "sessionExpireDays": 30,
-}
-
 #: 语音告警默认开关矩阵（对齐 packages/shared/src/notification/voice-alert.ts）。
 DEFAULT_VOICE_ALERT_RULES: dict[str, bool] = {
     "enabled": True,
@@ -73,19 +66,13 @@ def build_default_env_sensor_map() -> dict[str, dict[str, str]]:
     return {room.id: {"label": room.default_label} for room in DEFAULT_ROOM_CATALOG}
 
 
-def _default_auth_and_notify_sections() -> dict[str, Any]:
-    """认证（登录风控 / 会话）+ 通知（开关 / 名额 / 去重冷却）。"""
+def _default_notification_section() -> dict[str, Any]:
+    """通知（开关 / 名额 / 去重冷却）。
+
+    登录锁定 / 新设备提醒等 ``auth`` 分区字段从未被运行时读取，已随 v19 下线；
+    登录限流与会话有效期由认证接口自身执行，当前没有可配置项，不再暴露死开关。
+    """
     return {
-        # 认证配置
-        "auth": {
-            "lockoutMaxAttempts": DEFAULT_AUTH_SECURITY["lockoutMaxAttempts"],
-            "lockoutMinutes": DEFAULT_AUTH_SECURITY["lockoutMinutes"],
-            "sessionExpireDays": DEFAULT_AUTH_SECURITY["sessionExpireDays"],
-            "loginAlertEnabled": True,
-            "newDeviceAlertEnabled": True,
-            "newDeviceAlertCooldownMin": 1440,
-            "bruteForceAlertEnabled": True,
-        },
         # 通知配置
         "notification": {
             "dndStart": 22,
@@ -148,13 +135,13 @@ def _default_safety_and_iaq_sections() -> dict[str, Any]:
 
 
 def _default_security_sections() -> dict[str, Any]:
-    """认证 / 通知 / 用水 / 安防 / 昼夜节律 / 空气质量默认分区。
+    """通知 / 用水 / 安防 / 昼夜节律 / 空气质量默认分区。
 
     拆成两个子块只为可读性与函数长度；`**` 合并顺序即 `DEFAULT_APP_CONFIG` 的键序，
     因此子块顺序不能调换（配置导出与前端快照都按该顺序比对）。
     """
     return {
-        **_default_auth_and_notify_sections(),
+        **_default_notification_section(),
         **_default_safety_and_iaq_sections(),
     }
 
@@ -203,7 +190,6 @@ def _default_misc_and_frontend_sections() -> dict[str, Any]:
     return {
         # 其他杂项配置
         "other": {
-            "eventlogRetentionDays": 7,
             "haHistoryCacheMin": 5,
             "speakCooldownMin": 10,
             "tipCooldownHours": 2,
@@ -399,8 +385,6 @@ def _ops_defaults() -> dict[str, Any]:
         "eventLogRecordBlockEntityIds": [],
         "configAuditMaxEntries": 100,
         "configAuditPersistEnabled": False,
-        "sceneExecHistoryMax": 100,
-        "scriptExecHistoryMax": 80,
         "autoBackupEnabled": True,
         "autoBackupRetainDays": 7,
         "homeTimezone": "Asia/Shanghai",
@@ -440,7 +424,6 @@ def _default_data_pipeline_sections() -> dict[str, Any]:
             "stateBatchMax": 300,
             "haSyncWaitMs": 90_000,
             "replayChunkSize": 400,
-            "roomBatchEmit": True,
             "coldEntityOnDemand": True,
             "latencyProfile": "realtime",
         },
@@ -498,7 +481,6 @@ def _default_home_mode_and_media_sections() -> dict[str, Any]:
             "ttsVoice": "zh-CN-XiaoxiaoNeural",
             "ttsRate": "+0%",
             "ttsPitch": "+0Hz",
-            "ttsFormat": "audio-24khz-48kbitrate-mono-mp3",
             "ttsApiBase": "",
             "ttsApiKey": "",
             "ttsModel": "tts-1",
@@ -555,7 +537,6 @@ DEFAULT_APP_CONFIG: dict[str, Any] = build_default_app_config()
 
 __all__ = [
     "DEFAULT_APP_CONFIG",
-    "DEFAULT_AUTH_SECURITY",
     "DEFAULT_CLIENT_POWER_SETTINGS",
     "DEFAULT_EVENT_LOG_RECORD_BLOCK_DOMAINS",
     "DEFAULT_INGRESS_COALESCE_DOMAINS",

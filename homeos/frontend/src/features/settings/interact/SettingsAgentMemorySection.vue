@@ -80,7 +80,7 @@
           >
             清空全部
           </button>
-          <span class="agent-memory-count">{{ items.length }} / 50</span>
+          <span class="agent-memory-count">{{ preferenceCount }} / 50 条偏好</span>
         </div>
 
         <p v-if="!items.length" class="agent-band-hint">
@@ -113,7 +113,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { Brain } from '@lucide/vue'
 import HosSelect from '@/components/common/base/HosSelect.vue'
 import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
@@ -139,6 +139,8 @@ const messageOk = ref(true)
 const draftKind = ref<AgentMemoryItem['kind']>('preference')
 const draftAlias = ref('')
 const draftValue = ref('')
+/** 50 条上限只约束偏好（别名不拼进系统提示），计数必须同口径，不能拿全部条目算。 */
+const preferenceCount = computed(() => items.value.filter((item) => item.kind === 'preference').length)
 
 function setMessage(text: string, ok = true) {
   message.value = text
@@ -180,6 +182,12 @@ async function save() {
 
 async function forget(item: AgentMemoryItem) {
   if (saving.value) return
+  const ok = await chrome.confirm(
+    `删除${item.kind === 'alias' ? '别名' : '偏好'}「${item.kind === 'alias' ? item.key : item.value}」？删除后无法恢复。`,
+    '删除记忆',
+    { type: 'danger', confirmText: '删除' },
+  )
+  if (!ok) return
   saving.value = true
   try {
     await forgetAgentMemory(item.kind, item.key)

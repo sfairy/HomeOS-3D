@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+import inspect
 import json
 import logging
 import math
@@ -301,6 +302,15 @@ class _ChatRunContext:
     attachments: list[dict[str, Any]] = field(default_factory=list)
     #: 整轮对话的 monotonic deadline；0 表示不限制（测试 / 精简装配）
     deadline_at: float = 0.0
+    #: 本轮对话唯一 id：把命令缓存、时序表、执行实证串到同一条因果链上
+    context_id: str = ""
+    #: IntentGate 判定结果（off 模式为空）
+    intent_verdict: str = ""
+    intent_mode: str = ""
+    #: enforce 下非 IMMEDIATE 意图禁用控制类快路径 / 缓存 / 工具
+    control_blocked: bool = False
+    #: 最近一次工具的原始结果（实证判定需要 verification 原文，轨迹里只留预览）
+    last_tool_result: Any = None
 
     def remaining_seconds(self) -> float | None:
         """整轮剩余可用秒数；未设置 deadline 时返回 None（表示不限制）。"""
@@ -459,6 +469,40 @@ def _intersect_restrictions(
             if entry and entry not in merged:
                 merged.append(entry)
     return merged or ["__none__"]
+
+
+async def apply_device_allowlist(agent_config: Any, actor: AgentActor | None) -> AgentActor | None:
+    """把 Agent 专属设备白名单叠加到执行身份上（与用户 ACL 取交集）。
+
+    **所有**下发工具的入口都要经过这里，而不只是 ``/agent/chat``：
+
+    - 对话 / MCP / 渠道：``AgentService.chat`` 调用（走同一份）；
+    - 计划任务：到期后由调度器还原创建者身份再调工具，若不叠加白名单，
+      「设置 → 设备范围」只约束聊天，定时任务仍能控制白名单外的设备；
+    - 看门狗自动关停：后台使用固定系统身份，同样不能绕过白名单。
+
+    读取失败按「不额外限制」处理：配置异常不应该让整个管家停摆。
+    """
+    if actor is None:
+        return None
+    getter = getattr(agent_config, "get_device_allowlist", None)
+    if not callable(getter):
+        return actor
+    try:
+        # 配置端口允许返回同步值（内存桩）或协程（读库实现），统一兜住两种形态。
+        pending = getter()
+        raw_allowlist = await pending if inspect.isawaitable(pending) else pending
+        allowlist = raw_allowlist if isinstance(raw_allowlist, list) else None
+    except Exception as exc:  # 配置读取失败不应阻断执行，按「不额外限制」处理
+        logger.warning("读取 Agent 设备白名单失败,按不限制处理: %s", exc)
+        return actor
+    if not allowlist:
+        return actor
+    return AgentActor(
+        restrictions=_intersect_restrictions(actor.restrictions, allowlist),
+        user_id=actor.user_id,
+        username=actor.username,
+    )
 
 
 def _narrow_item(item: str, base: list[str]) -> list[str]:

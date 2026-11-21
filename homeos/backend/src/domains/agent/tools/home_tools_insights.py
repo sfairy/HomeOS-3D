@@ -19,6 +19,7 @@ from .home_tools_base import HomeToolsHost
 from .home_tools_primitives import _error_message, _s, logger
 from ..runtime.agent_actor import AgentActor
 from ...client_power.energy_meter import business_day_key, business_month_key
+from ...logs.energy_history import select_energy_candidates
 from ....platform.core.db.db_exec import run_db
 from ....platform.core.db.models import EnergyUsageDaily, EventLog, Notification
 
@@ -39,7 +40,7 @@ def _clamped_int(raw: Any, default: int, minimum: int, maximum: int) -> int:
         return default
     try:
         value = int(float(raw))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError):  # fmt: skip - 括号不能省，Cython 会把 PEP 758 形式误解析
         return default
     return max(minimum, min(maximum, value))
 
@@ -101,41 +102,25 @@ class HomeToolsInsightsMixin(HomeToolsHost):
     ) -> tuple[list[EnergyUsageDaily], list[EnergyUsageDaily]]:
         with self._session_scope() as session:
             daily_rows = list(
-                session.execute(
-                    select(EnergyUsageDaily).where(EnergyUsageDaily.day >= since_key)
-                ).scalars()
+                session.execute(select(EnergyUsageDaily).where(EnergyUsageDaily.day >= since_key)).scalars()
             )
             month_rows = list(
-                session.execute(
-                    select(EnergyUsageDaily).where(
-                        EnergyUsageDaily.day >= f"{month_key}-01"
-                    )
-                ).scalars()
+                session.execute(select(EnergyUsageDaily).where(EnergyUsageDaily.day >= f"{month_key}-01")).scalars()
             )
         return daily_rows, month_rows
 
     def _load_today_energy_rows(self, today_key: str) -> list[EnergyUsageDaily]:
         with self._session_scope() as session:
-            return list(
-                session.execute(
-                    select(EnergyUsageDaily).where(EnergyUsageDaily.day == today_key)
-                ).scalars()
-            )
+            return list(session.execute(select(EnergyUsageDaily).where(EnergyUsageDaily.day == today_key)).scalars())
 
-    def _load_event_rows(
-        self, since: datetime, entity_id: str, domain: str, fetch_size: int
-    ) -> list[EventLog]:
+    def _load_event_rows(self, since: datetime, entity_id: str, domain: str, fetch_size: int) -> list[EventLog]:
         with self._session_scope() as session:
             query = select(EventLog).where(EventLog.created_at >= since)
             if entity_id:
                 query = query.where(EventLog.entity_id == entity_id)
             if domain:
                 query = query.where(EventLog.domain == domain)
-            return list(
-                session.execute(
-                    query.order_by(EventLog.created_at.desc()).limit(fetch_size)
-                ).scalars()
-            )
+            return list(session.execute(query.order_by(EventLog.created_at.desc()).limit(fetch_size)).scalars())
 
     def _load_notification_rows(
         self, unread_only: bool, fetch_size: int
@@ -144,22 +129,12 @@ class HomeToolsInsightsMixin(HomeToolsHost):
             query = select(Notification)
             if unread_only:
                 query = query.where(Notification.read.is_(False))
-            rows = list(
-                session.execute(
-                    query.order_by(Notification.created_at.desc()).limit(fetch_size)
-                ).scalars()
-            )
-            unread_rows = list(
-                session.execute(
-                    select(Notification).where(Notification.read.is_(False))
-                ).scalars()
-            )
+            rows = list(session.execute(query.order_by(Notification.created_at.desc()).limit(fetch_size)).scalars())
+            unread_rows = list(session.execute(select(Notification).where(Notification.read.is_(False))).scalars())
         return rows, unread_rows
 
     # 能耗
-    async def _get_energy_usage(
-        self, args: dict[str, Any], actor: AgentActor | None = None
-    ) -> dict[str, Any]:
+    async def _get_energy_usage(self, args: dict[str, Any], actor: AgentActor | None = None) -> dict[str, Any]:
         """近 N 天用电汇总：总量 / 今日 / 本月 / 每日曲线 / 用电最多的设备。"""
         denied = self._read_denied(actor)
         if denied is not None:
@@ -167,9 +142,7 @@ class HomeToolsInsightsMixin(HomeToolsHost):
         days = _clamped_int(args.get("days"), 7, 1, MAX_ENERGY_DAYS)
         today_key = business_day_key(datetime.now(UTC))
         month_key = business_month_key(datetime.now(UTC))
-        since_key = (
-            datetime.strptime(today_key, "%Y-%m-%d").date() - timedelta(days=days - 1)
-        ).isoformat()
+        since_key = (datetime.strptime(today_key, "%Y-%m-%d").date() - timedelta(days=days - 1)).isoformat()
         try:
             daily_rows, month_rows = await run_db(self._load_energy_rows, since_key, month_key)
         except Exception as exc:
@@ -180,11 +153,18 @@ class HomeToolsInsightsMixin(HomeToolsHost):
         per_entity: dict[str, float] = {}
         today_kwh = 0.0
         # 只统计绑定的主电表：日/月/年累计与各回路表是同一度电的其它口径，
-        # 一起求和会给出成倍偏大的「今日用电」。未绑定时保持全量（老装机）。
+        # 一起求和会给出成倍偏大的「今日用电」。未绑定时按账户身份只留一个代表
+        # （与报表同一口径，见 ``select_energy_candidates``），否则
+        # ``ele_8107_{daily,month,year}_ele_num`` 会被求和三遍。
         primary = self._energy_primary_entities()
+        scoped = (
+            set(primary)
+            if primary
+            else set(select_energy_candidates(sorted({_s(row.entity_id) for row in daily_rows}), keep=None))
+        )
         for row in daily_rows:
             entity_id = _s(row.entity_id)
-            if primary and entity_id not in primary:
+            if entity_id not in scoped:
                 continue
             if not self._may_read(entity_id, actor):
                 continue
@@ -196,13 +176,9 @@ class HomeToolsInsightsMixin(HomeToolsHost):
         month_kwh = sum(
             float(row.kwh or 0.0)
             for row in month_rows
-            if (not primary or _s(row.entity_id) in primary)
-            and self._may_read(_s(row.entity_id), actor)
+            if _s(row.entity_id) in scoped and self._may_read(_s(row.entity_id), actor)
         )
-        daily = [
-            {"day": day, "kwh": round(per_day[day], 3)}
-            for day in sorted(per_day)
-        ]
+        daily = [{"day": day, "kwh": round(per_day[day], 3)} for day in sorted(per_day)]
         top_entities = [
             {
                 "entity_id": entity_id,
@@ -230,17 +206,11 @@ class HomeToolsInsightsMixin(HomeToolsHost):
             rows = await run_db(self._load_today_energy_rows, today_key)
         except Exception:
             return None
-        total = sum(
-            float(row.kwh or 0.0)
-            for row in rows
-            if self._may_read(_s(row.entity_id), actor)
-        )
+        total = sum(float(row.kwh or 0.0) for row in rows if self._may_read(_s(row.entity_id), actor))
         return round(total, 3)
 
     # 历史事件
-    async def _query_events(
-        self, args: dict[str, Any], actor: AgentActor | None = None
-    ) -> dict[str, Any]:
+    async def _query_events(self, args: dict[str, Any], actor: AgentActor | None = None) -> dict[str, Any]:
         """查询 HA 状态变更历史（按实体 / 域 / 时间窗过滤，最新在前）。"""
         denied = self._read_denied(actor)
         if denied is not None:
@@ -279,9 +249,7 @@ class HomeToolsInsightsMixin(HomeToolsHost):
         return {"hours": hours, "count": len(events), "events": events}
 
     # 通知
-    async def _get_notifications(
-        self, args: dict[str, Any], actor: AgentActor | None = None
-    ) -> dict[str, Any]:
+    async def _get_notifications(self, args: dict[str, Any], actor: AgentActor | None = None) -> dict[str, Any]:
         """查询通知中心：未读数 + 最近通知列表；支持全部标记已读。"""
         # 标记已读是「账号级」动作，不依赖实体可见范围；放在读 ACL 之前，
         # 否则受限账号会被「没有可查看设备」拦住而无法清理自己的未读。
@@ -295,9 +263,7 @@ class HomeToolsInsightsMixin(HomeToolsHost):
         restrictions = self._read_restrictions(actor)
         fetch_size = MAX_NOTIFICATION_ROWS * 4 if restrictions else limit
         try:
-            rows, unread_rows = await run_db(
-                self._load_notification_rows, unread_only, fetch_size
-            )
+            rows, unread_rows = await run_db(self._load_notification_rows, unread_only, fetch_size)
         except Exception as exc:
             logger.warning("通知查询失败: %s", _error_message(exc))
             return {"error": f"通知暂不可用: {_error_message(exc)}"}
@@ -333,7 +299,10 @@ class HomeToolsInsightsMixin(HomeToolsHost):
         marker = getattr(service, "mark_all_as_read", None)
         if callable(marker):
             try:
-                result = await marker()
+                result = marker()
+                # 服务实现既可能是协程也可能是同步函数：无条件 await 会在同步实现上直接炸。
+                if inspect.isawaitable(result):
+                    result = await result
             except Exception as exc:
                 logger.warning("通知全部已读失败: %s", _error_message(exc))
                 return {"error": f"标记已读失败: {_error_message(exc)}"}
@@ -362,9 +331,7 @@ class HomeToolsInsightsMixin(HomeToolsHost):
         return {"success": True, "updated": int(updated or 0), "message": "已把全部通知标记为已读。"}
 
     # 天气预报
-    async def _get_weather_forecast(
-        self, args: dict[str, Any], actor: AgentActor | None = None
-    ) -> dict[str, Any]:
+    async def _get_weather_forecast(self, args: dict[str, Any], actor: AgentActor | None = None) -> dict[str, Any]:
         """未来天气（OpenWeather 3 小时粒度），返回精简的时段列表。"""
         items_limit = _clamped_int(args.get("count"), 8, 1, MAX_FORECAST_ITEMS)
         fetch = getattr(self._external_api, "fetch_forecast", None)

@@ -48,7 +48,6 @@ from .sections_ui import (
     validate_voice_commands_array,
 )
 from .security import (
-    _validate_auth,
     _validate_circadian,
     _validate_iaq,
     _validate_notification,
@@ -87,7 +86,6 @@ _SECTION_VALIDATORS: dict[str, Any] = {
     "frontend": _validate_frontend,
     "screensaver": _validate_screensaver,
     "voice": _validate_voice,
-    "auth": _validate_auth,
     "ops": _validate_ops,
     "haConnector": _validate_ha_connector,
     "stateStore": _validate_state_store,

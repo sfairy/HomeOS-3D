@@ -50,6 +50,8 @@ SCENE_QUERY_CATEGORY_SUFFIX = re.compile(r"(场景|模式|脚本|scene|script|mo
 
 #: media_control 的 action → HA 服务映射
 MEDIA_ACTION_SERVICES: dict[str, str] = {
+    "on": "turn_on",
+    "off": "turn_off",
     "play": "media_play",
     "pause": "media_pause",
     "stop": "media_stop",
@@ -79,7 +81,7 @@ def _js_stringify(value: Any) -> str | None:
     """对齐 JS ``JSON.stringify``（序列化失败返回 None，等价 undefined）。"""
     try:
         return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError):  # fmt: skip - 括号不能省，Cython 会把 PEP 758 形式误解析
         return None
 
 

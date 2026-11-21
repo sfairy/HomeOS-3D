@@ -28,7 +28,7 @@ def _js_stringify(value: Any) -> str:
     """对齐 JS ``JSON.stringify``（紧凑分隔符、不转义中文）。"""
     try:
         return json.dumps(value, ensure_ascii=False, separators=(",", ":"), default=str)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError):  # fmt: skip - 括号不能省，Cython 会把 PEP 758 形式误解析
         return ""
 
 
@@ -37,7 +37,7 @@ def _safe_equal_string(left: str, right: str) -> bool:
     try:
         buf_a = left.encode()
         buf_b = right.encode()
-    except (UnicodeEncodeError, AttributeError):
+    except (UnicodeEncodeError, AttributeError):  # fmt: skip - 括号不能省，Cython 会把 PEP 758 形式误解析
         return False
     if len(buf_a) != len(buf_b):
         return False
@@ -292,7 +292,7 @@ class McpGatewayService:
             return {}
         try:
             parsed = json.loads(raw)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError):  # fmt: skip - 括号不能省，Cython 会把 PEP 758 形式误解析
             logger.warning("%s 不是合法 JSON，已忽略", name)
             return {}
         return parsed if isinstance(parsed, dict) else {}

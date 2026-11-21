@@ -10,7 +10,7 @@ const HINT_TEXT: Record<string, string> = {
   'settings.systemConfig.fieldHint.alertChannels':
     '逗号分隔告警渠道，可选 in_app / email / webpush / wecom（企业微信）；紧急/布防触发/紧急求助类事件按此渠道投递',
   'settings.systemConfig.fieldHint.anomalyCooldownMin':
-    '同一类型异常在此冷却时间内不会重复推送告警（能源/用水等分区各自独立）。推荐 15–60',
+    '同一类型异常在此冷却时间内不会重复推送告警（能源/用水等分区各自独立）。推荐 30（15–60）',
   'settings.systemConfig.fieldHint.apiRetryDelayMs': '接口请求失败后的重试等待延迟（毫秒）。推荐 1000',
   'settings.systemConfig.fieldHint.apiRetryMax': '前端 HTTP 请求失败后的最大重试次数。推荐 2',
   'settings.systemConfig.fieldHint.apiTimeoutMs':
@@ -69,7 +69,8 @@ const HINT_TEXT: Record<string, string> = {
     '按实体/全局 timeline 缓存保留的最大条数；系统时间线部件单次查询条数上限。推荐 500',
   'settings.systemConfig.fieldHint.frigateDedupMs':
     '同一摄像头在此时间窗口内的重复告警将被合并去重。推荐 30000（30秒）',
-  'settings.systemConfig.fieldHint.frigateMaxEvents': 'Frigate 最近检测事件 API 默认返回条数（后端截断）。推荐 50',
+  'settings.systemConfig.fieldHint.frigateMaxEvents':
+    'Frigate 最近检测事件 API 每次返回的条数上限（后端截断，推荐 50）；不决定历史保留天数',
   'settings.systemConfig.fieldHint.frigatePersonAlarmModes':
     '指定哪些布防模式下触发 Frigate 摄像头人物告警。推荐 armed_away,armed_night（none=关闭）',
   'settings.systemConfig.fieldHint.haDisconnectDebounceMs':
@@ -91,7 +92,8 @@ const HINT_TEXT: Record<string, string> = {
     '参与微窗口合并的 domain 列表。推荐 sensor,binary_sensor,device_tracker,update',
   'settings.systemConfig.fieldHint.ingressCoalesceEnabled':
     '对高频 sensor 变更在入口做毫秒级合并，降低 CPU/WS 压力（默认开启）',
-  'settings.systemConfig.fieldHint.ingressCoalesceWindowMs': '合并窗口（毫秒）。推荐 16（NAS）',
+  'settings.systemConfig.fieldHint.ingressCoalesceWindowMs':
+    '合并窗口（毫秒）。默认 4 只吸收同帧突发；大户型可调到 8–16',
   'settings.systemConfig.fieldHint.initStatesBatchSize':
     '全量加载实体状态时每批次的实体数，值越小加载越平滑但越慢。推荐 400',
   'settings.systemConfig.fieldHint.initialStatesPriorityEnabled':
@@ -100,8 +102,7 @@ const HINT_TEXT: Record<string, string> = {
   'settings.systemConfig.fieldHint.linkageClaimTtlMin': '家庭模式联动占用声明的有效期（分钟）。推荐 15',
   'settings.systemConfig.fieldHint.largeEntityThreshold': '实体数量超过此阈值时启用分批加载等优化策略。推荐 2000',
   'settings.systemConfig.fieldHint.workerDerivedThreshold':
-    '实体数超过此阈值时派生索引改用 Web Worker 重建，可下调至约 3000 以提前卸载主线程。推荐 3500',
-  'settings.systemConfig.fieldHint.roomBatchEmit': '按订阅分组预计算 WS payload，大规模安装建议开启',
+    '实体数超过此阈值时派生索引改用 Web Worker 重建；默认 2000，大户型可下调到 1500 更早卸载主线程。推荐 2000',
   'settings.systemConfig.fieldHint.coldEntityOnDemand':
     '默认开启：WS 仅推送关键域、当前订阅域与钉选/热点实体，非可见实体不推、列表页 REST 按需补全',
   'settings.systemConfig.fieldHint.latencyProfile':
@@ -121,7 +122,7 @@ const HINT_TEXT: Record<string, string> = {
     '应用内通知库条数软上限：超出后优先删除已读最旧记录（未读尽量保留）。按天硬删请用「数据保留 → 通知记录」。推荐 500',
   'settings.systemConfig.fieldHint.maxRecentChanges': '内存中保留的近期实体状态变更缓存上限。推荐 3000',
   'settings.systemConfig.fieldHint.maxReconnectDelayMs':
-    'WebSocket 重连最大延迟上限（毫秒），采用指数退避策略。推荐 30000（30秒）',
+    'WebSocket 重连最大延迟上限（毫秒），采用指数退避策略。推荐 10000（10秒）',
   'settings.systemConfig.fieldHint.maxRemoteNotifications': '从后端拉取远程通知的最大条数。推荐 100',
   'settings.systemConfig.fieldHint.maxTriggerLogs': '家庭模式触发日志的最大保留条数。推荐 50',
   'settings.systemConfig.fieldHint.metaSizeVw': '锁屏主信息文字大小（日期、农历等），相对设计稿宽度百分比。推荐 3',
@@ -129,7 +130,7 @@ const HINT_TEXT: Record<string, string> = {
   'settings.systemConfig.fieldHint.offlineCooldownMin': '设备离线后在此冷却时间内不会重复发送离线告警。推荐 30',
   'settings.systemConfig.fieldHint.openWeatherApiKey': 'OpenWeatherMap API 密钥，用于获取天气数据（免费注册获取）',
   'settings.systemConfig.fieldHint.optimisticTtlMs':
-    '乐观更新在此时间内前端使用本地数据，超时后等待服务端确认。推荐 3000（3秒）',
+    '乐观更新在此时间内前端使用本地数据，超时后等待服务端确认。推荐 6000（6秒）',
   'settings.systemConfig.fieldHint.peakEnd1': '第一峰电时段结束（HH:mm）；仅在启用峰谷平分时时生效',
   'settings.systemConfig.fieldHint.peakEnd2': '第二峰电时段结束（HH:mm）；仅在启用峰谷平分时时生效',
   'settings.systemConfig.fieldHint.peakStart1': '第一峰电时段起始（HH:mm）；仅在启用峰谷平分时时生效，同时用于温控错峰',
@@ -148,24 +149,24 @@ const HINT_TEXT: Record<string, string> = {
   'settings.systemConfig.fieldHint.rebuildChunkSize': '界面重建时每批处理的实体数量，影响切换流畅度。推荐 500',
   'settings.systemConfig.fieldHint.rebuildDebounceMs': '实体派生索引重建防抖间隔（毫秒），大户型可适当调高。推荐 50',
   'settings.systemConfig.fieldHint.reconnectBaseMs': 'HA WebSocket 断连后的基础重连延迟（毫秒）。推荐 1000（1秒）',
-  'settings.systemConfig.fieldHint.replayChunkSize': '客户端断线重连后状态回放的分块大小，分批恢复避免阻塞。推荐 500',
+  'settings.systemConfig.fieldHint.replayChunkSize': '客户端断线重连后状态回放的分块大小，分批恢复避免阻塞。推荐 400',
   'settings.systemConfig.fieldHint.retentionCleanupIntervalHours': '数据库历史数据清理任务的执行间隔（小时）。推荐 1',
   'settings.systemConfig.fieldHint.retentionDeleteBatchSize':
-    '单次 DELETE 批次大小，影响清理任务对数据库的压力。推荐 5000',
+    '单次 DELETE 批次大小，影响清理任务对数据库的压力。推荐 800',
   'settings.systemConfig.fieldHint.retentionFirstDelaySec': '应用启动后首次执行数据库清理的延迟时间（秒）。推荐 15',
   'settings.systemConfig.fieldHint.scale': '屏保全局缩放倍率，1 = 100%，与整页等比缩放叠加生效。推荐 1.35',
   'settings.systemConfig.fieldHint.scaleBaseHeight': '整页等比缩放的设计基准高度（像素）。推荐 1024',
   'settings.systemConfig.fieldHint.scaleBaseWidth':
     '整页等比缩放的设计基准宽度（像素），需与中控屏幕分辨率协调。推荐 1366',
-  'settings.systemConfig.fieldHint.sceneExecHistoryMax': '场景执行历史记录的最大保留条数。推荐 100',
   'settings.systemConfig.fieldHint.screensaverEnabled': '开启后空闲超时自动进入锁屏屏保。推荐开启',
   'settings.systemConfig.fieldHint.screensaverIdleMs':
     '用户无操作的空闲时间（毫秒），超过此时长触发屏保。推荐 120000（2分钟）',
-  'settings.systemConfig.fieldHint.scriptExecHistoryMax': '脚本执行历史记录的最大保留条数。推荐 80',
   'settings.systemConfig.fieldHint.secSizeVw': '秒数显示大小，相对设计稿宽度百分比。推荐 7',
   'settings.systemConfig.fieldHint.sensorAlertCooldownSec': '同一传感器触发告警后，在此时间内不再重复告警。推荐 60',
-  'settings.systemConfig.fieldHint.sensorFlushIntervalMs': '非关键域 state_changed_batch 合并间隔（毫秒）。推荐 80',
+  'settings.systemConfig.fieldHint.sensorFlushIntervalMs': '非关键域 state_changed_batch 合并间隔（毫秒）。推荐 120',
   'settings.systemConfig.fieldHint.sepSizeVw': '时钟冒号分隔符大小，相对设计稿宽度百分比。推荐 17',
+  'settings.systemConfig.fieldHint.sessionRefreshHours':
+    '前端会话心跳刷新间隔（小时）；修改后前端在下一次可见性刷新时生效。推荐 6',
   'settings.systemConfig.fieldHint.showBrand': '开启后在锁屏界面显示站点标题（品牌名）。推荐开启',
   'settings.systemConfig.fieldHint.showGregorianDate': '开启后在锁屏上显示公历日期。推荐开启',
   'settings.systemConfig.fieldHint.showLunar': '开启后在锁屏上显示农历日期信息。推荐开启',
@@ -175,7 +176,7 @@ const HINT_TEXT: Record<string, string> = {
   'settings.systemConfig.fieldHint.showWeatherMeta': '开启后天气锁屏显示日期时间信息。推荐开启',
   'settings.systemConfig.fieldHint.showWeatherStats': '开启后天气锁屏显示湿度、风速等气象数据。推荐开启',
   'settings.systemConfig.fieldHint.staleThresholdMs':
-    'HA 断连超过此毫秒数后实体影子数据视为陈旧。推荐 30000（30 秒；过久会导致 UI 假活）',
+    'HA 断连超过此毫秒数后实体影子数据视为陈旧。推荐 12000（12 秒；过久会导致 UI 假活）',
   'settings.systemConfig.fieldHint.stateBatchMax': '单次批量推送状态变更的最大条目数。推荐 300',
   'settings.systemConfig.fieldHint.subMetaSizeVw': '锁屏副信息文字大小，相对设计稿宽度百分比。推荐 2',
   'settings.systemConfig.fieldHint.tier1Kwh':

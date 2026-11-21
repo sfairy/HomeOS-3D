@@ -2,11 +2,11 @@
   智能管家面板入口。通过子导航切换 model（大模型接口配置+凭据+检测）、
   scene-voice（HA 场景 / 脚本语音控制允许清单，默认全禁）、device-scope（设备白名单）、
   proactive（周期巡检 + 无人空转看门狗）、policies（家规）、schedules（计划任务）、
-  diagnostics（诊断日志）、memory（长期记忆）、channels（消息通道，委托给
-  SettingsAgentChannelsSection）、chat（管家对话调试）区段。
+  diagnostics（诊断日志）、memory（长期记忆）、learning（学习调优 / 习惯 / 意图门回放）、
+  channels（消息通道，委托给 SettingsAgentChannelsSection）、chat（管家对话调试）区段。
   页头提供保存/取消；演示模式（未配置密钥）禁用对话并提示。
   家规与计划任务走独立即时 CRUD，不进布局保存，因此不参与 pending 计算。
-  子导航 11 个分区单行横滑，激活项自动居中，← / → / Home / End 可切换；
+  子导航 12 个分区单行横滑，激活项自动居中，← / → / Home / End 可切换；
   当前分区写入 ?tab=agent&section=xxx，刷新或分享链接可直达，切区段时内容区回到顶部。
 -->
 <template>
@@ -217,6 +217,20 @@
               }}</span>
             </div>
           </label>
+
+          <div class="agent-section-gap flex flex-wrap items-center gap-2">
+            <div class="min-w-0 flex-1">
+              <span class="agent-scene-toggle__title">{{ '意图门（规则型表达保护）' }}</span>
+              <span class="agent-scene-toggle__desc">{{
+                '识别「每天十点关灯」「如果温度超过 30 度」这类规则型表达，避免被当成一次性指令立刻执行。默认只记录不拦截；确认样本无误后再切「拦截执行」。'
+              }}</span>
+            </div>
+            <HosSelect variant="settings" class="w-44" v-model="intentGateMode">
+              <option value="off">{{ 'off · 关闭' }}</option>
+              <option value="shadow">{{ 'shadow · 只记录' }}</option>
+              <option value="enforce">{{ 'enforce · 拦截执行' }}</option>
+            </HosSelect>
+          </div>
             </div>
 
             <aside class="agent-workbench__rail">
@@ -429,7 +443,7 @@
                 <p class="agent-rail-text">
                   {{
                     deviceAllowlistCount
-                      ? '清单外的设备不会被写入系统提示，也无法被工具控制。'
+                      ? '清单外的设备不会被写入系统提示，也无法被对话、计划任务或自动关停控制。'
                       : '未设限：管家与登录用户可见范围一致。'
                   }}
                 </p>
@@ -440,6 +454,7 @@
                 <ul class="agent-rail-list">
                   <li>与 ACL 取交集，只会更小，不会更大</li>
                   <li>清单同时约束「读取」与「控制」</li>
+                  <li>计划任务与无人自动关停同样受清单约束</li>
                   <li>改动需保存配置后生效</li>
                 </ul>
               </div>
@@ -589,13 +604,31 @@
 
     <section v-show="section === 'proactive'" class="settings-hub-section">
       <SettingsCard static extra-class="agent-scene-voice-workspace">
-        <SettingsCardIntro
-          :icon="BellRing"
-          icon-class="agent-icon--model"
-          orb-class="agent-orb--model"
-          eyebrow="主动管家"
-          :description="'按周期巡检设备离线、能耗异常、离家未关门窗 / 未上锁与即将降雨，通过通知中心（含 WebPush / 企微）发送简报。默认关闭；只读取状态，不执行任何控制动作。'"
-        />
+      <SettingsCardIntro
+        :icon="BellRing"
+        icon-class="agent-icon--model"
+        orb-class="agent-orb--model"
+        eyebrow="主动管家"
+        :description="'按周期巡检设备离线、能耗异常、离家未关门窗 / 未上锁与即将降雨，通过通知中心（含 WebPush / 企微）发送简报。默认关闭；只读取状态，不执行任何控制动作。'"
+      >
+        <template #actions>
+          <button
+            type="button"
+            class="settings-btn-ghost shrink-0"
+            :disabled="proactiveRunning || pending > 0"
+            :title="
+              pending > 0
+                ? '有未保存修改，请先保存配置再巡检'
+                : '立刻跑一次巡检；免打扰 / 冷却中会跳过，不会强行推送'
+            "
+            @click="runProactive"
+          >
+            {{ proactiveRunning ? '巡检中…' : '立即巡检' }}
+          </button>
+        </template>
+      </SettingsCardIntro>
+
+      <p v-if="proactiveTip" class="agent-band-hint">{{ proactiveTip }}</p>
 
         <div class="agent-model-body">
           <div class="agent-split">
@@ -646,26 +679,26 @@
               />
             </div>
             <div>
-              <label class="settings-form-label mb-1.5">免打扰开始（点）</label>
+              <label class="settings-form-label mb-1.5">免打扰开始</label>
               <input
-                v-model.number="proactive.quietStart"
+                :value="quietTimeLabel('start')"
                 class="settings-field"
-                type="number"
-                min="0"
-                max="23"
+                type="time"
                 :disabled="!proactive.enabled"
+                @input="setQuietTime('start', $event)"
               />
+              <p class="agent-band-hint mt-2">按家庭时区（系统设置 → 时区）判定</p>
             </div>
             <div>
-              <label class="settings-form-label mb-1.5">免打扰结束（点）</label>
+              <label class="settings-form-label mb-1.5">免打扰结束</label>
               <input
-                v-model.number="proactive.quietEnd"
+                :value="quietTimeLabel('end')"
                 class="settings-field"
-                type="number"
-                min="0"
-                max="23"
+                type="time"
                 :disabled="!proactive.enabled"
+                @input="setQuietTime('end', $event)"
               />
+              <p class="agent-band-hint mt-2">早于开始时间表示跨夜，如 23:30 → 07:00</p>
             </div>
             <div>
               <label class="settings-form-label mb-1.5">用电异常倍数</label>
@@ -680,6 +713,18 @@
               <p class="agent-band-hint mt-2">今日用电超过前几日均值的该倍数时提醒</p>
             </div>
             <div>
+              <label class="settings-form-label mb-1.5">提醒的最低用电量（kWh）</label>
+              <input
+                v-model.number="proactive.minEnergyKwh"
+                class="settings-field"
+                type="number"
+                min="0"
+                step="0.1"
+                :disabled="!proactive.enabled"
+              />
+              <p class="agent-band-hint mt-2">低于该值时即使翻倍也不提醒，避免小基数误报</p>
+            </div>
+            <div>
               <label class="settings-form-label mb-1.5">降雨提醒阈值（%）</label>
               <input
                 :value="Math.round(proactive.forecastPopThreshold * 100)"
@@ -691,6 +736,18 @@
                 @input="setProactivePercent($event)"
               />
               <p class="agent-band-hint mt-2">预报时段降水概率超过该值时提醒带伞</p>
+            </div>
+            <div>
+              <label class="settings-form-label mb-1.5">预报检查时段数</label>
+              <input
+                v-model.number="proactive.forecastSlots"
+                class="settings-field"
+                type="number"
+                min="1"
+                max="12"
+                :disabled="!proactive.enabled"
+              />
+              <p class="agent-band-hint mt-2">每个时段约 3 小时；4 个时段即未来 12 小时</p>
             </div>
           </div>
 
@@ -812,6 +869,11 @@
       v-show="section === 'memory'"
     />
 
+    <SettingsAgentLearningSection
+      v-if="activatedSections.has('learning')"
+      v-show="section === 'learning'"
+    />
+
     <SettingsAgentChannelsSection
       v-show="section === 'channels'"
       v-model:channel-draft="channelDraft"
@@ -837,7 +899,7 @@
                 v-if="chatLog.length"
                 type="button"
                 class="settings-btn-ghost shrink-0"
-                @click="chatLog = []"
+                @click="clearChatLog"
               >
                 清空记录
               </button>
@@ -1032,12 +1094,15 @@ import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSecti
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
 import { useSettingsAgentPanel } from '@/features/settings/interact/composables/agent-panel.internals'
+import { runAgentProactive } from '@/services/api/agent'
+import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import SettingsAgentChannelsSection from './SettingsAgentChannelsSection.vue'
 import SettingsAgentPoliciesSection from './SettingsAgentPoliciesSection.vue'
 import SettingsAgentSchedulesSection from './SettingsAgentSchedulesSection.vue'
 import SettingsAgentDiagnosticsSection from './SettingsAgentDiagnosticsSection.vue'
 import SettingsAgentChatBubble from './SettingsAgentChatBubble.vue'
 import SettingsAgentMemorySection from './SettingsAgentMemorySection.vue'
+import SettingsAgentLearningSection from './SettingsAgentLearningSection.vue'
 import SettingsAgentQuickPromptsSection from './SettingsAgentQuickPromptsSection.vue'
 import AgentMechaAvatar from '@/components/shell/agent-companion/AgentMechaAvatar.vue'
 
@@ -1080,9 +1145,12 @@ const {
   deviceAllowlist,
   deviceAllowlistCount,
   webSearchEnabled,
+  intentGateMode,
   proactive,
   setProactiveMinutes,
   setProactivePercent,
+  quietTimeLabel,
+  setQuietTime,
   toneFromAgentClass,
   modelFlowSteps,
   chatFlowSteps,
@@ -1103,6 +1171,7 @@ const {
   refreshPing,
   sendChat,
   stopChat,
+  clearChatLog,
   copyChat,
   regenerateChat,
   answerChatConfirmation,
@@ -1119,6 +1188,39 @@ const {
  */
 const activatedSections = ref<Set<string>>(new Set(['model']))
 
+// 主动巡检手动触发：只用于保存后立刻验证通知链路（免打扰 / 冷却中会跳过）
+const proactiveRunning = ref(false)
+const proactiveTip = ref('')
+const PROACTIVE_SKIP_LABELS: Record<string, string> = {
+  disabled: '主动管家未启用',
+  quiet_hours: '处于免打扰时段',
+  dnd: '通知中心免打扰已开启',
+  cooldown: '距上次提醒不足最小间隔',
+}
+
+async function runProactive() {
+  proactiveRunning.value = true
+  proactiveTip.value = ''
+  try {
+    const result = await runAgentProactive()
+    if (result.skipped) {
+      proactiveTip.value = `已跳过：${PROACTIVE_SKIP_LABELS[result.skipped] || result.skipped}`
+      return
+    }
+    const signals = result.signals ?? []
+    if (!signals.length) {
+      proactiveTip.value = '巡检完成：没有需要提醒的异常'
+      return
+    }
+    const summary = signals.join('；')
+    proactiveTip.value = result.sent ? `已发送简报：${summary}` : `发现异常，但通道未送达：${summary}`
+  } catch (error) {
+    proactiveTip.value = getApiErrorMessage(error, '主动巡检失败')
+  } finally {
+    proactiveRunning.value = false
+  }
+}
+
 const route = useRoute()
 const router = useRouter()
 const sectionIds = new Set(subnavSections.map((item) => item.id))
@@ -1126,7 +1228,7 @@ const sectionIds = new Set(subnavSections.map((item) => item.id))
 const querySection = typeof route.query.section === 'string' ? route.query.section : ''
 if (sectionIds.has(querySection)) {
   section.value = querySection
-  // 惰性挂载的区段（家规 / 计划任务 / 诊断）也要跟着深链一起挂载
+  // 惰性挂载的区段（家规 / 计划任务 / 诊断 / 长期记忆 / 学习 / 消息通道）也要跟着深链一起挂载
   activatedSections.value = new Set([...activatedSections.value, querySection])
 }
 

@@ -42,7 +42,7 @@ def _clamp_int(raw: Any, default: int, minimum: int, maximum: int) -> int:
         return default
     try:
         value = int(float(raw))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError):  # fmt: skip - 括号不能省，Cython 会把 PEP 758 形式误解析
         logger.debug("空转阈值不是数字，回退默认值 %s: %r", default, raw)
         return default
     return max(minimum, min(maximum, value))
@@ -233,7 +233,9 @@ class AgentPolicyService:
                 if "targetDomains" in payload
                 else parse_json_array(row.target_domains)
             )
-            enabled = payload.get("enabled") is not False
+            # 未显式传 enabled 时按「保持当前状态」判定：旧实现恒为 True，
+            # 于是编辑一条已停用的家规也会被当成「启用」而触发冲突拦截。
+            enabled = payload.get("enabled") is not False if "enabled" in payload else bool(row.enabled)
             if enabled and not force_override:
                 conflict = self._conflict_result(session, rule_id, area_id, domains)
                 if conflict is not None:

@@ -210,14 +210,11 @@ class SetupWizardService:
         circuit_ids = energy.get("circuitEntityIds")
         circuit_ids = circuit_ids if isinstance(circuit_ids, list) else []
         retention = self._app_config.get("retention") or {}
-        other = self._app_config.get("other") or {}
         return {
             "steps": steps,
             "progress": round(completed / len(steps) * 100),
             "ha": {"connected": bool(ha_status.get("connected")), "entityCount": entity_count},
-            "retentionDays": retention.get("eventLog")
-            if retention.get("eventLog") is not None
-            else (other.get("eventlogRetentionDays") if other.get("eventlogRetentionDays") is not None else 7),
+            "retentionDays": retention.get("eventLog") if retention.get("eventLog") is not None else 7,
             "circuitCount": sum(1 for cid in circuit_ids if str(cid or "").strip()),
             "learningPeriodDays": energy.get("learningPeriodDays", 7),
             "learningStartedAt": energy.get("learningStartedAt") or None,

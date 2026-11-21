@@ -91,6 +91,10 @@ const connectPanels = {
 /** 家居配置（空间 + 能源 + 快捷设备） */
 const homePanels = {
   rooms: lazyPanel('rooms', () => import('@/features/settings/home/SettingsRoomsPanel.vue')),
+  'device-profiles': lazyPanel(
+    'device-profiles',
+    () => import('@/features/settings/home/SettingsDeviceProfilesPanel.vue'),
+  ),
   'life-accounts': lazyPanel('life-accounts', () => import('@/features/settings/home/SettingsLifeAccountsPanel.vue')),
   'smart-charge': lazyPanel('smart-charge', () => import('@/features/settings/home/SettingsClientPowerPanel.vue')),
   favorites: lazyPanel('favorites', () => import('@/features/settings/home/SettingsFavorites.vue')),
@@ -113,6 +117,10 @@ const automatePanels = {
     'security-modes',
     () => import('@/features/settings/automate/SettingsSecurityModesPanel.vue'),
   ),
+  'automation-drafts': lazyPanel(
+    'automation-drafts',
+    () => import('@/features/settings/automate/SettingsAutomationDraftsPanel.vue'),
+  ),
 }
 
 /** 感知交互 */
@@ -120,6 +128,7 @@ const interactPanels = {
   alerts: lazyPanel('alerts', () => import('@/features/settings/interact/AlertRulesPanel.vue')),
   voice: lazyPanel('voice', () => import('@/features/settings/interact/SettingsVoicePanel.vue')),
   agent: lazyPanel('agent', () => import('@/features/settings/interact/SettingsAgentPanel.vue')),
+  media: lazyPanel('media', () => import('@/features/settings/interact/SettingsMediaPanel.vue')),
 }
 
 /** 系统与账户 */
@@ -128,6 +137,7 @@ const systemPanels = {
   family: lazyPanel('family', () => import('@/features/settings/system/SettingsFamilyPanel.vue')),
   access: lazyPanel('access', () => import('@/features/settings/system/SettingsAccessPanel.vue')),
   diagnostics: lazyPanel('diagnostics', () => import('@/features/settings/system/SettingsDiagnosticsPanel.vue')),
+  network: lazyPanel('network', () => import('@/features/settings/system/SettingsNetworkPanel.vue')),
   params: lazyPanel('params', () => import('@/features/settings/system/ConfigPanel.vue')),
   retention: lazyPanel('retention', () => import('@/features/settings/system/SettingsRetentionPanel.vue')),
   license: lazyPanel('license', () => import('@/features/settings/system/SettingsLicensePanel.vue')),

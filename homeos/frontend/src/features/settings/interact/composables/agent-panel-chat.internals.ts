@@ -9,6 +9,7 @@ import { useSpeechToText } from '@/composables/voice/useSpeechToText'
 import { clipAgentChatMessage, AGENT_CHAT_MAX_LENGTH } from '@/shared/agent/utils/chat-limit.util'
 import {
   agentChatStream,
+  clearAgentSession,
   type AgentChatAttachment,
   type AgentChatConfirmation,
   type AgentStreamHandle,
@@ -46,10 +47,45 @@ export function useAgentPanelChat(opts: {
   // 对话页与仪表板面板同一口径：回复回来就播报（受 `voice.ttsEnabled` 总开关约束）
   const { speakReply } = useAgentSpeech()
 
-  const chatSessionId = ref(`settings-agent-${Date.now().toString(36)}`)
+  /**
+   * 会话 id + 气泡记录一起存在 sessionStorage：刷新设置页不会换一条会话，
+   * 后端保存的上文与用户眼前看到的记录才对得上（服务端按 id 取历史，10 分钟 TTL）。
+   */
+  const CHAT_SESSION_KEY = 'homeos.agent.settingsChatSession'
+  function newSettingsSessionId(): string {
+    return `settings-agent-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+  }
+  function readStoredChat(): { id: string; log: ChatLogEntry[] } | null {
+    try {
+      const raw = window.sessionStorage.getItem(CHAT_SESSION_KEY)
+      const parsed = raw ? (JSON.parse(raw) as { id?: unknown; log?: unknown }) : null
+      if (!parsed || typeof parsed.id !== 'string' || !parsed.id) return null
+      return { id: parsed.id, log: Array.isArray(parsed.log) ? (parsed.log as ChatLogEntry[]) : [] }
+    } catch {
+      return null
+    }
+  }
+  const storedChat = readStoredChat()
+  const chatSessionId = ref(storedChat?.id || newSettingsSessionId())
+
+  /** 气泡最多存 40 条，避免把长对话整段塞进 sessionStorage。 */
+  function persistChatState(): void {
+    try {
+      const log = chatLog.value
+        .filter((entry) => !entry.streaming && (entry.text.trim() || entry.attachments?.length))
+        .slice(-40)
+      window.sessionStorage.setItem(CHAT_SESSION_KEY, JSON.stringify({ id: chatSessionId.value, log }))
+    } catch {
+      // 隐私模式禁用存储时按每次进入新建会话处理，不影响对话
+    }
+  }
   const chatInput = ref('')
   const chatting = ref(false)
-  const chatLog = ref<ChatLogEntry[]>([])
+  const chatLog = ref<ChatLogEntry[]>(
+    // 恢复时清掉流式标记与确认按钮：确认计划只有 60 秒有效，刷新后按钮早已过期，
+    // 保留下来只会让用户点了没反应（或被当成新指令「确认」发出去）。
+    (storedChat?.log ?? []).map((entry) => ({ ...entry, streaming: false, confirmation: undefined })),
+  )
   const chatLogEl = ref<HTMLElement | null>(null)
   /**
    * 函数式模板 ref。不用 `ref="chatLogEl"` 字符串形式：vue-tsc 不把字符串 ref 当作
@@ -187,6 +223,7 @@ export function useAgentPanelChat(opts: {
     for (const entry of chatLog.value) {
       if (entry.streaming) entry.streaming = false
     }
+    persistChatState()
   }
 
   async function sendChat() {
@@ -245,6 +282,7 @@ export function useAgentPanelChat(opts: {
       if (!bubble.text.trim()) {
         chatLog.value = chatLog.value.filter((entry) => entry !== bubble)
       }
+      persistChatState()
       scrollChatToBottom()
     }
   }
@@ -263,6 +301,25 @@ export function useAgentPanelChat(opts: {
       void navigator.clipboard?.writeText(content)
     } catch {
       /* 无剪贴板权限时忽略 */
+    }
+  }
+
+  /**
+   * 清空对话：UI 记录清空的同时删掉服务端会话，并换一条新 sessionId。
+   *
+   * 只清前端数组是不够的：服务端按 sessionId 保存了最近 16 条历史与短时记忆，
+   * 下一句仍会带着「已经清掉」的上文回答，看起来像清空没生效。
+   */
+  async function clearChatLog() {
+    stopChat()
+    const previous = chatSessionId.value
+    chatLog.value = []
+    chatSessionId.value = newSettingsSessionId()
+    persistChatState()
+    try {
+      await clearAgentSession(previous)
+    } catch {
+      // 服务端清理失败不阻塞本地清空：会话最多 10 分钟后自然过期
     }
   }
 
@@ -351,6 +408,7 @@ export function useAgentPanelChat(opts: {
     sendQuickPrompt,
     sendChat,
     stopChat,
+    clearChatLog,
     copyChat,
     regenerateChat,
     answerChatConfirmation,

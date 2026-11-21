@@ -177,6 +177,8 @@ export interface UILayoutConfig {
   agentConfig?: AgentConfig
   /** 消息通道配置（Email / WebPush，存于 layout，Channels 模块读取） */
   channelConfig?: ChannelConfig
+  /** 媒体库连接（Music Assistant / MoviePilot，存于 layout，media 域读取） */
+  mediaConfig?: MediaConfig
   /** 房间温湿度传感器映射（供管家快查询） */
   mobileRoomStats?: Record<string, { temp?: string; humidity?: string }>
   /**
@@ -215,6 +217,11 @@ export interface AgentConfig {
    */
   deviceAllowlist?: string[]
   /**
+   * 意图门：判断一句话是不是「规则型」（每天/如果/回家时…）。
+   * `off` 不启用；`shadow` 只记录判定（默认）；`enforce` 拦截规则型表达的一次性执行。
+   */
+  intentGate?: { mode?: 'off' | 'shadow' | 'enforce' }
+  /**
    * AI 悬浮伴侣：贴边停靠的小管家入口，点开对话、长按说话。
    * 只影响前端入口的展现，不改变后端任何能力开关。
    */
@@ -247,8 +254,12 @@ export interface AgentProactiveConfig {
   cooldownSeconds: number
   /** 免打扰开始小时（0-23，含） */
   quietStart: number
+  /** 免打扰开始分钟（0-59，含）；与 quietStart 组成 HH:MM（默认 23:30） */
+  quietStartMinute: number
   /** 免打扰结束小时（0-23，不含；支持跨夜） */
   quietEnd: number
+  /** 免打扰结束分钟（0-59，不含）；默认 0 */
+  quietEndMinute: number
   /** 今日用电超过前 N 天均值的倍数才提醒 */
   energyMultiplier: number
   /** 用电异常提醒的最低今日用电量（kWh） */
@@ -318,4 +329,23 @@ export interface ChannelConfig {
   email?: EmailChannelConfig
   webpush?: WebPushChannelConfig
   wecom?: WecomChannelConfig
+}
+
+/** 媒体库连接配置（Music Assistant / MoviePilot，存于 layout.mediaConfig） */
+export interface MediaConfig {
+  /** Music Assistant 地址（如 http://192.168.1.10:8095） */
+  maUrl?: string
+  /** Music Assistant 长期令牌（GET 时为脱敏占位符） */
+  maToken?: string
+  /** MoviePilot 地址（如 http://192.168.1.10:3000） */
+  mpUrl?: string
+  /** MoviePilot 令牌（GET 时为脱敏占位符） */
+  mpToken?: string
+  /** 入库轮询间隔（秒），后端夹紧到允许区间 */
+  arrivalIntervalSeconds?: number
+  /**
+   * 显式清除令牌的名单（保存时消费，不落库）。
+   * 空串 / 脱敏占位符都表示「沿用已保存值」，所以清除必须另给信号。
+   */
+  clearTokens?: string[]
 }

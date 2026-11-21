@@ -21,6 +21,8 @@ type AgentChatSessionDeps = {
   stopListen: () => void
   stopGenerating: () => void
   scrollToBottom: () => void
+  /** 删除本地会话时同步清掉服务端上下文（可选：测试 / 精简装配可不传） */
+  forgetSession?: (sessionId: string) => void
 }
 
 export function useAgentChatSessions(deps: AgentChatSessionDeps) {
@@ -86,6 +88,9 @@ export function useAgentChatSessions(deps: AgentChatSessionDeps) {
     const removedId = sessionId.value
     sessions.value = sessions.value.filter((item) => item.id !== removedId)
     writeAgentChatSessions(sessions.value)
+    // 服务端也删：只删本地列表时，同一 sessionId 的上下文仍在库里，
+    // 只是这边再也看不到它 —— 属于「以为删了其实没删」。
+    deps.forgetSession?.(removedId)
     startFreshConversation()
     historyOpen.value = false
   }

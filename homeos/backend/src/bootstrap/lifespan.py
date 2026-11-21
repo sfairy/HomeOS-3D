@@ -602,8 +602,28 @@ async def _build_ui_and_system_services(app: FastAPI, startup: _StartupContext) 
     app.state.system_service = SystemService(app_settings, ui_config)
     app.state.device_health = DeviceHealthService(startup.state_store)
     app.state.device_management = DeviceManagementService(
-        app.state.database.session_factory, startup.state_store, ui_config, startup.ha_connector
+        app.state.database.session_factory,
+        startup.state_store,
+        ui_config,
+        startup.ha_connector,
+        app.state.app_config,
     )
+    # 设备画像：媒体 / 空调的 kind、别名与房间默认设备；Apple TV 应用唤起走命令通道。
+    from ..domains.device_profile import DeviceProfileService
+
+    app.state.device_profiles = DeviceProfileService(
+        app.state.database.session_factory, startup.state_store, app.state.command_proxy
+    )
+    # 状态事件驱动增量同步：设备改名 / 换类型 / 上线离线后画像自己跟上，不用等面板打开。
+    app.state.device_profiles.bind_events(startup.security_bus)
+    # 媒体域：Music Assistant 点歌 + MoviePilot 入库轮询（通知服务后置注入）。
+    from ..domains.media import ArrivalPoller, MediaService
+
+    media_service = MediaService(app.state.database.session_factory, ui_config)
+    app.state.media_service = media_service
+    media_poller = ArrivalPoller(media_service)
+    app.state.media_poller = media_poller
+    media_poller.start()
 
     # 生活方式域：影音场景
     media_scene = MediaSceneService(startup.ha_connector, app_config)
@@ -876,6 +896,10 @@ async def _build_agent_domain(app: FastAPI, startup: _StartupContext) -> None:
     # 自动化族（时序 / 诊断 / 家规 / 联网搜索 / 计划任务 / 看门狗）单独装配：
     # 服务多、依赖交叉，拆出去避免把本函数撑成「什么都装」的长函数。
     env_context = _build_agent_automation(app, startup, app_config, agent_config, home_tools)
+    # 草案过期清理循环：与看门狗/计划任务同属自动化族，但服务是同步构造的，启动放在这里。
+    automation_drafts = getattr(app.state, "automation_drafts", None)
+    if automation_drafts is not None:
+        await _start_services(automation_drafts.start())
 
     fast_path = FastPathService(
         agent_area,
@@ -885,10 +909,29 @@ async def _build_agent_domain(app: FastAPI, startup: _StartupContext) -> None:
         agent_config=agent_config,
     )
     fast_path.bind_events()
+    # 电视应用快路径需要画像判目标（Apple TV / 电视）；画像服务在前一阶段已建。
+    fast_path.bind_device_profiles(getattr(app.state, "device_profiles", None))
     app.state.agent_fast_path = fast_path
 
     command_cache = CommandCacheService(app.state.database.session_factory)
     app.state.agent_command_cache = command_cache
+
+    # 学习体系：别名 / 房间默认 / 习惯候选 / 负经验。工具族与对话服务共用同一份实例。
+    from ..domains.agent.learning import (
+        HabitCandidateService,
+        LearningStore,
+        NegativeExperienceService,
+    )
+
+    learning_store = LearningStore(app.state.database.session_factory)
+    habit_candidates = HabitCandidateService(app.state.database.session_factory)
+    negative_experience = NegativeExperienceService()
+    home_tools.bind_learning(learning_store, habit_candidates, negative_experience)
+    # 快路径也读同一份学习表：「客厅默认开这台空调」教过之后要能命中
+    fast_path.bind_learning(learning_store)
+    app.state.agent_learning = learning_store
+    app.state.agent_habits = habit_candidates
+    app.state.agent_negative = negative_experience
 
     # 跨进程状态 / 记忆 / 预算 / LLM / TTS 单独装配：服务多且互相依赖，
     # 拆出去避免把本函数撑成「什么都装」的长函数。
@@ -914,6 +957,7 @@ async def _build_agent_domain(app: FastAPI, startup: _StartupContext) -> None:
     )
     app.state.agent_service = agent_service
     startup.agent_service = agent_service
+    agent_service.bind_learning(learning_store, negative_experience, habit_candidates)
 
     app.state.mcp_gateway = McpGatewayService(
         agent_service,
@@ -966,6 +1010,10 @@ def _build_agent_automation(
     )
     agent_diagnostics.bind_events()
     app.state.agent_diagnostics = agent_diagnostics
+    # 对话服务先于诊断服务装配：这里回填，意图门影子样本与执行实证才能落进诊断日志。
+    _agent_service = getattr(app.state, "agent_service", None)
+    if _agent_service is not None:
+        _agent_service.bind_diagnostics(agent_diagnostics)
 
     agent_policy = AgentPolicyService(session_factory)
     app.state.agent_policy = agent_policy
@@ -986,6 +1034,8 @@ def _build_agent_automation(
         tools=home_tools,
         jobs=app.state.jobs,
         timezone_provider=env_context.timezone_name,
+        # 到期执行时要叠加「设置 → 设备范围」白名单，与对话链路同一份权限
+        agent_config=agent_config,
     )
     app.state.agent_scheduler = agent_scheduler
 
@@ -999,8 +1049,18 @@ def _build_agent_automation(
         presence=startup.presence,
         session_factory=session_factory,
         jobs=app.state.jobs,
+        # 免打扰时段按家庭时区判定（容器默认 UTC 时不能拿服务器本地时间比较）
+        timezone_provider=env_context.timezone_name,
     )
     app.state.agent_watchdog = agent_watchdog
+
+    # 自动化草案（Phase 1：只预览）：只读发现 + 草案 CRUD，供 Agent 工具与设置页共用。
+    from ..domains.automation import AutomationDraftService
+
+    automation_drafts = AutomationDraftService(
+        session_factory, startup.state_store, scheduler=agent_scheduler, policy=agent_policy
+    )
+    app.state.automation_drafts = automation_drafts
 
     home_tools.bind_automation(
         scheduler=agent_scheduler,
@@ -1009,8 +1069,37 @@ def _build_agent_automation(
         diagnostics=agent_diagnostics,
         web_search=agent_web_search,
         watchdog=agent_watchdog,
+        automation_drafts=automation_drafts,
+    )
+    # 媒体扩展动作：点歌（Music Assistant）与电视应用（设备画像）。
+    home_tools.bind_media(
+        getattr(app.state, "media_service", None),
+        getattr(app.state, "device_profiles", None),
     )
     return env_context
+
+
+async def _start_notification_service(app: FastAPI, startup: _StartupContext, channels_service: Any) -> Any:
+    """构造并启动通知域；同时把通知服务回填给媒体入库。"""
+    notification = NotificationService(
+        app.state.database.session_factory,
+        event_bus=startup.security_bus,
+        cooldown_service=startup.cooldown,
+        channels_service=channels_service,  # Phase 6：Email / WebPush / 企微 外部通知
+        ha_areas_provider=lambda: (
+            app.state.entity_area.get_cached_ha_areas() if hasattr(app.state, "entity_area") else []
+        ),
+        state_store=startup.state_store,  # 设备离线告警需复查实体状态 / HA 连接
+    )
+    notification.bind_events()
+    await notification.start()
+    app.state.notification = notification
+    # 媒体入库通知：媒体服务先于通知服务装配，这里回填。
+    media = getattr(app.state, "media_service", None)
+    if media is not None:
+        media.bind_notification(notification)
+    startup.notification = notification
+    return notification
 
 
 async def _build_channels_and_notification(app: FastAPI, startup: _StartupContext) -> None:
@@ -1055,6 +1144,8 @@ async def _build_channels_and_notification(app: FastAPI, startup: _StartupContex
         app.state.database.session_factory,
     )
     channels_service.start()
+    # 入站限流走共享状态：多 worker 时同一用户的消息按一份计数
+    channels_service.bind_state_store(getattr(app.state, "agent_state_store", None))
     app.state.channels_service = channels_service
 
     # 客户端电量联动（Phase 6）
@@ -1070,20 +1161,7 @@ async def _build_channels_and_notification(app: FastAPI, startup: _StartupContex
     app.state.client_power = client_power
 
     # 通知域：站内通知 / 告警规则 / 偏好 / 领域事件订阅
-    notification = NotificationService(
-        app.state.database.session_factory,
-        event_bus=startup.security_bus,
-        cooldown_service=startup.cooldown,
-        channels_service=channels_service,  # Phase 6：Email / WebPush / 企微 外部通知
-        ha_areas_provider=lambda: (
-            app.state.entity_area.get_cached_ha_areas() if hasattr(app.state, "entity_area") else []
-        ),
-        state_store=startup.state_store,  # 设备离线告警需复查实体状态 / HA 连接
-    )
-    notification.bind_events()
-    await notification.start()
-    app.state.notification = notification
-    startup.notification = notification
+    notification = await _start_notification_service(app, startup, channels_service)
 
     # 工具层注入通知 / 在场 / 长期记忆：主动推送、全屋有人状态、偏好学习都依赖它们
     home_tools = getattr(app.state, "home_tools", None)
@@ -1094,11 +1172,16 @@ async def _build_channels_and_notification(app: FastAPI, startup: _StartupContex
             home_tools.bind_presence(presence_service)
 
     # 主动管家：定时巡检 + 简报（只读工具 → 通知中心；默认关闭，配置见 agentConfig.proactive）
+    # 冷却窗口落在共享状态库：重启后不会重新推一遍，多 worker 也不会各推一次。
+    shared_state = getattr(app.state, "agent_state_store", None)
     proactive = AgentProactiveService(
         app.state.home_tools,
         app.state.agent_config,
         notification=notification,
         jobs=app.state.jobs,
+        # 免打扰时段按家庭时区判定（与计划任务的 cron 口径一致）
+        timezone_provider=app.state.agent_env_context.timezone_name,
+        cooldown_store=shared_state,
     )
     await proactive.start()
     app.state.agent_proactive = proactive
@@ -1111,6 +1194,8 @@ async def _build_channels_and_notification(app: FastAPI, startup: _StartupContex
     agent_watchdog = getattr(app.state, "agent_watchdog", None)
     if agent_watchdog is not None:
         agent_watchdog.bind_notification(notification)
+        # 提醒冷却 / 单设备关停冷却：共享状态库此时已由智能管家域装配好
+        agent_watchdog.bind_cooldown_store(getattr(app.state, "agent_state_store", None))
         presence_service = getattr(app.state, "presence", None)
         if presence_service is not None:
             agent_watchdog.bind_presence(presence_service)
@@ -1303,13 +1388,24 @@ async def _shutdown_agent_timeline(app: FastAPI, shutdown: Callable[..., Awaitab
 
 
 async def _shutdown_agent_automation(app: FastAPI, shutdown: Callable[..., Awaitable[Any]]) -> None:
-    """停止看门狗与计划任务（先停巡检，避免停机过程中再触发设备控制）。"""
+    """停止看门狗、计划任务与草案清理（先停巡检，避免停机过程中再触发设备控制）。"""
     for service, label in (
         (getattr(app.state, "agent_watchdog", None), "看门狗"),
         (getattr(app.state, "agent_scheduler", None), "计划任务"),
+        (getattr(app.state, "automation_drafts", None), "自动化草案清理"),
     ):
         if service is not None:
             await shutdown(label, service.stop)
+
+
+async def _shutdown_media_services(app: FastAPI, shutdown: Any) -> None:
+    """媒体入库轮询与影音场景（各自可能未启用）。"""
+    media_poller = getattr(app.state, "media_poller", None)
+    if media_poller is not None:
+        await shutdown("媒体入库轮询", media_poller.stop)
+    media_scene = getattr(app.state, "media_scene", None)
+    if media_scene is not None and hasattr(media_scene, "stop"):
+        await shutdown("影音场景", media_scene.stop)
 
 
 async def _shutdown_all(app: FastAPI, startup: _StartupContext) -> None:
@@ -1339,6 +1435,7 @@ async def _shutdown_all(app: FastAPI, startup: _StartupContext) -> None:
         await shutdown("主动管家", proactive.stop)
     await _shutdown_agent_automation(app, shutdown)
     await shutdown("通知", startup.notification.stop)
+    await _shutdown_media_services(app, shutdown)
     channels_service = getattr(app.state, "channels_service", None)
     if channels_service is not None:
         await shutdown("消息通道", channels_service.stop)

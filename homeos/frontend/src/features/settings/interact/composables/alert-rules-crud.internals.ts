@@ -67,6 +67,27 @@ export function useAlertRulesCrud(initOptions: {
     }
   }
 
+  // 规则 payload 构造：字段集合是纯数据，抽出来避免 saveRule 的分支随字段增长。
+  function buildRulePayload(form: AlertRuleEditForm, condition: string) {
+    return {
+      name: form.name.trim(),
+      entityId: form.entityId || undefined,
+      messageTemplate: form.messageTemplate?.trim() || undefined,
+      // 外部推送标题（Email/WebPush/企微）；留空时由各通道内置标题兜底
+      title: form.title?.trim() || undefined,
+      condition,
+      level: form.level,
+      channels: normalizeAlertRuleChannels(form.channels),
+      cooldownMinutes: normalizeCooldownMinutes(form.cooldownMinutes),
+      enabled: form.enabled !== false,
+      // 结构化条件（condition 为空时生效）与门铃扩展；空值不提交，保持旧行为。
+      targetState: form.targetState?.trim() || undefined,
+      operator: form.operator?.trim() || undefined,
+      sound: form.sound?.trim() || undefined,
+      cameraEntityId: form.cameraEntityId?.trim() || undefined,
+    }
+  }
+
   async function saveRule() {
     const form = ruleEditor.editing.value
     if (!form) return
@@ -81,18 +102,7 @@ export function useAlertRulesCrud(initOptions: {
       return
     }
     // 冷却 0 = 不抑制（事件型规则，如门铃）；NaN/空值回退默认 60 分钟
-    const payload = {
-      name: form.name.trim(),
-      entityId: form.entityId || undefined,
-      messageTemplate: form.messageTemplate?.trim() || undefined,
-      // 外部推送标题（Email/WebPush/企微）；留空时由各通道内置标题兜底
-      title: form.title?.trim() || undefined,
-      condition,
-      level: form.level,
-      channels: normalizeAlertRuleChannels(form.channels),
-      cooldownMinutes: normalizeCooldownMinutes(form.cooldownMinutes),
-      enabled: form.enabled !== false,
-    }
+    const payload = buildRulePayload(form, condition)
     try {
       if (form.id) await updateNotificationRule(form.id, payload)
       else await createNotificationRule(payload)

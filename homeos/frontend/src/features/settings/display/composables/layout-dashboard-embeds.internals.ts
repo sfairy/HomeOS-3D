@@ -159,13 +159,18 @@ export function useSettingsEmbeds(activeTabProp: () => string) {
     layoutStore.layoutConfig.customEmbeds = [...list]
   }
 
-  const moviePilotUrl = computed({
-    get: () => layoutStore.layoutConfig.moviePilotUrl || '',
-    set: (v: string) => {
-      layoutStore.layoutConfig.moviePilotUrl = v.trim()
-    },
-  })
-  const moviePilotConfigured = computed(() => Boolean(String(moviePilotUrl.value || '').trim()))
+  /**
+   * 已废弃的旧字段（原先「内嵌网页管理」里那栏 MoviePilot 地址）。
+   *
+   * 现在地址与令牌只在「媒体与入库」维护，这里保留读取只为两件事：
+   * 1. 兼容老数据（后端 `_mp()` 与 `resolveMoviePilotUrl()` 仍会回落到它）；
+   * 2. 提示用户去媒体与入库迁移，否则入库通知读不到这条地址。
+   */
+
+  const legacyMoviePilotUrl = computed(() => String(layoutStore.layoutConfig.moviePilotUrl || '').trim())
+  const moviePilotNeedsMigration = computed(
+    () => Boolean(legacyMoviePilotUrl.value) && !String(layoutStore.layoutConfig.mediaConfig?.mpUrl || '').trim(),
+  )
 
   return {
     embedIconMap,
@@ -184,8 +189,8 @@ export function useSettingsEmbeds(activeTabProp: () => string) {
     activeEmbed,
     activeEmbedAccent,
     activeEmbedIconAccent,
-    moviePilotUrl,
-    moviePilotConfigured,
+    legacyMoviePilotUrl,
+    moviePilotNeedsMigration,
     embedIconLabel,
     embedIconAccent,
     embedUrlWarning,

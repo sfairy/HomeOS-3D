@@ -165,19 +165,21 @@ CONTEXT_LABELS = {
 
 def format_log_context(context: dict[str, Any]) -> str:
     """把日志上下文渲染成「中文标签（键）：值」逐行排列的文本。"""
-    return "\n".join(
-        f"{CONTEXT_LABELS.get(key, key)}（{key}）：{value}"
-        for key, value in context.items()
-    )
+    return "\n".join(f"{CONTEXT_LABELS.get(key, key)}（{key}）：{value}" for key, value in context.items())
+
 
 _SECRET_PATTERNS = (
-    re.compile('(?is)-----BEGIN [^-]*PRIVATE KEY-----.*?(?:-----END [^-]*PRIVATE KEY-----|$)'),
-    re.compile('(?im)(["\']?(?:cookie|set-cookie)["\']?\\s*[:=]\\s*)(?:"(?:\\\\.|[^"\\\\\\r\\n])*"|\'(?:\\\\.|[^\'\\\\\\r\\n])*\'|[^\\r\\n]*)'),
-    re.compile('(?ix)(["\']?(?:authorization|(?:access|session|recovery|refresh)[_-]?token|token|password(?:[_-]?confirmation)?|passwd|secret|(?:activation|pairing)[_-]?code|(?:api|private)[_-]?key|signed[_-]?lease)["\']?\\s*[:=]\\s*)(?:"(?:\\\\.|[^"\\\\\\r\\n])*"|\'(?:\\\\.|[^\'\\\\\\r\\n])*\'|[^,;\\r\\n]+)'),
-    re.compile('(?i)(\\bBearer\\s+)[^\\s,;"\']+'),
-    re.compile('(?i)(\\b(?:rtsp|rtsps|http|https)://)[^/@\\s:]+:[^/@\\s]+@'),
-    re.compile('(?i)\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}\\b'),
-    re.compile('\\beyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\b'),
+    re.compile("(?is)-----BEGIN [^-]*PRIVATE KEY-----.*?(?:-----END [^-]*PRIVATE KEY-----|$)"),
+    re.compile(
+        "(?im)([\"']?(?:cookie|set-cookie)[\"']?\\s*[:=]\\s*)(?:\"(?:\\\\.|[^\"\\\\\\r\\n])*\"|'(?:\\\\.|[^'\\\\\\r\\n])*'|[^\\r\\n]*)"
+    ),
+    re.compile(
+        "(?ix)([\"']?(?:authorization|(?:access|session|recovery|refresh)[_-]?token|token|password(?:[_-]?confirmation)?|passwd|secret|(?:activation|pairing)[_-]?code|(?:api|private)[_-]?key|signed[_-]?lease)[\"']?\\s*[:=]\\s*)(?:\"(?:\\\\.|[^\"\\\\\\r\\n])*\"|'(?:\\\\.|[^'\\\\\\r\\n])*'|[^,;\\r\\n]+)"
+    ),
+    re.compile("(?i)(\\bBearer\\s+)[^\\s,;\"']+"),
+    re.compile("(?i)(\\b(?:rtsp|rtsps|http|https)://)[^/@\\s:]+:[^/@\\s]+@"),
+    re.compile("(?i)\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}\\b"),
+    re.compile("\\beyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\b"),
 )
 
 
@@ -197,17 +199,13 @@ def _safe_text(value: Any, *, limit: int) -> str:
     text = str(value or "").replace("\x00", "").strip()
     text = re.sub("/embed/[A-Za-z0-9_-]{43}(?=/|\\b)", "/embed/[session]", text)
     for pattern in _SECRET_PATTERNS:
-        text = pattern.sub(
-            lambda match: f"{match.group(1) if match.lastindex else ''}***", text
-        )
+        text = pattern.sub(lambda match: f"{match.group(1) if match.lastindex else ''}***", text)
     # 一次性的业务票据同样是凭据：备份检查单、备份工作目录都不该进日志。
     text = re.sub("(/api/v1/backups/jobs/)[A-Za-z0-9_-]+", "\\1[inspection]", text)
     text = re.sub("([/\\\\]backup-work[/\\\\])[0-9a-f]{32}", "\\1[inspection]", text)
     # 协议从 http/rtsp 扩到含 ws/wss：实时通道的地址同样带一次性凭据。
-    text = re.sub(
-        "((?:https?|rtsps?|wss?)://[^\\s?#]+)[?#][^\\s]*", "\\1?***", text, flags=re.IGNORECASE
-    )
-    text = re.sub('/api/hls/[^\\s\\"\'<>]*', "/api/hls/[stream]", text)
+    text = re.sub("((?:https?|rtsps?|wss?)://[^\\s?#]+)[?#][^\\s]*", "\\1?***", text, flags=re.IGNORECASE)
+    text = re.sub("/api/hls/[^\\s\\\"'<>]*", "/api/hls/[stream]", text)
     return text[:limit]
 
 
@@ -222,7 +220,7 @@ def _event_matches(
     """单条事件是否落在保留期内且满足 level/category/search 过滤。"""
     try:
         timestamp = datetime.fromisoformat(str(event.get("lastTimestamp") or event["timestamp"]))
-    except (TypeError, ValueError, KeyError):
+    except (TypeError, ValueError, KeyError):  # fmt: skip
         return False
     if timestamp.tzinfo is None:
         timestamp = timestamp.replace(tzinfo=UTC)
@@ -271,9 +269,7 @@ def _build_log_event(
     client_timestamp: str | None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """构造一条规范化的日志事件，并返回其（用于去重的）上下文副本。"""
-    normalized_level = (
-        level if level in {"info", "error", "success", "warning"} else "info"
-    )
+    normalized_level = level if level in {"info", "error", "success", "warning"} else "info"
     event = {
         "id": str(uuid4()),
         "timestamp": _utc_now().isoformat(),
@@ -291,7 +287,7 @@ def _build_log_event(
     if client_timestamp:
         try:
             event["clientTimestamp"] = datetime.fromisoformat(client_timestamp).isoformat()
-        except (ValueError, TypeError):
+        except (ValueError, TypeError):  # fmt: skip
             pass
     return event, metadata
 
@@ -366,9 +362,7 @@ def _accumulate_aggregates(event: dict[str, Any], previous: dict[str, Any]) -> N
 class GlobalLogStore:
     """存储在持久化数据目录中的 JSONL 事件日志。"""
 
-    def __init__(
-        self, data_dir: Path, *, retention_days: int = 7, max_bytes: int = 5242880
-    ) -> None:
+    def __init__(self, data_dir: Path, *, retention_days: int = 7, max_bytes: int = 5242880) -> None:
         self.directory = Path(data_dir) / "logs"
         self.path = self.directory / "global-events.jsonl"
         self.retention_days = max(1, int(retention_days))
@@ -394,9 +388,7 @@ class GlobalLogStore:
             self._prepare_directory()
         except OSError as error:
             self._io_failure(error)
-        self._writer = threading.Thread(
-            target=self._writer_loop, name="global-log-writer", daemon=True
-        )
+        self._writer = threading.Thread(target=self._writer_loop, name="global-log-writer", daemon=True)
         self._writer.start()
 
     #: 写盘失败后的重试间隔（秒）：内存队列里的事件在下次 append 前不会丢。
@@ -447,11 +439,7 @@ class GlobalLogStore:
             self._closed = True
             self._wake.set()
         writer = getattr(self, "_writer", None)
-        if (
-            writer is not None
-            and writer.is_alive()
-            and threading.current_thread() is not writer
-        ):
+        if writer is not None and writer.is_alive() and threading.current_thread() is not writer:
             writer.join(timeout)
 
     def _prepare_directory(self) -> None:
@@ -465,9 +453,7 @@ class GlobalLogStore:
         self._write_failures += 1
         self._last_error = _safe_text(error, limit=500)
         now = _utc_now()
-        if self._last_warning_at is None or now - self._last_warning_at >= timedelta(
-            seconds=30
-        ):
+        if self._last_warning_at is None or now - self._last_warning_at >= timedelta(seconds=30):
             _storage_diagnostic(f"全局日志存储不可用，暂存最近 2000 条事件：{self._last_error}")
             self._last_warning_at = now
 
@@ -483,9 +469,7 @@ class GlobalLogStore:
                 "lastError": self._last_error,
             }
 
-    def _merge_recent_event(
-        self, signature: str, event: dict[str, Any], now: datetime
-    ) -> None:
+    def _merge_recent_event(self, signature: str, event: dict[str, Any], now: datetime) -> None:
         """5 秒内的同签名事件合并计数（保留首条 id / 时间戳），并顺带裁剪缓存。"""
         recent = self._recent_events.get(signature)
         if recent and (now - recent[0]) < timedelta(seconds=5):
@@ -496,17 +480,11 @@ class GlobalLogStore:
             _accumulate_aggregates(event, recent[1])
             if event.get("clientTimestamp"):
                 event["lastClientTimestamp"] = event["clientTimestamp"]
-                event["clientTimestamp"] = recent[1].get(
-                    "clientTimestamp", event["clientTimestamp"]
-                )
+                event["clientTimestamp"] = recent[1].get("clientTimestamp", event["clientTimestamp"])
         self._recent_events[signature] = (now, event.copy())
         if len(self._recent_events) > 1000:
             cutoff = now - timedelta(seconds=5)
-            self._recent_events = {
-                key: value
-                for key, value in self._recent_events.items()
-                if value[0] >= cutoff
-            }
+            self._recent_events = {key: value for key, value in self._recent_events.items() if value[0] >= cutoff}
             while len(self._recent_events) > 1000:
                 self._recent_events.pop(next(iter(self._recent_events)))
 
@@ -523,20 +501,13 @@ class GlobalLogStore:
         try:
             self._prepare_directory()
             separate_partial_line = self._needs_separator_line()
-            descriptor = os.open(
-                self.path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600
-            )
+            descriptor = os.open(self.path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
             with os.fdopen(descriptor, "ab") as output:
                 if separate_partial_line:
                     output.write(b"\n")
                 for pending in self._pending:
                     output.write(
-                        (
-                            json.dumps(
-                                pending, ensure_ascii=False, separators=(",", ":")
-                            )
-                            + "\n"
-                        ).encode("utf-8")
+                        (json.dumps(pending, ensure_ascii=False, separators=(",", ":")) + "\n").encode("utf-8")
                     )
                 output.flush()
             self._pending.clear()
@@ -545,9 +516,7 @@ class GlobalLogStore:
             self._last_error = None
             self._prune_if_needed()
             if was_unavailable:
-                _storage_diagnostic(
-                    f"全局日志存储已恢复，已补写缓存事件；累计未能保留 {self._dropped_events} 条"
-                )
+                _storage_diagnostic(f"全局日志存储已恢复，已补写缓存事件；累计未能保留 {self._dropped_events} 条")
         except OSError as error:
             self._io_failure(error)
 
@@ -562,9 +531,7 @@ class GlobalLogStore:
         details: str | None = None,
         client_timestamp: str | None = None,
     ) -> dict[str, Any]:
-        event, metadata = _build_log_event(
-            level, source, category, message, context, details, client_timestamp
-        )
+        event, metadata = _build_log_event(level, source, category, message, context, details, client_timestamp)
 
         with self._lock:
             signature = _event_signature(event, metadata)
@@ -678,9 +645,7 @@ class GlobalLogStore:
         events = {}
 
         def collect(event: Any) -> None:
-            if not isinstance(event, dict) or not isinstance(
-                event.get("timestamp"), str
-            ):
+            if not isinstance(event, dict) or not isinstance(event.get("timestamp"), str):
                 return
             event_id = str(event.get("id") or uuid4())
             events.pop(event_id, None)
@@ -691,7 +656,7 @@ class GlobalLogStore:
                 for line in source:
                     try:
                         event = json.loads(line)
-                    except (TypeError, json.JSONDecodeError, UnicodeDecodeError):
+                    except (TypeError, json.JSONDecodeError, UnicodeDecodeError):  # fmt: skip
                         continue
                     collect(event)
         except FileNotFoundError:
@@ -712,9 +677,7 @@ class GlobalLogStore:
         descriptor = os.open(temporary, os.O_WRONLY | os.O_TRUNC | os.O_CREAT, 0o600)
         with os.fdopen(descriptor, "w", encoding="utf-8") as output:
             for event in events:
-                output.write(
-                    json.dumps(event, ensure_ascii=False, separators=(",", ":")) + "\n"
-                )
+                output.write(json.dumps(event, ensure_ascii=False, separators=(",", ":")) + "\n")
             output.flush()
             os.fsync(output.fileno())
         os.replace(temporary, self.path)
@@ -723,23 +686,19 @@ class GlobalLogStore:
     def _prune_if_needed(self) -> None:
         now = _utc_now()
         oversized = self.path.exists() and self.path.stat().st_size > self.max_bytes
-        if not oversized and self._last_pruned_at and now - self._last_pruned_at < timedelta(
-            minutes=5
-        ):
+        if not oversized and self._last_pruned_at and now - self._last_pruned_at < timedelta(minutes=5):
             return
         cutoff = now - timedelta(days=self.retention_days)
         retained = []
         retained_bytes = 0
         for event in reversed(self._read_events(strict=True)):
             try:
-                timestamp = datetime.fromisoformat(
-                    str(event.get("lastTimestamp") or event.get("timestamp"))
-                )
+                timestamp = datetime.fromisoformat(str(event.get("lastTimestamp") or event.get("timestamp")))
                 if timestamp.tzinfo is None:
                     timestamp = timestamp.replace(tzinfo=UTC)
                 if timestamp < cutoff:
                     continue
-            except (TypeError, ValueError):
+            except (TypeError, ValueError):  # fmt: skip
                 continue
             event_bytes = len(json.dumps(event, ensure_ascii=False).encode("utf-8")) + 1
             if retained and retained_bytes + event_bytes > self.max_bytes:

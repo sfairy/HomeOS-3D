@@ -10,10 +10,12 @@ from fastapi import FastAPI
 from ..api.advisor_usage import router as advisor_usage_router
 from ..api.assets import router as assets_router
 from ..api.auth import router as auth_router
+from ..api.automation import router as automation_router
 from ..api.backups import router as backups_router
 from ..api.channels import router as channels_router
 from ..api.channels import wecom_router as channels_wecom_router
 from ..api.client_power import router as client_power_router
+from ..api.device_profile import router as device_profile_router
 from ..api.earthquake import router as earthquake_router
 from ..api.entities import router as entities_router
 from ..api.events import router as events_router
@@ -27,6 +29,7 @@ from ..api.home_mode import router as home_mode_router
 from ..api.icons import router as icons_router
 from ..api.license import router as license_router
 from ..api.mcp import router as mcp_router
+from ..api.media import router as media_router
 from ..api.notification import router as notification_router
 from ..api.projects import router as projects_router
 from ..api.proxy.command_proxy import router as command_proxy_router
@@ -56,9 +59,12 @@ def register_homeos_routers(app: FastAPI) -> None:
     # 智能管家路由是路由表里最重的一个（连带 domains.agent 的 LLM 工具链），
     # 在注册点导入以把这份开销留在启动期而不是 `import src.app`。
     from ..api.agent import router as agent_router
+    from ..api.agent_learning import router as agent_learning_router
 
     app.include_router(auth_router, prefix=API_PREFIX)
     app.include_router(agent_router, prefix=API_PREFIX)
+    app.include_router(agent_learning_router, prefix=API_PREFIX)
+    app.include_router(automation_router, prefix=API_PREFIX)
     app.include_router(embed_proxy_router, prefix=API_PREFIX)
     app.include_router(entities_router, prefix=API_PREFIX)
     app.include_router(events_router, prefix=API_PREFIX)
@@ -66,10 +72,12 @@ def register_homeos_routers(app: FastAPI) -> None:
     app.include_router(channels_router, prefix=API_PREFIX)
     app.include_router(channels_wecom_router, prefix=API_PREFIX)
     app.include_router(client_power_router, prefix=API_PREFIX)
+    app.include_router(device_profile_router, prefix=API_PREFIX)
     app.include_router(earthquake_router, prefix=API_PREFIX)
     app.include_router(home_mode_router, prefix=API_PREFIX)
     app.include_router(license_router, prefix=API_PREFIX)
     app.include_router(mcp_router, prefix=API_PREFIX)
+    app.include_router(media_router, prefix=API_PREFIX)
     app.include_router(moviepilot_proxy_router, prefix=API_PREFIX)
     app.include_router(notification_router, prefix=API_PREFIX)
     app.include_router(security_router, prefix=API_PREFIX)

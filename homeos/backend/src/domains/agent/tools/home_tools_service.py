@@ -99,6 +99,7 @@ class HomeToolsService(
         diagnostics: Any = None,
         web_search: Any = None,
         watchdog: Any = None,
+        automation_drafts: Any = None,
     ) -> None:
         """注入自动化族依赖（装配层两阶段构造，避免与调度器 / 看门狗循环依赖）。"""
         self._scheduler = scheduler
@@ -107,6 +108,7 @@ class HomeToolsService(
         self._diagnostics = diagnostics
         self._web_search_service = web_search
         self._watchdog = watchdog
+        self._automation_drafts = automation_drafts
 
     def bind_notification(self, notification: Any = None) -> None:
         """注入通知服务（装配层在通知域就绪后绑定，用于主动推送 / 到点提醒）。"""
@@ -121,6 +123,17 @@ class HomeToolsService(
     def bind_memory(self, memory: Any = None) -> None:
         """注入长期记忆（偏好学习工具与别名展开共用一份）。"""
         self._memory = memory
+
+    def bind_learning(self, learning: Any = None, habits: Any = None, negative: Any = None) -> None:
+        """注入学习体系（别名 / 房间默认 / 习惯候选 / 负经验）。"""
+        self._learning = learning
+        self._habits = habits
+        self._negative = negative
+
+    def bind_media(self, media_service: Any = None, device_profiles: Any = None) -> None:
+        """注入媒体服务（Music Assistant 点歌）与设备画像（Apple TV 应用唤起）。"""
+        self._media_service = media_service
+        self._device_profiles = device_profiles
 
     def _mark_manual_control(self, entity_id: str, actor: Any = None) -> None:
         """记录本进程刚下发的控制命令，供时序服务把随后的翻转归因为手动操作。"""
@@ -322,6 +335,7 @@ class HomeToolsService(
             "manage_todo": lambda: self._manage_todo(args, actor),
             "manage_calendar": lambda: self._manage_calendar(args, actor),
             "manage_memory": lambda: self._manage_memory(args, actor),
+            "manage_learning": lambda: self._manage_learning(args, actor),
         }
         handler = handlers.get(name)
         if handler is None and name in AUTOMATION_TOOL_NAMES:

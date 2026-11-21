@@ -67,6 +67,8 @@ class EarthquakeAlertPayload:
     maxIntensity: str | None = None
     alertKind: str | None = None
     source: str | None = None
+    #: 档位：本地烈度 >= 4.0 为 ``strong``，否则 ``weak``（对齐参考实现）。
+    alertLevel: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -87,6 +89,8 @@ class EarthquakeAlertPayload:
             payload["alertKind"] = self.alertKind
         if self.source is not None:
             payload["source"] = self.source
+        if self.alertLevel is not None:
+            payload["alertLevel"] = self.alertLevel
         return payload
 
     @classmethod
@@ -105,6 +109,7 @@ class EarthquakeAlertPayload:
             maxIntensity=data.get("maxIntensity"),
             alertKind=data.get("alertKind"),
             source=data.get("source"),
+            alertLevel=data.get("alertLevel"),
         )
 
 

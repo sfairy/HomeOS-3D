@@ -85,9 +85,7 @@ class MockLlmProvider(LlmProvider):
         if last is not None and last.role == "tool" and last.name == "search_entities":
             entity_id = self._pick_first_entity_id(last.content or "")
             if not entity_id:
-                return LlmChatResult(
-                    content=f"（Mock）没有找到和「{self._extract_noun(first_user)}」匹配的设备。"
-                )
+                return LlmChatResult(content=f"（Mock）没有找到和「{self._extract_noun(first_user)}」匹配的设备。")
             if self._is_control_intent(first_user):
                 on = self._is_turn_on(first_user)
                 return LlmChatResult(
@@ -107,13 +105,9 @@ class MockLlmProvider(LlmProvider):
 
         # 首轮：识别控制 / 查询意图，先发 search_entities
         if self._is_control_intent(first_user) or self._is_query_intent(first_user):
-            return LlmChatResult(
-                tool_calls=[self._call("search_entities", {"query": self._extract_noun(first_user)})]
-            )
+            return LlmChatResult(tool_calls=[self._call("search_entities", {"query": self._extract_noun(first_user)})])
 
-        return LlmChatResult(
-            content=f"（Mock）我听到了：「{first_user}」。换上真实大模型后我就能真正理解并执行了。"
-        )
+        return LlmChatResult(content=f"（Mock）我听到了：「{first_user}」。换上真实大模型后我就能真正理解并执行了。")
 
     @staticmethod
     def _call(name: str, args: dict[str, object]) -> LlmToolCall:

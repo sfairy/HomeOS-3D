@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from .home_tools_schemas_automation import _automation_draft_schemas, _automation_schemas
 from ..providers.llm_provider_interface import LlmToolSchema
 
 
@@ -242,19 +243,44 @@ def _device_detail_schemas() -> list[LlmToolSchema]:
         ),
         LlmToolSchema(
             name="media_control",
-            description="控制媒体播放器：play / pause / stop / next / previous / volume。",
+            description=(
+                "控制媒体播放器，或点歌 / 打开电视应用。"
+                "on/off/play/pause/stop/next/previous/volume 需要 entity_id（Apple TV 的 off 走待机）；"
+                "search_music/play_music/play_track 用 artist + track（走 Music Assistant）；"
+                "open_tv_app 用 entity_id + app（走设备画像）。"
+            ),
             parameters={
                 "type": "object",
                 "properties": {
-                    "entity_id": {"type": "string", "description": "media_player 实体 ID"},
+                    "entity_id": {"type": "string", "description": "media_player 实体 ID（点歌可省略）"},
                     "action": {
                         "type": "string",
-                        "description": "play、pause、stop、next、previous、volume",
-                        "enum": ["play", "pause", "stop", "next", "previous", "volume"],
+                        "description": "动作类型",
+                        "enum": [
+                            "on",
+                            "off",
+                            "play",
+                            "pause",
+                            "stop",
+                            "next",
+                            "previous",
+                            "volume",
+                            "search_music",
+                            "play_music",
+                            "play_track",
+                            "open_tv_app",
+                        ],
                     },
                     "volume": {"type": "number", "description": "音量 0-1，仅 action=volume 时需要"},
+                    "artist": {"type": "string", "description": "歌手（点歌用）"},
+                    "track": {"type": "string", "description": "歌曲名（点歌用）"},
+                    "app": {"type": "string", "description": "电视应用名（open_tv_app 用）"},
+                    "area_id": {
+                        "type": "string",
+                        "description": "房间 ID（点歌默认音箱 / open_tv_app 选电视用）",
+                    },
                 },
-                "required": ["entity_id", "action"],
+                "required": ["action"],
             },
         ),
         LlmToolSchema(
@@ -484,6 +510,46 @@ def _business_schemas() -> list[LlmToolSchema]:
                 "required": ["action", "content"],
             },
         ),
+        LlmToolSchema(
+            name="manage_learning",
+            description=(
+                "管理设备别名、房间默认设备与习惯候选。"
+                "用户明确说「以后叫它 X」「客厅默认开这台空调」时用 teach_alias / teach_area_default；"
+                "撤销错误学习用 revert；查看已学内容用 list；处理习惯提示用 habit_*。"
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "description": "操作类型",
+                        "enum": [
+                            "teach_alias",
+                            "teach_area_default",
+                            "list",
+                            "revert",
+                            "pause",
+                            "resume",
+                            "delete",
+                            "habit_list",
+                            "habit_dismiss",
+                            "habit_accept",
+                            "habit_reset",
+                        ],
+                    },
+                    "alias": {"type": "string", "description": "别名（teach_alias 用，<=60 字）"},
+                    "area_id": {"type": "string", "description": "房间 ID（teach_area_default 用）"},
+                    "domain": {"type": "string", "description": "设备域，如 light / climate（teach_area_default 用）"},
+                    "entity_id": {"type": "string", "description": "目标实体 ID"},
+                    "config_id": {"type": "string", "description": "学习配置 ID（revert/pause/resume/delete 用）"},
+                    "revision": {"type": "integer", "description": "期望 revision（revert 时防覆盖）"},
+                    "candidate_id": {"type": "string", "description": "习惯候选 ID"},
+                    "status": {"type": "string", "description": "习惯候选状态过滤（habit_list 用）"},
+                    "scope": {"type": "string", "description": "作用域过滤（list 用）"},
+                },
+                "required": ["action"],
+            },
+        ),
     ]
 
 
@@ -501,232 +567,5 @@ def build_home_tool_schemas() -> list[LlmToolSchema]:
         *_insight_schemas(),
         *_business_schemas(),
         *_automation_schemas(),
-    ]
-
-
-def _automation_schemas() -> list[LlmToolSchema]:
-    """自动化族：设备时序 / 主动巡检 / 诊断日志 / 家规 / 计划任务 / 联网搜索。"""
-    return [
-        LlmToolSchema(
-            name="query_device_timeline",
-            description=(
-                "查询设备状态翻转时序：某设备最近何时被打开/关闭、持续多久、由谁触发"
-                "（手动 App / HA 自动化 / 外部设备）。回答“空调用几小时了”“灯什么时候开的”时使用。"
-            ),
-            parameters={
-                "type": "object",
-                "properties": {
-                    "entity_id": {
-                        "type": "string",
-                        "description": "设备实体 ID，如 light.living_room；与 area_id 二选一",
-                    },
-                    "area_id": {
-                        "type": "string",
-                        "description": "区域 ID 或房间名，如 客厅；按房间查全部设备的翻转记录",
-                    },
-                    "hours": {
-                        "type": "number",
-                        "description": "回溯小时数，默认 24，最大 1440",
-                        "minimum": 1,
-                        "maximum": 1440,
-                    },
-                    "limit": {
-                        "type": "integer",
-                        "description": "最多返回多少条翻转记录，默认 20，最大 100",
-                        "minimum": 1,
-                        "maximum": 100,
-                    },
-                },
-            },
-        ),
-        LlmToolSchema(
-            name="run_proactive_patrol",
-            description=(
-                "立即执行一次主动巡检：检查无人房间的常开设备与能耗浪费。"
-                "自动关停默认关闭，只有用户开启且家规允许时才会关灯/关风扇等低危设备。"
-            ),
-            parameters={"type": "object", "properties": {}},
-        ),
-        LlmToolSchema(
-            name="query_system_logs",
-            description=("查询系统诊断日志：设备离线/恢复、低电量、连接异常。回答“哪些设备掉线了”“谁电量低”时使用。"),
-            parameters={
-                "type": "object",
-                "properties": {
-                    "kind": {
-                        "type": "string",
-                        "description": "诊断类型过滤：设备离线 / 恢复 / 低电量 / 连接异常",
-                        "enum": [
-                            "DEVICE_OFFLINE",
-                            "DEVICE_RECOVERED",
-                            "LOW_BATTERY",
-                            "CONNECTIVITY",
-                        ],
-                    },
-                    "search": {"type": "string", "description": "按设备、区域或消息关键字过滤"},
-                    "level": {
-                        "type": "string",
-                        "description": "日志级别过滤，如 warning / error",
-                        "enum": ["info", "success", "warning", "error"],
-                    },
-                    "limit": {
-                        "type": "integer",
-                        "description": "最多返回条数，默认 20，最大 50",
-                        "minimum": 1,
-                        "maximum": 50,
-                    },
-                },
-            },
-        ),
-        LlmToolSchema(
-            name="manage_user_policy",
-            description=(
-                "管理用户家规：创建 / 列出 / 启用停用 / 删除。家规描述“无人多久后关闭哪些设备”。"
-                "创建时会检测与既有规则的冲突，冲突需用户确认后用 forceOverride 覆盖。"
-            ),
-            parameters={
-                "type": "object",
-                "properties": {
-                    "action": {
-                        "type": "string",
-                        "description": "create 新建 / list 列出 / toggle 启停 / delete 删除",
-                        "enum": ["create", "list", "toggle", "delete"],
-                    },
-                    "name": {"type": "string", "description": "家规名称（create 必填）"},
-                    "description": {"type": "string", "description": "家规说明"},
-                    "area": {
-                        "type": "string",
-                        "description": "目标区域名称或 ID；留空表示全屋",
-                    },
-                    "domains": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "目标设备域，仅支持 light / switch / fan / climate",
-                    },
-                    "idle_minutes": {
-                        "type": "number",
-                        "description": "无人后多少分钟触发，默认 30",
-                        "minimum": 1,
-                        "maximum": 1440,
-                    },
-                    "auto_close": {
-                        "type": "boolean",
-                        "description": "是否自动关闭命中的低危设备，默认 false（仅提醒）",
-                    },
-                    "rule_id": {"type": "string", "description": "toggle / delete 时的家规 ID"},
-                    "force_override": {
-                        "type": "boolean",
-                        "description": "检测到冲突时是否强制写入",
-                    },
-                },
-                "required": ["action"],
-            },
-        ),
-        LlmToolSchema(
-            name="schedule_task",
-            description=(
-                "创建计划任务（一次性或周期）。四种动作选一种："
-                "①提醒消息（message/标题 title，到点推送通知，如“10 分钟后提醒我关火”）；"
-                "②控制设备（entity_id + service）；③激活场景（scene）；"
-                "④切换家庭模式（mode）。执行时会重新校验权限与高危拦截。"
-            ),
-            parameters={
-                "type": "object",
-                "properties": {
-                    "name": {"type": "string", "description": "任务名称，如「睡前关客厅灯」"},
-                    "schedule_type": {
-                        "type": "string",
-                        "description": "ONCE（一次性）或 RECURRING（周期，默认每天）",
-                        "enum": ["ONCE", "RECURRING"],
-                    },
-                    "delay_minutes": {
-                        "type": "number",
-                        "description": "一次性任务：多少分钟后执行（与 run_at 二选一）",
-                        "minimum": 1,
-                        "maximum": 43200,
-                    },
-                    "run_at": {
-                        "type": "string",
-                        "description": "一次性任务：执行时间，ISO 或「YYYY-MM-DD HH:MM」",
-                    },
-                    "time": {
-                        "type": "string",
-                        "description": "周期任务：每天几点执行，形如 22:00",
-                    },
-                    "cron": {
-                        "type": "string",
-                        "description": "周期任务：5 段 cron 表达式，如 0 22 * * *",
-                    },
-                    "entity_id": {"type": "string", "description": "要控制的设备实体 ID（或场景实体 ID）"},
-                    "domain": {
-                        "type": "string",
-                        "description": "设备域，留空时按 entity_id 前缀推断",
-                    },
-                    "service": {
-                        "type": "string",
-                        "description": "服务名，如 turn_off / turn_on / set_temperature",
-                    },
-                    "service_data": {"type": "object", "description": "服务附加参数"},
-                    "scene": {"type": "string", "description": "场景名称（与 entity_id + service 三选一）"},
-                    "mode": {"type": "string", "description": "家庭模式名称（与上面几种动作选一种）"},
-                    "message": {
-                        "type": "string",
-                        "description": "提醒动作：到点要推送的消息内容（1-500 字），如「该关火了」",
-                    },
-                    "title": {"type": "string", "description": "提醒动作：通知标题（可选，最多 120 字）"},
-                    "channels": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "提醒动作：投递渠道子集（in_app/socket/webpush/wecom/email），不填走默认通道",
-                    },
-                    "expected_state": {
-                        "type": "string",
-                        "description": "可选前置状态：设备已是该状态时跳过本次执行（如 off）；只对设备控制生效",
-                    },
-                },
-                "required": ["name"],
-            },
-        ),
-        LlmToolSchema(
-            name="list_scheduled_tasks",
-            description="列出已创建的计划任务及其下次执行时间、最近执行结果。",
-            parameters={"type": "object", "properties": {}},
-        ),
-        LlmToolSchema(
-            name="cancel_scheduled_task",
-            description="删除计划任务。",
-            parameters={
-                "type": "object",
-                "properties": {
-                    "task_id": {"type": "string", "description": "计划任务 ID"},
-                    "name": {"type": "string", "description": "或按任务名称关键词删除"},
-                },
-            },
-        ),
-        LlmToolSchema(
-            name="web_search",
-            description=(
-                "联网搜索（受用户开关与域名白名单约束）。查天气、新闻、常识或家政技巧时使用；"
-                "返回标题、摘要，必要时附前几条结果的网页正文。不要把搜索结果当作设备状态。"
-            ),
-            parameters={
-                "type": "object",
-                "properties": {
-                    "query": {"type": "string", "description": "搜索关键词"},
-                    "count": {
-                        "type": "integer",
-                        "description": "返回结果数，默认 5，最大 8",
-                        "minimum": 1,
-                        "maximum": 8,
-                    },
-                    "detail": {
-                        "type": "integer",
-                        "description": "需要正文摘取的结果条数，默认 2；0 表示只要摘要，最大 3",
-                        "minimum": 0,
-                        "maximum": 3,
-                    },
-                },
-                "required": ["query"],
-            },
-        ),
+        *_automation_draft_schemas(),
     ]

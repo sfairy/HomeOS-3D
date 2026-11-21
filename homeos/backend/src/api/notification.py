@@ -88,7 +88,8 @@ class CreateAlertRuleDto(StrictModel):
     id: str | None = None
     name: str
     entityId: str | None = None
-    condition: str
+    #: 手写条件优先；缺省时由 targetState + operator 编译。
+    condition: str | None = None
     level: LevelField
     channels: list[str]
     cooldownMinutes: int | float
@@ -102,6 +103,13 @@ class CreateAlertRuleDto(StrictModel):
     #: 升级：报出后多久仍未确认就再推一次（分钟，0 = 不升级）。
     escalationMinutes: int | float | None = None
     previousCondition: str | None = None
+    #: 结构化条件：与 operator（缺省 eq）一起编译进 condition；condition 非空时优先。
+    targetState: str | None = None
+    operator: str | None = None
+    #: 仅 level=critical 生效的提示音标识。
+    sound: str | None = None
+    #: 有值时通知按门铃类型下发（type=doorbell）并携带快照入口。
+    cameraEntityId: str | None = None
 
 
 class AcknowledgeAlertDto(StrictModel):
@@ -125,6 +133,10 @@ class UpdateAlertRuleDto(StrictModel):
     forSeconds: int | float | None = None
     clearDelaySeconds: int | float | None = None
     escalationMinutes: int | float | None = None
+    targetState: str | None = None
+    operator: str | None = None
+    sound: str | None = None
+    cameraEntityId: str | None = None
 
 
 def parse_optional_int(value: str | None) -> int | None:

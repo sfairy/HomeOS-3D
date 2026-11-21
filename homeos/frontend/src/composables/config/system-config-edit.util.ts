@@ -18,7 +18,6 @@ const EXCLUDED_SECTIONS = new Set([
   'voiceCommands',
   'profiles',
   'clientPower',
-  'auth',
 ])
 
 /** 把字段值适配为表单展示值：object→JSON 文本，array→逗号串，其余原样 */

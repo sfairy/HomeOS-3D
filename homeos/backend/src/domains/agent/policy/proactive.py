@@ -15,17 +15,20 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import time
 from collections.abc import Callable
 from datetime import datetime
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from .cooldown import SendCooldown
 from ..runtime.config_service import AgentConfigService, AgentProactiveConfig
 
 logger = logging.getLogger("homeos.agent.proactive")
 
 #: 通知来源（前端按来源归并 / 静音）
 PROACTIVE_SOURCE = "agent-proactive"
+#: 冷却闸门里的 key：主动简报整户只占一个窗口
+COOLDOWN_KEY = "proactive"
 #: 关闭状态下重新检查配置的间隔（秒）：允许设置页开启后无需重启
 DISABLED_POLL_SECONDS = 300
 #: 一次提醒最多包含的信号条数，避免变成「状态播报」
@@ -42,20 +45,53 @@ def _num(value: Any) -> float | None:
     if isinstance(value, str):
         try:
             return float(value.strip())
-        except ValueError:
+        except ValueError as exc:
+            logger.debug("主动管家数量参数不是数字，忽略: %r (%s)", value, exc)
             return None
     return None
 
 
 def in_quiet_hours(cfg: AgentProactiveConfig, now: datetime) -> bool:
-    """免打扰时段判定：支持跨夜（22 → 7）与全天（start == end）。"""
-    start, end = cfg.quiet_start, cfg.quiet_end
+    """免打扰时段判定：支持跨夜（23:30 → 07:00）与全天（start == end 且分钟相同）。
+
+    分钟粒度来自 ``quiet_start_minute`` / ``quiet_end_minute``；老配置只有小时时
+    仍按整点判定（分钟默认 0，或起点默认 30，见 ``AgentConfigService``）。
+
+    ``now`` 必须是**家庭当地时间**：调用方用 :func:`home_now` 取，不能直接用
+    ``datetime.now()``（容器默认 UTC，会把 23:30–07:00 判成北京时间 07:30–15:00）。
+    """
+    start_hour, end_hour = cfg.quiet_start, cfg.quiet_end
+    start_minute = max(0, min(59, int(getattr(cfg, "quiet_start_minute", 0) or 0)))
+    end_minute = max(0, min(59, int(getattr(cfg, "quiet_end_minute", 0) or 0)))
+    start = start_hour * 60 + start_minute
+    end = end_hour * 60 + end_minute
     if start == end:
         return False
-    hour = now.hour
+    minute = now.hour * 60 + now.minute
     if start < end:
-        return start <= hour < end
-    return hour >= start or hour < end
+        return start <= minute < end
+    return minute >= start or minute < end
+
+
+def home_now(timezone_provider: Callable[[], str] | None = None) -> datetime:
+    """家庭时区的当前时间（naive，便于与 ``in_quiet_hours`` 比较）。
+
+    读取失败 / 未配置时回退服务器本地时间（旧行为），绝不因时区配置异常中断巡检。
+    """
+    name = ""
+    if callable(timezone_provider):
+        try:
+            name = str(timezone_provider() or "").strip()
+        except Exception as exc:  # 配置读取失败按旧口径继续
+            logger.debug("读取家庭时区失败，回退服务器本地时间: %s", exc)
+            name = ""
+    if not name:
+        return datetime.now()
+    try:
+        return datetime.now(ZoneInfo(name)).replace(tzinfo=None)
+    except (ZoneInfoNotFoundError, ValueError):  # fmt: skip - 括号不能省，Cython 会把 PEP 758 形式误解析
+        logger.debug("免打扰时区不可用，回退服务器本地时间: %s", name)
+        return datetime.now()
 
 
 def is_away_mode(status: dict[str, Any]) -> bool:
@@ -77,17 +113,31 @@ class AgentProactiveService:
         notification: Any = None,
         jobs: Any = None,
         clock: Callable[[], datetime] | None = None,
+        timezone_provider: Callable[[], str] | None = None,
+        cooldown_store: Any = None,
     ) -> None:
         self._tools = tools
         self._agent_config = agent_config
         self._notification = notification
         self._jobs = jobs
-        self._clock = clock or datetime.now
+        #: 测试注入的时钟（家庭当地时间）；None 时按 ``timezone_provider`` 实时计算。
+        self._clock = clock
+        self._timezone_provider = timezone_provider
         self._task: asyncio.Task[None] | None = None
         self._stopped = False
         self._stop_event: asyncio.Event | None = None
-        #: 最近一次成功提醒的时间（monotonic 秒）
-        self._last_sent_at: float | None = None
+        #: 提醒冷却（跨进程共享；未注入共享库时退化为进程内，语义与改前一致）
+        self._cooldown = SendCooldown(cooldown_store)
+
+    def bind_cooldown_store(self, store: Any = None) -> None:
+        """装配后期注入共享状态库：冷却窗口在重启 / 多 worker 之间保持一致。"""
+        self._cooldown.bind_store(store)
+
+    def _now(self) -> datetime:
+        """家庭当地当前时间（免打扰判定必须与用户看到的钟一致）。"""
+        if self._clock is not None:
+            return self._clock()
+        return home_now(self._timezone_provider)
 
     # 生命周期
     async def start(self) -> None:
@@ -109,7 +159,7 @@ class AgentProactiveService:
             task.cancel()
             try:
                 await task
-            except (asyncio.CancelledError, Exception):
+            except (asyncio.CancelledError, Exception):  # fmt: skip
                 pass
 
     async def _loop(self) -> None:
@@ -118,7 +168,7 @@ class AgentProactiveService:
             try:
                 cfg = await self._agent_config.get_proactive_config()
                 interval = cfg.interval_seconds if cfg.enabled else DISABLED_POLL_SECONDS
-                await self._run_tracked()
+                await self._run_tracked(interval)
             except asyncio.CancelledError:
                 raise
             except Exception:
@@ -132,7 +182,7 @@ class AgentProactiveService:
             except TimeoutError:
                 continue
 
-    async def _run_tracked(self) -> None:
+    async def _run_tracked(self, interval_seconds: int = 900) -> None:
         """包一层作业监控；Jobs 服务不可用时直接执行。"""
         if self._jobs is None:
             await self.run_once()
@@ -142,7 +192,8 @@ class AgentProactiveService:
                 "agent-proactive",
                 {
                     "description": "智能管家主动巡检（设备离线 / 能耗 / 天气 / 离家异常）",
-                    "intervalMs": 60_000,
+                    # 报告真实周期：写死 60s 会让诊断页显示的巡检频率与配置不符
+                    "intervalMs": max(60, int(interval_seconds)) * 1000,
                 },
                 self.run_once,
             )
@@ -157,7 +208,7 @@ class AgentProactiveService:
         if not cfg.enabled:
             return {"ok": True, "skipped": "disabled", "sent": False, "signals": []}
 
-        moment = now or self._clock()
+        moment = now or self._now()
         if in_quiet_hours(cfg, moment):
             return {"ok": True, "skipped": "quiet_hours", "sent": False, "signals": []}
         if self._notification is not None:
@@ -167,7 +218,7 @@ class AgentProactiveService:
             except Exception:
                 logger.debug("读取免打扰状态失败,继续巡检", exc_info=True)
 
-        if self._in_cooldown(cfg):
+        if self._cooldown.is_cooling(COOLDOWN_KEY, cfg.cooldown_seconds):
             return {"ok": True, "skipped": "cooldown", "sent": False, "signals": []}
 
         status, energy, forecast = await asyncio.gather(
@@ -180,11 +231,17 @@ class AgentProactiveService:
         if not signals:
             return {"ok": True, "sent": False, "signals": []}
 
+        # 只在「确实要发」时占窗口：无异常的那几轮不该吃掉一个冷却周期。
+        # 判定与登记在同一次 mutate 里完成，多 worker / 重启后仍然只推一次。
+        if not self._cooldown.try_acquire(COOLDOWN_KEY, cfg.cooldown_seconds):
+            return {"ok": True, "skipped": "cooldown", "sent": False, "signals": []}
+
         lang = await self._get_language()
         message = self._compose_message(signals, lang)
         sent = await self._send(message, self._action_prompt(signals))
-        if sent:
-            self._last_sent_at = time.monotonic()
+        if not sent:
+            # 没送出去（通道全挂 / 免打扰刚生效）就归还窗口，下一次巡检还能重试
+            self._cooldown.release(COOLDOWN_KEY)
         return {
             "ok": True,
             "sent": sent,
@@ -209,9 +266,8 @@ class AgentProactiveService:
             return "zh"
 
     def _in_cooldown(self, cfg: AgentProactiveConfig) -> bool:
-        if self._last_sent_at is None:
-            return False
-        return time.monotonic() - self._last_sent_at < cfg.cooldown_seconds
+        """冷却判定（保留给调用方 / 单测）：真源是共享状态库里的上次发送时间。"""
+        return self._cooldown.is_cooling(COOLDOWN_KEY, cfg.cooldown_seconds)
 
     def _collect_signals(
         self,
@@ -324,8 +380,10 @@ class AgentProactiveService:
 
 
 __all__ = [
+    "COOLDOWN_KEY",
     "PROACTIVE_SOURCE",
     "AgentProactiveService",
+    "home_now",
     "in_quiet_hours",
     "is_away_mode",
 ]

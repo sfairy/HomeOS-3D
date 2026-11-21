@@ -76,7 +76,6 @@ DOMAIN_SERVICE_DATA_FIELDS: dict[str, frozenset[str]] = {
 MAX_ACCESS_CODE_LENGTH = 64
 
 
-
 def validate_entity_id(entity_id: str) -> dict[str, Any]:
     """校验 entity_id 格式是否合法（必须为 domain.entity 格式）。
 

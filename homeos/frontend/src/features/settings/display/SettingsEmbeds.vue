@@ -40,10 +40,10 @@
         >
           <template #stats>
             <SettingsFlowStat
-              :label="'MoviePilot'"
-              :value="moviePilotConfigured ? '已配置' : '未配置'"
-              :tone="moviePilotConfigured ? 'emerald' : 'amber'"
-              :val-tone="moviePilotConfigured ? 'emerald' : 'amber'"
+              :label="'页面'"
+              :value="`${embedCount} 个`"
+              tone="sky"
+              val-tone="sky"
             />
             <SettingsFlowStat
               :label="'布局变更'"
@@ -54,42 +54,11 @@
           </template>
         </SettingsFlowBand>
 
-        <div class="embed-mp-card">
-          <div class="embed-mp-card__head">
-            <MonitorPlay class="w-4 h-4" />
-            <div class="min-w-0">
-              <h3 class="embed-mp-card__title">{{ 'MoviePilot' }}</h3>
-              <p class="embed-mp-card__desc">
-                {{
-                  '填写后导航栏出现 MoviePilot Tab；页面以 iframe 直链打开为主。同源或需鉴权转发时可用代理 /api/v1/system/moviepilot/*。留空则不注入入口。'
-                }}
-              </p>
-            </div>
-          </div>
-          <div class="embed-url-row">
-            <input
-              v-model="moviePilotUrl"
-              type="url"
-              class="settings-field embed-url-input"
-              placeholder="http://10.0.0.x:3001"
-            />
-            <button
-              type="button"
-              class="embed-copy-btn"
-              :title="'复制 URL'"
-              :aria-label="'复制 URL'"
-              @click="copyEmbedUrl(moviePilotUrl)"
-            >
-              <Copy class="w-4 h-4" />
-            </button>
-          </div>
-          <p v-if="embedUrlWarning(moviePilotUrl)" class="embed-hint embed-hint--warn">
-            {{ embedUrlWarning(moviePilotUrl) }}
-          </p>
-          <p v-else class="embed-hint">
-            {{ '勿填 HomeOS 自身地址。保存布局后生效；未配置时「#/embed/movie-pilot」显示空态引导。' }}
-          </p>
-        </div>
+        <!-- MoviePilot 地址与令牌统一在「媒体与入库」维护：这里只留一条指路，避免两处入口 -->
+        <p v-if="moviePilotNeedsMigration" class="embed-hint embed-hint--warn embed-mp-migrate">
+          {{ `检测到旧配置里的 MoviePilot 地址（${legacyMoviePilotUrl}）尚未迁移，入库通知读不到它。` }}
+          <RouterLink class="embed-mp-migrate__link" :to="SETTINGS_ROUTES.media()">{{ '前往媒体与入库迁移' }}</RouterLink>
+        </p>
 
         <template v-if="embedCount">
           <div class="embed-workspace__tabs">
@@ -253,12 +222,14 @@
 
 <script setup>
 import { computed } from 'vue'
+import { RouterLink } from 'vue-router'
 import SettingsPageShell from '@/components/common/settings-page-shell/SettingsPageShell.vue'
 import SettingsOrchTabs from '@/components/common/SettingsOrchTabs.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
 import { Globe, Layout, MonitorPlay, Plus, ChevronDown, Copy } from '@lucide/vue'
 import { useSettingsEmbeds } from '@/features/settings/display/composables/layout-dashboard.internals'
+import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 import { useLayoutStore } from '@/stores/layout.store'
 
 const props = defineProps({ activeTab: { type: String, default: 'embeds' } })
@@ -293,8 +264,8 @@ const {
   addEmbed,
   removeEmbed,
   onEmbedReorder,
-  moviePilotUrl,
-  moviePilotConfigured,
+  legacyMoviePilotUrl,
+  moviePilotNeedsMigration,
 } = useSettingsEmbeds(() => props.activeTab)
 
 // 流程概览步骤：网页 URL → iframe 嵌入 → 图标主题 → 导航入口
@@ -305,11 +276,10 @@ const embedFlowSteps = computed(() => [
   { label: '导航入口', meta: `${embedCount.value} 个页面`, icon: MonitorPlay, tone: 'out' },
 ])
 
-// 流程概览折叠态摘要文案：页面数 · MoviePilot 状态 · 同步状态
+// 流程概览折叠态摘要文案：页面数 · 同步状态
 const embedFlowSummary = computed(() => {
-  const mp = moviePilotConfigured.value ? 'MP 已配置' : 'MP 未配置'
   const sync = pending.value ? '待保存' : '已同步'
-  return `${embedCount.value} 个页面 · ${mp} · ${sync}`
+  return `${embedCount.value} 个页面 · ${sync}`
 })
 </script>
 

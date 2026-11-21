@@ -304,6 +304,14 @@ class HomeToolsAreasMixin(HomeToolsHost):
                 "blocked": True,
                 "message": self._service_whitelist_error(entity_domain, service)["message"],
             }
+        climate_error = self._climate_command_error(entity_id, entity_domain, service, service_data)
+        if climate_error:
+            return {
+                "entity_id": entity_id,
+                "ok": False,
+                "blocked": True,
+                "message": climate_error,
+            }
         risk = is_high_risk(entity_domain, service, entity_id, service_data, scene_voice)
         if risk.get("blocked"):
             logger.warning("房间控制中跳过高危设备: %s (%s)", entity_id, risk.get("reason"))
@@ -329,6 +337,18 @@ class HomeToolsAreasMixin(HomeToolsHost):
                 "blocked": True,
                 "message": auth.get("message"),
             }
+        if entity_domain in ("climate", "water_heater") and service == "set_temperature":
+            await self._ensure_climate_on(entity_id)
+        if entity_domain in ("climate", "water_heater") and service == "turn_on":
+            await self._ensure_heat_mode(entity_id, entity_domain)
+        if entity_domain == "media_player" and service == "turn_off":
+            suspend = await self._suspend_if_apple_tv(entity_id)
+            if suspend is not None:
+                return {
+                    "entity_id": entity_id,
+                    "ok": bool(suspend.get("success")),
+                    "message": suspend.get("message"),
+                }
         try:
             response = await self._command_proxy.call_service(
                 {

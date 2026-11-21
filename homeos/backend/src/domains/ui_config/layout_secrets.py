@@ -18,6 +18,11 @@ from ..app_config.mask import is_masked_value
 
 _CHANNEL_SECRET_KEYS = ("corpSecret", "callbackToken", "callbackAesKey")
 _AGENT_SECRET_KEYS = ("apiKey", "mcpGatewaySecret")
+_MEDIA_SECRET_KEYS = ("maToken", "mpToken")
+#: 「显式清除令牌」标记。空串 / 占位符都表示「沿用旧值」，因此清除必须另给一个信号：
+#: 前端在 mediaConfig 里带上 ``clearTokens: ["maToken"]``，合并后把这些键置空并从落库内容里
+#: 摘掉标记本身（否则它会被下一次无关保存原样再传一遍，反复清空已重填的令牌）。
+_MEDIA_CLEAR_FLAG = "clearTokens"
 
 #: 含密钥的 layout 子对象路径 → 其中需要占位符回填的字段。
 #: 顺序有意义：先父段后子段，父段整段沿用后子段仍会各自做回填 / 清洗。
@@ -28,6 +33,7 @@ _SECRET_PATHS: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     (("channelConfig", "email"), ("smtpPassword",)),
     (("channelConfig", "webpush"), ("vapidPrivateKey",)),
     (("channelConfig", "wecom"), _CHANNEL_SECRET_KEYS),
+    (("mediaConfig",), _MEDIA_SECRET_KEYS),
 )
 
 
@@ -43,7 +49,7 @@ def _as_layout_object(layout: Any) -> dict[str, Any] | None:
     if isinstance(layout, str):
         try:
             parsed = json.loads(layout)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError):  # fmt: skip
             return None
         return parsed if isinstance(parsed, dict) else None
     if isinstance(layout, dict):
@@ -80,11 +86,21 @@ def _mask_channel_secrets(channel_config: Any) -> None:
                 wecom[key] = CONFIG_MASK_PLACEHOLDER
 
 
+def _mask_media_secrets(media_config: Any) -> None:
+    """媒体库令牌脱敏：脱敏后的占位符回写时由合并逻辑回填真值。"""
+    if not isinstance(media_config, dict):
+        return
+    for key in _MEDIA_SECRET_KEYS:
+        if media_config.get(key):
+            media_config[key] = CONFIG_MASK_PLACEHOLDER
+
+
 def mask_layout(layout: dict[str, Any]) -> dict[str, Any]:
-    """输出给前端的 layout：脱敏 Agent / 通道密钥（防止前端回写写穿）。"""
+    """输出给前端的 layout：脱敏 Agent / 通道 / 媒体令牌（防止前端回写写穿）。"""
     out = copy.deepcopy(layout)
     _mask_agent_secrets(out.get("agentConfig"))
     _mask_channel_secrets(out.get("channelConfig"))
+    _mask_media_secrets(out.get("mediaConfig"))
     return out
 
 
@@ -120,9 +136,7 @@ def _ensure_object(container: dict[str, Any], key: str) -> dict[str, Any]:
     return created
 
 
-def _walk_path(
-    root: dict[str, Any], path: tuple[str, ...], *, create: bool
-) -> dict[str, Any] | None:
+def _walk_path(root: dict[str, Any], path: tuple[str, ...], *, create: bool) -> dict[str, Any] | None:
     """沿 ``path`` 下钻；``create=False`` 时任一环缺失即返回 ``None``。"""
     node = root
     for key in path:
@@ -135,9 +149,7 @@ def _walk_path(
     return node
 
 
-def _carry_over_missing_secrets(
-    merged: dict[str, Any], existing: dict[str, Any]
-) -> None:
+def _carry_over_missing_secrets(merged: dict[str, Any], existing: dict[str, Any]) -> None:
     """incoming 没提到的密钥子对象，整段沿用库中旧值。
 
     保存是**整份覆盖**（``save_config`` 直接 ``json.dumps`` 落库），所以 incoming 里
@@ -160,9 +172,7 @@ def _carry_over_missing_secrets(
         parent[path[-1]] = copy.deepcopy(saved)
 
 
-def _merge_secret_keys(
-    target: dict[str, Any], saved: dict[str, Any] | None, keys: tuple[str, ...]
-) -> None:
+def _merge_secret_keys(target: dict[str, Any], saved: dict[str, Any] | None, keys: tuple[str, ...]) -> None:
     """占位符 / 空值回填库中真值，仍无真值的占位符清成空串。"""
     if saved is not None:
         for key in keys:
@@ -176,6 +186,19 @@ def _drop_display_only_flags(merged: dict[str, Any]) -> None:
     agent = _sub_object(merged, "agentConfig")
     if agent is not None:
         agent.pop("apiKeyConfigured", None)
+
+
+def _apply_media_token_clears(merged: dict[str, Any]) -> None:
+    """执行「显式清除媒体令牌」：必须在密钥回填**之后**跑，否则又被旧值填回来。"""
+    media = _sub_object(merged, "mediaConfig")
+    if media is None:
+        return
+    clears = media.pop(_MEDIA_CLEAR_FLAG, None)
+    if not isinstance(clears, list):
+        return
+    for key in clears:
+        if isinstance(key, str) and key in _MEDIA_SECRET_KEYS:
+            media[key] = ""
 
 
 def merge_layout_secrets_on_save(incoming: Any, existing_layout: Any) -> dict[str, Any]:
@@ -192,6 +215,7 @@ def merge_layout_secrets_on_save(incoming: Any, existing_layout: Any) -> dict[st
         if target is None:
             continue
         _merge_secret_keys(target, _walk_path(existing, path, create=False), keys)
+    _apply_media_token_clears(merged)
     _drop_display_only_flags(merged)
     return merged
 

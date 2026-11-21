@@ -127,6 +127,8 @@ export type HaEnvRoomListItem = {
 
 /** 以 HA area_registry 为房间目录 */
 export function buildRoomListFromHaAreas(areas: readonly HaAreaRef[], map: EnvSensorMap = {}): HaEnvRoomListItem[] {
+  // 顺序沿用传入顺序（后端 `/entities/areas/list` 已按本地 `sortOrder` 排好）。
+  // 这里不再按 displayLabel 重排：那会把用户设置的房间顺序抹掉，让「上移/下移」看起来无效。
   return [...areas]
     .filter((area) => !isRoomHiddenInMap(map, area.id))
     .map((area) => ({
@@ -135,7 +137,6 @@ export function buildRoomListFromHaAreas(areas: readonly HaAreaRef[], map: EnvSe
       fixed: true,
       displayLabel: map[area.id]?.label?.trim() || area.name,
     }))
-    .sort((a, b) => a.displayLabel.localeCompare(b.displayLabel, 'zh-CN'))
 }
 
 function isAsciiSlugLabel(label: string): boolean {

@@ -362,6 +362,10 @@ export function createLayoutPersistence({
           ...(((layout.channelConfig as { wecom?: object } | undefined)?.wecom as object) || {}),
         },
       },
+      mediaConfig: {
+        ...getDefaultLayout().mediaConfig,
+        ...((layout.mediaConfig as object) || {}),
+      },
       mobileRoomStats: {
         ...getDefaultLayout().mobileRoomStats,
         ...((layout.mobileRoomStats as object) || {}),

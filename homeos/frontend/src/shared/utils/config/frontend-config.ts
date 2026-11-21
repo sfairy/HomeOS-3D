@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { logger } from '@/shared/utils/core/logger'
 import { AGENT_QUICK_PROMPTS } from '@/shared/agent/constants/agent-quick-prompts'
+import { SS_DEFAULTS } from '@/shared/constants/screensaver-defaults'
 import type { ClientPowerWakePublic } from '@homeos/shared'
 // 语音告警默认矩阵单点在 ``@homeos/shared``：这里只是「公开配置还没拉到时」的一份兜底，
 // 再抄一遍 14 个布尔键就等于让「后端默认值」和「前端兜底值」各走各的（见 voice-alert.ts）。
@@ -48,31 +49,9 @@ const defaults: AppPublicConfig = {
   screensaver: {
     screensaverEnabled: true,
     screensaverIdleMs: 120000,
-    scale: 1.35,
-    defaultMode: 'random',
-    enableWeatherMode: false,
-    instantEnter: true,
-    instantLeave: true,
-    brightness: 1,
-    showBrand: true,
-    showSeconds: true,
-    showGregorianDate: true,
-    showLunar: true,
-    showWeatherIcon: true,
-    showWeatherDesc: true,
-    showWeatherStats: true,
-    showWeatherMeta: true,
-    timeSizeVw: 24,
-    sepSizeVw: 17,
-    secSizeVw: 7,
-    metaSizeVw: 3,
-    subMetaSizeVw: 2,
-    brandSizePx: 22,
-    weatherTempSizeVw: 22,
-    weatherIconSizeVw: 10,
-    weatherStatsSizePx: 15,
-    brandTopVh: 5,
-    contentShiftVh: 0,
+    // 几何 / 显示默认值与面板共用一份（shared/constants/screensaver-defaults），
+    // 不再各抄 25 个键。
+    ...SS_DEFAULTS,
   },
   voice: {
     sttMode: 'browser',
@@ -112,9 +91,6 @@ const defaults: AppPublicConfig = {
     learningPeriodDays: 7,
     chartHours: 168,
   },
-  orchestrator: {
-    executionHistoryLimit: 100,
-  },
   guest: {
     defaultHours: 24,
     extendHours: 24,
@@ -136,7 +112,7 @@ const defaults: AppPublicConfig = {
 
 let _config: FrontendSection = { ...defaults.frontend }
 let _app: AppPublicConfig = structuredClone(defaults)
-let _wsPush: WsPushPublicSection = { coldEntityOnDemand: true, roomBatchEmit: true }
+let _wsPush: WsPushPublicSection = { coldEntityOnDemand: true }
 let _loaded = false
 const _listeners = new Set<ConfigChangeListener>()
 
@@ -234,9 +210,6 @@ function applyConfig(data: Partial<AppPublicConfig> | null | undefined): void {
   }
   if (data?.energy && typeof data.energy === 'object') {
     _app.energy = { ...defaults.energy, ...data.energy }
-  }
-  if (data?.orchestrator && typeof data.orchestrator === 'object') {
-    _app.orchestrator = { ...defaults.orchestrator, ...data.orchestrator }
   }
   if (data?.guest && typeof data.guest === 'object') {
     _app.guest = { ...defaults.guest, ...data.guest }

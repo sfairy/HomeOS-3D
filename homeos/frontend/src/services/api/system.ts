@@ -280,7 +280,7 @@ export function speakVoiceMultiple(payload: Record<string, unknown>, config?: Ax
 }
 
 /** 僵尸绑定来源类型（与后端 ZombieBindingSource 对齐） */
-type ZombieBindingSource = 'layoutWidget' | 'alertRule' | 'deviceLifespan'
+type ZombieBindingSource = 'layoutWidget' | 'room' | 'stats' | 'haConfig' | 'alertRule'
 
 /** 单条僵尸绑定 */
 export type ZombieBindingItem = {
@@ -292,9 +292,27 @@ export type ZombieBindingItem = {
   location: string
 }
 
+/**
+ * 本次扫描状态。
+ *
+ * `skipped` 表示 HA 尚未同步、根本没有检查；`partial` 表示只对照了状态库，
+ * 结果可能不完整。两者都不能当成「没有僵尸」。
+ */
+export type ZombieScanInfo = {
+  status: 'ok' | 'skipped' | 'partial'
+  reason?: string
+  haSynced: boolean
+  storeCount: number
+  registryCount: number
+  registryAvailable: boolean
+  aliveCount: number
+  scanned: Partial<Record<ZombieBindingSource, number>>
+}
+
 /** GET /system/devices 响应 */
 export type DevicesOverviewResponse = {
   zombieBindings: ZombieBindingItem[]
+  scan?: ZombieScanInfo
 }
 
 /** 批量解绑结果 */

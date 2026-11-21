@@ -90,3 +90,59 @@ export function sendWebRtcCandidate(payload: Record<string, unknown>, config?: A
 export function closeWebRtcSession(payload: Record<string, unknown>, config?: AxiosRequestConfig) {
   return apiPost('/ha/webrtc/close', payload, config)
 }
+
+/** HA 区域（房间）条目。 */
+export interface HaArea {
+  areaId: string
+  name: string
+  icon?: string
+  sortOrder?: number
+  aliases?: string[]
+  status?: string
+}
+
+/** 列出 HA 区域（房间）。对应后端 endpoint：GET /ha/areas */
+export function listHaAreas(config?: AxiosRequestConfig) {
+  return apiGet<{ items: HaArea[] }>('/ha/areas', config)
+}
+
+/** 新建房间。对应后端 endpoint：POST /ha/areas */
+export function createHaArea(
+  payload: { name: string; icon?: string; aliases?: string[] },
+  config?: AxiosRequestConfig,
+) {
+  return apiPost<{ success: boolean; data: Record<string, unknown> }>('/ha/areas', payload, config)
+}
+
+/** 改名 / 换图标。对应后端 endpoint：PUT /ha/areas/{areaId} */
+export function updateHaArea(areaId: string, payload: { name?: string; icon?: string }, config?: AxiosRequestConfig) {
+  return apiPut<{ success: boolean }>(`/ha/areas/${encodeURIComponent(areaId)}`, payload, config)
+}
+
+/** 删除房间。对应后端 endpoint：DELETE /ha/areas/{areaId} */
+export function deleteHaArea(areaId: string, config?: AxiosRequestConfig) {
+  return apiDelete<{ success: boolean }>(`/ha/areas/${encodeURIComponent(areaId)}`, config)
+}
+
+/** 房间排序：按数组顺序写入本地 sortOrder。 */
+export function sortHaAreas(areaIds: string[], config?: AxiosRequestConfig) {
+  return apiPut<{ success: boolean; count: number }>('/ha/areas/sort', { areaIds }, config)
+}
+
+/** 批量把实体归入房间。 */
+export function setHaAreaEntities(areaId: string, entityIds: string[], config?: AxiosRequestConfig) {
+  return apiPut<{ success: boolean; updated: number; failed: string[] }>(
+    `/ha/areas/${encodeURIComponent(areaId)}/entities`,
+    { entityIds },
+    config,
+  )
+}
+
+/** 房间内实体排序：按数组顺序写本地覆盖（HA 实体注册表没有顺序字段）。 */
+export function sortHaAreaEntities(areaId: string, entityIds: string[], config?: AxiosRequestConfig) {
+  return apiPut<{ success: boolean; count: number }>(
+    `/ha/areas/${encodeURIComponent(areaId)}/entities/sort`,
+    { entityIds },
+    config,
+  )
+}

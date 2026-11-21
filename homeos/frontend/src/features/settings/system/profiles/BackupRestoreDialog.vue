@@ -245,6 +245,7 @@ function ensureSecretsAcknowledged() {
 function buildInspectPreview(data) {
   const created = data.createdAt ? new Date(data.createdAt) : null
   const sizeText = formatBackupBytes(Number(data.databaseSize) || 0)
+  const restorable = Array.isArray(data.restorableTables) ? data.restorableTables.length : 0
   return [
     `HomeOS ${data.version || ''} · ${
       created && !Number.isNaN(created.getTime()) ? created.toLocaleString() : data.createdAt || ''
@@ -252,6 +253,8 @@ function buildInspectPreview(data) {
     `${data.projects || 0} 个仪表盘 · ${data.connections || 0} 个 HA 连接 · ${data.users || 0} 个账号`,
     `数据库 ${sizeText} · ${data.files || 0} 个文件${data.hasSecrets ? ' · 含连接密钥' : ' · ⚠ 不含连接密钥'}`,
     data.includesHistory === false ? '不含历史事件与操作日志' : '含历史事件数据',
+    // 整包恢复（没有按组件勾选）：这里只告诉用户包内实际有数据的表，避免「恢复了什么」不可见。
+    restorable ? `可恢复范围：整包（含数据的业务表 ${restorable} 张）` : '可恢复范围：整包',
   ].join('\n')
 }
 

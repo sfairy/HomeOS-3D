@@ -14,6 +14,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from fastapi import Depends, HTTPException, Request, Response, status
 from sqlalchemy import delete, func, or_, select, text
@@ -39,7 +40,7 @@ from ..domains.store import (
 from ..platform.core.db.db_exec import run_db
 from ..platform.core.db.models import LoginSession, User
 from ..platform.core.http.diagnostics import update_request_context
-from ..platform.core.http.errors import BusinessException
+from ..platform.core.http.errors import BusinessException, unauthorized
 from ..platform.security.auth_context import invalidate_session_cache
 from ..platform.security.client_address import (
     client_ip_from_request,
@@ -48,6 +49,7 @@ from ..platform.security.client_address import (
 from ..platform.security.cookies import ensure_csrf_cookie
 from ..platform.security.limiter import rate_limit
 from ..platform.security.login_limiter import LoginAttemptLimiter, retry_after_headers
+from ..platform.security.media_ticket import TICKET_TTL_SECONDS, issue_ticket
 from ..platform.security.passwords import (
     PASSWORD_POLICY_MESSAGE,
     hash_password,
@@ -146,14 +148,10 @@ def _store_error(error: StoreVerificationError) -> HTTPException:
             detail=str(error),
             headers=retry_after_headers(error.retry_after or 60),
         )
-    return HTTPException(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)
-    )
+    return HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error))
 
 
-async def _verify_email_code(
-    request: Request, email: str, code: str, *, purpose: VerificationPurpose
-) -> None:
+async def _verify_email_code(request: Request, email: str, code: str, *, purpose: VerificationPurpose) -> None:
     """调用商店校验并消费指定用途的验证码；失败统一映射（见 :func:`_store_error`）。"""
     client = _verification_client(request)
     try:
@@ -255,12 +253,7 @@ def _has_existing_account(session_factory) -> bool:
 def _email_registered(session_factory, email: str) -> bool:
     """重置用途：本机是否登记了该邮箱（供 ``run_db``，只回布尔值防账号枚举）。"""
     with session_factory() as session:
-        return (
-            session.scalar(
-                select(User.id).where(func.lower(User.email) == email.strip().lower())
-            )
-            is not None
-        )
+        return session.scalar(select(User.id).where(func.lower(User.email) == email.strip().lower())) is not None
 
 
 def _register_in_transaction(
@@ -291,16 +284,12 @@ def _register_in_transaction(
         session.execute(text("BEGIN IMMEDIATE"))
         _assert_registrable(session)
         claim = _claimable_credentialless_user(session)
-        conflict_query = select(User).where(
-            or_(User.username == username, func.lower(User.email) == email)
-        )
+        conflict_query = select(User).where(or_(User.username == username, func.lower(User.email) == email))
         if claim is not None:
             # 接管时这一行就是「自己」，不能把自己判成冲突（否则用回原账号名会被 409）。
             conflict_query = conflict_query.where(User.id != claim.id)
         if session.scalar(conflict_query) is not None:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT, detail="账号或邮箱已被使用。"
-            )
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="账号或邮箱已被使用。")
         if claim is not None:
             user = claim
             user.username = username
@@ -323,9 +312,7 @@ def _register_in_transaction(
             session.flush()
         except IntegrityError as error:
             # 兜底：users_email_idx / users.username 唯一约束（并发注册绕过了上面的判据）。
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT, detail="账号或邮箱已被使用。"
-            ) from error
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="账号或邮箱已被使用。") from error
         # 只清该账号自己的会话：接管无凭据行后旧会话必须失效，但不能误踢别的账号。
         session.execute(delete(LoginSession).where(LoginSession.user_id == user.id))
         token = new_session_token()
@@ -342,14 +329,10 @@ def _register_in_transaction(
         return user, token, registered_note
 
 
-def _reset_password_in_db(
-    session_factory, email: str, raw_password: str
-) -> tuple[str, str] | None:
+def _reset_password_in_db(session_factory, email: str, raw_password: str) -> tuple[str, str] | None:
     """同步事务体：验码通过后按邮箱改密并吊销全部会话（供 ``run_db``）。"""
     with session_factory() as session:
-        user = session.scalar(
-            select(User).where(func.lower(User.email) == email.strip().lower())
-        )
+        user = session.scalar(select(User).where(func.lower(User.email) == email.strip().lower()))
         if user is None:
             # 与「验证码错误」同一句：不区分「码不对」与「邮箱不匹配本机账号」。
             return None
@@ -394,9 +377,7 @@ def _change_password_in_db(
             )
         account.password = hash_password(new_password)
         clear_login_sessions(session, account.id)
-        token = create_login_session(
-            session, request, account.id, max_age_seconds=max_age_seconds
-        )
+        token = create_login_session(session, request, account.id, max_age_seconds=max_age_seconds)
         account_id, username, email = account.id, account.username, account.email
         session.commit()
     return account_id, username, email or "", token
@@ -408,9 +389,7 @@ def _logout_in_db(session_factory, token: str) -> tuple[str, str | None]:
     revoked_user_id: str | None = None
     token_hash = session_token_hash(token)
     with session_factory() as session:
-        record = session.scalar(
-            select(LoginSession).where(LoginSession.id_hash == token_hash)
-        )
+        record = session.scalar(select(LoginSession).where(LoginSession.id_hash == token_hash))
         if record is not None:
             revoked_user_id = record.user_id
             user = session.get(User, record.user_id)
@@ -453,9 +432,7 @@ async def register(
     (ip_address, user_agent) = request_metadata(request)
     await run_db(_registration_precheck, session_factory)
     # 先验码（商店侧消费）：验证码通过说明邮箱真实可用，才允许继续谈建号。
-    await _verify_email_code(
-        request, payload.email, payload.code, purpose="homeos_register"
-    )
+    await _verify_email_code(request, payload.email, payload.code, purpose="homeos_register")
     user, token, registered_note = await run_db(
         _register_in_transaction,
         session_factory,
@@ -496,16 +473,8 @@ def _login(session: Session, payload: LoginRequest, request: Request, response: 
             detail="登录失败次数过多，请稍后再试。",
             headers=retry_after_headers(retry_after),
         )
-    user = session.scalar(
-        select(User).where(
-            or_(User.username == account, func.lower(User.email) == account_lower)
-        )
-    )
-    if (
-        user is None
-        or not user.is_active
-        or not verify_password(payload.password, user.password)
-    ):
+    user = session.scalar(select(User).where(or_(User.username == account, func.lower(User.email) == account_lower)))
+    if user is None or not user.is_active or not verify_password(payload.password, user.password):
         for key in limiter_keys:
             limiter.record_failure(key)
         raise HTTPException(
@@ -514,9 +483,7 @@ def _login(session: Session, payload: LoginRequest, request: Request, response: 
         )
     for key in limiter_keys:
         limiter.reset(key)
-    token = create_login_session(
-        session, request, user.id, max_age_seconds=_session_max_age(request)
-    )
+    token = create_login_session(session, request, user.id, max_age_seconds=_session_max_age(request))
     session.commit()
     set_session_cookie(
         response,
@@ -530,7 +497,14 @@ def _login(session: Session, payload: LoginRequest, request: Request, response: 
         "系统后台",
         "账号",
         f"账号 {user.username} 已登录",
-        context=update_request_context(request, finished=True, actor=user.username, code="ADMIN_LOGIN_SUCCEEDED", eventType="操作记录", operation="管理员登录"),
+        context=update_request_context(
+            request,
+            finished=True,
+            actor=user.username,
+            code="ADMIN_LOGIN_SUCCEEDED",
+            eventType="操作记录",
+            operation="管理员登录",
+        ),
     )
     return public_user(user)
 
@@ -567,13 +541,9 @@ async def reset_password(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=PASSWORD_POLICY_MESSAGE,
         )
-    await _verify_email_code(
-        request, payload.email, payload.code, purpose="homeos_reset"
-    )
+    await _verify_email_code(request, payload.email, payload.code, purpose="homeos_reset")
     session_factory = request.app.state.database.session_factory
-    result = await run_db(
-        _reset_password_in_db, session_factory, payload.email, payload.password
-    )
+    result = await run_db(_reset_password_in_db, session_factory, payload.email, payload.password)
     if result is None:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -634,9 +604,7 @@ async def change_password(
         max_age_seconds=max_age_seconds,
         request=request,
     )
-    request.app.state.global_log.append(
-        "success", "系统后台", "账号", f"账号 {username} 已修改密码"
-    )
+    request.app.state.global_log.append("success", "系统后台", "账号", f"账号 {username} 已修改密码")
     await _disconnect_realtime(request, account_id)
     return UserResponse(id=account_id, username=username, email=email)
 
@@ -678,6 +646,22 @@ async def logout(
     gateway = getattr(request.app.state, "realtime", None)
     if gateway is not None and revoked_user_id:
         await gateway.disconnect_user(revoked_user_id)
+
+
+@router.get("/auth/ticket")
+def media_ticket(request: Request, response: Response, database: DatabaseSession) -> dict[str, Any]:
+    """签发 60 秒短票据：``<img>`` / MJPEG / SSE 用 ``?ticket=`` 走同一会话。
+
+    票据只换「原始会话令牌」的短时访问权，不能续期、不能提权；媒体端点仍然
+    ``refresh=False``，因此吊销账号时已建立的流会在下一次复检被掐断。
+    """
+    authenticated_user(request, response, database)
+    settings = request.app.state.settings
+    session_token = request.cookies.get(settings.cookie_name, "")
+    if not session_token:
+        # Cookie 不在（例如已用票据鉴权）时不签发，避免用票据换新票据。
+        unauthorized("请先登录。")
+    return {"success": True, "ticket": issue_ticket(session_token), "expiresIn": TICKET_TTL_SECONDS}
 
 
 @router.get("/auth/me", response_model=UserResponse)

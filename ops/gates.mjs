@@ -132,6 +132,9 @@ const GATE_GROUPS = {
     { name: 'check:extra-types', ...bun('run', 'check:extra-types') },
     { name: 'check:file-size', ...bun('run', 'check:file-size') },
     { name: 'check:complexity', ...bun('run', 'check:complexity') },
+    // 设备画像的纯逻辑自检（分类 / 别名 / 确认与审计 / 温控校验 / 快路径消歧）。
+    // 没有 pytest 依赖：直接跑脚本，失败即非零退出。
+    { name: 'check:device-profile', ...bun('run', 'check:device-profile') },
     { name: 'check:python-format', ...bun('run', 'check:python-format') },
     // 以下四条原属 test 组：它们只读源码、不跑用例，测试移除后并入 static，避免门禁丢项。
     { name: 'check:studio-split', ...bun('run', 'check:studio-split') },

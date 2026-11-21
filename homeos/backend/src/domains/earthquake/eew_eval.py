@@ -21,12 +21,17 @@ from .types import (
 
 #: 同一事件两次预警之间震级变化的最小阈值（M）
 MAGNITUDE_MERGE_THRESHOLD = 0.5
-#: 跨源指纹：发震时刻窗口（秒）
-CROSS_SOURCE_TIME_WINDOW_SEC = 120
-#: 跨源指纹：震中距上限（km）
-CROSS_SOURCE_DIST_KM = 50
-#: 保留的最近指纹条数
-RECENT_FINGERPRINT_MAX = 12
+#: 跨源指纹：发震时刻窗口（秒）。取 10 分钟——台网与 EEW 的发布延迟常达数分钟，
+#: 120s 会把「同一个地震的两次通报」当成两次独立事件。
+CROSS_SOURCE_TIME_WINDOW_SEC = 600
+#: 跨源指纹：震中距上限（km）。150km 覆盖不同机构定位偏差。
+CROSS_SOURCE_DIST_KM = 150
+#: 保留的最近指纹条数（10 分钟窗口内可能有多条不同事件）
+RECENT_FINGERPRINT_MAX = 32
+#: 本地烈度达到该值即为「强预警」（对齐参考实现的 strong 档位）
+STRONG_LOCAL_INTENSITY = 4.0
+#: 迟到台网数据的倒计时截止（秒）：更晚仍下发「确认通报」而不是丢弃。
+LATE_DATA_CUTOFF_SEC = -120
 
 
 def _matches_cross_source_fingerprint(eew: EewRawMessage, fingerprint: EewEventFingerprint) -> bool:
@@ -83,8 +88,7 @@ def _eew_suppress_duplicate(
             return {
                 "kind": "suppress_duplicate",
                 "message": (
-                    f"[跨源去重] 与 {fingerprint.eventId} 时空相近,抑制重复预警"
-                    f"(source={eew.source or eew.type or '?'})"
+                    f"[跨源去重] 与 {fingerprint.eventId} 时空相近,抑制重复预警(source={eew.source or eew.type or '?'})"
                 ),
                 # 保留原事件为 activeEventId（不把去重状态改绑到重复源），仅并入本事件指纹。
                 "nextDedupe": EewDedupeState(
@@ -122,9 +126,7 @@ def _build_eew_alert_decision(
     distance = gate["distanceKm"]
     local_intensity = gate["localIntensity"]
     # 倒计时按震源距（含深度）：忽略深度会低估传播距离、倒计时偏短。
-    countdown = compute_s_wave_countdown(
-        hypocentral_distance_km(distance, eew.depth), eew.origin_time, _now_ms()
-    )
+    countdown = compute_s_wave_countdown(hypocentral_distance_km(distance, eew.depth), eew.origin_time, _now_ms())
 
     analysis_log = f"📊 EEW 分析:距离={distance:.1f}km 倒计时={countdown:.1f}s 烈度={local_intensity}"
 
@@ -132,19 +134,15 @@ def _build_eew_alert_decision(
         return {"kind": "skip", "message": f"{gate['reason']},已跳过"}
 
     # 迟到台网数据：不再丢弃，改为确认通报（不全屏倒计时）
-    alert_kind = "confirmation" if countdown < -60 else "early"
+    alert_kind = "confirmation" if countdown < LATE_DATA_CUTOFF_SEC else "early"
     late_log = (
-        f"确认通报:倒计时 {countdown:.1f}s 已过 -60s(台网延迟到达)"
+        f"确认通报:倒计时 {countdown:.1f}s 已过 {LATE_DATA_CUTOFF_SEC}s(台网延迟到达)"
         if alert_kind == "confirmation"
         else ""
     )
 
     source = eew.source or (
-        "cenc_eew"
-        if eew.type and "cenc" in eew.type
-        else "sc_eew"
-        if eew.type and "sc" in eew.type
-        else "wolfx"
+        "cenc_eew" if eew.type and "cenc" in eew.type else "sc_eew" if eew.type and "sc" in eew.type else "wolfx"
     )
 
     alert = EarthquakeAlertPayload(
@@ -161,6 +159,8 @@ def _build_eew_alert_decision(
         maxIntensity=eew.max_intensity or None,
         alertKind=alert_kind,
         source=source,
+        # 档位由本地烈度决定：前端据 strong 拉高视觉与提示音强度。
+        alertLevel="strong" if local_intensity >= STRONG_LOCAL_INTENSITY else "weak",
     )
 
     prev_magnitude = dedupe.lastMagnitude
@@ -198,15 +198,11 @@ def evaluate_eew_for_alert(
     if cfg.home_lat is None or cfg.home_lon is None:
         return {"kind": "skip", "message": "⚠️ 收到 EEW 但未设置家庭坐标"}
 
-    suppressed = _eew_suppress_duplicate(
-        eew, dedupe, magnitude_merge_threshold=magnitude_merge_threshold
-    )
+    suppressed = _eew_suppress_duplicate(eew, dedupe, magnitude_merge_threshold=magnitude_merge_threshold)
     if suppressed is not None:
         return suppressed
 
-    return _build_eew_alert_decision(
-        eew, cfg, dedupe, magnitude_merge_threshold=magnitude_merge_threshold
-    )
+    return _build_eew_alert_decision(eew, cfg, dedupe, magnitude_merge_threshold=magnitude_merge_threshold)
 
 
 def _now_ms() -> float:
@@ -218,7 +214,9 @@ def _now_ms() -> float:
 __all__ = [
     "CROSS_SOURCE_DIST_KM",
     "CROSS_SOURCE_TIME_WINDOW_SEC",
+    "LATE_DATA_CUTOFF_SEC",
     "MAGNITUDE_MERGE_THRESHOLD",
     "RECENT_FINGERPRINT_MAX",
+    "STRONG_LOCAL_INTENSITY",
     "evaluate_eew_for_alert",
 ]

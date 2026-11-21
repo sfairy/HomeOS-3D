@@ -140,6 +140,14 @@ class MemoryDto(BaseModel):
     kind: str = "alias"
 
 
+class SessionClearDto(BaseModel):
+    """清空一段服务端会话上下文（前端「清空记录 / 删除对话」）。"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    sessionId: Any = None
+
+
 def _memory_scope(user: dict[str, Any]) -> str:
     return f"user:{user.get('userId') or user.get('username') or 'anon'}"
 
@@ -244,6 +252,20 @@ async def chat(
         AgentChatOptions(actor=_actor_from_user(user), session_id=dto.sessionId),
     )
     return result.to_dict()
+
+
+@router.post("/session/clear")
+async def clear_session(
+    dto: SessionClearDto,
+    request: Request,
+    user: dict[str, Any] = Depends(require_user),
+):
+    """清空服务端会话上下文（前端清空记录 / 删除对话时调用）。"""
+    session_id = str(dto.sessionId or "").strip()
+    if not session_id or len(session_id) > _SESSION_ID_MAX:
+        raise BusinessException(ErrorCode.VALIDATION_FAILED, "sessionId 不合法")
+    cleared = _service(request).clear_conversation(session_id, _actor_from_user(user))
+    return {"ok": cleared}
 
 
 @router.post("/chat/stream")
@@ -650,6 +672,20 @@ async def toggle_schedule(
     return await _scheduler(request).toggle_task(task_id, enabled, actor=_actor_from_user(user))
 
 
+@router.post("/schedules/{task_id}/run")
+async def run_schedule_now(
+    task_id: str,
+    request: Request,
+    user: dict[str, Any] = Depends(require_user),
+):
+    """立即执行一次计划任务（不改排程）。
+
+    用于保存后验证动作：与到点执行同一套权限 / 服务白名单 / 高危拦截，
+    以当前操作者身份执行，结果照常写入执行日志。
+    """
+    return await _scheduler(request).run_task_now(task_id, actor=_actor_from_user(user))
+
+
 @router.delete("/schedules/{task_id}")
 async def delete_schedule(
     task_id: str,
@@ -675,6 +711,22 @@ async def run_patrol(
     if watchdog is None:
         raise BusinessException(ErrorCode.SERVICE_UNAVAILABLE, "看门狗未启用")
     return await watchdog.run_once(actor=_actor_from_user(user), auto_close=autoClose)
+
+
+@router.post("/proactive/run")
+async def run_proactive(
+    request: Request,
+    user: dict[str, Any] = Depends(require_user),
+):
+    """手动执行一次主动巡检（设备离线 / 能耗 / 天气），便于验证通知链路。
+
+    返回 ``skipped`` 表示未启用 / 免打扰 / 冷却中；不会绕过用户配置强行推送。
+    """
+    del user
+    proactive = getattr(request.app.state, "agent_proactive", None)
+    if proactive is None:
+        raise BusinessException(ErrorCode.SERVICE_UNAVAILABLE, "主动管家未启用")
+    return await proactive.run_once()
 
 
 @router.get("/diagnostics")

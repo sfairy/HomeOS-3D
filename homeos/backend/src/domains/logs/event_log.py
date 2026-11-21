@@ -20,15 +20,7 @@ from .event_log_tier import (
     resolve_event_log_tier,
     serialize_event_log_states,
 )
-from ..client_power.energy_meter import (
-    normalize_meter_scope,
-)
-from ...platform.core.db.models import (
-    EnergyCandidateEntity,
-    EnergyUsageDaily,
-    EnergyUsageMonthly,
-    EventLog,
-)
+from ...platform.core.db.models import EventLog
 from ...platform.core.db.retention import (
     DEFAULT_OPS,
     build_event_log_public_meta,
@@ -48,7 +40,6 @@ from .event_log_report import (
     _naive_utc,
     _report_now,
     _resolve_event_occurred_at,
-    _resolve_ops_timezone_name,
     _restriction_conditions,
     _state_text,
     build_event_log_stats,
@@ -73,16 +64,10 @@ ENERGY_BUFFER_MAX = 2000
 RETENTION_CACHE_TTL_SECONDS = 5.0
 
 
-from .energy_aggregate import (
-    _merge_backfill_daily,
-    _merge_backfill_monthly,
-    _normalize_backfill_totals,
-    _register_backfill_candidates,
-    accumulate_energy_totals,
-)
+from .energy_store import EnergyStoreMixin
 
 
-class EventLogService(EventLogReportMixin):
+class EventLogService(EventLogReportMixin, EnergyStoreMixin):
     """事件日志缓冲写入 + 查询 + 报表 + 保留清理。"""
 
     def __init__(
@@ -156,13 +141,10 @@ class EventLogService(EventLogReportMixin):
             raw = load_raw_config(session)
         retention_source = raw.get("retention")
         retention = retention_source if isinstance(retention_source, dict) else {}
-        value = retention.get("eventLog")
-        if isinstance(value, (int, float)) and value > 0:
-            days = resolve_event_log_retention_days(value)
-        else:
-            other_source = raw.get("other")
-            other = other_source if isinstance(other_source, dict) else {}
-            days = resolve_event_log_retention_days(other.get("eventlogRetentionDays"))
+        # ``other.eventlogRetentionDays`` 已随 v19 迁移到 ``retention.eventLog``
+        # （见 app_config.import_normalize）：AppConfigService 在 EventLogService
+        # 之前启动并写回迁移结果，这里只认新键。
+        days = resolve_event_log_retention_days(retention.get("eventLog"))
         self._retention_cache = (now, days)
         return days
 
@@ -385,180 +367,6 @@ class EventLogService(EventLogReportMixin):
                         )
                     )
                 session.commit()
-
-    def _resolve_energy_primary_entities(self) -> set[str]:
-        """本次应计入总耗的电表集合；未绑定主电表时返回空集合（调用方回退全量）。"""
-        try:
-            return {str(item).strip() for item in (self._energy_primary_entities() or ()) if str(item).strip()}
-        except Exception as error:  # 配置读取失败不该带塌能耗聚合
-            logger.debug("能耗主电表读取失败，回退全量识别: %s", error)
-            return set()
-
-    def _resolve_energy_bindings(self) -> dict[str, str]:
-        """能源绑定全貌：``{primary, scope, day, month}``。
-
-        未注入 bindings 时只保留主表集合（老调用方/测试），口径按 ``total`` 处理、
-        不启用日/月权威表 —— 行为与只有主表时完全一致。
-        """
-        if self._energy_bindings is None:
-            primary = self._resolve_energy_primary_entities()
-            only = next(iter(primary)) if len(primary) == 1 else ""
-            return {"primary": only, "scope": "total", "day": "", "month": ""}
-        try:
-            raw = self._energy_bindings() or {}
-        except Exception as error:  # 配置读取失败时退回「只有主表」的保守口径
-            logger.debug("能耗绑定读取失败，按主表保守处理: %s", error)
-            raw = {}
-        return {
-            "primary": str(raw.get("primary") or "").strip(),
-            "scope": normalize_meter_scope(raw.get("scope")),
-            "day": str(raw.get("day") or "").strip(),
-            "month": str(raw.get("month") or "").strip(),
-        }
-
-    def _apply_energy_side_effects(self, batch: list[dict[str, Any]]) -> None:
-        energy_ids = sorted(
-            {
-                row["entity_id"]
-                for row in batch
-                if is_energy_meter_state(row["entity_id"], row["old_state"], row["new_state"])
-                and row["old_state"]
-                and row["new_state"]
-            }
-        )
-        # 日切/月切跟随家庭时区（ops.homeTimezone），与前端报表口径一致。
-        timezone_name = _resolve_ops_timezone_name(self._ops)
-        # 绑定了主电表就只聚它：HA 里同表的日/月/年累计与各回路电量表都算进来，
-        # 会让「今日用电」凭空翻几倍。未绑定时（老装机）保持全量识别。
-        day_totals, month_totals, reset_count = accumulate_energy_totals(
-            batch,
-            self._resolve_energy_primary_entities(),
-            self._resolve_energy_bindings(),
-            timezone_name,
-        )
-        if reset_count:
-            logger.info(
-                "检测到电量表底重置: %s（该区间按重置后累积量计入日/月用电）",
-                ", ".join(f"{entity_id}×{count}" for entity_id, count in reset_count.items()),
-            )
-        if not energy_ids and not day_totals and not month_totals:
-            return
-        try:
-            with self._database.session_factory() as session:
-                if energy_ids:
-                    known_ids = set(
-                        session.scalars(
-                            select(EnergyCandidateEntity.entity_id).where(
-                                EnergyCandidateEntity.entity_id.in_(list(energy_ids))
-                            )
-                        )
-                    )
-                    session.add_all(
-                        EnergyCandidateEntity(entity_id=entity_id)
-                        for entity_id in energy_ids
-                        if entity_id not in known_ids
-                    )
-                # 一次取回本批涉及的日/月聚合行：旧实现对每个 (实体, 日) 各查一次，
-                # 一次同步几十个实体 × 多个自然日就是几十次数据库往返。
-                daily_rows: dict[tuple[Any, Any], EnergyUsageDaily] = {}
-                if day_totals:
-                    daily_rows = {
-                        (row.entity_id, row.day): row
-                        for row in session.scalars(
-                            select(EnergyUsageDaily).where(
-                                EnergyUsageDaily.entity_id.in_({entity_id for entity_id, _ in day_totals}),
-                                EnergyUsageDaily.day.in_({day for _, day in day_totals}),
-                            )
-                        )
-                    }
-                monthly_rows: dict[tuple[Any, Any], EnergyUsageMonthly] = {}
-                if month_totals:
-                    monthly_rows = {
-                        (row.entity_id, row.month): row
-                        for row in session.scalars(
-                            select(EnergyUsageMonthly).where(
-                                EnergyUsageMonthly.entity_id.in_({entity_id for entity_id, _ in month_totals}),
-                                EnergyUsageMonthly.month.in_({month for _, month in month_totals}),
-                            )
-                        )
-                    }
-                for (entity_id, day), value in day_totals.items():
-                    row = daily_rows.get((entity_id, day))
-                    if row is None:
-                        row = EnergyUsageDaily(
-                            entity_id=entity_id,
-                            day=day,
-                            kwh=value["kwh"],
-                            sample_count=int(value["count"]),
-                        )
-                        daily_rows[(entity_id, day)] = row
-                        session.add(row)
-                    elif value.get("mode") == "reading":
-                        # 权威读数直接覆盖：同一周期内读数单调递增，覆盖不会丢量，
-                        # 也不会把「先差分、后补绑权威表」的当天用量叠加成两倍。
-                        row.kwh = value["kwh"]
-                        row.sample_count = max(row.sample_count, int(value["count"]))
-                    else:
-                        row.kwh += value["kwh"]
-                        row.sample_count += int(value["count"])
-                for (entity_id, month), value in month_totals.items():
-                    row = monthly_rows.get((entity_id, month))
-                    if row is None:
-                        row = EnergyUsageMonthly(
-                            entity_id=entity_id,
-                            month=month,
-                            kwh=value["kwh"],
-                            sample_count=int(value["count"]),
-                        )
-                        monthly_rows[(entity_id, month)] = row
-                        session.add(row)
-                    elif value.get("mode") == "reading":
-                        row.kwh = value["kwh"]
-                        row.sample_count = max(row.sample_count, int(value["count"]))
-                    else:
-                        row.kwh += value["kwh"]
-                        row.sample_count += int(value["count"])
-                session.commit()
-        except Exception as error:
-            logger.warning("能源副作用维护失败: %s", error)
-
-    # ---- 能耗历史回填 ----
-    def ops_timezone_name(self) -> str | None:
-        """家庭业务时区（能耗日切/月切口径，取自 ``ops.homeTimezone``）。"""
-        return _resolve_ops_timezone_name(self._ops)
-
-    def apply_energy_backfill(self, totals: dict[str, dict[str, float]]) -> dict[str, int]:
-        """把历史差分算出的 (实体, 日) 用电量合并进日/月聚合表。
-
-        合并口径是「只增不减」（``max``）：实时事件链路可能已经为同一天写过一部分增量，
-        回填只负责补上漏掉的部分，重复执行不会把用电量翻倍。月份总量在日行落库后按**当月
-        全部日行**重新求和 —— 回填窗口常常只覆盖当月的一部分天，直接累加窗口内数值会把
-        月总量写小。
-        """
-        day_values = _normalize_backfill_totals(totals)
-        if not day_values:
-            return {"daily": 0, "monthly": 0, "entities": 0}
-        # 回填同样只认主电表，否则「日/月/年累计 + 各回路表」会被各写一份日行，
-        # 与实时链路口径不一致、也让报表总量重复。
-        primary_entities = self._resolve_energy_primary_entities()
-        if primary_entities:
-            day_values = {key: value for key, value in day_values.items() if key[0] in primary_entities}
-            if not day_values:
-                return {"daily": 0, "monthly": 0, "entities": 0}
-        entities = sorted({entity_id for entity_id, _ in day_values})
-        days = sorted({day for _, day in day_values})
-        months = sorted({day[:7] for day in days})
-        try:
-            with self._database.session_factory() as session:
-                _register_backfill_candidates(session, entities)
-                daily_written = _merge_backfill_daily(session, day_values, entities, days)
-                session.flush()
-                monthly_written = _merge_backfill_monthly(session, entities, months)
-                session.commit()
-        except Exception as error:
-            logger.warning("能耗历史回填落库失败: %s", error)
-            return {"daily": 0, "monthly": 0, "entities": 0}
-        return {"daily": daily_written, "monthly": monthly_written, "entities": len(entities)}
 
     # 查询
     def query_history(

@@ -2,6 +2,7 @@
 import { computed, ref, shallowRef, watch } from 'vue'
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
 import { isNavTabRouteActive } from '@/shared/utils/layout/nav-tabs.util'
+import { resolveMoviePilotUrl } from '@/shared/utils/layout/moviepilot-url.util'
 import { buildMainLayoutNavMenu, capBarItemsForViewport } from '@/shared/utils/ui/main-layout-nav.util'
 import type { useLayoutStore } from '@/stores/layout.store'
 import { useLicenseFeatureAccess } from '@/router/license-gate'
@@ -64,7 +65,7 @@ export function useMainLayoutNavMenu(options: {
       visibility: layoutStore.layoutConfig.navTabVisibility,
       placement: layoutStore.layoutConfig.navTabPlacement,
       embeds: layoutStore.layoutConfig.customEmbeds,
-      moviePilot: layoutStore.layoutConfig.moviePilotUrl,
+      moviePilot: resolveMoviePilotUrl(layoutStore.layoutConfig),
       featureAccess: navOptions.value.featureAccess,
       width: viewportWidth.value,
     }),

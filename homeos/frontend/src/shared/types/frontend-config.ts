@@ -67,7 +67,6 @@ interface EnergySection {
 /** WebSocket 推送分区（公开） */
 export interface WsPushPublicSection {
   coldEntityOnDemand: boolean // 冷实体是否按需推送
-  roomBatchEmit: boolean // 是否按房间批量推送
 }
 
 /** 访客分区 */
@@ -112,7 +111,6 @@ export interface AppPublicConfig {
   voiceCommands: unknown[] // 语音命令列表
   eventLog: EventLogSection // 事件日志
   energy: EnergySection // 能耗
-  orchestrator: { executionHistoryLimit: number } // 联动器（执行历史保留条数）
   guest: GuestSection // 访客
   security: SecurityPublicSection // 安防
   roomMeta?: RoomMetaPublicSection // 房间元信息

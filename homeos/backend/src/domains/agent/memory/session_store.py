@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
-from datetime import UTC
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import delete, select
@@ -22,6 +22,8 @@ SESSION_TTL_MS = 10 * 60_000
 MAX_TURNS = 16
 #: 「已尝试回填」会话 id 的记忆上限：仅用于避免重复查库，不能无界增长
 MAX_LOADED_SESSIONS = MAX_SESSIONS * 4
+#: 过期会话行清理间隔（秒）：只在 purge_expired 触发，避免每个请求都删库
+PRUNE_PERSISTED_INTERVAL_SECONDS = 300.0
 
 
 @dataclass
@@ -59,6 +61,8 @@ class AgentSessionStoreService:
         self._session_factory = session_factory
         #: 已尝试从数据库回填过的会话
         self._loaded: set[str] = set()
+        #: 上次清理过期会话行的 monotonic 时间（0 = 还没清过）
+        self._last_pruned_at = 0.0
 
     # 持久化
     def _load_from_db(self, session_id: str) -> AgentSessionEntry | None:
@@ -91,10 +95,7 @@ class AgentSessionStoreService:
             if _now_ms() - int(aware.timestamp() * 1000) > SESSION_TTL_MS:
                 return None
         entry = AgentSessionEntry(
-            history=[
-                AgentSessionTurn(role=row.role, content=row.content)
-                for row in reversed(rows)
-            ],
+            history=[AgentSessionTurn(role=row.role, content=row.content) for row in reversed(rows)],
             last_at=_now_ms(),
         )
         self._sessions[session_id] = entry
@@ -108,11 +109,12 @@ class AgentSessionStoreService:
             with self._session_factory() as session:
                 session.add(AgentSessionRow(session_id=session_id, role=role, content=content))
                 session.flush()
-                keep_ids = select(AgentSessionRow.id).where(
-                    AgentSessionRow.session_id == session_id
-                ).order_by(
-                    AgentSessionRow.created_at.desc(), AgentSessionRow.id.desc()
-                ).limit(MAX_TURNS)
+                keep_ids = (
+                    select(AgentSessionRow.id)
+                    .where(AgentSessionRow.session_id == session_id)
+                    .order_by(AgentSessionRow.created_at.desc(), AgentSessionRow.id.desc())
+                    .limit(MAX_TURNS)
+                )
                 session.execute(
                     delete(AgentSessionRow).where(
                         AgentSessionRow.session_id == session_id,
@@ -166,9 +168,7 @@ class AgentSessionStoreService:
         entry.history.append(AgentSessionTurn(role="user", content=user_message))
         self._append_persisted(session_id, "user", user_message)
         if assistant_content and assistant_content.strip():
-            entry.history.append(
-                AgentSessionTurn(role="assistant", content=assistant_content.strip())
-            )
+            entry.history.append(AgentSessionTurn(role="assistant", content=assistant_content.strip()))
             self._append_persisted(session_id, "assistant", assistant_content.strip())
         # 超限截断：仅保留最近 MAX_TURNS 条
         if len(entry.history) > MAX_TURNS:
@@ -184,9 +184,7 @@ class AgentSessionStoreService:
             return
         try:
             with self._session_factory() as session:
-                session.execute(
-                    delete(AgentSessionRow).where(AgentSessionRow.session_id == session_id)
-                )
+                session.execute(delete(AgentSessionRow).where(AgentSessionRow.session_id == session_id))
                 session.commit()
         except Exception as exc:  # pragma: no cover
             logger.warning("会话历史删除失败: %s", exc)
@@ -199,14 +197,31 @@ class AgentSessionStoreService:
     def purge_expired(self) -> None:
         """惰性清理过期会话（每次读取 / 写入前调用）。"""
         now = _now_ms()
-        expired = [
-            session_id
-            for session_id, entry in self._sessions.items()
-            if now - entry.last_at > SESSION_TTL_MS
-        ]
+        expired = [session_id for session_id, entry in self._sessions.items() if now - entry.last_at > SESSION_TTL_MS]
         for session_id in expired:
             self._sessions.pop(session_id, None)
             self._loaded.discard(session_id)
+        self._prune_persisted(now)
+
+    def _prune_persisted(self, now_ms: int) -> None:
+        """删除数据库里过期的会话行（每 5 分钟最多一次）。
+
+        内存会话过期后旧实现只丢内存，``agent_sessions`` 仍留在库里：
+        每段对话最多 16 行、永不回收，长期运行会把表撑到几十万行。
+        """
+        if self._session_factory is None:
+            return
+        if self._last_pruned_at and now_ms - self._last_pruned_at < PRUNE_PERSISTED_INTERVAL_SECONDS * 1000:
+            return
+        self._last_pruned_at = now_ms
+        # SQLite 无时区存储：与其它删除路径一致，统一用 UTC naive 比较
+        cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(milliseconds=SESSION_TTL_MS)
+        try:
+            with self._session_factory() as session:
+                session.execute(delete(AgentSessionRow).where(AgentSessionRow.created_at < cutoff))
+                session.commit()
+        except Exception as exc:  # pragma: no cover - 依赖真实数据库
+            logger.debug("过期会话行清理失败: %s", exc)
 
 
 __all__ = [

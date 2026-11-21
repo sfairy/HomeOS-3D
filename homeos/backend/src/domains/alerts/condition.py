@@ -17,7 +17,29 @@ from typing import Any
 
 _ATTR_RE = re.compile(r"^attr:([a-zA-Z0-9_]+)\s*(.*)$", re.DOTALL)
 _STATE_PREFIX_RE = re.compile(r"^(state|value)\s+", re.IGNORECASE)
-_OP_RE = re.compile(r"^(>=|<=|==|!=|>|<|=|contains)\s*(.+)$", re.IGNORECASE | re.DOTALL)
+_OP_RE = re.compile(
+    r"^(>=|<=|==|!=|>|<|=|contains|gt|gte|lt|lte|eq|neq)\s*(.+)$",
+    re.IGNORECASE | re.DOTALL,
+)
+
+#: 结构化运算符别名 → 条件串符号。参考实现的规则 DTO 用 `gt/gte/lt/lte` 命名，
+#: 而条件串求值器只认符号；两者必须映射到同一套比较语义，否则「运算符写对了、
+#: 求值却静默永不命中」。别名在比较前统一归一，字符串相等语义不受影响。
+_OP_ALIASES: dict[str, str] = {
+    "gt": ">",
+    "gte": ">=",
+    "lt": "<",
+    "lte": "<=",
+    "eq": "==",
+    "neq": "!=",
+}
+
+
+def normalize_operator(operator: str | None) -> str:
+    """把结构化运算符（含别名）归一成条件串里的符号；未知值原样返回小写。"""
+    text = str(operator or "").strip().lower()
+    return _OP_ALIASES.get(text, text)
+
 
 #: 表示「没有有效读数」的状态（HA 侧实体未就绪 / 集成重载 / 中枢不可达）。
 _ABSENT_STATES = frozenset({"unavailable", "unknown"})
@@ -42,18 +64,14 @@ def evaluate_condition(
     return _evaluate_and_group(expr, state, attributes)
 
 
-def _evaluate_and_group(
-    expr: str, state: str, attributes: dict[str, Any] | None
-) -> bool:
+def _evaluate_and_group(expr: str, state: str, attributes: dict[str, Any] | None) -> bool:
     and_parts = [part.strip() for part in expr.split("&&") if part.strip()]
     if len(and_parts) > 1:
         return all(_evaluate_single(part, state, attributes) for part in and_parts)
     return _evaluate_single(expr, state, attributes)
 
 
-def _evaluate_single(
-    expr: str, state: str, attributes: dict[str, Any] | None
-) -> bool:
+def _evaluate_single(expr: str, state: str, attributes: dict[str, Any] | None) -> bool:
     if not expr:
         return False
     lhs_raw = state
@@ -74,7 +92,7 @@ def _evaluate_single(
     match = _OP_RE.match(rest)
     if not match:
         return lhs_raw.lower() == expr.lower()
-    op = match.group(1).lower()
+    op = normalize_operator(match.group(1))
     rhs = match.group(2).strip()
     if len(rhs) >= 2 and rhs[0] in "'\"" and rhs[-1] == rhs[0]:
         rhs = rhs[1:-1]
@@ -131,4 +149,4 @@ def _compare_numeric(lhs: float, operator: str, rhs: float) -> bool:
     return False
 
 
-__all__ = ["evaluate_condition"]
+__all__ = ["evaluate_condition", "normalize_operator"]

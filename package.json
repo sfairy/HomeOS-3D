@@ -84,6 +84,7 @@
     "check:extra-types": "node ops/lib/py.mjs ops/checks/check_extra_types_parity.py --check",
     "check:file-size": "node ops/lib/py.mjs ops/checks/check_file_size.py",
     "check:complexity": "node ops/lib/py.mjs ops/checks/check_complexity.py --check",
+    "check:device-profile": "node ops/lib/py.mjs ops/checks/device_profile_selftest.py",
     "check:python-format": "node ops/lib/py.mjs ops/checks/check_python_format.py",
     "check:font-subset": "node homeos-store/frontend/scripts/build-font-subset.mjs --check",
     "generate:font-subset": "node homeos-store/frontend/scripts/build-font-subset.mjs --write",

@@ -28,7 +28,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
-from .model_mixins import AlertRuleTimingMixin, HomeModeExtraMixin
+from .model_mixins import AlertRuleStructuredMixin, AlertRuleTimingMixin, HomeModeExtraMixin
 
 
 def utc_now() -> datetime:
@@ -177,7 +177,7 @@ class EarthquakeAlertHistory(Base):
     saved_at: Mapped[datetime] = mapped_column("savedAt", DateTime, nullable=False, default=utc_now)
 
 
-class AlertRule(AlertRuleTimingMixin, Base):
+class AlertRule(AlertRuleTimingMixin, AlertRuleStructuredMixin, Base):
     __tablename__ = "alert_rules"
     __table_args__ = (
         Index("alert_rules_enabled_idx", "enabled"),
@@ -534,7 +534,6 @@ class HAConnection(Base):
 
 class HAEntity(Base):
     """HA 实体目录（连接 × 实体唯一）。"""
-
     __tablename__ = "ha_entities"
     __table_args__ = (UniqueConstraint("connection_id", "entity_id", name="uq_ha_entities_connection_entity"),)
 
@@ -591,7 +590,6 @@ class HADevice(Base):
 
 class HAArea(Base):
     """HA 区域目录（连接 × 区域唯一）。"""
-
     __tablename__ = "ha_areas"
     __table_args__ = (UniqueConstraint("connection_id", "area_id", name="uq_ha_areas_connection_area"),)
 
@@ -602,10 +600,36 @@ class HAArea(Base):
     area_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     aliases_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    #: HA 区域图标（mdi:xxx）；由同步写入，编辑时回推到 HA。
+    icon: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    #: 本地排序覆盖（HA 区域 registry 没有顺序字段）；同步不会覆盖这一列。
+    sort_order: Mapped[int] = mapped_column("sortOrder", Integer, nullable=False, default=0)
     sync_status: Mapped[str] = mapped_column(String(32), nullable=False, default="active", index=True)
     first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
     last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
     missing_since: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class HAAreaEntityOrder(Base):
+    """房间内实体的本地顺序覆盖（HA 实体注册表没有顺序字段）。
+
+    只存「顺序」，不存归属：实体属于哪个房间仍以 HA 的 ``area_id`` 为真源。
+    实体被移出房间后这里会留下孤儿行，读取时按 HA 的现成员过滤，因此不会串房；
+    孤儿行在写排序时惰性清理。
+    """
+
+    __tablename__ = "ha_area_entity_order"
+    __table_args__ = (
+        UniqueConstraint("connection_id", "area_id", "entity_id", name="uq_ha_area_entity_order"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    connection_id: Mapped[str] = mapped_column(
+        ForeignKey("ha_connections.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    area_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    entity_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    sort_order: Mapped[int] = mapped_column("sortOrder", Integer, nullable=False, default=0)
 
 
 class HASyncState(Base):

@@ -82,8 +82,7 @@ def _home_mode_activate_failure_payload(mode: dict[str, str], result: dict[str, 
     progress = f"（{executed}/{total} 项成功）" if total else ""
     payload: dict[str, Any] = {
         "success": False,
-        "message": f"家庭模式「{mode['name']}」切换未完成{progress}"
-        + ("，请检查设备状态后重试。" if total else "。"),
+        "message": f"家庭模式「{mode['name']}」切换未完成{progress}" + ("，请检查设备状态后重试。" if total else "。"),
         "failedItems": result.get("failedItems") or [],
     }
     payload.update(_copy_present(result, _HOME_MODE_RESULT_KEYS))
@@ -107,9 +106,7 @@ def _home_mode_activate_success_payload(mode: dict[str, str], result: Any) -> di
         )
     elif result.get("displacedRestoreIncomplete"):
         names = "、".join(str(item) for item in result["displacedRestoreIncomplete"])
-        payload["message"] = (
-            f"家庭模式「{mode['name']}」已激活，但原模式 {names} 的设备状态未能完整恢复。"
-        )
+        payload["message"] = f"家庭模式「{mode['name']}」已激活，但原模式 {names} 的设备状态未能完整恢复。"
     return payload
 
 

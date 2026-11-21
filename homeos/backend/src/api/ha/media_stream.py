@@ -38,6 +38,11 @@ CAMERA_SNAPSHOT_CACHE_MAX_ENTRIES = 64
 # 摄像头长连的授权复检间隔（秒）：逐帧复检太贵，但一次授权失效必须尽快掐断，
 # 否则一份过期授权能靠一条已建立的流无限看下去。
 CAMERA_STREAM_LICENSE_CHECK_SECONDS = 1
+# 单条 MJPEG 连接的最长寿命（秒）。参考实现取 180s：墙屏会自己重连，
+# 而僵尸连接会一直占住 HA 的上游 TCP。
+CAMERA_STREAM_MAX_SECONDS = 180
+# 上游空闲超时（秒）：MJPEG 正常每秒多帧，30s 没有任何字节说明上游已死。
+CAMERA_STREAM_IDLE_SECONDS = 30
 
 # 摄像头授权判定的进程内 TTL 缓存：逐帧 `to_thread(allows)` 会把线程池打满，而授权状态
 # 本身允许秒级延迟。TTL 与长连复检间隔一致，因此「授权失效多久掐断」的最坏延迟不变。
@@ -302,8 +307,19 @@ async def licensed_camera_stream(request: Request, upstream: httpx.Response) -> 
     try:
         while True:
             try:
-                chunk = await anext(iterator)
+                # 空闲超时：上游静默超过 30s 说明连接已死，主动收尾而不是永远挂着。
+                chunk = await asyncio.wait_for(anext(iterator), timeout=CAMERA_STREAM_IDLE_SECONDS)
             except StopAsyncIteration:
+                with CancelScope(shield=True):
+                    await iterator.aclose()
+                break
+            except TimeoutError:
+                await _camera_stream_log(
+                    request,
+                    "warning",
+                    f"摄像头传输已停止：上游 {CAMERA_STREAM_IDLE_SECONDS}s 无数据",
+                    "CAMERA_STREAM_IDLE_TIMEOUT",
+                )
                 with CancelScope(shield=True):
                     await iterator.aclose()
                 break
@@ -347,13 +363,15 @@ class LicensedCameraStreamingResponse(StreamingResponse):
         self.request = request
         self.upstream = upstream
         self.client = client
+        #: 流终止原因（license / max_duration），由 _watch_stream 写入
+        self._stop_reason: str | None = None
         state = getattr(request, "state", request)
         # 同上：``State`` 的键只能动态挂载。
         setattr(state, "camera_stream_started_at", monotonic())  # noqa: B010 - State 只支持动态属性
 
     async def stream_response(self, send: Send) -> None:
         failure: BaseException | None = None
-        restricted = False
+        self._stop_reason: str | None = None
         started = False
         finished = False
 
@@ -375,14 +393,21 @@ class LicensedCameraStreamingResponse(StreamingResponse):
                     failure = error
                 tasks.cancel_scope.cancel()
 
-            async def monitor_license() -> None:
-                nonlocal restricted
-                # 复用 `_camera_license_allows` 的进程内 TTL 缓存：原先这里每轮直接
-                # `to_thread(allows)` 两次（线程池跳 + license_state 查询），N 路摄像头
-                # 就是每秒 2N 次；现在多路流共享同一份判定，检查次数与流数解耦。
-                while await _camera_license_allows(self.request):
-                    await asyncio.sleep(CAMERA_STREAM_LICENSE_CHECK_SECONDS)
-                restricted = True
+            tasks.start_soon(deliver)
+            tasks.start_soon(self._watch_stream(tasks))
+        if failure is not None:
+            raise failure
+        if self._stop_reason is not None and started and not finished:
+            # 授权失效或到寿但画面还没收尾：补一个空 body 结束响应，别把连接吊死。
+            with move_on_after(CAMERA_STREAM_LICENSE_CHECK_SECONDS):
+                await send({"type": "http.response.body", "body": b"", "more_body": False})
+
+    async def _watch_stream(self, tasks: Any) -> None:
+        """授权复检 + 单连接寿命上限（独立成方法，避免 ``stream_response`` 分支超限）。"""
+        started_at = monotonic()
+        while monotonic() - started_at < CAMERA_STREAM_MAX_SECONDS:
+            if not await _camera_license_allows(self.request):
+                self._stop_reason = "license"
                 await _camera_stream_log(
                     self.request,
                     "warning",
@@ -390,15 +415,17 @@ class LicensedCameraStreamingResponse(StreamingResponse):
                     "CAMERA_STREAM_LICENSE_RESTRICTED",
                 )
                 tasks.cancel_scope.cancel()
-
-            tasks.start_soon(deliver)
-            tasks.start_soon(monitor_license)
-        if failure is not None:
-            raise failure
-        if restricted and started and not finished:
-            # 授权已失效但画面还没收尾：补一个空 body 结束响应，别把连接吊死。
-            with move_on_after(CAMERA_STREAM_LICENSE_CHECK_SECONDS):
-                await send({"type": "http.response.body", "body": b"", "more_body": False})
+                return
+            await asyncio.sleep(CAMERA_STREAM_LICENSE_CHECK_SECONDS)
+        # 到寿：墙屏会自动重连，占着不放只会让上游句柄越积越多。
+        self._stop_reason = "max_duration"
+        await _camera_stream_log(
+            self.request,
+            "info",
+            f"摄像头传输已到达单连接上限（{CAMERA_STREAM_MAX_SECONDS}s），连接关闭",
+            "CAMERA_STREAM_MAX_DURATION",
+        )
+        tasks.cancel_scope.cancel()
 
     async def __call__(self, scope, receive, send) -> None:
         try:

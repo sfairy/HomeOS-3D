@@ -129,11 +129,9 @@ def is_high_risk(
     #    set_cover_position 的 position≈100 等效开门，也须拦截
     try:
         position = float((service_data or {}).get("position"))  # pyright: ignore[reportArgumentType]
-    except (TypeError, ValueError):
+    except (TypeError, ValueError):  # fmt: skip - 括号不能省，Cython 会把 PEP 758 形式误解析
         position = float("nan")
-    cover_opens_fully = service in COVER_OPEN_SERVICES or (
-        service == "set_cover_position" and position >= 95
-    )
+    cover_opens_fully = service in COVER_OPEN_SERVICES or (service == "set_cover_position" and position >= 95)
     if domain == "cover" and cover_opens_fully:
         if any(hint.lower() in ident for hint in GARAGE_GATE_HINTS):
             return {"blocked": True, "reason": "车库门/大门开启"}

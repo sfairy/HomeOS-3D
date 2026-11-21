@@ -443,6 +443,19 @@ function acquireBuildLockSync(): number {
 function finalizeBuildPlugin(): Plugin {
   let buildLockFd: number | null = null
   let finalized = false
+  /**
+   * 写盘阶段是否真的跑过。
+   *
+   * Rolldown 在 `generateBundle` / `renderChunks` 阶段失败时**不会调用 `writeBundle`**，
+   * 而 Vite 8 的 closeBundle 包装又把 error 参数丢掉了（实测 `buildEnd(err)` 与
+   * `closeBundle(err)` 拿到的都是 `undefined`）。原先 closeBundle 里无条件断言外壳，
+   * 于是在「构建中途失败」时抛的是**本插件自己的错**，真正的原因被从终端里顶掉
+   * （实测：让 generateBundle 抛错 + 本断言，输出只剩本断言）。缺外壳有两种原因：
+   *
+   *   - `writeBundle` 没跑过 → 构建在写盘前就失败了，让上游错误自己冒出来（不叠加）；
+   *   - `writeBundle` 跑过却没有 index.html → 产物确实不完整，才是本断言的职责。
+   */
+  let wroteBundle = false
 
   async function tryFinalize(): Promise<void> {
     if (finalized) return
@@ -466,6 +479,7 @@ function finalizeBuildPlugin(): Plugin {
       if (!isClientBuildEnvironment(this)) return
       cleanStaleStagingDirs()
       finalized = false
+      wroteBundle = false
       buildLockFd = acquireBuildLockSync()
     },
     buildEnd(error) {
@@ -477,6 +491,7 @@ function finalizeBuildPlugin(): Plugin {
     // index.html 可能在 writeBundle 之后才由 html 插件落盘，故两处都试。
     async writeBundle() {
       if (!isClientBuildEnvironment(this)) return
+      wroteBundle = true
       try {
         await tryFinalize()
       } finally {
@@ -487,7 +502,9 @@ function finalizeBuildPlugin(): Plugin {
       if (!isClientBuildEnvironment(this)) return
       try {
         await tryFinalize()
-        if (!finalized) {
+        // 只在写盘真的发生过时才断言产物完整性：没走 writeBundle = 构建中途失败，
+        // 此时再抛「SPA 入口缺失」会盖住真正的错误（见 wroteBundle 的说明）。
+        if (!finalized && wroteBundle) {
           const assetsDir = resolve(outDir, 'static', 'assets')
           const hasAssets = fs.existsSync(assetsDir) && fs.readdirSync(assetsDir).length > 0
           // 有产物却没有外壳 = 产物不完整（真·空构建不在这里报错）；报错内容由共用助手

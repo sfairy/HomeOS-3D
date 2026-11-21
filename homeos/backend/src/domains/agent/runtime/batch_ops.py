@@ -47,9 +47,7 @@ UNDO_TTL_MS = 120_000
 #: 同时保留的会话数上限（防止长期运行内存膨胀）
 MAX_SESSIONS = 100
 #: 可撤销的实体域（先覆盖开关 / 亮度 / 窗帘位置）
-UNDOABLE_DOMAINS = frozenset(
-    {"light", "switch", "fan", "media_player", "water_heater", "cover"}
-)
+UNDOABLE_DOMAINS = frozenset({"light", "switch", "fan", "media_player", "water_heater", "cover"})
 #: 共享状态命名空间
 PENDING_NAMESPACE = "agent.batch.pending"
 UNDO_NAMESPACE = "agent.batch.undo"

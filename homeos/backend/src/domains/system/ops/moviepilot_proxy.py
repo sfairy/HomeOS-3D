@@ -134,7 +134,12 @@ class MoviePilotProxyService:
 
     # 目标解析
     def get_moviepilot_url(self) -> str:
-        """读取 UI 配置 ``layout.moviePilotUrl``（去末尾斜杠）。"""
+        """MoviePilot 地址：``mediaConfig.mpUrl`` 优先，其次 ``layout.moviePilotUrl``。
+
+        这两处历史上是分开填的：媒体库（入库轮询）读 ``mediaConfig.mpUrl``，内嵌页 /
+        图片代理读 ``moviePilotUrl``。只填一处就会出现「能打开页面但轮询不到入库」，
+        或者反过来。读取侧统一成一条链，写入侧由设置页的一键回填收敛。
+        """
         project_id = self._ui_config.resolve_active_project_id()
         config = self._ui_config.get_config(project_id)
         # 与 Nest 一致：`!config || !config.layout` 走 JS 真值判定（空对象 {} 视为真值）
@@ -147,7 +152,9 @@ class MoviePilotProxyService:
             layout, parse_error = self._ui_config.parse_layout_field(config.get("layout"))
             if parse_error:
                 raise _internal_error(api_error("SYSTEM_INVALID_LAYOUT"))
-            url = layout.get("moviePilotUrl")
+            media = layout.get("mediaConfig")
+            from_media = media.get("mpUrl") if isinstance(media, dict) else None
+            url = from_media or layout.get("moviePilotUrl")
             if not url:
                 not_found(api_error("MOVIEPILOT_URL_NOT_CONFIGURED"))
             return str(url).rstrip("/")

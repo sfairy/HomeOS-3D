@@ -29,6 +29,11 @@ export interface AlertRuleEditForm extends AlertRule {
   condValue: string // 单条件模式下的目标值
   condAttr: string // 单条件模式下的属性名
   clauses: ConditionClause[] // 复合模式下的子条件列表
+  // 结构化条件与门铃扩展（后端可空，缺省 = 旧行为）
+  targetState?: string // 结构化目标值（condition 为空时与 operator 一起编译）
+  operator?: string // 结构化运算符（gt/gte/lt/lte/eq/neq/contains）
+  sound?: string // 仅 critical 生效的提示音标识
+  cameraEntityId?: string // 有值时按门铃类型下发并打开实时画面
 }
 
 /** 通知设置解析结果（从系统配置解析） */

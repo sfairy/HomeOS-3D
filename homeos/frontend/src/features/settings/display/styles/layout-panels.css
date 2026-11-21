@@ -975,36 +975,15 @@
   color: var(--set-warn);
 }
 
-.embed-mp-card {
-  margin: 10px var(--settings-inset-x, 2rem) 16px;
-  padding: 14px 16px;
-  border-radius: var(--hos-radius-card);
-  border: var(--hos-hairline) solid color-mix(in srgb, var(--module-accent-layout) 28%, transparent);
-  background: color-mix(in srgb, var(--module-accent-layout) 8%, transparent);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+/* MoviePilot 地址已迁到「媒体与入库」：这里只留一条带跳转的迁移提示 */
+.embed-mp-migrate {
+  margin: 10px var(--settings-inset-x, 2rem) 0;
 }
 
-.embed-mp-card__head {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
+.embed-mp-migrate__link {
+  margin-left: 6px;
   color: var(--module-accent-layout);
-}
-
-.embed-mp-card__title {
-  margin: 0;
-  font-size: var(--premium-fs-sm, 13px);
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.92);
-}
-
-.embed-mp-card__desc {
-  margin: 2px 0 0;
-  font-size: var(--premium-fs-micro, 11px);
-  color: var(--hos-text-secondary);
-  line-height: 1.45;
+  text-decoration: underline;
 }
 
 .embed-workspace__empty {

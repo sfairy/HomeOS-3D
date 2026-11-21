@@ -38,7 +38,6 @@ logger = logging.getLogger("homeos.api.system-config")
 
 #: ``UpdateSystemConfigDto`` 允许的分区键（其余键拒绝，等价 forbidNonWhitelisted）。
 _UPDATE_SECTIONS = (
-    "auth",
     "notification",
     "security",
     "water",

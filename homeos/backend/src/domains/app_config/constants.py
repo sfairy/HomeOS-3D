@@ -16,7 +16,12 @@ PUBLIC_CONFIG_SECTIONS: tuple[str, ...] = (
 
 #: 配置 schema 版本号，结构发生破坏性变更时递增。
 #: v18：下线天气背景特效（移除顶层 ``weatherEffects`` 分区）。
-APP_CONFIG_SCHEMA_VERSION = 18
+#: v19：清理无运行时消费者的死参数——移除 ``auth`` 分区、
+#:      ``voice.ttsFormat``、``wsPush.roomBatchEmit``、
+#:      ``ops.sceneExecHistoryMax`` / ``ops.scriptExecHistoryMax``；
+#:      并把 ``other.eventlogRetentionDays`` 迁移到 ``retention.eventLog``
+#:      （迁移在 ``import_normalize`` 中执行，旧备份仍可正常导入）。
+APP_CONFIG_SCHEMA_VERSION = 19
 
 #: 配置审计持久化 RuntimeKv id。
 CONFIG_AUDIT_STORAGE_ID = "config-audit"

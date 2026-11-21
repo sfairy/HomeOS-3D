@@ -237,7 +237,13 @@
             v-if="envRoomList.length"
             class="bind-energy-dock env-room-tabs rooms-catalog-tabs"
           >
-            <SettingsOrchTabs v-model="envRoomTab" :tabs="envRoomTabs" />
+            <SettingsOrchTabs
+              v-model="envRoomTab"
+              :tabs="envRoomTabs"
+              draggable
+              aria-label="房间"
+              @reorder="$emit('reorder-rooms', $event)"
+            />
           </div>
 
           <div
@@ -352,14 +358,16 @@ const roomSectionDescription = computed(() => `已配置 ${props.envRoomList.len
 // 快捷规则字段列表（人体传感器 / 灯光 / 空调等）
 const quickRuleFieldList = computed(() => Object.values(getQuickRuleFields()))
 
-// 房间目录描述：依据房间数与隐藏数生成不同提示文案
+// 房间目录描述：依据房间数与隐藏数生成不同提示文案。
+// 开了拖拽排序，提示要写清「怎么排」：鼠标直接拖、触屏长按后拖。
 const catalogDescription = computed(() => {
   const count = props.envRoomList.length
   if (!count) return '尚未同步 HA 区域'
+  const reorderHint = '拖动 Tab 调整顺序（触屏长按）'
   if (props.hiddenPresetCount) {
-    return `${count} 个房间 · ${props.hiddenPresetCount} 个已隐藏 · 选中 Tab 编辑显示名`
+    return `${count} 个房间 · ${props.hiddenPresetCount} 个已隐藏 · ${reorderHint} · 选中 Tab 编辑显示名`
   }
-  return `${count} 个房间 · 选中 Tab 编辑显示名，← → 快速切换`
+  return `${count} 个房间 · ${reorderHint} · 选中 Tab 编辑显示名`
 })
 
 // 当前激活房间的 emoji（取自 Tab 配置，缺失回退为 📍）
@@ -389,6 +397,8 @@ defineEmits([
   'remove-env-room',
   'export-env-csv',
   'env-csv-file',
+  // 拖拽 / 箭头调整房间顺序：{ fromIndex, toIndex }，由上层落库
+  'reorder-rooms',
 ])
 </script>
 

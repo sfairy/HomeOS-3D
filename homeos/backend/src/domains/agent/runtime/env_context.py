@@ -96,7 +96,7 @@ _CONDITION_ZH: dict[str, str] = {
 def _zone(timezone_name: str) -> ZoneInfo:
     try:
         return ZoneInfo(str(timezone_name or "").strip() or "UTC")
-    except (ZoneInfoNotFoundError, ValueError):
+    except (ZoneInfoNotFoundError, ValueError):  # fmt: skip - 括号不能省，Cython 会把 PEP 758 形式误解析
         logger.debug("家庭时区不可用，回退 UTC: %s", timezone_name)
         return ZoneInfo("UTC")
 

@@ -32,6 +32,12 @@ KIND_OFFLINE = "DEVICE_OFFLINE"
 KIND_RECOVERED = "DEVICE_RECOVERED"
 KIND_LOW_BATTERY = "LOW_BATTERY"
 KIND_CONNECTIVITY = "CONNECTIVITY"
+#: 意图门影子判定（shadow / enforce 都记，用于回放与灰度）
+KIND_INTENT = "INTENT_VERDICT"
+#: 执行实证结果（VERIFIED / ACCEPTED / 失败原因）
+KIND_EVIDENCE = "EVIDENCE"
+#: 学习体系（别名 / 区域默认 / 习惯候选 / 撤销 / 负经验）
+KIND_LEARNING = "LEARNING"
 
 
 def _state_of(value: Any) -> str:
@@ -132,7 +138,7 @@ class AgentDiagnosticsService:
             return
         try:
             level = float(battery)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError):  # fmt: skip
             logger.debug("电量字段不可解析，跳过: %s=%r", entity_id, battery)
             return
         if level > LOW_BATTERY_PERCENT:
@@ -179,6 +185,18 @@ class AgentDiagnosticsService:
         except Exception as exc:  # pragma: no cover - 日志失败绝不能影响状态分发
             logger.debug("写入诊断日志失败: %s (%s)", message, exc)
 
+    def record(
+        self,
+        kind: str,
+        message: str,
+        *,
+        level: str = "info",
+        context: dict[str, Any] | None = None,
+        entity_id: str = "",
+    ) -> None:
+        """公共记录入口：给意图门 / 实证 / 学习体系复用（``_write`` 是这个实现）。"""
+        self._write(level, message, {"kind": kind, **(context or {})}, entity_id=entity_id)
+
     # 查询
     def query(
         self,
@@ -204,7 +222,9 @@ class AgentDiagnosticsService:
                 level=level or None,
                 category=category or DIAG_CATEGORY,
                 search=search or None,
-                limit=None,
+                # kind 是 context 里的子类型，只能在取回后过滤；仍要给一个上界，
+                # 否则按分类全量解析会把整份日志读进内存（limit=None 即无上界）。
+                limit=max(500, capped * 10),
             )
         except Exception as exc:
             logger.warning("读取诊断日志失败: %s", exc)

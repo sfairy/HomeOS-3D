@@ -37,6 +37,9 @@ import {
   Cpu,
   Database,
   KeyRound,
+  ListChecks,
+  Music,
+  Speaker,
 } from '@lucide/vue'
 import {
   DEFAULT_TAB,
@@ -64,6 +67,7 @@ const TAB_ICONS: Record<string, Component> = {
   embeds: Globe,
   connection: Link2,
   rooms: MapPin,
+  'device-profiles': Speaker,
   bindings: Wifi,
   voice: Mic,
   agent: Bot,
@@ -85,6 +89,8 @@ const TAB_ICONS: Record<string, Component> = {
   devices: Cpu,
   retention: Database,
   network: Globe,
+  'automation-drafts': ListChecks,
+  media: Music,
   license: KeyRound,
 }
 

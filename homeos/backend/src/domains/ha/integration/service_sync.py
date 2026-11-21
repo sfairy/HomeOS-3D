@@ -85,7 +85,7 @@ class HASyncMixin(HAConnectorHost):
             for document_json in documents:
                 try:
                     document = json.loads(document_json)
-                except (TypeError, ValueError):
+                except (TypeError, ValueError):  # fmt: skip
                     continue
                 result.update(document_entity_ids(document))
             result.update(document_entity_ids(popup_document))
@@ -537,6 +537,8 @@ class HASyncMixin(HAConnectorHost):
                 database.add(record)
             record.name = str(area_entry.get("name") or area_id)
             record.aliases_json = json.dumps(area_entry.get("aliases") or [], ensure_ascii=False)
+            # 图标是 HA 侧的真源；本地只读同步，不回写（避免把同步结果当成用户编辑）。
+            record.icon = str(area_entry.get("icon") or "") or None
             record.sync_status = "active"
             record.last_seen_at = now
             record.missing_since = None

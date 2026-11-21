@@ -3,8 +3,8 @@
   "threshold": 800,
   "stats": {
     "homeos": {
-      "files": 74,
-      "lines": 111275,
+      "files": 76,
+      "lines": 113370,
       "gt1000": 51,
       "max": 4917
     },
@@ -17,24 +17,26 @@
   },
   "files": {
     "homeos/backend/src/api/assets.py": 922,
-    "homeos/backend/src/api/ha/routes.py": 1461,
-    "homeos/backend/src/bootstrap/lifespan.py": 1527,
-    "homeos/backend/src/domains/agent/runtime/fast_path.py": 998,
-    "homeos/backend/src/domains/agent/runtime/service.py": 1451,
+    "homeos/backend/src/api/ha/routes.py": 1661,
+    "homeos/backend/src/bootstrap/lifespan.py": 1624,
+    "homeos/backend/src/domains/agent/runtime/service.py": 1670,
+    "homeos/backend/src/domains/automation/drafts.py": 807,
     "homeos/backend/src/domains/awareness/advisor_usage.py": 944,
-    "homeos/backend/src/domains/backup/business_backup.py": 1091,
+    "homeos/backend/src/domains/backup/business_backup.py": 1116,
     "homeos/backend/src/domains/ha/integration/client.py": 997,
     "homeos/backend/src/domains/home_mode/actions.py": 1227,
     "homeos/backend/src/domains/home_mode/service.py": 848,
     "homeos/backend/src/domains/license/service.py": 1612,
+    "homeos/backend/src/domains/logs/event_log_report.py": 802,
+    "homeos/backend/src/domains/notification/service.py": 800,
     "homeos/backend/src/domains/security/panel_helpers.py": 1050,
     "homeos/backend/src/domains/state_store/entity_references.py": 1558,
     "homeos/backend/src/modules/interaction3d/api.py": 1604,
-    "homeos/backend/src/platform/core/db/models.py": 807,
+    "homeos/backend/src/platform/core/db/models.py": 831,
     "homeos/frontend/scripts/models/lib/geometry-ops.mjs": 871,
     "homeos/frontend/scripts/models/specs/spec-overrides.mjs": 1295,
     "homeos/frontend/src/components/shell/AgentCompanion.vue": 1233,
-    "homeos/frontend/src/features/settings/interact/SettingsAgentPanel.vue": 1166,
+    "homeos/frontend/src/features/settings/interact/SettingsAgentPanel.vue": 1268,
     "homeos/frontend/src/shared/energy/constants/energy-attr-maps.ts": 817,
     "homeos/frontend/src/studio/app/3d-studio/authoring/items/collection-item-catalog.ts": 847,
     "homeos/frontend/src/studio/app/3d-studio/authoring/items/item-catalog.ts": 2171,
@@ -89,6 +91,6 @@
     "homeos/frontend/src/studio/runtime/environment/environment-scene.ts": 829,
     "homeos/frontend/src/studio/runtime/presence/presence-editor.ts": 923,
     "homeos/frontend/src/studio/runtime/security/security-editor.ts": 2715,
-    "homeos/frontend/vite.config.ts": 1041
+    "homeos/frontend/vite.config.ts": 1058
   }
 }

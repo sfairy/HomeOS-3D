@@ -32,7 +32,6 @@ from .room_meta import (
     build_client_power_wake_public,
     build_energy_public_meta,
     build_public_room_meta,
-    resolve_orchestrator_history_limit,
     resolve_voice_rooms,
 )
 from .validate import (
@@ -363,15 +362,13 @@ class AppConfigService:
         ws_push = self._config.get("wsPush") or {}
         out["wsPush"] = {
             "coldEntityOnDemand": ws_push.get("coldEntityOnDemand"),
-            "roomBatchEmit": ws_push.get("roomBatchEmit"),
         }
         retention = self._config.get("retention") or {}
         ops = self._config.get("ops") or {}
         other = self._config.get("other") or {}
-        event_log_days = retention.get("eventLog", other.get("eventlogRetentionDays"))
+        event_log_days = retention.get("eventLog")
         out["eventLog"] = _build_event_log_public_meta(event_log_days, ops)
         out["energy"] = build_energy_public_meta((self._config.get("energy") or {}).get("learningPeriodDays"))
-        out["orchestrator"] = {"executionHistoryLimit": resolve_orchestrator_history_limit(ops)}
         security = self._config.get("security") or {}
         out["security"] = {
             "sensorAlertCooldownSec": security.get("sensorAlertCooldownSec"),

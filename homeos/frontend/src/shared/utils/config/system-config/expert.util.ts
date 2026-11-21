@@ -3,7 +3,7 @@
 /** 专家模式关闭时隐藏的分区（连接层 + 运维采样） */
 const EXPERT_ONLY_SECTIONS = new Set(['haConnector', 'stateStore', 'wsPush', 'commandProxy', 'webrtc', 'ops'])
 
-/** 专家模式关闭时隐藏的单字段（屏保像素级 / 前端性能细调） */
+/** 专家模式关闭时隐藏的单字段（屏保像素级 / 前端性能细调 / 内部缓存与 TTL） */
 const EXPERT_ONLY_FIELD_KEYS = new Set([
   'brandSizePx',
   'brandTopVh',
@@ -29,6 +29,16 @@ const EXPERT_ONLY_FIELD_KEYS = new Set([
   'optimisticTtlMs',
   'widgetPollIntervals',
   'apiRetryDelayMs',
+  // 内部缓存 / 轮询节奏 / 引擎 TTL：没有可感知的用户收益，只在排障时调
+  'configCacheTtlMs',
+  'haHistoryCacheMin',
+  'calendarSyncShortMin',
+  'calendarIncrementalEnabled',
+  'weatherAlertRefreshMs',
+  'manualLockTtlMin',
+  'linkageClaimTtlMin',
+  'maxTriggerLogs',
+  'maxExecHistory',
 ])
 
 import type { EditableConfigSection } from '@/shared/types/system-config-editor'

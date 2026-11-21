@@ -5,11 +5,14 @@
 
 from __future__ import annotations
 
+import logging
 import math
 from typing import Any
 
 from .constants import REBUILD_DEBOUNCE_MS_MAX, REBUILD_DEBOUNCE_MS_MIN
 from .defaults import DEFAULT_APP_CONFIG
+
+logger = logging.getLogger("homeos.app_config.import")
 
 _REBUILD_DEBOUNCE_DEFAULT = DEFAULT_APP_CONFIG["frontend"]["rebuildDebounceMs"]
 
@@ -31,23 +34,18 @@ def _normalize_rebuild_debounce_ms(frontend: dict[str, Any], changes: list[str])
     raw = frontend["rebuildDebounceMs"]
     if raw is None or raw == "":
         frontend["rebuildDebounceMs"] = _REBUILD_DEBOUNCE_DEFAULT
-        changes.append(
-            f"frontend.rebuildDebounceMs: 无效值 {raw!r} → {_REBUILD_DEBOUNCE_DEFAULT}"
-        )
+        changes.append(f"frontend.rebuildDebounceMs: 无效值 {raw!r} → {_REBUILD_DEBOUNCE_DEFAULT}")
         return
     try:
         n = float(raw)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError) as exc:
+        logger.debug("rebuildDebounceMs 不是数字，回退默认值 %s: %r (%s)", _REBUILD_DEBOUNCE_DEFAULT, raw, exc)
         frontend["rebuildDebounceMs"] = _REBUILD_DEBOUNCE_DEFAULT
-        changes.append(
-            f"frontend.rebuildDebounceMs: 无效值 {raw!r} → {_REBUILD_DEBOUNCE_DEFAULT}"
-        )
+        changes.append(f"frontend.rebuildDebounceMs: 无效值 {raw!r} → {_REBUILD_DEBOUNCE_DEFAULT}")
         return
     if math.isnan(n):
         frontend["rebuildDebounceMs"] = _REBUILD_DEBOUNCE_DEFAULT
-        changes.append(
-            f"frontend.rebuildDebounceMs: 无效值 {raw!r} → {_REBUILD_DEBOUNCE_DEFAULT}"
-        )
+        changes.append(f"frontend.rebuildDebounceMs: 无效值 {raw!r} → {_REBUILD_DEBOUNCE_DEFAULT}")
         return
     if n < REBUILD_DEBOUNCE_MS_MIN or n > REBUILD_DEBOUNCE_MS_MAX:
         clamped = int(min(REBUILD_DEBOUNCE_MS_MAX, max(REBUILD_DEBOUNCE_MS_MIN, n)))
@@ -58,10 +56,47 @@ def _normalize_rebuild_debounce_ms(frontend: dict[str, Any], changes: list[str])
         )
 
 
+def _migrate_legacy_event_log_retention(config: dict[str, Any], changes: list[str]) -> None:
+    """``other.eventlogRetentionDays`` → ``retention.eventLog``（v19 迁移）。
+
+    保留天数一度有两个入口：``other`` 分区的驼峰键（旧）和 ``retention`` 分区的
+    表键（新）。两处并存时「改了不会生效」——``retention.eventLog`` 优先，
+    而它由「数据保留」页写入，高级参数里的那个键长期是个死旋钮。
+
+    ``retention.eventLog`` 已有合法值时直接丢弃旧键；否则把旧值搬过去。
+    """
+    other = config.get("other")
+    if not isinstance(other, dict) or "eventlogRetentionDays" not in other:
+        return
+    legacy = other.pop("eventlogRetentionDays")
+    try:
+        days = int(float(legacy))
+    except (TypeError, ValueError) as exc:
+        logger.debug("eventlogRetentionDays 不是数字，丢弃旧键: %r (%s)", legacy, exc)
+        changes.append(f"other.eventlogRetentionDays: 无效值 {legacy!r} → 已丢弃")
+        return
+    retention = config.get("retention")
+    if not isinstance(retention, dict):
+        retention = {}
+        config["retention"] = retention
+    current = retention.get("eventLog")
+    try:
+        current_days = int(float(current)) if current is not None else 0
+    except (TypeError, ValueError) as exc:
+        logger.debug("retention.eventLog 不是数字，按未设置处理: %r (%s)", current, exc)
+        current_days = 0
+    if current_days > 0:
+        changes.append(f"other.eventlogRetentionDays: 已移除（{days} 天），沿用 retention.eventLog={current_days}")
+        return
+    retention["eventLog"] = days
+    changes.append(f"other.eventlogRetentionDays: 已迁移到 retention.eventLog={days}")
+
+
 def normalize_app_config_for_import(config: dict[str, Any]) -> dict[str, Any]:
     """备份/导入前规范化运行参数；返回 ``{"config", "changes"}``（原地修改 config）。"""
     changes: list[str] = []
     _strip_unknown_sections(config, changes)
+    _migrate_legacy_event_log_retention(config, changes)
     frontend = config.get("frontend")
     if isinstance(frontend, dict):
         _normalize_rebuild_debounce_ms(frontend, changes)

@@ -54,6 +54,10 @@ class RetryableUpstreamError(Exception):
         self.detail = detail
 
 
+class _StreamOptionsRejected(Exception):
+    """上游不认识 ``stream_options``（OpenAI 扩展字段）——去掉它重发一次即可。"""
+
+
 def safe_parse(raw: str | None) -> dict[str, Any]:
     """容错解析 LLM 返回的 tool_call arguments 字符串。
 
@@ -61,7 +65,7 @@ def safe_parse(raw: str | None) -> dict[str, Any]:
     """
     try:
         parsed = json.loads(raw or "{}")
-    except (ValueError, TypeError):
+    except (ValueError, TypeError):  # fmt: skip - 括号不能省，Cython 会把 PEP 758 形式误解析
         return {}
     return parsed if isinstance(parsed, dict) else {}
 
@@ -183,29 +187,9 @@ class DeepseekLlmProvider(LlmProvider):
         if not self.is_ready():
             raise BusinessException(ErrorCode.CONFIG_ERROR, api_error("AGENT_LLM_NOT_CONFIGURED"))
 
-        openai_tools = _to_openai_tools(tools)
-        payload: dict[str, Any] = {
-            "model": self.model_name,
-            "messages": _to_openai_messages(messages),
-        }
-        if openai_tools:
-            payload["tools"] = openai_tools
-            payload["tool_choice"] = "auto"
-        payload["temperature"] = 0.3
         streaming = bool(opts and opts.on_token)
-        payload["stream"] = streaming
-
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_key}",
-        }
+        payload, headers, timeout = self._build_request(messages, tools, streaming)
         on_token = opts.on_token if opts else None
-        timeout = httpx.Timeout(
-            connect=LLM_CONNECT_TIMEOUT,
-            read=LLM_READ_TIMEOUT,
-            write=LLM_WRITE_TIMEOUT,
-            pool=LLM_POOL_TIMEOUT,
-        )
 
         for attempt in range(LLM_MAX_RETRIES + 1):
             # 流式重试保护：已经吐出的 token 无法回滚，重试会重复播报。
@@ -227,9 +211,7 @@ class DeepseekLlmProvider(LlmProvider):
                         exc.detail or api_error("AGENT_LLM_UPSTREAM_ERROR", "unknown", ""),
                     ) from exc
                 delay = LLM_RETRY_BACKOFF_SECONDS * (attempt + 1)
-                logger.warning(
-                    "LLM 上游异常(第%s次),%s 秒后重试: %s", attempt + 1, delay, exc.detail
-                )
+                logger.warning("LLM 上游异常(第%s次),%s 秒后重试: %s", attempt + 1, delay, exc.detail)
                 await asyncio.sleep(delay)
             except httpx.TimeoutException as exc:
                 # _request 已把 httpx 异常转换为 RetryableUpstreamError，这里仅兜底
@@ -241,9 +223,45 @@ class DeepseekLlmProvider(LlmProvider):
                 await asyncio.sleep(LLM_RETRY_BACKOFF_SECONDS * (attempt + 1))
 
         # 理论不可达：循环内要么 return，要么抛错
-        raise BusinessException(
-            ErrorCode.EXTERNAL_ERROR, api_error("AGENT_LLM_UPSTREAM_ERROR", "unknown", "")
+        raise BusinessException(ErrorCode.EXTERNAL_ERROR, api_error("AGENT_LLM_UPSTREAM_ERROR", "unknown", ""))
+
+    def _build_request(
+        self,
+        messages: list[LlmMessage],
+        tools: list[LlmToolSchema],
+        streaming: bool,
+    ) -> tuple[dict[str, Any], dict[str, str], httpx.Timeout]:
+        """组装上游请求：payload / 请求头 / 超时。
+
+        单独成方法是为了让 ``chat`` 的循环只关心「发一次 + 失败怎么退避」，而不是
+        混着字段拼装 —— 两者各自都不长，合起来会让重试逻辑难以一眼看清。
+        """
+        payload: dict[str, Any] = {
+            "model": self.model_name,
+            "messages": _to_openai_messages(messages),
+        }
+        openai_tools = _to_openai_tools(tools)
+        if openai_tools:
+            payload["tools"] = openai_tools
+            payload["tool_choice"] = "auto"
+        payload["temperature"] = 0.3
+        payload["stream"] = streaming
+        if streaming:
+            # OpenAI 兼容协议里，流式响应默认不带 usage；不显式要求 include_usage 时，
+            # 上游最后一个 chunk 只有 finish_reason，token 计数与费用会全部记成 0，
+            # 日预算 / 设置页「今日用量」随之失效（SSE 是主对话链路，影响面最大）。
+            payload["stream_options"] = {"include_usage": True}
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.api_key}",
+        }
+        timeout = httpx.Timeout(
+            connect=LLM_CONNECT_TIMEOUT,
+            read=LLM_READ_TIMEOUT,
+            write=LLM_WRITE_TIMEOUT,
+            pool=LLM_POOL_TIMEOUT,
         )
+        return payload, headers, timeout
 
     async def _request(
         self,
@@ -258,38 +276,58 @@ class DeepseekLlmProvider(LlmProvider):
         - 网络层异常（超时 / 连接失败）→ RetryableUpstreamError
         - 408 / 429 / 5xx → RetryableUpstreamError
         - 其余 >=400 → BusinessException（不可重试）
+
+        ``stream_options`` 是 OpenAI 的扩展字段：极少数兼容实现会直接 400。
+        这里识别该字段被拒的情况后去掉它重发一次 —— 拿不到 usage 总比整轮对话失败好。
         """
+        try:
+            return await self._send_once(payload, headers, timeout, streaming, on_token)
+        except _StreamOptionsRejected:
+            logger.info("上游不接受 stream_options，已去掉后重试（本轮无 usage）")
+            fallback = {key: value for key, value in payload.items() if key != "stream_options"}
+            return await self._send_once(fallback, headers, timeout, streaming, on_token)
+
+    async def _send_once(
+        self,
+        payload: dict[str, Any],
+        headers: dict[str, str],
+        timeout: httpx.Timeout,
+        streaming: bool,
+        on_token: Any,
+    ) -> LlmChatResult:
+        """真正发一次请求；仅把「stream_options 不被接受」单独分类，其余照旧。"""
         url = f"{self.base_url}/chat/completions"
         # 复用进程级连接池；超时按请求传入，保持每个调用方各自的超时语义。
         client = shared_http_client()
         try:
             if streaming:
-                async with client.stream(
-                    "POST", url, headers=headers, json=payload, timeout=timeout
-                ) as resp:
+                async with client.stream("POST", url, headers=headers, json=payload, timeout=timeout) as resp:
                     if resp.status_code >= 400:
                         text = (await resp.aread()).decode(errors="replace")
-                        raise self._upstream_error(resp.status_code, text[:300])
+                        self._raise_upstream(resp.status_code, text, payload)
                     return await self._consume_chat_stream(resp, on_token)
 
             resp = await client.post(url, headers=headers, json=payload, timeout=timeout)
         except httpx.TimeoutException as exc:
-            raise RetryableUpstreamError(
-                api_error("AGENT_LLM_UPSTREAM_ERROR", "timeout", str(exc) or "")
-            ) from exc
+            raise RetryableUpstreamError(api_error("AGENT_LLM_UPSTREAM_ERROR", "timeout", str(exc) or "")) from exc
         except httpx.TransportError as exc:
-            raise RetryableUpstreamError(
-                api_error("AGENT_LLM_UPSTREAM_ERROR", "network", str(exc) or "")
-            ) from exc
+            raise RetryableUpstreamError(api_error("AGENT_LLM_UPSTREAM_ERROR", "network", str(exc) or "")) from exc
         if resp.status_code >= 400:
             # 对齐 Nest：截断上游错误正文，避免超长 message 污染响应
-            raise self._upstream_error(resp.status_code, resp.text[:300])
+            self._raise_upstream(resp.status_code, resp.text, payload)
         try:
             data = resp.json()
         except ValueError:
             data = None
 
         return self._parse_completion(data)
+
+    @staticmethod
+    def _raise_upstream(status_code: int, text: str, payload: dict[str, Any]) -> None:
+        """按状态码抛错；stream_options 被 4xx 拒绝时抛专用异常供上层重试。"""
+        if status_code in (400, 422) and "stream_options" in payload and "stream_options" in str(text or "").lower():
+            raise _StreamOptionsRejected()
+        raise DeepseekLlmProvider._upstream_error(status_code, str(text or "")[:300])
 
     @staticmethod
     def _upstream_error(status_code: int, detail: str) -> Exception:

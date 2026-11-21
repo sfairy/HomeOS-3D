@@ -46,12 +46,26 @@ from ...domains.license import features as feature_codes
 from ...domains.logs.global_log import event_context
 from ...platform.core.db.database import Database
 from ...platform.core.db.db_exec import run_db
-from ...platform.core.db.models import HAArea, HAConnection, HADevice, HAEntity, HASyncState, LoginSession, User
+from ...platform.core.db.models import (
+    HAArea,
+    HAAreaEntityOrder,
+    HAConnection,
+    HADevice,
+    HAEntity,
+    HASyncState,
+    LoginSession,
+    User,
+)
 from ...platform.core.runtime.observability import record_ha_counter
 from ...platform.security.request_origin import browser_origin_allowed
 from ...platform.security.session_store import session_token_hash
 from ...platform.security.viewer_scope import require_viewer_entity
 from ...schemas import (
+    HAAreaCreateRequest,
+    HAAreaEntitiesRequest,
+    HAAreaEntitySortRequest,
+    HAAreaSortRequest,
+    HAAreaUpdateRequest,
     HABrowseMediaRequest,
     HAConnectionInput,
     HAServiceCallRequest,
@@ -60,8 +74,8 @@ from ...schemas import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix='/ha', tags=['home-assistant'])
-runtime_router = APIRouter(tags=['runtime'])
+router = APIRouter(prefix="/ha", tags=["home-assistant"])
+runtime_router = APIRouter(tags=["runtime"])
 MAX_RUNTIME_ENTITIES = 1000
 # 实时连接的授权复检间隔（秒）：连接建立后授权仍可能到期或被吊销，
 # 长连必须周期性回看，否则一份过期授权可以靠一条已建立的连接无限用下去。
@@ -74,11 +88,11 @@ RUNTIME_DRAIN_PROBE_SECONDS = min(0.002, RUNTIME_STATE_BATCH_WINDOW_SECONDS)
 
 def _runtime_access_cache_seconds(websocket: WebSocket) -> float:
     """实时连接出站帧复用授权复检结果的秒数；非法值回落到默认 30 秒。"""
-    settings = getattr(websocket.app.state, 'settings', None)
-    value = getattr(settings, 'runtime_access_cache_seconds', DEFAULT_RUNTIME_ACCESS_CACHE_SECONDS)
+    settings = getattr(websocket.app.state, "settings", None)
+    value = getattr(settings, "runtime_access_cache_seconds", DEFAULT_RUNTIME_ACCESS_CACHE_SECONDS)
     try:
         seconds = float(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError):  # fmt: skip
         return DEFAULT_RUNTIME_ACCESS_CACHE_SECONDS
     return seconds if seconds >= 0 else DEFAULT_RUNTIME_ACCESS_CACHE_SECONDS
 
@@ -94,7 +108,7 @@ def load_translation_context(database_manager: Database) -> tuple[HAConnection |
                 select(HAEntity.platform)
                 .where(
                     HAEntity.connection_id == connection.id,
-                    HAEntity.sync_status == 'active',
+                    HAEntity.sync_status == "active",
                     HAEntity.platform.is_not(None),
                     HAEntity.translation_key.is_not(None),
                 )
@@ -135,50 +149,51 @@ def connection_payload(connection: HAConnection | None, request: Request) -> dic
     live_error = None if connector.connected else connector.runtime_error
     if connection is None:
         return {
-            'configured': False,
-            'hasToken': False,
-            'connected': False,
-            'baseUrl': '',
-            'externalBaseUrl': None,
-            'activeEndpoint': None,
-            'activeBaseUrl': None,
-            'name': 'Home Assistant',
-            'verifyTls': True,
-            'externalVerifyTls': True,
-            'version': None,
-            'lastConnectedAt': None,
-            'lastError': connection_error_message(live_error),
+            "configured": False,
+            "hasToken": False,
+            "connected": False,
+            "baseUrl": "",
+            "externalBaseUrl": None,
+            "activeEndpoint": None,
+            "activeBaseUrl": None,
+            "name": "Home Assistant",
+            "verifyTls": True,
+            "externalVerifyTls": True,
+            "version": None,
+            "lastConnectedAt": None,
+            "lastError": connection_error_message(live_error),
         }
     return {
-        'configured': True,
-        'hasToken': bool(connection.encrypted_access_token),
-        'connected': connector.connected,
-        'baseUrl': connection.base_url,
-        'externalBaseUrl': connection.external_base_url,
-        'activeEndpoint': connector.endpoint_kind or connection.active_endpoint,
-        'activeBaseUrl': connector.active_base_url or connection.base_url,
-        'name': connection.name,
-        'verifyTls': connection.verify_tls,
-        'externalVerifyTls': connection.external_verify_tls,
-        'version': connection.ha_version,
-        'lastConnectedAt': connection.last_connected_at,
-        'lastError': None if connector.connected else connection_error_message(live_error or connection.last_error),
+        "configured": True,
+        "hasToken": bool(connection.encrypted_access_token),
+        "connected": connector.connected,
+        "baseUrl": connection.base_url,
+        "externalBaseUrl": connection.external_base_url,
+        "activeEndpoint": connector.endpoint_kind or connection.active_endpoint,
+        "activeBaseUrl": connector.active_base_url or connection.base_url,
+        "name": connection.name,
+        "verifyTls": connection.verify_tls,
+        "externalVerifyTls": connection.external_verify_tls,
+        "version": connection.ha_version,
+        "lastConnectedAt": connection.last_connected_at,
+        "lastError": None if connector.connected else connection_error_message(live_error or connection.last_error),
     }
 
 
-@router.get('/connection')
+@router.get("/connection")
 def get_connection(request: Request, database: DatabaseSession, _user: LicensedUser) -> dict[str, Any]:
     return connection_payload(active_connection(database), request)
 
 
-@router.delete('/connection', status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/connection", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_connection(request: Request, database: DatabaseSession, _user: LicensedUser) -> None:
     connection = active_connection(database)
     if connection is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Home Assistant 连接不存在。')
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Home Assistant 连接不存在。")
     connector = request.app.state.studio_ha
     await connector.stop()
     try:
+
         def _delete_connection_row() -> None:
             database.delete(connection)
             database.commit()
@@ -192,10 +207,12 @@ async def delete_connection(request: Request, database: DatabaseSession, _user: 
         raise
     finally:
         await connector.restart()
-    await request.app.state.global_log.append_async('warning', 'Home Assistant', '连接', 'Home Assistant 连接配置已删除')
+    await request.app.state.global_log.append_async(
+        "warning", "Home Assistant", "连接", "Home Assistant 连接配置已删除"
+    )
 
 
-@router.post('/test')
+@router.post("/test")
 async def test_connection(
     command: HATestRequest,
     request: Request,
@@ -205,25 +222,21 @@ async def test_connection(
     connection = active_connection(database)
     try:
         token = command.access_token or (
-            request.app.state.studio_ha.cipher.decrypt(connection.encrypted_access_token)
-            if connection
-            else None
+            request.app.state.studio_ha.cipher.decrypt(connection.encrypted_access_token) if connection else None
         )
         if not token:
-            raise HAClientError('首次连接必须输入 Home Assistant 访问令牌。')
+            raise HAClientError("首次连接必须输入 Home Assistant 访问令牌。")
         # 与「保存连接」走同一个开关推导：未显式提交就沿用已保存值，
         # 避免测试连接和保存后的实际连接用两套 TLS 口径。
         verify_tls, external_verify_tls = _connection_verify_flags(command, connection)
         endpoints = endpoint_candidates(command.base_url, verify_tls, command.external_base_url, external_verify_tls)
-        results = await probe_endpoints(
-            endpoints, token, request.app.state.settings.ha_request_timeout_seconds
-        )
+        results = await probe_endpoints(endpoints, token, request.app.state.settings.ha_request_timeout_seconds)
     except (HAClientError, CredentialCipherError) as error:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=connection_error_message(error),
         ) from error
-    reachable = [item for item in results if item['ok']]
+    reachable = [item for item in results if item["ok"]]
     if not reachable:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -231,11 +244,11 @@ async def test_connection(
         )
     primary = reachable[0]
     return {
-        'ok': True,
-        'endpoints': results,
-        'baseUrl': primary['baseUrl'],
-        'version': primary.get('version'),
-        'locationName': primary.get('locationName'),
+        "ok": True,
+        "endpoints": results,
+        "baseUrl": primary["baseUrl"],
+        "version": primary.get("version"),
+        "locationName": primary.get("locationName"),
     }
 
 
@@ -248,18 +261,16 @@ class _ConnectionTargets:
     tested: dict[str, Any]
 
 
-def _connection_verify_flags(
-    connection_input: HAConnectionInput, connection: HAConnection | None
-) -> tuple[bool, bool]:
+def _connection_verify_flags(connection_input: HAConnectionInput, connection: HAConnection | None) -> tuple[bool, bool]:
     """未显式提交时沿用已保存的 TLS 校验开关。"""
     verify_tls = (
         connection.verify_tls
-        if connection and 'verify_tls' not in connection_input.model_fields_set
+        if connection and "verify_tls" not in connection_input.model_fields_set
         else connection_input.verify_tls
     )
     external_verify_tls = (
         connection.external_verify_tls
-        if connection and 'external_verify_tls' not in connection_input.model_fields_set
+        if connection and "external_verify_tls" not in connection_input.model_fields_set
         else connection_input.external_verify_tls
     )
     return verify_tls, external_verify_tls
@@ -278,14 +289,14 @@ def _connection_access_token(
     if connection is None:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail='首次连接必须输入 Home Assistant 访问令牌。',
+            detail="首次连接必须输入 Home Assistant 访问令牌。",
         )
     if new_addresses != previous_addresses and not connection_input.reuse_token_for_new_url:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={
-                'code': 'HA_URL_CHANGED_TOKEN_REUSE',
-                'message': '地址已变更：复用已保存的 Home Assistant 令牌前请确认新地址可信（确认后重发 reuseTokenForNewUrl=true，或直接重新输入令牌）。',
+                "code": "HA_URL_CHANGED_TOKEN_REUSE",
+                "message": "地址已变更：复用已保存的 Home Assistant 令牌前请确认新地址可信（确认后重发 reuseTokenForNewUrl=true，或直接重新输入令牌）。",
             },
         )
     try:
@@ -302,9 +313,7 @@ async def _probe_connection_endpoints(
 ) -> list[dict[str, Any]]:
     """探测候选端点；连接层异常按原样转 422。"""
     try:
-        return await probe_endpoints(
-            endpoints, token, request.app.state.settings.ha_request_timeout_seconds
-        )
+        return await probe_endpoints(endpoints, token, request.app.state.settings.ha_request_timeout_seconds)
     except HAClientError as error:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -316,20 +325,21 @@ def _resolved_connection_targets(
     test_results: list[dict[str, Any]], connection_input: HAConnectionInput
 ) -> _ConnectionTargets:
     """从探测结果里取主端点、最终内网 / 外网地址与版本摘要。"""
-    reachable = [probe_entry for probe_entry in test_results if probe_entry['ok']]
+    reachable = [probe_entry for probe_entry in test_results if probe_entry["ok"]]
     if not reachable:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=failed_endpoint_summary(test_results))
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=failed_endpoint_summary(test_results)
+        )
     primary = reachable[0]
     resolved_internal = next(
-        (probe_entry['baseUrl'] for probe_entry in test_results if probe_entry['kind'] == 'internal'),
+        (probe_entry["baseUrl"] for probe_entry in test_results if probe_entry["kind"] == "internal"),
         connection_input.base_url,
     )
     resolved_external = next(
-        (probe_entry['baseUrl'] for probe_entry in test_results if probe_entry['kind'] == 'external'),
+        (probe_entry["baseUrl"] for probe_entry in test_results if probe_entry["kind"] == "external"),
         None,
     )
-    tested = {'version': primary.get('version'), 'locationName': primary.get('locationName')}
+    tested = {"version": primary.get("version"), "locationName": primary.get("locationName")}
     return _ConnectionTargets(internal=resolved_internal, external=resolved_external, tested=tested)
 
 
@@ -349,7 +359,7 @@ def _create_connection_row(
         encrypted_access_token=connector.cipher.encrypt(token),
         verify_tls=verify_tls,
         external_verify_tls=external_verify_tls,
-        ha_version=targets.tested.get('version'),
+        ha_version=targets.tested.get("version"),
     )
 
 
@@ -367,7 +377,7 @@ def _update_connection_row(
     connection.external_base_url = targets.external
     connection.verify_tls = verify_tls
     connection.external_verify_tls = external_verify_tls
-    connection.ha_version = targets.tested.get('version')
+    connection.ha_version = targets.tested.get("version")
     connection.last_error = None
     connection.active_endpoint = None
     if connection_input.access_token:
@@ -386,12 +396,12 @@ async def _log_connection_address_change(
     previous_label = addresses_label(*previous_addresses)
     current_label = addresses_label(connection.base_url, connection.external_base_url)
     await request.app.state.global_log.append_async(
-        'warning',
-        'Home Assistant',
-        '连接',
-        f'Home Assistant 地址已变更：{previous_label} → {current_label}（令牌已复用，请确认新地址可信）'
+        "warning",
+        "Home Assistant",
+        "连接",
+        f"Home Assistant 地址已变更：{previous_label} → {current_label}（令牌已复用，请确认新地址可信）"
         if not connection_input.access_token
-        else f'Home Assistant 地址已变更：{previous_label} → {current_label}（同时更新了令牌）',
+        else f"Home Assistant 地址已变更：{previous_label} → {current_label}（同时更新了令牌）",
     )
 
 
@@ -399,22 +409,22 @@ async def _log_connection_endpoint_warnings(
     request: Request, test_results: list[dict[str, Any]], connection: HAConnection
 ) -> None:
     """保存成功后记录不可达备用地址与整体成功日志。"""
-    if [probe_entry for probe_entry in test_results if not probe_entry['ok']]:
+    if [probe_entry for probe_entry in test_results if not probe_entry["ok"]]:
         await request.app.state.global_log.append_async(
-            'warning',
-            'Home Assistant',
-            '连接',
-            f'Home Assistant 连接已保存，但以下地址当前不通（将作为备用，不通时自动跳过）：{failed_endpoint_summary(test_results)}',
+            "warning",
+            "Home Assistant",
+            "连接",
+            f"Home Assistant 连接已保存，但以下地址当前不通（将作为备用，不通时自动跳过）：{failed_endpoint_summary(test_results)}",
         )
     await request.app.state.global_log.append_async(
-        'success',
-        'Home Assistant',
-        '连接',
-        f'Home Assistant 连接配置已保存（{connection.name}，版本 {connection.ha_version or "未知"}）',
+        "success",
+        "Home Assistant",
+        "连接",
+        f"Home Assistant 连接配置已保存（{connection.name}，版本 {connection.ha_version or '未知'}）",
     )
 
 
-@router.put('/connection')
+@router.put("/connection")
 async def save_connection(
     command: HAConnectionInput,
     request: Request,
@@ -422,18 +432,17 @@ async def save_connection(
     _user: LicensedUser,
 ) -> dict[str, Any]:
     if not request.app.state.license_service.allows(feature_codes.FEATURE_HA_CONFIGURE):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许配置 Home Assistant。')
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="当前授权不允许配置 Home Assistant。")
     connector = request.app.state.studio_ha
     connection = active_connection(database)
     verify_tls, external_verify_tls = _connection_verify_flags(command, connection)
     endpoints = endpoint_candidates(command.base_url, verify_tls, command.external_base_url, external_verify_tls)
     new_addresses = (command.base_url, command.external_base_url)
-    previous_addresses = (
-        (connection.base_url, connection.external_base_url) if connection is not None else None
-    )
+    previous_addresses = (connection.base_url, connection.external_base_url) if connection is not None else None
     token = _connection_access_token(command, connection, connector, new_addresses, previous_addresses)
     test_results = await _probe_connection_endpoints(request, endpoints, token)
     targets = _resolved_connection_targets(test_results, command)
+
     def _persist_connection() -> HAConnection:
         row = connection
         if row is None:
@@ -449,31 +458,31 @@ async def save_connection(
     await connector.restart()
     await _log_connection_address_change(request, command, previous_addresses, connection)
     await _log_connection_endpoint_warnings(request, test_results, connection)
-    return {**connection_payload(connection, request), 'test': targets.tested, 'endpoints': test_results}
+    return {**connection_payload(connection, request), "test": targets.tested, "endpoints": test_results}
 
 
-@router.get('/entities')
+@router.get("/entities")
 def list_entities(
     database: DatabaseSession,
     viewer: LicensedViewer,
     search: str | None = Query(None, max_length=128),
     domain: str | None = Query(None, max_length=64),
-    area_id: str | None = Query(None, alias='areaId', max_length=255),
-    sync_status: str | None = Query(None, alias='status', max_length=32),
+    area_id: str | None = Query(None, alias="areaId", max_length=255),
+    sync_status: str | None = Query(None, alias="status", max_length=32),
     limit: int = Query(200, ge=1, le=500),
     offset: int = Query(0, ge=0),
 ) -> dict[str, Any]:
     connection = active_connection(database)
     if connection is None:
-        return {'items': [], 'total': 0, 'limit': limit, 'offset': offset}
+        return {"items": [], "total": 0, "limit": limit, "offset": offset}
     filters = [HAEntity.connection_id == connection.id]
     allowed_entity_ids = viewer_entity_ids(database, viewer)
     if allowed_entity_ids is not None:
         if not allowed_entity_ids:
-            return {'items': [], 'total': 0, 'limit': limit, 'offset': offset}
+            return {"items": [], "total": 0, "limit": limit, "offset": offset}
         filters.append(HAEntity.entity_id.in_(allowed_entity_ids))
     if search:
-        pattern = f'%{search.strip()}%'
+        pattern = f"%{search.strip()}%"
         filters.append(or_(HAEntity.entity_id.ilike(pattern), HAEntity.name.ilike(pattern)))
     if domain:
         filters.append(HAEntity.domain == domain)
@@ -481,43 +490,54 @@ def list_entities(
         filters.append(HAEntity.area_id == area_id)
     if sync_status:
         filters.append(HAEntity.sync_status == sync_status)
-    rows = (
-        database.execute(
-            select(HAEntity, func.count().over().label('total_count'))
-            .where(*filters)
-            .order_by(HAEntity.domain, HAEntity.entity_id)
-            .offset(offset)
-            .limit(limit)
-        ).all()
-    )
+    query = select(HAEntity, func.count().over().label("total_count")).where(*filters)
+    if area_id:
+        # 房间内按本地顺序覆盖排序；没有覆盖的实体排在后面（再按域 + 实体名）。
+        # 用子查询而不是整表 join：只取当前房间的行，避免大户型下 join 全表。
+        order_sub = (
+            select(HAAreaEntityOrder.entity_id, HAAreaEntityOrder.sort_order)            .where(HAAreaEntityOrder.connection_id == connection.id, HAAreaEntityOrder.area_id == area_id)
+            .subquery()
+        )
+        query = query.outerjoin(order_sub, order_sub.c.entity_id == HAEntity.entity_id).order_by(
+            func.coalesce(order_sub.c.sort_order, 1_000_000),
+            HAEntity.domain,
+            HAEntity.entity_id,
+        )
+    else:
+        query = query.order_by(HAEntity.domain, HAEntity.entity_id)
+    rows = database.execute(query.offset(offset).limit(limit)).all()
     items = [row[0] for row in rows]
-    total = int(rows[0][1]) if rows else int(database.scalar(select(func.count()).select_from(HAEntity).where(*filters)) or 0)
+    total = (
+        int(rows[0][1])
+        if rows
+        else int(database.scalar(select(func.count()).select_from(HAEntity).where(*filters)) or 0)
+    )
     return {
-        'items': [
+        "items": [
             {
-                'entityId': item.entity_id,
-                'domain': item.domain,
-                'name': item.name,
-                'icon': item.icon,
-                'deviceId': item.device_id,
-                'areaId': item.area_id,
-                'platform': item.platform,
-                'translationKey': item.translation_key,
-                'hasEntityName': item.has_entity_name,
-                'uniqueId': item.unique_id,
-                'originalName': item.original_name,
-                'displayPrecision': item.display_precision,
-                'suggestedDisplayPrecision': item.suggested_display_precision,
-                'disabledBy': item.disabled_by,
-                'status': item.sync_status,
-                'lastSeenAt': item.last_seen_at,
-                'missingSince': item.missing_since,
+                "entityId": item.entity_id,
+                "domain": item.domain,
+                "name": item.name,
+                "icon": item.icon,
+                "deviceId": item.device_id,
+                "areaId": item.area_id,
+                "platform": item.platform,
+                "translationKey": item.translation_key,
+                "hasEntityName": item.has_entity_name,
+                "uniqueId": item.unique_id,
+                "originalName": item.original_name,
+                "displayPrecision": item.display_precision,
+                "suggestedDisplayPrecision": item.suggested_display_precision,
+                "disabledBy": item.disabled_by,
+                "status": item.sync_status,
+                "lastSeenAt": item.last_seen_at,
+                "missingSince": item.missing_since,
             }
             for item in items
         ],
-        'total': total,
-        'limit': limit,
-        'offset': offset,
+        "total": total,
+        "limit": limit,
+        "offset": offset,
     }
 
 
@@ -580,7 +600,7 @@ async def _source_states(request: Request, connection: Any) -> list[dict[str, An
         raise HTTPException(status_code=502, detail=str(error)) from error
 
 
-@router.get('/percentage-sources')
+@router.get("/percentage-sources")
 async def list_percentage_sources(
     request: Request,
     database: DatabaseSession,
@@ -588,23 +608,23 @@ async def list_percentage_sources(
 ) -> dict[str, Any]:
     connection = await asyncio.to_thread(active_connection, database)
     if connection is None:
-        return {'items': []}
+        return {"items": []}
     allowed_ids = await run_db(
         lambda: set(
             database.scalars(
                 select(HAEntity.entity_id).where(
                     HAEntity.connection_id == connection.id,
-                    HAEntity.sync_status != 'missing',
+                    HAEntity.sync_status != "missing",
                     HAEntity.disabled_by.is_(None),
                 )
             ).all()
         )
     )
     states = await _source_states(request, connection)
-    return {'items': percentage_sources(states, allowed_ids)}
+    return {"items": percentage_sources(states, allowed_ids)}
 
 
-@router.get('/numeric-sources')
+@router.get("/numeric-sources")
 async def list_numeric_sources(
     request: Request,
     database: DatabaseSession,
@@ -612,30 +632,30 @@ async def list_numeric_sources(
 ) -> dict[str, Any]:
     connection = await asyncio.to_thread(active_connection, database)
     if connection is None:
-        return {'items': []}
+        return {"items": []}
     allowed_ids = await run_db(
         lambda: set(
             database.scalars(
                 select(HAEntity.entity_id).where(
                     HAEntity.connection_id == connection.id,
-                    HAEntity.sync_status.notin_(['missing', 'disabled']),
+                    HAEntity.sync_status.notin_(["missing", "disabled"]),
                     HAEntity.disabled_by.is_(None),
-                    HAEntity.domain.in_(['sensor', 'number', 'input_number']),
+                    HAEntity.domain.in_(["sensor", "number", "input_number"]),
                 )
             ).all()
         )
     )
     states = await _source_states(request, connection)
-    return {'items': numeric_sources(states, allowed_ids)}
+    return {"items": numeric_sources(states, allowed_ids)}
 
 
-@router.get('/weather/forecast')
+@router.get("/weather/forecast")
 async def weather_forecast(
     request: Request,
     database: DatabaseSession,
     viewer: LicensedViewer,
-    entity_id: str = Query(alias='entityId', min_length=3, max_length=255),
-    forecast_type: str = Query('auto', alias='type', max_length=16),
+    entity_id: str = Query(alias="entityId", min_length=3, max_length=255),
+    forecast_type: str = Query("auto", alias="type", max_length=16),
 ) -> Response:
     """只读天气预报。
 
@@ -644,20 +664,18 @@ async def weather_forecast(
     """
     connection = await asyncio.to_thread(active_connection, database)
     if connection is None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='请先配置 Home Assistant 连接。')
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="请先配置 Home Assistant 连接。")
     require_viewer_entity(database, viewer, entity_id)
-    if forecast_type not in ('auto', 'daily', 'hourly', 'twice_daily'):
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail='天气预报类型无效。')
+    if forecast_type not in ("auto", "daily", "hourly", "twice_daily"):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="天气预报类型无效。")
     try:
-        payload = await request.app.state.studio_ha.fetch_weather_forecast(
-            connection, entity_id, forecast_type
-        )
+        payload = await request.app.state.studio_ha.fetch_weather_forecast(connection, entity_id, forecast_type)
     except (HAClientError, CredentialCipherError) as error:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(error)) from error
-    return JSONResponse(payload, headers={'Cache-Control': 'no-store'})
+    return JSONResponse(payload, headers={"Cache-Control": "no-store"})
 
 
-@router.get('/translations')
+@router.get("/translations")
 async def entity_translations(
     request: Request,
     _database: DatabaseSession,
@@ -665,24 +683,24 @@ async def entity_translations(
 ) -> dict[str, Any]:
     connection, integrations = await asyncio.to_thread(load_translation_context, request.app.state.database)
     if connection is None:
-        return {'language': 'zh-Hans', 'resources': {}}
+        return {"language": "zh-Hans", "resources": {}}
     try:
         resources = await request.app.state.studio_ha.entity_translations(
             connection,
             integrations,
-            language='zh-Hans',
+            language="zh-Hans",
         )
     except (HAClientError, CredentialCipherError) as error:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(error)) from error
-    return {'language': 'zh-Hans', 'resources': resources}
+    return {"language": "zh-Hans", "resources": resources}
 
 
-@router.get('/history')
+@router.get("/history")
 async def entity_history(
     request: Request,
     _database: DatabaseSession,
     viewer: LicensedViewer,
-    entity_id: str = Query(alias='entityId', min_length=3, max_length=255),
+    entity_id: str = Query(alias="entityId", min_length=3, max_length=255),
     hours: int = Query(24, ge=1, le=168),
 ) -> dict[str, Any]:
     connection, entity_exists = await asyncio.to_thread(
@@ -692,13 +710,13 @@ async def entity_history(
         entity_id,
     )
     if connection is None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='请先配置 Home Assistant 连接。')
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="请先配置 Home Assistant 连接。")
     if not entity_exists:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='实体不存在、已禁用或已失联。')
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="实体不存在、已禁用或已失联。")
     cache_key = (str(connection.id), int(hours), entity_id)
     cached = _history_cache_get(cache_key)
     if cached is not None:
-        return {'entityId': entity_id, 'hours': hours, 'points': cached}
+        return {"entityId": entity_id, "hours": hours, "points": cached}
     start_time = (datetime.now(UTC) - timedelta(hours=hours)).isoformat()
     try:
         history = await request.app.state.studio_ha.fetch_history(connection, entity_id, start_time, hours)
@@ -706,109 +724,297 @@ async def entity_history(
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(error)) from error
     points = []
     for item in history:
-        value = history_state_value(item.get('state'))
+        value = history_state_value(item.get("state"))
         if value is None:
             continue
-        timestamp = item.get('last_updated') or item.get('last_changed')
+        timestamp = item.get("last_updated") or item.get("last_changed")
         if not timestamp:
             continue
-        points.append({'timestamp': str(timestamp), 'value': value})
+        points.append({"timestamp": str(timestamp), "value": value})
     if len(points) > 480:
         step = len(points) / 480
         points = [points[min(len(points) - 1, int(index * step))] for index in range(480)]
     _history_cache_put(cache_key, points)
-    return {'entityId': entity_id, 'hours': hours, 'points': points}
+    return {"entityId": entity_id, "hours": hours, "points": points}
 
 
 def history_state_value(raw_state: Any) -> float | str | None:
     try:
         return float(raw_state)
-    except (TypeError, ValueError):
-        value = str(raw_state or '').strip()
+    except (TypeError, ValueError):  # fmt: skip
+        value = str(raw_state or "").strip()
         return value or None
 
 
-@router.get('/areas')
+@router.get("/areas")
 def list_areas(database: DatabaseSession, _user: LicensedUser) -> dict[str, Any]:
     connection = active_connection(database)
     if connection is None:
-        return {'items': []}
+        return {"items": []}
     areas = database.scalars(
-        select(HAArea).where(HAArea.connection_id == connection.id, HAArea.sync_status == 'active').order_by(HAArea.name)
+        select(HAArea)
+        .where(HAArea.connection_id == connection.id, HAArea.sync_status == "active")
+        .order_by(HAArea.sort_order, HAArea.name)
     )
     return {
-        'items': [
+        "items": [
             {
-                'areaId': item.area_id,
-                'name': item.name,
-                'aliases': json.loads(item.aliases_json),
-                'status': item.sync_status,
+                "areaId": item.area_id,
+                "name": item.name,
+                "icon": item.icon or "",
+                "sortOrder": int(item.sort_order or 0),
+                "aliases": json.loads(item.aliases_json),
+                "status": item.sync_status,
             }
             for item in areas
         ]
     }
 
 
-@router.get('/devices')
+@router.post("/areas")
+async def create_area(
+    payload: HAAreaCreateRequest,
+    request: Request,
+    database: DatabaseSession,
+    _user: LicensedUser,
+) -> dict[str, Any]:
+    """在 HA 建房间，并同步写入本地目录（不必等下一次全量同步）。"""
+    connector = request.app.state.studio_ha
+    created = await connector.create_area(payload.name.strip(), payload.icon.strip(), payload.aliases)
+    area_id = str(created.get("area_id") or created.get("id") or "")
+    connection = active_connection(database)
+    if connection is not None and area_id:
+        await asyncio.to_thread(
+            _persist_area_upsert,
+            database,
+            connection.id,
+            area_id,
+            str(created.get("name") or payload.name).strip(),
+            str(created.get("icon") or payload.icon or "") or None,
+        )
+    return {"success": True, "data": {"areaId": area_id, **created}}
+
+
+def _persist_area_upsert(database, connection_id: str, area_id: str, name: str, icon: str | None) -> None:
+    """本地目录 upsert（同步；由路由 ``asyncio.to_thread`` 调用）。"""
+    row = database.scalars(
+        select(HAArea).where(HAArea.connection_id == connection_id, HAArea.area_id == area_id)
+    ).first()
+    if row is None:
+        row = HAArea(connection_id=connection_id, area_id=area_id, name=name)
+        database.add(row)
+    row.name = name
+    row.icon = icon
+    row.sync_status = "active"
+    database.commit()
+
+
+@router.put("/areas/sort")
+def sort_areas(payload: HAAreaSortRequest, database: DatabaseSession, _user: LicensedUser) -> dict[str, Any]:
+    """房间排序：按数组顺序写本地 ``sortOrder``（HA 区域 registry 没有顺序字段）。"""
+    connection = active_connection(database)
+    if connection is None:
+        return {"success": False, "message": "Home Assistant 未配置"}
+    for index, area_id in enumerate(payload.area_ids):
+        row = database.scalars(
+            select(HAArea).where(HAArea.connection_id == connection.id, HAArea.area_id == area_id)
+        ).first()
+        if row is not None:
+            row.sort_order = index
+    database.commit()
+    return {"success": True, "count": len(payload.area_ids)}
+
+
+@router.put("/areas/{area_id}/entities/sort")
+async def sort_area_entities(
+    area_id: str,
+    payload: HAAreaEntitySortRequest,
+    database: DatabaseSession,
+    _user: LicensedUser,
+) -> dict[str, Any]:
+    """房间内实体排序：按数组顺序写本地覆盖（HA 实体注册表没有顺序字段）。"""
+    connection = active_connection(database)
+    if connection is None:
+        return {"success": False, "message": "Home Assistant 未配置"}
+    await asyncio.to_thread(_persist_area_entity_order, database, connection.id, area_id, payload.entity_ids)
+    return {"success": True, "count": len(payload.entity_ids)}
+
+
+def _persist_area_entity_order(
+    database, connection_id: str, area_id: str, entity_ids: list[str]
+) -> None:
+    """整份覆盖该房间的顺序，并顺手清掉不在本次列表里的孤儿行。"""
+    existing = {
+        row.entity_id: row
+        for row in database.scalars(
+            select(HAAreaEntityOrder).where(
+                HAAreaEntityOrder.connection_id == connection_id,
+                HAAreaEntityOrder.area_id == area_id,
+            )
+        ).all()
+    }
+    kept: set[str] = set()
+    for index, entity_id in enumerate(entity_ids):
+        kept.add(entity_id)
+        row = existing.get(entity_id)
+        if row is None:
+            database.add(
+                HAAreaEntityOrder(
+                    connection_id=connection_id, area_id=area_id, entity_id=entity_id, sort_order=index
+                )
+            )
+        else:
+            row.sort_order = index
+    for entity_id, row in existing.items():
+        if entity_id not in kept:
+            database.delete(row)
+    database.commit()
+
+
+@router.put("/areas/{area_id}")
+async def update_area(
+    area_id: str,
+    payload: HAAreaUpdateRequest,
+    request: Request,
+    database: DatabaseSession,
+    _user: LicensedUser,
+) -> dict[str, Any]:
+    """改名 / 换图标：写 HA，再更新本地目录。"""
+    connector = request.app.state.studio_ha
+    updated = await connector.update_area(
+        area_id,
+        name=payload.name.strip() if payload.name is not None else None,
+        icon=payload.icon.strip() if payload.icon is not None else None,
+    )
+    connection = active_connection(database)
+    if connection is not None:
+        await asyncio.to_thread(
+            _persist_area_update,
+            database,
+            connection.id,
+            area_id,
+            payload.name.strip() if payload.name is not None else None,
+            payload.icon.strip() if payload.icon is not None else None,
+        )
+    return {"success": True, "data": updated}
+
+
+def _persist_area_update(database, connection_id: str, area_id: str, name: str | None, icon: str | None) -> None:
+    row = database.scalars(
+        select(HAArea).where(HAArea.connection_id == connection_id, HAArea.area_id == area_id)
+    ).first()
+    if row is None:
+        return
+    if name is not None:
+        row.name = name
+    if icon is not None:
+        row.icon = icon or None
+    database.commit()
+
+
+@router.delete("/areas/{area_id}")
+async def delete_area(area_id: str, request: Request, database: DatabaseSession, _user: LicensedUser) -> dict[str, Any]:
+    """删除房间：先删 HA，再清本地目录。"""
+    connector = request.app.state.studio_ha
+    await connector.delete_area(area_id)
+    connection = active_connection(database)
+    if connection is not None:
+        await asyncio.to_thread(_persist_area_delete, database, connection.id, area_id)
+    return {"success": True}
+
+
+def _persist_area_delete(database, connection_id: str, area_id: str) -> None:
+    row = database.scalars(
+        select(HAArea).where(HAArea.connection_id == connection_id, HAArea.area_id == area_id)
+    ).first()
+    if row is not None:
+        database.delete(row)
+        database.commit()
+
+
+@router.put("/areas/{area_id}/entities")
+async def set_area_entities(
+    area_id: str,
+    payload: HAAreaEntitiesRequest,
+    request: Request,
+    database: DatabaseSession,
+    _user: LicensedUser,
+) -> dict[str, Any]:
+    """批量把实体归入房间（逐个调用 HA ``config/entity_registry/update``）。"""
+    connector = request.app.state.studio_ha
+    updated = 0
+    failed: list[str] = []
+    for entity_id in payload.entity_ids:
+        try:
+            await connector.update_entity_area(entity_id, area_id)
+            updated += 1
+        except Exception as exc:
+            logger.debug("归区失败 entity=%s: %s", entity_id, exc)
+            failed.append(entity_id)
+    await asyncio.to_thread(database.commit)
+    return {"success": not failed, "updated": updated, "failed": failed}
+
+
+@router.get("/devices")
 def list_devices(database: DatabaseSession, viewer: LicensedViewer) -> dict[str, Any]:
     connection = active_connection(database)
     if connection is None:
-        return {'items': []}
+        return {"items": []}
     filters = [
         HADevice.connection_id == connection.id,
-        HADevice.sync_status == 'active',
+        HADevice.sync_status == "active",
         HADevice.disabled_by.is_(None),
     ]
     allowed_entity_ids = viewer_entity_ids(database, viewer)
     if allowed_entity_ids is not None:
         if not allowed_entity_ids:
-            return {'items': []}
+            return {"items": []}
         allowed_device_ids = select(HAEntity.device_id).where(
             HAEntity.connection_id == connection.id,
             HAEntity.entity_id.in_(allowed_entity_ids),
             HAEntity.device_id.is_not(None),
         )
         filters.append(HADevice.device_id.in_(allowed_device_ids))
-    devices = database.scalars(
-        select(HADevice).where(*filters).order_by(HADevice.name_by_user, HADevice.name)
-    )
+    devices = database.scalars(select(HADevice).where(*filters).order_by(HADevice.name_by_user, HADevice.name))
     return {
-        'items': [
+        "items": [
             {
-                'deviceId': item.device_id,
-                'name': item.name_by_user or item.name,
-                'manufacturer': item.manufacturer,
-                'model': item.model,
-                **({'registryMetadata': json.loads(item.registry_metadata_json)} if item.registry_metadata_json else {}),
-                'areaId': item.area_id,
-                'status': item.sync_status,
+                "deviceId": item.device_id,
+                "name": item.name_by_user or item.name,
+                "manufacturer": item.manufacturer,
+                "model": item.model,
+                **(
+                    {"registryMetadata": json.loads(item.registry_metadata_json)} if item.registry_metadata_json else {}
+                ),
+                "areaId": item.area_id,
+                "status": item.sync_status,
             }
             for item in devices
         ]
     }
 
 
-@router.get('/sync/status')
+@router.get("/sync/status")
 def sync_status(request: Request, database: DatabaseSession, _viewer: LicensedViewer) -> dict[str, Any]:
     connection = active_connection(database)
     if connection is None:
-        return {'configured': False, 'status': 'not_configured', 'connected': False}
+        return {"configured": False, "status": "not_configured", "connected": False}
     state = database.get(HASyncState, connection.id)
     return {
-        'configured': True,
-        'connected': request.app.state.studio_ha.connected,
-        'status': state.status if state else 'idle',
-        'phase': state.phase if state else None,
-        'lastFullSyncAt': state.last_full_sync_at if state else None,
-        'lastIncrementalAt': state.last_incremental_at if state else None,
-        'lastReconciledAt': state.last_reconciled_at if state else None,
-        'catalogRevision': state.catalog_revision if state else 0,
-        'counts': {
-            'entities': state.entity_count if state else 0,
-            'devices': state.device_count if state else 0,
-            'areas': state.area_count if state else 0,
+        "configured": True,
+        "connected": request.app.state.studio_ha.connected,
+        "status": state.status if state else "idle",
+        "phase": state.phase if state else None,
+        "lastFullSyncAt": state.last_full_sync_at if state else None,
+        "lastIncrementalAt": state.last_incremental_at if state else None,
+        "lastReconciledAt": state.last_reconciled_at if state else None,
+        "catalogRevision": state.catalog_revision if state else 0,
+        "counts": {
+            "entities": state.entity_count if state else 0,
+            "devices": state.device_count if state else 0,
+            "areas": state.area_count if state else 0,
         },
-        'lastError': None
+        "lastError": None
         if request.app.state.studio_ha.connected
         else connection_error_message(
             request.app.state.studio_ha.runtime_error or (state.last_error if state else None)
@@ -816,28 +1022,28 @@ def sync_status(request: Request, database: DatabaseSession, _viewer: LicensedVi
     }
 
 
-@router.post('/sync')
+@router.post("/sync")
 async def run_sync(request: Request, _database: DatabaseSession, _user: LicensedUser) -> dict[str, Any]:
     if not request.app.state.license_service.allows(feature_codes.FEATURE_HA_SYNC):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许同步 Home Assistant。')
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="当前授权不允许同步 Home Assistant。")
     connection = await asyncio.to_thread(load_active_connection_snapshot, request.app.state.database)
     if connection is None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='请先配置 Home Assistant 连接。')
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="请先配置 Home Assistant 连接。")
     try:
         counts = await request.app.state.studio_ha.sync_once(connection.id, reconciled=True)
     except (HAClientError, CredentialCipherError) as error:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(error)) from error
-    return {'ok': True, 'counts': counts}
+    return {"ok": True, "counts": counts}
 
 
-@router.get('/health')
+@router.get("/health")
 def ha_health(request: Request, _database: DatabaseSession, _viewer: LicensedViewer) -> dict[str, Any]:
     connection = active_connection(_database)
     connected = request.app.state.studio_ha.connected
     return {
-        'configured': connection is not None,
-        'connected': connected,
-        'lastError': None
+        "configured": connection is not None,
+        "connected": connected,
+        "lastError": None
         if connected
         else connection_error_message(
             request.app.state.studio_ha.runtime_error or (connection.last_error if connection else None)
@@ -845,7 +1051,7 @@ def ha_health(request: Request, _database: DatabaseSession, _viewer: LicensedVie
     }
 
 
-@router.post('/services/call')
+@router.post("/services/call")
 async def call_service(
     command: HAServiceCallRequest,
     request: Request,
@@ -871,7 +1077,7 @@ def _mark_agent_local_control(request: Request, entity_id: str) -> None:
     mark_local_control_for_request(request, entity_id)
 
 
-@router.post('/media/browse')
+@router.post("/media/browse")
 async def browse_media(
     command: HABrowseMediaRequest,
     request: Request,
@@ -879,12 +1085,12 @@ async def browse_media(
     viewer: LicensedViewer,
 ) -> dict[str, Any]:
     if not request.app.state.license_service.allows(feature_codes.FEATURE_HA_CONTROL):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许控制 Home Assistant。')
-    entity_domain = command.entity_id.partition('.')[0]
-    if entity_domain != 'media_player':
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="当前授权不允许控制 Home Assistant。")
+    entity_domain = command.entity_id.partition(".")[0]
+    if entity_domain != "media_player":
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail='媒体浏览只能用于媒体播放器实体。',
+            detail="媒体浏览只能用于媒体播放器实体。",
         )
     connection, entity_exists = await asyncio.to_thread(
         load_authorized_entity_context,
@@ -893,9 +1099,9 @@ async def browse_media(
         command.entity_id,
     )
     if connection is None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='请先配置 Home Assistant 连接。')
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="请先配置 Home Assistant 连接。")
     if not entity_exists:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='实体不存在、已禁用或已失联。')
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="实体不存在、已禁用或已失联。")
     try:
         client = await request.app.state.studio_ha.client_for(connection)
         browse = client.browse_player_media if command.player_library else client.browse_media
@@ -906,21 +1112,18 @@ async def browse_media(
         )
     except (HAClientError, CredentialCipherError) as error:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(error)) from error
-    return {'ok': True, 'result': result}
+    return {"ok": True, "result": result}
 
 
 def websocket_viewer(websocket: WebSocket) -> ViewerPrincipal | None:
     settings = websocket.app.state.settings
-    token = websocket.cookies.get(settings.cookie_name, '')
+    token = websocket.cookies.get(settings.cookie_name, "")
     with websocket.app.state.database.session_factory() as database:
         if not token:
             return None
         record = database.scalar(select(LoginSession).where(LoginSession.id_hash == session_token_hash(token)))
         now = datetime.now(UTC)
-        if (
-            record is None
-            or record.expires_at.replace(tzinfo=UTC) <= now
-        ):
+        if record is None or record.expires_at.replace(tzinfo=UTC) <= now:
             return None
         user = database.get(User, record.user_id)
         if user is None or not user.is_active:
@@ -939,12 +1142,12 @@ def websocket_origin_allowed(websocket: WebSocket) -> bool:
     return browser_origin_allowed(websocket, websocket=True)
 
 
-@runtime_router.websocket('/ws/runtime')
+@runtime_router.websocket("/ws/runtime")
 async def runtime_websocket(websocket: WebSocket) -> None:
     context = {
-        'requestId': uuid4().hex,
-        'path': '/api/v1/ws/runtime',
-        'method': 'WEBSOCKET',
+        "requestId": uuid4().hex,
+        "path": "/api/v1/ws/runtime",
+        "method": "WEBSOCKET",
     }
     token = event_context.set(context)
     try:
@@ -952,8 +1155,8 @@ async def runtime_websocket(websocket: WebSocket) -> None:
     except Exception as error:
         await _runtime_log(
             websocket,
-            'error',
-            f'实时连接异常：{error}',
+            "error",
+            f"实时连接异常：{error}",
             context,
             details=traceback.format_exc(),
         )
@@ -970,14 +1173,10 @@ async def _runtime_log(
     *,
     details: str | None = None,
 ) -> None:
-    log = getattr(websocket.app.state, 'global_log', None)
+    log = getattr(websocket.app.state, "global_log", None)
     if log is not None:
-        source = (
-            '展示设备'
-            if context.get('displayId')
-            else ('仪表盘编辑器' if context.get('actor') else '系统后台')
-        )
-        await log.append_async(level, source, '实时连接', message, context=context, details=details)
+        source = "展示设备" if context.get("displayId") else ("仪表盘编辑器" if context.get("actor") else "系统后台")
+        await log.append_async(level, source, "实时连接", message, context=context, details=details)
 
 
 async def _runtime_send_json(websocket: WebSocket, command: dict) -> None:
@@ -998,18 +1197,18 @@ async def _runtime_close_with_log(
 ) -> None:
     # 关闭原因码 → 人话。日志里只出现原因码对排查毫无帮助，而这段文案会进入全局日志导出。
     close_explanations = {
-        'origin not allowed': '页面来源未获允许',
-        'authentication required': '需要登录或重新配对',
-        'authentication expired': '登录会话已失效，请重新登录',
-        'license restricted': '授权不可用或已到期',
-        'subscribe message required': '未收到有效的实体订阅消息',
-        'too many entities': '订阅实体数量超过上限',
+        "origin not allowed": "页面来源未获允许",
+        "authentication required": "需要登录或重新配对",
+        "authentication expired": "登录会话已失效，请重新登录",
+        "license restricted": "授权不可用或已到期",
+        "subscribe message required": "未收到有效的实体订阅消息",
+        "too many entities": "订阅实体数量超过上限",
     }
     await _runtime_log(
         websocket,
-        'warning',
-        f'实时连接已关闭：{close_explanations.get(reason, reason)}',
-        {**context, 'code': str(code), 'phase': 'rejected'},
+        "warning",
+        f"实时连接已关闭：{close_explanations.get(reason, reason)}",
+        {**context, "code": str(code), "phase": "rejected"},
     )
     await websocket.close(code=code, reason=reason if send_reason else None)
 
@@ -1017,16 +1216,16 @@ async def _runtime_close_with_log(
 async def _runtime_authorize(websocket: WebSocket, context: dict) -> ViewerPrincipal | None:
     """来源 / 登录 / 授权三重校验；未通过时按原样关闭连接并返回 None。"""
     if not websocket_origin_allowed(websocket):
-        await _runtime_close_with_log(websocket, context, 4403, 'origin not allowed')
+        await _runtime_close_with_log(websocket, context, 4403, "origin not allowed")
         return None
     viewer = await asyncio.to_thread(websocket_viewer, websocket)
     if viewer is None:
-        await _runtime_close_with_log(websocket, context, 4401, 'authentication required', send_reason=False)
+        await _runtime_close_with_log(websocket, context, 4401, "authentication required", send_reason=False)
         return None
     if viewer.user is not None:
-        context['actor'] = getattr(viewer.user, 'username', None)
+        context["actor"] = getattr(viewer.user, "username", None)
     if not await asyncio.to_thread(websocket.app.state.license_service.allows, feature_codes.FEATURE_RUNTIME_WEBSOCKET):
-        await _runtime_close_with_log(websocket, context, 4403, 'license restricted', send_reason=False)
+        await _runtime_close_with_log(websocket, context, 4403, "license restricted", send_reason=False)
         return None
     return viewer
 
@@ -1072,8 +1271,8 @@ def _merge_runtime_state_events(events: list[dict]) -> list[dict]:
     merged: list[dict] = []
     positions: dict[str, int] = {}
     for event in events:
-        if event.get('type') == 'state_changed':
-            entity_id = str(event.get('entityId') or '')
+        if event.get("type") == "state_changed":
+            entity_id = str(event.get("entityId") or "")
             if entity_id and entity_id in positions:
                 merged[positions[entity_id]] = event
                 continue
@@ -1095,7 +1294,7 @@ def _drain_runtime_queue_now(queue: Any) -> int:
         try:
             queue.get_nowait()
         except asyncio.QueueEmpty:
-            logger.debug('实时订阅队列已空，停止排空')
+            logger.debug("实时订阅队列已空，停止排空")
             return dropped
         dropped += 1
 
@@ -1106,19 +1305,19 @@ def _diff_runtime_states(current: list[dict], previous: list[dict]) -> list[dict
     ``updatedAt`` 是 hub 里的权威更新时刻：相同即同一次更新，不必再推。旧实现直接对
     两份完整快照做 ``!=`` 深比较，一旦有差异就整包重发（几百个实体 × 全量属性）。
     """
-    before = {str(item.get('entityId') or ''): item for item in previous if isinstance(item, dict)}
+    before = {str(item.get("entityId") or ""): item for item in previous if isinstance(item, dict)}
     changed: list[dict] = []
     for item in current:
         if not isinstance(item, dict):
             continue
-        entity_id = str(item.get('entityId') or '')
+        entity_id = str(item.get("entityId") or "")
         if not entity_id:
             continue
         old = before.get(entity_id)
         if old is None:
             changed.append(item)
             continue
-        if old.get('updatedAt') != item.get('updatedAt') or old.get('state') != item.get('state'):
+        if old.get("updatedAt") != item.get("updatedAt") or old.get("state") != item.get("state"):
             changed.append(item)
     return changed
 
@@ -1129,20 +1328,20 @@ def _runtime_queue_put(queue: Any, frame: dict) -> None:
         queue.put_nowait(frame)
         return
     except asyncio.QueueFull:
-        logger.warning('实时订阅队列已满，丢弃最旧帧后重试')
+        logger.warning("实时订阅队列已满，丢弃最旧帧后重试")
     while True:
         try:
             queue.get_nowait()
         except asyncio.QueueEmpty:
-            logger.debug('实时订阅队列已空，停止丢弃旧帧')
+            logger.debug("实时订阅队列已空，停止丢弃旧帧")
             break
     try:
         queue.put_nowait(frame)
     except asyncio.QueueFull:
         # 极端情况（单帧就超过队列容量）：退化成「建议整表重拉」，绝不静默丢帧。
-        logger.warning('实时订阅队列连一帧都容不下，退化为要求整表重拉')
-        record_ha_counter('resync')
-        queue.put_nowait({'type': 'resync_required'})
+        logger.warning("实时订阅队列连一帧都容不下，退化为要求整表重拉")
+        record_ha_counter("resync")
+        queue.put_nowait({"type": "resync_required"})
 
 
 async def _send_runtime_state_frames(
@@ -1155,12 +1354,11 @@ async def _send_runtime_state_frames(
     if not states:
         return True
     if len(states) >= 2 and subscription.supports_state_batch:
-        return await send_licensed({'type': 'state_changed_batch', 'events': states})
+        return await send_licensed({"type": "state_changed_batch", "events": states})
     for state in states:
         if not await send_licensed(state):
             return False
     return True
-
 
 
 async def _runtime_subscribe_and_stream(
@@ -1172,14 +1370,18 @@ async def _runtime_subscribe_and_stream(
 ) -> None:
     """等订阅帧 → 建立订阅 → 持续推送，直到两路协作任务任一路结束。"""
     subscribe = await asyncio.wait_for(websocket.receive_json(), timeout=30)
-    if not isinstance(subscribe, dict) or subscribe.get('type') != 'subscribe' or not isinstance(subscribe.get('entityIds'), list):
-        await close_with_log(4400, 'subscribe message required')
+    if (
+        not isinstance(subscribe, dict)
+        or subscribe.get("type") != "subscribe"
+        or not isinstance(subscribe.get("entityIds"), list)
+    ):
+        await close_with_log(4400, "subscribe message required")
         return
-    entity_ids = {str(value) for value in subscribe['entityIds'] if isinstance(value, str)}
+    entity_ids = {str(value) for value in subscribe["entityIds"] if isinstance(value, str)}
     subscription.entity_ids = entity_ids
-    subscription.supports_state_batch = subscribe.get('supportsStateBatch') is True
+    subscription.supports_state_batch = subscribe.get("supportsStateBatch") is True
     if len(entity_ids) > MAX_RUNTIME_ENTITIES:
-        await close_with_log(4400, 'too many entities')
+        await close_with_log(4400, "too many entities")
         return
     websocket.app.state.studio_ha.state_hub.set_subscription_entities(subscription.queue, entity_ids)
     await websocket.app.state.studio_ha.add_runtime_entity_watch(entity_ids, ensure_states=False)
@@ -1192,19 +1394,19 @@ async def _runtime_subscribe_and_stream(
         全量快照并重建所有组件状态。这里只换订阅集合 + 补一份快照，连接与授权上下文
         都保留。
         """
-        raw_ids = payload.get('entityIds')
+        raw_ids = payload.get("entityIds")
         if not isinstance(raw_ids, list):
             return
         next_ids = {str(value) for value in raw_ids if isinstance(value, str)}
         if len(next_ids) > MAX_RUNTIME_ENTITIES:
-            await close_with_log(4400, 'too many entities')
+            await close_with_log(4400, "too many entities")
             return
         added = next_ids - subscription.entity_ids
         removed = subscription.entity_ids - next_ids
         if not added and not removed:
             return
-        if payload.get('supportsStateBatch') is not None:
-            subscription.supports_state_batch = payload.get('supportsStateBatch') is True
+        if payload.get("supportsStateBatch") is not None:
+            subscription.supports_state_batch = payload.get("supportsStateBatch") is True
         studio_ha = websocket.app.state.studio_ha
         subscription.entity_ids = next_ids
         # set_subscription_entities 会顺带清空握手期残留帧：随后的快照才是权威数据。
@@ -1215,13 +1417,13 @@ async def _runtime_subscribe_and_stream(
             await studio_ha.add_runtime_entity_watch(added, ensure_states=False)
         _runtime_queue_put(
             subscription.queue,
-            {'type': 'snapshot', 'states': await studio_ha.state_hub.snapshot(next_ids)},
+            {"type": "snapshot", "states": await studio_ha.state_hub.snapshot(next_ids)},
         )
         await _runtime_log(
             websocket,
-            'info',
-            '实时订阅已更新',
-            {**context, 'phase': 'subscribe_update', 'added': len(added), 'removed': len(removed)},
+            "info",
+            "实时订阅已更新",
+            {**context, "phase": "subscribe_update", "added": len(added), "removed": len(removed)},
         )
 
     async def send_updates() -> None:
@@ -1229,15 +1431,17 @@ async def _runtime_subscribe_and_stream(
         # 先清握手期残留帧再取快照：快照本身已经包含它们。
         _drain_runtime_queue_now(subscription.queue)
         initial_snapshot = await websocket.app.state.studio_ha.state_hub.snapshot(entity_ids)
-        if not await send_licensed({'type': 'snapshot', 'states': initial_snapshot}):
+        if not await send_licensed({"type": "snapshot", "states": initial_snapshot}):
             return
         # 首个状态帧必须无条件下发（不依赖订阅队列里是否残留过事件）：墙屏需要立刻知道
         # 中枢此刻是否在线，否则「HA 掉线」与「设备关着」在界面上完全一样。
         connector = websocket.app.state.studio_ha
-        if not await send_licensed({
-            'type': 'ha_status',
-            'status': 'connected' if connector.connected else 'disconnected',
-        }):
+        if not await send_licensed(
+            {
+                "type": "ha_status",
+                "status": "connected" if connector.connected else "disconnected",
+            }
+        ):
             return
         # 状态补全是「尽力而为」：初始快照已经发出，补全失败不该拆掉整条实时推送。
         # ensure_entity_states 内部已逐实体容错并带退避重试，这里再兜一层，防的是
@@ -1247,9 +1451,9 @@ async def _runtime_subscribe_and_stream(
         except Exception:
             await _runtime_log(
                 websocket,
-                'warning',
-                '实时连接初始状态补全失败，继续转发事件',
-                {**context, 'phase': 'hydrate'},
+                "warning",
+                "实时连接初始状态补全失败，继续转发事件",
+                {**context, "phase": "hydrate"},
                 details=traceback.format_exc(),
             )
         # 补全只会「新增 / 更新」少量实体：只推差异帧，不再整包重发一份快照。
@@ -1262,7 +1466,7 @@ async def _runtime_subscribe_and_stream(
             try:
                 event = await asyncio.wait_for(subscription.queue.get(), timeout=25)
             except TimeoutError:
-                if not await send_licensed({'type': 'ping'}):
+                if not await send_licensed({"type": "ping"}):
                     return
                 continue
             # 出站合并：一次场景切换/全屋开关会在同一瞬间产生几十上百条状态事件，
@@ -1271,14 +1475,14 @@ async def _runtime_subscribe_and_stream(
             # 然后按实体取最后一条，把「N 条同一实体的中间态」压成一条。
             batch = [event] + await _drain_runtime_queue(subscription.queue)
             merged = _merge_runtime_state_events(batch)
-            state_events = [item for item in merged if item.get('type') == 'state_changed']
+            state_events = [item for item in merged if item.get("type") == "state_changed"]
             for item in merged:
-                if item.get('type') == 'state_changed':
+                if item.get("type") == "state_changed":
                     continue
                 if not await send_licensed(item):
                     return
             if len(state_events) >= 2 and subscription.supports_state_batch:
-                if not await send_licensed({'type': 'state_changed_batch', 'events': state_events}):
+                if not await send_licensed({"type": "state_changed_batch", "events": state_events}):
                     return
                 continue
             for item in state_events:
@@ -1290,17 +1494,17 @@ async def _runtime_subscribe_and_stream(
         """感知客户端断开，并处理订阅增量更新帧。"""
         while True:
             message = await websocket.receive()
-            if message['type'] == 'websocket.disconnect':
-                raise WebSocketDisconnect(code=message.get('code', 1000))
-            raw_text = message.get('text')
+            if message["type"] == "websocket.disconnect":
+                raise WebSocketDisconnect(code=message.get("code", 1000))
+            raw_text = message.get("text")
             if not raw_text:
                 continue
             try:
                 payload = json.loads(raw_text)
-            except (TypeError, ValueError):
-                logger.debug('实时连接收到非 JSON 客户端消息，已跳过')
+            except (TypeError, ValueError):  # fmt: skip
+                logger.debug("实时连接收到非 JSON 客户端消息，已跳过")
                 continue
-            if isinstance(payload, dict) and payload.get('type') == 'update_subscription':
+            if isinstance(payload, dict) and payload.get("type") == "update_subscription":
                 await apply_subscription_update(payload)
 
     # 收包任务同时承担两件事：感知断开、处理订阅增量更新帧。
@@ -1359,16 +1563,16 @@ async def _runtime_run_until_closed(
         if error.code not in {1000, 1001, 1005}:
             await _runtime_log(
                 websocket,
-                'warning',
-                '实时连接异常断开',
-                {**context, 'code': str(error.code), 'phase': 'disconnected'},
+                "warning",
+                "实时连接异常断开",
+                {**context, "code": str(error.code), "phase": "disconnected"},
             )
     except TimeoutError:
         await _runtime_log(
             websocket,
-            'warning',
-            '实时连接等待订阅超时',
-            {**context, 'code': 'SUBSCRIBE_TIMEOUT', 'phase': 'subscribe'},
+            "warning",
+            "实时连接等待订阅超时",
+            {**context, "code": "SUBSCRIBE_TIMEOUT", "phase": "subscribe"},
         )
     finally:
         try:
@@ -1383,7 +1587,7 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
     if viewer is None:
         return
     await websocket.accept()
-    await _runtime_log(websocket, 'info', '实时连接已建立', {**context, 'phase': 'accepted'})
+    await _runtime_log(websocket, "info", "实时连接已建立", {**context, "phase": "accepted"})
     subscription = _RuntimeSubscriptionState(websocket.app.state.studio_ha.state_hub.subscribe())
     # 授权与登录态在长连期间仍会变化：access_closed 记住「已经因为授权/登录问题关过连接」，
     # 之后所有发送一律短路，避免在关闭途中继续往外推数据。
@@ -1400,11 +1604,12 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
         if access_closed:
             return False
         allowed = await asyncio.to_thread(
-            websocket.app.state.license_service.allows, feature_codes.FEATURE_RUNTIME_WEBSOCKET)
+            websocket.app.state.license_service.allows, feature_codes.FEATURE_RUNTIME_WEBSOCKET
+        )
         if not allowed:
             if not access_closed:
                 access_closed = True
-                await close_with_log(4403, 'license restricted', send_reason=False)
+                await close_with_log(4403, "license restricted", send_reason=False)
             return False
         if access_closed:
             return False
@@ -1412,7 +1617,7 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
         if current is None or current.user is None or current.user.id != viewer.user.id:
             if not access_closed:
                 access_closed = True
-                await close_with_log(4401, 'authentication expired', send_reason=False)
+                await close_with_log(4401, "authentication expired", send_reason=False)
             return False
         access_checked_at = time.monotonic()
         return True
@@ -1450,12 +1655,7 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
 
     async def subscribe_and_stream() -> None:
         """等订阅帧 → 建立订阅 → 持续推送。"""
-        await _runtime_subscribe_and_stream(
-            websocket, context, subscription, close_with_log, send_licensed
-        )
+        await _runtime_subscribe_and_stream(websocket, context, subscription, close_with_log, send_licensed)
 
-    await _runtime_run_until_closed(
-        websocket, context, subscription, monitor_access, subscribe_and_stream
-    )
+    await _runtime_run_until_closed(websocket, context, subscription, monitor_access, subscribe_and_stream)
     return
-

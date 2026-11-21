@@ -7,6 +7,7 @@ import {
   Brain,
   CalendarClock,
   CircleCheck,
+  GraduationCap,
   Languages,
   MessageCircle,
   MessageSquare,
@@ -56,8 +57,31 @@ type ChannelDraft = {
   wecom: NonNullable<ChannelConfig['wecom']>
 }
 
-/** 看门狗字段兜底（区间与后端 AgentConfigService 的夹紧保持一致） */
-function readWatchdog(
+/** 意图门模式白名单：非法值一律回落 shadow（与后端 normalize_mode 同义）。 */
+export type IntentGateMode = 'off' | 'shadow' | 'enforce'
+
+export function normalizeIntentGateMode(value: unknown): IntentGateMode {
+  const mode = String(value ?? '')
+  return mode === 'off' || mode === 'enforce' ? mode : 'shadow'
+}
+
+/** 数字兜底：空值 / 非法值回退默认；0 是合法值，不能用 `||` 代替。 */
+function numberOr(value: unknown, fallback: number): number {
+  const n = Number(value)
+  return Number.isFinite(n) ? n : fallback
+}
+
+/** 整数夹紧到 `[minimum, maximum]`（布局 / 表单 / 请求体共用一套口径）。 */
+function clampInt(value: unknown, fallback: number, minimum: number, maximum: number): number {
+  return Math.min(maximum, Math.max(minimum, Math.round(numberOr(value, fallback))))
+}
+
+/** 小数夹紧（下限 + 上限）。 */
+function clampNumber(value: unknown, fallback: number, minimum: number, maximum: number): number {
+  return Math.min(maximum, Math.max(minimum, numberOr(value, fallback)))
+}
+
+/** 看门狗字段兜底（区间与后端 AgentConfigService 的夹紧保持一致） */ function readWatchdog(
   raw: Partial<AgentProactiveConfig>,
   defaults: AgentProactiveConfig,
 ): Pick<
@@ -69,17 +93,13 @@ function readWatchdog(
   | 'autoCloseEnabled'
   | 'maxAutoCloseDevices'
 > {
-  const int = (value: unknown, fallback: number, min: number, max: number) => {
-    const n = Number(value)
-    return Number.isFinite(n) ? Math.min(max, Math.max(min, Math.round(n))) : fallback
-  }
   return {
     watchdogEnabled: raw.watchdogEnabled === true,
-    motionIdleMinutes: int(raw.motionIdleMinutes, defaults.motionIdleMinutes, 1, 1440),
-    idleDeviceMinutes: int(raw.idleDeviceMinutes, defaults.idleDeviceMinutes, 1, 1440),
-    idleSwitchMinutes: int(raw.idleSwitchMinutes, defaults.idleSwitchMinutes, 1, 1440),
+    motionIdleMinutes: clampInt(raw.motionIdleMinutes, defaults.motionIdleMinutes, 1, 1440),
+    idleDeviceMinutes: clampInt(raw.idleDeviceMinutes, defaults.idleDeviceMinutes, 1, 1440),
+    idleSwitchMinutes: clampInt(raw.idleSwitchMinutes, defaults.idleSwitchMinutes, 1, 1440),
     autoCloseEnabled: raw.autoCloseEnabled === true,
-    maxAutoCloseDevices: int(raw.maxAutoCloseDevices, defaults.maxAutoCloseDevices, 1, 20),
+    maxAutoCloseDevices: clampInt(raw.maxAutoCloseDevices, defaults.maxAutoCloseDevices, 1, 20),
   }
 }
 
@@ -101,6 +121,7 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {
     { id: 'schedules', label: '计划任务', icon: CalendarClock },
     { id: 'diagnostics', label: '诊断日志', icon: Activity },
     { id: 'memory', label: '长期记忆', icon: Brain },
+    { id: 'learning', label: '学习调优', icon: GraduationCap },
     { id: 'channels', label: '消息通道', icon: MessageSquare },
     { id: 'chat', label: '对话', icon: MessageCircle },
   ]
@@ -132,20 +153,19 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {
     const d = getDefaultLayout().agentConfig!.proactive!
     const raw = layoutStore.layoutConfig?.agentConfig?.proactive
     if (!raw || typeof raw !== 'object') return { ...d }
-    const num = (value: unknown, fallback: number) => {
-      const n = Number(value)
-      return Number.isFinite(n) ? n : fallback
-    }
     return {
       enabled: raw.enabled === true,
-      intervalSeconds: Math.max(60, num(raw.intervalSeconds, d.intervalSeconds)),
-      cooldownSeconds: Math.max(60, num(raw.cooldownSeconds, d.cooldownSeconds)),
-      quietStart: Math.min(23, Math.max(0, num(raw.quietStart, d.quietStart))),
-      quietEnd: Math.min(23, Math.max(0, num(raw.quietEnd, d.quietEnd))),
-      energyMultiplier: Math.max(1, num(raw.energyMultiplier, d.energyMultiplier)),
-      minEnergyKwh: Math.max(0, num(raw.minEnergyKwh, d.minEnergyKwh)),
-      forecastSlots: Math.min(12, Math.max(1, num(raw.forecastSlots, d.forecastSlots))),
-      forecastPopThreshold: Math.min(1, Math.max(0, num(raw.forecastPopThreshold, d.forecastPopThreshold))),
+      intervalSeconds: Math.max(60, numberOr(raw.intervalSeconds, d.intervalSeconds)),
+      cooldownSeconds: Math.max(60, numberOr(raw.cooldownSeconds, d.cooldownSeconds)),
+      quietStart: clampInt(raw.quietStart, d.quietStart, 0, 23),
+      // 分钟粒度：旧布局缺字段时沿用默认（23:30），不能在保存时静默写回整点
+      quietStartMinute: clampInt(raw.quietStartMinute, d.quietStartMinute, 0, 59),
+      quietEnd: clampInt(raw.quietEnd, d.quietEnd, 0, 23),
+      quietEndMinute: clampInt(raw.quietEndMinute, d.quietEndMinute, 0, 59),
+      energyMultiplier: Math.max(1, numberOr(raw.energyMultiplier, d.energyMultiplier)),
+      minEnergyKwh: Math.max(0, numberOr(raw.minEnergyKwh, d.minEnergyKwh)),
+      forecastSlots: clampInt(raw.forecastSlots, d.forecastSlots, 1, 12),
+      forecastPopThreshold: clampNumber(raw.forecastPopThreshold, d.forecastPopThreshold, 0, 1),
       ...readWatchdog(raw, d),
     }
   }
@@ -295,6 +315,14 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {
   })
   const deviceAllowlistCount = computed(() => deviceAllowlist.value.length)
 
+  /** 意图门模式（默认 shadow：只记录不拦截；切 enforce 前先看 /agent/intent/replay） */
+  const intentGateMode = computed<IntentGateMode>({
+    get: () => normalizeIntentGateMode(agentDraft.intentGate?.mode),
+    set: (modeValue) => {
+      agentDraft.intentGate = { mode: normalizeIntentGateMode(modeValue) }
+    },
+  })
+
   /** 联网搜索开关（默认开启：后两级搜索源无需密钥；关闭后工具直接返回未启用） */
   const webSearchEnabled = computed<boolean>({
     get: () => agentDraft.webSearchEnabled !== false,
@@ -377,29 +405,67 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {
     }
   }
 
+  function buildAgentPayload() {
+    return {
+      provider: agentDraft.provider,
+      // 「更换」后未输入新密钥时回传脱敏占位，避免空串覆盖服务端明文
+      apiKey: editingApiKey.value && !String(agentDraft.apiKey || '').trim() ? AGENT_SECRET_MASK : agentDraft.apiKey,
+      apiBase: agentDraft.apiBase,
+      model: agentDraft.model,
+      language: agentDraft.language,
+      // 只用于本地展示「密钥已就绪」，后端保存时会 pop 掉；一起写入是为了避免保存瞬间
+      // layoutConfig.agentConfig 少一个字段、被全局快照记成「未保存」。
+      apiKeyConfigured: Boolean(String(agentDraft.apiKey || '').trim()) || agentDraft.apiKeyConfigured === true,
+      systemPrompt: agentDraft.systemPrompt || '',
+      mcpGatewaySecret: agentDraft.mcpGatewaySecret || '',
+      mcpActorUserId: agentDraft.mcpActorUserId || '',
+      // 场景语音控制：清单原样保留（含总开关关闭时）。
+      // 放行与否只看 enabled —— 后端闸门 isSceneVoiceAllowed 已强制要求 enabled===true，
+      // 关闭时清单一律无效，因此保留清单不降低安全性，却能避免「误触开关→保存」丢数据。
+      sceneVoiceControl: {
+        enabled: agentDraft.sceneVoiceControl?.enabled === true,
+        allow: (agentDraft.sceneVoiceControl?.allow ?? []).map((id) => String(id ?? '').trim()).filter(Boolean),
+      },
+      // 主动管家：保留完整频控参数；back-end 默认关闭，只有 enabled===true 才巡检
+      proactive: buildProactivePayload(),
+      // 联网搜索：默认开启；关闭后 web_search 工具直接返回未启用
+      webSearchEnabled: webSearchEnabled.value,
+      // 悬浮伴侣：与 agentConfig 同一次保存，避免改完位置又被旧 payload 覆盖
+      companion: effectiveCompanion(),
+      // Agent 专属设备白名单：空 = 不额外限制；后端与用户 ACL 取交集
+      deviceAllowlist: (agentDraft.deviceAllowlist ?? [])
+        .map((id) => String(id ?? '').trim())
+        .filter(Boolean)
+        .slice(0, 200),
+      // 意图门：默认 shadow；enforce 会拦截规则型表达的一次性执行
+      intentGate: { mode: normalizeIntentGateMode(intentGateMode.value) },
+    }
+  }
+
   /** 主动管家 + 看门狗：保存前的夹紧快照（保持 saveConfig 线性） */
   function buildProactivePayload(): AgentProactiveConfig {
     const raw = agentDraft.proactive
-    const int = (value: unknown, fallback: number, min: number, max: number) => {
-      const n = Number(value)
-      return Number.isFinite(n) ? Math.min(max, Math.max(min, Math.round(n))) : fallback
-    }
+    const d = getDefaultLayout().agentConfig!.proactive!
     return {
       enabled: raw?.enabled === true,
-      intervalSeconds: Math.max(60, Number(raw?.intervalSeconds) || 900),
-      cooldownSeconds: Math.max(60, Number(raw?.cooldownSeconds) || 1800),
-      quietStart: Math.min(23, Math.max(0, Number(raw?.quietStart) || 0)),
-      quietEnd: Math.min(23, Math.max(0, Number(raw?.quietEnd) || 0)),
-      energyMultiplier: Math.max(1, Number(raw?.energyMultiplier) || 1.5),
-      minEnergyKwh: Math.max(0, Number(raw?.minEnergyKwh) || 0),
-      forecastSlots: Math.min(12, Math.max(1, Number(raw?.forecastSlots) || 4)),
-      forecastPopThreshold: Math.min(1, Math.max(0, Number(raw?.forecastPopThreshold) || 0.6)),
+      intervalSeconds: clampInt(raw?.intervalSeconds, d.intervalSeconds, 60, 86400),
+      cooldownSeconds: clampInt(raw?.cooldownSeconds, d.cooldownSeconds, 60, 86400),
+      quietStart: clampInt(raw?.quietStart, d.quietStart, 0, 23),
+      quietStartMinute: clampInt(raw?.quietStartMinute, d.quietStartMinute, 0, 59),
+      quietEnd: clampInt(raw?.quietEnd, d.quietEnd, 0, 23),
+      quietEndMinute: clampInt(raw?.quietEndMinute, d.quietEndMinute, 0, 59),
+      // 缺字段时回退真实默认值：旧实现用 `|| 0`，第一次保存就把「最低用电量 1kWh」
+      // 静默改成 0（小基数天天误报），把预报时段数也抹平成 0。
+      energyMultiplier: Math.max(1, numberOr(raw?.energyMultiplier, d.energyMultiplier)),
+      minEnergyKwh: Math.max(0, numberOr(raw?.minEnergyKwh, d.minEnergyKwh)),
+      forecastSlots: clampInt(raw?.forecastSlots, d.forecastSlots, 1, 12),
+      forecastPopThreshold: clampNumber(raw?.forecastPopThreshold, d.forecastPopThreshold, 0, 1),
       watchdogEnabled: raw?.watchdogEnabled === true,
-      motionIdleMinutes: int(raw?.motionIdleMinutes, 20, 1, 1440),
-      idleDeviceMinutes: int(raw?.idleDeviceMinutes, 60, 1, 1440),
-      idleSwitchMinutes: int(raw?.idleSwitchMinutes, 120, 1, 1440),
+      motionIdleMinutes: clampInt(raw?.motionIdleMinutes, d.motionIdleMinutes, 1, 1440),
+      idleDeviceMinutes: clampInt(raw?.idleDeviceMinutes, d.idleDeviceMinutes, 1, 1440),
+      idleSwitchMinutes: clampInt(raw?.idleSwitchMinutes, d.idleSwitchMinutes, 1, 1440),
       autoCloseEnabled: raw?.autoCloseEnabled === true,
-      maxAutoCloseDevices: int(raw?.maxAutoCloseDevices, 3, 1, 20),
+      maxAutoCloseDevices: clampInt(raw?.maxAutoCloseDevices, d.maxAutoCloseDevices, 1, 20),
     }
   }
 
@@ -423,6 +489,28 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {
     const percent = Number((event.target as HTMLInputElement).value)
     if (!Number.isFinite(percent)) return
     proactive.value.forecastPopThreshold = Math.min(100, Math.max(0, percent)) / 100
+  }
+
+  /** 免打扰时间：小时 + 分钟合成 `<input type="time">` 的 HH:MM */
+  function quietTimeLabel(kind: 'start' | 'end'): string {
+    const hour = kind === 'start' ? proactive.value.quietStart : proactive.value.quietEnd
+    const minute = kind === 'start' ? proactive.value.quietStartMinute : proactive.value.quietEndMinute
+    return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+  }
+
+  /** 时间输入 → 小时 + 分钟两个字段（后端按家庭时区判定，分钟粒度必须落库） */
+  function setQuietTime(kind: 'start' | 'end', event: Event): void {
+    const match = /^(\d{1,2}):(\d{1,2})$/.exec(String((event.target as HTMLInputElement).value || '').trim())
+    if (!match) return
+    const hour = Math.min(23, Math.max(0, Number(match[1])))
+    const minute = Math.min(59, Math.max(0, Number(match[2])))
+    if (kind === 'start') {
+      proactive.value.quietStart = hour
+      proactive.value.quietStartMinute = minute
+      return
+    }
+    proactive.value.quietEnd = hour
+    proactive.value.quietEndMinute = minute
   }
 
   const modelFlowSteps = computed(() => [
@@ -483,6 +571,14 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {
     }
   }
 
+  /** 保存成功后的密钥收尾：接口 / MCP 网关都不在内存里留明文。 */
+  function maskSavedMcpSecret(): void {
+    if (!String(agentDraft.mcpGatewaySecret || '').trim()) return
+    agentDraft.mcpGatewaySecret = AGENT_SECRET_MASK
+    const saved = layoutStore.layoutConfig.agentConfig
+    if (saved) saved.mcpGatewaySecret = AGENT_SECRET_MASK
+  }
+
   async function saveConfig() {
     saving.value = true
     saveTip.value = ''
@@ -492,38 +588,7 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {
       if (!layoutStore.isConfigLoaded) {
         throw new Error('布局尚未加载完成，请稍后再保存')
       }
-      layoutStore.layoutConfig.agentConfig = {
-        provider: agentDraft.provider,
-        // 「更换」后未输入新密钥时回传脱敏占位，避免空串覆盖服务端明文
-        apiKey: editingApiKey.value && !String(agentDraft.apiKey || '').trim() ? AGENT_SECRET_MASK : agentDraft.apiKey,
-        apiBase: agentDraft.apiBase,
-        model: agentDraft.model,
-        language: agentDraft.language,
-        // 只用于本地展示「密钥已就绪」，后端保存时会 pop 掉；一起写入是为了避免保存瞬间
-        // layoutConfig.agentConfig 少一个字段、被全局快照记成「未保存」。
-        apiKeyConfigured: Boolean(String(agentDraft.apiKey || '').trim()) || agentDraft.apiKeyConfigured === true,
-        systemPrompt: agentDraft.systemPrompt || '',
-        mcpGatewaySecret: agentDraft.mcpGatewaySecret || '',
-        mcpActorUserId: agentDraft.mcpActorUserId || '',
-        // 场景语音控制：清单原样保留（含总开关关闭时）。
-        // 放行与否只看 enabled —— 后端闸门 isSceneVoiceAllowed 已强制要求 enabled===true，
-        // 关闭时清单一律无效，因此保留清单不降低安全性，却能避免「误触开关→保存」丢数据。
-        sceneVoiceControl: {
-          enabled: agentDraft.sceneVoiceControl?.enabled === true,
-          allow: (agentDraft.sceneVoiceControl?.allow ?? []).map((id) => String(id ?? '').trim()).filter(Boolean),
-        },
-        // 主动管家：保留完整频控参数；back-end 默认关闭，只有 enabled===true 才巡检
-        proactive: buildProactivePayload(),
-        // 联网搜索：默认开启；关闭后 web_search 工具直接返回未启用
-        webSearchEnabled: webSearchEnabled.value,
-        // 悬浮伴侣：与 agentConfig 同一次保存，避免改完位置又被旧 payload 覆盖
-        companion: effectiveCompanion(),
-        // Agent 专属设备白名单：空 = 不额外限制；后端与用户 ACL 取交集
-        deviceAllowlist: (agentDraft.deviceAllowlist ?? [])
-          .map((id) => String(id ?? '').trim())
-          .filter(Boolean)
-          .slice(0, 200),
-      }
+      layoutStore.layoutConfig.agentConfig = buildAgentPayload()
       layoutStore.layoutConfig.channelConfig = {
         email: { ...channelDraft.email },
         webpush: { ...channelDraft.webpush },
@@ -548,6 +613,8 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {
         editingApiKey.value = false
         showApiKey.value = false
       }
+      // MCP 网关密钥同样不回显明文：保存成功后换成占位符，避免长期留在内存 / DOM 里。
+      maskSavedMcpSecret()
       snapshotBaseline()
       saveTipOk.value = true
       saveTip.value = '已保存。大模型与消息通道将自动热更新。'
@@ -663,9 +730,12 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {
     deviceAllowlist,
     deviceAllowlistCount,
     webSearchEnabled,
+    intentGateMode,
     proactive,
     setProactiveMinutes,
     setProactivePercent,
+    quietTimeLabel,
+    setQuietTime,
     toneFromAgentClass,
     modelFlowSteps,
     chatFlowSteps,

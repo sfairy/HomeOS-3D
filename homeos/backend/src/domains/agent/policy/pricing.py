@@ -212,10 +212,7 @@ def estimate_cost_cny(
 
 def supported_providers() -> list[dict[str, Any]]:
     """已知 provider 与单价（设置页 / 文档用于说明当前口径）。"""
-    return [
-        {"provider": name, **rate.to_dict()}
-        for name, rate in sorted(PROVIDER_PRICING.items())
-    ]
+    return [{"provider": name, **rate.to_dict()} for name, rate in sorted(PROVIDER_PRICING.items())]
 
 
 __all__ = [

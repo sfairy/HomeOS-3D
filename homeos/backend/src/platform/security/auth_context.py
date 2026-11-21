@@ -23,6 +23,7 @@ from fastapi import Depends, Request, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from .media_ticket import resolve_ticket
 from .session_store import (
     LAST_SEEN_REFRESH_SECONDS,
     session_token_hash,
@@ -33,9 +34,7 @@ from ..core.http.errors import unauthorized
 
 #: 登录会话解析缓存：受保护请求在 TTL 内不再查 sessions 表。
 #: 登出 / 改密会显式清空，因此窗口只影响「同一 token 的并发请求」，不延长吊销。
-_SESSION_CACHE_TTL_SECONDS = max(
-    0.0, float(os.getenv("HOMEOS_AUTH_CACHE_SECONDS", "2") or "2")
-)
+_SESSION_CACHE_TTL_SECONDS = max(0.0, float(os.getenv("HOMEOS_AUTH_CACHE_SECONDS", "2") or "2"))
 _SESSION_CACHE_MAX_ENTRIES = 256
 _session_cache: dict[str, tuple[float, dict[str, Any]]] = {}
 _session_cache_lock = threading.Lock()
@@ -170,6 +169,9 @@ def authenticate_session(
     settings = _settings(request)
     token = request.cookies.get(settings.cookie_name, "")
     if not token:
+        # ``?ticket=``：``<img>`` / MJPEG / SSE 无法携带自定义头时的短票据通道。
+        token = resolve_ticket(request.query_params.get("ticket")) or ""
+    if not token:
         return None
     # 一次 outer join 同时取会话与用户：原先 select(LoginSession) + session.get(User) 是
     # 每个受保护请求 2 次 SQLite；合并后 1 次。用 outer join 而不是 inner join，是为了在
@@ -192,9 +194,7 @@ def authenticate_session(
         record.last_seen_at = now
         record.expires_at = now + timedelta(seconds=max_age)
         session.commit()
-        set_session_cookie(
-            response, settings, token, max_age_seconds=max_age, request=request
-        )
+        set_session_cookie(response, settings, token, max_age_seconds=max_age, request=request)
     if user is None or not getattr(user, "is_active", True):
         session.delete(record)
         session.commit()
@@ -229,9 +229,7 @@ def get_current_user(request: Request, response: Response) -> dict[str, Any]:
     return payload
 
 
-async def require_user(
-    request: Request, user: dict[str, Any] = Depends(get_current_user)
-) -> dict[str, Any]:
+async def require_user(request: Request, user: dict[str, Any] = Depends(get_current_user)) -> dict[str, Any]:
     """受保护路由：已通过会话校验即放行（单一管理员模型，无角色判定）。"""
     return user
 

@@ -32,11 +32,23 @@ class HomeToolsHost:
     _ui_config: Any = None
     _watchdog: Any = None
     _web_search_service: Any = None
+    _learning: Any = None
+    _habits: Any = None
+    _negative: Any = None
+    _automation_drafts: Any = None
+    _media_service: Any = None
+    _device_profiles: Any = None
 
     _activate_home_mode: Any = None
     _activate_scene: Any = None
     _assert_actor_may_control: Any = None
     _cancel_scheduled_task: Any = None
+    _special_control: Any = None
+    _climate_command_error: Any = None
+    _ensure_climate_on: Any = None
+    _ensure_heat_mode: Any = None
+    _profile_kind: Any = None
+    _suspend_if_apple_tv: Any = None
     _control_device: Any = None
     _control_room: Any = None
     _energy_today_kwh: Any = None
@@ -53,6 +65,7 @@ class HomeToolsHost:
     _list_scenes_detailed: Any = None
     _list_scheduled_tasks: Any = None
     _manage_calendar: Any = None
+    _manage_learning: Any = None
     _manage_memory: Any = None
     _manage_todo: Any = None
     _manage_user_policy: Any = None

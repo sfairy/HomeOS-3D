@@ -21,7 +21,7 @@ from sqlalchemy import select
 
 from .stats import parse_json_array
 from ..alerts.channels import resolve_alert_rule_channels
-from ..alerts.condition import evaluate_condition
+from ..alerts.condition import evaluate_condition, normalize_operator
 from ..alerts.lifecycle import AlertLifecycle
 from ..alerts.templates import format_alert_rule_message
 from ..ha.config.ha_filters import AlertRuleWatchIndex
@@ -65,6 +65,44 @@ def _cooldown_minutes(raw_value: Any) -> float:
 def _monotonic() -> float:
     """单调时钟（秒）。单测替换这一个函数即可推进时间，不影响 asyncio 的事件循环时钟。"""
     return time.monotonic()
+
+
+#: 结构化规则可用的运算符（归一后）。
+_STRUCTURED_OPERATORS = frozenset({">", ">=", "<", "<=", "==", "!=", "contains"})
+
+
+def compile_condition(condition: str | None, target_state: str | None, operator: str | None) -> str:
+    """把「实体 + 运算符 + 目标值」编译成条件串。
+
+    ``condition`` 手写模式优先：非空即原样使用，保证存量规则与高级用户不受影响。
+    结构化模式下：
+    - ``contains`` 保持 ``contains <值>``；
+    - 其余运算符归一成符号；未知运算符回落 ``==``（比起静默失配，宁可退化成相等）。
+    """
+    explicit = str(condition or "").strip()
+    if explicit:
+        return explicit
+    target = str(target_state or "").strip()
+    if not target:
+        return ""
+    op = normalize_operator(operator or "eq")
+    if op == "contains":
+        return f"contains {target}"
+    if op not in _STRUCTURED_OPERATORS:
+        op = "=="
+    return f"{op} {target}"
+
+
+def _optional_text(value: Any) -> str | None:
+    """可空文本列：空串归一成 ``NULL``（与后端其他可空列口径一致）。"""
+    text = str(value or "").strip()
+    return text or None
+
+
+def _optional_operator(value: Any) -> str | None:
+    """可空运算符列：归一成符号后落库；空值不写。"""
+    text = _optional_text(value)
+    return normalize_operator(text) if text else None
 
 
 class NotificationRulesHelper:
@@ -354,6 +392,10 @@ class NotificationRulesHelper:
                     "channels": channels,
                     "title": rule.get("title"),
                     "bypassDnd": True if (bypass_dnd and rule.get("level") != "danger") else None,
+                    # 提示音只对 critical 生效：普通告警用系统默认音，避免每条规则各配一个音。
+                    "sound": rule.get("sound") if rule.get("level") == "critical" else None,
+                    # 有摄像头时按门铃类型下发：前端据 type 打开实时画面。
+                    "cameraEntityId": rule.get("cameraEntityId"),
                 },
             )
         except Exception as exc:
@@ -381,7 +423,7 @@ class NotificationRulesHelper:
 
     async def add_rule(self, rule: dict[str, Any]) -> dict[str, Any]:
         name = str(rule.get("name") or "").strip()
-        condition = str(rule.get("condition") or "").strip()
+        condition = compile_condition(rule.get("condition"), rule.get("targetState"), rule.get("operator"))
         if not name:
             bad_request(api_error("ALERT_RULE_NAME_REQUIRED"))
         if not condition:
@@ -413,6 +455,10 @@ class NotificationRulesHelper:
                     for_seconds=int(non_negative_seconds(rule.get("forSeconds"))),
                     clear_delay_seconds=int(non_negative_seconds(rule.get("clearDelaySeconds"))),
                     escalation_minutes=_escalation_minutes(rule.get("escalationMinutes")),
+                    target_state=_optional_text(rule.get("targetState")),
+                    operator=_optional_operator(rule.get("operator")),
+                    sound=_optional_text(rule.get("sound")),
+                    camera_entity_id=_optional_text(rule.get("cameraEntityId")),
                 )
                 session.add(record)
                 session.commit()
@@ -432,13 +478,22 @@ class NotificationRulesHelper:
                 old_condition = str(existing.condition or "")
                 if "name" in partial and not str(partial.get("name") or "").strip():
                     bad_request(api_error("ALERT_RULE_NAME_REQUIRED"))
-                if "condition" in partial and not str(partial.get("condition") or "").strip():
+                # 结构化字段变化时重编译条件；显式提交 condition 时以它为准。
+                effective = partial
+                if any(key in partial for key in ("condition", "targetState", "operator")):
+                    merged = {
+                        "condition": partial.get("condition", existing.condition),
+                        "targetState": partial.get("targetState", existing.target_state),
+                        "operator": partial.get("operator", existing.operator),
+                    }
+                    effective = {**partial, "condition": compile_condition(**merged)}
+                if "condition" in effective and not str(effective.get("condition") or "").strip():
                     bad_request(api_error("ALERT_RULE_CONDITION_REQUIRED"))
 
-                _apply_rule_fields(existing, partial, old_condition)
+                _apply_rule_fields(existing, effective, old_condition)
 
                 previous_condition: str | None = None
-                if "condition" in partial and partial["condition"] != old_condition:
+                if "condition" in effective and effective["condition"] != old_condition:
                     previous_condition = old_condition
                 session.commit()
                 session.refresh(existing)
@@ -587,6 +642,10 @@ _RULE_FIELD_APPLIERS: dict[str, Any] = {
     "forSeconds": lambda row, value: setattr(row, "for_seconds", int(non_negative_seconds(value))),
     "clearDelaySeconds": lambda row, value: setattr(row, "clear_delay_seconds", int(non_negative_seconds(value))),
     "escalationMinutes": lambda row, value: setattr(row, "escalation_minutes", _escalation_minutes(value)),
+    "targetState": lambda row, value: setattr(row, "target_state", _optional_text(value)),
+    "operator": lambda row, value: setattr(row, "operator", _optional_operator(value)),
+    "sound": lambda row, value: setattr(row, "sound", _optional_text(value)),
+    "cameraEntityId": lambda row, value: setattr(row, "camera_entity_id", _optional_text(value)),
 }
 
 
@@ -629,6 +688,15 @@ def _rule_row(record: AlertRule) -> dict[str, Any]:
     payload["forSeconds"] = int(record.for_seconds or 0)
     payload["clearDelaySeconds"] = int(record.clear_delay_seconds or 0)
     payload["escalationMinutes"] = int(record.escalation_minutes or 0)
+    # 结构化字段：空值省略（与 JS ``undefined`` 口径一致），前端据此判断「手写条件模式」。
+    if record.target_state:
+        payload["targetState"] = record.target_state
+    if record.operator:
+        payload["operator"] = record.operator
+    if record.sound:
+        payload["sound"] = record.sound
+    if record.camera_entity_id:
+        payload["cameraEntityId"] = record.camera_entity_id
     return payload
 
 

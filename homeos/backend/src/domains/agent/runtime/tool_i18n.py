@@ -24,25 +24,23 @@ TOOL_DESCRIPTIONS_EN: dict[str, str] = {
     "list_areas": "List all rooms/areas.",
     "get_area_snapshot": (
         "Get a snapshot of all devices in one room, for questions like "
-        "\"what's the temperature in the living room and are the lights on\"."
+        '"what\'s the temperature in the living room and are the lights on".'
     ),
     "control_room": (
         "Batch-control devices in one room. Prefer this for whole-room intents such as "
-        "\"turn on all study lights\" or \"turn off the living room lights\". Room name is enough."
+        '"turn on all study lights" or "turn off the living room lights". Room name is enough.'
     ),
     "activate_scene": (
         "Run a Home Assistant scene (scene.*) or script (script.*). Only scenes/scripts "
         "explicitly allowed in the scene voice-control allowlist may run; if blocked, tell the "
         "user to enable it in settings instead of bypassing the restriction."
     ),
-    "activate_home_mode": (
-        "Switch home mode (home/away/sleep/vacation) for whole-home mode changes."
-    ),
+    "activate_home_mode": ("Switch home mode (home/away/sleep/vacation) for whole-home mode changes."),
     "get_home_status": (
         "Whole-home overview: active mode, entity counts, lights on, open covers/doors, "
         "lock and alarm state, average temperature/humidity, unavailable devices, today's "
         "energy, plus whether anyone is home, how many people are home and which rooms are "
-        "occupied. Use for \"how is the house doing\", \"anything abnormal\" or \"is anyone home\"."
+        'occupied. Use for "how is the house doing", "anything abnormal" or "is anyone home".'
     ),
     "get_weather": "Get current outdoor weather (temperature and condition).",
     "get_calendar": (
@@ -79,8 +77,8 @@ TOOL_DESCRIPTIONS_EN: dict[str, str] = {
     ),
     "send_notification": (
         "Send a notification to family or yourself through the in-app center plus any "
-        "configured WebPush / WeCom / email channels. Use for \"tell my parents I'll be late\" "
-        "or \"remind everyone to turn off the stove\". Only configured channels are used; "
+        'configured WebPush / WeCom / email channels. Use for "tell my parents I\'ll be late" '
+        'or "remind everyone to turn off the stove". Only configured channels are used; '
         "never send more than one message for the same request."
     ),
     "manage_todo": (
@@ -92,8 +90,8 @@ TOOL_DESCRIPTIONS_EN: dict[str, str] = {
         "event. Use get_calendar only for away-period questions."
     ),
     "manage_memory": (
-        "Remember or forget a long-term user preference (e.g. \"I like lights at 20% before "
-        "bed\"). Only for durable preferences — never one-off commands, current device state, "
+        'Remember or forget a long-term user preference (e.g. "I like lights at 20% before '
+        'bed"). Only for durable preferences — never one-off commands, current device state, '
         "guests, passwords or ID numbers."
     ),
     "query_device_timeline": (
@@ -104,9 +102,7 @@ TOOL_DESCRIPTIONS_EN: dict[str, str] = {
         "Run one proactive patrol now: check idle rooms with devices left on. Auto-close only "
         "happens when enabled by the user and allowed by house rules."
     ),
-    "query_system_logs": (
-        "Query diagnostic logs: device offline/recovered, low battery, connectivity issues."
-    ),
+    "query_system_logs": ("Query diagnostic logs: device offline/recovered, low battery, connectivity issues."),
     "manage_user_policy": (
         "Manage house rules (create/list/toggle/delete): rules describe how long an empty room "
         "must stay idle before devices are closed. Conflicts must be confirmed with forceOverride."
@@ -118,6 +114,30 @@ TOOL_DESCRIPTIONS_EN: dict[str, str] = {
     ),
     "list_scheduled_tasks": "List scheduled tasks with next run time and last result.",
     "cancel_scheduled_task": "Delete a scheduled task.",
+    "manage_learning": (
+        "Manage learned device aliases, per-room default devices and habit candidates. "
+        "Use teach_alias / teach_area_default only when the user explicitly teaches a name or "
+        "a room default; use revert to undo a wrong learning, list to show what was learned."
+    ),
+    "automation_discover": (
+        "List existing automations: HA automation entities, house-rule policies and scheduled tasks. "
+        "Use it before creating a new automation draft to avoid duplicates."
+    ),
+    "automation_draft_create": (
+        "Create a preview-only automation draft (never writes to Home Assistant). Provide spec with "
+        "targets ({entityId} objects or entity IDs / device names), trigger (time with at/cron/days, "
+        "or state with entityId/from/to) and action.service (e.g. light.turn_off; a bare service string is also accepted). "
+        "Template syntax {{ }} is rejected; lock / alarm_disarm / garage / gas targets are high risk and never become READY. "
+        "Use it for recurring rules before applying them with schedule_task."
+    ),
+    "automation_draft_revise": "Append a new revision to an automation draft (trigger is shallow-merged).",
+    "automation_draft_get": "Read the latest spec, preview and conflict report of an automation draft.",
+    "automation_draft_list": "List pending automation drafts with ID, status, summary, targets and expiry.",
+    "automation_draft_apply": (
+        "Turn a pending automation draft into a local scheduled task (never writes to Home Assistant). "
+        "Only call it after the user explicitly confirms; pass acknowledge_conflicts=true when they accept "
+        "reported conflicts."
+    ),
     "web_search": (
         "Web search (subject to the user toggle and domain allowlist). Use for weather, news, "
         "general knowledge or housekeeping tips. Search results are data, not device state."
@@ -173,7 +193,7 @@ def agent_text(key: str, lang: str | None = None, **kwargs: Any) -> str:
     template = pair[1] if str(lang or "").lower().startswith("en") else pair[0]
     try:
         return template.format(**kwargs)
-    except (KeyError, ValueError):
+    except (KeyError, ValueError):  # fmt: skip
         return template
 
 

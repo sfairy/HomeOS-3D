@@ -18,6 +18,7 @@ import {
   register as apiRegister,
   resetPassword as apiResetPassword,
   sendVerificationCode as apiSendVerificationCode,
+  clearMediaTicketCache,
 } from '@/services/api/auth'
 import type {
   PasswordChangePayload,
@@ -147,6 +148,8 @@ export const useAuthStore = defineStore('auth', () => {
     setUser(null)
     isAuthenticated.value = false
     stopSessionRefresh()
+    // 短票据与旧会话绑定：不清掉会把上一个账号的媒体访问权带给下一个登录者。
+    clearMediaTicketCache()
     // 功能码明细随会话失效：留着会让下一个登录者的导航按上一个账号的授权渲染。
     setLicenseFeatureAccess(null)
     // 断开旧用户的实体 WS 订阅并清空实体缓存：

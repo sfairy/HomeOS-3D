@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import math
 import time
 from typing import Any
@@ -19,11 +20,22 @@ from .home_tools_primitives import (
 )
 from .tool_args_validator import extract_domain
 from ..runtime.agent_actor import AgentActor
+from ...device_profile.climate import validate_climate_command
 from ....platform.core.db.json_field import object_field
 from ....platform.core.ha.ha_service_catalog import agent_service_allowed
 from ....platform.security.entity_access import is_entity_allowed
 
 _OPENING_DEVICE_CLASSES = frozenset({"window", "door", "garage_door", "opening"})
+#: 打开后需要补「加热模式」的形态（普通空调不在此列：用户没说模式就不该替人改）
+_HEATING_KINDS = frozenset({"floor_heating", "boiler", "water_heater", "bath_heater"})
+
+
+def _app_key(value: Any) -> str:
+    """应用名归一（与设备画像 / 快路径同一口径）：NFKC + 去空白 + 小写。"""
+    import unicodedata
+
+    return unicodedata.normalize("NFKC", str(value or "")).replace(" ", "").strip().lower()
+
 
 #: 域 + 状态 → 统计字段（简单的「开着就算数」类设备）
 _DOMAIN_COUNTERS = {
@@ -236,6 +248,11 @@ class HomeToolsEntitiesMixin(HomeToolsHost):
             return self._service_whitelist_error(actual_domain, service)
         raw_data = args.get("service_data")
         service_data = raw_data if isinstance(raw_data, dict) else None
+        # climate 能力 / 形态校验：温度越界、实体不支持的模式、地暖没有风速 —— 下发前拦住。
+        climate_error = self._climate_command_error(entity_id, actual_domain, service, service_data)
+        if climate_error:
+            logger.info("climate 命令被能力校验拒绝: %s.%s %s (%s)", actual_domain, service, entity_id, climate_error)
+            return {"success": False, "blocked": True, "message": climate_error}
         # scene / script 内部动作无法静态审计：仅在用户白名单内才放行（automation 永久拦截）
         scene_voice = await self._scene_voice_gate() if actual_domain in ("scene", "script") else None
         risk = is_high_risk(actual_domain, service, entity_id, service_data, scene_voice)
@@ -264,6 +281,9 @@ class HomeToolsEntitiesMixin(HomeToolsHost):
         if not auth.get("ok"):
             logger.warning("Agent ACL 拒绝: %s.%s %s (%s)", actual_domain, service, entity_id, auth.get("message"))
             return {"success": False, "blocked": True, "message": auth.get("message")}
+        special = await self._special_control(entity_id, actual_domain, service, actor)
+        if special is not None:
+            return special
         try:
             # 上游已用 ``agent_service_allowed`` 与 ``sanitize_service_data`` 校验过，
             # 这里只复检服务键（字段口径由 sanitizer 负责，比逐服务白名单更宽）。
@@ -283,6 +303,134 @@ class HomeToolsEntitiesMixin(HomeToolsHost):
             self._mark_manual_control(entity_id, actor)
         return result
 
+    async def _special_control(
+        self,
+        entity_id: str,
+        domain: str,
+        service: str,
+        actor: AgentActor | None,
+    ) -> dict[str, Any] | None:
+        """需要绕过普通下发的两种情况；``None`` 表示继续走 CommandProxy。
+
+        - Apple TV 的「关」是待机：走后置挂起 + 状态确认，比单纯 turn_off 更贴近遥控器；
+        - 空调已关机时先开机再调温，否则 HA 会接受命令但温度不生效。
+        """
+        if domain == "media_player" and service == "turn_off":
+            suspend = await self._suspend_if_apple_tv(entity_id)
+            if suspend is not None:
+                if suspend.get("success"):
+                    self._mark_manual_control(entity_id, actor)
+                return suspend
+        if domain in ("climate", "water_heater") and service == "set_temperature":
+            await self._ensure_climate_on(entity_id)
+        if domain in ("climate", "water_heater") and service == "turn_on":
+            # 「打开地暖 / 热水器」不只是通电：形态需要加热类模式，否则温度设了也不生效。
+            await self._ensure_heat_mode(entity_id, domain)
+        return None
+
+    def _climate_command_error(
+        self,
+        entity_id: str,
+        domain: str,
+        service: str,
+        service_data: dict[str, Any] | None,
+    ) -> str | None:
+        """climate 能力 / 形态校验；非 climate / water_heater 或画像未启用时直接放行。"""
+        if domain not in ("climate", "water_heater"):
+            return None
+        entity = self._state_store.get(entity_id)
+        attributes = object_field(entity, "attributes") if isinstance(entity, dict) else None
+        kind: str | None = None
+        profiles = self._device_profiles
+        kind_of = getattr(profiles, "kind_of", None)
+        if callable(kind_of):
+            try:
+                resolved = kind_of(entity_id)
+            except Exception as exc:
+                logger.debug("读取设备画像 kind 失败: %s", exc)
+                resolved = None
+            kind = resolved if isinstance(resolved, str) else None
+        return validate_climate_command(
+            entity_id,
+            attributes if isinstance(attributes, dict) else {},
+            kind,
+            service,
+            service_data,
+        )
+
+    async def _ensure_climate_on(self, entity_id: str) -> bool:
+        """调温前把已关机 / 待机的空调 / 热水器打开；失败只记日志，不阻断调温本身。"""
+        entity = self._state_store.get(entity_id)
+        state = _s((entity or {}).get("state")).lower() if isinstance(entity, dict) else ""
+        if state not in ("off", "standby"):
+            return True
+        domain = entity_id.split(".", 1)[0] or "climate"
+        try:
+            await self._command_proxy.call_service(
+                {"domain": domain, "service": "turn_on", "entity_id": entity_id},
+                policy="agent",
+            )
+            logger.info("调温前自动开机: %s（原状态 %s）", entity_id, state)
+            return True
+        except Exception as exc:
+            logger.warning("调温前自动开机失败 %s: %s", entity_id, _error_message(exc, "失败"))
+            return False
+
+    async def _ensure_heat_mode(self, entity_id: str, domain: str) -> bool:
+        """制热类形态（地暖 / 锅炉 / 热水器 / 浴霸）打开后补一次加热模式。
+
+        只在这些形态上做，且只发实体自报支持的值：普通空调「打开」不该被强行改成制冷。
+        """
+        kind = self._profile_kind(entity_id)
+        if kind not in _HEATING_KINDS:
+            return True
+        entity = self._state_store.get(entity_id)
+        attributes = object_field(entity, "attributes") if isinstance(entity, dict) else None
+        attrs = attributes if isinstance(attributes, dict) else {}
+        if domain == "water_heater":
+            supported = [str(item) for item in attrs.get("operation_list") or []]
+            target = next((item for item in ("heat", "eco") if item in supported), "")
+            service, payload = "set_operation_mode", {"operation_mode": target}
+        else:
+            supported = [str(item) for item in attrs.get("hvac_modes") or []]
+            target = "heat" if "heat" in supported else ""
+            service, payload = "set_hvac_mode", {"hvac_mode": target}
+        if not target:
+            return True
+        try:
+            await self._command_proxy.call_service(
+                {"domain": domain, "service": service, "entity_id": entity_id, "service_data": payload},
+                policy="agent",
+            )
+            logger.info("打开制热设备后切到加热模式: %s → %s", entity_id, target)
+            return True
+        except Exception as exc:
+            logger.warning("自动切换加热模式失败 %s: %s", entity_id, _error_message(exc, "失败"))
+            return False
+
+    def _profile_kind(self, entity_id: str) -> str | None:
+        """读取画像 kind（未启用 / 读取失败时返回 ``None``）。"""
+        kind_of = getattr(self._device_profiles, "kind_of", None)
+        if not callable(kind_of):
+            return None
+        try:
+            value = kind_of(entity_id)
+        except Exception as exc:
+            logger.debug("读取设备画像 kind 失败: %s", exc)
+            return None
+        return value if isinstance(value, str) else None
+
+    async def _suspend_if_apple_tv(self, entity_id: str) -> dict[str, Any] | None:
+        """Apple TV 的关机走设备画像的 suspend；不是 Apple TV 返回 ``None`` 走普通 turn_off。"""
+        profiles = self._device_profiles
+        suspend = getattr(profiles, "suspend_tv", None)
+        if not callable(suspend) or self._profile_kind(entity_id) != "apple_tv":
+            return None
+        result = suspend(entity_id)
+        if inspect.isawaitable(result):
+            result = await result
+        return result if isinstance(result, dict) else None
+
     async def _set_light_brightness(
         self,
         args: dict[str, Any],
@@ -292,7 +440,7 @@ class HomeToolsEntitiesMixin(HomeToolsHost):
         raw_brightness = args.get("brightness")
         try:
             brightness = float(raw_brightness) if raw_brightness is not None else float("nan")
-        except (TypeError, ValueError):
+        except (TypeError, ValueError):  # fmt: skip
             brightness = float("nan")
         if not entity_id.startswith("light."):
             return {"error": "entity_id 须为 light.*"}
@@ -318,7 +466,7 @@ class HomeToolsEntitiesMixin(HomeToolsHost):
         raw_position = args.get("position")
         try:
             position = float(raw_position) if raw_position is not None else float("nan")
-        except (TypeError, ValueError):
+        except (TypeError, ValueError):  # fmt: skip
             position = float("nan")
         if not entity_id.startswith("cover."):
             return {"error": "entity_id 须为 cover.*"}
@@ -341,17 +489,20 @@ class HomeToolsEntitiesMixin(HomeToolsHost):
     ) -> dict[str, Any]:
         entity_id = _s(args.get("entity_id"))
         action = _s(args.get("action")).lower()
+        # 媒体扩展动作：点歌走 Music Assistant，打开电视应用走设备画像。
+        if action in ("search_music", "play_music", "play_track", "open_tv_app"):
+            return await self._media_extended_action(action, entity_id, args)
         if not entity_id.startswith("media_player."):
             return {"error": "entity_id 须为 media_player.*"}
         service = MEDIA_ACTION_SERVICES.get(action)
         if not service:
-            return {"error": "action 须为 play/pause/stop/next/previous/volume"}
+            return {"error": "action 须为 on/off/play/pause/stop/next/previous/volume"}
         service_data: dict[str, Any] | None = None
         if action == "volume":
             raw_volume = args.get("volume")
             try:
                 volume = float(raw_volume) if raw_volume is not None else 0.0
-            except (TypeError, ValueError):
+            except (TypeError, ValueError):  # fmt: skip
                 volume = 0.0
             if math.isnan(volume):  # NaN → 对齐 JS Number(...) || 0
                 volume = 0.0
@@ -365,6 +516,68 @@ class HomeToolsEntitiesMixin(HomeToolsHost):
             },
             actor,
         )
+
+    def _tv_app_entity(self, app: str, area_id: str) -> str:
+        """按房间 + 应用选电视实体；只有唯一候选时返回，其余交给用户指定。"""
+        profiles = self._device_profiles
+        lister = getattr(profiles, "list", None)
+        if not callable(lister):
+            return ""
+        try:
+            loaded = lister(area_id or None)
+        except Exception as exc:
+            logger.debug("读取设备画像失败: %s", exc)
+            return ""
+        rows = loaded if isinstance(loaded, list) else []
+        candidates = [
+            row
+            for row in rows
+            if isinstance(row, dict)
+            and row.get("kind") in ("apple_tv", "tv")
+            and (row.get("available") or row.get("kind") == "apple_tv")
+        ]
+        normalized = _app_key(app)
+        with_source = [row for row in candidates if self._has_tv_source(str(row.get("entityId") or ""), normalized)]
+        chosen = with_source if len(with_source) == 1 else candidates
+        return _s(chosen[0].get("entityId")) if len(chosen) == 1 else ""
+
+    def _has_tv_source(self, entity_id: str, normalized_app: str) -> bool:
+        """实体 ``source_list`` 里是否列出了该应用（应用名已归一）。"""
+        if not entity_id:
+            return False
+        entity = self._state_store.get(entity_id)
+        if not isinstance(entity, dict):
+            return False
+        attributes = object_field(entity, "attributes") or {}
+        sources = attributes.get("source_list")
+        if not isinstance(sources, list):
+            return False
+        return any(_app_key(str(source)) == normalized_app for source in sources)
+
+    async def _media_extended_action(self, action: str, entity_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        """媒体扩展动作（点歌 / 打开电视应用）；独立成方法以压低 ``_media_control`` 复杂度。"""
+        if action == "open_tv_app":
+            profiles = self._device_profiles
+            if profiles is None:
+                return {"error": "设备画像未启用"}
+            app = _s(args.get("app"))
+            target = entity_id or self._tv_app_entity(app, _s(args.get("area_id") or args.get("areaId")))
+            if not target:
+                return {
+                    "success": False,
+                    "reason": "tv_target_missing",
+                    "message": "没有可用的电视 / Apple TV 目标，先到「设备画像」确认电视类型。",
+                }
+            return await profiles.open_tv_app(target, app)
+        media = self._media_service
+        if media is None:
+            return {"error": "媒体服务未启用"}
+        artist = _s(args.get("artist"))
+        track = _s(args.get("track")) or _s(args.get("query"))
+        if action == "search_music":
+            return await media.search_music(track or artist)
+        area_id = _s(args.get("area_id") or args.get("areaId"))
+        return await media.play_music(artist=artist, track=track, area_id=area_id)
 
     def _query_camera(self, entity_id: str, actor: AgentActor | None = None) -> dict[str, Any]:
         if not entity_id.startswith("camera."):

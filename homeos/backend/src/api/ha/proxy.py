@@ -54,47 +54,49 @@ from ...domains.ha.integration.media_access import (
     remember_hls,
 )
 
-__all__ = ['close_shared_media_clients', 'router']
+__all__ = ["close_shared_media_clients", "router"]
 
 router = APIRouter(include_in_schema=False)
 ALLOWED_MEDIA_PROXY_PREFIXES = (
-    '/api/camera_proxy/',
-    '/api/camera_proxy_stream/',
-    '/api/image_proxy/',
-    '/api/media_player_proxy/',
-    '/api/hls/',
+    "/api/camera_proxy/",
+    "/api/camera_proxy_stream/",
+    "/api/image_proxy/",
+    "/api/media_player_proxy/",
+    "/api/hls/",
 )
 REQUEST_HEADERS_TO_DROP = {
-    'te',
-    'via',
-    'host',
-    'cookie',
-    'origin',
-    'referer',
-    'trailer',
-    'upgrade',
-    'forwarded',
-    'connection',
-    'authorization',
-    'x-scheme',
-    'x-real-ip',
-    'x-client-ip',
-    'content-length',
-    'true-client-ip',
-    'cf-connecting-ip',
-    'transfer-encoding',
+    "te",
+    "via",
+    "host",
+    "cookie",
+    "origin",
+    "referer",
+    "trailer",
+    "upgrade",
+    "forwarded",
+    "connection",
+    "authorization",
+    "x-scheme",
+    "x-real-ip",
+    "x-client-ip",
+    "content-length",
+    "true-client-ip",
+    "cf-connecting-ip",
+    "transfer-encoding",
     # 前端用它声明「这条 MJPEG 要按帧透传」：属于本服务与浏览器之间的协议头，
     # 不能转给 HA（HA 不认识，某些反代还会因未知头拒绝请求）。
-    'x-hb-camera-stream',
-    'proxy-authorization',
+    "x-hb-camera-stream",
+    "proxy-authorization",
 }
 RESPONSE_HEADERS_TO_DROP = {
-    'connection',
-    'set-cookie',
-    'content-length',
-    'content-encoding',
-    'transfer-encoding',
+    "connection",
+    "set-cookie",
+    "content-length",
+    "content-encoding",
+    "transfer-encoding",
 }
+
+
 def upstream_path(request: Request) -> str:
     """拼出要转给 HA 的路径（含查询串）；HA 侧路径与本服务完全一致。
 
@@ -106,11 +108,18 @@ def upstream_path(request: Request) -> str:
     """
     path = request.url.path
     query = request.url.query
-    if query and path.startswith(('/api/camera_proxy/', '/api/camera_proxy_stream/')):
-        drop = {'token', 'hb'} if path.startswith('/api/camera_proxy_stream/') else {'token'}
+    if query:
+        # ``ticket`` 是本服务的短票据（``<img>`` / MJPEG 用 ?ticket= 鉴权），
+        # 绝不能转给 HA；其余 query 只在相机路径上做额外裁剪。
+        drop = {"ticket"}
+        camera_path = path.startswith(("/api/camera_proxy/", "/api/camera_proxy_stream/"))
+        if camera_path:
+            drop.add("token")
+            if path.startswith("/api/camera_proxy_stream/"):
+                drop.add("hb")
         pairs = [(k, v) for k, v in parse_qsl(query, keep_blank_values=True) if k not in drop]
         query = urlencode(pairs)
-    return f'{path}?{query}' if query else path
+    return f"{path}?{query}" if query else path
 
 
 def upstream_request_headers(headers: Mapping[str, str]) -> dict[str, str]:
@@ -118,39 +127,39 @@ def upstream_request_headers(headers: Mapping[str, str]) -> dict[str, str]:
     return {
         name: value
         for name, value in headers.items()
-        if name.lower() not in REQUEST_HEADERS_TO_DROP and not name.lower().startswith('x-forwarded-')
+        if name.lower() not in REQUEST_HEADERS_TO_DROP and not name.lower().startswith("x-forwarded-")
     }
 
 
 def allowed_media_proxy_path(path: str) -> bool:
     """只允许 HA 媒体路径，并拒绝路径规范化绕过。"""
-    if not path.startswith(ALLOWED_MEDIA_PROXY_PREFIXES) or '\\' in path:
+    if not path.startswith(ALLOWED_MEDIA_PROXY_PREFIXES) or "\\" in path:
         return False
-    return all(segment not in {'.', '..'} for segment in path.split('/'))
+    return all(segment not in {".", ".."} for segment in path.split("/"))
 
 
 def rewrite_location(value: str, base_url: str) -> str:
-    normalized_base = base_url.rstrip('/')
+    normalized_base = base_url.rstrip("/")
     if value == normalized_base:
-        return '/'
-    if value.startswith(f'{normalized_base}/'):
-        return value[len(normalized_base):]
+        return "/"
+    if value.startswith(f"{normalized_base}/"):
+        return value[len(normalized_base) :]
     return value
 
 
 def versioned_image_proxy_cache_control(path: str, query: str, status_code: int) -> str | None:
     """缓存带状态版本号的 HA 图像，同时不改变实时摄像头行为。"""
-    if path.startswith('/api/image_proxy/') and 200 <= status_code < 300:
-        if parse_qs(query).get('hb_live') == ['1']:
-            return 'private, no-store'
+    if path.startswith("/api/image_proxy/") and 200 <= status_code < 300:
+        if parse_qs(query).get("hb_live") == ["1"]:
+            return "private, no-store"
         versioned = any(
-            key == 'hb' and bool(value)
-            for part in query.split('&')
+            key == "hb" and bool(value)
+            for part in query.split("&")
             if part
-            for key, separator, value in [part.partition('=')]
+            for key, separator, value in [part.partition("=")]
             if separator
         )
-        return 'private, max-age=600, immutable' if versioned else None
+        return "private, max-age=600, immutable" if versioned else None
     return None
 
 
@@ -158,10 +167,10 @@ def _path_requires_camera_license(path: str) -> bool:
     """摄像头相关媒体代理一律要求 ``module.security``（含快照 / HLS / image）。"""
     return path.startswith(
         (
-            '/api/camera_proxy/',
-            '/api/camera_proxy_stream/',
-            '/api/hls/',
-            '/api/image_proxy/',
+            "/api/camera_proxy/",
+            "/api/camera_proxy_stream/",
+            "/api/hls/",
+            "/api/image_proxy/",
         )
     )
 
@@ -177,14 +186,14 @@ class _MediaRequestKind:
 
 async def _guard_media_request(request: Request) -> None:
     """入口守卫：只放行白名单路径，摄像头类路径额外要求 ``module.security``。"""
-    if request.method not in {'GET', 'HEAD'} or not allowed_media_proxy_path(request.url.path):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='媒体资源不存在。')
+    if request.method not in {"GET", "HEAD"} or not allowed_media_proxy_path(request.url.path):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="媒体资源不存在。")
     if _path_requires_camera_license(request.url.path) and not await _camera_license_allows(request):
         raise HTTPException(
             status_code=403,
             detail={
-                'code': 'LICENSE_RESTRICTED',
-                'message': '当前授权状态不允许读取摄像头。',
+                "code": "LICENSE_RESTRICTED",
+                "message": "当前授权状态不允许读取摄像头。",
             },
         )
 
@@ -196,7 +205,7 @@ async def _proxy_connection(request: Request, viewer: ViewerPrincipal | None):
     """
     connection = await asyncio.to_thread(load_active_connection, request.app.state.database)
     if connection is None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='请先配置 Home Assistant 连接。')
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="请先配置 Home Assistant 连接。")
     if viewer is not None:
         await asyncio.to_thread(authorize_media, request, connection, viewer)
     return connection
@@ -213,25 +222,21 @@ async def _proxy_client_config(request: Request, connection):
 def _proxy_headers(request: Request, client_config) -> dict[str, str]:
     """转发给 HA 的请求头：沿用白名单头，再用连接凭据覆盖授权与编码。"""
     headers = upstream_request_headers(request.headers)
-    headers['authorization'] = f'Bearer {client_config.access_token}'
-    headers['accept-encoding'] = 'identity'
+    headers["authorization"] = f"Bearer {client_config.access_token}"
+    headers["accept-encoding"] = "identity"
     return headers
 
 
 def _classify_media_request(request: Request, client_config) -> _MediaRequestKind:
     """按路径区分事件流、快照与普通资源，并算出快照缓存键。"""
     path = request.url.path
-    stream = path.startswith('/api/camera_proxy_stream/')
-    snapshot = request.method == 'GET' and path.startswith('/api/camera_proxy/')
+    stream = path.startswith("/api/camera_proxy_stream/")
+    snapshot = request.method == "GET" and path.startswith("/api/camera_proxy/")
     return _MediaRequestKind(
         stream=stream,
         snapshot=snapshot,
         snapshot_key=(
-            camera_snapshot_cache_key(
-                client_config.base_url, path, client_config.access_token
-            )
-            if snapshot
-            else ''
+            camera_snapshot_cache_key(client_config.base_url, path, client_config.access_token) if snapshot else ""
         ),
     )
 
@@ -250,14 +255,14 @@ async def _cached_snapshot(
     cached = camera_snapshot_cache.get(kind.snapshot_key)
     if cached is None:
         return None
-    live_map = parse_qs(request.url.query).get('hb_live') == ['1']
+    live_map = parse_qs(request.url.query).get("hb_live") == ["1"]
     ttl = 1 if live_map else CAMERA_SNAPSHOT_CACHE_TTL_SECONDS
     if monotonic() - cached.created_at < ttl:
         return _camera_snapshot_response(cached)
 
     _schedule_camera_snapshot_refresh(
         kind.snapshot_key,
-        f'{client_config.base_url}{request.url.path}',
+        f"{client_config.base_url}{request.url.path}",
         headers,
         client_config.verify_tls,
         client_config.timeout,
@@ -271,7 +276,7 @@ async def _cached_snapshot(
         await asyncio.shield(pending)
     refreshed = camera_snapshot_cache.get(kind.snapshot_key)
     if refreshed is None or refreshed is cached:
-        raise HTTPException(status_code=502, detail='实时地图暂时无法刷新。')
+        raise HTTPException(status_code=502, detail="实时地图暂时无法刷新。")
     return _camera_snapshot_response(refreshed)
 
 
@@ -331,25 +336,19 @@ async def _ensure_media_access(
         await upstream.aclose()
         if owns_client:
             await client.aclose()
-    raise HTTPException(status_code=403, detail='媒体访问权限已变更。')
+    raise HTTPException(status_code=403, detail="媒体访问权限已变更。")
 
 
 def _response_headers(request: Request, upstream: httpx.Response, client_config) -> dict[str, str]:
     """过滤上游响应头，并补上缓存策略与重写后的 ``location``。"""
     response_headers = {
-        name: value
-        for name, value in upstream.headers.items()
-        if name.lower() not in RESPONSE_HEADERS_TO_DROP
+        name: value for name, value in upstream.headers.items() if name.lower() not in RESPONSE_HEADERS_TO_DROP
     }
-    cache_control = versioned_image_proxy_cache_control(
-        request.url.path, request.url.query, upstream.status_code
-    )
+    cache_control = versioned_image_proxy_cache_control(request.url.path, request.url.query, upstream.status_code)
     if cache_control:
-        response_headers['cache-control'] = cache_control
-    if 'location' in response_headers:
-        response_headers['location'] = rewrite_location(
-            response_headers['location'], client_config.base_url
-        )
+        response_headers["cache-control"] = cache_control
+    if "location" in response_headers:
+        response_headers["location"] = rewrite_location(response_headers["location"], client_config.base_url)
     return response_headers
 
 
@@ -360,14 +359,14 @@ def _apply_frame_passthrough(request: Request, response_headers: dict[str, str])
     自定义头，响应体改成不透明字节流，由前端自己切帧。缓存也必须关掉，
     否则中间层会缓存「第一帧之后就没内容」的截断响应。
     """
-    content_type = response_headers.get('content-type', '')
-    if request.headers.get('x-hb-camera-stream') != 'frames':
+    content_type = response_headers.get("content-type", "")
+    if request.headers.get("x-hb-camera-stream") != "frames":
         return
-    if not content_type.lower().startswith('multipart/x-mixed-replace'):
+    if not content_type.lower().startswith("multipart/x-mixed-replace"):
         return
-    response_headers['x-hb-camera-content-type'] = content_type
-    response_headers['content-type'] = 'application/octet-stream'
-    response_headers['cache-control'] = 'no-store'
+    response_headers["x-hb-camera-content-type"] = content_type
+    response_headers["content-type"] = "application/octet-stream"
+    response_headers["cache-control"] = "no-store"
 
 
 async def _buffered_media_response(
@@ -381,9 +380,7 @@ async def _buffered_media_response(
     """非流式收尾：必要时把快照写进缓存，关闭上游与独占 client，返回完整响应体。"""
     content = upstream.content
     if kind.snapshot and 200 <= upstream.status_code < 300 and content:
-        _remember_camera_snapshot(
-            kind.snapshot_key, content, upstream.headers.get('content-type', 'image/jpeg')
-        )
+        _remember_camera_snapshot(kind.snapshot_key, content, upstream.headers.get("content-type", "image/jpeg"))
     await upstream.aclose()
     if owns_client:
         await client.aclose()
@@ -401,12 +398,10 @@ async def proxy_http(request: Request, viewer: ViewerPrincipal | None) -> Respon
         if cached_response is not None:
             return cached_response
 
-    target = f'{client_config.base_url}{upstream_path(request)}'
+    target = f"{client_config.base_url}{upstream_path(request)}"
     client, owns_client = _media_client(client_config, kind.stream)
     try:
-        upstream = await _dispatch_upstream(
-            request, client, target, headers, client_config, kind.stream
-        )
+        upstream = await _dispatch_upstream(request, client, target, headers, client_config, kind.stream)
         await _ensure_media_access(request, upstream, client, owns_client)
         response_headers = _response_headers(request, upstream, client_config)
         if kind.stream:
@@ -418,9 +413,7 @@ async def proxy_http(request: Request, viewer: ViewerPrincipal | None) -> Respon
                 status_code=upstream.status_code,
                 headers=response_headers,
             )
-        return await _buffered_media_response(
-            request, upstream, client, owns_client, kind, response_headers
-        )
+        return await _buffered_media_response(request, upstream, client, owns_client, kind, response_headers)
     except ClientDisconnect:
         # 观看端已经走了：上游不能因为没人接收而一直挂着。
         if owns_client:
@@ -431,7 +424,7 @@ async def proxy_http(request: Request, viewer: ViewerPrincipal | None) -> Respon
         if owns_client:
             await client.aclose()
         raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY, detail=f'无法载入 Home Assistant 后台：{error}'
+            status_code=status.HTTP_502_BAD_GATEWAY, detail=f"无法载入 Home Assistant 后台：{error}"
         ) from error
     except BaseException:
         if owns_client:
@@ -440,56 +433,48 @@ async def proxy_http(request: Request, viewer: ViewerPrincipal | None) -> Respon
         raise
 
 
-@router.get('/api/camera_hls/{entity_id}')
-async def camera_hls_stream(
-    entity_id: str, request: Request, viewer: ShortLivedLicensedViewer
-) -> JSONResponse:
+@router.get("/api/camera_hls/{entity_id}")
+async def camera_hls_stream(entity_id: str, request: Request, viewer: ShortLivedLicensedViewer) -> JSONResponse:
     if not await _camera_license_allows(request):
         raise HTTPException(
             status_code=403,
             detail={
-                'code': 'LICENSE_RESTRICTED',
-                'message': '当前授权状态不允许读取摄像头。',
+                "code": "LICENSE_RESTRICTED",
+                "message": "当前授权状态不允许读取摄像头。",
             },
         )
     connection = await asyncio.to_thread(
         load_authorized_camera_connection, request.app.state.database, viewer, entity_id
     )
     if connection is None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='请先配置 Home Assistant 连接。')
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="请先配置 Home Assistant 连接。")
     try:
         client = await request.app.state.studio_ha.client_for(connection)
         websocket = await client.connect_websocket()
         try:
-            result = await client.command(
-                websocket, 1, 'camera/stream', entity_id=entity_id, format='hls'
-            )
+            result = await client.command(websocket, 1, "camera/stream", entity_id=entity_id, format="hls")
         finally:
             await websocket.close()
     except (HAClientError, CredentialCipherError) as error:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f'无法启动摄像头实时流：{error}',
+            detail=f"无法启动摄像头实时流：{error}",
         ) from error
-    stream_url = str(
-        result.get('url') if isinstance(result, dict) else result or ''
-    ).strip()
+    stream_url = str(result.get("url") if isinstance(result, dict) else result or "").strip()
     if not stream_url:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail='Home Assistant 未返回摄像头流地址。')
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Home Assistant 未返回摄像头流地址。")
     stream_url = rewrite_location(stream_url, client.base_url)
-    if not allowed_media_proxy_path(stream_url.split('?', 1)[0]):
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail='Home Assistant 返回了无效的摄像头流地址。')
+    if not allowed_media_proxy_path(stream_url.split("?", 1)[0]):
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Home Assistant 返回了无效的摄像头流地址。")
     # 片段路径里没有实体 id：把「令牌 → 实体」记进有界能力表，后续片段请求靠它校验。
     remember_hls(request, connection, entity_id, stream_url)
-    return JSONResponse({'url': stream_url})
+    return JSONResponse({"url": stream_url})
 
 
-@router.api_route('/api/camera_proxy/{path:path}', methods=['GET', 'HEAD'])
-@router.api_route('/api/camera_proxy_stream/{path:path}', methods=['GET', 'HEAD'])
-@router.api_route('/api/image_proxy/{path:path}', methods=['GET', 'HEAD'])
-@router.api_route('/api/media_player_proxy/{path:path}', methods=['GET', 'HEAD'])
-@router.api_route('/api/hls/{path:path}', methods=['GET', 'HEAD'])
-async def proxy_home_assistant_media(
-    request: Request, viewer: ShortLivedLicensedViewer
-) -> Response:
+@router.api_route("/api/camera_proxy/{path:path}", methods=["GET", "HEAD"])
+@router.api_route("/api/camera_proxy_stream/{path:path}", methods=["GET", "HEAD"])
+@router.api_route("/api/image_proxy/{path:path}", methods=["GET", "HEAD"])
+@router.api_route("/api/media_player_proxy/{path:path}", methods=["GET", "HEAD"])
+@router.api_route("/api/hls/{path:path}", methods=["GET", "HEAD"])
+async def proxy_home_assistant_media(request: Request, viewer: ShortLivedLicensedViewer) -> Response:
     return await proxy_http(request, viewer)

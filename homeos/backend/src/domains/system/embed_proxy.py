@@ -139,7 +139,10 @@ class EmbedProxyService:
 
         if embed_id == "movie-pilot":
             from_list = next((item.url for item in custom_embeds if item.id == "movie-pilot"), "")
-            url = from_list or str(layout.get("moviePilotUrl") or "")
+            # 与媒体库同一条读取链：只填了「媒体与入库」的 mpUrl 也要能打开内嵌页
+            media = layout.get("mediaConfig")
+            from_media = media.get("mpUrl") if isinstance(media, dict) else None
+            url = from_list or str(from_media or "") or str(layout.get("moviePilotUrl") or "")
             if not url.strip():
                 not_found(_message("EMBED_MOVIEPILOT_URL_MISSING"))
             return _target_from(url)

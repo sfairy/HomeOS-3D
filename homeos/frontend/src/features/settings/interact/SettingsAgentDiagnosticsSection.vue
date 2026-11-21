@@ -10,7 +10,7 @@
         icon-class="agent-icon--model"
         orb-class="agent-orb--model"
         eyebrow="诊断"
-        :description="'设备掉线、恢复、低电量与连接状态变化会被自动记录，便于回答「最近哪台设备不稳定」。日志同样受设备可见性约束，受限账号查不到无权设备的记录。'"
+        :description="'设备掉线、恢复与低电量会自动记录；意图门判定、执行实证与学习变更也写在同一处，便于回答「刚才为什么没执行」。日志同样受设备可见性约束，受限账号查不到无权设备的记录。'"
       >
         <template #actions>
           <button type="button" class="settings-btn-ghost shrink-0" :disabled="loading" @click="refresh">
@@ -33,6 +33,13 @@
             </HosSelect>
           </div>
           <div>
+            <label class="settings-form-label mb-1.5">级别</label>
+            <HosSelect v-model="level" variant="settings" block :searchable="false">
+              <option value="">全部</option>
+              <option v-for="item in levelOptions" :key="item.id" :value="item.id">{{ item.label }}</option>
+            </HosSelect>
+          </div>
+          <div class="settings-form-grid__span-2">
             <label class="settings-form-label mb-1.5">搜索</label>
             <input
               v-model="search"
@@ -79,12 +86,24 @@ const kindOptions = [
   { id: 'DEVICE_RECOVERED', label: '设备恢复' },
   { id: 'LOW_BATTERY', label: '低电量' },
   { id: 'CONNECTIVITY', label: '连接变化' },
+  { id: 'INTENT_VERDICT', label: '意图判定' },
+  { id: 'EVIDENCE', label: '执行实证' },
+  { id: 'LEARNING', label: '学习记录' },
+]
+
+/** 与 global_log 的级别口径一致（诊断 / 意图 / 实证共用） */
+const levelOptions = [
+  { id: 'info', label: '信息' },
+  { id: 'success', label: '成功' },
+  { id: 'warning', label: '警告' },
+  { id: 'error', label: '错误' },
 ]
 
 const loading = ref(false)
 const message = ref('')
 const messageOk = ref(true)
 const kind = ref('')
+const level = ref('')
 const search = ref('')
 const items = ref<AgentDiagnosticEvent[]>([])
 
@@ -110,6 +129,7 @@ async function refresh() {
   try {
     items.value = await listAgentDiagnostics({
       kind: kind.value,
+      level: level.value,
       search: search.value.trim(),
       limit: 50,
     })

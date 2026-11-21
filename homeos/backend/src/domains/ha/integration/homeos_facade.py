@@ -121,9 +121,7 @@ class HomeOSFacadeMixin:
     def _stored_ha_version(self) -> str | None:
         """只读 ``ha_version`` 一列：整条 ``HAConnection`` 出了会话就会 detached。"""
         with self._host.database.session_factory() as database:
-            return database.scalar(
-                select(HAConnection.ha_version).where(HAConnection.is_active.is_(True))
-            )
+            return database.scalar(select(HAConnection.ha_version).where(HAConnection.is_active.is_(True)))
 
     async def get_status(self) -> dict[str, Any]:
         status = self._status_dict()
@@ -139,9 +137,7 @@ class HomeOSFacadeMixin:
     # 连接 / 客户端解析
     def _active_connection(self) -> HAConnection | None:
         with self._host.database.session_factory() as database:
-            return database.scalar(
-                select(HAConnection).where(HAConnection.is_active.is_(True))
-            )
+            return database.scalar(select(HAConnection).where(HAConnection.is_active.is_(True)))
 
     async def _facade_client(self) -> Any:
         # 「当前活跃连接」是同步 SQLite 查询：放在事件循环上会在每条控制命令前
@@ -168,9 +164,7 @@ class HomeOSFacadeMixin:
         del request_id  # 请求 id 由连接器内部管理（REST 语义无对应概念）
         client = await self._facade_client()
         if client is None:
-            raise BusinessException(
-                ErrorCode.SERVICE_UNAVAILABLE, api_error("HA_NOT_CONNECTED")
-            )
+            raise BusinessException(ErrorCode.SERVICE_UNAVAILABLE, api_error("HA_NOT_CONNECTED"))
         try:
             return await client.call_service(
                 domain,
@@ -187,7 +181,7 @@ class HomeOSFacadeMixin:
                 "HA 服务调用失败：%s.%s → %s | %s",
                 domain,
                 service,
-                entity_id or '(未指定实体)',
+                entity_id or "(未指定实体)",
                 exc,
             )
             raise BusinessException(ErrorCode.EXTERNAL_ERROR, str(exc)) from exc
@@ -232,7 +226,6 @@ class HomeOSFacadeMixin:
         """
         await self._host._publish_catalog_changed(connection_id, operation, counts)
 
-
     async def fetch_entities_by_domain(self, domain: str) -> list[dict[str, Any]]:
         """按 HA 域筛选实体：优先读 ``StateHub`` 快照，空则回退全量拉取。"""
         prefix = f"{domain}."
@@ -245,9 +238,7 @@ class HomeOSFacadeMixin:
         if cached:
             return cached
         states = await self.fetch_all_states()
-        return [
-            entity for entity in states if str(entity.get("entity_id", "")).startswith(prefix)
-        ]
+        return [entity for entity in states if str(entity.get("entity_id", "")).startswith(prefix)]
 
     @staticmethod
     def _hub_to_raw(item: dict[str, Any]) -> dict[str, Any] | None:
@@ -306,9 +297,7 @@ class HomeOSFacadeMixin:
         self._require_connected()
         client = await self._facade_client()
         if client is None:
-            raise BusinessException(
-                ErrorCode.SERVICE_UNAVAILABLE, api_error("HA_NOT_CONNECTED")
-            )
+            raise BusinessException(ErrorCode.SERVICE_UNAVAILABLE, api_error("HA_NOT_CONNECTED"))
         websocket = await client.connect_websocket()
         try:
             await client.command(
@@ -322,6 +311,42 @@ class HomeOSFacadeMixin:
             raise BusinessException(ErrorCode.EXTERNAL_ERROR, str(exc)) from exc
         finally:
             await websocket.close()
+
+    async def create_area(self, name: str, icon: str = "", aliases: list[str] | None = None) -> dict[str, Any]:
+        """在 HA 区域 registry 建一个房间（名称/图标/别名）。"""
+        return await self._area_registry_command(
+            "config/area_registry/create",
+            name=name,
+            icon=icon or None,
+            aliases=aliases or [],
+        )
+
+    async def update_area(self, area_id: str, *, name: str | None = None, icon: str | None = None) -> dict[str, Any]:
+        """改 HA 区域的名称 / 图标（未提供的字段不改）。"""
+        payload: dict[str, Any] = {"area_id": area_id}
+        if name is not None:
+            payload["name"] = name
+        if icon is not None:
+            payload["icon"] = icon or None
+        return await self._area_registry_command("config/area_registry/update", **payload)
+
+    async def delete_area(self, area_id: str) -> None:
+        """删除 HA 区域（HA 会自行处理成员实体的归属）。"""
+        await self._area_registry_command("config/area_registry/delete", area_id=area_id)
+
+    async def _area_registry_command(self, command_type: str, **kwargs: Any) -> dict[str, Any]:
+        self._require_connected()
+        client = await self._facade_client()
+        if client is None:
+            raise BusinessException(ErrorCode.SERVICE_UNAVAILABLE, api_error("HA_NOT_CONNECTED"))
+        websocket = await client.connect_websocket()
+        try:
+            result = await client.command(websocket, 1, command_type, **kwargs)
+        except HAClientError as exc:
+            raise BusinessException(ErrorCode.EXTERNAL_ERROR, str(exc)) from exc
+        finally:
+            await websocket.close()
+        return result if isinstance(result, dict) else {}
 
     async def resync_from_ha(self, timeout_ms: int = 120_000) -> dict[str, Any]:
         """重新同步 HA 全量目录/状态（对齐 homeos ``resync_from_ha`` 返回结构）。"""

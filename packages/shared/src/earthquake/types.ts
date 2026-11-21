@@ -49,6 +49,8 @@ export interface EarthquakeAlertPayload {
   alertKind?: EarthquakeAlertKind
   /** 来源：wolfx WS / SC·CENC 主动查询 / USGS 兜底 */
   source?: EarthquakeEewSource | string
+  /** 预警档位：本地烈度 >= 4.0 为 strong，否则 weak；缺省按 weak 处理 */
+  alertLevel?: 'strong' | 'weak'
 }
 
 /** 全球震情目录查询周期 */

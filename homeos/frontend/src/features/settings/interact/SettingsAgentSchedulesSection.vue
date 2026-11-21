@@ -138,6 +138,15 @@
               <button
                 type="button"
                 class="settings-btn-ghost"
+                :disabled="runningId === task.id"
+                :title="'立刻执行一次，不改变下次执行时间'"
+                @click="runNow(task)"
+              >
+                {{ runningId === task.id ? '执行中…' : '执行一次' }}
+              </button>
+              <button
+                type="button"
+                class="settings-btn-ghost"
                 @click="toggle(task.id, !task.enabled)"
               >
                 {{ task.enabled ? '停用' : '启用' }}
@@ -191,6 +200,7 @@ import {
   deleteAgentSchedule,
   listAgentScheduleLogs,
   listAgentSchedules,
+  runAgentScheduleNow,
   toggleAgentSchedule,
   updateAgentSchedule,
   type AgentActorSnapshot,
@@ -209,6 +219,8 @@ const messageOk = ref(true)
 const tasks = ref<AgentScheduledTask[]>([])
 const logs = ref<AgentScheduleLog[]>([])
 const logTaskName = ref('')
+/** 正在「执行一次」的任务 id（同一时间只跑一条，避免连点） */
+const runningId = ref('')
 /**
  * 非设备任务（场景 / 家庭模式）的原始动作。
  * 这类任务由语音创建，表单只能改名称与时间；重存时要把原动作原样带回，
@@ -422,6 +434,26 @@ async function submit() {
     setMessage(getApiErrorMessage(error, targetId ? '保存计划任务失败' : '创建计划任务失败'), false)
   } finally {
     creating.value = false
+  }
+}
+
+/** 立即执行一次：不改排程，只用来验证动作与权限是否可用 */
+async function runNow(task: AgentScheduledTask) {
+  if (runningId.value) return
+  runningId.value = task.id
+  try {
+    const result = await runAgentScheduleNow(task.id)
+    if (result.ok) {
+      setMessage(`已执行「${task.name}」：${statusLabel(result.status)}`, true)
+    } else {
+      setMessage(`执行「${task.name}」失败：${result.message || statusLabel(result.status)}`, false)
+    }
+    await refresh()
+    await loadLogs(task.id)
+  } catch (error) {
+    setMessage(getApiErrorMessage(error, '执行计划任务失败'), false)
+  } finally {
+    runningId.value = ''
   }
 }
 

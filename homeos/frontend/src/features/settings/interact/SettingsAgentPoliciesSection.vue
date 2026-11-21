@@ -121,6 +121,7 @@
               </span>
               <span v-if="rule.triggerCount" class="agent-sched-row__meta">
                 已触发 {{ rule.triggerCount }} 次
+                <template v-if="rule.lastTriggeredAt">· 最近 {{ formatTime(rule.lastTriggeredAt) }}</template>
               </span>
               <span class="agent-sched-row__meta">最后修改：{{ editorName(rule.updatedBy) }}</span>
             </div>
@@ -158,6 +159,7 @@ import SettingsCardIntro from '@/components/common/settings-page-shell/SettingsC
 import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSectionHead.vue'
 import { useAreaOptions } from '@/composables/entity/useAreaOptions'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
+import { formatFullDateTime } from '@/shared/utils/format/locale-format.util'
 import {
   createAgentPolicy,
   deleteAgentPolicy,
@@ -208,6 +210,13 @@ function setMessage(text: string, ok: boolean) {
 /** 展示「最后修改者」；系统写入（空快照）显示为系统 */
 function editorName(snapshot?: AgentActorSnapshot): string {
   return snapshot?.username || snapshot?.userId || '系统'
+}
+
+/** 最近触发时间：后端是 ISO 字符串，格式化后展示 */
+function formatTime(raw: string | null): string {
+  if (!raw) return '—'
+  const date = new Date(raw)
+  return Number.isNaN(date.getTime()) ? raw : formatFullDateTime(date)
 }
 
 function resetForm() {

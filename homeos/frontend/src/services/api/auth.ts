@@ -81,3 +81,43 @@ export function changePassword(payload: PasswordChangePayload, config?: AxiosReq
 export function getMe(config?: ApiRequestConfig) {
   return apiGet<AuthUserPayload>('/auth/me', config)
 }
+
+/** 短票据响应：`expiresIn` 为秒。 */
+export interface MediaTicketResult {
+  success: boolean
+  ticket: string
+  expiresIn: number
+}
+
+/** 申请 60 秒短票据（`<img>` / MJPEG / SSE 用 `?ticket=` 鉴权）。 */
+export function getMediaTicket(config?: ApiRequestConfig) {
+  return apiGet<MediaTicketResult>('/auth/ticket', { dedupe: false, ...config })
+}
+
+/** 进程内票据缓存：提前 10s 续签，避免每个媒体 URL 都打一次接口。 */
+let cachedTicket: { value: string; expiresAt: number } | null = null
+
+/**
+ * 给媒体 URL 追加 `ticket` 查询参数。
+ *
+ * 只在「无法依赖 Cookie」的场景调用（跨源嵌入、WebView 的 img/EventSource）；
+ * 同源页面直接用相对 URL 即可，Cookie 会自动携带。
+ */
+export async function withMediaTicket(url: string): Promise<string> {
+  const now = Date.now()
+  if (!cachedTicket || cachedTicket.expiresAt - 10_000 <= now) {
+    const response = await getMediaTicket()
+    const payload = response.data
+    cachedTicket = {
+      value: payload.ticket,
+      expiresAt: now + Math.max(1, payload.expiresIn) * 1000,
+    }
+  }
+  const separator = url.includes('?') ? '&' : '?'
+  return `${url}${separator}ticket=${encodeURIComponent(cachedTicket.value)}`
+}
+
+/** 清空票据缓存（登出时调用，避免把旧会话的票据带给新会话）。 */
+export function clearMediaTicketCache(): void {
+  cachedTicket = null
+}

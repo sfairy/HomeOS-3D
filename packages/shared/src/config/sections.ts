@@ -7,29 +7,6 @@
  */
 import type { EnvSensorMap, EnvSensorMapEntry } from '../room/catalog'
 
-/** 认证分区（登录安全相关字段） */
-export type SharedAuthConfig = {
-  /** 连续登录失败 N 次后触发账户锁定 */
-  lockoutMaxAttempts: number
-  /** 锁定持续分钟数（到期后自动解锁，允许重新尝试登录） */
-  lockoutMinutes: number
-  /** 登录会话过期天数（到期后需重新登录） */
-  sessionExpireDays: number
-}
-
-/**
- * 认证安全默认值（前后端共用权威值）。
- * 后端 DEFAULT_APP_CONFIG.auth 与前端登录策略表单的初始值/归一化兜底均引用此常量，避免硬编码漂移。
- */
-export const DEFAULT_AUTH_SECURITY: Pick<
-  SharedAuthConfig,
-  'lockoutMaxAttempts' | 'lockoutMinutes' | 'sessionExpireDays'
-> = {
-  lockoutMaxAttempts: 5,
-  lockoutMinutes: 15,
-  sessionExpireDays: 30,
-}
-
 /** 通知分区（全局勿扰与分级通知开关） */
 export type SharedNotificationConfig = {
   /** 勿扰开始小时（0-23）；该小时整起进入静默（生命安全类告警除外） */
@@ -65,7 +42,7 @@ export type SharedStateStoreConfig = {
 
 /** WebSocket 推送分区（实体状态下发节流与分片） */
 export type SharedWsPushConfig = {
-  /** 传感器类（sensor/binary_sensor）独立刷新间隔（毫秒）；缺省回退后端内置默认（80ms） */
+  /** 传感器类（sensor/binary_sensor）独立刷新间隔（毫秒）；缺省回退后端内置默认（120ms） */
   sensorFlushIntervalMs?: number
   /** 冷启动与 WS 推送时的关键 domain 清单；这些域优先推送到前端 */
   criticalDomains: string[]
@@ -75,8 +52,6 @@ export type SharedWsPushConfig = {
   haSyncWaitMs: number
   /** 断连重连后状态历史重放的每块大小（实体条数）；配合分片事件避免大帧 */
   replayChunkSize: number
-  /** 房间级在场事件是否按房间聚合批量 emit；true 减少对小屏客户端的事件量 */
-  roomBatchEmit: boolean
   /** 非可见实体可不推：仅关键域 + 订阅域 + 钉选，大幅降低冷启动首包体积 */
   coldEntityOnDemand: boolean
   /** 延迟档位：realtime=激进实时 / balanced=平衡 / bulk=批量省电 */
@@ -289,10 +264,6 @@ export type SharedOpsConfig = {
   retentionCleanupIntervalHours?: number
   /** 保留数据删除批次大小（每次批量删除的条数，避免单次 SQL 锁表） */
   retentionDeleteBatchSize?: number
-  /** 场景执行历史最大条数（超出后淘汰最旧；诊断页与自动化回滚用） */
-  sceneExecHistoryMax?: number
-  /** 脚本执行历史最大条数 */
-  scriptExecHistoryMax?: number
   /** 是否启用自动备份（定时把 AppConfig + 自动化/脚本 YAML 打包为备份） */
   autoBackupEnabled?: boolean
   /** 自动备份保留天数（过期备份自动清理；0 表示永久保留） */
@@ -367,8 +338,6 @@ export type SharedVoiceConfig = {
   ttsRate?: string
   /** 音调，形如 +2Hz / -2Hz（OpenAI 引擎忽略） */
   ttsPitch?: string
-  /** 输出格式，目前固定 audio-24khz-48kbitrate-mono-mp3 */
-  ttsFormat?: string
   /** OpenAI 兼容接入点（留空走官方） */
   ttsApiBase?: string
   /** OpenAI 兼容密钥（后端脱敏，前端只回传占位符） */
@@ -387,7 +356,6 @@ export type SharedOtherConfig = {
   advisorTipActions?: Record<string, { type?: string; id?: string }>
   speakCooldownMin?: number
   tipCooldownHours?: number
-  eventlogRetentionDays?: number
   [key: string]: unknown
 }
 
@@ -395,7 +363,6 @@ export type SharedOtherConfig = {
  * 已下沉到 shared 的分区集合；SystemConfig / 诊断页应优先引用此处类型。
  */
 export type SharedAppConfigSections = {
-  auth?: Partial<SharedAuthConfig>
   notification?: Partial<SharedNotificationConfig>
   stateStore?: Partial<SharedStateStoreConfig>
   wsPush?: Partial<SharedWsPushConfig>

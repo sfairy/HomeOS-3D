@@ -4,7 +4,6 @@
  */
 import type {
   EnvSensorMap,
-  SharedAuthConfig,
   SharedCircadianConfig,
   SharedCommandProxyConfig,
   SharedEnergyConfig,
@@ -49,7 +48,6 @@ export interface SystemConfig {
   retention?: Record<string, number>
   /** 以下分区已与 @homeos/shared AppConfig 契约对齐 */
   frontend?: SharedFrontendConfig
-  auth?: Partial<SharedAuthConfig>
   stateStore?: Partial<SharedStateStoreConfig>
   wsPush?: Partial<SharedWsPushConfig>
   commandProxy?: Partial<SharedCommandProxyConfig>

@@ -15,7 +15,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import time
 from datetime import UTC, datetime, timedelta
@@ -24,6 +23,22 @@ from typing import Any
 from sqlalchemy import delete, select
 
 from .policy import actor_from_snapshot, actor_label, actor_snapshot, touch_editor
+from .scheduler_action import run_action
+from .scheduler_payload import apply_schedule, apply_task_fields
+from .scheduler_result import task_result_ok
+from .scheduler_schema import (
+    ALLOWED_ACTION_TOOLS,
+    LOG_RETENTION_DAYS,
+    MAX_LOG_ROWS,
+    MAX_NAME_CHARS,
+    MAX_TASKS,
+    PRUNE_INTERVAL_SECONDS,
+    SYSTEM_NOTIFY_ACTOR,
+    TICK_SECONDS,
+    json_dump,
+    serialize_log,
+    serialize_task,
+)
 from .scheduler_time import (
     cron_trigger,
     delay_minutes,
@@ -32,7 +47,7 @@ from .scheduler_time import (
     now_naive,
     parse_iso,
 )
-from ..runtime.agent_actor import AgentActor
+from ..runtime.service_support import apply_device_allowlist
 from ....platform.core.db.db_exec import run_db
 from ....platform.core.db.json_field import read_json_object
 from ....platform.core.db.models import AgentScheduledTask, AgentTaskExecutionLog
@@ -42,83 +57,8 @@ logger = logging.getLogger("homeos.agent.scheduler")
 
 
 def _task_result_ok(result: dict[str, Any]) -> bool:
-    """计划任务的「动作是否真的生效」判定。
-
-    有 ``verification.verified == False`` 时不能记成功：HA 收下了请求但设备状态没变
-    （``unavailable`` / 服务被忽略 / 状态不符）。此前只读 ``success``，于是这类任务写
-    ``status=success`` 且不发失败通知 —— 用户以为定时开关照常执行，其实设备一直没动。
-
-    ``verified is None``（无法校验）保持原有宽松口径：查询类工具与异步设备都会落到这里，
-    把「未知」当失败会每天刷一堆假告警。
-    """
-    if result.get("verified") is False:
-        return False
-    # activate_home_mode 等会带回 unverifiedCount：未确认不得记计划任务成功。
-    if int(result.get("unverifiedCount") or 0) > 0:
-        return False
-    if bool(result.get("success")):
-        return True
-    return not result.get("error") and not result.get("blocked") and "success" not in result
-
-
-#: tick 间隔（秒）
-TICK_SECONDS = 10
-#: 任务条数上限
-MAX_TASKS = 100
-#: 单次查询执行日志条数上限
-MAX_LOG_ROWS = 100
-#: 执行日志保留天数（超过即清理，避免 10 秒 tick 长期运行把表撑爆）
-LOG_RETENTION_DAYS = 90
-#: 两次日志清理的最小间隔（秒）
-PRUNE_INTERVAL_SECONDS = 3600
-#: 任务名最长字符数
-MAX_NAME_CHARS = 128
-#: 允许被计划任务调用的工具：只放开控制类动作与提醒消息，避免把任意工具挂到定时器上。
-#: 与 ``schedule_task`` 的 schema 一一对应 —— 之前这里只放 ``control_device``，
-#: schema 却宣称支持场景与家庭模式，模型照着 schema 传参就会被这条白名单拒掉。
-ALLOWED_ACTION_TOOLS = frozenset(
-    {"control_device", "activate_scene", "activate_home_mode", "send_notification"}
-)
-
-#: 计划任务到点发提醒时的系统执行身份。
-#: 任务创建者可能是一个已解绑的渠道用户；提醒属于「系统到点投递」，不该因为创建者
-#: 身份缺失就静默不发。设备控制仍然要求原身份（见 ``_execute_task``）。
-SYSTEM_NOTIFY_ACTOR = AgentActor(user_id="system:agent-scheduler", username="计划任务")
-
-
-def serialize_task(row: AgentScheduledTask) -> dict[str, Any]:
-    """ORM → camelCase 字典（API / 工具 / 前端共用）。"""
-    return {
-        "id": row.id,
-        "name": row.name,
-        "enabled": bool(row.enabled),
-        "scheduleType": row.schedule_type,
-        "runAt": row.run_at.isoformat() if row.run_at else None,
-        "cron": row.cron or "",
-        "timezone": row.timezone or "",
-        "actionTool": row.action_tool or "",
-        "actionArgs": read_json_object(row.action_args, {}),
-        "precondition": read_json_object(row.precondition, {}),
-        "lastRunAt": row.last_run_at.isoformat() if row.last_run_at else None,
-        "nextRunAt": row.next_run_at.isoformat() if row.next_run_at else None,
-        "lastStatus": row.last_status or "",
-        "lastError": row.last_error or "",
-        "runCount": int(row.run_count or 0),
-        "updatedBy": read_json_object(getattr(row, "updated_by", None), {}),
-        "createdAt": row.created_at.isoformat() if row.created_at else None,
-    }
-
-
-def serialize_log(row: AgentTaskExecutionLog) -> dict[str, Any]:
-    return {
-        "id": row.id,
-        "taskId": row.task_id,
-        "startedAt": row.started_at.isoformat() if row.started_at else None,
-        "finishedAt": row.finished_at.isoformat() if row.finished_at else None,
-        "status": row.status,
-        "message": row.message,
-        "result": read_json_object(row.result, {}),
-    }
+    """计划任务的动作是否真的生效（判定口径见 ``scheduler_result``）。"""
+    return task_result_ok(result)
 
 
 class AgentSchedulerService:
@@ -131,12 +71,15 @@ class AgentSchedulerService:
         notification: Any = None,
         jobs: Any = None,
         timezone_provider: Any = None,
+        agent_config: Any = None,
     ) -> None:
         self._session_factory = session_factory
         self._tools = tools
         self._notification = notification
         self._jobs = jobs
         self._timezone_provider = timezone_provider
+        #: Agent 配置：执行前读取设备白名单，与对话链路同一份权限口径
+        self._agent_config = agent_config
         self._task: asyncio.Task[None] | None = None
         self._stop_event: asyncio.Event | None = None
         self._running: set[str] = set()
@@ -150,6 +93,10 @@ class AgentSchedulerService:
 
     def bind_notification(self, notification: Any) -> None:
         self._notification = notification
+
+    def bind_agent_config(self, agent_config: Any) -> None:
+        """延迟绑定 Agent 配置：到期执行时据此叠加设备白名单。"""
+        self._agent_config = agent_config
 
     def _timezone(self) -> str:
         getter = self._timezone_provider
@@ -177,7 +124,7 @@ class AgentSchedulerService:
             task.cancel()
             try:
                 await task
-            except (asyncio.CancelledError, Exception):
+            except (asyncio.CancelledError, Exception):  # fmt: skip - 括号不能省，Cython 会把 PEP 758 形式误解析
                 logger.debug("计划任务循环已退出", exc_info=True)
 
     async def _loop(self) -> None:
@@ -284,9 +231,9 @@ class AgentSchedulerService:
                 cron=cron,
                 timezone=timezone_name,
                 action_tool=action_tool,
-                action_args=_json_dump(payload.get("actionArgs")),
-                precondition=_json_dump(payload.get("precondition")),
-                actor=_json_dump(actor_snapshot(actor)),
+                action_args=json_dump(payload.get("actionArgs")),
+                precondition=json_dump(payload.get("precondition")),
+                actor=json_dump(actor_snapshot(actor)),
                 next_run_at=next_run if payload.get("enabled") is not False else None,
             )
             session.add(row)
@@ -301,79 +248,6 @@ class AgentSchedulerService:
             logger.warning("创建计划任务失败: %s", exc)
             return {"ok": False, "message": f"创建计划任务失败: {exc}"}
 
-    @staticmethod
-    def _apply_action(row: AgentScheduledTask, payload: dict[str, Any]) -> dict[str, Any] | None:
-        """校验并写入动作工具；返回错误结果或 ``None``。"""
-        tool = str(payload.get("actionTool") or "").strip()
-        if not tool:
-            return {"ok": False, "message": "要执行的动作不能为空"}
-        if tool not in ALLOWED_ACTION_TOOLS:
-            return {"ok": False, "message": f"计划任务不支持动作: {tool}"}
-        row.action_tool = tool
-        return None
-
-    @staticmethod
-    def _apply_schedule(
-        row: AgentScheduledTask,
-        payload: dict[str, Any],
-        timezone_name: str,
-    ) -> dict[str, Any] | None:
-        """按任务类型重算 ``cron`` / ``run_at`` / ``next_run_at``；返回错误结果或 ``None``。"""
-        if row.schedule_type == "RECURRING":
-            if "cron" in payload or "time" in payload or "runAt" in payload:
-                try:
-                    row.cron = normalize_cron({**payload, "timezone": timezone_name})
-                    cron_trigger(row.cron, timezone_name)
-                except Exception as exc:
-                    logger.info("更新周期任务表达式失败: %s", exc)
-                    return {"ok": False, "message": str(exc)}
-            row.run_at = None
-            # 与创建路径一致：算不出下次触发就必须报错。
-            # `0 0 31 2 *` 这类「语法合法但永不成立」的表达式过去会静默写入
-            # next_run_at=None 并回 ok:True，任务从此再也不会执行，用户却以为改成功了。
-            next_run = next_cron_run(row.cron, timezone_name, now_naive())
-            if next_run is None:
-                return {
-                    "ok": False,
-                    "message": "cron 表达式无法计算下次执行时间（例如 2 月 31 日这类永不成立的日期）",
-                }
-            row.next_run_at = next_run
-            return None
-        if "runAt" in payload:
-            parsed = parse_iso(payload.get("runAt"))
-            if parsed is None:
-                return {"ok": False, "message": "runAt 时间格式不合法"}
-            row.run_at = parsed
-        elif "delayMinutes" in payload:
-            # 与创建路径同一套解析 / 夹紧，避免「PUT 改延迟」被静默忽略
-            delay = delay_minutes(payload.get("delayMinutes"))
-            if delay is None:
-                return {"ok": False, "message": "delayMinutes 不是有效数字"}
-            row.run_at = now_naive() + timedelta(minutes=delay)
-        if row.run_at is None:
-            # 更新成 ONCE 但既没给 runAt 也没给 delayMinutes（例如从 cron 切过来）：
-            # 过去会把 run_at/next_run_at 一起写成 None 并回 ok:True，任务直接变成死任务。
-            return {"ok": False, "message": "一次性任务需要 runAt 或 delayMinutes"}
-        row.cron = ""
-        row.next_run_at = row.run_at
-        return None
-
-    def _apply_task_fields(self, row: AgentScheduledTask, payload: dict[str, Any]) -> dict[str, Any] | None:
-        """写入名称 / 动作 / 参数 / 前置条件；返回错误结果或 ``None``。"""
-        if "name" in payload:
-            row.name = str(payload.get("name") or "").strip()[:MAX_NAME_CHARS] or row.name
-        if "actionTool" in payload:
-            action_error = self._apply_action(row, payload)
-            if action_error is not None:
-                return action_error
-        if "actionArgs" in payload:
-            row.action_args = _json_dump(payload.get("actionArgs"))
-        if "precondition" in payload:
-            row.precondition = _json_dump(payload.get("precondition"))
-        if "scheduleType" in payload:
-            row.schedule_type = "RECURRING" if str(payload.get("scheduleType") or "").upper() == "RECURRING" else "ONCE"
-        return None
-
     def _update_sync(self, task_id: str, payload: dict[str, Any], actor: Any = None) -> dict[str, Any]:
         if self._session_factory is None:
             return {"ok": False, "message": "数据库未就绪"}
@@ -381,12 +255,12 @@ class AgentSchedulerService:
             row = session.execute(select(AgentScheduledTask).where(AgentScheduledTask.id == task_id)).scalars().first()
             if row is None:
                 return {"ok": False, "message": "计划任务不存在"}
-            fields_error = self._apply_task_fields(row, payload)
+            fields_error = apply_task_fields(row, payload)
             if fields_error is not None:
                 return fields_error
             timezone_name = str(payload.get("timezone") or row.timezone or "").strip() or self._timezone()
             row.timezone = timezone_name
-            schedule_error = self._apply_schedule(row, payload, timezone_name)
+            schedule_error = apply_schedule(row, payload, timezone_name)
             if schedule_error is not None:
                 return schedule_error
             if "enabled" in payload:
@@ -619,6 +493,44 @@ class AgentSchedulerService:
             )
         return out
 
+    async def _perform_action(
+        self,
+        task: dict[str, Any],
+        actor: Any,
+    ) -> tuple[str, str, dict[str, Any]]:
+        """执行任务动作，返回 ``(status, message, result)``（不含落库 / 排程推进）。"""
+        action_tool = str(task.get("actionTool") or "")
+        raw_args = task.get("actionArgs")
+        action_args = raw_args if isinstance(raw_args, dict) else {}
+        status = "success"
+        message = ""
+        result: dict[str, Any] = {}
+        try:
+            skipped, reason = await self._precondition_met(task.get("precondition"))
+            if skipped:
+                return "skipped", reason, {}
+            if self._tools is None:
+                return "failed", "工具服务未就绪", {}
+            if action_tool == "send_notification":
+                # 提醒是「系统到点投递」：创建者解绑后仍然应该送达，否则用户设的闹钟
+                # 会因为没有绑定身份而静默消失。send_notification 自身仍要求非空身份。
+                notify_actor = actor or SYSTEM_NOTIFY_ACTOR
+                raw = await self._tools.execute(action_tool, action_args, notify_actor)
+                result = raw if isinstance(raw, dict) else {"raw": raw}
+                status = "success" if _task_result_ok(result) else "failed"
+                message = str(result.get("message") or result.get("error") or "")[:500]
+            elif actor is None:
+                return "failed", "创建者身份已失效，无法执行控制类动作", {}
+            else:
+                raw = await run_action(self._tools, action_tool, action_args, actor)
+                result = raw if isinstance(raw, dict) else {"raw": raw}
+                status = "success" if _task_result_ok(result) else "failed"
+                message = str(result.get("message") or result.get("error") or "")[:500]
+        except Exception as exc:
+            logger.warning("执行计划任务失败: %s", task.get("name"), exc_info=True)
+            return "failed", str(exc)[:500], {}
+        return status, message, result
+
     async def _execute_task(self, task: dict[str, Any]) -> dict[str, Any]:
         task_id = str(task.get("id") or "")
         # 快照可能已过期：执行前重读一次，停用/删除/改期的一律不跑，改参的用新参数跑。
@@ -633,43 +545,11 @@ class AgentSchedulerService:
             }
         task = claimed
         started_at = now_naive()
-        action_tool = str(task.get("actionTool") or "")
-        action_args = task.get("actionArgs")
-        action_args = action_args if isinstance(action_args, dict) else {}
         actor = actor_from_snapshot(task.get("actor"))
-        status = "success"
-        message = ""
-        result: dict[str, Any] = {}
-        try:
-            skipped, reason = await self._precondition_met(task.get("precondition"))
-            if skipped:
-                status = "skipped"
-                message = reason
-            elif self._tools is None:
-                status = "failed"
-                message = "工具服务未就绪"
-            elif action_tool == "send_notification":
-                # 提醒是「系统到点投递」：创建者解绑后仍然应该送达，否则用户设的闹钟
-                # 会因为没有绑定身份而静默消失。send_notification 自身仍要求非空身份。
-                notify_actor = actor or SYSTEM_NOTIFY_ACTOR
-                raw = await self._tools.execute(action_tool, action_args, notify_actor)
-                result = raw if isinstance(raw, dict) else {"raw": raw}
-                ok = _task_result_ok(result)
-                status = "success" if ok else "failed"
-                message = str(result.get("message") or result.get("error") or "")[:500]
-            elif actor is None:
-                status = "failed"
-                message = "创建者身份已失效，无法执行控制类动作"
-            else:
-                raw = await self._tools.execute(action_tool, action_args, actor)
-                result = raw if isinstance(raw, dict) else {"raw": raw}
-                ok = _task_result_ok(result)
-                status = "success" if ok else "failed"
-                message = str(result.get("message") or result.get("error") or "")[:500]
-        except Exception as exc:
-            logger.warning("执行计划任务失败: %s", task.get("name"), exc_info=True)
-            status = "failed"
-            message = str(exc)[:500]
+        # 与对话链路同一份「设备范围」：到期执行时也要叠加 Agent 白名单，
+        # 否则设置页里限制过的设备仍然能被定时任务控制。
+        actor = await apply_device_allowlist(self._agent_config, actor)
+        status, message, result = await self._perform_action(task, actor)
         finished_at = now_naive()
         try:
             await run_db(
@@ -689,9 +569,7 @@ class AgentSchedulerService:
         except Exception as exc:
             # claim 已推进 next_run_at；此处仅丢日志。再告警一次，避免静默丢审计。
             logger.warning("记录任务执行结果失败（租约已推进，不会重跑）: %s", exc)
-            await self._notify_failure(
-                task, f"执行结果落库失败（不会自动重跑）: {exc}"
-            )
+            await self._notify_failure(task, f"执行结果落库失败（不会自动重跑）: {exc}")
         if status == "failed":
             await self._notify_failure(task, message)
         return {
@@ -717,6 +595,85 @@ class AgentSchedulerService:
         if state and state == expected:
             return True, f"{entity_id} 已处于 {expected}，跳过本次执行"
         return False, ""
+
+    async def run_task_now(self, task_id: str, actor: Any = None) -> dict[str, Any]:
+        """手动执行一次任务（不改排程）。
+
+        用于「设置 → 计划任务 → 执行一次」验证动作是否可用：与到点执行走同一套
+        权限 / 服务白名单 / 高危拦截，并以**操作者**身份执行（比创建者更严），
+        执行结果照常写执行日志，但不推进 next_run_at，也不影响一次性任务的启用状态。
+        """
+        task = await run_db(self._load_task_payload, task_id)
+        if task is None:
+            return {"ok": False, "message": "计划任务不存在"}
+        run_actor = actor if actor is not None else actor_from_snapshot(task.get("actor"))
+        run_actor = await apply_device_allowlist(self._agent_config, run_actor)
+        started_at = now_naive()
+        status, message, result = await self._perform_action(task, run_actor)
+        finished_at = now_naive()
+        try:
+            await run_db(
+                self._record_manual_sync,
+                task_id,
+                {
+                    "started_at": started_at,
+                    "finished_at": finished_at,
+                    "status": status,
+                    "message": message,
+                    "result": result,
+                },
+            )
+        except Exception as exc:
+            logger.warning("记录手动执行结果失败: %s", exc)
+        if status == "failed":
+            await self._notify_failure(task, message)
+        return {"ok": status != "failed", "status": status, "message": message, "result": result}
+
+    def _load_task_payload(self, task_id: str) -> dict[str, Any] | None:
+        """读取单条任务的可执行快照（与 ``_due_tasks`` 同形状）。"""
+        if self._session_factory is None:
+            return None
+        with self._session_factory() as session:
+            row = session.execute(select(AgentScheduledTask).where(AgentScheduledTask.id == task_id)).scalars().first()
+            if row is None:
+                return None
+            return {
+                "id": row.id,
+                "name": row.name,
+                "scheduleType": row.schedule_type,
+                "cron": row.cron,
+                "timezone": row.timezone,
+                "runAt": row.run_at,
+                "actionTool": row.action_tool,
+                "actionArgs": read_json_object(row.action_args, {}),
+                "precondition": read_json_object(row.precondition, {}),
+                "actor": read_json_object(row.actor, {}),
+            }
+
+    def _record_manual_sync(self, task_id: str, info: dict[str, Any]) -> None:
+        """手动执行的落库：只更新 last_* 与日志，**不动** next_run_at / enabled。"""
+        if self._session_factory is None:
+            return
+        with self._session_factory() as session:
+            row = session.execute(select(AgentScheduledTask).where(AgentScheduledTask.id == task_id)).scalars().first()
+            if row is None:
+                return
+            row.last_run_at = info["finished_at"]
+            row.last_status = info["status"]
+            row.last_error = info["message"] if info["status"] == "failed" else ""
+            row.run_count = int(row.run_count or 0) + 1
+            row.updated_at = datetime.now(UTC)
+            session.add(
+                AgentTaskExecutionLog(
+                    task_id=task_id,
+                    started_at=info["started_at"],
+                    finished_at=info["finished_at"],
+                    status=info["status"],
+                    message=f"手动执行：{info['message']}" if info["message"] else "手动执行",
+                    result=json_dump(info["result"]),
+                )
+            )
+            session.commit()
 
     def _finish_sync(self, task_id: str, info: dict[str, Any]) -> None:
         if self._session_factory is None:
@@ -751,7 +708,7 @@ class AgentSchedulerService:
                     finished_at=info["finished_at"],
                     status=info["status"],
                     message=info["message"],
-                    result=_json_dump(info["result"]),
+                    result=json_dump(info["result"]),
                 )
             )
             row.updated_at = datetime.now(UTC)
@@ -771,10 +728,6 @@ class AgentSchedulerService:
     def run_due_soon(self) -> None:
         """手动触发一轮 tick（API / 工具用，不阻塞调用方）。"""
         spawn_background(self.tick())
-
-
-def _json_dump(value: Any) -> str:
-    return json.dumps(value if value is not None else {}, ensure_ascii=False)
 
 
 __all__ = [

@@ -22,6 +22,7 @@ from .config import (
     load_security_section,
     load_water_config,
 )
+from .dedupe import NotificationDeduplicator
 from .dispatch import NotificationDispatchHelper
 from .event_handlers import NotificationEventHandlersHelper
 from .prune import NotificationPruneHelper
@@ -123,6 +124,7 @@ class NotificationService:
             schedule_prune=self._prune_helper.schedule_prune_old_notifications,
             channels_service=channels_service,
             get_timezone=self._get_timezone,
+            dedupe=NotificationDeduplicator(session_factory),
         )
         self._event_handlers = NotificationEventHandlersHelper(
             state_router=self._router,

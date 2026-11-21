@@ -67,6 +67,9 @@ def is_csrf_exempt_path(path: str) -> bool:
         return True
     if path == "/api/v1/mcp" or path.startswith("/api/v1/mcp/"):
         return True
+    # 第三方回调：带签名 / secret 校验，没有 CSRF cookie 可言。
+    if path.startswith("/api/v1/channels/wecom/callback"):
+        return True
     return path.startswith("/api/v1/ha/webrtc-ws")
 
 

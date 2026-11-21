@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import inspect
 import logging
 from typing import Any
@@ -30,6 +31,12 @@ AUTOMATION_TOOL_NAMES = frozenset(
         "list_scheduled_tasks",
         "cancel_scheduled_task",
         "web_search",
+        "automation_discover",
+        "automation_draft_create",
+        "automation_draft_revise",
+        "automation_draft_get",
+        "automation_draft_list",
+        "automation_draft_apply",
     }
 )
 
@@ -101,7 +108,7 @@ def _device_action(
 ) -> tuple[str, dict[str, Any], dict[str, Any], dict[str, Any] | None]:
     """设备控制动作参数 + 前置状态（场景 / 家庭模式没有单实体目标态）。"""
     domain = _s(args.get("domain")).strip() or entity_id.split(".", 1)[0]
-    action_args = {"domain": domain, "service": service, "entity_id": entity_id}
+    action_args: dict[str, Any] = {"domain": domain, "service": service, "entity_id": entity_id}
     if isinstance(args.get("service_data"), dict):
         action_args["service_data"] = args.get("service_data")
     expected = _s(args.get("expected_state")).strip()
@@ -127,7 +134,7 @@ def _clamped_int(raw: Any, default: int, minimum: int, maximum: int) -> int:
         return default
     try:
         value = int(float(raw))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError):  # fmt: skip
         logger.debug("工具参数不是数字，回退默认值 %s: %r", default, raw)
         return default
     return max(minimum, min(maximum, value))
@@ -147,6 +154,12 @@ class HomeToolsAutomationMixin(HomeToolsHost):
             "list_scheduled_tasks": self._list_scheduled_tasks,
             "cancel_scheduled_task": lambda: self._cancel_scheduled_task(args, actor),
             "web_search": lambda: self._web_search(args),
+            "automation_discover": lambda: self._automation_discover(args),
+            "automation_draft_create": lambda: self._automation_draft_create(args, actor),
+            "automation_draft_revise": lambda: self._automation_draft_revise(args, actor),
+            "automation_draft_get": lambda: self._automation_draft_get(args),
+            "automation_draft_list": lambda: self._automation_draft_list(args),
+            "automation_draft_apply": lambda: self._automation_draft_apply(args, actor),
         }
         handler = handlers.get(name)
         if handler is None:
@@ -377,6 +390,131 @@ class HomeToolsAutomationMixin(HomeToolsHost):
             "provider": result.get("provider"),
             "query": result.get("query"),
             "results": result.get("results") or [],
+        }
+
+    # 自动化草案（Phase 1：只预览，不写入 HA）
+    async def _automation_discover(self, args: dict[str, Any]) -> dict[str, Any]:
+        service = self._automation_drafts
+        if service is None:
+            return {"error": "自动化草案未启用"}
+        sources = args.get("sources")
+        wanted = [str(item) for item in sources] if isinstance(sources, list) else None
+        return await asyncio.to_thread(service.discover, wanted)
+
+    async def _automation_draft_create(self, args: dict[str, Any], actor: Any) -> dict[str, Any]:
+        service = self._automation_drafts
+        if service is None:
+            return {"error": "自动化草案未启用"}
+        spec = args.get("spec") if isinstance(args.get("spec"), dict) else args
+        session_key = _s(args.get("sessionKey") or args.get("session_key")).strip() or "default"
+        principal = str(getattr(actor, "user_id", "") or getattr(actor, "username", "") or "") or None
+        kind = _s(args.get("utterance_kind") or args.get("utteranceKind")).strip().upper()
+        if kind != "AMBIGUOUS":
+            kind = "RULE"
+        raw_prompt = _s(
+            args.get("rawPrompt")
+            or args.get("raw_prompt")
+            or args.get("intent_text")
+            or args.get("intentText")
+            or args.get("intentSummary")
+        )
+        return await asyncio.to_thread(
+            service.create_draft,
+            spec,
+            raw_prompt=raw_prompt,
+            session_key=session_key,
+            channel=_s(args.get("channel")) or "web",
+            principal_id=principal,
+            identity_strength="STRONG" if principal else "NONE",
+            utterance_kind=kind,
+        )
+
+    async def _automation_draft_revise(self, args: dict[str, Any], actor: Any) -> dict[str, Any]:
+        del actor
+        service = self._automation_drafts
+        if service is None:
+            return {"error": "自动化草案未启用"}
+        draft_id = _s(args.get("draftId") or args.get("draft_id")).strip()
+        if not draft_id:
+            return {"error": "缺少 draftId"}
+        patch = args.get("patch") if isinstance(args.get("patch"), dict) else {}
+        return await asyncio.to_thread(service.revise_draft, draft_id, patch)
+
+    async def _automation_draft_get(self, args: dict[str, Any]) -> dict[str, Any]:
+        service = self._automation_drafts
+        if service is None:
+            return {"error": "自动化草案未启用"}
+        draft_id = _s(args.get("draftId") or args.get("draft_id")).strip()
+        if not draft_id:
+            return {"error": "缺少 draftId"}
+        payload = await asyncio.to_thread(service.get_draft, draft_id)
+        return payload or {"error": "草案不存在或已过期"}
+
+    async def _automation_draft_list(self, args: dict[str, Any]) -> dict[str, Any]:
+        """列出待确认草案（用户问「有哪些自动化草案」时用）。"""
+        service = self._automation_drafts
+        if service is None:
+            return {"error": "自动化草案未启用"}
+        limit = _clamped_int(args.get("limit"), 10, 1, 50)
+        session_key = _s(args.get("sessionKey") or args.get("session_key")).strip() or None
+        items = await asyncio.to_thread(service.list_drafts, session_key, limit)
+        return {
+            "count": len(items),
+            "items": [
+                {
+                    "draftId": item.get("draftId"),
+                    "status": item.get("status"),
+                    "revSeq": item.get("revSeq"),
+                    "expiresAt": item.get("expiresAt"),
+                    "summary": (item.get("preview") or {}).get("intentSummary"),
+                    "targets": [
+                        target.get("name") or target.get("entityId")
+                        for target in (item.get("preview") or {}).get("targetEntities") or []
+                    ],
+                }
+                for item in items
+            ],
+        }
+
+    async def _automation_draft_apply(self, args: dict[str, Any], actor: Any) -> dict[str, Any]:
+        """把待确认草案落成计划任务（用户显式确认后；到期仍走同一套权限）。"""
+        guard = self._requires_actor(actor)
+        if guard is not None:
+            return guard
+        service = self._automation_drafts
+        if service is None:
+            return {"error": "自动化草案未启用"}
+        scheduler = self._scheduler
+        if scheduler is None:
+            return {"error": "计划任务未启用，无法落地草案"}
+        draft_id = _s(args.get("draftId") or args.get("draft_id")).strip()
+        if not draft_id:
+            return {"error": "缺少 draftId"}
+        prepared = await asyncio.to_thread(service.prepare_apply, draft_id)
+        if not prepared.get("ok"):
+            return {"ok": False, "message": prepared.get("message") or "草案不能落地"}
+        certain = (prepared.get("conflicts") or {}).get("certain") or []
+        acknowledged = args.get("acknowledge_conflicts") is True or args.get("acknowledgeConflicts") is True
+        if certain and not acknowledged:
+            return {
+                "ok": False,
+                "needs_confirmation": True,
+                "message": f"这份草案与 {len(certain)} 条已有规则存在确定性冲突；确认继续请再说一次「就按这个执行」。",
+                "conflicts": certain,
+            }
+        result = await scheduler.create_task(prepared["task"], actor)
+        if not result.get("ok"):
+            return {"ok": False, "message": str(result.get("message") or "创建计划任务失败")}
+        task = result.get("task") or {}
+        applied = await asyncio.to_thread(service.mark_applied, draft_id, str(task.get("id") or ""))
+        return {
+            "ok": True,
+            "draftId": draft_id,
+            "taskId": task.get("id"),
+            "name": task.get("name"),
+            "nextRunAt": task.get("nextRunAt"),
+            "draftMarked": applied,
+            "message": "已按草案创建计划任务；可在「设置 → 自动化与安防」里查看或停用。",
         }
 
 

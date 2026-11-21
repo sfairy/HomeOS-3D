@@ -12,7 +12,11 @@ const TAB_LABELS: Record<string, string> = {
   alerts: '告警规则',
   bindings: '集成绑定',
   rooms: '房间配置',
+  'device-profiles': '设备画像',
   connection: 'HA 连接',
+  'automation-drafts': '自动化草案',
+  media: '媒体与入库',
+  network: '网络信息',
   'smart-charge': '智能充放电',
   'life-accounts': '生活账户',
   diagnostics: '运维诊断',
@@ -52,8 +56,9 @@ const PAGE_DESC_LABELS: Record<string, string> = {
   alerts: '应用内通知、语音播报、地震预警与免打扰',
   bindings: '天气、摄像与安防实体映射',
   rooms: '全屋房间目录与应用范围',
+  'device-profiles': '媒体 / 空调的类型确认、别名与房间默认播放设备',
   connection: 'Home Assistant 服务地址（HA 自己的内网 / 外网地址）、令牌与实体同步',
-  devices: '清理 HA 中已消失、但仍被布局 / 房间 / 告警引用的实体',
+  devices: '清理 HA 中已消失、但仍被布局 / 房间 / 统计 / HA 配置 / 告警引用的实体',
   diagnostics: '系统健康、HA 连接与诊断导出',
   embeds: '在顶部导航嵌入外部网页',
   favorites: '常用设备写入布局，供总览快捷弹窗',
@@ -74,6 +79,9 @@ const PAGE_DESC_LABELS: Record<string, string> = {
   family: '家庭模式、勿扰、通知与儿童模式',
   license: '本机授权状态、租约与权益清单，含重连 / 重激活 / 诊断',
   access: '大屏入口设置锁：启用开关与 4–6 位访问 PIN',
+  'automation-drafts': 'Agent 生成的自动化预览草案：冲突、盲区与过期倒计时',
+  media: 'Music Assistant 点歌、播放器与 MoviePilot 入库通知',
+  network: '本机内网 / 公网地址、端口与升级指引',
 }
 
 /** DEFAULT_TAB：常量，取值语义见定义处。 */
@@ -109,13 +117,13 @@ export function isTabFeatureGranted(tabId: string, featureAccess?: Record<string
 /** NAV_STRUCTURE：常量集合，成员语义见定义处。 */
 export const NAV_STRUCTURE = [
   { id: 'connect', tabs: ['setup-wizard', 'connection', 'bindings', 'devices'] },
-  { id: 'home', tabs: ['rooms', 'life-accounts', 'smart-charge', 'favorites'] },
+  { id: 'home', tabs: ['rooms', 'device-profiles', 'life-accounts', 'smart-charge', 'favorites'] },
   { id: 'display', tabs: ['general', 'assets', 'layout', 'widgets', 'floating', 'embeds'] },
-  { id: 'automate', tabs: ['home-mode', 'security-modes'] },
-  { id: 'interact', tabs: ['voice', 'agent', 'alerts'] },
+  { id: 'automate', tabs: ['home-mode', 'security-modes', 'automation-drafts'] },
+  { id: 'interact', tabs: ['voice', 'agent', 'alerts', 'media'] },
   {
     id: 'system',
-    tabs: ['family', 'access', 'profiles', 'license', 'retention', 'diagnostics', 'params'],
+    tabs: ['family', 'access', 'profiles', 'license', 'retention', 'diagnostics', 'network', 'params'],
   },
 ]
 

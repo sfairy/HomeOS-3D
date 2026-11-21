@@ -104,7 +104,7 @@ export function useEventLogRecordFilter() {
     opsConfig.value = {
       ...ops,
       ingressCoalesceEnabled: cfg?.haConnector?.ingressCoalesceEnabled,
-      eventlogRetentionDays: cfg?.retention?.eventLog,
+      retentionDays: cfg?.retention?.eventLog,
     }
     return true
   }
@@ -127,7 +127,7 @@ export function useEventLogRecordFilter() {
       eventLogSkipSensorTimeline: opsConfig.value.eventLogSkipSensorTimeline !== false,
       ingressCoalesceEnabled: opsConfig.value.ingressCoalesceEnabled !== false,
       eventLogRecordFilterEnabled: enabled.value,
-      eventlogRetentionDays: Number(opsConfig.value.eventlogRetentionDays) || undefined,
+      retentionDays: Number(opsConfig.value.retentionDays) || undefined,
     }),
   )
 

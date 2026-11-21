@@ -490,8 +490,10 @@
 }
 
 .settings-orch-track--overflow {
-  mask-image: linear-gradient(90deg, transparent, #000 16px, #000 calc(100% - 16px), transparent);
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 16px, #000 calc(100% - 16px), transparent);
+  /* 溢出时两侧已有滚动箭头指示，不再叠一层渐变遮罩：
+     遮罩会把第一个/最后一个 Tab 的字裁成半截（实测「房间」只露出半个「房」）。 */
+  mask-image: none;
+  -webkit-mask-image: none;
 }
 
 .settings-orch-track::-webkit-scrollbar {
@@ -522,6 +524,69 @@
 .settings-orch-tab:hover {
   background: var(--set-glass-bg);
   border-color: var(--set-border-subtle);
+}
+
+/* 拖拽排序：Pointer Events（鼠标即拖、触屏长按），两条路径共用同一 reorder 事件 */
+.settings-orch-tab--draggable {
+  /* 只把水平手势留给拖拽，垂直仍可滚动页面；否则 iOS 会把水平拖动当成列表滚动 */
+  touch-action: pan-y;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* 源 Tab 留在原位只做虚化：位置不变，用户能看清「从哪拿起来的」 */
+.settings-orch-tab--dragging {
+  opacity: 0.28;
+  cursor: grabbing;
+}
+
+.settings-orch-tab--dragging .settings-orch-orb {
+  transform: scale(0.94);
+}
+
+/* 插入位竖线：与激活指示条同一坐标系，随轨道滚动一起走 */
+.settings-orch-insertion {
+  position: absolute;
+  top: 2px;
+  bottom: 0;
+  width: 3px;
+  margin-left: -1px;
+  border-radius: var(--hos-radius-pill);
+  background: var(--orch-accent, var(--hos-color-accent));
+  pointer-events: none;
+  z-index: 3;
+  transition: left var(--hos-dur-fast) ease-out;
+}
+
+/* 跟随指针的浮动块：拿起来的那张卡，略微放大 + 投影，做出「脱离轨道」的层次 */
+.settings-orch-drag-ghost {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: var(--z-overlay, 13100);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-radius: var(--hos-radius-card, 14px);
+  border: var(--hos-hairline) solid color-mix(in srgb, var(--tab-accent) 55%, transparent);
+  background: var(--set-glass-bg, rgba(22, 26, 34, 0.92));
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+  /* 从抓取点（块左上角）放大：抓取偏移量是按 left/top 量的，
+     用左上角做原点才能保证「手指下的那一点」在放大后仍停在原位。 */
+  transform-origin: left top;
+  scale: 1.06;
+  will-change: transform;
+  backdrop-filter: blur(12px);
+}
+
+.settings-orch-drag-ghost .settings-orch-orb {
+  transform: none;
+  box-shadow: none;
 }
 
 .settings-orch-tab--active {

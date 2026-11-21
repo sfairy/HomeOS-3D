@@ -2,6 +2,7 @@
  * @file useUtilityMeterPopup.ts
  * @module frontend/src/composables
  */
+import { computed } from 'vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import { readPopupAttr, parseJsonAttr, parseNumAttr } from '@/shared/energy'
@@ -10,6 +11,7 @@ import type { EnergyCategory } from '@/shared/energy/constants/energy-fields'
 import { createUtilityMeterAccountState, createUtilityMeterLists } from './utility-meter-popup.lists.internals'
 import { createUtilityMeterCalendar } from './utility-meter-popup.calendar.internals'
 import { createUtilityMeterCharts } from './utility-meter-popup.charts.internals'
+import { useServerEnergyHistory } from './useServerEnergyHistory'
 
 interface UtilityMeterPopupProps {
   entityId?: string
@@ -39,6 +41,8 @@ export function useUtilityMeterPopup(opts: UtilityMeterPopupOpts) {
   const { color1, color2 } = accentColor
 
   const account = createUtilityMeterAccountState({ props, sourceKey, es, layout })
+  // 只有电费账户有服务端日/月聚合表；水/气继续走 HA 属性，避免把 kWh 表套到 m³ 上。
+  const serverHistory = useServerEnergyHistory(computed(() => sourceKey === 'grid'))
   const lists = createUtilityMeterLists({
     popField: account.popField,
     popNum: account.popNum,
@@ -46,6 +50,12 @@ export function useUtilityMeterPopup(opts: UtilityMeterPopupOpts) {
     parseDayItem,
     parseMonthItem,
     parseYearItem,
+    server: {
+      day: serverHistory.dayItems,
+      month: serverHistory.monthItems,
+      // 多账户时服务端只有「全家合计」，按户号展示会串数，交给属性列表。
+      wins: computed(() => account.accountOptions.value.length <= 1),
+    },
   })
   const calendar = createUtilityMeterCalendar({
     daylist: lists.daylist,

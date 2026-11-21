@@ -79,8 +79,11 @@ class AgentProactiveConfig:
     #: 两次主动提醒的最小间隔（秒）
     cooldown_seconds: int = 1800
     #: 免打扰时段（家庭当地时间，含起点、不含终点；支持跨夜，如 22 → 7）
-    quiet_start: int = 22
+    quiet_start: int = 23
     quiet_end: int = 7
+    #: 免打扰的分钟粒度：``quiet_start=23, quiet_start_minute=30`` 表示 23:30 起。
+    quiet_start_minute: int = 30
+    quiet_end_minute: int = 0
     #: 今日用电超过前 N 天均值的倍数才提醒
     energy_multiplier: float = 1.5
     #: 用电异常提醒的最低今日用电量（kWh），避免小基数误报
@@ -106,7 +109,7 @@ def _clamp_int(value: Any, default: int, minimum: int, maximum: int) -> int:
     """把配置值夹到 ``[minimum, maximum]``；不可解析时回退默认值。"""
     try:
         number = int(float(value))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError):  # fmt: skip
         logger.debug("配置项不是数字，回退默认值 %s: %r", default, value)
         return default
     return max(minimum, min(maximum, number))
@@ -115,7 +118,7 @@ def _clamp_int(value: Any, default: int, minimum: int, maximum: int) -> int:
 def _clamp_float(value: Any, default: float, minimum: float) -> float:
     try:
         number = float(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError):  # fmt: skip
         logger.debug("配置项不是数字，回退默认值 %s: %r", default, value)
         return default
     return max(minimum, number)
@@ -265,6 +268,18 @@ class AgentConfigService:
         return "" if ident is None else str(ident).strip()
 
     # 场景语音控制
+    async def get_intent_gate_mode(self) -> str:
+        """读取意图门模式（``layout.agentConfig.intentGate.mode``）。
+
+        缺省 / 非法一律 ``shadow``：只记录不拦截，避免升级后突然拦掉既有用户口令。
+        """
+        agent = self._read_agent_config()
+        raw = agent.get("intentGate") if agent else None
+        mode = raw.get("mode") if isinstance(raw, dict) else None
+        from .intent_gate import normalize_mode
+
+        return normalize_mode(mode)
+
     async def get_scene_voice_control(self) -> SceneVoiceControlConfig:
         """读取 HA 场景 / 脚本的语音控制允许清单（layout.agentConfig.sceneVoiceControl）。
 
@@ -351,8 +366,11 @@ class AgentConfigService:
             enabled=enabled,
             interval_seconds=_clamp_int(_value("AGENT_PROACTIVE_INTERVAL_SECONDS", "intervalSeconds"), 900, 60, 86400),
             cooldown_seconds=_clamp_int(_value("AGENT_PROACTIVE_COOLDOWN_SECONDS", "cooldownSeconds"), 1800, 60, 86400),
-            quiet_start=_clamp_int(_value("AGENT_PROACTIVE_QUIET_START", "quietStart"), 22, 0, 23),
+            quiet_start=_clamp_int(_value("AGENT_PROACTIVE_QUIET_START", "quietStart"), 23, 0, 23),
             quiet_end=_clamp_int(_value("AGENT_PROACTIVE_QUIET_END", "quietEnd"), 7, 0, 23),
+            # 分钟粒度：未显式配置时，23 点这一档默认 30 分（23:30），其它整点默认 0 分。
+            quiet_start_minute=_clamp_int(_value("AGENT_PROACTIVE_QUIET_START_MINUTE", "quietStartMinute"), 30, 0, 59),
+            quiet_end_minute=_clamp_int(_value("AGENT_PROACTIVE_QUIET_END_MINUTE", "quietEndMinute"), 0, 0, 59),
             energy_multiplier=_clamp_float(_value("AGENT_PROACTIVE_ENERGY_MULTIPLIER", "energyMultiplier"), 1.5, 1.0),
             min_energy_kwh=_clamp_float(_value("AGENT_PROACTIVE_MIN_ENERGY_KWH", "minEnergyKwh"), 1.0, 0.0),
             forecast_slots=_clamp_int(_value("AGENT_PROACTIVE_FORECAST_SLOTS", "forecastSlots"), 4, 1, 12),

@@ -70,6 +70,40 @@ def _normalize_backfill_totals(
     return day_values
 
 
+def _normalize_backfill_months(
+    totals: dict[str, dict[str, float]] | None,
+) -> dict[tuple[str, str], float]:
+    """把 ``{entity: {month: kwh}}`` 摊平成 ``(entity, month) → kwh``：丢非法值、同月取最大。
+
+    月份必须是 ``YYYY-MM``：成品月总量来自国网 12 个月列表，脏键会让 Y 窗口错位。
+    """
+    month_values: dict[tuple[str, str], float] = {}
+    backfill = totals or {}
+    for entity_id, per_month in backfill.items():
+        if not isinstance(per_month, dict):
+            continue
+        for month, kwh in per_month.items():
+            text = str(month).strip()
+            if len(text) != 7 or text[4] != "-" or not (text[:4] + text[5:]).isdigit():
+                logger.debug("能耗回填：跳过非法月份 %r", month)
+                continue
+            if not 1 <= int(text[5:7]) <= 12:
+                logger.debug("能耗回填：跳过非法月份 %r", month)
+                continue
+            try:
+                value = float(kwh)
+            # `# fmt: skip`：括号不能省，否则 ruff format（target py314）会按 PEP 758
+            # 改写成无括号形式，而 Cython 3.3.0 会把后者按 `except A as B:` 误解析。
+            except (TypeError, ValueError):  # fmt: skip
+                logger.debug("能耗回填：跳过非法月用电量 %r", kwh)
+                continue
+            if value <= 0:
+                continue
+            key = (str(entity_id), text)
+            month_values[key] = max(month_values.get(key, 0.0), value)
+    return month_values
+
+
 def _register_backfill_candidates(session: Any, entities: list[str]) -> None:
     """把回填命中的实体登记为能耗候选（报表按这张白名单筛实体）。"""
     known_ids = set(
@@ -83,8 +117,15 @@ def _merge_backfill_daily(
     day_values: dict[tuple[str, str], float],
     entities: list[str],
     days: list[str],
+    authoritative_keys: set[tuple[str, str]] | None = None,
 ) -> int:
-    """按 (实体, 日) 合并日行：缺失则插入，已有只在更大时覆盖（只增不减）。"""
+    """按 (实体, 日) 合并日行：缺失则插入，已有默认只在更大时覆盖（只增不减）。
+
+    ``authoritative_keys`` 是账单级来源（国网日列表）的键：**双向覆盖**，包括下调。
+    只增不减无法修掉「4209 kWh/天」这类由基线缺失写进去的脏值 —— 真实日用量更小，
+    取最大等于让脏值永久留存。重复执行仍然幂等：同一天写入同一个值。
+    """
+    forced = authoritative_keys or set()
     daily_rows = {
         (row.entity_id, row.day): row
         for row in session.scalars(
@@ -96,18 +137,44 @@ def _merge_backfill_daily(
     }
     written = 0
     for (entity_id, day), value in day_values.items():
-        row = daily_rows.get((entity_id, day))
+        key = (entity_id, day)
+        row = daily_rows.get(key)
         if row is None:
             session.add(EnergyUsageDaily(entity_id=entity_id, day=day, kwh=value, sample_count=1))
             written += 1
+        elif key in forced:
+            if abs(float(row.kwh or 0.0) - value) > 1e-9:
+                row.kwh = value
+                row.sample_count = max(int(row.sample_count or 0), 1)
+                written += 1
         elif value > float(row.kwh or 0.0) + 1e-9:
             row.kwh = value
             written += 1
     return written
 
 
-def _merge_backfill_monthly(session: Any, entities: list[str], months: list[str]) -> int:
-    """月行按当月全部日行求和后合并：跨月窗口不会被写成「窗口内总量」。"""
+def _merge_backfill_monthly(
+    session: Any,
+    entities: list[str],
+    months: list[str],
+    month_values: dict[tuple[str, str], float] | None = None,
+    authoritative_keys: set[tuple[str, str]] | None = None,
+    refresh_keys: set[tuple[str, str]] | None = None,
+) -> int:
+    """月行 = ``max(当月全部日行之和, 成品月总量)``，再按「只增不减」合并。
+
+    日行求和保证跨月回填窗口不会被写成「窗口内总量」；成品月总量（国网 12 个月列表）
+    补齐日行窗口之外的月份 —— 只有 30 天日列表时，单靠日行求和只能得到近两个月。
+
+    ``authoritative_keys`` 里的月份（账单级成品值）**双向覆盖**：日行修正后总量会变小，
+    只增不减会让「4626 kWh」这类由脏日行推出来的月总量永远留在表里。
+
+    ``refresh_keys`` 是「本月有日行被账单口径改写」的月份：即使拿不到成品月总量，
+    也要按**库里全部日行重新求和**并覆盖 —— 该月原来的值本来就是同一批日行加出来的，
+    日行被修正后不重算，月表就会永远停在错误的大数上。没有日行时不动它。
+    """
+    if not months:
+        return 0
     month_start = f"{months[0]}-01"
     month_end = f"{_next_month_key(months[-1])}-01"
     monthly_rows = {
@@ -132,19 +199,51 @@ def _merge_backfill_monthly(session: Any, entities: list[str], months: list[str]
         )
         .group_by(EnergyUsageDaily.entity_id, func.substr(EnergyUsageDaily.day, 1, 7))
     ).all()
+    daily_sums = {(str(entity_id), str(month)): float(total or 0.0) for entity_id, month, total in month_sums}
+    explicit = month_values or {}
+    forced = authoritative_keys or set()
+    refresh = (refresh_keys or set()) - forced
     written = 0
-    for entity_id, month, total in month_sums:
+    for entity_id, month in sorted(set(daily_sums) | set(explicit) | refresh):
         if month not in months:
             continue
-        value = max(float(total or 0.0), 0.0)
-        row = monthly_rows.get((entity_id, month))
+        key = (entity_id, month)
+        value, overwrite = _month_merge_value(key, daily_sums, explicit, forced, refresh)
+        if value <= 0:
+            continue
+        row = monthly_rows.get(key)
         if row is None:
             session.add(EnergyUsageMonthly(entity_id=entity_id, month=month, kwh=value, sample_count=1))
             written += 1
+        elif overwrite:
+            if abs(float(row.kwh or 0.0) - value) > 1e-9:
+                row.kwh = value
+                written += 1
         elif value > float(row.kwh or 0.0) + 1e-9:
             row.kwh = value
             written += 1
     return written
+
+
+def _month_merge_value(
+    key: tuple[str, str],
+    daily_sums: dict[tuple[str, str], float],
+    explicit: dict[tuple[str, str], float],
+    forced: set[tuple[str, str]],
+    refresh: set[tuple[str, str]],
+) -> tuple[float, bool]:
+    """决定某一月写入哪个值、以及是否允许下调。
+
+    - 账单级成品值（``forced``）优先，直接覆盖；
+    - 有日行被账单口径改写的月份（``refresh``）按库里日行重新求和并覆盖 ——
+      该月原值本来就由同一批日行加出来，日行修正后不重算会永远停在错误的大数上；
+    - 其余按「只增不减」取两种来源的较大值。
+    """
+    if key in forced and key in explicit:
+        return explicit[key], True
+    if key in refresh and key in daily_sums:
+        return daily_sums[key], True
+    return max(daily_sums.get(key, 0.0), explicit.get(key, 0.0), 0.0), False
 
 
 def _reading_kwh(row: dict[str, Any]) -> float:

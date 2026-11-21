@@ -30,6 +30,7 @@ def _normalize_users_email(connection: sqlite3.Connection, _context: MigrationCo
         index_name="users_email_idx",
     )
 
+
 def _dedupe_active_ha_connections(connection: sqlite3.Connection, context: MigrationContext) -> None:
     if not _table_exists(connection, "ha_connections"):
         return
@@ -47,7 +48,8 @@ def _dedupe_active_ha_connections(connection: sqlite3.Connection, context: Migra
         stale = [str(row[0]) for row in rows[1:]]
         placeholders = ",".join("?" for _ in stale)
         connection.execute(
-            f"UPDATE ha_connections SET is_active = 0 WHERE id IN ({placeholders})", stale  # noqa: S608
+            f"UPDATE ha_connections SET is_active = 0 WHERE id IN ({placeholders})",  # noqa: S608 - placeholders 仅由 ? 组成
+            stale,
         )
         context.logger.warning("HA 连接存在多行 active，已保留 %s，降级其余 %s 行", keep, len(stale))
     try:
@@ -56,9 +58,7 @@ def _dedupe_active_ha_connections(connection: sqlite3.Connection, context: Migra
             "ON ha_connections(is_active) WHERE is_active = 1"
         )
     except sqlite3.IntegrityError as error:
-        raise SchemaMigrationError(
-            "无法建立 HA 连接单 active 唯一索引，库中仍存在重复 active 行。"
-        ) from error
+        raise SchemaMigrationError("无法建立 HA 连接单 active 唯一索引，库中仍存在重复 active 行。") from error
 
 
 def _create_studio_drafts(connection: sqlite3.Connection, context: MigrationContext) -> None:
@@ -71,9 +71,7 @@ def _create_studio_drafts(connection: sqlite3.Connection, context: MigrationCont
         "updated_at DATETIME NOT NULL, "
         "updated_by VARCHAR(36) REFERENCES users(id) ON DELETE SET NULL)"
     )
-    connection.execute(
-        "CREATE INDEX IF NOT EXISTS ix_studio_drafts_updated_by ON studio_drafts(updated_by)"
-    )
+    connection.execute("CREATE INDEX IF NOT EXISTS ix_studio_drafts_updated_by ON studio_drafts(updated_by)")
     existing = connection.execute("SELECT 1 FROM studio_drafts WHERE id = 1").fetchone()
     if existing is not None:
         return
@@ -93,15 +91,13 @@ def _create_studio_drafts(connection: sqlite3.Connection, context: MigrationCont
         raise SchemaMigrationError(f"3D 户型草稿缺少 scene 对象，迁移中止：{path}")
     try:
         revision = int(payload.get("revision") or 0)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError):  # fmt: skip
         revision = 0
     try:
         schema_version = int(scene.get("schemaVersion") or 8)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError):  # fmt: skip
         schema_version = 8
-    updated_at = _normalize_datetime(
-        payload.get("updatedAt") if isinstance(payload.get("updatedAt"), str) else None
-    )
+    updated_at = _normalize_datetime(payload.get("updatedAt") if isinstance(payload.get("updatedAt"), str) else None)
     if not updated_at:
         updated_at = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S.%f")
     connection.execute(
@@ -171,9 +167,7 @@ def _normalize_all_datetimes(connection: sqlite3.Connection, context: MigrationC
 
 
 def _index_sessions_user_expires(connection: sqlite3.Connection, _context: MigrationContext) -> None:
-    connection.execute(
-        "CREATE INDEX IF NOT EXISTS sessions_user_expires_idx ON sessions(userId, expiresAt)"
-    )
+    connection.execute("CREATE INDEX IF NOT EXISTS sessions_user_expires_idx ON sessions(userId, expiresAt)")
 
 
 def _index_projects_updated_at(connection: sqlite3.Connection, _context: MigrationContext) -> None:
@@ -182,93 +176,87 @@ def _index_projects_updated_at(connection: sqlite3.Connection, _context: Migrati
 
 #: ``ha_entities`` 的精度列：``(列名, 列定义)``。两列都可空，存量行不受影响。
 _HA_ENTITY_PRECISION_COLUMNS: tuple[tuple[str, str], ...] = (
-    ('display_precision', 'INTEGER'),
-    ('suggested_display_precision', 'INTEGER'),
+    ("display_precision", "INTEGER"),
+    ("suggested_display_precision", "INTEGER"),
 )
 
 
-def _add_ha_entity_display_precision(
-    connection: sqlite3.Connection, _context: MigrationContext
-) -> None:
+def _add_ha_entity_display_precision(connection: sqlite3.Connection, _context: MigrationContext) -> None:
     """给 ``ha_entities`` 补两列 HA 显示精度；空库 / 重复执行都是 no-op。
 
     空库由 ORM 先建出最新结构，因此这里必须按 ``PRAGMA table_info`` 守卫；
     显式不带 ``DEFAULT``：历史行的精度语义是「未知」而非 0，只有 ``NULL`` 能表达。
     """
-    if not _table_exists(connection, 'ha_entities'):
+    if not _table_exists(connection, "ha_entities"):
         return
-    existing = _columns(connection, 'ha_entities')
+    existing = _columns(connection, "ha_entities")
     for column_name, column_type in _HA_ENTITY_PRECISION_COLUMNS:
         if column_name in existing:
             continue
-        connection.execute(
-            f'ALTER TABLE ha_entities ADD COLUMN "{column_name}" {column_type}'
-        )
-
+        connection.execute(f'ALTER TABLE ha_entities ADD COLUMN "{column_name}" {column_type}')
 
 
 #: 3D 设备分区白名单快照：迁移必须冻结口径，不随功能版本增删。
 #: ``sofas`` 是 0.7.9 引入沙发设备档案时补入的：分类本身在迁移 9 落地时就已合法，
 #: 这里补上只是为了让「迁移表被重建后重跑迁移 9」的场景不会误删空的 sofas 分区。
-_DEVICE_COLLECTIONS = frozenset({
-    'nas',
-    'televisions',
-    'speakers',
-    'vacuums',
-    'airFryers',
-    'aromaDiffusers',
-    'beds',
-    'breadMakers',
-    'cars',
-    'coffeeMachines',
-    'computers',
-    'dishwashers',
-    'disinfectionCabinets',
-    'dryers',
-    'fridges',
-    'humidifiers',
-    'juicers',
-    'microwaves',
-    'networkCabinets',
-    'petDryers',
-    'petFeeders',
-    'petFountains',
-    'pipelineWaterPurifiers',
-    'plants',
-    'powerBlenders',
-    'pressureCookers',
-    'printers',
-    'printers3d',
-    'rangehoods',
-    'riceCookers',
-    'routers',
-    'smartSockets86',
-    'sofas',
-    'steamOvens',
-    'teaBarMachines',
-    'toilets',
-    'washers',
-    'waterPurifiers',
-})
+_DEVICE_COLLECTIONS = frozenset(
+    {
+        "nas",
+        "televisions",
+        "speakers",
+        "vacuums",
+        "airFryers",
+        "aromaDiffusers",
+        "beds",
+        "breadMakers",
+        "cars",
+        "coffeeMachines",
+        "computers",
+        "dishwashers",
+        "disinfectionCabinets",
+        "dryers",
+        "fridges",
+        "humidifiers",
+        "juicers",
+        "microwaves",
+        "networkCabinets",
+        "petDryers",
+        "petFeeders",
+        "petFountains",
+        "pipelineWaterPurifiers",
+        "plants",
+        "powerBlenders",
+        "pressureCookers",
+        "printers",
+        "printers3d",
+        "rangehoods",
+        "riceCookers",
+        "routers",
+        "smartSockets86",
+        "sofas",
+        "steamOvens",
+        "teaBarMachines",
+        "toilets",
+        "washers",
+        "waterPurifiers",
+    }
+)
 
 
 def _normalize_3d_properties(properties: dict) -> bool:
     """清理 3D 组件 properties 中已不再支持的历史结构；幂等。"""
     changed = False
-    devices = properties.get('devices')
+    devices = properties.get("devices")
     if isinstance(devices, dict):
         # 只删不带数据的未知分类；带内容的保留，让校验显式报错而不是静默丢数据。
-        for collection in [
-            name for name in devices
-            if name not in _DEVICE_COLLECTIONS and not devices[name]
-        ]:
+        for collection in [name for name in devices if name not in _DEVICE_COLLECTIONS and not devices[name]]:
             del devices[collection]
             changed = True
-    environment = properties.get('environment')
+    environment = properties.get("environment")
     if isinstance(environment, dict):
-        for sensor in environment.get('temperatureHumidity') or []:
-            if isinstance(sensor, dict) and 'sizingVersion' in sensor:
-                del sensor['sizingVersion']
+        for sensor in environment.get("temperatureHumidity") or []:
+            if isinstance(sensor, dict) and "sizingVersion" in sensor:
+                del sensor["sizingVersion"]
                 changed = True
     return changed
 
@@ -277,8 +265,8 @@ def _walk_3d_components(value) -> bool:
     """递归遍历文档，收紧 ``type == 'interaction3d'`` 组件的配置；返回是否发生改动。"""
     changed = False
     if isinstance(value, dict):
-        if value.get('type') == 'interaction3d':
-            properties = value.get('properties')
+        if value.get("type") == "interaction3d":
+            properties = value.get("properties")
             if isinstance(properties, dict):
                 changed |= _normalize_3d_properties(properties)
         for item in value.values():
@@ -292,129 +280,111 @@ def _walk_3d_components(value) -> bool:
 
 def _drop_legacy_sync_pending(connection: sqlite3.Connection, context: MigrationContext) -> None:
     """删除 ``studio_interaction_sync.document_json.pending``（旧「待写文件」指针）。"""
-    if not _table_exists(connection, 'studio_interaction_sync'):
+    if not _table_exists(connection, "studio_interaction_sync"):
         return
-    row = connection.execute(
-        'SELECT document_json FROM studio_interaction_sync WHERE id = 1'
-    ).fetchone()
+    row = connection.execute("SELECT document_json FROM studio_interaction_sync WHERE id = 1").fetchone()
     if row is None:
         return
     try:
         document = json.loads(row[0])
-    except (TypeError, json.JSONDecodeError):
+    except (TypeError, json.JSONDecodeError):  # fmt: skip
         return
-    if not isinstance(document, dict) or 'pending' not in document:
+    if not isinstance(document, dict) or "pending" not in document:
         return
-    document.pop('pending')
+    document.pop("pending")
     connection.execute(
-        'UPDATE studio_interaction_sync SET document_json = ? WHERE id = 1',
-        (json.dumps(document, ensure_ascii=False, separators=(',', ':')),),
+        "UPDATE studio_interaction_sync SET document_json = ? WHERE id = 1",
+        (json.dumps(document, ensure_ascii=False, separators=(",", ":")),),
     )
-    context.logger.warning('已删除 3D 草稿同步表中的历史 pending 指针')
+    context.logger.warning("已删除 3D 草稿同步表中的历史 pending 指针")
 
 
-def _normalize_project_draft_3d_config(
-    connection: sqlite3.Connection, context: MigrationContext
-) -> None:
+def _normalize_project_draft_3d_config(connection: sqlite3.Connection, context: MigrationContext) -> None:
     """把项目草稿里的 3D 增量配置收紧到当前契约（一次性数据清理）。"""
-    if not _table_exists(connection, 'project_drafts'):
+    if not _table_exists(connection, "project_drafts"):
         return
-    rows = connection.execute('SELECT project_id, document_json FROM project_drafts').fetchall()
+    rows = connection.execute("SELECT project_id, document_json FROM project_drafts").fetchall()
     migrated = 0
     for project_id, document_json in rows:
         try:
             document = json.loads(document_json)
-        except (TypeError, json.JSONDecodeError):
+        except (TypeError, json.JSONDecodeError):  # fmt: skip
             continue
         if not isinstance(document, dict) or not _walk_3d_components(document):
             continue
         # 修订号 +1：持有旧结构的客户端必须重新拉取，否则会用旧载荷覆盖回历史字段。
         connection.execute(
-            'UPDATE project_drafts SET document_json = ?, revision = revision + 1 '
-            'WHERE project_id = ?',
+            "UPDATE project_drafts SET document_json = ?, revision = revision + 1 WHERE project_id = ?",
             (
-                json.dumps(document, ensure_ascii=False, separators=(',', ':')),
+                json.dumps(document, ensure_ascii=False, separators=(",", ":")),
                 project_id,
             ),
         )
         migrated += 1
     if migrated:
-        context.logger.warning('已清理 %s 份项目草稿中的 3D 历史配置结构', migrated)
+        context.logger.warning("已清理 %s 份项目草稿中的 3D 历史配置结构", migrated)
 
 
-def _add_security_event_audit_columns(
-    connection: sqlite3.Connection, _context: MigrationContext
-) -> None:
+def _add_security_event_audit_columns(connection: sqlite3.Connection, _context: MigrationContext) -> None:
     """SecurityEvent 增加 source/actor/ackAt：审计需要知道「谁、从哪条链路」触发。"""
-    if not _table_exists(connection, 'security_events'):
+    if not _table_exists(connection, "security_events"):
         return
-    columns = _columns(connection, 'security_events')
+    columns = _columns(connection, "security_events")
     for name, ddl in (
-        ('source', 'ALTER TABLE security_events ADD COLUMN source VARCHAR(32)'),
-        ('actor', 'ALTER TABLE security_events ADD COLUMN actor VARCHAR(255)'),
-        ('ackAt', 'ALTER TABLE security_events ADD COLUMN "ackAt" DATETIME'),
+        ("source", "ALTER TABLE security_events ADD COLUMN source VARCHAR(32)"),
+        ("actor", "ALTER TABLE security_events ADD COLUMN actor VARCHAR(255)"),
+        ("ackAt", 'ALTER TABLE security_events ADD COLUMN "ackAt" DATETIME'),
     ):
         if name not in columns:
             connection.execute(ddl)
 
 
-def _add_agent_automation_actor_columns(
-    connection: sqlite3.Connection, _context: MigrationContext
-) -> None:
+def _add_agent_automation_actor_columns(connection: sqlite3.Connection, _context: MigrationContext) -> None:
     """家规 / 计划任务增加 ``updatedBy``：审计需要知道「谁改的」。
 
     权限仍取创建者快照（``actor``），这一列只服务于展示与追溯。
     全新库由 create_all 直接建出含该列的表，这里对缺表静默跳过。
     """
-    for table in ('agent_policy_rules', 'agent_scheduled_tasks'):
+    for table in ("agent_policy_rules", "agent_scheduled_tasks"):
         if not _table_exists(connection, table):
             continue
-        if 'updatedBy' in _columns(connection, table):
+        if "updatedBy" in _columns(connection, table):
             continue
-        ddl = (
-            f'ALTER TABLE {table} ADD COLUMN "updatedBy" '
-            "TEXT NOT NULL DEFAULT '{}'"
-        )
+        ddl = f"ALTER TABLE {table} ADD COLUMN \"updatedBy\" TEXT NOT NULL DEFAULT '{{}}'"
         connection.execute(ddl)
 
 
-def _add_notification_action_prompt(
-    connection: sqlite3.Connection, _context: MigrationContext
-) -> None:
+def _add_notification_action_prompt(connection: sqlite3.Connection, _context: MigrationContext) -> None:
     """通知增加 ``actionPrompt``：主动提醒可携带一条「让管家处理」的可执行指令。
 
     只由系统提醒写入；用户输入与外部通道都不能写这一列，避免通知条目变成指令注入点。
     全新库由 create_all 直接建出含该列的表。
     """
-    if not _table_exists(connection, 'notifications'):
+    if not _table_exists(connection, "notifications"):
         return
-    if 'actionPrompt' in _columns(connection, 'notifications'):
+    if "actionPrompt" in _columns(connection, "notifications"):
         return
     connection.execute('ALTER TABLE notifications ADD COLUMN "actionPrompt" TEXT')
 
 
-def _add_alert_rule_timing_columns(
-    connection: sqlite3.Connection, _context: MigrationContext
-) -> None:
+def _add_alert_rule_timing_columns(connection: sqlite3.Connection, _context: MigrationContext) -> None:
     """告警规则增加持续判定 / 回落去抖 / 升级三列（E2）。
 
     三列都是「0 = 旧行为」，因此存量规则升级后行为不变；全新库由 create_all 建出。
     """
-    if not _table_exists(connection, 'alert_rules'):
+    if not _table_exists(connection, "alert_rules"):
         return
-    columns = _columns(connection, 'alert_rules')
+    columns = _columns(connection, "alert_rules")
     for column, ddl in (
-        ('forSeconds', 'INTEGER NOT NULL DEFAULT 0'),
-        ('clearDelaySeconds', 'INTEGER NOT NULL DEFAULT 0'),
-        ('escalationMinutes', 'INTEGER NOT NULL DEFAULT 0'),
+        ("forSeconds", "INTEGER NOT NULL DEFAULT 0"),
+        ("clearDelaySeconds", "INTEGER NOT NULL DEFAULT 0"),
+        ("escalationMinutes", "INTEGER NOT NULL DEFAULT 0"),
     ):
         if column not in columns:
             connection.execute(f'ALTER TABLE alert_rules ADD COLUMN "{column}" {ddl}')
 
 
-def _ensure_alert_rule_escalation_column(
-    connection: sqlite3.Connection, _context: MigrationContext
-) -> None:
+def _ensure_alert_rule_escalation_column(connection: sqlite3.Connection, _context: MigrationContext) -> None:
     """确保 ``alert_rules.escalationMinutes`` 存在（升级阈值）。
 
     这个版本号在开发期已经写进过数据库（迁移 17），而当时三列是拆成两条迁移登记的。
@@ -424,18 +394,14 @@ def _ensure_alert_rule_escalation_column(
     新库先跑 15（建三列）再跑这条，因此这里必然是 no-op；旧库如果只有 15 之前的版本，
     这条也会把列补上，不会漏。
     """
-    if not _table_exists(connection, 'alert_rules'):
+    if not _table_exists(connection, "alert_rules"):
         return
-    if 'escalationMinutes' in _columns(connection, 'alert_rules'):
+    if "escalationMinutes" in _columns(connection, "alert_rules"):
         return
-    connection.execute(
-        'ALTER TABLE alert_rules ADD COLUMN "escalationMinutes" INTEGER NOT NULL DEFAULT 0'
-    )
+    connection.execute('ALTER TABLE alert_rules ADD COLUMN "escalationMinutes" INTEGER NOT NULL DEFAULT 0')
 
 
-def _fix_alert_rule_escalation_units(
-    connection: sqlite3.Connection, _context: MigrationContext
-) -> None:
+def _fix_alert_rule_escalation_units(connection: sqlite3.Connection, _context: MigrationContext) -> None:
     """修正 ``alert_rules.escalationMinutes`` 的历史单位错误。
 
     旧实现把「分钟」当「秒」除以 60 后落库，运行侧又除了一次 60。这段代码是
@@ -444,33 +410,315 @@ def _fix_alert_rule_escalation_units(
     （60 分钟 → 存成 1 → 还原 60）。0 无法区分「没填」与「填了不足 60」，
     保持 0（= 不升级），不臆造数值。
     """
-    if not _table_exists(connection, 'alert_rules'):
+    if not _table_exists(connection, "alert_rules"):
         return
-    if 'escalationMinutes' not in _columns(connection, 'alert_rules'):
+    if "escalationMinutes" not in _columns(connection, "alert_rules"):
         return
     connection.execute(
-        'UPDATE alert_rules SET "escalationMinutes" = "escalationMinutes" * 60 '
-        'WHERE "escalationMinutes" > 0'
+        'UPDATE alert_rules SET "escalationMinutes" = "escalationMinutes" * 60 WHERE "escalationMinutes" > 0'
     )
 
 
-def _add_home_mode_conditions_and_execution(
-    connection: sqlite3.Connection, _context: MigrationContext
-) -> None:
+def _add_home_mode_conditions_and_execution(connection: sqlite3.Connection, _context: MigrationContext) -> None:
     """家庭模式增加 ``conditions`` 与 ``executionMode``（E1）。
 
     两列都「缺省 = 旧行为」：``conditions`` 为 NULL 表示无条件（与现在一致），
     ``executionMode`` 默认 ``queued``（等价现有的「排队等锁」）。
     """
-    if not _table_exists(connection, 'home_modes'):
+    if not _table_exists(connection, "home_modes"):
         return
-    columns = _columns(connection, 'home_modes')
-    if 'conditions' not in columns:
+    columns = _columns(connection, "home_modes")
+    if "conditions" not in columns:
         connection.execute('ALTER TABLE home_modes ADD COLUMN "conditions" TEXT')
-    if 'executionMode' not in columns:
+    if "executionMode" not in columns:
+        connection.execute("ALTER TABLE home_modes ADD COLUMN \"executionMode\" VARCHAR(16) NOT NULL DEFAULT 'queued'")
+
+
+def _add_alert_rule_structured_columns(connection: sqlite3.Connection, _context: MigrationContext) -> None:
+    """告警规则增加结构化字段（对齐参考 ``notification`` 规则模型）。
+
+    ``targetState/operator`` 是可回填的展示与编辑来源，``condition`` 仍是唯一求值字段；
+    ``sound`` 只对 ``critical`` 生效，``cameraEntityId`` 让通知带门铃类型与快照入口。
+    四列全部可空 → 存量规则行为不变；全新库由 create_all 直接建出。
+    """
+    if not _table_exists(connection, "alert_rules"):
+        return
+    columns = _columns(connection, "alert_rules")
+    for column, ddl in (
+        ("targetState", "VARCHAR(255)"),
+        ("operator", "VARCHAR(16)"),
+        ("sound", "VARCHAR(64)"),
+        ("cameraEntityId", "VARCHAR(255)"),
+    ):
+        if column not in columns:
+            connection.execute(f'ALTER TABLE alert_rules ADD COLUMN "{column}" {ddl}')
+
+
+def _create_agent_learning_tables(connection: sqlite3.Connection, _context: MigrationContext) -> None:
+    """学习体系三张表：配置 / 审计 / 习惯候选。
+
+    全新库由 ``create_all`` 建出（``learning_models`` 已在 ``schema._metadata`` 注册）；
+    这里只对存量库补建，全部 ``IF NOT EXISTS``，可重复执行。
+    """
+    if not _table_exists(connection, "agent_learning_config"):
         connection.execute(
-            'ALTER TABLE home_modes ADD COLUMN "executionMode" VARCHAR(16) NOT NULL DEFAULT \'queued\''
+            """
+            CREATE TABLE IF NOT EXISTS agent_learning_config (
+                id VARCHAR(36) NOT NULL PRIMARY KEY,
+                "scopeKey" VARCHAR(128) NOT NULL DEFAULT 'household',
+                kind VARCHAR(32) NOT NULL,
+                "configKey" VARCHAR(255) NOT NULL,
+                "entityId" VARCHAR(255) NOT NULL,
+                "valueJson" TEXT,
+                "isActive" BOOLEAN NOT NULL DEFAULT 1,
+                revision INTEGER NOT NULL DEFAULT 1,
+                "createdAt" DATETIME NOT NULL,
+                "updatedAt" DATETIME NOT NULL,
+                CONSTRAINT agent_learning_config_key UNIQUE ("scopeKey", kind, "configKey")
+            )
+            """
         )
+        connection.execute("CREATE INDEX IF NOT EXISTS agent_learning_config_kind_idx ON agent_learning_config (kind)")
+    if not _table_exists(connection, "agent_learning_audit"):
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS agent_learning_audit (
+                id VARCHAR(36) NOT NULL PRIMARY KEY,
+                "configId" VARCHAR(36) NOT NULL,
+                action VARCHAR(16) NOT NULL,
+                "fromRevision" INTEGER NOT NULL DEFAULT 0,
+                "toRevision" INTEGER NOT NULL DEFAULT 0,
+                "fromEntityId" VARCHAR(255),
+                "toEntityId" VARCHAR(255),
+                "executionId" VARCHAR(64),
+                actor VARCHAR(255),
+                "createdAt" DATETIME NOT NULL
+            )
+            """
+        )
+        connection.execute(
+            "CREATE INDEX IF NOT EXISTS agent_learning_audit_config_idx "
+            'ON agent_learning_audit ("configId", "createdAt")'
+        )
+    if not _table_exists(connection, "agent_habit_candidate"):
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS agent_habit_candidate (
+                id VARCHAR(36) NOT NULL PRIMARY KEY,
+                "scopeKey" VARCHAR(128) NOT NULL DEFAULT 'household',
+                "candidateType" VARCHAR(32) NOT NULL,
+                "contextKey" VARCHAR(128) NOT NULL,
+                "entityId" VARCHAR(255) NOT NULL,
+                "evidenceCount" INTEGER NOT NULL DEFAULT 0,
+                "lastStepId" VARCHAR(64),
+                status VARCHAR(16) NOT NULL DEFAULT 'OBSERVING',
+                "lastPromptAt" DATETIME,
+                "dismissedAt" DATETIME,
+                "lastSeenAt" DATETIME NOT NULL,
+                "createdAt" DATETIME NOT NULL,
+                CONSTRAINT agent_habit_candidate_key UNIQUE ("scopeKey", "candidateType", "contextKey", "entityId")
+            )
+            """
+        )
+        connection.execute(
+            "CREATE INDEX IF NOT EXISTS agent_habit_candidate_status_idx ON agent_habit_candidate (status)"
+        )
+
+
+def _add_ha_area_icon_and_order(connection: sqlite3.Connection, _context: MigrationContext) -> None:
+    """HA 区域增加 ``icon`` 与本地 ``sortOrder``。
+
+    ``icon`` 由同步从 HA 区域 registry 写入；``sortOrder`` 是本地排序覆盖
+    （HA 区域 registry 没有顺序字段），同步不会触碰它。
+    """
+    if not _table_exists(connection, "ha_areas"):
+        return
+    columns = _columns(connection, "ha_areas")
+    if "icon" not in columns:
+        connection.execute("ALTER TABLE ha_areas ADD COLUMN icon VARCHAR(128)")
+    if "sortOrder" not in columns:
+        connection.execute('ALTER TABLE ha_areas ADD COLUMN "sortOrder" INTEGER NOT NULL DEFAULT 0')
+
+
+def _create_device_profile_tables(connection: sqlite3.Connection, _context: MigrationContext) -> None:
+    """设备画像两张表（存量库补建；全新库由 create_all 建出）。"""
+    if not _table_exists(connection, "device_profiles"):
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS device_profiles (
+                id VARCHAR(36) NOT NULL PRIMARY KEY,
+                "entityId" VARCHAR(255) NOT NULL,
+                domain VARCHAR(32) NOT NULL,
+                kind VARCHAR(32) NOT NULL DEFAULT 'unknown',
+                confidence FLOAT NOT NULL DEFAULT 0,
+                confirmed BOOLEAN NOT NULL DEFAULT 0,
+                source VARCHAR(16) NOT NULL DEFAULT 'RULE',
+                "aliasesJson" TEXT NOT NULL DEFAULT '[]',
+                "evidenceJson" TEXT NOT NULL DEFAULT '[]',
+                "classifierVersion" VARCHAR(32) NOT NULL DEFAULT 'rule-v1',
+                available BOOLEAN NOT NULL DEFAULT 1,
+                "attributesHash" VARCHAR(64) NOT NULL DEFAULT '',
+                "updatedAt" DATETIME NOT NULL,
+                CONSTRAINT device_profiles_entity UNIQUE ("entityId")
+            )
+            """
+        )
+        connection.execute("CREATE INDEX IF NOT EXISTS device_profiles_domain_idx ON device_profiles (domain)")
+    if not _table_exists(connection, "device_profile_defaults"):
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS device_profile_defaults (
+                id VARCHAR(36) NOT NULL PRIMARY KEY,
+                "areaId" VARCHAR(255) NOT NULL,
+                kind VARCHAR(32) NOT NULL,
+                "entityId" VARCHAR(255),
+                "maPlayerId" VARCHAR(255),
+                "sortOrder" INTEGER NOT NULL DEFAULT 0,
+                "updatedAt" DATETIME NOT NULL,
+                CONSTRAINT device_profile_defaults_area_kind UNIQUE ("areaId", kind)
+            )
+            """
+        )
+        connection.execute(
+            'CREATE INDEX IF NOT EXISTS device_profile_defaults_entity_idx ON device_profile_defaults ("entityId")'
+        )
+
+
+def _device_profile_seen_and_audit(connection: sqlite3.Connection, _context: MigrationContext) -> None:
+    """画像补 ``lastSeenAt`` / ``lastClassifiedAt``，并建人工确认审计表。
+
+    两列都允许为空：存量行没有历史时刻可用，写 0 会假装「很久以前见过」。
+    """
+    if _table_exists(connection, "device_profiles"):
+        columns = _columns(connection, "device_profiles")
+        if "lastSeenAt" not in columns:
+            connection.execute('ALTER TABLE device_profiles ADD COLUMN "lastSeenAt" DATETIME')
+        if "lastClassifiedAt" not in columns:
+            connection.execute('ALTER TABLE device_profiles ADD COLUMN "lastClassifiedAt" DATETIME')
+    if not _table_exists(connection, "device_profile_audit"):
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS device_profile_audit (
+                id VARCHAR(36) NOT NULL PRIMARY KEY,
+                "entityId" VARCHAR(255) NOT NULL,
+                action VARCHAR(32) NOT NULL,
+                "fromKind" VARCHAR(32) NOT NULL DEFAULT '',
+                "toKind" VARCHAR(32) NOT NULL DEFAULT '',
+                "aliasesJson" TEXT NOT NULL DEFAULT '[]',
+                actor VARCHAR(128) NOT NULL DEFAULT '',
+                "createdAt" DATETIME NOT NULL
+            )
+            """
+        )
+        connection.execute(
+            'CREATE INDEX IF NOT EXISTS device_profile_audit_entity_idx ON device_profile_audit ("entityId")'
+        )
+        connection.execute(
+            'CREATE INDEX IF NOT EXISTS device_profile_audit_created_idx ON device_profile_audit ("createdAt")'
+        )
+
+
+def _create_media_arrivals_table(connection: sqlite3.Connection, _context: MigrationContext) -> None:
+    """媒体入库表（存量库补建；全新库由 create_all 建出）。"""
+    if _table_exists(connection, "media_arrivals"):
+        return
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS media_arrivals (
+            id VARCHAR(36) NOT NULL PRIMARY KEY,
+            source VARCHAR(32) NOT NULL DEFAULT 'moviepilot',
+            "remoteId" VARCHAR(64) NOT NULL,
+            title VARCHAR(255) NOT NULL DEFAULT '',
+            season VARCHAR(64),
+            "tmdbId" VARCHAR(64),
+            "posterUrl" TEXT,
+            "arrivedAt" DATETIME NOT NULL,
+            "notifiedAt" DATETIME,
+            "createdAt" DATETIME NOT NULL,
+            CONSTRAINT media_arrivals_source_remote UNIQUE (source, "remoteId")
+        )
+        """
+    )
+    connection.execute('CREATE INDEX IF NOT EXISTS media_arrivals_notifiedAt_idx ON media_arrivals ("notifiedAt")')
+    connection.execute('CREATE INDEX IF NOT EXISTS media_arrivals_arrivedAt_idx ON media_arrivals ("arrivedAt")')
+
+
+def _create_telegram_chats_table(connection: sqlite3.Connection, _context: MigrationContext) -> None:
+    """**幂等空操作**（只保留版本位）。
+
+    Telegram 通道经确认不做，模型与代码已移除。但这一版曾在开发期被写入数据库记录，
+    删掉登记项会让「DB 有 24、代码没有 24」的库拒绝启动（迁移 17 已踩过同一个坑）。
+    因此保留 24 号版本与校验和，实现改成空操作；已建出的 ``telegram_chats`` 表留着无害
+    —— ``prepare_schema`` 只校验「缺表 / 缺列 / 缺索引」，多余表不算问题。
+    """
+    del connection
+
+
+def _create_automation_draft_tables(connection: sqlite3.Connection, _context: MigrationContext) -> None:
+    """自动化草案两张表（存量库补建）。"""
+    if not _table_exists(connection, "automation_drafts"):
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS automation_drafts (
+                id VARCHAR(36) NOT NULL PRIMARY KEY,
+                "targetBackend" VARCHAR(16) NOT NULL DEFAULT 'HA',
+                status VARCHAR(24) NOT NULL DEFAULT 'READY',
+                "currentRevSeq" INTEGER NOT NULL DEFAULT 1,
+                "rawPrompt" TEXT NOT NULL DEFAULT '',
+                "originSessionKey" VARCHAR(128) NOT NULL DEFAULT 'default',
+                "originChannel" VARCHAR(32) NOT NULL DEFAULT 'web',
+                "originPrincipalId" VARCHAR(64),
+                "identityStrength" VARCHAR(16) NOT NULL DEFAULT 'NONE',
+                "executionId" VARCHAR(64),
+                "expiresAt" DATETIME NOT NULL,
+                "createdAt" DATETIME NOT NULL
+            )
+            """
+        )
+        connection.execute(
+            'CREATE INDEX IF NOT EXISTS automation_drafts_session_idx ON automation_drafts ("originSessionKey")'
+        )
+        connection.execute("CREATE INDEX IF NOT EXISTS automation_drafts_status_idx ON automation_drafts (status)")
+    if not _table_exists(connection, "automation_draft_revisions"):
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS automation_draft_revisions (
+                id VARCHAR(36) NOT NULL PRIMARY KEY,
+                "draftId" VARCHAR(36) NOT NULL,
+                "revSeq" INTEGER NOT NULL,
+                "specJson" TEXT NOT NULL,
+                "specHash" VARCHAR(64) NOT NULL,
+                "previewJson" TEXT NOT NULL,
+                "createdAt" DATETIME NOT NULL,
+                CONSTRAINT automation_draft_revision_key UNIQUE ("draftId", "revSeq")
+            )
+            """
+        )
+        connection.execute(
+            'CREATE INDEX IF NOT EXISTS automation_draft_revisions_draft_idx ON automation_draft_revisions ("draftId")'
+        )
+
+
+def _create_ha_area_entity_order(connection: sqlite3.Connection, _context: MigrationContext) -> None:
+    """房间内实体顺序覆盖表（存量库补建；全新库由 create_all 建出）。"""
+    if _table_exists(connection, "ha_area_entity_order"):
+        return
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS ha_area_entity_order (
+            id VARCHAR(36) NOT NULL PRIMARY KEY,
+            connection_id VARCHAR(36) NOT NULL,
+            area_id VARCHAR(255) NOT NULL,
+            entity_id VARCHAR(255) NOT NULL,
+            "sortOrder" INTEGER NOT NULL DEFAULT 0,
+            CONSTRAINT uq_ha_area_entity_order UNIQUE (connection_id, area_id, entity_id)
+        )
+        """
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS ix_ha_area_entity_order_connection_id ON ha_area_entity_order (connection_id)"
+    )
+    connection.execute("CREATE INDEX IF NOT EXISTS ix_ha_area_entity_order_area_id ON ha_area_entity_order (area_id)")
 
 
 MIGRATIONS = (
@@ -494,4 +742,13 @@ MIGRATIONS = (
     # 删掉会让已有该记录的库拒绝启动。校验和必须与数据库记录逐字一致。
     Migration(17, "alert-rule-escalation-column", "h0017-v1", _ensure_alert_rule_escalation_column),
     Migration(18, "alert-rule-escalation-units", "h0018-v1", _fix_alert_rule_escalation_units),
+    Migration(19, "alert-rule-structured-columns", "h0019-v1", _add_alert_rule_structured_columns),
+    Migration(20, "agent-learning-tables", "h0020-v1", _create_agent_learning_tables),
+    Migration(21, "ha-area-icon-and-order", "h0021-v1", _add_ha_area_icon_and_order),
+    Migration(22, "device-profile-tables", "h0022-v1", _create_device_profile_tables),
+    Migration(23, "media-arrivals-table", "h0023-v1", _create_media_arrivals_table),
+    Migration(24, "telegram-chats-table", "h0024-v1", _create_telegram_chats_table),
+    Migration(25, "automation-draft-tables", "h0025-v1", _create_automation_draft_tables),
+    Migration(26, "ha-area-entity-order", "h0026-v1", _create_ha_area_entity_order),
+    Migration(27, "device-profile-seen-and-audit", "h0027-v1", _device_profile_seen_and_audit),
 )

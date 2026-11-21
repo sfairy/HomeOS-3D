@@ -83,6 +83,8 @@ export const SETTINGS_ROUTES = {
   widgets: () => settingsRoute({ tab: 'widgets' }),
   assets: () => settingsRoute({ tab: 'assets' }),
   embeds: (section?: string) => settingsRoute({ tab: 'embeds', ...(section ? { section } : {}) }),
+  /** 媒体库（MoviePilot / Music Assistant 连接与入库通知） */
+  media: (section?: string) => settingsRoute({ tab: 'media', ...(section ? { section } : {}) }),
   executionHistory: (section?: string) => settingsRoute({ tab: 'diagnostics', ...(section ? { section } : {}) }),
   smartCharge: (section?: string) => settingsRoute({ tab: 'smart-charge', ...(section ? { section } : {}) }),
   family: () => settingsRoute({ tab: 'family' }),

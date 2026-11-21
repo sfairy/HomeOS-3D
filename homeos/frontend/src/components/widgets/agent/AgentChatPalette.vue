@@ -29,6 +29,7 @@ import {
 import {
   agentChatStream,
   agentPing,
+  clearAgentSession,
   type AgentChatResult,
   type AgentPingResult,
   type AgentStreamHandle,
@@ -287,6 +288,11 @@ const { persistCurrent, sessionTimeLabel, openSession, newConversation, deleteCo
   stopListen,
   stopGenerating,
   scrollToBottom: scrollLogToBottom,
+  forgetSession: (id: string) => {
+    void clearAgentSession(id).catch(() => {
+      // 服务端删除失败不阻塞本地删除；会话最多 10 分钟后自然过期
+    })
+  },
 })
 
 function goAgentSettings() {

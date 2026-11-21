@@ -43,10 +43,6 @@ def _validate_ops(section: str, payload: dict[str, Any], errors: list[FieldError
         num_in(section, "configAuditMaxEntries", payload["configAuditMaxEntries"], 10, 1000, errors)
     if "configAuditPersistEnabled" in payload:
         require_bool(section, "configAuditPersistEnabled", payload["configAuditPersistEnabled"], errors)
-    if "sceneExecHistoryMax" in payload:
-        num_in(section, "sceneExecHistoryMax", payload["sceneExecHistoryMax"], 1, 1000, errors)
-    if "scriptExecHistoryMax" in payload:
-        num_in(section, "scriptExecHistoryMax", payload["scriptExecHistoryMax"], 1, 1000, errors)
     if "eventLogTimelineMax" in payload:
         num_in(section, "eventLogTimelineMax", payload["eventLogTimelineMax"], 1, 5000, errors)
     if "eventLogTimelineHours" in payload:
@@ -177,9 +173,8 @@ def _validate_ws_push(section: str, payload: dict[str, Any], errors: list[FieldE
         num_in(section, "haSyncWaitMs", payload["haSyncWaitMs"], 1_000, 600_000, errors)
     if "replayChunkSize" in payload:
         num_in(section, "replayChunkSize", payload["replayChunkSize"], 10, 5_000, errors)
-    for k in ("coldEntityOnDemand", "roomBatchEmit"):
-        if k in payload:
-            require_bool(section, k, payload[k], errors)
+    if "coldEntityOnDemand" in payload:
+        require_bool(section, "coldEntityOnDemand", payload["coldEntityOnDemand"], errors)
     if "latencyProfile" in payload:
         v = payload["latencyProfile"]
         if v not in ("realtime", "balanced", "bulk"):
@@ -200,8 +195,6 @@ def _validate_webrtc(section: str, payload: dict[str, Any], errors: list[FieldEr
             errors.append({"section": section, "key": key, "message": "须为字符串"})
 
 def _validate_other(section: str, payload: dict[str, Any], errors: list[FieldError]) -> None:
-    if "eventlogRetentionDays" in payload:
-        num_in(section, "eventlogRetentionDays", payload["eventlogRetentionDays"], 1, 365, errors)
     if "haHistoryCacheMin" in payload:
         num_in(section, "haHistoryCacheMin", payload["haHistoryCacheMin"], 1, 1440, errors)
     if "speakCooldownMin" in payload:

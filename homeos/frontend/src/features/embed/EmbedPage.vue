@@ -97,6 +97,7 @@ import {
   clearAllEmbedCtxCookies,
   setEmbedCtxCookie,
 } from '@/shared/utils/layout/embed-url.util'
+import { resolveMoviePilotUrl } from '@/shared/utils/layout/moviepilot-url.util'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 
 const route = useRoute()
@@ -121,7 +122,7 @@ const embed = computed(() => {
 const embedUrl = computed(() => {
   const id = routeEmbedId()
   if (id === 'movie-pilot') {
-    return embed.value?.url || layoutStore.layoutConfig.moviePilotUrl || ''
+    return embed.value?.url || resolveMoviePilotUrl(layoutStore.layoutConfig)
   }
   return embed.value?.url || ''
 })

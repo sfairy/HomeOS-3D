@@ -18,6 +18,10 @@
 
 回填结果经 ``EventLogService.apply_energy_backfill`` 落库，合并口径「只增不减」，
 因此可以周期性重复执行，不会和实时增量重复计费。
+
+电费账户（国网 ``state_grid`` 列表，或约定命名的 ``daylist``/``monthlist`` 属性）是
+**成品数据**，不走 HA 历史：解析后按「主电表优先」归到报表实体，历史日/月按账单口径
+覆盖、今天取最大，并入同一条落库链路（见 :mod:`energy_sgcc`）。
 """
 
 from __future__ import annotations
@@ -25,9 +29,17 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
+from .energy_sgcc import (
+    UtilityAccount,
+    collect_utility_series,
+    discover_utility_accounts,
+    is_stale,
+    is_utility_account_entity,
+    latest_day,
+)
 from .event_log_tier import is_energy_meter_entity
 from ..client_power.energy_meter import (
     business_day_key,
@@ -67,6 +79,18 @@ def _to_number(raw: Any) -> float | None:
         return None
 
 
+def _merge_daily_totals(base: dict[str, dict[str, float]], extra: dict[str, dict[str, float]]) -> None:
+    """按 (实体, 日) 取最大合并两路日用量。
+
+    国网账户归到主表后会与累计表回填命中同一个实体：直接 ``dict.update`` 会整份覆盖，
+    把累计表算出的、日列表里没有的天数丢掉；同一天两路都有值时按「只增不减」取较大值。
+    """
+    for entity_id, per_day in extra.items():
+        merged = base.setdefault(entity_id, {})
+        for day, kwh in per_day.items():
+            merged[day] = max(merged.get(day, 0.0), kwh)
+
+
 def _parse_history_time(raw: Any) -> datetime | None:
     text = str(raw or "").strip()
     if not text:
@@ -101,6 +125,10 @@ def discover_energy_entities(
             continue
         attributes = entity.get("attributes")
         attrs = attributes if isinstance(attributes, dict) else {}
+        if is_utility_account_entity(entity_id, attrs):
+            # 电费账户列表（state_grid 或 daylist/monthlist 属性）里虽然有 kWh 数据，
+            # state 却不是累计读数：交给账户解析链路，不能当累计表做历史差分。
+            continue
         if attrs:
             if not is_cumulative_energy_meter(attrs):
                 continue
@@ -183,6 +211,14 @@ def split_history_daily(
     return per_day
 
 
+def _has_stale_account(entities: list[dict[str, Any]], today: date) -> bool:
+    """快照里是否存在停更的电费账户列表（用于绕过节流做自愈回填）。
+
+    ``today`` 按家庭时区给出：东八区凌晨用 UTC 日期会把「昨天刚更新」误判成停更。
+    """
+    return any(is_stale(account.daily, today=today) for account in discover_utility_accounts(entities).values())
+
+
 class EnergyBackfillService:
     """在全量快照到达后触发一次「发现电量实体 + 回填近 N 天」的旁路任务。"""
 
@@ -193,18 +229,26 @@ class EnergyBackfillService:
         self._task: asyncio.Task[None] | None = None
         self._next_allowed_at = 0.0
         self._running = False
+        #: 账单快照脏行只需自愈一次（进程生命周期内）。
+        self._purged_snapshots = False
 
     def bind_loop(self, loop: asyncio.AbstractEventLoop) -> None:
         self._loop = loop
 
     def on_full_snapshot(self, entities: list[dict[str, Any]] | None) -> None:
-        """快照到达：按节流策略排一次回填（同步调用，绝不阻塞快照处理）。"""
+        """快照到达：按节流策略排一次回填（同步调用，绝不阻塞快照处理）。
+
+        国网日列表陈旧（不足 2 天或最新一天 > 2 天前）时**绕过节流**立即回填：
+        用户新接入国网集成后，等 30 分钟才出图是不可接受的。
+        """
         if not entities or self._running:
             return
         now = time.monotonic()
-        if now < self._next_allowed_at:
+        stale = _has_stale_account(entities, self._today())
+        if not stale and now < self._next_allowed_at:
             return
-        self._next_allowed_at = now + MIN_RUN_INTERVAL_SECONDS
+        if not stale:
+            self._next_allowed_at = now + MIN_RUN_INTERVAL_SECONDS
         loop = self._loop
         if loop is None:
             try:
@@ -213,6 +257,19 @@ class EnergyBackfillService:
                 logger.debug("能耗回填跳过：没有可用的事件循环")
                 return
         self._task = self._spawn(loop, self._run(entities))
+
+    def _today(self) -> date:
+        """家庭时区的今天（账户列表停更判定用）；时区读取失败时退回 UTC。"""
+        try:
+            timezone_name = self._event_log.ops_timezone_name()
+        except Exception as error:  # 时区不可读不该阻断快照：退回 UTC 只影响边界那一天
+            logger.debug("能耗回填：读取家庭时区失败，按 UTC 判断: %s", error)
+            timezone_name = None
+        return (
+            datetime.now(UTC).date()
+            if timezone_name is None
+            else date.fromisoformat(business_day_key(datetime.now(UTC), timezone_name))
+        )
 
     def _allow_retry(self) -> None:
         """本轮没真正跑成（HA 未连接等）：把下一轮提前到几十秒后。"""
@@ -230,25 +287,47 @@ class EnergyBackfillService:
     async def _run(self, entities: list[dict[str, Any]]) -> None:
         self._running = True
         try:
-            connection = await asyncio.to_thread(self._ha.active_connection)
-            if connection is None:
-                logger.debug("能耗回填跳过：未配置 Home Assistant 连接")
-                self._allow_retry()
-                return
             candidates = discover_energy_entities(entities)
-            if not candidates:
-                logger.debug("能耗回填跳过：快照里没有累计型电量实体")
+            accounts = discover_utility_accounts(entities)
+            if not candidates and not accounts:
+                logger.debug("能耗回填跳过：快照里没有累计型电量实体，也没有电费账户列表")
                 return
+            await self._purge_snapshot_rows_once()
             timezone_name = await asyncio.to_thread(self._event_log.ops_timezone_name)
-            totals = await self._collect(connection, candidates, timezone_name)
-            if not totals:
-                logger.info("能耗回填：%s 个电量实体在窗口内没有可用读数", len(candidates))
+            today = business_day_key(datetime.now(UTC), timezone_name)
+            totals: dict[str, dict[str, float]] = {}
+            if candidates:
+                connection = await asyncio.to_thread(self._ha.active_connection)
+                if connection is None:
+                    # 账户列表来自快照、不依赖 HA 历史，所以这里只放弃累计表这一路。
+                    logger.debug("能耗回填：未配置 Home Assistant 连接，本轮只写电费账户列表")
+                    self._allow_retry()
+                else:
+                    totals = await self._collect(connection, candidates, timezone_name)
+            # 账户列表是成品数据：不经 HA 历史。归到主表名下（未绑定时用账户实体），
+            # 历史日/月按账单口径覆盖，今天只取最大（避免与实时增量叠加）。
+            primary_entities = await asyncio.to_thread(self._event_log.energy_primary_entities)
+            series = collect_utility_series(accounts, primary_entities, today=today)
+            self._log_account_freshness(accounts, today)
+            _merge_daily_totals(totals, series.today_days)
+            if not totals and not series.authoritative_days and not series.authoritative_months:
+                logger.info(
+                    "能耗回填：%s 个电量实体 / %s 个电费账户在窗口内没有可用读数",
+                    len(candidates),
+                    len(accounts),
+                )
                 return
-            written = await run_db(self._event_log.apply_energy_backfill, totals)
+            written = await run_db(
+                self._event_log.apply_energy_backfill,
+                totals,
+                authoritative_days=series.authoritative_days,
+                authoritative_months=series.authoritative_months,
+            )
             logger.info(
-                "能耗回填完成：实体 %s/%s，日行 %s，月行 %s",
+                "能耗回填完成：实体 %s/%s（%s 个账户），日行 %s，月行 %s",
                 written.get("entities"),
                 len(candidates),
+                series.accounts,
                 written.get("daily"),
                 written.get("monthly"),
             )
@@ -259,6 +338,24 @@ class EnergyBackfillService:
             self._allow_retry()
         finally:
             self._running = False
+
+    async def _purge_snapshot_rows_once(self) -> None:
+        """一次性清掉账单快照实体的历史脏行（旧库升级后自愈）。"""
+        if self._purged_snapshots:
+            return
+        self._purged_snapshots = True
+        purge = getattr(self._event_log, "purge_billing_snapshot_rows", None)
+        if purge is None:  # 最小实现的 event_log（测试替身）没有这个方法，直接跳过
+            return
+        purged = await run_db(purge)
+        deleted = int(purged.get("daily", 0)) + int(purged.get("monthly", 0))
+        if deleted:
+            logger.info(
+                "已清理账单快照实体的历史用量行: 日行 %s / 月行 %s / 实体 %s",
+                purged.get("daily"),
+                purged.get("monthly"),
+                purged.get("entities"),
+            )
 
     async def _collect(
         self,
@@ -279,6 +376,29 @@ class EnergyBackfillService:
         if missing:
             totals.update(await self._history_totals(connection, missing, candidates, timezone_name, since_day, now))
         return totals
+
+    @staticmethod
+    def _log_account_freshness(accounts: dict[str, UtilityAccount], today: str) -> None:
+        """把「账户列表是否还在更新」如实写进日志（回填由快照驱动，不在读路径自愈）。
+
+        ``today`` 是家庭时区的今天：用 UTC 日期比较会让东八区 0–8 点整体差一天。
+        """
+        today_date = date.fromisoformat(today)
+        for account in accounts.values():
+            newest = latest_day(account.daily)
+            if newest is None:
+                continue
+            if len(account.daily) < 2:
+                logger.info("电费账户 %s 日列表数据较少（%s 天，最新 %s）", account.key, len(account.daily), newest)
+            elif is_stale(account.daily, today=today_date):
+                logger.warning(
+                    "电费账户 %s 日列表疑似停更：最新 %s（共 %s 天），请检查集成是否还在刷新",
+                    account.key,
+                    newest,
+                    len(account.daily),
+                )
+            else:
+                logger.debug("电费账户 %s 日列表最新 %s（共 %s 天）", account.key, newest, len(account.daily))
 
     async def _fetch_statistics(self, connection: Any, entity_ids: list[str]) -> dict[str, list[dict[str, Any]]]:
         """取长期统计；命令不可用（旧版 HA / recorder 未开统计）时返回空表。"""

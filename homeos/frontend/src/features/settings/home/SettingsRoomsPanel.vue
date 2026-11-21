@@ -82,9 +82,10 @@
       @retry="refreshHaAreas"
     />
 
+    <SettingsRoomEntityOrderPanel v-show="roomsSection === 'catalog'" />
+
     <SettingsBindingsEnvironmentSection
       v-show="roomsSection === 'catalog'"
-      v-model:bindings-env-tab="bindingsEnvTab"
       v-model:env-room-tab="envRoomTab"
       :env-loading="envLoading"
       :env-room-list="envRoomList"
@@ -97,6 +98,7 @@
       :show-sensor-fields="false"
       @infer-env-map="inferEnvMap"
       @sync-ha-areas="refreshHaAreas"
+      @reorder-rooms="reorderRooms"
       @restore-hidden-rooms="handleRestoreHiddenRooms"
       @remove-env-room="handleRemoveEnvRoom"
       @export-env-csv="exportEnvCsv"
@@ -128,21 +130,24 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { Layers, MapPin, RefreshCw, Sparkles } from '@lucide/vue'
 import SettingsPageShell from '@/components/common/settings-page-shell/SettingsPageShell.vue'
 import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
+import { useChromeStore } from '@/stores/chrome.store'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
 import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSectionHead.vue'
 import SettingsHubSubnav from '@/features/settings/shared/layout/SettingsHubSubnav.vue'
 import SettingsPendingSaveAction from '@/features/settings/shared/SettingsPendingSaveAction.vue'
 import SettingsBindingsEnvironmentSection from '@/features/settings/connect/bindings/SettingsBindingsEnvironmentSection.vue'
+import SettingsRoomEntityOrderPanel from '@/features/settings/home/SettingsRoomEntityOrderPanel.vue'
 import RegistryDegradedGuide from '@/features/settings/shared/RegistryDegradedGuide.vue'
 import { useSettingsEnvHub } from '@/features/settings/shared/composables/hub-ui.internals'
 import { useSettingsHubRouteSection } from '@/features/settings/shared/composables/hub-ui.internals'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
+import { sortHaAreas } from '@/services/api/ha'
 
 const props = defineProps({ activeTab: { type: String, default: 'rooms' } })
 
@@ -194,6 +199,29 @@ const roomsFlowSummary = computed(() => {
   const pending = envPendingChanges.value
   return `${n} 房间 · ${pending ? `${pending} 待保存` : '已同步'}`
 })
+
+// 房间顺序：在房间目录的 Tab 上直接拖动（或触屏用两侧箭头）触发，落到本地 sortOrder。
+// HA 区域没有顺序字段，这里只改本项目展示顺序，同步不会覆盖、也不回写 HA。
+const sortSaving = ref(false)
+
+async function reorderRooms({ fromIndex, toIndex }) {
+  if (sortSaving.value) return
+  const list = [...envRoomList.value]
+  if (fromIndex < 0 || toIndex < 0 || fromIndex >= list.length || toIndex >= list.length) return
+  if (fromIndex === toIndex) return
+  const [moved] = list.splice(fromIndex, 1)
+  list.splice(toIndex, 0, moved)
+  sortSaving.value = true
+  try {
+    await sortHaAreas(list.map((room) => room.id))
+    await refreshHaAreas()
+  } catch (e) {
+    useChromeStore().notify(e?.message || '保存房间顺序失败，请稍后重试', 'error')
+    await refreshHaAreas()
+  } finally {
+    sortSaving.value = false
+  }
+}
 
 // 子导航路由同步：URL query 与 roomsSection 双向绑定
 useSettingsHubRouteSection(roomsSection, roomsSubnavSections, {

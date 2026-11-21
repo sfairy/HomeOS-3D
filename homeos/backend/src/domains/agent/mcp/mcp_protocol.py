@@ -43,9 +43,7 @@ MCP_PROMPTS: tuple[dict[str, Any], ...] = (
     {
         "name": "control_home",
         "description": "用自然语言控制家居",
-        "arguments": [
-            {"name": "instruction", "description": "用户指令，如打开客厅灯", "required": True}
-        ],
+        "arguments": [{"name": "instruction", "description": "用户指令，如打开客厅灯", "required": True}],
     },
     {
         "name": "home_status",
@@ -57,9 +55,7 @@ MCP_PROMPTS: tuple[dict[str, Any], ...] = (
 #: 自然语言聚合工具的 JSON Schema
 _SMART_HOME_NL_TOOL: dict[str, Any] = {
     "name": MCP_SMART_HOME_TOOL,
-    "description": (
-        "控制智能家居设备，如开关灯、调节空调温度、开关窗帘、查询设备状态等。传入自然语言指令即可。"
-    ),
+    "description": ("控制智能家居设备，如开关灯、调节空调温度、开关窗帘、查询设备状态等。传入自然语言指令即可。"),
     "inputSchema": {
         "type": "object",
         "properties": {
@@ -148,9 +144,7 @@ def _params(body: dict[str, Any]) -> dict[str, Any]:
     return params if isinstance(params, dict) else {}
 
 
-async def _handle_mcp_resources_read(
-    body: dict[str, Any], deps: McpHandlerDeps, request_id: Any
-) -> dict[str, Any]:
+async def _handle_mcp_resources_read(body: dict[str, Any], deps: McpHandlerDeps, request_id: Any) -> dict[str, Any]:
     """resources/read：按 uri 读取资源文本。"""
     uri = str(_params(body).get("uri") or "").strip()
     if not uri:
@@ -165,19 +159,13 @@ async def _handle_mcp_resources_read(
         mime = resource_body.get("mimeType") or "application/json"
         return ok(
             request_id,
-            {
-                "contents": [
-                    {"uri": uri, "mimeType": mime, "text": resource_body.get("text")}
-                ]
-            },
+            {"contents": [{"uri": uri, "mimeType": mime, "text": resource_body.get("text")}]},
         )
     except Exception:
         return err(request_id, INTERNAL_ERROR, "资源读取失败")
 
 
-async def _handle_mcp_tools_call(
-    body: dict[str, Any], deps: McpHandlerDeps, request_id: Any
-) -> dict[str, Any]:
+async def _handle_mcp_tools_call(body: dict[str, Any], deps: McpHandlerDeps, request_id: Any) -> dict[str, Any]:
     """tools/call：按 name 分发到 smart_home.control 或细粒度工具。"""
     try:
         params = _params(body)
@@ -193,9 +181,7 @@ async def _handle_mcp_tools_call(
             return ok(
                 request_id,
                 {
-                    "content": [
-                        {"type": "text", "text": smart_home_body.get("text") or "已处理"}
-                    ],
+                    "content": [{"type": "text", "text": smart_home_body.get("text") or "已处理"}],
                     "isError": smart_home_body.get("isError"),
                 },
             )

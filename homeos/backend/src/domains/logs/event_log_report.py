@@ -39,6 +39,14 @@ class EventLogStatsPayload(TypedDict):
     byTime: list[dict[str, Any]]
     topEntities: list[dict[str, Any]]
 
+
+from .energy_history import (
+    _format_short_label,
+    _round2,
+    read_daily_history,
+    read_year_history,
+    select_energy_candidates,
+)
 from ..client_power.energy_meter import (
     business_day_key,
     reading_to_kwh,
@@ -132,9 +140,7 @@ def _bucket_frame_ms(reference: datetime) -> int:
     return int(wall_clock.replace(tzinfo=UTC).timestamp() * 1000)
 
 
-def _build_time_series(
-    rows: list[tuple[str, int]], window_hours: int, now: datetime
-) -> list[dict[str, Any]]:
+def _build_time_series(rows: list[tuple[str, int]], window_hours: int, now: datetime) -> list[dict[str, Any]]:
     granularity = resolve_event_log_time_granularity(window_hours)
     bucket_seconds = 3600 if granularity == "hour" else 86_400
     now_ms = _bucket_frame_ms(now)
@@ -193,13 +199,6 @@ def _format_day_label(day: datetime) -> str:
     return day.strftime("%Y-%m-%d")
 
 
-def _format_short_label(date: str) -> str:
-    parts = date.split("-")
-    if len(parts) == 3:
-        return f"{int(parts[1])}/{int(parts[2])}"
-    return date
-
-
 def _build_day_labels(start: datetime, end: datetime) -> list[str]:
     labels: list[str] = []
     cursor = _start_of_day(start)
@@ -210,17 +209,11 @@ def _build_day_labels(start: datetime, end: datetime) -> list[str]:
     return labels
 
 
-def _round2(number: float) -> float:
-    return round(number * 100) / 100
-
-
 def _round1(number: float) -> float:
     return round(number * 10) / 10
 
 
-def _build_compare_row(
-    key: str, current: float, previous: float | None, rounder=_round2
-) -> dict[str, Any]:
+def _build_compare_row(key: str, current: float, previous: float | None, rounder=_round2) -> dict[str, Any]:
     cur = rounder(current)
     prev = None if previous is None else rounder(previous)
     delta = rounder(cur - (prev or 0))
@@ -242,6 +235,19 @@ def _resolve_ops_timezone_name(ops: dict[str, Any] | None) -> str | None:
 def _report_now(ops: dict[str, Any] | None) -> datetime:
     """报表周期基准时间：取家庭时区的「现在」，避免 UTC 容器下日切错位。"""
     return datetime.now(resolve_business_timezone(_resolve_ops_timezone_name(ops)))
+
+
+def normalize_energy_range(value: str | None) -> str:
+    """能耗历史窗口归一：``W|week`` → ``W``，``M|month`` → ``M``，``Y|year`` → ``Y``。
+
+    非法/缺省回落 ``W``（与参考实现一致），不抛错 —— 报表参数写错不该 400。
+    """
+    text = str(value or "").strip().lower()
+    if text in ("m", "month"):
+        return "M"
+    if text in ("y", "year"):
+        return "Y"
+    return "W"
 
 
 def _build_comparison_periods(granularity: str, now: datetime) -> dict[str, Any]:
@@ -290,6 +296,7 @@ def _iso(moment: datetime | None) -> str | None:
         moment = moment.replace(tzinfo=UTC)
     return moment.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%S.") + f"{moment.microsecond // 1000:03d}Z"
 
+
 class EventLogReportMixin:
     """报表层：依赖宿主注入的 ``_database`` 与 ``_ops``。"""
 
@@ -322,20 +329,13 @@ class EventLogReportMixin:
             cur_entities = self._aggregate_event_by_entity(session, periods["current"], entity_ids, restrictions)
             prev_entities = self._aggregate_event_by_entity(session, periods["previous"], entity_ids, restrictions)
         prev_map = dict(prev_entities)
-        by_entity = [
-            _build_compare_row(eid, count, prev_map.get(eid, 0), round)
-            for eid, count in cur_entities
-        ]
-        return self._assemble_response(
-            "events", granularity, None, "次", periods, cur_series, prev_series, by_entity
-        )
+        by_entity = [_build_compare_row(eid, count, prev_map.get(eid, 0), round) for eid, count in cur_entities]
+        return self._assemble_response("events", granularity, None, "次", periods, cur_series, prev_series, by_entity)
 
     def _aggregate_event_series(self, session, period, entity_ids, restrictions) -> list[dict[str, Any]]:
         conditions = self._period_conditions(period, entity_ids, restrictions)
         day_expr = self._bucket_expr(EventLog.created_at, 10)
-        rows = session.execute(
-            select(day_expr, func.count()).where(*conditions).group_by(day_expr)
-        ).all()
+        rows = session.execute(select(day_expr, func.count()).where(*conditions).group_by(day_expr)).all()
         mapping = {bucket_key: int(count) for bucket_key, count in rows}
         return [
             {"date": date, "label": _format_short_label(date), "value": mapping.get(date, 0)}
@@ -370,27 +370,42 @@ class EventLogReportMixin:
             if not ids:
                 empty_cur = _empty_series(periods["current"])
                 empty_prev = _empty_series(periods["previous"])
-                return self._assemble_response(
-                    "energy", granularity, None, "kWh", periods, empty_cur, empty_prev, []
-                )
+                return self._assemble_response("energy", granularity, None, "kWh", periods, empty_cur, empty_prev, [])
             cur_rows = self._read_energy_deltas(session, periods["current"], ids)
             prev_rows = self._read_energy_deltas(session, periods["previous"], ids)
         cur_series = _to_energy_series(cur_rows, periods["current"])
         prev_series = _to_energy_series(prev_rows, periods["previous"])
         by_entity = _build_energy_by_entity(cur_rows, prev_rows, periods)
-        return self._assemble_response(
-            "energy", granularity, None, "kWh", periods, cur_series, prev_series, by_entity
-        )
+        return self._assemble_response("energy", granularity, None, "kWh", periods, cur_series, prev_series, by_entity)
 
     def _resolve_energy_entity_ids(self, session, entity_ids, restrictions) -> list[str]:
         ids = [eid for (eid,) in session.execute(select(EnergyCandidateEntity.entity_id)).all()]
-        # 未显式指定时只取主电表：白名单同时有日/月/年累计与各回路表，全量求和会重复计费。
+        # 未显式指定时只取主电表（全量求和会重复计费）；未绑定则按账户家族兜底，
+        # 账单快照实体一律剔除（见 :func:`select_energy_candidates`）。
         primary = getattr(self, "_resolve_energy_primary_entities", set)()
-        wanted = set(entity_ids) if entity_ids else primary
-        ids = [eid for eid in ids if eid in wanted]
+        ids = select_energy_candidates(ids, keep=set(entity_ids) if entity_ids else primary)
         if restrictions is not None:
             ids = [eid for eid in ids if is_entity_allowed(eid, restrictions)]
         return ids
+
+    def query_energy_history(
+        self, range_key: str | None, entity_ids: list[str] | None = None, restrictions: list[str] | None = None
+    ) -> dict[str, Any]:
+        """能耗历史（``W`` 近 7 天 / ``M`` 近 30 天 / ``Y`` 近 12 个月）。
+
+        与 ``/reports/compare`` 的区别：这里**直接读日/月聚合表**，不做事件流 LAG 差分。
+        SGCC 的 30 天日列表正是落在这两张表里，因此国网账户无需 HA 历史也能出图。
+        """
+        resolved = normalize_energy_range(range_key)
+        now = _report_now(self._ops)
+        today = now.date()
+        with self._database.session_factory() as session:
+            ids = self._resolve_energy_entity_ids(session, entity_ids, restrictions)
+            if not ids:
+                return {"range": resolved, "unit": "kWh", "total": 0.0, "source": "empty", "series": []}
+            if resolved == "Y":
+                return read_year_history(session, ids, today)
+            return read_daily_history(session, ids, today, days=7 if resolved == "W" else 30)
 
     def _bucket_expr(self, column: Any, length: int) -> Any:
         """按家庭时区取分桶键（SQLite 下先平移再截取 ISO 文本）。
@@ -409,24 +424,21 @@ class EventLogReportMixin:
     def _read_energy_deltas(self, session, period, ids) -> list[dict[str, Any]]:
         window_start = period["start"] - timedelta(days=7)
         timezone_name = _resolve_ops_timezone_name(self._ops)
-        rows = (
-            session.execute(
-                select(
-                    EventLog.entity_id,
-                    EventLog.created_at,
-                    EventLog.state_diff,
-                    EventLog.new_state,
-                )
-                .where(
-                    EventLog.created_at >= _naive_utc(window_start),
-                    EventLog.created_at < _naive_utc(period["end"]),
-                    EventLog.entity_id.in_(ids),
-                    EventLog.state_diff.is_not(None),
-                )
-                .order_by(EventLog.entity_id.asc(), EventLog.created_at.asc())
+        rows = session.execute(
+            select(
+                EventLog.entity_id,
+                EventLog.created_at,
+                EventLog.state_diff,
+                EventLog.new_state,
             )
-            .all()
-        )
+            .where(
+                EventLog.created_at >= _naive_utc(window_start),
+                EventLog.created_at < _naive_utc(period["end"]),
+                EventLog.entity_id.in_(ids),
+                EventLog.state_diff.is_not(None),
+            )
+            .order_by(EventLog.entity_id.asc(), EventLog.created_at.asc())
+        ).all()
         # 取每 (entity, day) 末次读数，再按日序 LAG 差分
         last_by_day: dict[tuple[str, str], float] = {}
         for entity_id, created_at, state_diff, new_state in rows:
@@ -435,7 +447,7 @@ class EventLogReportMixin:
             new_part = state_diff.split("→")[-1]
             try:
                 value = float(new_part)
-            except (TypeError, ValueError):
+            except (TypeError, ValueError):  # fmt: skip
                 continue
             # Wh / MWh 口径统一折算成 kWh：否则 Wh 电表在图表里会大 1000 倍，
             # 与 agent（读 EnergyUsageDaily，已折算）对不上。
@@ -474,9 +486,7 @@ class EventLogReportMixin:
             cur_rooms = self._aggregate_env_by_room(session, periods["current"], column)
             prev_rooms = self._aggregate_env_by_room(session, periods["previous"], column)
         prev_map = dict(prev_rooms)
-        by_entity = [
-            _build_compare_row(room, avg or 0, prev_map.get(room), _round1) for room, avg in cur_rooms
-        ]
+        by_entity = [_build_compare_row(room, avg or 0, prev_map.get(room), _round1) for room, avg in cur_rooms]
         return self._assemble_response(
             "environment", granularity, field, unit, periods, cur_series, prev_series, by_entity
         )
@@ -534,9 +544,7 @@ class EventLogReportMixin:
             cur_entities = self._aggregate_device_by_entity(session, periods["current"], ids)
             prev_entities = self._aggregate_device_by_entity(session, periods["previous"], ids)
         prev_map = dict(prev_entities)
-        by_entity = [
-            _build_compare_row(eid, ms / 3_600_000, prev_map.get(eid, 0)) for eid, ms in cur_entities
-        ]
+        by_entity = [_build_compare_row(eid, ms / 3_600_000, prev_map.get(eid, 0)) for eid, ms in cur_entities]
         return self._assemble_response(
             "device",
             granularity,
@@ -635,6 +643,7 @@ class EventLogReportMixin:
             "insights": _build_insights(metric, cur_series, by_entity),
         }
 
+
 # 工具函数
 def _state_text(state: Any) -> str:
     if not isinstance(state, dict):
@@ -679,7 +688,7 @@ def _state_attributes(raw_state: Any) -> dict[str, Any] | None:
         return None
     try:
         payload = json.loads(raw_state)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError):  # fmt: skip
         logger.debug("事件日志状态 JSON 解析失败，能耗单位按原值处理: %r", raw_state[:120])
         return None
     attributes = payload.get("attributes") if isinstance(payload, dict) else None
@@ -702,7 +711,7 @@ def _load_json(raw: str | None) -> Any:
         return None
     try:
         return json.loads(raw)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError):  # fmt: skip
         return None
 
 
@@ -760,11 +769,7 @@ def _to_hours_series(rows: list[tuple[str, float]], period) -> list[dict[str, An
 
 
 def _build_insights(metric, cur_series, by_entity) -> dict[str, Any]:
-    avg_round = (
-        round
-        if metric == "events"
-        else (_round1 if metric == "environment" else _round2)
-    )
+    avg_round = round if metric == "events" else (_round1 if metric == "environment" else _round2)
     peak_day = None
     total = 0.0
     active_days = 0

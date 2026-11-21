@@ -9,9 +9,11 @@ import re
 import time
 from collections.abc import Callable
 from typing import Any
+from uuid import uuid4
 
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from . import intent_gate
 from .agent_actor import AgentActor
 from .audit import (
     CONTROL_TOOL_NAMES,
@@ -27,16 +29,19 @@ from .audit import (
 )
 from .batch_ops import BatchOperationService, build_undo_calls
 from .config_service import AgentConfigService
+from .diagnostics import KIND_EVIDENCE, KIND_INTENT, KIND_LEARNING
 from .fast_path import FastPathService
 from .lang_template_service import LangTemplateService
 from .tool_i18n import agent_text, localize_tool_schemas
 from .tool_result import normalize_tool_result
+from ..learning.habits import CANDIDATE_SCHEDULED_CONTROL, habit_observe_key
 from ..memory.command_cache import CommandCacheService
 from ..memory.memory_store import AgentMemoryService, parse_memory_command
 from ..memory.session_store import AgentSessionStoreService
 from ..memory.short_term_memory import AgentShortTermMemoryService
 from ..policy.budget import AgentBudgetService
 from ..policy.pricing import resolve_pricing
+from ..policy.proactive import home_now
 from ..providers.llm_provider_interface import (
     LlmChatOptions,
     LlmChatResult,
@@ -62,6 +67,9 @@ MAX_SESSION_PROMPT_CHARS = 24_000
 #: LLM tool-calling 最大轮数，避免无限循环
 MAX_ROUNDS = 8
 
+
+#: 意图门 enforce 的「立即执行」出口：被拦后用户可以用这些词表明「现在就做一次」。
+_EXPLICIT_NOW = re.compile(r"(现在就|现在执行|立刻执行|马上执行|立即执行|就现在|right now|do it now)", re.IGNORECASE)
 
 #: 审计结论 → (日志级别, 中文状态)。四态而不是两态：HA 收下请求却没回实体状态时
 #: （``verified is None``）单独记「已下发未确认」，既不算成功也不算失败。
@@ -101,7 +109,6 @@ from .service_support import (
     _emit_tool_progress,
     _empty_usage,
     _filter_effective_calls,
-    _intersect_restrictions,
     _is_applied_result,
     _js_stringify,
     _LlmLoopResult,
@@ -113,6 +120,7 @@ from .service_support import (
     _ToolBatchOutcome,
     _ToolOutcome,
     _trim_messages,
+    apply_device_allowlist,
     estimate_cost_cny,
     truncate_tool_result,
 )
@@ -137,6 +145,7 @@ class AgentService:
         env_context: Any | None = None,
         tts: Any | None = None,
         state_store: SharedStateStore | None = None,
+        diagnostics: Any | None = None,
     ) -> None:
         self._llm = llm
         self._tools = tools
@@ -158,8 +167,25 @@ class AgentService:
         self._tts = tts
         #: 状态后端：短时记忆 / 预算共用一份，批量确认也复用（多 worker 时一致）
         self._state_store = state_store or MemoryStateStore()
+        #: 诊断日志（意图门影子回放 / 执行实证）；None 表示只写 DEBUG
+        self._diagnostics = diagnostics
+        #: 学习体系（教学别名 / 房间默认 / 负经验）
+        self._learning: Any = None
+        self._negative: Any = None
+        #: 习惯候选（同一设备同一动作反复出现时提示固化）
+        self._habits: Any = None
         #: 批量操作确认 / 撤销（按会话隔离，状态走共享后端）
         self._batch_ops = BatchOperationService(self._state_store)
+
+    def bind_diagnostics(self, diagnostics: Any) -> None:
+        """后置注入诊断服务（装配顺序：对话服务先建、诊断服务后建）。"""
+        self._diagnostics = diagnostics
+
+    def bind_learning(self, learning: Any = None, negative: Any = None, habits: Any = None) -> None:
+        """注入学习体系：教学别名参与快路径展开，负经验参与失败记录，习惯候选参与观察。"""
+        self._learning = learning
+        self._negative = negative
+        self._habits = habits
 
     @property
     def _L(self) -> Any:
@@ -220,29 +246,29 @@ class AgentService:
         owner = (actor.user_id if actor else None) or (actor.username if actor else None) or "anon"
         return f"{owner}:{raw}"
 
+    def clear_conversation(self, session_id: str | None, actor: AgentActor | None) -> bool:
+        """清空一段服务器端会话（前端「清空记录 / 删除对话」）。
+
+        会话 key 与对话链路同一套身份隔离口径：先按登录身份作用域化，再清
+        长会话、短时记忆与待确认的批量计划。否则前端清空了记录，下一句仍会
+        带着服务端保存的上文回答，看起来像「清不掉」。
+        """
+        scoped = self._scope_session_id(AgentChatOptions(actor=actor, session_id=session_id))
+        if not scoped:
+            return False
+        self._sessions.clear(scoped)
+        self._short_term.clear(scoped)
+        self._batch_ops.clear(f"session:{scoped}")
+        logger.info("已清空会话上下文: %s", scoped)
+        return True
+
     async def _scope_actor(self, actor: AgentActor | None) -> AgentActor | None:
-        """把 Agent 专属设备白名单叠加到执行身份上（与用户 ACL 取交集）。"""
-        if actor is None:
-            return None
-        getter = getattr(self._agent_config, "get_device_allowlist", None)
-        if not callable(getter):
-            return actor
-        try:
-            # 配置端口允许返回同步值（内存桩）或协程（读库实现），统一兜住两种形态。
-            pending = getter()
-            raw_allowlist = await pending if inspect.isawaitable(pending) else pending
-            allowlist = raw_allowlist if isinstance(raw_allowlist, list) else None
-        except Exception as exc:  # 配置读取失败不应阻断对话，按“不额外限制”处理
-            logger.warning("读取 Agent 设备白名单失败,按不限制处理: %s", exc)
-            return actor
-        if not allowlist:
-            return actor
-        restrictions = _intersect_restrictions(actor.restrictions, allowlist)
-        return AgentActor(
-            restrictions=restrictions,
-            user_id=actor.user_id,
-            username=actor.username,
-        )
+        """把 Agent 专属设备白名单叠加到执行身份上（与用户 ACL 取交集）。
+
+        具体口径见 :func:`apply_device_allowlist`：计划任务与看门狗复用同一份，
+        避免「聊天受白名单约束、定时任务不受」的两套权限。
+        """
+        return await apply_device_allowlist(self._agent_config, actor)
 
     # 主入口
     async def chat(
@@ -378,11 +404,15 @@ class AgentService:
             actor=options.actor if options else None,
             start_ms=_now_ms(),
             deadline_at=time.monotonic() + TURN_TIMEOUT_SECONDS,
+            # 因果链 id：同一轮里的缓存命中、工具调用、时序事件、实证记录共用它。
+            context_id=uuid4().hex,
         )
         # 1) 纠正 / 清除记忆口令：命中则直接返回系统回复，不走后续流程
         memory_reply = await self._handle_memory_command(ctx)
         if memory_reply is not None:
             return memory_reply
+        # 1.2) 意图门：判定并（enforce 时）禁用控制类执行路径；不产生回复
+        await self._apply_intent_gate(ctx)
         # 1.5) 批量操作：撤销口令 / 上一轮待确认的确认与取消
         batch_reply = await self._serve_batch_flow(ctx)
         if batch_reply is not None:
@@ -404,6 +434,7 @@ class AgentService:
         budget_reply = self._serve_budget_guard(ctx)
         if budget_reply is not None:
             return budget_reply
+        self._cmd_cache.record_llm_call()
         loop_outcome = await self._run_llm_tool_loop(ctx)
         return self._finalize_llm_reply(ctx, loop_outcome)
 
@@ -415,6 +446,68 @@ class AgentService:
         if actor is not None and (actor.user_id or actor.username):
             return f"user:{actor.user_id or actor.username}"
         return "anon"
+
+    async def _apply_intent_gate(self, ctx: _ChatRunContext) -> None:
+        """判定意图并设置本轮门控位；**不产生回复**（问答与闲聊照常走后续阶段）。"""
+        try:
+            mode = await self._agent_config.get_intent_gate_mode()
+        except Exception as exc:  # 配置读取失败不得阻断对话
+            logger.debug("意图门模式读取失败，按 shadow 处理: %s", exc)
+            mode = intent_gate.DEFAULT_MODE
+        ctx.intent_mode = mode
+        if mode == intent_gate.MODE_OFF:
+            return
+        verdict = intent_gate.classify(ctx.user_message)
+        ctx.intent_verdict = verdict.verdict
+        # enforce：RULE / AMBIGUOUS 一律禁用控制类快路径、缓存与工具；
+        # NONE（问答）不受影响，否则「今天天气」也会被拦。
+        # 用户明确说「现在就执行」时视为一次性指令：这是被拦后给出的出口，
+        # 否则「每天晚上关灯…现在就执行一次」这类补充说明仍会被同一条规则拦住。
+        explicit_now = bool(_EXPLICIT_NOW.search(ctx.user_message))
+        ctx.control_blocked = mode == intent_gate.MODE_ENFORCE and verdict.is_rule_like and not explicit_now
+        if verdict.verdict != intent_gate.NONE:
+            self._record_diagnostic(
+                KIND_INTENT,
+                f"意图判定 {verdict.verdict}（{verdict.reason or '无原因'}）",
+                {
+                    "mode": mode,
+                    "verdict": verdict.verdict,
+                    "reason": verdict.reason,
+                    "blocked": ctx.control_blocked,
+                    "explicitNow": explicit_now,
+                    "utterance": ctx.user_message[:120],
+                },
+            )
+
+    def _record_diagnostic(self, kind: str, message: str, context: dict[str, Any], *, level: str = "info") -> None:
+        """写一条诊断；未注入诊断服务时静默（不改变主流程）。"""
+        diagnostics = self._diagnostics
+        if diagnostics is None:
+            return
+        try:
+            diagnostics.record(kind, message, level=level, context=context)
+        except Exception as exc:  # 日志失败绝不能影响对话
+            logger.debug("写入诊断失败: %s (%s)", message, exc)
+
+    def _evidence_for(self, ctx: _ChatRunContext, tool_name: str, tool_args: dict[str, Any], result: Any) -> Any:
+        """计算一次工具的实证结论，并把结论写进诊断（含本轮 contextId）。"""
+        from .evidence import evaluate_tool_result
+
+        outcome = evaluate_tool_result(result)
+        self._record_diagnostic(
+            KIND_EVIDENCE,
+            f"执行实证 {outcome.status}（{outcome.reason}）",
+            {
+                "contextId": ctx.context_id,
+                "tool": tool_name,
+                "entityId": tool_args.get("entity_id"),
+                "status": outcome.status,
+                "reason": outcome.reason,
+                "verified": outcome.verified,
+            },
+            level="info" if outcome.status != "FAILED" else "warning",
+        )
+        return outcome
 
     def _t(self, zh_text: str, en_text: str) -> str:
         """按当前语言模板选择文案。"""
@@ -650,6 +743,7 @@ class AgentService:
         if truncate:
             serialized = truncate_tool_result(serialized)
         payload = result if isinstance(result, dict) else {}
+        ctx.last_tool_result = result
         ctx.tool_trace.append(
             {
                 "name": name,
@@ -684,6 +778,51 @@ class AgentService:
                     ids.append(str(item["entity_id"]))
         if ids or tool_name in CONTROL_TOOL_NAMES:
             self._short_term.remember_targets(ctx.session_id, ids)
+
+    async def _observe_habit(self, ctx: _ChatRunContext, name: str, args: dict[str, Any]) -> None:
+        """把一次成功的单设备控制记进习惯候选（同一设备 + 动作 + 小时反复出现）。
+
+        只统计**用户手动**下发的控制：调度器 / 看门狗直接调工具层，不经过这里，
+        所以「定时任务每天关灯」不会被当成新的习惯再提示一次。
+        """
+        habits = self._habits
+        if habits is None or name != "control_device":
+            return
+        entity_id = str(args.get("entity_id") or "").strip()
+        service = str(args.get("service") or "").strip()
+        if "." not in entity_id or not service:
+            return
+        key = habit_observe_key(entity_id, service, self._home_hour())
+        try:
+            candidate = await asyncio.to_thread(
+                habits.observe,
+                scope="household",
+                candidate_type=CANDIDATE_SCHEDULED_CONTROL,
+                context_key=key,
+                entity_id=entity_id,
+                step_id=f"{ctx.context_id}:{entity_id}:{service}",
+            )
+        except Exception as exc:  # 习惯只是启发式，失败不得影响控制结果
+            logger.debug("记录习惯候选失败: %s", exc)
+            return
+        if candidate:
+            self._record_diagnostic(
+                KIND_LEARNING,
+                f"习惯候选达到提示门槛：{key}",
+                {"candidateId": candidate.get("id"), "entityId": entity_id, "service": service},
+            )
+
+    def _home_hour(self) -> int:
+        """家庭当地小时（习惯按小时分桶；容器默认 UTC 时必须换算）。"""
+        name = ""
+        env = self._env_context
+        if env is not None:
+            try:
+                name = str(env.timezone_name() or "")
+            except Exception as exc:  # 时区读取失败按服务器本地时间
+                logger.debug("读取家庭时区失败，按服务器本地时间取小时: %s", exc)
+                name = ""
+        return home_now(lambda: name).hour
 
     def _budget_owner(self, ctx: _ChatRunContext) -> str:
         """预算归属 key：优先登录用户，未绑定身份时归入 ``anon``。"""
@@ -747,6 +886,8 @@ class AgentService:
                     "blocked": outcome == OUTCOME_BLOCKED,
                     "outcome": outcome,
                     "elapsedMs": elapsed_ms,
+                    # 同一轮对话的因果链 id：与实证 / 时序表可对齐
+                    "contextId": ctx.context_id,
                     # 凭证字段已打码；其余参数保留，便于复盘误控
                     "arguments": self._redact(args or {}),
                 },
@@ -766,6 +907,25 @@ class AgentService:
         错误当作普通结果处理（删缓存、降级、回填给模型收尾），抛异常会变成 500。
         """
         payload = args if isinstance(args, dict) else {}
+        # 自动化草案：用服务端作用域会话 key 补齐幂等/隔离字段。模型不知道真实 session_id，
+        # 不注入的话所有草案都会落到 "default"，跨会话串味且无法按会话限流。
+        if name == "automation_draft_create" and not payload.get("sessionKey") and not payload.get("session_key"):
+            payload = {**payload, "sessionKey": ctx.session_id or "default"}
+        # 意图门 enforce：控制类工具统一拒绝（LLM 可能仍会尝试调用）。
+        if ctx.control_blocked and name in CONTROL_TOOL_NAMES:
+            blocked = {
+                "ok": False,
+                "blocked": True,
+                "error": self._t(
+                    "这条指令看起来是一条规则或需要澄清，已暂停执行。"
+                    "想立刻做一次就说「现在就执行」；想固定下来就说「每天几点…」。",
+                    "This looks like a rule or needs clarification; execution is paused. "
+                    'Say "do it now" to run it once, or state a schedule to automate it.',
+                ),
+                "reason": "intent_gate",
+            }
+            self._audit_control(ctx, name, payload, blocked, 0)
+            return blocked
         started = _now_ms()
         result: Any
         # 单次工具超时不能超过整轮剩余时间：否则一个卡住的 HA 调用会把整轮拖过 deadline
@@ -784,6 +944,13 @@ class AgentService:
         elapsed = _now_ms() - started
         # 契约统一：补 ``ok``（失败再补 ``error``），审计与后续消费方只认这一个真值
         result = normalize_tool_result(result)
+        if self._negative is not None and not bool(result.get("ok", True)):
+            try:
+                self._negative.record_failure(payload.get("entity_id"), payload.get("service") or name)
+            except Exception as exc:  # 负经验只是启发式，失败不得影响工具结果
+                logger.debug("记录负经验失败: %s", exc)
+        if bool(result.get("ok", True)) and name in CONTROL_TOOL_NAMES:
+            await self._observe_habit(ctx, name, payload)
         self._audit_control(ctx, name, payload, result, elapsed)
         return result
 
@@ -866,12 +1033,16 @@ class AgentService:
         # 纠正：删除最近一条缓存，用其原话作为新指令继续走后续流程
         last = self._cmd_cache.correct_last(ctx.actor.user_id if ctx.actor else None)
         if last:
+            self._cmd_cache.record_correction()
             ctx.user_message = last
             return None
         return self._empty_system_reply(self._t("没有需要纠正的指令哦。", "There is no command to correct."))
 
     async def _serve_cached_command(self, ctx: _ChatRunContext) -> AgentChatResponse | None:
         """命令缓存命中分支：待确认先提示用户，已确认则直接执行工具（跳过 LLM）。"""
+        # 意图门 enforce：规则型表达不能命中「一次性指令」缓存，否则会立刻执行一次。
+        if ctx.control_blocked:
+            return None
         cached = self._cmd_cache.get(ctx.user_message, ctx.actor.user_id if ctx.actor else None)
         if cached is None:
             return None
@@ -928,6 +1099,31 @@ class AgentService:
             usage=_empty_usage(),
         )
 
+    def _ambiguous_fast_reply(self, ctx: _ChatRunContext, fast: dict[str, Any]) -> AgentChatResponse:
+        """快路径歧义（房间内多盏灯 / 多台电视）：列候选，不执行任何控制。"""
+        room = str(fast.get("roomName") or "").strip()
+        candidates = [str(item) for item in (fast.get("candidates") or []) if str(item).strip()]
+        if str(fast.get("reason") or "") == "tv_app_ambiguous":
+            scope = f"{room}" if room else "家里"
+            reply = f"{scope}有多台可控制的电视，请说明是哪一台：{'、'.join(candidates)}。"
+        else:
+            action = "打开" if fast.get("action") == "on" else "关闭"
+            if candidates:
+                reply = f"{room}有多盏灯，请说要{action}哪一盏：{'、'.join(candidates)}。"
+            else:
+                reply = f"{room}没有可用的灯，无法{action}。"
+        return AgentChatResponse(
+            reply=reply,
+            speak=True,
+            outcome="answer",
+            earcon=None,
+            provider="fast-path",
+            rounds=0,
+            tool_calls=ctx.tool_trace,
+            timing={"llmMs": 0, "toolMs": 0, "totalMs": _now_ms() - ctx.start_ms},
+            usage=_empty_usage(),
+        )
+
     async def _serve_query_fast_path(self, ctx: _ChatRunContext) -> AgentChatResponse | None:
         """查询快路径：温度 / 湿度询问直接读传感器回复；未命中返回 None。"""
         query_fast = self._match_query_fast_path(ctx.user_message)
@@ -974,6 +1170,9 @@ class AgentService:
 
     async def _serve_control_fast_path(self, ctx: _ChatRunContext) -> AgentChatResponse | None:
         """控制快路径：规则解析为 control_device / control_room / activate_scene 直接执行。"""
+        # 意图门 enforce：规则型表达交给 LLM（建计划 / 草案），不能在这里执行一次。
+        if ctx.control_blocked:
+            return None
         hints = (
             self._short_term.get_last_targets(ctx.session_id)
             if ctx.session_id and self._short_term is not None
@@ -982,9 +1181,17 @@ class AgentService:
         fast_text = ctx.user_message
         if self._memory is not None:
             fast_text = self._memory.expand(fast_text, self._memory.alias_map(self._memory_scope(ctx)))
+        if self._learning is not None:
+            try:
+                fast_text = self._learning.expand_aliases(fast_text)
+            except Exception as exc:  # 学习表读取失败退回原句，不影响控制
+                logger.debug("教学别名展开失败: %s", exc)
         fast = await self._fast_path.try_parse(fast_text, hints)
         if not fast:
             return None
+        # 「开一盏灯」类歧义：房间内多盏可用灯，列候选让用户选，绝不静默全开。
+        if fast.get("kind") == "ambiguous":
+            return self._ambiguous_fast_reply(ctx, fast)
         s0 = _now_ms()
         tool_name, tool_args = _build_control_fast_call(fast)
         # 整房间 / 全屋批量控制：先确认，避免「关灯」误关整屋
@@ -994,6 +1201,7 @@ class AgentService:
         tool_result = await self._call_tool(ctx, tool_name, tool_args)
         ctx.tool_ms = _now_ms() - s0
         outcome = self._record_tool_result(ctx, tool_name, tool_args, tool_result)
+        evidence = self._evidence_for(ctx, tool_name, tool_args, tool_result)
         ok = outcome.applied
         blocked = outcome.blocked
         total_ms = _now_ms() - ctx.start_ms
@@ -1003,7 +1211,14 @@ class AgentService:
             self._cmd_cache.try_auto_correct(
                 ctx.user_message, tool_name, tool_args, ctx.actor.user_id if ctx.actor else None
             )
-            self._cmd_cache.set(ctx.user_message, tool_name, tool_args, True, ctx.actor.user_id if ctx.actor else None)
+            self._cmd_cache.set(
+                ctx.user_message,
+                tool_name,
+                tool_args,
+                True,
+                ctx.actor.user_id if ctx.actor else None,
+                verified_evidence=evidence.verified,
+            )
             # 快路径是独立完整的指令执行，成功后重置短时记忆，杜绝跨意图污染
             if ctx.session_id:
                 self._short_term.clear(ctx.session_id)
@@ -1158,7 +1373,7 @@ class AgentService:
             loop.speak = True
             loop.outcome = "failed"
             return None
-        except (BusinessException, StarletteHTTPException):
+        except (BusinessException, StarletteHTTPException):  # fmt: skip
             # 业务 / HTTP 异常透传，其余包装为 LLM 上游错误
             raise
         except Exception as exc:
@@ -1256,6 +1471,7 @@ class AgentService:
 
     def _finalize_llm_reply(self, ctx: _ChatRunContext, loop: _LlmLoopResult) -> AgentChatResponse:
         """LLM 循环收尾：统计耗时 / 成本、回写缓存并构造响应。"""
+        self._cmd_cache.record_outcome(loop.outcome)
         total_ms = _now_ms() - ctx.start_ms
         provider = str(self._llm.name or "")
         pricing = resolve_pricing(provider)
@@ -1316,6 +1532,9 @@ class AgentService:
                     last["arguments"],
                     False,
                     ctx.actor.user_id if ctx.actor else None,
+                    verified_evidence=self._evidence_for(
+                        ctx, last["name"], last["arguments"], ctx.last_tool_result
+                    ).verified,
                 )
         return AgentChatResponse(
             reply=loop.reply,

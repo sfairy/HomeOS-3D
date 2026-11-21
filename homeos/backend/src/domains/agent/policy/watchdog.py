@@ -18,16 +18,17 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-import time
 from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import select
 
+from .cooldown import SendCooldown
 from .policy import AUTO_CLOSE_DOMAINS
-from .proactive import in_quiet_hours
+from .proactive import home_now, in_quiet_hours
 from ..runtime.agent_actor import AgentActor
 from ..runtime.config_service import AgentConfigService, AgentProactiveConfig
+from ..runtime.service_support import apply_device_allowlist
 from ....platform.core.db.db_exec import run_db
 from ....platform.core.db.json_field import object_field
 from ....platform.core.db.models import DeviceUsageStat
@@ -46,6 +47,13 @@ OCCUPIED_STATES = frozenset({"on", "detected", "occupied", "present", "open"})
 ON_STATES = frozenset({"on", "open", "playing", "heat", "cool", "auto", "heat_cool", "dry", "fan_only"})
 #: 运动 / 存在类 device_class
 MOTION_DEVICE_CLASSES = frozenset({"motion", "occupancy", "presence", "mmwave", "moving"})
+#: 单设备自动关停冷却（秒）：4 小时内同一台设备不会被反复关。
+DEVICE_CLOSE_COOLDOWN_SECONDS = 4 * 60 * 60
+#: 冷却闸门命名空间：提醒冷却与「单设备关停冷却」分开，避免互相覆盖
+NOTIFY_COOLDOWN_NAMESPACE = "agent.watchdog.notify"
+DEVICE_COOLDOWN_NAMESPACE = "agent.watchdog.close"
+#: 提醒冷却 key（整户一个窗口，与主动管家同一语义）
+NOTIFY_COOLDOWN_KEY = "watchdog"
 
 #: 后台自动关停的系统执行身份。
 #: 后台循环没有登录用户，但「无身份即不做自动关停」会把整个能力废掉（此前正是如此）。
@@ -95,6 +103,8 @@ class AgentWatchdogService:
         notification: Any = None,
         session_factory: Any = None,
         jobs: Any = None,
+        timezone_provider: Any = None,
+        cooldown_store: Any = None,
     ) -> None:
         self._tools = tools
         self._agent_config = agent_config
@@ -106,14 +116,24 @@ class AgentWatchdogService:
         self._notification = notification
         self._session_factory = session_factory
         self._jobs = jobs
+        self._timezone_provider = timezone_provider
         self._task: asyncio.Task[None] | None = None
         self._stop_event: asyncio.Event | None = None
-        #: 最近一次提醒时间（monotonic）
-        self._last_sent_at: float | None = None
+        #: 提醒冷却（跨进程共享）：重启 / 多 worker 后不会立刻重复推送
+        self._notify_cooldown = SendCooldown(cooldown_store, NOTIFY_COOLDOWN_NAMESPACE)
+        #: 单设备关停冷却（跨进程共享）：重启后不会把同一台设备再关一遍
+        self._device_cooldown = SendCooldown(cooldown_store, DEVICE_COOLDOWN_NAMESPACE)
+        #: 房间累计提醒次数：用于「第 N 次提醒」与诊断（无人恢复后清零）
+        self._alert_counts: dict[str, int] = {}
 
     # 装配
     def bind_tools(self, tools: Any) -> None:
         self._tools = tools
+
+    def bind_cooldown_store(self, store: Any = None) -> None:
+        """装配后期注入共享状态库（冷却窗口跨重启 / 跨 worker 生效）。"""
+        self._notify_cooldown.bind_store(store)
+        self._device_cooldown.bind_store(store)
 
     def bind_notification(self, notification: Any) -> None:
         self._notification = notification
@@ -137,7 +157,7 @@ class AgentWatchdogService:
             task.cancel()
             try:
                 await task
-            except (asyncio.CancelledError, Exception):
+            except (asyncio.CancelledError, Exception):  # fmt: skip
                 logger.debug("看门狗循环已退出", exc_info=True)
 
     async def _loop(self) -> None:
@@ -172,7 +192,8 @@ class AgentWatchdogService:
                 "agent-watchdog",
                 {
                     "description": "智能管家看门狗（无人空转 / 家规自动关停）",
-                    "intervalMs": 60_000,
+                    # 报告真实周期（环境变量可调），避免诊断页显示成固定 60 秒
+                    "intervalMs": max(60, _interval_seconds()) * 1000,
                 },
                 self._run_guarded,
             )
@@ -204,7 +225,12 @@ class AgentWatchdogService:
         areas = await self._collect_areas()
         unoccupied = await self._unoccupied_areas(areas, cfg, moment)
         if not unoccupied:
+            # 全部房间恢复有人：累计提醒次数清零，下一次空转从第 1 次重新计。
+            self._alert_counts.clear()
             return {"ok": True, "areas": [], "signals": [], "actions": []}
+        unoccupied_ids = {str(area.get("id") or "") for area in unoccupied}
+        for area_id in [key for key in self._alert_counts if key not in unoccupied_ids]:
+            self._alert_counts.pop(area_id, None)
 
         signals: list[str] = []
         signaled_areas: list[str] = []
@@ -214,11 +240,18 @@ class AgentWatchdogService:
             # 后台循环没有登录用户：用固定系统身份执行，否则「自动关停」永远被下面的
             # actor 判定截断，配置了也不会生效。
             actor = WATCHDOG_ACTOR
+        # 系统身份同样要受「设置 → 设备范围」约束：白名单之外的设备不允许自动关停。
+        actor = await apply_device_allowlist(self._agent_config, actor)
         allow_close = allow_close and actor is not None
         for area in unoccupied:
-            signal, closed = await self._patrol_area(area, cfg, moment, allow_close, actor, len(actions))
+            # 「房间里有没有人」未知（既无毫米波也无运动传感器）时只提醒，绝不自动关停：
+            # 这种房间多半是没装传感器，人可能正坐在里面，按常开时长关灯/风扇是误操作。
+            area_allow_close = allow_close and area.get("source") != "unknown"
+            signal, closed = await self._patrol_area(area, cfg, moment, area_allow_close, actor, len(actions))
             if signal:
                 signals.append(signal)
+                area_id = str(area.get("id") or "")
+                self._alert_counts[area_id] = self._alert_counts.get(area_id, 0) + 1
                 signaled_areas.append(str(area.get("name") or area.get("id") or ""))
             actions.extend(closed)
 
@@ -234,7 +267,12 @@ class AgentWatchdogService:
             "signals": signals,
             "actions": actions,
             "areas": [
-                {"id": area.get("id"), "name": area.get("name"), "idleMinutes": area.get("idleMinutes")}
+                {
+                    "id": area.get("id"),
+                    "name": area.get("name"),
+                    "idleMinutes": area.get("idleMinutes"),
+                    "alertCount": self._alert_counts.get(str(area.get("id") or ""), 0),
+                }
                 for area in unoccupied
             ],
         }
@@ -258,7 +296,10 @@ class AgentWatchdogService:
             return "", []
         names = "、".join(item["name"] for item in candidates[:4])
         if idle_minutes is None:
-            signal = f"{area_name}没有占用传感器，{names} 等 {len(candidates)} 台设备已长时间开启"
+            signal = (
+                f"{area_name}没有占用传感器，无法确认是否有人；{names} 等 "
+                f"{len(candidates)} 台设备已长时间开启（仅提醒，不会自动关停）"
+            )
         else:
             signal = f"{area_name}已无人 {idle_minutes} 分钟，{names} 等 {len(candidates)} 台设备仍在开启"
         if not allow_close:
@@ -292,7 +333,15 @@ class AgentWatchdogService:
                 break
             if item["domain"] not in AUTO_CLOSE_DOMAINS:
                 continue
+            entity_id = str(item["entity_id"])
+            # 关停冷却与「是否真的关成功」同源：先占窗口，失败再归还。
+            # 放在共享状态里，进程重启后同一台设备仍不会被再关一遍（原先只在内存）。
+            if not self._device_cooldown.try_acquire(entity_id, DEVICE_CLOSE_COOLDOWN_SECONDS):
+                logger.debug("跳过自动关停（4h 冷却内已关过）: %s", entity_id)
+                continue
             outcome = await self._close_device(item, actor)
+            if not (outcome and outcome.get("success")):
+                self._device_cooldown.release(entity_id)
             actions.append(
                 {
                     "entityId": item["entity_id"],
@@ -505,13 +554,13 @@ class AgentWatchdogService:
         return "【管家提醒】" + "；".join(signals[:3]) + "。"
 
     async def _notify(self, message: str, cfg: AgentProactiveConfig, action_prompt: str | None = None) -> bool:
-        # 与主动管家同一份免打扰时段口径（支持 22 → 7 跨夜）：时段内只留信号不推送
-        if in_quiet_hours(cfg, datetime.now()):
+        # 与主动管家同一份免打扰时段口径（支持 22 → 7 跨夜）：时段内只留信号不推送。
+        # 时区必须取家庭当地：容器默认 UTC 时 ``datetime.now()`` 会让 23:30–07:00 落到白天。
+        if in_quiet_hours(cfg, home_now(self._timezone_provider)):
             logger.debug("看门狗提醒处于免打扰时段，已跳过推送")
             return False
-        if self._last_sent_at is not None:
-            if time.monotonic() - self._last_sent_at < cfg.cooldown_seconds:
-                return False
+        if self._notify_cooldown.is_cooling(NOTIFY_COOLDOWN_KEY, cfg.cooldown_seconds):
+            return False
         if self._notification is None:
             logger.info("看门狗提醒(无通知服务): %s", message)
             return False
@@ -520,14 +569,18 @@ class AgentWatchdogService:
                 return False
         except Exception:
             logger.debug("读取免打扰状态失败,继续提醒", exc_info=True)
+        # 判定与登记一次完成：多 worker / 重启后不会立刻重复推同一批空转信号
+        if not self._notify_cooldown.try_acquire(NOTIFY_COOLDOWN_KEY, cfg.cooldown_seconds):
+            return False
         try:
             opts = {"actionPrompt": action_prompt} if action_prompt else None
             result = await self._notification.notify("info", message, WATCHDOG_SOURCE, None, opts)
         except Exception:
             logger.warning("看门狗提醒发送失败", exc_info=True)
+            self._notify_cooldown.release(NOTIFY_COOLDOWN_KEY)
             return False
-        if result:
-            self._last_sent_at = time.monotonic()
+        if not result:
+            self._notify_cooldown.release(NOTIFY_COOLDOWN_KEY)
         return bool(result)
 
     @staticmethod
@@ -546,4 +599,9 @@ class AgentWatchdogService:
         return prompt[:120]
 
 
-__all__ = ["DEFAULT_INTERVAL_SECONDS", "WATCHDOG_SOURCE", "AgentWatchdogService"]
+__all__ = [
+    "DEFAULT_INTERVAL_SECONDS",
+    "DEVICE_CLOSE_COOLDOWN_SECONDS",
+    "WATCHDOG_SOURCE",
+    "AgentWatchdogService",
+]

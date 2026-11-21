@@ -372,6 +372,27 @@ def _database_counts(path: Path) -> dict[str, int]:
     return counts
 
 
+def _restorable_tables(path: Path) -> list[str]:
+    """备份里实际可恢复的业务表（用于 inspect 预览「可恢复范围」）。
+
+    本项目是整包加密备份，没有参考实现的「按组件勾选」粒度；用户真正想知道的是
+    「这份包里有哪些数据」。因此列出所有非空业务表，而不是给出可选组件清单。
+    """
+    with closing(sqlite3.connect(f"file:{path}?mode=ro", uri=True)) as connection:
+        rows = connection.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+        ).fetchall()
+        tables: list[str] = []
+        for (name,) in rows:
+            try:
+                count = connection.execute(f'SELECT COUNT(*) FROM "{name}"').fetchone()  # noqa: S608
+            except sqlite3.Error:
+                continue
+            if count and int(count[0]) > 0:
+                tables.append(str(name))
+    return tables
+
+
 # 创建备份
 def _data_files(settings: Any) -> list[tuple[Path, str]]:
     base = settings.data_dir
@@ -580,6 +601,7 @@ def inspect_payload(settings: Any, directory: Path) -> dict[str, Any]:
             _copy_bounded(source, target, limit=MAX_EXPANDED, what="数据库快照")
         _validate_database_file(stats_path)
         counts = _database_counts(stats_path)
+        restorable = _restorable_tables(stats_path)
     finally:
         stats_path.unlink(missing_ok=True)
 
@@ -598,6 +620,9 @@ def inspect_payload(settings: Any, directory: Path) -> dict[str, Any]:
         "hasSecrets": bool(manifest.get("hasSecrets")),
         "includesHistory": bool(manifest.get("includesHistory", True)),
         "excludedTables": len(manifest.get("excludedTables") or []),
+        # 可恢复范围：整包恢复，没有组件勾选；列出非空业务表让用户知道包内有什么。
+        "restorableTables": restorable,
+        "restoreMode": "full",
         "expiresIn": JOB_TTL_SECONDS,
     }
 

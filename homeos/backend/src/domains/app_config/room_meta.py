@@ -298,19 +298,6 @@ def build_energy_public_meta(learning_period_days: Any) -> dict[str, int]:
     return {"learningPeriodDays": days, "chartHours": min(days * 24, 168)}
 
 
-def resolve_orchestrator_history_limit(ops: dict[str, Any]) -> int:
-    def positive(value: Any, default: int) -> float:
-        try:
-            n = float(value)
-        except (TypeError, ValueError):
-            return default
-        return n if n > 0 and not math.isnan(n) else default
-
-    scene_max = positive(ops.get("sceneExecHistoryMax"), 100)
-    script_max = positive(ops.get("scriptExecHistoryMax"), 80)
-    return int(min(max(scene_max, script_max), 200))
-
-
 __all__ = [
     "align_env_sensor_map_to_ha_areas",
     "build_client_power_wake_public",
@@ -324,7 +311,6 @@ __all__ = [
     "list_visible_env_sensor_map_room_ids",
     "merge_env_entries",
     "resolve_device_group_label",
-    "resolve_orchestrator_history_limit",
     "resolve_voice_rooms",
     "resolve_voice_rooms_from_ha_areas",
     "sort_env_sensor_map_room_ids",

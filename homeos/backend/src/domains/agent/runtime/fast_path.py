@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 import time
@@ -9,31 +10,16 @@ from typing import Any
 
 from .area_service import AgentAreaService
 from .config_service import AgentConfigService
+from .fast_path_attributes import AttributeFastPathMixin
+from .fast_path_media import MediaFastPathMixin
+from .fast_path_profile import ProfileFastPathMixin
+from .fast_path_scene import SceneFastPathMixin, looks_like_scene_intent
 from .lang_template_service import LangTemplateService
-from ..tools.high_risk_denylist import SceneVoiceControlGate, is_scene_voice_allowed
 from ....platform.core.entity.entity_domain import get_entity_domain
 from ....platform.core.runtime.config_events import CONFIG_UPDATED
 
 logger = logging.getLogger("homeos.agent.fast_path")
 
-#: 场景 / 脚本快路径意图判定：整句为「晚安」等纯口令
-SCENE_WHOLE_PHRASES = re.compile(r"^(晚安|我睡了|出门了|我出门了)$")
-#: 场景 / 脚本快路径意图判定：出现「模式 / 场景 / 脚本」字样
-SCENE_INTENT_WORDS = re.compile(r"(模式|场景|脚本)")
-#: 场景 / 脚本快路径意图判定：以执行类动词开头
-SCENE_INTENT_VERBS = re.compile(r"^(执行|激活|启动|运行|触发)")
-#: 场景 / 脚本快路径意图判定：动作词 + 常见场景口令词
-SCENE_INTENT_PHRASES = re.compile(
-    r"^(开启|打开|关闭|关掉|进入)(回家|离家|观影|睡眠|起床|会客|就餐|就寝|离开|晚安|上班|度假)"
-)
-#: 词干提取：剥离句首动作词
-SCENE_ACTION_PREFIX = re.compile(
-    r"^(执行|激活|启动|运行|触发|开启|打开|关闭|关掉|进入|run|activate|start|execute|turn on)\s*"
-)
-#: 词干提取：剥离句尾「场景 / 模式 / 脚本」等类别后缀
-SCENE_CATEGORY_SUFFIX = re.compile(r"(场景|模式|脚本|scene|script|mode)\s*$")
-
-#: 配置 / 区域 / 实体注册表变更事件名（与 Nest HOMEOS_EVENTS / HA 事件对齐）
 _AREA_CACHE_INVALIDATION_EVENTS = (
     CONFIG_UPDATED,
     "area.updated",
@@ -49,74 +35,19 @@ _AREA_CACHE_TTL_SECONDS = 60.0
 #: 设温度分支内显式中止（如多空调消歧），与「未命中、继续开 / 关」区分。
 _FAST_PATH_ABORT = object()
 
-#: 灯光亮度绝对值：「客厅灯亮度调到 50%」
-_BRIGHTNESS_SET = re.compile(
-    r"^(?P<target>.*?)(?:的)?(?:亮度)?(?:调到|设为|设置|调成|调至)\s*(?P<value>\d{1,3})\s*(?:%|百分比)?$"
-)
-#: 灯光亮度相对调整：「调亮一点 / 太暗了」
-_BRIGHTNESS_REL = re.compile(r"(调亮|亮一点|亮一些|太暗了|调暗|暗一点|暗一些|太亮了)")
-#: 色温绝对值：「色温调到 4000K」
-_COLOR_TEMP_SET = re.compile(r"(?:色温)?(?:调到|设为|设置|调成|调至)\s*(?P<value>\d{3,5})\s*[kK]\s*$")
-#: 色温相对调整：「暖一点 / 冷一点」
-_COLOR_TEMP_REL = re.compile(r"(调暖|暖一点|暖一些|调冷|冷一点|冷一些)")
-#: 窗帘位置：「窗帘开到 30% / 打开一半」
-_COVER_POSITION = re.compile(
-    r"^(?P<target>.*?)(?:窗帘|遮光帘|卷帘|百叶窗|帘子)?"
-    r"(?:开到|调到|设为|设置|调成|调至|打开到)\s*(?P<value>\d{1,3})\s*%?$"
-)
-#: 窗帘半开
-_COVER_HALF = re.compile(r"(一半|半开)")
-#: 媒体动作（顺序敏感：先匹配「暂停播放」再匹配「播放」）
-_MEDIA_ACTIONS: tuple[tuple[re.Pattern[str], str], ...] = (
-    (re.compile(r"暂停(播放)?"), "pause"),
-    (re.compile(r"(继续|恢复|接着)(播放)?"), "play"),
-    (re.compile(r"停止(播放)?"), "stop"),
-    (re.compile(r"(下一首|下一曲|下一集|切歌)"), "next"),
-    (re.compile(r"(上一首|上一曲|上一集)"), "previous"),
-)
-#: 媒体音量绝对值：「音量调到 40%」
-_MEDIA_VOLUME = re.compile(r"音量(?:调到|设为|设置|调成|调至|开到)?\s*(?P<value>\d{1,3})\s*%?")
-#: 媒体音量相对调整：「音量调大 / 小一点」
-_MEDIA_VOLUME_REL = re.compile(r"音量(调大|大一点|大一些|调小|小一点|小一些)")
-#: 风扇百分比：「风扇调到 60%」
-_FAN_PERCENT = re.compile(r"(?:风速|风扇)(?:调到|设为|调成|调至|开到)?\s*(?P<value>\d{1,3})\s*%")
-#: 风扇档位：「风速调到 3 档」
-_FAN_LEVEL = re.compile(r"(?:风速|风扇)(?:调到|设为|调成|调至)?\s*(?P<level>[一二三四五1-5])\s*档")
-#: 风扇相对调整：「风大一点 / 调小」
-_FAN_REL = re.compile(r"(风大一点|风小一点|风速调大|风速调小|风量大一点|风量小一点)")
-#: 空调模式
-_CLIMATE_MODES: tuple[tuple[re.Pattern[str], str], ...] = (
-    (re.compile(r"制冷|冷风"), "cool"),
-    (re.compile(r"制热|加热|暖风"), "heat"),
-    (re.compile(r"除湿"), "dry"),
-    (re.compile(r"送风"), "fan_only"),
-    (re.compile(r"自动"), "auto"),
-)
-#: 温度相对调整：「调高两度 / 低一点」
-_TEMP_REL = re.compile(
-    r"(?:温度)?(调高|调低|升高|降低|高一点|低一点|高一些|低一些)\s*(?P<delta>\d+|[一二两三四五])?\s*[度°]?"
-)
 #: 中文数字 → 阿拉伯数字（只覆盖常见调整幅度）
 _CN_DIGITS = {"一": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5}
 #: 指代词：「把它关掉 / 打开它 / 调亮它」
 _PRONOUN_TARGETS = frozenset({"它", "他", "她", "这个", "那个", "它们", "这些", "那些"})
 
 
-def looks_like_scene_intent(text: str) -> bool:
-    """判断是否具备场景 / 脚本快路径的意图特征。
+class FastPathService(SceneFastPathMixin, MediaFastPathMixin, AttributeFastPathMixin, ProfileFastPathMixin):
+    """快路径服务：订阅配置 / 实体注册表变更事件以清空房间缓存。
 
-    仅在命中时才去扫描实体表，避免每条指令都做无谓开销。
+    三个族拆到独立 mixin：场景 / 脚本、媒体（动作 / 点歌 / 电视应用）、
+    确定性属性（亮度 / 色温 / 窗帘 / 风速 / 空调模式 / 相对温度）。
+    本模块只保留「设温度 + 开关与房间匹配」的主链路与房间缓存。
     """
-    return bool(
-        SCENE_WHOLE_PHRASES.search(text)
-        or SCENE_INTENT_WORDS.search(text)
-        or SCENE_INTENT_VERBS.search(text)
-        or SCENE_INTENT_PHRASES.search(text)
-    )
-
-
-class FastPathService:
-    """快路径服务：订阅配置 / 实体注册表变更事件以清空房间缓存。"""
 
     def __init__(
         self,
@@ -140,6 +71,18 @@ class FastPathService:
         #: 缓存写入时刻（monotonic），超过 TTL 视为过期
         self._area_cache_loaded_at = 0.0
         self._area_entities_cache_loaded_at = 0.0
+        #: 设备画像（Apple TV / 电视 / 音箱）；未注入时电视应用类指令不解析
+        self._device_profiles: Any = None
+        #: 学习体系（房间默认设备）；未注入时不做默认目标消歧
+        self._learning: Any = None
+
+    def bind_learning(self, learning: Any = None) -> None:
+        """注入学习体系：房间内多台同域设备时按学到的默认目标解析。"""
+        self._learning = learning
+
+    def bind_device_profiles(self, device_profiles: Any = None) -> None:
+        """注入设备画像：用于「打开电视上的 Netflix」这类应用指令选目标。"""
+        self._device_profiles = device_profiles
 
     def invalidate_area_cache(self) -> None:
         """房间 / 实体缓存失效：清空两份缓存并推进代际号。"""
@@ -177,44 +120,50 @@ class FastPathService:
         before = cleaned[: cleaned.index(temp_match.group(0))]
         before = self._L.strip_pattern.sub("", before).strip()
         temperature_celsius = int(temp_match.group(2))
-        if len(before) >= 2 and 10 <= temperature_celsius <= 35:
-            # 仅在描述命中 climate（空调）关键词时才走设温度
-            ac_dk = next(
-                (
-                    domain_kw
-                    for domain_kw in self._L.domain_keywords
-                    if any(kw in before for kw in domain_kw.keywords) and domain_kw.domain == "climate"
-                ),
-                None,
-            )
-            if ac_dk is not None:
-                areas = await self._get_areas()
-                room = self._resolve_room(before, areas)
-                if room is not None:
-                    # 取房间内第一个 climate 设备作为控制对象
-                    climate_devices = await self._get_room_devices(room["id"], "climate")
-                    if len(climate_devices) > 1:
-                        logger.info(
-                            '快路径跳过(多空调消歧): "%s" → %s 台',
-                            original_text,
-                            len(climate_devices),
-                        )
-                        return _FAST_PATH_ABORT
-                    climate_entity = climate_devices[0]["entityId"] if climate_devices else None
-                    if climate_entity:
-                        logger.info(
-                            '快路径命中(set_temp): "%s" → %s  %s°C',
-                            original_text,
-                            climate_entity,
-                            temperature_celsius,
-                        )
-                        return {
-                            "kind": "device",
-                            "service": "set_temperature",
-                            "entityId": climate_entity,
-                            "serviceData": {"temperature": temperature_celsius},
-                        }
-        return None
+        # 上限放到 80：热水器的目标温度常见 40–70，旧口径 10–35 会把它整条拒掉。
+        if len(before) < 2 or not 5 <= temperature_celsius <= 80:
+            return None
+        candidates = await self._climate_candidates(before, temperature_celsius)
+        if candidates is None:
+            return None
+        if len(candidates) > 1:
+            logger.info('快路径跳过(多空调消歧): "%s" → %s 台', original_text, len(candidates))
+            return _FAST_PATH_ABORT
+        if not candidates:
+            return None
+        entity_id = candidates[0]["entityId"]
+        logger.info('快路径命中(set_temp): "%s" → %s  %s°C', original_text, entity_id, temperature_celsius)
+        return {
+            "kind": "device",
+            "service": "set_temperature",
+            "entityId": entity_id,
+            "serviceData": {"temperature": temperature_celsius},
+        }
+
+    def _climate_keyword(self) -> Any | None:
+        """语言模板里的 climate 关键词（含开 / 关服务映射）。"""
+        return next((item for item in self._L.domain_keywords if item.domain == "climate"), None)
+
+    async def _climate_candidates(self, before: str, temperature: int) -> list[dict[str, Any]] | None:
+        """取本次设温度的候选空调 / 热水器；不构成温控意图时返回 ``None``。
+
+        说「空调 / 热水器」关键词、说中设备名或已确认画像的别名（如「冷气」）都算意图；
+        提到的设备再按别名 / 设备名 / 温度范围消歧。没有房间限定时在全屋范围内找。
+        """
+        keywords = self._temperature_keywords()
+        if not keywords:
+            return None
+        room = self._resolve_room(before, await self._get_areas())
+        devices = await self._temperature_devices(room)
+        if not devices:
+            return None
+        hint = self._climate_hint(before, room, keywords)
+        has_keyword = any(word in before for word in keywords)
+        if not has_keyword and not await self._room_alias_hit(hint, devices):
+            return None
+        if len(devices) > 1:
+            devices = await self._narrow_climate_devices(devices, hint, temperature, before)
+        return devices
 
     def _domain_keyword_for(self, domain: str) -> Any:
         """按设备域取语言模板里的开 / 关服务映射。"""
@@ -239,44 +188,106 @@ class FastPathService:
         description: str,
         domain: str,
         hints: list[str] | None = None,
+        kinds: tuple[str, ...] | None = None,
     ) -> str | None:
         """在「房间 → 房间内设备 → 全局设备 → 指代提示」之间解析唯一目标。
 
+        ``kinds`` 是设备画像的允许类型（如电视 → ``tv`` / ``apple_tv``）：
+        给了就用画像收窄候选，避免「打开电视」在同时有音箱与 Apple TV 时被判成歧义。
         无法确定唯一设备时返回 None（交给 LLM 消歧），避免误控同房间多台设备。
         """
         text = str(description or "").strip()
         if text:
-            areas = await self._get_areas()
-            room = self._resolve_room(text, areas)
-            if room is not None:
-                devices = await self._get_room_devices(room["id"], domain)
-                if not devices:
-                    return None
-                exact = [device for device in devices if device["name"] and device["name"] in text]
-                if len(exact) == 1:
-                    return exact[0]["entityId"]
-                if len(exact) > 1:
-                    names = {device["entityId"] for device in exact}
-                    exact.sort(key=lambda device: -len(device["name"]))
-                    return exact[0]["entityId"] if len(names) == 1 else None
-                if len(devices) == 1:
-                    return devices[0]["entityId"]
-                return None
-            global_id = await self._find_device_globally(text, domain)
-            if global_id:
-                return global_id
+            # 用户提到房间时别名只在房间内生效，避免「卧室冷气」命中客厅的同名设备。
+            room = self._resolve_room(text, await self._get_areas())
+            resolved = await self._resolve_described_device(text, domain, kinds, room)
+            if resolved is not None:
+                return resolved
         hinted = [eid for eid in (hints or []) if str(eid).startswith(f"{domain}.")]
         if len(hinted) == 1:
             return hinted[0]
         if text:
             return None
         # 描述为空时允许「全屋唯一设备」兜底（如只有一台空调 / 一个窗帘）
+        return await self._resolve_sole_device(domain)
+
+    async def _resolve_described_device(
+        self, text: str, domain: str, kinds: tuple[str, ...] | None, room: dict[str, Any] | None
+    ) -> str | None:
+        """有目标描述时：房间内别名 / 名称 → 全屋别名 / 名称。"""
+        if room is None:
+            alias_id = await self._profile_alias_target(text, domain, kinds)
+            return alias_id or await self._find_device_globally(text, domain)
+        devices = await self._profile_filtered(self._get_room_devices(room["id"], domain), kinds)
+        if not devices:
+            return None
+        alias_id = await self._profile_alias_target(text, domain, kinds)
+        if alias_id and any(device["entityId"] == alias_id for device in devices):
+            return alias_id
+        exact = [device for device in devices if device["name"] and device["name"] in text]
+        if len(exact) == 1:
+            return exact[0]["entityId"]
+        if len(exact) > 1:
+            ids = {device["entityId"] for device in exact}
+            exact.sort(key=lambda device: -len(device["name"]))
+            return exact[0]["entityId"] if len(ids) == 1 else None
+        if len(devices) == 1:
+            return devices[0]["entityId"]
+        # 「客厅默认开这台空调」这类教学结果：房间内多台同域设备时按学到的默认目标命中。
+        # 以前只在 teach_area_default 里写入、从未被读取，用户教了也不生效。
+        return await self._area_default_target(str(room["id"]), domain, devices)
+
+    async def _area_default_target(
+        self,
+        area_id: str,
+        domain: str,
+        devices: list[dict[str, Any]],
+    ) -> str | None:
+        """房间内多台同域设备时的默认目标；不在候选里则视为没设过。
+
+        先查设备画像的房间默认（电视 / Apple TV 由面板与 `teach_area_default` 共同写入），
+        再退回学习表的通用默认（灯 / 窗帘等其它域）。
+        """
+        if not area_id:
+            return None
+        target = await self._profile_default_target(area_id, devices)
+        if target:
+            return target
+        learning = self._learning
+        if learning is None:
+            return None
+        try:
+            entity_id = await asyncio.to_thread(learning.resolve_area_default, area_id, domain)
+        except Exception as exc:  # 学习表读取失败退回「交给 LLM」
+            logger.debug("读取房间默认设备失败: %s (%s)", area_id, exc)
+            return None
+        target = str(entity_id or "").strip()
+        if not target:
+            return None
+        return target if any(device["entityId"] == target for device in devices) else None
+
+    async def _profile_default_target(self, area_id: str, devices: list[dict[str, Any]]) -> str | None:
+        """设备画像里的房间默认实体（``speaker`` 走 MA 播放器 id，不参与实体匹配）。"""
+        profiles = self._device_profiles
+        lister = getattr(profiles, "defaults", None)
+        if not callable(lister):
+            return None
+        rows: Any = []
+        try:
+            rows = await asyncio.to_thread(lister, area_id)
+        except Exception as exc:
+            logger.debug("读取画像默认设备失败: %s", exc)
+            return None
+        ids = {str(row.get("entityId")) for row in (rows or []) if isinstance(row, dict) and row.get("entityId")}
+        matched = [device for device in devices if device["entityId"] in ids]
+        return matched[0]["entityId"] if len(matched) == 1 else None
+
+    async def _resolve_sole_device(self, domain: str) -> str | None:
+        """描述为空：全屋恰好一台该域设备时才兜底（避免「开灯」误开乱灯）。"""
         all_devices: list[dict[str, str]] = []
         for area in await self._get_areas_with_entities():
             all_devices.extend(await self._get_room_devices(area.id, domain))
-        if len(all_devices) == 1:
-            return all_devices[0]["entityId"]
-        return None
+        return all_devices[0]["entityId"] if len(all_devices) == 1 else None
 
     def _entity_attributes(self, entity_id: str | None) -> dict[str, Any]:
         """读取实体 attributes（缺失时返回空 dict）。"""
@@ -291,311 +302,6 @@ class FastPathService:
             return ""
         entity = self._state_store.get(entity_id)
         return str(entity.get("state") or "").lower() if isinstance(entity, dict) else ""
-
-    async def _try_parse_light_brightness(
-        self, cleaned: str, original_text: str, hints: list[str] | None
-    ) -> dict[str, Any] | None:
-        """灯光亮度（绝对值 / 相对调整）。"""
-        has_light = "灯" in cleaned or "亮度" in cleaned
-        hinted_light = any(str(eid).startswith("light.") for eid in (hints or []))
-        if not (has_light or hinted_light):
-            return None
-
-        match = _BRIGHTNESS_SET.search(cleaned)
-        if match:
-            value = int(match.group("value"))
-            if not 1 <= value <= 100:
-                return None
-            target = self._strip_target_prefix(match.group("target"))
-            entity_id = await self._resolve_single_device(target, "light", hints)
-            if not entity_id:
-                return None
-            logger.info('快路径命中(亮度): "%s" → %s %s%%', original_text, entity_id, value)
-            return {
-                "kind": "tool",
-                "tool": "set_light_brightness",
-                "args": {"entity_id": entity_id, "brightness": value},
-                "summary": f"把亮度调到 {value}%",
-            }
-
-        match = _BRIGHTNESS_REL.search(cleaned)
-        if match:
-            target = self._strip_target_prefix(cleaned[: match.start()])
-            entity_id = await self._resolve_single_device(target, "light", hints)
-            if not entity_id:
-                return None
-            attributes = self._entity_attributes(entity_id)
-            raw = attributes.get("brightness")
-            if isinstance(raw, (int, float)):
-                current = round(float(raw) / 255 * 100)
-            else:
-                current = 100 if self._entity_state(entity_id) == "on" else 0
-            step = 20
-            up = match.group(0) in ("调亮", "亮一点", "亮一些", "太暗了")
-            value = max(1, min(100, current + step if up else current - step))
-            logger.info('快路径命中(相对亮度): "%s" → %s %s%%', original_text, entity_id, value)
-            return {
-                "kind": "tool",
-                "tool": "set_light_brightness",
-                "args": {"entity_id": entity_id, "brightness": value},
-                "summary": f"把亮度调到 {value}%",
-            }
-        return None
-
-    async def _try_parse_color_temp(
-        self, cleaned: str, original_text: str, hints: list[str] | None
-    ) -> dict[str, Any] | None:
-        """灯光色温（K 绝对值 / 暖冷相对调整）。"""
-        if "色温" not in cleaned and not _COLOR_TEMP_REL.search(cleaned):
-            return None
-
-        match = _COLOR_TEMP_SET.search(cleaned)
-        if match:
-            kelvin = int(match.group("value"))
-            if not 2000 <= kelvin <= 6500:
-                return None
-            target = self._strip_target_prefix(
-                cleaned[: cleaned.find("色温")] if "色温" in cleaned else cleaned[: match.start()]
-            )
-            entity_id = await self._resolve_single_device(target, "light", hints)
-            if not entity_id:
-                return None
-            logger.info('快路径命中(色温): "%s" → %s %sK', original_text, entity_id, kelvin)
-            return {
-                "kind": "device",
-                "service": "turn_on",
-                "entityId": entity_id,
-                "serviceData": {"color_temp_kelvin": kelvin},
-                "summary": f"把色温调到 {kelvin}K",
-            }
-
-        match = _COLOR_TEMP_REL.search(cleaned)
-        if not match:
-            return None
-        target = self._strip_target_prefix(cleaned[: match.start()])
-        entity_id = await self._resolve_single_device(target, "light", hints)
-        if not entity_id:
-            return None
-        attributes = self._entity_attributes(entity_id)
-        kelvin = attributes.get("color_temp_kelvin")
-        if not isinstance(kelvin, (int, float)):
-            mired = attributes.get("color_temp")
-            kelvin = 1_000_000 / float(mired) if isinstance(mired, (int, float)) and mired else 3500
-        warm = match.group(0) in ("调暖", "暖一点", "暖一些")
-        value = max(2000, min(6500, int(kelvin) - 500 if warm else int(kelvin) + 500))
-        logger.info('快路径命中(相对色温): "%s" → %s %sK', original_text, entity_id, value)
-        return {
-            "kind": "device",
-            "service": "turn_on",
-            "entityId": entity_id,
-            "serviceData": {"color_temp_kelvin": value},
-            "summary": f"把色温调到 {value}K",
-        }
-
-    async def _try_parse_cover_position(
-        self, cleaned: str, original_text: str, hints: list[str] | None
-    ) -> dict[str, Any] | None:
-        """窗帘位置（0-100），支持「打开一半」。"""
-        if not ("窗帘" in cleaned or "帘" in cleaned):
-            return None
-
-        match = _COVER_POSITION.search(cleaned)
-        if match:
-            position = int(match.group("value"))
-        else:
-            half = _COVER_HALF.search(cleaned)
-            if not half:
-                return None
-            position = 50
-            match = half
-        if not 0 <= position <= 100:
-            return None
-        target = self._strip_target_prefix(cleaned[: match.start()])
-        entity_id = await self._resolve_single_device(target, "cover", hints)
-        if not entity_id:
-            return None
-        logger.info('快路径命中(窗帘位置): "%s" → %s %s%%', original_text, entity_id, position)
-        return {
-            "kind": "tool",
-            "tool": "set_cover_position",
-            "args": {"entity_id": entity_id, "position": position},
-            "summary": f"把窗帘调到 {position}%",
-        }
-
-    async def _try_parse_media(
-        self, cleaned: str, original_text: str, hints: list[str] | None
-    ) -> dict[str, Any] | None:
-        """媒体控制：播放 / 暂停 / 切歌 / 音量。"""
-        media_words = ("电视", "音响", "音箱", "播放器", "媒体", "音乐")
-        hinted_media = any(str(eid).startswith("media_player.") for eid in (hints or []))
-        if not (any(word in cleaned for word in media_words) or hinted_media):
-            return None
-
-        for pattern, action in _MEDIA_ACTIONS:
-            match = pattern.search(cleaned)
-            if not match:
-                continue
-            target = self._strip_target_prefix(cleaned[: match.start()])
-            entity_id = await self._resolve_single_device(target, "media_player", hints)
-            if not entity_id:
-                return None
-            logger.info('快路径命中(媒体): "%s" → %s %s', original_text, entity_id, action)
-            return {
-                "kind": "tool",
-                "tool": "media_control",
-                "args": {"entity_id": entity_id, "action": action},
-                "summary": f"媒体 {action}",
-            }
-
-        match = _MEDIA_VOLUME_REL.search(cleaned)
-        if match:
-            target = self._strip_target_prefix(cleaned[: match.start()])
-            entity_id = await self._resolve_single_device(target, "media_player", hints)
-            if not entity_id:
-                return None
-            raw = self._entity_attributes(entity_id).get("volume_level")
-            current = float(raw) if isinstance(raw, (int, float)) else 0.3
-            up = "大" in match.group(0)
-            volume = max(0.0, min(1.0, current + (0.1 if up else -0.1)))
-            logger.info('快路径命中(相对音量): "%s" → %s %.0f%%', original_text, entity_id, volume * 100)
-            return {
-                "kind": "tool",
-                "tool": "media_control",
-                "args": {"entity_id": entity_id, "action": "volume", "volume": round(volume, 2)},
-                "summary": f"音量调到 {round(volume * 100)}%",
-            }
-
-        match = _MEDIA_VOLUME.search(cleaned)
-        if match:
-            value = int(match.group("value"))
-            if not 0 <= value <= 100:
-                return None
-            target = self._strip_target_prefix(cleaned[: match.start()])
-            entity_id = await self._resolve_single_device(target, "media_player", hints)
-            if not entity_id:
-                return None
-            logger.info('快路径命中(音量): "%s" → %s %s%%', original_text, entity_id, value)
-            return {
-                "kind": "tool",
-                "tool": "media_control",
-                "args": {
-                    "entity_id": entity_id,
-                    "action": "volume",
-                    "volume": round(value / 100, 2),
-                },
-                "summary": f"音量调到 {value}%",
-            }
-        return None
-
-    async def _try_parse_fan(self, cleaned: str, original_text: str, hints: list[str] | None) -> dict[str, Any] | None:
-        """风扇风速（百分比 / 档位 / 相对调整）。"""
-        if "风扇" not in cleaned and "风速" not in cleaned and "风量" not in cleaned:
-            return None
-
-        match = _FAN_PERCENT.search(cleaned) or _FAN_LEVEL.search(cleaned)
-        if match:
-            if match.re is _FAN_LEVEL:
-                level = match.group("level")
-                value = (_CN_DIGITS.get(level) or int(level)) * 20
-            else:
-                value = int(match.group("value"))
-            if not 1 <= value <= 100:
-                return None
-            target = self._strip_target_prefix(cleaned[: match.start()])
-            entity_id = await self._resolve_single_device(target, "fan", hints)
-            if not entity_id:
-                return None
-            logger.info('快路径命中(风速): "%s" → %s %s%%', original_text, entity_id, value)
-            return {
-                "kind": "device",
-                "service": "set_percentage",
-                "entityId": entity_id,
-                "serviceData": {"percentage": value},
-                "summary": f"把风速调到 {value}%",
-            }
-
-        match = _FAN_REL.search(cleaned)
-        if not match:
-            return None
-        target = self._strip_target_prefix(cleaned[: match.start()])
-        entity_id = await self._resolve_single_device(target, "fan", hints)
-        if not entity_id:
-            return None
-        raw = self._entity_attributes(entity_id).get("percentage")
-        current = int(raw) if isinstance(raw, (int, float)) else (50 if self._entity_state(entity_id) == "on" else 0)
-        up = "大" in match.group(0)
-        value = max(1, min(100, current + (20 if up else -20)))
-        logger.info('快路径命中(相对风速): "%s" → %s %s%%', original_text, entity_id, value)
-        return {
-            "kind": "device",
-            "service": "set_percentage",
-            "entityId": entity_id,
-            "serviceData": {"percentage": value},
-            "summary": f"把风速调到 {value}%",
-        }
-
-    async def _try_parse_climate_mode(
-        self, cleaned: str, original_text: str, hints: list[str] | None
-    ) -> dict[str, Any] | None:
-        """空调模式：制冷 / 制热 / 除湿 / 送风 / 自动。"""
-        climate_keywords = ("空调", "冷气", "暖气", "hvac")
-        if not any(word in cleaned for word in climate_keywords):
-            return None
-        for pattern, mode in _CLIMATE_MODES:
-            match = pattern.search(cleaned)
-            if not match:
-                continue
-            # 模式词必须落在句尾（允许「制冷模式」），避免「自动打开…」被误判
-            tail = cleaned[match.end() :].strip()
-            if tail not in ("", "模式"):
-                continue
-            target = self._strip_target_prefix(cleaned[: match.start()])
-            target = target.replace("空调", "").replace("的", "").strip()
-            entity_id = await self._resolve_single_device(target, "climate", hints)
-            if not entity_id:
-                return None
-            logger.info('快路径命中(空调模式): "%s" → %s %s', original_text, entity_id, mode)
-            return {
-                "kind": "device",
-                "service": "set_hvac_mode",
-                "entityId": entity_id,
-                "serviceData": {"hvac_mode": mode},
-                "summary": f"切换到 {mode} 模式",
-            }
-        return None
-
-    async def _try_parse_relative_temperature(
-        self, cleaned: str, original_text: str, hints: list[str] | None
-    ) -> dict[str, Any] | None:
-        """温度相对调整：「调高两度 / 低一点」。"""
-        match = _TEMP_REL.search(cleaned)
-        if not match:
-            return None
-        if "音量" in cleaned:
-            return None
-        if not ("空调" in cleaned or "温度" in cleaned or "冷气" in cleaned or "暖气" in cleaned):
-            return None
-        target = self._strip_target_prefix(cleaned[: match.start()])
-        target = target.replace("空调", "").replace("温度", "").strip()
-        entity_id = await self._resolve_single_device(target, "climate", hints)
-        if not entity_id:
-            return None
-        attributes = self._entity_attributes(entity_id)
-        current = attributes.get("temperature")
-        if not isinstance(current, (int, float)):
-            return None
-        raw_delta = match.group("delta")
-        delta = _CN_DIGITS.get(raw_delta or "", 0) or (int(raw_delta) if raw_delta and raw_delta.isdigit() else 1)
-        up = match.group(1) in ("调高", "升高", "高一点", "高一些")
-        value = max(10, min(35, round(float(current) + (delta if up else -delta))))
-        logger.info('快路径命中(相对温度): "%s" → %s %s°C', original_text, entity_id, value)
-        return {
-            "kind": "device",
-            "service": "set_temperature",
-            "entityId": entity_id,
-            "serviceData": {"temperature": value},
-            "summary": f"温度调到 {value}°C",
-        }
 
     def _parse_pronoun_control(self, target: str, is_on: bool, hints: list[str] | None) -> dict[str, Any] | None:
         """「把它关掉」：用最近一次控制目标解析指代（仅唯一目标时命中）。"""
@@ -649,6 +355,55 @@ class FastPathService:
                 logger.info('快路径命中(全局设备): "%s" → %s/%s', original_text, global_exact, service)
                 return {"kind": "device", "service": service, "entityId": global_exact}
         return None
+
+    #: 「一盏灯」语义：无房间不命中，房间内恰好 1 盏可用灯才下发
+    _SINGLE_LIGHT_RE = re.compile(r"一[盏盞][灯燈]")
+
+    @classmethod
+    def _requests_single_light(cls, text: str) -> bool:
+        return bool(cls._SINGLE_LIGHT_RE.search(str(text or "")))
+
+    async def _resolve_single_light(
+        self,
+        *,
+        original_text: str,
+        target: str,
+        service: str,
+        explicit_all: bool,
+        is_on: bool,
+    ) -> dict[str, Any] | None:
+        """「开一盏灯」：点了房间才处理，房间内可用灯恰好 1 盏才下发。
+
+        没有房间 → 返回 ``None`` 交给 LLM（多房间无从判断）；
+        「所有灯」与「一盏灯」语义冲突 → 同样交给 LLM；
+        房间内多于 1 盏 → 返回 ``ambiguous`` + 候选，绝不静默全开。
+        """
+        if explicit_all:
+            return None
+        stripped = self._SINGLE_LIGHT_RE.sub("", target).strip()
+        areas = await self._get_areas()
+        room = self._resolve_room(stripped, areas) if stripped else None
+        if room is None:
+            return None
+        devices = await self._get_room_devices(room["id"], "light")
+        available = [device for device in devices if self._is_available_device(device)]
+        if len(available) == 1:
+            logger.info('快路径命中(单盏灯): "%s" → %s/%s', original_text, available[0]["name"], service)
+            return {"kind": "device", "service": service, "entityId": available[0]["entityId"]}
+        names = [device["name"] for device in available[:5]]
+        logger.info('快路径跳过(单盏灯歧义): "%s" → %s 盏', original_text, len(available))
+        return {
+            "kind": "ambiguous",
+            "reason": "single_light_ambiguous",
+            "roomName": room["name"],
+            "action": "on" if is_on else "off",
+            "candidates": names,
+        }
+
+    def _is_available_device(self, device: dict[str, Any]) -> bool:
+        """实体是否可用（state 非空且非 unavailable/unknown）。"""
+        state = self._entity_state(device.get("entityId"))
+        return bool(state) and state not in ("unavailable", "unknown")
 
     async def _resolve_control_in_room(
         self,
@@ -718,15 +473,8 @@ class FastPathService:
             return None
 
         # 指代消解：「把它关掉」按最近一次控制目标还原（仅唯一目标）
-        pronoun_target = self._L.strip_pattern.sub("", rest).strip()
-        pronoun_hit = self._parse_pronoun_control(pronoun_target, is_on, hints)
+        pronoun_hit = self._pronoun_control_hit(rest, is_on, hints, original_text)
         if pronoun_hit is not None:
-            logger.info(
-                '快路径命中(指代): "%s" → %s/%s',
-                original_text,
-                pronoun_hit["entityId"],
-                pronoun_hit["service"],
-            )
             return pronoun_hit
 
         # 按关键词匹配设备域；多域命中（"灯和空调"这种）交给 LLM
@@ -744,17 +492,45 @@ class FastPathService:
         target = self._L.strip_pattern.sub("", rest).strip()
 
         # 显式"所有"且无具体目标 → 全屋控制
-        if explicit_all and len(target) == 0:
-            logger.info('快路径命中(全屋): "%s" → 全屋/%s/%s', original_text, domain_kw.domain, service)
-            return {
-                "kind": "room",
-                "service": service,
-                "roomName": "全屋",
-                "domain": domain_kw.domain,
-            }
+        whole_house = self._whole_house_control(explicit_all, target, service, domain_kw.domain, original_text)
+        if whole_house is not None:
+            return whole_house
 
         if len(target) < 1:
             return None
+
+        return await self._resolve_domain_target(
+            original_text=original_text,
+            rest=rest,
+            target=target,
+            service=service,
+            domain=domain_kw.domain,
+            explicit_all=explicit_all,
+            is_on=is_on,
+        )
+
+    async def _resolve_domain_target(
+        self,
+        *,
+        original_text: str,
+        rest: str,
+        target: str,
+        service: str,
+        domain: str,
+        explicit_all: bool,
+        is_on: bool,
+    ) -> dict[str, Any] | None:
+        """按域定位目标：单盏灯语义 → 房间内 → 全屋 / 全局设备。"""
+        # 「开一盏灯」：必须点明房间，且房间内恰好 1 盏可用灯才下发；
+        # 无房间直接交给 LLM（多房间无从判断），房间内多盏时返回候选而不是全开。
+        if domain == "light" and self._requests_single_light(target):
+            return await self._resolve_single_light(
+                original_text=original_text,
+                target=target,
+                service=service,
+                explicit_all=explicit_all,
+                is_on=is_on,
+            )
 
         areas = await self._get_areas()
         room = self._resolve_room(target, areas)
@@ -764,7 +540,7 @@ class FastPathService:
                 rest=rest,
                 target=target,
                 service=service,
-                domain=domain_kw.domain,
+                domain=domain,
                 explicit_all=explicit_all,
             )
         return await self._resolve_control_in_room(
@@ -772,9 +548,57 @@ class FastPathService:
             room=room,
             target=target,
             service=service,
-            domain=domain_kw.domain,
+            domain=domain,
             explicit_all=explicit_all,
         )
+
+    @staticmethod
+    def _whole_house_control(
+        explicit_all: bool,
+        target: str,
+        service: str,
+        domain: str,
+        original_text: str,
+    ) -> dict[str, Any] | None:
+        """「把灯全关了」这种无具体目标的全屋指令；有目标时返回 ``None`` 继续解析。"""
+        if not explicit_all or target:
+            return None
+        logger.info('快路径命中(全屋): "%s" → 全屋/%s/%s', original_text, domain, service)
+        return {"kind": "room", "service": service, "roomName": "全屋", "domain": domain}
+
+    def _pronoun_control_hit(
+        self, rest: str, is_on: bool, hints: list[str] | None, original_text: str
+    ) -> dict[str, Any] | None:
+        """指代消解结果与命中日志（「把它关掉」只看最近一次控制目标）。"""
+        pronoun_target = self._L.strip_pattern.sub("", rest).strip()
+        hit = self._parse_pronoun_control(pronoun_target, is_on, hints)
+        if hit is None:
+            return None
+        logger.info(
+            '快路径命中(指代): "%s" → %s/%s',
+            original_text,
+            hit["entityId"],
+            hit["service"],
+        )
+        return hit
+
+    async def _try_parse_attribute_control(
+        self, cleaned: str, text: str, hints: list[str] | None
+    ) -> dict[str, Any] | None:
+        """确定性属性控制（亮度 / 色温 / 窗帘 / 媒体 / 风速 / 模式），按固定顺序命中即返回。"""
+        for parser in (
+            self._try_parse_relative_temperature,
+            self._try_parse_light_brightness,
+            self._try_parse_color_temp,
+            self._try_parse_cover_position,
+            self._try_parse_media,
+            self._try_parse_fan,
+            self._try_parse_climate_mode,
+        ):
+            hit = await parser(cleaned, text, hints)
+            if hit is not None:
+                return hit
+        return None
 
     async def try_parse(self, text: str, hints: list[str] | None = None) -> dict[str, Any] | None:
         """尝试用规则解析用户文本为工具调用。
@@ -793,133 +617,43 @@ class FastPathService:
         if not cleaned or len(cleaned) < 2:
             return None
 
-        # 0) 场景 / 脚本：白名单内的 HA scene.* / script.* 直接触发
-        scene_hit = await self._match_scene_fast_path(cleaned)
-        if scene_hit:
-            return scene_hit
-
-        # 1) 设温度：提取「调到 24 度」；未命中或条件不足时继续开 / 关
-        temp_match = self._L.set_temperature.search(cleaned)
-        if temp_match:
-            temp_hit = await self._try_parse_set_temperature(cleaned, text, temp_match)
-            if temp_hit is _FAST_PATH_ABORT:
-                return None
-            if temp_hit is not None:
-                return temp_hit  # pyright: ignore[reportReturnType]
+        # 0) 场景 / 脚本 / 温度 / 点歌 / 电视应用：命中即返回
+        early = await self._preparse_hit(cleaned, text, hints)
+        if early is not None:
+            return early
 
         # 2) 确定性属性控制：相对温度 / 亮度 / 色温 / 窗帘位置 / 媒体 / 风速 / 空调模式
-        for parser in (
-            self._try_parse_relative_temperature,
-            self._try_parse_light_brightness,
-            self._try_parse_color_temp,
-            self._try_parse_cover_position,
-            self._try_parse_media,
-            self._try_parse_fan,
-            self._try_parse_climate_mode,
-        ):
-            hit = await parser(cleaned, text, hints)
-            if hit is not None:
-                return hit
+        attribute_hit = await self._try_parse_attribute_control(cleaned, text, hints)
+        if attribute_hit is not None:
+            return attribute_hit
 
         # 3) 开 / 关与房间 / 设备匹配（含指代消解）
         return await self._try_parse_device_control(cleaned, text, hints)
 
+    async def _preparse_hit(self, cleaned: str, text: str, hints: list[str] | None) -> dict[str, Any] | None:
+        """精确匹配族：场景 / 脚本、设温度、点歌、电视应用（顺序即优先级）。"""
+        scene_hit = await self._match_scene_fast_path(cleaned)
+        if scene_hit:
+            return scene_hit
+        temp_hit = await self._try_parse_temperature(cleaned, text)
+        if temp_hit is not None:
+            return temp_hit
+        music_hit = await self._try_parse_music_request(cleaned)
+        if music_hit is not None:
+            return music_hit
+        return await self._try_parse_tv_app(cleaned, hints)
+
+    async def _try_parse_temperature(self, cleaned: str, text: str) -> dict[str, Any] | None:
+        """设温度：「调到 24 度」；无匹配或条件不足（多台空调）时返回 ``None`` 继续后续解析。"""
+        temp_match = self._L.set_temperature.search(cleaned)
+        if not temp_match:
+            return None
+        temp_hit = await self._try_parse_set_temperature(cleaned, text, temp_match)
+        if temp_hit is _FAST_PATH_ABORT:
+            return None
+        return temp_hit  # pyright: ignore[reportReturnType]
+
     # 场景 / 脚本
-    async def _match_scene_fast_path(self, text: str) -> dict[str, Any] | None:
-        """场景 / 脚本快路径：把「执行回家模式」这类指令直接解析为 activate_scene 调用。
-
-        安全约束（fail-closed）：候选实体必须同时满足总开关启用且实体 ID 在允许清单内。
-        """
-        if not looks_like_scene_intent(text):
-            return None
-        candidates = [
-            e for e in self._state_store.get_all() if str(e.get("entity_id") or "").startswith(("scene.", "script."))
-        ]
-        if not candidates:
-            return None
-
-        cfg = None
-        if self._agent_config is not None:
-            try:
-                cfg = await self._agent_config.get_scene_voice_control()
-            except Exception:
-                cfg = None
-        if cfg is None or not cfg.enabled or not cfg.allow:
-            return None
-        gate = SceneVoiceControlGate(
-            enabled=True,
-            allow=frozenset(ident for ident in (id_.strip().lower() for id_ in cfg.allow) if ident),
-        )
-
-        allowed = [
-            e
-            for e in candidates
-            if is_scene_voice_allowed(
-                get_entity_domain(str(e.get("entity_id") or "")), str(e.get("entity_id") or ""), gate
-            )
-        ]
-        if not allowed:
-            return None
-
-        hit = self._match_scene_by_text(allowed, text)
-        if hit is None:
-            return None
-        entity_id = str(hit.get("entity_id") or "")
-        domain = get_entity_domain(entity_id) or "scene"
-        if not is_scene_voice_allowed(domain, entity_id, gate):
-            return None
-        logger.info('快路径命中(场景): "%s" → %s', text, entity_id)
-        attributes = hit.get("attributes")
-        friendly = (attributes or {}).get("friendly_name") if isinstance(attributes, dict) else None
-        return {
-            "kind": "scene",
-            "entityId": entity_id,
-            "sceneName": str(friendly if friendly is not None else entity_id),
-            "domain": domain,
-        }
-
-    @staticmethod
-    def _match_scene_by_text(allowed: list[dict[str, Any]], text: str) -> dict[str, Any] | None:
-        """在允许清单内的场景 / 脚本中按名称匹配用户意图。
-
-        逐级放宽：整句精确 → 词干精确 → friendly_name 后缀 → friendly_name 包含。
-        """
-        lower = text.lower()
-
-        def name_of(entity: dict[str, Any]) -> str:
-            attributes = entity.get("attributes")
-            friendly = (attributes or {}).get("friendly_name") if isinstance(attributes, dict) else None
-            return str(friendly if friendly is not None else entity.get("entity_id") or "").lower()
-
-        # 1) 整句即场景名（如「晚安」）
-        for entity in allowed:
-            if name_of(entity) == lower:
-                return entity
-
-        # 2) 剥离动作词与类别后缀得到词干
-        stem = SCENE_ACTION_PREFIX.sub("", lower, count=1)
-        stem = SCENE_CATEGORY_SUFFIX.sub("", stem, count=1).strip()
-        if len(stem) < 2:
-            return None
-        for entity in allowed:
-            if name_of(entity) == stem:
-                return entity
-        for entity in allowed:
-            if str(entity.get("entity_id") or "").lower() == stem:
-                return entity
-        for entity in allowed:
-            if name_of(entity).endswith(stem):
-                return entity
-        for entity in allowed:
-            name = name_of(entity)
-            if stem.endswith(name) and len(name) >= 2:
-                return entity
-        for entity in allowed:
-            if stem in name_of(entity):
-                return entity
-        return None
-
-    # 房间 / 设备
     async def _get_areas(self) -> list[dict[str, str]]:
         """获取房间列表（带缓存 + TTL）。"""
         if len(self._area_cache) == 0 or self._area_cache_expired(self._area_cache_loaded_at):

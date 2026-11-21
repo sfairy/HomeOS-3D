@@ -14,8 +14,8 @@ interface EventLogPerfConfig {
   ingressCoalesceEnabled?: boolean
   /** 是否启用 EventLog 实体筛选 */
   eventLogRecordFilterEnabled?: boolean
-  /** 历史保留天数 */
-  eventlogRetentionDays?: number
+  /** 历史保留天数（来自 retention.eventLog） */
+  retentionDays?: number
 }
 
 /**
@@ -87,7 +87,7 @@ export function buildEventLogPerfRecommendations(
   }
 
   // 保留期过短且写入量大：延长保留期避免数据过快丢失
-  const retentionDays = Number(config.eventlogRetentionDays) || 0
+  const retentionDays = Number(config.retentionDays) || 0
   if (retentionDays > 0 && retentionDays < 7 && total > 3000) {
     banners.push({
       id: 'retention-short',

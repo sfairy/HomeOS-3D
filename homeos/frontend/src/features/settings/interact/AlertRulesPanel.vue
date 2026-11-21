@@ -202,6 +202,21 @@
                     class="settings-field"
                   />
                 </label>
+                <label class="alert-edit-field">
+                  <span class="alert-edit-field__label">{{ '提示音（仅 danger）' }}</span>
+                  <input
+                    v-model="editing.sound"
+                    :placeholder="'如 alarm_critical.caf，留空用默认'"
+                    class="settings-field"
+                  />
+                </label>
+                <label class="alert-edit-field">
+                  <span class="alert-edit-field__label">{{ '附带摄像头快照（可选）' }}</span>
+                  <EntityInput
+                    v-model="editing.cameraEntityId"
+                    :placeholder="'如 camera.front_door；填了按门铃通知下发'"
+                  />
+                </label>
               </div>
               <p class="alert-edit-hint">{{ ALERT_COOLDOWN_HINT }}</p>
               <p class="alert-edit-hint">{{ ALERT_TITLE_HINT }}</p>

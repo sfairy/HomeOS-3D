@@ -32,6 +32,14 @@ export function bindEntitySocketDomainEvents(socket: Socket, ctx: EntitySocketHa
 
   socket.on(WS_CLIENT_EVENTS.NOTIFICATION, (data: Record<string, unknown>) => {
     actions.addRemoteNotification(data)
+    // 门铃型通知：直接复用主布局的 homeos:open-camera 事件打开实时画面，
+    // 不新增第二套门铃通道（布局驱动与通知驱动最终落到同一个模态框）。
+    if (data.type === 'doorbell' && typeof data.cameraEntityId === 'string' && data.cameraEntityId.trim()) {
+      window.dispatchEvent(
+        new CustomEvent('homeos:open-camera', { detail: { cameraEntityId: data.cameraEntityId.trim() } }),
+      )
+      return
+    }
     if (shouldSkipNotificationToast(data)) return
     const message = String(data.message || '').trim()
     if (!message) return

@@ -20,9 +20,12 @@ from typing import Annotated, Any
 
 from fastapi import Depends, Query, Request
 from pydantic import BeforeValidator
+from sqlalchemy import select
 
 from .router import NestRouter
 from .schemas.base import StrictModel
+from ..domains.ha.integration.connection_query import active_connection
+from ..platform.core.db.models import HAArea, HAAreaEntityOrder
 from ..platform.core.db.pagination import (
     MAX_SAFE_INTEGER,
     clamp_int,
@@ -70,9 +73,7 @@ def _string_list(array_message: str, item_message: str):
     return check
 
 
-EntityIdsField = Annotated[
-    list[str], BeforeValidator(_string_list("entity_ids 须为数组", "entity_ids 每项须为字符串"))
-]
+EntityIdsField = Annotated[list[str], BeforeValidator(_string_list("entity_ids 须为数组", "entity_ids 每项须为字符串"))]
 AreaIdField = Annotated[str, BeforeValidator(_string_value("area_id 须为字符串"))]
 KindField = Annotated[str, BeforeValidator(_string_value("kind 须为字符串"))]
 IdField = Annotated[str, BeforeValidator(_string_value("id 须为字符串"))]
@@ -105,6 +106,27 @@ def _references(request: Request):
 def _iso_now() -> str:
     now = datetime.now(UTC)
     return now.strftime("%Y-%m-%dT%H:%M:%S.") + f"{now.microsecond // 1000:03d}Z"
+
+
+@router.get("/domains")
+async def get_domains(
+    request: Request,
+    user: dict[str, Any] = Depends(require_user),
+):
+    """域汇总：``{domain, count}`` 按数量倒序（前端 domain 筛选条用）。"""
+    store = _store(request)
+    entities = filter_entities_by_access(store.get_all(), user)
+    counts: dict[str, int] = {}
+    for entity in entities:
+        domain = str(entity.get("entity_id") or "").split(".", 1)[0]
+        if domain:
+            counts[domain] = counts.get(domain, 0) + 1
+    return {
+        "domains": [
+            {"domain": domain, "count": count}
+            for domain, count in sorted(counts.items(), key=lambda item: item[1], reverse=True)
+        ]
+    }
 
 
 @router.get("")
@@ -150,6 +172,9 @@ async def get_all_entities(
         sort=normalize_entity_sort_filter(sort) or "name_asc",
         controllable=parse_boolean_query(controllable),
     )
+    if area_filter_value:
+        # 房间内按本地顺序覆盖重排：`sort` 显式给了非默认值时不覆盖（用户明确要求别的排序）。
+        entities = await asyncio.to_thread(_apply_entity_order, request, area_filter_value, entities, sort)
 
     paging = parse_crud_pagination(page, limit, max_size=2000)
     page_num = paging["pageNum"]
@@ -237,11 +262,11 @@ async def get_changed_entities(
     store = _store(request)
     try:
         since_ms = float(int(since)) if since else 0.0
-    except (TypeError, ValueError):
+    except (TypeError, ValueError):  # fmt: skip
         since_ms = 0.0
     try:
         min_id = int(lastEventId) if lastEventId else 0
-    except (TypeError, ValueError):
+    except (TypeError, ValueError):  # fmt: skip
         min_id = 0
 
     changes = store.get_recent_changes_since(since_ms, min_id)
@@ -265,14 +290,59 @@ async def list_areas(
     ha_connector = request.app.state.ha_connector
     areas = await ha_connector.fetch_area_registry()
     degraded = bool(ha_connector.is_registry_degraded())
+    # 名称与成员以 HA registry 为准，顺序用本地 `ha_areas.sortOrder` 覆盖：
+    # HA 区域没有排序字段，`PUT /ha/areas/sort` 只写本地，读路径必须在这里应用，
+    # 否则设置页的「上移 / 下移」只是改库、界面看不到效果。
+    order = await asyncio.to_thread(_local_area_order, request)
+    rows = [{"id": str(a.get("area_id") or ""), "name": str(a.get("name") or a.get("area_id") or "")} for a in areas]
+    rows.sort(key=lambda row: (order.get(row["id"], 1 << 30), row["name"]))
     return {
-        "areas": [
-            {"id": str(a.get("area_id") or ""), "name": str(a.get("name") or a.get("area_id") or "")}
-            for a in areas
-        ],
+        "areas": rows,
         "registryDegraded": degraded,
         "registryError": ha_connector.get_registry_degraded_reason() if degraded else None,
     }
+
+
+def _apply_entity_order(
+    request: Request, area_id: str, entities: list[dict[str, Any]], sort: str | None
+) -> list[dict[str, Any]]:
+    """按本地 ``ha_area_entity_order`` 重排房间内实体。
+
+    显式 ``sort``（非默认 ``name_asc``）时不动：用户已经用查询参数表达了别的排序意图。
+    没有覆盖记录的实体保持原有相对顺序，排在已排序实体之后（稳定排序保证这一点）。
+    """
+    if str(sort or "").strip():
+        return entities
+    with request.app.state.database.session_factory() as database:
+        connection = active_connection(database)
+        if connection is None:
+            return entities
+        rows = database.execute(
+            select(HAAreaEntityOrder.entity_id, HAAreaEntityOrder.sort_order).where(
+                HAAreaEntityOrder.connection_id == connection.id,
+                HAAreaEntityOrder.area_id == area_id,
+            )
+        ).all()
+    if not rows:
+        return entities
+    order = {str(entity_id): int(sort_order or 0) for entity_id, sort_order in rows}
+    fallback = len(order) + 1_000_000
+    return sorted(
+        entities,
+        key=lambda item: order.get(str(item.get("entity_id") or ""), fallback),
+    )
+
+
+def _local_area_order(request: Request) -> dict[str, int]:
+    """本地房间顺序覆盖（``areaId → sortOrder``）；未配置的房间不出现。"""
+    with request.app.state.database.session_factory() as database:
+        connection = active_connection(database)
+        if connection is None:
+            return {}
+        rows = database.execute(
+            select(HAArea.area_id, HAArea.sort_order).where(HAArea.connection_id == connection.id)
+        ).all()
+        return {str(area_id): int(sort_order or 0) for area_id, sort_order in rows if int(sort_order or 0) != 0}
 
 
 @router.get("/{entity_id}/references")

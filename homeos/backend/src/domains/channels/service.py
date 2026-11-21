@@ -29,6 +29,7 @@ def _webpush_outcome_state(outcome: Any) -> str:
     # （调用方只在至少一个通道为 ok 且无 failed 时才记投递成功）。
     return "ok" if outcome is None or outcome else "failed"
 
+
 #: 群聊 @提及 后缀（如 ``/clear@bot`` → ``/clear``）
 _MENTION_SUFFIX_RE = re.compile(r"@[\w_]+$", re.IGNORECASE)
 
@@ -36,6 +37,11 @@ _MENTION_SUFFIX_RE = re.compile(r"@[\w_]+$", re.IGNORECASE)
 MAX_HISTORY = 16
 #: 同时在内存中维护的最大会话数；超出时淘汰最旧会话
 MAX_SESSIONS = 200
+#: 入站消息限流：单渠道用户每分钟最多 N 条（与 HTTP 对话的 20 次/分同量级）
+INBOUND_RATE_LIMIT = 12
+INBOUND_RATE_WINDOW_SECONDS = 60.0
+#: 入站限流用的共享状态命名空间
+INBOUND_RATE_NAMESPACE = "agent.channel.inbound"
 
 
 class ChannelsService:
@@ -60,6 +66,12 @@ class ChannelsService:
         self._sessions: OrderedDict[str, list[dict[str, str]]] = OrderedDict()
         #: 通道提供者注册表：名称 → 提供者实例
         self._providers: dict[str, Any] = {}
+        #: 入站限流用的共享状态（未注入时退化为进程内）
+        self._state_store: Any = None
+
+    def bind_state_store(self, store: Any = None) -> None:
+        """注入共享状态库：多 worker 时入站限流也按同一份计数。"""
+        self._state_store = store
 
     # 生命周期
     async def stop(self) -> None:
@@ -82,6 +94,30 @@ class ChannelsService:
         logger.info("消息通道分发服务已就绪（Email / WebPush / 企业微信）")
 
     # 渠道身份解析
+    async def _inbound_limited(self, msg: ChannelMessage) -> bool:
+        """入站限流：同一渠道同一用户每分钟最多 :data:`INBOUND_RATE_LIMIT` 条。
+
+        HTTP 对话链路有自己的限流，但渠道入站（企微回调）直接调用
+        ``agent.chat``，绕过了那一层：不限制的话，一个白名单用户连发消息就能
+        把家庭当天的 LLM 预算耗光（日预算一拦，全家当天都没法用）。
+        """
+        store = self._state_store
+        if store is None:
+            return False
+        key = f"{msg.channel}:{str(msg.from_user or '').lower()}"
+        try:
+            return not bool(
+                store.hit(
+                    INBOUND_RATE_NAMESPACE,
+                    key,
+                    limit=INBOUND_RATE_LIMIT,
+                    window_seconds=INBOUND_RATE_WINDOW_SECONDS,
+                )
+            )
+        except Exception as exc:  # 状态库异常时不拦截：限流是防滥用，不该让通道失效
+            logger.debug("通道入站限流判定失败，放行: %s", exc)
+            return False
+
     async def resolve_channel_actor(self, channel: str) -> Any:
         """解析渠道绑定的 HomeOS 用户作为 Agent 执行身份。
 
@@ -131,9 +167,7 @@ class ChannelsService:
         )
         return {"email": email, "webpush": webpush, "wecom": wecom}
 
-    async def send_external_alert(
-        self, channels: list[str], message: str, title: str | None = None
-    ) -> dict[str, str]:
+    async def send_external_alert(self, channels: list[str], message: str, title: str | None = None) -> dict[str, str]:
         """告警/系统通知的外部通道投递（Email / WebPush / 企业微信）。
 
         主动推送正文统一前置 ``[YYYY-MM-DD HH:mm:ss]`` 时间戳（Asia/Shanghai）。
@@ -150,42 +184,44 @@ class ChannelsService:
         status = await self.get_status()
         text = with_push_timestamp(message)
         results: dict[str, str] = {}
-
-        if "email" in channels:
-            if not (status["email"].get("enabled") and status["email"].get("configured")):
-                results["email"] = "skipped"
-            else:
-                try:
-                    ok = await self._email.send_text("", text, title)
-                    results["email"] = "ok" if ok else "failed"
-                except Exception as exc:
-                    logger.error("Email 告警投递失败: %s", exc)
-                    results["email"] = "failed"
-
-        if "webpush" in channels:
-            if not (status["webpush"].get("enabled") and status["webpush"].get("configured")):
-                results["webpush"] = "skipped"
-            else:
-                try:
-                    results["webpush"] = _webpush_outcome_state(
-                        await self._webpush.send_text("", text, title)
-                    )
-                except Exception as exc:
-                    logger.error("WebPush 告警投递失败: %s", exc)
-                    results["webpush"] = "failed"
-
-        if "wecom" in channels:
-            if not status["wecom"].get("enabled"):
-                results["wecom"] = "skipped"
-            else:
-                try:
-                    ok = await self._wecom.send_alert_broadcast(text, title)
-                    results["wecom"] = "ok" if ok else "failed"
-                except Exception as exc:
-                    logger.error("企业微信告警投递失败: %s", exc)
-                    results["wecom"] = "failed"
-
+        for channel in channels:
+            if channel in ("email", "webpush", "wecom"):
+                results[channel] = await self._send_external_channel(channel, status, text, title)
         return results
+
+    async def _send_external_channel(self, channel: str, status: dict[str, Any], text: str, title: str | None) -> str:
+        """投递单个外部通道；返回 ``ok`` / ``failed`` / ``skipped``。"""
+        if channel == "email":
+            return await self._send_email(status, text, title)
+        if channel == "webpush":
+            if not (status["webpush"].get("enabled") and status["webpush"].get("configured")):
+                return "skipped"
+            try:
+                return _webpush_outcome_state(await self._webpush.send_text("", text, title))
+            except Exception as exc:
+                logger.error("WebPush 告警投递失败: %s", exc)
+                return "failed"
+        if channel == "wecom":
+            if not status["wecom"].get("enabled"):
+                return "skipped"
+            try:
+                ok = await self._wecom.send_alert_broadcast(text, title)
+                return "ok" if ok else "failed"
+            except Exception as exc:
+                logger.error("企业微信告警投递失败: %s", exc)
+                return "failed"
+        return "skipped"
+
+    async def _send_email(self, status: dict[str, Any], text: str, title: str | None) -> str:
+        """Email 通道（独立成方法，压掉 ``_send_external_channel`` 的分支数）。"""
+        if not (status["email"].get("enabled") and status["email"].get("configured")):
+            return "skipped"
+        try:
+            ok = await self._email.send_text("", text, title)
+            return "ok" if ok else "failed"
+        except Exception as exc:
+            logger.error("Email 告警投递失败: %s", exc)
+            return "failed"
 
     # 会话历史
     def clear_session(self, session_key: str) -> None:
@@ -216,12 +252,22 @@ class ChannelsService:
         trimmed = msg.content.strip()
         first_token = trimmed.split()[0] if trimmed.split() else ""
         command = _MENTION_SUFFIX_RE.sub("", first_token).lower()
+        if await self._inbound_limited(msg):
+            logger.warning("通道入站消息被限流: %s %s", msg.channel, msg.from_user)
+            await provider.send_text(msg.chat_id, "消息过于频繁，请稍后再试。")
+            return
         if command == "/clear" or trimmed == "清除记忆":
             self.clear_session(msg.session_key)
+            # 只清「本通道会话」+（已绑定用户时）该用户自己的记忆。
+            # 旧实现无身份调用 agent.chat("清除记忆")：指令缓存按「未绑定 = 全局」清空，
+            # 企微里一句 /clear 会把所有账号学会的指令映射一起删掉。
             try:
-                await self._agent.chat("清除记忆")
-            except Exception:  # 会话已清空即达成语义，回声失败只影响回显
-                logger.debug("handle_channel_message 忽略异常", exc_info=True)
+                actor = await self.resolve_channel_actor(msg.channel)
+                if actor is not None:
+                    options = self._build_options(actor)
+                    await self._agent.chat("清除记忆", None, options)
+            except Exception:  # 会话已清空即达成语义，记忆清理失败只影响回显
+                logger.debug("清除通道记忆失败", exc_info=True)
             await provider.send_text(msg.chat_id, "已清除本对话记忆。")
             return
 
@@ -261,4 +307,10 @@ class ChannelsService:
         return AgentChatOptions(actor=actor, entry="wecom")
 
 
-__all__ = ["MAX_HISTORY", "MAX_SESSIONS", "ChannelsService"]
+__all__ = [
+    "INBOUND_RATE_LIMIT",
+    "INBOUND_RATE_NAMESPACE",
+    "MAX_HISTORY",
+    "MAX_SESSIONS",
+    "ChannelsService",
+]

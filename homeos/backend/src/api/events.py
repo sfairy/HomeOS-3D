@@ -139,6 +139,27 @@ def get_report_compare(
     )
 
 
+@router.get("/reports/energy/history")
+def get_energy_history(
+    request: Request,
+    range: str | None = Query(default=None),
+    entity_ids: str | None = Query(default=None),
+    user: dict[str, Any] = Depends(require_user),
+):
+    """能耗历史：``W`` 近 7 天 / ``M`` 近 30 天 / ``Y`` 近 12 个月（直接读日/月聚合表）。
+
+    SGCC 日列表与实时累计表都落在这两张表里，因此国网账户不依赖 HA 历史即可出图。
+    """
+    require_license_feature(request, feature_codes.FEATURE_ENERGY)
+    restrictions = resolve_entity_restrictions(user)
+    ids = [part.strip() for part in (entity_ids or "").split(",") if part.strip()] or None
+    if ids and restrictions is not None:
+        for entity_id in ids:
+            if not is_entity_allowed(entity_id, restrictions):
+                forbidden("无权查看该实体的报表数据")
+    return _service(request).query_energy_history(range, ids, restrictions)
+
+
 @router.delete("")
 async def clear_all(request: Request, user: dict[str, Any] = Depends(require_user)):
     # 清空是全表分批删除（上限 500 批 × 默认 800 行），在事件循环里同步跑会把其它请求

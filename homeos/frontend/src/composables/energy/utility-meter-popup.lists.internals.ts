@@ -2,7 +2,7 @@
  * @file utility-meter-popup.lists.internals.ts
  * @module frontend/src/composables/energy
  */
-import { ref, computed, watch, type ComputedRef } from 'vue'
+import { ref, computed, watch, type ComputedRef, type Ref } from 'vue'
 import { resolveAccountEntityIds, normalizeEnergySource } from '@/shared/energy/utils/source.util'
 import { readPopupField } from '@/shared/energy/utils/popup-read.util'
 import { readPopupAttr, parseJsonAttr, parseNumAttr } from '@/shared/energy'
@@ -134,6 +134,40 @@ function buildPatchedYearlist(
   return patched
 }
 
+/**
+ * 服务端列表与属性列表二选一，并把属性条目的额外字段（费用、日期说明）合并回来。
+ *
+ * 规则分三种情况：
+ * - 属性列表为空：直接用服务端（这是「集成只暴露余额实体」时唯一的出图来源）；
+ * - 只有单个账户（`serverWins`）：服务端条目不短于属性列表就用服务端 —— 服务端来自
+ *   日/月聚合表，含回填与国网 30 天列表，比单个实体的属性更完整；
+ * - 多账户：属性列表按户号各自独立，服务端聚合表只有「全家合计」，套到每个户号上
+ *   会把别家的用量算进来，所以此时属性优先。
+ *
+ * 合并时条目本身（用量/日期）以服务端为准，属性只补服务端没有的字段（如
+ * `dayEleCost`），这样费用列不会因为切换数据源而变成 `--`。
+ */
+function preferServerList(attrRaw: unknown, serverRaw: unknown, serverWins: boolean): unknown {
+  const attrList = Array.isArray(attrRaw) ? attrRaw : []
+  const serverList = Array.isArray(serverRaw) ? serverRaw : []
+  if (!serverList.length) return attrList.length ? attrList : attrRaw
+  if (!serverWins && attrList.length) return attrList
+  if (serverList.length < attrList.length) return attrList.length ? attrList : attrRaw
+  const attrByLabel = new Map<string, Record<string, unknown>>()
+  for (const item of attrList) {
+    if (!item || typeof item !== 'object') continue
+    const row = item as Record<string, unknown>
+    const label = String(row.day ?? row.month ?? row.date ?? '')
+    if (label) attrByLabel.set(label, row)
+  }
+  return serverList.map((item) => {
+    if (!item || typeof item !== 'object') return item
+    const row = item as Record<string, unknown>
+    const rich = attrByLabel.get(String(row.day ?? row.month ?? ''))
+    return rich ? { ...rich, ...row } : row
+  })
+}
+
 export function createUtilityMeterLists(opts: {
   popField: (key: string) => unknown
   popNum: (key: string) => number | null
@@ -141,14 +175,29 @@ export function createUtilityMeterLists(opts: {
   parseDayItem: (x: Record<string, unknown>) => UtilityMeterParsedItem
   parseMonthItem: (x: Record<string, unknown>) => UtilityMeterParsedItem
   parseYearItem: (x: Record<string, unknown>) => UtilityMeterParsedItem
+  /** 服务端聚合列表（仅电费账户提供）：单账户时优先，多账户时只做兜底 */
+  server?: {
+    day: Ref<Record<string, unknown>[]>
+    month: Ref<Record<string, unknown>[]>
+    wins: Ref<boolean>
+  }
 }) {
   const { popField, popNum, ent, parseDayItem, parseMonthItem, parseYearItem } = opts
 
-  const rawDaylist = computed(
-    () => parseJsonAttr(popField('daylist')) ?? parseJsonAttr(readPopupAttr(ent.value, 'daylist')),
+  const serverWins = computed(() => opts.server?.wins.value ?? false)
+  const rawDaylist = computed(() =>
+    preferServerList(
+      parseJsonAttr(popField('daylist')) ?? parseJsonAttr(readPopupAttr(ent.value, 'daylist')),
+      opts.server?.day.value,
+      serverWins.value,
+    ),
   )
-  const rawMonthlist = computed(
-    () => parseJsonAttr(popField('monthlist')) ?? parseJsonAttr(readPopupAttr(ent.value, 'monthlist')),
+  const rawMonthlist = computed(() =>
+    preferServerList(
+      parseJsonAttr(popField('monthlist')) ?? parseJsonAttr(readPopupAttr(ent.value, 'monthlist')),
+      opts.server?.month.value,
+      serverWins.value,
+    ),
   )
   const rawYearlist = computed(
     () => parseJsonAttr(popField('yearlist')) ?? parseJsonAttr(readPopupAttr(ent.value, 'yearlist')),

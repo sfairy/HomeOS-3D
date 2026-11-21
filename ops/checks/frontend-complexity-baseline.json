@@ -1,9 +1,9 @@
 {
   "totals": {
-    "functions": 28392,
-    "gt10": 1311,
+    "functions": 28817,
+    "gt10": 1314,
     "gt15": 717,
-    "gt80": 804
+    "gt80": 806
   },
   "files": {
     "homeos-store/frontend/src/features/admin/components/RowMenu.vue": {
@@ -258,6 +258,13 @@
       "gt80": 1,
       "max": 11
     },
+    "homeos/frontend/src/composables/energy/useUtilityMeterPopup.ts": {
+      "functions": 4,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 1
+    },
     "homeos/frontend/src/composables/energy/utility-meter-popup.calendar.internals.ts": {
       "functions": 13,
       "gt10": 0,
@@ -271,6 +278,13 @@
       "gt15": 0,
       "gt80": 1,
       "max": 12
+    },
+    "homeos/frontend/src/composables/energy/utility-meter-popup.lists.internals.ts": {
+      "functions": 36,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 1,
+      "max": 16
     },
     "homeos/frontend/src/composables/entity/device-group/useDeviceGroupBatch.ts": {
       "functions": 28,
@@ -804,6 +818,13 @@
       "gt80": 0,
       "max": 13
     },
+    "homeos/frontend/src/features/settings/automate/SettingsAutomationDraftsPanel.vue": {
+      "functions": 59,
+      "gt10": 1,
+      "gt15": 0,
+      "gt80": 0,
+      "max": 12
+    },
     "homeos/frontend/src/features/settings/automate/composables/presence-linkage.internals.ts": {
       "functions": 19,
       "gt10": 1,
@@ -924,7 +945,7 @@
       "max": 7
     },
     "homeos/frontend/src/features/settings/display/composables/layout-dashboard-embeds.internals.ts": {
-      "functions": 29,
+      "functions": 28,
       "gt10": 0,
       "gt15": 0,
       "gt80": 1,
@@ -972,6 +993,13 @@
       "gt80": 0,
       "max": 11
     },
+    "homeos/frontend/src/features/settings/interact/SettingsMediaPanel.vue": {
+      "functions": 31,
+      "gt10": 1,
+      "gt15": 0,
+      "gt80": 0,
+      "max": 11
+    },
     "homeos/frontend/src/features/settings/interact/alert-rules/AlertRulesEarthquakeHero.vue": {
       "functions": 3,
       "gt10": 1,
@@ -980,7 +1008,7 @@
       "max": 11
     },
     "homeos/frontend/src/features/settings/interact/composables/agent-panel-chat.internals.ts": {
-      "functions": 41,
+      "functions": 47,
       "gt10": 0,
       "gt15": 0,
       "gt80": 1,
@@ -994,11 +1022,11 @@
       "max": 16
     },
     "homeos/frontend/src/features/settings/interact/composables/agent-panel.internals.ts": {
-      "functions": 69,
+      "functions": 76,
       "gt10": 1,
-      "gt15": 1,
+      "gt15": 0,
       "gt80": 1,
-      "max": 20
+      "max": 11
     },
     "homeos/frontend/src/features/settings/interact/composables/alert-rules-condition.internals.ts": {
       "functions": 10,
@@ -1015,7 +1043,7 @@
       "max": 5
     },
     "homeos/frontend/src/features/settings/interact/composables/alert-rules-crud.internals.ts": {
-      "functions": 6,
+      "functions": 7,
       "gt10": 1,
       "gt15": 0,
       "gt80": 1,
@@ -1203,8 +1231,8 @@
       "gt80": 1,
       "max": 70
     },
-    "homeos/frontend/src/services/api/agent.ts": {
-      "functions": 31,
+    "homeos/frontend/src/services/api/agent-stream.ts": {
+      "functions": 14,
       "gt10": 3,
       "gt15": 2,
       "gt80": 2,
@@ -1232,7 +1260,7 @@
       "max": 12
     },
     "homeos/frontend/src/shared/camera/composables/useGo2RtcMseTransport.ts": {
-      "functions": 36,
+      "functions": 38,
       "gt10": 3,
       "gt15": 0,
       "gt80": 2,
@@ -1488,7 +1516,7 @@
       "gt10": 1,
       "gt15": 1,
       "gt80": 0,
-      "max": 32
+      "max": 30
     },
     "homeos/frontend/src/shared/utils/config/system-config/field.util.ts": {
       "functions": 6,
@@ -1523,7 +1551,7 @@
       "gt10": 1,
       "gt15": 0,
       "gt80": 0,
-      "max": 14
+      "max": 13
     },
     "homeos/frontend/src/shared/utils/perf/adaptive-perf.util.ts": {
       "functions": 9,
@@ -1533,7 +1561,7 @@
       "max": 17
     },
     "homeos/frontend/src/shared/utils/registry/settings-route.util.ts": {
-      "functions": 31,
+      "functions": 32,
       "gt10": 1,
       "gt15": 0,
       "gt80": 0,
@@ -1768,7 +1796,7 @@
       "gt10": 2,
       "gt15": 1,
       "gt80": 3,
-      "max": 24
+      "max": 25
     },
     "homeos/frontend/src/stores/ui/create-layout-profile-actions.ts": {
       "functions": 9,
@@ -2216,7 +2244,7 @@
       "gt10": 1,
       "gt15": 1,
       "gt80": 1,
-      "max": 60
+      "max": 59
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/interaction/hitTestPlanItem.ts": {
       "functions": 2,
@@ -2240,7 +2268,7 @@
       "max": 6
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/interaction/pointer-input.ts": {
-      "functions": 17,
+      "functions": 18,
       "gt10": 2,
       "gt15": 2,
       "gt80": 2,
@@ -2597,7 +2625,7 @@
       "max": 3
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/overlap-and-preview-wiring.ts": {
-      "functions": 25,
+      "functions": 28,
       "gt10": 1,
       "gt15": 1,
       "gt80": 0,
@@ -3059,7 +3087,7 @@
       "max": 18
     },
     "homeos/frontend/src/studio/app/bridge/bridge.ts": {
-      "functions": 32,
+      "functions": 33,
       "gt10": 1,
       "gt15": 1,
       "gt80": 2,
@@ -3185,7 +3213,7 @@
       "max": 7
     },
     "homeos/frontend/src/studio/app/display/display.ts": {
-      "functions": 46,
+      "functions": 51,
       "gt10": 7,
       "gt15": 4,
       "gt80": 3,
@@ -3444,11 +3472,11 @@
       "max": 9
     },
     "homeos/frontend/src/studio/app/editor/home/lifecycle/floorplan-messages.ts": {
-      "functions": 34,
+      "functions": 35,
       "gt10": 3,
       "gt15": 3,
       "gt80": 4,
-      "max": 63
+      "max": 57
     },
     "homeos/frontend/src/studio/app/editor/home/lifecycle/navigation-style-wiring.ts": {
       "functions": 63,
@@ -3507,7 +3535,7 @@
       "max": 25
     },
     "homeos/frontend/src/studio/app/editor/home/workspace/workspace-history.ts": {
-      "functions": 61,
+      "functions": 62,
       "gt10": 8,
       "gt15": 4,
       "gt80": 2,
@@ -4389,7 +4417,7 @@
       "max": 26
     },
     "homeos/frontend/src/studio/runtime/config-ui/config-editor/rendering/panel-assembly.ts": {
-      "functions": 272,
+      "functions": 273,
       "gt10": 11,
       "gt15": 4,
       "gt80": 6,
@@ -4431,7 +4459,7 @@
       "max": 10
     },
     "homeos/frontend/src/studio/runtime/config-ui/configuration-picker.ts": {
-      "functions": 9,
+      "functions": 14,
       "gt10": 1,
       "gt15": 1,
       "gt80": 1,
@@ -4550,7 +4578,7 @@
       "max": 75
     },
     "homeos/frontend/src/studio/runtime/core/stage.ts": {
-      "functions": 743,
+      "functions": 745,
       "gt10": 24,
       "gt15": 11,
       "gt80": 9,
@@ -4998,7 +5026,7 @@
       "max": 73
     },
     "homeos/frontend/src/studio/runtime/security/security-editor.ts": {
-      "functions": 237,
+      "functions": 240,
       "gt10": 8,
       "gt15": 4,
       "gt80": 5,

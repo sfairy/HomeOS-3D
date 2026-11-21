@@ -23,53 +23,53 @@
     "ops"
   ],
   "totals": {
-    "sources": 3424,
-    "lines": 667278,
+    "sources": 3515,
+    "lines": 690031,
     "clones": 157,
-    "duplicatedLines": 2623,
-    "percentage": 0.3931,
-    "tokens": 3901424,
-    "duplicatedTokens": 12659
+    "duplicatedLines": 2613,
+    "percentage": 0.3787,
+    "tokens": 4038901,
+    "duplicatedTokens": 12698
   },
   "byFormat": {
     "css": {
-      "sources": 34,
-      "lines": 2765,
+      "sources": 35,
+      "lines": 2816,
       "duplicatedLines": 0,
       "percentage": 0,
       "clones": 0
     },
     "html": {
-      "sources": 405,
-      "lines": 27952,
+      "sources": 413,
+      "lines": 28232,
       "duplicatedLines": 275,
-      "percentage": 0.9838,
+      "percentage": 0.9741,
       "clones": 20
     },
     "javascript": {
-      "sources": 282,
-      "lines": 39150,
+      "sources": 293,
+      "lines": 41556,
       "duplicatedLines": 188,
-      "percentage": 0.4802,
+      "percentage": 0.4524,
       "clones": 13
     },
     "python": {
-      "sources": 607,
-      "lines": 147595,
-      "duplicatedLines": 494,
-      "percentage": 0.3347,
-      "clones": 37
+      "sources": 647,
+      "lines": 159566,
+      "duplicatedLines": 523,
+      "percentage": 0.3278,
+      "clones": 39
     },
     "typescript": {
-      "sources": 1682,
-      "lines": 367421,
-      "duplicatedLines": 1666,
-      "percentage": 0.4534,
-      "clones": 87
+      "sources": 1705,
+      "lines": 372055,
+      "duplicatedLines": 1627,
+      "percentage": 0.4373,
+      "clones": 85
     },
     "vue": {
-      "sources": 414,
-      "lines": 82395,
+      "sources": 422,
+      "lines": 85806,
       "duplicatedLines": 0,
       "percentage": 0,
       "clones": 0
@@ -101,10 +101,10 @@
       "lines": 16
     },
     {
-      "fingerprint": "057c2bcf961154c7398a6a90a5321b7f67ac1bf7",
-      "first": "homeos/frontend/src/features/settings/nav.ts",
-      "second": "homeos/frontend/src/shared/utils/registry/settings-header-icons.ts",
-      "lines": 20
+      "fingerprint": "065a5b7a5b79689472b11ee556db5137d68d459b",
+      "first": "homeos/backend/src/domains/agent/policy/scheduler.py",
+      "second": "homeos/backend/src/domains/agent/policy/scheduler.py",
+      "lines": 11
     },
     {
       "fingerprint": "071709a857f406dde9215ac0aeb7c121b20772b1",
@@ -123,12 +123,6 @@
       "first": "homeos/frontend/src/features/settings/connect/bindings/SettingsBindingsAccountSection.vue",
       "second": "homeos/frontend/src/features/settings/connect/bindings/SettingsBindingsAccountSection.vue",
       "lines": 15
-    },
-    {
-      "fingerprint": "0e78411d36199e8e532e05b39f595a457aa120b4",
-      "first": "homeos/backend/src/domains/logs/event_log.py",
-      "second": "homeos/backend/src/domains/logs/event_log.py",
-      "lines": 11
     },
     {
       "fingerprint": "0ef7a02942fdf5b598d47e3bf2712a8cd66c17ca",
@@ -239,6 +233,12 @@
       "lines": 16
     },
     {
+      "fingerprint": "2b6fb7152e9742f9c1a8fd677ee209dbd5dffafb",
+      "first": "homeos/backend/src/api/device_profile.py",
+      "second": "homeos/backend/src/api/media.py",
+      "lines": 19
+    },
+    {
       "fingerprint": "2bac10a7270a1652ec410377e60c6ef460f655c6",
       "first": "ops/checks/check_any_baseline.mjs",
       "second": "ops/checks/check_hardcoded_styles.mjs",
@@ -267,12 +267,6 @@
       "first": "homeos/backend/src/domains/retention/service.py",
       "second": "homeos/backend/src/domains/weather/watch.py",
       "lines": 12
-    },
-    {
-      "fingerprint": "3176ee22f18a99ca2a25003a75e3ac12b7f1e6f2",
-      "first": "homeos/backend/src/domains/agent/policy/proactive.py",
-      "second": "homeos/backend/src/domains/agent/tools/home_tools_entities.py",
-      "lines": 13
     },
     {
       "fingerprint": "3449a41b146acbceb3af373bcb6a98905efb2e77",
@@ -377,12 +371,6 @@
       "lines": 13
     },
     {
-      "fingerprint": "4a7aea773aaf44557415826c233fdfa36e031999",
-      "first": "homeos/backend/src/domains/agent/policy/scheduler.py",
-      "second": "homeos/backend/src/domains/agent/policy/watchdog.py",
-      "lines": 13
-    },
-    {
       "fingerprint": "4e606bfcf937eaa9c7edcef104228f74bc48c435",
       "first": "homeos/frontend/src/features/settings/interact/SettingsAgentDiagnosticsSection.vue",
       "second": "homeos/frontend/src/features/settings/interact/SettingsAgentSchedulesSection.vue",
@@ -443,16 +431,16 @@
       "lines": 22
     },
     {
-      "fingerprint": "5989eef44cf6d4cd6df4c14707b7b2875e691137",
-      "first": "homeos/backend/src/domains/notification/dispatch.py",
-      "second": "homeos/backend/src/domains/notification/service.py",
-      "lines": 11
-    },
-    {
       "fingerprint": "59a35bd579b212d5f553b361db95c6100dccde89",
       "first": "homeos/frontend/src/studio/app/3d-studio/authoring/store/save-store.ts",
       "second": "homeos/frontend/src/studio/app/3d-studio/authoring/store/save-store.ts",
       "lines": 14
+    },
+    {
+      "fingerprint": "5c67155d6540cb5a27e7c914a3ed86b33edf68bd",
+      "first": "homeos/backend/src/domains/agent/policy/scheduler.py",
+      "second": "homeos/backend/src/domains/agent/policy/scheduler.py",
+      "lines": 12
     },
     {
       "fingerprint": "5c67155d6540cb5a27e7c914a3ed86b33edf68bd",
@@ -503,6 +491,12 @@
       "lines": 13
     },
     {
+      "fingerprint": "76a98aa7052df57f04ce1f5646c439ceb5b86433",
+      "first": "homeos/backend/src/domains/agent/learning/store.py",
+      "second": "homeos/backend/src/domains/agent/learning/store.py",
+      "lines": 11
+    },
+    {
       "fingerprint": "7ba7a42a3d91af96084a6da5ebd7c3b5e91843c6",
       "first": "homeos/frontend/src/features/settings/interact/AlertRulesPanel.vue",
       "second": "homeos/frontend/src/features/settings/interact/AlertRulesPanel.vue",
@@ -512,6 +506,12 @@
       "fingerprint": "7d9a421b0e9815aba63e3d36a5849e76d09a030e",
       "first": "homeos/frontend/src/features/settings/display/widgets/WidgetPanelRow.vue",
       "second": "homeos/frontend/src/features/settings/display/widgets/WidgetsHubSection.vue",
+      "lines": 14
+    },
+    {
+      "fingerprint": "7da8716f5955c784e5eb2b7f9fd301de03688fc6",
+      "first": "homeos/backend/src/api/ha/routes.py",
+      "second": "homeos/backend/src/api/ha/routes.py",
       "lines": 14
     },
     {
@@ -785,6 +785,12 @@
       "lines": 42
     },
     {
+      "fingerprint": "be6d29c3ddb3cfc949ce402517e6cb7725bcdd71",
+      "first": "homeos/backend/src/domains/agent/policy/scheduler.py",
+      "second": "homeos/backend/src/domains/agent/policy/watchdog.py",
+      "lines": 13
+    },
+    {
       "fingerprint": "bf848fa91fc17809df130857ef0c1b8bdbfbfb89",
       "first": "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/boot.ts",
       "second": "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/studio-render-loop.ts",
@@ -893,6 +899,12 @@
       "lines": 30
     },
     {
+      "fingerprint": "e1930b2896e260c86b98764e9847ea8e95f5d87f",
+      "first": "homeos/backend/src/domains/notification/dispatch.py",
+      "second": "homeos/backend/src/domains/notification/service.py",
+      "lines": 11
+    },
+    {
       "fingerprint": "e21c253e6296ef23161a65ad84c4d24ffe5f7447",
       "first": "homeos/frontend/src/studio/app/renderer/panel-renderer.ts",
       "second": "homeos/frontend/src/studio/app/renderer/panel-seams/render-component.ts",
@@ -923,12 +935,6 @@
       "lines": 27
     },
     {
-      "fingerprint": "e8eea16eb658cec88acfd7fe3c1501adaadd60d3",
-      "first": "homeos/frontend/src/composables/ui/screensaver/screensaver.defaults.ts",
-      "second": "homeos/frontend/src/shared/utils/config/frontend-config.ts",
-      "lines": 19
-    },
-    {
       "fingerprint": "ea03aa34302e1cc4296b153f74e446e7d280a4a0",
       "first": "homeos/frontend/src/components/entities/popups/AnchoredPopupShell.vue",
       "second": "homeos/frontend/src/components/entities/popups/AnchoredPopupShell.vue",
@@ -939,6 +945,12 @@
       "first": "homeos/frontend/src/composables/entity/useEntity.ts",
       "second": "homeos/frontend/src/composables/entity/useEntityProjection.ts",
       "lines": 14
+    },
+    {
+      "fingerprint": "eb53445a3c7bae2796f92647e9a9e412d86ecf8b",
+      "first": "homeos/backend/src/api/entities.py",
+      "second": "homeos/backend/src/api/system/lifestyle.py",
+      "lines": 13
     },
     {
       "fingerprint": "ec027c42d16b1856d53b70879d4598785de54aa7",
@@ -977,12 +989,6 @@
       "lines": 13
     },
     {
-      "fingerprint": "f5f66027b5c6291c266c4abff6c7257d93ca3000",
-      "first": "homeos/backend/src/api/ha/routes.py",
-      "second": "homeos/backend/src/api/ha/routes.py",
-      "lines": 14
-    },
-    {
       "fingerprint": "f6335160ea1e68c66874519e05bd95c21d3889f6",
       "first": "homeos/frontend/src/features/notifications/components/ViewHero.vue",
       "second": "homeos/frontend/src/features/notifications/components/ViewStream.vue",
@@ -1005,12 +1011,6 @@
       "first": "homeos/frontend/src/studio/runtime/environment/device-mist.ts",
       "second": "homeos/frontend/src/studio/runtime/environment/rangehood-airflow.ts",
       "lines": 15
-    },
-    {
-      "fingerprint": "fd7648eaeb33ebf96401d3d00cdf5cd3a3666d4c",
-      "first": "homeos/backend/src/api/entities.py",
-      "second": "homeos/backend/src/api/system/lifestyle.py",
-      "lines": 13
     },
     {
       "fingerprint": "fef206b264e3b632b51a62abe864efe4a3ef335a",

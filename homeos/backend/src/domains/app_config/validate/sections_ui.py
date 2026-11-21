@@ -264,7 +264,7 @@ def _validate_voice_server_tts(section: str, payload: dict[str, Any], errors: li
         base = str(payload["ttsApiBase"] or "").strip()
         if base and not base.startswith(("http://", "https://")):
             errors.append({"section": section, "key": "ttsApiBase", "message": "须为 http(s) 地址"})
-    for key in ("ttsVoice", "ttsFormat", "ttsModel", "ttsApiKey"):
+    for key in ("ttsVoice", "ttsModel", "ttsApiKey"):
         if key in payload and not isinstance(payload[key], str):
             errors.append({"section": section, "key": key, "message": "须为字符串"})
 

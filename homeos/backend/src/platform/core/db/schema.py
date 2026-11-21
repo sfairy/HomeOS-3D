@@ -33,7 +33,13 @@ LOGGER = logging.getLogger("homeos.platform.core.schema")
 
 
 def _metadata() -> MetaData:
-    from . import models  # noqa: F401  # 注册模型到 Base.metadata  # pyright: ignore[reportUnusedImport]
+    from . import (
+        automation_models,  # noqa: F401  # 注册自动化草案模型  # pyright: ignore[reportUnusedImport]
+        device_profile_models,  # noqa: F401  # 注册设备画像模型  # pyright: ignore[reportUnusedImport]
+        learning_models,  # noqa: F401  # 注册学习体系模型  # pyright: ignore[reportUnusedImport]
+        media_models,  # noqa: F401  # 注册媒体入库模型  # pyright: ignore[reportUnusedImport]
+        models,  # noqa: F401  # 注册模型到 Base.metadata  # pyright: ignore[reportUnusedImport]
+    )
     from .database import Base
 
     return Base.metadata
@@ -81,9 +87,7 @@ def prepare_schema(settings: Settings) -> None:
             # check 是只读探测：不仅不能执行迁移，也不能用 create_all 顺手补表。
             missing = missing_schema_objects(database.engine, metadata)
             if missing:
-                raise SchemaError(
-                    "check 模式发现库结构缺口（未做任何修改）：\n  - " + "\n  - ".join(missing)
-                )
+                raise SchemaError("check 模式发现库结构缺口（未做任何修改）：\n  - " + "\n  - ".join(missing))
         else:
             # 旧库可能缺少 ORM 后来新增的表/索引；迁移负责改列与数据，create_all 只补新增对象。
             ensure_schema(metadata, database.engine)

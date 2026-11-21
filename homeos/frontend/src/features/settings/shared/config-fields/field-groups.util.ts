@@ -11,19 +11,7 @@ const SECTION_FIELD_GROUPS: Record<string, FieldGroupDef[]> = {
     {
       id: 'patrol',
       label: '巡检与冷却',
-      match: [
-        'sensorAlertCooldownSec',
-        'emergencyCooldownSec',
-        'awayConfirmMin',
-        'homeConfirmMin',
-        'bathroom*',
-        'bedroom*',
-        'kitchen*',
-        'wholeHouse*',
-        'deepNight*',
-        'night*',
-        'configCacheTtlMs',
-      ],
+      match: ['sensorAlertCooldownSec', 'emergencyCooldownSec', 'awayConfirmMin', 'homeConfirmMin', 'configCacheTtlMs'],
     },
     {
       id: 'away-sim',
@@ -47,7 +35,7 @@ const SECTION_FIELD_GROUPS: Record<string, FieldGroupDef[]> = {
     {
       id: 'score',
       label: '空气质量 IAQ',
-      match: ['iaq*', 'moldAlertCooldownMin'],
+      match: ['moldAlertCooldownMin'],
     },
   ],
   water: [
@@ -81,7 +69,7 @@ const SECTION_FIELD_GROUPS: Record<string, FieldGroupDef[]> = {
     {
       id: 'audit-history',
       label: '审计与执行历史',
-      match: ['configAudit*', 'sceneExec*', 'scriptExec*', 'orchestrator*'],
+      match: ['configAudit*'],
     },
   ],
   frontend: [
@@ -109,7 +97,7 @@ const SECTION_FIELD_GROUPS: Record<string, FieldGroupDef[]> = {
     {
       id: 'widget',
       label: 'Widget 轮询',
-      match: ['defaultWidget*', 'widgetPoll*', 'maxRemote*'],
+      match: ['widgetPoll*', 'maxRemote*'],
     },
   ],
   haConnector: [
@@ -121,7 +109,7 @@ const SECTION_FIELD_GROUPS: Record<string, FieldGroupDef[]> = {
     {
       id: 'registry',
       label: '实体注册表',
-      match: ['entityRegistry*', 'historyCache*'],
+      match: ['historyCache*'],
     },
     {
       id: 'ingress',
@@ -133,7 +121,7 @@ const SECTION_FIELD_GROUPS: Record<string, FieldGroupDef[]> = {
     {
       id: 'cache',
       label: '缓存与陈旧',
-      match: ['maxRecent*', 'restCache*', 'stale*', 'initialStates*'],
+      match: ['maxRecent*', 'stale*', 'initialStates*'],
     },
   ],
   wsPush: [

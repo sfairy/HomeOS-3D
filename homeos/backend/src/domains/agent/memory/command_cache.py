@@ -107,7 +107,7 @@ def _dump(value: Any) -> str:
     """对齐 JS ``JSON.stringify`` 的对象比较语义（保序、不转义中文）。"""
     try:
         return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError):  # fmt: skip
         return ""
 
 
@@ -129,6 +129,37 @@ class CommandCacheService:
         self._loaded_scopes: set[str] = set()
         #: 「同一句原话学到不同参数」的封禁表：key → 解禁时间(ms)
         self._unstable: dict[str, int] = {}
+        #: 运行指标（与参考实现同名）：只做进程内累计，重启清零
+        self._metrics: dict[str, int] = {
+            "totalRequests": 0,
+            "fastPathHits": 0,
+            "cacheHits": 0,
+            "llmCalls": 0,
+            "success": 0,
+            "failed": 0,
+            "partial": 0,
+            "corrections": 0,
+            "correctionsAfterSuccess": 0,
+            "correctionsAfterFailure": 0,
+        }
+
+    def metrics(self) -> dict[str, int]:
+        """命令缓存运行指标（诊断页 / 影子回放用）。"""
+        return dict(self._metrics)
+
+    def record_llm_call(self) -> None:
+        self._metrics["llmCalls"] += 1
+
+    def record_outcome(self, outcome: str) -> None:
+        key = "success" if outcome == "success" else "partial" if outcome == "partial" else "failed"
+        self._metrics[key] += 1
+
+    def record_correction(self, previous_outcome: str = "") -> None:
+        self._metrics["corrections"] += 1
+        if previous_outcome == "success":
+            self._metrics["correctionsAfterSuccess"] += 1
+        elif previous_outcome:
+            self._metrics["correctionsAfterFailure"] += 1
 
     # 持久化
     @staticmethod
@@ -160,7 +191,7 @@ class CommandCacheService:
                 break
             try:
                 args = json.loads(row.tool_args or "{}")
-            except (TypeError, ValueError):
+            except (TypeError, ValueError):  # fmt: skip
                 args = {}
             key = f"{scope}::{row.cache_key}"
             self._cache.setdefault(
@@ -181,12 +212,16 @@ class CommandCacheService:
         payload = _dump(entry.tool_args) or "{}"
         try:
             with self._session_factory() as session:
-                row = session.execute(
-                    select(AgentCommandCacheRow).where(
-                        AgentCommandCacheRow.scope == scope,
-                        AgentCommandCacheRow.cache_key == normalized,
+                row = (
+                    session.execute(
+                        select(AgentCommandCacheRow).where(
+                            AgentCommandCacheRow.scope == scope,
+                            AgentCommandCacheRow.cache_key == normalized,
+                        )
                     )
-                ).scalars().first()
+                    .scalars()
+                    .first()
+                )
                 if row is None:
                     session.add(
                         AgentCommandCacheRow(
@@ -270,6 +305,7 @@ class CommandCacheService:
     # 读写
     def get(self, text: str, user_id: str | None = None) -> CacheEntry | None:
         """查询缓存（含未确认条目，由调用方检查 confirmed 决定是否执行）。"""
+        self._metrics["totalRequests"] += 1
         key = self.key_of(text, user_id)
         if self._is_unstable(key):
             logger.info('缓存已封禁(同一句话曾对应多组参数): "%s"', key)
@@ -281,6 +317,7 @@ class CommandCacheService:
                 logger.info('缓存命中(待确认): "%s" → %s', key, entry.tool_name)
                 return entry
             entry.hit_count += 1
+            self._metrics["cacheHits"] += 1
             # 命中在异步热路径上：逐次写库会阻塞事件循环，按固定间隔抽样落库
             if entry.hit_count % HIT_PERSIST_EVERY == 0:
                 self._persist(key, entry)
@@ -312,6 +349,7 @@ class CommandCacheService:
         tool_args: dict[str, Any],
         from_fast_path: bool,
         user_id: str | None = None,
+        verified_evidence: bool | None = None,
     ) -> None:
         """写入缓存。
 
@@ -341,11 +379,14 @@ class CommandCacheService:
             return
 
         if existing is None:
+            if from_fast_path:
+                self._metrics["fastPathHits"] += 1
             self._cache[key] = CacheEntry(
                 tool_name=tool_name,
                 tool_args=dict(tool_args or {}),
                 hit_count=0,
-                confirmed=from_fast_path,
+                # 有实证（VERIFIED）才确认；无实证时快路径仍沿用旧的「默认确认」口径。
+                confirmed=from_fast_path if verified_evidence is None else bool(verified_evidence),
             )
             logger.info(
                 '缓存学习(%s): "%s" → %s',
@@ -376,8 +417,9 @@ class CommandCacheService:
         # 映射一致：二次命中即确认（含 LLM 兜底路径，保留原有「二次验证」语义），
         # 且**永不**把已确认条目降级为未确认——否则 LLM 兜底会把快路径学到的
         # 可信缓存打回待确认，用户每次都要再确认一遍。
-        just_confirmed = not existing.confirmed
-        existing.confirmed = True
+        just_confirmed = not existing.confirmed and verified_evidence is not False
+        if verified_evidence is not False:
+            existing.confirmed = True
         existing.hit_count += 1
         if just_confirmed:
             logger.info('缓存自动确认(二次验证通过): "%s"', key)
@@ -461,25 +503,58 @@ class CommandCacheService:
         """当前缓存条目数。"""
         return len(self._cache)
 
-    def clear(self, user_id: str | None = None) -> None:
-        """清空指定用户（或全部）缓存与最近操作记录（对应“清除记忆”口令）。"""
+    def list_commands(self, user_id: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
+        """列出该用户已学会的「原话 → 工具」映射（设置页管理入口）。
+
+        只返回缓存里的条目（内存 + 已回填的库）；``confirmed=False`` 表示还没经过二次验证。
+        """
         scope = (user_id or "").strip() or ANONYMOUS_SCOPE
-        if scope == ANONYMOUS_SCOPE:
-            count = len(self._cache)
-            self._cache.clear()
-            self._unstable.clear()
-            self._last_action = None
-            self._clear_persisted(None)
-            logger.info("缓存已清空(%s条)", count)
-            return
+        self._ensure_loaded(scope)
+        rows: list[dict[str, Any]] = []
+        for key, entry in list(self._cache.items()):
+            entry_scope, normalized = self._split_key(key)
+            if entry_scope != scope:
+                continue
+            rows.append(
+                {
+                    "key": normalized,
+                    "toolName": entry.tool_name,
+                    "toolArgs": dict(entry.tool_args or {}),
+                    "hitCount": int(entry.hit_count or 0),
+                    "confirmed": bool(entry.confirmed),
+                }
+            )
+        rows.sort(key=lambda item: (-int(item["hitCount"]), item["key"]))
+        return rows[: max(1, int(limit or 100))]
+
+    def delete_command(self, user_id: str | None, cache_key: str) -> bool:
+        """按规范化原话删除一条缓存（设置页「删除」/「这条学错了」）。"""
+        normalized = self.normalize(cache_key)
+        if not normalized:
+            return False
+        key = self.key_of(normalized, user_id)
+        existed = self._forget(key)
+        # 同时解除封禁：用户主动删除通常就是要重新学一遍
+        self._unstable.pop(key, None)
+        logger.info('删除指令缓存(人工): "%s"', key)
+        return existed
+
+    def clear(self, user_id: str | None = None) -> None:
+        """清空**该用户命名空间**的缓存与最近操作记录（对应「清除记忆」口令）。
+
+        未绑定身份时只清匿名命名空间。旧实现把「未绑定」当成「清空全部」，
+        一次未绑定渠道的「清除记忆」就会删掉所有账号已学会的指令映射 —— 这属于
+        数据丢失，不是清记忆。
+        """
+        scope = (user_id or "").strip() or ANONYMOUS_SCOPE
         removed = 0
         for key in list(self._cache.keys()):
-            if key.startswith(f"{scope}::"):
+            if self._split_key(key)[0] == scope:
                 self._cache.pop(key, None)
                 removed += 1
-        for key in [item for item in self._unstable if item.startswith(f"{scope}::")]:
+        for key in [item for item in self._unstable if self._split_key(item)[0] == scope]:
             self._unstable.pop(key, None)
-        if self._last_action is not None and self._last_action.user_id == scope:
+        if self._last_action is not None and (self._last_action.user_id or "") == (user_id or ""):
             self._last_action = None
         self._clear_persisted(scope)
         logger.info("用户 [%s] 缓存已清空(%s条)", scope, removed)

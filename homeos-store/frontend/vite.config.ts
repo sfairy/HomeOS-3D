@@ -94,9 +94,21 @@ function classicIifePlugin(): Plugin {
  * 外壳必须留在挂载根之外，否则会作为 ``/store-static/index.html`` 被一并伺服。
  */
 function placeShellPlugin(): Plugin {
+  // 与主应用同款护栏：Rolldown 在 generateBundle / renderChunks 阶段失败时**不会调用
+  // writeBundle**，Vite 8 的 closeBundle 包装又丢掉了 error 参数 —— 若无条件断言外壳，
+  // 「构建中途失败」会被这条断言顶掉，终端里只剩一句「商店构建没有产出外壳」。
+  // 只有写盘真的跑过却没留下外壳，才是产物不完整。
+  let wroteBundle = false;
   return {
     name: "homeos-store-place-shell",
+    buildStart() {
+      wroteBundle = false;
+    },
+    writeBundle() {
+      wroteBundle = true;
+    },
     closeBundle() {
+      if (!wroteBundle) return;
       // 外壳缺失 = 产物不完整（空目录 / 被中途清空），交给共用助手报出 outDir 实际内容。
       assertSpaShellPresent(buildOutDir, "商店构建没有产出外壳：通常是 htmlInputs() 没找到 frontend/index.html。");
       const from = path.join(buildOutDir, SPA_ENTRY);

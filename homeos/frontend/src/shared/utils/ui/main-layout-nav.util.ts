@@ -25,6 +25,7 @@ import {
 } from '@/shared/utils/layout/nav-tabs.util'
 import { EMBED_TAB_ACCENTS, resolveEmbedNavAccent } from '@/shared/utils/layout/embed-nav-theme.util'
 import { embedIconMap } from '@/shared/utils/layout/embed-icons.util'
+import { resolveMoviePilotUrl } from '@/shared/utils/layout/moviepilot-url.util'
 
 /** 主布局各导航 Tab ID → 中文展示名映射 */
 const MAIN_LAYOUT_NAV_LABELS: Record<string, string> = {
@@ -102,6 +103,8 @@ type LayoutNavConfig = {
   navTabPlacement?: Record<string, NavTabPlacement | undefined>
   customEmbeds?: Array<{ id: string; name?: string; icon?: string }>
   moviePilotUrl?: string
+  /** 媒体库里的 MoviePilot 地址：与 moviePilotUrl 二选一即可（见 moviepilot-url.util） */
+  mediaConfig?: { mpUrl?: string } | null
 }
 
 type MainLayoutNavOptions = {
@@ -209,7 +212,7 @@ export function buildMainLayoutNavMenu(layout: LayoutNavConfig, options: MainLay
         accent: resolveEmbedNavAccent(embed, idx),
       })
     })
-  } else if (layout.moviePilotUrl) {
+  } else if (resolveMoviePilotUrl(layout)) {
     extraIds.push('media')
     tabDefs.set('media', {
       id: 'media',

@@ -155,6 +155,17 @@
               </span>
             </div>
           </div>
+          <div class="mt-2 flex items-center gap-2">
+            <button
+              type="button"
+              class="settings-btn-ghost text-xs"
+              :disabled="testingChannel === 'email'"
+              @click="sendTest('email')"
+            >
+              {{ testingChannel === 'email' ? '发送中…' : '发送测试邮件' }}
+            </button>
+            <span class="agent-field-hint">走与告警相同的出站路径；未启用 / 未配置会提示「已跳过」</span>
+          </div>
         </div>
       </div>
 
@@ -470,6 +481,17 @@
               </span>
             </div>
           </div>
+          <div class="mt-2 flex items-center gap-2">
+            <button
+              type="button"
+              class="settings-btn-ghost text-xs"
+              :disabled="testingChannel === 'wecom'"
+              @click="sendTest('wecom')"
+            >
+              {{ testingChannel === 'wecom' ? '发送中…' : '发送测试消息' }}
+            </button>
+            <span class="agent-field-hint">按 UserId 白名单推送；未配置凭据会提示「已跳过」</span>
+          </div>
         </div>
       </div>
 
@@ -544,6 +566,7 @@ import SettingsOrchTabs from '@/components/common/SettingsOrchTabs.vue'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 import type { AgentConfig, ChannelConfig } from '@/shared/types/layout'
 import type { ChannelsStatusResult } from '@/services/api/agent'
+import { testMessageChannel } from '@/services/api/agent'
 import { fetchWebPushSubscriptions, testWebPush, unsubscribeWebPush } from '@/services/api/notifications'
 import { notifyError } from '@/services/notify'
 import { useChromeStore } from '@/stores/chrome.store'
@@ -592,6 +615,28 @@ const pushSubs = ref<PushSubRow[]>([])
 const pushSubsLoading = ref(false)
 const pushSubsError = ref('')
 const pushActionBusy = ref('')
+/** 通道测试发送：同一时间只发一条，避免连点把测试消息刷成告警 */
+const testingChannel = ref<'' | 'email' | 'webpush' | 'wecom'>('')
+
+/** 发送一条通道测试消息；按 skipped / failed / ok 给出不同提示。 */
+async function sendTest(channel: 'email' | 'webpush' | 'wecom') {
+  if (testingChannel.value) return
+  testingChannel.value = channel
+  try {
+    const result = await testMessageChannel(channel)
+    if (result.state === 'ok') {
+      chrome.notify('测试消息已送达', 'success')
+    } else if (result.state === 'skipped') {
+      chrome.notify('通道未启用或未配置，本次没有发送', 'warning')
+    } else {
+      chrome.notify('测试消息发送失败，请检查凭据与网络', 'error')
+    }
+  } catch (e: unknown) {
+    notifyError(e, '测试消息')
+  } finally {
+    testingChannel.value = ''
+  }
+}
 
 const alertsHref = SETTINGS_ROUTES.alerts()
 
@@ -702,7 +747,9 @@ const channelTabItems = computed(() => {
   const webpush = props.channelStatus?.webpush
   const wecom = props.channelStatus?.wecom
   const mcpKey = String(agentDraft.value.mcpGatewaySecret || '').trim()
-  const mcpConfigured = Boolean(mcpKey) && mcpKey !== '••••••••' && mcpKey !== '********'
+  // 非空即视为已配置：GET 只会对「库里确有真值」的密钥下发占位符，
+  // 无真值的占位符在保存时会被后端清成空串（layout_secrets._scrub_unresolved_masks）。
+  const mcpConfigured = Boolean(mcpKey)
   const webpushExtra = webpush?.enabled && webpush?.configured ? `${webpush.subscriptionCount ?? 0} 设备` : ''
 
   return [

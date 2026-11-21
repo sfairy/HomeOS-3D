@@ -12,19 +12,6 @@ from .core import (
 )
 
 
-def _validate_auth(section: str, payload: dict[str, Any], errors: list[FieldError]) -> None:
-    if "lockoutMaxAttempts" in payload:
-        num_in(section, "lockoutMaxAttempts", payload["lockoutMaxAttempts"], 3, 20, errors)
-    if "lockoutMinutes" in payload:
-        num_in(section, "lockoutMinutes", payload["lockoutMinutes"], 1, 1440, errors)
-    if "sessionExpireDays" in payload:
-        num_in(section, "sessionExpireDays", payload["sessionExpireDays"], 1, 365, errors)
-    if "newDeviceAlertCooldownMin" in payload:
-        num_in(section, "newDeviceAlertCooldownMin", payload["newDeviceAlertCooldownMin"], 10, 10080, errors)
-    for k in ("loginAlertEnabled", "newDeviceAlertEnabled", "bruteForceAlertEnabled"):
-        if k in payload:
-            require_bool(section, k, payload[k], errors)
-
 def _validate_notification(section: str, payload: dict[str, Any], errors: list[FieldError]) -> None:
     for k in ("dndStart", "dndEnd"):
         if k in payload:

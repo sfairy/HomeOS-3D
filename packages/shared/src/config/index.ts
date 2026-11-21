@@ -1,7 +1,6 @@
 /** `config` 域的公开面：由根 barrel（`src/index.ts`）转发，调用方仍可只 import `@homeos/shared`。 */
 
 export type {
-  SharedAuthConfig,
   SharedNotificationConfig,
   SharedStateStoreConfig,
   SharedWsPushConfig,
@@ -29,7 +28,6 @@ export type {
   SharedOtherConfig,
   SharedAppConfigSections,
 } from './sections'
-export { DEFAULT_AUTH_SECURITY } from './sections'
 export type {
   ClientPowerClient,
   ClientPowerSelfCharge,

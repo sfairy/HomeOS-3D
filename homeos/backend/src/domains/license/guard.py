@@ -114,6 +114,9 @@ LICENSE_EXEMPT_STATIC_FILES = FRONTEND_STATIC_ROOT_FILES
 #: 展示页前缀豁免（``/display/{project_id}`` 与 ``/homeos/{name}``）：外壳下发后再由前端
 #: 按 ``license-blocked`` 就地渲染，否则墙屏会在未激活时看到一坨 JSON。
 LICENSE_EXEMPT_PREFIXES = ("/display/", "/homeos/")
+#: 第三方回调豁免（自校验签名）：未激活时也要能「收到消息」，
+#: 否则用户会在「已装好、还没买授权」阶段看到企微通道静默失效。
+LICENSE_EXEMPT_CALLBACK_PREFIXES = ("/api/v1/channels/wecom/callback",)
 
 
 def is_license_exempt_path(path: str, method: str = "GET", accept: str = "") -> bool:
@@ -134,6 +137,8 @@ def is_license_exempt_path(path: str, method: str = "GET", accept: str = "") -> 
     if path in LICENSE_EXEMPT_EXACT or path in LICENSE_EXEMPT_LICENSE_PATHS:
         return True
     if path.startswith(LICENSE_EXEMPT_PREFIXES):
+        return True
+    if path.startswith(LICENSE_EXEMPT_CALLBACK_PREFIXES):
         return True
     if method not in ("GET", "HEAD"):
         return False

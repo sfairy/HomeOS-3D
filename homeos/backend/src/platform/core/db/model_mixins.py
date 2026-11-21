@@ -31,6 +31,25 @@ class AlertRuleTimingMixin:
     escalation_minutes: Mapped[int] = mapped_column("escalationMinutes", Integer, nullable=False, default=0)
 
 
+class AlertRuleStructuredMixin:
+    """结构化规则字段（对齐参考 ``notification`` 规则模型）。
+
+    ``condition`` 仍是唯一求值来源；这四列只保存「用户是怎么填出来的」：
+
+    - ``target_state`` / ``operator``：结构化条件（实体 + 运算符 + 目标值），
+      写入前编译进 ``condition``，读取时回填给前端做结构化编辑；
+    - ``sound``：仅 ``level=critical`` 生效的提示音标识；
+    - ``camera_entity_id``：有值时通知带 ``type='doorbell'`` 与快照入口。
+
+    全部可空，缺省 = 旧行为（存量规则不受影响）。
+    """
+
+    target_state: Mapped[str | None] = mapped_column("targetState", String(255), nullable=True)
+    operator: Mapped[str | None] = mapped_column("operator", String(16), nullable=True)
+    sound: Mapped[str | None] = mapped_column("sound", String(64), nullable=True)
+    camera_entity_id: Mapped[str | None] = mapped_column("cameraEntityId", String(255), nullable=True)
+
+
 class HomeModeExtraMixin:
     """给 ``HomeMode`` 提供条件与执行模式两列。"""
 
@@ -40,4 +59,4 @@ class HomeModeExtraMixin:
     )
 
 
-__all__ = ["AlertRuleTimingMixin", "HomeModeExtraMixin"]
+__all__ = ["AlertRuleStructuredMixin", "AlertRuleTimingMixin", "HomeModeExtraMixin"]

@@ -24,6 +24,7 @@ from pydantic import BaseModel, ConfigDict
 from ..dependencies import license_feature
 from ..domains.channels.wecom_crypto import compute_msg_signature, decrypt_wecom, sha1
 from ..domains.license import features as feature_codes
+from ..platform.core.http.errors import BusinessException, ErrorCode
 from ..platform.security.auth_context import require_user
 from ..platform.security.xml_safe import safe_fromstring
 
@@ -66,6 +67,15 @@ class WebPushUnsubscribeDto(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     endpoint: Any = None
+
+
+class ChannelTestDto(BaseModel):
+    """``POST /channels/test`` 请求体：只允许三个出站通道之一。"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    channel: Any = None
+    message: Any = None
 
 
 def _channels(request: Request):
@@ -141,9 +151,29 @@ async def unsubscribe(
     return {"ok": True}
 
 
-@router.post("/webpush/test")
-async def test_push(
+@router.post("/test")
+async def test_channel(
+    dto: ChannelTestDto,
     request: Request,
+    _user: dict[str, Any] = Depends(require_user),
+):
+    """发送一条测试消息（Email / WebPush / 企业微信）。
+
+    与真实告警走同一条 ``send_external_alert`` 路径：返回逐通道结果，
+    ``skipped`` 表示未启用 / 未配置，``failed`` 表示尝试过但没送达 ——
+    前端据此区分「没配好」和「配好了但发不出去」。
+    """
+    channel = str(dto.channel or "").strip().lower()
+    if channel not in ("email", "webpush", "wecom"):
+        raise BusinessException(ErrorCode.VALIDATION_FAILED, "channel 须为 email / webpush / wecom")
+    text = str(dto.message or "").strip() or "HomeOS 通道测试：如果你收到这条消息，说明该通道配置正常。"
+    results = await _channels(request).send_external_alert([channel], text[:500], "HomeOS 通道测试")
+    state = results.get(channel, "skipped")
+    return {"ok": state == "ok", "state": state, "results": results}
+
+
+@router.post("/webpush/test")
+async def test_push(    request: Request,
     dto: WebPushTestDto | None = None,
     _user: dict[str, Any] = Depends(require_user),
 ):
@@ -232,9 +262,7 @@ async def verify_url(
     token, aes_key = security.get("token"), security.get("aesKey")
     if not token or not aes_key:
         return _text("配置缺失", 500)
-    local = compute_msg_signature(
-        str(token), str(timestamp or ""), str(nonce or ""), str(echostr or "")
-    )
+    local = compute_msg_signature(str(token), str(timestamp or ""), str(nonce or ""), str(echostr or ""))
     if not _signature_matches(local, msg_signature):
         logger.warning("企微 URL 验证签名失败")
         return _text("禁止访问", 403)
@@ -283,9 +311,7 @@ async def handle_callback(
             import asyncio
 
             task = asyncio.ensure_future(
-                _wecom(request).handle_incoming_message(
-                    inner["FromUserName"], inner["Content"]
-                )
+                _wecom(request).handle_incoming_message(inner["FromUserName"], inner["Content"])
             )
 
             def _log_failure(fut: Any) -> None:

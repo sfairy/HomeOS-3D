@@ -38,7 +38,7 @@
             <div>
               <h3 class="devices-mgmt-card__name">{{ '僵尸绑定清理' }}</h3>
               <p class="devices-mgmt-card__hint">
-                {{ 'HA 中已不存在、但仍被布局 / 房间 / 告警规则 / 寿命统计引用的实体绑定；解绑后可避免无效告警' }}
+                {{ 'HA 中已不存在、但仍被布局部件 / 房间环境映射 / 统计传感器 / HA 配置 / 告警规则引用的实体绑定；解绑后可避免无效告警' }}
               </p>
             </div>
           </div>
@@ -66,15 +66,37 @@
         </div>
 
         <VEmptyState
-          v-if="!zombieBindings.length"
+          v-if="!zombieBindings.length && scanStatus === 'skipped'"
+          icon="⚠️"
+          title="HA 尚未同步，本次未检查"
+          :description="`${scanInfo?.reason || 'Home Assistant 连接不可用'}。连接恢复后点「刷新」重新扫描。`"
+          tone="amber"
+          compact
+        />
+
+        <VEmptyState
+          v-else-if="!zombieBindings.length && scanStatus === 'partial'"
+          icon="⚠️"
+          title="未发现僵尸绑定（结果可能不完整）"
+          :description="`${scanInfo?.reason || '本次只对照了本地状态库'}；共检查 ${checkedCount} 处引用。`"
+          tone="amber"
+          compact
+        />
+
+        <VEmptyState
+          v-else-if="!zombieBindings.length"
           icon="✅"
           title="未发现僵尸绑定"
-          description="布局、房间、告警与寿命统计引用的实体在 Home Assistant 中均仍存在"
+          :description="healthyDescription"
           tone="emerald"
           compact
         />
 
-        <div v-else class="devices-mgmt-zombies">
+        <p v-if="scanStatus === 'partial' && zombieBindings.length" class="devices-mgmt-warning">
+          {{ scanInfo?.reason || '本次只对照了本地状态库' }}；共检查 {{ checkedCount }} 处引用，请核对后再解绑。
+        </p>
+
+        <div v-if="zombieBindings.length" class="devices-mgmt-zombies">
           <div v-for="group in zombieGroups" :key="group.source" class="devices-mgmt-group">
             <div class="devices-mgmt-group__head">
               <span class="devices-mgmt-group__label">{{ groupLabel(group.source) }}</span>
@@ -83,7 +105,7 @@
             <div class="devices-mgmt-list">
               <label
                 v-for="item in group.items"
-                :key="`${item.source}:${item.refId}`"
+                :key="`${item.source}:${item.refId}:${item.entityId}`"
                 class="devices-mgmt-row devices-mgmt-row--selectable"
               >
                 <input v-model="selectedKeys" type="checkbox" :value="selectionKey(item)" class="devices-mgmt-check" />
@@ -118,24 +140,38 @@ const unbinding = ref(false)
 const loadError = ref('')
 // 服务端返回的僵尸绑定列表（HA 中已不存在但仍被引用）
 const zombieBindings = ref([])
-// 已勾选的僵尸绑定键集合（source:refId）
+// 本次扫描状态：skipped / partial 都不能当成「没有僵尸」
+const scanInfo = ref(null)
+// 已勾选的僵尸绑定键集合（source:refId:entityId）
 const selectedKeys = ref([])
 const unbindFeedback = ref('')
 
 /** 来源分组中文标签 */
 const SOURCE_LABELS = {
-  layoutWidget: '布局 Widget',
+  layoutWidget: '布局部件',
+  room: '房间映射',
+  stats: '统计传感器',
+  haConfig: 'HA 配置',
   alertRule: '告警规则',
-  deviceLifespan: '寿命统计',
 }
 
 function groupLabel(source) {
   return SOURCE_LABELS[source] || source
 }
 
-/** 勾选键：source + refId 精确定位单条绑定 */
+const scanStatus = computed(() => scanInfo.value?.status || 'ok')
+const checkedCount = computed(() =>
+  Object.values(scanInfo.value?.scanned || {}).reduce((sum, count) => sum + (Number(count) || 0), 0),
+)
+const healthyDescription = computed(() => {
+  if (!scanInfo.value) return '布局、房间与告警引用的实体在 Home Assistant 中均仍存在'
+  if (!checkedCount.value) return '当前没有需要检查的实体引用'
+  return `已检查 ${checkedCount.value} 处引用（布局部件 / 房间映射 / 统计 / HA 配置 / 告警规则），引用实体在 Home Assistant 中均仍存在`
+})
+
+/** 勾选键：source + refId + entityId 精确定位单条绑定（同一部件可绑多个实体） */
 function selectionKey(item) {
-  return `${item.source}:${item.refId}`
+  return `${item.source}:${item.refId}:${item.entityId}`
 }
 
 /** 列表主标题：实体名(实体ID)；无中文友好名时只显示实体 ID */
@@ -152,7 +188,7 @@ function zombieTitle(item) {
 
 /** 按来源分组（固定顺序） */
 const zombieGroups = computed(() => {
-  const order = ['layoutWidget', 'alertRule', 'deviceLifespan']
+  const order = ['layoutWidget', 'room', 'stats', 'haConfig', 'alertRule']
   const map = new Map()
   for (const item of zombieBindings.value) {
     if (!map.has(item.source)) map.set(item.source, [])
@@ -169,6 +205,7 @@ async function load() {
   try {
     const { data } = await fetchDevicesOverview()
     zombieBindings.value = data?.zombieBindings || []
+    scanInfo.value = data?.scan || null
     // 解绑后重新加载时清空旧勾选与反馈
     selectedKeys.value = []
     unbindFeedback.value = ''
@@ -190,7 +227,7 @@ function toggleSelectAll() {
 /** 确认并批量解绑选中项 */
 async function confirmUnbind() {
   const confirmed = await chrome.confirm(
-    `将解绑 ${selectedCount.value} 条僵尸绑定：删除对应布局部件 / 房间绑定 / 告警规则 / 寿命统计记录。此操作不可撤销，确定继续？`,
+    `将解绑 ${selectedCount.value} 条僵尸绑定：删除对应布局部件、清空房间映射 / 统计与 HA 配置绑定、删除告警规则。此操作不可撤销，确定继续？`,
     '解绑僵尸绑定',
     { confirmText: '确认解绑', type: 'danger' },
   )
@@ -268,6 +305,17 @@ onMounted(load)
   font-size: var(--set-fs-micro, 12px);
   color: var(--hos-fg-2);
   white-space: nowrap;
+}
+
+.devices-mgmt-warning {
+  margin: 8px 20px 4px;
+  padding: 8px 12px;
+  border-radius: var(--hos-radius-sm, 8px);
+  background: rgba(245, 158, 11, 0.12);
+  border: var(--hos-hairline) solid rgba(245, 158, 11, 0.35);
+  font-size: var(--set-fs-micro, 12px);
+  line-height: 1.5;
+  color: var(--hos-fg-2);
 }
 
 .devices-mgmt-list {
