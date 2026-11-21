@@ -9,8 +9,9 @@
  * 平面面板退到右栏时只保留一条紧凑工具条（`.editor-secondary-view` 里隐藏 `.tool-group`），
  * 纯改列宽做不出这个形态。
  *
- * 对调会同时改掉两块画布的宽高，所以每次切换后平面都要按**新画布**重新量尺寸并整幅适应，
- * 否则从小副视图放大回来时户型还停在旧 zoom 上、四周被裁掉（`fitPlanToCanvas`）。
+ * 对调会同时改掉两块画布的宽高，所以每次切换后平面都要按**新画布**重新量尺寸并整幅适应
+ * （`fitPlanToCanvas`）：从小副视图放大回来时沿用旧 zoom 会把户型裁掉一角，反方向
+ * 又会在画布上只剩一小块，两个方向都应当整幅适应。
  *
  * 切换条挂在**当前主视图的画布宿主**（`#plan-stage` / `#preview-3d`）上，而不是面板：
  * `.plan-panel` / `.preview-card` 没有 `position: relative`，挂面板会按外层定位，
@@ -24,7 +25,6 @@ import type { StudioAppRuntime } from '../runtime/studio-app-runtime'
 import { cancelEditor3D } from './editor-3d-wiring'
 import { dismissOverlapPicker } from './overlap-and-preview-wiring'
 import { registerOverlayObstacles } from './overlay-obstacles'
-import { planCenterOffsets, shouldRestorePlanCenter } from '../../../plan/studio-plan-view-center'
 import { LEAVE_PLAN_FOCUS_EVENT } from './workspace-events'
 
 export type WorkspaceMode = 'plan' | 'three'
@@ -62,23 +62,16 @@ export interface Rect {
 
 export interface WorkspaceViewOptions {
   /**
-   * 切换前：结束进行中的手势、收起浮层，并交回**平面取景快照**。
+   * 切换前：结束进行中的手势、收起浮层、退出与新主视图冲突的编辑态。
    *
-   * 快照里是「画布中心对应的平面坐标 + 当前 zoom + 画布尺寸」，切换完成后用它反算偏移；
-   * 返回 `null` 表示这次不做保持（由调用方决定，例如嵌入只读）。
+   * 不再交回平面取景快照：切换后平面一律在新画布上整幅适应（见 `fitPlanToCanvas`），
+   * 旧 zoom / 中心点不跨主副视图保留。
    */
-  beforeChange?: (nextMode: WorkspaceMode) => PlanCentreSnapshot | null
-  /** 切换后：重算画布尺寸、恢复平面取景、重绘两个视图。 */
-  afterChange?: (previousMode: WorkspaceMode, snapshot: PlanCentreSnapshot | null) => void
+  beforeChange?: (nextMode: WorkspaceMode) => void
+  /** 切换后：重绘两个视图（平面已经在新画布上适应）。 */
+  afterChange?: (previousMode: WorkspaceMode) => void
   /** 是否允许切换（嵌入舞台 / 保存中不允许）。 */
   canChange?: () => boolean
-}
-
-/** 切换前后的平面取景快照（0.8.7 `{centre, revision}` + 画布尺寸）。 */
-export interface PlanCentreSnapshot {
-  centre: { x: number; y: number }
-  zoom: number
-  size: { width: number; height: number }
 }
 
 export interface WorkspaceView {
@@ -157,30 +150,15 @@ function createBar(): WorkspaceBar {
 }
 
 /**
- * 主副视图对调后，平面画布的宽高都变了；沿用旧的 zoom / offset 会把户型裁掉一角。
+ * 主副视图对调后，平面画布的宽高都变了；切换条按钮的语义是「换个大画布看」，
+ * 所以每次切换都按新画布整幅适应，而不是沿用旧 zoom / 中心点。
  *
- * 顺序必须是「先量尺寸，再套偏移」：`resizePlanStage` 同时更新 canvas 背板与
- * `planViewWidth/Height`，而偏移公式里的 `width/height` 就是画布尺寸。
- *
- * 保持失败（尺寸剧变 / 切换期间场景被重建）时退回「适应画布」：宁可重置，也不要
- * 让户型整块跑出视口。
+ * 顺序必须是「先量尺寸，再适应」：`resizePlanStage` 同时更新 canvas 背板与
+ * `planViewWidth/Height`，而 `resetView` 的可用宽高正是取自这两个值。
  */
-function restorePlanView(runtime: StudioAppRuntime, snapshot: PlanCentreSnapshot | null): void {
-  const before = snapshot?.size
+function fitPlanToCanvas(runtime: StudioAppRuntime): void {
   runtime.resizePlanStage?.()
-  const after = {
-    width: Number(runtime.appCtx.planViewWidth) || 0,
-    height: Number(runtime.appCtx.planViewHeight) || 0,
-  }
-  if (!snapshot || !before || !shouldRestorePlanCenter(before, after)) {
-    runtime.resetView?.()
-    return
-  }
-  const offsets = planCenterOffsets(snapshot.centre, snapshot.zoom, after.width, after.height)
-  const planView = runtime.appCtx.planView as { zoom: number; offsetX: number; offsetY: number }
-  planView.zoom = snapshot.zoom
-  planView.offsetX = offsets.offsetX
-  planView.offsetY = offsets.offsetY
+  runtime.resetView?.()
 }
 
 /** 当前主视图里承载切换条的画布宿主；取不到时退回面板本身。 */
@@ -211,11 +189,11 @@ function layoutWorkspace(state: WorkspaceState): void {
   bar.note.hidden = runtime.getPreviewFloorMode?.() !== 'all'
 }
 
-/** 切换：先让调用方收拾现场并交回取景快照，再布局、持久化，最后等一帧量尺寸并恢复取景。 */
+/** 切换：先让调用方收拾现场，再布局、持久化，最后等一帧量尺寸并整幅适应平面。 */
 function switchWorkspace(state: WorkspaceState, options: WorkspaceViewOptions, nextMode: WorkspaceMode): void {
   const { runtime } = state
   const previous = state.mode
-  const snapshot = options.beforeChange?.(nextMode) ?? null
+  options.beforeChange?.(nextMode)
   state.mode = nextMode
   layoutWorkspace(state)
   persistMode(state.mode)
@@ -225,9 +203,9 @@ function switchWorkspace(state: WorkspaceState, options: WorkspaceViewOptions, n
     state.frameId = 0
     runtime.resizeStudioRenderer?.()
     runtime.resizeRenderCanvas?.()
-    restorePlanView(runtime, snapshot)
+    fitPlanToCanvas(runtime)
     window.dispatchEvent(new Event('resize'))
-    options.afterChange?.(previous, snapshot)
+    options.afterChange?.(previous)
   })
 }
 
@@ -304,30 +282,6 @@ export function refreshWorkspaceViewFor(appCtx: object): void {
   workspaceViewsByAppCtx.get(appCtx)?.refresh()
 }
 
-/**
- * 记下「画布中心现在对着哪个平面坐标」（0.8.7 `beforeChange` 的 `{centre, revision}`）。
- *
- * 必须在**布局被改动之前**读：一旦面板对调，画布尺寸就变了，`screenToPlan(新中心)`
- * 得到的是另一个点。
- *
- * 不比对「场景修订号」：切换本身会触发一次场景重建，修订号必然变；上游比对的是
- * **叠层手势修订号**（`Ml`，只在拖动开始时自增），语义是「切换期间用户动过东西吗」。
- * 这里在同一个点击处理内完成快照与恢复，中间没有用户输入窗口，尺寸守卫足够。
- */
-function readPlanCentre(runtime: StudioAppRuntime): PlanCentreSnapshot | null {
-  const width = Number(runtime.appCtx.planViewWidth) || 0
-  const height = Number(runtime.appCtx.planViewHeight) || 0
-  const zoom = Number(runtime.appCtx.planView?.zoom) || 0
-  if (!(width > 0) || !(height > 0) || !(zoom > 0)) return null
-  const centre = runtime.screenToPlan?.({ x: width / 2, y: height / 2 })
-  if (!centre) return null
-  return {
-    centre: { x: Number(centre.x), y: Number(centre.y) },
-    zoom,
-    size: { width, height },
-  }
-}
-
 export function bindWorkspaceView(runtime: StudioAppRuntime): WorkspaceView {
   const view = createWorkspaceView(runtime, {
     canChange: () => !runtime.appCtx.isInteractionLocked && !runtime.isEmbeddedStage,
@@ -340,15 +294,11 @@ export function bindWorkspaceView(runtime: StudioAppRuntime): WorkspaceView {
       if (nextMode === 'three') runtime.selectStudioTool?.('select')
       // 「平面聚焦」收掉的是右栏，而 3D 面板正是搬进右栏：不退出就会量成 0×0。
       if (nextMode === 'three') globalThis.dispatchEvent(new CustomEvent(LEAVE_PLAN_FOCUS_EVENT))
-      return readPlanCentre(runtime)
     },
-    afterChange: (_previous, snapshot) => {
+    afterChange: () => {
       runtime.refreshStudioUi()
       runtime.refreshStudioView()
       runtime.syncExportControls?.()
-      if (!snapshot) return
-      // 恢复后的偏移不会自己触发重绘（`planView` 是普通对象，没有响应式）。
-      runtime.refreshStudioView()
     },
   })
   workspaceViewsByAppCtx.set(runtime.appCtx, view)
