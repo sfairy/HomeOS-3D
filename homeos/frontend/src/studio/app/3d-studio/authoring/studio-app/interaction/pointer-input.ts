@@ -1,4 +1,5 @@
 import type { StudioAppRuntime } from '../runtime/studio-app-runtime'
+import { offerOverlapPickerFor } from '../ui/overlap-and-preview-wiring'
 import { restorePlacementScene as restorePlacementScene2 } from '../../items/studio-placement'
 import { anchorGate as anchorGate2 } from '../../../plan/courtyard-drawing'
 import {
@@ -187,6 +188,25 @@ function withGuidesRepaint(runtime: StudioAppRuntime, isPan: boolean, hadGuides:
   if (isPan || hadGuides || hadFeedback) runtime.refreshStudioView()
 }
 
+/**
+ * 纯点击（按下 → 抬起没有拖动）落在重叠物件上：松手后再列候选。
+ *
+ * 浮层不能在按下时弹：那一刻画布已经 `setPointerCapture`，捕获期间的点击到不了浮层，
+ * 结果就是「按下只弹窗、拖动永远起不来」。放到松手之后，拖动照常，单击仍能选到被压住的那件。
+ */
+function offerOverlapAfterClick(
+  runtime: StudioAppRuntime,
+  gesture: { type?: string; moved?: boolean },
+  event: { type?: string; altKey?: boolean; clientX: number; clientY: number },
+): void {
+  if (event.type === 'pointercancel' || event.altKey) return
+  if (gesture.type !== 'move-items' || gesture.moved) return
+  if (runtime.appCtx.activeToolName !== 'select') return
+  const plan = runtime.screenToPlan(runtime.eventToLocalPoint(event))
+  // 锚点用视口坐标：浮层是 `position: fixed` 的 body 子节点，画布局部坐标会偏。
+  offerOverlapPickerFor(runtime.appCtx, plan, { x: event.clientX, y: event.clientY })
+}
+
 export function finishPointerDrag(runtime: StudioAppRuntime, pointerCancelEvent: any) {
   if (!runtime.appCtx.marqueeBox || runtime.appCtx.marqueeBox.pointerId !== pointerCancelEvent.pointerId) return
   if (runtime.appCtx.marqueeBox.type === 'draw-flooropening') {
@@ -307,6 +327,7 @@ export function finishPointerDrag(runtime: StudioAppRuntime, pointerCancelEvent:
     (runtime.appCtx.dragFeedback = null),
     // 清掉引导线必须重绘一次：`move-items` 结束后原本不重绘（上面只给 `pan` 补了）。
     withGuidesRepaint(runtime, activeDragGesture.type === 'pan', hadGuides, hadFeedback),
+    offerOverlapAfterClick(runtime, activeDragGesture, pointerCancelEvent),
     runtime.endStudioGesture()
 }
 

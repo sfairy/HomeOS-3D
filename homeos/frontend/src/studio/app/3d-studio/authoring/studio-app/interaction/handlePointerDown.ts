@@ -39,8 +39,8 @@ export interface HandlePointerDownDeps {
   getPreviewScopeSelection: any
   hitTestHandle: any
   hitTestPlanItem: any
-  /** 重叠拾取（可选）：有 ≥2 个候选时返回 true 表示已接管本次点击。 */
-  offerOverlapPicker?: (planPoint: unknown, screenPoint: unknown) => boolean
+  /** 重叠区域按下时优先拖的那件（当前选中的、被压住的候选）；无则返回 null。 */
+  overlapDragTarget?: (planPoint: unknown) => string | null
   isSameAlignmentFloor: any
   markDocumentDirty: any
   markWallsChanged: any
@@ -65,22 +65,23 @@ export interface HandlePointerDownDeps {
 }
 
 /**
- * 是否先弹重叠候选：命中物件、当前是选择工具、按住的不是 Alt（Alt 是「复制并拖动」）。
+ * 按下落点归谁。
  *
- * 收在模块级而不是内联，是因为内联要占 4 个分支（`?.` / `===` / `!` / `===`），
- * 会把 `handlePointerDown` 顶过复杂度预算。
+ * 命中测试只返回最上面那件，但用户可能刚从重叠浮层里选了被压住的那件：这时再按下去
+ * 必须拖**它**（否则每次按下都会被浮层接管，选中之后永远拖不动）。
+ *
+ * Alt 是「复制并拖动」，跟随命中结果：复制的是最上面那件。
  */
-function shouldOfferOverlap(
+function resolvePointerHit(
   deps: HandlePointerDownDeps,
   hit: { kind: string; id: string } | null,
   planPoint: unknown,
-  screenPoint: unknown,
   event: { altKey?: boolean },
-): boolean {
-  if (hit?.kind !== 'item') return false
-  if (deps.appCtx.activeToolName !== 'select') return false
-  if (event.altKey) return false
-  return deps.offerOverlapPicker?.(planPoint, screenPoint) === true
+): { kind: string; id: string } | null {
+  if (hit?.kind !== 'item') return hit
+  if (deps.appCtx.activeToolName !== 'select' || event.altKey) return hit
+  const preferredId = deps.overlapDragTarget?.(planPoint)
+  return preferredId ? { kind: 'item', id: preferredId } : hit
 }
 
 /**
@@ -429,8 +430,7 @@ export function handlePointerDown(deps: HandlePointerDownDeps, handlePointerDown
     return
   }
   const ao5 = getPreviewScopeSelection(),
-    fy2 = hitTestPlanItem(pr3)
-  if (shouldOfferOverlap(deps, fy2, pr3, pointerDownPoint, handlePointerDownPointerDownEvent)) return
+    fy2 = resolvePointerHit(deps, hitTestPlanItem(pr3), pr3, handlePointerDownPointerDownEvent)
   if (!fy2) {
     resetPlanInteraction(),
       handlePointerDownPointerDownEvent.shiftKey || refreshSelection(),

@@ -311,7 +311,7 @@ import { bindStudioChrome } from "./ui/studio-chrome-bindings";
 import { refreshWorkspaceViewFor } from "./ui/studio-workspace-view";
 import { naturalWoodRuntimeFor } from "./ui/studio-natural-wood-runtime";
 import { placeSelectedItemOnSurface } from "./ui/place-surface-action";
-import { installOverlapAndPreview, offerOverlapPicker } from "./ui/overlap-and-preview-wiring";
+import { installOverlapAndPreview, overlapDragTarget } from "./ui/overlap-and-preview-wiring";
 import { exactHeightBoundsOf } from "./ui/editor-3d-geometry";
 import { refreshEditor3D } from "./ui/editor-3d-wiring";
 import { positionLightFromAngles as positionLightFromAnglesImpl } from "../lights/studio-light-placement";
@@ -2869,7 +2869,7 @@ function handlePointerDownDeps(): HandlePointerDownDeps {
     getPreviewScopeSelection,
     hitTestHandle,
     hitTestPlanItem,
-    offerOverlapPicker: (planPoint: unknown, screenPoint: unknown) => offerOverlapPicker(studioRuntime, planPoint, screenPoint),
+    overlapDragTarget: (planPoint: unknown) => overlapDragTarget(studioRuntime, planPoint),
     isSameAlignmentFloor,
     markDocumentDirty,
     markWallsChanged,

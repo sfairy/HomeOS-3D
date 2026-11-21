@@ -24,7 +24,12 @@ import { createOverlapPicker, type OverlapCandidate, type OverlapPicker } from '
 import { createAssetPreview, type AssetPreview, type AssetPreviewRecord } from './studio-asset-preview'
 import { createAssetThumbnailRenderer, type AssetThumbnailRenderer } from './studio-asset-thumbnail'
 
-type Wiring = { picker: OverlapPicker; preview: AssetPreview; thumbnail: AssetThumbnailRenderer }
+type Wiring = {
+  runtime: StudioAppRuntime
+  picker: OverlapPicker
+  preview: AssetPreview
+  thumbnail: AssetThumbnailRenderer
+}
 const wirings = new WeakMap<object, Wiring>()
 
 /** 「整组尺寸」的四类组合品（0.8.7 同列表）。 */
@@ -192,6 +197,7 @@ export function installOverlapAndPreview(runtime: StudioAppRuntime): void {
   overlapHost.hidden = true
   const thumbnail = createAssetThumbnailRenderer(runtime)
   wirings.set(appCtx, {
+    runtime,
     picker: createOverlapPicker({
       host: overlapHost,
       onPick(id) {
@@ -215,7 +221,30 @@ export function installOverlapAndPreview(runtime: StudioAppRuntime): void {
   })
 }
 
-/** 画布按下时：有 ≥2 个重叠候选就弹选择器。返回是否已接管本次点击。 */
+/**
+ * 重叠区域按下时「这次拖谁」：光标下的候选里有当前选中的那件，就返回它。
+ *
+ * 命中测试只会返回最上面那件。若用户刚从浮层里选了被压住的那件，再按下去仍按命中结果
+ * 取最上面那件，就会「选中的那件永远拖不动」—— 只能在原地点一下重新弹浮层。
+ *
+ * 只在单选时生效：多选拖动本来就该整体移动（命中其中任一件都算）。
+ */
+export function overlapDragTarget(runtime: StudioAppRuntime, planPoint: unknown): string | null {
+  const { appCtx } = runtime
+  if (appCtx.selectedItems?.length) return null
+  const selected = appCtx.selectedItem
+  if (!selected || selected.kind !== 'item') return null
+  const selectedId = String(selected.id)
+  const candidates = collectOverlapCandidates(runtime, planPoint as { x: number; y: number })
+  return candidates.some((candidate) => candidate.id === selectedId) ? selectedId : null
+}
+
+/**
+ * 画布上**单击**（按下 → 抬起没拖动）时：有 ≥2 个重叠候选就弹选择器。返回是否已接管本次点击。
+ *
+ * 不能在按下时弹：那一刻画布已经 `setPointerCapture`，捕获期间的点击到不了浮层，
+ * 于是按下只弹窗、拖动永远起不来。放到松手之后，拖动照常，单击仍能选到被压住的那件。
+ */
 export function offerOverlapPicker(runtime: StudioAppRuntime, planPoint: unknown, screenPoint: unknown): boolean {
   const wiring = wirings.get(runtime.appCtx)
   if (!wiring) return false
@@ -226,6 +255,17 @@ export function offerOverlapPicker(runtime: StudioAppRuntime, planPoint: unknown
   }
   wiring.picker.show(candidates, screenPoint as { x: number; y: number })
   return true
+}
+
+/**
+ * 松手后列候选（`pointer-input` 的入口：它只拿得到 `appCtx`）。
+ *
+ * 按 `appCtx` 反查这次运行时的接线：否则要给 `StudioAppRuntime` 再加一个成员，
+ * 而 `boot.ts` 已经贴着文件规模棘轮，一行都不该再长。
+ */
+export function offerOverlapPickerFor(appCtx: object, planPoint: unknown, screenPoint: unknown): boolean {
+  const wiring = wirings.get(appCtx)
+  return wiring ? offerOverlapPicker(wiring.runtime, planPoint, screenPoint) : false
 }
 
 /** 换楼层 / 选择变化时收起：候选集合已失效。 */
