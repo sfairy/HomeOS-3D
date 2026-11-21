@@ -11,7 +11,11 @@
  * 与上游不同的地方（有意）：
  * - 上游那 12 段 `Path2D` 画的是**上游品牌字**。我们的文案是 `Welcome to HomeOS`，
  *   照搬笔画就会出现「笔画是别人的字、文字被藏起来」，所以改为用本机手写字体把文案
- *   写成笔迹（只描边不填充，见 `strokeInkChar`）。
+ *   写成笔迹（只描边不填充，见 `buildInk`）。
+ * - **整句一次 `strokeText`**，不逐字拆开：Savoye LET 这类连笔体的连贯感来自相邻字母的
+ *   连接笔画，逐字绘制再补字距会把这些连接切断，大写（`HomeOS`）尤其明显 —— 看起来像
+ *   一个个印章而不是一行字。揭示动画本来就是从左往右的擦除（见 `paintInk`），
+ *   整句绘制不影响「一笔写过去」的观感。
  *
  * 状态全部放在 `WelcomeState` 里、由模块级小函数操作：工厂函数本身保持短小
  * （复杂度门禁按函数节点计行数，把逻辑塞进工厂会让它轻松越过 80 行）。
@@ -111,50 +115,6 @@ export interface EditorCanvasWelcome {
   dispose: () => void
 }
 
-/** 逐字轻微抖动：同一字符每次结果相同（字符码派生），不会每帧乱跳。 */
-function charWobble(char: string, index: number): { dy: number; rotate: number } {
-  const seed = char.charCodeAt(0) * 31 + index * 17
-  return { dy: ((seed % 5) - 2) * 0.5, rotate: (((seed >> 3) % 7) - 3) * 0.0035 }
-}
-
-/** 单个字的绘制参数。 */
-interface InkCharPlan {
-  char: string
-  centerX: number
-  glyphX: number
-  baseY: number
-  rotate: number
-  canvasWidth: number
-  strokeWidth: number
-}
-
-/**
- * 写一个字：按画布**绝对坐标**铺七色渐变，再用圆头粗描边画出去。
- *
- * 为什么只描边不填充：0.8.8 的笔迹是一根 7.3px 的圆头单线，笔画是「线条」而不是「字面」。
- * 花体的笔画宽度只有字号的 2–3%，被这个厚度的圆头描边包住后就是记号笔写出来的观感；
- * 加上 fillText 反而会变成彩色印刷体。
- */
-function strokeInkChar(targetContext: CanvasRenderingContext2D, plan: InkCharPlan) {
-  const { char, centerX, glyphX, baseY, rotate, canvasWidth, strokeWidth } = plan
-  // 渐变必须按字在画布上的**绝对坐标**铺（上游是 13 → 783 的固定彩虹）：绘制前坐标会被
-  // translate，所以把这两个端点各自减去本字中心；否则每个字都从 0% 处取样，整句同色。
-  const charGradient = targetContext.createLinearGradient(
-    canvasWidth * INK_GRADIENT_FROM - centerX,
-    0,
-    canvasWidth * INK_GRADIENT_TO - centerX,
-    0,
-  )
-  for (const [offset, color] of INK_GRADIENT_STOPS) charGradient.addColorStop(offset, color)
-  targetContext.save()
-  targetContext.translate(centerX, baseY)
-  targetContext.rotate(rotate)
-  targetContext.strokeStyle = charGradient
-  targetContext.lineWidth = strokeWidth
-  targetContext.strokeText(char, glyphX, 0)
-  targetContext.restore()
-}
-
 /**
  * 量出一份「刚好填满」的排版参数。
  *
@@ -182,9 +142,7 @@ function measureInkLayout(targetContext: CanvasRenderingContext2D, text: string,
     fontSize,
     ascent: fitted.actualBoundingBoxAscent || fontSize * 0.8,
     descent: fitted.actualBoundingBoxDescent || fontSize * 0.2,
-    // 逐字排版：手写体字距偏紧，自己补一点字距。
-    charSpacing: fontSize * 0.02,
-    widths: Array.from(text).map((char) => targetContext.measureText(char).width),
+    width: fitted.width,
   }
 }
 
@@ -218,27 +176,19 @@ function buildInk(state: InkState) {
   targetContext.textBaseline = 'alphabetic'
   targetContext.lineCap = 'round'
   targetContext.lineJoin = 'round'
-  const totalWidth =
-    layout.widths.reduce((sum, width) => sum + width, 0) + layout.charSpacing * Math.max(0, layout.widths.length - 1)
+  // 一道固定的七色彩虹横跨整句（上游 13 → 783 的锚点），笔迹走过去颜色不流动。
+  const inkGradient = targetContext.createLinearGradient(
+    canvasWidth * INK_GRADIENT_FROM,
+    0,
+    canvasWidth * INK_GRADIENT_TO,
+    0,
+  )
+  for (const [offset, color] of INK_GRADIENT_STOPS) inkGradient.addColorStop(offset, color)
+  targetContext.strokeStyle = inkGradient
+  targetContext.lineWidth = INK_STROKE_RATIO * canvasWidth
   // 按实测升部/降部把整行垂直居中（花体的长尾不会顶出画布）。
   const baseY = canvasHeight / 2 + (layout.ascent - layout.descent) / 2
-  const strokeWidth = INK_STROKE_RATIO * canvasWidth
-  let cursorX = (canvasWidth - totalWidth) / 2
-  Array.from(text).forEach((char, index) => {
-    if (char !== ' ') {
-      const wobble = charWobble(char, index)
-      strokeInkChar(targetContext, {
-        char,
-        centerX: cursorX + layout.widths[index] / 2,
-        glyphX: -layout.widths[index] / 2,
-        baseY: baseY + wobble.dy * (canvasWidth / INK_WIDTH),
-        rotate: wobble.rotate,
-        canvasWidth,
-        strokeWidth,
-      })
-    }
-    cursorX += layout.widths[index] + layout.charSpacing
-  })
+  targetContext.strokeText(text, (canvasWidth - layout.width) / 2, baseY)
 }
 
 /** 按当前 `progress` 把离屏画布「揭示」到可见画布上。 */
