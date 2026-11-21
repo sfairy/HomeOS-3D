@@ -4,7 +4,7 @@
   "stats": {
     "homeos": {
       "files": 76,
-      "lines": 113370,
+      "lines": 113377,
       "gt1000": 51,
       "max": 4917
     },
@@ -91,6 +91,6 @@
     "homeos/frontend/src/studio/runtime/environment/environment-scene.ts": 829,
     "homeos/frontend/src/studio/runtime/presence/presence-editor.ts": 923,
     "homeos/frontend/src/studio/runtime/security/security-editor.ts": 2715,
-    "homeos/frontend/vite.config.ts": 1058
+    "homeos/frontend/vite.config.ts": 1065
   }
 }

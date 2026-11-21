@@ -1017,9 +1017,16 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
                 // undefined：下标访问抛 `TypeError: Cannot read properties of undefined
                 // (reading '0')`（顶栏/侧边整块不渲染），对象展开则**静默**丢掉全部内嵌
                 // 图标别名。它们自身只依赖 @lucide/vue，放进本叶子 chunk 即可彻底断开。
+                //
+                // 智能管家设置页的厂商预设表同理：agent-panel-helpers.internals.ts 在
+                // **模块顶层**读 AGENT_PROVIDER_LABELS.deepseek 等拼成 AGENT_PROVIDER_PRESETS。
+                // 标签表（shared/agent/utils/model-label.util.ts）本身零 import，是纯叶子，
+                // 但它曾与消费方一起落在 entriesAware 的 shared 环里（产物：
+                // shared-B2CwjKRT.js 读 shared-psm3rQzs.js 导出的标签表）。环内提前求值时
+                // 读到 undefined 不会抛错，只会让每个预设项的 label 静默变空。
                 // 改此组后请核对构建产物：index.html preload 应出现 shared-registry-*.js。
                 name: 'shared-registry',
-                test: /src[\\/]shared[\\/]utils[\\/](?:registry[\\/]|layout[\\/]embed-(?:icons|nav-theme)\.util\.ts)/,
+                test: /src[\\/]shared[\\/](?:utils[\\/](?:registry[\\/]|layout[\\/]embed-(?:icons|nav-theme)\.util\.ts)|agent[\\/]utils[\\/]model-label\.util\.ts)/,
                 priority: 2,
               },
               {

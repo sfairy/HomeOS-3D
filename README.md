@@ -1,12 +1,13 @@
 # HomeOS
 
-面向 [Home Assistant](https://www.home-assistant.io/) 的本机仪表盘与中控。版本号的唯一来源是根 `package.json` 的 `version`。
+面向 [Home Assistant](https://www.home-assistant.io/) 的本机仪表盘与中控。版本号的唯一来源是根 `package.json` 的 `version`（本文件不重复写版本号，避免与真源脱节）。
 
 | 我想 | 做什么 | 去看 |
 | --- | --- | --- |
 | 改代码 | `bun install && bun run dev` | [§3](#3-本地开发) |
 | 实时数据 / 静态资源问题 | 查两条 WS 通道与静态交付 | [§4](#4-运行时) |
 | 改模型或材质 | 先看契约生成顺序 | [§5](#5-3d-studio-与模型库) |
+| 改设置页某个面板 | 先看「设置页结构」与卡片约定 | [§2.3](#23-设置页结构) |
 | 装自己这台（含商店） | `docker compose up -d` | [§6](#6-部署) |
 | 给客户装一台 | `docker compose -f docker-compose.app.yml up -d` | [§6](#6-部署) |
 
@@ -27,38 +28,45 @@
 | 3D 舞台 | `/api/v1/modules/interaction3d/stage.html` |
 | 认证外 | `/login`、`/register`、`/reset-password`、`/activate`、`/license-recovery` |
 
-后端领域（`homeos/backend/src/domains/`）：
+后端领域（`homeos/backend/src/domains/`）。路由基线 365 operations / 292 paths（`check:routes` 守）：
 
 | 领域 | 内容 |
 | --- | --- |
-| `ha` | HA WebSocket 订阅 + REST 回退、实体目录、状态中枢 |
-| `security` / `alerts` | 布防、区域、告警规则、安防事件 |
-| `earthquake` | 地震预警（中国地震台网 / 四川局 / Wolfx EEW） |
+| `ha` | HA WebSocket 订阅 + REST 回退、实体目录、状态中枢、实时事件合批 |
+| `state_store` | 共享状态（L1 内存 + SQLite），实体区域索引，热更新 |
+| `security` / `alerts` | 布防、区域、告警规则与条件运算、安防事件 |
+| `earthquake` | 地震预警（中国地震台网 / 四川局 / Wolfx EEW）、跨源去重 |
 | `awareness` | STT / TTS / 语音指令 |
-| `agent` | LLM 提供商、工具调用、记忆、`mcp/` |
-| `notification` / `channels` | 通知持久化与投递（Email / WebPush / 企微） |
-| `home_mode` / `home_exec` | 家庭模式、场景执行 |
+| `agent` | LLM 提供商、工具调用、IntentGate、快路径、执行实证、记忆；`learning/`（别名 / 房间默认 / 习惯候选）、`mcp/`（网关） |
+| `device_profile` | 媒体 / 空调 / 热水器的类型确认、别名、房间默认设备、人工确认审计、Apple TV 控制 |
+| `media` | Music Assistant 搜索 / 点歌 + MoviePilot 入库轮询 |
+| `automation` | 自动化草案（只预览不写 HA）、发现与落地 |
+| `notification` / `channels` | 通知持久化、去重与投递（Email / WebPush / 企微） |
+| `logs` | 操作日志、事件分层、能耗采集与自愈（SGCC、异常跳变护栏） |
+| `home_mode` / `home_exec` | 家庭模式、场景执行与回放 |
+| `proxy` | 命令代理唯一出口（白名单、幂等、三态后置校验） |
 | `backup` / `retention` | 自动备份、数据库留存清理 |
-| `weather` / `fonts` / `ui_config` / `app_config` | 天气、字体子集、界面配置 |
+| `weather` / `fonts` / `ui_config` / `app_config` | 天气、字体子集、界面配置、系统参数校验 |
 | `license` / `store` | 授权校验、商店客户端 |
-| `studio3d` / `state_store` | 场景存档、共享状态 |
+| `studio3d` | 场景存档与户型文档 |
+| 运行期服务 | `lifestyle`（生活账户）、`client_power`（终端电量与充放电）、`setup`（首装向导）、`system`（运维、网络信息、僵尸绑定扫描） |
 
-另有 MCP 网关 `/api/v1/mcp`（+ `/sse`），鉴权为 IP 白名单 + `x-homeos-mcp-key`，不走 JWT/CSRF。
+另有 MCP 网关 `/api/v1/mcp`（+ `/sse`），鉴权为 IP 白名单 + `x-homeos-mcp-key`，不走 JWT/CSRF（见 CSRF 豁免表）。
 
 ## 2. 结构与约定
 
-### 目录
+### 2.1 目录
 
 ```text
 HomeOS/
 ├── homeos/                        # 主应用
 │   ├── backend/src/               # FastAPI（包名 src）
-│   │   ├── api/                   # 路由：auth / ha / projects / studio3d / mcp / security …
+│   │   ├── api/                   # 路由：auth / ha / projects / studio3d / mcp / device_profile / media / automation …
 │   │   ├── domains/               # 领域服务（见 §1 领域表）
-│   │   ├── platform/              # core / http_cache / security
-│   │   ├── realtime/              # Socket.IO 网关、状态中枢、广播
-│   │   ├── panel/ modules/        # 面板模块、interaction3d 运行时投放
-│   │   └── bootstrap/             # 装配、中间件、静态挂载、lifespan
+│   │   ├── platform/              # core（db / ha / entity / http / runtime）/ security
+│   │   ├── realtime/              # Socket.IO 网关、状态中枢、订阅与广播、msgpack 兼容
+│   │   ├── panel/ modules/        # 面板文档与 schema、interaction3d 运行时投放
+│   │   └── bootstrap/             # 装配、中间件、静态挂载、lifespan、HA 状态副作用
 │   ├── frontend/
 │   │   ├── src/                   # views / features / components / composables / stores
 │   │   │                          # shared / studio / router / services / layouts / styles / workers
@@ -66,7 +74,7 @@ HomeOS/
 │   │   ├── scripts/models/        # 模型库工具：重建、目录归位、契约与名字索引
 │   │   ├── vite.config.ts         # 主应用构建（含资源版本戳、发布到 dist）
 │   │   ├── vite.runtime.config.ts # 第二条构建：runtime/** 每个 .ts 一个入口
-│   │   └── public/static/3d-studio/models/   # 336 个 id / 672 个 GLB（27 MB）
+│   │   └── public/static/3d-studio/models/   # 336 个 id / 672 个 GLB（29 MB）
 │   ├── assets-default/            # 随镜像烘焙的默认 UI 素材（容器内 /app/assets-default）
 │   ├── data/                      # 源码态运行时数据（不入库；容器内 /data）
 │   └── scripts/run.mjs            # TS 侧 prep / typecheck / build 编排
@@ -83,9 +91,10 @@ HomeOS/
 │   ├── gates.mjs                  # 门禁清单（唯一来源）
 │   ├── dev.mjs / build.py / ports.mjs   # 本地联调 / 镜像与后端构建 / 端口唯一真源
 │   ├── docker-pins.json           # 基础镜像 tag + digest 真源
-│   ├── contracts/                 # feature_codes.json（能力码唯一真源）
-│   ├── checks/                    # 架构 / 模型 / 棘轮 / 边界门禁
-│   ├── scripts/                   # 构建期产物处理：CSS 压缩、预压缩 sidecar、codemod
+│   ├── contracts/                 # feature_codes.json（能力码唯一真源，18 项 / 2 组）
+│   ├── checks/                    # 架构 / 模型 / 棘轮 / 边界 / 不变量自检
+│   ├── scripts/                   # 构建期与离线工具：CSS 压缩、预压缩 sidecar、codemod、时序表瘦身
+│   ├── lib/                       # 解释器入口（py.mjs）、walk、vue-tsc 与 biome 包装
 │   ├── release/                   # set-version.mjs
 │   ├── dev/                       # clean-local.mjs
 │   ├── deploy/                    # 公网接入与穿透示例、preflight.sh、run-backend.sh
@@ -102,7 +111,7 @@ HomeOS/
 
 `homeos/data/` 与 `homeos-store/data/` 是源码态运行时数据，容器内对应 `/data`。
 
-### 两个独立项目
+### 2.2 两个独立项目
 
 | 项目 | 部署位置 |
 | --- | --- |
@@ -113,23 +122,47 @@ HomeOS/
 
 | 服务 | 容器名 | HTTP | HTTPS | 入口 |
 | --- | --- | --- | --- | --- |
-| 主应用 | `homeos` | 8801 | 8803（自签） | `/login` |
+| 主应用 | `homeos` | 8801 | 8803（自签，镜像内置 Caddy） | `/login` |
 | 商店 | `homeos-store` | 8802 | —— | `/setup`、`/admin` |
 
 容器名 / 镜像名 / 数据卷名里的 `homeos` 不改（改名即换卷，且 hostname 参与授权指纹）。
 
-### 全局约定
+### 2.3 设置页结构
+
+`/settings?tab=<id>` 是唯一入口，侧栏分 6 组（`shared/utils/registry/settings-nav.util.ts` 是标签与文案的唯一真源）：
+
+| 组 | 标签 |
+| --- | --- |
+| 入门与连接 | 首装向导 / HA 连接 / 集成绑定 / 绑定清理 |
+| 家居配置 | 房间配置 / 设备画像 / 生活账户 / 智能充放电 / 常用设备库 |
+| 界面与体验 | 基础设置 / 素材库 / 仪表板编辑 / 面板部件 / 浮动组件 / 内嵌网页管理 |
+| 自动化与安防 | 家庭模式 / 安防场景 / 自动化草案 |
+| 感知交互 | 语音中心 / 智能管家 / 告警规则 / 媒体与入库 |
+| 系统与账户 | 家庭状态 / 访问控制 / 方案与备份 / 授权状态 / 数据保留 / 运维诊断 / 网络信息 / 高级参数 |
+
+面板约定（`features/settings/shared/styles/` + `components/common/settings-page-shell/`）：
+
+- 外壳统一 `SettingsPageShell`（页头 + actions + 单/双列 `layout`）+ `SettingsCard`；
+- 卡片开头优先用 `SettingsCardIntro`（图标球 + 眉标 + 标题 + 说明；已有 20 处采用，新面板照抄即可）；
+- 按钮只用 `settings-btn-accent / settings-btn-ghost`（紧凑档加 `settings-btn--sm`），高度取 `--control-height-*`；
+- 颜色 / 时长只用 `--hos-*` / `--set-*` 令牌（`check:styles` 拦硬编码 hex 与裸秒数）；
+- 断点用 `@container hos-canvas`，不写窗口 `@media`（`check:canvas-breakpoints` 拦）。
+- 保存口径两种：多数面板随布局一起保存（侧栏「保存全部」），列在 `INDEPENDENT_SAVE_TABS` 的面板
+  自己即时保存、不受「保存全部」影响 —— 新增面板要先决定属于哪一类，别两边都写。
+
+### 2.4 全局约定
 
 - 产物只进根 `dist/`，镜像只消费它。
 - 依赖只在仓库根装一份（`bun.lock` 唯一，子包无 `node_modules`）。
 - 磁盘中文文件名、代码英文 id；存档 / 撤销历史 / 导出包按 id 引用。
-- `docs/` 不入库，只放可重跑产物；快照路径由 `model-audit-paths.mjs` 给（默认 `docs/model-audit/`），留历史用 `--out`。
+- `docs/` 不入库（`.gitignore` 忽略）：可重跑产物（模型审计、`code-size/` 快照）与本地分析笔记（如 `port-compiled/` 的对照矩阵）都放这里。
 - Python 解释器只走 `ops/lib/py.mjs`（`HOMEOS_PYTHON` → `.venv-store` → `python3`），脚本不写死路径。
 - 门禁只登记在 `ops/gates.mjs`，workflow 不另抄命令。
+- 三份「唯一真源」不要各写一份：端口 `ops/ports.mjs`、能力码 `ops/contracts/feature_codes.json`、基础镜像 `ops/docker-pins.json`。
 
 ## 3. 本地开发
 
-依赖：Bun 1.4.4、Python 3.15+。端口真源：`ops/ports.mjs`。
+依赖：Bun 1.4.5（根 `packageManager`，CI 的 `bun-version` 由 `check:bun-version` 守卫跟随）、Python 3.15+。端口真源：`ops/ports.mjs`。
 
 ```bash
 bun install
@@ -139,7 +172,8 @@ bun run dev -- --lan     # 局域网
 ```
 
 `setup:hooks` 装 `.githooks/`：`pre-commit` 拦场景生成物，`pre-push` 就地跑 `gate:static`（约 60s，
-失败中止推送；`git push --no-verify` 跳过）。
+失败中止推送；`git push --no-verify` 跳过）。pre-push 对「即将推送的提交」验证：工作区干净就地跑，
+否则在临时 worktree 里检出该提交再跑，避免被未提交的 WIP 误拦。
 
 | 地址 | 用途 |
 | --- | --- |
@@ -163,7 +197,8 @@ bun run dev -- --lan     # 局域网
 | `set-version <x.y.z>` | 全仓版本槽位对齐 |
 | `typecheck` | shared 构建 + 两个前端 `vue-tsc` |
 | `typecheck:node` | vite 配置 / `ops` 脚本类型 |
-| `lint:py` | `ruff check`（Python 唯一阻断项；类型检查无 `bun run` 入口） |
+| `lint:py` | `ruff check`（Python 唯一阻断项；类型检查无 `bun run` 入口，直接跑 `.venv-store/bin/pyright`） |
+| `report:compression` | 代码量压缩报告（只读统计） |
 
 ### 门禁
 
@@ -171,18 +206,27 @@ bun run dev -- --lan     # 局域网
 
 | 组 | 管什么 | 项 |
 | --- | --- | --- |
-| `static` | typecheck / Biome / ruff / node 类型、场景资源、`any` 与重复代码棘轮、画布断点与缩放、DOM 工厂、多边形与场景载荷不变量、样式棘轮、静默 `except`、async DB、Python 锁与镜像导入、PEP 758、WS 鉴权、路由基线与 API 契约、文件体积 / 复杂度、studio 拆分、前后端依赖方向 | 36 |
+| `static` | typecheck / Biome / ruff / node 类型、**工具链版本一致性**、场景资源、`any` 与重复代码棘轮、画布断点与缩放、DOM 工厂、多边形与场景载荷不变量、样式棘轮、静默 `except`、async DB、Python 锁与镜像导入、PEP 758、WS 鉴权、路由基线与 API 契约、文件体积 / 复杂度、**设备画像自检**、studio 拆分、前后端依赖方向 | 41 |
 | `model` | 几何、槽位、槽位角色、材质角色、资产、目录布局、中文名索引 | 7 |
 | `build` | 清 `dist` → 构建与产物断言 → 预压缩 → chunk 初始化顺序 → 字体子集 | 4 |
 | `infra` | shellcheck / actionlint / compose ×3 / Caddy 格式与校验 / Cython | 9 |
 
 `bun run gate` = static + model。`node ops/gates.mjs --all` 含 build + infra。缺工具本机 SKIP、CI 失败。
 
-棘轮（`any` / 重复代码 / 代码量 / 样式 / 复杂度 / 文件体积）只许降。`update:<同名>` 是放宽手段。
+棘轮（`any` / 重复代码 / 代码量 / 样式 / 复杂度 / 文件体积）只许降。`update:<同名>(-baseline)` 是放宽手段，
+必须在提交说明里写清为什么（拆文件导致的平移要说明「总量不变」）。
+
+`check:bun-version` 守的是「工具链只有一处真源」：根 `packageManager` 是唯一版本来源，workflow 的
+`bun-version` 只能跟随。用 `bun-version-file` 会被判失败 —— 那等于再开一处真源。
+
+`check:device-profile` 是业务规则层唯一「跑断言」的门禁（`ops/checks/device_profile_selftest.py`，52 项，
+标准库 + 运行期依赖，不需要 pytest）：分类规则、别名归一与房间作用域、在线 / 可用二分、确认与审计、
+房间默认设备校验、climate / water_heater 命令校验、快路径不 fail-open。仓库没有通用测试套件，
+其余 `check:*` 都是「读源码 / 读产物做不变量断言」（几何、场景载荷、DOM 工厂等）。
 
 ### 调试
 
-`bun run dev -- --debug` → attach 主应用 `8811`、商店 `8812`。端口占用时 `pkill -f ops/dev.mjs`。
+`bun run dev -- --debug` → attach 主应用 `8811`、商店 `8812`（首次会装 debugpy）。端口占用时 `pkill -f ops/dev.mjs`。
 
 首次联调：`/login` 建本机账号（验证码由商店代发）→ `/activate` → 商店 `/setup` 建管理员、`/admin` 配 SMTP 与支付 → 下单拿码后回来填下单邮箱 + 激活码 → 配 HA → `/3d-studio` 保存户型。激活码按商店下单邮箱归属。
 
@@ -208,19 +252,31 @@ bfcache 交接在 `shared/utils/page-cache-lifecycle.ts`：`pagehide(persisted)`
 
 `studio/runtime/**` 是第二条构建：每个 `.ts` 是入口，按 `/api/v1/modules/interaction3d/<相对路径>.js` 投放，**URL 即公网路径**。
 
+### 4.1 几条不轻易改的语义
+
+| 位置 | 语义 | 为什么 |
+| --- | --- | --- |
+| `domains/proxy/command_proxy.py` | 所有下发走唯一下发出口；`policy` 默认 `"http"`（白名单 + 字段校验），已校验的管家通道显式传 `"agent"` | 「忘传参数 = 最严」，新增通道不会静默漏校验 |
+| `domains/ha/integration/live_events.py` | 状态事件先合批再落库 / 广播（默认 16ms 窗口，按实体取最后一条） | 场景切换一次推上百条，逐条事务 + 逐条广播会写放大成卡顿 |
+| `domains/device_profile/` | 空调 / 热水器 kind **恒为 unknown 直到人工确认**；确认即真相，规则不再覆盖；`available`（在线）与 `usable`（可自动选中）分开 | 猜错形态会把 `hvac_mode` 发给地暖；把「待确认」当「不可用」会让面板误导 |
+| `domains/device_profile/` 别名 | 只匹配**已确认**画像，且优先限定在用户提到的房间内 | 「卧室冷气」不能命中客厅的同名别名 |
+| `domains/agent/runtime/fast_path*` | 只做确定性解析；有任何画像 / 多候选疑义就返回 `None` 交给 LLM | 快路径宁可不答，也不能猜错设备 |
+| `domains/agent/learning/` | 别名 / 房间默认按 `household` 共享，偏好按 `user:{id}` 隔离 | 设备叫法是一家人的常识，偏好是个人习惯 |
+
 ## 5. 3D Studio 与模型库
 
 创作页与展示页共用 `buildStudioScene`。根应用只 `import '@/studio'`，不直达 `@app/*` / `@runtime/*`（`check:frontend-deps` 守）。
 
 ### 模型库
 
-`homeos/frontend/public/static/3d-studio/models/`：3 个一级分区、32 个二级目录、336 个 id、672 个 GLB（27 MB）。
+`homeos/frontend/public/static/3d-studio/models/`：3 个一级分区、32 个二级目录、336 个 id、672 个 GLB（29 MB）。
 
 - 每 id 两文件：`<中文名>-lite.glb`（首选）、`<中文名>.glb`（兜底）。
 - 磁盘中文名、代码英文 id；映射在 `model-asset-folders.ts` + `model-file-names.generated.ts`。
 - `MODEL-NAMES.md` 由 `bun run index:model-names` 生成。
-- 物品模型 14 族 / 59 类型分支（`item-model/`），族序不可重排。
-- vendor：three 0.187.0、hls.js 1.7.4、meshoptimizer 0.25、mdi 7.4.47。
+- 物品模型 14 族 / 59 类型分支（`item-model/`），族序不可重排；分支条件与分支体由
+  `ops/checks/studio/verify_item_model.mjs` 逐条哈希比对（`check:studio-split`）。
+- vendor：three 0.187.0、hls.js 1.7.4、meshoptimizer 0.25、mdi 7.4.47、meteocons。
 
 新增模型：`model-asset-folders.ts` 登记 id → 放两个 GLB → `StudioView.vue` 加 `data-library-name` 卡片 → `index:model-names` → `gate:model`。
 
@@ -261,7 +317,7 @@ bfcache 交接在 `shared/utils/page-cache-lifecycle.ts`：`pagehide(persisted)`
 
 前者商店与主应用同机（`http://homeos-store:8802`）；后者商店地址为公网域名。
 
-环境变量、内网 HTTPS 与 SNI、穿透、备份与升级、排错：见 `.env.example` 与两个 compose 的注释。
+环境变量、内网 HTTPS 与 SNI、穿透、备份与升级、排错：见 `.env.example`（约 100 个变量，分 A–G 七段）与两个 compose 的注释。
 
 镜像：`bun run build` → `bun run image:app` / `image:store`。基础镜像按多架构 digest 钉死，真源 `ops/docker-pins.json`。
 
@@ -271,11 +327,13 @@ bfcache 交接在 `shared/utils/page-cache-lifecycle.ts`：`pagehide(persisted)`
 | --- | --- | --- |
 | 产品版本 | 根 `package.json` | `set-version.mjs` 同步各槽位；`_version.py` 构建期生成 |
 | JS 依赖 | `package.json` + `bun.lock` | 全仓（hoisted） |
-| Bun | `packageManager` | workflow `bun-version` |
+| Bun | 根 `packageManager`（`homeos-store` 另有 `engines`）；CI 的 `bun-version` 必须跟随，`check:bun-version` 守 | workflow `bun-version` |
 | Python 依赖 | 两个 `requirements.txt` | `python_lock.py` → 根 `requirements.lock`（48 项 + sha256） |
 | Python | `Dockerfile` 的 `PYTHON_IMAGE` + `python_lock.py` | 构建 |
 | 基础镜像 digest | `ops/docker-pins.json` | Dockerfile ARG / compose / `ops/build.py` |
 | 端口 | `ops/ports.mjs` | dev 脚本 / compose |
+| 设置页标签与文案 | `shared/utils/registry/settings-nav.util.ts` | 侧栏 / 页头 / 深链 |
+| 能力码 | `ops/contracts/feature_codes.json` | 授权校验（18 项 / 2 组） |
 
 改 Python 依赖必须 `python3 ops/ci/python_lock.py generate`（单包 `--upgrade-package <名>`），否则 `check:python-lock` 与镜像 `--require-hashes` 都会失败。`overrides` 与子包声明要一起改。
 
@@ -285,11 +343,12 @@ bfcache 交接在 `shared/utils/page-cache-lifecycle.ts`：`pagehide(persisted)`
 | --- | --- |
 | `ops/gates.mjs` | 门禁清单 |
 | `ops/docker-pins.json` | 基础镜像 tag / digest |
+| `ops/ports.mjs` | 端口表（含归属 dev / proxy / debug） |
 | `MODEL-NAMES.md` | 模型中文名索引（生成，`index:model-names`） |
 | [`meshoptimizer LICENSE`](homeos/frontend/public/static/vendor/meshoptimizer/0.25/LICENSE.md) | 第三方许可（勿改） |
 | `.env.example` | 全部环境变量 |
 
-全仓库只有这三个 `.md`（本文件 + 上面两个生成/第三方文件），不另维护文档副本：约定写在门禁脚本、部署信息写在 compose 与 `.env.example`。
+**入库**的 `.md` 只有三个：本文件、`MODEL-NAMES.md`（生成）、`meshoptimizer LICENSE.md`（第三方）。不另维护文档副本：约定写在门禁脚本、部署信息写在 compose 与 `.env.example`。`docs/` 被 gitignore 忽略，放可重跑产物与本地分析笔记（如 `port-compiled/` 的功能对照矩阵、`analysis/code-size/` 快照），不入库、不作为契约。
 
 | 工作流 | 触发 | 内容 |
 | --- | --- | --- |
