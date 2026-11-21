@@ -1,4 +1,6 @@
-target-version = "py314"
+# 语法集按真实运行时（镜像 PYTHON_IMAGE = 3.15）取，避免「写得对但跑不了」以及
+# 「能跑的语法被误判为不支持」。`check:toolchain` 要求它落在 `运行时 - 1 ~ 运行时`。
+target-version = "py315"
 line-length = 120
 
 [lint]

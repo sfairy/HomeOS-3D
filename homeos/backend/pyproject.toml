@@ -2,7 +2,11 @@
 name = "homeos-backend-py"
 version = "0.0.0"
 description = "HomeOS 后端（FastAPI / Python），NestJS 的透明替换实现"
-requires-python = ">=3.11"
+# 下界 = 我们真正运行的解释器版本（镜像 `PYTHON_IMAGE` 与 `.venv-store` 都是 3.15）。
+# 此前写的是 ">=3.11"：那既不阻止在 3.11 上安装（跑不起来），也没有任何门禁读它 ——
+# 属于「声明了但永远不生效」。`check:toolchain` 现在要求这条声明的下界落在
+# `运行时 - 1 ~ 运行时` 之间，落后超过一个 minor 即失败。
+requires-python = ">=3.15"
 dynamic = ["version"]
 
 [tool.setuptools.dynamic]

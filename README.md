@@ -8,6 +8,7 @@
 | 实时数据 / 静态资源问题 | 查两条 WS 通道与静态交付 | [§4](#4-运行时) |
 | 改模型或材质 | 先看契约生成顺序 | [§5](#5-3d-studio-与模型库) |
 | 改设置页某个面板 | 先看「设置页结构」与卡片约定 | [§2.3](#23-设置页结构) |
+| 改工具链版本（Bun / Python / 基础镜像） | 先看唯一真源与跟随点 | [§7](#7-版本真源) |
 | 装自己这台（含商店） | `docker compose up -d` | [§6](#6-部署) |
 | 给客户装一台 | `docker compose -f docker-compose.app.yml up -d` | [§6](#6-部署) |
 
@@ -162,7 +163,7 @@ HomeOS/
 
 ## 3. 本地开发
 
-依赖：Bun 1.4.5（根 `packageManager`，CI 的 `bun-version` 由 `check:bun-version` 守卫跟随）、Python 3.15+。端口真源：`ops/ports.mjs`。
+依赖：Bun 1.4.5（根 `packageManager`）、Python 3.15（镜像 `PYTHON_IMAGE`）——两者都由 `check:toolchain` 守。端口真源：`ops/ports.mjs`。
 
 ```bash
 bun install
@@ -216,8 +217,17 @@ bun run dev -- --lan     # 局域网
 棘轮（`any` / 重复代码 / 代码量 / 样式 / 复杂度 / 文件体积）只许降。`update:<同名>(-baseline)` 是放宽手段，
 必须在提交说明里写清为什么（拆文件导致的平移要说明「总量不变」）。
 
-`check:bun-version` 守的是「工具链只有一处真源」：根 `packageManager` 是唯一版本来源，workflow 的
-`bun-version` 只能跟随。用 `bun-version-file` 会被判失败 —— 那等于再开一处真源。
+`check:toolchain` 守三条「写了两遍以上」的版本线，任何一处漂移都不影响编译、只会在换机或发版时才炸：
+
+| 线 | 真源 | 必须跟随的地方 |
+| --- | --- | --- |
+| Bun | 根 `packageManager` | workflow 的 `bun-version`（禁止 `bun-version-file`）、`homeos-store` 的 `engines.bun` 下界 |
+| 基础镜像 | `ops/docker-pins.json`（tag 与 digest 分开写） | `Dockerfile` 的 `ARG *_IMAGE`、compose 里同 tag 的 `image:`（含注释态可选段） |
+| Python | `ops/docker-pins.json` 的 `python` 标签 | workflow 的 `python-version` |
+
+`ruff.toml` 的 `target-version` 与 `pyproject.toml` 的 `requires-python` 是**声明**，允许落后运行时一个 minor
+（上游工具链常还没支持最新 minor，强行要求相等会把「升 Python」卡在工具上），但绝不允许超前 ——
+超前等于放行跑不了的语法。
 
 `check:device-profile` 是业务规则层唯一「跑断言」的门禁（`ops/checks/device_profile_selftest.py`，52 项，
 标准库 + 运行期依赖，不需要 pytest）：分类规则、别名归一与房间作用域、在线 / 可用二分、确认与审计、
@@ -327,10 +337,10 @@ bfcache 交接在 `shared/utils/page-cache-lifecycle.ts`：`pagehide(persisted)`
 | --- | --- | --- |
 | 产品版本 | 根 `package.json` | `set-version.mjs` 同步各槽位；`_version.py` 构建期生成 |
 | JS 依赖 | `package.json` + `bun.lock` | 全仓（hoisted） |
-| Bun | 根 `packageManager`（`homeos-store` 另有 `engines`）；CI 的 `bun-version` 必须跟随，`check:bun-version` 守 | workflow `bun-version` |
-| Python 依赖 | 两个 `requirements.txt` | `python_lock.py` → 根 `requirements.lock`（48 项 + sha256） |
-| Python | `Dockerfile` 的 `PYTHON_IMAGE` + `python_lock.py` | 构建 |
-| 基础镜像 digest | `ops/docker-pins.json` | Dockerfile ARG / compose / `ops/build.py` |
+| Bun | 根 `packageManager`（`homeos-store` 另有 `engines`）；CI 的 `bun-version` 必须跟随，`check:toolchain` 守 | workflow `bun-version` |
+| Python 解释器 | `ops/docker-pins.json` 的 `python` 标签 | `Dockerfile` 的 `PYTHON_IMAGE`、workflow 的 `python-version`、`ruff.toml` / `pyproject.toml` 的声明（允许落后一个 minor） |
+| Python 依赖 | 两个 `requirements.txt` | `python_lock.py` → 根 `requirements.lock`（48 项 + sha256），构建按 `--require-hashes` 装 |
+| 基础镜像 digest | `ops/docker-pins.json` | Dockerfile ARG / compose / `ops/build.py`（`check:toolchain` 对账） |
 | 端口 | `ops/ports.mjs` | dev 脚本 / compose |
 | 设置页标签与文案 | `shared/utils/registry/settings-nav.util.ts` | 侧栏 / 页头 / 深链 |
 | 能力码 | `ops/contracts/feature_codes.json` | 授权校验（18 项 / 2 组） |

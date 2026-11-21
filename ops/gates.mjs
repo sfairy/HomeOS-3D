@@ -91,9 +91,9 @@ const GATE_GROUPS = {
     { name: 'audit:scaling', ...bun('run', 'audit:scaling') },
     { name: 'lint:py', ...bun('run', 'lint:py') },
     { name: 'typecheck:node', ...bun('run', 'typecheck:node') },
-    // 工具链版本一致性：CI 的 bun-version 必须等于根 packageManager。
-    // 两处各钉一个版本时，「本地绿、CI 红」会以锁文件重排这种噪声形态出现。
-    { name: 'check:bun-version', ...bun('run', 'check:bun-version') },
+    // 工具链版本一致性：Bun（packageManager）、Python（镜像解释器）、基础镜像摘要
+    // 这三条版本线各有两处以上副本，漂移不报错、只会在换机或发版时才暴露。
+    { name: 'check:toolchain', ...bun('run', 'check:toolchain') },
     { name: 'check:scene', ...bun('run', 'check:scene') },
     { name: 'check:any', ...bun('run', 'check:any') },
     { name: 'check:frontend-complexity', ...bun('run', 'check:frontend-complexity') },
