@@ -12,14 +12,17 @@
  * - 上游那 12 段 `Path2D` 画的是**上游品牌字**。我们的文案是 `Welcome to HomeOS`，
  *   照搬笔画就会出现「笔画是别人的字、文字被藏起来」，所以改为用本机手写字体把文案
  *   写成笔迹（只描边不填充，见 `buildInk`）。
- * - **整句一次 `strokeText`**，不逐字拆开：Savoye LET 这类连笔体的连贯感来自相邻字母的
- *   连接笔画，逐字绘制再补字距会把这些连接切断，大写（`HomeOS`）尤其明显 —— 看起来像
- *   一个个印章而不是一行字。揭示动画本来就是从左往右的擦除（见 `paintInk`），
- *   整句绘制不影响「一笔写过去」的观感。
+ * - 揭示方式复刻上游「笔尖沿笔画走」的语义：整句一次 `strokeText` 画到离屏画布，
+ *   再按笔画顺序逐段露出（见 `welcome-ink-pen.ts`）。上游是逐段 `setLineDash` 推进
+ *   手写贝塞尔；我们拿不到字体轮廓，就从真实笔迹里量测地距离，等价地让波前贴着笔画走。
+ *   这样中途停在任意时刻都是「写完的词 + 正在写的一笔 + 还没动的词」，而不是把整句
+ *   按列裁开 —— 后者是擦除，不是书写。
  *
  * 状态全部放在 `WelcomeState` 里、由模块级小函数操作：工厂函数本身保持短小
  * （复杂度门禁按函数节点计行数，把逻辑塞进工厂会让它轻松越过 80 行）。
  */
+
+import { createPenWriter, type PenWriter } from './welcome-ink-pen'
 
 /** 书写时长（0.8.8 `E` = 2380）。上游就是这么长，慢到能看清每一笔走过去。 */
 const REVEAL_DURATION_MS = 2380
@@ -154,10 +157,34 @@ interface InkState {
   context: CanvasRenderingContext2D | null
   reducedMotion: MediaQueryList
   offscreen: HTMLCanvasElement | null
+  /** 按笔顺露出整句墨迹的写入器；空笔迹 / 极端画布时为 null。 */
+  pen: PenWriter | null
+  /** 当前字号下每个字符的横向分界（设备像素），笔顺以字符为推进单位。 */
+  boundaries: number[]
   progress: number
   startedAt: number
   frameId: number | null
   resizeObserver: ResizeObserver | null
+}
+
+/**
+ * 每个字符的横向分界（设备像素）：整句是**一次** `strokeText` 画出来的（连笔不断），
+ * 这里只按同字号的逐字宽度切出「写到第几个字」的区间，交给笔顺调度决定推进节奏。
+ *
+ * 逐字宽度之和与整句实测宽度不一定相等（连笔体会做字距/连字调整），所以按比例拉伸到
+ * 与整句同宽：这样最后一格正好落在笔迹右缘，不会出现「右边一截没有归属」。
+ */
+function inkBoundaries(targetContext: CanvasRenderingContext2D, text: string, left: number, total: number) {
+  const widths = Array.from(text).map((char) => targetContext.measureText(char).width)
+  const raw = widths.reduce((sum, width) => sum + width, 0)
+  const scale = raw > 0 ? total / raw : 0
+  const boundaries: number[] = []
+  let cursor = left
+  for (const width of widths) {
+    cursor += width * scale
+    boundaries.push(cursor)
+  }
+  return boundaries
 }
 
 /** 把整句文案画进离屏画布。 */
@@ -188,23 +215,25 @@ function buildInk(state: InkState) {
   targetContext.lineWidth = INK_STROKE_RATIO * canvasWidth
   // 按实测升部/降部把整行垂直居中（花体的长尾不会顶出画布）。
   const baseY = canvasHeight / 2 + (layout.ascent - layout.descent) / 2
-  targetContext.strokeText(text, (canvasWidth - layout.width) / 2, baseY)
+  const left = (canvasWidth - layout.width) / 2
+  targetContext.strokeText(text, left, baseY)
+  state.boundaries = inkBoundaries(targetContext, text, left, layout.width)
 }
 
-/** 按当前 `progress` 把离屏画布「揭示」到可见画布上。 */
+/**
+ * 按当前 `progress` 把墨迹写到可见画布上。
+ *
+ * 不是「按列裁切」：`pen` 内部按笔画顺序排好了露出时刻，这里只把新露出的像素补上去，
+ * 所以中途看到的是「写完的词 / 正写的一笔 / 还没动的词」。
+ */
 function paintInk(state: InkState) {
-  const { context, canvas, offscreen } = state
-  if (!context || !canvas || !offscreen) return
-  context.setTransform(1, 0, 0, 1, 0, 0)
-  context.clearRect(0, 0, canvas.width, canvas.height)
-  const revealedWidth = Math.max(1, offscreen.width * state.progress)
-  context.drawImage(offscreen, 0, 0, revealedWidth, offscreen.height, 0, 0, revealedWidth, canvas.height)
+  state.pen?.paint(state.progress)
 }
 
-/** 按容器尺寸重建离屏画布（DPR ≤ 2）。 */
+/** 按容器尺寸重建离屏画布（DPR ≤ 2），并重新排一遍笔顺。 */
 function rebuildInk(state: InkState) {
-  const { canvas, view } = state
-  if (!canvas) return
+  const { canvas, context, view } = state
+  if (!canvas || !context) return
   const bounds = canvas.getBoundingClientRect()
   const pixelRatio = Math.min(view.devicePixelRatio || 1, 2)
   const nextWidth = Math.max(1, Math.round(bounds.width * pixelRatio))
@@ -212,9 +241,17 @@ function rebuildInk(state: InkState) {
   if (canvas.width !== nextWidth) canvas.width = nextWidth
   if (canvas.height !== nextHeight) canvas.height = nextHeight
   state.offscreen ??= canvas.ownerDocument.createElement('canvas')
-  state.offscreen.width = nextWidth
-  state.offscreen.height = nextHeight
+  const offscreen = state.offscreen
+  offscreen.width = nextWidth
+  offscreen.height = nextHeight
   buildInk(state)
+  // 尺寸变化后旧笔迹要清掉：笔顺是从当前墨迹重排的，残留像素会留在新画布上。
+  context.setTransform(1, 0, 0, 1, 0, 0)
+  context.clearRect(0, 0, nextWidth, nextHeight)
+  const base = offscreen.getContext('2d')?.getImageData(0, 0, nextWidth, nextHeight) ?? null
+  state.pen = base ? createPenWriter(context, base, state.boundaries) : null
+  // 排序失败（空笔迹 / 2D 上下文异常）时退回「整句直接画上」，宁可不动画也不要白屏。
+  if (!state.pen) context.drawImage(offscreen, 0, 0)
   paintInk(state)
 }
 
@@ -377,6 +414,8 @@ export function createEditorCanvasWelcome(rootElement: HTMLElement | null): Edit
       context,
       reducedMotion: view.matchMedia('(prefers-reduced-motion: reduce)'),
       offscreen: null,
+      pen: null,
+      boundaries: [],
       progress: 0,
       startedAt: 0,
       frameId: null,
