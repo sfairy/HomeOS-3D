@@ -187,10 +187,22 @@ function inkBoundaries(targetContext: CanvasRenderingContext2D, text: string, le
   return boundaries
 }
 
+/**
+ * 离屏 2D 上下文：`willReadFrequently` 只在这块画布的**首次** `getContext` 时生效，
+ * 而首次调用发生在 `buildInk` 里。因此画字与取像素必须走同一个入口 —— 两边各写一次
+ * `getContext('2d')` 的话，属性会被第一次的默认值定死，之后每次重排（容器尺寸变化、
+ * 切页签回来）的 `getImageData` 都会被 Chrome 判定成「频繁读回」并报警告。
+ *
+ * 代价是这块画布改用软件光栅：它只画一次整句、主要用途就是读回像素，本来就不适合 GPU 路径。
+ */
+function inkContextOf(offscreen: HTMLCanvasElement): CanvasRenderingContext2D | null {
+  return offscreen.getContext('2d', { willReadFrequently: true })
+}
+
 /** 把整句文案画进离屏画布。 */
 function buildInk(state: InkState) {
   const { host, offscreen } = state
-  const targetContext = offscreen?.getContext('2d')
+  const targetContext = offscreen ? inkContextOf(offscreen) : null
   const text = (host.querySelector('.editor-canvas-welcome-art span')?.textContent || 'Welcome to HomeOS').trim()
   if (!targetContext || !offscreen || !text) return
   const canvasWidth = offscreen.width
@@ -248,7 +260,7 @@ function rebuildInk(state: InkState) {
   // 尺寸变化后旧笔迹要清掉：笔顺是从当前墨迹重排的，残留像素会留在新画布上。
   context.setTransform(1, 0, 0, 1, 0, 0)
   context.clearRect(0, 0, nextWidth, nextHeight)
-  const base = offscreen.getContext('2d')?.getImageData(0, 0, nextWidth, nextHeight) ?? null
+  const base = inkContextOf(offscreen)?.getImageData(0, 0, nextWidth, nextHeight) ?? null
   state.pen = base ? createPenWriter(context, base, state.boundaries) : null
   // 排序失败（空笔迹 / 2D 上下文异常）时退回「整句直接画上」，宁可不动画也不要白屏。
   if (!state.pen) context.drawImage(offscreen, 0, 0)
