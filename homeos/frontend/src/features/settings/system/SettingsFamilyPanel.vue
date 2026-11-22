@@ -1,5 +1,7 @@
 <!--
   家庭面板。展示当前家庭模式与通知设置，支持加载家庭模式与通知配置。
+  版式：顶部「概览」三项运行态（家庭模式 / 勿扰 / 通知）一屏可读；
+        下方「状态详情」按同一顺序拆成三张卡，宽屏三列 / 中宽两列（通知卡占满整行）/ 窄屏单列。
 -->
 <template>
   <SettingsPageShell
@@ -12,8 +14,8 @@
     body-class="family-hub__body"
   >
     <template #actions>
-      <div v-if="!loading && !loadError && activeFeatureCount > 0" class="fam-hero__pill">
-        <Sparkles class="fam-hero__pill-icon" />
+      <div v-if="!loading && !loadError && activeFeatureCount > 0" class="fam-pill">
+        <Sparkles class="fam-pill__icon" />
         <span>{{ `${activeFeatureCount} 项运行中` }}</span>
       </div>
     </template>
@@ -26,146 +28,205 @@
         tone="sky"
         @retry="load"
       >
-        <!-- 概览 KPI（标题由页头承担，避免重复） -->
-        <SettingsCard static extra-class="fam-hero">
-          <div class="fam-hero__stats">
-            <div
-              class="fam-hero-stat fam-hero-stat--mode"
-              :class="isModeActive && 'fam-hero-stat--active'"
-            >
-              <Sparkles class="fam-hero-stat__icon" />
-              <div class="fam-hero-stat__text">
-                <span class="fam-hero-stat__val">{{ activeModeName }}</span>
-                <span class="fam-hero-stat__lbl">{{ '家庭模式' }}</span>
-              </div>
+        <!-- 概览：三项运行态（标题由页头承担，避免重复） -->
+        <SettingsCard static extra-class="fam-overview">
+          <div class="fam-tiles">
+            <div class="fam-tile fam-tile--mode" :class="isModeActive && 'fam-tile--on'">
+              <span class="fam-tile__icon">
+                <Sparkles class="w-4 h-4" />
+              </span>
+              <span class="fam-tile__text">
+                <span class="fam-tile__val" :title="activeModeFullName || activeModeName">
+                  {{ activeModeName }}
+                </span>
+                <span class="fam-tile__lbl">
+                  <span class="fam-tile__dot" aria-hidden="true" />
+                  {{ '家庭模式' }}
+                </span>
+              </span>
             </div>
+
+            <div class="fam-tile fam-tile--dnd" :class="dndActive && 'fam-tile--on'">
+              <span class="fam-tile__icon">
+                <Moon class="w-4 h-4" />
+              </span>
+              <span class="fam-tile__text">
+                <span class="fam-tile__val fam-tile__val--num">{{ dndLabel }}</span>
+                <span class="fam-tile__lbl">
+                  <span class="fam-tile__dot" aria-hidden="true" />
+                  {{ '勿扰时段' }}
+                </span>
+              </span>
+            </div>
+
             <div
-              class="fam-hero-stat fam-hero-stat--dnd"
-              :class="notifySettings?.dndActive && 'fam-hero-stat--active'"
+              class="fam-tile fam-tile--notify"
+              :class="notifyEnabledCount === notifyPrefCount && 'fam-tile--on'"
             >
-              <Moon class="fam-hero-stat__icon" />
-              <div class="fam-hero-stat__text">
-                <span class="fam-hero-stat__val">{{ dndShortLabel }}</span>
-                <span class="fam-hero-stat__lbl">{{ '勿扰时段' }}</span>
-              </div>
+              <span class="fam-tile__icon">
+                <Bell class="w-4 h-4" />
+              </span>
+              <span class="fam-tile__text">
+                <span class="fam-tile__val fam-tile__val--num">
+                  {{ notifyEnabledCount }}<i class="fam-tile__val-total">/{{ notifyPrefCount }}</i>
+                </span>
+                <span class="fam-tile__lbl">
+                  <span class="fam-tile__dot" aria-hidden="true" />
+                  {{ '通知偏好' }}
+                </span>
+              </span>
             </div>
           </div>
-
-          <p class="fam-hero__hint">
-            <Eye class="fam-hero__hint-icon" />
-            {{ '下方查看各模块详情；家庭模式与勿扰请到对应设置页修改' }}
-          </p>
         </SettingsCard>
 
-        <div class="fam-page__stack">
-          <SettingsCard static extra-class="fam-status-workspace">
-            <header class="acc-section-head">
-              <div class="acc-section-head__orb acc-section-head__orb--secure">
-                <Eye class="w-4 h-4" />
-              </div>
-              <div class="acc-section-head__copy">
-                <h3 class="acc-section-head__title">{{ '状态详情' }}</h3>
-                <p class="acc-section-head__meta">
-                  {{ '各模块当前运行态与通知偏好明细' }}
-                </p>
-              </div>
-            </header>
-
-            <div class="fam-status-grid">
-              <article
-                :class="[
-                  'family-status-card',
-                  'family-status-card--mode',
-                  isModeActive && 'family-status-card--active',
-                ]"
-              >
-                <header class="family-status-card__head">
-                  <div class="family-status-card__icon">
-                    <Sparkles class="w-4 h-4" />
-                  </div>
-                  <div class="family-status-card__meta">
-                    <p class="family-status-card__label">{{ '当前家庭模式' }}</p>
-                    <span
-                      :class="[
-                        'family-status-card__badge',
-                        isModeActive
-                          ? 'family-status-card__badge--on'
-                          : 'family-status-card__badge--off',
-                      ]"
-                    >
-                      {{ isModeActive ? '已激活' : '未激活' }}
-                    </span>
-                  </div>
-                </header>
-                <p class="family-status-card__value">{{ activeModeName }}</p>
-                <p v-if="activeModeHint" class="family-status-card__hint">{{ activeModeHint }}</p>
-                <p v-else class="family-status-card__hint">
-                  {{ '管理员可在设置→家庭模式中配置' }}
-                </p>
-              </article>
-
-              <article
-                :class="[
-                  'family-status-card',
-                  'family-status-card--dnd',
-                  notifySettings?.dndActive && 'family-status-card--active',
-                ]"
-              >
-                <header class="family-status-card__head">
-                  <div class="family-status-card__icon">
-                    <Moon class="w-4 h-4" />
-                  </div>
-                  <div class="family-status-card__meta">
-                    <p class="family-status-card__label">{{ '勿扰时段' }}</p>
-                    <span
-                      v-if="notifySettings?.dndActive"
-                      class="family-status-card__badge family-status-card__badge--warn"
-                    >
-                      {{ '勿扰中' }}
-                    </span>
-                  </div>
-                </header>
-                <p class="family-status-card__value">{{ dndLabel }}</p>
-                <p class="family-status-card__hint">
-                  {{ notifySettings?.dndActive ? '非紧急通知将被抑制' : '当前不在勿扰时段内' }}
-                </p>
-              </article>
-
-              <article class="family-status-card family-status-card--notify">
-                <header class="family-status-card__head">
-                  <div class="family-status-card__icon">
-                    <Bell class="w-4 h-4" />
-                  </div>
-                  <div class="family-status-card__meta">
-                    <p class="family-status-card__label">{{ '我的通知偏好' }}</p>
-                    <span class="family-status-card__badge family-status-card__badge--muted">
-                      {{ `${notifyEnabledCount}/3 已开启` }}
-                    </span>
-                  </div>
-                </header>
-                <ul class="family-status-prefs">
-                  <li
-                    v-for="pref in notifyPrefs"
-                    :key="pref.key"
-                    :class="['family-status-pref', pref.enabled && 'family-status-pref--on']"
-                  >
-                    <Check v-if="pref.enabled" class="w-3.5 h-3.5" />
-                    <X v-else class="w-3.5 h-3.5" />
-                    <span>{{ pref.label }}</span>
-                  </li>
-                </ul>
-              </article>
-
+        <!-- 状态详情：与概览同序，逐项给出明细 -->
+        <SettingsCard static extra-class="fam-status-workspace">
+          <header class="acc-section-head">
+            <div class="acc-section-head__orb acc-section-head__orb--secure">
+              <Eye class="w-4 h-4" />
             </div>
-          </SettingsCard>
-        </div>
+            <div class="acc-section-head__copy">
+              <h3 class="acc-section-head__title">{{ '状态详情' }}</h3>
+              <p class="acc-section-head__meta">
+                {{ '各模块当前运行态与通知偏好明细' }}
+              </p>
+            </div>
+          </header>
+
+          <div class="fam-status-grid">
+            <article
+              :class="[
+                'family-status-card',
+                'family-status-card--mode',
+                isModeActive && 'family-status-card--active',
+              ]"
+            >
+              <header class="family-status-card__head">
+                <div class="family-status-card__icon">
+                  <Sparkles class="w-4 h-4" />
+                </div>
+                <div class="family-status-card__meta">
+                  <p class="family-status-card__label">{{ '当前家庭模式' }}</p>
+                  <span
+                    :class="[
+                      'family-status-card__badge',
+                      isModeActive
+                        ? 'family-status-card__badge--on'
+                        : 'family-status-card__badge--off',
+                    ]"
+                  >
+                    {{ isModeActive ? '已激活' : '未激活' }}
+                  </span>
+                </div>
+              </header>
+
+              <p class="family-status-card__value">{{ activeModeName }}</p>
+
+              <ul v-if="activeModeList.length > 1" class="family-status-modes">
+                <li
+                  v-for="mode in activeModeList"
+                  :key="mode.id || mode.name"
+                  class="family-status-mode"
+                >
+                  <span class="family-status-mode__dot" aria-hidden="true" />
+                  {{ mode.name }}
+                </li>
+              </ul>
+
+              <p class="family-status-card__hint">{{ modeHint }}</p>
+            </article>
+
+            <article
+              :class="[
+                'family-status-card',
+                'family-status-card--dnd',
+                dndActive && 'family-status-card--active',
+              ]"
+            >
+              <header class="family-status-card__head">
+                <div class="family-status-card__icon">
+                  <Moon class="w-4 h-4" />
+                </div>
+                <div class="family-status-card__meta">
+                  <p class="family-status-card__label">{{ '勿扰时段' }}</p>
+                  <span
+                    v-if="dndActive"
+                    class="family-status-card__badge family-status-card__badge--warn"
+                  >
+                    {{ '勿扰中' }}
+                  </span>
+                </div>
+              </header>
+
+              <p class="family-status-card__value family-status-card__value--num">{{ dndLabel }}</p>
+
+              <!-- 24 小时刻度：高亮勿扰窗口，白线为当前时刻 -->
+              <div class="family-status-timeline" aria-hidden="true">
+                <div class="family-status-timeline__track">
+                  <span
+                    v-for="(seg, index) in dndSegments"
+                    :key="`dnd-${index}`"
+                    class="family-status-timeline__band"
+                    :style="{ left: `${seg.left}%`, width: `${seg.width}%` }"
+                  />
+                  <span
+                    class="family-status-timeline__now"
+                    :style="{ left: `${nowPercent}%` }"
+                  />
+                </div>
+                <div class="family-status-timeline__axis">
+                  <span>00</span>
+                  <span>06</span>
+                  <span>12</span>
+                  <span>18</span>
+                  <span>24</span>
+                </div>
+              </div>
+
+              <p class="family-status-card__hint">{{ dndHint }}</p>
+            </article>
+
+            <article class="family-status-card family-status-card--notify family-status-card--wide">
+              <header class="family-status-card__head">
+                <div class="family-status-card__icon">
+                  <Bell class="w-4 h-4" />
+                </div>
+                <div class="family-status-card__meta">
+                  <p class="family-status-card__label">{{ '我的通知偏好' }}</p>
+                  <span class="family-status-card__badge family-status-card__badge--muted">
+                    {{ `${notifyEnabledCount}/${notifyPrefCount} 已开启` }}
+                  </span>
+                </div>
+              </header>
+
+              <ul class="family-status-prefs">
+                <li
+                  v-for="pref in notifyPrefs"
+                  :key="pref.key"
+                  :class="['family-status-pref', pref.enabled && 'family-status-pref--on']"
+                >
+                  <Check v-if="pref.enabled" class="w-3.5 h-3.5" />
+                  <X v-else class="w-3.5 h-3.5" />
+                  <span>{{ pref.label }}</span>
+                </li>
+              </ul>
+
+              <p class="family-status-card__hint">{{ notifyHint }}</p>
+            </article>
+          </div>
+
+          <p class="fam-status-note">
+            <Eye class="fam-status-note__icon" />
+            {{ '家庭模式与勿扰时段请到对应设置页修改，本页仅展示当前状态' }}
+          </p>
+        </SettingsCard>
       </ApiQueryState>
     </div>
   </SettingsPageShell>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { Sparkles, Moon, Bell, Check, X, Eye } from '@lucide/vue'
 import SettingsPageShell from '@/components/common/settings-page-shell/SettingsPageShell.vue'
 import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
@@ -194,6 +255,9 @@ const activeModeList = computed(() => {
 })
 const notifySettings = ref(null)
 let familyLoaded = false
+/** 当前时刻（每 30s 刷新，用于勿扰时间轴上的「现在」刻度；长驻页面也能保持准确）。 */
+const nowMs = ref(Date.now())
+let nowTimer = null
 
 const activeModeName = computed(() => {
   const names = activeModeList.value.map((item) => item.name).filter(Boolean)
@@ -211,15 +275,15 @@ const activeModeFullName = computed(() =>
 
 const isModeActive = computed(() => activeModeName.value !== '未激活')
 
-const activeModeHint = computed(() => {
-  if (activeModeList.value.length > 1) {
-    return `当前同时激活：${activeModeFullName.value}`
-  }
+const modeHint = computed(() => {
+  if (activeModeList.value.length > 1) return '多个模式同时生效（不同互斥组）'
   if (activeMode.value?.lastActivation?.executedAt) {
     return `最近切换：${formatShortDateTime(activeMode.value.lastActivation.executedAt)}`
   }
-  return ''
+  return '管理员可在设置 → 家庭模式中配置'
 })
+
+const dndActive = computed(() => Boolean(notifySettings.value?.dndActive))
 
 const dndLabel = computed(() => {
   const s = notifySettings.value
@@ -227,11 +291,28 @@ const dndLabel = computed(() => {
   return `${String(s.dndStart ?? 0).padStart(2, '0')}:00 – ${String(s.dndEnd ?? 0).padStart(2, '0')}:00`
 })
 
-const dndShortLabel = computed(() => {
-  if (notifySettings.value?.dndActive) return '进行中'
+const dndHint = computed(() => {
   const s = notifySettings.value
-  if (s?.dndStart == null && s?.dndEnd == null) return '未配置'
-  return `${String(s.dndStart ?? 0).padStart(2, '0')}–${String(s.dndEnd ?? 0).padStart(2, '0')}`
+  if (s?.dndStart == null && s?.dndEnd == null) return '尚未配置勿扰时段'
+  return dndActive.value ? '非紧急通知将被抑制' : '当前不在勿扰时段内'
+})
+
+/** 勿扰窗口在 24h 轴上的区间（跨午夜时拆成两段，避免出现负宽度）。 */
+const dndSegments = computed(() => {
+  const s = notifySettings.value
+  if (s?.dndStart == null || s?.dndEnd == null) return []
+  const start = Math.min(24, Math.max(0, Number(s.dndStart)))
+  const end = Math.min(24, Math.max(0, Number(s.dndEnd)))
+  if (!Number.isFinite(start) || !Number.isFinite(end) || start === end) return []
+  if (start < end) return [{ left: (start / 24) * 100, width: ((end - start) / 24) * 100 }]
+  const segments = [{ left: (start / 24) * 100, width: ((24 - start) / 24) * 100 }]
+  if (end > 0) segments.push({ left: 0, width: (end / 24) * 100 })
+  return segments
+})
+
+const nowPercent = computed(() => {
+  const date = new Date(nowMs.value)
+  return ((date.getHours() * 60 + date.getMinutes()) / (24 * 60)) * 100
 })
 
 const notifyPrefs = computed(() => [
@@ -252,12 +333,21 @@ const notifyPrefs = computed(() => [
   },
 ])
 
+const notifyPrefCount = computed(() => notifyPrefs.value.length)
+
 const notifyEnabledCount = computed(() => notifyPrefs.value.filter((p) => p.enabled).length)
+
+const notifyHint = computed(() => {
+  const off = notifyPrefCount.value - notifyEnabledCount.value
+  if (!off) return '通知项全部开启'
+  if (off === notifyPrefCount.value) return '通知已全部关闭'
+  return `有 ${off} 项通知已关闭`
+})
 
 const activeFeatureCount = computed(() => {
   let count = 0
   if (isModeActive.value) count++
-  if (notifySettings.value?.dndActive) count++
+  if (dndActive.value) count++
   return count
 })
 
@@ -291,6 +381,16 @@ async function load(options = {}) {
   }
 }
 
-onMounted(load)
+onMounted(() => {
+  load()
+  nowTimer = window.setInterval(() => {
+    nowMs.value = Date.now()
+  }, 30000)
+})
+
+onBeforeUnmount(() => {
+  if (nowTimer) window.clearInterval(nowTimer)
+  nowTimer = null
+})
 </script>
 <style src="./styles/admin-hubs.css"></style>
