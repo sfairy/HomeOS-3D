@@ -102,8 +102,7 @@ type LayoutNavConfig = {
   navTabVisibility?: Record<string, boolean>
   navTabPlacement?: Record<string, NavTabPlacement | undefined>
   customEmbeds?: Array<{ id: string; name?: string; icon?: string }>
-  moviePilotUrl?: string
-  /** 媒体库里的 MoviePilot 地址：与 moviePilotUrl 二选一即可（见 moviepilot-url.util） */
+  /** 媒体库里的 MoviePilot 地址（唯一真源，见 moviepilot-url.util） */
   mediaConfig?: { mpUrl?: string } | null
 }
 

@@ -47,8 +47,7 @@ export function embedNavTabId(embedId: string): string {
 /** 布局中与内嵌导航相关的可变字段子集 */
 type EmbedNavTabLayoutFields = {
   customEmbeds?: Array<{ id?: string | null }> | null
-  moviePilotUrl?: string | null
-  /** 媒体库里的同一台 MoviePilot 地址（与 moviePilotUrl 二选一即可） */
+  /** 媒体库里的 MoviePilot 地址（唯一真源，见 moviepilot-url.util） */
   mediaConfig?: { mpUrl?: string | null } | null
   navTabOrder?: string[] | null
   navTabVisibility?: Record<string, boolean | undefined> | null

@@ -54,12 +54,6 @@
           </template>
         </SettingsFlowBand>
 
-        <!-- MoviePilot 地址与令牌统一在「媒体与入库」维护：这里只留一条指路，避免两处入口 -->
-        <p v-if="moviePilotNeedsMigration" class="embed-hint embed-hint--warn embed-mp-migrate">
-          {{ `检测到旧配置里的 MoviePilot 地址（${legacyMoviePilotUrl}）尚未迁移，入库通知读不到它。` }}
-          <RouterLink class="embed-mp-migrate__link" :to="SETTINGS_ROUTES.media()">{{ '前往媒体与入库迁移' }}</RouterLink>
-        </p>
-
         <template v-if="embedCount">
           <div class="embed-workspace__tabs">
             <p v-if="embedCount > 1" class="embed-tabs-meta">
@@ -264,8 +258,6 @@ const {
   addEmbed,
   removeEmbed,
   onEmbedReorder,
-  legacyMoviePilotUrl,
-  moviePilotNeedsMigration,
 } = useSettingsEmbeds(() => props.activeTab)
 
 // 流程概览步骤：网页 URL → iframe 嵌入 → 图标主题 → 导航入口

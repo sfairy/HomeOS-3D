@@ -134,11 +134,11 @@ class MoviePilotProxyService:
 
     # 目标解析
     def get_moviepilot_url(self) -> str:
-        """MoviePilot 地址：``mediaConfig.mpUrl`` 优先，其次 ``layout.moviePilotUrl``。
+        """MoviePilot 地址：唯一真源是 ``mediaConfig.mpUrl``。
 
-        这两处历史上是分开填的：媒体库（入库轮询）读 ``mediaConfig.mpUrl``，内嵌页 /
-        图片代理读 ``moviePilotUrl``。只填一处就会出现「能打开页面但轮询不到入库」，
-        或者反过来。读取侧统一成一条链，写入侧由设置页的一键回填收敛。
+        历史上有第二个位置 ``layout.moviePilotUrl``（内嵌网页管理），已随「全新系统」
+        清理删除 —— 两个入口描述同一台服务时，用户改了一个「看起来生效」的输入框
+        是最难排查的配置矛盾。
         """
         project_id = self._ui_config.resolve_active_project_id()
         config = self._ui_config.get_config(project_id)
@@ -154,7 +154,7 @@ class MoviePilotProxyService:
                 raise _internal_error(api_error("SYSTEM_INVALID_LAYOUT"))
             media = layout.get("mediaConfig")
             from_media = media.get("mpUrl") if isinstance(media, dict) else None
-            url = from_media or layout.get("moviePilotUrl")
+            url = from_media
             if not url:
                 not_found(api_error("MOVIEPILOT_URL_NOT_CONFIGURED"))
             return str(url).rstrip("/")

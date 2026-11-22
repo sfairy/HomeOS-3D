@@ -85,38 +85,6 @@
             autocomplete="off"
             placeholder="http://192.168.1.10:3000"
           />
-          <p v-if="mpUrlConflict" class="text-xs text-amber-400">
-            {{
-              `旧版本在内嵌网页里存过另一个地址（${legacyMpUrl}），以这里为准。`
-            }}
-          </p>
-          <button
-            v-if="mpUrlConflict"
-            type="button"
-            class="settings-btn-ghost self-start text-xs"
-            @click="dropLegacyMpUrl"
-          >
-            {{ '清除旧的残留地址' }}
-          </button>
-          <button
-            v-else-if="legacyMpUrl && !draft.mpUrl.trim()"
-            type="button"
-            class="settings-btn-ghost self-start text-xs"
-            @click="fillLegacyMpUrl"
-          >
-            {{ `从旧配置导入地址（${legacyMpUrl}）` }}
-          </button>
-          <p v-else-if="legacyMpUrl" class="text-xs opacity-60">
-            {{ '旧版本还留着一份相同的地址。' }}
-          </p>
-          <button
-            v-if="legacyMpUrl && !mpUrlConflict && draft.mpUrl.trim()"
-            type="button"
-            class="settings-btn-ghost self-start text-xs"
-            @click="dropLegacyMpUrl"
-          >
-            {{ '清除旧版本残留' }}
-          </button>
           <label class="settings-form-label">{{ '令牌' }}</label>
           <input
             v-model="draft.mpToken"
@@ -261,7 +229,6 @@ import {
   testMediaConnection,
 } from '@/services/api/media-library'
 import { listHaAreas } from '@/services/api/ha'
-import { hasMoviePilotUrlConflict } from '@/shared/utils/layout/moviepilot-url.util'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 
 defineProps({ activeTab: { type: String, default: 'media' } })
@@ -297,28 +264,6 @@ const candidates = ref([])
 /** 与后端 CONFIG_MASK_PLACEHOLDER 对齐 */
 const MASK = '••••••••'
 
-/** 内嵌网页管理的 MoviePilot 地址：只用来一键回填，避免用户重复输入 */
-const legacyMpUrl = computed(() => String(layout.layoutConfig?.moviePilotUrl || '').trim())
-
-/** 两处填了不同地址：后端以媒体库为准，界面必须说明内嵌那条被忽略 */
-const mpUrlConflict = computed(() =>
-  hasMoviePilotUrlConflict({ moviePilotUrl: legacyMpUrl.value, mediaConfig: { mpUrl: draft.mpUrl } }),
-)
-
-function fillLegacyMpUrl() {
-  draft.mpUrl = legacyMpUrl.value
-}
-
-/**
- * 清空旧位置（内嵌网页管理）的地址。
- *
- * 内嵌页那栏现在已经改成只读，但历史数据里可能还留着一条。媒体库这份是权威来源，
- * 所以这里直接改草稿里的 legacy 字段，随布局一起保存（可用「取消修改」撤回）。
- */
-function dropLegacyMpUrl() {
-  layout.layoutConfig.moviePilotUrl = ''
-}
-
 function snapshot() {
   return JSON.stringify([
     draft.maUrl.trim(),
@@ -328,9 +273,6 @@ function snapshot() {
     Number(draft.arrivalIntervalSeconds) || 0,
     cleared.maToken,
     cleared.mpToken,
-    // 旧位置（内嵌网页管理）也可能被这里清空 / 迁移，必须计入未保存状态，
-    // 否则点了「清空旧位置那条」不会出现保存按钮。
-    legacyMpUrl.value,
   ])
 }
 
@@ -385,9 +327,6 @@ async function saveConfig() {
       ...(draft.mpToken.trim() ? { mpToken: draft.mpToken.trim() } : {}),
       ...(clears.length ? { clearTokens: clears } : { clearTokens: [] }),
     }
-    // 媒体库是 MoviePilot 地址的唯一定义处：保存时顺手清掉旧版本留在这个字段里的副本，
-    // 否则它会一直作为「回落值」参与解析，日后改地址又会出现两处不一致。
-    if (draft.mpUrl.trim()) layout.layoutConfig.moviePilotUrl = ''
     const ok = await layout.saveLayout(true)
     if (!ok) return
     applyInMemoryAfterSave()

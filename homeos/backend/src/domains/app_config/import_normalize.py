@@ -56,47 +56,10 @@ def _normalize_rebuild_debounce_ms(frontend: dict[str, Any], changes: list[str])
         )
 
 
-def _migrate_legacy_event_log_retention(config: dict[str, Any], changes: list[str]) -> None:
-    """``other.eventlogRetentionDays`` → ``retention.eventLog``（v19 迁移）。
-
-    保留天数一度有两个入口：``other`` 分区的驼峰键（旧）和 ``retention`` 分区的
-    表键（新）。两处并存时「改了不会生效」——``retention.eventLog`` 优先，
-    而它由「数据保留」页写入，高级参数里的那个键长期是个死旋钮。
-
-    ``retention.eventLog`` 已有合法值时直接丢弃旧键；否则把旧值搬过去。
-    """
-    other = config.get("other")
-    if not isinstance(other, dict) or "eventlogRetentionDays" not in other:
-        return
-    legacy = other.pop("eventlogRetentionDays")
-    try:
-        days = int(float(legacy))
-    except (TypeError, ValueError) as exc:
-        logger.debug("eventlogRetentionDays 不是数字，丢弃旧键: %r (%s)", legacy, exc)
-        changes.append(f"other.eventlogRetentionDays: 无效值 {legacy!r} → 已丢弃")
-        return
-    retention = config.get("retention")
-    if not isinstance(retention, dict):
-        retention = {}
-        config["retention"] = retention
-    current = retention.get("eventLog")
-    try:
-        current_days = int(float(current)) if current is not None else 0
-    except (TypeError, ValueError) as exc:
-        logger.debug("retention.eventLog 不是数字，按未设置处理: %r (%s)", current, exc)
-        current_days = 0
-    if current_days > 0:
-        changes.append(f"other.eventlogRetentionDays: 已移除（{days} 天），沿用 retention.eventLog={current_days}")
-        return
-    retention["eventLog"] = days
-    changes.append(f"other.eventlogRetentionDays: 已迁移到 retention.eventLog={days}")
-
-
 def normalize_app_config_for_import(config: dict[str, Any]) -> dict[str, Any]:
     """备份/导入前规范化运行参数；返回 ``{"config", "changes"}``（原地修改 config）。"""
     changes: list[str] = []
     _strip_unknown_sections(config, changes)
-    _migrate_legacy_event_log_retention(config, changes)
     frontend = config.get("frontend")
     if isinstance(frontend, dict):
         _normalize_rebuild_debounce_ms(frontend, changes)

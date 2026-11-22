@@ -231,6 +231,7 @@ import {
 import { EMBED_TAB_ACCENTS, resolveEmbedNavAccent } from '@/shared/utils/layout/embed-nav-theme.util'
 import { resolveEmbedIconComponent } from '@/shared/utils/layout/embed-icons.util'
 import { DEFAULT_BRAND_LOGO_URL } from '@/shared/utils/layout/nav-tabs.util'
+import { resolveMoviePilotUrl } from '@/shared/utils/layout/moviepilot-url.util'
 
 const layoutStore = useLayoutStore()
 
@@ -282,7 +283,7 @@ const dynamicNavTabs = computed(() => {
         accent: resolveEmbedNavAccent(embed, embedIndex),
       })
     })
-  } else if (layoutStore.layoutConfig.moviePilotUrl) {
+  } else if (resolveMoviePilotUrl(layoutStore.layoutConfig)) {
     tabs.push({
       id: 'media',
       label: '影视',

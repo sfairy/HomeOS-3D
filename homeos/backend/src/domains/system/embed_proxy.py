@@ -5,7 +5,7 @@ HTTPS 父页无法内嵌 HTTP 站点（混合内容），由本服务充当同�
 并改写响应体中的 URL 维持同源链路。
 
 关键策略：
-- 上游目标来自 ``UiConfigService`` 的 ``layout.customEmbeds`` / ``moviePilotUrl``；
+- 上游目标来自 ``UiConfigService`` 的 ``layout.customEmbeds`` / ``mediaConfig.mpUrl``；
 - 响应头按 ``EMBED_PROXY_STRIP_RESPONSE_HEADERS`` 清理，Set-Cookie / Location / Referer 重写；
 - 同机内嵌时 ``/assets/*`` 走本地 dist，避免经 LAN/HTTPS 回环；
 - 失败返回 502 友好 HTML，不向上游暴露内部堆栈。
@@ -142,7 +142,7 @@ class EmbedProxyService:
             # 与媒体库同一条读取链：只填了「媒体与入库」的 mpUrl 也要能打开内嵌页
             media = layout.get("mediaConfig")
             from_media = media.get("mpUrl") if isinstance(media, dict) else None
-            url = from_list or str(from_media or "") or str(layout.get("moviePilotUrl") or "")
+            url = from_list or str(from_media or "")
             if not url.strip():
                 not_found(_message("EMBED_MOVIEPILOT_URL_MISSING"))
             return _target_from(url)

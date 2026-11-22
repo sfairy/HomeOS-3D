@@ -125,15 +125,14 @@ class MediaService:
         return _base_url(config.get("maUrl")), _text(config.get("maToken"))
 
     def _mp(self) -> tuple[str, str]:
-        """MoviePilot 地址：媒体库优先，其次「内嵌网页管理」的 moviePilotUrl。
+        """MoviePilot 地址：唯一真源是 ``mediaConfig.mpUrl``（「媒体与入库」页）。
 
-        这两处历史上是分开填的（内嵌页 / 图片代理读 ``moviePilotUrl``，入库轮询读
-        ``mediaConfig.mpUrl``），用户只填一处就会出现「能打开页面但轮询不到入库」。
-        读取侧统一成一条链，两处都填时以媒体库为准。
+        历史上有第二个位置 ``layout.moviePilotUrl``（内嵌网页管理里的输入框），
+        两个入口描述同一台服务，只填一处就会出现「能打开页面但轮询不到入库」。
+        该字段已随「全新系统」清理删除，入库轮询 / 图片代理 / 内嵌页统一读这里。
         """
         config = self._media_config()
-        url = _text(config.get("mpUrl")) or _text(self._layout().get("moviePilotUrl"))
-        return _base_url(url), _text(config.get("mpToken"))
+        return _base_url(_text(config.get("mpUrl"))), _text(config.get("mpToken"))
 
     def interval_seconds(self) -> int:
         raw = self._media_config().get("arrivalIntervalSeconds")
