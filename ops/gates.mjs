@@ -94,6 +94,9 @@ const GATE_GROUPS = {
     // 工具链版本一致性：Bun（packageManager）、Python（镜像解释器）、基础镜像摘要
     // 这三条版本线各有两处以上副本，漂移不报错、只会在换机或发版时才暴露。
     { name: 'check:toolchain', ...bun('run', 'check:toolchain') },
+    // 环境变量对账：`.env.example` 里不能再留着没人读的键（历史上有整段失效的
+    // `APP_HA_*` / `STORE_WECHAT_*`，读模板等于读一份假契约）。
+    { name: 'check:env-inventory', ...bun('run', 'check:env-inventory') },
     { name: 'check:scene', ...bun('run', 'check:scene') },
     { name: 'check:any', ...bun('run', 'check:any') },
     { name: 'check:frontend-complexity', ...bun('run', 'check:frontend-complexity') },
@@ -104,6 +107,8 @@ const GATE_GROUPS = {
     { name: 'check:code-size', ...bun('run', 'check:code-size') },
     // CSS 重复声明体：可证明安全的那部分必须已经合并完（见 ops/scripts/merge-css-duplicates.mjs）。
     { name: 'check:css-duplicates', ...bun('run', 'check:css-duplicates') },
+    // 令牌可解析性：`var(--x)` 必须能追到声明处，否则该属性静默失效（浏览器不报错）。
+    { name: 'check:css-tokens', ...bun('run', 'check:css-tokens') },
     // `domElement` 与「建元素 + 设类名 + 设文本」的等价性证明（假 document 逐字段比对）。
     { name: 'check:dom-factory', ...bun('run', 'check:dom-factory') },
     // 平面多边形布尔内核的数学不变量（空集恒等 / 幂等 / 面积守恒 / 洞语义 / 点归属）。

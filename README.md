@@ -156,7 +156,7 @@ HomeOS/
 - 产物只进根 `dist/`，镜像只消费它。
 - 依赖只在仓库根装一份（`bun.lock` 唯一，子包无 `node_modules`）。
 - 磁盘中文文件名、代码英文 id；存档 / 撤销历史 / 导出包按 id 引用。
-- `docs/` 不入库（`.gitignore` 忽略）：可重跑产物（模型审计、`code-size/` 快照）与本地分析笔记（如 `port-compiled/` 的对照矩阵）都放这里。
+- `docs/` 不入库（`.gitignore` 忽略）：可重跑产物（模型审计、`code-size/` 快照）与本地分析笔记都放这里，随时可删。
 - Python 解释器只走 `ops/lib/py.mjs`（`HOMEOS_PYTHON` → `.venv-store` → `python3`），脚本不写死路径。
 - 门禁只登记在 `ops/gates.mjs`，workflow 不另抄命令。
 - 三份「唯一真源」不要各写一份：端口 `ops/ports.mjs`、能力码 `ops/contracts/feature_codes.json`、基础镜像 `ops/docker-pins.json`。
@@ -360,7 +360,7 @@ bfcache 交接在 `shared/utils/page-cache-lifecycle.ts`：`pagehide(persisted)`
 
 前者商店与主应用同机（`http://homeos-store:8802`）；后者商店地址为公网域名。
 
-环境变量、内网 HTTPS 与 SNI、穿透、备份与升级、排错：见 `.env.example`（约 100 个变量，分 A–G 七段）与两个 compose 的注释。
+环境变量、内网 HTTPS 与 SNI、穿透、备份与升级、排错：见 `.env.example`（约 90 个变量，分 A–G 七段）与两个 compose 的注释。模板里不允许出现没有读取方的键（`check:env-inventory` 守）。
 
 镜像：`bun run build` → `bun run image:app` / `image:store`。基础镜像按多架构 digest 钉死，真源 `ops/docker-pins.json`。
 
@@ -391,7 +391,7 @@ bfcache 交接在 `shared/utils/page-cache-lifecycle.ts`：`pagehide(persisted)`
 | [`meshoptimizer LICENSE`](homeos/frontend/public/static/vendor/meshoptimizer/0.25/LICENSE.md) | 第三方许可（勿改） |
 | `.env.example` | 全部环境变量 |
 
-**入库**的 `.md` 只有三个：本文件、`MODEL-NAMES.md`（生成）、`meshoptimizer LICENSE.md`（第三方）。不另维护文档副本：约定写在门禁脚本、部署信息写在 compose 与 `.env.example`。`docs/` 被 gitignore 忽略，放可重跑产物与本地分析笔记（如 `port-compiled/` 的功能对照矩阵、`analysis/code-size/` 快照），不入库、不作为契约。
+**入库**的 `.md` 只有三个：本文件、`MODEL-NAMES.md`（生成）、`meshoptimizer LICENSE.md`（第三方）。不另维护文档副本：约定写在门禁脚本、部署信息写在 compose 与 `.env.example`。`docs/` 被 gitignore 忽略，只放可重跑产物与本地分析笔记，不入库、不作为契约。
 
 | 工作流 | 触发 | 内容 |
 | --- | --- | --- |
