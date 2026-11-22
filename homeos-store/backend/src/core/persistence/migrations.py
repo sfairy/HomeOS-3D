@@ -1,164 +1,56 @@
-"""HomeOS Store 数据库迁移注册表。
+"""HomeOS Store 数据库结构真源：**ORM 元数据**，不再有历史迁移链。
 
-版本号从 1 开始；基线由 schema_migrate 以 version=0 记录。空库先由 ORM 建出最新
-结构，再执行全部迁移，因此每条迁移在空库上必须能安全 no-op。
+## 为什么只有一条基线
+
+表结构由 `core/persistence/` 下的 SQLAlchemy 模型定义，全新装机时 `create_all` 直接按模型
+建库（`prepare_schema` → `run_migrations` 的 fresh 分支），**一条迁移都不执行**。历史迁移
+（曾经的 1–8 条）只做一件事：把更早的库补到当前结构 —— 邮箱归一化、单 live 绑定去重、
+废弃 `releases` 表、手工表达式索引清理。那些升级路径为「从 0.7.x 一路升级上来」的商店部署
+准备，作为全新系统交付时没有消费者。
+
+现在只剩 **1 号基线**（空操作）：作用是给 `schema_migrations` 写一行可读记录，让「结构由谁
+负责」在库里可见。后续结构变更从 2 号开始追加，规则与主应用 `platform/core/db/migrations.py`
+完全一致：
+
+1. 版本号连续递增，从 2 开始；`checksum` 一旦发布不得修改（改了要加新版本号）；
+2. `apply` 内**必须**用 `connection.execute()` 逐条执行 —— 不要用 `executescript()`，
+3. 迁移必须幂等（`IF NOT EXISTS` / 先查 `PRAGMA table_info`）；
+4. 同时改模型与迁移，并跑 `ops/scripts/reset-schema-version.py --dry-run`。
+
+## 升级到此版本的一次性动作
+
+老库里留有 2–8 号记录时会因「记录的版本在当前代码中不存在」拒绝启动（刻意如此）。
+处理方式只有一条 —— 先确认库结构与模型一致，再重置版本表：
+
+```bash
+node ops/lib/py.mjs ops/scripts/reset-schema-version.py --app store --dry-run
+node ops/lib/py.mjs ops/scripts/reset-schema-version.py --app store
+```
 """
 
 from __future__ import annotations
 
 import sqlite3
+from typing import Any
 
-from homeos_shared.schema_migrate import Migration, MigrationContext, SchemaMigrationError
-from homeos_shared.sqlite_email import normalize_email_column
+from homeos_shared.schema_migrate import Migration, MigrationContext
 
-# 同 platform/core/db/migrations.py：沿用原有私有名字，调用点零改写（见那里的注释）。
-from homeos_shared.sqlite_introspect import index_exists as _index_exists
-from homeos_shared.sqlite_introspect import normalize_all_datetimes
-from homeos_shared.sqlite_introspect import table_columns as _columns
-from homeos_shared.sqlite_introspect import table_exists as _table_exists
-
-
-def _normalize_accounts_email(connection: sqlite3.Connection, _context: MigrationContext) -> None:
-    # 已有 ix_accounts_email 就是唯一索引；老库可能缺它，这里补齐。写入侧统一 lower/trim，
-    # 因此不需要表达式索引（SQLAlchemy 反射表达式索引会告警）。
-    normalize_email_column(
-        connection,
-        table="accounts",
-        add_column_sql="ALTER TABLE accounts ADD COLUMN email VARCHAR(255) NOT NULL DEFAULT ''",
-        index_name="ix_accounts_email",
-    )
-
-def _index_account_sessions(connection: sqlite3.Connection, _context: MigrationContext) -> None:
-    if not _table_exists(connection, "account_sessions"):
-        return
-    columns = _columns(connection, "account_sessions")
-    if {"account_id", "expires_at"} <= columns:
-        connection.execute(
-            "CREATE INDEX IF NOT EXISTS ix_account_sessions_account_expires "
-            "ON account_sessions(account_id, expires_at)"
-        )
+#: 1 号基线：空操作。表结构由 ORM 模型负责（见模块说明）。
+BASELINE_VERSION = 1
+BASELINE_NAME = "baseline-0.8.8"
+BASELINE_CHECKSUM = "s0001-baseline"
 
 
-def _dedupe_live_device_bindings(connection: sqlite3.Connection, context: MigrationContext) -> None:
-    if not _table_exists(connection, "device_bindings"):
-        return
-    columns = _columns(connection, "device_bindings")
-    if not {"license_id", "active", "released_at"} <= columns:
-        return
-    order_columns = [name for name in ("activated_at", "created_at") if name in columns]
-    order_sql = ", ".join(f'"{name}" DESC' for name in order_columns)
-    rows = connection.execute(
-        "SELECT id, license_id FROM device_bindings "  # noqa: S608
-        "WHERE active = 1 AND released_at IS NULL "
-        f"ORDER BY license_id, {order_sql or 'rowid DESC'}, rowid DESC"
-    ).fetchall()
-    seen: set[str] = set()
-    stale: list[str] = []
-    for binding_id, license_id in rows:
-        key = str(license_id)
-        if key in seen:
-            stale.append(str(binding_id))
-        else:
-            seen.add(key)
-    if stale:
-        placeholders = ",".join("?" for _ in stale)
-        connection.execute(
-            f"UPDATE device_bindings SET active = 0 WHERE id IN ({placeholders})", stale  # noqa: S608
-        )
-        context.logger.warning("同一授权存在多行 live 绑定，已降级 %s 行", len(stale))
-    try:
-        connection.execute(
-            "CREATE UNIQUE INDEX IF NOT EXISTS device_bindings_single_live_uidx "
-            "ON device_bindings(license_id) WHERE active = 1 AND released_at IS NULL"
-        )
-    except sqlite3.IntegrityError as error:
-        raise SchemaMigrationError(
-            "无法建立设备绑定单 live 唯一索引，库中仍存在重复 live 行。"
-        ) from error
+def _noop(connection: sqlite3.Connection, _context: MigrationContext) -> None:
+    """基线不做事：结构由 ``create_all`` 按 ORM 元数据建立。"""
 
 
-def _create_ops_indexes(connection: sqlite3.Connection) -> None:
-    indexes = (
-        ("orders", "ix_orders_status_created_at", "status, created_at"),
-        ("licenses", "ix_licenses_access_expires_at", "access_expires_at"),
-        ("recovery_tokens", "ix_recovery_tokens_expires_at", "expires_at"),
-        ("license_sessions", "ix_license_sessions_expires_at", "expires_at"),
-    )
-    for table, name, columns in indexes:
-        if not _table_exists(connection, table):
-            continue
-        connection.execute(f"CREATE INDEX IF NOT EXISTS {name} ON {table}({columns})")
+MIGRATIONS: tuple[Migration, ...] = (Migration(BASELINE_VERSION, BASELINE_NAME, BASELINE_CHECKSUM, _noop),)
 
 
-def _add_recovery_revoked_at(connection: sqlite3.Connection) -> None:
-    if not _table_exists(connection, "recovery_tokens"):
-        return
-    if "revoked_at" not in _columns(connection, "recovery_tokens"):
-        connection.execute("ALTER TABLE recovery_tokens ADD COLUMN revoked_at DATETIME")
-
-
-def _normalize_all_datetimes(connection: sqlite3.Connection, context: MigrationContext) -> None:
-    """把历史库里非 UTC-naive 的时间字段统一成 ORM 期望的形态。
-
-    实现单点在 ``homeos_shared.sqlite_introspect.normalize_all_datetimes``（与主后端
-    ``platform/core/db/migrations.py`` 同一个函数）：两份逐字相同的 PRAGMA 遍历早已合并。
-    迁移协议签名保持 ``(connection, context)``，``MIGRATIONS`` 注册表一行都不用改。
-    """
-    changed = normalize_all_datetimes(connection)
-    if changed:
-        context.logger.warning("已归一化 %s 个时间字段为 UTC-naive", changed)
-
-
-def _drop_releases_table(connection: sqlite3.Connection, context: MigrationContext) -> None:
-    """删掉已废弃的 ``releases`` 表。
-
-    商店不再做任何版本发布/升级检测（升级由开发者手动部署），这张表与相关模型已移除，
-    这里把老库里剩下的表一并清掉。空库上本就由 ORM 建表、不含此表，故安全 no-op。
-    """
-    if not _table_exists(connection, "releases"):
-        return
-    connection.execute("DROP TABLE releases")
-    context.logger.warning("已删除废弃的 releases 表（版本发布同步功能已移除）。")
-
-
-#: 手工遗留的表达式索引：``CREATE UNIQUE INDEX … ON accounts(lower(trim(email)))``。
-#: 仓库里没有任何代码创建它（``git log -S`` 查无此名），只出现在早期手工调试过的开发库。
-REDUNDANT_EMAIL_INDEX = "accounts_email_normalized_uidx"
-
-
-def _drop_redundant_email_index(connection: sqlite3.Connection, context: MigrationContext) -> None:
-    """删掉手工遗留的表达式索引 ``accounts_email_normalized_uidx``，让库回到 ORM 声明的形状。
-
-    为什么要删：它不在任何迁移与 ORM 元数据里，新建库永远不会有它，于是同一个版本的
-    两个库结构不同；SQLAlchemy 反射不认表达式索引，每次启动都会往 stderr 打一段英文
-    ``SAWarning: Skipped unsupported reflection of expression-based index …``（多行、带源码
-    位置），夹在中文启动日志中间像是报错。
-
-    为什么删了不会丢唯一性：唯一性由第 1 条迁移建的 ``ix_accounts_email`` 保证，而写入侧
-    所有入口都做 ``strip().lower()``（``core/schemas.py`` 的 pydantic 校验器、``setup.py``、
-    ``store_auth.py``、``security.normalize_email``），所以两行 ``email`` 在原值上不同、
-    归一化后相同时不可能出现 —— 表达式索引拦的是同一件事，属于重复约束。
-
-    顺序是刻意的：先跑一遍 ``_normalize_accounts_email``（它会把历史值归一化，并在归一化后
-    出现重复时抛错中止），确保 ``ix_accounts_email`` 真的在且能建得起来，再删表达式索引 ——
-    反过来就会出现「唯一索引已删、新的还没建」的窗口。空库与没有该索引的库上均安全 no-op。
-    """
-    if not _table_exists(connection, "accounts"):
-        return
-    if not _index_exists(connection, REDUNDANT_EMAIL_INDEX):
-        return
-    _normalize_accounts_email(connection, context)
-    connection.execute(f"DROP INDEX {REDUNDANT_EMAIL_INDEX}")
-    context.logger.warning("已删除冗余的表达式索引 %s（唯一性由 ix_accounts_email 保证）。", REDUNDANT_EMAIL_INDEX)
-
-
-MIGRATIONS = (
-    Migration(1, "accounts-email-normalize-unique", "s0002-v1", _normalize_accounts_email),
-    Migration(2, "account-sessions-expiry-index", "s0003-v1", _index_account_sessions),
-    Migration(3, "device-bindings-single-live", "s0004-v1", _dedupe_live_device_bindings),
-    Migration(4, "ops-indexes", "s0005-v1", lambda connection, _ctx: _create_ops_indexes(connection)),
-    Migration(5, "recovery-tokens-revoked-at", "s0006-v1", lambda connection, _ctx: _add_recovery_revoked_at(connection)),
-    Migration(6, "normalize-all-datetimes", "s0007-v1", _normalize_all_datetimes),
-    Migration(7, "drop-releases-table", "s0008-v1", _drop_releases_table),
-    Migration(8, "drop-redundant-email-expression-index", "s0009-v1", _drop_redundant_email_index),
-)
+__all__: list[Any] = [
+    "BASELINE_CHECKSUM",
+    "BASELINE_NAME",
+    "BASELINE_VERSION",
+    "MIGRATIONS",
+]

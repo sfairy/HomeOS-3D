@@ -25,9 +25,8 @@ LOGGER = logging.getLogger(__name__)
 #: 版本表结构；app 参与主键，允许同一个 SQLite 文件未来被不同应用复用（当前不会）。
 MIGRATIONS_TABLE = "schema_migrations"
 MIGRATION_LOCK_SUFFIX = ".migrate.lock"
+#: 版本表的「无任何迁移记录」哨兵值。迁移版本号一律从 1 开始。
 BASELINE_VERSION = 0
-BASELINE_NAME = "baseline"
-BASELINE_CHECKSUM = "baseline"
 #: 迁移前快照默认保留份数。
 MIGRATION_BACKUP_KEEP = 10
 #: 迁移前快照的总字节预算（默认 8 GiB）。
@@ -81,7 +80,6 @@ class MigrationReport:
     database_path: Path
     mode: str
     fresh: bool
-    adopted: bool
     from_version: int
     to_version: int
     applied: tuple[int, ...]
@@ -159,11 +157,24 @@ def _assert_migration_versions(migrations: Sequence[Migration]) -> None:
         raise SchemaMigrationError("迁移列表必须按版本号升序排列。")
 
 
-def _stamp_baseline(connection: sqlite3.Connection, app: str) -> None:
+def _stamp_version(
+    connection: sqlite3.Connection,
+    app: str,
+    *,
+    version: int,
+    name: str,
+    checksum: str,
+) -> None:
+    """把「库已达到某版本」写进版本表。
+
+    全新库用最新迁移的 (version, name, checksum) 标记 —— 基线迁移本身是空操作，
+    `create_all` 已经把结构建到最新，所以「基线已执行」在语义上成立。这样版本表里
+    只有真实存在的一条记录，不会出现「v0 baseline」与「v1 基线」两行并存。
+    """
     connection.execute(
         f"INSERT OR REPLACE INTO {MIGRATIONS_TABLE} "  # noqa: S608
         "(app, version, name, checksum, applied_at, duration_ms) VALUES (?, ?, ?, ?, ?, 0)",
-        (app, BASELINE_VERSION, BASELINE_NAME, BASELINE_CHECKSUM, _iso_now()),
+        (app, version, name, checksum, _iso_now()),
     )
     connection.commit()
 
@@ -284,12 +295,30 @@ def run_migrations(
     migration_list = tuple(sorted(migrations, key=lambda item: item.version))
     _assert_migration_versions(migration_list)
     latest = _latest_version(migration_list)
+    baseline = migration_list[0]
     log = logger or LOGGER
     database_path = database_path.resolve()
     data_dir = (data_dir or database_path.parent).resolve()
     backup_dir = (backup_dir or data_dir / "backups" / "schema").resolve()
     lock_path = database_path.with_name(database_path.name + MIGRATION_LOCK_SUFFIX)
     lock_path.parent.mkdir(parents=True, exist_ok=True)
+
+    reset_hint = "先确认结构与 ORM 一致，再跑 ops/scripts/reset-schema-version.py 重置版本表。"
+
+    def _bootstrap() -> None:
+        """空库：按 ORM 建结构，并把「已到基线版本」写进版本表。"""
+        create_schema()
+        with closing(sqlite3.connect(database_path)) as connection:
+            connection.execute("PRAGMA journal_mode=WAL")
+            ensure_migrations_table(connection)
+            _stamp_version(
+                connection,
+                app,
+                version=baseline.version,
+                name=baseline.name,
+                checksum=baseline.checksum,
+            )
+        log.info("已按 ORM 元数据创建空库并写入基线 v%s：%s", baseline.version, database_path)
 
     with locked_file(lock_path):
         fresh = not database_path.is_file() or database_path.stat().st_size == 0
@@ -304,56 +333,54 @@ def run_migrations(
                     database_path,
                     normalized_mode,
                     True,
-                    False,
                     0,
                     0,
                     (),
                     tuple(item.version for item in migration_list),
                     None,
                 )
-            create_schema()
-            with closing(sqlite3.connect(database_path)) as connection:
-                connection.execute("PRAGMA journal_mode=WAL")
-                ensure_migrations_table(connection)
-                _stamp_baseline(connection, app)
-            log.info("已按 ORM 元数据创建空库并写入基线：%s", database_path)
         elif normalized_mode == "off":
-            return MigrationReport(app, database_path, normalized_mode, False, False, 0, 0, (), (), None)
+            return MigrationReport(app, database_path, normalized_mode, False, 0, 0, (), (), None)
+        else:
+            # 文件存在：先只读判断它是「有业务表的旧库」还是「只剩文件头的空壳」。
+            with closing(sqlite3.connect(database_path)) as probe:
+                if normalized_mode == "check" and not migrations_table_exists(probe):
+                    if has_business_tables(probe):
+                        raise MigrationPending(f"{app} 旧库缺少迁移版本表；请以 auto 模式启动一次（{reset_hint}）")
+                    raise MigrationPending(f"{app} 数据库没有版本表；请以 auto 模式启动一次。")
+                if not migrations_table_exists(probe) or not read_applied(probe, app):
+                    if has_business_tables(probe):
+                        # 全新系统不接管未版本化的旧库：它的结构是不是当前形状无从证明，
+                        # 硬接管等于把「可能缺列」的库标成最新。宁可拒绝启动。
+                        raise SchemaMigrationError(
+                            f"{app} 数据库已有业务表但没有迁移版本记录（旧库）；本版本不提供升级路径。{reset_hint}"
+                        )
+                    if normalized_mode == "check":
+                        raise MigrationPending(f"{app} 数据库没有版本表；请以 auto 模式启动一次。")
+                    fresh = True
+
+        if fresh:
+            _bootstrap()
 
         with closing(sqlite3.connect(database_path)) as connection:
             connection.execute("PRAGMA foreign_keys=ON")
             connection.execute("PRAGMA busy_timeout=5000")
-            if normalized_mode == "check" and not migrations_table_exists(connection):
-                if has_business_tables(connection):
-                    raise MigrationPending(f"{app} 旧库缺少迁移版本表；请以 auto 模式启动一次。")
-                raise MigrationPending(f"{app} 数据库没有版本表；请以 auto 模式启动一次。")
             ensure_migrations_table(connection)
             applied = read_applied(connection, app)
-            adopted = False
-            if not applied:
-                if has_business_tables(connection):
-                    if normalized_mode == "check":
-                        raise MigrationPending(f"{app} 旧库缺少迁移版本表；请以 auto 模式启动一次。")
-                    _stamp_baseline(connection, app)
-                    adopted = True
-                    log.warning("检测到未版本化的旧库，已接管为基线：%s", database_path)
-                elif normalized_mode != "check":
-                    # check 模式承诺「只读探测、不写库」：这里若写基线，一个只做健康检查的
-                    # 进程会改动业务数据库。留给下面的 pending 分支抛 MigrationPending。
-                    _stamp_baseline(connection, app)
-            else:
-                for version, (name, checksum) in applied.items():
-                    migration = next((item for item in migration_list if item.version == version), None)
-                    if migration is None:
-                        if version <= BASELINE_VERSION:
-                            continue
-                        raise SchemaMigrationError(
-                            f"数据库记录的迁移版本 {version}（{name}）在当前代码中不存在；拒绝启动。"
-                        )
-                    if checksum != migration.checksum:
-                        raise SchemaMigrationError(
-                            f"迁移 {version}（{name}）的 checksum 与数据库记录不一致；说明代码被改动但版本号未递增。"
-                        )
+            for version, (name, checksum) in applied.items():
+                migration = next((item for item in migration_list if item.version == version), None)
+                if migration is None:
+                    if version <= BASELINE_VERSION:
+                        continue
+                    raise SchemaMigrationError(
+                        f"数据库记录的迁移版本 {version}（{name}）在当前代码中不存在；"
+                        f"本版本不提供升级路径。{reset_hint}"
+                    )
+                if checksum != migration.checksum:
+                    raise SchemaMigrationError(
+                        f"迁移 {version}（{name}）的 checksum 与数据库记录不一致；说明代码被改动但版本号未递增。"
+                    )
+            if applied:
                 current_now = max(applied)
                 if current_now > latest:
                     raise SchemaMigrationError(
@@ -371,7 +398,6 @@ def run_migrations(
                     database_path,
                     normalized_mode,
                     fresh,
-                    adopted,
                     current_version,
                     current_version,
                     (),
@@ -402,7 +428,6 @@ def run_migrations(
                 database_path=database_path,
                 mode=normalized_mode,
                 fresh=fresh,
-                adopted=adopted,
                 from_version=current_version,
                 to_version=to_version,
                 applied=tuple(applied_now),
