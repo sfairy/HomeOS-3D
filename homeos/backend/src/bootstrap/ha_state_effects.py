@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 from typing import Any
 
 from fastapi import FastAPI
@@ -203,12 +202,6 @@ async def _run_state_change_effects(
     return change
 
 
-def _broadcast_first_enabled() -> bool:
-    """状态批次是否「先广播、后跑副作用」（PF2）。``0`` 恢复旧顺序，仅用于回滚。"""
-    raw = os.getenv("HOMEOS_STATE_BROADCAST_FIRST")
-    return raw is None or raw.strip().lower() not in {"0", "false", "no", "off"}
-
-
 def _stage_batch_changes(
     app: FastAPI,
     store: Any,
@@ -253,8 +246,6 @@ async def apply_state_changed_batch(app: FastAPI, gateway: Any, store: Any, payl
     表现为「点灯后界面慢半拍」。现在先广播（客户端看到的是 HA 的权威状态），再串行跑副作用
     —— 副作用产生的后续变化会以新的批次回来，语义不变。
 
-    回滚开关：``HOMEOS_STATE_BROADCAST_FIRST=0`` 恢复「副作用先行」的旧顺序。
-
     两种来源必须分开处理：
 
     - ``applied=True``：这批差异来自全量对账，L1 已由 ``store.set_all`` 写完。
@@ -268,7 +259,6 @@ async def apply_state_changed_batch(app: FastAPI, gateway: Any, store: Any, payl
     sync_filter = getattr(app.state, "entity_sync_filter", None)
     already_applied = isinstance(payload, dict) and payload.get("applied") is True
     cold_start_fill = already_applied and isinstance(payload, dict) and payload.get("baseline") is False
-    broadcast_first = _broadcast_first_enabled()
 
     applied, deferred = _stage_batch_changes(
         app,
@@ -277,60 +267,15 @@ async def apply_state_changed_batch(app: FastAPI, gateway: Any, store: Any, payl
         already_applied=already_applied,
         sync_filter=sync_filter,
     )
-    if broadcast_first:
-        if applied:
-            await gateway.broadcast_state_changed_batch(applied)
-        if not cold_start_fill:
-            for change in deferred:
-                if already_applied:
-                    await _run_reconciled_change_effects(app, change)
-                else:
-                    await _run_side_effects(app, change.get("entity_id"), change)
-        return
-
-    # 旧顺序（回滚用）：副作用先行，最后一次性广播。见 ``_apply_batch_effects_first``。
-    await _apply_batch_effects_first(
-        app,
-        gateway,
-        store,
-        changes,
-        already_applied=already_applied,
-        cold_start_fill=cold_start_fill,
-        sync_filter=sync_filter,
-    )
-
-
-async def _apply_batch_effects_first(
-    app: FastAPI,
-    gateway: Any,
-    store: Any,
-    changes: list[Any],
-    *,
-    already_applied: bool,
-    cold_start_fill: bool,
-    sync_filter: Any,
-) -> None:
-    """旧顺序（``HOMEOS_STATE_BROADCAST_FIRST=0``）：副作用先行、最后广播。
-
-    只作为回滚开关存在。新顺序（默认）先广播再跑副作用，见 :func:`apply_state_changed_batch`。
-    """
-    applied: list[dict[str, Any]] = []
-    for change in changes:
-        if not isinstance(change, dict) or not change.get("entity_id"):
-            continue
-        if already_applied:
-            if not cold_start_fill:
-                await _run_reconciled_change_effects(app, change)
-            result: dict[str, Any] | None = change
-        else:
-            result = await _run_state_change_effects(app, gateway, store, change, broadcast=False)
-        if result is None:
-            continue
-        if sync_filter is not None and not sync_filter.is_entity_syncable(str(change.get("entity_id"))):
-            continue
-        applied.append(result)
+    # 先广播（客户端看到 HA 的权威状态），再串行跑副作用。
     if applied:
         await gateway.broadcast_state_changed_batch(applied)
+    if not cold_start_fill:
+        for change in deferred:
+            if already_applied:
+                await _run_reconciled_change_effects(app, change)
+            else:
+                await _run_side_effects(app, change.get("entity_id"), change)
 
 
 async def _apply_initial_snapshot(app: FastAPI, store: Any, payload: Any, bus: Any, sync_filter: Any) -> None:
