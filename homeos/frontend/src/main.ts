@@ -34,7 +34,7 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router/index'
 // 设计令牌唯一真源：必须在所有既有样式表之前加载（canonical 定义在 packages/shared）
-import './styles/design-tokens.css'
+import '../../../packages/shared/src/styles/design-tokens.css'
 import './assets/styles/main.css'
 import './assets/styles/app-premium-tokens.css'
 import './assets/styles/hos-design-system.css'
@@ -51,10 +51,10 @@ import './assets/styles/motion.css'
 import './assets/styles/list-page-eager.css'
 import './assets/styles/degrade-banner.css'
 import './assets/styles/multi-color.css'
-// 旧令牌 → canonical 兼容层：必须排在所有既有样式之后，才能覆盖它们冻结的别名值
-import './styles/legacy-token-bridge.css'
+// 主题覆盖层：必须排在所有既有样式之后 —— 它与 design-tokens 同为 :root 特异度，靠加载顺序生效
+import '../../../packages/shared/src/styles/theme-overrides.css'
 // 触控 / 可访问性基线：最后加载，覆盖旧样式里的 outline:none 与触控几何
-import './styles/touch-a11y.css'
+import '../../../packages/shared/src/styles/touch-a11y.css'
 import { loadFrontendConfig, setupFrontendConfigVisibilitySync } from '@/shared/utils/config/frontend-config'
 import { primeGlassEffectDocument, setupGlassEffectSync } from '@/shared/utils/ui/glass-effect.util'
 import { applyHomeOsTheme } from '@/shared/utils/ui/theme.util'

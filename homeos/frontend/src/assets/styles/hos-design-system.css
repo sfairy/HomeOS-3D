@@ -96,14 +96,14 @@
   --hos-surface-1: rgba(255, 255, 255, 0.045);
   --hos-surface-2: rgba(255, 255, 255, 0.075);
   --hos-surface-3: rgba(255, 255, 255, 0.11);
-  --hos-surface-well: rgba(0, 0, 0, 0.34);
+  --hos-surface-well: rgba(0, 0, 0, 0.4);
   --hos-surface-well-border: rgba(255, 255, 255, 0.05);
   --hos-surface-panel:
     linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.018) 100%), rgba(13, 24, 43, 0.84);
   --hos-surface-panel-hover:
     linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.03) 100%), rgba(17, 32, 57, 0.9);
   --hos-surface-inset: inset 0 1px 0 rgba(255, 255, 255, 0.07);
-  --hos-surface-well-inset: inset 0 1px 0 rgba(255, 255, 255, 0.04), inset 0 2px 8px rgba(0, 0, 0, 0.28);
+  --hos-surface-well-inset: inset 0 1px 0 rgba(255, 255, 255, 0.04), inset 0 2px 8px rgba(0, 0, 0, 0.32);
 
   /* ── 边框与阴影 ── */
   /**
@@ -143,7 +143,7 @@
   --hos-page-gap: var(--hos-space-lg);
 
   /* ── 交互 ── */
-  --hos-transition-panel: 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+  --hos-transition-panel: var(--hos-dur-slow) var(--hos-ease-out);
   --hos-hover-lift: -1px;
 
   /* ══ 页面间距与卡片表面别名（映射到 hos-* 令牌） ══ */

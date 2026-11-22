@@ -1,24 +1,29 @@
 /**
- * 旧令牌 → canonical 兼容层（legacy-token-bridge）
+ * 主题覆盖层（theme-overrides）
  * ---------------------------------------------------------------
- * 唯一职责：把仓库里已经存在的旧令牌名，重新指向 design-tokens.css 的 canonical 值。
- * 顺序要求：必须在所有既有样式表之后加载（入口里排最后，仅早于 touch-a11y.css）。
+ * 这一层回答一个问题：**当同一个语义被多处命名时，最终生效的是哪个值**。
  *
- * 为什么不能只「删旧名换新名」：
- *   1) 旧名有 5 大族、上千处引用（--page-accent 1154 处、--module-accent 418 处、
- *      --premium-accent 200 处、--accent 118 处），一次性替换无法逐屏回归。
- *   2) CSS 自定义属性的 var() 在**声明元素处**求值：旧文件里
- *      「--premium-border: var(--hos-border-subtle)」之类别名在加载时就被冻结成旧值。
- *      只改 canonical 值而不重声明别名，会出现「一半新色一半旧色」的割裂。
- *      故本文件必须把**所有上游值发生变化的别名族**重新声明一遍（注释标「冻结修复」处）。
+ * 为什么需要它：仓库里并存两套命名 —— 早期按界面区域切分的族（`--premium-*` /
+ * `--set-*` / `--card-*`）与 canonical 令牌（`--hos-*` / `--hos-color-*`）。两者同名不同源，
+ * 且 CSS 自定义属性在**声明元素处**求值：上游把 canonical 值改掉后，早先文件里
+ * `--x: var(--hos-y)` 已经被冻结成旧值，光改 canonical 会得到「一半新色一半旧色」。
+ * 所以本文件在**最后**加载，把需要统一的族重新指一遍，并给出本项目的调色板。
  *
- * 迁移策略：新代码只用 --hos-* / --hos-color-*；页面迁移完成后，本文件对应段可整段删除。
+ * 顺序约束：必须在所有既有样式表之后加载（入口里倒数第二，仅早于 touch-a11y.css）。
+ * 它与 design-tokens.css 同为 `:root` 特异度，谁在后面谁生效 —— 这正是它存在的机制。
+ *
+ * 分三类内容，改动时按类别判断：
+ *   1. **作用域主题 API**（`--accent`、`--page-accent-*`、`--module-accent-*`）：
+ *      组件用 `<style scoped>` 在局部重定义它们（灯=琥珀、空调=青…），特异性高于本层。
+ *      这些名字是**对外契约**，不能就地改名，否则同一作用域里 canonical 的消费者会一起变色。
+ *   2. **调色板取值**（各 `--module-accent-*` 的具体色号）：本项目的模块辨识色。
+ *   3. **统一指向**（`--premium-*` / `--set-*` / `--card-*` → canonical）：保留是因为
+ *      上千处引用尚未逐屏迁移；新代码只写 `--hos-*`，迁移完成一族即可删一族。
  */
 
 :root {
   /* ══ 1. 画布 / 视口 ═══════════════════════════════════════ */
   --bg-viewport: var(--hos-bg-canvas);
-  --hos-surface-0: var(--hos-bg-canvas);
 
   /* ══ 2. 强调色五族合一 ═════════════════════════════════════
      说明：popup-base.css / popup-entities.css 在 .popup-shell 等**局部作用域**里
@@ -26,10 +31,6 @@
      本文件之前就没问题：它们会继续生效 —— 这里只统一**默认值**，不接管实体配色。 */
   --accent: var(--hos-color-accent);
   --accent-rgb: var(--hos-color-accent-rgb);
-  --accent-secondary: var(--hos-color-accent-strong);
-  --accent-tertiary: var(--hos-color-accent);
-  --accent-cyan: var(--hos-color-accent);
-  --accent-warm: var(--hos-color-accent-deep);
   --accent-glow: rgba(var(--hos-color-accent-rgb), 0.4);
   --accent-glow-warm: rgba(var(--hos-color-accent-rgb), 0.32);
 
@@ -37,7 +38,6 @@
   --premium-accent-blue: var(--hos-color-accent);
   --premium-accent-cyan: var(--hos-color-accent-strong);
   --premium-accent-cyan-rgb: var(--hos-color-accent-strong-rgb);
-  --premium-accent-purple: var(--hos-color-accent-deep);
   --premium-accent-violet: var(--hos-color-accent-deep);
   --premium-accent-amber: var(--hos-color-warning);
   --premium-accent-green: var(--hos-color-success);
@@ -72,12 +72,9 @@
   --hos-surface-1: var(--hos-bg-tint-1);
   --hos-surface-2: var(--hos-bg-tint-2);
   --hos-surface-3: var(--hos-bg-tint-3);
-  --hos-surface-well: rgba(0, 0, 0, 0.4);
   --hos-surface-panel: var(--hos-panel-surface);
   --hos-surface-panel-hover: var(--hos-panel-surface-hover);
-  --hos-surface-elevated: var(--hos-panel-elevated);
   --hos-surface-inset: var(--hos-shadow-inset);
-  --hos-surface-well-inset: inset 0 1px 0 rgba(255, 255, 255, 0.04), inset 0 2px 8px rgba(0, 0, 0, 0.32);
 
   --premium-glass-bg: var(--hos-bg-tint-1);
   --premium-glass-bg-hover: var(--hos-bg-tint-2);
@@ -87,7 +84,6 @@
   --set-glass-bg-subtle: var(--hos-bg-tint-1);
   --card-bg-1: var(--hos-bg-tint-1);
   --card-bg-2: var(--hos-bg-tint-2);
-  --card-bg-3: var(--hos-bg-tint-3);
   --set-bg-dark: rgba(0, 0, 0, 0.3);
   --set-bg-dark-hover: rgba(0, 0, 0, 0.38);
 
@@ -95,7 +91,6 @@
   --dashboard-sidebar-border: var(--hos-line-2);
 
   /* ══ 5. 描边（旧蓝色描边 → 中性暖灰描边；铜色只留给强调） ══ */
-  --hos-border-hairline-soft: var(--hos-line-1);
   --hos-border-hairline: var(--hos-line-2);
   --hos-border-hairline-strong: var(--hos-line-3);
   --premium-border-open: var(--hos-color-accent-line);
@@ -115,18 +110,13 @@
 
   /* ══ 7. 圆角（四档：控件 10 / 卡片 14 / 面板 20 / 容器 28） ══ */
   --hos-radius-control: var(--hos-r-1);
-  --hos-radius-input: var(--hos-r-1);
   --hos-radius-card: var(--hos-r-2);
   --hos-radius-panel: var(--hos-r-3);
   --hos-radius-shell: var(--hos-r-4);
   --hos-radius-pill: var(--hos-r-pill);
   --acc-radius: var(--hos-r-2);
   /* 冻结修复：main.css 里旧圆角别名早已求值成旧值，必须重指一遍 */
-  --radius-xs: var(--hos-r-1);
-  --radius-sm: var(--hos-r-1);
-  --radius-xl: var(--hos-r-4);
   --radius-2xl: var(--hos-r-4);
-  --radius-ipad-sm: var(--hos-r-2);
   --radius-ipad-md: var(--hos-r-3);
   --radius-ipad-lg: var(--hos-r-3);
   --radius-ipad-xl: var(--hos-r-4);
@@ -134,21 +124,16 @@
   --radius-ipad-pill: var(--hos-r-pill);
 
   /* ══ 8. 排版（旧 --premium-fs-* 六档 → 十档字号中的对应档） ══ */
-  --premium-fs-display: var(--hos-fs-8);
   --premium-fs-title: var(--hos-fs-6);
   --premium-fs-body: var(--hos-fs-5);
   --premium-fs-body-sm: var(--hos-fs-4);
   --premium-fs-caption: var(--hos-fs-3);
   --premium-fs-micro: var(--hos-fs-2);
   --premium-fs-stat: var(--hos-fs-7);
-  --premium-fs-widget-title: var(--hos-fs-3);
-  --premium-fs-widget-label: var(--hos-fs-2);
-  --premium-fs-widget-meta: var(--hos-fs-2);
 
   /* ══ 9. 动效 / 模糊 ════════════════════════════════════════ */
   --set-transition-fast: var(--hos-dur-fast) var(--hos-ease-standard);
   --set-transition-normal: var(--hos-dur-base) var(--hos-ease-standard);
-  --hos-transition-panel: var(--hos-dur-slow) var(--hos-ease-out);
   --premium-blur: var(--hos-blur-2);
 
   /* ══ 10. 控件尺寸 / 触控目标 ═══════════════════════════════ */
@@ -302,12 +287,6 @@
   --page-accent-text: #34d399;
 
   /* ── 旧 premium / set 别名补齐（部分组件仍在引用，且没有 var() 回落值） ── */
-  --set-accent: var(--hos-color-accent);
-  --set-accent-rgb: var(--hos-color-accent-rgb);
-  --set-accent-text: var(--hos-color-accent-strong);
-  --set-fg: var(--hos-fg-1);
-  --set-muted: var(--hos-fg-2);
-  --set-surface: var(--hos-bg-tint-2);
   --set-info-bg-strong: rgba(var(--hos-color-info-rgb), 0.18);
   --set-info-glow: rgba(var(--hos-color-info-rgb), 0.16);
   --set-success-bg-strong: rgba(var(--hos-color-success-rgb), 0.18);
@@ -323,8 +302,6 @@
   --premium-fs-title-sm: 17px;
 
   /* ── 蓝色语义描边：恢复旧观感里的冷调分层（列表分隔 / 卡片描边） ── */
-  --hos-border-subtle: rgba(96, 165, 250, 0.18);
-  --hos-border-strong: rgba(125, 211, 252, 0.3);
   --premium-border: var(--hos-border-subtle);
   --premium-border-strong: var(--hos-border-strong);
 }
