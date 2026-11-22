@@ -177,8 +177,6 @@ const routes: RouteRecordRaw[] = [
         name: 'device-detail',
         component: lazyView(() => import('@/views/DeviceDetailView.vue')),
       },
-      // 房间管理重定向到设置页房间标签
-      { path: 'rooms', redirect: { path: '/settings', query: { tab: 'rooms' } } },
       {
         // 通知中心（功能码 module.notifications 门禁）
         path: 'notifications',

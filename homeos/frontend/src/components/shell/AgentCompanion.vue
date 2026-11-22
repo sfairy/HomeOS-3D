@@ -5,8 +5,7 @@
   - 长按（≥350ms）：开始语音输入，松手把识别结果就地发给管家并显示回复气泡（上滑 45px 取消）
   - 按住拖动：把图标挪到画面任意位置，松手写回布局并静默保存
 
-  位置优先读 layout.agentConfig.companion 的 xPercent / yPercent（视口百分比中心点）；
-  旧布局只有 side + topPercent 时按原停靠逻辑推导落点，拖动后自动升级为自由位置。
+  位置读 layout.agentConfig.companion 的 xPercent / yPercent（视口百分比中心点）。
   只在仪表盘等主界面显示；对话面板打开时自己隐藏，避免和模态互相抢焦点。
 
   拖动过程只写本地 dragCenter，不碰布局配置；松手才提交一次，避免每像素都触发保存。
@@ -364,18 +363,12 @@ function clampCenter(center: { x: number; y: number }) {
   return clampCompanionCenter(center, viewportSize(), shellScale())
 }
 
-/** 当前落点（视口百分比）：拖动中读 dragCenter，否则读布局配置 / 旧版停靠回退 */
+/** 当前落点（视口百分比）：拖动中读 dragCenter，否则读布局配置 */
 const positionPercent = computed(() => {
   if (dragCenter.value) {
     return centerToPercent(clampCenter(dragCenter.value), viewportSize())
   }
-  const stage = resolveAgentCompanionStageSize()
-  const resolved = resolveAgentCompanionPosition(config.value, {
-    panelPosition: layoutStore.layoutConfig?.panelPosition,
-    panelWidth: Number(layoutStore.layoutConfig?.rightPanelWidth) || 0,
-    viewportWidth: stage.width,
-    viewportHeight: stage.height,
-  })
+  const resolved = resolveAgentCompanionPosition(config.value)
   const viewport = viewportSize()
   const center = clampCenter({
     x: (resolved.xPercent / 100) * viewport.width,

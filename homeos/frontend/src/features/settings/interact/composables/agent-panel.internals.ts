@@ -45,11 +45,7 @@ import {
   isAgentSecretMasked,
   toneFromAgentClass,
 } from '@/features/settings/interact/composables/agent-panel-helpers.internals'
-import {
-  normalizeAgentCompanion,
-  resolveAgentCompanionPosition,
-  resolveAgentCompanionStageSize,
-} from '@/shared/utils/layout/agent-companion.util'
+import { normalizeAgentCompanion, resolveAgentCompanionPosition } from '@/shared/utils/layout/agent-companion.util'
 
 type ChannelDraft = {
   email: NonNullable<ChannelConfig['email']>
@@ -352,26 +348,16 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {
     set: (enabledValue) => patchCompanion({ enabled: enabledValue === true }),
   })
 
-  /** 落点坐标系（整页等比缩放时是壳层尺寸而不是窗口尺寸） */
-  function companionViewport() {
-    const stage = resolveAgentCompanionStageSize()
-    return {
-      viewportWidth: stage.width,
-      viewportHeight: stage.height,
-      panelPosition: layoutStore.layoutConfig?.panelPosition,
-      panelWidth: Number(layoutStore.layoutConfig?.rightPanelWidth) || 0,
-    }
-  }
-
-  /** 当前落点：自由位置优先，旧版停靠配置回退 */
+  /** 当前落点（两轴都已归一到 0-100） */
   function effectiveCompanionPosition() {
-    return resolveAgentCompanionPosition(effectiveCompanion(), companionViewport())
+    return resolveAgentCompanionPosition(effectiveCompanion())
   }
 
-  /** 是否已经拖过 / 自定义过位置（决定设置页是否提示「恢复默认停靠」） */
+  /** 是否已经拖过 / 自定义过位置（决定设置页是否提示「恢复默认位置」） */
   const companionPositionCustomized = computed(() => {
     const cfg = effectiveCompanion()
-    return cfg.xPercent != null && cfg.yPercent != null
+    const defaults = getDefaultLayout().agentConfig!.companion!
+    return cfg.xPercent !== defaults.xPercent || cfg.yPercent !== defaults.yPercent
   })
 
   /** 水平位置：改一轴时把另一轴也落成数字，避免只存了一半的自由位置 */
@@ -394,14 +380,14 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {
       }),
   })
 
-  /** 恢复默认停靠：清掉自由位置，回到左侧 60% 的旧版停靠口径 */
+  /** 恢复默认位置：左侧 3%、垂直 60% */
   function resetCompanionPosition(): void {
     companionTouched.value = true
     const defaults = getDefaultLayout().agentConfig!.companion!
     agentDraft.companion = {
       enabled: effectiveCompanion().enabled,
-      side: defaults.side,
-      topPercent: defaults.topPercent,
+      xPercent: defaults.xPercent,
+      yPercent: defaults.yPercent,
     }
   }
 

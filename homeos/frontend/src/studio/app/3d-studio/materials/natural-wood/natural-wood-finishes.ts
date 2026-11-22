@@ -1,6 +1,5 @@
 /**
- * 家具 / 柜类 / 电器三类模型的「自然木语」饰面表（0.8.7 `natural-wood-home-materials.js`
- * 与 `natural-wood-cabinet-materials.js` 的对应实现）。
+ * 家具 / 柜类 / 电器三类模型的「自然木语」饰面表。
  *
  * 为什么要分三张表而不是一张大表：
  * - **家具体量最大**（沙发 / 床 / 桌椅），沿用木 + 布 + 石三件套；
@@ -8,7 +7,7 @@
  *   否则每块门板一个色号，看起来像拼装货；
  * - **电器是「白色家电 + 少量木饰」**，木色只出现在边框与把手，机身必须是哑光米白。
  *
- * 表的键是「材质角色」（0.8.7 的 role 名），值是「种类 + 相对调色板的取色 + 参数」。
+ * 表的键是「材质角色」，值是「种类 + 相对调色板的取色 + 参数」。
  */
 import type { NaturalWoodKind } from './natural-wood-materials'
 import { NATURAL_WOOD_PALETTE as palette } from './natural-wood-materials'

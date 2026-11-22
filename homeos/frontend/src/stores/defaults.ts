@@ -99,7 +99,6 @@ function createDefaultLayout(): UILayoutConfig {
     performanceMode: 'high',
     smartPerformanceMode: true,
     glassEffect: 'auto',
-    moviePilotUrl: '',
     // 媒体库连接：默认未配置，地址与令牌在「媒体与入库」设置页填写
     mediaConfig: { maUrl: '', maToken: '', mpUrl: '', mpToken: '', arrivalIntervalSeconds: 90 },
     awaySimulationLightPool: [],
@@ -152,7 +151,7 @@ function createDefaultLayout(): UILayoutConfig {
       // 联网搜索默认开启：后两级搜索源无需密钥，关闭后工具直接返回未启用
       webSearchEnabled: true,
       // AI 悬浮伴侣：默认贴左边停靠，点开对话、长按说话
-      companion: { enabled: true, side: 'left', topPercent: 60 },
+      companion: { enabled: true, xPercent: 3, yPercent: 60 },
       // 主动管家默认关闭：避免升级后突然开始推送；开关与频控在设置页配置
       proactive: {
         enabled: false,

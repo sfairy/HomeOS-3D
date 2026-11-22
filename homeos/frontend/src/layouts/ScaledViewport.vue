@@ -47,6 +47,7 @@
 import { computed, toRef, watch, onUnmounted } from 'vue'
 import VNotification from '@/components/common/base/VNotification.vue'
 import { useLayoutStore } from '@/stores/layout.store'
+import { getDefaultLayout } from '@/stores/defaults'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useScaling, holdScaledCanvasFlag } from '@/composables/ui/useScaling'
 import { getConfigSection, configEpoch, getWorkerDerivedThreshold } from '@/shared/utils/config/frontend-config'
@@ -93,15 +94,15 @@ const resolvedMaxWidth = computed(() => {
 // 大屏两侧永远空出一大条，视觉重心被压回中间 —— 这正是「大屏上看起来像 16:9 电视机里
 // 嵌了一个 4:3 页面」的根因。新策略：
 //   · 单页显式传入 pageMaxWidth（如全屏构建器）→ 尊重它
-//   · 配置里用户改过 pageMaxWidth（> 旧默认 1366）→ 尊重用户
+//   · 配置里用户改过 pageMaxWidth（> 出厂默认值）→ 尊重用户
 //   · 其余情况 → 用 canonical 内容最大宽 1680px，其余空间交给布局（右栏/页脚/3D 画布）
-const LEGACY_DEFAULT_PAGE_MAX_WIDTH = 1366
+const DEFAULT_PAGE_MAX_WIDTH = getDefaultLayout().pageMaxWidth
 const FLUID_CONTENT_MAX = 1680
 const fluidMaxWidth = computed(() => {
   configEpoch.value
   if (props.pageMaxWidth != null && props.pageMaxWidth > 0) return props.pageMaxWidth
   const configured = layoutStore.layoutConfig.pageMaxWidth || 0
-  if (configured > LEGACY_DEFAULT_PAGE_MAX_WIDTH) return configured
+  if (configured > DEFAULT_PAGE_MAX_WIDTH) return configured
   return FLUID_CONTENT_MAX
 })
 

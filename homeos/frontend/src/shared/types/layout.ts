@@ -88,8 +88,6 @@ export interface HaConfig {
   hazardWaterValveEntityId?: string
   /** 烟/燃气排风实体，逗号分隔 */
   hazardExhaustFanEntityIds?: string
-  /** 已废弃：持久演习开关（会在真实告警时跳过关阀/排风）。演习改为一次性触发，此字段不再读取。 */
-  hazardDrillMode?: boolean
 }
 
 /** 统计传感器配置 */
@@ -162,7 +160,6 @@ export interface UILayoutConfig {
   performanceMode: string // 性能模式
   smartPerformanceMode: boolean // 是否智能性能模式
   glassEffect: string // 玻璃效果
-  moviePilotUrl: string // MoviePilot 地址
   awaySimulationLightPool: string[] // 离家模拟灯光池
   customEmbeds: CustomEmbed[] // 自定义嵌入页面列表
   embeddedPages: unknown[] // 嵌入页面列表
@@ -232,17 +229,10 @@ export interface AgentConfig {
 export interface AgentCompanionConfig {
   /** 是否显示悬浮伴侣（默认开启） */
   enabled: boolean
-  /** 旧版停靠的屏幕侧边：仅在未保存自由位置时作为默认落点 */
-  side: 'left' | 'right'
-  /** 旧版垂直停靠高度（百分比，15-85 之间夹紧） */
-  topPercent: number
-  /**
-   * 自由摆放的水平中心位置（视口百分比 0-100）。
-   * 与 `yPercent` 同时存在时优先于 `side` / `topPercent`；由画面拖动直接写入。
-   */
-  xPercent?: number
+  /** 自由摆放的水平中心位置（视口百分比 0-100）。由画面拖动直接写入。 */
+  xPercent: number
   /** 自由摆放的垂直中心位置（视口百分比 0-100） */
-  yPercent?: number
+  yPercent: number
 }
 
 /** 主动管家配置 */
