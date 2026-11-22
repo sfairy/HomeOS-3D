@@ -339,9 +339,19 @@ class EventLogService(EventLogReportMixin, EnergyStoreMixin):
         # 能耗记账与「事件日志显示」无关，也不受清空世代影响：用户清空日志不该
         # 让日/月用量凭空少掉一批读数。``energy_batch`` 为空时回退用显示批次，
         # 兼容旧调用路径（测试/直接调用）。
+        #
+        # ⚠ 这一段**绝不能**把异常抛给 ``flush``：显示行在上面已经 commit 了，冒泡出去
+        # 会被当成「整批没写成」而回灌，下一轮把同一批显示行再写一遍 —— 11-18 → 11-21
+        # 的 1200 万行重复就是这样滚出来的（当时异常来自 energy 路径，而它那时只在内部
+        # try 里兜了写库部分，``accumulate_energy_totals`` 在 try 之外）。
+        # ``_apply_energy_side_effects`` 自身已全量兜底，这里再加一道，保证「记账失败
+        # 只损失记账」不被下一次改动破坏。
         side_effects = energy_batch or batch
         if side_effects:
-            self._apply_energy_side_effects(side_effects)
+            try:
+                self._apply_energy_side_effects(side_effects)
+            except Exception as error:  # pragma: no cover - 防御：不应到达
+                logger.warning("能源副作用未隔离地失败（已吞掉，避免重复写事件日志）: %s", error)
 
     def _write_display_rows(self, batch: list[dict[str, Any]], epoch: int) -> None:
         with self._write_lock:
@@ -350,8 +360,21 @@ class EventLogService(EventLogReportMixin, EnergyStoreMixin):
             if epoch != self._clear_epoch:
                 logger.info("清空事件日志期间丢弃过时批次 %s 条", len(batch))
                 return
+            # 逐批内去重：同一 (实体, 时刻, 变化) 在一批里出现多次只写一条。
+            # 上游在「同一批被重复投递」时（例如对账与 state_changed 撞在同一窗口）会
+            # 给出重复条目；不去重就等比例放大表体积，而这类行对分析没有新信息。
+            deduped: list[dict[str, Any]] = []
+            seen: set[tuple[str, str, str]] = set()
+            for row in batch:
+                key = (str(row["entity_id"]), str(row["created_at"]), str(row["state_diff"]))
+                if key in seen:
+                    continue
+                seen.add(key)
+                deduped.append(row)
+            if len(deduped) < len(batch):
+                logger.debug("事件日志批次内去重：%s → %s 条", len(batch), len(deduped))
             with self._database.session_factory() as session:
-                for row in batch:
+                for row in deduped:
                     session.add(
                         EventLog(
                             entity_id=row["entity_id"],

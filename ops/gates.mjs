@@ -141,6 +141,9 @@ const GATE_GROUPS = {
     // 备份域自检：排除项语义、超限报错可用性、迁移快照按字节预算清理。
     // 「备份把上一批备份装进去」这类回归不会让任何编译失败，只会在夜里静默失败。
     { name: 'check:backup', ...bun('run', 'check:backup') },
+    // 事件日志写入路径：能耗副作用失败时事件日志**不得**重复写入（11-18→11-21 的
+    // 1200 万行重复就是这条路径漏了隔离）。顺带钉住批内去重与清空世代。
+    { name: 'check:event-log', ...bun('run', 'check:event-log') },
     { name: 'check:python-format', ...bun('run', 'check:python-format') },
     // 以下四条原属 test 组：它们只读源码、不跑用例，测试移除后并入 static，避免门禁丢项。
     { name: 'check:studio-split', ...bun('run', 'check:studio-split') },

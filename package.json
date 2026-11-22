@@ -86,6 +86,7 @@
     "check:complexity": "node ops/lib/py.mjs ops/checks/check_complexity.py --check",
     "check:device-profile": "node ops/lib/py.mjs ops/checks/device_profile_selftest.py",
     "check:backup": "node ops/lib/py.mjs ops/checks/backup_selftest.py",
+    "check:event-log": "node ops/lib/py.mjs ops/checks/event_log_selftest.py",
     "check:toolchain": "node ops/checks/check_toolchain.mjs",
     "check:python-format": "node ops/lib/py.mjs ops/checks/check_python_format.py",
     "check:font-subset": "node homeos-store/frontend/scripts/build-font-subset.mjs --check",

@@ -76,6 +76,23 @@ class EnergyStoreMixin:
         }
 
     def _apply_energy_side_effects(self, batch: list[dict[str, Any]]) -> None:
+        """把本批的电表读数并入日/月聚合。
+
+        **整个函数体一个字都不能漏在 try 之外**。这条路径的调用方
+        （``EventLogService._write_batch``）此时**已经提交了显示行**，任何冒泡出去的异常
+        都会被 ``flush`` 当成「整批没写成」回灌，于是下一轮把同一批显示行再写一遍。
+        11-18 → 11-21 的 1200 万行重复正是这样产生的：``accumulate_energy_totals`` 因
+        缺少 ``created_at`` 抛 KeyError，而它当时位于 try 之外，每轮 flush 重写一遍显示行、
+        再因同一个 KeyError 回灌，如此循环三天半。
+
+        换句话说：这里失败只应损失一次能耗记账的精度，绝不能让事件日志重复。
+        """
+        try:
+            self._merge_energy_totals(batch)
+        except Exception as error:
+            logger.warning("能源副作用维护失败（已隔离，不影响事件日志批次）: %s", error, exc_info=True)
+
+    def _merge_energy_totals(self, batch: list[dict[str, Any]]) -> None:
         energy_ids = sorted(
             {
                 row["entity_id"]
@@ -98,20 +115,17 @@ class EnergyStoreMixin:
         _log_meter_resets(reset_count)
         if not energy_ids and not day_totals and not month_totals:
             return
-        try:
-            with self._database.session_factory() as session:
-                _register_energy_candidates(session, energy_ids)
-                # 一次取回本批涉及的日/月聚合行：旧实现对每个 (实体, 日) 各查一次，
-                # 一次同步几十个实体 × 多个自然日就是几十次数据库往返。
-                daily_rows = _load_daily_rows(session, day_totals)
-                monthly_rows = _load_monthly_rows(session, month_totals)
-                accepted, rejected = _guard_realtime_days(session, day_totals, daily_rows)
-                _write_daily_rows(session, accepted, daily_rows)
-                monthly_totals = _guard_month_readings(session, month_totals)
-                _write_monthly_rows(session, monthly_totals, monthly_rows, rejected)
-                session.commit()
-        except Exception as error:
-            logger.warning("能源副作用维护失败: %s", error)
+        with self._database.session_factory() as session:
+            _register_energy_candidates(session, energy_ids)
+            # 一次取回本批涉及的日/月聚合行：旧实现对每个 (实体, 日) 各查一次，
+            # 一次同步几十个实体 × 多个自然日就是几十次数据库往返。
+            daily_rows = _load_daily_rows(session, day_totals)
+            monthly_rows = _load_monthly_rows(session, month_totals)
+            accepted, rejected = _guard_realtime_days(session, day_totals, daily_rows)
+            _write_daily_rows(session, accepted, daily_rows)
+            monthly_totals = _guard_month_readings(session, month_totals)
+            _write_monthly_rows(session, monthly_totals, monthly_rows, rejected)
+            session.commit()
 
     # ---- 能耗历史回填 ----
     def ops_timezone_name(self) -> str | None:

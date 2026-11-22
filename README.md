@@ -207,7 +207,7 @@ bun run dev -- --lan     # 局域网
 
 | 组 | 管什么 | 项 |
 | --- | --- | --- |
-| `static` | typecheck / Biome / ruff / node 类型、**工具链版本一致性**、场景资源、`any` 与重复代码棘轮、画布断点与缩放、DOM 工厂、多边形与场景载荷不变量、样式棘轮、静默 `except`、async DB、Python 锁与镜像导入、PEP 758、WS 鉴权、路由基线与 API 契约、文件体积 / 复杂度、**设备画像自检**、**备份域自检**、studio 拆分、前后端依赖方向 | 42 |
+| `static` | typecheck / Biome / ruff / node 类型、**工具链版本一致性**、场景资源、`any` 与重复代码棘轮、画布断点与缩放、DOM 工厂、多边形与场景载荷不变量、样式棘轮、静默 `except`、async DB、Python 锁与镜像导入、PEP 758、WS 鉴权、路由基线与 API 契约、文件体积 / 复杂度、**设备画像自检**、**备份域自检**、**事件日志写入自检**、studio 拆分、前后端依赖方向 | 43 |
 | `model` | 几何、槽位、槽位角色、材质角色、资产、目录布局、中文名索引 | 7 |
 | `build` | 清 `dist` → 构建与产物断言 → 预压缩 → chunk 初始化顺序 → 字体子集 | 4 |
 | `infra` | shellcheck / actionlint / compose ×3 / Caddy 格式与校验 / Cython | 9 |
@@ -229,13 +229,15 @@ bun run dev -- --lan     # 局域网
 （上游工具链常还没支持最新 minor，强行要求相等会把「升 Python」卡在工具上），但绝不允许超前 ——
 超前等于放行跑不了的语法。
 
-`check:device-profile`（52 项）与 `check:backup`（29 项）是业务规则层「跑断言」的门禁
-（`ops/checks/*_selftest.py`，标准库 + 运行期依赖，不需要 pytest）：
+`check:device-profile`（52 项）、`check:backup`（29 项）与 `check:event-log`（25 项）是业务规则层
+「跑断言」的门禁（`ops/checks/*_selftest.py`，标准库 + 运行期依赖，不需要 pytest）：
 
 - 设备画像：分类规则、别名归一与房间作用域、在线 / 可用二分、确认与审计、房间默认设备校验、
   climate / water_heater 命令校验、快路径不 fail-open；
 - 备份：排除项语义（`backups/` 永不算业务数据）、超限报错必须点名占位最大项、
-  迁移快照按字节预算清理且永不清空。
+  迁移快照按字节预算清理且永不清空；
+- 事件日志：能耗副作用失败时**不得**重复写事件日志、批内去重、清空世代，以及
+  「保留策略的键 / 表 / 时间列必须三处对齐」（写错列名会静默删 0 行）。
 
 仓库没有通用测试套件，其余 `check:*` 都是「读源码 / 读产物做不变量断言」（几何、场景载荷、DOM 工厂等）。
 
@@ -275,6 +277,9 @@ bfcache 交接在 `shared/utils/page-cache-lifecycle.ts`：`pagehide(persisted)`
 | `domains/ha/integration/live_events.py` | 状态事件先合批再落库 / 广播（默认 16ms 窗口，按实体取最后一条） | 场景切换一次推上百条，逐条事务 + 逐条广播会写放大成卡顿 |
 | `domains/device_profile/` | 空调 / 热水器 kind **恒为 unknown 直到人工确认**；确认即真相，规则不再覆盖；`available`（在线）与 `usable`（可自动选中）分开 | 猜错形态会把 `hvac_mode` 发给地暖；把「待确认」当「不可用」会让面板误导 |
 | `domains/device_profile/` 别名 | 只匹配**已确认**画像，且优先限定在用户提到的房间内 | 「卧室冷气」不能命中客厅的同名别名 |
+| `domains/logs/` 显示行与能耗记账 | 两条路径**各自独立容错**：显示行提交后，能耗失败只损失记账，绝不能让整批回灌 | 回灌会重写已提交的行 —— 11-18→11-21 的 1200 万行重复就是这么来的（`event_logs` 1222 万行里只有 4365 条真事件，库涨到 9.9 GB） |
+| `domains/logs/` 批内去重 | 同一 `(实体, 时刻, 变化)` 在一批里只写一条 | 上游重复投递不该等比例放大表体积 |
+| `platform/core/db/retention.py` | 保留策略的「键 / 表 / 时间列」三处对齐（时序表是 `changedAt`，不是 `createdAt`） | 写错列名不报错，只会每轮静默删 0 行：表一直涨，面板显示「已清理」 |
 | `domains/agent/runtime/fast_path*` | 只做确定性解析；有任何画像 / 多候选疑义就返回 `None` 交给 LLM | 快路径宁可不答，也不能猜错设备 |
 | `domains/agent/learning/` | 别名 / 房间默认按 `household` 共享，偏好按 `user:{id}` 隔离 | 设备叫法是一家人的常识，偏好是个人习惯 |
 
@@ -331,7 +336,10 @@ bfcache 交接在 `shared/utils/page-cache-lifecycle.ts`：`pagehide(persisted)`
 | --- | --- |
 | 数据库（清空历史 / 时序 / 运行时缓存表后） | `data/backups/`（迁移快照与备份包自身） |
 | `secrets/`（HA 令牌与授权凭据的加密密钥） | `cache/`、`logs/`、`backup-work/`、`backup-recovery/` |
-| `assets/`、`studio3d/`、`exports/`、场景与窗帘记忆 | `event_logs`、`notifications`、能耗与时序、`agent_context_timeline`、`sessions`、HA 目录缓存 |
+| `assets/`、`studio3d/`、`exports/`、场景与窗帘记忆 | `event_logs`、`notifications`、能耗与时序、`agent_context_timeline`、`agent_task_execution_logs`、`sessions`、HA 目录缓存 |
+
+判据是「换机后是否仍然有意义」：配置、用户、设备画像、别名、场景要留；「什么时候什么变成了什么」
+不要 —— 那是本机的观测历史，不是家的配置。表的清单在 `domains/backup/scope.py`（`EXCLUDED_DB_TABLES`）。
 
 两条容易踩的边界：
 
@@ -339,6 +347,9 @@ bfcache 交接在 `shared/utils/page-cache-lifecycle.ts`：`pagehide(persisted)`
   `VACUUM INTO` 副本；漏排时备份会把自己装进去（实测 9.9 GB 的库被收成 54 GB 而失败）。
 - **上限是「展开后 4 GB / 50000 文件」**，超限报错必须点名占位最大的几项，否则排查只能靠猜。
   `check:backup` 钉住这两条。
+- **历史表要同时有保留策略**。`agent_context_timeline` 曾既进备份又无清理（2 个多月 224 万行 /
+  0.94 GB）；现在它已不进包，并在「数据保留」里有一行可调（默认 30 天），
+  `check:event-log` 钉住「键 / 表 / 时间列」对齐。
 
 ## 6. 部署
 

@@ -10,10 +10,16 @@ RETENTION_DAYS_MIN = 1
 RETENTION_DAYS_MAX = 365
 
 #: retention 配置分区与清理步骤共用的表键（对齐 retention-tables.ts）。
+#:
+#: ``deviceTimeline`` 是本项目独有的补充：``agent_context_timeline`` 记「谁在什么时候变成了
+#: 什么」，是设备排障的凭据，但它同样无限增长（实测 2 个多月 224 万行 / 0.94 GB），且此前
+#: **没有任何自动清理**，只能靠离线脚本 ``prune-agent-timeline.py``。
+#: 它的时间列是 ``changedAt`` 而不是 ``createdAt``（见 ``_RETENTION_MODELS`` 的第三项）。
 RETENTION_TABLE_KEYS: tuple[str, ...] = (
     "eventLog",
     "notification",
     "securityEvent",
+    "deviceTimeline",
 )
 
 #: 物理表名（对齐 Prisma 模型名 / Python __tablename__ 的可读名）。
@@ -21,6 +27,7 @@ RETENTION_TABLE_NAMES: dict[str, str] = {
     "eventLog": "EventLog",
     "notification": "Notification",
     "securityEvent": "SecurityEvent",
+    "deviceTimeline": "AgentContextTimeline",
 }
 
 #: 中文显示名（供设置面板展示）。
@@ -28,6 +35,7 @@ RETENTION_TABLE_LABELS: dict[str, str] = {
     "eventLog": "事件日志",
     "notification": "通知记录（按天数；条数上限另见 maxNotifications）",
     "securityEvent": "安防事件",
+    "deviceTimeline": "设备状态时序（用于「这段时间为什么变了」的归因）",
 }
 
 EVENT_LOG_QUERY_HOUR_STEPS = (3, 6, 12, 24, 48, 72, 168)
@@ -54,6 +62,9 @@ DEFAULT_RETENTION: dict[str, int] = {
     "eventLog": RETENTION_DEFAULT_DAYS,
     "notification": RETENTION_DEFAULT_DAYS,
     "securityEvent": RETENTION_DEFAULT_DAYS,
+    # 时序比事件日志长：它的用途是「回溯某次异常前后发生了什么」，
+    # 7 天常常不够复盘（例如「上周开始变慢」），而单行只存状态文本、体积远小于事件日志。
+    "deviceTimeline": 30,
 }
 
 

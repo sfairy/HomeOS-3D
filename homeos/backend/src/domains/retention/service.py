@@ -23,6 +23,7 @@ from typing import Any
 from sqlalchemy import literal_column, select, text
 
 from ...platform.core.db.models import (
+    AgentContextTimeline,
     EventLog,
     Notification,
     SecurityEvent,
@@ -64,10 +65,13 @@ RETENTION_VACUUM_MIN_ROWS_ENV = "HOMEOS_RETENTION_VACUUM_MIN_ROWS"
 DEFAULT_VACUUM_MIN_ROWS = 1000
 _VACUUM_MODES = frozenset({"light", "incremental", "full", "off"})
 
-_RETENTION_MODELS: dict[str, Any] = {
-    "eventLog": (EventLog, "event_logs"),
-    "notification": (Notification, "notifications"),
-    "securityEvent": (SecurityEvent, "security_events"),
+_RETENTION_MODELS: dict[str, tuple[Any, str, str]] = {
+    # (ORM 模型, 物理表名, 时间列)。时间列不能统一假设成 ``createdAt``：
+    # 时序表用的是 ``changedAt``，写错名字会让清理静默删 0 行。
+    "eventLog": (EventLog, "event_logs", "createdAt"),
+    "notification": (Notification, "notifications", "createdAt"),
+    "securityEvent": (SecurityEvent, "security_events", "createdAt"),
+    "deviceTimeline": (AgentContextTimeline, "agent_context_timeline", "changedAt"),
 }
 
 #: 清理结果里的键 → 中文短名。直接打 ``dict`` 会变成 ``{'eventLog': 1}``，
@@ -76,6 +80,7 @@ _CLEANUP_LABELS: dict[str, str] = {
     "eventLog": "事件日志",
     "notification": "通知记录",
     "securityEvent": "安防事件",
+    "deviceTimeline": "设备时序",
     "notificationCooldownPruned": "通知冷却条目",
 }
 
@@ -322,7 +327,7 @@ class DatabaseRetentionService:
         """
         result = dict.fromkeys(RETENTION_TABLE_KEYS, 0)
         with self._session_factory() as session:
-            for key, (_model, table) in _RETENTION_MODELS.items():
+            for key, (_model, table, _time_col) in _RETENTION_MODELS.items():
                 result[key] = self._estimate_rows(session, table)
         return result
 
@@ -410,10 +415,13 @@ class DatabaseRetentionService:
         batch_size = int(raw_batch) if isinstance(raw_batch, (int, float)) and raw_batch > 0 else 800
         deleted: dict[str, int] = {}
         for key in RETENTION_TABLE_KEYS:
-            model, _table = _RETENTION_MODELS[key]
+            model, _table, time_col = _RETENTION_MODELS[key]
             try:
                 count = self._delete_batched(
-                    model, self.cutoff_for_days(self.resolve_retention_days_for(key)), batch_size
+                    model,
+                    self.cutoff_for_days(self.resolve_retention_days_for(key)),
+                    batch_size,
+                    time_column=time_col,
                 )
                 if count > 0:
                     deleted[key] = count
@@ -497,14 +505,19 @@ class DatabaseRetentionService:
             return
         logger.info("EventLog 附加维护完成(%s;本次删除 %s 行)", " + ".join(steps), deleted_count)
 
-    def _delete_batched(self, model: Any, cutoff: datetime, batch_size: int) -> int:
-        """分批删除 ``createdAt < cutoff`` 的历史行（SQLite ``rowid`` 子查询）。
+    def _delete_batched(
+        self, model: Any, cutoff: datetime, batch_size: int, *, time_column: str = "createdAt"
+    ) -> int:
+        """分批删除 ``<time_column> < cutoff`` 的历史行（SQLite ``rowid`` 子查询）。
+
+        ``time_column`` 由 ``_RETENTION_MODELS`` 提供：时序表用的是 ``changedAt``，
+        写死 ``createdAt`` 会让那条清理静默删 0 行（表一直涨、面板却显示「已清理」）。
 
         有批次与时限双上限：``while True`` 只有在「写入方不停产生过期行」或子查询打不中行
         时才会一直转，那会把维护锁和清理线程一起长期占住。到上限就先收尾，剩下的留待下一轮。
         """
         table = model.__table__
-        created_col = table.c["createdAt"]
+        created_col = table.c[time_column]
         rowid = literal_column("rowid")
         total = 0
         deadline = time.monotonic() + _DELETE_TIME_BUDGET
