@@ -19,8 +19,7 @@ PUBLIC_CONFIG_SECTIONS: tuple[str, ...] = (
 #: v19：清理无运行时消费者的死参数——移除 ``auth`` 分区、
 #:      ``voice.ttsFormat``、``wsPush.roomBatchEmit``、
 #:      ``ops.sceneExecHistoryMax`` / ``ops.scriptExecHistoryMax``；
-#:      并把 ``other.eventlogRetentionDays`` 迁移到 ``retention.eventLog``
-#:      （迁移在 ``import_normalize`` 中执行，旧备份仍可正常导入）。
+#:      事件日志保留天数收敛到 ``retention.eventLog`` 一个键。
 APP_CONFIG_SCHEMA_VERSION = 19
 
 #: 配置审计持久化 RuntimeKv id。

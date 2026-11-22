@@ -447,16 +447,6 @@ def configure_app_logging() -> logging.Logger:
     return logger
 
 
-def log(level: str, message: str, **context: Any) -> None:
-    """兼容 ``observability.log`` 调用签名的薄封装：走标准 logging（统一格式 + 运行日志镜像）。"""
-    text = message
-    if context:
-        extra = " ".join(f"{key}={value}" for key, value in context.items() if value is not None)
-        if extra:
-            text = f"{text} {extra}"
-    logging.getLogger("homeos").log(_LEVEL_NAMES.get(level, logging.INFO), text)
-
-
 __all__ = [
     "NestStyleFormatter",
     "compact_log_spaces",
@@ -464,6 +454,5 @@ __all__ = [
     "localize_log_message",
     "localize_log_record",
     "localize_logger_context",
-    "log",
     "to_half_width_punct",
 ]

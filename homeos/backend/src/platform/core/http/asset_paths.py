@@ -67,9 +67,6 @@ ASSET_ID = re.compile("^[0-9a-f]{32}$")
 #: bind mount 到容器 ``/app/assets``，源码态它就是 ``homeos/`` 的上一层那份 ``assets/``。
 _WORKSPACE_ASSETS = WORKSPACE_ROOT / "assets"
 
-#: 仓库级资源目录（``homeos/assets``，素材搬家前的旧位置；保留兼容）。
-_REPO_ASSETS = REPO_ROOT / "assets"
-
 #: 随包默认素材种子（镜像里由 entrypoint 铺入实例目录；源码态没有 entrypoint，
 #: 直接作为兜底层 —— 否则开发态 ``/backgrounds``、``/icons`` 会整类 404）。
 _DEFAULT_ASSETS = REPO_ROOT / "assets-default"
@@ -79,19 +76,15 @@ _LOCAL_ASSETS = PROJECT_ROOT / "assets"
 
 
 def _asset_roots() -> tuple[Path, ...]:
-    """实例素材根候选：``HOMEOS_ASSETS_DIR`` 优先，其次工作区 / 仓库 ``assets/``。
+    """实例素材根候选：``HOMEOS_ASSETS_DIR`` 优先，其次工作区 ``assets/``。
 
     显式配了 ``HOMEOS_ASSETS_DIR`` 就只认它（容器口径：entrypoint 负责铺种子）；
-    源码态没有该变量，按「实例目录 → 旧仓库目录」顺序取实际存在的那些。
+    源码态没有该变量时取实际存在的工作区实例目录。
     """
     override = os.getenv("HOMEOS_ASSETS_DIR", "").strip()
     if override:
         return (Path(override).expanduser(),)
-    return tuple(
-        candidate
-        for candidate in (_WORKSPACE_ASSETS, _REPO_ASSETS)
-        if candidate.is_dir()
-    )
+    return (_WORKSPACE_ASSETS,) if _WORKSPACE_ASSETS.is_dir() else ()
 
 
 def _asset_dir(env_name: str, default_name: str) -> Path:

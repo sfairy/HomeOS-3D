@@ -7,11 +7,7 @@
 - ``update_with_cas`` 只有命中当前 revision 才写，rowcount=0 就说明有人抢先提交；
 - ``insert_initial`` 用 ``ON CONFLICT(id) DO NOTHING``，让并发首保只有一方能插入；
 - 调用方必须已开 ``BEGIN IMMEDIATE``（见 service.save_draft），否则两个读到的
-  快照可能都通过比对，第二个写会覆盖第一个 —— 这正是旧单文件实现里最隐蔽的丢写路径：
-  ``_read_draft`` 与写文件之间隔着一次全表扫描与 ``plan_cleanup``，窗口可达数百毫秒。
-
-旧单文件 ``data/studio3d/draft.json`` 仅由迁移（migration 4）一次性导入本表，
-运行期不再读取。
+  快照可能都通过比对，第二个写会覆盖第一个。
 """
 
 from __future__ import annotations

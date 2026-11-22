@@ -286,12 +286,11 @@ class HomeModeService:
         return [mode_to_dict(mode) for mode in modes]
 
     def get_active_response(self) -> dict[str, Any] | None:
-        """``GET /active`` 的响应：保留旧字段（顶层 spread + ``activeMode``）并新增 ``activeModes``。"""
+        """``GET /active`` 的响应：只给 ``activeModes``（可同时激活多个模式）。"""
         active_modes = self.get_active_modes()
         if not active_modes:
             return None
-        primary = active_modes[0]
-        return {**primary, "activeMode": primary, "activeModes": active_modes}
+        return {"activeModes": active_modes}
 
     async def create(self, data: dict[str, Any]) -> dict[str, Any]:
         fields = normalize_mode_fields(data)

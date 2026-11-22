@@ -208,9 +208,6 @@ _ENTITY_FIELD_KEYS = ("entity_id", "entityId", "entityIds", "entity_ids", "id", 
 #: 曾经让「删掉前门锁之后，任意一把锁解锁都激活回家模式」。
 _ENTITY_PRIMARY_KEY_FIELDS = ("entity_id", "entityId", "id")
 
-#: 没有实体就无从求值的触发器类型（写回前必须丢掉，否则 normalize 会整批拒绝）。
-_TRIGGER_TYPES_REQUIRING_ENTITY = ("lock_unlock", "state")
-
 
 def _is_entity_bearing_object(node: JsonValue, entity_id: str) -> bool:
     if not isinstance(node, dict):
@@ -290,7 +287,7 @@ def _primary_entity_of(entry: dict[str, Any]) -> str:
     return ""
 
 
-def _prune_home_mode_entries(entries: list[Any], entity_id: str, *, kind: str) -> tuple[list[Any], bool]:
+def _prune_home_mode_entries(entries: list[Any], entity_id: str) -> tuple[list[Any], bool]:
     """从家庭模式 ``config`` / ``triggers`` 里摘掉实体：**整条删除**，而不是把 entityId 置空。
 
     - 条目以该实体为主键（``entity_id`` / ``entityId``）→ 整条删除：动作没有实体无从执行，
@@ -298,9 +295,7 @@ def _prune_home_mode_entries(entries: list[Any], entity_id: str, *, kind: str) -
     - 实体只出现在 ``entityIds`` / ``entity_ids`` 列表里 → 过滤该 id，保留条目。
     - 其它嵌套引用（``data`` 里的模板等）→ 交给 :func:`remove_entity_from_json_value`。
 
-    另外顺手清掉历史遗留的「空主键」条目（旧版本解绑把 ``entityId`` 写成 ``""``）：
-    这类条目写回时会被 ``normalize_home_mode_json_array`` 整批拒绝，留着只会让下一次
-    保存失败。返回 ``(清理后的条目, 是否变更)``。
+    返回 ``(清理后的条目, 是否变更)``。
     """
     kept: list[Any] = []
     changed = False
@@ -311,11 +306,6 @@ def _prune_home_mode_entries(entries: list[Any], entity_id: str, *, kind: str) -
         primary_entity = _primary_entity_of(entry)
         if primary_entity and primary_entity == entity_id:
             changed = True
-            continue
-        if not primary_entity and kind == "config":
-            # 动作条目必须有 entity_id（normalize 要求），空主键是解绑残留。
-            continue
-        if not primary_entity and kind == "triggers" and entry.get("type") in _TRIGGER_TYPES_REQUIRING_ENTITY:
             continue
         cleaned, entry_changed = remove_entity_from_json_value(entry, entity_id)
         if not entry_changed:
@@ -328,12 +318,12 @@ def _prune_home_mode_entries(entries: list[Any], entity_id: str, *, kind: str) -
 
 def prune_home_mode_config(entries: list[Any], entity_id: str) -> tuple[list[Any], bool]:
     """家庭模式动作列表的实体摘除。"""
-    return _prune_home_mode_entries(entries, entity_id, kind="config")
+    return _prune_home_mode_entries(entries, entity_id)
 
 
 def prune_home_mode_triggers(entries: list[Any], entity_id: str) -> tuple[list[Any], bool]:
     """家庭模式触发器列表的实体摘除。"""
-    return _prune_home_mode_entries(entries, entity_id, kind="triggers")
+    return _prune_home_mode_entries(entries, entity_id)
 
 
 # 倒排索引（对齐 entity-references-index.ts）

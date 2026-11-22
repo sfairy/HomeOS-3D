@@ -4,8 +4,7 @@
 ----
 * 单例读写、设备解绑冷却、站点/邀请配置序列化 → :mod:`core.site_settings`（叶子层）；
 * 支付渠道的启用集合、凭据合并与「已配置/可用」判定 → 本模块（它依赖 ``payments``，
-  因而不能放进 ``core``）；
-* 旧导入路径 ``from ..ops import site_settings`` 继续可用：这里 re-export 了全部核心符号。
+  因而不能放进 ``core``）。
 """
 
 from __future__ import annotations

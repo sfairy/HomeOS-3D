@@ -85,9 +85,8 @@ def nest_error_payload(
             "path": payload["path"],
         }
     if detail is not None:
-        # 追加 homeos-3d 兼容字段：3D 前端（setup.ts / login.ts）从 ``payload.detail``
-        # 取错误文案（字符串），或从 ``payload.detail[0].msg`` 取校验错误文案。
-        # 纯追加字段，homeos 既有消费方仍读 ``message``，行为不变。
+        # 结构化的错误细节：字符串（校验错误文案）或对象（如 ``{code: LICENSE_RESTRICTED}``）。
+        # 前端按类型分别消费（``request-json.ts`` 读 ``detail.code``，表单读字符串 / ``[0].msg``）。
         payload["detail"] = detail
     if trace_id:
         payload["traceId"] = trace_id

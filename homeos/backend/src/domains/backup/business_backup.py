@@ -902,11 +902,7 @@ async def refresh_runtime_after_restore(app: Any) -> None:
 
 
 async def durable_work(function: Any, *args: Any, **kwargs: Any) -> Any:
-    """**兼容入口**：真正的实现已下沉到 ``platform.core.async_work``。
-
-    0.8.1 把它提成独立模块（导出 / 素材 / 备份三处都要「取消也不丢状态」）。
-    保留这个名字是为了不打断既有调用点与 ``__all__``。
-    """
+    """「取消也不丢状态」的线程池执行：导出 / 素材 / 备份三处共用同一实现。"""
     return await _durable_work(function, *args, **kwargs)
 
 

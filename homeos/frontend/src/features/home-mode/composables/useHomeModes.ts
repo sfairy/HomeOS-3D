@@ -172,20 +172,8 @@ async function fetchModes(options: { silent?: boolean } = {}) {
 async function fetchActive() {
   try {
     const { data } = await fetchActiveHomeMode()
-    const payload = (data ?? null) as
-      | (HomeModeRow & { activeModes?: HomeModeRow[]; activeMode?: HomeModeRow | null })
-      | null
-    if (!payload) {
-      applyActiveModes([])
-      return
-    }
-    const list = Array.isArray(payload.activeModes)
-      ? payload.activeModes.filter(Boolean)
-      : payload.id
-        ? [payload]
-        : payload.activeMode
-          ? [payload.activeMode]
-          : []
+    const payload = (data ?? null) as { activeModes?: HomeModeRow[] } | null
+    const list = Array.isArray(payload?.activeModes) ? payload.activeModes.filter(Boolean) : []
     applyActiveModes(list)
   } catch {
     applyActiveModes([])

@@ -7,7 +7,8 @@
 强连通又多一条边。站点配置的**读取**本身就是数据层职责（一行单例 + 几个纯函数），
 下沉后 ``ops`` 只剩「支付凭据合并」这类真正依赖 ``payments`` 的部分。
 
-支付相关的序列化仍在 ``ops.payment_settings``；``ops.site_settings`` 保留门面，向后兼容。
+支付相关的序列化仍在 ``ops.payment_settings``；:mod:`ops.site_settings` 是这些符号
+与支付序列化的组合入口，供路由层按 ``site_config.*`` 统一访问。
 """
 
 from __future__ import annotations

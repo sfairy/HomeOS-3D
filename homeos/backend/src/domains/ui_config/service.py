@@ -70,7 +70,7 @@ def _parse_iso_utc(value: Any) -> datetime | None:
 def _parse_expected_updated_at(value: Any) -> datetime | None:
     """解析布局乐观锁版本号。
 
-    - 空值 / 未提供 → ``None``（不校验，兼容旧客户端）；
+    - 空值 / 未提供 → ``None``：本次请求不参与并发校验（新建或整份覆盖）；
     - 给了但解析不出来 → 400，**不能**静默降级成「不校验」：一个拼错的版本号会让
       本应 409 的并发覆盖变成静默 LWW，正是乐观锁要防的事。
     """

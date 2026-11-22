@@ -362,8 +362,8 @@ def _state_binding_matches(trigger: dict[str, Any], entity_id: str, old_state: A
     if trigger_type == "lock_unlock":
         bound_lock = str(trigger.get("entityId") or "").strip()
         if not bound_lock:
-            # 空 entityId 绝不能当通配符：历史配置（旧版解绑写空串）留着这种触发器时，
-            # 「删掉前门锁 → 任意一把锁解锁都激活回家模式」。这里跳过并留日志。
+            # 空 entityId 绝不能当通配符：一旦被当成「任意锁」，删掉前门锁之后
+            # 任意一把锁解锁都会激活回家模式。跳过并留日志。
             logger.warning("跳过缺少 entityId 的 lock_unlock 触发器 trigger=%s", trigger)
             return False
         # 必须是**锁本体**从 locked → unlocked 的真实边沿。缺旧态时（首次观测、

@@ -36,11 +36,10 @@ def authenticated_user(
 def authenticated_short_lived_user(
     request: Request, response: Response
 ) -> User:
-    """**兼容入口**：自取一条短会话并把用户 detach 后返回。
+    """用独立短会话取一份脱离会话的用户快照。
 
-    路由请用 ``CurrentUser`` —— 它复用请求级会话（``authenticated_user``），不再为
-    每个请求额外开第二条数据库连接；本函数只保留给历史的**直接调用点**
-    （``api/backups.py`` 在后台线程里调用它取一份脱离会话的用户快照）。
+    路由用 ``CurrentUser``（复用请求级会话，不为每个请求多开一条连接）；本函数只给
+    需要在会话之外持有用户对象的调用点用 —— ``api/backups.py`` 在后台线程里跑导出任务。
     """
     with request.app.state.database.session_factory() as database:
         user = authenticated_user(request, response, database)

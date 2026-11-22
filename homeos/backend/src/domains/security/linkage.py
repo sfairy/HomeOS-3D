@@ -301,7 +301,7 @@ class SecurityLinkageService:
         面板显示已撤防，房子仍停在离家场景。定位顺序：
         1. 本进程内曾经由安防联动激活的那个模式；
         2. 当前激活且出现在 ``securityModeLinks`` 里的模式；
-        3. 都定位不到才退回无参调用（兼容旧行为）。
+        3. 都定位不到才退回无参调用。
         """
         linked_ids = {str(value).strip() for value in links.values() if str(value or "").strip()}
         active_modes = await asyncio.to_thread(self._active_home_modes)

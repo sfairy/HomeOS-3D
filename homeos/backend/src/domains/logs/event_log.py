@@ -141,9 +141,7 @@ class EventLogService(EventLogReportMixin, EnergyStoreMixin):
             raw = load_raw_config(session)
         retention_source = raw.get("retention")
         retention = retention_source if isinstance(retention_source, dict) else {}
-        # ``other.eventlogRetentionDays`` 已随 v19 迁移到 ``retention.eventLog``
-        # （见 app_config.import_normalize）：AppConfigService 在 EventLogService
-        # 之前启动并写回迁移结果，这里只认新键。
+        # 保留天数只认 ``retention.eventLog``（缺省回落到内置默认值）。
         days = resolve_event_log_retention_days(retention.get("eventLog"))
         self._retention_cache = (now, days)
         return days
@@ -337,8 +335,8 @@ class EventLogService(EventLogReportMixin, EnergyStoreMixin):
         if batch:
             self._write_display_rows(batch, epoch)
         # 能耗记账与「事件日志显示」无关，也不受清空世代影响：用户清空日志不该
-        # 让日/月用量凭空少掉一批读数。``energy_batch`` 为空时回退用显示批次，
-        # 兼容旧调用路径（测试/直接调用）。
+        # 让日/月用量凭空少掉一批读数。``energy_batch`` 为空时回退用显示批次
+        # （测试与直接调用不走独立记账）。
         #
         # ⚠ 这一段**绝不能**把异常抛给 ``flush``：显示行在上面已经 commit 了，冒泡出去
         # 会被当成「整批没写成」而回灌，下一轮把同一批显示行再写一遍 —— 11-18 → 11-21

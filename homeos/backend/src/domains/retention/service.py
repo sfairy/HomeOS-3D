@@ -283,11 +283,10 @@ class DatabaseRetentionService:
         event_log = retention_cfg.get("eventLog")
         if isinstance(event_log, (int, float)) and not isinstance(event_log, bool) and event_log > 0:
             return min(int(event_log), RETENTION_DAYS_MAX)
-        # ``other.eventlogRetentionDays`` 已随 v19 迁移到 ``retention.eventLog``；
-        # 未迁移的实例在 AppConfigService 加载时就会写回，这里只剩环境变量兜底。
+        # 保留天数只认 ``retention.eventLog``，缺省时回落到环境变量 / 7 天。
         return resolve_positive_int(
             None,
-            ["DATA_RETENTION_DAYS", "EVENTLOG_RETENTION_DAYS"],
+            ["DATA_RETENTION_DAYS"],
             7,
         )
 

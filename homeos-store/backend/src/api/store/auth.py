@@ -65,12 +65,10 @@ def _find_account_by_login(session, account_key: str) -> Account | None:
     key_lower = key.lower()
     # 账号名与邮箱在写入时都已统一小写（``normalize_username`` / 注册时 ``email.lower()``），
     # 因此用等值查询即可命中 ix_accounts_username / ix_accounts_email。
-    # 旧实现用 ``func.lower(column)`` 包了一层，唯一索引完全用不上 —— 每次登录都是全表扫描。
-    # 额外保留一个原始大小写的等值分支，兼容历史库里未归一化的账号名。
+    # 不要用 ``func.lower(column)``：那会让唯一索引失效，每次登录都变成全表扫描。
     return session.scalars(
         select(Account).where(
             or_(
-                Account.username == key,
                 Account.username == key_lower,
                 Account.email == key_lower,
             )
