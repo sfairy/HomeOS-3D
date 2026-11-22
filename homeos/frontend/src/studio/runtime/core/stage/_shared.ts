@@ -107,8 +107,7 @@ export function createStageModelIndex(mountOptions: any) {
     },
     /**
      * 窗扇模型：和 `.item()` 分开是因为窗扇不是 `scene.items`，而是由
-     * `windowModels()` 从每扇自定义窗的分格树现算出来的。按 `modelId` 建索引，
-     * 推开窗器时能带出它的 `legacyModels`（推拉组的历史面板）。
+     * `windowModels()` 从每扇自定义窗的分格树现算出来的。按 `modelId` 建索引。
      */
     window(floorId: any, modelId: any) {
       const floorEntry = floorEntryFor(floorId)
@@ -125,10 +124,7 @@ export function createStageModelIndex(mountOptions: any) {
         (floorEntry.walls = walls),
         (floorEntry.wallCount = walls?.length),
         (floorEntry.windowIndex = new Map(
-          windowModels(floorEntry.floor, { includeLegacy: true }).map((windowModel: any) => [
-            windowModel.modelId,
-            windowModel,
-          ]),
+          windowModels(floorEntry.floor).map((windowModel: any) => [windowModel.modelId, windowModel]),
         )))
       return floorEntry.windowIndex.get(modelId)
     },

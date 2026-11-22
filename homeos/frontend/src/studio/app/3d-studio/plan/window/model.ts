@@ -258,18 +258,11 @@ export function addCustomWindow(options: CustomWindowOptions): {
         panel.userData.windowId = record.id
         panel.userData.windowSashId = leaf.panelIds[panelIndex]
         panel.userData.windowGroupId = leaf.id
-        // 两扇都正好被推到对侧时（极窄窗），0.8.2 的按扇绑定记的是对称位置，
-        // 这里留一份 legacyOpen 供旧的按扇绑定继续对齐。
-        const legacyOpen =
-          Math.abs(openX - closedX) > 1e-8
-            ? openX
-            : centerX - ((leaf.slide === 'right' ? 1 : -1) * (glassWidth - panelWidth)) / 2
         panel.userData.windowMotion = {
           property: 'position',
           axis: 'x',
           closed: closedX,
           open: openX,
-          legacyOpen,
           rest: panel.position.x,
           defaultOpening: opening,
         }

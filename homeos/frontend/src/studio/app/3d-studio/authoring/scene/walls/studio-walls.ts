@@ -592,7 +592,6 @@ export function buildInteriorScene(
             const groupId = windowNode.userData.windowGroupId
             Object.assign(windowNode.userData, {
               environmentModelId: windowModelId(currentWindow.id, groupId || sashId),
-              windowLegacyModelId: groupId ? windowModelId(currentWindow.id, sashId) : '',
               environmentFloorId: oe4,
               environmentModelType: 'window',
               editorModelId: windowModelId(currentWindow.id, groupId || sashId),

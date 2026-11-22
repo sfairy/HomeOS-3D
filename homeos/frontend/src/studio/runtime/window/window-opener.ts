@@ -22,7 +22,6 @@ export interface WindowBindingLike {
   modelId?: any
   motionSource?: string
   openPercent?: number
-  legacyModels?: Array<{ id?: any; modelId?: any }>
 }
 
 export interface WindowContactLike {
@@ -63,8 +62,8 @@ export interface WindowOpenerResolution {
 const CONFLICT_GRACE_MS = 2000
 
 /**
- * 找出与某扇窗同层、且绑定到同一扇（含推拉组历史扇）的窗磁。
- * 选择器里只给「可动扇」，所以这里也要按 `legacyModels` 把组模型拆开匹配。
+ * 找出与某扇窗同层、且绑定到同一扇的窗磁。
+ * 推拉组只有组模型一个绑定身份，所以这里按组 id 匹配。
  */
 export function windowContacts(
   model: WindowBindingLike | null | undefined,
@@ -74,7 +73,7 @@ export function windowContacts(
   if (!model) return []
   const modelIds = new Set<string>([
     String(model.modelId ?? model.id ?? ''),
-    ...(windowModel?.legacyModels || []).map((legacyModel) => String(legacyModel.modelId ?? legacyModel.id ?? '')),
+    String(windowModel?.modelId ?? windowModel?.id ?? ''),
   ])
   return (sensors || []).filter(
     (sensor) => sensor.floorId === model.floorId && modelIds.has(String(sensor.modelId || '')) && sensor.doorEntityId,

@@ -6,7 +6,7 @@
  *
  * - 平开 / 上悬 / 下悬：`property:'rotation'`，`closed/open` 是铰链侧的角度区间；
  * - 推拉：`property:'position'` + `axis:'x'`，`closed/open` 是面板位移的两端；
- * - 推拉组的历史面板模型（`windowLegacyModelId`）用 `legacyOpen` 对齐老配置。
+ *   一组推拉窗的所有面板共用组模型的同一份行程。
  *
  * 开合量的来源：
  * - 窗磁（`security.windows`）：`lockState().doorOpen` 是布尔量，按 `openPercent` 换算；
@@ -24,8 +24,6 @@ interface WindowMotionSpec {
   closed: number
   open: number
   rest: number
-  /** 推拉组的每扇历史开度：老配置按扇绑定，行程和组模型不同。 */
-  legacyOpen?: number
   /** 初始开度（%）：新装的窗默认留一条缝时要按它起步，而不是按 rest 反推。 */
   defaultOpening?: number
 }
@@ -112,11 +110,6 @@ export function createWindowMotion(options: WindowMotionOptions) {
       floorId: pivot.userData.environmentFloorId,
       modelId: pivot.userData.environmentModelId,
     })
-  const legacyKeyOf = (pivot: any) =>
-    bindingKeyOf({
-      floorId: pivot.userData.environmentFloorId,
-      modelId: pivot.userData.windowLegacyModelId,
-    })
   const isUnderModelRoot = (node: any) => {
     for (let walkNode = node; walkNode; walkNode = walkNode.parent) if (walkNode === modelRoot) return true
     return false
@@ -202,15 +195,9 @@ export function createWindowMotion(options: WindowMotionOptions) {
 
     for (const { pivot, id } of pivotList) {
       if (!isUnderModelRoot(pivot)) continue
-      const legacyKey = legacyKeyOf(pivot),
-        bindingKey = sensorsByKey!.has(id) ? id : legacyKey,
-        binding = sensorsByKey!.get(bindingKey),
+      const binding = sensorsByKey!.get(id),
         baseMotion: WindowMotionSpec = pivot.userData.windowMotion,
-        // 老配置按扇绑定时用 `legacyOpen`：组模型和单扇的行程不一样。
-        motion =
-          bindingKey === legacyKey && baseMotion.legacyOpen !== undefined
-            ? { ...baseMotion, open: baseMotion.legacyOpen }
-            : baseMotion
+        motion = baseMotion
 
       if (!binding) {
         readPose(pivot) !== motion.rest &&
@@ -220,28 +207,27 @@ export function createWindowMotion(options: WindowMotionOptions) {
       }
       seenPivotSet.add(pivot)
 
-      let motionState = stateByBindingKey.get(bindingKey)
+      // 一组推拉窗的所有面板共用一个组模型 id，因此动效状态天然按组聚合。
+      let motionState = stateByBindingKey.get(id)
       if (!motionState) {
         const initialRatio =
-          bindingKey === id && motion.defaultOpening !== undefined
-            ? motion.defaultOpening / 100
-            : ratioOf(motion, motion.rest)
+          motion.defaultOpening !== undefined ? motion.defaultOpening / 100 : ratioOf(motion, motion.rest)
         motionState = {
-          bindingKey: bindingKey,
+          bindingKey: id,
           bindingId: binding.id,
           entityId: binding.doorEntityId,
           current: initialRatio,
           target: initialRatio,
         }
-        stateByBindingKey.set(bindingKey, motionState)
+        stateByBindingKey.set(id, motionState)
       }
 
       const rawState = states instanceof Map ? states.get(binding.doorEntityId) : states?.[binding.doorEntityId],
         stateData = rawState?.newState || rawState,
         cachedState = trackedByPivot.get(pivot)
 
-      if (!refreshedBindingSet.has(bindingKey)) {
-        refreshedBindingSet.add(bindingKey)
+      if (!refreshedBindingSet.has(id)) {
+        refreshedBindingSet.add(id)
         ;(forceSync ||
           !Object.hasOwn(motionState, 'open') ||
           motionState.raw !== stateData ||

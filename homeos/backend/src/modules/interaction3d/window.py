@@ -6,8 +6,7 @@
 
 为什么要做「活动窗扇」限定：固定扇（``fixed``）不能开合，把它绑成开窗器只会让用户
 点开面板却什么都动不了。因此 :func:`window_targets` 只把**可开启**的叶子节点算作
-绑定目标 —— 但 ``include_legacy=True`` 时连推拉组的每扇面板 id 也算进去，用于清理
-旧版本按扇绑定的残留（删除型操作必须能找到它们）。
+绑定目标：推拉组产出一条组 id，平开 / 上悬 / 下悬产出自身 id，固定扇不产出。
 """
 
 from __future__ import annotations
@@ -94,11 +93,10 @@ def window_model_id(window_id: Any, sash_id: Any) -> str:
     return f"window:{quote(str(window_id), safe=safe)}:{quote(str(sash_id), safe=safe)}"
 
 
-def _iter_sashes(layout: Any, *, include_legacy: bool) -> Iterator[str]:
+def _iter_sashes(layout: Any) -> Iterator[str]:
     """深度优先产出设计树里**可绑定**的窗扇 id。
 
-    - 推拉组只产出组 id（整组一起滑动）；``include_legacy`` 时额外产出每扇面板 id，
-      用于清理 0.8.2 以前按扇绑定的旧数据；
+    - 推拉组只产出组 id（整组一起滑动）—— ``panelIds`` 是几何分片，不是可绑定的身份；
     - 平开 / 上悬 / 下悬产出自身 id；
     - 固定扇不产出 —— 它没有可动的行程。
     """
@@ -107,20 +105,17 @@ def _iter_sashes(layout: Any, *, include_legacy: bool) -> Iterator[str]:
     children = layout.get("children")
     if isinstance(children, list):
         for child in children:
-            yield from _iter_sashes(child, include_legacy=include_legacy)
+            yield from _iter_sashes(child)
         return
     kind = layout.get("kind")
     if kind == "sliding":
         yield str(layout.get("id"))
-        if include_legacy:
-            for panel_id in layout.get("panelIds") or []:
-                yield str(panel_id)
         return
     if kind in ("casement", "top-hung", "bottom-hung"):
         yield str(layout.get("id"))
 
 
-def window_targets(scene: Any, *, include_legacy: bool = True) -> set[str]:
+def window_targets(scene: Any) -> set[str]:
     """**单个楼层场景**里所有可绑定窗扇的模型身份（``window:{窗}:{扇}``）。
 
     窗户挂在 ``scene['windows']``（墙体开洞）上，由 ``wallId`` 指回 ``scene['walls']``。
@@ -145,7 +140,7 @@ def window_targets(scene: Any, *, include_legacy: bool = True) -> set[str]:
         window_id = window.get("id")
         if not isinstance(window_id, str) or not window_id:
             continue
-        for sash_id in _iter_sashes(design.get("layout"), include_legacy=include_legacy):
+        for sash_id in _iter_sashes(design.get("layout")):
             targets.add(window_model_id(window_id, sash_id))
     return targets
 
@@ -161,7 +156,7 @@ def require_window_model(binding: dict, scene: dict) -> None:
     floors = [
         floor for floor in (scene or {}).get("floors") or [] if isinstance(floor, dict) and floor.get("id") == floor_id
     ]
-    if len(floors) == 1 and model_id and model_id in window_targets(floors[0].get("scene"), include_legacy=False):
+    if len(floors) == 1 and model_id and model_id in window_targets(floors[0].get("scene")):
         return
     raise HTTPException(
         status_code=status.HTTP_409_CONFLICT,

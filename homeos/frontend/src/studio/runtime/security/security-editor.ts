@@ -133,7 +133,6 @@ export async function openSecurityEditor({
     presenceEditorHandle: any = null,
     isPresenceEditorOpen = false,
     batchDialogHandle: any = null,
-    mergeDialogHandle: any = null,
     alarmPreviewOverlay: any = null
   function stopAlarmPreview() {
     alarmPreviewOverlay?.dispose()
@@ -645,8 +644,6 @@ export async function openSecurityEditor({
       batchDialogHandle?.close(),
       batchDialogHandle?.remove(),
       (batchDialogHandle = null),
-      mergeDialogHandle?.close(),
-      (mergeDialogHandle = null),
       editorDialogElement.close(),
       editorDialogElement.remove(),
       styleSheetLinkElement.remove(),
@@ -960,87 +957,6 @@ export async function openSecurityEditor({
             setSaveResultMessage('已应用到 ' + selectedTargetItems.length + ' 个目标，请保存配置。')
         },
       }))
-  }
-  /**
-   * 推拉窗组的历史逐扇配置合并（上游 `_0x53c6d1`）。
-   *
-   * 老配置按面板 id 各存一条；整组滑动只有组 id 是正式身份，所以合并时必须
-   * 让用户挑一份保留（窗磁 / 电量 / 标签都在这一条里），其余重复项删除。
-   */
-  function openWindowGroupMerge(sourceWindowItem: any) {
-    if (!isAccessAllowed || isSaving || isCameraEditing || isPresenceEditorOpen || mergeDialogHandle) return
-    const groupModelEntry = getFloorModelList().find(
-      (modelMatch: any) => getCandidateModelId(modelMatch) === sourceWindowItem.modelId,
-    )
-    if (!groupModelEntry?.legacyModels) return
-    closeActivePicker()
-    const mergeFloorId = selectedFloorId,
-      mergeCandidates = () =>
-        (draftProperties.security.windows as ReadonlyArray<SecurityChoiceRecord>).filter(
-          (windowBindingItem) =>
-            windowBindingItem.floorId === mergeFloorId &&
-            (windowBindingItem.modelId === groupModelEntry.modelId ||
-              (groupModelEntry.legacyModels as ReadonlyArray<any>).some(
-                (legacyModelEntry) => (legacyModelEntry.modelId || legacyModelEntry.id) === windowBindingItem.modelId,
-              )),
-        ),
-      mergeSnapshot = JSON.stringify(mergeCandidates())
-    let mergePickerHandle: any
-    mergePickerHandle = openConfigurationPicker({
-      document,
-      title: '选择整组使用的配置',
-      kicker: 'SLIDING WINDOW',
-      description:
-        '这组推拉窗现有 ' +
-        mergeCandidates().length +
-        ' 份配置。选择要保留的窗磁、电量和标签设置后，合并为一条整组配置；其他重复项将移除。点击“保存配置”后应用，也可以关闭本窗口取消。',
-      sections: [
-        {
-          options: mergeCandidates().map((windowBindingItem) => ({
-            id: String(windowBindingItem.id),
-            label: windowBindingItem.label || '窗户配置',
-            wrapLabel: true,
-            detail:
-              '窗磁：' +
-              (windowBindingItem.doorEntityId || '未绑定') +
-              '；电量：' +
-              (windowBindingItem.batteryEntityId || '未绑定'),
-          })),
-        },
-      ],
-      async onSelect(keptBindingId: string) {
-        if (
-          isDisposed ||
-          !isAccessAllowed ||
-          mergePickerHandle !== mergeDialogHandle ||
-          securityKind !== 'window' ||
-          selectedFloorId !== mergeFloorId
-        )
-          return
-        if (
-          JSON.stringify(mergeCandidates()) !== mergeSnapshot ||
-          getFloorModelList().find((modelMatch: any) => getCandidateModelId(modelMatch) === sourceWindowItem.modelId)
-            ?.modelId !== groupModelEntry.modelId
-        )
-          throw new Error('窗户配置已变化，请关闭后重新选择。')
-        const keptBinding = mergeCandidates().find(
-          (windowBindingItem) => String(windowBindingItem.id) === keptBindingId,
-        )
-        if (!keptBinding) return
-        keptBinding.modelId = groupModelEntry.modelId
-        draftProperties.security.windows = (
-          draftProperties.security.windows as ReadonlyArray<SecurityChoiceRecord>
-        ).filter(
-          (windowBindingItem) => !mergeCandidates().includes(windowBindingItem) || windowBindingItem === keptBinding,
-        )
-        selectedItemId = String(keptBinding.id)
-        markPropertiesDirty(), renderPanel()
-      },
-      onClose() {
-        mergeDialogHandle === mergePickerHandle && (mergeDialogHandle = null)
-      },
-    })
-    isDisposed || !isAccessAllowed ? mergePickerHandle.close() : (mergeDialogHandle = mergePickerHandle)
   }
   function renderPanel() {
     panelElement.replaceChildren(),
@@ -1590,37 +1506,9 @@ export async function openSecurityEditor({
           selectedWindowModelEntry = allFloorModels.find(
             (matchedModel: any) => getCandidateModelId(matchedModel) === selectedItem.modelId,
           )
-        if (
-          isWindowBinding &&
-          selectedWindowModelEntry?.legacyModels &&
-          (draftProperties.security.windows as ReadonlyArray<SecurityChoiceRecord>).some(
-            (windowBindingItem) =>
-              windowBindingItem.floorId === selectedFloorId &&
-              (selectedWindowModelEntry.legacyModels as ReadonlyArray<any>).some(
-                (legacyModelEntry) => (legacyModelEntry.modelId || legacyModelEntry.id) === windowBindingItem.modelId,
-              ),
-          )
-        ) {
-          // 推拉组的逐扇老配置：整组只有一条正式身份，其余要去重。
-          ;(currentContainerElement = bindingSectionElement),
-            bindingSectionElement.append(
-              createElement(
-                'p',
-                'i3d-note',
-                '这组推拉窗保留了此前的逐扇配置。可选择一份配置供整组使用，合并前原绑定继续生效。',
-              ),
-              createButton('合并为整组配置', () => openWindowGroupMerge(selectedItem)),
-            )
-        }
         if (isWindowBinding) {
           // 窗磁只负责「开 / 关」，动画来源由环境 → 开窗器统一决定，这里只提示不抢配置权。
-          const boundWindowModelIdSet = new Set<any>([
-              selectedItem.modelId,
-              selectedWindowModelEntry?.modelId,
-              ...((selectedWindowModelEntry?.legacyModels as ReadonlyArray<any>) || []).map(
-                (legacyModelEntry: any) => legacyModelEntry.modelId || legacyModelEntry.id,
-              ),
-            ]),
+          const boundWindowModelIdSet = new Set<any>([selectedItem.modelId, selectedWindowModelEntry?.modelId]),
             boundOpenerEntry = ((draftProperties.environment?.windowOpeners as ReadonlyArray<any>) || []).find(
               (openerBindingItem: any) =>
                 openerBindingItem.floorId === selectedItem.floorId &&

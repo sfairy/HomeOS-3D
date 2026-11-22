@@ -98,7 +98,7 @@ def identities(scene) -> set[tuple[str, str, str]]:
         # 窗扇：只有「自定义窗型 + 版式 v1」的窗才有可绑定的叶子窗扇。
         # ``window_targets`` 是单场景视角（校验开窗器时按楼层取 scene），
         # 这里补齐 floorId，让它与其它绑定身份同构。
-        result.update((floor["id"], "window", model_id) for model_id in window_targets(payload, include_legacy=True))
+        result.update((floor["id"], "window", model_id) for model_id in window_targets(payload))
     return result
 
 
