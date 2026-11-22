@@ -12,9 +12,11 @@ RETENTION_DAYS_MAX = 365
 #: retention 配置分区与清理步骤共用的表键（对齐 retention-tables.ts）。
 #:
 #: ``deviceTimeline`` 是本项目独有的补充：``agent_context_timeline`` 记「谁在什么时候变成了
-#: 什么」，是设备排障的凭据，但它同样无限增长（实测 2 个多月 224 万行 / 0.94 GB），且此前
-#: **没有任何自动清理**，只能靠离线脚本 ``prune-agent-timeline.py``。
-#: 它的时间列是 ``changedAt`` 而不是 ``createdAt``（见 ``_RETENTION_MODELS`` 的第三项）。
+#: 什么」，是设备排障的凭据，但它同样会无限增长（实测 2 个多月 224 万行 / 0.94 GB）。
+#: 它以 ``deviceTimeline`` 为键进入 ``DatabaseRetentionService.run_cleanup`` 的定时批次，
+#: 与其余三张表同一套保留天数策略；离线脚本 ``prune-agent-timeline.py`` 只负责
+#: **VACUUM 回收磁盘**（删行不缩文件，而 VACUUM 持有排他锁，不能放在启动或定时任务里）。
+#: 它的时间列是 ``changedAt`` 而不是 ``createdAt``（见 ``_RETENTION_MODELS`` 的定义）。
 RETENTION_TABLE_KEYS: tuple[str, ...] = (
     "eventLog",
     "notification",

@@ -26,7 +26,7 @@
  *
  * 用法
  * ----
- *     node ops/checks/plan-geometry-golden.mjs --entry ops/checks/candidates/geometry-martinez.ts
+ *     node ops/checks/plan-geometry-golden.mjs --entry <候选实现.ts>
  *     node ops/checks/plan-geometry-golden.mjs --entry <candidate> --verbose
  *
  * 退出码 0 表示候选与当前内核在上述四项上完全一致；否则逐条列出差异。

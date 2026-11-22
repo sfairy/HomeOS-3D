@@ -14,7 +14,7 @@
  * 且顺序一致、对 `null` 的处理不会引入差异。本脚本用假 document 把两种写法各跑一遍，逐字段
  * 比对 `tagName / className / textContent`，把前提变成可执行的断言。
  *
- * 覆盖的三种形态（与 `ops/scripts/codemod-dom-factory.mjs` 一一对应）：
+ * 覆盖的三种形态（与 `@/studio/app/shared/util/dom-factory.ts` 的生成器脚本 一一对应）：
  * 1. 类名 + 文本；2. 只有类名；3. 只有文本（此时 `domElement` 收到 `null` 类名）。
  *
  * 用法：`node ops/checks/dom-factory-equivalence.mjs`
