@@ -428,9 +428,15 @@ class AgentTimelineService:
         area_id = str(attrs.get("area_id") or "")
         area_name = str(attrs.get("area_name") or "")
         if not area_id:
-            self._warn_area_failure(
-                f"区域索引未命中或尚未加载（enrichment ready={getattr(enrichment, 'is_ready', 'unknown')}）"
-            )
+            ready = bool(getattr(enrichment, "is_ready", False))
+            if ready:
+                # 索引已建好却仍取不到区域：这是「该实体本就未分配房间」
+                # （实测 ha_devices 212 台里有 92 台没有 area_id），属正常数据，
+                # 归因列留空就是正确结果，不该报成故障。只有索引没建好时
+                # （ready=False）整列 areaId 才会空掉 —— 那才是要抓的失效。
+                logger.debug("实体未分配区域: %s", entity_id)
+            else:
+                self._warn_area_failure(f"区域索引尚未加载（enrichment ready={ready}），{entity_id} 的 areaId 将写空")
         return area_id, area_name
 
     def _warn_area_failure(self, message: str) -> None:
