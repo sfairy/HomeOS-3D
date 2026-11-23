@@ -57,8 +57,33 @@ APP_CT="$(svc_container homeos)"
 STORE_CT="$(svc_container homeos-store)"
 
 # 本机局域网 IP：后面既用来比对证书名字，也用来推导「浏览器从内网打开时该拿到哪个商店地址」。
-LAN_IP="${LAN_IP:-$(hostname -I 2>/dev/null | awk '{print $1}')}"
-[ -n "$LAN_IP" ] || LAN_IP="127.0.0.1"
+# `hostname -I` 只有 GNU coreutils 有；macOS 上它直接报 illegal option，于是 LAN_IP 会静默
+# 退化成回环 —— 那会让下面「从本机走内网地址可达」的探测被整段跳过（正是它要发现的那类
+# 故障）。所以 macOS 另给一条取值路径，两条都拿不到时明确说一句，不假装通过。
+detect_lan_ip() {
+  local found
+  found="$(hostname -I 2>/dev/null | awk '{print $1}')"
+  if [ -z "$found" ] && command -v ipconfig >/dev/null 2>&1; then
+    # macOS：先实体网卡，再无线；都没有就问默认路由对应的那个接口。
+    for iface in en0 en1; do
+      found="$(ipconfig getifaddr "$iface" 2>/dev/null)"
+      [ -n "$found" ] && break
+    done
+    if [ -z "$found" ] && command -v route >/dev/null 2>&1; then
+      iface="$(route -n get default 2>/dev/null | awk '/interface:/{print $2}')"
+      [ -n "$iface" ] && found="$(ipconfig getifaddr "$iface" 2>/dev/null)"
+    fi
+  fi
+  printf '%s' "$found"
+}
+
+LAN_IP="${LAN_IP:-$(detect_lan_ip)}"
+if [ -z "$LAN_IP" ]; then
+  LAN_IP="127.0.0.1"
+  LAN_IP_UNKNOWN=1
+else
+  LAN_IP_UNKNOWN=0
+fi
 
 head_ "1. 容器"
 if [ -n "$APP_CT" ]; then ok "主应用容器：$APP_CT"; else bad "主应用容器未运行（$DC ps）"; fi
@@ -97,10 +122,11 @@ check_lan_publish() {
       bad "$svc 只发布到回环：$published —— 只有本机能连，内网打不开。$hint" ;;
     *)
       ok "$svc 发布到 $published"
-      if [ "$LAN_IP" != "127.0.0.1" ] \
-        && curl -fsS -m 5 -o /dev/null "http://$LAN_IP:$port$path" 2>/dev/null; then
+      if [ "$LAN_IP_UNKNOWN" = "1" ]; then
+        warn "  取不到本机局域网 IP（可用 LAN_IP=<IP> 指定），跳过内网可达性探测"
+      elif curl -fsS -m 5 -o /dev/null "http://$LAN_IP:$port$path" 2>/dev/null; then
         ok "  从本机走内网地址可达：http://$LAN_IP:$port$path"
-      elif [ "$LAN_IP" != "127.0.0.1" ]; then
+      else
         bad "  http://$LAN_IP:$port$path 不通：端口已发布，问题在 NAS / 路由器的入站管控（或不在同一网段）"
       fi ;;
   esac
