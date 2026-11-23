@@ -223,9 +223,13 @@ const GATE_GROUPS = {
       args: ['ops/ci/build_frontend_verify.sh'],
     },
     // 体积预算棘轮已移除：入口 chunk / runtime 数随功能迭代自然漂移，
-    // 构建组只守下面两条（chunk 初始化顺序与字体子集）。
+    // 构建组只守下面三条（chunk 初始化顺序、字体子集、静态 CSS 是否真被压过）。
     { name: 'check:chunk-init', ...bun('run', 'check:chunk-init') },
     { name: 'check:font-subset', ...bun('run', 'check:font-subset') },
+    // `public/static` 的 CSS 靠 `minify-static-css` 压（Vite 只压 `assets/` 下打包过的样式）。
+    // 这条路只在 `build:frontend` 链条里跑：裸 `vite build` 会静默产出 124KB / 5694 行的
+    // `studio.css`，页面照常工作、没有任何报错，只有这一条能把「产物没压过」变成红灯。
+    { name: 'check:minified-css', ...bun('run', 'check:minified-css') },
   ],
   infra: [
     {
