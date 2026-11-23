@@ -882,7 +882,7 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
        * unprefixed backdrop-filter that lightningcss may drop.
        */
       cssMinify: 'esbuild',
-      chunkSizeWarningLimit: 1200,
+      chunkSizeWarningLimit: 1600, // 唯一越线的是懒加载 3D 块；实测见 vite-studio.ts 第 5 条
       modulePreload: {
         /**
          * 过滤不需要预加载的依赖：只留下「体积大、且只被懒路由引用」的重型库 chunk，

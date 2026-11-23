@@ -7,7 +7,18 @@
  *   3. 少量零依赖经典 IIFE 入口（HTML 里非 module 的 <script>、或字面量 URL 的 Worker）
  *      必须输出到固定路径、可预测文件名；
  *   4. `tsconfig` 里的编译期 shim 与运行期外置必须配套，否则 Rollup 会把
- *      `/api/v1/modules/interaction3d/...` 当成待解析的本地模块而失败。
+ *      `/api/v1/modules/interaction3d/...` 当成待解析的本地模块而失败；
+ *   5. 构建体积告警阈值 1600KB（`vite.config.ts` 的 `chunkSizeWarningLimit`）只放行
+ *      **一个**已知产物：3D studio 的懒加载子图（实测 1500KB / gzip 468KB）。它不在首屏
+ *      （`index.html` 14 条 modulepreload 合计 608KB），打开 3D 场景 / 编辑器时才 `import()`。
+ *      拆它试过两条路，都是负优化，别再试：
+ *       · 加 `studio3d` 命名组（`studio/app/3d-studio|renderer` + `studio/runtime`）：
+ *         1500KB → 2210KB，且被提升成入口的**静态**依赖，首屏预载 608KB → 2790KB（+2.18MB）；
+ *       · `entriesAwareMergeThreshold` 28_000 → 20_000：JS chunk 111 → 132，该块仍 1500KB
+ *         —— 它是自洽子图，不是被兜底组硬拼起来的碎模块。
+ *      阈值取 1600 而非关掉：它再长胖、或出现第二个超大块仍会告警。体积预算棘轮已按计划
+ *      移除（见 `ops/gates.mjs` 的 build 组注释），这里只保留构建期告警。这段说明放在本文件
+ *      而不是配置里：`vite.config.ts` 已在 `check:file-size` 棘轮之上，只允许变小。
  */
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
