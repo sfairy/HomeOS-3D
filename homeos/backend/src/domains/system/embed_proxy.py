@@ -25,6 +25,7 @@ from fastapi import Request
 from fastapi.responses import FileResponse, HTMLResponse, Response, StreamingResponse
 
 from .ops.upstream import EMBED_TIMEOUT
+from ..proxy.ws_proxy import is_insecure_tls_target
 from ...platform.core.http.embed_proxy_util import (
     EMBED_PROXY_SKIP_REQUEST_HEADERS,
     EMBED_PROXY_STRIP_RESPONSE_HEADERS,
@@ -182,9 +183,7 @@ class EmbedProxyService:
     ) -> Response | None:
         """同机内嵌时从本地 dist 直接伺服 ``/static/assets/*``（避免经 LAN/HTTPS 回环）。"""
         req_secure = is_request_secure(request)
-        if not is_embed_same_origin_as_request(
-            embed_base, request.headers.get("host"), req_secure
-        ):
+        if not is_embed_same_origin_as_request(embed_base, request.headers.get("host"), req_secure):
             return None
         local_path = self.resolve_local_asset_path(sub_path)
         if local_path is None:
@@ -215,15 +214,8 @@ class EmbedProxyService:
         """上游不可达时返回可读 HTML（iframe 内嵌），避免冒成 500 UNKNOWN。"""
         raw = str(err)
         timed_out = bool(re.search(r"abort|timeout|timed?\s*out", raw, re.IGNORECASE))
-        message = _message(
-            "EMBED_UPSTREAM_TIMEOUT" if timed_out else "EMBED_UPSTREAM_UNREACHABLE", upstream_url
-        )
-        safe_msg = (
-            message.replace("&", "&amp;")
-            .replace("<", "&lt;")
-            .replace(">", "&gt;")
-            .replace('"', "&quot;")
-        )
+        message = _message("EMBED_UPSTREAM_TIMEOUT" if timed_out else "EMBED_UPSTREAM_UNREACHABLE", upstream_url)
+        safe_msg = message.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
         logger.warning("内嵌代理上游不可达 %s: %s", upstream_url, raw)
         html = (
             '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><title>内嵌页不可达</title>'
@@ -234,9 +226,7 @@ class EmbedProxyService:
         )
         return HTMLResponse(content=html, status_code=502)
 
-    def filter_request_headers(
-        self, headers: dict[str, Any], embed_base: str, proxy_prefix: str
-    ) -> dict[str, str]:
+    def filter_request_headers(self, headers: dict[str, Any], embed_base: str, proxy_prefix: str) -> dict[str, str]:
         """过滤转发给上游的请求头（Origin/Referer 还原、Cookie 剥离子集）。"""
         out: dict[str, str] = {}
         for key, value in headers.items():
@@ -245,11 +235,7 @@ class EmbedProxyService:
                 continue
             if lower == "cookie":
                 raw = (
-                    value
-                    if isinstance(value, str)
-                    else "; ".join(value)
-                    if isinstance(value, (list, tuple))
-                    else None
+                    value if isinstance(value, str) else "; ".join(value) if isinstance(value, (list, tuple)) else None
                 )
                 stripped = strip_homeos_cookies(raw)
                 if stripped:
@@ -285,9 +271,7 @@ class EmbedProxyService:
         query = f"?{request.url.query}" if request.url.query else ""
         upstream_url = build_embed_upstream_url(embed_base, sub_path, query)
 
-        local_response = self._try_serve_local_frontend_asset(
-            embed_id, embed_base, base_path, sub_path, request
-        )
+        local_response = self._try_serve_local_frontend_asset(embed_id, embed_base, base_path, sub_path, request)
         if local_response is not None:
             return local_response
 
@@ -302,8 +286,10 @@ class EmbedProxyService:
         )
 
         # 内嵌反代目标已限定为局域网地址（validate_embed_target_url），其 HTTPS 站点
-        # 常用自签证书；放行证书校验，避免反代 HTTPS 内嵌页时握手失败。
-        upstream_is_https = upstream_url.lower().startswith("https:")
+        # 常用自签证书。但「局域网 + 自签」不等于「可以不校验」：能 MITM 局域网的人
+        # （ARP/DNS 投毒、被控 AP 或恶意容器）可以冒充内嵌站点并读改中继流量。
+        # 因此只在目标被显式列入 ``HOMEOS_INSECURE_TLS_HOSTS`` 时才关闭校验。
+        verify = not is_insecure_tls_target(upstream_url)
         headers = self.filter_request_headers(dict(request.headers), embed_base, proxy_prefix)
 
         client: httpx.AsyncClient | None = None
@@ -314,7 +300,7 @@ class EmbedProxyService:
                 method=request.method,
                 headers=headers,
                 content=forward_body,
-                verify=not upstream_is_https,
+                verify=verify,
             )
         except Exception as err:
             if client is not None:
@@ -350,9 +336,7 @@ class EmbedProxyService:
 
         def forward_set_cookies(response: Response) -> None:
             for cookie in set_cookies:
-                response.headers.append(
-                    "set-cookie", rewrite_embed_set_cookie(cookie, proxy_prefix, req_secure)
-                )
+                response.headers.append("set-cookie", rewrite_embed_set_cookie(cookie, proxy_prefix, req_secure))
 
         location = upstream.headers.get("location")
         if location and 300 <= status < 400:
@@ -376,26 +360,20 @@ class EmbedProxyService:
                 return self._respond_asset_not_found(sub_path)
             html = (await upstream.aread()).decode("utf-8", errors="replace")
             await _close_upstream(client, upstream)
-            rewritten = rewrite_embed_html(
-                html, embed_base, proxy_prefix, embed_id, sub_path, base_path
-            )
+            rewritten = rewrite_embed_html(html, embed_base, proxy_prefix, embed_id, sub_path, base_path)
             response = Response(content=rewritten, status_code=status)
             for key, value in response_headers.items():
                 response.headers[key] = value
             forward_set_cookies(response)
             # 设置内嵌上下文 Cookie（Path=/），使子资源请求在 Referer 缺失时仍可被识别
             embed_secure_part = "; Secure" if req_secure else ""
-            embed_cookie = (
-                f"embed_ctx__{_encode(embed_id)}=1; Path=/; SameSite=Lax{embed_secure_part}"
-            )
+            embed_cookie = f"embed_ctx__{_encode(embed_id)}=1; Path=/; SameSite=Lax{embed_secure_part}"
             response.headers.append("set-cookie", embed_cookie)
             return response
 
         if status == 404 and is_frontend_dist_asset_path(sub_path):
             await _close_upstream(client, upstream)
-            local_response = self._try_serve_local_frontend_asset(
-                embed_id, embed_base, base_path, sub_path, request
-            )
+            local_response = self._try_serve_local_frontend_asset(embed_id, embed_base, base_path, sub_path, request)
             if local_response is not None:
                 return local_response
             return self._respond_asset_not_found(sub_path)
@@ -436,7 +414,7 @@ def _maybe_json(raw_body: bytes) -> Any:
 
     try:
         return json.loads(raw_body.decode("utf-8"))
-    except (UnicodeDecodeError, ValueError):
+    except (UnicodeDecodeError, ValueError):  # fmt: skip
         return None
 
 

@@ -1,11 +1,17 @@
-"""把已确认的草案落成「本机计划任务」（Phase 2：仍需用户显式确认）。
+"""把已确认的草案落成「本机计划任务」或「HA 自动化」（Phase 2：仍需用户显式确认）。
 
-草案本身永远只预览；只有用户点击「生成计划任务」或明确让管家落地时，才走这里。
-落地目标刻意收窄：
+草案本身永远只预览；只有用户点击「生成计划任务」/「导出到 HA 自动化」，或明确让管家
+落地时，才走这里。落地目标刻意收窄：
 
 - 只支持 ``control_device`` 一种动作（沿用调度器白名单与到期时的权限 / 高危拦截）；
 - 只支持单一时间型触发（``at`` / ``cron`` / ``days``）；状态触发与多目标需要拆成多条；
 - 已是 ``BLOCKED`` / ``CLARIFYING`` 的草案不落地（前者高危、后者信息不全）。
+
+两种落地目标的语义差别（**别混**）：
+
+- ``build_task_payload`` → 本机计划任务：由 HomeOS 调度器在到期时下发命令；
+- ``build_ha_automation_payload`` → HA 自动化：写进 HA 自己的 automation 配置，
+  由 HA 执行，生态内可见、可被其它触发源复用。换机 / HA 重装后规则仍在 HA 侧。
 
 返回 ``(payload, error)``；``error`` 非空时 payload 为 ``None``。
 """
@@ -112,6 +118,95 @@ def build_task_payload(spec: dict[str, Any]) -> tuple[dict[str, Any] | None, str
         },
         "",
     )
+
+
+def build_ha_automation_payload(spec: dict[str, Any]) -> tuple[dict[str, Any] | None, str]:
+    """草案 spec → **HA 自动化**配置体（``automation/`` 里的那一条）。
+
+    与 :func:`build_task_payload` 共用同一套校验（高危拦截 / 单触发 / 单域目标），
+    但产出的是 HA 的形状：``trigger`` / ``action``。写成自动化后由 HA 自己执行，
+    不再依赖 HomeOS 调度器。
+    """
+    task, error = build_task_payload(spec)
+    if task is None:
+        return None, error
+    action_args = task["actionArgs"]
+    domain = str(action_args.get("domain") or "")
+    service_name = str(action_args.get("service") or "")
+    entity_ids = action_args.get("entity_ids") or ([action_args["entity_id"]] if action_args.get("entity_id") else [])
+    if not entity_ids or not domain or not service_name:
+        return None, "草案缺少目标设备或动作，无法生成 HA 自动化"
+
+    trigger = _ha_trigger_from_cron(task["cron"], spec)
+    if trigger is None:
+        return None, f"cron「{task['cron']}」超出 HA 时间触发可表达的范围（只支持每天 / 每周定时）"
+    weekdays = trigger.pop("_weekdays", None)
+
+    action: dict[str, Any] = {
+        "service": f"{domain}.{service_name}",
+        "target": {"entity_id": entity_ids if len(entity_ids) > 1 else entity_ids[0]},
+    }
+    service_data = action_args.get("service_data")
+    if isinstance(service_data, dict) and service_data:
+        action["data"] = service_data
+    payload: dict[str, Any] = {
+        "alias": task["name"],
+        "description": "由 HomeOS 自动化草案导出",
+        "mode": "single",
+        "trigger": [trigger],
+        "action": [action],
+    }
+    if weekdays:
+        # HA 的 time 触发没有「只在某些星期」字段：星期限制要放在 condition 上。
+        payload["condition"] = [{"condition": "time", "weekday": weekdays}]
+    return payload, ""
+
+
+def _ha_trigger_from_cron(cron: str, spec: dict[str, Any]) -> dict[str, Any] | None:
+    """``分 时 * * 周`` → HA ``time`` 触发；非「每天/每周」形状返回 ``None``。
+
+    HA 的 ``time`` 触发不能表达任意 cron（例如「每小时第 5 分钟」需要 ``minutes: 5``），
+    这里只覆盖草案实际会产出的两种形状：``M H * * *``（每天）与 ``M H * * D``（每周）。
+    """
+    parts = str(cron).split()
+    if len(parts) != 5:
+        return None
+    minute, hour, day, month, dow = parts
+    try:
+        hour_value, minute_value = int(hour), int(minute)
+    except ValueError:
+        logger.debug("cron 的时分不是整数：%r", cron)
+        return None
+    if day != "*" or month != "*":
+        return None
+    if minute_value not in {0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}:
+        return None
+    trigger: dict[str, Any] = {"platform": "time", "at": f"{hour_value:02d}:{minute_value:02d}:00"}
+    if dow != "*":
+        weekdays = _ha_weekdays(dow)
+        if weekdays is None:
+            return None
+        # HA 用 ``condition: time/ weekday`` 表达「只在某些星期」：放在 trigger 里没有
+        # 官方字段，因此保留在 ``condition`` 上（调用方负责拼装）。
+        trigger["_weekdays"] = weekdays
+    return trigger
+
+
+def _ha_weekdays(dow: str) -> list[str] | None:
+    """cron 的 day-of-week（0/7=周日）→ HA weekday 名；范围不支持时返回 ``None``。"""
+    names = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"]
+    if dow == "1-5":
+        return ["mon", "tue", "wed", "thu", "fri"]
+    if dow == "0,6":
+        return ["sat", "sun"]
+    try:
+        values = [int(item) for item in dow.split(",") if item.strip()]
+    except ValueError:
+        logger.debug("cron 的星期字段不是整数：%r", dow)
+        return None
+    if any(value < 0 or value > 7 for value in values):
+        return None
+    return [names[value % 7] for value in values]
 
 
 def _cron_from_trigger(trigger: dict[str, Any]) -> tuple[str, str]:

@@ -7,6 +7,7 @@ Nest 结构错误信封，避免依赖中间件与异常处理器的执行顺序
 from __future__ import annotations
 
 import hmac
+import logging
 import secrets
 from datetime import UTC, datetime
 from typing import Any
@@ -14,7 +15,10 @@ from typing import Any
 from fastapi import Request
 from starlette.responses import JSONResponse
 
+from .request_origin import browser_origin_allowed
 from ..core.http.errors import api_error, resolve_api_error_code
+
+logger = logging.getLogger("homeos.security.csrf")
 
 #: CSRF token 在 Cookie / 请求头中的名字（与 Nest 一致）。
 CSRF_COOKIE = "csrf_token"
@@ -115,6 +119,25 @@ class CsrfMiddleware:
             await self.app(scope, receive, send)
             return
         request = Request(scope, receive)
+        method = request.method.upper()
+        if method in SAFE_METHODS or is_csrf_exempt_path(request.url.path):
+            # CSRF 豁免表与安全方法原样放行；来源校验由各端点自己的同源守卫负责
+            # （授权激活 / 匿名上报等），避免在豁免路径上二次拦截。
+            await self.app(scope, receive, send)
+            return
+        # 同源硬校验：双提交挡不住「同主机不同端口」——Cookie 不按端口隔离，
+        # 同主机其它服务的页面能读到 csrf_token 并伪造一对 Cookie/Header。
+        # 浏览器自己算的 Sec-Fetch-Site 与 Origin↔Host 比较能挡住这一类
+        # （脚本 / 测试客户端没有来源头时仍走双提交，行为不变）。
+        try:
+            same_origin = browser_origin_allowed(request)
+        except Exception:
+            logger.warning("请求来源判定失败，按不同源处理", exc_info=True)
+            same_origin = False
+        if not same_origin:
+            response = JSONResponse(status_code=403, content=_csrf_error_payload(request))
+            await response(scope, receive, send)
+            return
         if not validate_csrf(
             request.method,
             request.url.path,

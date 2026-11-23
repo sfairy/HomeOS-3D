@@ -56,6 +56,7 @@ from ..platform.security.passwords import (
     is_credentialless,
     is_password_policy_compliant,
     verify_password,
+    verify_password_or_dummy,
 )
 from ..platform.security.request_origin import require_same_origin_write
 from ..platform.security.session_store import (
@@ -93,11 +94,23 @@ def _login_limiter_keys(request: Request, account_lower: str) -> tuple[str, ...]
 
     判不出客户端地址时（可信代理解析不到任何转发头）**不建 IP 桶**：那个桶是全局的，
     同样能被任意失败请求打满；只保留按账号的桶，针对性爆破仍然受限。
+
+    注意：这些键只进「按 IP 的严格桶」（5 次即封）。**账号全局桶**单独走
+    ``login_account_limiter``（阈值更宽），否则每换一个来源 IP 就多 5 次预算，
+    分布式爆破唯一管理员口令时几乎无成本。
     """
     address = resolve_client_address_from_request(request)
     if address.per_client and address.ip:
         return (f"ip:{address.ip}", f"account:{address.ip}:{account_lower}")
-    return (f"account:{account_lower}",)
+    return (f"account:{address.ip or 'unknown'}:{account_lower}",)
+
+
+def _account_limiter(request: Request) -> LoginAttemptLimiter:
+    """账号全局桶的限流器（跨 IP 聚合）。
+
+    装配层未创建时退回严格桶：宁可更严，也不能静默放行。
+    """
+    return getattr(request.app.state, "login_account_limiter", None) or request.app.state.login_limiter
 
 
 def _session_max_age(request: Request) -> int:
@@ -454,7 +467,14 @@ async def register(
     return public_user(user)
 
 
-@router.post("/auth/login", response_model=UserResponse, status_code=status.HTTP_200_OK)
+@router.post(
+    "/auth/login",
+    response_model=UserResponse,
+    status_code=status.HTTP_200_OK,
+    # 路由级节流：账号桶之外还有一层「同 IP 每分钟最多 10 次」的粗粒度闸门。
+    # 登录本身是低频操作，正常用户一次会话只发一两次请求。
+    dependencies=[Depends(rate_limit(10, 60.0))],
+)
 def login(payload: LoginRequest, request: Request, response: Response) -> UserResponse:
     with request.app.state.database.session_factory() as session:
         return _login(session, payload, request, response)
@@ -465,24 +485,35 @@ def _login(session: Session, payload: LoginRequest, request: Request, response: 
     account = payload.username.strip()
     account_lower = account.lower()
     limiter_keys = _login_limiter_keys(request, account_lower)
+    #: 跨 IP 聚合的账号桶键：与上面的 IP 桶分开，避免两类阈值互相污染。
+    account_key = f"acct:{account_lower}"
     limiter: LoginAttemptLimiter = request.app.state.login_limiter
-    retry_after = max(limiter.retry_after(key) for key in limiter_keys)
-    if any(limiter.blocked(key) for key in limiter_keys):
+    account_limiter = _account_limiter(request)
+    retry_after = max(
+        *[limiter.retry_after(key) for key in limiter_keys],
+        account_limiter.retry_after(account_key),
+    )
+    if any(limiter.blocked(key) for key in limiter_keys) or account_limiter.blocked(account_key):
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="登录失败次数过多，请稍后再试。",
             headers=retry_after_headers(retry_after),
         )
     user = session.scalar(select(User).where(or_(User.username == account, func.lower(User.email) == account_lower)))
-    if user is None or not user.is_active or not verify_password(payload.password, user.password):
+    # ``verify_password_or_dummy``：账号不存在 / 已停用时也跑一次 argon2，
+    # 避免用响应时间判断「本机唯一管理员账号是否存在」。
+    password_ok = verify_password_or_dummy(payload.password, user.password if user is not None else None)
+    if user is None or not user.is_active or not password_ok:
         for key in limiter_keys:
             limiter.record_failure(key)
+        account_limiter.record_failure(account_key)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="账号或密码错误。",
         )
     for key in limiter_keys:
         limiter.reset(key)
+    account_limiter.reset(account_key)
     token = create_login_session(session, request, user.id, max_age_seconds=_session_max_age(request))
     session.commit()
     set_session_cookie(

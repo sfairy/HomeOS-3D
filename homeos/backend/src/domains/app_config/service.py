@@ -50,6 +50,12 @@ logger = logging.getLogger("homeos.app_config")
 
 APP_CONFIG_UPDATED = CONFIG_UPDATED
 
+#: 免鉴权公开配置里必须剔除的语音字段。
+#:
+#: ``ttsApiKey`` 是供应商凭据（可被拿去直接计费）；``ttsApiBase`` 指向内网服务地址。
+#: 公开接口只需要知道「TTS 是否已配置」，因此改下发布尔值 ``ttsConfigured``。
+_PUBLIC_VOICE_SECRET_KEYS = frozenset({"ttsApiKey", "ttsApiBase"})
+
 
 def _deep_merge(target: dict[str, Any], source: dict[str, Any]) -> None:
     for key, value in source.items():
@@ -354,6 +360,13 @@ class AppConfigService:
                 out[section] = copy.deepcopy(self._config[section])
         voice = out.get("voice")
         if isinstance(voice, dict):
+            # 公开分区 ≠ 安全分区：``voice`` 里带供应商凭据（ttsApiKey）与内网地址
+            # （ttsApiBase），免鉴权下发等于把密钥交给任何能连到端口的人。
+            # 这里先按名单剔除，再由下面的 ``mask`` 兜底（将来新增敏感键也不会漏）。
+            raw_voice = self._config.get("voice")
+            for key in _PUBLIC_VOICE_SECRET_KEYS:
+                voice.pop(key, None)
+            voice["ttsConfigured"] = bool(isinstance(raw_voice, dict) and str(raw_voice.get("ttsApiKey") or "").strip())
             external = self._config.get("external") or {}
             voice["ttsMediaPlayerId"] = external.get("ttsMediaPlayerId") or ""
             voice["ttsMediaPlayerIds"] = external.get("ttsMediaPlayerIds") or []
@@ -383,6 +396,9 @@ class AppConfigService:
                 if isinstance(value, dict) and str(value.get("id") or "").strip()
             ]
         }
+        # 兜底：将来分区里新增 password/token/secret/apiKey/webhook 一类字段时，
+        # 不需要有人记得再来这里加名单（键名规则与管理员 GET 的脱敏同源）。
+        mask_sensitive_fields_by_key(out)
         return out
 
     # 审计

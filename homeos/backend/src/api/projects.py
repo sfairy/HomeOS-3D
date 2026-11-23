@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from contextlib import nullcontext
+from typing import Any
 from uuid import uuid4
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response, status
@@ -53,15 +55,19 @@ from ..schemas import (
     ProjectDuplicateRequest,
 )
 
-router = APIRouter(prefix='/projects', tags=['projects'])
+router = APIRouter(prefix="/projects", tags=["projects"])
+
+_logger = logging.getLogger("homeos.api.projects")
 
 
 def require_project_write(request: Request) -> None:
     if not request.app.state.license_service.allows(feature_codes.FEATURE_PROJECTS_WRITE):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许修改仪表盘。')
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="当前授权不允许修改仪表盘。")
 
 
-def require_current_bindings(request: Request, database: DatabaseSession, document: dict, previous: dict | None = None) -> None:
+def require_current_bindings(
+    request: Request, database: DatabaseSession, document: dict, previous: dict | None = None
+) -> None:
     """新增的 3D 绑定必须能在当前户型图里找到对应身份（0.8.1 的 409 守卫）。
 
     撤销 / 粘贴 / 复制会把「已经从户型里删掉的模型或楼层」重新绑回来；这里只拦**新出现**
@@ -84,29 +90,30 @@ def validate_document_assets(request: Request, document: dict) -> set[str]:
 
 
 def serialize_document(document: object) -> str:
-    return json.dumps(document, ensure_ascii=False, sort_keys=True, separators=(',', ':'))
+    return json.dumps(document, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
 def project_body(project: Project, draft: ProjectDraft | None = None) -> dict:
     body = {
-        'id': project.id,
-        'name': project.name,
-        'slug': project.slug,
-        'description': project.description,
-        'createdAt': project.created_at,
-        'updatedAt': project.updated_at}
+        "id": project.id,
+        "name": project.name,
+        "slug": project.slug,
+        "description": project.description,
+        "createdAt": project.created_at,
+        "updatedAt": project.updated_at,
+    }
     if draft is not None:
-        body['draftRevision'] = draft.revision
-        body['schemaVersion'] = draft.schema_version
+        body["draftRevision"] = draft.revision
+        body["schemaVersion"] = draft.schema_version
     return body
 
 
 def unique_slug(database: DatabaseSession, name: str) -> str:
-    base = re.sub('[^a-z0-9]+', '-', name.lower()).strip('-')[:96] or 'dashboard'
+    base = re.sub("[^a-z0-9]+", "-", name.lower()).strip("-")[:96] or "dashboard"
     candidate = base
     suffix = 2
     while database.scalar(select(Project.id).where(Project.slug == candidate)):
-        candidate = f'{base}-{suffix}'
+        candidate = f"{base}-{suffix}"
         suffix += 1
     return candidate
 
@@ -116,7 +123,7 @@ def ensure_unique_project_name(database: DatabaseSession, name: str, exclude_pro
     if exclude_project_id:
         query = query.where(Project.id != exclude_project_id)
     if database.scalar(query):
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='仪表盘名称已存在。')
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="仪表盘名称已存在。")
 
 
 def commit_project_name(database: DatabaseSession) -> None:
@@ -124,35 +131,41 @@ def commit_project_name(database: DatabaseSession) -> None:
         database.commit()
     except IntegrityError as error:
         database.rollback()
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='仪表盘名称已存在。') from error
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="仪表盘名称已存在。") from error
 
 
-@router.get('')
+@router.get("")
 def list_projects(database: DatabaseSession, viewer: LicensedViewer) -> dict:
     # 查看者恒为登录会话，可见全部仪表盘（与编辑器同权限）。
     projects = list(database.scalars(select(Project).order_by(Project.updated_at.desc())))
-    drafts = {
-        item.project_id: item
-        for item in database.scalars(select(ProjectDraft).where(ProjectDraft.project_id.in_([project.id for project in projects])))
-    } if projects else {}
-    return {'items': [project_body(project, drafts.get(project.id)) for project in projects]}
+    drafts = (
+        {
+            item.project_id: item
+            for item in database.scalars(
+                select(ProjectDraft).where(ProjectDraft.project_id.in_([project.id for project in projects]))
+            )
+        }
+        if projects
+        else {}
+    )
+    return {"items": [project_body(project, drafts.get(project.id)) for project in projects]}
 
 
 def _active_dashboard_id(request: Request) -> str:
     """读取「当前展示的仪表盘」偏好键；未设置 / app_config 未就绪时返回空串。"""
-    app_config = getattr(request.app.state, 'app_config', None)
+    app_config = getattr(request.app.state, "app_config", None)
     if app_config is None:
-        return ''
+        return ""
     try:
-        profiles = app_config.get('profiles')
+        profiles = app_config.get("profiles")
     except Exception:
-        return ''
+        return ""
     if not isinstance(profiles, dict):
-        return ''
-    return str(profiles.get('activeDashboardId') or '').strip()
+        return ""
+    return str(profiles.get("activeDashboardId") or "").strip()
 
 
-@router.get('/active')
+@router.get("/active")
 def get_active_project(request: Request, database: DatabaseSession, viewer: LicensedViewer) -> dict:
     """展示端要展示的那一个仪表盘（单源解析）。
 
@@ -180,23 +193,23 @@ def get_active_project(request: Request, database: DatabaseSession, viewer: Lice
     project = database.get(Project, wanted) if wanted else None
     if project is None:
         project = database.scalars(select(Project).order_by(Project.updated_at.desc()).limit(1)).first()
-    return {'active': project_body(project) if project is not None else None}
+    return {"active": project_body(project) if project is not None else None}
 
 
-@router.put('/{project_id}/active', status_code=status.HTTP_200_OK)
+@router.put("/{project_id}/active", status_code=status.HTTP_200_OK)
 def set_active_project(project_id: str, request: Request, database: DatabaseSession, user: LicensedUser) -> dict:
     """把某个仪表盘设为「当前展示」。"""
     project = database.get(Project, project_id)
     if project is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='仪表盘不存在。')
-    app_config = getattr(request.app.state, 'app_config', None)
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="仪表盘不存在。")
+    app_config = getattr(request.app.state, "app_config", None)
     if app_config is None:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail='配置服务尚未就绪。')
-    app_config.update({'profiles': {'activeDashboardId': project.id}})
-    return {'active': project_body(project)}
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="配置服务尚未就绪。")
+    app_config.update({"profiles": {"activeDashboardId": project.id}})
+    return {"active": project_body(project)}
 
 
-@router.post('', status_code=status.HTTP_201_CREATED)
+@router.post("", status_code=status.HTTP_201_CREATED)
 def create_project(body: ProjectCreateRequest, request: Request, database: DatabaseSession, user: LicensedUser) -> dict:
     require_project_write(request)
     ensure_unique_project_name(database, body.name)
@@ -211,7 +224,7 @@ def create_project(body: ProjectCreateRequest, request: Request, database: Datab
     )
     draft = ProjectDraft(
         project_id=project_id,
-        schema_version=document['schemaVersion'],
+        schema_version=document["schemaVersion"],
         revision=1,
         document_json=serialize_document(strip_document_popups(document)),
         updated_by=user.id,
@@ -220,40 +233,42 @@ def create_project(body: ProjectCreateRequest, request: Request, database: Datab
     commit_project_name(database)
     database.refresh(project)
     request.app.state.global_log.append(
-        'success',
-        '仪表盘编辑器',
-        '配置',
-        f'已创建仪表盘：{project.name}',
+        "success",
+        "仪表盘编辑器",
+        "配置",
+        f"已创建仪表盘：{project.name}",
         context=update_request_context(
             request,
             finished=True,
             projectId=project.id,
             projectName=project.name,
             revision=1,
-            code='PROJECT_CREATED',
-            eventType='操作记录',
-            phase='project-create',
+            code="PROJECT_CREATED",
+            eventType="操作记录",
+            phase="project-create",
         ),
     )
     return project_body(project, draft)
 
 
-@router.get('/{project_id}')
+@router.get("/{project_id}")
 def get_project(project_id: str, database: DatabaseSession, viewer: LicensedViewer) -> dict:
     require_viewer_project(viewer, project_id)
     project = database.get(Project, project_id)
     if project is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='项目不存在。')
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在。")
     return project_body(project, database.get(ProjectDraft, project_id))
 
 
-@router.post('/{project_id}/duplicate', status_code=status.HTTP_201_CREATED)
-def duplicate_project(project_id: str, body: ProjectDuplicateRequest, request: Request, database: DatabaseSession, user: LicensedUser) -> dict:
+@router.post("/{project_id}/duplicate", status_code=status.HTTP_201_CREATED)
+def duplicate_project(
+    project_id: str, body: ProjectDuplicateRequest, request: Request, database: DatabaseSession, user: LicensedUser
+) -> dict:
     require_project_write(request)
     source = database.get(Project, project_id)
     source_draft = database.get(ProjectDraft, project_id)
     if source is None or source_draft is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='项目或草稿不存在。')
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="项目或草稿不存在。")
     ensure_unique_project_name(database, body.name)
     duplicate_id = str(uuid4())
     document = hydrate_document_popups(database, json.loads(source_draft.document_json))
@@ -261,8 +276,8 @@ def duplicate_project(project_id: str, body: ProjectDuplicateRequest, request: R
     validate_document_assets(request, document)
     # 复制出来的仪表盘同样要把 3D 绑定带过去：目标户型已经删掉的模型不许再绑回来。
     require_current_bindings(request, database, document)
-    document['projectId'] = duplicate_id
-    document['name'] = body.name
+    document["projectId"] = duplicate_id
+    document["name"] = body.name
     document = validate_panel_document(document)
     duplicate = Project(
         id=duplicate_id,
@@ -273,7 +288,7 @@ def duplicate_project(project_id: str, body: ProjectDuplicateRequest, request: R
     )
     duplicate_draft = ProjectDraft(
         project_id=duplicate_id,
-        schema_version=document['schemaVersion'],
+        schema_version=document["schemaVersion"],
         revision=1,
         document_json=serialize_document(strip_document_popups(document)),
         updated_by=user.id,
@@ -282,65 +297,75 @@ def duplicate_project(project_id: str, body: ProjectDuplicateRequest, request: R
     commit_project_name(database)
     database.refresh(duplicate)
     request.app.state.global_log.append(
-        'success',
-        '仪表盘编辑器',
-        '配置',
-        f'已复制仪表盘：{source.name} → {duplicate.name}',
+        "success",
+        "仪表盘编辑器",
+        "配置",
+        f"已复制仪表盘：{source.name} → {duplicate.name}",
         context=update_request_context(
             request,
             finished=True,
             projectId=duplicate.id,
             projectName=duplicate.name,
-            code='PROJECT_DUPLICATED',
-            eventType='操作记录',
-            phase='project-copy',
+            code="PROJECT_DUPLICATED",
+            eventType="操作记录",
+            phase="project-copy",
         ),
     )
     return project_body(duplicate, duplicate_draft)
 
 
-@router.delete('/{project_id}', status_code=status.HTTP_204_NO_CONTENT)
-def delete_project(project_id: str, body: ProjectDeleteRequest, request: Request, background_tasks: BackgroundTasks, database: DatabaseSession, _user: LicensedUser) -> None:
+@router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_project(
+    project_id: str,
+    body: ProjectDeleteRequest,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    database: DatabaseSession,
+    _user: LicensedUser,
+) -> None:
     require_project_write(request)
     project = database.get(Project, project_id)
     if project is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='项目不存在。')
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在。")
     if body.confirmation != project.name:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail='确认文字与项目名称不一致。')
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="确认文字与项目名称不一致。")
     project_name = project.name
     database.delete(project)
     database.commit()
     request.app.state.global_log.append(
-        'warning',
-        '仪表盘编辑器',
-        '配置',
-        f'已删除仪表盘：{project_name}',
+        "warning",
+        "仪表盘编辑器",
+        "配置",
+        f"已删除仪表盘：{project_name}",
         context=update_request_context(
             request,
             finished=True,
             projectId=project_id,
             projectName=project_name,
-            code='PROJECT_DELETED',
-            eventType='操作记录',
-            phase='project-delete',
+            code="PROJECT_DELETED",
+            eventType="操作记录",
+            phase="project-delete",
         ),
     )
     background_tasks.add_task(request.app.state.studio_ha.refresh_persistent_entity_ids, ensure_states=False)
 
 
-@router.get('/{project_id}/draft', response_model=None)
-async def get_project_draft(project_id: str, request: Request, response: Response, database: DatabaseSession, viewer: LicensedViewer) -> dict | Response:
+@router.get("/{project_id}/draft", response_model=None)
+async def get_project_draft(
+    project_id: str, request: Request, response: Response, database: DatabaseSession, viewer: LicensedViewer
+) -> dict | Response:
     await request.app.state.license_service.confirm_binding()
     require_viewer_project(viewer, project_id)
+
     def _load_draft_payload() -> tuple[ProjectDraft | None, dict | None, int, str]:
         draft = database.get(ProjectDraft, project_id)
         if draft is None:
-            return None, None, 0, ''
+            return None, None, 0, ""
         popup_revision = global_popup_state(database).revision
         # 校验器只依赖修订号等稳定字段，命中时完全不解析 30~40KB 的 document_json。
         etag = make_etag(
-            'project-draft', project_id, draft.schema_version, draft.revision,
-            popup_revision, draft.updated_at)
+            "project-draft", project_id, draft.schema_version, draft.revision, popup_revision, draft.updated_at
+        )
         if request_etag_matches(request, etag):
             return draft, None, popup_revision, etag
         document = hydrate_document_popups(database, json.loads(draft.document_json))
@@ -348,34 +373,36 @@ async def get_project_draft(project_id: str, request: Request, response: Respons
 
     draft, document, popup_revision, draft_etag = await run_db(_load_draft_payload)
     if draft is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='项目草稿不存在。')
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="项目草稿不存在。")
     if document is None:
         return not_modified(draft_etag)
     set_private_revalidate(response, draft_etag)
     return {
-        'projectId': project_id,
-        'schemaVersion': draft.schema_version,
-        'revision': draft.revision,
-        'globalPopupRevision': popup_revision,
-        'document': document,
-        'updatedAt': draft.updated_at}
+        "projectId": project_id,
+        "schemaVersion": draft.schema_version,
+        "revision": draft.revision,
+        "globalPopupRevision": popup_revision,
+        "document": document,
+        "updatedAt": draft.updated_at,
+    }
 
 
-@router.get('/{project_id}/revision')
+@router.get("/{project_id}/revision")
 def get_project_revision(project_id: str, database: DatabaseSession, viewer: LicensedViewer) -> dict:
     """返回 display 客户端使用的轻量仪表盘修订版本。"""
     require_viewer_project(viewer, project_id)
     draft = database.get(ProjectDraft, project_id)
     if draft is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='项目草稿不存在。')
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="项目草稿不存在。")
     return {
-        'projectId': project_id,
-        'revision': draft.revision,
-        'globalPopupRevision': global_popup_state(database).revision,
-        'updatedAt': draft.updated_at}
+        "projectId": project_id,
+        "revision": draft.revision,
+        "globalPopupRevision": global_popup_state(database).revision,
+        "updatedAt": draft.updated_at,
+    }
 
 
-@router.post('/{project_id}/binding-check')
+@router.post("/{project_id}/binding-check")
 def check_project_bindings(
     project_id: str,
     payload: ProjectBindingCheckRequest,
@@ -393,10 +420,10 @@ def check_project_bindings(
     require_interaction3d_changes(request, payload.document, database=database)
     draft = database.get(ProjectDraft, project_id)
     if draft is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='项目草稿不存在。')
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="项目草稿不存在。")
     document = validate_panel_document(payload.document)
-    if document.get('projectId') != project_id:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail='文档 projectId 与项目不匹配。')
+    if document.get("projectId") != project_id:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="文档 projectId 与项目不匹配。")
     # 与素材目录的增删共用一把锁：修复预览会按「素材是否还在」决定丢掉失效封面图，
     # 读到的必须是同一时刻的素材目录。
     with request.app.state.asset_catalog.mutation_lock:
@@ -409,24 +436,22 @@ def check_project_bindings(
             )
         except ValueError as error:
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)) from error
-    return {'document': repaired, 'issues': issues, 'revision': draft.revision}
+    return {"document": repaired, "issues": issues, "revision": draft.revision}
 
 
-def _collect_removed_popup_ids(
-    document_value: dict, stored_global_popups: list, popups_dirty: bool
-) -> set[str]:
+def _collect_removed_popup_ids(document_value: dict, stored_global_popups: list, popups_dirty: bool) -> set[str]:
     """本次提交相对已存全局弹窗被移除的 id 集合（未标记 dirty 时为空）。"""
     submitted_popup_ids = {
         popup_id
-        for popup in (document_value.get('customPopups') or [])
-        if isinstance(popup, dict) and isinstance((popup_id := popup.get('id')), str)
+        for popup in (document_value.get("customPopups") or [])
+        if isinstance(popup, dict) and isinstance((popup_id := popup.get("id")), str)
     }
     if not popups_dirty:
         return set()
     stored_popup_ids = {
         popup_id
         for popup in stored_global_popups
-        if isinstance(popup, dict) and isinstance((popup_id := popup.get('id')), str)
+        if isinstance(popup, dict) and isinstance((popup_id := popup.get("id")), str)
     }
     return submitted_popup_ids - stored_popup_ids
 
@@ -438,16 +463,26 @@ def _write_global_popups(
     popup_result = database.execute(
         update(GlobalCustomPopupState)
         .where(GlobalCustomPopupState.id == 1, GlobalCustomPopupState.revision == expected_revision)
-        .values(popups_json=serialize_document(submitted_popups), revision=GlobalCustomPopupState.revision + 1, updated_by=user_id)
+        .values(
+            popups_json=serialize_document(submitted_popups),
+            revision=GlobalCustomPopupState.revision + 1,
+            updated_by=user_id,
+        )
         .execution_options(synchronize_session=False)
     )
     if popup_result.rowcount != 1:  # pyright: ignore[reportAttributeAccessIssue]
         database.rollback()
-        current_popup_revision = database.scalar(select(GlobalCustomPopupState.revision).where(GlobalCustomPopupState.id == 1))
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={
-            'code': 'GLOBAL_POPUP_REVISION_CONFLICT',
-            'message': '全局组合弹窗已在其他仪表盘中更新，请刷新后重试。',
-            'currentRevision': current_popup_revision})
+        current_popup_revision = database.scalar(
+            select(GlobalCustomPopupState.revision).where(GlobalCustomPopupState.id == 1)
+        )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "GLOBAL_POPUP_REVISION_CONFLICT",
+                "message": "全局组合弹窗已在其他仪表盘中更新，请刷新后重试。",
+                "currentRevision": current_popup_revision,
+            },
+        )
 
 
 def _remove_popup_refs_from_drafts(
@@ -457,21 +492,32 @@ def _remove_popup_refs_from_drafts(
     for referenced_draft in database.scalars(select(ProjectDraft).where(ProjectDraft.project_id != project_id)):
         try:
             referenced_document = json.loads(referenced_draft.document_json)
-        except (TypeError, json.JSONDecodeError):
+        except (TypeError, json.JSONDecodeError):  # fmt: skip
             continue
         if not clear_popup_references(referenced_document, removed_popup_ids):
             continue
         referenced_result = database.execute(
             update(ProjectDraft)
-            .where(ProjectDraft.project_id == referenced_draft.project_id, ProjectDraft.revision == referenced_draft.revision)
-            .values(document_json=serialize_document(referenced_document), revision=ProjectDraft.revision + 1, updated_by=user_id)
+            .where(
+                ProjectDraft.project_id == referenced_draft.project_id,
+                ProjectDraft.revision == referenced_draft.revision,
+            )
+            .values(
+                document_json=serialize_document(referenced_document),
+                revision=ProjectDraft.revision + 1,
+                updated_by=user_id,
+            )
             .execution_options(synchronize_session=False)
         )
         if referenced_result.rowcount != 1:  # pyright: ignore[reportAttributeAccessIssue]
             database.rollback()
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={
-                'code': 'PROJECT_REVISION_CONFLICT',
-                'message': '其他仪表盘正在更新，组合弹窗尚未删除，请重试。'})
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "code": "PROJECT_REVISION_CONFLICT",
+                    "message": "其他仪表盘正在更新，组合弹窗尚未删除，请重试。",
+                },
+            )
 
 
 def _write_draft_document(
@@ -486,18 +532,42 @@ def _write_draft_document(
     write_result = database.execute(
         update(ProjectDraft)
         .where(ProjectDraft.project_id == project_id, ProjectDraft.revision == draft_revision)
-        .values(document_json=serialized_document, schema_version=schema_version, revision=ProjectDraft.revision + 1, updated_by=user_id)
+        .values(
+            document_json=serialized_document,
+            schema_version=schema_version,
+            revision=ProjectDraft.revision + 1,
+            updated_by=user_id,
+        )
         .execution_options(synchronize_session=False)
     )
     if write_result.rowcount != 1:  # pyright: ignore[reportAttributeAccessIssue]
         database.rollback()
         current_revision = database.scalar(select(ProjectDraft.revision).where(ProjectDraft.project_id == project_id))
         if current_revision is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='项目草稿不存在。')
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={
-            'code': 'PROJECT_REVISION_CONFLICT',
-            'message': '草稿已被其他页面更新。',
-            'currentRevision': current_revision})
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="项目草稿不存在。")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "PROJECT_REVISION_CONFLICT",
+                "message": "草稿已被其他页面更新。",
+                "currentRevision": current_revision,
+            },
+        )
+
+
+async def _publish_project_revision(hub: Any, project_id: str, revision: int) -> None:
+    """广播「这个仪表盘草稿有新版本」，让墙板立即重拉而不是等轮询。
+
+    ``hub`` 取 ``app.state.studio_ha``（它持有 ``state_hub``）；未装配时静默跳过 ——
+    保存本身已经成功，广播失败只影响「墙板多久看到」。
+    """
+    state_hub = getattr(hub, "state_hub", None)
+    if state_hub is None:
+        return
+    try:
+        await state_hub.publish({"type": "project_revision_changed", "projectId": project_id, "revision": revision})
+    except Exception:
+        _logger.warning("仪表盘草稿变更广播失败：%s", project_id, exc_info=True)
 
 
 def _draft_update_response(
@@ -512,52 +582,63 @@ def _draft_update_response(
     database.expire_all()
     draft = database.get(ProjectDraft, project_id)
     if draft is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='项目草稿不存在。')
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="项目草稿不存在。")
     request.app.state.global_log.append(
-        'success',
-        '仪表盘编辑器',
-        '配置',
-        f'仪表盘已保存：{project_name}（修订 {draft.revision}）',
+        "success",
+        "仪表盘编辑器",
+        "配置",
+        f"仪表盘已保存：{project_name}（修订 {draft.revision}）",
         context=update_request_context(
             request,
             finished=True,
             projectId=project_id,
             projectName=project_name,
             revision=draft.revision,
-            code='PROJECT_SAVED',
-            eventType='操作记录',
-            phase='project-save',
+            code="PROJECT_SAVED",
+            eventType="操作记录",
+            phase="project-save",
         ),
     )
     hydrated_document = hydrate_document_popups(database, json.loads(draft.document_json))
     draft_body = {
-        'projectId': project_id,
-        'schemaVersion': draft.schema_version,
-        'revision': draft.revision,
-        'globalPopupRevision': global_popup_state(database).revision,
-        'document': hydrated_document,
-        'updatedAt': draft.updated_at,
+        "projectId": project_id,
+        "schemaVersion": draft.schema_version,
+        "revision": draft.revision,
+        "globalPopupRevision": global_popup_state(database).revision,
+        "document": hydrated_document,
+        "updatedAt": draft.updated_at,
     }
     database.close()
     return draft_body
 
 
-@router.put('/{project_id}/draft')
-def update_project_draft(project_id: str, body: ProjectDraftUpdate, request: Request, background_tasks: BackgroundTasks, database: DatabaseSession, user: LicensedUser) -> dict:
+@router.put("/{project_id}/draft")
+def update_project_draft(
+    project_id: str,
+    body: ProjectDraftUpdate,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    database: DatabaseSession,
+    user: LicensedUser,
+) -> dict:
     require_project_write(request)
     draft = database.get(ProjectDraft, project_id)
     if draft is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='项目草稿不存在。')
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="项目草稿不存在。")
     if draft.revision != body.revision:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={
-            'code': 'PROJECT_REVISION_CONFLICT',
-            'message': '草稿已被其他页面更新。',
-            'currentRevision': draft.revision})
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "PROJECT_REVISION_CONFLICT",
+                "message": "草稿已被其他页面更新。",
+                "currentRevision": draft.revision,
+            },
+        )
     popup_state = global_popup_state(database)
     document_value = dict(body.document)
     stored_global_popups = global_popups(database)
     if not body.global_popups_dirty:
-        document_value['customPopups'] = stored_global_popups
+        document_value["customPopups"] = stored_global_popups
     removed_popup_ids = _collect_removed_popup_ids(document_value, stored_global_popups, body.global_popups_dirty)
     clear_popup_references(document_value, removed_popup_ids)
     try:
@@ -572,21 +653,27 @@ def update_project_draft(project_id: str, body: ProjectDraftUpdate, request: Req
         request,
         document,
         previous_document,
-        database = database,
+        database=database,
     )
     require_current_bindings(request, database, document, previous_document)
     user_asset_ids = validate_document_assets(request, document)
-    if document['projectId'] != project_id:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail='文档 projectId 与项目不匹配。')
-    ensure_unique_project_name(database, document['name'], exclude_project_id=project_id)
-    submitted_popups = document.get('customPopups') or []
-    global_popups_changed = body.global_popups_dirty and serialize_document(submitted_popups) != serialize_document(stored_global_popups)
+    if document["projectId"] != project_id:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="文档 projectId 与项目不匹配。")
+    ensure_unique_project_name(database, document["name"], exclude_project_id=project_id)
+    submitted_popups = document.get("customPopups") or []
+    global_popups_changed = body.global_popups_dirty and serialize_document(submitted_popups) != serialize_document(
+        stored_global_popups
+    )
     expected_global_popup_revision = body.global_popup_revision or popup_state.revision
     if global_popups_changed and expected_global_popup_revision != popup_state.revision:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={
-            'code': 'GLOBAL_POPUP_REVISION_CONFLICT',
-            'message': '全局组合弹窗已在其他仪表盘中更新，请刷新后重试。',
-            'currentRevision': popup_state.revision})
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "GLOBAL_POPUP_REVISION_CONFLICT",
+                "message": "全局组合弹窗已在其他仪表盘中更新，请刷新后重试。",
+                "currentRevision": popup_state.revision,
+            },
+        )
     serialized_document = serialize_document(strip_document_popups(document))
     asset_guard = request.app.state.asset_catalog.mutation_lock if user_asset_ids else nullcontext()
     with asset_guard:
@@ -596,24 +683,34 @@ def update_project_draft(project_id: str, body: ProjectDraftUpdate, request: Req
             _write_global_popups(database, user.id, submitted_popups, expected_global_popup_revision)
             if removed_popup_ids:
                 _remove_popup_refs_from_drafts(database, user.id, removed_popup_ids, project_id)
-        _write_draft_document(database, user.id, project_id, body.revision, serialized_document, document['schemaVersion'])
-        database.execute(update(Project).where(Project.id == project_id).values(name=document['name']))
+        _write_draft_document(
+            database, user.id, project_id, body.revision, serialized_document, document["schemaVersion"]
+        )
+        database.execute(update(Project).where(Project.id == project_id).values(name=document["name"]))
         commit_project_name(database)
     # 0.8.7：仪表盘草稿保存也单独记一条（此前只有创建 / 复制 / 删除有事件）。
     request.app.state.global_log.append(
-        'success',
-        '仪表盘编辑器',
-        '配置',
-        f'仪表盘草稿已保存：{document["name"]}',
+        "success",
+        "仪表盘编辑器",
+        "配置",
+        f"仪表盘草稿已保存：{document['name']}",
         context=update_request_context(
             request,
             finished=True,
             projectId=project_id,
-            projectName=document['name'],
+            projectName=document["name"],
             revision=body.revision + 1,
-            eventType='操作记录',
-            code='PROJECT_DRAFT_SAVED',
-            phase='project-save',
+            eventType="操作记录",
+            code="PROJECT_DRAFT_SAVED",
+            phase="project-save",
         ),
     )
-    return _draft_update_response(request, background_tasks, database, project_id, document['name'])
+    # 广播「草稿变了」：墙板据 WS 事件立即重拉，不必等 10 秒轮询（见 display.ts）。
+    # 放 background_tasks：保存响应不该等一次 WS 扇出完成。
+    background_tasks.add_task(
+        _publish_project_revision,
+        getattr(request.app.state, "studio_ha", None),
+        project_id,
+        body.revision + 1,
+    )
+    return _draft_update_response(request, background_tasks, database, project_id, document["name"])

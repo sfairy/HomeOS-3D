@@ -19,7 +19,7 @@ def load_runtime_kv(session, key: str) -> Any:
         return None
     try:
         return json.loads(row.data)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError):  # fmt: skip
         return None
 
 

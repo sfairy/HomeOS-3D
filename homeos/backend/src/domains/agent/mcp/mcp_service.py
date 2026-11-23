@@ -28,7 +28,7 @@ def _js_stringify(value: Any) -> str:
     """对齐 JS ``JSON.stringify``（紧凑分隔符、不转义中文）。"""
     try:
         return json.dumps(value, ensure_ascii=False, separators=(",", ":"), default=str)
-    except (TypeError, ValueError):  # fmt: skip - 括号不能省，Cython 会把 PEP 758 形式误解析
+    except (TypeError, ValueError):  # fmt: skip
         return ""
 
 
@@ -37,7 +37,7 @@ def _safe_equal_string(left: str, right: str) -> bool:
     try:
         buf_a = left.encode()
         buf_b = right.encode()
-    except (UnicodeEncodeError, AttributeError):  # fmt: skip - 括号不能省，Cython 会把 PEP 758 形式误解析
+    except (UnicodeEncodeError, AttributeError):  # fmt: skip
         return False
     if len(buf_a) != len(buf_b):
         return False
@@ -249,17 +249,24 @@ class McpGatewayService:
 
         同一 NAT 后面的多个 Agent 过去都落在 ``mcp:<ip>``，会共享会话上下文；
         加上客户端标识后按客户端隔离，取不到时保持原有 IP 语义。
+
+        **未配置 ``MCP_CLIENT_KEYS`` 时不采信客户端自报的名字**：这个值同时用于
+        配额、作用域与会话桶，而请求头 / ``clientInfo.name`` 完全由调用方自选 ——
+        逐请求换一个名字就能绕过每客户端限流并拿到全新会话。没有密钥可绑定时
+        只有 IP 是可信的。
         """
-        client = normalize_client_id(header_client_id)
-        if client:
-            return client
-        params = body.get("params") if isinstance(body, dict) else None
-        if isinstance(params, dict):
-            client_info = params.get("clientInfo")
-            if isinstance(client_info, dict):
-                client = normalize_client_id(client_info.get("name"))
-        if client:
-            return client
+        has_client_keys = bool(self._read_env_map("MCP_CLIENT_KEYS"))
+        if has_client_keys:
+            client = normalize_client_id(header_client_id)
+            if client:
+                return client
+            params = body.get("params") if isinstance(body, dict) else None
+            if isinstance(params, dict):
+                client_info = params.get("clientInfo")
+                if isinstance(client_info, dict):
+                    client = normalize_client_id(client_info.get("name"))
+            if client:
+                return client
         return normalize_client_id(ip_address) or "anon"
 
     def _check_client_rate(self, client_id: str) -> None:
@@ -292,7 +299,7 @@ class McpGatewayService:
             return {}
         try:
             parsed = json.loads(raw)
-        except (TypeError, ValueError):  # fmt: skip - 括号不能省，Cython 会把 PEP 758 形式误解析
+        except (TypeError, ValueError):  # fmt: skip
             logger.warning("%s 不是合法 JSON，已忽略", name)
             return {}
         return parsed if isinstance(parsed, dict) else {}

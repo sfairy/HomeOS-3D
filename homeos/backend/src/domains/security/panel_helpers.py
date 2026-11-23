@@ -15,6 +15,7 @@ from typing import Any
 
 from .bus import LocalEventBus
 from .config import DEFAULT_SECURITY_EMERGENCY
+from .entry_delay import EntryDelayController
 from .layout import (
     load_active_project_layout,
     parse_hazard_layout_bindings,
@@ -617,6 +618,12 @@ class SecurityAlarmHelper:
         self._ha_link_down = False
         bus.on("ha.disconnected", self._on_ha_disconnected)
         bus.on("ha.connected", self._on_ha_connected)
+        self.entry_delay = EntryDelayController(
+            config_reader=config_reader,
+            get_current_mode=get_current_mode,
+            dispatch=self._dispatch_alarm,
+            event_bus=bus,
+        )
 
     def _on_ha_disconnected(self, _payload: Any = None) -> None:
         """HA 断连：断连期间的实体状态不可信，重连后需要重新建立基线。"""
@@ -752,10 +759,26 @@ class SecurityAlarmHelper:
         )
         if not zones_to_alert:
             return
+
+        # 进入延时（门/窗/锁生效，人体传感器不延迟）：见 security/entry_delay.py。
+        # **冷却必须等真正告警时再写**：撤防会取消 pending，而旧顺序在 pending 之前就把
+        # 区域冷却消耗掉了 —— 用户正常回家并撤防后，冷却窗口内的一次真实入侵会被静默吞掉。
+        if self.entry_delay.begin(entity_id, new_state_obj, new_state, zones_to_alert, cooldown_sec):
+            return
+        await self._dispatch_alarm(entity_id, new_state_obj, zones_to_alert, cooldown_sec)
+
+    async def _dispatch_alarm(
+        self,
+        entity_id: str,
+        new_state_obj: dict[str, Any],
+        zones_to_alert: list[dict[str, Any]],
+        cooldown_sec: int,
+    ) -> None:
+        """真正发告警（进入延时到点或不需要延时时走到这里）。"""
         if cooldown_sec > 0:
+            # 走到这里说明告警确实要发（没被进入延时挂起、或挂起后未被撤防），此时才消费冷却。
             for zone in zones_to_alert:
                 self._set_zone_alarm_cooldown(str(zone.get("id")), cooldown_sec / 60)
-
         friendly_name = (new_state_obj.get("attributes") or {}).get("friendly_name") or entity_id
         zone_names = "、".join(str(z.get("name")) for z in zones_to_alert)
         logger.warning("🚨 安防告警：%s 触发（区域：%s）", friendly_name, zone_names)
@@ -779,6 +802,29 @@ class SecurityAlarmHelper:
             zones=zone_ids,
             source="sensor",
         )
+
+    async def _run_hazard_actions(
+        self, bindings: Any, hazard: str, friendly_name: str
+    ) -> tuple[list[dict[str, Any]], list[str]]:
+        """执行 3D 布局里绑定的危险自动动作（关阀 / 排风），失败逐条告警。
+
+        抽成独立方法有两个理由：``handle_safety_sensor`` 本来就已经是圈复杂度上限附近，
+        再加一个开关分支就压不住；而「执行 + 汇总失败」是完整的一件事，单独看更清楚。
+        """
+        if self._config_reader().get("hazardAutoActions") is False:
+            # 用户关掉了自动处置：只告警，不碰阀门 / 排风。绑定仍然保留，
+            # 重新打开开关即恢复（比要求用户删掉 3D 布局里的绑定友好得多）。
+            logger.info("危险自动动作已关闭，仅告警: %s (%s)", friendly_name, hazard)
+            return [], []
+        action_results = await run_hazard_auto_actions(
+            bindings,
+            hazard,
+            self._ha.call_service_via_rest,
+        )
+        failures = summarize_hazard_action_failures(action_results)
+        if failures:
+            logger.warning("危险传感器联动部分失败：%s", "、".join(failures))
+        return action_results, failures
 
     async def handle_safety_sensor(self, event: dict[str, Any]) -> None:
         entity_id = str(event.get("entity_id") or "")
@@ -838,14 +884,7 @@ class SecurityAlarmHelper:
                 "检测到已废弃的持久演习开关（hazardDrillMode），真实告警仍执行关阀/排风；请改用一次性演习入口"
             )
 
-        action_results = await run_hazard_auto_actions(
-            bindings,
-            hazard,
-            self._ha.call_service_via_rest,
-        )
-        action_failures = summarize_hazard_action_failures(action_results)
-        if action_failures:
-            logger.warning("危险传感器联动部分失败：%s", "、".join(action_failures))
+        action_results, action_failures = await self._run_hazard_actions(bindings, hazard, friendly_name)
 
         await self._bus.emit(
             "security.alarm",

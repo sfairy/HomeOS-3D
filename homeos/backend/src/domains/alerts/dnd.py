@@ -48,13 +48,34 @@ def is_dnd_active_now(
     now: datetime | None = None,
     timezone_name: str | None = None,
 ) -> bool:
-    """基于配置判断指定时刻是否处于免打扰；``dndStart`` / ``dndEnd`` 任一缺失返回 False。"""
+    """基于配置判断指定时刻是否处于免打扰。
+
+    ``dndStart`` / ``dndEnd`` 任一缺失返回 False。可选的 ``dndWeekdays``（``0=周日``，
+    与 JS ``getDay()`` 一致）把免打扰限制在指定星期：不给时每天生效（保持旧行为）。
+    缺了它，想把「周末晚一点静音」只能改全局起止，连带工作日一起改掉。
+    """
     cfg = cfg or {}
     dnd_start = cfg.get("dndStart")
     dnd_end = cfg.get("dndEnd")
     if dnd_start is None or dnd_end is None:
         return False
+    if not _dnd_weekday_matches(cfg.get("dndWeekdays"), now, timezone_name):
+        return False
     return is_dnd_active(current_hour_in(timezone_name, now), int(dnd_start), int(dnd_end))
+
+
+def _dnd_weekday_matches(raw: Any, now: datetime | None, timezone_name: str | None) -> bool:
+    """``dndWeekdays`` 为空/非法时视为「每天生效」。"""
+    if not isinstance(raw, list) or not raw:
+        return True
+    allowed = {int(item) for item in raw if isinstance(item, (int, float)) and 0 <= int(item) <= 6}
+    if not allowed:
+        return True
+    reference = now or datetime.now(UTC)
+    if reference.tzinfo is None:
+        reference = reference.replace(tzinfo=UTC)
+    weekday = int(zoned_date_parts(reference, timezone_name)["weekday"])
+    return weekday in allowed
 
 
 def dnd_duration_hours(dnd_start: int, dnd_end: int) -> int:

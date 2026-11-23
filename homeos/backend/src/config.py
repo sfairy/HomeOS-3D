@@ -38,6 +38,17 @@ def _environment_bool(name: str, default: bool = False) -> bool:
     return value.strip().lower() in {"1", "on", "yes", "true"}
 
 
+def _environment_int(name: str, default: int, *, minimum: int, maximum: int) -> int:
+    """读一个带上下界的整数环境变量；缺省 / 非法一律回落到 ``default``（并夹到区间内）。"""
+    raw = os.getenv(name)
+    try:
+        value = int(str(raw).strip()) if raw is not None and str(raw).strip() else default
+    except (TypeError, ValueError):  # fmt: skip
+        _logger.warning("环境变量 %s 不是整数（%r），按默认值 %s 处理", name, raw, default)
+        value = default
+    return min(max(value, minimum), maximum)
+
+
 #: 生产环境标记的**唯一真源**：``APP_ENVIRONMENT``。
 #: 两个后端、容器启动器、部署脚本与门禁都读这一个函数，不再各写一份字符串比较。
 PRODUCTION_ENV_VALUES = {"production", "prod"}
@@ -119,9 +130,7 @@ def _validated_public_origins() -> tuple[str, ...]:
     if not values:
         return ()
     if any(not _valid_public_origin(item) for item in values):
-        raise ValueError(
-            "APP_ADDITIONAL_PUBLIC_ORIGINS 必须为完整 HTTP/HTTPS 来源，包含实际端口且不带路径。"
-        )
+        raise ValueError("APP_ADDITIONAL_PUBLIC_ORIGINS 必须为完整 HTTP/HTTPS 来源，包含实际端口且不带路径。")
     return values
 
 
@@ -136,9 +145,7 @@ BACKEND_DIR_NAMES = frozenset({"backend"})
 # APP_LICENSE_PUBLIC_KEY_SHA256 / APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256
 # （商店首次启动随机生成密钥对，写死常量必然对不上，自检只会报「指纹不匹配」）。
 DEFAULT_LICENSE_PUBLIC_KEY_SHA256 = "b991c5f7cca311df51edb1fd6568de53a136eac22dcc2e07a87b3f86e9738035"
-DEFAULT_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256 = (
-    "0a44cfca97901b69786c24c54658f30ea8228db557460ccc557a4c38183480ce"
-)
+DEFAULT_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256 = "0a44cfca97901b69786c24c54658f30ea8228db557460ccc557a4c38183480ce"
 DEFAULT_LICENSE_SERVER_URL = "http://127.0.0.1:8802"
 DEFAULT_LICENSE_KEY_ID = "hb-local-2026"
 DEFAULT_LICENSE_TRANSPORT_KEY_ID = "hb-local-transport-2026"
@@ -240,6 +247,15 @@ class Settings:
     app_base_url: str = ""
     # 授权服务
     license_required: bool = False
+    #: 租约过期后是否仍放行「设备控制 + 实时通道」（只降级编辑类能力）。
+    #:
+    #: 产品定位是「本机中控」：家里断网 / 商店不可达导致租约过期时，把灯控一起停掉
+    #: 会让用户觉得整台设备坏了。开启后过期只禁止改配置 / 改布局 / 管理账号，
+    #: 已购能力码的设备控制与实时状态继续可用；超出 ``license_expired_grace_days``
+    #: 才整体停用。商业侧如需严格按月执行，把它设为 false。
+    license_expired_grace: bool = True
+    #: 上述宽限窗口（天）。超过它视同未授权（``LEASE_EXPIRED`` 全量拦截）。
+    license_expired_grace_days: int = 90
     license_server_url: str = DEFAULT_LICENSE_SERVER_URL
     license_server_batches: tuple[tuple[str, tuple[str, ...]], ...] = ()
     license_request_timeout_seconds: float = 10.0
@@ -408,17 +424,11 @@ class Settings:
 
     @property
     def license_public_key_path(self) -> Path:
-        return (
-            self.license_public_key_path_override
-            or self._keys_dir() / SIGNING_PUBLIC_KEY_FILENAME
-        )
+        return self.license_public_key_path_override or self._keys_dir() / SIGNING_PUBLIC_KEY_FILENAME
 
     @property
     def license_transport_public_key_path(self) -> Path:
-        return (
-            self.license_transport_public_key_path_override
-            or self._keys_dir() / TRANSPORT_PUBLIC_KEY_FILENAME
-        )
+        return self.license_transport_public_key_path_override or self._keys_dir() / TRANSPORT_PUBLIC_KEY_FILENAME
 
     @property
     def license_key_id(self) -> str:
@@ -501,18 +511,14 @@ def load_settings() -> Settings:
     ``CORS_ORIGINS`` 等），使同一份 ``backend/.env`` 可被两套后端共用。
     """
     # 兜底值必须与 `.env.example` 的 `#HOMEOS_DATA_DIR=./homeos/data` 及 `ops/dev.mjs` 一致。
-    data_dir = Path(
-        os.getenv("HOMEOS_DATA_DIR") or PROJECT_ROOT.parent / "data"
-    ).expanduser().resolve()
+    data_dir = Path(os.getenv("HOMEOS_DATA_DIR") or PROJECT_ROOT.parent / "data").expanduser().resolve()
     additional_public_origins = _validated_public_origins()
     return Settings(
         data_dir=data_dir,
         store_url=os.getenv("APP_STORE_URL", "").strip().rstrip("/"),
         jwt_secret=os.getenv("JWT_SECRET", "").strip(),
         jwt_expires_in_seconds=int(os.getenv("JWT_EXPIRES_IN_SECONDS", "86400")),
-        session_max_age_seconds=max(
-            1, int(os.getenv("HOMEOS_SESSION_MAX_AGE_SECONDS", str(30 * 24 * 60 * 60)))
-        ),
+        session_max_age_seconds=max(1, int(os.getenv("HOMEOS_SESSION_MAX_AGE_SECONDS", str(30 * 24 * 60 * 60)))),
         schema_mode=os.getenv("HOMEOS_SCHEMA_MODE", "auto").strip().lower() or "auto",
         cookie_name=os.getenv("COOKIE_NAME", "auth_token").strip() or "auth_token",
         csrf_cookie_name=os.getenv("CSRF_COOKIE_NAME", "csrf_token").strip() or "csrf_token",
@@ -529,13 +535,9 @@ def load_settings() -> Settings:
             else ("127.0.0.1", "::1")
         ),
         public_body_limit_bytes=int(os.getenv("PUBLIC_BODY_LIMIT_BYTES", str(1 * 1024 * 1024))),
-        authenticated_body_limit_bytes=int(
-            os.getenv("AUTHENTICATED_BODY_LIMIT_BYTES", str(50 * 1024 * 1024))
-        ),
+        authenticated_body_limit_bytes=int(os.getenv("AUTHENTICATED_BODY_LIMIT_BYTES", str(50 * 1024 * 1024))),
         ha_request_timeout_seconds=float(os.getenv("HA_REQUEST_TIMEOUT_SECONDS", "10")),
-        ha_websocket_max_size_bytes=int(
-            os.getenv("HA_WEBSOCKET_MAX_SIZE_BYTES", str(67108864))
-        ),
+        ha_websocket_max_size_bytes=int(os.getenv("HA_WEBSOCKET_MAX_SIZE_BYTES", str(67108864))),
         # 周期全量对账是兜底：实时 WS 已覆盖大部分变化，30 分钟把 700+ 实体全量拉一遍
         # 既费 HA 又写库，默认降到 6 小时；重连/手动刷新仍会立即全量同步，
         # 需要更频繁可用 HA_RECONCILE_INTERVAL_SECONDS 调回。
@@ -547,21 +549,18 @@ def load_settings() -> Settings:
         app_base_url=os.getenv("APP_BASE_URL", "").strip().rstrip("/"),
         frontend_dir_override=_environment_path("HOMEOS_FRONTEND_DIR"),
         license_required=_license_required_from_env(),
-        license_server_url=os.getenv("APP_LICENSE_SERVER_URL", "").strip().rstrip("/")
-        or DEFAULT_LICENSE_SERVER_URL,
+        license_expired_grace=_environment_bool("LICENSE_EXPIRED_GRACE", default=True),
+        license_expired_grace_days=_environment_int("LICENSE_EXPIRED_GRACE_DAYS", 90, minimum=1, maximum=3650),
+        license_server_url=os.getenv("APP_LICENSE_SERVER_URL", "").strip().rstrip("/") or DEFAULT_LICENSE_SERVER_URL,
         license_server_batches=_environment_batches("APP_LICENSE_SERVER_BATCHES"),
         license_request_timeout_seconds=float(os.getenv("APP_LICENSE_REQUEST_TIMEOUT_SECONDS", "10")),
         license_public_key_sha256=os.getenv("APP_LICENSE_PUBLIC_KEY_SHA256", "").strip()
         or DEFAULT_LICENSE_PUBLIC_KEY_SHA256,
-        license_transport_public_key_sha256=os.getenv(
-            "APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256", ""
-        ).strip()
+        license_transport_public_key_sha256=os.getenv("APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256", "").strip()
         or DEFAULT_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256,
         license_transport_key_id_override=os.getenv("APP_LICENSE_TRANSPORT_KEY_ID", "").strip(),
         license_public_key_path_override=_environment_path("APP_LICENSE_PUBLIC_KEY_FILE"),
-        license_transport_public_key_path_override=_environment_path(
-            "APP_LICENSE_TRANSPORT_PUBLIC_KEY_FILE"
-        ),
+        license_transport_public_key_path_override=_environment_path("APP_LICENSE_TRANSPORT_PUBLIC_KEY_FILE"),
         hardware_machine_id_override=os.getenv("APP_HARDWARE_MACHINE_ID", "").strip(),
         hardware_board_id_override=os.getenv("APP_HARDWARE_BOARD_ID", "").strip(),
         license_secret_key_path_override=_environment_path("APP_LICENSE_CREDENTIAL_FILE"),

@@ -35,6 +35,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
+from .energy_units import normalize_unit, unit_for_entity
+
 logger = logging.getLogger("homeos.energy_sgcc")
 
 ENTITY_PREFIX = "sensor.state_grid_"
@@ -72,8 +74,10 @@ LIST_SPECS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "monthlist": (("month", "date"), ("monthEleNum", "ele")),
     "yearlist": (("year", "date"), ("yearEleNum", "ele")),
 }
-#: 只认电（kWh/Wh/MWh）：燃气/水表的 ``daylist`` 单位不同，写进电表日行会串味。
+#: 电的常见单位（换算在读数归一里完成，这里只判「是不是电」）。
 _ELECTRIC_UNITS = frozenset({"kwh", "wh", "mwh"})
+#: 燃气 / 水的单位（立方米）。
+_UTILITY_VOLUME_UNITS = frozenset({"m³", "m3", "m^3", "立方米"})
 
 
 def _text(value: Any) -> str:
@@ -210,13 +214,29 @@ def is_utility_account_entity(entity_id: str | None, attributes: Any = None) -> 
     return bool(_list_values(attributes))
 
 
-def _is_electric_account(entity_id: str, attributes: dict[str, Any]) -> bool:
-    """只收电费账户：有单位就以单位为准，没有才退回名字里的电语义线索。"""
-    unit = _text(attributes.get("unit_of_measurement")).lower().replace(" ", "")
-    if unit:
-        return unit in _ELECTRIC_UNITS
+def account_unit(entity_id: str, attributes: dict[str, Any]) -> str:
+    """账户实体 → 用能单位（``kWh`` / ``m³``）。
+
+    之前这里只放行电（``_is_electric_account``），燃气/水账户被整批丢掉 —— 生活账户面板
+    支持绑定燃气与水务，但它们**永远不会有趋势**。现在按单位分类：
+
+    - 属性里有 ``unit_of_measurement`` 以它为准（最可靠）；
+    - 没有单位时按命名约定兜底（``sensor.gas_*`` / ``sensor.water_*`` → m³）；
+    - 剩下的按电处理（历史行为）。
+    """
+    return unit_for_entity(entity_id, attributes)
+
+
+def is_utility_account_name(entity_id: str, attributes: dict[str, Any]) -> bool:
+    """是否可能是「某类账户」（电 / 燃气 / 水）——用于排除无关的列表型实体。
+
+    属性带单位时只需单位可识别；否则要求名字里出现账户族线索。
+    """
+    if normalize_unit(attributes.get("unit_of_measurement")) is not None:
+        return True
     text = entity_id.lower()
-    return "_ele" in text or "electric" in text or "state_grid" in text
+    hints = ("_ele", "electric", "state_grid", "_gas", "gas_", "_water", "water_")
+    return any(hint in text for hint in hints)
 
 
 def _graph(attributes: Any) -> list[dict[str, Any]]:
@@ -356,6 +376,8 @@ class UtilityAccount:
     daily: dict[str, float] = field(default_factory=dict)
     monthly: dict[str, float] = field(default_factory=dict)
     user_id: str | None = None
+    #: 用能单位（``kWh`` / ``m³``）：同户号的日/月列表一定是同一单位。
+    unit: str = "kWh"
 
 
 def discover_utility_accounts(entities: list[dict[str, Any]] | None) -> dict[str, UtilityAccount]:
@@ -377,12 +399,18 @@ def discover_utility_accounts(entities: list[dict[str, Any]] | None) -> dict[str
         lists = _list_values(attributes)
         if not is_list_entity and not lists:
             continue
-        if not is_list_entity and not _is_electric_account(entity_id, attributes):
+        if not is_list_entity and not is_utility_account_name(entity_id, attributes):
             continue
         identity = account_identity_key(entity_id)
         record = merged.setdefault(
             identity,
-            {"members": set(), "daily": {}, "monthly": {}, "user_id": sgcc_user_id(entity_id)},
+            {
+                "members": set(),
+                "daily": {},
+                "monthly": {},
+                "user_id": sgcc_user_id(entity_id),
+                "unit": account_unit(entity_id, attributes),
+            },
         )
         record["members"].add(entity_id)
         if record["user_id"] is None:
@@ -406,6 +434,7 @@ def discover_utility_accounts(entities: list[dict[str, Any]] | None) -> dict[str
             daily=dict(daily),
             monthly=dict(monthly),
             user_id=record["user_id"],
+            unit=str(record.get("unit") or "kWh"),
         )
     return accounts
 
@@ -482,6 +511,8 @@ class UtilitySeries:
     authoritative_months: dict[str, dict[str, float]]
     #: 参与聚合的账户数（日志用）。
     accounts: int
+    #: 目标实体 → 用能单位（``kWh`` / ``m³``）：报表按单位分组返回必须靠它。
+    units: dict[str, str] = field(default_factory=dict)
 
 
 def collect_utility_series(
@@ -497,6 +528,7 @@ def collect_utility_series(
     today_date = date.fromisoformat(today)
     seen_series: set[tuple[Any, ...]] = set()
     target_accounts: dict[str, list[str]] = {}
+    units: dict[str, str] = {}
     for account in accounts.values():
         # 同一户可能同时以 state_grid 列表和约定命名的 daylist 出现（用户换过集成）。
         # 两份数据完全相同时按一份算：否则 daily 会相加成双倍。
@@ -517,6 +549,7 @@ def collect_utility_series(
         )
         target = resolve_account_target(account, primary_entities)
         target_accounts.setdefault(target, []).append(account.family_key)
+        units.setdefault(target, unit_for_entity(target))
         for day, kwh in account.daily.items():
             if day > today:
                 continue
@@ -541,6 +574,7 @@ def collect_utility_series(
         today_days=today_days,
         authoritative_months=auth_months,
         accounts=len(accounts),
+        units=units,
     )
 
 

@@ -60,6 +60,18 @@ def select_energy_candidates(ids: list[str], *, keep: set[str] | None) -> list[s
     )
 
 
+def resolve_unit(session: Any, ids: list[str], fallback: str = "kWh") -> str:
+    """这组实体实际用的单位（读库里的 ``unit`` 列，取第一条非空）。
+
+    为什么不按实体名现推：跨过迁移的库里可能有历史行，报告单位必须与**行**一致，
+    否则「3 立方米」会被标成「3 度电」。
+    """
+    if not ids:
+        return fallback
+    value = session.scalar(select(EnergyUsageDaily.unit).where(EnergyUsageDaily.entity_id.in_(ids)).limit(1))
+    return str(value or fallback)
+
+
 def read_daily_history(session: Any, ids: list[str], today: Any, *, days: int) -> dict[str, Any]:
     """近 N 天日曲线（读日聚合表）。"""
     start = today - timedelta(days=days - 1)
@@ -83,7 +95,7 @@ def read_daily_history(session: Any, ids: list[str], today: Any, *, days: int) -
     ]
     return {
         "range": "W" if days == 7 else "M",
-        "unit": "kWh",
+        "unit": resolve_unit(session, ids),
         "total": _round2(sum(item["value"] for item in series)),
         "source": "daily" if mapping else "empty",
         "series": series,
@@ -122,11 +134,11 @@ def read_year_history(session: Any, ids: list[str], today: Any) -> dict[str, Any
     ]
     return {
         "range": "Y",
-        "unit": "kWh",
+        "unit": resolve_unit(session, ids) if ids else "kWh",
         "total": _round2(sum(item["value"] for item in series)),
         "source": source,
         "series": series,
     }
 
 
-__all__ = ["read_daily_history", "read_year_history", "select_energy_candidates"]
+__all__ = ["read_daily_history", "read_year_history", "resolve_unit", "select_energy_candidates"]

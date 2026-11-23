@@ -20,10 +20,12 @@ import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import literal_column, select, text
+from sqlalchemy import delete, literal_column, select, text
 
+from ..logs.event_stats_rollup import prune_before
 from ...platform.core.db.models import (
     AgentContextTimeline,
+    EnergyUsageHourly,
     EventLog,
     Notification,
     SecurityEvent,
@@ -91,7 +93,7 @@ def _describe_counts(values: dict[str, Any], unit: str, fallback: str) -> str:
     for key, value in values.items():
         try:
             count = int(value)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError):  # fmt: skip
             continue
         if count <= 0:
             continue
@@ -114,7 +116,7 @@ def parse_positive_int(raw: Any) -> int | None:
         return None
     try:
         n = int(float(raw))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError):  # fmt: skip
         return None
     return n if n > 0 else None
 
@@ -141,7 +143,7 @@ def resolve_vacuum_min_rows() -> int:
     raw = os.environ.get(RETENTION_VACUUM_MIN_ROWS_ENV)
     try:
         value = int(raw) if raw is not None else DEFAULT_VACUUM_MIN_ROWS
-    except (TypeError, ValueError):
+    except (TypeError, ValueError):  # fmt: skip
         logger.debug("附加维护行数阈值非法,回退默认 %s: %r", DEFAULT_VACUUM_MIN_ROWS, raw)
         return DEFAULT_VACUUM_MIN_ROWS
     return value if value > 0 else DEFAULT_VACUUM_MIN_ROWS
@@ -243,7 +245,7 @@ class DatabaseRetentionService:
             self._task.cancel()
             try:
                 await self._task
-            except (asyncio.CancelledError, Exception):
+            except (asyncio.CancelledError, Exception):  # fmt: skip
                 pass
             self._task = None
 
@@ -336,7 +338,7 @@ class DatabaseRetentionService:
         try:
             # sqlite_stat1.stat 形如 "120000 3 1"（行数 + 各索引平均重复数），取第一段
             row = session.execute(
-                text('SELECT stat FROM sqlite_stat1 WHERE tbl = :table LIMIT 1'),
+                text("SELECT stat FROM sqlite_stat1 WHERE tbl = :table LIMIT 1"),
                 {"table": table},
             ).first()
             if row is not None and row[0]:
@@ -430,6 +432,8 @@ class DatabaseRetentionService:
         # EventLog 大批量删除后做附加维护（默认轻量：optimize/analyze/被动 checkpoint，
         # 不再每次整库 VACUUM；策略见 HOMEOS_RETENTION_VACUUM_MODE）
         self._vacuum_event_log(deleted.get("eventLog", 0))
+        self._prune_event_stats_rollup()
+        self._prune_energy_hourly()
 
         # 通知冷却 prune（与表清理独立，失败仅告警）
         try:
@@ -456,6 +460,43 @@ class DatabaseRetentionService:
         return result
 
     # 附加清理步骤
+    def _prune_event_stats_rollup(self) -> None:
+        """清掉超期的小时汇总行。
+
+        ``event_log_stats_hourly`` 与 ``event_logs`` 同生命周期：只清原始表会让汇总行
+        永远留着（行数 = 小时数 × 实体数，涨得很慢但只增不减），报表还会读到已过期数据。
+        按 ``bucketUtc``（UTC 小时文本）做字符串比较，不依赖家庭时区。
+        """
+        cutoff = self.cutoff_for_days(self.resolve_retention_days_for("eventLog"))
+        cutoff_hour = cutoff.strftime("%Y-%m-%d %H")
+        try:
+            with self._session_factory() as session:
+                removed = prune_before(session, cutoff_hour)
+                if removed:
+                    session.commit()
+                    logger.info("事件汇总清理：删除 %s 小时桶（早于 %s）", removed, cutoff_hour)
+        except Exception as exc:
+            logger.warning("事件汇总清理失败: %s", exc)
+
+    def _prune_energy_hourly(self) -> None:
+        """清掉超期的能耗小时行。
+
+        小时行是日行的 24 倍量级，只服务「峰谷电价的精确拆分」；历史只需要日/月两种粒度。
+        保留期跟随**事件日志**（而不是新增一个配置键）：两者都是「原始过程数据」，
+        多一个 retention 键就要多一套校验 / 面板 / 自检，而收益几乎为零。
+        """
+        cutoff = self.cutoff_for_days(self.resolve_retention_days_for("eventLog"))
+        cutoff_hour = cutoff.strftime("%Y-%m-%d %H")
+        try:
+            with self._session_factory() as session:
+                result = session.execute(delete(EnergyUsageHourly).where(EnergyUsageHourly.hour < cutoff_hour))
+                removed = int(result.rowcount or 0)
+                if removed:
+                    session.commit()
+                    logger.info("能耗小时行清理：删除 %s 行（早于 %s）", removed, cutoff_hour)
+        except Exception as exc:
+            logger.warning("能耗小时行清理失败: %s", exc)
+
     def _vacuum_event_log(self, deleted_count: int) -> None:
         """EventLog 大批量删除后的附加维护（默认轻量，不再整库 VACUUM）。
 
@@ -504,9 +545,7 @@ class DatabaseRetentionService:
             return
         logger.info("EventLog 附加维护完成(%s;本次删除 %s 行)", " + ".join(steps), deleted_count)
 
-    def _delete_batched(
-        self, model: Any, cutoff: datetime, batch_size: int, *, time_column: str = "createdAt"
-    ) -> int:
+    def _delete_batched(self, model: Any, cutoff: datetime, batch_size: int, *, time_column: str = "createdAt") -> int:
         """分批删除 ``<time_column> < cutoff`` 的历史行（SQLite ``rowid`` 子查询）。
 
         ``time_column`` 由 ``_RETENTION_MODELS`` 提供：时序表用的是 ``changedAt``，
@@ -521,9 +560,7 @@ class DatabaseRetentionService:
         total = 0
         deadline = time.monotonic() + _DELETE_TIME_BUDGET
         for _batch in range(_MAX_DELETE_BATCHES):
-            subquery = (
-                select(rowid).select_from(table).where(created_col < cutoff).limit(batch_size)
-            )
+            subquery = select(rowid).select_from(table).where(created_col < cutoff).limit(batch_size)
             statement = table.delete().where(literal_column("rowid").in_(subquery))
             with self._session_factory() as session:
                 result = session.execute(statement)

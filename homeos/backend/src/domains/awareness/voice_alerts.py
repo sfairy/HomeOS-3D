@@ -18,6 +18,7 @@ import time
 from typing import Any
 
 from ..app_config.defaults import DEFAULT_VOICE_ALERT_RULES
+from ...platform.core.runtime.voice_alert_keys import voice_alert_key
 
 #: 语音告警类型目录（key 必须是 ``DEFAULT_VOICE_ALERT_RULES`` 中除 enabled 外的布尔字段）
 VOICE_ALERT_CATALOG: list[dict[str, str]] = [
@@ -106,9 +107,7 @@ VOICE_ALERT_GROUP_LABELS: dict[str, str] = {
 #: 白天时段每日顾问播报默认话术
 DEFAULT_DAILY_ADVISOR_TTS_DAYTIME = "智能家居小贴士：空调设定26度最省电哦"
 #: 夜间时段每日顾问播报默认话术
-DEFAULT_DAILY_ADVISOR_TTS_EVENING = (
-    "晚上好，现在是{{hour}}点，请检查门窗是否关好，祝您晚安"
-)
+DEFAULT_DAILY_ADVISOR_TTS_EVENING = "晚上好，现在是{{hour}}点，请检查门窗是否关好，祝您晚安"
 
 #: 默认唤醒词（``wakeWords`` 为空时回退）
 DEFAULT_WAKE_WORD = "小智"
@@ -158,9 +157,7 @@ def is_exact_entity_id(value: Any) -> bool:
     return bool(_EXACT_ENTITY_ID_RE.match(text))
 
 
-def apply_alert_template(
-    template: Any, variables: dict[str, Any] | None = None
-) -> str:
+def apply_alert_template(template: Any, variables: dict[str, Any] | None = None) -> str:
     """替换模板变量 ``{{key}}``；值为 None 时替换为空串。"""
     variables = variables or {}
 
@@ -235,9 +232,7 @@ def normalize_custom_tts_alerts(raw: Any) -> list[dict[str, Any]]:
     return out
 
 
-def match_entity_tts_alert(
-    entity_id: str, new_state: str, old_state: str | None, rule: dict[str, Any]
-) -> bool:
+def match_entity_tts_alert(entity_id: str, new_state: str, old_state: str | None, rule: dict[str, Any]) -> bool:
     """实体级 TTS 规则是否命中（精确实体 + 目标状态 + 状态确有变化）。"""
     if not rule or rule.get("enabled") is False:
         return False
@@ -250,9 +245,7 @@ def match_entity_tts_alert(
     return old_state != new_state
 
 
-def match_custom_entity_alert(
-    entity_id: str, new_state: str, old_state: str | None, rule: dict[str, Any]
-) -> bool:
+def match_custom_entity_alert(entity_id: str, new_state: str, old_state: str | None, rule: dict[str, Any]) -> bool:
     """自定义实体状态告警是否命中（前缀/精确匹配 + 目标状态 + 状态确有变化）。"""
     if not rule or rule.get("enabled") is False or rule.get("trigger") != "entity_state":
         return False
@@ -282,4 +275,5 @@ __all__ = [
     "normalize_entity_tts_alerts",
     "normalize_wake_words",
     "resolve_voice_alert_rules",
+    "voice_alert_key",
 ]

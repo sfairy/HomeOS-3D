@@ -108,6 +108,48 @@ LICENSE_EXEMPT_LICENSE_PATHS = frozenset(
 #: 就让未激活的生产实例白屏，而且激活页自身也渲染不出来（死锁）。
 LICENSE_EXEMPT_STATIC_PREFIXES = FRONTEND_STATIC_MOUNT_PREFIXES
 
+#: 租约**刚过期**（宽限窗口内）时仍放行的业务路径：设备控制 + 实时状态 + 只读查询。
+#:
+#: 只降级「编辑类」能力：改配置、改布局、管账号、管理备份这些需要有效授权；
+#: 而"把灯打开""看客厅温度"属于本机中控的核心用途 —— 家里断网 / 商店不可达导致
+#: 租约过期时把它们一起停掉，用户会认为整台设备坏了。
+#:
+#: 由 ``settings.license_expired_grace`` 开关（默认开）+ ``license_expired_grace_days``
+#: （默认 90 天）控制；关闭后恢复「过期立刻全站停用」。
+LICENSE_EXPIRED_GRACE_PREFIXES: tuple[str, ...] = (
+    "/api/v1/entities",
+    "/api/v1/ha/",
+    "/api/v1/ws/",
+    "/api/v1/services/call",
+    "/api/v1/modules/interaction3d/",
+    "/api/v1/events",
+    "/api/v1/projects",
+    "/api/v1/security",
+    "/api/v1/weather",
+    "/api/v1/public/config",
+)
+#: WebSocket 通道：宽限期内必须能连（否则面板只剩静态壳）。
+LICENSE_EXPIRED_GRACE_WS_PREFIXES: tuple[str, ...] = (
+    "/api/v1/ws/",
+    "/socket.io",
+    "/api/v1/embed-proxy",
+    "/api/v1/ha/webrtc-ws",
+)
+
+
+def is_expired_grace_path(path: str, method: str = "GET") -> bool:
+    """该请求是否属于「租约过期宽限期也放行」的范围（只放读与设备控制）。
+
+    ``method`` 保留在签名里，便于将来把某些写操作单独排除；当前设置/账号类写操作
+    本来就不在 ``LICENSE_EXPIRED_GRACE_PREFIXES`` 里，无需按方法再分。
+    """
+    if path in LICENSE_EXEMPT_EXACT:
+        return True
+    if path in LICENSE_EXEMPT_LICENSE_PATHS:
+        return True
+    return path.startswith(LICENSE_EXPIRED_GRACE_PREFIXES)
+
+
 #: 位于根路径、不属于任何挂载目录的前端产物（PWA 与图标）。
 LICENSE_EXEMPT_STATIC_FILES = FRONTEND_STATIC_ROOT_FILES
 
@@ -159,5 +201,8 @@ __all__ = [
     "LICENSE_EXEMPT_PREFIXES",
     "LICENSE_EXEMPT_STATIC_FILES",
     "LICENSE_EXEMPT_STATIC_PREFIXES",
+    "LICENSE_EXPIRED_GRACE_PREFIXES",
+    "LICENSE_EXPIRED_GRACE_WS_PREFIXES",
+    "is_expired_grace_path",
     "is_license_exempt_path",
 ]

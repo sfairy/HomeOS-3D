@@ -552,6 +552,8 @@ class SecurityPanelService:
             zone["armed"] = False
         self._mode = "disarmed"
         self._armed_at = None
+        # 撤防即取消「进入延时」里待触发的告警 —— 用户赶在窗口内撤防了，就不该再响。
+        self.alarm_helper.entry_delay.cancel("已撤防")
         self._apply_manual_lock(opts)
 
         events.append(

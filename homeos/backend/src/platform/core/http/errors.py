@@ -317,6 +317,8 @@ API_ERROR: dict[str, str | _F] = {
     ),
     "HA_STATE_RESYNC_FAILED": lambda detail: f"HA 状态同步失败: {detail or '未知错误'}",
     "UI_CONFIG_LOAD_FAILED": lambda detail: f"无法加载配置。请确认已执行数据库初始化：{detail}",
+    "WATER_VALVE_NOT_CONFIGURED": "未配置主水阀实体，请先在「系统参数 → 用水」中选择 valve.* 或 switch.* 实体",
+    "WATER_VALVE_INVALID": lambda entity_id: f"主水阀实体 {entity_id} 无效（仅支持 valve.* / switch.*）",
 }
 
 #: 静态文案 → 错误码（重复文案保留首个出现）。

@@ -30,6 +30,7 @@ __all__ = [
     "is_password_policy_compliant",
     "password_hasher",
     "verify_password",
+    "verify_password_or_dummy",
 ]
 
 #: 主哈希器（argon2id，库默认参数）。
@@ -59,5 +60,31 @@ def verify_password(password: str, hashed: str) -> bool:
         return False
     try:
         return password_hasher.verify(hashed, password)
-    except (InvalidHashError, VerificationError):
+    except (InvalidHashError, VerificationError):  # fmt: skip
         return False
+
+
+#: 固定哨兵哈希：账号不存在 / 已停用时也跑一次同等成本的校验。
+#:
+#: 登录原先对不存在的账号直接短路返回，真实账号则要跑 argon2id（约 64 MiB / 3 轮）——
+#: 响应时间可被用来判断「这个用户名/邮箱在本机是否存在」，而本机只有一个管理员账号。
+#: 惰性生成：模块导入时算一次 argon2 会拖慢每个导入方（含测试）。
+_DUMMY_HASH: list[str] = []
+
+
+def _dummy_hash() -> str:
+    if not _DUMMY_HASH:
+        _DUMMY_HASH.append(password_hasher.hash("homeos-dummy-password-for-constant-time-login"))
+    return _DUMMY_HASH[0]
+
+
+def verify_password_or_dummy(password: str, hashed: str | None) -> bool:
+    """始终付出一次 argon2 成本的校验（供登录用）。
+
+    返回值语义与 :func:`verify_password` 相同；差别只在于「哈希不可用」时也会
+    对哨兵哈希跑一次完整校验，抹平响应时间差。
+    """
+    if not hashed or not hashed.startswith("$argon2"):
+        verify_password(password, _dummy_hash())
+        return False
+    return verify_password(password, hashed)

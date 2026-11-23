@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import Any
 
 from fastapi import Depends, Query, Request
@@ -27,6 +28,8 @@ router = NestRouter(
     tags=["agent"],
     dependencies=[license_feature(feature_codes.FEATURE_AGENT)],
 )
+
+LOGGER = logging.getLogger("homeos.api.automation")
 
 
 class ApplyDto(BaseModel):
@@ -121,6 +124,54 @@ async def apply_draft(
     task = result.get("task") or {}
     applied = await asyncio.to_thread(service.mark_applied, draft_id, str(task.get("id") or ""))
     return {"success": True, "draftId": draft_id, "taskId": task.get("id"), "task": task, "draftMarked": applied}
+
+
+@router.post("/drafts/{draft_id}/export-ha")
+async def export_draft_to_ha(
+    draft_id: str,
+    request: Request,
+    dto: ApplyDto | None = None,
+    user: dict[str, Any] = Depends(require_user),
+):
+    """把草案**写成一条 HA 自动化**（写进 HA 自己的 automation 配置）。
+
+    与本机计划任务的区别（UI 必须说清）：写进 HA 后由 HA 执行，自动化列表里可见，
+    换机 / HA 重装后规则仍在；本机计划任务由 HomeOS 调度器执行。
+
+    写入走 HA REST ``/api/config/automation/config/<id>``：``id`` 由 draft_id 派生，
+    因此**重复执行是覆盖而不是新增**（幂等）；写完后调 ``automation.reload`` 让它生效。
+    """
+    service = _service(request)
+    prepared = await asyncio.to_thread(service.prepare_ha_export, draft_id)
+    if not prepared.get("ok"):
+        reason = str(prepared.get("reason") or "")
+        code = ErrorCode.NOT_FOUND if reason == "not_found" else ErrorCode.VALIDATION_FAILED
+        raise BusinessException(code, str(prepared.get("message") or "草案不能导出到 HA"))
+    certain = (prepared.get("conflicts") or {}).get("certain") or []
+    if certain and not (dto is not None and dto.acknowledgeConflicts):
+        raise BusinessException(
+            ErrorCode.CONFLICT,
+            f"这份草案与 {len(certain)} 条已有规则存在确定性冲突，确认继续后才能写入 HA。",
+        )
+
+    ha = getattr(request.app.state, "studio_ha", None)
+    if ha is None:
+        raise BusinessException(ErrorCode.SERVICE_UNAVAILABLE, "Home Assistant 未就绪，无法写入自动化")
+    automation_id = prepared["automationId"]
+    await ha.request_config_api("POST", f"/api/config/automation/config/{automation_id}", prepared["automation"])
+    # reload 让新规则立即生效；失败不影响写入结果（HA 下次重启也会加载）。
+    try:
+        await ha.request_config_api("POST", "/api/services/automation/reload", {})
+    except BusinessException:
+        LOGGER.warning("HA 自动化已写入但 reload 失败：%s", automation_id, exc_info=True)
+    await asyncio.to_thread(service.mark_exported, draft_id, automation_id)
+    return {
+        "success": True,
+        "draftId": draft_id,
+        "automationId": automation_id,
+        "automation": prepared["automation"],
+        "reloaded": True,
+    }
 
 
 @router.post("/drafts/{draft_id}/targets")

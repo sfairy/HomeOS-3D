@@ -33,6 +33,10 @@ SQLITE_CACHE_SIZE_KIB = 16384
 #: 只读映射窗口。小于库文件时按窗口滑读；映射失败会静默退回普通 I/O。
 SQLITE_MMAP_SIZE_BYTES = 134217728
 
+#: WAL 文件上限（字节）。超过后下一次 checkpoint 把它截断回该尺寸，
+#: 避免大删除（清空事件日志 / 保留策略）把 WAL 长期撑在数 MB～数十 MB。
+SQLITE_WAL_SIZE_LIMIT_BYTES = 67108864
+
 #: 连接池默认值（可用 HOMEOS_DB_POOL_SIZE / HOMEOS_DB_MAX_OVERFLOW /
 #: HOMEOS_DB_POOL_TIMEOUT_SECONDS 覆盖）。SQLite 是单文件写，池开得过大只会放大
 #: 写锁竞争；8 + 4 覆盖状态管道写入与 HTTP 读线程，并给突发留出余量。
@@ -82,10 +86,22 @@ def _configure_sqlite(dbapi_connection, _connection_record) -> None:
     """为每条新连接设置 SQLite PRAGMA（连接级生效，需逐连接执行）。"""
     cursor = dbapi_connection.cursor()
     try:
+        # ``busy_timeout`` 必须**第一个**设：``journal_mode=WAL`` 在库尚未是 WAL 时
+        # （全新安装 / 从备份恢复的文件）需要一把排他锁，此刻 busy_timeout 还是默认 0，
+        # 任何并发写入都会让它立刻报 ``database is locked``，连接 checkout 直接 500。
+        cursor.execute(f"PRAGMA busy_timeout={SQLITE_BUSY_TIMEOUT_MS}")
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.execute("PRAGMA journal_mode=WAL")
         cursor.execute("PRAGMA synchronous=NORMAL")
-        cursor.execute(f"PRAGMA busy_timeout={SQLITE_BUSY_TIMEOUT_MS}")
+        # WAL 上限：大删除（清空事件日志 / 保留策略）会把 WAL 推到高水位，之后只剩
+        # 完整 checkpoint 才回落。设上限让它在下次 checkpoint 时截断，避免长期占用
+        # 与库文件同量级的额外磁盘。
+        cursor.execute(f"PRAGMA journal_size_limit={SQLITE_WAL_SIZE_LIMIT_BYTES}")
+        # ``auto_vacuum=INCREMENTAL``：删行后空闲页能被 ``PRAGMA incremental_vacuum``
+        # 逐步还给文件系统（不重写整库、不长时间持锁）。对现有库这条 PRAGMA 只记下
+        # 「下次 VACUUM 时切到增量模式」，不会立刻改动文件；全新库则在建表前就生效。
+        # 时序表实测占库 96%（表 513 MB + 索引 333 MB），没有它删完行文件永不缩小。
+        cursor.execute("PRAGMA auto_vacuum=INCREMENTAL")
         # 读侧调优：默认 page cache 只有 -2000（约 2 MB），而 /ha/entities、项目草稿这类
         # 热读会把同样的页反复从磁盘捞回内存。WAL + mmap 下提升页缓存几乎只有收益，
         # 内存代价是每连接 16 MB 上限（池 8+4，实际按需增长，不是预分配）。
@@ -119,12 +135,8 @@ class Database:
         pool_kwargs: dict[str, object] = {}
         if not (is_sqlite and parsed_url.database in (None, "", ":memory:")):
             pool_kwargs = {
-                "pool_size": _environment_int(
-                    "HOMEOS_DB_POOL_SIZE", DEFAULT_POOL_SIZE, minimum=1
-                ),
-                "max_overflow": _environment_int(
-                    "HOMEOS_DB_MAX_OVERFLOW", DEFAULT_MAX_OVERFLOW
-                ),
+                "pool_size": _environment_int("HOMEOS_DB_POOL_SIZE", DEFAULT_POOL_SIZE, minimum=1),
+                "max_overflow": _environment_int("HOMEOS_DB_MAX_OVERFLOW", DEFAULT_MAX_OVERFLOW),
                 # 回收陈旧连接，避免长期运行的进程持有已迁移/删除的库文件句柄。
                 "pool_recycle": 1800,
                 "pool_timeout": _environment_float(

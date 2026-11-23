@@ -15,9 +15,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import ssl
 from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any, cast
+from urllib.parse import urlsplit
 
 if TYPE_CHECKING:
     # 仅出现在 ``cast`` 的字符串标注里，运行期不需要求值；
@@ -67,13 +69,68 @@ def verify_embed_ws_auth(token: str | None, session: Any) -> bool:
     return True
 
 
-def ssl_context_for(url: str) -> ssl.SSLContext | None:
-    """wss 上游常用自签证书：放行证书校验（仅 wss 生效），与 Nest ``rejectUnauthorized=false`` 一致。
+#: 显式信任「自签证书上游」的主机列表（逗号分隔，``host[:port]``）。
+#:
+#: 默认**校验证书**：局域网 MITM（ARP/DNS 投毒、被控交换机或恶意容器）可以冒充
+#: go2rtc / 内嵌服务，而反代会转发非 HomeOS 的 Cookie 与请求体。
+#: 自签证书的部署把目标写进 ``HOMEOS_INSECURE_TLS_HOSTS``（例如
+#: ``192.168.1.20:8123,go2rtc.local``），只对这些主机放行 —— 而不是全局关掉校验。
+INSECURE_TLS_HOSTS_ENV = "HOMEOS_INSECURE_TLS_HOSTS"
 
-    同时供 go2rtc MSE 中继（``api/go2rtc.py``）复用：局域网 go2rtc 的 HTTPS 端点同样是自签证书。
+
+def _insecure_tls_hosts() -> set[str]:
+    raw = os.getenv(INSECURE_TLS_HOSTS_ENV, "")
+    return {item.strip().lower() for item in raw.split(",") if item.strip()}
+
+
+def _upstream_host(url: str) -> str:
+    """``wss://host:port/path`` → ``host:port``（无端口时用 scheme 默认端口）。"""
+    parsed = urlsplit(url)
+    host = (parsed.hostname or "").lower().strip("[]")
+    if not host:
+        return ""
+    port = parsed.port
+    if port is None:
+        port = 443 if parsed.scheme in {"https", "wss"} else 80
+    return f"{host}:{port}"
+
+
+def _insecure_tls_allowed(url: str) -> bool:
+    """目标是否被显式列为「自签证书」：支持 ``host:port`` 与裸 ``host``（裸 host 覆盖任意端口）。"""
+    host = _upstream_host(url)
+    if not host:
+        return False
+    allowed = _insecure_tls_hosts()
+    bare = host.rsplit(":", 1)[0]
+    return host in allowed or bare in allowed
+
+
+def is_insecure_tls_target(url: str) -> bool:
+    """该上游是否被显式列为「自签证书」目标（``HOMEOS_INSECURE_TLS_HOSTS``）。
+
+    供 ``wss://`` 与 ``https://`` 两条反代路径共用同一份判定：口径一旦分叉，
+    就会出现「WebSocket 校验、HTTP 不校验」这种半开状态。
+    """
+    return _insecure_tls_allowed(url)
+
+
+def ssl_context_for(url: str) -> ssl.SSLContext | None:
+    """``wss://`` 上游的 TLS 上下文；``None`` 表示用默认（**校验证书**）行为。
+
+    只有目标主机在 ``HOMEOS_INSECURE_TLS_HOSTS`` 里时才关闭校验 —— 自签证书是
+    「这台设备的特性」，不是「所有上游都不可信」。全局 ``CERT_NONE`` 会让任何能
+    MITM 局域网的人读到或改写中继流量。
     """
     if not url.lower().startswith("wss:"):
         return None
+    host = _upstream_host(url)
+    if not host or not _insecure_tls_allowed(url):
+        return None
+    logger.warning(
+        "%s 在 %s 中被标记为自签证书目标，本次不校验证书（仅限该主机）",
+        host,
+        INSECURE_TLS_HOSTS_ENV,
+    )
     ctx = ssl.create_default_context()
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
@@ -113,11 +170,12 @@ async def bridge_websockets(
             additional_headers=headers or None,
             # websockets 把子协议标注为 NewType(str)（Subprotocol），运行期就是字符串，
             # 这里是一次无害的收窄：HTTP 头里读到的东西只能是 str。
-            subprotocols=cast('Sequence[Subprotocol] | None', subprotocols or None),
+            subprotocols=cast("Sequence[Subprotocol] | None", subprotocols or None),
             ssl=ssl_context_for(upstream_uri),
             max_size=WS_MAX_MESSAGE_SIZE,
             open_timeout=10,
         ) as upstream:
+
             async def client_to_upstream() -> None:
                 while True:
                     message = await client.receive()
@@ -171,9 +229,7 @@ async def bridge_websockets(
 
 
 # 鉴权包装（供路由复用）
-def resolve_go2rtc_ws_user(
-    app: Any, cookie_header: str | None, entity_id: str
-) -> dict[str, Any] | None:
+def resolve_go2rtc_ws_user(app: Any, cookie_header: str | None, entity_id: str) -> dict[str, Any] | None:
     """解析 go2rtc WS 握手用户并按 camera 访问限制判定；失败返回 ``None``。"""
     settings = getattr(getattr(app, "state", None), "settings", None)
     cookie_name = getattr(settings, "cookie_name", None) or "auth_token"
@@ -218,10 +274,7 @@ def build_ha_webrtc_ws_url(ha_url: str, entity_id: str, token: str) -> str:
         base = "wss" + base[len("https") :]
     elif base.lower().startswith("http"):
         base = "ws" + base[len("http") :]
-    return (
-        f"{base}/api/webrtc/ws"
-        f"?entity_id={quote(entity_id, safe='')}&token={quote(token, safe='')}"
-    )
+    return f"{base}/api/webrtc/ws?entity_id={quote(entity_id, safe='')}&token={quote(token, safe='')}"
 
 
 def split_embed_path(path_after_mount: str) -> tuple[str, str]:

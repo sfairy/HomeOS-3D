@@ -295,6 +295,45 @@ class HAClient:
         ) as client:
             yield client
 
+    async def request_config_api(
+        self,
+        method: str,
+        path: str,
+        payload: dict[str, Any] | None = None,
+        *,
+        timeout_ms: int = 10_000,
+    ) -> Any:
+        """调用 HA 的配置类 REST 端点（``/api/config/...``），返回解析后的 JSON。
+
+        只用于「写入 HA 自动化」这类需要服务端管理员令牌的配置操作：前端不持有 HA 令牌，
+        也不该把一个任意 URL 的代理暴露出去，所以入口固定在本方法、路径由调用方给出常量。
+        """
+        url = f"{self.base_url}{path}"
+        try:
+            async with self._http_client() as client:
+                response = await client.request(
+                    method.upper(),
+                    url,
+                    headers=self.headers,
+                    json=payload,
+                    timeout=max(int(timeout_ms), 1) / 1000,
+                )
+                response.raise_for_status()
+                if not response.content:
+                    return None
+                try:
+                    return response.json()
+                except ValueError:
+                    LOGGER.debug("配置接口返回了非 JSON 响应：%s %s", method, path)
+                    return None
+        except httpx.HTTPStatusError as error:
+            detail = error.response.text[:300] if error.response is not None else ""
+            raise HAClientError(
+                f"Home Assistant 拒绝了配置写入（HTTP {error.response.status_code}）：{detail}"
+            ) from error
+        except httpx.HTTPError as error:
+            raise HAClientError(f"无法连接 Home Assistant：{error}") from error
+
     async def test_connection(self, *, include_temperature_unit: bool = False) -> dict[str, Any]:
         try:
             async with self._http_client() as client:

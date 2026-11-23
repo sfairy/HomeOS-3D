@@ -147,6 +147,16 @@ class HomeOSFacadeMixin:
             return None
         return await self._host.client_for(connection)
 
+    async def request_config_api(self, method: str, path: str, payload: dict[str, Any] | None = None) -> Any:
+        """对 HA ``/api/config/...`` 发起一次带令牌的配置写入（写自动化用）。"""
+        client = await self._facade_client()
+        if client is None:
+            raise BusinessException(ErrorCode.SERVICE_UNAVAILABLE, api_error("HA_NOT_CONNECTED"))
+        try:
+            return await client.request_config_api(method, path, payload)
+        except Exception as exc:
+            raise BusinessException(ErrorCode.EXTERNAL_ERROR, str(exc)) from exc
+
     def _require_connected(self) -> None:
         if not self.is_connected():
             raise BusinessException(ErrorCode.SERVICE_UNAVAILABLE, api_error("HA_NOT_CONNECTED"))

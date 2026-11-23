@@ -272,15 +272,41 @@ def resolve_event_log_tier(
     return "compact"
 
 
+def _changed_attr_keys(entity_id: str, old_attrs: dict[str, Any], new_attrs: dict[str, Any]) -> set[str]:
+    """本次翻转里真正变化、且属于「该域受控属性」的键集合。
+
+    只保留变化键而不是整份 attributes：``light`` 的 attributes 常带
+    ``supported_color_modes`` / ``effect_list`` / ``rgb_color`` 等十几个字段
+    （0.7–2 KB），而查询侧只读 ``stateDiff``（见 ``map_history_row``）——
+    整份照存等于每行白写一两 KB，百万行就是 GB 级。
+    """
+    triggers = ATTR_CHANGE_TRIGGERS.get(get_entity_domain(entity_id))
+    if not triggers:
+        return set()
+    return {key for key in triggers if _format_attr(old_attrs.get(key)) != _format_attr(new_attrs.get(key))}
+
+
 def serialize_event_log_states(event: dict[str, Any], tier: str) -> tuple[Any, Any]:
     if tier == "skip":
         return None, None
     if tier == "full":
         old_state = event.get("old_state") or None
         new_state = event.get("new_state") or None
+        if not old_state and not new_state:
+            return None, None
+        entity_id = str(event.get("entity_id") or "")
+        old_attrs = (old_state or {}).get("attributes") or {}
+        new_attrs = (new_state or {}).get("attributes") or {}
+        # 只存「变化了的受控属性」：语义翻转（on/off）本身已由 stateDiff 表达，
+        # 属性维度只需要知道哪一个变了、变成什么。
+        changed_keys = _changed_attr_keys(entity_id, old_attrs, new_attrs)
         return (
-            {"state": old_state["state"], "attributes": old_state.get("attributes")} if old_state else None,
-            {"state": new_state["state"], "attributes": new_state.get("attributes")} if new_state else None,
+            {"state": old_state["state"], "attributes": {k: old_attrs.get(k) for k in changed_keys}}
+            if old_state
+            else None,
+            {"state": new_state["state"], "attributes": {k: new_attrs.get(k) for k in changed_keys}}
+            if new_state
+            else None,
         )
     if is_energy_meter_state(event.get("entity_id", ""), event.get("old_state"), event.get("new_state")):
 

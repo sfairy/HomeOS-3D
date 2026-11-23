@@ -25,8 +25,10 @@ from .dedupe import NotificationDeduplicator
 from ..alerts.channels import resolve_lan_channels
 from ..alerts.dnd import is_dnd_active_now
 from ..alerts.sources import is_life_safety_notification
+from ..app_config.defaults import DEFAULT_VOICE_ALERT_RULES
 from ...platform.core.db.models import Notification
 from ...platform.core.runtime.background import spawn_background
+from ...platform.core.runtime.voice_alert_keys import voice_alert_key
 
 logger = logging.getLogger("homeos.notification.dispatch")
 
@@ -57,6 +59,26 @@ def _fmt(value: Any) -> str:
 
 def _iso_now() -> str:
     return _fmt(datetime.now(UTC))
+
+
+def _is_muted_source(cfg: dict[str, Any], source: str) -> bool:
+    """``notification.mutedSources`` 是否覆盖该来源（支持前缀匹配，如 ``earthquake``）。"""
+    raw = cfg.get("mutedSources")
+    if not isinstance(raw, list):
+        return False
+    text = str(source or "").strip()
+    if not text:
+        return False
+    for item in raw:
+        value = str(item or "").strip()
+        if not value:
+            continue
+        # 精确或「同族前缀」命中：``earthquake`` 会静音 ``earthquake-eew`` /
+        # ``earthquake-catalog``；但不匹配 ``earthquakeX``（必须带分隔符），
+        # 避免将来新增一个名字相近的无关来源被意外静音。
+        if text == value or text.startswith(f"{value}-"):
+            return True
+    return False
 
 
 def _truncate(text: Any, limit: int) -> str:
@@ -108,6 +130,11 @@ class NotificationDispatchHelper:
             return None
         life_safety = is_life_safety_notification(level, source)
         if cfg.get("importantNotifyEnabled") is False and level != "info" and not life_safety:
+            return None
+        # 按来源静音：只能静音「非危险、非生命安全」的通知。
+        # 以前的粒度只有 4 个总开关 —— 想静音家庭模式切换就得连安防告警一起关掉。
+        if not life_safety and level != "danger" and _is_muted_source(cfg, source):
+            logger.debug("通知来源已静音，丢弃: source=%s level=%s", source, level)
             return None
 
         # 第 2、3 层抑制：24h 幂等（显式键 / 主动外呼）+ 10s 内容去重。
@@ -170,12 +197,50 @@ class NotificationDispatchHelper:
         if deferred:
             # 免打扰：站内已经入库（用户打开通知中心能看到），但外部渠道（WebPush / 邮件 /
             # 企微）不在静音时段打扰。恢复后无需补发 —— 站内条目就是「没丢」的证据。
+            #
+            # **语音也属于「打扰」**：这里必须在 ``_announce`` 之前返回。旧顺序让静音时段
+            # 的通知照样被念出来，正好与用户按下「免打扰」的意图相反。
             logger.debug("免打扰期间延后外部投递: source=%s level=%s", source, level)
             return notification
 
         self._send_external_notifications(channels, message, opts.get("title"), notification.get("id"))
+        await self._announce(cfg, level, message, source, opts)
 
         return notification
+
+    async def _announce(
+        self,
+        cfg: dict[str, Any],
+        level: str,
+        message: str,
+        source: str,
+        opts: dict[str, Any],
+    ) -> None:
+        """按语音告警矩阵决定是否播报。
+
+        这里才是「语音告警开关」生效的地方：设置页那 14 个开关此前只用于渲染与预览，
+        关掉「能耗异常」不会有任何行为变化。播报走事件总线（``tts.speak``），复用
+        已有选路与冷却，不在通知链里再造一份。
+
+        ``cfg`` 由调用方传入：同一条通知里已经读过一次配置，再读一次等于把每次投递
+        都变成两次配置查询。
+        """
+        voice = cfg.get("voice") if isinstance(cfg.get("voice"), dict) else {}
+        # 默认矩阵与「用户覆盖」的合并语义只有一份（在默认值表里定义），这里只取开关。
+        rules = dict(DEFAULT_VOICE_ALERT_RULES)
+        overrides = voice.get("ttsAlerts") if isinstance(voice, dict) else None
+        if isinstance(overrides, dict):
+            for key, value in overrides.items():
+                if key in rules and isinstance(value, bool):
+                    rules[key] = value
+        if not rules.get("enabled", False):
+            return
+        # 调用方可显式指定语音键（安防告警的 source 恒为 ``security``，
+        # 但语音矩阵把烟雾/燃气/漏水拆成了三个开关）。
+        key = str(opts.get("voiceKey") or "") or voice_alert_key(source, level)
+        if key is None or not rules.get(key, False):
+            return
+        await self._event_bus.emit("tts.speak", {"message": message, "source": source})
 
     async def _build_notification(self, meta: dict[str, Any]) -> dict[str, Any] | None:
         """组装通知 payload（入库 / ephemeral / 门铃 / 提示音 / 免打扰标记）。"""

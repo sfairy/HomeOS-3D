@@ -202,6 +202,14 @@ def encrypt_archive(source: Path, target: Path, password: str) -> None:
 
 
 def decrypt_archive(source: Path, target: Path, password: str) -> None:
+    """流式解密到 ``target``。
+
+    内存占用与归档大小无关（此前是 ``read(size)`` + 整段明文，512 MB 包峰值 1–1.5 GB，
+    在 2 GB 的家用机上恢复时可能 OOM —— 那正是最不能失败的时刻）。
+
+    GCM 的认证在 ``finalize()`` 才完成，因此先写 ``.part``、认证通过后再原子改名：
+    密码错 / 文件坏时不会留下半个"看起来可用"的备份。
+    """
     size = source.stat().st_size
     header_size = len(MAGIC) + 28
     if size > MAX_ARCHIVE or size < header_size + 16:
@@ -212,27 +220,84 @@ def decrypt_archive(source: Path, target: Path, password: str) -> None:
             raise BackupError("不是有效的 HomeOS 加密备份文件。")
         salt = header[len(MAGIC) : len(MAGIC) + 16]
         nonce = header[-12:]
-        ciphertext = reader.read(size - header_size - 16)
+        reader.seek(size - 16)
         tag = reader.read(16)
     key = _key(password, salt)
-
-    def _decrypt(*, with_aad: bool) -> bytes:
-        decryptor = Cipher(algorithms.AES(key), modes.GCM(nonce, tag)).decryptor()
-        if with_aad:
-            decryptor.authenticate_additional_data(header)
-        return decryptor.update(ciphertext) + decryptor.finalize()
-
+    payload_size = size - header_size - 16
+    partial = target.with_name(f"{target.name}.part")
     try:
         try:
-            plain = _decrypt(with_aad=True)
+            _stream_decrypt(
+                source,
+                partial,
+                key=key,
+                header=header,
+                nonce=nonce,
+                tag=tag,
+                payload_size=payload_size,
+                payload_offset=header_size,
+                with_aad=True,
+            )
         except Exception:
-            plain = _decrypt(with_aad=False)
+            # 早期包没有把 MAGIC+salt+nonce 作为 AAD：认证失败时按旧格式再流式解一次。
+            _stream_decrypt(
+                source,
+                partial,
+                key=key,
+                header=header,
+                nonce=nonce,
+                tag=tag,
+                payload_size=payload_size,
+                payload_offset=header_size,
+                with_aad=False,
+            )
+    except BackupError:
+        raise
     except Exception as error:
         raise BackupError("备份密码不正确，或文件已损坏。") from error
-    target.write_bytes(plain)
+    finally:
+        if partial.exists():
+            try:
+                partial.unlink()
+            except OSError:  # pragma: no cover - 清理失败不影响错误语义
+                logger.debug("清理解密临时文件失败: %s", partial, exc_info=True)
 
 
 # 数据库快照
+def _stream_decrypt(
+    source: Path,
+    target: Path,
+    *,
+    key: bytes,
+    header: bytes,
+    nonce: bytes,
+    tag: bytes,
+    payload_size: int,
+    payload_offset: int,
+    with_aad: bool,
+) -> None:
+    """把 ``payload_size`` 字节密文按 1 MiB 流式解密到 ``target``（GCM 认证通过才落盘）。
+
+    独立成函数是为了让 :func:`decrypt_archive` 只负责「读头 / 选 AAD / 清理临时文件」：
+    循环 + 块大小 + finalize 这些细节放在这里，两个分支（新格式 / 旧格式）共用同一份。
+    """
+    chunk_size = 1024 * 1024
+    decryptor = Cipher(algorithms.AES(key), modes.GCM(nonce, tag)).decryptor()
+    if with_aad:
+        decryptor.authenticate_additional_data(header)
+    with source.open("rb") as reader, target.open("wb") as writer:
+        reader.seek(payload_offset)
+        remaining = payload_size
+        while remaining > 0:
+            chunk = reader.read(min(chunk_size, remaining))
+            if not chunk:
+                raise BackupError("备份文件被截断。")
+            remaining -= len(chunk)
+            writer.write(decryptor.update(chunk))
+        writer.write(decryptor.finalize())
+    os.replace(target, target.with_name(target.name.removesuffix(".part")))
+
+
 def _validate_database_file(path: Path) -> None:
     """整库快照校验：完整性、外键与必需业务表。"""
     required = _required_tables()

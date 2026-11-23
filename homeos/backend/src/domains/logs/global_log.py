@@ -187,6 +187,15 @@ def _utc_now() -> datetime:
     return datetime.now(UTC)
 
 
+def _collect_event(events: dict[str, dict[str, Any]], event: Any) -> None:
+    """按 id 去重合并（后写覆盖先写、保持插入顺序）。"""
+    if not isinstance(event, dict) or not isinstance(event.get("timestamp"), str):
+        return
+    event_id = str(event.get("id") or uuid4())
+    events.pop(event_id, None)
+    events[event_id] = event
+
+
 def _storage_diagnostic(message: str) -> None:
     try:
         sys.stderr.write(f"{_utc_now().isoformat()} {message}\n")
@@ -379,6 +388,8 @@ class GlobalLogStore:
         self._last_pruned_at = None
         self._recent_events = {}
         self._pending = deque(maxlen=2000)
+        #: ``(mtime_ns, size) → 解析后的文件事件``：轮询读时避免每次重解析整个 JSONL。
+        self._parsed_cache: tuple[tuple[int, int], list[dict[str, Any]]] | None = None
         self._write_failures = 0
         self._dropped_events = 0
         self._last_error = None
@@ -640,25 +651,54 @@ class GlobalLogStore:
             self._write_events([])
             self._recent_events.clear()
             self._pending.clear()
+            self._parsed_cache = None
 
     def _read_events(self, *, strict: bool = False) -> list[dict[str, Any]]:
-        events = {}
+        """读取全部事件（按 id 去重、保持写入顺序）。
 
-        def collect(event: Any) -> None:
-            if not isinstance(event, dict) or not isinstance(event.get("timestamp"), str):
-                return
-            event_id = str(event.get("id") or uuid4())
-            events.pop(event_id, None)
-            events[event_id] = event
+        文件解析结果按 ``(mtime_ns, size)`` 缓存：``/logs`` 页面会持续轮询，而每次
+        都重解析整个 JSONL（实测 4.8 MB / 1.1 万行 ≈ 40 ms，且一直持着写线程要用的锁）
+        属于纯浪费。文件只在 flush 时被追加，mtime/size 变化即失效。
+        """
+        events: dict[str, dict[str, Any]] = {}
+        stamp = self._file_stamp(strict)
+        cached = self._parsed_cache
+        file_events = cached[1] if cached is not None and stamp is not None and cached[0] == stamp else None
+        if file_events is None:
+            file_events = self._parse_file(strict)
+            if stamp is not None:
+                # 只缓存成功读到的结果；IO 失败时不缓存，下次仍会重试。
+                self._parsed_cache = (stamp, file_events)
+        for event in file_events:
+            _collect_event(events, event)
+        for event in self._pending:
+            _collect_event(events, event)
+        return list(events.values())
 
+    def _file_stamp(self, strict: bool) -> tuple[int, int] | None:
+        """文件指纹 ``(mtime_ns, size)``；读不到时返回 ``None``（不参与缓存）。"""
+        try:
+            stat = self.path.stat()
+        except OSError as error:
+            # 文件还没创建（首启动）→ 正常，静默跳过缓存；其它 IO 故障留一行诊断，
+            # 否则「日志页永远空白」会没有任何线索。两种情况都不缓存，下次仍会重试。
+            if strict:
+                raise
+            if not isinstance(error, FileNotFoundError):
+                _storage_diagnostic(f"读取全局日志文件状态失败（跳过解析缓存）：{error}")
+            return None
+        return (stat.st_mtime_ns, stat.st_size)
+
+    def _parse_file(self, strict: bool) -> list[dict[str, Any]]:
+        """逐行解析 JSONL；坏行跳过（半行写入 / 历史坏数据不该让整页 500）。"""
+        parsed: list[dict[str, Any]] = []
         try:
             with self.path.open("rb") as source:
                 for line in source:
                     try:
-                        event = json.loads(line)
+                        parsed.append(json.loads(line))
                     except (TypeError, json.JSONDecodeError, UnicodeDecodeError):  # fmt: skip
                         continue
-                    collect(event)
         except FileNotFoundError:
             if strict:
                 raise
@@ -666,10 +706,7 @@ class GlobalLogStore:
             if strict:
                 raise
             self._io_failure(error)
-
-        for event in self._pending:
-            collect(event)
-        return list(events.values())
+        return parsed
 
     def _write_events(self, events: list[dict[str, Any]]) -> None:
         self.directory.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -707,4 +744,5 @@ class GlobalLogStore:
             retained_bytes += event_bytes
         retained.reverse()
         self._write_events(retained)
+        self._parsed_cache = None
         self._last_pruned_at = now

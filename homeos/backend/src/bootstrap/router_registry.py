@@ -16,6 +16,7 @@ from ..api.channels import router as channels_router
 from ..api.channels import wecom_router as channels_wecom_router
 from ..api.client_power import router as client_power_router
 from ..api.device_profile import router as device_profile_router
+from ..api.device_timer import router as device_timer_router
 from ..api.earthquake import router as earthquake_router
 from ..api.entities import router as entities_router
 from ..api.events import router as events_router
@@ -49,6 +50,7 @@ from ..api.system.ops import router as system_ops_router
 from ..api.system.setup import router as system_setup_router
 from ..api.ui_config import router as ui_config_router
 from ..api.voice import router as voice_router
+from ..api.water import router as water_router
 from ..modules.interaction3d.api import router as interaction3d_router
 
 API_PREFIX = "/api/v1"
@@ -82,6 +84,8 @@ def register_homeos_routers(app: FastAPI) -> None:
     app.include_router(notification_router, prefix=API_PREFIX)
     app.include_router(security_router, prefix=API_PREFIX)
     app.include_router(security_panel_router, prefix=API_PREFIX)
+    app.include_router(water_router, prefix=API_PREFIX)
+    app.include_router(device_timer_router, prefix=API_PREFIX)
     app.include_router(system_backup_router, prefix=API_PREFIX)
     app.include_router(backups_router, prefix=API_PREFIX)
     app.include_router(system_config_router, prefix=API_PREFIX)

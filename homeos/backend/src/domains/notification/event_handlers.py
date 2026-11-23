@@ -8,7 +8,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Awaitable, Callable
-from typing import Any
+from typing import Any, ClassVar
 
 from ..alerts.messages import format_security_alarm_message
 from ..earthquake.state import format_eew_notify_message
@@ -35,6 +35,7 @@ def _numeric_attribute(raw: Any) -> float | None:
             logger.debug("属性值不是数值，按非数值处理: %r", raw)
             return None
     return None
+
 
 logger = logging.getLogger("homeos.notification.events")
 
@@ -120,6 +121,17 @@ class NotificationEventHandlersHelper:
             forced.append("socket")
         return forced
 
+    #: 危险事件类型 → 语音播报开关的键。
+    #:
+    #: 这条映射不能省：安防告警的 ``source`` 恒为 ``security``（前端筛选/统计按它聚合），
+    #: 而语音矩阵把「烟雾 / 燃气 / 漏水」拆成三个独立开关。不显式带 ``voiceKey``，
+    #: 那三个开关永远命不中 —— 又回到「设置页有开关、运行时无效」的老问题。
+    _HAZARD_VOICE_KEYS: ClassVar[dict[str, str]] = {
+        "smoke": "safetySmoke",
+        "gas_leak": "safetyGas",
+        "water_leak": "safetyWater",
+    }
+
     async def handle_security_alarm(self, event: dict[str, Any] | None) -> None:
         event = event or {}
         drill = bool(event.get("drillMode"))
@@ -146,13 +158,26 @@ class NotificationEventHandlersHelper:
             alert_level = "info"
         else:
             alert_level = "danger"
-        opts: dict[str, Any] = {"bypassDnd": not drill}
-        if channels is not None:
-            opts["channels"] = channels
+        opts = self._alarm_notify_opts(event, channels, drill)
         sent = await self._notify(alert_level, desc, "security", event.get("entityId"), opts)
         if not sent:
             return
         self._set_cooldown(cooldown_key, 1 if alert_level == "danger" else 2)
+
+    def _alarm_notify_opts(self, event: dict[str, Any], channels: list[str] | None, drill: bool) -> dict[str, Any]:
+        """安防告警的投递选项（渠道 + 语音播报键）。
+
+        抽出来只为不让 ``handle_security_alarm`` 的分支继续增长：这里每加一类危险
+        就要多一层 if，而那段代码本来已经同时处理等级映射、渠道与冷却。
+        """
+        opts: dict[str, Any] = {"bypassDnd": not drill}
+        if channels is not None:
+            opts["channels"] = channels
+        voice_key = self._HAZARD_VOICE_KEYS.get(str(event.get("type") or ""))
+        if voice_key and not drill:
+            # 演习不播报：与「不按真实火警外呼」同一条原则。
+            opts["voiceKey"] = voice_key
+        return opts
 
     async def handle_emergency(self, event: dict[str, Any] | None) -> None:
         event = event or {}
@@ -182,23 +207,37 @@ class NotificationEventHandlersHelper:
             return
         name = event.get("friendlyName") or event.get("entityId") or "设备"
         detail = f"{name} 功耗异常"
-        if event.get("type") == "high_standby":
+        kind = event.get("type")
+        if kind == "daily_high":
+            # 后台监测器算出来的就是这几个数（today / average / ratio），不展示等于白算。
+            detail = (
+                f"今日用电 {_format_number(event.get('current'), 1)} kWh，"
+                f"约为近期日均 {_format_number(event.get('average'), 1)} kWh 的 {event.get('ratio', '?')} 倍"
+            )
+        elif kind == "high_standby":
             average = _format_number(event.get("average"), 0)
             detail = f"{name} 待机功耗 {event.get('current', '?')}W 持续偏高（均值 {average}W）"
-        elif event.get("type") == "spike":
-            detail = (
-                f"{name} 功率突增至 {event.get('current', '?')}W"
-                f"（约为均值 {event.get('ratio', '?')} 倍）"
-            )
-        elif event.get("type") == "sustained_high":
+        elif kind == "spike":
+            detail = f"{name} 功率突增至 {event.get('current', '?')}W（约为均值 {event.get('ratio', '?')} 倍）"
+        elif kind == "sustained_high":
             detail = f"{name} 持续高负荷 {event.get('current', '?')}W 超过 2 小时"
-        level = "danger" if event.get("type") == "sustained_high" else "warn"
+        level = "danger" if kind == "sustained_high" else "warn"
         sent = await self._notify(level, f"⚡ {detail}", "energy-anomaly", event.get("entityId"))
         if not sent:
             return
-        self._set_cooldown(
-            cooldown_key, float(self._get_energy_cfg().get("anomalyCooldownMin") or 60)
-        )
+        self._set_cooldown(cooldown_key, float(self._get_energy_cfg().get("anomalyCooldownMin") or 60))
+
+    async def handle_balance_low(self, event: dict[str, Any] | None) -> None:
+        """预付费余额不足：欠费会直接断电，属于「断供级」风险，按 danger 处理。"""
+        event = event or {}
+        cooldown_key = f"energy_balance:{event.get('entityId') or 'global'}"
+        if self._is_in_cooldown(cooldown_key):
+            return
+        detail = event.get("detail") or "预付费余额不足，请及时充值"
+        sent = await self._notify("danger", f"💳 {detail}", "energy-balance", event.get("entityId"))
+        if not sent:
+            return
+        self._set_cooldown(cooldown_key, float(self._get_energy_cfg().get("budgetAlertCooldownMin") or 720))
 
     async def handle_budget_exceeded(self, event: dict[str, Any] | None) -> None:
         event = event or {}
@@ -212,9 +251,7 @@ class NotificationEventHandlersHelper:
         )
         if not sent:
             return
-        self._set_cooldown(
-            cooldown_key, float(self._get_energy_cfg().get("budgetAlertCooldownMin") or 720)
-        )
+        self._set_cooldown(cooldown_key, float(self._get_energy_cfg().get("budgetAlertCooldownMin") or 720))
 
     async def handle_water_anomaly(self, event: dict[str, Any] | None) -> None:
         event = event or {}
@@ -229,9 +266,7 @@ class NotificationEventHandlersHelper:
         sent = await self._notify("danger", detail, "water-monitor", event.get("entityId"))
         if not sent:
             return
-        self._set_cooldown(
-            cooldown_key, float(self._get_water_cfg().get("anomalyCooldownMin") or 30)
-        )
+        self._set_cooldown(cooldown_key, float(self._get_water_cfg().get("anomalyCooldownMin") or 30))
 
     # 环境
     async def handle_mold_risk(self, event: dict[str, Any] | None) -> None:
@@ -251,9 +286,7 @@ class NotificationEventHandlersHelper:
         )
         if not sent:
             return
-        self._set_cooldown(
-            cooldown_key, float(self._get_iaq_cfg().get("moldAlertCooldownMin") or 10)
-        )
+        self._set_cooldown(cooldown_key, float(self._get_iaq_cfg().get("moldAlertCooldownMin") or 10))
 
     async def handle_iaq_threshold(self, event: dict[str, Any] | None) -> None:
         event = event or {}
@@ -264,16 +297,13 @@ class NotificationEventHandlersHelper:
         score = f" IAQ {event.get('iaq')}" if event.get("iaq") is not None else ""
         sent = await self._notify(
             "warn",
-            f"🌬️ [{room_label}]{score} "
-            f"{event.get('message') or '空气质量指数超阈值，建议通风或开启净化设备'}",
+            f"🌬️ [{room_label}]{score} {event.get('message') or '空气质量指数超阈值，建议通风或开启净化设备'}",
             "environment-health",
             event.get("roomId"),
         )
         if not sent:
             return
-        self._set_cooldown(
-            cooldown_key, float(self._get_iaq_cfg().get("moldAlertCooldownMin") or 10)
-        )
+        self._set_cooldown(cooldown_key, float(self._get_iaq_cfg().get("moldAlertCooldownMin") or 10))
 
     # 自动化
     async def handle_homeos_automation_notify(self, event: dict[str, Any] | None) -> None:
@@ -281,45 +311,34 @@ class NotificationEventHandlersHelper:
         text = event.get("message") or event.get("title") or "自动化通知"
         await self._notify("info", text, "automation")
 
-    async def handle_automation_failed(self, event: dict[str, Any] | None) -> None:
-        event = event or {}
-        rule_id = event.get("ruleId") or "unknown"
-        # HA（中枢）不可达时**每条**自动化都会失败，而根因只有一个 —— 中枢失联本身已经单独
-        # 告过警了。按 ruleId 各自冷却会让一次中枢抖动变成「N 条自动化失败」的风暴，且每条
-        # 每 30 分钟重来一轮。这里直接静默：这类失败在中枢恢复后会重现，不会永久丢失信息，
-        # 而此刻重复 N 遍只会把真正要看的告警淹掉。
-        if not self._ha_states_trustworthy():
-            logger.debug("HA 连接不可信，跳过自动化失败通知: %s", rule_id)
-            return
-        cooldown_key = f"automation-failed:{rule_id}"
-        if self._is_in_cooldown(cooldown_key):
-            return
-        name = event.get("name") or rule_id
-        summary = event.get("error") or "动作执行失败"
-        sent = await self._notify(
-            "warn", f"⚠️ 自动化执行失败：[{name}] {summary}", "automation"
-        )
-        if not sent:
-            return
-        self._set_cooldown(cooldown_key, 30)
-
     async def handle_automation_dropped(self, event: dict[str, Any] | None) -> None:
         event = event or {}
-        rule_id = event.get("ruleId") or "unknown"
+        # 两种生产者：HA 自动化（``ruleId``）与**离线命令队列**（``entityId`` + ``domain``）。
+        # 后者以前是静默丢弃：用户在面板按下「关灯」，HA 离线 → 命令入队 → 超时被 pop，
+        # 界面显示成功、灯却一直亮着。这里必须点名是哪台设备、哪条命令、为什么丢。
+        entity_id = event.get("entityId")
+        rule_id = event.get("ruleId") or entity_id or "unknown"
         cooldown_key = f"automation-dropped:{rule_id}"
         if self._is_in_cooldown(cooldown_key):
             return
-        name = event.get("name") or rule_id
+        name = event.get("name") or event.get("friendlyName") or entity_id or rule_id
         reason = event.get("reason")
         if reason == "concurrency-limit":
             detail = f"并发执行数已达上限({event.get('limit') or '未知'})，本次触发被丢弃"
         elif reason == "mutex-busy":
             detail = f"互斥组 [{event.get('group') or '未知'}] 正被其他自动化占用，本次触发被丢弃"
+        elif reason == "expired":
+            service = event.get("service") or "命令"
+            detail = f"{name} 的离线命令（{service}）等待超时，已丢弃 —— 设备上没有执行"
+        elif reason == "overflow":
+            service = event.get("service") or "命令"
+            detail = f"{name} 的离线命令（{service}）因队列已满被丢弃 —— 设备上没有执行"
+        elif reason == "rejected":
+            service = event.get("service") or "命令"
+            detail = f"{name} 的离线命令（{service}）被中枢拒绝，已丢弃"
         else:
             detail = "本次触发被丢弃"
-        sent = await self._notify(
-            "warn", f"⚠️ 自动化触发被丢弃：[{name}] {detail}", "automation"
-        )
+        sent = await self._notify("warn", f"⚠️ 命令未执行：[{name}] {detail}", "automation")
         if not sent:
             return
         self._set_cooldown(cooldown_key, 30)
@@ -375,7 +394,7 @@ class NotificationEventHandlersHelper:
         raw_hours = self._get_other_cfg().get("tipCooldownHours")
         try:
             tip_hours = 2.0 if raw_hours is None else float(raw_hours)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError):  # fmt: skip
             tip_hours = 2.0
         if tip_hours > 0:
             self._set_cooldown(cooldown_key, max(1, _js_round(tip_hours * 60)))
@@ -468,6 +487,7 @@ def _js_round(value: Any) -> int:
 
 def _fire_and_forget(awaitable: Awaitable[Any]) -> None:
     """对齐 Nest ``setImmediate(() => void promise)``：不阻塞状态变更路由。"""
+
     async def _run() -> None:
         try:
             await awaitable

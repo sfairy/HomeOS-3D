@@ -21,30 +21,38 @@ router = NestRouter(
     dependencies=[license_feature(feature_codes.FEATURE_SECURITY)],
 )
 
+
 class AckIdsDto(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     ids: list[str] | None = None
+
 
 class HazardDrillDto(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     kind: str | None = None
 
+
 def _frigate(request: Request):
     return request.app.state.frigate
+
 
 def _presence(request: Request):
     return request.app.state.presence
 
+
 def _mmwave(request: Request):
     return request.app.state.mmwave
+
 
 def _security_service(request: Request):
     return request.app.state.security_service
 
+
 def _hazard_drill(request: Request):
     return request.app.state.hazard_drill
+
 
 @router.get("/events")
 async def get_events(
@@ -55,16 +63,24 @@ async def get_events(
     # 事件文件行数没有上界，条数上限只在服务端裁决（`limit` 只能往下调，不能放大）。
     return await _security_service(request).fetch_events(resolve_events_limit(limit))
 
+
 @router.get("/events/validate")
 async def validate_events(request: Request, user: dict[str, Any] = Depends(require_user)):
     return await _security_service(request).validate_events_path()
 
+
 @router.get("/frigate/events")
-async def get_frigate_events(
+def get_frigate_events(
     request: Request,
     limit: str | None = Query(default=None),
     user: dict[str, Any] = Depends(require_user),
 ):
+    """Frigate 事件（同步 def：由 FastAPI 放进线程池）。
+
+    原先声明成 ``async def``，却在事件循环里直接开 SQLAlchemy 会话、并解析
+    ``system_configs.data`` 整段 JSON —— 与 WS 广播抢同一个线程，是 p99 抖动来源。
+    它没有任何 ``await``，改同步即自动走线程池，行为不变。
+    """
     from ..domains.security.config import load_security_config
 
     with request.app.state.database.session_factory() as session:
@@ -73,6 +89,7 @@ async def get_frigate_events(
     # 超过它的 `limit` 不可能多拿到数据，这里显式封顶，避免无界查询面。
     requested = parse_bounded_limit(limit, default_limit, minimum=0, maximum=default_limit)
     return _frigate(request).get_recent_events(requested if requested > 0 else default_limit)
+
 
 @router.post("/frigate/ack")
 async def ack_frigate_events(
@@ -88,17 +105,16 @@ async def ack_frigate_events(
             bad_request("ids 每项须为字符串")
     return _frigate(request).ack_events(ids or [])
 
+
 @router.get("/presence/home")
-async def get_home_presence(
-    request: Request, user: dict[str, Any] = Depends(require_user)
-):
+async def get_home_presence(request: Request, user: dict[str, Any] = Depends(require_user)):
     return await _presence(request).get_home_presence_response()
 
+
 @router.get("/presence/summary")
-async def get_mmwave_summary(
-    request: Request, user: dict[str, Any] = Depends(require_user)
-):
+async def get_mmwave_summary(request: Request, user: dict[str, Any] = Depends(require_user)):
     return _mmwave(request).get_summary()
+
 
 @router.post("/hazard/drill")
 async def run_hazard_drill(

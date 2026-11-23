@@ -117,6 +117,44 @@ async def get_device_health_summary(
     return request.app.state.device_health.get_summary()
 
 
+@router.post("/devices/firmware-update", status_code=200)
+async def install_firmware_update(
+    request: Request,
+    payload: dict[str, Any],
+    user: dict[str, Any] = Depends(require_user),
+):
+    """安装固件更新（逐个实体，不做批量）。
+
+    只接受 ``update.*`` 且当前 ``state in {on, available}`` 的实体 —— 这是 HA 表达
+    「有可用更新」的唯一约定，放宽就等于允许对任意实体下发 ``update.install``。
+    调用走命令代理，复用幂等与许可门禁；结果原样返回 HA 的错误，不做美化。
+    """
+    from ...platform.core.http.errors import bad_request
+
+    entity_id = str((payload or {}).get("entityId") or "").strip()
+    if not entity_id.startswith("update."):
+        raise bad_request("只支持 update.* 实体")
+    store = request.app.state.state_store
+    entity = store.get(entity_id) if store is not None else None
+    if not isinstance(entity, dict):
+        raise bad_request("实体不存在或尚未同步")
+    if str(entity.get("state") or "").lower() not in ("on", "available"):
+        raise bad_request("该实体当前没有可用更新")
+    proxy = request.app.state.command_proxy
+    result = await proxy.call_service(
+        {
+            "domain": "update",
+            "service": "install",
+            "entity_id": entity_id,
+            "service_data": {},
+            "idempotency_key": f"firmware:{entity_id}",
+        },
+        policy="http",
+    )
+    logger.info("固件更新已下发: %s（用户 %s）", entity_id, user.get("username"))
+    return {"success": True, "entityId": entity_id, "result": result}
+
+
 @router.get("/network-info")
 async def get_network_info(request: Request, user: dict[str, Any] = Depends(require_user)):
     """网络信息：内网 / 公网地址与本机端口（用于「怎么在手机上打开」指引）。"""

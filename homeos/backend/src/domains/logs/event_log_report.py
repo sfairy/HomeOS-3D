@@ -47,6 +47,7 @@ from .energy_history import (
     read_year_history,
     select_energy_candidates,
 )
+from .event_stats_rollup import ensure_backfilled, entity_totals, series_by_day
 from ..client_power.energy_meter import (
     business_day_key,
     reading_to_kwh,
@@ -323,6 +324,14 @@ class EventLogReportMixin:
         return self._build_events_report(periods, granularity, entity_ids, restrictions)
 
     def _build_events_report(self, periods, granularity, entity_ids, restrictions) -> dict[str, Any]:
+        # 报表读**小时汇总表**（与 /events/stats 同源）：原始行上的 GROUP BY 要把整个
+        # 窗口物化再排序，且分桶键被 datetime() 包住时用不上索引（实测 227 万行 0.4–0.6s，
+        # 12M 行时是秒级）。汇总表的 bucketKey 是写入时按家庭时区算好的墙钟文本，
+        # 顺带解决了「单一固定偏移跨夏令时算错日期」的问题（F-14）。
+        ensure_backfilled(
+            self._database.session_factory,
+            resolve_business_timezone(_resolve_ops_timezone_name(self._ops)),
+        )
         with self._database.session_factory() as session:
             cur_series = self._aggregate_event_series(session, periods["current"], entity_ids, restrictions)
             prev_series = self._aggregate_event_series(session, periods["previous"], entity_ids, restrictions)
@@ -332,36 +341,31 @@ class EventLogReportMixin:
         by_entity = [_build_compare_row(eid, count, prev_map.get(eid, 0), round) for eid, count in cur_entities]
         return self._assemble_response("events", granularity, None, "次", periods, cur_series, prev_series, by_entity)
 
+    def _period_key_range(self, period) -> tuple[str, str]:
+        """周期的「家庭时区小时键」闭区间（与汇总表的 ``bucketKey`` 同口径）。"""
+        timezone = resolve_business_timezone(_resolve_ops_timezone_name(self._ops))
+        start = period["start"].astimezone(timezone).strftime("%Y-%m-%d %H")
+        end = period["end"].astimezone(timezone).strftime("%Y-%m-%d %H")
+        return start, end
+
     def _aggregate_event_series(self, session, period, entity_ids, restrictions) -> list[dict[str, Any]]:
-        conditions = self._period_conditions(period, entity_ids, restrictions)
-        day_expr = self._bucket_expr(EventLog.created_at, 10)
-        rows = session.execute(select(day_expr, func.count()).where(*conditions).group_by(day_expr)).all()
-        mapping = {bucket_key: int(count) for bucket_key, count in rows}
+        start_key, end_key = self._period_key_range(period)
+        mapping = dict(series_by_day(session, start_key=start_key, end_key=end_key))
         return [
             {"date": date, "label": _format_short_label(date), "value": mapping.get(date, 0)}
             for date in _build_day_labels(period["start"], period["end"])
         ]
 
     def _aggregate_event_by_entity(self, session, period, entity_ids, restrictions) -> list[tuple[str, int]]:
-        conditions = self._period_conditions(period, entity_ids, restrictions)
-        rows = session.execute(
-            select(EventLog.entity_id, func.count())
-            .where(*conditions)
-            .group_by(EventLog.entity_id)
-            .order_by(func.count().desc())
-            .limit(BY_ENTITY_LIMIT)
-        ).all()
-        return [(bucket_key, int(count)) for bucket_key, count in rows]
-
-    def _period_conditions(self, period, entity_ids, restrictions) -> list[Any]:
-        conditions: list[Any] = [
-            EventLog.created_at >= _naive_utc(period["start"]),
-            EventLog.created_at < _naive_utc(period["end"]),
-        ]
-        conditions.extend(_restriction_conditions(restrictions))
-        if entity_ids:
-            conditions.append(EventLog.entity_id.in_(entity_ids))
-        return conditions
+        start_key, end_key = self._period_key_range(period)
+        return entity_totals(
+            session,
+            start_key=start_key,
+            end_key=end_key,
+            entity_ids=entity_ids,
+            entity_prefixes=restrictions,
+            limit=BY_ENTITY_LIMIT,
+        )
 
     # ---- energy ----
     def _build_energy_report(self, periods, granularity, entity_ids, restrictions) -> dict[str, Any]:
@@ -376,7 +380,16 @@ class EventLogReportMixin:
         cur_series = _to_energy_series(cur_rows, periods["current"])
         prev_series = _to_energy_series(prev_rows, periods["previous"])
         by_entity = _build_energy_by_entity(cur_rows, prev_rows, periods)
-        return self._assemble_response("energy", granularity, None, "kWh", periods, cur_series, prev_series, by_entity)
+        response = self._assemble_response(
+            "energy", granularity, None, "kWh", periods, cur_series, prev_series, by_entity
+        )
+        # 费用同期口径：小时行完整时逐小时精确计价，否则按段时长占比估算并标记。
+        costed = self._with_cost({"unit": "kWh", "series": cur_series}, ids, monthly=granularity == "month")
+        response["series"]["current"] = costed["series"]
+        response["cost"] = costed["cost"]
+        response["costCurrency"] = costed.get("costCurrency")
+        response["costEstimated"] = costed["costEstimated"]
+        return response
 
     def _resolve_energy_entity_ids(self, session, entity_ids, restrictions) -> list[str]:
         ids = [eid for (eid,) in session.execute(select(EnergyCandidateEntity.entity_id)).all()]
@@ -404,8 +417,11 @@ class EventLogReportMixin:
             if not ids:
                 return {"range": resolved, "unit": "kWh", "total": 0.0, "source": "empty", "series": []}
             if resolved == "Y":
-                return read_year_history(session, ids, today)
-            return read_daily_history(session, ids, today, days=7 if resolved == "W" else 30)
+                payload = read_year_history(session, ids, today)
+            else:
+                payload = read_daily_history(session, ids, today, days=7 if resolved == "W" else 30)
+        # 费用：有完整小时行时逐小时精确计价，否则按段时长占比估算（见 ``_with_cost``）。
+        return self._with_cost(payload, ids)
 
     def _bucket_expr(self, column: Any, length: int) -> Any:
         """按家庭时区取分桶键（SQLite 下先平移再截取 ISO 文本）。

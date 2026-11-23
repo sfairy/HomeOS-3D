@@ -53,6 +53,12 @@ LOCAL_MARK_TTL_SECONDS = 10.0
 #: 11 天 208 万行 / 900MB 库）。这里只节流「数值 → 数值」的抖动；开关、不可用这类
 #: 语义翻转照常记录，因果复盘的可用性不受影响。
 NUMERIC_THROTTLE_SECONDS = 300.0
+#: 变化率阈值：超过它就**不再**节流。
+#:
+#: 只按时间间隔丢会让真实突变一起消失（300 秒内 0 → 3000W 的功率跳变不留痕），
+#: 排查「为什么跳闸 / 为什么全功率」时恰好缺那一条。所以改成双条件：
+#: 跨零 / 跨量级（变化率 ≥ 该值）必记，小幅抖动才按间隔节流。
+NUMERIC_RECORD_RATIO = 0.10
 #: 参与数值节流的域。
 NUMERIC_THROTTLE_DOMAINS = frozenset({"sensor", "number", "input_number"})
 #: 节流表上限：超过就整体丢弃重建，避免无界增长。
@@ -112,6 +118,53 @@ def _is_numeric_text(value: Any) -> bool:
         return False
 
 
+#: 时序行里**真正会被读取**的 context 字段：归因只认这两个（见 ``_resolve_source``）。
+#:
+#: HA 的 ``context`` 还带一个每事件唯一的 ``id``（ULID）。实测 227 万行里 context
+#: 平均 72 字节、**去重后仍是 227 万条**——也就是说这 72 字节几乎全是被存下来却从没被
+#: 读过的 ``id``（约 163 MB）。这里只保留归因字段：两个都为空的常见情况下就是 ``{}``。
+CONTEXT_KEEP_KEYS = ("user_id", "parent_id")
+
+
+def _slim_context(value: Any) -> dict[str, Any]:
+    """只保留归因字段的 context（丢掉逐事件唯一的 ``id``）。
+
+    读取侧只关心 ``user_id``（本地下发）与 ``parent_id``（HA 自动化），其余字段没有任何
+    消费方；整份照存等于每行白写约 70 字节。
+    """
+    if not isinstance(value, dict):
+        return {}
+    slim = {key: value[key] for key in CONTEXT_KEEP_KEYS if value.get(key) not in (None, "")}
+    return slim
+
+
+def _numeric_value(value: Any) -> float | None:
+    """把状态值转成 float；非数值返回 ``None``。"""
+    if isinstance(value, bool) or value is None:
+        return None
+    try:
+        number = float(str(value).strip()) if not isinstance(value, (int, float)) else float(value)
+    except (TypeError, ValueError):  # fmt: skip
+        # "1e" / "12%" 这类看起来像数字但不是的文本：按非数值处理（调用方只关心真假）。
+        logger.debug("状态值无法解析为数值: %r", value)
+        return None
+    return number if math.isfinite(number) else None
+
+
+def _numeric_jump(old_state: Any, new_state: Any) -> bool:
+    """数值是否发生了「需要留痕」的突变：跨零 / 从零起跳 / 变化率超阈值。"""
+    before = _numeric_value(old_state)
+    after = _numeric_value(new_state)
+    if before is None or after is None:
+        return False
+    if before == after:
+        return False
+    # 跨零（含 0 → 非 0）：开关型读数（功率、流量）从静止起跳是最有信息量的时刻。
+    if before == 0 or after == 0 or (before < 0) != (after < 0):
+        return True
+    return abs(after - before) / max(abs(before), abs(after)) >= NUMERIC_RECORD_RATIO
+
+
 def _parse_time(raw: Any) -> datetime:
     """解析 HA 的 ISO 时间；非法 / 缺失回退当前时间（不带时区偏移，落库口径统一）。"""
     if isinstance(raw, datetime):
@@ -166,6 +219,9 @@ class AgentTimelineService:
         self._queue: asyncio.Queue[dict[str, Any]] | None = None
         self._consumer: asyncio.Task[None] | None = None
         self._last_prune = 0.0
+        #: 区域归因失败计数与限流告警时间（见 ``_warn_area_failure``）。
+        self._area_warn_count = 0
+        self._area_warn_at = 0.0
 
     # 生命周期 / 事件绑定
     def bind_events(self) -> None:
@@ -225,6 +281,10 @@ class AgentTimelineService:
         """数值型传感器/纯时间刻度的噪音过滤。
 
         返回 ``True`` 表示本条不入库。语义翻转（``on``/``off``/``unavailable``）不受影响。
+
+        判据是**双条件**：跨零或变化率超过 ``NUMERIC_RECORD_RATIO`` 一律记录；
+        只有小幅抖动才按 ``NUMERIC_THROTTLE_SECONDS`` 节流。旧实现只看时间间隔，
+        300 秒内的真实突变（0 → 3000W）会被一起丢掉。
         """
         entity_id = str(snapshot.get("entity_id") or "")
         # 纯时间刻度（几点几分）永远不是「设备状态翻转」，直接丢弃。
@@ -238,14 +298,21 @@ class AgentTimelineService:
         if not (_is_numeric_text(old_state) and _is_numeric_text(new_state)):
             return False
         now = time.monotonic()
+        if _numeric_jump(old_state, new_state):
+            # 真实突变：立刻记录，并把节流时间戳推到当前，避免紧接着的抖动又写一条。
+            self._remember_numeric(entity_id, now)
+            return False
         last = self._numeric_last.get(entity_id)
         if last is not None and now - last < NUMERIC_THROTTLE_SECONDS:
             return True
+        self._remember_numeric(entity_id, now)
+        return False
+
+    def _remember_numeric(self, entity_id: str, now: float) -> None:
         if len(self._numeric_last) >= NUMERIC_THROTTLE_MAX_KEYS:
             # 宁可整体丢弃重建，也不让节流表随设备数无界增长。
             self._numeric_last.clear()
         self._numeric_last[entity_id] = now
-        return False
 
     def _ensure_consumer(self, loop: asyncio.AbstractEventLoop) -> None:
         """确保写入消费者在跑（懒启动，避免在模块导入期绑事件循环）。"""
@@ -351,11 +418,33 @@ class AgentTimelineService:
             entity = self._state_store.get(entity_id) if self._state_store is not None else None
             enriched = enrichment.enrich_entity_sync(entity or {}) if entity else {}
         except Exception as exc:
-            logger.debug("解析设备区域失败: %s (%s)", entity_id, exc)
+            # 原先只有 debug：整列 ``areaId`` 为空也没有任何信号（实测 226 万行里
+            # 只有 116 行非空）。改为限流告警，让「区域归因整体失效」在日志里可见。
+            logger.debug("解析设备区域失败: %s", entity_id, exc_info=True)
+            self._warn_area_failure(f"解析设备区域失败: {entity_id} ({exc})")
             return "", ""
         attrs = read_json_object(enriched, {}).get("attributes")
         attrs = attrs if isinstance(attrs, dict) else {}
-        return str(attrs.get("area_id") or ""), str(attrs.get("area_name") or "")
+        area_id = str(attrs.get("area_id") or "")
+        area_name = str(attrs.get("area_name") or "")
+        if not area_id:
+            self._warn_area_failure(
+                f"区域索引未命中或尚未加载（enrichment ready={getattr(enrichment, 'is_ready', 'unknown')}）"
+            )
+        return area_id, area_name
+
+    def _warn_area_failure(self, message: str) -> None:
+        """区域归因失败告警（5 分钟一条，避免刷屏）。
+
+        ``areaId`` 与 ``peerSnapshot`` 都是「有值才有用」的列：整列空掉时功能其实
+        已经失效，只是不会报错。限流告警 + 计数是唯一能让它被发现的方式。
+        """
+        self._area_warn_count += 1
+        now = time.monotonic()
+        if now - self._area_warn_at < 300:
+            return
+        self._area_warn_at = now
+        logger.warning("设备时序区域归因异常（累计 %s 次）：%s", self._area_warn_count, message)
 
     def _peer_snapshot(self, area_id: str, exclude_entity: str) -> dict[str, str]:
         """同房间其它设备的当前状态（限量），供因果复盘。"""
@@ -432,7 +521,7 @@ class AgentTimelineService:
             "changed_at": changed_at,
             "trigger_source": trigger_source,
             "actor": actor,
-            "context": snapshot.get("context") if isinstance(snapshot.get("context"), dict) else {},
+            "context": _slim_context(snapshot.get("context")),
             "peer_snapshot": peers,
         }
 
@@ -467,7 +556,13 @@ class AgentTimelineService:
             session.commit()
 
     def _write_row(self, session: Any, row: dict[str, Any]) -> None:
-        changed_at: datetime = row["changed_at"]
+        # 落库口径统一为 naive UTC：``_parse_time`` 已经这样归一，但从库里读回的
+        # ``previous.changed_at`` 也是 naive —— 若调用方直接塞进来 aware datetime，
+        # 下面的时长相减会抛「can't subtract offset-naive and offset-aware」，
+        # 整批写入失败（一条脏时间把一批事件全丢掉）。
+        changed_at = row["changed_at"]
+        if isinstance(changed_at, datetime) and changed_at.tzinfo is not None:
+            changed_at = changed_at.astimezone(UTC).replace(tzinfo=None)
         # 结算上一条：同实体的上一条记录在这里结束
         previous = (
             session.execute(
@@ -499,6 +594,11 @@ class AgentTimelineService:
                 peer_snapshot=json.dumps(row["peer_snapshot"], ensure_ascii=False),
             )
         )
+        # 必须 flush：sessionmaker 配的是 ``autoflush=False``（见 platform/core/db/database.py），
+        # 不 flush 时下一条的「找同实体未结束行」看不到本条刚 add 的 INSERT，于是同一批里
+        # 连续变化的实体永远留下前一条 ``endedAt IS NULL``（实测 929 条、最多单实体 70 条），
+        # 「该状态仍在持续」与 ``durationSeconds`` 全部失真。
+        session.flush()
 
     # 查询
     async def query(

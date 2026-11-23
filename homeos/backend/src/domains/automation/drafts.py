@@ -27,7 +27,7 @@ from typing import Any
 from sqlalchemy import delete, select
 
 from .findings import read_ha_automations, read_policy_rules, read_scheduled_rules, scan_conflicts
-from .landing import build_task_payload, describe_landing
+from .landing import build_ha_automation_payload, build_task_payload, describe_landing
 from .spec import (
     INTENT_SUMMARY_MAX,
     MAX_CANDIDATES,
@@ -355,6 +355,43 @@ class AutomationDraftService:
             "summary": describe_landing(spec),
             "conflicts": self.conflict_report(spec),
         }
+
+    def prepare_ha_export(self, draft_id: str) -> dict[str, Any]:
+        """校验草案能否写成 HA 自动化，并给出 ``automationId`` + 配置体（不写任何东西）。
+
+        与 :meth:`prepare_apply` 的差别只在目标形状：那边产出本机计划任务载荷，
+        这边产 HA 的 ``trigger`` / ``action``。``automationId`` 由 draft_id 派生
+        （``homeos_<draft_id 前 16 位>``），因此重复导出是**覆盖同一条**而不是新增。
+        """
+        with self._session_factory() as session:
+            draft = session.get(AutomationDraft, draft_id)
+            if draft is None:
+                return {"ok": False, "reason": "not_found", "message": "没有找到这份草案。"}
+            reason = self._block_reason(session, draft)
+            if reason:
+                return {"ok": False, "reason": draft.status.lower(), "message": reason}
+            latest = self._latest_revision(session, draft)
+            spec = json.loads(latest.spec_json) if latest is not None else {}
+        automation, error = build_ha_automation_payload(spec)
+        if automation is None:
+            return {"ok": False, "reason": "unsupported", "message": error}
+        return {
+            "ok": True,
+            "draftId": draft_id,
+            "automationId": f"homeos_{draft_id.replace('-', '')[:16]}",
+            "automation": automation,
+            "conflicts": self.conflict_report(spec),
+        }
+
+    def mark_exported(self, draft_id: str, automation_id: str) -> bool:
+        """记下「已导出到 HA」的执行 id（**不改状态**：草案仍可在 HomeOS 侧继续使用）。"""
+        with self._session_factory() as session:
+            draft = session.get(AutomationDraft, draft_id)
+            if draft is None:
+                return False
+            draft.execution_id = text(automation_id)[:64] or None
+            session.commit()
+            return True
 
     def mark_applied(self, draft_id: str, task_id: str) -> bool:
         """把草案标记为 APPLIED 并记下计划任务 ID；重复调用是幂等的。"""

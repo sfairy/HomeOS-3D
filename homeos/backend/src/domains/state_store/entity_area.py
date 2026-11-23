@@ -349,6 +349,15 @@ class EntityAreaEnrichmentService:
             return entity
         return enrich_entity_areas(entity, self._index)
 
+    @property
+    def is_ready(self) -> bool:
+        """区域索引是否已加载。
+
+        调用方（如设备时序）需要区分「没配区域」与「索引还没建」：后者会让
+        ``areaId`` / ``peerSnapshot`` 整列为空却没有任何报错，看起来像功能正常。
+        """
+        return bool(self._index)
+
     def enrich_entities_sync(self, entities: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if not self._index:
             return entities
@@ -435,6 +444,27 @@ def _iso_now() -> str:
     return now.strftime("%Y-%m-%dT%H:%M:%S.") + f"{now.microsecond // 1000:03d}Z"
 
 
+def warm_area_index(enrichment: EntityAreaEnrichmentService) -> None:
+    """在后台把区域索引建起来（幂等；无事件循环时静默跳过）。
+
+    为什么必须显式预热：设备时序的写入路径不会等索引，索引为空时 ``enrich_entity_sync``
+    原样返回实体，``areaId`` 与 ``peerSnapshot`` 就整列写空 —— 不报错、不留痕，
+    但「因果复盘」实际已经失效（生产库实测 areaId 非空率 0.005%、peerSnapshot 全空）。
+    """
+    try:
+        task = asyncio.get_running_loop().create_task(enrichment.ensure_loaded())
+    except RuntimeError:  # 测试装配 / 无事件循环：首屏读取路径会自己加载
+        logger.debug("装配期无事件循环，跳过区域索引预热")
+        return
+    task.add_done_callback(
+        lambda finished: (
+            None
+            if finished.cancelled() or finished.exception() is None
+            else logger.warning("区域索引预热失败（时序区域归因将为空）: %s", finished.exception())
+        )
+    )
+
+
 __all__ = [
     "ENTITY_AREA_CACHE_MS",
     "EntityAreaEnrichmentService",
@@ -443,4 +473,5 @@ __all__ = [
     "build_entity_area_index",
     "enrich_entities_areas",
     "enrich_entity_areas",
+    "warm_area_index",
 ]

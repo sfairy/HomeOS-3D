@@ -59,9 +59,7 @@ async def install(
         try:
             directory.mkdir(parents=True, exist_ok=True)
         except OSError as exc:
-            app.state.global_log.append(
-                "warning", "系统后台", "系统", f"目录创建失败：{directory}（{exc}）"
-            )
+            app.state.global_log.append("warning", "系统后台", "系统", f"目录创建失败：{directory}（{exc}）")
     # 素材目录：内置素材 / 用户上传 / Studio 导出 / 特效变体。
     app.state.asset_catalog = AssetCatalog(
         settings.built_in_assets_dir,
@@ -72,12 +70,16 @@ async def install(
     )
     # 单用户注册下「是否已注册」直接查 ``users`` 表，无需外置文件。
     # 3D 登录限流器（配对码 / 授权激活等端点使用）。
-    app.state.login_limiter = LoginAttemptLimiter()
+    # 登录桶开启指数退避：反复被封的键从 600s 起翻倍，避免「每天试几次」的慢速爆破。
+    app.state.login_limiter = LoginAttemptLimiter(escalate=True)
+    #: 跨 IP 聚合的账号桶：阈值比 IP 桶宽得多（20 次 / 10 分钟），
+    #: 既能让分布式爆破唯一管理员口令的成本变高，又不会 5 次失败就锁死全家唯一账号。
+    app.state.login_account_limiter = LoginAttemptLimiter(
+        max_failures=20, window_seconds=600, block_seconds=600, escalate=True
+    )
 
     # HA 平面：HAConnectorService 是唯一连接与 StateHub 事实源；3D 读 ``app.state.studio_ha``。
-    studio_ha = StudioHAConnectorService(
-        settings, database, event_log=app.state.global_log
-    )
+    studio_ha = StudioHAConnectorService(settings, database, event_log=app.state.global_log)
     app.state.studio_ha = studio_ha
     app.state.state_hub = studio_ha.state_hub
     studio_ha.start()

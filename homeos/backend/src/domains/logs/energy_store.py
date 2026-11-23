@@ -29,10 +29,16 @@ from .energy_aggregate import (
     accumulate_energy_totals,
 )
 from .energy_guard import drop_implausible_days, is_implausible_day, is_implausible_month, load_day_peers
+from .energy_units import unit_for_entity
 from .event_log_report import _resolve_ops_timezone_name
 from .event_log_tier import is_billing_snapshot_entity, is_energy_meter_state
 from ..client_power.energy_meter import normalize_meter_scope
-from ...platform.core.db.models import EnergyCandidateEntity, EnergyUsageDaily, EnergyUsageMonthly
+from ...platform.core.db.models import (
+    EnergyCandidateEntity,
+    EnergyUsageDaily,
+    EnergyUsageHourly,
+    EnergyUsageMonthly,
+)
 
 logger = logging.getLogger("homeos.event_log")
 
@@ -52,6 +58,18 @@ class EnergyStoreMixin:
         except Exception as error:  # 配置读取失败不该带塌能耗聚合
             logger.debug("能耗主电表读取失败，回退全量识别: %s", error)
             return set()
+
+    def _resolve_energy_circuit_entities(self) -> set[str]:
+        """分回路电量表集合；读取失败按空集处理（回路排行只是增强）。"""
+        try:
+            return {str(item).strip() for item in (self._energy_circuit_entities() or ()) if str(item).strip()}
+        except Exception as error:
+            logger.debug("分回路配置读取失败，按无回路处理: %s", error)
+            return set()
+
+    def circuit_entity_ids(self) -> set[str]:
+        """公开只读口径（回填旁路要把回路表也纳入候选）。"""
+        return self._resolve_energy_circuit_entities()
 
     def _resolve_energy_bindings(self) -> dict[str, str]:
         """能源绑定全貌：``{primary, scope, day, month}``。
@@ -106,14 +124,15 @@ class EnergyStoreMixin:
         timezone_name = _resolve_ops_timezone_name(self._ops)
         # 绑定了主电表就只聚它：HA 里同表的日/月/年累计与各回路电量表都算进来，
         # 会让「今日用电」凭空翻几倍。未绑定时（老装机）保持全量识别。
-        day_totals, month_totals, reset_count = accumulate_energy_totals(
+        day_totals, month_totals, hour_totals, reset_count = accumulate_energy_totals(
             batch,
             self._resolve_energy_primary_entities(),
             self._resolve_energy_bindings(),
             timezone_name,
+            self._resolve_energy_circuit_entities(),
         )
         _log_meter_resets(reset_count)
-        if not energy_ids and not day_totals and not month_totals:
+        if not energy_ids and not day_totals and not month_totals and not hour_totals:
             return
         with self._database.session_factory() as session:
             _register_energy_candidates(session, energy_ids)
@@ -125,6 +144,9 @@ class EnergyStoreMixin:
             _write_daily_rows(session, accepted, daily_rows)
             monthly_totals = _guard_month_readings(session, month_totals)
             _write_monthly_rows(session, monthly_totals, monthly_rows, rejected)
+            # 小时行只服务峰谷计价，量级是日行的 24 倍 —— 单独一张表、单独写入，
+            # 且**不受**月度护栏影响（护栏判的是「整月总量跳变」，与小时无关）。
+            _write_hourly_rows(session, hour_totals)
             session.commit()
 
     # ---- 能耗历史回填 ----
@@ -205,15 +227,20 @@ class EnergyStoreMixin:
         # 与实时链路口径不一致、也让报表总量重复。国网账户在调用方已归到目标实体
         # （主表或账户实体），因此这里不再需要「跳过主表过滤」的特殊开关。
         primary_entities = self._resolve_energy_primary_entities()
+        circuits = self._resolve_energy_circuit_entities()
         if primary_entities:
             # 账单级权威值即使不在主表名下也照写：那是另一个户号自己的账户历史，
             # 存在它自己的实体行上，报表按主表过滤时自然不会计入合计。丢掉它等于
             # 用户换绑/补绑主表时又要重新等一次集成刷新。
             day_values = {
-                key: value for key, value in day_values.items() if key[0] in primary_entities or key in forced_days
+                key: value
+                for key, value in day_values.items()
+                if key[0] in primary_entities or key[0] in circuits or key in forced_days
             }
             month_values = {
-                key: value for key, value in month_values.items() if key[0] in primary_entities or key in forced_months
+                key: value
+                for key, value in month_values.items()
+                if key[0] in primary_entities or key[0] in circuits or key in forced_months
             }
             forced_days = {key for key in forced_days if key in day_values}
             forced_months = {key for key in forced_months if key in month_values}
@@ -284,6 +311,54 @@ def _load_daily_rows(
             )
         )
     }
+
+
+def _load_hourly_rows(
+    session: Any, hour_totals: dict[tuple[str, str], dict[str, Any]]
+) -> dict[tuple[Any, Any], EnergyUsageHourly]:
+    if not hour_totals:
+        return {}
+    return {
+        (row.entity_id, row.hour): row
+        for row in session.scalars(
+            select(EnergyUsageHourly).where(
+                EnergyUsageHourly.entity_id.in_({entity_id for entity_id, _ in hour_totals}),
+                EnergyUsageHourly.hour.in_({hour for _, hour in hour_totals}),
+            )
+        )
+    }
+
+
+def _write_hourly_rows(
+    session: Any,
+    hour_totals: dict[tuple[str, str], dict[str, Any]],
+) -> None:
+    """小时增量累加（只增不减：同一小时可能分多批到达）。
+
+    与日行的差别：小时行**不做**权威读数覆盖 —— 权威表只有日/月两种口径，
+    没有「本小时最大值」这种东西，硬套会把这个小时写成累计量。
+    """
+    if not hour_totals:
+        return
+    existing = _load_hourly_rows(session, hour_totals)
+    for (entity_id, hour), value in hour_totals.items():
+        kwh = float(value.get("kwh") or 0.0)
+        if kwh <= 0:
+            continue
+        row = existing.get((entity_id, hour))
+        if row is None:
+            session.add(
+                EnergyUsageHourly(
+                    entity_id=entity_id,
+                    hour=hour,
+                    kwh=kwh,
+                    unit=unit_for_entity(entity_id),
+                    sample_count=int(value.get("count") or 0),
+                )
+            )
+        else:
+            row.kwh += kwh
+            row.sample_count += int(value.get("count") or 0)
 
 
 def _load_monthly_rows(
@@ -406,6 +481,7 @@ def _write_daily_rows(
                 entity_id=entity_id,
                 day=day,
                 kwh=value["kwh"],
+                unit=unit_for_entity(entity_id),
                 sample_count=int(value["count"]),
             )
             daily_rows[(entity_id, day)] = row
@@ -436,6 +512,7 @@ def _write_monthly_rows(
                 entity_id=entity_id,
                 month=month,
                 kwh=accepted["kwh"],
+                unit=unit_for_entity(entity_id),
                 sample_count=int(accepted["count"]),
             )
             monthly_rows[(entity_id, month)] = row

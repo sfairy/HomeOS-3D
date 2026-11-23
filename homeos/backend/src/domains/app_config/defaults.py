@@ -84,6 +84,11 @@ def _default_notification_section() -> dict[str, Any]:
             "lowBatteryNotifyEnabled": True,
             "offlineCooldownMin": 30,
             "lowBatteryCooldownMin": 120,
+            # 按来源静音（exact 或「同族前缀」，如 ``earthquake`` 覆盖 ``earthquake-eew``）。
+            # danger 级与生命安全通知不受它影响 —— 静音永远不能挡掉真正的告警。
+            "mutedSources": [],
+            # 免打扰只在指定星期生效（0=周日）；空数组 = 每天。
+            "dndWeekdays": [],
         },
     }
 
@@ -94,7 +99,18 @@ def _default_safety_and_iaq_sections() -> dict[str, Any]:
         # 用水监测配置
         "water": {
             "anomalyCooldownMin": 30,
+            # 「一键关阀」目标（valve.* / switch.*）。水浸传感器本身的告警与自动关阀
+            # 由安防危险联动按 3D 布局绑定处理，本字段只服务于手动确认入口。
             "mainValveEntityId": "",
+            # 水表与流量表：留空时自动从实体属性识别（device_class / 单位）。
+            "meterEntityId": "",
+            "flowEntityId": "",
+            # 长流水判定：持续高于阈值超过该时长即告警（不自动关阀，见 domains/water）。
+            "longFlowMinutes": 30,
+            "longFlowRateLpm": 0.5,
+            # 日用量异常：今日 ≥ 前 N 天日均 × 该倍数即告警（基线天数不足时不报）。
+            "dailyAnomalyRatio": 2.0,
+            "usageLearningDays": 7,
         },
         # 安防配置
         "security": {
@@ -123,13 +139,31 @@ def _default_safety_and_iaq_sections() -> dict[str, Any]:
             "alertChannels": ["in_app"],
             "alertBypassDnd": True,
             "armExitGraceSeconds": 30,
+            # 进入延时：布防后开门进屋先给 N 秒撤防窗口，0 = 关闭。
+            # 与「撤离宽限」是两个方向，互不重叠（那个管出门，这个管进门）。
+            "entryDelaySeconds": 30,
+            # 危险告警（烟雾 / 燃气 / 漏水）是否执行 3D 布局里绑定的自动动作（关阀 / 排风）。
+            # 默认开＝保留既有行为；关掉后只告警，由用户在大屏上手动处置。
+            "hazardAutoActions": True,
         },
         # 昼夜节律照明配置
         "circadian": {
             "weatherEntityId": "",
+            "enabled": False,
+            # 参与的灯：为空时整段不执行（绝不能默认改全屋色温）。
+            "lightEntityIds": [],
+            "dayKelvin": 5000,
+            "nightKelvin": 2700,
+            # 默认只调色温；开启后连亮度一起按夜间比例调整。
+            "applyBrightness": False,
+            "nightBrightnessPct": 30,
         },
         "iaq": {
             "moldAlertCooldownMin": 10,
+            "moldHumidityThreshold": 65,
+            "moldHoldMinutes": 60,
+            "pm25Threshold": 75,
+            "co2Threshold": 1200,
         },
     }
 
@@ -161,6 +195,14 @@ def _default_energy_sections() -> dict[str, Any]:
             "learningStartedAt": "",
             "anomalyCooldownMin": 60,
             "budgetAlertCooldownMin": 720,
+            # 月度预算（kWh）：0 = 未设置，不做预算告警。
+            "monthlyBudgetKwh": 0,
+            "budgetWarnRatio": 1.0,
+            # 日用量异常阈值：今日超过学习期日均的该倍数即告警。
+            "anomalyRatio": 2.0,
+            # 预付费余额：低于阈值提醒（欠费会直接断电）。
+            "balanceEntityId": "",
+            "balanceLowThreshold": 20,
         },
         # 电价计费配置
         "pricing": {

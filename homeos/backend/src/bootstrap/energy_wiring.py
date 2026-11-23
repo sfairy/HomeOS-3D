@@ -53,6 +53,22 @@ def make_energy_bindings_provider(app_config: Any) -> Callable[[], dict[str, str
     return _energy_bindings
 
 
+def make_energy_circuit_provider(app_config: Any) -> Callable[[], set[str]]:
+    """「分回路电量表」回调（``energy.circuitEntityIds``）。
+
+    与主表刻意分开：回路表要各自记账（否则回路排行永远是空的），但**绝不能**并进总耗
+    —— 回路是主表的下游拆分，加一遍就是同一度电算两次。
+    """
+
+    def _energy_circuits() -> set[str]:
+        energy = app_config.get("energy") or {}
+        raw = energy.get("circuitEntityIds")
+        items = raw if isinstance(raw, list) else []
+        return {str(item).strip() for item in items if str(item).strip()}
+
+    return _energy_circuits
+
+
 def make_energy_attrs_provider(
     resolve_store: Callable[[], Any],
 ) -> Callable[[str], dict[str, Any] | None]:
@@ -80,5 +96,6 @@ def make_energy_attrs_provider(
 __all__ = [
     "make_energy_attrs_provider",
     "make_energy_bindings_provider",
+    "make_energy_circuit_provider",
     "make_energy_primary_provider",
 ]

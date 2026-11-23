@@ -237,10 +237,59 @@ async def check_home_mode_time_triggers(state: HomeModeTriggersState, deps: Any)
         state.fired_time_occurrences.clear()
         state.time_occurrence_day = day_key
 
+    # 日出日落只在这批绑定里真的存在时才去读 sun.sun（避免每轮都多一次取数）。
+    sun = await _read_sun_state(state, deps)
     for binding in state.trigger_bindings:
-        await _handle_time_binding(state, deps, binding, now, parts, weekday, day_key)
+        await _handle_time_binding(state, deps, binding, now, parts, weekday, day_key, sun)
     # 只有整轮求值完成后才标记该分钟已处理：中途异常不会吞掉本分钟的触发机会。
     state.last_time_trigger_minute = minute_key
+
+
+#: 日出 / 日落：HA ``sun.sun`` 的候选属性（不同版本命名不同）。
+_SUN_ATTRIBUTE_KEYS: dict[str, tuple[str, ...]] = {
+    "sunrise": ("next_dawn", "next_rising", "next_sunrise"),
+    "sunset": ("next_dusk", "next_setting", "next_sunset"),
+}
+
+
+def sun_event_hhmm(
+    sun: dict[str, Any] | None, event: str, offset_minutes: int, timezone_name: str | None = None
+) -> str | None:
+    """``sun.sun`` → 加上偏移后的 ``HH:mm``（**家庭时区**墙钟）。
+
+    必须按家庭时区取时分：``next_dusk`` 带的是 UTC 偏移，容器本地时区又常常是 UTC+8，
+    直接取 ``.hour`` 会把「日落后 3 分钟」算成「8 小时后」——触发窗口整体错位。
+
+    读不到太阳时间时返回 ``None``：调用方跳过本次求值并留日志，**绝不**退回到
+    「固定 06:00 / 18:00」这种猜测 —— 冬夏差两小时，猜错就是天没黑就开灯。
+    """
+    if not isinstance(sun, dict):
+        return None
+    attrs = sun.get("attributes")
+    if not isinstance(attrs, dict):
+        return None
+    keys = _SUN_ATTRIBUTE_KEYS.get(event)
+    if not keys:
+        return None
+    raw = next((attrs.get(key) for key in keys if attrs.get(key)), None)
+    if not raw:
+        return None
+    try:
+        moment = datetime.fromisoformat(str(raw))
+    except ValueError:
+        logger.warning("无法解析 sun.sun 的 %s 时间: %r", event, raw)
+        return None
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=UTC)
+    shifted = moment + timedelta(minutes=offset_minutes)
+    if timezone_name:
+        try:
+            from zoneinfo import ZoneInfo
+
+            shifted = shifted.astimezone(ZoneInfo(timezone_name))
+        except Exception:
+            logger.debug("家庭时区无效，日出日落时刻按原偏移取时分: %s", timezone_name)
+    return f"{shifted.hour:02d}:{shifted.minute:02d}"
 
 
 def _time_binding_due(
@@ -249,20 +298,45 @@ def _time_binding_due(
     parts: dict[str, Any],
     weekday: int,
     timezone_name: str | None,
+    sun: dict[str, Any] | None = None,
 ) -> tuple[str, str] | None:
-    """该时间绑定本次是否到期；到期返回 ``(at, occurrence)``，否则 ``None``。
+    """该绑定本次是否到期；到期返回 ``(at, occurrence)``，否则 ``None``。
+
+    支持两类时刻：
+
+    - ``type: "time"``：固定 ``HH:mm``；
+    - ``type: "sun"``：``event: sunrise|sunset`` + ``offsetMinutes``（±180），
+      时刻取自 ``sun.sun`` 的 ``next_dawn`` / ``next_dusk``。
 
     判据是「现在是否已过 occurrence」而不是「分钟是否恰好相等」：后者在事件循环被
     阻塞或服务重启跨过该分钟时会永久漏触发（当天再也不会补）。
     """
     trigger = binding.trigger
-    if trigger.get("type") != "time" or not isinstance(trigger.get("at"), str) or not trigger.get("at"):
+    kind = trigger.get("type")
+    if kind not in ("time", "sun"):
         return None
     days = trigger.get("days")
     # ``days`` 是 JS ``getDay()`` 口径的整数（0=周日 … 6=周六），与 zoned_date_parts 一致。
     if isinstance(days, list) and days and weekday not in days:
         return None
-    at = normalize_home_mode_time_at(trigger["at"].strip())
+    if kind == "sun":
+        event = str(trigger.get("event") or "sunrise").strip().lower()
+        try:
+            offset = int(trigger.get("offsetMinutes") or 0)
+        except (TypeError, ValueError):  # fmt: skip
+            logger.debug("日出日落偏移不是整数，按 0 处理: %r", trigger.get("offsetMinutes"))
+            offset = 0
+        offset = max(-180, min(180, offset))
+        resolved = sun_event_hhmm(sun, event, offset, timezone_name)
+        if resolved is None:
+            # 太阳时间不可用：本轮跳过（不猜）。
+            return None
+        at = resolved
+    else:
+        raw_at = trigger.get("at")
+        if not isinstance(raw_at, str) or not raw_at:
+            return None
+        at = normalize_home_mode_time_at(raw_at.strip())
     if not at:
         return None
     hour, minute = (int(item) for item in at.split(":", 1))
@@ -270,7 +344,22 @@ def _time_binding_due(
     delay = now - due_at
     if delay < timedelta(0) or delay > timedelta(minutes=TIME_TRIGGER_GRACE_MINUTES):
         return None
-    return at, f"{binding.mode_id}@{at}@{parts['year']:04d}-{parts['month']:02d}-{parts['day']:02d}"
+    label = f"sun:{trigger.get('event')}@{at}" if kind == "sun" else at
+    return at, f"{binding.mode_id}@{label}@{parts['year']:04d}-{parts['month']:02d}-{parts['day']:02d}"
+
+
+async def _read_sun_state(state: HomeModeTriggersState, deps: Any) -> dict[str, Any] | None:
+    """按需读取 ``sun.sun``（只有存在日出/日落绑定时才取）。"""
+    if not any(binding.trigger.get("type") == "sun" for binding in state.trigger_bindings):
+        return None
+    probe = getattr(deps, "fetch_entity_state", None)
+    if not callable(probe):
+        return None
+    try:
+        return await probe("sun.sun")
+    except Exception:
+        logger.debug("读取 sun.sun 失败，日出/日落触发本轮跳过", exc_info=True)
+        return None
 
 
 async def _handle_time_binding(
@@ -281,9 +370,10 @@ async def _handle_time_binding(
     parts: dict[str, Any],
     weekday: int,
     day_key: str,
+    sun: dict[str, Any] | None = None,
 ) -> None:
     """单个时间绑定的求值与执行（异常只影响自身）。"""
-    due = _time_binding_due(binding, now, parts, weekday, (deps.get_home_timezone() or "").strip() or None)
+    due = _time_binding_due(binding, now, parts, weekday, (deps.get_home_timezone() or "").strip() or None, sun)
     if due is None:
         return
     at, occurrence_key = due

@@ -69,6 +69,8 @@ BACKUP_ROOTS = (
 EXCLUDED_DB_TABLES: tuple[str, ...] = (
     # 历史事件 / 日志 / 时序
     "event_logs",
+    # 事件日志的小时汇总（可由 event_logs 重建；随原始表一起排除，否则「统计留一份」）
+    "event_log_stats_hourly",
     "security_events",
     "notifications",
     "earthquake_alert_history",

@@ -46,6 +46,19 @@ class ConfirmProfileRequest(BaseModel):
     aliases: list[str] | None = None
 
 
+class ConfirmBatchRequest(BaseModel):
+    """批量确认：同一批实体确认成同一类型（空调 6 台逐台点太慢）。
+
+    ``entityIds`` 由前端多选得出；服务端**逐台**走与单台确认完全相同的校验与审计，
+    只是把它们收在一次请求里。任何一台失败都不影响其余（结果里如实列出失败原因）。
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    entityIds: list[str] = Field(min_length=1, max_length=200)
+    kind: str = Field(min_length=1, max_length=32)
+
+
 class AliasesRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -122,6 +135,32 @@ async def confirm_profile(
     if not result.get("success"):
         raise BusinessException(ErrorCode.VALIDATION_FAILED, str(result.get("message") or "确认失败"))
     return result
+
+
+@router.put("/confirm-batch")
+async def confirm_profiles_batch(
+    payload: ConfirmBatchRequest, request: Request, user: dict[str, Any] = Depends(require_user)
+):
+    """批量确认同一类型的多台设备。
+
+    逐台复用 :meth:`confirm`（同一套 kind 校验、可用性检查与人工确认审计），
+    失败的单台不阻断其余；``confirmed`` / ``failed`` 都如实返回，界面据此提示
+    「已确认 5 台，2 台不可用」。
+    """
+    service = _service(request)
+    actor = _actor_of(user)
+    confirmed: list[str] = []
+    failed: list[dict[str, str]] = []
+    for entity_id in dict.fromkeys(payload.entityIds):  # 去重且保持顺序
+        result = await asyncio.to_thread(service.confirm, entity_id, payload.kind, None, actor=actor)
+        if result.get("success"):
+            confirmed.append(entity_id)
+        else:
+            failed.append({"entityId": entity_id, "message": str(result.get("message") or "确认失败")})
+    if not confirmed and failed:
+        # 全失败按第一台的原文报错：前端原有的单台提示逻辑可以继续复用。
+        raise BusinessException(ErrorCode.VALIDATION_FAILED, failed[0]["message"])
+    return {"success": True, "kind": payload.kind, "confirmed": confirmed, "failed": failed}
 
 
 @router.put("/aliases")

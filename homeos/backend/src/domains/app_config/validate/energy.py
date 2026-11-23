@@ -21,6 +21,7 @@ def _clock_to_minutes(raw: str) -> int | None:
     hour, minute = (int(x) for x in normalized.split(":"))
     return hour * 60 + minute
 
+
 def _range_to_segments(start_min: int, end_min: int) -> list[tuple[int, int]]:
     if start_min == end_min:
         return []
@@ -28,12 +29,14 @@ def _range_to_segments(start_min: int, end_min: int) -> list[tuple[int, int]]:
         return [(start_min, end_min)]
     return [(start_min, 1440), (0, end_min)]
 
+
 def _segments_overlap(left: list[tuple[int, int]], right: list[tuple[int, int]]) -> bool:
     for a0, a1 in left:
         for b0, b1 in right:
             if a0 < b1 and b0 < a1:
                 return True
     return False
+
 
 def clock_ranges_overlap(a_start: str, a_end: str, b_start: str, b_end: str) -> bool:
     a0 = _clock_to_minutes(a_start)
@@ -43,6 +46,7 @@ def clock_ranges_overlap(a_start: str, a_end: str, b_start: str, b_end: str) -> 
     if a0 is None or a1 is None or b0 is None or b1 is None:
         return False
     return _segments_overlap(_range_to_segments(a0, a1), _range_to_segments(b0, b1))
+
 
 def validate_tou_windows(input_: dict[str, Any]) -> list[str]:
     errors: list[str] = []
@@ -73,7 +77,23 @@ def validate_tou_windows(input_: dict[str, Any]) -> list[str]:
     return errors
 
 
+#: 用能监测的数值字段（键 → 允许区间）。
+_GUARD_NUMBERS: dict[str, tuple[float, float]] = {
+    "monthlyBudgetKwh": (0, 100000),
+    "budgetWarnRatio": (0.5, 2),
+    "anomalyRatio": (1.2, 20),
+    "balanceLowThreshold": (0, 100000),
+}
+
+
+def _validate_energy_guard_numbers(section: str, payload: dict[str, Any], errors: list[FieldError]) -> None:
+    for key, (low, high) in _GUARD_NUMBERS.items():
+        if key in payload:
+            num_in(section, key, payload[key], low, high, errors)
+
+
 # 分区校验函数
+
 
 def _validate_energy(section: str, payload: dict[str, Any], errors: list[FieldError]) -> None:
     if "learningPeriodDays" in payload:
@@ -82,7 +102,14 @@ def _validate_energy(section: str, payload: dict[str, Any], errors: list[FieldEr
         num_in(section, "budgetAlertCooldownMin", payload["budgetAlertCooldownMin"], 30, 10080, errors)
     if "anomalyCooldownMin" in payload:
         num_in(section, "anomalyCooldownMin", payload["anomalyCooldownMin"], 1, 1440, errors)
-    for key in ("meterEntityId", "mainPowerEntityId", "monthMeterEntityId", "dayMeterEntityId"):
+    _validate_energy_guard_numbers(section, payload, errors)
+    for key in (
+        "meterEntityId",
+        "mainPowerEntityId",
+        "monthMeterEntityId",
+        "dayMeterEntityId",
+        "balanceEntityId",
+    ):
         if key in payload:
             validate_optional_entity_id(section, key, payload[key], errors)
     if "meterScope" in payload:
@@ -92,14 +119,13 @@ def _validate_energy(section: str, payload: dict[str, Any], errors: list[FieldEr
 
         scope = payload["meterScope"]
         if scope not in METER_SCOPES:
-            errors.append(
-                {"section": section, "key": "meterScope", "message": "须为 total/year/month/day"}
-            )
+            errors.append({"section": section, "key": "meterScope", "message": "须为 total/year/month/day"})
     if "circuitEntityIds" in payload:
         validate_entity_id_list(section, "circuitEntityIds", payload["circuitEntityIds"], errors)
 
 
 _CLOCK_RE = re.compile(r"^(\d{1,2}):(\d{2})$")
+
 
 def _validate_clock_time(section: str, key: str, val: Any, errors: list[FieldError]) -> None:
     if not isinstance(val, str):
@@ -114,6 +140,7 @@ def _validate_clock_time(section: str, key: str, val: Any, errors: list[FieldErr
     if hour > 23 or minute > 59:
         errors.append({"section": section, "key": key, "message": "小时须 0–23，分钟须 0–59"})
 
+
 def _is_fixed_pricing_mode(payload: dict[str, Any], context: dict[str, Any] | None) -> bool:
     mode = payload.get("pricingMode")
     if mode is None and isinstance(context, dict):
@@ -121,6 +148,7 @@ def _is_fixed_pricing_mode(payload: dict[str, Any], context: dict[str, Any] | No
         if isinstance(ctx_pricing, dict):
             mode = ctx_pricing.get("pricingMode")
     return mode == "fixed"
+
 
 def _validate_pricing(
     section: str, payload: dict[str, Any], errors: list[FieldError], context: dict[str, Any] | None
@@ -153,7 +181,7 @@ def _validate_pricing(
         try:
             if float(payload["fixedPrice"]) <= 0:
                 errors.append({"section": section, "key": "fixedPrice", "message": "固定单价须大于 0"})
-        except (TypeError, ValueError):
+        except (TypeError, ValueError):  # fmt: skip
             pass
     if "tier1Kwh" in payload:
         num_in(section, "tier1Kwh", payload["tier1Kwh"], 0, 100_000, errors)
@@ -189,12 +217,9 @@ def _validate_pricing(
         ):
             errors.append({"section": section, "key": "peakStart1", "message": message})
 
+
 def normalize_pricing_patch(partial: dict[str, Any]) -> dict[str, Any]:
     """切换为 fixed 且本次未指定分时时，默认关闭峰谷平。"""
-    if (
-        partial.get("pricingMode") == "fixed"
-        and "pricingMode" in partial
-        and "timeOfUseEnabled" not in partial
-    ):
+    if partial.get("pricingMode") == "fixed" and "pricingMode" in partial and "timeOfUseEnabled" not in partial:
         return {**partial, "timeOfUseEnabled": False}
     return partial

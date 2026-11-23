@@ -17,10 +17,19 @@ from fastapi import Body, Depends, Request
 from fastapi.responses import StreamingResponse
 
 from .router import NestRouter
+from ..dependencies import license_feature
+from ..domains.license import features as feature_codes
 from ..platform.security.client_address import resolve_client_address_from_request
 from ..platform.security.limiter import rate_limit
 
-router = NestRouter(prefix="/mcp", tags=["mcp"])
+router = NestRouter(
+    prefix="/mcp",
+    tags=["mcp"],
+    # MCP 网关暴露的是同一套管家工具链，必须和 ``/agent/*`` 共用 ``module.agent`` 能力码：
+    # 否则只有基础包的部署仍能通过网关控制设备（默认 fail-closed 只是「没配就不开」，
+    # 不等于「没买就不开」）。
+    dependencies=[license_feature(feature_codes.FEATURE_AGENT)],
+)
 
 #: SSE 心跳间隔（毫秒），对齐 Nest ``interval(15_000)``
 SSE_HEARTBEAT_MS = 15_000

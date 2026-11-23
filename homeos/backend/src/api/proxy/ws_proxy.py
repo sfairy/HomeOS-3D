@@ -31,6 +31,7 @@ from ...platform.core.http.embed_proxy_util import (
     strip_homeos_cookies,
 )
 from ...platform.core.http.errors import BusinessException
+from ...platform.security.request_origin import browser_origin_allowed
 
 logger = logging.getLogger("homeos.api.ws-proxy")
 
@@ -40,6 +41,7 @@ router = NestRouter(prefix="", tags=["realtime"])
 #: 此处用 4xxx 应用码保留语义（前端仅需感知「连接失败」）。
 CLOSE_BAD_REQUEST = 4400
 CLOSE_UNAUTHORIZED = 4401
+CLOSE_FORBIDDEN = 4403
 CLOSE_NOT_FOUND = 4404
 CLOSE_UNAVAILABLE = 1013
 
@@ -55,15 +57,19 @@ async def _reject(websocket: WebSocket, code: int) -> None:
 async def ha_webrtc_ws(websocket: WebSocket) -> None:
     """HA go2rtc WebRTC 信令同源反代。"""
     app = websocket.app
+    # 与 go2rtc / runtime 两条通道一致：握手先验来源。缺这道校验时，
+    # 只要会话 Cookie 被带到跨站 WS 上（Cookie 策略放宽、同站不同端口、
+    # 或非浏览器客户端拿着被窃 Cookie），信令就能被第三方页面驱动。
+    if not browser_origin_allowed(websocket, websocket=True):
+        await _reject(websocket, CLOSE_FORBIDDEN)
+        return
     entity_id = (websocket.query_params.get("entity_id") or "").strip()
     token = (websocket.query_params.get("token") or "").strip()
     if not entity_id.startswith("camera.") or not token:
         await _reject(websocket, CLOSE_BAD_REQUEST)
         return
 
-    user = await asyncio.to_thread(
-        resolve_go2rtc_ws_user, app, websocket.headers.get("cookie"), entity_id
-    )
+    user = await asyncio.to_thread(resolve_go2rtc_ws_user, app, websocket.headers.get("cookie"), entity_id)
     if user is None:
         await _reject(websocket, CLOSE_UNAUTHORIZED)
         return
@@ -79,9 +85,7 @@ async def ha_webrtc_ws(websocket: WebSocket) -> None:
         await bridge_websockets(
             websocket,
             upstream,
-            on_close=lambda exc: logger.debug(
-                "go2rtc WS 反代已关闭: %s", exc or "正常"
-            ),
+            on_close=lambda exc: logger.debug("go2rtc WS 反代已关闭: %s", exc or "正常"),
         )
     except WebSocketDisconnect:
         pass
@@ -107,9 +111,14 @@ async def _embed_proxy_ws(websocket: WebSocket, embed_id: str, sub_path: str) ->
         with app.state.database.session_factory() as session:
             return verify_embed_ws_auth(token, session)
 
+    # 来源与会话两个条件合成一个分支（圈复杂度不因新增校验而上升）。
+    # Origin 校验是跨站 WebSocket 劫持的第一道闸门：现在浏览器还有 SameSite=Lax 兜底，
+    # 但那是 Cookie 策略而不是这里的校验 —— 一旦放宽 Cookie 或出现同主机（同站、
+    # 不同端口）来源，缺这道校验就直接可利用。
     authorized = await asyncio.to_thread(_authorize)
-    if not authorized:
-        await _reject(websocket, CLOSE_UNAUTHORIZED)
+    origin_ok = browser_origin_allowed(websocket, websocket=True)
+    if not authorized or not origin_ok:
+        await _reject(websocket, CLOSE_UNAUTHORIZED if not authorized else CLOSE_FORBIDDEN)
         return
 
     embed_id = (embed_id or "").strip()
@@ -151,9 +160,7 @@ async def _embed_proxy_ws(websocket: WebSocket, embed_id: str, sub_path: str) ->
             headers=headers,
             subprotocols=protocols,
             heartbeat_ms=EMBED_WS_HEARTBEAT_MS,
-            on_close=lambda exc: logger.debug(
-                "内嵌页 WS 反代已关闭: %s", exc or "正常"
-            ),
+            on_close=lambda exc: logger.debug("内嵌页 WS 反代已关闭: %s", exc or "正常"),
         )
     except WebSocketDisconnect:
         pass

@@ -19,7 +19,12 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 from .exception_handlers import business_exception_json, nest_error_payload
 from ..config import Settings
 from ..domains.license import features as feature_codes
-from ..domains.license.guard import ASSET_SUFFIXES, is_license_exempt_path
+from ..domains.license.guard import (
+    ASSET_SUFFIXES,
+    LICENSE_EXPIRED_GRACE_WS_PREFIXES,
+    is_expired_grace_path,
+    is_license_exempt_path,
+)
 from ..platform.core.http.diagnostics import (
     DEFERRED_KEY,
     SLOW_REQUEST_MILLISECONDS,
@@ -160,7 +165,9 @@ class RequestDiagnosticsMiddleware(_HttpPassthroughMiddleware):
         if duration >= SLOW_REQUEST_MILLISECONDS:
             context["code"] = "HTTP_REQUEST_SLOW"
             context["hint"] = "本次接口已返回；若反复耗时较长，检查服务负载与网络，操作结果以对应状态为准。"
-            store.append("warning", "系统后台", "性能", f"接口响应缓慢：{operation} · {round(duration)} 毫秒", context=context)
+            store.append(
+                "warning", "系统后台", "性能", f"接口响应缓慢：{operation} · {round(duration)} 毫秒", context=context
+            )
 
     @staticmethod
     def _flush_deferred(store: Any, request: Request, context: dict) -> None:
@@ -244,26 +251,35 @@ class LicenseGuardMiddleware:
             return
         request = Request(scope, receive)
         service = getattr(request.app.state, "license_service", None)
+        path = request.url.path
+        exempt = is_license_exempt_path(path, request.method, request.headers.get("accept", ""))
+        if self.settings.license_required and service is None and not exempt:
+            # 严格模式下授权服务缺失必须 fail-closed：旧写法把 `service is None` 与正常激活
+            # 并成一条 if，一次装配错误就等于永久免授权。
+            # 与下方「恢复中」的 503 同一形态：这里不是业务异常，直接回最小 JSON。
+            response = JSONResponse(status_code=503, content={"detail": "授权服务暂不可用，请稍后重试。"})
+            await response(scope, receive, send)
+            return
         if service is not None and self.settings.license_required:
-            path = request.url.path
-            if not is_license_exempt_path(
-                path, request.method, request.headers.get("accept", "")
-            ):
+            if not exempt:
                 # 用 ``api`` 能力码而不是裸 ``allows()``：按商店的能力目录，``api`` 就是
                 # 「登录后读写业务数据的通用接口，其余能力码的前置条件」。
                 # 先读纯内存缓存；未命中才把同步 SQLAlchemy 读放到线程池。
                 allowed = service.cached_allows(feature_codes.FEATURE_API)
                 if allowed is None:
-                    allowed = await asyncio.to_thread(
-                        service.allows, feature_codes.FEATURE_API
-                    )
+                    allowed = await asyncio.to_thread(service.allows, feature_codes.FEATURE_API)
                 if not allowed:
+                    # 租约刚过期（宽限窗口内）只降级编辑类能力：设备控制与实时状态仍可用，
+                    # 否则家里断网几天就整台设备停摆（见 LICENSE_EXPIRED_GRACE_PREFIXES）。
+                    if await asyncio.to_thread(service.expired_grace_active) and is_expired_grace_path(
+                        path, request.method
+                    ):
+                        await self.app(scope, receive, send)
+                        return
                     _warn_if_asset_blocked(path)
                     response = business_exception_json(
                         request,
-                        BusinessException(
-                            ErrorCode.UNAUTHORIZED, api_error("LICENSE_INACTIVE"), 401
-                        ),
+                        BusinessException(ErrorCode.UNAUTHORIZED, api_error("LICENSE_INACTIVE"), 401),
                         is_production=self.settings.is_production,
                     )
                     await response(scope, receive, send)
@@ -280,17 +296,21 @@ class LicenseGuardMiddleware:
         app = scope.get("app")
         service = getattr(getattr(app, "state", None), "license_service", None)
         path = scope.get("path") or ""
-        if (
-            service is not None
-            and self.settings.license_required
-            and not is_license_exempt_path(path, "GET")
-        ):
+        # 与 HTTP 分支同一条理由：严格模式下授权服务缺失必须 fail-closed。
+        if self.settings.license_required and service is None and not is_license_exempt_path(path, "GET"):
+            await send({"type": "websocket.close", "code": 1011})
+            return
+        if service is not None and self.settings.license_required and not is_license_exempt_path(path, "GET"):
             allowed = service.cached_allows(feature_codes.FEATURE_API)
             if allowed is None:
-                allowed = await asyncio.to_thread(
-                    service.allows, feature_codes.FEATURE_API
-                )
+                allowed = await asyncio.to_thread(service.allows, feature_codes.FEATURE_API)
             if not allowed:
+                # 宽限期内实时通道必须能连：否则面板只剩静态壳（等同于整机不可用）。
+                if await asyncio.to_thread(service.expired_grace_active) and path.startswith(
+                    LICENSE_EXPIRED_GRACE_WS_PREFIXES
+                ):
+                    await self.app(scope, receive, send)
+                    return
                 await send({"type": "websocket.close", "code": 1008})
                 return
         await self.app(scope, receive, send)
@@ -365,9 +385,7 @@ class BackupMaintenanceASGI:
         path = scope.get("path") or ""
         coordinator = getattr(self.fastapi_app.state, "business_backup", None)
         if coordinator is not None:
-            if coordinator.maintenance and path.startswith("/api/v1/") and not path.startswith(
-                "/api/v1/backups"
-            ):
+            if coordinator.maintenance and path.startswith("/api/v1/") and not path.startswith("/api/v1/backups"):
                 response = JSONResponse(
                     status_code=503,
                     content={"detail": "正在恢复业务数据，请稍候…"},
@@ -377,9 +395,7 @@ class BackupMaintenanceASGI:
             if coordinator.recovery_required and path.startswith("/api/v1/backups"):
                 response = JSONResponse(
                     status_code=503,
-                    content={
-                        "detail": "恢复回退尚未完成，请重启服务或联系管理员后再试备份操作。"
-                    },
+                    content={"detail": "恢复回退尚未完成，请重启服务或联系管理员后再试备份操作。"},
                 )
                 await response(scope, receive, send)
                 return

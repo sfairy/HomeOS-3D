@@ -20,6 +20,7 @@ from .agent_services import build_agent_shared_state
 from .energy_wiring import (
     make_energy_attrs_provider,
     make_energy_bindings_provider,
+    make_energy_circuit_provider,
     make_energy_primary_provider,
 )
 from ..config import Settings
@@ -78,7 +79,7 @@ from ..domains.security.panel import SecurityConfigProvider, SecurityPanelServic
 from ..domains.security.presence import PresenceService
 from ..domains.security.service import SecurityService
 from ..domains.setup import SetupWizardService
-from ..domains.state_store.entity_area import EntityAreaEnrichmentService
+from ..domains.state_store.entity_area import EntityAreaEnrichmentService, warm_area_index
 from ..domains.state_store.entity_references import EntityReferencesService
 from ..domains.state_store.entity_sync_filter import HaEntitySyncFilterService
 from ..domains.store.discovery import StoreBaseUrlResolver
@@ -145,6 +146,9 @@ def _make_state_listener(app: FastAPI, gateway: Any, store: Any):
             "old_state": data.get("old_state"),
             "new_state": data.get("new_state"),
             "changed_at": event.get("time_fired") or data.get("last_changed"),
+            # 必须透传：时间线的「谁触发的」归因全靠它（user_id=本地下发、parent_id=HA
+            # 自动化）。此前丢了这个字段，226 万行时序里 HA_AUTOMATION 为 0 条。
+            "context": data.get("context"),
         }
         if data.get("removed"):
             change["removed"] = True
@@ -422,6 +426,7 @@ async def _init_core_services(app: FastAPI, startup: _StartupContext) -> None:
         app.state.database,
         energy_primary_entities=make_energy_primary_provider(app_config),
         energy_bindings=make_energy_bindings_provider(app_config),
+        energy_circuit_entities=make_energy_circuit_provider(app_config),
     )
     event_log_service.bind_loop(asyncio.get_running_loop())
     app.state.event_log = event_log_service
@@ -436,6 +441,9 @@ def _install_realtime_state_pipeline(app: FastAPI, startup: _StartupContext) -> 
     startup.gateway = gateway
     state_store = gateway.state_store
     startup.state_store = state_store
+    # 也挂到 ``app.state``：路由（水阀状态、固件更新）与监测器都按这个位置取，
+    # 只放在 ``startup`` 里会让它们拿不到（``startup`` 在停机后不再可访问）。
+    app.state.state_store = state_store
     # 实体同步过滤共享视图：由 HaConnector 在注册表加载后 configure。
     entity_sync_filter = HaEntitySyncFilterService()
     app.state.entity_sync_filter = entity_sync_filter
@@ -451,15 +459,22 @@ def _install_realtime_state_pipeline(app: FastAPI, startup: _StartupContext) -> 
     app.state.entity_area = EntityAreaEnrichmentService(
         ha_connector, state_store, session_factory=app.state.database.session_factory
     )
+    # 区域索引必须尽早就绪：设备时序的写入路径不会等它，索引为空时 areaId / peerSnapshot
+    # 会整列写空且不报错（实测 areaId 非空率 0.005%、peerSnapshot 全空 = 因果复盘失效）。
+    warm_area_index(app.state.entity_area)
     ha_connector.attach_sync_filter(
         entity_sync_filter,
         lambda: bool((startup.app_config.get("haConnector") or {}).get("syncOnlyEnabledEntities", True)),
     )
-    app.state.command_proxy = CommandProxyService(app.state.database.session_factory, ha_connector)
+    app.state.command_proxy = CommandProxyService(
+        app.state.database.session_factory, ha_connector, getattr(app.state, "license_service", None)
+    )
 
     # 安防域：事件总线 / 冷却 / 面板 / 在场 / Frigate / 离家模拟 / 演习
     security_bus = LocalEventBus()
     startup.security_bus = security_bus
+    # 命令代理在总线之前构造；这里回填，离线队列丢命令时才能发 ``automation.dropped``。
+    app.state.command_proxy.attach_event_bus(security_bus)
     # 回填事件总线：让 app_config 更新后广播 app.config.updated（各域热更新订阅依赖）
     startup.app_config.set_event_bus(security_bus)
     # HA 入口微窗口合并
@@ -477,6 +492,21 @@ def _install_realtime_state_pipeline(app: FastAPI, startup: _StartupContext) -> 
     app.state.entity_area.attach_event_bus(security_bus)
 
 
+async def _replay_offline_commands(app: FastAPI) -> None:
+    """HA 重连后补发断连期间积压的幂等控制命令。
+
+    补发失败**不能**让连接建立失败：HA 已经连上了，命令补发只是锦上添花，
+    所以整体 try 包住；剩余条目会留到下一次重连。
+    """
+    command_proxy = getattr(app.state, "command_proxy", None)
+    if command_proxy is None:
+        return
+    try:
+        await command_proxy.replay_offline()
+    except Exception:
+        logger.warning("补发离线命令失败（不影响连接建立）", exc_info=True)
+
+
 def _register_ha_event_handlers(app: FastAPI, startup: _StartupContext) -> None:
     """注册 HA 状态 / 连接事件处理器与连接器生命周期监听。"""
     gateway = startup.gateway
@@ -487,6 +517,7 @@ def _register_ha_event_handlers(app: FastAPI, startup: _StartupContext) -> None:
     async def _on_ha_connected(payload: Any) -> None:
         state_store.handle_ha_connected()
         data = payload if isinstance(payload, dict) else {}
+        await _replay_offline_commands(app)
         await gateway.broadcast_ha_status("connected", ha_version=data.get("ha_version"))
 
     async def _on_ha_disconnected(_payload: Any = None) -> None:
@@ -1380,6 +1411,21 @@ async def _start_ha_and_license(app: FastAPI, startup: _StartupContext) -> None:
     app.state.store_base_url_resolver = StoreBaseUrlResolver(app_settings)
 
 
+async def _shutdown_business_monitors(app: FastAPI, shutdown: Any) -> None:
+    """停掉业务监测器与倒计时（顺序无所谓，各自的 stop 都是幂等的）。"""
+    for attr, label in (
+        ("water_monitor", "用水监测"),
+        ("energy_monitor", "用能监测"),
+        ("iaq_monitor", "室内环境监测"),
+        ("circadian", "昼夜节律"),
+        ("device_timer", "设备倒计时"),
+    ):
+        service = getattr(app.state, attr, None)
+        stopper = getattr(service, "stop", None)
+        if callable(stopper):
+            await shutdown(label, stopper)
+
+
 async def _shutdown_agent_timeline(app: FastAPI, shutdown: Callable[..., Awaitable[Any]]) -> None:
     """把设备时序的写入队列落盘（必须在数据库 dispose 之前）。"""
     timeline = getattr(app.state, "agent_timeline", None)
@@ -1408,6 +1454,25 @@ async def _shutdown_media_services(app: FastAPI, shutdown: Any) -> None:
         await shutdown("影音场景", media_scene.stop)
 
 
+async def _build_business_monitors(app: FastAPI, startup: _StartupContext) -> None:
+    """业务监测（用水 / 用能 / IAQ / 昼夜节律）+ 设备倒计时装配与启动。
+
+    依赖顺序即约束：状态仓、配置、事件总线、冷却、通知都已就绪（``awareness_events``
+    之后）。监测器启动失败只降级对应功能并留警告，不阻断整机启动。
+    """
+    from .monitors import build_monitors
+
+    monitors = build_monitors(app, startup)
+    starts = [service.start() for service in monitors.values()]
+    device_timer = getattr(app.state, "device_timer", None)
+    if device_timer is not None:
+        # 倒计时是「用户已经离开，指望它自己关」的场景，必须在启动阶段就把落库的计时器
+        # 续上（过期项会立即补发一次）。
+        starts.append(device_timer.start())
+    if starts:
+        await _start_services(*starts)
+
+
 async def _shutdown_all(app: FastAPI, startup: _StartupContext) -> None:
     """停机全部组件：逐个隔离超时 / 异常，最后释放数据库。"""
     loop_lag = getattr(app.state, "loop_lag", None)
@@ -1429,6 +1494,7 @@ async def _shutdown_all(app: FastAPI, startup: _StartupContext) -> None:
         (startup.away_sim, "离家模拟"),
     ):
         await shutdown(label, service.stop)
+    await _shutdown_business_monitors(app, shutdown)
     await shutdown("家庭模式", startup.home_mode.stop)
     proactive = getattr(app.state, "agent_proactive", None)
     if proactive is not None:
@@ -1582,6 +1648,8 @@ async def _run_startup_phases(app: FastAPI, startup: _StartupContext, started: f
         await _build_channels_and_notification(app, startup)
     async with _startup_phase(app, "awareness_events"):
         await _build_awareness_and_events(app, startup)
+    async with _startup_phase(app, "business_monitors"):
+        await _build_business_monitors(app, startup)
     async with _startup_phase(app, "weather_earthquake"):
         await _build_weather_and_earthquake(app, startup)
     async with _startup_phase(app, "ha_license"):

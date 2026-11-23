@@ -21,6 +21,7 @@ from typing import Any
 
 from .command_proxy_auth import is_dangerous_ha_control
 from .verification import describe_service_verification
+from ..license import features as feature_codes
 from ...platform.core.db.json_field import object_field
 from ...platform.core.ha.service_payload_rules import (
     ServicePayloadRejected,
@@ -45,6 +46,19 @@ _IDEMPOTENCY_RESULT_TTL_MS = 30_000
 _IDEMPOTENCY_INFLIGHT_TTL_MS = 180_000
 #: 按实体串行锁的数量上限（LRU 淘汰空闲锁，避免大户型把锁表撑大）。
 _ENTITY_LOCK_MAX_ENTRIES = 512
+
+#: 离线待下发队列：条目上限 / 有效期 / 可安全重放的域。
+#:
+#: 只收「幂等且用户意图明确」的控制命令：灯、开关、风扇、窗帘、空调模式、媒体暂停。
+#: 同一实体反复操作只保留**最后一条意图**（「开→关→开」最终就是开），所以队列长度
+#: 与设备数同阶而不是与点击次数同阶。
+_OFFLINE_MAX_ENTRIES = 200
+_OFFLINE_TTL_SECONDS = 600.0
+_OFFLINE_REPLAY_DOMAINS = frozenset({"light", "switch", "fan", "cover", "climate", "media_player", "humidifier"})
+#: 即使域在可重放名单里，这些 service 也不排队（非幂等 / 有一次性副作用）。
+_OFFLINE_REPLAY_EXCLUDED_SERVICES = frozenset(
+    {"toggle", "media_next_track", "media_previous_track", "play_media", "set_playlist"}
+)
 
 
 @dataclass
@@ -129,14 +143,185 @@ class CommandProxyService:
     实体授权）留在各入口，执行只此一处：幂等去重 → HA 未连接时拦截高风险 → 连接器下发。
     """
 
-    def __init__(self, session_factory, connector) -> None:
+    def __init__(
+        self,
+        session_factory,
+        connector,
+        license_service: Any = None,
+        event_bus: Any = None,
+    ) -> None:
         self._session_factory = session_factory
         self._connector = connector
+        #: 事件总线（可选）：离线队列丢命令时要发 ``automation.dropped``，否则用户
+        #: 按下的「关灯」会**无声消失** —— 界面显示成功，灯一直亮着。
+        self._event_bus = event_bus
+        #: 授权服务（可选）：唯一出口自己校验 ``ha.control``，不依赖各入口是否记得加门禁。
+        self._license_service = license_service
         self._idempotency: dict[str, _IdempotencyEntry] = {}
         self._idempotency_pruned_at = 0.0
         self._command_proxy_cfg = DEFAULT_COMMAND_PROXY
         #: 按实体的串行锁（LRU 上限，见 ``_entity_lock``）。
         self._entity_locks: OrderedDict[str, asyncio.Lock] = OrderedDict()
+        #: 离线待下发队列：``entityId → (入队时刻, dto)``；同一实体只留最后一条意图。
+        self._offline_queue: OrderedDict[str, tuple[float, dict[str, Any]]] = OrderedDict()
+
+    def attach_event_bus(self, event_bus: Any) -> None:
+        """延迟注入事件总线：总线在命令代理之后装配（见 ``bootstrap/lifespan``）。"""
+        self._event_bus = event_bus
+
+    async def _preflight_offline(
+        self,
+        dto: dict[str, Any],
+        status: dict[str, Any],
+        domain: str,
+        service: str,
+        entity_id: str,
+        scope: str,
+    ) -> dict[str, Any] | None:
+        """下发的第一道判据：连上了就返回 ``None``（照常下发）。
+
+        未连接时：高风险命令直接拒绝（门锁 / 阀门 / 警报不能被排队延后执行），
+        幂等控制命令进待下发队列，其余按原路径尝试。
+        """
+        if status.get("connected"):
+            return None
+        if is_dangerous_ha_control(domain, service, entity_id):
+            raise BusinessException(
+                ErrorCode.SERVICE_UNAVAILABLE,
+                f"Home Assistant 未连接，已拦截高风险操作（{entity_id}）。请恢复 HA 连接后再试。",
+            )
+        return self._queue_when_disconnected(dto, domain, service, entity_id, scope)
+
+    def _queue_when_disconnected(
+        self,
+        dto: dict[str, Any],
+        domain: str,
+        service: str,
+        entity_id: str,
+        scope: str,
+    ) -> dict[str, Any] | None:
+        """HA 未连接时把可重放的幂等命令记成「待下发」。
+
+        返回 ``None`` 表示不适用（不可重放 / 非幂等），调用方按原路径继续尝试下发 ——
+        高风险命令（lock/unlock）已在上游拦截，这里不做二次判断。
+
+        为什么值得排队：HA 重启 / 断网通常只有几十秒，期间点灯直接失败会让用户以为
+        面板坏了，连点又产生一串失败请求。队列按实体去重，长度与设备数同阶。
+        """
+        if not self._enqueue_offline(dto, domain, service, entity_id):
+            logger.info("HA 未连接，尝试直接下发，可能失败：%s.%s → %s", domain, service, entity_id)
+            return None
+        result = _offline_queued_result(f"{int(time.time() * 1000)}-{_rand_suffix()}", entity_id)
+        if scope:
+            self._finish_idempotency(scope, result)
+        return result
+
+    def _enqueue_offline(self, dto: dict[str, Any], domain: str, service: str, entity_id: str) -> bool:
+        """把一条幂等控制命令记成「待下发」；不适用时返回 ``False``（调用方按原路径失败）。"""
+        if not entity_id or domain not in _OFFLINE_REPLAY_DOMAINS:
+            return False
+        if service in _OFFLINE_REPLAY_EXCLUDED_SERVICES:
+            return False
+        now = time.monotonic()
+        # 惰性过期：队列很小，每次入队顺手清一遍，不需要单独定时器。
+        stale = [
+            key for key, (queued_at, _dto) in self._offline_queue.items() if now - queued_at > _OFFLINE_TTL_SECONDS
+        ]
+        for key in stale:
+            dropped = self._offline_queue.pop(key, None)
+            if dropped is not None:
+                self._emit_dropped(key, dropped[1], "expired")
+        # 同一实体只保留最后一条意图（「开→关→开」补发开即可）。
+        self._offline_queue.pop(entity_id, None)
+        self._offline_queue[entity_id] = (now, dict(dto))
+        while len(self._offline_queue) > _OFFLINE_MAX_ENTRIES:
+            key, entry = self._offline_queue.popitem(last=False)
+            self._emit_dropped(key, entry[1], "overflow")
+        logger.info(
+            "HA 未连接，命令已入待下发队列：%s.%s → %s（队列 %s）", domain, service, entity_id, len(self._offline_queue)
+        )
+        return True
+
+    def _emit_dropped(self, entity_id: str, dto: dict[str, Any], reason: str) -> None:
+        """离线队列丢命令时告知用户（``expired`` / ``overflow`` / ``rejected``）。
+
+        静默丢弃是这里最坏的失败模式：用户在面板上看到「已关闭」，实际命令从未下发，
+        而设备会一直保持原状态直到下一次有人操作。
+        """
+        if self._event_bus is None:
+            return
+        self._event_bus.emit_soon(
+            "automation.dropped",
+            {
+                "entityId": entity_id,
+                "domain": dto.get("domain"),
+                "service": dto.get("service"),
+                "reason": reason,
+            },
+        )
+
+    async def replay_offline(self) -> int:
+        """HA 重连后按入队顺序补发待下发命令，返回成功条数。
+
+        只在下发成功（或 HA 明确拒绝该实体）时出队；连接再次中断就停下，把剩余条目
+        留给下一次重连 —— 否则一次失败会把整队意图丢掉。
+        """
+        if not self._offline_queue:
+            return 0
+        entries = list(self._offline_queue.items())
+        replayed = 0
+        now = time.monotonic()
+        for entity_id, (queued_at, dto) in entries:
+            if now - queued_at > _OFFLINE_TTL_SECONDS:
+                self._offline_queue.pop(entity_id, None)
+                continue
+            try:
+                await self.call_service(dict(dto), policy="agent")
+            except BusinessException as exc:
+                if exc.error_code is ErrorCode.SERVICE_UNAVAILABLE:
+                    # HA 又断了：停止本轮，剩余条目等下次重连。
+                    logger.info("补发中断（HA 再次不可用），剩余 %s 条待下发", len(self._offline_queue))
+                    break
+                logger.warning("补发被拒，丢弃该条：%s → %s（%s）", dto.get("domain"), entity_id, exc.message)
+                self._offline_queue.pop(entity_id, None)
+                self._emit_dropped(entity_id, dto, "rejected")
+                continue
+            except Exception:
+                logger.warning("补发失败，丢弃该条：%s", entity_id, exc_info=True)
+                self._offline_queue.pop(entity_id, None)
+                continue
+            self._offline_queue.pop(entity_id, None)
+            replayed += 1
+        if replayed:
+            logger.info("HA 重连后补发 %s 条待下发命令", replayed)
+        return replayed
+
+    def offline_pending_count(self) -> int:
+        """当前待下发条数（诊断页 / 测试用）。"""
+        return len(self._offline_queue)
+
+    async def _assert_ha_control_allowed(self) -> None:
+        """唯一出口的授权自检：``ha.control`` 不通过时任何通道都不能下发。
+
+        各 HTTP 入口仍保留自己的快速失败（错误形状不同），这里是最后一道闸门：
+        管家 / 语音 / MCP / 3D 控制面板最终都走 ``call_service``，入口漏挂能力码
+        也不会越权控制设备。
+        """
+        service = self._license_service
+        if service is None:
+            return
+        try:
+            allowed = await asyncio.to_thread(service.allows, feature_codes.FEATURE_HA_CONTROL)
+            if not allowed:
+                # 租约刚过期（宽限窗口内）：设备控制是「本机中控」的核心用途，继续放行；
+                # 超出窗口或关闭开关时 ``expired_grace_active`` 恒 False，行为回到全量拦截。
+                allowed = await asyncio.to_thread(service.expired_grace_active)
+        except Exception:
+            # 校验本身炸掉时按「不允许」处理：宁可拒绝一次控制，也不静默放行。
+            logger.warning("授权校验失败，按「不允许控制」处理", exc_info=True)
+            allowed = False
+        if not allowed:
+            raise BusinessException(ErrorCode.FORBIDDEN, "当前授权不允许控制 Home Assistant。")
 
     def _config(self) -> dict[str, Any]:
         try:
@@ -266,6 +451,7 @@ class CommandProxyService:
         管家 / 语音通道显式传 ``policy="agent"``（只复检服务键，字段口径由上游负责）。
         ``policy=None`` 仅供已在同一请求内校验过、且需要放行更宽字段集的内部路径使用。
         """
+        await self._assert_ha_control_allowed()
         self._assert_service_policy(dto, policy)
         raw_key = dto.get("idempotency_key")
         idempotency_key = str(raw_key) if raw_key else ""
@@ -309,16 +495,9 @@ class CommandProxyService:
         return_response = bool(dto.get("return_response"))
         try:
             status = await self._connector.get_status()
-            if not status.get("connected") and is_dangerous_ha_control(domain, service, entity_id):
-                raise BusinessException(
-                    ErrorCode.SERVICE_UNAVAILABLE,
-                    f"Home Assistant 未连接，已拦截高风险操作（{entity_id}）。请恢复 HA 连接后再试。",
-                )
-            if not status.get("connected"):
-                # 门面没有离线队列：HA 未连接时调用会立刻失败（高风险命令已在上面拦截）。
-                # 旧文案写「已入队，重连后自动发送」与行为不符，排障时会把「没下发」
-                # 误判成「排队中」。
-                logger.info("HA 未连接，尝试直接下发，可能失败：%s.%s → %s", domain, service, entity_id)
+            queued_result = await self._preflight_offline(dto, status, domain, service, entity_id, scope)
+            if queued_result is not None:
+                return queued_result
 
             data = await self._call_connector_serialized(
                 domain, service, entity_id, service_data, return_response, idempotency_key or None
@@ -437,6 +616,30 @@ def _format_service_call_error(error: Exception) -> str:
         return message
     name = error.__class__.__name__
     return name if name != "Exception" else "未知错误"
+
+
+def _offline_queued_result(message_id: str, entity_id: str) -> dict[str, Any]:
+    """HA 未连接、命令已入待下发队列时的响应。
+
+    ``queued=True`` + ``pending=True``：前端据此显示「已排队，重连后下发」，
+    与 ``build_control_result`` 的 ``ok`` 判据（pending 不算成功）保持一致。
+    """
+    return {
+        "success": True,
+        "message_id": message_id,
+        "timestamp": _iso_now(),
+        "queued": True,
+        "pending": True,
+        "skipped": False,
+        "verified": None,
+        "controlSuccess": False,
+        "data": {
+            "queued": True,
+            "pending": True,
+            "reason": "ha_disconnected_queued",
+            "entityId": entity_id,
+        },
+    }
 
 
 def _iso_now() -> str:

@@ -11,6 +11,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import delete, func, select
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from .event_log_tier import (
     build_record_filter,
@@ -20,6 +21,9 @@ from .event_log_tier import (
     resolve_event_log_tier,
     serialize_event_log_states,
 )
+from .event_stats_rollup import build_counts, ensure_backfilled, local_hour_key, query_totals, upsert_counts
+from .event_stats_rollup import clear_all as clear_stats_rollup
+from ..client_power.energy_meter import resolve_business_timezone
 from ...platform.core.db.models import EventLog
 from ...platform.core.db.retention import (
     DEFAULT_OPS,
@@ -40,6 +44,7 @@ from .event_log_report import (
     _naive_utc,
     _report_now,
     _resolve_event_occurred_at,
+    _resolve_ops_timezone_name,
     _restriction_conditions,
     _state_text,
     build_event_log_stats,
@@ -50,6 +55,10 @@ from .event_log_report import (
 #: `clear_all_records` 的批数上限（批大小见 ops 的 `retentionDeleteBatchSize`，默认 800）。
 #: 触顶不是错误（库里可能真有上百万行），但必须把 `complete=False` 如实返回给调用方。
 CLEAR_ALL_MAX_BATCHES = 500
+
+#: `clear_all_records` 的时间预算（秒）：超过就返回 `complete=False`。
+#: 前端请求与反代通常 30–60 秒超时，卡到超时连「删了多少行」都拿不到。
+CLEAR_ALL_TIME_BUDGET_SECONDS = 20.0
 
 #: 能耗旁路缓冲上限。电表读数抖动不会无限堆积；超限丢最旧的一条，
 #: 差分口径下只损失一次增量精度，周期读数（max）不受影响。
@@ -64,10 +73,11 @@ ENERGY_BUFFER_MAX = 2000
 RETENTION_CACHE_TTL_SECONDS = 5.0
 
 
+from .energy_report import EnergyReportExtraMixin
 from .energy_store import EnergyStoreMixin
 
 
-class EventLogService(EventLogReportMixin, EnergyStoreMixin):
+class EventLogService(EventLogReportMixin, EnergyReportExtraMixin, EnergyStoreMixin):
     """事件日志缓冲写入 + 查询 + 报表 + 保留清理。"""
 
     def __init__(
@@ -78,6 +88,7 @@ class EventLogService(EventLogReportMixin, EnergyStoreMixin):
         is_entity_syncable: Any = None,
         energy_primary_entities: Any = None,
         energy_bindings: Any = None,
+        energy_circuit_entities: Any = None,
     ) -> None:
         self._database = database
         self._is_leader = is_leader or (lambda: True)
@@ -86,6 +97,8 @@ class EventLogService(EventLogReportMixin, EnergyStoreMixin):
         self._energy_primary_entities = energy_primary_entities or set
         #: 返回能源绑定全貌（主表/口径/日表/月表），决定每一档粒度的权威读数来源。
         self._energy_bindings = energy_bindings
+        #: 返回「分回路电量表」集合：各自记账（供回路排行），但**不并入总耗**。
+        self._energy_circuit_entities = energy_circuit_entities or set
         self._buffer: list[dict[str, Any]] = []
         #: 能耗旁路缓冲：电表读数**不受**「事件日志显示过滤」约束。
         #:
@@ -372,21 +385,37 @@ class EventLogService(EventLogReportMixin, EnergyStoreMixin):
             if len(deduped) < len(batch):
                 logger.debug("事件日志批次内去重：%s → %s 条", len(batch), len(deduped))
             with self._database.session_factory() as session:
-                for row in deduped:
-                    session.add(
-                        EventLog(
-                            entity_id=row["entity_id"],
-                            domain=get_entity_domain(row["entity_id"]) or "",
-                            old_state=None
-                            if row["old_state"] is None
-                            else json.dumps(row["old_state"], ensure_ascii=False),
-                            new_state=None
-                            if row["new_state"] is None
-                            else json.dumps(row["new_state"], ensure_ascii=False),
-                            state_diff=row["state_diff"],
-                            created_at=_naive_utc(row["created_at"]),
-                        )
+                # 多行一条语句 + `ON CONFLICT DO NOTHING RETURNING`：
+                # 被库级唯一索引挡掉的重复行不会返回，因此汇总表只统计**真正落库**的行
+                # （否则「重试 → 汇总虚高」会替代「重试 → 原始表爆表」，只是换了张表出问题）。
+                rows_to_insert = [
+                    {
+                        "entity_id": row["entity_id"],
+                        "domain": get_entity_domain(row["entity_id"]) or "",
+                        "old_state": None
+                        if row["old_state"] is None
+                        else json.dumps(row["old_state"], ensure_ascii=False),
+                        "new_state": None
+                        if row["new_state"] is None
+                        else json.dumps(row["new_state"], ensure_ascii=False),
+                        "state_diff": row["state_diff"],
+                        "created_at": _naive_utc(row["created_at"]),
+                    }
+                    for row in deduped
+                ]
+                inserted: list[tuple[datetime, str, str]] = []
+                if rows_to_insert:
+                    result = session.execute(
+                        sqlite_insert(EventLog)
+                        .values(rows_to_insert)
+                        .on_conflict_do_nothing(index_elements=["entityId", "createdAt", "stateDiff"])
+                        .returning(EventLog.entity_id, EventLog.domain, EventLog.created_at)
                     )
+                    inserted = [(row[2], row[1], row[0]) for row in result.all()]
+                # 汇总增量：只算真正插入的行。
+                if inserted:
+                    timezone = resolve_business_timezone(_resolve_ops_timezone_name(self._ops))
+                    upsert_counts(session, build_counts(inserted, timezone))
                 session.commit()
 
     # 查询
@@ -493,42 +522,22 @@ class EventLogService(EventLogReportMixin, EnergyStoreMixin):
         window_hours = self._clamp_query_hours(hours, 24)
         since = now - timedelta(hours=window_hours)
         granularity = resolve_event_log_time_granularity(window_hours)
-        bucket_expr = self._bucket_expr(EventLog.created_at, 13 if granularity == "hour" else 10)
-        conditions: list[Any] = [EventLog.created_at >= _naive_utc(since)]
-        conditions.extend(_restriction_conditions(restrictions))
-        if entity_id:
-            conditions.append(EventLog.entity_id == entity_id)
-        if domain:
-            conditions.append(EventLog.domain == domain)
+        # 报表读**小时汇总表**，不再对原始行做三次 GROUP BY：分桶键是预聚合好的
+        # 家庭时区文本，既不需要 `datetime()` 包裹索引列，也没有整窗口物化排序。
+        ensure_backfilled(
+            self._database.session_factory, resolve_business_timezone(_resolve_ops_timezone_name(self._ops))
+        )
         with self._database.session_factory() as session:
-            domain_rows = [
-                (row[0], int(row[1]))
-                for row in session.execute(
-                    select(EventLog.domain, func.count())
-                    .where(*conditions)
-                    .group_by(EventLog.domain)
-                    .order_by(func.count().desc())
-                ).all()
-            ]
-            entity_rows = [
-                (row[0], int(row[1]))
-                for row in session.execute(
-                    select(EventLog.entity_id, func.count())
-                    .where(*conditions)
-                    .group_by(EventLog.entity_id)
-                    .order_by(func.count().desc())
-                    .limit(10)
-                ).all()
-            ]
-            time_rows = [
-                (row[0], int(row[1]))
-                for row in session.execute(
-                    select(bucket_expr, func.count())
-                    .where(*conditions)
-                    .group_by(bucket_expr)
-                    .order_by(bucket_expr.asc())
-                ).all()
-            ]
+            domain_rows, entity_rows, bucket_rows = query_totals(
+                session,
+                since_bucket=local_hour_key(_naive_utc(since), now.tzinfo),
+                entity_id=entity_id,
+                domain=domain,
+                entity_prefixes=restrictions,
+            )
+        time_rows = [
+            (bucket_key[:13] if granularity == "hour" else bucket_key[:10], count) for bucket_key, count in bucket_rows
+        ]
         return build_event_log_stats(domain_rows, entity_rows, time_rows, window_hours, now)
 
     # 清理
@@ -544,42 +553,56 @@ class EventLogService(EventLogReportMixin, EnergyStoreMixin):
         在清空之前抓取的批次会在删除**之后**提交，把刚清掉的记录重新写回去，而这里已经
         返回了 ``complete=True``。
         """
-        batch_size = int(self._ops.get("retentionDeleteBatchSize") or 800)
+        batch_size = max(1000, int(self._ops.get("retentionDeleteBatchSize") or 800) * 5)
         deleted = 0
         complete = True
-        # 与 _write_batch 共用一把锁：进入临界区先递增世代（让在途批次作废），再删除。
-        # 这样无论谁先拿到锁，结果都一致 —— 先写的批次会被随后的删除清掉，后到的过时
-        # 批次会因世代不符而丢弃，不会出现「报已清空、记录又回来」。
+        # 只在两个极短的临界区里持锁：
+        # 1) 递增世代 + 丢掉内存缓冲（让在途批次作废，且不会再被 flush 写回）；
+        # 2) 删除结束后再确认一次缓冲仍为空。
+        #
+        # 旧实现把**整个删除循环**包在锁里（最多 500 批 × 800 行），期间实时事件的
+        # flush 全部阻塞、缓冲溢出丢事件；HTTP 请求也被拖到代理超时。
         with self._write_lock:
             self._clear_epoch += 1
-            with self._database.session_factory() as session:
-                for _ in range(CLEAR_ALL_MAX_BATCHES):
-                    ids = [
-                        row[0]
-                        for row in session.execute(
-                            select(EventLog.id).order_by(EventLog.id.asc()).limit(batch_size)
-                        ).all()
-                    ]
-                    if not ids:
-                        break
-                    result = session.execute(delete(EventLog).where(EventLog.id.in_(ids)))
-                    deleted += int(result.rowcount or 0)
-                    session.commit()
-                    if len(ids) < batch_size:
-                        break
-                else:
-                    complete = session.execute(select(EventLog.id).limit(1)).first() is None
+            self._buffer = []
+            self._energy_buffer = []
+            if self._flush_timer is not None:
+                self._flush_timer.cancel()
+                self._flush_timer = None
+        with self._database.session_factory() as session:
+            # 汇总表与原始表同生命周期：只清原始表会让报表继续显示已删除的旧数据。
+            clear_stats_rollup(session)
+            deadline = time.monotonic() + CLEAR_ALL_TIME_BUDGET_SECONDS
+            for _ in range(CLEAR_ALL_MAX_BATCHES):
+                ids = [
+                    row[0]
+                    for row in session.execute(select(EventLog.id).order_by(EventLog.id.asc()).limit(batch_size)).all()
+                ]
+                if not ids:
+                    break
+                result = session.execute(delete(EventLog).where(EventLog.id.in_(ids)))
+                deleted += int(result.rowcount or 0)
+                session.commit()
+                if len(ids) < batch_size:
+                    break
+                # 时间预算：表可能有上千万行，前端的请求/代理会在 30–60 秒超时。
+                # 到点就如实返回 ``complete=False``，由界面再发起一次，而不是让请求
+                # 挂在「看起来卡死」的状态直到被代理掐断（那样连 deelte 数都拿不到）。
+                if time.monotonic() > deadline:
+                    logger.info(
+                        "清空事件日志达到时间上限（%s 秒），本轮删除 %s 行，剩余留待下次",
+                        CLEAR_ALL_TIME_BUDGET_SECONDS,
+                        deleted,
+                    )
+                    complete = False
+                    break
+            else:
+                complete = session.execute(select(EventLog.id).limit(1)).first() is None
         if not complete:
             logger.warning(
-                "清空事件日志触顶：%s 批 × %s 行，仍有记录未删除（需再执行一次或交由保留策略清理）",
-                CLEAR_ALL_MAX_BATCHES,
-                batch_size,
+                "清空事件日志未完成：本轮删除 %s 行，仍有记录（需再执行一次或交由保留策略清理）",
+                deleted,
             )
-        self._buffer = []
-        self._energy_buffer = []
-        if self._flush_timer is not None:
-            self._flush_timer.cancel()
-            self._flush_timer = None
         return {"deleted": deleted, "complete": complete}
 
     # 周期对比报表

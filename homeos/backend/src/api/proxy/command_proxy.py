@@ -47,16 +47,31 @@ _FORBIDDEN = 403
 _CONFLICT = 409
 _NOT_FOUND = 404
 _BAD_GATEWAY = 502
+_UNAVAILABLE = 503
 
 
 #: 应急开关：设为 ``0`` 时跳过「许可 + 连接 + 实体」三层校验（DTO 收紧仍然生效）。
-#: 只用于线上排障，正常部署不要设置。
+#: 只用于非生产排障；**生产环境忽略该开关**（忘记改回来 = 全站控制无授权校验）。
 STRICT_ENTRY_ENV = "HOMEOS_SERVICES_CALL_STRICT"
+
+#: 视为生产的环境名（与 `config.environment_is_production` 同口径的常用取值）。
+_PRODUCTION_ENVIRONMENTS = frozenset({"production", "prod"})
 
 
 def _strict_entry_enabled() -> bool:
     raw = os.getenv(STRICT_ENTRY_ENV)
-    return raw is None or raw.strip().lower() not in {"0", "false", "no", "off"}
+    if raw is None:
+        return True
+    if raw.strip().lower() not in {"0", "false", "no", "off"}:
+        return True
+    environment = (os.getenv("APP_ENVIRONMENT") or "").strip().lower()
+    if environment in _PRODUCTION_ENVIRONMENTS:
+        logger.warning(
+            "%s=0 在生产环境被忽略：跳过许可/连接/实体三层校验只允许用于非生产排障。",
+            STRICT_ENTRY_ENV,
+        )
+        return True
+    return False
 
 
 def _proxy(request: Request):
@@ -70,10 +85,12 @@ async def _assert_control_allowed(request: Request, dto: dict[str, Any]) -> None
     语义），域内则用 ``ServiceCallRejected``。判据本身不复制第二份。
     """
     license_service = getattr(request.app.state, "license_service", None)
-    if license_service is not None:
-        allowed = await asyncio.to_thread(license_service.allows, feature_codes.FEATURE_HA_CONTROL)
-        if not allowed:
-            raise HTTPException(status_code=_FORBIDDEN, detail="当前授权不允许控制 Home Assistant。")
+    if license_service is None:
+        # 装配缺失时不再「跳过校验继续下发」：那等于把「服务没起来」当成「授权通过」。
+        raise HTTPException(status_code=_UNAVAILABLE, detail="授权服务未就绪，暂时无法控制设备。")
+    allowed = await asyncio.to_thread(license_service.allows, feature_codes.FEATURE_HA_CONTROL)
+    if not allowed:
+        raise HTTPException(status_code=_FORBIDDEN, detail="当前授权不允许控制 Home Assistant。")
 
     database = getattr(request.app.state, "database", None)
     if database is None:

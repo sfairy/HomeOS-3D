@@ -313,9 +313,6 @@ class NotificationService:
         async def _send(payload: Any) -> None:
             await self._event_handlers.handle_homeos_automation_notify(payload)
 
-        async def _auto_failed(payload: Any) -> None:
-            await self._event_handlers.handle_automation_failed(payload)
-
         async def _auto_dropped(payload: Any) -> None:
             await self._event_handlers.handle_automation_dropped(payload)
 
@@ -348,11 +345,14 @@ class NotificationService:
         bus.on("security.emergency", _emergency)
         bus.on("energy.anomaly", _energy_anomaly)
         bus.on("energy.budgetExceeded", _budget)
+        bus.on("energy.balanceLow", self._event_handlers.handle_balance_low)
         bus.on("water.anomaly", _water)
         bus.on("env.moldRisk", _mold)
         bus.on("env.iaqThreshold", _iaq)
         bus.on("notification.homeos.send", _send)
-        bus.on("automation.failed", _auto_failed)
+        # ``automation.failed`` 刻意不订阅：家庭模式失败已由 ``home-mode`` 来源单独通知，
+        # 两处都发会让一次失败出现两条内容不同的通知，而「自动化」这个来源的失败计数
+        # 从来没有生产者——它只会制造一个永远空着的筛选分类。
         bus.on("automation.dropped", _auto_dropped)
         bus.on("advisor.tip", _tip)
         bus.on("clientPower.low", _power_low)

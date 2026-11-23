@@ -107,21 +107,25 @@ def is_lan_origin(origin: str) -> bool:
             second = int(host.split(".")[1])
             if 16 <= second <= 31:
                 return True
-        except (IndexError, ValueError):
+        except (IndexError, ValueError):  # fmt: skip
             pass
     return host.endswith(".local")
 
 
 def is_origin_allowed(origin: str, allowed_origins: list[str]) -> bool:
-    if origin in allowed_origins:
-        return True
-    # 显式白名单一旦配置，就只认白名单：此时再放行任意私网 / `.local` 来源，
-    # 等于让同网段的任意页面携带凭据跨源读写（CORS 会回写
-    # `Access-Control-Allow-Credentials: true`）。仅当白名单为空（客户机默认
-    # 部署）才走局域网兜底，避免把「没配域名」误判成「拒绝一切」。
-    if not allowed_origins:
-        return is_lan_origin(origin)
-    return False
+    """跨源是否放行：**只认显式白名单**。
+
+    原先白名单为空时会回退成「任意私网 / `.local` 来源」，并回写
+    ``Access-Control-Allow-Credentials: true``。配合 CSRF 双提交 Cookie（可被同主机的
+    其它端口读取，Cookie 不按端口隔离），同主机上任何一个被攻破的服务页面都能带上
+    管理员 Cookie 调完整 API。
+
+    SPA 本来就是同源访问，同源请求不需要 CORS 头 —— 这里返回 False 不影响正常页面。
+    真正需要跨源前端的部署（少见）显式配置 ``CORS_ORIGINS`` / ``APP_BASE_URL``。
+    """
+    if not origin:
+        return False
+    return origin in allowed_origins
 
 
 # Cookie 写入 / 清除

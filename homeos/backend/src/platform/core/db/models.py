@@ -28,11 +28,20 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
+
+# 设备倒计时表在独立模块：import 只为把表注册进 metadata（create_all 依赖它）。
+from .device_timer_model import DeviceTimer  # noqa: F401
 from .model_mixins import AlertRuleStructuredMixin, AlertRuleTimingMixin, HomeModeExtraMixin
+from .water_usage_model import WaterUsageDaily  # noqa: F401
 
 
 def utc_now() -> datetime:
     return datetime.now(UTC)
+
+
+def _energy_unit_column():
+    """用能单位列（电 kWh / 燃气、水 m³）。日表与月表必须**同形**，故共用一份定义。"""
+    return mapped_column(String(8), nullable=False, default="kWh", server_default="kWh")
 
 
 def new_uuid() -> str:
@@ -292,6 +301,17 @@ class EventLog(Base):
         Index("event_logs_entityId_createdAt_idx", "entityId", "createdAt"),
         Index("event_logs_domain_createdAt_idx", "domain", "createdAt"),
         Index("event_logs_createdAt_idx", "createdAt"),
+        # 库级幂等：同一实体的同一时刻、同一变化只存一条。应用层只在**批内**去重，
+        # 跨批次重复投递（重试 / 上游 fan-out / 多进程）会永久留下重复行 ——
+        # 11-18→11-21 的 1200 万行重复就是这样滚出来的。写入侧配
+        # ``INSERT … ON CONFLICT DO NOTHING``，升级路径见 migrations.py 的 3 号迁移。
+        Index(
+            "event_logs_entity_created_diff_uq",
+            "entityId",
+            "createdAt",
+            "stateDiff",
+            unique=True,
+        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -301,6 +321,37 @@ class EventLog(Base):
     new_state: Mapped[str | None] = mapped_column("newState", Text, nullable=True)
     state_diff: Mapped[str | None] = mapped_column("stateDiff", String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column("createdAt", DateTime, nullable=False, default=utc_now)
+
+
+class EventLogStat(Base):
+    """事件日志的小时汇总（**报表唯一读取源**）。
+
+    为什么需要：``/events/stats`` 原先直接对原始行做 3 次 ``GROUP BY``，分桶键还是
+    ``substr(datetime(createdAt, '+480 minutes'), 1, 10)`` —— 索引列被函数包住，
+    只能把整个窗口物化再排序。实测 227 万行单次分组 0.4–0.6 秒，12M 行时是秒级到
+    十秒级，而报表只是要几个计数。
+
+    这里按「家庭时区的日/小时」预聚合，写入批次里增量 ``+1``；报表只读这张表。
+    **时区变更后需要重建**（``ops/scripts/rebuild-event-stats.py``），因为
+    ``bucketKey`` 存的是当地墙钟文本。
+    """
+
+    __tablename__ = "event_log_stats_hourly"
+    __table_args__ = (
+        UniqueConstraint("bucketKey", "domain", "entityId", name="event_log_stats_hourly_key"),
+        Index("event_log_stats_hourly_bucket_idx", "bucketKey"),
+        Index("event_log_stats_hourly_utc_idx", "bucketUtc"),
+        Index("event_log_stats_hourly_entity_idx", "entityId", "bucketKey"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    #: 家庭时区的「YYYY-MM-DD HH」；``daily``/``hourly`` 都从它截取。
+    bucket_key: Mapped[str] = mapped_column("bucketKey", String(13), nullable=False)
+    #: 同一时刻的 UTC 小时文本，只用于保留期清理（与家庭时区无关，可直接字符串比较）。
+    bucket_utc: Mapped[str] = mapped_column("bucketUtc", String(13), nullable=False, default="")
+    domain: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    entity_id: Mapped[str] = mapped_column("entityId", String(255), nullable=False)
+    count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
 
 class DeviceUsageStat(Base):
@@ -355,36 +406,61 @@ class EnergyCandidateEntity(Base):
     )
 
 
-class EnergyUsageDaily(Base):
+class EnergyUsageColumnsMixin:
+    """能耗日/月聚合的公共列（两张表结构刻意同形，只有时间粒度列不同）。
+
+    抽成 mixin 而不是各写一遍：它们不只是「长得像」，而是**必须**同形 ——
+    报表、保留期清理、回填与 Agent 洞察都按同一组列名读写；两处定义漂移会先在
+    某条路径上抛 ``no such column``，再表现为「报表某天开始全是 0」。
+    """
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    entity_id: Mapped[str] = mapped_column("entityId", String(255), nullable=False)
+    kwh: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    #: 用能单位：电 ``kWh``，燃气/水 ``m³``。由 :mod:`domains.logs.energy_units` 按实体推导，
+    #: 不是写入参数 —— 让每条写入路径各自记得传单位，漏一处就会静默产生混单位的行。
+    unit: Mapped[str] = _energy_unit_column()
+    sample_count: Mapped[int] = mapped_column("sampleCount", Integer, nullable=False, default=0)
+    updated_at: Mapped[datetime] = mapped_column(
+        "updatedAt", DateTime, nullable=False, default=utc_now, onupdate=utc_now
+    )
+
+
+class EnergyUsageHourly(EnergyUsageColumnsMixin, Base):
+    """能耗小时聚合（**峰谷计价的唯一精确来源**）。
+
+    为什么必须单独一张表：``EnergyUsageDaily`` 只有日粒度，而峰谷电价的前提是
+    「这一小时属于峰段还是谷段」。按日总量 × 时长占比去拆只是估算（误差可达 20%+，
+    因为家庭负荷集中在峰段），账单级可信度必须来自真实的逐小时电量。
+
+    保留期与日表同步（7 天 / 配置值）：小时行是 24 倍数量，历史只需要日/月两种粒度。
+    """
+
+    __tablename__ = "energy_usage_hourly"
+    __table_args__ = (
+        UniqueConstraint("entityId", "hour", name="energy_usage_hourly_key"),
+        Index("energy_usage_hourly_hour_idx", "hour"),
+    )
+
+    hour: Mapped[str] = mapped_column(String(16), nullable=False)
+
+
+class EnergyUsageDaily(EnergyUsageColumnsMixin, Base):
     """能耗日聚合（能耗趋势查询的数据源）。"""
 
     __tablename__ = "energy_usage_daily"
     __table_args__ = (UniqueConstraint("entityId", "day", name="energy_usage_daily_key"),)
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
-    entity_id: Mapped[str] = mapped_column("entityId", String(255), nullable=False)
     day: Mapped[str] = mapped_column(String(16), nullable=False)
-    kwh: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-    sample_count: Mapped[int] = mapped_column("sampleCount", Integer, nullable=False, default=0)
-    updated_at: Mapped[datetime] = mapped_column(
-        "updatedAt", DateTime, nullable=False, default=utc_now, onupdate=utc_now
-    )
 
 
-class EnergyUsageMonthly(Base):
+class EnergyUsageMonthly(EnergyUsageColumnsMixin, Base):
     """能耗月聚合（能耗趋势查询的数据源）。"""
 
     __tablename__ = "energy_usage_monthly"
     __table_args__ = (UniqueConstraint("entityId", "month", name="energy_usage_monthly_key"),)
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
-    entity_id: Mapped[str] = mapped_column("entityId", String(255), nullable=False)
     month: Mapped[str] = mapped_column(String(16), nullable=False)
-    kwh: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-    sample_count: Mapped[int] = mapped_column("sampleCount", Integer, nullable=False, default=0)
-    updated_at: Mapped[datetime] = mapped_column(
-        "updatedAt", DateTime, nullable=False, default=utc_now, onupdate=utc_now
-    )
 
 
 # 商业授权
@@ -534,6 +610,7 @@ class HAConnection(Base):
 
 class HAEntity(Base):
     """HA 实体目录（连接 × 实体唯一）。"""
+
     __tablename__ = "ha_entities"
     __table_args__ = (UniqueConstraint("connection_id", "entity_id", name="uq_ha_entities_connection_entity"),)
 
@@ -590,6 +667,7 @@ class HADevice(Base):
 
 class HAArea(Base):
     """HA 区域目录（连接 × 区域唯一）。"""
+
     __tablename__ = "ha_areas"
     __table_args__ = (UniqueConstraint("connection_id", "area_id", name="uq_ha_areas_connection_area"),)
 
@@ -619,9 +697,7 @@ class HAAreaEntityOrder(Base):
     """
 
     __tablename__ = "ha_area_entity_order"
-    __table_args__ = (
-        UniqueConstraint("connection_id", "area_id", "entity_id", name="uq_ha_area_entity_order"),
-    )
+    __table_args__ = (UniqueConstraint("connection_id", "area_id", "entity_id", name="uq_ha_area_entity_order"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
     connection_id: Mapped[str] = mapped_column(
@@ -811,6 +887,9 @@ class AgentContextTimeline(Base):
         Index("agent_context_timeline_entity_idx", "entityId", "changedAt"),
         Index("agent_context_timeline_area_idx", "areaId", "changedAt"),
         Index("agent_context_timeline_changedAt_idx", "changedAt"),
+        # 写入路径每次都要找「同实体最后一条未结束记录」，没有这条索引时会沿实体索引
+        # 反向扫全部历史（实测单实体 6.6 万行）。升级路径见 migrations.py 的 2 号迁移。
+        Index("agent_context_timeline_open_idx", "entityId", "endedAt"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

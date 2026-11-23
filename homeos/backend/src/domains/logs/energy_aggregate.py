@@ -18,9 +18,11 @@ from typing import Any
 
 from sqlalchemy import func, select
 
+from .energy_units import unit_for_entity
 from .event_log_tier import is_energy_meter_state
 from ..client_power.energy_meter import (
     business_day_key,
+    business_hour_key,
     business_month_key,
     compute_meter_delta,
     is_cumulative_energy_meter,
@@ -140,7 +142,11 @@ def _merge_backfill_daily(
         key = (entity_id, day)
         row = daily_rows.get(key)
         if row is None:
-            session.add(EnergyUsageDaily(entity_id=entity_id, day=day, kwh=value, sample_count=1))
+            session.add(
+                EnergyUsageDaily(
+                    entity_id=entity_id, day=day, kwh=value, unit=unit_for_entity(entity_id), sample_count=1
+                )
+            )
             written += 1
         elif key in forced:
             if abs(float(row.kwh or 0.0) - value) > 1e-9:
@@ -213,7 +219,11 @@ def _merge_backfill_monthly(
             continue
         row = monthly_rows.get(key)
         if row is None:
-            session.add(EnergyUsageMonthly(entity_id=entity_id, month=month, kwh=value, sample_count=1))
+            session.add(
+                EnergyUsageMonthly(
+                    entity_id=entity_id, month=month, kwh=value, unit=unit_for_entity(entity_id), sample_count=1
+                )
+            )
             written += 1
         elif overwrite:
             if abs(float(row.kwh or 0.0) - value) > 1e-9:
@@ -285,11 +295,13 @@ def _accumulate_per_entity(
 ) -> tuple[
     dict[tuple[str, str], dict[str, Any]],
     dict[tuple[str, str], dict[str, Any]],
+    dict[tuple[str, str], dict[str, Any]],
     dict[str, int],
 ]:
     """未绑定主电表时的回退路径：每一块识别到的电量表各写一份增量（老装机不丢数据）。"""
     day_totals: dict[tuple[str, str], dict[str, Any]] = {}
     month_totals: dict[tuple[str, str], dict[str, Any]] = {}
+    hour_totals: dict[tuple[str, str], dict[str, Any]] = {}
     reset_count: dict[str, int] = {}
     for row in batch:
         entity_id = row["entity_id"]
@@ -303,6 +315,12 @@ def _accumulate_per_entity(
         if delta <= 0:
             continue
         created_at = row["created_at"]
+        hour_entry = hour_totals.setdefault(
+            (entity_id, business_hour_key(created_at, timezone_name)),
+            {"kwh": 0.0, "count": 0, "mode": "delta"},
+        )
+        hour_entry["kwh"] += delta
+        hour_entry["count"] += 1
         day_entry = day_totals.setdefault(
             (entity_id, business_day_key(created_at, timezone_name)),
             {"kwh": 0.0, "count": 0, "mode": "delta"},
@@ -315,7 +333,7 @@ def _accumulate_per_entity(
         )
         month_entry["kwh"] += delta
         month_entry["count"] += 1
-    return day_totals, month_totals, reset_count
+    return day_totals, month_totals, hour_totals, reset_count
 
 
 def accumulate_energy_totals(
@@ -323,12 +341,14 @@ def accumulate_energy_totals(
     primary_entities: set[str],
     bindings: dict[str, str],
     timezone_name: str | None,
+    circuit_entities: set[str] | None = None,
 ) -> tuple[
+    dict[tuple[str, str], dict[str, Any]],
     dict[tuple[str, str], dict[str, Any]],
     dict[tuple[str, str], dict[str, Any]],
     dict[str, int],
 ]:
-    """把一批状态变更折成 (实体, 日) / (实体, 月) 用量与表底重置计数。
+    """把一批状态变更折成 (实体, 小时) / (实体, 日) / (实体, 月) 用量与表底重置计数。
 
     ``primary_entities`` 非空时只有这些表参与差分：一块物理表常同时暴露日/月/年累计，
     再叠加各回路电量表，全部累加会把同一度电重复计费。为空（老装机未绑定）时全量识别。
@@ -339,21 +359,38 @@ def accumulate_energy_totals(
     """
     scope = bindings.get("scope") or "total"
     primary = bindings.get("primary") or ""
+    circuits = {str(item).strip() for item in (circuit_entities or ()) if str(item).strip()}
     if not primary:
-        return _accumulate_per_entity(batch, primary_entities, timezone_name)
+        day, month, hour, resets = _accumulate_per_entity(batch, primary_entities | circuits, timezone_name)
+        return day, month, hour, resets
     # 权威读数来源：主表口径匹配时主表本身就是权威表，佐证表优先于「口径不匹配的主表」。
     day_sources = {source for source in (bindings.get("day"), primary if scope == "day" else "") if source}
     month_sources = {source for source in (bindings.get("month"), primary if scope == "month" else "") if source}
-    day_deltas, month_deltas, day_readings, month_readings, reset_count = _collect_bound_points(
+    day_deltas, month_deltas, hour_deltas, day_readings, month_readings, reset_count = _collect_bound_points(
         batch, primary, primary_entities, day_sources, month_sources, timezone_name
     )
     # 读数统一记在主表名下：报表按主表过滤、by_entity 语义都不变，
     # 否则日/月表会作为独立实体再被求和一次。
-    return (
-        {(primary, key): value for key, value in _merge_grain_totals(day_deltas, day_readings).items()},
-        {(primary, key): value for key, value in _merge_grain_totals(month_deltas, month_readings).items()},
-        reset_count,
-    )
+    day_totals = {(primary, key): value for key, value in _merge_grain_totals(day_deltas, day_readings).items()}
+    month_totals = {(primary, key): value for key, value in _merge_grain_totals(month_deltas, month_readings).items()}
+    # 小时桶**只用差分**：权威读数是「周期内最大值」，没有小时级的对应物，
+    # 用它填小时会把这个小时的电量写成累计值（量级差 10 倍以上）。
+    hour_totals = {
+        (primary, key): {"kwh": entry["kwh"], "count": entry["count"], "mode": "delta"}
+        for key, entry in hour_deltas.items()
+    }
+    if circuits:
+        # 分回路各自记账：**不并进主表**（否则总耗翻倍），但必须写行，否则「回路排行」
+        # 永远是空的 —— 这正是 ``energy.circuitEntityIds`` 之前只被向导读取的原因。
+        circuit_day, circuit_month, circuit_hour, circuit_resets = _accumulate_per_entity(
+            batch, circuits, timezone_name
+        )
+        day_totals.update(circuit_day)
+        month_totals.update(circuit_month)
+        hour_totals.update(circuit_hour)
+        for key, count in circuit_resets.items():
+            reset_count[key] = reset_count.get(key, 0) + count
+    return day_totals, month_totals, hour_totals, reset_count
 
 
 def _collect_bound_points(
@@ -366,13 +403,15 @@ def _collect_bound_points(
 ) -> tuple[
     dict[str, dict[str, float]],
     dict[str, dict[str, float]],
+    dict[str, dict[str, float]],
     dict[str, float],
     dict[str, float],
     dict[str, int],
 ]:
-    """逐条变更收集「权威读数」与「主表差分」两路数据。"""
+    """逐条变更收集「小时/日/月三档差分」与「日/月两档权威读数」。"""
     day_deltas: dict[str, dict[str, float]] = {}
     month_deltas: dict[str, dict[str, float]] = {}
+    hour_deltas: dict[str, dict[str, float]] = {}
     day_readings: dict[str, float] = {}
     month_readings: dict[str, float] = {}
     reset_count: dict[str, int] = {}
@@ -392,8 +431,10 @@ def _collect_bound_points(
             continue
         if primary_entities and entity_id not in primary_entities:
             continue
-        _accumulate_primary_delta(day_deltas, month_deltas, reset_count, row, entity_id, created_at, timezone_name)
-    return day_deltas, month_deltas, day_readings, month_readings, reset_count
+        _accumulate_primary_delta(
+            day_deltas, month_deltas, hour_deltas, reset_count, row, entity_id, created_at, timezone_name
+        )
+    return day_deltas, month_deltas, hour_deltas, day_readings, month_readings, reset_count
 
 
 def _bump_reading(readings: dict[str, float], key: str, row: dict[str, Any]) -> None:
@@ -404,13 +445,18 @@ def _bump_reading(readings: dict[str, float], key: str, row: dict[str, Any]) -> 
 def _accumulate_primary_delta(
     day_deltas: dict[str, dict[str, float]],
     month_deltas: dict[str, dict[str, float]],
+    hour_deltas: dict[str, dict[str, float]],
     reset_count: dict[str, int],
     row: dict[str, Any],
     entity_id: str,
     created_at: Any,
     timezone_name: str | None,
 ) -> None:
-    """把主表一条变更的增量累加进日/月桶（跨零点离线时作为权威读数的兜底）。"""
+    """把主表一条变更的增量累加进小时/日/月桶。
+
+    增量归属于**本次读数所在的小时**（区间末）：水电表按整点上报时，这一小时间隔
+    产生的电量正好在整点被观测到，归属到该小时与真实负荷分布最接近。
+    """
     if is_meter_reset(row["old_state"], row["new_state"]):
         # 表底重置会让该区间增量等于「重置后累积量」，属预期口径，
         # 但必须留下痕迹，避免报表出现无法解释的用电跳变时无据可查。
@@ -418,6 +464,9 @@ def _accumulate_primary_delta(
     delta = compute_meter_delta(row["old_state"], row["new_state"])
     if delta <= 0:
         return
+    hour_entry = hour_deltas.setdefault(business_hour_key(created_at, timezone_name), {"kwh": 0.0, "count": 0})
+    hour_entry["kwh"] += delta
+    hour_entry["count"] += 1
     day_entry = day_deltas.setdefault(business_day_key(created_at, timezone_name), {"kwh": 0.0, "count": 0})
     day_entry["kwh"] += delta
     day_entry["count"] += 1

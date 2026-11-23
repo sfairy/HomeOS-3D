@@ -133,7 +133,7 @@ def _meter_values(old_state: Any, new_state: Any) -> tuple[float, float, dict[st
     try:
         old_val = float(old_raw)
         new_val = float(new_raw)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError):  # fmt: skip
         return None
     if math.isnan(old_val) or math.isnan(new_val):  # NaN
         return None
@@ -203,3 +203,15 @@ def business_day_key(when: datetime, timezone_name: str | None = None) -> str:
 
 def business_month_key(when: datetime, timezone_name: str | None = None) -> str:
     return business_day_key(when, timezone_name)[:7]
+
+
+def business_hour_key(when: datetime, timezone_name: str | None = None) -> str:
+    """家庭时区的**小时**键：``"YYYY-MM-DD HH"``。
+
+    必须与 ``business_day_key`` 同口径（同一个时区解析），否则峰谷计价会在跨零点
+    的那一小时把电量算进错误的时段 —— 这类错误在报表上表现为「每月差几度」，
+    极难被发现。
+    """
+    tz = resolve_business_timezone(timezone_name)
+    local = when.astimezone(tz) if when.tzinfo is not None else when.replace(tzinfo=ZoneInfo("UTC")).astimezone(tz)
+    return local.strftime("%Y-%m-%d %H")
