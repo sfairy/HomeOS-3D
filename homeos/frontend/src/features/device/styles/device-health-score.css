@@ -356,7 +356,7 @@
 
 @container hos-canvas (max-width: 600px) {
   .device-health__main {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .device-health__score-panel {

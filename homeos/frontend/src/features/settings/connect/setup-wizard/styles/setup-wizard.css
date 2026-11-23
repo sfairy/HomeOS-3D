@@ -280,7 +280,7 @@
 
 @container hos-canvas (max-width: 640px) {
   .sw-stat-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -886,7 +886,7 @@
 
 @container hos-canvas (max-width: 640px) {
   .sw-env-sensor-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .sw-env-infer {
@@ -1219,7 +1219,7 @@
 
 .sw-presence__stats {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 6px;
   flex-shrink: 0;
   min-width: 108px;
@@ -1269,7 +1269,7 @@
 
 .sw-presence__roster--split {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 }
 
 .sw-presence__roster--split .sw-presence__lane + .sw-presence__lane {
@@ -1623,7 +1623,7 @@
 
 @container hos-canvas (max-width: 640px) {
   .sw-presence__roster--split {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .sw-presence__roster--split .sw-presence__lane + .sw-presence__lane {

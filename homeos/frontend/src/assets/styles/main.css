@@ -21,6 +21,7 @@
 @import "tailwindcss";
 @config "../../../tailwind.config.js";
 @import "./hos-dropdown-theme.css";
+@import "./hos-hscroll.css";
 
 /* 覆盖 Tailwind / 全局 reset 对 <dialog> 的 margin:0，避免 showModal 贴左上角 */
 dialog:modal {
@@ -1477,4 +1478,20 @@ html[data-glass-effect="static"] .popup-shell {
   .toggle-btn .toggle-dot {
     z-index: 1;
   }
+}
+
+/* ==========================================================================
+   键盘焦点兜底（无障碍）
+   ==========================================================================
+   组件里大量 `outline: none` 去掉了浏览器默认焦点环，但只有一部分文件补了
+   `:focus-visible`；Tab 走查时会出现「看不出焦点在哪」的控件（下拉、输入框、
+   模式开关等）。这里统一补一个焦点环。
+
+   为什么写成 `:root :focus-visible`：那些 `outline: none` 挂在类/属性选择器上
+   （特异性 0,1,0～0,1,1），单写 `:focus-visible`（0,1,0）压不住；
+   加一层 `:root` 提到 0,2,0，既够用又不引入 `!important`（样式棘轮会拦）。
+   只影响 `:focus-visible`（键盘聚焦），鼠标点击不会出现焦点环。 */
+:root :focus-visible {
+  outline: var(--hos-focus-outline);
+  outline-offset: 2px;
 }

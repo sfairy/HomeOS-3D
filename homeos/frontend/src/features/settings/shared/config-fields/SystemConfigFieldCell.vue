@@ -101,6 +101,18 @@
         :placeholder="entityPlaceholder"
         wrapper-class="params-cell-entity-wrap"
       />
+      <div v-else-if="field.type === 'multi-select'" class="params-cell-chips">
+        <button
+          v-for="opt in multiOptions"
+          :key="opt.value"
+          type="button"
+          :class="['params-chip', multiSelected.has(opt.value) && 'params-chip--on']"
+          :aria-pressed="multiSelected.has(opt.value)"
+          @click="toggleMulti(opt.value)"
+        >
+          {{ opt.label }}
+        </button>
+      </div>
       <HosSelect
         variant="settings"
         block
@@ -127,6 +139,7 @@ import SystemConfigNestedObjectEditor from '@/features/settings/shared/config-fi
 import {
   haEntityDomainFilter,
   systemConfigCellClass,
+  systemConfigMultiOptions,
   systemConfigSelectOptions,
 } from '@/shared/utils/config/system-config/field.util'
 import { getNestedObjectEditorKind } from '@/features/settings/shared/config-fields/nested-editor.util'
@@ -227,6 +240,7 @@ const typeBadge = computed(() => {
     array: '列表',
     entity: '实体',
     'entity-list': '实体列表',
+    'multi-select': '多选',
     select: '选项',
   }
   return map[props.field.type] || ''
@@ -256,6 +270,26 @@ const entityListIds = computed({
   },
 })
 
+const multiOptions = computed(() => systemConfigMultiOptions(props.field.key))
+
+/**
+ * 已选值集合。
+ *
+ * 表单里多选与 ``array`` 共用同一种表示（逗号串）：``fromEditableSections`` 负责按字段
+ * 类型还原成字符串数组或数字数组。这里只做展示与切换，不改变存储形状。
+ */
+const multiSelected = computed(() => {
+  const raw = fieldValue.value
+  const items = Array.isArray(raw) ? raw.map(String) : String(raw ?? '').split(/[,，\s]+/)
+  return new Set(items.map((item) => item.trim()).filter(Boolean))
+})
+
+function toggleMulti(value) {
+  const current = [...multiSelected.value]
+  const next = current.includes(value) ? current.filter((item) => item !== value) : [...current, value]
+  fieldValue.value = next.join(', ')
+}
+
 const nestedEditorKind = computed(() => {
   if (props.field.type !== 'object') return 'json'
   return getNestedObjectEditorKind(props.field.key)
@@ -267,7 +301,7 @@ const isStructuredObject = computed(
 
 /** div[role=combobox] 等非 labelable 控件不能用原生 for，需手动聚焦 */
 const nativeLabelFor = computed(() => {
-  if (props.field.type === 'entity-list') return ''
+  if (props.field.type === 'entity-list' || props.field.type === 'multi-select') return ''
   return props.inputId
 })
 

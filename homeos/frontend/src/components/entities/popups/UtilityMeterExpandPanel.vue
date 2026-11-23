@@ -46,6 +46,8 @@
     </div>
 
     <div v-if="expTab === 'day'" :ref="setDayChartRef" :class="`${prefix}-chart-container`" />
+    <!-- 分回路排行只在日视图展示一次：周/月/年视图已经在对比总量，再列一遍回路会挤掉图表 -->
+    <CircuitUsageSection v-if="expTab === 'day'" range="M" />
     <div v-if="expTab === 'month'" :ref="setMonthChartRef" :class="`${prefix}-chart-container`" />
     <div v-if="expTab === 'year'" :ref="setYearChartRef" :class="`${prefix}-chart-container`" />
 
@@ -108,6 +110,7 @@
 
 <script setup>
 import { X } from '@lucide/vue'
+import CircuitUsageSection from '@/components/entities/popups/CircuitUsageSection.vue'
 defineProps({
   prefix: { type: String, required: true },
   expTab: { type: String, default: 'day' },

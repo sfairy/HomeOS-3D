@@ -80,25 +80,8 @@
   }
 }
 
-/* 平板竖屏（如 768×1024）：fluid fit 受宽度主导（≈0.562）导致时钟偏小，
-   以设计稿基准（除以 fit）放大时钟，与横屏主场景互不影响 */
-@media (orientation: portrait) {
-  @container hos-canvas (min-width: 768px) {
-    .ss-time {
-      font-size: min(
-        calc(var(--ss-time-pct) / 100 * var(--ss-canvas-w) * var(--ss-scale) / var(--ss-fit, 1)),
-        calc(var(--ss-vh) * 0.42)
-      );
-    }
-
-    .ss-time-sep {
-      font-size: min(
-        calc(var(--ss-sep-pct) / 100 * var(--ss-canvas-w) * var(--ss-scale) / var(--ss-fit, 1)),
-        calc(var(--ss-vh) * 0.3)
-      );
-    }
-  }
-}
+/* 竖屏专用的屏保时钟放大已删除：产品定位是「大屏横屏 + 手机横屏」，竖屏不再排版。
+   （`orientation: landscape` 的两条规则必须保留 —— 大屏与手机横屏都吃它们。） */
 
 @media (prefers-reduced-motion: reduce) {
   .ss-glow,

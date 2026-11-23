@@ -179,7 +179,7 @@
 }
 @container hos-canvas (max-width: 1024px) {
   .eq-analytics__charts {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto;
     min-height: 0;
   }

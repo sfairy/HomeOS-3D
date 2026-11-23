@@ -8,10 +8,12 @@
  * 摄像头在多个弹窗里同时出声会叠成回音。跨 iframe 用一个挂在顶层 window 上的 Symbol
  * 记录当前 owner，任一时刻只有一路出声。
  */
+import { createUiIcon } from '../ui-icons'
 
 const AUDIO_OWNER_KEY = Symbol.for('homeos.camera-audio-owner')
-const AUDIO_ICON_ON = 'hb-camera-audio-icon is-on'
-const AUDIO_ICON_OFF = 'hb-camera-audio-icon is-off'
+/** 「有声」/「静音」两枚图标的 MDI 名（`createUiIcon` 会解析成遮罩）。 */
+const AUDIO_ICON_ON_NAME = 'volume-high'
+const AUDIO_ICON_OFF_NAME = 'volume-off'
 const AUDIO_LABEL_ON = '关闭摄像头声音'
 const AUDIO_LABEL_OFF = '开启摄像头声音'
 const AUDIO_FAILED_TEXT = '声音未能开启，请再次点击。'
@@ -338,6 +340,17 @@ function audioButtonLabel(state: CameraAudioState): string {
   return state.requested ? AUDIO_LABEL_ON : AUDIO_LABEL_OFF
 }
 
+/** 供 CSS 选状态的单一取值：颜色/动效都挂在 `data-audio-state` 上，不猜 `aria-*` 组合。 */
+function audioButtonPhase(state: CameraAudioState): 'on' | 'off' | 'pending' | 'waiting' | 'unavailable' {
+  // 音轨探测结果还没回来（`supported=false`）时不算「不支持」，先按等待处理，
+  // 否则按钮一出现就是灰的，看起来像坏了。
+  if (state.hasAudio === false) return 'unavailable'
+  if (!state.supported) return state.ready ? 'unavailable' : 'waiting'
+  if (state.pending || state.waiting) return 'pending'
+  if (state.requested) return 'on'
+  return state.ready ? 'off' : 'waiting'
+}
+
 function applyAudioButtonState(refs: AudioButtonRefs, state: CameraAudioState): void {
   const { button, wrapper, onIcon, offIcon, feedback, documentNode } = refs
   // 按钮被禁用时把焦点还给弹窗，否则键盘用户会「卡在一个按不动的按钮上」。
@@ -347,13 +360,14 @@ function applyAudioButtonState(refs: AudioButtonRefs, state: CameraAudioState): 
   }
   const label = audioButtonLabel(state)
   button.disabled = !state.canToggle
+  button.dataset.audioState = audioButtonPhase(state)
   button.setAttribute('aria-pressed', String(state.requested))
   button.setAttribute('aria-busy', String(state.pending || state.waiting))
   button.setAttribute('aria-label', label)
   button.title = state.error || label
   wrapper.title = button.title
-  onIcon.className = state.requested ? AUDIO_ICON_OFF : AUDIO_ICON_ON
-  offIcon.className = state.requested ? AUDIO_ICON_ON : AUDIO_ICON_OFF
+  // 两枚图标各自固定含义（有声 / 静音），只切换显示，不再互换 class —— 互换会让
+  // `.is-on` 既表示「开」又表示「这个图标是关」，调试时极难读。
   onIcon.hidden = state.requested
   offIcon.hidden = !state.requested
   feedback.textContent = state.error
@@ -363,8 +377,9 @@ function applyAudioButtonState(refs: AudioButtonRefs, state: CameraAudioState): 
 /**
  * 在弹窗上挂一个声音开关按钮。
  *
- * 位置由调用方给（`host`），样式类固定在 `stage.css`：
- * `.hb-camera-audio-control` / `.hb-camera-audio-toggle` / `.hb-camera-audio-feedback`。
+ * 位置由调用方给（`host`），样式类固定在 `renderer.css`（0.8.7 声音开关段）：
+ * `.hb-camera-audio-control` / `.hb-camera-audio-toggle` / `.hb-camera-audio-icon` /
+ * `.hb-camera-audio-feedback`；状态由按钮上的 `data-audio-state` 驱动。
  */
 export function mountCameraAudioButton({
   host,
@@ -381,10 +396,12 @@ export function mountCameraAudioButton({
   const button = documentNode.createElement('button')
   button.type = 'button'
   button.className = 'hb-camera-audio-toggle'
-  const onIcon = documentNode.createElement('span')
-  onIcon.className = AUDIO_ICON_ON
-  const offIcon = documentNode.createElement('span')
-  offIcon.className = AUDIO_ICON_OFF
+  // 图标走统一 MDI 遮罩（0.8.6 的 `.hb-ui-icon`）：不再用「带 class 名的空 span」，
+  // 否则一旦 CSS 缺一条规则，按钮里就会露出裸文本（`is-on` / `is-off`）。
+  const onIcon = createUiIcon(documentNode, AUDIO_ICON_ON_NAME)
+  onIcon.classList.add('hb-camera-audio-icon', 'is-on')
+  const offIcon = createUiIcon(documentNode, AUDIO_ICON_OFF_NAME)
+  offIcon.classList.add('hb-camera-audio-icon', 'is-off')
   button.append(onIcon, offIcon)
   const feedback = documentNode.createElement('span')
   feedback.className = 'hb-camera-audio-feedback'

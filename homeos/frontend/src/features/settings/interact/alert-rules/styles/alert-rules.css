@@ -119,6 +119,11 @@
   font-family: ui-monospace, monospace;
   color: var(--set-text-label);
   margin-top: 2px;
+  /* 实体 ID 常是没有空格 / 连字符的长串（sensor.mi_2244203873_44001102613_…），
+     没有断行机会就只能溢出被 overflow-x:hidden 裁掉，用户看到「ID 少了一半」。 */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  min-width: 0;
 }
 .alert-entity-card__body {
   padding: 12px;
@@ -650,7 +655,7 @@
   .alert-edit-fields,
   .alert-edit-fields--notify,
   .alert-edit-visual {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .alert-edit-field--span,
@@ -810,7 +815,7 @@
 .alert-dnd-timeline__track {
   position: relative;
   display: grid;
-  grid-template-columns: repeat(24, 1fr);
+  grid-template-columns: repeat(24, minmax(0, 1fr));
   gap: 2px;
   height: 40px;
   padding: 5px;
@@ -1195,13 +1200,13 @@
   }
 
   .ard-sliders-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
 @container hos-canvas (max-width: 480px) {
   .alert-dnd-presets__grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -1587,7 +1592,7 @@
 
 @container hos-canvas (max-width: 600px) {
   .alert-eew-coord-fields {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -1721,7 +1726,7 @@
 
 @container hos-canvas (max-width: 900px) {
   .alert-eew-threshold-flow {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -1817,7 +1822,7 @@
 
 @container hos-canvas (max-width: 720px) {
   .alert-eew-drill__body {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

@@ -268,6 +268,10 @@ export function createEventsViewSummaries(opts: {
   }
 }
 
+/** 服务端每次请求有一条 20 秒时间预算（防止反代超时），触顶就返回 `complete=false`。
+ *  这里自动续删，把「点 30 次」变成「点 1 次」；每轮都把累计条数报给用户。 */
+const CLEAR_ALL_MAX_ROUNDS = 40
+
 export async function clearAllEventRecords(opts: {
   chrome: ChromeStore
   clearing: Ref<boolean>
@@ -284,12 +288,27 @@ export async function clearAllEventRecords(opts: {
   if (!ok) return
   clearing.value = true
   try {
-    const { data } = await clearEvents()
-    const deleted = Number(data?.deleted ?? 0)
-    if (data?.complete === false) {
-      chrome.notify(`已清除 ${formatCount(deleted)} 条记录，仍有剩余记录未删完，请再次执行清除`, 'warning')
+    let totalDeleted = 0
+    let finished = false
+    for (let round = 0; round < CLEAR_ALL_MAX_ROUNDS; round += 1) {
+      const { data } = await clearEvents()
+      const deletedThisRound = Number(data?.deleted ?? 0)
+      totalDeleted += deletedThisRound
+      // 这一轮一条都没删且仍未完成：继续请求只会空转（表被外部锁住 / 权限问题），
+      // 停下来如实报告，比循环 40 次更清楚。
+      if (data?.complete !== false || deletedThisRound <= 0) {
+        finished = data?.complete !== false
+        break
+      }
+      chrome.notify(`已清除 ${formatCount(totalDeleted)} 条记录，继续清理中（第 ${round + 2} 轮）…`, 'info')
+    }
+    if (finished) {
+      chrome.notify(totalDeleted > 0 ? `已清除 ${formatCount(totalDeleted)} 条记录` : '记录已清空', 'success')
     } else {
-      chrome.notify(deleted > 0 ? `已清除 ${formatCount(deleted)} 条记录` : '记录已清空', 'success')
+      chrome.notify(
+        `已清除 ${formatCount(totalDeleted)} 条记录，仍有剩余未删完：请检查是否有其他进程占用数据库后重试`,
+        'warning',
+      )
     }
     page.value = 1
     await Promise.all([loadEvents(), loadStats()])

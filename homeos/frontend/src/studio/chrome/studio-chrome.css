@@ -260,7 +260,7 @@ html.editor-viewport-fit body {
 
 .sc-shortcuts-card dl {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px 16px;
   margin: 0;
   font-size: 12px;

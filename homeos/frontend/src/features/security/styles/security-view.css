@@ -470,3 +470,16 @@
     flex: 1 1 auto;
   }
 }
+
+/* 用水安全卡片：挂在总览下方。
+ * 左/右内边距与 ``.sec-dash`` 保持一致（面板体 12px + 这里 4px = 16px），
+ * 否则卡片比上方内容宽出一截，在同一个面板里看起来像「贴到边上的另一块」。
+ * ``flex: 0 0 auto`` 必须有：它是 overview tab 的 flex 子项，默认 flex-shrink:1 会在矮屏
+ * 把卡片压扁，操作按钮被裁掉。
+ */
+.security-hub__water {
+  flex: 0 0 auto;
+  min-height: 0;
+  width: 100%;
+  padding: 0 4px 4px;
+}

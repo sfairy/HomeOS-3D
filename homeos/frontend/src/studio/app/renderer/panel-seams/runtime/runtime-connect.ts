@@ -97,38 +97,7 @@ export function connectRuntime(this: PanelRenderer, { force: isForcedConnect = f
     for (const motionCompanionEntityId of presenceMotionConfig.companionEntityIds)
       runtimeEntityIdSet.add(motionCompanionEntityId)
   }
-  for (const candidateSensorEntityId of [...runtimeEntityIdSet]) {
-    const sensorMetadata = this.entityMetadata.get(candidateSensorEntityId)
-    if (
-      sensorMetadata?.domain !== 'sensor' ||
-      !sensorMetadata.deviceId ||
-      !['state', 'status', 'task_status'].includes(sensorMetadata.translationKey)
-    )
-      continue
-    const vacuumMetadata = [...this.entityMetadata.values()].find(
-      (vacuumMetadataCandidate) =>
-        vacuumMetadataCandidate.deviceId === sensorMetadata.deviceId &&
-        vacuumMetadataCandidate.domain === 'vacuum' &&
-        entityMetadataIsAvailable2(vacuumMetadataCandidate),
-    )
-    vacuumMetadata?.entityId && runtimeEntityIdSet.add(vacuumMetadata.entityId)
-  }
-  for (const vacuumRuntimeEntityId of [...runtimeEntityIdSet]) {
-    if (this.entityMetadata.get(vacuumRuntimeEntityId)?.domain !== 'vacuum') continue
-    const slice7 = vacuumRuntimeEntityId.slice(vacuumRuntimeEntityId.indexOf('.') + 1),
-      cleaningModeEntity = relatedDeviceEntity2(
-        this.entityMetadata,
-        vacuumRuntimeEntityId,
-        'select',
-        'cleaning_mode',
-        'select.' + slice7 + '_cleaning_mode',
-      )
-    cleaningModeEntity?.entityId && runtimeEntityIdSet.add(cleaningModeEntity.entityId)
-    const batteryEntity = relatedVacuumBatteryEntity2(this.entityMetadata, this.states, vacuumRuntimeEntityId)
-    batteryEntity?.entityId && runtimeEntityIdSet.add(batteryEntity.entityId)
-    for (const statusEntityRecord of relatedVacuumStatusEntities2(this.entityMetadata, vacuumRuntimeEntityId))
-      runtimeEntityIdSet.add(statusEntityRecord.entityId)
-  }
+  addVacuumCompanionEntities(this, runtimeEntityIdSet)
   for (const coverEntityId of [...runtimeEntityIdSet]) {
     if ((this.entityMetadata.get(coverEntityId)?.domain || String(coverEntityId || '').split('.', 1)[0]) !== 'cover')
       continue
@@ -383,6 +352,19 @@ export function connectRuntime(this: PanelRenderer, { force: isForcedConnect = f
           )
           return
         }
+        if (runtimeMessage.type === 'project_revision_changed') {
+          // 仪表盘草稿被保存：用 WS 事件代替 10 秒轮询（墙板改完布局要立刻看到）。
+          // 展示页据此按 projectId 过滤后重拉草稿；interval 轮询降级为兜底。
+          window.dispatchEvent?.(
+            new CustomEvent('hb-project-revision-changed', {
+              detail: {
+                projectId: String(runtimeMessage.projectId || ''),
+                revision: Number(runtimeMessage.revision) || 0,
+              },
+            }),
+          )
+          return
+        }
         if (runtimeMessage.type === 'state_removed') {
           const removedEntityId = String(runtimeMessage.entityId || '')
           if (!removedEntityId) return
@@ -492,6 +474,63 @@ export function connectRuntime(this: PanelRenderer, { force: isForcedConnect = f
  * 增量订阅帧的载荷：只需实体集合，其余字段（签名 / 组件列表）由调用方自己持有。
  */
 type RuntimeSubscriptionFrame = { entityIds: string[] }
+
+/**
+ * 把「同设备的 vacuum 及其实体」补进订阅集合。
+ *
+ * 原实现对每个 sensor 在**全量实体目录**上做 ``find``，是 O(sensors × catalog)；
+ * 连接在挂载、组件编辑与 WS 重连时都会重新计算，实体上千条时每次都要白扫一遍。
+ * 这里先按 ``deviceId`` 预建索引（只收可用 vacuum，与原谓词取舍一致）再查。
+ *
+ * 抽成独立函数的另一个原因是 ``connectRuntime`` 的圈复杂度已被棘轮钉住。
+ */
+function addVacuumCompanionEntities(self: PanelRenderer, runtimeEntityIdSet: Set<string>) {
+  const vacuumByDeviceId = vacuumMetadataByDeviceId(self)
+  for (const candidateSensorEntityId of [...runtimeEntityIdSet]) {
+    const sensorMetadata = self.entityMetadata.get(candidateSensorEntityId)
+    if (
+      sensorMetadata?.domain !== 'sensor' ||
+      !sensorMetadata.deviceId ||
+      !['state', 'status', 'task_status'].includes(sensorMetadata.translationKey)
+    )
+      continue
+    const vacuumMetadata = vacuumByDeviceId.get(String(sensorMetadata.deviceId))
+    vacuumMetadata?.entityId && runtimeEntityIdSet.add(vacuumMetadata.entityId)
+  }
+  for (const vacuumEntityId of [...runtimeEntityIdSet]) {
+    if (self.entityMetadata.get(vacuumEntityId)?.domain === 'vacuum')
+      addVacuumRelatedEntities(self, runtimeEntityIdSet, vacuumEntityId)
+  }
+}
+
+/** ``deviceId → 可用 vacuum 元数据``（每个设备只留第一条）。 */
+function vacuumMetadataByDeviceId(self: PanelRenderer) {
+  const byDeviceId = new Map<string, ReturnType<PanelRenderer['entityMetadata']['get']>>()
+  for (const metadataEntry of self.entityMetadata.values()) {
+    const deviceId = String(metadataEntry?.deviceId || '')
+    if (!deviceId || metadataEntry?.domain !== 'vacuum') continue
+    if (!entityMetadataIsAvailable2(metadataEntry)) continue
+    if (!byDeviceId.has(deviceId)) byDeviceId.set(deviceId, metadataEntry)
+  }
+  return byDeviceId
+}
+
+/** 一台 vacuum 的关联实体：清扫模式 select、电量 sensor、状态类实体。 */
+function addVacuumRelatedEntities(self: PanelRenderer, runtimeEntityIdSet: Set<string>, vacuumEntityId: string) {
+  const entitySuffix = vacuumEntityId.slice(vacuumEntityId.indexOf('.') + 1)
+  const cleaningModeEntity = relatedDeviceEntity2(
+    self.entityMetadata,
+    vacuumEntityId,
+    'select',
+    'cleaning_mode',
+    'select.' + entitySuffix + '_cleaning_mode',
+  )
+  cleaningModeEntity?.entityId && runtimeEntityIdSet.add(cleaningModeEntity.entityId)
+  const batteryEntity = relatedVacuumBatteryEntity2(self.entityMetadata, self.states, vacuumEntityId)
+  batteryEntity?.entityId && runtimeEntityIdSet.add(batteryEntity.entityId)
+  for (const statusEntityRecord of relatedVacuumStatusEntities2(self.entityMetadata, vacuumEntityId))
+    runtimeEntityIdSet.add(statusEntityRecord.entityId)
+}
 
 /**
  * 在**已经建立**的连接上发送增量订阅帧。

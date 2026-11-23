@@ -245,7 +245,7 @@
 
 @container hos-canvas (max-width: 640px) {
   .license-account__identity {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -322,7 +322,7 @@
 
 @container hos-canvas (max-width: 600px) {
   .license-account__row {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 4px;
   }
 }

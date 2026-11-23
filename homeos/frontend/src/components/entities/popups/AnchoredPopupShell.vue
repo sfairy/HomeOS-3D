@@ -69,6 +69,7 @@ import { computed, inject, onBeforeUnmount, onMounted, ref, useAttrs } from 'vue
 import { X } from '@lucide/vue'
 import { useEntityPopupAnchor } from '@/composables/entity/popup/useEntityPopupAnchor'
 import { useKeepAliveGate } from '@/composables/ui/useKeepAliveGate'
+import { installPopupHistoryGuard } from '@/composables/ui/usePopupHistoryGuard'
 import { useShellTeleportTarget } from '@/composables/ui/shell/useShellTeleportTarget'
 
 // 关闭 inheritAttrs，attrs 由 passthroughAttrs 手动透传到 wrapper
@@ -167,6 +168,8 @@ const wrapperStyle = computed(() => anchorStyle.value)
 const shellRef = ref(null)
 /** 弹窗打开前的活动元素，关闭时恢复焦点 */
 let previousFocus = null
+/** 历史哨兵的卸载函数（返回键关闭弹层用） */
+let releasePopupHistory = null
 
 const FOCUSABLE_SELECTOR = 'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
 
@@ -198,6 +201,8 @@ function handleShellKeydown(e) {
 }
 
 onMounted(() => {
+  // 返回键/侧滑关闭弹层而不是离开页面（见 usePopupHistoryGuard 的注释）。
+  releasePopupHistory = installPopupHistoryGuard(() => emit('close'))
   const root = shellRef.value
   if (!root || !props.trapFocus) return
   previousFocus = document.activeElement
@@ -213,6 +218,8 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  releasePopupHistory?.()
+  releasePopupHistory = null
   const root = shellRef.value
   root?.removeEventListener('keydown', handleShellKeydown)
   if (previousFocus && document.contains(previousFocus)) {

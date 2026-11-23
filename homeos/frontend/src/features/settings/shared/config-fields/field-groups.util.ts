@@ -19,6 +19,11 @@ const SECTION_FIELD_GROUPS: Record<string, FieldGroupDef[]> = {
       match: ['awaySim*'],
     },
     {
+      id: 'hazard',
+      label: '危险联动',
+      match: ['hazardAutoActions', 'entryDelaySeconds'],
+    },
+    {
       id: 'frigate',
       label: 'Frigate 摄像头',
       match: ['frigate*'],
@@ -28,21 +33,39 @@ const SECTION_FIELD_GROUPS: Record<string, FieldGroupDef[]> = {
     {
       id: 'anomaly',
       label: '学习与异常',
-      match: ['learningPeriodDays', 'anomalyCooldownMin', 'budgetAlertCooldownMin'],
+      match: [
+        'learningPeriodDays',
+        'anomalyCooldownMin',
+        'anomalyRatio',
+        'budgetAlertCooldownMin',
+        'monthlyBudgetKwh',
+        'budgetWarnRatio',
+        'balanceEntityId',
+        'balanceLowThreshold',
+      ],
     },
   ],
   iaq: [
     {
       id: 'score',
       label: '空气质量 IAQ',
-      match: ['moldAlertCooldownMin'],
+      match: ['moldAlertCooldownMin', 'moldHumidityThreshold', 'moldHoldMinutes', 'pm25Threshold', 'co2Threshold'],
     },
   ],
   water: [
     {
       id: 'threshold',
       label: '用水阈值',
-      match: ['anomalyCooldownMin', 'mainValveEntityId'],
+      match: [
+        'anomalyCooldownMin',
+        'mainValveEntityId',
+        'meterEntityId',
+        'flowEntityId',
+        'longFlowMinutes',
+        'longFlowRateLpm',
+        'dailyAnomalyRatio',
+        'usageLearningDays',
+      ],
     },
   ],
   ops: [
@@ -204,6 +227,18 @@ const SECTION_FIELD_GROUPS: Record<string, FieldGroupDef[]> = {
       id: 'capacity',
       label: '容量与冷却',
       match: ['maxNotifications', 'offlineCooldown*', 'lowBatteryCooldown*'],
+    },
+    {
+      id: 'muting',
+      label: '静音与免打扰',
+      match: ['mutedSources', 'dndWeekdays'],
+    },
+  ],
+  circadian: [
+    {
+      id: 'lights',
+      label: '节律照明',
+      match: ['lightEntityIds', 'dayKelvin', 'nightKelvin', 'applyBrightness', 'nightBrightnessPct'],
     },
   ],
 }

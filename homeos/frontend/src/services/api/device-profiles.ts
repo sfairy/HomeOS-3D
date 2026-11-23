@@ -88,6 +88,20 @@ export function confirmDeviceProfile(entityId: string, kind: string, aliases?: s
   return apiPut<{ success: boolean }>('/device-profiles/confirm', { entityId, kind, aliases }, config)
 }
 
+/**
+ * 批量确认同一类型的多台设备（空调 6 台逐台点太慢）。
+ *
+ * 服务端逐台走与单台确认相同的校验与审计；失败的单台列在 `failed` 里，不阻断其余。
+ */
+export function confirmDeviceProfilesBatch(entityIds: string[], kind: string, config?: AxiosRequestConfig) {
+  return apiPut<{
+    success: boolean
+    kind: string
+    confirmed: string[]
+    failed: Array<{ entityId: string; message: string }>
+  }>('/device-profiles/confirm-batch', { entityIds, kind }, config)
+}
+
 /** 只改别名，不动类型与确认状态。 */
 export function setDeviceProfileAliases(entityId: string, aliases: string[], config?: AxiosRequestConfig) {
   return apiPut<{ success: boolean; aliases: string[] }>('/device-profiles/aliases', { entityId, aliases }, config)

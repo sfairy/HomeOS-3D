@@ -30,7 +30,7 @@
     <div v-if="currentTemp != null && hasTargetTemp" class="climate-current-bar mb-4">
       <Thermometer class="w-3.5 h-3.5 shrink-0" :class="currentTempTone" />
       <span class="climate-current-bar-label">{{ '室内' }}</span>
-      <span class="climate-current-bar-val" :class="currentTempTone">{{ currentTemp }}°C</span>
+      <span class="climate-current-bar-val" :class="currentTempTone">{{ currentTemp }}{{ temperatureUnit }}</span>
     </div>
 
     <!-- 无目标温度场景：仅展示当前温度大数字 -->
@@ -38,7 +38,7 @@
       <span class="text-[44px] font-bold text-white tabular-nums tracking-tighter">{{
         currentTempDisplay
       }}</span>
-      <span class="text-xs ccp-lbl font-bold leading-normal pb-px">{{ '当前温度 °C' }}</span>
+      <span class="text-xs ccp-lbl font-bold leading-normal pb-px">{{ `当前温度 ${temperatureUnit}` }}</span>
     </div>
     <div v-else class="flex flex-col items-center gap-4 mb-5">
       <div class="flex items-center justify-between w-full px-1">
@@ -55,7 +55,7 @@
             class="text-[44px] font-bold text-white tabular-nums tracking-tighter drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]"
             >{{ targetTemp }}</span
           >
-          <span class="text-xs font-bold ccp-lbl leading-normal pb-px">{{ '设定温度 °C' }}</span>
+          <span class="text-xs font-bold ccp-lbl leading-normal pb-px">{{ `设定温度 ${temperatureUnit}` }}</span>
         </div>
         <button
           type="button"
@@ -177,7 +177,7 @@
             >
               <Minus class="w-4 h-4" />
             </button>
-            <span class="text-lg font-bold text-white tabular-nums">{{ dualTempLow }}°</span>
+            <span class="text-lg font-bold text-white tabular-nums">{{ dualTempLow }}{{ temperatureUnit }}</span>
             <button
               type="button"
               class="temp-adjust-btn temp-adjust-btn--sm"
@@ -199,7 +199,7 @@
             >
               <Minus class="w-4 h-4" />
             </button>
-            <span class="text-lg font-bold text-white tabular-nums">{{ dualTempHigh }}°</span>
+            <span class="text-lg font-bold text-white tabular-nums">{{ dualTempHigh }}{{ temperatureUnit }}</span>
             <button
               type="button"
               class="temp-adjust-btn temp-adjust-btn--sm"
@@ -256,6 +256,13 @@
         </button>
       </div>
     </div>
+
+    <!-- 空调开着才提供「N 小时后关」；关机状态下设置倒计时没有意义 -->
+    <DeviceCountdownChip
+      v-if="liveEntity && liveEntity.state !== 'off'"
+      :entity-id="liveEntity.entity_id"
+      service="turn_off"
+    />
   </EntityPopupShell>
 </template>
 
@@ -263,6 +270,7 @@
 import { Fan, Power, Minus, Plus, Thermometer } from '@lucide/vue'
 import EntityPopupShell from '@/components/entities/popups/EntityPopupShell.vue'
 import PopupHead from '@/components/entities/popups/PopupHead.vue'
+import DeviceCountdownChip from '@/components/entities/popups/DeviceCountdownChip.vue'
 import { defineEntityPopupProps } from '@/composables/entity/popup/useEntityPopupBase'
 import { useClimateControlPopup } from '@/composables/entity/popup/useClimateControlPopup'
 
@@ -296,6 +304,7 @@ const {
   currentTemp,
   currentTempDisplay,
   currentTempTone,
+  temperatureUnit,
   targetTemp,
   minTemp,
   maxTemp,

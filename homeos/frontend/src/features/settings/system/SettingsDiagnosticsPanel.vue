@@ -46,6 +46,7 @@
     </div>
 
     <DiagnosticsOverviewSection v-if="section === 'overview'" />
+    <DeviceHealthSection v-if="section === 'overview'" />
     <DiagnosticsRuntimeLogsSection v-else-if="section === 'runtime'" :active="section === 'runtime'" />
     <DiagnosticsJobsSection v-else-if="section === 'jobs'" :active="section === 'jobs'" />
     <DiagnosticsLogSection v-else-if="section === 'log'" />
@@ -58,6 +59,7 @@ import { RefreshCw, Copy, AlertCircle } from '@lucide/vue'
 import SettingsPageShell from '@/components/common/settings-page-shell/SettingsPageShell.vue'
 import SettingsHubSubnav from '@/features/settings/shared/layout/SettingsHubSubnav.vue'
 import DiagnosticsOverviewSection from './diagnostics/OverviewSection.vue'
+import DeviceHealthSection from './diagnostics/DeviceHealthSection.vue'
 import DiagnosticsRuntimeLogsSection from './diagnostics/RuntimeLogsSection.vue'
 import DiagnosticsJobsSection from './diagnostics/JobsSection.vue'
 import DiagnosticsLogSection from './diagnostics/LogSection.vue'

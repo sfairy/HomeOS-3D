@@ -1233,7 +1233,7 @@ button.dgm-light-card:focus-visible {
 
 @container hos-canvas (max-width: 480px) {
   .dgm-light-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .dgm-batch-bar {

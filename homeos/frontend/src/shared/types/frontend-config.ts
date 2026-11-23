@@ -69,12 +69,6 @@ export interface WsPushPublicSection {
   coldEntityOnDemand: boolean // 冷实体是否按需推送
 }
 
-/** 访客分区 */
-interface GuestSection {
-  defaultHours: number // 访客默认有效时长（小时）
-  extendHours: number // 访客续期时长（小时）
-}
-
 /** 安防分区（公开） */
 interface SecurityPublicSection {
   sensorAlertCooldownSec: number // 传感器告警冷却时间（秒）
@@ -111,7 +105,6 @@ export interface AppPublicConfig {
   voiceCommands: unknown[] // 语音命令列表
   eventLog: EventLogSection // 事件日志
   energy: EnergySection // 能耗
-  guest: GuestSection // 访客
   security: SecurityPublicSection // 安防
   roomMeta?: RoomMetaPublicSection // 房间元信息
   haAreas?: Array<{ id: string; name: string }> // HA 区域列表

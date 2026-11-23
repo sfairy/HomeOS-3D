@@ -1015,7 +1015,7 @@
 }
 .home-mode-panel .hm-batch-panel__grid {
   display: grid;
-  grid-template-columns: 1fr 1fr auto auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto auto;
   gap: 8px;
   align-items: end;
 }
@@ -1508,7 +1508,7 @@
 
 @container hos-canvas (max-width: 900px) {
   .home-mode-panel .hm-master-detail {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr);
   }
   .home-mode-panel .hm-item-nav {
@@ -1564,7 +1564,7 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .home-mode-panel .hm-form-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .home-mode-panel .hm-template-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1574,7 +1574,7 @@
     flex-direction: column;
   }
   .home-mode-panel .hm-batch-panel__grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .home-mode-panel--embedded .hm-context-pills {
     display: flex;
@@ -1600,7 +1600,7 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .home-mode-panel .hm-form-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .home-mode-panel .hm-template-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1610,7 +1610,7 @@
     flex-direction: column;
   }
   .home-mode-panel .hm-batch-panel__grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .home-mode-panel--embedded .hm-context-pills {
     display: flex;
@@ -1637,7 +1637,7 @@
      两列就撑破面板宽度。640px 以下直接单列，与 hm-template-grid 同一口径。 */
   .home-mode-panel .hm-template-grid,
   .home-mode-panel .hm-context-pills {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .home-mode-panel .hm-template-section__head {
     flex-direction: column;
@@ -1717,7 +1717,7 @@
     max-width: min(168px, 72vw);
   }
   .hm-action-card__fields-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .hm-action-card__field--entity,
   .hm-action-card__field--delay {
@@ -1909,7 +1909,7 @@
 
 .hm-action-card__fields-grid {
   display: grid;
-  grid-template-columns: 1fr 2fr 1fr 100px;
+  grid-template-columns: minmax(0, 1fr) 2fr minmax(0, 1fr) 100px;
   gap: 12px;
 }
 
@@ -1958,7 +1958,7 @@
 
 @container hos-canvas (max-width: 900px) and (min-width: 640px) {
   .hm-action-card__fields-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 
   .hm-action-card__field--entity,
@@ -2072,7 +2072,7 @@
 
 .hm-log-card {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 0 12px;
   align-items: center;
   padding: 10px 12px;
@@ -2340,7 +2340,7 @@
 
 @container hos-canvas (max-width: 1100px) {
   .home-mode-panel .hm-form-grid--basic {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
   .home-mode-panel .hm-form-grid--basic .hm-field--priority {
     max-width: none;
@@ -2350,7 +2350,7 @@
 @container hos-canvas (max-width: 720px) {
   .home-mode-panel .hm-form-grid,
   .home-mode-panel .hm-form-grid--basic {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

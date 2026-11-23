@@ -322,7 +322,7 @@
 /* 分类卡 / 列表卡宽屏网格 */
 .settings-category-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
 }
 
@@ -606,7 +606,7 @@
 
 @container settings-scroll (max-width: 720px) {
   .settings-slider-group {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

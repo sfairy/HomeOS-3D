@@ -83,6 +83,8 @@ const pauseViewportGlow = computed(() => {
 // 统一走 resolveDesignMetrics，保证设置页预览、屏保与真实壳层用同一套 fallback 顺序。
 const resolvedMaxWidth = computed(() => {
   configEpoch.value
+  // 不传 viewport：这里的产物是「流式模式的宽度上限」，与画布基准无关；
+  // 缩放态的画布基准由 useScaling 内部解析（它才有 vw/vh）。
   return resolveDesignMetrics({
     pageMaxWidth: props.pageMaxWidth ?? layoutStore.layoutConfig.pageMaxWidth,
     ui: getConfigSection('ui'),

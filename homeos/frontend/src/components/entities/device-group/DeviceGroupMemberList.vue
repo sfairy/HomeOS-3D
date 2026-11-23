@@ -130,7 +130,7 @@
                 <div class="dgm-climate-stat-split" />
                 <div class="dgm-climate-stat">
                   <span class="dgm-climate-stat-val dgm-climate-stat-val--set">
-                    {{ getClimateTargetTemp(eid) != null ? getClimateTargetTemp(eid) + '°' : '--' }}
+                    {{ getClimateTargetTemp(eid) != null ? formatClimateTemp(getClimateTargetTemp(eid)) + getClimateUnit(eid) : '--' }}
                   </span>
                   <span class="dgm-climate-stat-lbl">{{ '设定温度' }}</span>
                 </div>
@@ -145,7 +145,7 @@
                 >
                   <Minus class="w-4 h-4" />
                 </button>
-                <span class="dgm-climate-adjust-val">{{ getClimateTargetTemp(eid) }}°C</span>
+                <span class="dgm-climate-adjust-val">{{ getClimateTargetTemp(eid) }}{{ getClimateUnit(eid) }}</span>
                 <button
                   type="button"
                   class="dgm-temp-btn dgm-temp-btn--sm"
@@ -434,6 +434,7 @@ function formatMemberState(eid) {
 const {
   getClimateCurrentTemp,
   getClimateTargetTemp,
+  getClimateUnit,
   formatClimateTemp,
   climateTempTone,
   adjustClimateTemp,

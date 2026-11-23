@@ -1,0 +1,61 @@
+/**
+ * 行内小工具按钮（卡片右上角的「刷新」、弹窗里的「取消倒计时」等）。
+ *
+ * 为什么抽成全局样式而不是每个组件各写一份：
+ * 1. 这几个按钮的几何（26px 方形 / 发丝边框 / 14px 图标）与交互态必须一致，
+ *    各写一份迟早会差 1–2px，同一屏上看起来「不齐」；
+ * 2. 旋转态需要 `@keyframes`，各写一份会让重复代码棘轮报警（实测两处 19 行克隆）。
+ *
+ * 用法：
+ *   <button class="hos-icon-btn"><Icon class="hos-icon-btn__icon is-spinning" /></button>
+ * 尺寸变体用 `--hos-icon-btn-size` 覆盖（默认 26px）。
+ */
+
+.hos-icon-btn {
+  --hos-icon-btn-size: 26px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: var(--hos-icon-btn-size);
+  height: var(--hos-icon-btn-size);
+  padding: 0;
+  border: var(--hos-hairline) solid transparent;
+  border-radius: var(--hos-radius-control);
+  background: transparent;
+  color: var(--hos-text-tertiary);
+  cursor: pointer;
+  /* 时长必须走令牌：硬编码时长会被样式棘轮拦下 */
+  transition:
+    color var(--hos-dur-base) var(--hos-ease-out),
+    background var(--hos-dur-base) var(--hos-ease-out),
+    border-color var(--hos-dur-base) var(--hos-ease-out);
+}
+
+.hos-icon-btn:hover:not(:disabled) {
+  color: var(--hos-text-primary);
+  border-color: var(--hos-border-hairline);
+  background: var(--hos-surface-2);
+}
+
+.hos-icon-btn:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.hos-icon-btn__icon {
+  width: 14px;
+  height: 14px;
+}
+
+/* 旋转态：慢速档 ×3 ≈ 1 秒一圈，既不呆滞也不像风扇 */
+.hos-icon-btn__icon.is-spinning {
+  animation: hos-icon-btn-spin calc(var(--hos-dur-slow) * 3) linear infinite;
+}
+
+@keyframes hos-icon-btn-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

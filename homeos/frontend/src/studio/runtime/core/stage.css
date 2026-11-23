@@ -1302,7 +1302,7 @@ body.interaction3d-stage.is-background-hidden,
 }
 .plan2-range-editor .p2r-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 0 9px;
 }
 .plan2-range-editor .p2r-check {

@@ -149,6 +149,9 @@
       />
       <span class="text-xs text-white/40 font-mono w-8 text-right">{{ transitionTime }}s</span>
     </div>
+
+    <!-- 倒计时只在灯亮着时才有意义：灯已经关了再设「30 分钟后关」是无效操作 -->
+    <DeviceCountdownChip v-if="isOn" :entity-id="liveEntity.entity_id" service="turn_off" />
   </EntityPopupShell>
 </template>
 
@@ -167,6 +170,7 @@
 import { Sun, Power } from '@lucide/vue'
 import EntityPopupShell from '@/components/entities/popups/EntityPopupShell.vue'
 import PopupHead from '@/components/entities/popups/PopupHead.vue'
+import DeviceCountdownChip from '@/components/entities/popups/DeviceCountdownChip.vue'
 import { defineEntityPopupProps } from '@/composables/entity/popup/useEntityPopupBase'
 import { useLightControlPopup } from '@/composables/entity/popup/useLightControlPopup'
 import '@/assets/styles/popup-base.css'

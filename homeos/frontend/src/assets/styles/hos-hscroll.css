@@ -1,0 +1,43 @@
+/**
+ * `.hos-hscroll`：受控的**组件内部**横向滑动容器。
+ *
+ * 版面契约：页面本身永不横向滚动（主内容滚动容器保持 `overflow-x: hidden`）。
+ * 只有「叶子级数据表 / 矩阵」确实装不下时，才允许在自己的容器里横滑，并且：
+ *
+ * - 必须可键盘聚焦（`tabindex="0"` + `role="region"` + `aria-label`），
+ *   纯触摸能滑、键盘不能滑是常见缺陷；
+ * - 有可滚视觉提示（右侧渐隐），避免用户以为内容就这么多；
+ * - **禁止包裹整张卡片或整个面板** —— 那等于把版面问题藏进滚动条。
+ *
+ * 用法：
+ *   <div class="hos-hscroll" tabindex="0" role="region" aria-label="电表对比表">
+ *     <table>…</table>
+ *   </div>
+ */
+
+.hos-hscroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* 横滑到边缘时不把整页一起拖走（移动端尤其明显） */
+  overscroll-behavior-x: contain;
+  /* 滚动条始终占位，避免出现/消失时行内容跳动 */
+  scrollbar-gutter: stable;
+  max-width: 100%;
+  border-radius: var(--hos-radius-card);
+  /* 右侧渐隐提示「还能往右滑」 */
+  background:
+    linear-gradient(to left, rgba(0, 0, 0, 0.35), rgba(0, 0, 0, 0) 24px) right center / 24px 100% no-repeat,
+    transparent;
+}
+
+.hos-hscroll:focus-visible {
+  outline: var(--hos-focus-outline);
+  outline-offset: 2px;
+}
+
+/* 表格自身不换行，宽度由内容决定（外层负责滚动） */
+.hos-hscroll > table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+}

@@ -864,7 +864,7 @@
 
 .charge-device-card__options {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 10px;
 }
 
@@ -930,7 +930,7 @@
 
 @container hos-canvas (max-width: 720px) {
   .charge-device-card__options {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .charge-device-card__foot {

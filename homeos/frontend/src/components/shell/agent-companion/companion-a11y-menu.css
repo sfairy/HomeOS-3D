@@ -38,7 +38,6 @@
 
 .companion-a11y-menu__item:hover,
 .companion-a11y-menu__item:focus-visible {
-  outline: none;
   background: rgba(0, 240, 255, 0.14);
   color: var(--hos-fg-1);
 }

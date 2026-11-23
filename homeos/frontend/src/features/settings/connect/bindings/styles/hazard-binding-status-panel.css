@@ -59,7 +59,7 @@
 
 .hazard-status-row {
   display: grid;
-  grid-template-columns: 56px 1fr auto;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
   padding: 6px 8px;

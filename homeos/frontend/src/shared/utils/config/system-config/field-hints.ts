@@ -4,6 +4,40 @@ import { FIELD_APPLY_SCOPE } from './field-apply.util'
 /** 字段 key → 中文提示文案映射（i18n 风格 key，与设置页查表对齐） */
 const HINT_TEXT: Record<string, string> = {
   'settings.systemConfig.fieldHint.eventLogTimelineHours': '系统时间线（事件日志）默认回溯的小时数。推荐 12',
+  'settings.systemConfig.fieldHint.anomalyRatio':
+    '今日累计用电超过「学习期日均 × 该倍数」时推送能耗异常；学习期数据不足时不会误报。推荐 2',
+  'settings.systemConfig.fieldHint.entryDelaySeconds':
+    '布防后开门进屋先给这么多秒撤防窗口，到点仍未撤防才真正告警；0 表示关闭进入延时',
+  'settings.systemConfig.fieldHint.budgetWarnRatio': '本月用电达到「月度预算 × 该比例」即告警（1.0 = 用满预算时告警）',
+  'settings.systemConfig.fieldHint.balanceEntityId': '预付费电表的余额实体；跌破阈值时推送一次提醒，欠费会直接断电',
+  'settings.systemConfig.fieldHint.balanceLowThreshold': '余额低于此值时提醒充值；回升后再次跌破会重新提醒',
+  'settings.systemConfig.fieldHint.monthlyBudgetKwh':
+    '本月用电预算（kWh）。留 0 表示不做预算告警；按当前速率外推月末超支也会提前提醒',
+  'settings.systemConfig.fieldHint.moldHumidityThreshold':
+    '同房间湿度持续高于该值时判定霉变风险（取房间内最低湿度，避免被平均值稀释）',
+  'settings.systemConfig.fieldHint.moldHoldMinutes':
+    '湿度需要持续超过阈值这么久才告警，避免洗澡/拖地造成的短暂高湿误报',
+  'settings.systemConfig.fieldHint.co2Threshold': 'CO₂ 达到该值时提醒通风；1200 ppm 以上通常已影响注意力',
+  'settings.systemConfig.fieldHint.pm25Threshold': 'PM2.5 达到该值时提醒通风或开启净化',
+  'settings.systemConfig.fieldHint.meterEntityId': '水表实体（可选）。留空时自动识别带累计读数的水表，仅用于展示用量',
+  'settings.systemConfig.fieldHint.flowEntityId':
+    '流量传感器（可选）。留空时自动识别 device_class 为 volume_flow_rate 的传感器',
+  'settings.systemConfig.fieldHint.longFlowMinutes': '流量持续高于阈值超过该时长即告警；离家期间有流量会立即告警',
+  'settings.systemConfig.fieldHint.longFlowRateLpm':
+    '长流水判定的流量下限（升/分钟）；低于此值的持续水流（滴漏）不计入',
+  'settings.systemConfig.fieldHint.dayKelvin': '白天（太阳高度 ≥ 30°）的目标色温；5000K 接近自然白光',
+  'settings.systemConfig.fieldHint.nightKelvin': '夜间（太阳高度 ≤ -6°）的目标色温；2700K 接近暖黄光',
+  'settings.systemConfig.fieldHint.nightBrightnessPct': '仅在开启「同时调节亮度」时生效：夜间目标亮度百分比',
+  'settings.systemConfig.fieldHint.applyBrightness': '开启后连亮度一起调整；关闭时只调色温，不改动你设定的亮度',
+  'settings.systemConfig.fieldHint.lightEntityIds': '只调整这里点名的灯，且只处理已经开着的灯（不会替你开灯）',
+  'settings.systemConfig.fieldHint.mutedSources':
+    '这些来源的通知不再投递（如 home-mode / energy）；danger 级与生命安全通知不受影响',
+  'settings.systemConfig.fieldHint.dndWeekdays': '免打扰只在选中的星期生效；留空表示每天生效（0=周日 … 6=周六）',
+  'settings.systemConfig.fieldHint.dailyAnomalyRatio':
+    '今日累计用水达到「前 N 天日均 × 该倍数」时告警；基线天数不足时不会误报。推荐 2',
+  'settings.systemConfig.fieldHint.usageLearningDays': '参与日均计算的最近有数据天数；新装水表头几天不告警。推荐 7',
+  'settings.systemConfig.fieldHint.hazardAutoActions':
+    '关闭后烟雾/燃气/漏水只告警，不执行 3D 布局里绑定的关阀与排风；绑定保留，重新开启即恢复',
   'settings.systemConfig.fieldHint.accentColor': '界面强调色，用于按钮、链接、选中态等关键交互元素。推荐系统蓝 #3b82f6',
   'settings.systemConfig.fieldHint.alertBypassDnd':
     '开启后安防告警投递不受免打扰时段限制，紧急事件天然绕过 DND。推荐开启',
@@ -113,7 +147,8 @@ const HINT_TEXT: Record<string, string> = {
     '连续未响应达到该次数才主动断开重连；判死窗口 ≈ ping 间隔 + 超时 × 次数，推荐 2',
   'settings.systemConfig.fieldHint.learningPeriodDays': '能源异常学习期天数，期间跳过功率突增告警以建立基线。推荐 7',
   'settings.systemConfig.fieldHint.lowBatteryCooldownMin': '设备低电量后在此冷却时间内不会重复发送低电量告警。推荐 120',
-  'settings.systemConfig.fieldHint.mainValveEntityId': '连续用水异常时智能顾问建议关闭此阀门，不自动执行关阀操作',
+  'settings.systemConfig.fieldHint.mainValveEntityId':
+    '用水安全卡片与漏水通知里的「一键关阀」目标（valve.* 或 switch.*）；不会自动关阀，需要你确认',
   'settings.systemConfig.fieldHint.manualLockTtlMin':
     '手动激活的家庭模式锁定时长（分钟），锁定期间不被自动联动切换。推荐 30',
   'settings.systemConfig.fieldHint.maxExecHistory': '家庭模式执行历史记录的最大保留条数。推荐 100',

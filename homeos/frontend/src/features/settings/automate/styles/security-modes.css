@@ -311,7 +311,7 @@
   }
 
   .sm-mode-advanced__row {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 6px;
     align-items: stretch;
   }
@@ -525,14 +525,14 @@
 
 .sm-batch-row {
   display: grid;
-  grid-template-columns: 1fr 1fr auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
 }
 
 @container hos-canvas (max-width: 720px) {
   .sm-batch-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -805,7 +805,7 @@
 
 @container hos-canvas (max-width: 720px) {
   .sm-emergency-presets {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

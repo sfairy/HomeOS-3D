@@ -340,7 +340,7 @@
 
 .life-indices__attention-item {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto minmax(0, 1fr);
   grid-template-rows: auto auto;
   column-gap: 10px;
   row-gap: 4px;
@@ -560,7 +560,7 @@
 
 @container hos-canvas (max-width: 720px) {
   .life-indices__spotlight {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
   .life-indices__spot--hero {
     grid-column: 1 / -1;
@@ -569,7 +569,7 @@
 
 @container hos-canvas (max-width: 480px) {
   .life-indices__spotlight {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .life-indices__tone-pills {
     width: 100%;

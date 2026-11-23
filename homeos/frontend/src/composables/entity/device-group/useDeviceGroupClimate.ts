@@ -1,6 +1,7 @@
 /** - 提供分组内 climate 实体的当前/目标温度读取、温度色调与背景色映射。 */
 import { Settings, ThermometerSnowflake, Droplets, Fan, Flame, Power } from '@lucide/vue'
 import { climateHasDualSetpoint } from '@/shared/entity/utils/control/climate-control-core'
+import { resolveTemperatureUnit } from '@/shared/device/utils/temperature-unit.util'
 import type { DeviceGroupEntitiesStoreLike } from '@/shared/device/utils/group-battery.util'
 import type { HaEntityState } from '@/shared/types/entity-store'
 
@@ -105,9 +106,19 @@ export function useDeviceGroupClimate(
     return targetTemperature != null && !Number.isNaN(Number(targetTemperature)) ? Number(targetTemperature) : null
   }
 
-  /** 数值文本；单位 ° 由模板另行渲染 */
+  /** 数值文本；单位由模板用 `getClimateUnit` 渲染 */
   function formatClimateTemp(temperature: number | null | undefined) {
     return temperature != null ? String(temperature) : '--'
+  }
+
+  /**
+   * 该空调的温度单位（`°C` / `°F` / `K`）。
+   *
+   * 原先模板里写死 `°C`，°F 部署下会显示「23°C」。单位来自实体自身的
+   * `temperature_unit`，取不到时回落 `°C`。
+   */
+  function getClimateUnit(eid: string) {
+    return resolveTemperatureUnit(getEntity(eid)?.attributes)
   }
 
   function climateTempTone(cur: number | null | undefined) {
@@ -252,6 +263,7 @@ export function useDeviceGroupClimate(
   return {
     getClimateCurrentTemp,
     getClimateTargetTemp,
+    getClimateUnit,
     formatClimateTemp,
     climateTempTone,
     adjustClimateTemp,

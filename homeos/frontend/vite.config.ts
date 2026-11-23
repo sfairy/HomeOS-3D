@@ -834,8 +834,13 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
           ...proxyErrorHandling,
         },
         '/socket.io': {
+          // 同样不能开 changeOrigin：socket.io 的握手来源判定（backend/src/realtime/gateway.py
+          // 的 ``_is_origin_allowed``）在 CORS 白名单之后按 Origin↔Host 兜底判同源。
+          // 浏览器 Origin 是 http://localhost:8805，改写 Host 后后端看到 127.0.0.1:8801，
+          // 握手直接被 engineio 回 400「Not an accepted origin」；前端表现为
+          // polling POST 连发 400 + WebSocket upgrade 全部失败（控制台只报
+          // "WebSocket connection to 'ws://localhost:8805/socket.io/...' failed"）。
           target: backendDevTarget,
-          changeOrigin: true,
           ws: true,
           ...proxyErrorHandling,
         },

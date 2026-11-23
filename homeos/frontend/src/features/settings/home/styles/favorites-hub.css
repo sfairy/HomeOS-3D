@@ -16,7 +16,7 @@
 
 @container hos-canvas (max-width: 640px) {
   .fav-overview {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

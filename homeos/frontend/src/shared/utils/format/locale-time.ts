@@ -1,5 +1,7 @@
 /** 带时区的本地化时间部件提取与格式化 */
 
+import { hour12Option } from './time-format.util'
+
 /** 获取应用时区：当前返回 undefined，表示使用浏览器 / 系统本地时区 */
 function getAppTimezone() {
   return undefined
@@ -19,7 +21,8 @@ export function getZonedParts(date: Date = new Date(), options: Intl.DateTimeFor
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
-    hour12: false,
+    // 小时制跟随用户偏好（显式传 options.hour12 可覆盖，例如时钟组件自己的设置）。
+    ...hour12Option(),
     ...options,
   })
   const parts = fmt.formatToParts(date)

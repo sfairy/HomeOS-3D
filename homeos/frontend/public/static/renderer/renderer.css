@@ -12916,23 +12916,169 @@
 /* ---- 0.8.4 选择器级补丁 ---- */
 #weather-forecast-section .inspector-hint { color:var(--muted,#87949d);font-size:12px;line-height:1.6;margin:10px 0 0 }
 
-/* ===== 0.8.7：普通 / 3D / 组合摄像头弹窗的声音开关 ===== */
-.has-camera-audio {--hb-camera-audio-size:clamp(calc(32px / var(--hb-camera-control-scale,var(--hb-runtime-dialog-scale,1))),44px,calc(44px / var(--hb-camera-control-scale,var(--hb-runtime-dialog-scale,1))))}
-.hb-camera-preview-heading>.hb-camera-preview-text.has-camera-audio {position:relative;width:calc(100% - 210px);max-width:calc(100% - 210px);min-height:var(--hb-camera-audio-size)}
-.hb-camera-preview-text.has-camera-audio>strong {width:100%;max-width:100%;padding-right:calc(var(--hb-camera-audio-size) + 12px);box-sizing:border-box}
-.i3d-camera-details .hb-camera-preview-heading>.hb-camera-preview-text.has-camera-audio {width:100%;max-width:none}
-.hb-camera-audio-control {position:absolute;top:0;right:0;display:inline-flex;flex:0 0 auto;align-items:center}
-.hb-camera-preview-heading button.hb-camera-audio-toggle,.hb-custom-popup-module--camera button.hb-camera-audio-toggle {display:grid;width:var(--hb-camera-audio-size);height:var(--hb-camera-audio-size);min-width:0;min-height:0;align-items:center;justify-items:center;padding:0;margin:0;border:1px solid color-mix(in srgb,currentColor 22%,transparent);border-radius:50%;color:inherit;background:color-mix(in srgb,currentColor 6%,transparent);box-shadow:none;cursor:pointer;touch-action:manipulation}
-.hb-camera-preview-heading button.hb-camera-audio-toggle[aria-pressed=true],.hb-custom-popup-module--camera button.hb-camera-audio-toggle[aria-pressed=true] {border-color:color-mix(in srgb,currentColor 65%,transparent);background:color-mix(in srgb,currentColor 15%,transparent)}
-.hb-camera-audio-toggle .hb-ui-icon {width:clamp(calc(18px / var(--hb-camera-control-scale,var(--hb-runtime-dialog-scale,1))),20px,calc(22px / var(--hb-camera-control-scale,var(--hb-runtime-dialog-scale,1))));height:clamp(calc(18px / var(--hb-camera-control-scale,var(--hb-runtime-dialog-scale,1))),20px,calc(22px / var(--hb-camera-control-scale,var(--hb-runtime-dialog-scale,1))))}
-.hb-camera-audio-toggle .hb-ui-icon[hidden] {display:none}
-.hb-camera-audio-toggle:disabled {opacity:.32;cursor:default}
-.hb-camera-audio-toggle:focus-visible {outline:2px solid currentColor;outline-offset:3px}
-.hb-camera-audio-feedback {position:absolute;z-index:8;top:calc(100% + 6px);right:0;width:max-content;max-width:min(260px,75vw);padding:7px 9px;border:1px solid color-mix(in srgb,currentColor 25%,transparent);border-radius:8px;color:CanvasText;background:color-mix(in srgb,Canvas 94%,transparent);font-size:max(12px,calc(11px / var(--hb-camera-control-scale,var(--hb-runtime-dialog-scale,1))));line-height:1.4;text-align:left}
-.hb-camera-audio-feedback[hidden] {display:none}
-.hb-custom-popup-module--camera .has-camera-audio>.hb-camera-audio-control {right:132px}
-.hb-custom-popup-module--camera .has-camera-audio>strong {max-width:calc(100% - 144px - var(--hb-camera-audio-size));overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.hb-camera-preview-heading>.hb-camera-preview-text.has-camera-audio {width:100%;max-width:none}
+/* ===== 0.8.7：普通 / 3D / 组合摄像头弹窗的声音开关 =====
+ *
+ * 图标是 `<span class="hb-ui-icon">` + MDI 遮罩（见 ui-icons.css），按钮只是玻璃底托：
+ * 深色半透明 + 模糊，保证压在明亮画面上也能看清；`data-audio-state` 是唯一状态源。
+ */
+.has-camera-audio {
+  --hb-camera-audio-size: clamp(calc(32px / var(--hb-camera-control-scale,var(--hb-runtime-dialog-scale,1))),44px,calc(44px / var(--hb-camera-control-scale,var(--hb-runtime-dialog-scale,1))));
+  --hb-camera-audio-icon-size: clamp(calc(17px / var(--hb-camera-control-scale,var(--hb-runtime-dialog-scale,1))),21px,calc(23px / var(--hb-camera-control-scale,var(--hb-runtime-dialog-scale,1))));
+}
+/* 标题行给按钮让位：按钮是绝对定位，padding 只压缩文字可用宽度。 */
+.hb-camera-preview-heading.has-camera-audio { padding-right: calc(var(--hb-camera-audio-size) + 12px); }
+
+.hb-camera-audio-control {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 6;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+}
+
+.hb-camera-preview-heading button.hb-camera-audio-toggle,
+.hb-custom-popup-module--camera button.hb-camera-audio-toggle,
+.i3d-extra-camera-toolbar button.hb-camera-audio-toggle {
+  display: grid;
+  width: var(--hb-camera-audio-size);
+  height: var(--hb-camera-audio-size);
+  min-width: 0;
+  min-height: 0;
+  place-items: center;
+  padding: 0;
+  margin: 0;
+  border: 1px solid rgba(228, 239, 245, 0.28);
+  border-radius: 50%;
+  color: #eaf2f7;
+  background: rgba(12, 20, 26, 0.52);
+  -webkit-backdrop-filter: blur(12px) saturate(135%);
+  backdrop-filter: blur(12px) saturate(135%);
+  box-shadow:
+    0 8px 22px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    background-color 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.12s ease;
+}
+
+/* 有声：绿色点缀与状态点的「实时」语义一致，一眼能分辨开/关。 */
+.hb-camera-preview-heading button.hb-camera-audio-toggle[data-audio-state="on"],
+.hb-custom-popup-module--camera button.hb-camera-audio-toggle[data-audio-state="on"],
+.i3d-extra-camera-toolbar button.hb-camera-audio-toggle[data-audio-state="on"] {
+  border-color: rgba(104, 204, 62, 0.55);
+  color: #e2f8d3;
+  background: rgba(42, 86, 27, 0.55);
+  box-shadow:
+    0 8px 22px rgba(0, 0, 0, 0.3),
+    0 0 0 3px rgba(104, 204, 62, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+/* 画面还没就绪 / 流里没有音轨：保留形状但明确「暂时不可用」。 */
+.hb-camera-audio-toggle[data-audio-state="waiting"] { opacity: 0.72; }
+.hb-camera-audio-toggle[data-audio-state="unavailable"] { opacity: 0.42; }
+.hb-camera-audio-toggle[data-audio-state="pending"] .hb-ui-icon {
+  animation: hb-camera-audio-pulse 1.1s ease-in-out infinite;
+}
+.hb-camera-audio-toggle[data-audio-state="pending"] { cursor: progress; }
+
+@media (hover: hover) {
+  .hb-camera-preview-heading button.hb-camera-audio-toggle:hover,
+  .hb-custom-popup-module--camera button.hb-camera-audio-toggle:hover,
+  .i3d-extra-camera-toolbar button.hb-camera-audio-toggle:hover {
+    border-color: rgba(236, 246, 251, 0.5);
+    background-color: rgba(28, 41, 50, 0.66);
+    box-shadow:
+      0 10px 26px rgba(0, 0, 0, 0.36),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+  .hb-camera-preview-heading button.hb-camera-audio-toggle[data-audio-state="on"]:hover,
+  .hb-custom-popup-module--camera button.hb-camera-audio-toggle[data-audio-state="on"]:hover,
+  .i3d-extra-camera-toolbar button.hb-camera-audio-toggle[data-audio-state="on"]:hover {
+    border-color: rgba(128, 224, 86, 0.72);
+    background-color: rgba(52, 104, 34, 0.62);
+  }
+}
+
+.hb-camera-audio-toggle:active { transform: scale(0.94); }
+
+.hb-camera-audio-toggle .hb-ui-icon {
+  width: var(--hb-camera-audio-icon-size);
+  height: var(--hb-camera-audio-icon-size);
+}
+.hb-camera-audio-toggle .hb-ui-icon[hidden] { display: none; }
+
+/* 禁用时由 `data-audio-state` 决定淡出程度（waiting / unavailable 各有档位）。 */
+.hb-camera-audio-toggle:disabled {
+  cursor: default;
+  transform: none;
+}
+.hb-camera-preview-heading button.hb-camera-audio-toggle:focus-visible,
+.hb-custom-popup-module--camera button.hb-camera-audio-toggle:focus-visible,
+.i3d-extra-camera-toolbar button.hb-camera-audio-toggle:focus-visible {
+  outline: 2px solid #9fd8ff;
+  outline-offset: 3px;
+}
+
+/* 失败提示：压在画面上，底色要够实；红边只提示「出错了」，不抢按钮的视觉重量。 */
+.hb-camera-audio-feedback {
+  position: absolute;
+  z-index: 8;
+  top: calc(100% + 8px);
+  right: 0;
+  width: max-content;
+  max-width: min(260px, 75vw);
+  padding: 7px 10px;
+  border: 1px solid rgba(255, 150, 150, 0.38);
+  border-radius: 9px;
+  color: #ffdcdc;
+  background: rgba(38, 14, 16, 0.88);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
+  font-size: max(12px, calc(11px / var(--hb-camera-control-scale,var(--hb-runtime-dialog-scale,1))));
+  line-height: 1.4;
+  text-align: left;
+}
+.hb-camera-audio-feedback[hidden] { display: none; }
+
+@keyframes hb-camera-audio-pulse {
+  50% { opacity: 0.42; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hb-camera-audio-toggle,
+  .hb-camera-audio-toggle .hb-ui-icon {
+    animation: none;
+    transition: none;
+  }
+}
+
+/* 组合弹窗：右侧留给摄像头示意图，按钮往左让 132px。 */
+.hb-custom-popup-module--camera .has-camera-audio > .hb-camera-audio-control { right: 132px; }
+.hb-custom-popup-module--camera .has-camera-audio > strong {
+  max-width: calc(100% - 144px - var(--hb-camera-audio-size));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 3D 附加面板：声音开关在画面下方工具条里，不参与绝对定位。 */
+.i3d-extra-camera-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+.i3d-extra-camera-toolbar .hb-camera-audio-control {
+  position: relative;
+  top: auto;
+  right: auto;
+}
 
 /* 0.8.7：非 3D 详情弹窗里不显示设备缩略图（占位会顶掉标题行）。 */
 .hb-camera-preview-dialog:not(.i3d-camera-details) .hb-camera-device-visual {

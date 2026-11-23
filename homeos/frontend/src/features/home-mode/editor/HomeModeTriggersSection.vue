@@ -102,6 +102,7 @@
                     fit
                     trigger-class="hm-trigger-card__type"
                     v-model="tr.type"
+                    @update:model-value="applyTriggerDefaults(tr)"
                   >
                     <option v-for="opt in triggerTypeOptions" :key="opt.id" :value="opt.id">
                       {{ opt.label }}
@@ -155,6 +156,26 @@
                   />
                 </div>
 
+                <div v-if="tr.type === 'sun'" class="hm-trigger-card__body hm-trigger-card__body--row">
+                  <HosSelect variant="home-mode" fit trigger-class="hm-field__input" v-model="tr.event">
+                    <option value="sunrise">{{ '日出' }}</option>
+                    <option value="sunset">{{ '日落' }}</option>
+                  </HosSelect>
+                  <label class="hm-field__label hm-field__label--inline">{{ '偏移' }}</label>
+                  <input
+                    v-model.number="tr.offsetMinutes"
+                    type="number"
+                    min="-180"
+                    max="180"
+                    step="5"
+                    class="hm-field__input hm-field__input--time"
+                    @change="clampSunOffset(tr)"
+                  />
+                  <span class="hm-trigger-hint hm-trigger-hint--inline">
+                    {{ '分钟（负=提前）' }}
+                  </span>
+                </div>
+
                 <div v-if="tr.type === 'state'" class="hm-trigger-card__body">
                   <div class="hm-trigger-transition">
                     <div class="hm-trigger-transition__field">
@@ -197,6 +218,7 @@ import HomeModeItemNav from '@/components/common/HomeModeItemNav.vue'
 import { useHomeModeItemExpansion, useHomeModeItemFocus } from '../composables/editor.internals'
 import { useHomeModeRecommend } from '../composables/home-mode-panel.internals'
 import { normalizeHomeModeTimeAt } from '@homeos/shared'
+import { describeTriggerSubtitle, normalizeSunOffset } from '@/features/home-mode/utils/trigger-summary.util'
 
 const activeDraft = defineModel('activeDraft', { type: Object, required: true })
 
@@ -253,6 +275,18 @@ function normalizeTriggerTime(tr) {
   if (normalized) tr.at = normalized
 }
 
+/** 切换触发器类型时补齐该类型的默认字段（否则日出/日落的「事件」是空的）。 */
+function applyTriggerDefaults(tr) {
+  if (tr.type !== 'sun') return
+  tr.event = tr.event === 'sunset' ? 'sunset' : 'sunrise'
+  tr.offsetMinutes = normalizeSunOffset(tr.offsetMinutes)
+}
+
+/** 日出/日落偏移夹到 ±180 分钟（归一逻辑在 utils，组件只写回）。 */
+function clampSunOffset(tr) {
+  tr.offsetMinutes = normalizeSunOffset(tr?.offsetMinutes)
+}
+
 // 紧凑态导航条目：每条触发器的标签与副标题
 const triggerNavItems = computed(() =>
   (activeDraft.value?.triggers ?? []).map((tr, i) => {
@@ -283,12 +317,10 @@ function triggerTabLabel(tr) {
   return props.triggerTypeOptions.find((o) => o.id === tr.type)?.label || tr.type || '触发器'
 }
 
-// 取触发器在导航中的副标题（时间/实体/状态迁移）
+// 取触发器在导航中的副标题（时间/日出日落/实体/状态迁移）：纯函数在 utils 里，
+// 组件只做转发 —— 每加一种触发器类型都不该抬高这里的圈复杂度。
 function triggerTabSubtitle(tr) {
-  if (tr.type === 'time' && tr.at) return tr.at
-  if ((tr.type === 'lock_unlock' || tr.type === 'state') && tr.entityId) return tr.entityId
-  if (tr.type === 'state' && tr.to) return `→ ${tr.to}`
-  return ''
+  return describeTriggerSubtitle(tr)
 }
 
 function toggleTriggerEnabled(idx, triggerIndex) {

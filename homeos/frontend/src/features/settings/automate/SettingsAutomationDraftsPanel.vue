@@ -75,6 +75,17 @@
               {{ applyingId === draft.draftId ? '创建中…' : '确认并生成任务' }}
             </button>
             <button
+              v-if="draft.status === 'READY'"
+              type="button"
+              class="settings-btn-ghost"
+              :disabled="!canApply(draft) || exportingId === draft.draftId || applyingId === draft.draftId"
+              :title="landingReason(draft) || '写进 HA 自动化：由 HA 执行，自动化列表里可见'"
+              @click="exportToHa(draft)"
+            >
+              <Upload class="w-4 h-4" />
+              {{ exportingId === draft.draftId ? '写入中…' : '写入 HA 自动化' }}
+            </button>
+            <button
               v-if="canEditTargets(draft)"
               type="button"
               class="settings-btn-ghost"
@@ -245,12 +256,13 @@
 
 <script setup>
 import { defineAsyncComponent, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref } from 'vue'
-import { Info, ListChecks, Play, Plus, RefreshCw, ShieldAlert, Timer, TriangleAlert, X } from '@lucide/vue'
+import { Info, ListChecks, Play, Plus, RefreshCw, ShieldAlert, Timer, TriangleAlert, Upload, X } from '@lucide/vue'
 import SettingsPageShell from '@/components/common/settings-page-shell/SettingsPageShell.vue'
 import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import { useChromeStore } from '@/stores/chrome.store'
 import {
   applyAutomationDraft,
+  exportAutomationDraftToHa,
   deleteAutomationDraft,
   listAutomationDrafts,
   setAutomationDraftTargets,
@@ -283,6 +295,8 @@ const error = ref('')
 const drafts = ref([])
 const discardingId = ref('')
 const applyingId = ref('')
+/** 正在「写入 HA 自动化」的草案 id（与 applyingId 分开：两个动作互不阻塞提示） */
+const exportingId = ref('')
 const splittingId = ref('')
 const savingTargets = ref(false)
 /** 目标设备选择器状态：draftId 为空表示关闭。 */
@@ -632,6 +646,34 @@ async function applyDraft(draft) {
     chrome.notify(message, 'error')
   } finally {
     applyingId.value = ''
+  }
+}
+
+/**
+ * 把草案写进 HA 自动化（由 HA 执行，自动化列表里可见、换机后仍在）。
+ *
+ * 与 `applyDraft` 并列而不是替换：本机计划任务由 HomeOS 调度器执行，HA 自动化由 HA 执行，
+ * 两者语义不同，用户按需选。`automationId` 由草案派生，重复点击是覆盖同一条。
+ */
+async function exportToHa(draft) {
+  if (exportingId.value || !canApply(draft)) return
+  const confirmed = await chrome.confirm(
+    '这条规则会写进 Home Assistant 的自动化配置，之后由 HA 自己执行（不再是 HomeOS 计划任务）。重复导出会覆盖同一条自动化。继续？',
+    '写入 HA 自动化',
+    { confirmText: '写入 HA', cancelText: '取消' },
+  )
+  if (!confirmed) return
+  exportingId.value = draft.draftId
+  try {
+    const { data } = await exportAutomationDraftToHa(draft.draftId, conflictsOf(draft, 'certain').length > 0)
+    chrome.notify(`已写入 HA 自动化「${data?.automation?.alias || draftTitle(draft)}」`, 'success')
+    await load({ silent: true })
+  } catch (e) {
+    const message = getApiErrorMessage(e, '写入 HA 自动化失败')
+    error.value = message
+    chrome.notify(message, 'error')
+  } finally {
+    exportingId.value = ''
   }
 }
 

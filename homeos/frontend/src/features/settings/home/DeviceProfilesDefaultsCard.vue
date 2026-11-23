@@ -6,109 +6,135 @@
 -->
 <template>
   <SettingsCard full static extra-class="dp-card">
-    <div class="dp-section-head">
-      <div class="min-w-0">
-        <p class="dp-section-head__title">{{ editing ? '编辑房间默认设备' : '房间默认播放设备' }}</p>
-        <p class="dp-section-head__hint">
-          {{ '点歌时用来选目标音箱；「客厅默认开电视」时用来选 Apple TV / 电视。同一房间每种用途只能有一条。' }}
-        </p>
-      </div>
-      <span v-if="editing" class="dp-badge dp-badge--warn">{{ '编辑中' }}</span>
-    </div>
+    <SettingsCardIntro
+      :icon="Speaker"
+      eyebrow="房间快捷入口"
+      title="房间默认播放设备"
+      :description="'点歌时用来选目标音箱；「客厅默认开电视」时用来选 Apple TV / 电视。同一房间每种用途只能有一条。'"
+    >
+      <template v-if="editing" #actions>
+        <span class="dp-badge dp-badge--warn">编辑中 · {{ areaLabel(editing.areaId) }}</span>
+      </template>
+    </SettingsCardIntro>
 
-    <div class="settings-form-grid settings-form-grid--2 mt-3">
-      <div>
-        <label class="settings-form-label mb-1.5">{{ '房间' }}</label>
+    <div class="dp-form-grid">
+      <div class="dp-field">
+        <label class="settings-form-label">{{ '房间' }}</label>
         <HosSelect v-model="form.areaId" variant="settings" block :searchable="false" :disabled="!!editing">
           <option v-for="area in areas" :key="area.areaId" :value="area.areaId">{{ area.name }}</option>
           <option v-if="!areas.length" value="">{{ '（没有可用房间，先在「房间配置」同步 HA 区域）' }}</option>
         </HosSelect>
       </div>
-      <div>
-        <label class="settings-form-label mb-1.5">{{ '用途' }}</label>
+
+      <div class="dp-field">
+        <label class="settings-form-label">{{ '用途' }}</label>
         <HosSelect v-model="form.kind" variant="settings" block :searchable="false" :disabled="!!editing">
           <option v-for="kind in DEFAULT_MEDIA_KINDS" :key="kind" :value="kind">{{ KIND_LABELS[kind] }}</option>
         </HosSelect>
       </div>
-    </div>
 
-    <div class="mt-3">
-      <template v-if="form.kind === 'speaker'">
-        <label class="settings-form-label mb-1.5">{{ 'Music Assistant 播放器' }}</label>
-        <HosSelect v-model="form.maPlayerId" variant="settings" block>
-          <option value="">{{ '选择播放器…' }}</option>
-          <option v-for="player in maPlayers" :key="player.playerId" :value="player.playerId">
-            {{ player.name }}{{ player.available ? '' : ' · 不可用' }}
-          </option>
-        </HosSelect>
-        <p v-if="!maPlayers.length" class="dp-inline-hint">
-          {{ '读不到播放器：先在「媒体与入库」填好 Music Assistant 地址与令牌并保存。' }}
-        </p>
-      </template>
-      <template v-else>
-        <label class="settings-form-label mb-1.5">{{ '实体' }}</label>
-        <HosSelect v-model="form.entityId" variant="settings" block :searchable="false">
-          <option value="">{{ '选择电视 / Apple TV…' }}</option>
-          <option v-for="item in entityOptions" :key="item.entityId" :value="item.entityId">
-            {{ item.name }}{{ item.available ? '' : ' · 不在线' }} · {{ KIND_LABELS[item.kind] || item.kind }}
-          </option>
-        </HosSelect>
-        <p v-if="!entityOptions.length" class="dp-inline-hint">
-          {{ '没有可选的电视：先在上方把电视 / Apple TV 的类型确认好。' }}
-        </p>
-      </template>
+      <div class="dp-field">
+        <label class="settings-form-label">
+          {{ form.kind === 'speaker' ? 'Music Assistant 播放器' : '电视 / Apple TV 实体' }}
+        </label>
+        <template v-if="form.kind === 'speaker'">
+          <HosSelect v-model="form.maPlayerId" variant="settings" block>
+            <option value="">{{ '选择播放器…' }}</option>
+            <option v-for="player in maPlayers" :key="player.playerId" :value="player.playerId">
+              {{ player.name }}{{ player.available ? '' : ' · 不可用' }}
+            </option>
+          </HosSelect>
+          <p v-if="!maPlayers.length" class="dp-inline-hint">
+            {{ '读不到播放器：先在「媒体与入库」填好 Music Assistant 地址与令牌并保存。' }}
+          </p>
+        </template>
+        <template v-else>
+          <HosSelect v-model="form.entityId" variant="settings" block :searchable="false">
+            <option value="">{{ '选择电视 / Apple TV…' }}</option>
+            <option v-for="item in entityOptions" :key="item.entityId" :value="item.entityId">
+              {{ item.name }}{{ item.available ? '' : ' · 不在线' }} · {{ KIND_LABELS[item.kind] || item.kind }}
+            </option>
+          </HosSelect>
+          <p v-if="!entityOptions.length" class="dp-inline-hint">
+            {{ '没有可选的电视：先在上方把电视 / Apple TV 的类型确认好。' }}
+          </p>
+        </template>
+      </div>
     </div>
 
     <div class="dp-form-actions">
       <button type="button" class="settings-btn-accent" :disabled="saving" @click="save">
-        {{ saving ? '保存中…' : '保存默认设备' }}
+        {{ saving ? '保存中…' : editing ? '保存修改' : '保存默认设备' }}
       </button>
       <button v-if="editing" type="button" class="settings-btn-ghost" @click="cancelEdit">{{ '取消编辑' }}</button>
-      <span class="dp-form-actions__count">{{ rows.length ? `已配置 ${rows.length} 条` : '尚未配置' }}</span>
+      <span v-if="rows.length" class="dp-form-actions__status">
+        <span class="dp-form-actions__dot" />
+        {{ `已配置 ${rows.length} 条` }}
+      </span>
     </div>
 
-    <ul v-if="rows.length" class="dp-list dp-list--spaced">
-      <li v-for="row in rows" :key="row.id" class="dp-row dp-row--compact">
-        <div class="dp-row__main">
-          <div class="dp-row__identity">
-            <p class="dp-row__name">{{ areaLabel(row.areaId) }}</p>
-            <p class="dp-row__meta">
-              <span>{{ KIND_LABELS[row.kind] || row.kind }}</span>
-              <span class="dp-row__id">{{ row.entityId || row.maPlayerId || '目标缺失' }}</span>
-            </p>
-          </div>
-          <div class="dp-row__controls">
-            <span class="dp-badge" :class="row.available ? 'dp-badge--ok' : 'dp-badge--warn'">
-              {{ row.available ? row.name : `${row.name || '目标缺失'} · 不可用` }}
+    <ul v-if="rows.length" class="dp-defaults">
+      <li v-for="row in rows" :key="row.id" class="dp-default">
+        <span class="dp-default__orb" aria-hidden="true">
+          <component :is="row.kind === 'speaker' ? Speaker : Tv" />
+        </span>
+
+        <div class="dp-default__main">
+          <p class="dp-default__room">{{ areaLabel(row.areaId) }}</p>
+          <p class="dp-default__meta">
+            <span>{{ KIND_LABELS[row.kind] || row.kind }}</span>
+            <span class="dp-default__id" :title="row.entityId || row.maPlayerId">
+              {{ row.entityId || row.maPlayerId || '目标缺失' }}
             </span>
-            <button type="button" class="settings-btn-ghost settings-btn--sm" @click="startEdit(row)">{{ '编辑' }}</button>
-            <button
-              type="button"
-              class="settings-btn-ghost settings-btn--sm"
-              :disabled="deleting === row.id"
-              @click="remove(row)"
-            >
-              {{ '删除' }}
-            </button>
-          </div>
+          </p>
+        </div>
+
+        <span
+          class="dp-default__target"
+          :class="{ 'dp-default__target--off': !row.available }"
+          :title="row.available ? row.name : '目标当前不可用：检查设备是否在线或类型是否已确认'"
+        >
+          <span class="dp-default__dot" />
+          <span class="dp-default__target-name">
+            {{ row.available ? row.name || '未命名目标' : `${row.name || '目标缺失'} · 不可用` }}
+          </span>
+        </span>
+
+        <div class="dp-default__actions">
+          <button type="button" class="settings-btn-ghost settings-btn--sm" @click="startEdit(row)">
+            <Pencil class="w-3.5 h-3.5" />
+            {{ '编辑' }}
+          </button>
+          <button
+            type="button"
+            class="settings-btn-ghost settings-btn--sm dp-btn-delete"
+            :disabled="deleting === row.id"
+            @click="remove(row)"
+          >
+            <Trash class="w-3.5 h-3.5" />
+            {{ '删除' }}
+          </button>
         </div>
       </li>
     </ul>
-    <VEmptyState
-      v-else
-      icon="🔈"
-      title="还没有配置房间默认设备"
-      description="配置后，语音点歌与「在电视上打开某个应用」才不需要每次指定房间。"
-      tone="neutral"
-      compact
-    />
+
+    <div v-else class="dp-empty">
+      <span class="dp-empty__icon" aria-hidden="true"><Speaker /></span>
+      <div class="dp-empty__body">
+        <p class="dp-empty__title">{{ '还没有配置房间默认设备' }}</p>
+        <p class="dp-empty__desc">
+          {{ '配置后，语音点歌与「在电视上打开某个应用」才不需要每次指定房间。' }}
+        </p>
+      </div>
+    </div>
   </SettingsCard>
 </template>
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { Pencil, Speaker, Trash, Tv } from '@lucide/vue'
 import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
-import VEmptyState from '@/components/common/base/VEmptyState.vue'
+import SettingsCardIntro from '@/components/common/settings-page-shell/SettingsCardIntro.vue'
 import HosSelect from '@/components/common/base/HosSelect.vue'
 import { useChromeStore } from '@/stores/chrome.store'
 import {

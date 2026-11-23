@@ -77,6 +77,10 @@
           class="flex-1 flex flex-col min-h-0 overflow-hidden animate-fade-in--fast"
         >
           <SecurityOverview />
+          <!-- 用水安全：漏水告警在后台监测，这里是「看状态 + 确认关阀」的唯一入口 -->
+          <div class="security-hub__water">
+            <WaterSafetyCard />
+          </div>
         </div>
 
         <!-- ====== 监控中心（懒加载） ====== -->
@@ -473,6 +477,7 @@ import HaDegradeBanner from '@/components/common/HaDegradeBanner.vue'
 import MediaPagerControls from './components/MediaPagerControls.vue'
 import SecurityMonitorPanel from './components/MonitorPanel.vue'
 import SecurityOverview from './components/Overview.vue'
+import WaterSafetyCard from './components/WaterSafetyCard.vue'
 import VPanelSkeleton from '@/components/common/base/VPanelSkeleton.vue'
 import VEmptyState from '@/components/common/base/VEmptyState.vue'
 import { useSecurityView } from './composables/useSecurityView'

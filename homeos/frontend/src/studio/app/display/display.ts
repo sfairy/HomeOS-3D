@@ -680,10 +680,27 @@ export function bootDisplay(): void {
     refreshCatalog().catch(() => null)
   }
 
+  /**
+   * 展示页对「仪表盘草稿已保存」的反应。
+   *
+   * 后端在保存草稿后经 `/ws/runtime` 广播 `project_revision_changed`，这里据此立即重拉，
+   * 而不是等轮询 —— 在编辑器里改完面板，墙板应当马上变。带 `projectId` 的事件只在
+   * 本页正展示那个项目时才动作；不带 `projectId`（老版本）则保守地刷新本页。
+   */
+  const handleProjectRevisionChanged = (revisionEvent: Event) => {
+    const detail = (revisionEvent as CustomEvent).detail || {}
+    const changedProjectId = String(detail.projectId || '')
+    if (changedProjectId && project?.id && changedProjectId !== String(project.id)) return
+    refreshDisplay().catch(() => null)
+  }
+
   let refreshIntervalId: any = null
   if (hasDisplayDomContract) {
     window.addEventListener('hb-entity-catalog-changed', handleEntityCatalogChanged)
-    ;(refreshIntervalId = window.setInterval(refreshIfVisible, 10000)),
+    window.addEventListener('hb-project-revision-changed', handleProjectRevisionChanged)
+    // 轮询降级为兜底：正常路径由上面的 WS 事件驱动。60 秒只用于「事件丢失 / 连接刚恢复」
+    // 这类边缘情况，避免 24 小时开机的墙板每 10 秒白跑两次 HTTP 请求。
+    ;(refreshIntervalId = window.setInterval(refreshIfVisible, 60000)),
       bootstrap().catch((bootstrapError) => {
         handleDisplayError(bootstrapError)
         // NO_DASHBOARD 与 UI_PACK_RESTRICTED 的文案已由 handleDisplayError 落到内容区，
@@ -705,6 +722,7 @@ export function bootDisplay(): void {
     viewportObserver = null
     // 全局监听（必须与注册时同一函数引用才能命中）
     window.removeEventListener('hb-entity-catalog-changed', handleEntityCatalogChanged)
+    window.removeEventListener('hb-project-revision-changed', handleProjectRevisionChanged)
     window.removeEventListener('pageshow', handleLifecycleResume)
     document.removeEventListener('visibilitychange', handleLifecycleResume)
     window.removeEventListener('online', handleLifecycleResume)

@@ -3,7 +3,8 @@
  * 用于系统配置编辑器的动态表单渲染与序列化。
  */
 
-/** 配置字段类型：string=字符串，number=数值，boolean=布尔，password=密码，array=数组，object=对象，entity=实体，entity-list=实体列表，select=下拉选择 */
+/** 配置字段类型：string=字符串，number=数值，boolean=布尔，password=密码，array=数组，object=对象，entity=实体，entity-list=实体列表，select=下拉选择，
+ * multi-select=固定选项多选（来源静音 / 免打扰星期） */
 type SystemConfigFieldType =
   | 'string'
   | 'number'
@@ -13,6 +14,7 @@ type SystemConfigFieldType =
   | 'object'
   | 'entity'
   | 'entity-list'
+  | 'multi-select'
   | 'select'
 
 /** 可编辑配置字段 */

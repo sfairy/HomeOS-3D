@@ -1386,7 +1386,7 @@ dialog.hb-interaction3d-runtime.is-borrowed-editor::backdrop {
 }
 @media (max-width: 640px) {
   .i3d-vacuum-map-body {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(220px, 1fr) minmax(0, 1fr);
   }
   .i3d-vacuum-map-body aside {

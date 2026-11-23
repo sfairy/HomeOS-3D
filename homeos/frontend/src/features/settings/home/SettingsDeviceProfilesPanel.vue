@@ -257,6 +257,7 @@ import { useChromeStore } from '@/stores/chrome.store'
 import {
   clearDeviceProfileConfirmation,
   confirmDeviceProfile,
+  confirmDeviceProfilesBatch,
   listDeviceProfiles,
   refreshDeviceProfiles,
   setDeviceProfileAliases,
@@ -483,25 +484,59 @@ async function confirm(item, kind) {
   }
 }
 
-/** 批量确认：只处理「规则已给出明确类型且在线」的设备，逐条失败即停并汇报。 */
+/** 批量确认：按类型分组后走批量接口（一次请求确认多台，比逐台往返快得多）。
+ *
+ * 只处理「规则已给出明确类型且在线」的设备；服务端逐台复用单台确认的校验与审计，
+ * 失败的单台会列在 `failed` 里（不阻断其余）。 */
+/** 按 kind 分组（批量接口一次只接受一个 kind）。 */
+function groupByKind(items) {
+  const byKind = new Map()
+  for (const item of items) {
+    const bucket = byKind.get(item.kind)
+    if (bucket) bucket.push(item)
+    else byKind.set(item.kind, [item])
+  }
+  return byKind
+}
+
+/** 确认一个 kind 的一批设备，返回 `{ ok, failures }`（失败不抛出，交给调用方汇总）。 */
+async function confirmKindBatch(kind, items) {
+  try {
+    const { data } = await confirmDeviceProfilesBatch(
+      items.map((item) => item.entityId),
+      kind,
+    )
+    const failures = (data.failed || []).map((failed) => {
+      const name = items.find((item) => item.entityId === failed.entityId)?.name || failed.entityId
+      return `${name}：${failed.message}`
+    })
+    return { ok: data.confirmed?.length || 0, failures }
+  } catch (e) {
+    return { ok: 0, failures: [`${KIND_LABELS[kind] || kind}：${getApiErrorMessage(e, '确认失败')}`] }
+  }
+}
+
+/**
+ * 批量确认：按类型分组后走批量接口（一次请求确认多台，比逐台往返快得多）。
+ *
+ * 只处理「规则已给出明确类型且在线」的设备；服务端逐台复用单台确认的校验与审计，
+ * 失败的单台会列在 `failed` 里（不阻断其余）。 */
 async function confirmAllAuto() {
   const targets = [...autoConfirmable.value]
   if (!targets.length) return
   batchSaving.value = true
   let ok = 0
+  const failures = []
   try {
-    for (const item of targets) {
-      try {
-        await confirmDeviceProfile(item.entityId, item.kind, item.aliases?.length ? item.aliases : undefined)
-        ok += 1
-      } catch (e) {
-        chrome.notify(`${item.name}：${getApiErrorMessage(e, '确认失败')}`, 'error')
-        break
-      }
+    for (const [kind, items] of groupByKind(targets)) {
+      const result = await confirmKindBatch(kind, items)
+      ok += result.ok
+      failures.push(...result.failures)
     }
   } finally {
     batchSaving.value = false
   }
+  for (const message of failures) chrome.notify(message, 'error')
   chrome.notify(`已确认 ${ok} / ${targets.length} 台`, ok === targets.length ? 'success' : 'warning')
   await load()
 }
@@ -577,4 +612,4 @@ async function removeAlias(item, alias) {
 onMounted(load)
 </script>
 
-<style scoped src="./styles/device-profiles.css"></style>
+<style src="./styles/device-profiles.css"></style>

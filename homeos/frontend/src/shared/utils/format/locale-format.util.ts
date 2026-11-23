@@ -1,4 +1,6 @@
 /** 本地化日期 / 时间 / 数字格式化工具 */
+import { hour12Option } from './time-format.util'
+
 type DateInput = Date | string | number | null | undefined
 
 /**
@@ -11,20 +13,19 @@ export function pad2(value: number | string | null | undefined): string {
   return String(value ?? 0).padStart(2, '0')
 }
 
-/** 短日期时间：月/日 时:分（12 小时制） */
+/** 短日期时间：月/日 时:分（小时制跟随用户偏好） */
 const SHORT_DATETIME_OPTS: Intl.DateTimeFormatOptions = {
   month: '2-digit',
   day: '2-digit',
   hour: '2-digit',
   minute: '2-digit',
 }
-/** 审计时间戳：numeric 月日 + 24 小时制 时:分 */
+/** 审计时间戳：numeric 月日 + 时:分（小时制跟随用户偏好） */
 const AUDIT_TIMESTAMP_OPTS: Intl.DateTimeFormatOptions = {
   month: 'numeric',
   day: 'numeric',
   hour: '2-digit',
   minute: '2-digit',
-  hour12: false,
 }
 /** 安防事件时间：时:分:秒 */
 const SECURITY_TIME_OPTS: Intl.DateTimeFormatOptions = {
@@ -32,16 +33,15 @@ const SECURITY_TIME_OPTS: Intl.DateTimeFormatOptions = {
   minute: '2-digit',
   second: '2-digit',
 }
-/** 访问审计完整时间：默认完整日期时间 + 24 小时制 */
-const AUDIT_FULL_OPTS: Intl.DateTimeFormatOptions = { hour12: false }
-/** 详细日期时间：含秒，24 小时制 */
+/** 访问审计完整时间：默认完整日期时间（小时制跟随用户偏好） */
+const AUDIT_FULL_OPTS: Intl.DateTimeFormatOptions = {}
+/** 详细日期时间：含秒（小时制跟随用户偏好） */
 const DETAILED_DATETIME_OPTS: Intl.DateTimeFormatOptions = {
   month: '2-digit',
   day: '2-digit',
   hour: '2-digit',
   minute: '2-digit',
   second: '2-digit',
-  hour12: false,
 }
 
 /**
@@ -59,16 +59,25 @@ export function formatLocaleDate(date: DateInput, options?: Intl.DateTimeFormatO
 /**
  * 按 zh-CN 与指定选项格式化时间部分。
  *
+ * 未显式传 ``hour12`` 时按用户偏好（浏览器语言 / 显式设置）决定：
+ * 12 小时制会出现「上午/下午」，24 小时制不会。需要固定口径的调用方
+ * （例如必须逐行对齐的审计表格）请自己传 ``hour12``。
+ *
  * @param date 日期输入
  * @param options Intl 选项，缺省时使用 locale 默认
  * @returns 格式化后的时间字符串
  */
 export function formatLocaleTime(date: DateInput, options?: Intl.DateTimeFormatOptions): string {
-  return new Date(date as string | number | Date).toLocaleTimeString('zh-CN', options)
+  return new Date(date as string | number | Date).toLocaleTimeString('zh-CN', {
+    ...hour12Option(),
+    ...options,
+  })
 }
 
 /**
  * 按 zh-CN 与指定选项格式化完整日期时间（含日期 + 时间）。
+ *
+ * 未显式传 ``hour12`` 时按用户偏好（浏览器语言 / 显式设置）决定。
  *
  * @param date 日期输入
  * @param options Intl 选项
@@ -76,7 +85,10 @@ export function formatLocaleTime(date: DateInput, options?: Intl.DateTimeFormatO
  */
 export function formatLocaleString(date: DateInput, options?: Intl.DateTimeFormatOptions): string {
   // check-restricted-syntax-ignore: 本模块是 toLocaleString 的语义化封装层
-  return new Date(date as string | number | Date).toLocaleString('zh-CN', options)
+  return new Date(date as string | number | Date).toLocaleString('zh-CN', {
+    ...hour12Option(),
+    ...options,
+  })
 }
 
 /** 审计/日志列表：月/日 时:分 */

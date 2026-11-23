@@ -2,8 +2,10 @@
 import { getSectionLabels } from '@/composables/config/system-config-core.internals'
 import { inferSystemConfigFieldType, NESTED_JSON_FIELDS } from '@/shared/utils/config/system-config/field.util'
 import { SYSTEM_CONFIG_FIELD_KEYS } from '@/shared/utils/config/system-config/field.meta'
+import { isNumericMultiField } from '@/shared/utils/config/system-config/field.util'
 import type { SystemConfig } from '@/shared/types/system-config'
 import type {
+  EditableConfigField,
   EditableConfigSection,
   EditableConfigSnapshot,
   SystemConfigPendingFieldKey,
@@ -82,6 +84,36 @@ export function toEditableSections(data: SystemConfig | Record<string, unknown>)
   return sections
 }
 
+/** 表单展示值 → 持久化值（按字段类型分派）。 */
+function coerceFieldValue(sectionKey: string, field: EditableConfigField): unknown {
+  const raw: unknown = field.value
+  if (field.type === 'object') {
+    try {
+      return JSON.parse(String(raw || '{}'))
+    } catch {
+      throw new Error(`${sectionKey}.${field.key} JSON 格式无效`)
+    }
+  }
+  if (field.type === 'array' || field.type === 'entity-list' || field.type === 'multi-select') {
+    return parseListValue(field.key, raw)
+  }
+  if (field.type === 'number') return Number(raw)
+  return raw
+}
+
+/** 列表型字段：逗号串 / 数组 → 字符串数组（数字型多选还原成数字）。 */
+function parseListValue(key: string, raw: unknown): unknown[] {
+  const tokens = Array.isArray(raw)
+    ? raw.map((item) => String(item ?? '').trim()).filter(Boolean)
+    : String(raw ?? '')
+        .split(/[,，\s]+/)
+        .map((token) => token.trim())
+        .filter(Boolean)
+  // ``dndWeekdays`` 这类字段后端按整数校验，逗号串必须还原成数字，
+  // 否则「周一」存进去变成 "1" 字符串，保存直接 422。
+  return isNumericMultiField(key) ? tokens.map((token) => Number(token)).filter((num) => Number.isFinite(num)) : tokens
+}
+
 export function fromEditableSections(sectionList: EditableConfigSection[]): EditableConfigSnapshot {
   const out: EditableConfigSnapshot = {}
   for (const section of sectionList) {
@@ -94,24 +126,7 @@ export function fromEditableSections(sectionList: EditableConfigSection[]): Edit
       ) {
         continue
       }
-      let value: unknown = field.value
-      if (field.type === 'object') {
-        try {
-          value = JSON.parse(String(value || '{}'))
-        } catch {
-          throw new Error(`${section.key}.${field.key} JSON 格式无效`)
-        }
-      } else if (field.type === 'array' || field.type === 'entity-list') {
-        value = Array.isArray(value)
-          ? value.map((item) => String(item ?? '').trim()).filter(Boolean)
-          : String(value ?? '')
-              .split(/[,，\s]+/)
-              .map((token) => token.trim())
-              .filter(Boolean)
-      } else if (field.type === 'number') {
-        value = Number(value)
-      }
-      out[section.key][field.key] = value
+      out[section.key][field.key] = coerceFieldValue(section.key, field)
     }
   }
   return out

@@ -79,7 +79,7 @@
 
 .fam-tiles {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
 }
 
@@ -244,7 +244,7 @@
 .fam-status-grid {
   display: grid;
   gap: 12px;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   align-items: stretch;
 }
 

@@ -1662,7 +1662,7 @@ input.settings-field {
 /* 内容栈：宽屏自动双栏，卡片交错入场 */
 .settings-page-stack {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   align-items: stretch;
   gap: var(--settings-content-gap);
   width: 100%;

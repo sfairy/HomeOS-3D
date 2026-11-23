@@ -371,7 +371,7 @@
 
 .diag-config-health {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto minmax(0, 1fr);
   gap: 28px;
   align-items: center;
 }
@@ -383,7 +383,7 @@
 
 @container settings-scroll (max-width: 720px) {
   .diag-config-health {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     justify-items: center;
     text-align: center;
     gap: 18px;
@@ -394,7 +394,7 @@
   }
 
   .diag-config-health__gaps {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -566,7 +566,7 @@
 
 @container hos-canvas (max-width: 640px) {
   .diag-config-health__gaps {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -676,17 +676,17 @@
 /* ── 指标磁贴 ── */
 .diag-metric-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
 .diag-metric-grid--compact {
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 @container settings-scroll (min-width: 640px) {
   .diag-metric-grid {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 12px;
   }
 }
@@ -762,19 +762,19 @@
 /* ── 连接服务卡 ── */
 .diag-service-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
 }
 
 @container settings-scroll (min-width: 600px) {
   .diag-service-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @container settings-scroll (min-width: 900px) {
   .diag-service-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -937,13 +937,13 @@
 /* ── 资源仪表盘 ── */
 .diag-gauge-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
 }
 
 @container settings-scroll (min-width: 600px) {
   .diag-gauge-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 }
 
@@ -1022,7 +1022,7 @@
 
 @container settings-scroll (max-width: 768px) {
   .diag-perf-hero {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -1170,12 +1170,12 @@
 
 .diag-kv-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 8px;
 }
 
 .diag-kv-grid--3 {
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 }
 
 @container settings-scroll (min-width: 900px) {
@@ -1653,7 +1653,7 @@
 
 .diag-export-guides {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
 }
 
@@ -2065,13 +2065,13 @@
 
 .diag-jobs-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
 }
 
 @container settings-scroll (min-width: 900px) {
   .diag-jobs-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 }
 
@@ -2183,14 +2183,14 @@
 
 .diag-job-card__meta {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 6px 12px;
   margin: 4px 0 0;
 }
 
 @container settings-scroll (max-width: 640px) {
   .diag-job-card__meta {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

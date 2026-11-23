@@ -159,6 +159,40 @@ export interface DesignMetricsSource {
   pageMaxWidth?: number | null
   /** `ui` 配置段（`scaleBaseWidth` / `scaleBaseHeight`） */
   ui?: { scaleBaseWidth?: number | null; scaleBaseHeight?: number | null } | null
+  /**
+   * 当前视口（安全区内容盒，CSS px）。
+   *
+   * 传入后，**超宽屏**（宽高比 ≥ 2.0）会改用 16:9 系的设计基准，而不是把 4:3 设计
+   * 横向摊开：`canvasW = vw/scale` 的算法保证画布比例永远等于视口比例，所以基准只影响
+   * 「一个设计单位对应多少屏幕像素」。用 4:3 基准时 21:9 屏上卡片会被拉成细长条、
+   * 右侧留白过多；换成 2560×1080 / 3840×1080 后版式接近设计稿。
+   * 16:9 及更方的视口不受影响（仍然用配置值）。
+   */
+  viewport?: { width?: number | null; height?: number | null } | null
+}
+
+/** 超宽屏的设计基准档位（按宽高比从大到小匹配）。 */
+export const ULTRAWIDE_BASELINES = [
+  { minAspect: 3.0, width: 3840, height: 1080 },
+  { minAspect: 2.0, width: 2560, height: 1080 },
+] as const
+
+/**
+ * 按视口宽高比选择超宽基准；不是超宽屏时返回 `null`。
+ *
+ * @param viewportW 视口宽（CSS px）
+ * @param viewportH 视口高（CSS px）
+ * @returns 命中的基准档位，未命中返回 `null`
+ */
+export function pickUltrawideBaseline(viewportW: number, viewportH: number) {
+  const width = Number(viewportW)
+  const height = Number(viewportH)
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return null
+  const aspect = width / height
+  for (const baseline of ULTRAWIDE_BASELINES) {
+    if (aspect >= baseline.minAspect) return { width: baseline.width, height: baseline.height }
+  }
+  return null
 }
 
 /**
@@ -174,8 +208,14 @@ export interface DesignMetricsSource {
 export function resolveDesignMetrics(source: DesignMetricsSource) {
   const ui = source.ui ?? {}
   const pageMax = Number(source.pageMaxWidth)
-  const width =
+  const explicitWidth =
     Number.isFinite(pageMax) && pageMax > 0 ? pageMax : positive(Number(ui.scaleBaseWidth), DEFAULT_DESIGN_WIDTH)
-  const height = positive(Number(ui.scaleBaseHeight), DEFAULT_DESIGN_HEIGHT)
-  return { width, height }
+  const explicitHeight = positive(Number(ui.scaleBaseHeight), DEFAULT_DESIGN_HEIGHT)
+  // 超宽屏（21:9 / 32:9）换 16:9 系基准：`pageMaxWidth` 是用户显式配置，优先保留；
+  // 否则按视口比例选档，避免把 4:3 设计横向摊成细长条（见 `pickUltrawideBaseline`）。
+  if (!(Number.isFinite(pageMax) && pageMax > 0) && source.viewport) {
+    const preset = pickUltrawideBaseline(Number(source.viewport.width), Number(source.viewport.height))
+    if (preset) return { width: preset.width, height: preset.height }
+  }
+  return { width: explicitWidth, height: explicitHeight }
 }

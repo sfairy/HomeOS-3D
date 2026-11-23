@@ -686,7 +686,7 @@
 /* ── 位置编辑器 ── */
 .afh-pos-card {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto minmax(0, 1fr);
   gap: 14px;
   padding: 14px;
   border-radius: var(--afh-radius-md);
@@ -1299,7 +1299,7 @@
   }
 
   .afh-pos-card {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .afh-pos-card__preview {

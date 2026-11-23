@@ -21,17 +21,27 @@ export type ServerListItems = Record<string, unknown>[]
 export interface ServerEnergyLists {
   dayItems: Ref<ServerListItems>
   monthItems: Ref<ServerListItems>
+  /** 近 30 天费用（元）：服务端按 pricing 分区算出；无电价/非电时为 null */
+  cost: Ref<number | null>
+  /** 费用的数据来源是估算（峰谷模式按段时长占比拆分，日粒度无法精算） */
+  costEstimated: Ref<boolean>
+  /** 用能单位（电 kWh / 燃气、水 m³） */
+  unit: Ref<string>
   reload: () => Promise<void>
 }
 
 /**
  * 拉取服务端日/月聚合，产出弹窗可直接消费的条目数组。
  *
- * @param enabled 仅电费账户（sourceKey === 'grid'）启用：水/气没有对应的服务端聚合表。
+ * @param enabled 电 / 燃气 / 水务账户都启用。单位由服务端按实体推导（kWh 或 m³），
+ *  报表按 ``unit`` 分组，因此不同单位不会串味。
  */
 export function useServerEnergyHistory(enabled: Ref<boolean>): ServerEnergyLists {
   const dayItems = ref<ServerListItems>([])
   const monthItems = ref<ServerListItems>([])
+  const cost = ref<number | null>(null)
+  const costEstimated = ref(false)
+  const unit = ref('kWh')
   let loading = false
   let disposed = false
 
@@ -48,10 +58,16 @@ export function useServerEnergyHistory(enabled: Ref<boolean>): ServerEnergyLists
         monthly.source === 'empty' ? [] : monthly.series.map((point) => ({ day: point.date, dayEleNum: point.value }))
       monthItems.value =
         yearly.source === 'empty' ? [] : yearly.series.map((point) => ({ month: point.date, monthEleNum: point.value }))
+      // 费用与单位只在服务端有数据时采用：空表时保持 null，弹窗回退到属性里的单价。
+      cost.value = monthly.cost ?? null
+      costEstimated.value = monthly.costEstimated === true
+      unit.value = monthly.unit || 'kWh'
     } catch {
       // 服务端不可用属正常降级路径：清空，弹窗继续读 HA 属性。
       dayItems.value = []
       monthItems.value = []
+      cost.value = null
+      costEstimated.value = false
     } finally {
       loading = false
     }
@@ -64,5 +80,5 @@ export function useServerEnergyHistory(enabled: Ref<boolean>): ServerEnergyLists
     disposed = true
   })
 
-  return { dayItems, monthItems, reload }
+  return { dayItems, monthItems, cost, costEstimated, unit, reload }
 }

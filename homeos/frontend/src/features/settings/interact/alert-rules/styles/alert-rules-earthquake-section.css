@@ -180,7 +180,7 @@
 
 @container hos-canvas (max-width: 720px) {
   .alert-eew-conn-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -358,7 +358,7 @@
 
 @container hos-canvas (max-width: 600px) {
   .alert-eew-conn-filters__list li {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 2px;
   }
 }

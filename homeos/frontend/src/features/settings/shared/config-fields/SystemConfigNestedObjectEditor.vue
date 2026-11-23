@@ -11,7 +11,12 @@
           {{ '编辑 JSON 源码' }}
         </button>
       </p>
-      <div class="nested-obj-editor__table-wrap">
+      <div
+        class="nested-obj-editor__table-wrap hos-hscroll"
+        tabindex="0"
+        role="region"
+        aria-label="高级参数键值表（可横向滚动）"
+      >
         <table class="nested-obj-editor__table">
           <thead>
             <tr>

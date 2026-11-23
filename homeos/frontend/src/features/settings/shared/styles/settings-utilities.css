@@ -10,7 +10,7 @@
    避免 ≥1200 与 flat/workspace 的 padding:0 互相打架 */
 @container hos-canvas (max-width: 720px) {
   .settings-choice-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

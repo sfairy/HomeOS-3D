@@ -453,7 +453,7 @@
 
 @container hos-canvas (max-width: 640px) {
   .el-record-filter__mode-segments {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .el-record-filter__footer {

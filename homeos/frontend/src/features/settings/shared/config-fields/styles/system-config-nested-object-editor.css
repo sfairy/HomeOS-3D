@@ -5,8 +5,9 @@
   width: 100%;
 }
 
+/* 横滑能力由 `.hos-hscroll` 提供（见 assets/styles/hos-hscroll.css）；
+   这里只保留本编辑器特有的外观调整，避免同一属性有两份实现。 */
 .nested-obj-editor__table-wrap {
-  overflow-x: auto;
   border-radius: 0;
   border: none;
   margin: 0 -2px;

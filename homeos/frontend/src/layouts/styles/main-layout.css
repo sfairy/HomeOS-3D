@@ -902,3 +902,26 @@ a.icon-btn {
     backdrop-filter: none;
   }
 }
+
+/* 矮视口（手机横屏 844×390 等）：宽度会落进平板档，但 52px 顶栏 + 页脚在 390px
+   高度里太奢侈。这里按「高度」而不是「宽度」收紧，平板横屏（768 高）不受影响。
+   容器查询只能问宽度，所以用媒体查询；放在文件末尾以覆盖上面的顶栏规则。 */
+@media (orientation: landscape) and (max-height: 520px) {
+  .tab-bar {
+    min-height: 44px;
+    padding-top: max(env(safe-area-inset-top, 0px), 2px);
+    padding-bottom: 2px;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .tab-bar__tabs {
+    gap: 4px;
+  }
+
+  .shell-footer {
+    /* 底部能耗条在这一档只保留高度占位，避免把列表压到看不见 */
+    max-height: 44px;
+    overflow: hidden;
+  }
+}

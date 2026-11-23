@@ -454,14 +454,14 @@
 
 @container hos-canvas (max-width: 640px) {
   .settings-widget-config__grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
 @container hos-canvas (max-width: 768px) {
   .settings-form-grid,
   .settings-form-grid--2 {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .settings-form-grid__span-2 {
     grid-column: auto;

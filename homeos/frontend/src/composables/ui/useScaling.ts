@@ -282,12 +282,14 @@ export function useScaling(
   // 视口宽高（初始化取 window 尺寸，SSR 安全降级）
   const vw = ref(typeof window !== 'undefined' ? window.innerWidth : 1366)
   const vh = ref(typeof window !== 'undefined' ? window.innerHeight : 1024)
-  // 设计稿宽高：pageMaxWidth > ui.scaleBaseWidth，高度取 ui.scaleBaseHeight；读取 configEpoch 触发响应
+  // 设计稿宽高：pageMaxWidth > ui.scaleBaseWidth，高度取 ui.scaleBaseHeight；读取 configEpoch 触发响应。
+  // 超宽屏（21:9 / 32:9）按视口比例换 16:9 系基准，避免 4:3 设计被横向摊成细长条。
   const designMetrics = computed(() => {
     configEpoch.value
     return resolveDesignMetrics({
       pageMaxWidth: pageMaxWidth?.value,
       ui: getConfigSection('ui'),
+      viewport: { width: vw.value, height: vh.value },
     })
   })
   const designWidth = computed(() => designMetrics.value.width)

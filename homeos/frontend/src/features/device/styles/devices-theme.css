@@ -117,18 +117,18 @@
 /* ── 指标卡片 ── */
 .dev-metric-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
 }
 
 @container hos-canvas (max-width: 900px) {
   .dev-metric-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 .dev-metric-grid--sidebar {
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .dev-metric {
@@ -287,7 +287,7 @@
 /* ── 分析面板网格 ── */
 .dev-analytics-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
 }
 
@@ -489,14 +489,14 @@
 /* 紧凑 KPI 条 */
 .device-analytics__kpi-strip {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   flex-shrink: 0;
 }
 
 @container hos-canvas (max-width: 900px) {
   .device-analytics__kpi-strip {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -789,13 +789,13 @@
 
 .device-analytics__skeleton {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
 
 @container hos-canvas (max-width: 900px) {
   .device-analytics__skeleton {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -1180,7 +1180,7 @@
 
 @container hos-canvas (max-width: 600px) {
   .device-overview__info-main {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -1430,7 +1430,7 @@
 @container hos-canvas (max-width: 900px) {
   .device-overview__main,
   .device-overview__footer {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .device-overview__footer {
@@ -1495,7 +1495,7 @@
 
 @container hos-canvas (max-width: 900px) {
   .device-detail-tab__panel--split {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -1744,7 +1744,7 @@
 
 @container hos-canvas (max-width: 640px) {
   .device-attrs-tab__row {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 8px;
   }
 }
@@ -1754,7 +1754,7 @@
    与 .dev-metric-grid / .device-analytics__kpi-strip 既有的 900px 降列保持同一套「先 2 后 1」口径。 */
 @container hos-canvas (max-width: 640px) {
   .dev-analytics-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 10px;
   }
 
@@ -1853,7 +1853,7 @@
 
 @container hos-canvas (max-width: 900px) {
   .device-history-panel__body {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -2227,5 +2227,16 @@
   .dev-range__btn--active,
   .devices-view .list-page__chip--accent {
     box-shadow: none !important;
+  }
+}
+
+/* 矮视口（手机横屏 844×390 / 932×430 等）。
+   断点体系只按宽度分档：844 宽落进平板档（四列卡片 + 52px 顶栏），但可用高度只剩
+   390px，纵向被挤到只剩一两行。容器查询只能问宽度（hos-canvas 是 inline-size），
+   所以高度这一维改用媒体查询，且放在文件末尾以保证覆盖前面的列数规则。 */
+@media (orientation: landscape) and (max-height: 520px) {
+  .dev-metric-grid,
+  .device-analytics__kpi-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

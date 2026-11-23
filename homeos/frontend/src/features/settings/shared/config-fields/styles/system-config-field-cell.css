@@ -301,3 +301,42 @@
     width: 100%;
   }
 }
+
+/* ── 固定选项多选（来源静音 / 免打扰星期）──
+ * 用 chip 而不是下拉：这些字段的选项少且互斥性弱，一次看到全部比「展开-勾选-再展开」
+ * 快得多，也避免用户手填内部枚举名（``earthquake-eew`` 这种填错不会报错）。
+ */
+.params-cell-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 0;
+}
+
+.params-chip {
+  padding: 4px 10px;
+  border-radius: var(--hos-radius-pill);
+  border: var(--hos-hairline) solid var(--hos-border-hairline-strong);
+  background: var(--hos-surface-1);
+  color: var(--hos-text-secondary);
+  font-size: 12px;
+  line-height: 1.4;
+  cursor: pointer;
+  transition:
+    color var(--hos-dur-base) var(--hos-ease-out),
+    background var(--hos-dur-base) var(--hos-ease-out),
+    border-color var(--hos-dur-base) var(--hos-ease-out);
+}
+
+.params-chip:hover {
+  color: var(--hos-text-primary);
+  border-color: var(--hos-border-strong);
+}
+
+.params-chip--on {
+  border-color: var(--hos-color-accent);
+  background: color-mix(in srgb, var(--hos-color-accent) 16%, transparent);
+  color: var(--hos-color-accent);
+  font-weight: 600;
+}

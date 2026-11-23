@@ -57,7 +57,7 @@
   position: relative;
   display: grid;
   grid-template-rows: auto 1fr;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   align-items: stretch;
   justify-items: center;
   overflow: hidden;

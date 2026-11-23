@@ -172,7 +172,7 @@
   position: fixed;
   z-index: var(--z-max);
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 5px;
   padding: 10px;
   min-width: 248px;
@@ -1588,7 +1588,7 @@
 
   .ef-grid--2,
   .ef-grid--3 {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

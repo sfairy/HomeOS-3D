@@ -46,6 +46,8 @@
     -->
     <VConfirmModal />
     <VPromptModal />
+    <!-- 手机竖屏提示层：唯一的竖屏态 UI（见 composables/ui/useLandscapePrompt.ts）。 -->
+    <LandscapePrompt />
     <MediaPlayerModal
       :key="chrome.activeMediaEntityId || 'media'"
       :is-open="chrome.isMediaPlayerOpen"
@@ -72,6 +74,7 @@ import ErrorBoundary from '@/components/common/ErrorBoundary.vue'
 import VConfirmModal from '@/components/common/base/VConfirmModal.vue'
 import VPromptModal from '@/components/common/base/VPromptModal.vue'
 import VNotification from '@/components/common/base/VNotification.vue'
+import LandscapePrompt from '@/components/common/landscape-prompt/LandscapePrompt.vue'
 import { useChromeStore } from '@/stores/chrome.store'
 import { applyPageAssets, listManagedStylesheets, PAGE_ASSETS } from '@/studio'
 

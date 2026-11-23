@@ -4,6 +4,7 @@
  */
 /** composables：自 home-mode.internals.ts 拆出 — 草稿解析/序列化（原 home-mode-draft.util.ts） */
 import { getEntityDomain, normalizeHomeModeTimeAt } from '@homeos/shared'
+import { normalizeSunOffset } from '@/features/home-mode/utils/trigger-summary.util'
 
 export interface ModeActionDraft {
   kind: string
@@ -20,6 +21,10 @@ interface ModeTriggerDraft {
   at: string
   to: string
   from: string
+  /** 日出/日落触发的事件（``sunrise`` / ``sunset``）；其它类型不用。 */
+  event?: string
+  /** 日出/日落的偏移分钟（负 = 提前），后端夹在 ±180。 */
+  offsetMinutes?: number
 }
 
 export interface ModeDraft {
@@ -145,35 +150,62 @@ function parseModeTriggers(triggers: unknown): ModeTriggerDraft[] {
       at: String(triggerRecord.at || ''),
       to: String(triggerRecord.to || ''),
       from: String(triggerRecord.from || ''),
+      // 日出/日落：缺省按日出、偏移 0，保证老数据打开编辑器时 UI 不会出现空白控件。
+      ...(triggerRecord.type === 'sun'
+        ? {
+            event: triggerRecord.event === 'sunset' ? 'sunset' : 'sunrise',
+            offsetMinutes: Number(triggerRecord.offsetMinutes) || 0,
+          }
+        : {}),
     }
   })
 }
 
+/** 各类型触发器的必填校验（表驱动：新增类型只加一行，不给判定函数加分支）。 */
+const TRIGGER_REQUIRED: Record<string, (trigger: ModeTriggerDraft) => boolean> = {
+  // 日出/日落必须有事件：缺了它后端会按日出兜底，用户却以为配的是日落。
+  sun: (trigger) => Boolean(String(trigger.event || '').trim()),
+  time: (trigger) => Boolean(String(trigger.at || '').trim()),
+  state: (trigger) => Boolean(String(trigger.to || '').trim()) && Boolean(String(trigger.entityId || '').trim()),
+  lock_unlock: (trigger) => Boolean(String(trigger.entityId || '').trim()),
+}
+
+/** 触发器是否值得保存（缺关键字段的草稿不落库，否则后端会按兜底值执行）。 */
+function isTriggerSerializable(trigger: ModeTriggerDraft): boolean {
+  if (!trigger?.type || trigger.type === 'manual') return false
+  const required = TRIGGER_REQUIRED[trigger.type]
+  return required ? required(trigger) : true
+}
+
+/** 各类型触发器的字段写入（表驱动，避免一个函数里堆五六层 if）。 */
+const TRIGGER_WRITERS: Record<string, (item: Record<string, unknown>, trigger: ModeTriggerDraft) => void> = {
+  time: (item, trigger) => {
+    const normalized = normalizeHomeModeTimeAt(trigger.at?.trim() || '')
+    if (normalized) item.at = normalized
+  },
+  sun: (item, trigger) => {
+    item.event = trigger.event === 'sunset' ? 'sunset' : 'sunrise'
+    item.offsetMinutes = normalizeSunOffset(trigger.offsetMinutes)
+  },
+  state: (item, trigger) => {
+    item.entityId = trigger.entityId.trim()
+    if (trigger.to?.trim()) item.to = trigger.to.trim()
+    if (trigger.from?.trim()) item.from = trigger.from.trim()
+  },
+  lock_unlock: (item, trigger) => {
+    item.entityId = trigger.entityId.trim()
+  },
+}
+
+/** 单个触发器 → 持久化形状。 */
+function serializeTrigger(trigger: ModeTriggerDraft): Record<string, unknown> {
+  const item: Record<string, unknown> = { type: trigger.type }
+  TRIGGER_WRITERS[trigger.type]?.(item, trigger)
+  return item
+}
+
 function serializeModeTriggers(triggers: ModeTriggerDraft[] | null | undefined) {
-  const list = (triggers || [])
-    .filter((trigger) => {
-      if (!trigger?.type || trigger.type === 'manual') return false
-      if (trigger.type === 'time' && !String(trigger.at || '').trim()) return false
-      if (trigger.type === 'state' && !String(trigger.to || '').trim()) return false
-      if (trigger.type === 'lock_unlock' && !String(trigger.entityId || '').trim()) return false
-      if (trigger.type === 'state' && !String(trigger.entityId || '').trim()) return false
-      return true
-    })
-    .map((trigger) => {
-      const item: Record<string, unknown> = { type: trigger.type }
-      if (trigger.type === 'lock_unlock' || trigger.type === 'state') {
-        item.entityId = trigger.entityId.trim()
-      }
-      if (trigger.type === 'time' && trigger.at?.trim()) {
-        const normalized = normalizeHomeModeTimeAt(trigger.at.trim())
-        if (normalized) item.at = normalized
-      }
-      if (trigger.type === 'state') {
-        if (trigger.to?.trim()) item.to = trigger.to.trim()
-        if (trigger.from?.trim()) item.from = trigger.from.trim()
-      }
-      return item
-    })
+  const list = (triggers || []).filter(isTriggerSerializable).map(serializeTrigger)
   return list.length ? list : undefined
 }
 

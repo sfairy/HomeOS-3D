@@ -238,7 +238,7 @@
 
 @container hos-canvas (max-width: 640px) {
   .sw-complete-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

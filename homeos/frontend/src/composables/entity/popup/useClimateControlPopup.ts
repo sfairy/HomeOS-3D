@@ -6,6 +6,7 @@ import { useEntityPopupBase, type EntityPopupBaseProps } from '@/composables/ent
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useSliderCommit } from '@/composables/entity/useSliderCommit'
 import { clampInRange } from '@/shared/utils/ui/progress-bar.util'
+import { resolveTemperatureUnit } from '@/shared/device/utils/temperature-unit.util'
 import { notifyError } from '@/services/notify'
 import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 import {
@@ -191,6 +192,14 @@ export function useClimateControlPopup(props: EntityPopupBaseProps) {
   /** 当前温度展示文本，无值时显示 '--'。 */
   const currentTempDisplay = computed(() => (currentTemp.value == null ? '--' : currentTemp.value))
 
+  /**
+   * 温度单位（`°C` / `°F` / `K`）。
+   *
+   * 原先模板写死 `°C`，°F 部署下会显示「23°C」。单位取自实体自身的
+   * `temperature_unit`（climate 的权威字段），取不到再回落 `unit_of_measurement`。
+   */
+  const temperatureUnit = computed(() => resolveTemperatureUnit(liveEntity.value?.attributes))
+
   /** 当前温度色调 class：按温度区间映射 hot/warm/comfy/cool/cold/muted。 */
   const currentTempTone = computed(() => {
     const temperature = currentTemp.value
@@ -329,6 +338,7 @@ export function useClimateControlPopup(props: EntityPopupBaseProps) {
     hasTargetTemp,
     currentTemp,
     currentTempDisplay,
+    temperatureUnit,
     currentTempTone,
     targetTemp,
     minTemp,

@@ -91,10 +91,6 @@ const defaults: AppPublicConfig = {
     learningPeriodDays: 7,
     chartHours: 168,
   },
-  guest: {
-    defaultHours: 24,
-    extendHours: 24,
-  },
   security: {
     sensorAlertCooldownSec: 60,
   },
@@ -210,9 +206,6 @@ function applyConfig(data: Partial<AppPublicConfig> | null | undefined): void {
   }
   if (data?.energy && typeof data.energy === 'object') {
     _app.energy = { ...defaults.energy, ...data.energy }
-  }
-  if (data?.guest && typeof data.guest === 'object') {
-    _app.guest = { ...defaults.guest, ...data.guest }
   }
   if (data?.security && typeof data.security === 'object') {
     _app.security = { ...defaults.security, ...data.security }

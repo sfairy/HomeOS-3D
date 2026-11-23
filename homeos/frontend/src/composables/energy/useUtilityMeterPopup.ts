@@ -13,6 +13,9 @@ import { createUtilityMeterCalendar } from './utility-meter-popup.calendar.inter
 import { createUtilityMeterCharts } from './utility-meter-popup.charts.internals'
 import { useServerEnergyHistory } from './useServerEnergyHistory'
 
+/** 有服务端日/月聚合的账户类型（后端按实体推导单位，电 kWh / 燃气、水 m³）。 */
+const SERVER_AGGREGATE_SOURCES = new Set(['grid', 'gas', 'water'])
+
 interface UtilityMeterPopupProps {
   entityId?: string
   anchor?: unknown
@@ -42,7 +45,9 @@ export function useUtilityMeterPopup(opts: UtilityMeterPopupOpts) {
 
   const account = createUtilityMeterAccountState({ props, sourceKey, es, layout })
   // 只有电费账户有服务端日/月聚合表；水/气继续走 HA 属性，避免把 kWh 表套到 m³ 上。
-  const serverHistory = useServerEnergyHistory(computed(() => sourceKey === 'grid'))
+  // 电 / 燃气 / 水务都走服务端聚合：后端已按单位隔离（kWh vs m³），
+  // 只给电开会让燃气与水永远只有「当前读数」、没有趋势。
+  const serverHistory = useServerEnergyHistory(computed(() => SERVER_AGGREGATE_SOURCES.has(sourceKey)))
   const lists = createUtilityMeterLists({
     popField: account.popField,
     popNum: account.popNum,

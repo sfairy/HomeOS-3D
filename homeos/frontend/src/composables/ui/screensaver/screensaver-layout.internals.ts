@@ -36,9 +36,11 @@ export function createScreensaverLayoutState(layoutStore: LayoutStore) {
     scalingTick.value
     // 设计基准统一走 resolveDesignMetrics：与主壳 / 设置页预览同一条 fallback 链，
     // 避免「锁屏按 1366 算、主壳按配置算」导致两套画布尺寸对不齐。
+    // 同样传视口，让锁屏在超宽屏上与主壳选到同一个基准（否则锁屏时钟比例会跳）。
     const metrics = resolveDesignMetrics({
       pageMaxWidth: layoutStore.layoutConfig.pageMaxWidth,
       ui: getConfigSection('ui'),
+      viewport: { width: viewportW.value, height: viewportH.value },
     })
     return computeScreensaverLayout(viewportW.value, viewportH.value, metrics.width, metrics.height)
   })

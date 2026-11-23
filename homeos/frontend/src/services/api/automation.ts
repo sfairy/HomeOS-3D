@@ -113,6 +113,22 @@ export function applyAutomationDraft(draftId: string, acknowledgeConflicts = fal
   return apiPost<AutomationDraftApplyResult>(`/automation/drafts/${draftId}/apply`, { acknowledgeConflicts }, config)
 }
 
+/**
+ * 把草案写成一条 **HA 自动化**（写进 HA 自己的 automation 配置）。
+ *
+ * 与 `applyAutomationDraft` 的区别：那边生成 HomeOS 本机计划任务，这边由 HA 执行，
+ * 自动化列表里可见、换机后仍留在 HA；`automationId` 由 draft 派生，重复导出是覆盖。
+ */
+export function exportAutomationDraftToHa(draftId: string, acknowledgeConflicts = false, config?: AxiosRequestConfig) {
+  return apiPost<{
+    success: boolean
+    draftId: string
+    automationId: string
+    automation: Record<string, unknown>
+    reloaded: boolean
+  }>(`/automation/drafts/${draftId}/export-ha`, { acknowledgeConflicts }, config)
+}
+
 export function discoverAutomations(sources?: string[], config?: AxiosRequestConfig) {
   return apiGet<{ success: boolean; rules: Array<Record<string, unknown>> }>('/automation/discover', {
     params: sources?.length ? { sources: sources.join(',') } : undefined,

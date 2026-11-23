@@ -5,7 +5,7 @@
   gap: 12px;
 }
 .hm-preset-grid--stack {
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 6px;
 }
 
@@ -322,7 +322,7 @@
 
 @container hos-canvas (max-width: 768px) {
   .hm-preset-grid:not(.hm-preset-grid--stack) {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .hm-preset-card__glow {
     opacity: 0 !important;
@@ -340,7 +340,7 @@
 }
 @media (pointer: coarse), (hover: none) {
   .hm-preset-grid:not(.hm-preset-grid--stack) {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .hm-preset-card__glow {
     opacity: 0 !important;

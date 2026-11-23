@@ -77,6 +77,11 @@ export function useHomeModeEditor(modesRef: Ref<HomeModeRecord[] | null | undefi
       desc: '外部日历标记「外出/away」时自动匹配；无需填写实体',
     },
     { id: 'time', label: '定时', desc: '每天指定时刻自动激活（HH:mm）' },
+    {
+      id: 'sun',
+      label: '日出 / 日落',
+      desc: '按当日日出或日落激活，可加 ±180 分钟偏移（随季节自动调整）',
+    },
     { id: 'state', label: '实体状态', desc: '某实体变为指定状态时激活' },
   ])
 

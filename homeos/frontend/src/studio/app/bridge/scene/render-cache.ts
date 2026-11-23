@@ -117,6 +117,41 @@ export function createRenderCache({
     isUploading = false,
     isClosed = false,
     errorCooldownUntil = 0
+  /**
+   * 在途 GET 的「是否还需要」监视集合。
+   *
+   * 共享一个 250ms 定时器，而不是每个请求各起一个 50ms interval：场景加载会并发
+   * 几十个瓦片请求，旧实现等于几十个 20Hz 定时器同时抢主线程（3D 启动最吃 CPU 的
+   * 那段时间）。250ms 的检测延迟对「切页/换场景后取消旧请求」完全够用。
+   */
+  const staleWatches = new Set<{ isWanted: () => boolean; controller: AbortController }>()
+  let staleWatchTimer: ReturnType<typeof setInterval> | null = null
+  const STALE_POLL_MS = 250
+
+  function stopStaleWatchTimer() {
+    if (staleWatchTimer !== null) clearInterval(staleWatchTimer)
+    staleWatchTimer = null
+  }
+
+  function registerStaleWatch(isWanted: () => boolean, controller: AbortController): () => void {
+    const entry = { isWanted, controller }
+    staleWatches.add(entry)
+    if (staleWatchTimer === null) {
+      staleWatchTimer = setInterval(() => {
+        for (const watch of staleWatches) {
+          if (!watch.isWanted()) {
+            watch.controller.abort('stale')
+            staleWatches.delete(watch)
+          }
+        }
+        if (!staleWatches.size) stopStaleWatchTimer()
+      }, STALE_POLL_MS)
+    }
+    return () => {
+      staleWatches.delete(entry)
+      if (!staleWatches.size) stopStaleWatchTimer()
+    }
+  }
   const stats = {
       memoryHits: 0,
       serverHits: 0,
@@ -200,12 +235,10 @@ export function createRenderCache({
     if (isClosed || now() < errorCooldownUntil) return null
     const requestAbortController = new AbortController()
     abortControllerSet.add(requestAbortController)
-    const timeoutId = setTimeout(() => requestAbortController.abort(), timeoutMs),
-      stalePollId = requestOptions.method
-        ? null
-        : setInterval(() => {
-            isRequestWanted() || requestAbortController.abort('stale')
-          }, 50)
+    const timeoutId = setTimeout(() => requestAbortController.abort(), timeoutMs)
+    // 过期检测走**一个共享定时器**：此前每个在途 GET 各起一个 50ms interval，
+    // 场景加载会并发几十个瓦片请求，等于几十个 20Hz 定时器在 3D 启动时抢主线程。
+    const releaseStaleWatch = requestOptions.method ? null : registerStaleWatch(isRequestWanted, requestAbortController)
     try {
       const response = await fetcher(buildTileUrl(requestKey), {
           ...requestOptions,
@@ -230,7 +263,7 @@ export function createRenderCache({
     } catch {
       return (!isClosed && isRequestWanted() && (stats.errors++, (errorCooldownUntil = now() + 15000)), null)
     } finally {
-      clearTimeout(timeoutId), clearInterval(stalePollId!), abortControllerSet.delete(requestAbortController)
+      clearTimeout(timeoutId), releaseStaleWatch?.(), abortControllerSet.delete(requestAbortController)
     }
   }
   async function flushPendingUploads() {
@@ -420,6 +453,8 @@ export function createRenderCache({
       close() {
         isClosed = true
         for (const pendingController of abortControllerSet) pendingController.abort()
+        staleWatches.clear()
+        stopStaleWatchTimer()
         for (const decodedKey of decodedRecordsByKey.keys()) evictDecodedEntry(decodedKey)
         encodedBlobsByKey.clear(), pendingUploadsByKey.clear(), (memoryBytes = pendingBytes = 0), emitStats()
       },

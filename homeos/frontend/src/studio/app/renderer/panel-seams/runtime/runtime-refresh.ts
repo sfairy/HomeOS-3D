@@ -92,6 +92,16 @@ export function scheduleInteraction3dPrewarm(self: PanelRenderer) {
             timer: null as any,
             prewarmed: true,
           })
+        // 预热条目必须有寿命：正常「保留上一页舞台」的路径会在 120 秒后释放
+        // （见 panel-renderer.ts 的 setTimeout），这里原先写死 timer: null，等于
+        // 让一个完整的隐藏舞台（iframe + three.js + GLB 场景图 + WebGL 上下文）
+        // 永久驻留，墙板上等于白白多跑一整套 3D。
+        const prewarmEntry = self.retainedInteraction3d
+        if (prewarmEntry) {
+          prewarmEntry.timer = setTimeout(() => {
+            self.retainedInteraction3d === prewarmEntry && self.releaseRetainedInteraction3d()
+          }, 120000)
+        }
       }, 200))
 }
 export function releaseRetainedInteraction3d(self: PanelRenderer) {
