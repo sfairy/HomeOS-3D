@@ -7,6 +7,7 @@
 .sov-sensor-group-mode {
   display: flex;
   gap: 6px;
+  flex: 0 0 auto;
 }
 
 .sov-sensor-scroll--paged {
@@ -47,12 +48,69 @@
   white-space: nowrap;
 }
 
-.sov-sensor-pager {
+/* ── 紧凑分页 ──
+ * 侧栏只有 ~300px 宽，而自适应分页在矮屏下每页可能只有 2–4 条，
+ * 「上一页 1/22（共 44 条） 下一页」这套宽分页会横跨整栏并挤成两行。
+ * 改成「‹ 1/22 共 44 条 ›」：翻页用图标按钮（aria-label 保可访问名），
+ * 高度从 32px 降到 26px，总宽约 130px，再多页数也不会换行。
+ */
+.sov-pager {
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 8px 10px 10px;
+  gap: 8px;
+  padding: 6px 10px;
   border-top: var(--hos-hairline) solid rgba(255, 255, 255, 0.06);
+}
+
+.sov-pager__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  padding: 0;
+  border-radius: var(--hos-radius-pill);
+  border: var(--hos-hairline) solid var(--premium-border-strong);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--hos-text-secondary);
+  cursor: pointer;
+  transition:
+    background var(--hos-dur-fast) var(--hos-ease-standard, ease),
+    border-color var(--hos-dur-fast) var(--hos-ease-standard, ease),
+    color var(--hos-dur-fast) var(--hos-ease-standard, ease);
+}
+
+.sov-pager__btn:hover:not(:disabled) {
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.sov-pager__btn:disabled {
+  opacity: 0.32;
+  cursor: default;
+}
+
+.sov-pager__label {
+  font-size: var(--premium-fs-micro);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.82);
+  white-space: nowrap;
+}
+
+.sov-pager__count {
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
+  white-space: nowrap;
+}
+
+/* 容器偏窄时收紧间距，保证「‹ 12/22 共 44 条 ›」仍是一行 */
+@container hos-canvas (max-width: 1100px) {
+  .sov-pager {
+    gap: 6px;
+  }
 }

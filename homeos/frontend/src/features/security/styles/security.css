@@ -565,35 +565,38 @@
   position: relative;
   z-index: 1;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: var(--hos-panel-padding-default, 20px) 12px;
+  gap: 12px;
+  /* 与下方统计条 / 卡片网格统一 16px 内边距，标题不再显得贴在左上角 */
+  padding: 12px 16px;
   border-bottom: var(--hos-hairline) solid var(--premium-border);
   flex-shrink: 0;
-}
-
-.sov-zones__eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 6px;
-  font-size: var(--premium-fs-micro);
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: rgba(var(--page-accent-rgb), 0.75);
 }
 
 .sov-zones__title {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   margin: 0;
-  font-size: var(--premium-fs-stat);
+  font-size: var(--premium-fs-title);
   font-weight: 800;
   letter-spacing: -0.02em;
   color: rgba(255, 255, 255, 0.94);
+}
+
+/* 标题前的盾牌徽标：替代原先与标题重复的「安防区域」小标题 */
+.sov-zones__title-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  color: rgba(var(--page-accent-rgb), 0.92);
+  background: rgba(var(--page-accent-rgb), 0.12);
+  border: var(--hos-hairline) solid rgba(var(--page-accent-rgb), 0.24);
+  flex-shrink: 0;
 }
 
 .sov-zones__count {
@@ -674,12 +677,20 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
+/* 侧栏 Tab：与全站其它页面一样做成「分段胶囊」。
+ * 原先 12px/12px 的圆角上半截 + 透明下边框，视觉上像两个被切开的标签页，
+ * 和下方扁平列表拼在一起出现一条多余的分隔线；改成内嵌胶囊组后，
+ * 激活态用主色高亮，不再需要靠边框去接列表。 */
 .sov-sidebar__tabs {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-  padding: 10px 10px 0;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 3px;
+  margin: 10px 10px 8px;
+  padding: 3px;
   flex-shrink: 0;
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid var(--premium-border);
+  background: rgba(0, 0, 0, 0.28);
 }
 
 .sov-sidebar__tab {
@@ -687,9 +698,9 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: var(--control-height-md);
-  border: var(--hos-hairline) solid transparent;
-  border-radius: 12px 12px 0 0;
+  height: var(--control-height-sm);
+  border: none;
+  border-radius: calc(var(--hos-radius-card) - 3px);
   background: transparent;
   color: var(--hos-text-secondary);
   font-size: var(--premium-fs-micro);
@@ -698,20 +709,20 @@
   transition:
     color 0.18s,
     background 0.18s,
-    border-color 0.18s;
+    box-shadow 0.18s;
 }
 
 .sov-sidebar__tab:hover {
   color: rgba(255, 255, 255, 0.78);
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .sov-sidebar__tab--on {
-  color: rgba(255, 255, 255, 0.92);
-  background: rgba(255, 255, 255, 0.05);
-  border-color: var(--premium-border-strong);
-  border-bottom-color: transparent;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.95);
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(var(--page-accent-rgb), 0.24) 0%, transparent 72%),
+    rgba(var(--page-accent-rgb), 0.14);
+  box-shadow: inset 0 0 0 1px rgba(var(--page-accent-rgb), 0.26);
 }
 
 .sov-sidebar__badge {
@@ -738,8 +749,6 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-top: var(--hos-hairline) solid var(--premium-border);
-  background: rgba(0, 0, 0, 0.12);
 }
 
 .sov-sidebar__pane--audit {
@@ -757,16 +766,31 @@
 /* ── 传感器面板 ── */
 .sov-sensor-toolbar {
   flex-shrink: 0;
-  padding: 12px 12px 8px;
+  /* 左右 10px 与下方 .sov-sensor-scroll 的卡片内边距对齐，搜索框不再比列表宽出 2px；
+   * 上下节奏与 Tab 组 8px 外边距相接，不留 20px 空档。 */
+  padding: 8px 10px 8px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+/* 搜索 + 分组切换同排（窄栏里省下原先独立的一整行）。
+ * 允许换行是必要的退化路径：侧栏压到 240px 时「搜索 + 按类型 + 按区域」放不下，
+ * 宁可回退成两行，也不把输入框挤成 60px 宽。 */
+.sov-sensor-toolbar__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 .sov-sensor-search {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: 1 1 120px;
+  min-width: 0;
   height: 36px;
   padding: 0 12px;
   border-radius: var(--hos-radius-card);
@@ -877,10 +901,11 @@
     transform 0.12s;
 }
 
+/* 悬停只用底色/描边提示：原先的 translateX(2px) 会让列表在指针移动时左右抖动，
+ * 并在 overflow-y:auto 的滚动容器里额外制造横向溢出。 */
 .sov-sensor-card:hover {
   background: var(--hos-bg-tint-1);
   border-color: rgba(255, 255, 255, 0.1);
-  transform: translateX(2px);
 }
 
 .sov-sensor-card--alert {
@@ -1035,7 +1060,8 @@
   align-items: center;
   gap: 12px;
   flex-shrink: 0;
-  padding: 12px 20px;
+  /* 外层 panel-body 已给 12px，这里补 4px = 16px，和总览页的内容线对齐 */
+  padding: 10px 4px;
   background:
     radial-gradient(ellipse at 50% 0%, rgba(var(--module-accent-scenes-rgb), 0.05) 0%, transparent 60%),
     rgba(0, 0, 0, 0.35);
@@ -1135,13 +1161,17 @@
 
 /* ── security-dash.css ── */
 /* ── 总览仪表盘 sec-dash ── */
+/* 外层 .security-hub__panel-body 已经有 12px 内边距，这里只补 4px 就够
+ * （合计 16px），与面板工具栏 14px、卡片 12px 内边距落在同一节奏上。
+ * 之前是 20px + 12px = 32px：总览内容比上方 Tab 往右缩进近 20px，
+ * 同一面板里两套边线对不齐，也白白吃掉左右各 16px 的卡片宽度。 */
 .sec-dash {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px 20px 20px;
+  gap: 10px;
+  padding: 4px 4px 8px;
   overflow: hidden;
   --sec-dash-radius: var(--hos-radius-panel);
   --sec-dash-panel-bg: rgba(255, 255, 255, 0.02);
@@ -1612,7 +1642,11 @@
 
 .sec-dash-status-meta--warn {
   color: var(--hos-color-warning-text);
-  white-space: normal;
+  /* 这句提示原先允许换行：状态卡最宽 220px，中文长句会折成 3 行，
+     把整条指挥栏顶高约 20px。改为单行省略，完整文案走 title 提示。 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sec-dash-inline-link {
@@ -1982,7 +2016,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  padding: 0 12px 8px;
+  padding: 0 10px 8px;
 }
 
 .sec-dash-audit-list {
@@ -1993,17 +2027,17 @@
   overflow-y: auto;
 }
 
+/* 分页网格的实际定义在 styles/audit-log-panel.css（scoped，随 AuditLogPanel 一起加载）。
+ * 这里原先有一份逐字重复的副本，两处各自改一半就会互相覆盖 —— 已删除，只保留
+ * 非分页时的兜底尺寸。 */
 .sec-dash-audit-list.sec-dash-audit-list--paged {
   max-height: none !important;
   height: 100% !important;
-  overflow: hidden !important;
   display: grid !important;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: repeat(var(--audit-rows, 8), minmax(0, 1fr));
   align-content: start;
   gap: var(--audit-row-gap, 6px);
   min-height: 0;
-  padding: 0 10px !important;
 }
 
 .sec-dash-audit-list--paged > .sec-dash-audit-item {
@@ -2354,19 +2388,23 @@
   z-index: 1;
 }
 
+/* 统计条：数值与标签同排成 KPI 胶囊。
+ * 原先 4 张高卡片（数值上、标签下）吃掉约 66px 高度，把区域卡片挤到看不见；
+ * 改为单行后同宽信息只占约 38px，省下的高度直接还给区域卡片列表。 */
 .szm-summary {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-  padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px) 10px;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+  padding: 12px 16px 8px;
   flex-shrink: 0;
 }
 
 .szm-stat {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px 12px;
   border-radius: var(--hos-radius-card);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.07);
   background: rgba(255, 255, 255, 0.025);
@@ -2376,19 +2414,24 @@
 }
 
 .szm-stat__val {
-  font-size: var(--premium-fs-stat);
+  flex: 0 0 auto;
+  font-size: var(--premium-fs-title);
   font-weight: 800;
   letter-spacing: -0.03em;
   color: rgba(255, 255, 255, 0.92);
-  line-height: 1;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
 }
 
 .szm-stat__label {
+  min-width: 0;
   font-size: var(--premium-fs-micro);
   font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0.04em;
   color: var(--hos-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .szm-stat--armed {
@@ -2415,7 +2458,7 @@
   justify-content: space-between;
   gap: 12px;
   margin: 0 16px 10px;
-  padding: 10px 12px;
+  padding: 6px 10px;
   border-radius: var(--hos-radius-card);
   border: var(--hos-hairline) solid rgba(var(--page-accent-rgb), 0.18);
   background: rgba(var(--page-accent-rgb), 0.06);
@@ -2522,10 +2565,10 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 4px 16px 16px;
+  padding: 0 16px 16px;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
   align-content: start;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
@@ -2534,8 +2577,8 @@
 .szm-card {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 14px;
+  gap: 6px;
+  padding: 12px;
   border-radius: var(--hos-radius-panel);
   border: var(--hos-hairline) solid var(--premium-border-strong);
   background: linear-gradient(160deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%), rgba(0, 0, 0, 0.2);

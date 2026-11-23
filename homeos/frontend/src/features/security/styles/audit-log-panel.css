@@ -14,10 +14,28 @@
   border-radius: 0;
 }
 
+/* 嵌入侧栏时筛选条收紧一档：
+ * 5 个筛选 + 刷新按钮在 300–360px 的侧栏里，用默认 12px 内边距会折成两行，
+ * 白吃掉约 32px 列表高度。这里只把 chip 压窄（不改字号），常见组合能回到一行，
+ * 真放不下时仍按 wrap 行为换行，不会出现横向滚动条。 */
 .sec-dash-audit-filters--embed {
   flex-shrink: 0;
-  padding: 0 12px 10px;
-  flex-wrap: wrap;
+  padding: 0 10px 8px;
+  gap: 4px;
+}
+
+.sec-dash-audit-filters--embed > .sec-dash-tool {
+  padding: 4px 9px;
+}
+
+/* 嵌入侧栏时刷新按钮降到 28px：它原本是全局 44×44 的图标按钮（触控友好），
+ * 但在工具栏里会把整行顶到 44px，并且更容易把筛选 chip 挤成两行。
+ * 触屏由 touch-a11y 的 min-inline/block-size 兜底回 44，桌面保持紧凑。 */
+.sec-dash-audit-filters--embed .sec-dash-audit-filters__refresh {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
 }
 
 .sec-dash-audit-filters__refresh {
@@ -61,10 +79,13 @@
   max-height: none !important;
   display: grid !important;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: repeat(var(--audit-rows, 8), minmax(0, 1fr));
+  /* 行高不再无下限地均分：侧栏只有 ~200px 高时，8 行会压到 19px/行，
+     文字与边框直接互相盖住。给出 26px 下限，挤不下就让列表自己滚动。 */
+  grid-template-rows: repeat(var(--audit-rows, 8), minmax(26px, 1fr));
   align-content: start;
   gap: var(--audit-row-gap, 6px);
-  overflow: hidden !important;
+  overflow-y: auto !important;
+  scrollbar-width: thin;
   padding: 0 10px !important;
   list-style: none;
   margin: 0;

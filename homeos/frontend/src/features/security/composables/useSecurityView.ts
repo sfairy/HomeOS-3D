@@ -271,6 +271,25 @@ export function useSecurityView() {
     return `${parts.join('；')}${'。新告警可能无法实时显示，恢复 HA 连接后请刷新页面。'}`
   })
 
+  /**
+   * 降级摘要：只留原因，去掉「新告警可能无法实时显示…」这句通用建议。
+   * 工具栏里的状态胶囊只有一行宽度，硬塞整句必然被裁；完整文案改走 tooltip。
+   */
+  const secDegradeBrief = computed(() => {
+    const parts: string[] = []
+    if (entitiesStore.reconnecting) parts.push('正在重连 HA')
+    else if (!entitiesStore.connected) parts.push('HA 已断连')
+    else if (entitiesStore.entitiesStale) parts.push('数据可能过期')
+    if (offlineSensorCount.value > 0) {
+      parts.push('{n} 个传感器离线'.replace('{n}', String(offlineSensorCount.value)))
+    }
+    if (offlineCameraCount.value > 0) {
+      parts.push('{n} 路监控不可用'.replace('{n}', String(offlineCameraCount.value)))
+    }
+    if (parts.length === 0) return '部分数据源不可用'
+    return parts.join(' · ')
+  })
+
   const eventsPath = computed(() => layoutStore.layoutConfig.haConfig.eventsPath || '')
   const eventsCalendar = useSecurityEventsCalendar(eventsPath)
 
@@ -314,6 +333,7 @@ export function useSecurityView() {
     alertCount,
     showSecDegradeBanner,
     secDegradeText,
+    secDegradeBrief,
     retryHaConnection,
     ...eventsCalendar,
   }

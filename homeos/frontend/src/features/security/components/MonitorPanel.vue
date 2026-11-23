@@ -54,7 +54,7 @@
     <div class="flex-1 relative flex bg-black overflow-hidden">
       <div
         v-if="viewMode === 'grid'"
-        class="absolute inset-0 grid p-4 gap-4 overflow-y-auto auto-rows-min animate-scale-in"
+        class="sec-monitor-grid absolute inset-0 grid p-4 gap-4 overflow-y-auto auto-rows-min animate-scale-in"
         :class="monitorGridCols"
       >
         <SecurityCameraTile

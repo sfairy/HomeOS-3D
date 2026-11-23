@@ -37,15 +37,6 @@
       </template>
     </ListPageHero>
 
-    <!-- HA / 传感器离线降级提示（全 Tab 可见） -->
-    <HaDegradeBanner
-      v-if="showSecDegradeBanner"
-      class="shrink-0"
-      title="安防数据降级"
-      :text="secDegradeText"
-      @retry="retryHaConnection"
-    />
-
     <section class="list-page__panel security-hub__panel">
       <div class="list-page__panel-toolbar security-hub__panel-toolbar">
         <div class="security-hub__panel-toolbar-row">
@@ -63,6 +54,19 @@
               <span v-if="tab.count != null" class="list-page__tab-count">{{ tab.count }}</span>
             </button>
           </div>
+
+          <!-- HA / 传感器离线降级提示（全 Tab 可见）。
+               放进已有工具栏行而不是独立一行：出现/消失都不会改变面板高度与页面布局。
+               text 传短摘要（只留原因），完整文案走 detail → tooltip，避免长句被省略号裁掉。 -->
+          <HaDegradeBanner
+            v-if="showSecDegradeBanner"
+            class="security-hub__degrade"
+            variant="inline"
+            title="安防数据降级"
+            :text="secDegradeBrief"
+            :detail="secDegradeText"
+            @retry="retryHaConnection"
+          />
         </div>
       </div>
 
@@ -126,7 +130,7 @@
           </div>
           <aside
             v-else
-            class="security-events-aside shrink-0 flex flex-col gap-3 p-5 min-h-0 max-h-none overflow-hidden"
+            class="security-events-aside shrink-0 flex flex-col gap-3 p-1 min-h-0 max-h-none overflow-hidden"
           >
             <div
               class="security-events-calendar bg-card border border-border-main p-4 backdrop-blur-3xl shadow-[0_24px_64px_rgba(0,0,0,0.4)] glass-shine shrink-0"
@@ -199,7 +203,7 @@
             </div>
 
             <div
-              class="flex-1 min-h-0 overflow-y-auto p-5 rounded-3xl bg-white/5 border border-white/5 backdrop-blur-2xl flex flex-col hidden-scrollbar"
+              class="flex-1 min-h-0 overflow-y-auto p-4 rounded-3xl bg-white/5 border border-white/5 backdrop-blur-2xl flex flex-col hidden-scrollbar"
             >
               <div class="flex items-center justify-between mb-4 px-1">
                 <h3
@@ -275,10 +279,10 @@
 
           <main
             v-if="hasEvents"
-            class="flex-1 flex flex-col min-w-0 min-h-0 bg-[#050506]/80 rounded-[40px] border border-white/10 overflow-hidden shadow-2xl relative glass-shine m-4 ml-0"
+            class="sec-events-main flex-1 flex flex-col min-w-0 min-h-0 bg-[#050506]/80 border border-white/10 overflow-hidden shadow-2xl relative glass-shine"
           >
             <div
-              class="shrink-0 h-16 px-6 flex items-center justify-between bg-[#0a0a0c]/60 border-b border-white/[0.04]"
+              class="shrink-0 h-12 px-4 flex items-center justify-between bg-[#0a0a0c]/60 border-b border-white/[0.04]"
             >
               <div class="flex items-center gap-1 bg-black/40 rounded-full p-1 border border-white/10">
                 <button
@@ -362,7 +366,7 @@
             <div
               v-if="dayEvents.length > 0"
               ref="thumbnailsContainerRef"
-              class="h-28 shrink-0 p-4 bg-[#0d1017] border-t border-white/5 flex gap-4 overflow-x-auto hidden-scrollbar relative"
+              class="h-24 shrink-0 p-3 bg-[#0d1017] border-t border-white/5 flex gap-4 overflow-x-auto hidden-scrollbar relative"
             >
               <!-- 缩略图原先是一排裸 <img> + @click：鼠标可用，但既不可聚焦也没有键盘激活，
                    对键盘/读屏用户等于「不存在」。改成 button 后 Enter/Space 原生可用，
@@ -491,6 +495,7 @@ const {
   alertCount,
   showSecDegradeBanner,
   secDegradeText,
+  secDegradeBrief,
   retryHaConnection,
   hasEvents,
   loadingEvents,

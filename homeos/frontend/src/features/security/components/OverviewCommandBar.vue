@@ -56,8 +56,9 @@
             <span
               v-if="secCurrentMode === 'armed_home'"
               class="sec-dash-status-meta sec-dash-status-meta--warn"
+              :title="'居家布防中：部分区域仍受监控，并非撤防'"
             >
-              {{ '居家布防中：部分区域仍受监控，并非撤防' }}
+              {{ '居家布防：部分区域仍监控' }}
             </span>
           </div>
         </div>

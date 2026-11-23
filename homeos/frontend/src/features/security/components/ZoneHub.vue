@@ -8,11 +8,11 @@
 
     <header class="sov-zones__head">
       <div class="sov-zones__head-copy">
-        <div class="sov-zones__eyebrow">
-          <Shield class="w-3.5 h-3.5" />
-          <span>{{ '安防区域' }}</span>
-        </div>
+        <!-- 标题与上方小标题原先都写「安防区域」，重复占掉一行；改为图标 + 单行标题 -->
         <h2 class="sov-zones__title">
+          <span class="sov-zones__title-icon" aria-hidden="true">
+            <Shield class="w-3.5 h-3.5" />
+          </span>
           {{ '安防区域' }}
           <span class="sov-zones__count">{{ liveZoneCount }}</span>
         </h2>

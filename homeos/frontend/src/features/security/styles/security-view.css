@@ -138,7 +138,9 @@
 
 .security-hub__panel-toolbar.list-page__panel-toolbar {
   flex-shrink: 0;
-  padding: 10px 14px;
+  /* 左右 16px = 面板体 12px + .sec-dash 4px，Tab 左缘与下方内容左缘对齐；
+     之前工具栏 14px、内容 32px，同一面板里两条边线差了 18px。 */
+  padding: 10px 16px;
   overflow: visible;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent), rgba(0, 0, 0, 0.18);
 }
@@ -178,8 +180,9 @@
     flex-wrap: wrap;
   }
 
+  /* 不再强制 tabs 独占整行：让降级胶囊仍能并排落在右侧，避免它另起一行把面板压矮 */
   .security-hub__tabs.list-page__tabs {
-    flex: 1 1 100%;
+    flex: 1 1 240px;
     max-width: 100%;
     overflow-x: auto;
     overflow-y: hidden;
@@ -231,6 +234,34 @@
 
 .security-hub .hos-degrade-banner {
   margin: 0;
+}
+
+/* 多路网格的内缩对齐工具栏：外层 panel-body 已 12px，这里补 4px = 16px。
+ * 原来 p-4（16px）+ 12px = 28px，摄像头卡片比上方工具条缩进一圈。 */
+.sec-monitor-grid {
+  padding: 4px;
+  gap: 10px;
+}
+
+/* 门禁事件主预览区：与侧栏、面板体统一用 token 圆角与 16px 内缩。
+ * 原来 rounded-[40px] + m-4（16px）+ panel-body 12px = 28px 内缩，
+ * 比左侧日历卡片（12 + 4 = 16px）多出一圈，且 40px 圆角不在设计 token 里。 */
+.sec-events-main {
+  margin: 4px 4px 4px 8px;
+  border-radius: var(--hos-radius-panel);
+}
+
+/* 降级状态胶囊：与 Tab 同一行右侧收尾。
+ * 宽度由内容决定（degrade-banner.css 里 flex:0 0 auto），这里只负责在窄容器里
+ * 把上限放开到整行 —— ≤1100px 时工具条本就换行，胶囊独占一行时没有理由再截断。 */
+.security-hub__degrade {
+  min-width: 0;
+}
+
+@container hos-canvas (max-width: 1100px) {
+  .security-hub__degrade {
+    max-width: 100%;
+  }
 }
 .glass-shine::after {
   content: "";
@@ -416,7 +447,8 @@
 @container hos-canvas (max-width: 1100px) {
   .security-events-aside {
     width: min(300px, 42vw);
-    padding: 12px !important;
+    /* 与 .sec-events-main 的 16px 内缩保持一致（面板体 12px + 4px） */
+    padding: 4px !important;
   }
 }
 

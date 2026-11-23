@@ -31,32 +31,35 @@
 
     <div v-show="activeTab === 'sensors'" class="sov-sidebar__pane" role="tabpanel">
       <div class="sov-sensor-toolbar">
-        <label class="sov-sensor-search">
-          <Search class="sov-sensor-search__icon" />
-          <input
-            v-model="sensorQuery"
-            type="search"
-            class="sov-sensor-search__input"
-            :placeholder="'搜索传感器…'"
-            autocomplete="off"
-          />
-        </label>
+        <!-- 搜索与分组切换同排：原先各占一行，在固定高度侧栏里白吃掉一整行列表空间 -->
+        <div class="sov-sensor-toolbar__row">
+          <label class="sov-sensor-search">
+            <Search class="sov-sensor-search__icon" />
+            <input
+              v-model="sensorQuery"
+              type="search"
+              class="sov-sensor-search__input"
+              :placeholder="'搜索传感器…'"
+              autocomplete="off"
+            />
+          </label>
 
-        <div v-if="liveZones.length" class="sov-sensor-group-mode">
-          <button
-            type="button"
-            :class="['sov-pill', groupMode === 'type' && 'sov-pill--on']"
-            @click="groupMode = 'type'"
-          >
-            {{ '按类型' }}
-          </button>
-          <button
-            type="button"
-            :class="['sov-pill', groupMode === 'zone' && 'sov-pill--on']"
-            @click="groupMode = 'zone'"
-          >
-            {{ '按区域' }}
-          </button>
+          <div v-if="liveZones.length" class="sov-sensor-group-mode">
+            <button
+              type="button"
+              :class="['sov-pill', groupMode === 'type' && 'sov-pill--on']"
+              @click="groupMode = 'type'"
+            >
+              {{ '按类型' }}
+            </button>
+            <button
+              type="button"
+              :class="['sov-pill', groupMode === 'zone' && 'sov-pill--on']"
+              @click="groupMode = 'zone'"
+            >
+              {{ '按区域' }}
+            </button>
+          </div>
         </div>
 
         <div class="sov-sensor-filters">
@@ -132,7 +135,10 @@
             <div class="sov-sensor-card__body">
               <span class="sov-sensor-card__name">{{ s.name }}</span>
               <span class="sov-sensor-card__meta">
-                <span class="sov-sensor-card__group">{{ s._groupLabel }}</span>
+                <!-- 分组标签只在「本页第一行」或「分组变化处」出现：
+                     原先每一行都挂一个分区徽标，300px 宽的侧栏里它和状态文字抢横向空间，
+                     还会把传感器名挤成省略号。 -->
+                <span v-if="s._showGroup" class="sov-sensor-card__group">{{ s._groupLabel }}</span>
                 <span class="sov-sensor-card__state">{{ sensorStateLabel(s) }}</span>
               </span>
             </div>
@@ -146,25 +152,26 @@
         </ul>
       </div>
 
-      <footer v-if="sensorTotalPages > 1" class="sov-sensor-pager">
+      <footer v-if="sensorTotalPages > 1" class="sov-pager">
         <button
           type="button"
-          class="list-page__btn"
+          class="sov-pager__btn"
           :disabled="!sensorCanPrev"
+          :aria-label="'上一页'"
           @click="sensorPrevPage"
         >
-          {{ '上一页' }}
+          <ChevronLeft class="w-3.5 h-3.5" />
         </button>
-        <span class="list-page__muted">
-          {{ sensorPageLabel }}（共 {{ flatSensors.length }} 条）
-        </span>
+        <span class="sov-pager__label">{{ sensorPageLabel }}</span>
+        <span class="sov-pager__count">{{ `共 ${flatSensors.length} 条` }}</span>
         <button
           type="button"
-          class="list-page__btn"
+          class="sov-pager__btn"
           :disabled="!sensorCanNext"
+          :aria-label="'下一页'"
           @click="sensorNextPage"
         >
-          {{ '下一页' }}
+          <ChevronRight class="w-3.5 h-3.5" />
         </button>
       </footer>
     </div>
@@ -191,7 +198,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { Activity, Bell, Search } from '@lucide/vue'
+import { Activity, Bell, ChevronLeft, ChevronRight, Search } from '@lucide/vue'
 import VEmptyState from '@/components/common/base/VEmptyState.vue'
 import SecurityAuditLogPanel from '@/features/security/components/AuditLogPanel.vue'
 import { useAdaptiveViewportPagination } from '@/composables/ui/hub-viewport.internals'
@@ -327,8 +334,17 @@ const {
   enabled: sensorPagingEnabled,
 })
 
-// 当前页对应的传感器切片
-const pagedSensors = computed(() => sliceSensors(flatSensors.value))
+// 当前页对应的传感器切片。
+// 附带 `_showGroup`：只有本页首行、或分组与前一行不同时才渲染分区徽标，
+// 避免每一行都重复同一个分区名（窄侧栏里它会把传感器名挤成省略号）。
+const pagedSensors = computed(() => {
+  let prevGroup = null
+  return sliceSensors(flatSensors.value).map((sensor) => {
+    const showGroup = sensor._groupType !== prevGroup
+    prevGroup = sensor._groupType
+    return { ...sensor, _showGroup: showGroup }
+  })
+})
 
 // 搜索/分组/筛选变化时回到第一页
 watch([sensorQuery, groupMode, () => props.sensorFilter, alertsOnly, boundOnly], () => {

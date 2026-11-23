@@ -24,13 +24,12 @@
     </div>
 
     <div v-if="liveZones.length" class="szm-select-bar">
-      <p class="szm-select-bar__hint">
-        <Shield class="w-3.5 h-3.5 shrink-0 opacity-60" />
-        <span v-if="armSelection.length">{{
-          `已选 ${armSelection.length}/${liveZones.length} 个区域，切换模式时仅布防所选区域`
-        }}</span>
-        <span v-else>{{ '未选择时将布防全部区域；勾选后可选择性布防' }}</span>
-      </p>
+        <p class="szm-select-bar__hint">
+          <Shield class="w-3.5 h-3.5 shrink-0 opacity-60" />
+          <!-- 选中数量由上方指挥栏的布防提示负责，这里不再重复报数：
+               两处都说「已选 x/y」，在矮屏上等于白占一行。 -->
+          <span>{{ '勾选区域后可只布防其中一部分' }}</span>
+        </p>
       <div class="szm-select-bar__actions">
         <button type="button" class="szm-link-btn" @click="selectAll">{{ '全选' }}</button>
         <button type="button" class="szm-link-btn" @click="clearSelection">{{ '清空' }}</button>
