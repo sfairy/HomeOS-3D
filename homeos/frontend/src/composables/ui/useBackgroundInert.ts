@@ -64,6 +64,25 @@ function backgroundInertTargets(root: HTMLElement): HTMLElement[] {
 }
 
 /**
+ * 若当前焦点元素在 `target` 子树内，先让它失焦。
+ *
+ * 为什么不是「跳过 aria-hidden」：被隔离的整棵背景本就该从无障碍树里消失，
+ * 跳过反而让读屏用户还能念到背景。正确做法是按浏览器给的建议先把焦点移走，
+ * 再由焦点陷阱把焦点送进浮层（见 useFocusTrap）。
+ *
+ * @param target - 即将被隔离的子树
+ */
+function blurActiveInside(target: HTMLElement): void {
+  const doc = target.ownerDocument
+  const activeElement = doc?.activeElement
+  if (!(activeElement instanceof HTMLElement)) return
+  // body 自身不是「隐藏却仍持有焦点」的那个元素，别多此一举。
+  if (activeElement === doc.body) return
+  if (!target.contains(activeElement)) return
+  activeElement.blur()
+}
+
+/**
  * 隔离一组元素（引用计数 +1；首次隔离时记下原值）。
  *
  * @param targets - {@link backgroundInertTargets} 的返回值
@@ -82,6 +101,12 @@ function markBackgroundInert(targets: HTMLElement[]): void {
       ariaHidden: target.getAttribute('aria-hidden'),
     })
     target.inert = true
+    // 焦点若正落在即将隐藏的子树里，必须先让它失焦：`inert` 只阻止「再聚焦」，
+    // 浏览器不会替你挪走已经存在的焦点，于是随后的 `aria-hidden` 会命中
+    // 「Blocked aria-hidden on an element because its descendant retained focus」。
+    // 正常时序里焦点陷阱已经在 nextTick 把焦点移进浮层，这里只是兜底；
+    // 真的没有可聚焦元素时落到 body 也比「隐藏却仍持有焦点」正确。
+    blurActiveInside(target)
     target.setAttribute('aria-hidden', 'true')
   }
 }

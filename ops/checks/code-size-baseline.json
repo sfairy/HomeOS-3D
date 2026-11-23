@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-23T13:19:18.098Z",
+  "generatedAt": "2026-11-23T13:32:29.148Z",
   "roots": [
     "homeos/frontend/src",
     "homeos/backend/src",
@@ -11,10 +11,10 @@
   ],
   "byRoot": {
     "homeos/frontend/src": {
-      "code": 442579,
-      "comment": 42638,
-      "blank": 29656,
-      "chars": 13241970,
+      "code": 442592,
+      "comment": 42660,
+      "blank": 29657,
+      "chars": 13242271,
       "files": 2083,
       "byExt": {
         ".vue": {
@@ -28,8 +28,8 @@
           "files": 218
         },
         ".ts": {
-          "code": 303293,
-          "chars": 9735483,
+          "code": 303306,
+          "chars": 9735784,
           "files": 1482
         }
       }
@@ -150,10 +150,10 @@
     }
   },
   "total": {
-    "code": 612547,
-    "comment": 55935,
-    "blank": 56827,
-    "chars": 18484655,
+    "code": 612560,
+    "comment": 55957,
+    "blank": 56828,
+    "chars": 18484956,
     "files": 3071
   }
 }

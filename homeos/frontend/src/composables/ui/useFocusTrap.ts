@@ -81,9 +81,20 @@ export function useFocusTrap(
     previousFocus = null
   }
 
-  watch(active, (isActive) => {
-    if (isActive) activate()
-    else deactivate()
-  })
+  /**
+   * `immediate`：浮层存在「先打开、后挂载」的情况 —— 最典型的是按实体 id 做 `:key`
+   * 的浮层（媒体播放器 `:key="activeMediaEntityId"`）：key 一变就换实例，新实例挂载时
+   * `active` 已经是 true。不立刻接管的话这个 watch 永远不会触发，焦点就留在触发按钮
+   * （如侧栏迷你播放器的 `.mm-open`）上；紧随其后 `useBackgroundInert` 给背景套
+   * `aria-hidden`，浏览器便会报「Blocked aria-hidden ... descendant retained focus」。
+   */
+  watch(
+    active,
+    (isActive) => {
+      if (isActive) activate()
+      else deactivate()
+    },
+    { immediate: true },
+  )
   onUnmounted(deactivate)
 }
