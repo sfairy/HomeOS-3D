@@ -212,9 +212,22 @@ export function useDevicesView() {
     })
   })
 
+  /**
+   * 选中项的 O(1) 成员判定集合。
+   *
+   * 列表里每一行的 `:selected` 与「全选」判定原先是 `selectedIds.includes(...)`：
+   * 选中 N 行时就是 O(N) × 行数，且选中态一变、`selectedIds` 数组换引用，
+   * 整个可见列表都要重新 patch。用集合把判定降成 O(1)。
+   */
+  const selectedIdSet = computed(() => new Set(selectedIds.value))
+
   watch([filtered, activeDomain, query, currentFilter, restPage], () => {
+    // 没有选中项时无事可做：这个 watcher 在每次派生重建（每批 WS）都会触发，
+    // 原实现会无条件新建 Set + 换一次数组引用，把整屏行标记成「选中态可能变了」。
+    if (selectedIds.value.length === 0) return
     const visible = new Set(filtered.value.map((i) => i.entity_id))
-    selectedIds.value = selectedIds.value.filter((id) => visible.has(id))
+    const kept = selectedIds.value.filter((id) => visible.has(id))
+    if (kept.length !== selectedIds.value.length) selectedIds.value = kept
   })
 
   useRouteEntityProjection(() => filtered.value.map((i) => i.entity_id))
@@ -284,7 +297,7 @@ export function useDevicesView() {
 
   function toggleSelectAll() {
     const allSelected =
-      filtered.value.length > 0 && filtered.value.every((device) => selectedIds.value.includes(device.entity_id))
+      filtered.value.length > 0 && filtered.value.every((device) => selectedIdSet.value.has(device.entity_id))
     if (allSelected) {
       selectedIds.value = []
     } else {

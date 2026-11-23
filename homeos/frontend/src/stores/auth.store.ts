@@ -9,6 +9,7 @@ import {
 
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { disposeDerivedWorker } from '@/workers/entity-derived-bridge'
 import {
   changePassword as apiChangePassword,
   getMe,
@@ -152,6 +153,9 @@ export const useAuthStore = defineStore('auth', () => {
     clearMediaTicketCache()
     // 功能码明细随会话失效：留着会让下一个登录者的导航按上一个账号的授权渲染。
     setLicenseFeatureAccess(null)
+    // 派生索引 worker 持有上一账号的实体快照：**必须**在这里终止，
+    // 否则登出后它仍在内存里留着旧账号的数据，且下次登录的首次 patch 会带着旧基线。
+    disposeDerivedWorker()
     // 断开旧用户的实体 WS 订阅并清空实体缓存：
     // reconnectForAuthChange 内部 connect() 在未认证时直接跳过，此处仅执行断开 + 清空
     reconnectEntitiesAfterAuthChange()
@@ -168,7 +172,8 @@ export const useAuthStore = defineStore('auth', () => {
     stopSessionRefresh()
     // 会话失效即清空功能码明细，避免 401 后导航仍按旧授权显隐
     setLicenseFeatureAccess(null)
-    // 401 后同样断开实体 WS 并清空实体，避免残留旧用户的连接与订阅
+    // 401 后同样断开实体 WS 并清空实体，避免残留旧用户的连接与订阅；派生 worker 一并终止。
+    disposeDerivedWorker()
     reconnectEntitiesAfterAuthChange()
   }
 

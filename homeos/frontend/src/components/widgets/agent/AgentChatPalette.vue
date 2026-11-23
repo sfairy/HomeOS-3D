@@ -97,6 +97,21 @@ const voiceMode = ref(false)
 /** 本轮语音已被上滑取消：识别结果回来时丢弃，不落进输入框也不发送 */
 const discardVoice = ref(false)
 const messages = ref<ChatMessage[]>(initialSession?.messages ?? [])
+
+/**
+ * 已定稿回复的 markdown 剥离缓存（模板对每条历史消息都要跑 `agentReplyText` 的三次正则）。
+ *
+ * 缓存按「对象身份 + 原文」双键：消息对象是响应式代理、身份稳定，但同一条消息的重试 /
+ * 编辑会让文本变化 —— 只认身份会渲染出上一次的文案。
+ */
+const settledReplyTextCache = new WeakMap<object, { text: string; formatted: string }>()
+function settledReplyText(message: ChatMessage): string {
+  const cached = settledReplyTextCache.get(message)
+  if (cached && cached.text === message.text) return cached.formatted
+  const formatted = agentReplyText(message.text)
+  settledReplyTextCache.set(message, { text: message.text, formatted })
+  return formatted
+}
 const sessions = ref<AgentChatSession[]>(storedSessions)
 const historyOpen = ref(false)
 const inputRef = ref<HTMLInputElement | null>(null)
@@ -604,7 +619,7 @@ async function send(raw?: string) {
             </span>
             <div class="acp-bubble" :class="`acp-bubble--${m.role}`">
               <p class="acp-bubble__text" :class="{ 'acp-bubble__text--streaming': m.streaming }">
-                {{ m.streaming ? m.text : agentReplyText(m.text) }}
+                {{ m.streaming ? m.text : settledReplyText(m) }}
               </p>
               <p v-if="m.outcome === 'blocked'" class="acp-bubble__blocked">
                 <ShieldAlert class="acp-bubble__blocked-icon" aria-hidden="true" />

@@ -57,11 +57,28 @@ export function composeLightGroupKey(runtime: StudioAppRuntime, groupKeyFloor: a
   return runtime.getPreviewFloorMode() === 'all' ? composeKey(groupKeyFloor, groupKeyGroup) : groupKeyGroup
 }
 
-export function collectLampEntries(runtime: StudioAppRuntime) {
+/**
+ * 灯位条目缓存（结构级）。
+ *
+ * 条目列表只由「楼层 / 分组的结构」决定：亮度这类逐灯属性消费者会从条目引用上实时读，
+ * 不需要重建列表。而这条调用链是热路径：
+ * `areLightsEnabled() → canRenderScene() → assessRenderBudget() → collectActiveLightEntries()
+ * → collectLampEntries()`，一次拖动里每帧被触发 2–4 次，每次都要 flatMap 全部楼层的
+ * 全部物件再筛灯具 —— 户型越大越贵，且全是可直接复用的临时对象。
+ */
+let lampEntriesSignature = {
+  revision: -1 as number,
+  floorMode: null as unknown,
+  activeFloorId: null as unknown,
+  project: null as unknown,
+}
+let lampEntriesCache: ReturnType<typeof buildLampEntries> = []
+let hasLampEntriesCache = false
+
+/** 真正构造条目列表（只在结构变化时调用一次）。 */
+function buildLampEntries(runtime: StudioAppRuntime, floorMode: unknown) {
   return (
-    runtime.getPreviewFloorMode() === 'all'
-      ? runtime.appCtx.studioProject?.floors || []
-      : [runtime.getActiveFloor()].filter(Boolean)
+    floorMode === 'all' ? runtime.appCtx.studioProject?.floors || [] : [runtime.getActiveFloor()].filter(Boolean)
   ).flatMap((floorEntryLamp: any) =>
     floorEntryLamp.scene.items
       .filter((lampItem: any) => lampItemTypeSet.has(lampItem.type))
@@ -76,6 +93,26 @@ export function collectLampEntries(runtime: StudioAppRuntime) {
         }
       }),
   )
+}
+
+export function collectLampEntries(runtime: StudioAppRuntime) {
+  const floorMode = runtime.getPreviewFloorMode()
+  const activeFloorId = runtime.appCtx.activeFloorId
+  const project = runtime.appCtx.studioProject
+  const revision = runtime.appCtx.sceneRevisionCount
+  if (
+    hasLampEntriesCache &&
+    lampEntriesSignature.revision === revision &&
+    lampEntriesSignature.floorMode === floorMode &&
+    lampEntriesSignature.activeFloorId === activeFloorId &&
+    lampEntriesSignature.project === project
+  )
+    return lampEntriesCache
+  const entries = buildLampEntries(runtime, floorMode)
+  lampEntriesSignature = { revision, floorMode, activeFloorId, project }
+  lampEntriesCache = entries
+  hasLampEntriesCache = true
+  return entries
 }
 
 export function listLightGroupRows(

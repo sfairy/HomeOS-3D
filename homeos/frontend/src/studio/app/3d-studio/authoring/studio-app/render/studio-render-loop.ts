@@ -1299,15 +1299,12 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
           renderStudioFrame()
       },
     })
-  window.addEventListener(
-    'pagehide',
-    () => {
-      progressListenerSet.clear(), startupPresentation.dispose()
-    },
-    {
-      once: true,
-    },
-  )
+  // F04：具名 pagehide —— 匿名 `once` 闭包在 SPA 卸载路径上摘不掉，会把整个渲染循环
+  // 闭包（含 `appCtx` 与户型文档）留到整页卸载为止。改走 pageHideBindings，
+  // 由 `createRenderLoopTeardown` 与 pagehide 共享同一个对称回收入口。
+  bindNamedPageHideOnce(pageHideBindings, () => {
+    progressListenerSet.clear(), startupPresentation.dispose()
+  })
   const groundReflections = (appCtx.rendererLossHandler = createGroundReflections2({
       passes: reflectionPasses,
       detail: reflectionDetail,

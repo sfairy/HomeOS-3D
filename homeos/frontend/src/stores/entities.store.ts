@@ -2,7 +2,7 @@
  * @file entities.store.ts
  * @module frontend/src/stores
  */
-import { getEntityDomain, isEntityAllowed } from '@homeos/shared'
+import { isEntityAllowed } from '@homeos/shared'
 import { defineStore } from 'pinia'
 import { ref, toRaw, shallowReactive, reactive, watch } from 'vue'
 import { apiClient } from '@/services/api/index'
@@ -120,69 +120,32 @@ export const useEntitiesStore = defineStore('entities', () => {
   const totalCount = ref(0)
   /** 任意可见实体写入后递增，供 UI 刷新（不依赖 derived 索引是否 relevant） */
   const entityStateRevision = ref(0)
-  /** 按实体版本号：entity_id -> 最近变更版本（粒度化失效，供按实体订阅的派生计算使用） */
-  const entityRevisions = shallowReactive<Record<string, number>>({})
-  /** 按域版本号：domain -> 最近变更版本（粒度化失效，供按域订阅的派生计算使用） */
-  const domainRevisions = shallowReactive<Record<string, number>>({})
 
   /**
    * 递增状态版本号，触发依赖该值的 UI 计算属性重算。
-   * 粒度化失效：传入 entityId 时仅递增该实体与其所属域的版本号，
-   * 依赖 getEntityRevision / getDomainRevision 的派生计算只重算受影响范围；
-   * 全局 entityStateRevision 仍作为兜底。
-   * @param entityId - 发生变更的实体 ID（可选；缺省时仅递增全局版本号）
+   *
+   * 历史上这里还会写 `entityRevisions[entityId]` 与 `domainRevisions[domain]` 两张
+   * `shallowReactive` 明细表（配 `getEntityRevision` / `getDomainRevision` 做粒度化失效）。
+   * 但全仓没有任何消费者读它们：一批 50 个实体就是 100 次代理 set + 50 次首次键插入，
+   * 每秒几批地在广播路径上空转。粒度化失效需要时再引入，否则只保留全局版本号。
+   *
+   * @param _entityId - 发生变更的实体 ID（保留参数以兼容既有调用点）
    */
-  function bumpEntityStateRevision(entityId?: string) {
+  function bumpEntityStateRevision(_entityId?: string) {
     entityStateRevision.value++
-    if (!entityId) return
-    entityRevisions[entityId] = (entityRevisions[entityId] ?? 0) + 1
-    const domain = getEntityDomain(entityId)
-    if (domain) domainRevisions[domain] = (domainRevisions[domain] ?? 0) + 1
   }
 
   /**
    * 批量递增版本号：全量/回退批次一次调用完成。
-   * 全局 entityStateRevision 仅递增一次；实体与域各自去重后递增，
-   * 避免 N 实体批次产生 3×N 次响应式写（与逐实体 bump 语义等价，
-   * 版本号仅作单调失效计数，同宏任务内去重不影响派生重算结果）。
+   *
+   * 全局 `entityStateRevision` 仅递增一次（与逐实体 bump 语义等价：版本号只作单调失效计数，
+   * 同一批次内去重不影响派生重算结果）。
+   *
+   * @param entityIds - 本批次发生变更的实体 ID（仅用于判定是否为空批次）
    */
   function bumpEntityStateRevisionBatch(entityIds: string[]) {
     if (!entityIds?.length) return
     entityStateRevision.value++
-    const seenDomains = new Set<string>()
-    for (let i = 0; i < entityIds.length; i++) {
-      const entityId = entityIds[i]
-      if (!entityId) continue
-      const prev = entityRevisions[entityId]
-      if (prev !== undefined) {
-        entityRevisions[entityId] = prev + 1
-      } else {
-        entityRevisions[entityId] = 1
-      }
-      const domain = getEntityDomain(entityId)
-      if (domain && !seenDomains.has(domain)) {
-        seenDomains.add(domain)
-        domainRevisions[domain] = (domainRevisions[domain] ?? 0) + 1
-      }
-    }
-  }
-
-  /**
-   * 获取实体最近变更版本号（读取建立响应式依赖：仅该实体变更时重算）。
-   * @param entityId - 实体 ID
-   * @returns 实体版本号
-   */
-  function getEntityRevision(entityId: string): number {
-    return entityRevisions[entityId] ?? 0
-  }
-
-  /**
-   * 获取实体域最近变更版本号（读取建立响应式依赖：仅该域内实体变更时重算）。
-   * @param domain - 实体域（如 light / sensor）
-   * @returns 域版本号
-   */
-  function getDomainRevision(domain: string): number {
-    return domainRevisions[domain] ?? 0
   }
 
   // 缓存持久化桥接：初始为空实现，在 createEntityCacheHelpers 返回后被回填，
@@ -698,12 +661,6 @@ export const useEntitiesStore = defineStore('entities', () => {
     climateCount,
     derivedEpoch,
     entityStateRevision,
-    /** 按实体版本号（粒度化失效：仅该实体变更时重算依赖方） */
-    entityRevisions,
-    /** 按域版本号（粒度化失效：仅该域实体变更时重算依赖方） */
-    domainRevisions,
-    getEntityRevision,
-    getDomainRevision,
     perfStats,
     getPendingListenerCount,
     getStateListenerStats,

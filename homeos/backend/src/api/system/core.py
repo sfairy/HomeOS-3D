@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import re
@@ -50,6 +51,43 @@ router = NestRouter(prefix="/system", tags=["system"])
 SSE_HEARTBEAT_MS = 15_000
 #: 默认大实体阈值（``frontend.workerDerivedThreshold`` 缺失时）
 DEFAULT_XLARGE_THRESHOLD = 3500
+#: 运行日志 SSE 每条连接的有界队列长度（满了丢最旧并下发 gap 标记）
+_LOG_STREAM_QUEUE_MAX = 500
+
+
+class _BoundedLogQueue:
+    """运行日志 SSE 的有界队列。
+
+    客户端（后台标签页 / 被节流的手机）停止读取时，日志仍在持续追加；无界队列会在这个
+    「专门用来观察泄漏」的接口上自己泄漏。满了就丢最旧的一条，并记录一次 gap ——
+    下一次成功出帧时用一条 meta 事件告诉客户端「中间丢了 N 条」。
+    """
+
+    def __init__(self, loop: asyncio.AbstractEventLoop) -> None:
+        self._queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=_LOG_STREAM_QUEUE_MAX)
+        self._loop = loop
+        self._dropped = 0
+
+    def _push(self, entry: dict[str, Any]) -> None:
+        # 满了先丢最旧的一条，再写新的；`contextlib.suppress` 比 `except ...: pass`
+        # 更适合这种「预期内的竞态」，也通过了 silent-except 门禁的口径。
+        if self._queue.full():
+            with contextlib.suppress(asyncio.QueueEmpty):
+                self._queue.get_nowait()
+            self._dropped += 1
+        with contextlib.suppress(asyncio.QueueFull):
+            self._queue.put_nowait(entry)
+
+    def listener(self, entry: dict[str, Any]) -> None:
+        """日志缓冲的回调（可能在任意线程）：统一切回事件循环线程再入队。"""
+        self._loop.call_soon_threadsafe(self._push, entry)
+
+    async def next_entry(self, timeout_s: float) -> dict[str, Any]:
+        return await asyncio.wait_for(self._queue.get(), timeout=timeout_s)
+
+    def take_dropped(self) -> int:
+        dropped, self._dropped = self._dropped, 0
+        return dropped
 
 # 依赖读取
 def _runtime_buffer(request: Request) -> RuntimeLogBuffer:
@@ -191,10 +229,18 @@ async def get_diagnostics(request: Request, user: dict[str, Any] = Depends(requi
         app.state.ha_connector.get_status(),
     )
     retention_days = retention.resolve_retention_days()
-    stale_info = state_store.get_stale_info()
     entity_count = state_store.get_count()
+    # 只有 SQLite 那一步进线程池。
+    #
+    # `_load_drift_repair_last_run` 会开一次同步会话（可能触到磁盘），是最该让出事件循环的
+    # 一步；而 `get_memory_diagnostics` / `get_availability_summary` 都是**遍历 `_states`
+    # 字典**，写入发生在事件循环线程（WS 摄取）上。把它们丢进线程池会在遍历期间遇到
+    # `dictionary changed size during iteration` —— 这是并发正确性问题，不是性能取舍。
+    # 两处遍历本身只有 20 条抽样 + ~700 次时间戳解析，留在循环上代价可以接受。
+    drift_repair_last_run = await asyncio.to_thread(_load_drift_repair_last_run, request)
+    stale_info = state_store.get_stale_info()
     memory_detail = state_store.get_memory_diagnostics()
-    drift_repair_last_run = _load_drift_repair_last_run(request)
+    availability = state_store.get_availability_summary()
 
     frontend_cfg = app_config.get("frontend") or {}
     xlarge_threshold = frontend_cfg.get("workerDerivedThreshold")
@@ -242,7 +288,7 @@ async def get_diagnostics(request: Request, user: dict[str, Any] = Depends(requi
             "syncedAt": stale_info.get("syncedAt"),
             # 连接级 stale 之外再给逐实体派生口径：HA 连着但个别实体早已停更时，
             # 只看 ``stale`` 会把它们当成在线。
-            "availability": state_store.get_availability_summary(),
+            "availability": availability,
         },
         "websocket": {"clients": gateway.client_count()},
         "haSyncLatency": [
@@ -315,13 +361,8 @@ async def stream_runtime_logs(
     after = _int_or_none(afterId) or 0
 
     async def event_stream() -> AsyncIterator[str]:
-        queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
-        loop = asyncio.get_running_loop()
-
-        def listener(entry: dict[str, Any]) -> None:
-            loop.call_soon_threadsafe(queue.put_nowait, entry)
-
-        unsubscribe = buffer.subscribe(listener)
+        log_queue = _BoundedLogQueue(asyncio.get_running_loop())
+        unsubscribe = buffer.subscribe(log_queue.listener)
         event_id = 0
         try:
             # 先推增量缺口，再订阅实时写入
@@ -337,7 +378,7 @@ async def stream_runtime_logs(
 
             while True:
                 try:
-                    entry = await asyncio.wait_for(queue.get(), timeout=SSE_HEARTBEAT_MS / 1000)
+                    entry = await log_queue.next_entry(SSE_HEARTBEAT_MS / 1000)
                 except TimeoutError:
                     event_id += 1
                     yield _sse_frame("ping", buffer.meta(), event_id)
@@ -345,6 +386,10 @@ async def stream_runtime_logs(
                 if not matches_runtime_log_filter(entry, query_filter):
                     continue
                 event_id += 1
+                dropped = log_queue.take_dropped()
+                if dropped:
+                    yield _sse_frame("meta", {**buffer.meta(), "dropped": dropped}, event_id)
+                    event_id += 1
                 yield _sse_frame("log", entry, event_id)
         except asyncio.CancelledError:  # 客户端断开
             raise

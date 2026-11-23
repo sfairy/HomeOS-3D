@@ -69,3 +69,54 @@ export function trimSharedGeometryCache(
   }
   return { unusedEntries, unusedBytes, evicted }
 }
+
+/**
+ * 修剪「按规格共享」的材质缓存（`Map<key, material>`）。
+ *
+ * 与几何版同一套规则：**只淘汰当前场景没有引用到的条目**。材质对象本身只有几百字节，
+ * 真正的成本是渲染器里的 program —— 淘汰时 `dispose()` 才能把 program 引用还回去。
+ *
+ * 为什么必须有上限：`textureCacheByKey` / `materialCacheByKey` 的 key 是「颜色 + 粗糙度 +
+ * 透明度 …」的完整签名，同一实例里反复改墙色 / 换地毯会持续铸造新 key，而
+ * `disposeObjectTree` 刻意跳过带 `architectureShared*` / `rugShared*` 标记的资源 ——
+ * 也就是说这两张表在单次长编辑里只增不减。
+ */
+type SceneTraversableNode = {
+  material?: unknown
+  traverse(visit: (node: SceneTraversableNode) => void): void
+}
+
+type DisposableMaterial = { dispose?: () => void }
+
+export function trimSharedMaterialCache(
+  cache: Map<unknown, unknown>,
+  sceneRoots: unknown[],
+  { maxUnusedEntries = 64 } = {},
+): { unusedEntries: number; evicted: number } {
+  const liveMaterialSet = new Set<unknown>(),
+    visitedNodeSet = new Set<unknown>()
+  for (const sceneRoot of sceneRoots) {
+    if (!sceneRoot || visitedNodeSet.has(sceneRoot)) continue
+    ;(sceneRoot as SceneTraversableNode).traverse((sceneNode) => {
+      visitedNodeSet.add(sceneNode)
+      const nodeMaterials = Array.isArray(sceneNode.material)
+        ? sceneNode.material
+        : sceneNode.material
+          ? [sceneNode.material]
+          : []
+      for (const nodeMaterial of nodeMaterials) if (nodeMaterial) liveMaterialSet.add(nodeMaterial)
+    })
+  }
+
+  let unusedEntries = 0,
+    evicted = 0
+  for (const [cacheKey, material] of cache) {
+    if (!material || liveMaterialSet.has(material)) continue
+    if (unusedEntries < maxUnusedEntries) {
+      unusedEntries += 1
+      continue
+    }
+    cache.delete(cacheKey), (material as DisposableMaterial).dispose?.(), (evicted += 1)
+  }
+  return { unusedEntries, evicted }
+}

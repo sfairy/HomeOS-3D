@@ -394,6 +394,52 @@ const wallSideCameraSpaces = new WeakMap<object, WallSideCameraSpace>()
  * 返回 `null` 表示这个网格不满足条件（不透明 / 非合并墙带 / 已有索引），调用方
  * 不需要记录状态。
  */
+/**
+ * 把侧面三角按「共面」合并成段。
+ *
+ * 墙带的侧面是「每个墙段一个四边形（= 2 个共面三角）」拼出来的：同一段的两个三角由同一批
+ * 顶点算出，平面系数逐位相同。把相邻同系数的三角并成一段之后，每帧每段只算一次点积，
+ * 分类结果与逐三角完全一致（不是近似）；而三角形数量随户型线性增长，相机阻尼滑行时
+ * 每帧都要整扫一遍。
+ */
+function buildCoplanarWallSegments(
+  threeApi: WallSideThreeApi,
+  positionAttribute: WallSidePositionAttribute,
+  groupStart: number,
+  triangleCount: number,
+) {
+  const firstTriangle: number[] = [],
+    triangleLength: number[] = [],
+    plane: number[] = [],
+    firstCorner = new threeApi.Vector3(),
+    edgeA = new threeApi.Vector3(),
+    edgeB = new threeApi.Vector3()
+  for (let triangleIndex = 0; triangleIndex < triangleCount; triangleIndex++) {
+    const vertexStart = groupStart + triangleIndex * 3
+    firstCorner.fromBufferAttribute(positionAttribute, vertexStart),
+      edgeA.fromBufferAttribute(positionAttribute, vertexStart + 1).sub(firstCorner),
+      edgeB.fromBufferAttribute(positionAttribute, vertexStart + 2).sub(firstCorner),
+      edgeA.cross(edgeB)
+    const offset = -edgeA.dot(firstCorner),
+      segmentCount = firstTriangle.length,
+      previousPlane = (segmentCount - 1) * 4
+    if (
+      segmentCount > 0 &&
+      plane[previousPlane] === edgeA.x &&
+      plane[previousPlane + 1] === edgeA.y &&
+      plane[previousPlane + 2] === edgeA.z &&
+      plane[previousPlane + 3] === offset
+    ) {
+      triangleLength[segmentCount - 1] += 1
+      continue
+    }
+    firstTriangle.push(triangleIndex)
+    triangleLength.push(1)
+    plane.push(edgeA.x, edgeA.y, edgeA.z, offset)
+  }
+  return { firstTriangle, triangleLength, plane }
+}
+
 export function prepareWallSideOrder(
   threeLib: object,
   meshObject: object,
@@ -425,23 +471,17 @@ export function prepareWallSideOrder(
     triangleCount = sideGroup.count / 3,
     groupStart = sideGroup.start,
     groupEnd = groupStart + sideGroup.count
-  let planeCoefficients = new Float64Array(triangleCount * 4),
-    frontFacing = new Uint8Array(triangleCount)
-  const firstCorner = new threeApi.Vector3(),
-    edgeA = new threeApi.Vector3(),
-    edgeB = new threeApi.Vector3()
-  for (let triangleIndex = 0; triangleIndex < triangleCount; triangleIndex++) {
-    const vertexStart = groupStart + triangleIndex * 3,
-      coefficientStart = triangleIndex * 4
-    firstCorner.fromBufferAttribute(positionAttribute, vertexStart),
-      edgeA.fromBufferAttribute(positionAttribute, vertexStart + 1).sub(firstCorner),
-      edgeB.fromBufferAttribute(positionAttribute, vertexStart + 2).sub(firstCorner),
-      edgeA.cross(edgeB),
-      (planeCoefficients[coefficientStart] = edgeA.x),
-      (planeCoefficients[coefficientStart + 1] = edgeA.y),
-      (planeCoefficients[coefficientStart + 2] = edgeA.z),
-      (planeCoefficients[coefficientStart + 3] = -edgeA.dot(firstCorner))
-  }
+  /*
+   * 共面三角合并（逐三角分类 → 逐墙段分类），分类结果与逐三角完全一致（不是近似）。
+   * 逐三角分类本身只是一次点积，但数量随户型线性增长、且相机阻尼滑行时每帧都要整扫。
+   */
+  const {
+    firstTriangle: segmentFirstTriangle,
+    triangleLength: segmentLength,
+    plane: segmentPlane,
+  } = buildCoplanarWallSegments(threeApi, positionAttribute, groupStart, triangleCount)
+  const segmentTotal = segmentFirstTriangle.length
+  let frontFacing = new Uint8Array(triangleCount)
   const indexArray =
     positionAttribute.count > 65535
       ? new Uint32Array(positionAttribute.count)
@@ -456,7 +496,7 @@ export function prepareWallSideOrder(
     stats: WallSideOrderStats = {
       sorts: 0,
       checks: 0,
-      bytes: indexArray.byteLength + planeCoefficients.byteLength + frontFacing.byteLength,
+      bytes: indexArray.byteLength + segmentPlane.length * 8 + frontFacing.byteLength,
     }
   let firstRun = true,
     reordered = false,
@@ -543,19 +583,24 @@ export function prepareWallSideOrder(
     lastCameraPoint.copy(cameraPoint), stats.checks++
     let facingChanged = firstRun,
       backFacingCount = 0
-    for (let triangleIndex = 0; triangleIndex < triangleCount; triangleIndex++) {
-      const coefficientStart = triangleIndex * 4,
+    // 每段（共面三角的连续区间）只算一次点积，再按段写入三角分类。
+    for (let segmentIndex = 0; segmentIndex < segmentTotal; segmentIndex++) {
+      const planeStart = segmentIndex * 4,
         isFrontFacing =
-          planeCoefficients[coefficientStart] * cameraPoint.x +
-            planeCoefficients[coefficientStart + 1] * cameraPoint.y +
-            planeCoefficients[coefficientStart + 2] * cameraPoint.z +
-            planeCoefficients[coefficientStart + 3] * cameraPoint.w >
+          segmentPlane[planeStart] * cameraPoint.x +
+            segmentPlane[planeStart + 1] * cameraPoint.y +
+            segmentPlane[planeStart + 2] * cameraPoint.z +
+            segmentPlane[planeStart + 3] * cameraPoint.w >
           0
             ? 1
             : 0
-      isFrontFacing !== frontFacing[triangleIndex] && (facingChanged = true),
-        (frontFacing[triangleIndex] = isFrontFacing),
-        isFrontFacing || backFacingCount++
+      const segmentStartTriangle = segmentFirstTriangle[segmentIndex],
+        segmentTriangleCount = segmentLength[segmentIndex]
+      if (frontFacing[segmentStartTriangle] !== isFrontFacing) {
+        facingChanged = true
+        frontFacing.fill(isFrontFacing, segmentStartTriangle, segmentStartTriangle + segmentTriangleCount)
+      }
+      isFrontFacing || (backFacingCount += segmentTriangleCount)
     }
     if (((firstRun = false), !facingChanged)) return
     let backWrite = groupStart,
@@ -576,7 +621,9 @@ export function prepareWallSideOrder(
       mesh.onBeforeRender === handleBeforeRender && (mesh.onBeforeRender = previousOnBeforeRender),
       geometry.removeEventListener('dispose', handleDispose),
       sideMaterial && (sideMaterial.forceSinglePass = false),
-      (planeCoefficients = new Float64Array(0)),
+      segmentFirstTriangle.length && (segmentFirstTriangle.length = 0),
+      segmentLength.length && (segmentLength.length = 0),
+      (segmentPlane.length = 0),
       (frontFacing = new Uint8Array(0))
   }
 

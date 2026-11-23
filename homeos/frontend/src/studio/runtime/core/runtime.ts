@@ -345,8 +345,7 @@ export function mountInteraction3d(
     stageFrameRetryTimeoutId = setTimeout(() => {
       stageFrameRetryTimeoutId = null
       if (isDisposed || hasLoadFailed || isStageReady || !stageFrameUrl) return
-      // 重试是「一次全新的装载」：45s 的加载超时要从这一发重新起算，否则前面耗掉的
-      // 退避时间会算进这一发的预算里，刚恢复的舞台又会过早弹出「加载较慢」提示。
+      // 重试是「一次全新的装载」：45s 加载超时要从这一发重新起算，否则退避时间会算进预算。
       clearTimeout(loadingTimeoutId)
       isPreviewSuspended || scheduleLoadTimeout()
       // 追加重试序号：既是这一发的区分键，也方便在 Network 面板里认出这几发重试。
@@ -2159,6 +2158,7 @@ export function mountInteraction3d(
           hostElement.classList.remove('is-navigation-editing'),
           (isDisposed = true),
           clearTimeout(loadingTimeoutId),
+          stageFrameRetryTimeoutId != null && clearTimeout(stageFrameRetryTimeoutId),
           cancelAnimationFrame(initialLayoutFrameId),
           hostResizeObserver.disconnect(),
           intersectionObserver?.disconnect(),

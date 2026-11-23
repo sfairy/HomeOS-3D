@@ -100,6 +100,9 @@ const GATE_GROUPS = {
     { name: 'check:scene', ...bun('run', 'check:scene') },
     { name: 'check:any', ...bun('run', 'check:any') },
     { name: 'check:frontend-complexity', ...bun('run', 'check:frontend-complexity') },
+    // 性能棘轮：deep:true 监听 / transition:all / 匿名 pagehide / 热路径 JSON.stringify
+    // 只许降不许增。这四类写法都不会让任何编译或类型检查失败，只会让交互变卡、内存变高。
+    { name: 'check:perf-ratchet', ...bun('run', 'check:perf-ratchet') },
     // 重复代码棘轮：jscpd 精确克隆（≥10 行且 ≥50 token）对比基线，涨了即失败。
     // 近似重复（相似度阈值）不进门禁 —— 主观阈值卡 CI 只会催生「改得更不像」的动机。
     { name: 'check:duplicates', ...bun('run', 'check:duplicates') },

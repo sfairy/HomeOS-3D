@@ -18,6 +18,64 @@ import { displayClimateOperatingLabel, displayEntityStateLabel } from '@/shared/
 /** 合法的详情 Tab（来自 query.tab，非法值回落 overview）。 */
 const VALID_DETAIL_TABS = new Set(['overview', 'history', 'refs', 'usage', 'analytics', 'attrs'])
 
+/**
+ * 中文名称排序器：`localeCompare(name, 'zh')` 每比较一对都要重新解析 locale 规则，
+ * 列表排序是 O(k log k) 次比较，必须复用同一个 Collator 实例。
+ */
+const zhNameCollator = new Intl.Collator('zh')
+
+/**
+ * `device_id → 归属实体集合` 索引。
+ *
+ * 设备详情页的「相关设备」原来订阅全局 `entityStateRevision` 后**每批都全表扫一遍**
+ * （`Object.keys` 全实体 + 逐条 `getEntityDisplayName` + 每对一次 zh 排序）。
+ * 而归属关系只随实体增删变化（`derivedEpoch`），与状态抖动无关：索引按 epoch 懒建，
+ * 之后每批只走本设备那几条。
+ */
+let deviceIndexEpoch = -1
+let deviceIndexByDeviceId = new Map<string, Set<string>>()
+
+function buildDeviceEntityIndex(raw: Record<string, { attributes?: Record<string, unknown> } | undefined>) {
+  const nextIndex = new Map<string, Set<string>>()
+  for (const key of Object.keys(raw)) {
+    const deviceId = raw[key]?.attributes?.device_id
+    if (typeof deviceId !== 'string' || !deviceId) continue
+    let bucket = nextIndex.get(deviceId)
+    if (!bucket) nextIndex.set(deviceId, (bucket = new Set()))
+    bucket.add(key)
+  }
+  deviceIndexByDeviceId = nextIndex
+  return nextIndex
+}
+
+/**
+ * 桶里的 id 是否都还在实体表里。
+ *
+ * `derivedEpoch` 在登出 / 重置时会回到 0，若缓存恰好也停在 0，单看 epoch 会把上一账号的
+ * 索引判成有效的 —— 桶只有几条到几十条，这一次校验比全表重建便宜三个数量级。
+ */
+function bucketIsCurrent(bucket: Set<string> | undefined, raw: Record<string, unknown>): boolean {
+  if (!bucket) return false
+  for (const entityId of bucket) if (!raw[entityId]) return false
+  return true
+}
+
+/** 取某设备的归属实体集合（按 epoch 懒建索引，之后每批只走本设备那几条）。 */
+function deviceEntityIndex(
+  epoch: number,
+  raw: Record<string, { attributes?: Record<string, unknown> } | undefined>,
+  deviceId: string,
+): Set<string> | undefined {
+  if (deviceIndexEpoch !== epoch) {
+    deviceIndexEpoch = epoch
+    buildDeviceEntityIndex(raw)
+  }
+  const bucket = deviceIndexByDeviceId.get(deviceId)
+  if (bucketIsCurrent(bucket, raw)) return bucket
+  // 没有桶时以「本 epoch 的索引」为准（重建也不会多出来）；只有桶失效才是跨会话残留，需重建。
+  return bucket ? buildDeviceEntityIndex(raw).get(deviceId) : undefined
+}
+
 /** 属性面板不展示的噪声字段。 */
 const SKIP_ATTRS = new Set([
   'friendly_name',
@@ -90,24 +148,25 @@ export function useDeviceDetailView() {
   })
 
   const relatedEntitiesAll = computed(() => {
-    // 显式订阅：任意实体写入（状态/属性）都会递增 revision；实体增删直接体现在
-    // toRaw 快照的键集合上；derivedEpoch 兜底派生索引/归属变化。
+    // 显式订阅：任意实体写入（状态/属性）都会递增 revision，保证名称能刷新；
+    // `derivedEpoch` 兜底实体增删（索引只在增删时重建，不再每批全表扫描）。
     void entitiesStore.entityStateRevision
     void entitiesStore.derivedEpoch
     const device = deviceId.value
     if (!device) return [] as Array<{ id: string; name: string }>
-    const matches: Array<{ id: string; name: string }> = []
     const raw = toRaw(entitiesStore.entities)
-    for (const key of Object.keys(raw)) {
+    const bucket = deviceEntityIndex(entitiesStore.derivedEpoch, raw, device)
+    if (!bucket) return [] as Array<{ id: string; name: string }>
+    const matches: Array<{ id: string; name: string }> = []
+    for (const key of bucket) {
       if (key === entityId.value) continue
       const entity = raw[key]
-      if (entity?.attributes?.device_id !== device) continue
       matches.push({
         id: key,
         name: getEntityDisplayName(key, entity) || key,
       })
     }
-    return matches.sort((a, b) => a.name.localeCompare(b.name, 'zh'))
+    return matches.sort((a, b) => zhNameCollator.compare(a.name, b.name))
   })
 
   const relatedEntities = computed(() => relatedEntitiesAll.value.slice(0, 8))

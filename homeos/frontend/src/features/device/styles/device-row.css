@@ -31,7 +31,12 @@
   background: var(--hos-surface-1, rgba(255, 255, 255, 0.04));
   color: var(--hos-text-secondary, rgba(255, 255, 255, 0.58));
   flex-shrink: 0;
-  transition: all 0.2s;
+  /* 只过渡真正会变的三个属性：复选框在虚拟列表里按数据重绘，
+     `all` 会把它背景/边框/几何一起纳入过渡重算。时长走 --hos-dur-* 令牌。 */
+  transition:
+    background-color var(--hos-dur-base),
+    border-color var(--hos-dur-base),
+    color var(--hos-dur-base);
 }
 
 .device-row__checkbox:hover {

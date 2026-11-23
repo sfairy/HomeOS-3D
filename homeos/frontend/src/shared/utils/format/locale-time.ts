@@ -8,15 +8,16 @@ function getAppTimezone() {
 }
 
 /**
- * 按应用时区拆解日期为各部件（用于屏保时钟等）。
+ * `Intl.DateTimeFormat` 实例缓存。
  *
- * @param date 目标日期，默认当前时间
- * @param options Intl 选项覆盖；默认 24 小时制含时分秒
- * @returns 含 hour / minute / second / weekday / month / day / year 字段的对象
+ * 构造一个 formatter 要解析 locale 数据（实测 50–100µs），而屏保 / 时钟是按秒调用的，
+ * 选项又只有有限几种组合。按「时区 + 选项签名」缓存，`formatToParts` 依旧逐次执行。
  */
-export function getZonedParts(date: Date = new Date(), options: Intl.DateTimeFormatOptions = {}) {
-  const tz = getAppTimezone()
-  const fmt = new Intl.DateTimeFormat(undefined, {
+const zonedFormatterCache = new Map<string, Intl.DateTimeFormat>()
+const ZONED_FORMATTER_CACHE_MAX = 16
+
+function zonedFormatter(tz: string | undefined, options: Intl.DateTimeFormatOptions) {
+  const merged: Intl.DateTimeFormatOptions = {
     timeZone: tz,
     hour: '2-digit',
     minute: '2-digit',
@@ -24,7 +25,25 @@ export function getZonedParts(date: Date = new Date(), options: Intl.DateTimeFor
     // 小时制跟随用户偏好（显式传 options.hour12 可覆盖，例如时钟组件自己的设置）。
     ...hour12Option(),
     ...options,
-  })
+  }
+  const cacheKey = `${tz ?? ''}|${JSON.stringify(merged)}`
+  const cached = zonedFormatterCache.get(cacheKey)
+  if (cached) return cached
+  const formatter = new Intl.DateTimeFormat(undefined, merged)
+  if (zonedFormatterCache.size >= ZONED_FORMATTER_CACHE_MAX) zonedFormatterCache.clear()
+  zonedFormatterCache.set(cacheKey, formatter)
+  return formatter
+}
+
+/**
+ * 按应用时区拆解日期为各部件（用于屏保时钟等）。
+ *
+ * @param date 目标日期，默认当前时间
+ * @param options Intl 选项覆盖；默认 24 小时制含时分秒
+ * @returns 含 hour / minute / second / weekday / month / day / year 字段的对象
+ */
+export function getZonedParts(date: Date = new Date(), options: Intl.DateTimeFormatOptions = {}) {
+  const fmt = zonedFormatter(getAppTimezone(), options)
   const parts = fmt.formatToParts(date)
   const pick = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? ''
   return {

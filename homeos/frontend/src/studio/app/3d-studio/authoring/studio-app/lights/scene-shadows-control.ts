@@ -1,5 +1,8 @@
 import type { StudioAppRuntime } from '../runtime/studio-app-runtime'
-import { trimSharedGeometryCache as trimSharedGeometryCache2 } from '../../studio-shared-geometry-cache'
+import {
+  trimSharedGeometryCache as trimSharedGeometryCache2,
+  trimSharedMaterialCache as trimSharedMaterialCache2,
+} from '../../studio-shared-geometry-cache'
 
 export function setShadowFreeze(runtime: StudioAppRuntime, isFrozen = true) {
   runtime.appCtx.isShadowFrozen &&
@@ -45,7 +48,11 @@ export function setShadowFreeze(runtime: StudioAppRuntime, isFrozen = true) {
     runtime.previewResources?.release(),
     runtime.shouldTrimSharedGeometry &&
       ((runtime.shouldTrimSharedGeometry = false),
-      trimSharedGeometryCache2(runtime.geometryCacheByKey, [runtime.appCtx.threeScene, runtime.appCtx.sceneRootNode])),
+      trimSharedGeometryCache2(runtime.geometryCacheByKey, [runtime.appCtx.threeScene, runtime.appCtx.sceneRootNode]),
+      // 材质缓存同批修剪：这两张表的 key 是完整材质签名，长编辑里只增不减，
+      // 而 `disposeObjectTree` 会跳过所有「共享」标记的资源。
+      trimSharedMaterialCache2(runtime.textureCacheByKey, [runtime.appCtx.threeScene, runtime.appCtx.sceneRootNode]),
+      trimSharedMaterialCache2(runtime.materialCacheByKey, [runtime.appCtx.threeScene, runtime.appCtx.sceneRootNode])),
     runtime.prepareShadowAtlas()
 }
 

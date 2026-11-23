@@ -221,11 +221,16 @@ export function useHomeClimateChart(options: UseHomeClimateChartOptions) {
     chartInstance.dispatchAction({ type: 'legendToggleSelect', name: item.seriesName })
   }
 
-  function now() {
-    return Date.now()
-  }
-  const xMin = computed(() => now() - HOME_CLIMATE_CHART_HOURS * 3600 * 1000)
-  const xMax = computed(() => now())
+  /**
+   * 图表时间窗的右端。
+   *
+   * 原来写成 `computed(() => Date.now())` —— `computed` 只依赖响应式数据，而 `Date.now()`
+   * 不是响应式的，于是首次求值后**永久缓存**：图表窗口停在第一次构建那一刻，后续每次刷新
+   * 拉回来的新样本都落在窗口外，看起来像「图表不更新」。用每次取数成功时刷新的 ref 承载。
+   */
+  const windowEndMs = ref(Date.now())
+  const xMin = computed(() => windowEndMs.value - HOME_CLIMATE_CHART_HOURS * 3600 * 1000)
+  const xMax = computed(() => windowEndMs.value)
 
   function buildOption() {
     return buildClimateChartOption({
@@ -284,9 +289,13 @@ export function useHomeClimateChart(options: UseHomeClimateChartOptions) {
       // 并发调用可能已在 await 期间完成初始化
       if (!chartInstance) chartInstance = echarts.init(chartRef.value)
     }
-    chartInstance.setOption(buildOption(), { notMerge: true, lazyUpdate: false })
+    // `notMerge: true` 会让 ECharts 丢弃并重建所有组件与系列，同时重放 600ms 入场动画；
+    // 数据刷新只是换 series，轴/图例/网格都该保留。轴模式切换走的是另一条路径
+    // （`disposeChartInstance` 重建实例），所以这里可以安全地局部合并。
+    chartInstance.setOption(buildOption(), { notMerge: false, replaceMerge: ['series'], lazyUpdate: true })
     chartAxisMode = nextAxisMode
-    chartInstance.resize()
+    // 不再主动 `resize()`：容器尺寸由 `observeChartResize` 的 ResizeObserver 驱动，
+    // 这里调用只会多做一次同步布局读取。
   }
 
   function scheduleChartUpdate() {
@@ -337,6 +346,8 @@ export function useHomeClimateChart(options: UseHomeClimateChartOptions) {
         }
       }
       if (byId.size === 0 && firstError !== undefined) throw firstError
+      // 窗口右端跟着「这次取数的时刻」走：否则新样本会落在冻结的窗口外。
+      windowEndMs.value = Date.now()
       temperatureSeries.value = mapHistorySeries(tempIds, byId, entitiesStore.entities, hubConfig.value.entityNames)
       humiditySeries.value = mapHistorySeries(humIds, byId, entitiesStore.entities, hubConfig.value.entityNames)
       legendHidden.value = legendItems.value.map(() => false)
@@ -360,32 +371,32 @@ export function useHomeClimateChart(options: UseHomeClimateChartOptions) {
     scheduleChartUpdate()
   })
 
+  // 系列集合变化（增删传感器 / 视图切换）时重置图例隐藏状态。
+  // 原实现是 `deep: true` 监听两条历史曲线 —— 每次轮询都会逐点遍历全部样本，
+  // 只为了做同一件事；用「系列名 + 单位」的指纹既便宜又只在该重置时触发。
   watch(
-    [temperatureSeries, humiditySeries],
+    () => legendItems.value.map((item) => `${item.seriesName}|${item.kind}`).join('~'),
     () => {
       legendHidden.value = legendItems.value.map(() => false)
     },
-    { deep: true },
   )
 
   watch(hasViewSeries, (ready) => {
     if (ready) nextTick(() => scheduleChartUpdate())
   })
 
-  // 配置中的实体列表变化时重新拉取历史
+  // 配置中的实体列表变化时重新拉取历史（用 id 拼串，取代整个配置对象的深监听）
   watch(
-    () => hubConfig.value.temperatureEntities,
+    () => (hubConfig.value.temperatureEntities || []).join('|'),
     () => {
       void fetchData()
     },
-    { deep: true },
   )
   watch(
-    () => hubConfig.value.humidityEntities,
+    () => (hubConfig.value.humidityEntities || []).join('|'),
     () => {
       void fetchData()
     },
-    { deep: true },
   )
   watch(
     () => authStore.isAuthenticated,

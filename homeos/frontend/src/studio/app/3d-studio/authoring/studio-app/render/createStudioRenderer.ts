@@ -233,6 +233,29 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps) {
   let lightingShaderFailsafe: LightingShaderFailsafe | null = null
   /** 天气消息监听的卸载句柄（见 `installWeatherHostMessages`）。 */
   let disposeWeatherHostMessages: (() => void) | null = null
+  /**
+   * 本实例登记的 `pagehide` 监听（具名 + 可摘）。
+   *
+   * SPA 路由切换**不**触发 `pagehide`：匿名 `once` 闭包一旦挂上就再也摘不掉，
+   * 会把 `appCtx`（含整份户型文档）与 `deps`（闭包着整个引导作用域）一起钉住 ——
+   * 之后即使所有资源都正确释放，它们也仍然是可达对象。统一走这里登记，
+   * `disposeRendererEvents` 与引导失败分支对称摘除。
+   */
+  const pageHideCleanups: Array<() => void> = []
+  function registerPageHide(handler: () => void): void {
+    const listener = () => handler()
+    window.addEventListener('pagehide', listener, { once: true })
+    pageHideCleanups.push(() => window.removeEventListener('pagehide', listener))
+  }
+  function removePageHideListeners(): void {
+    for (const removeListener of pageHideCleanups.splice(0)) {
+      try {
+        removeListener()
+      } catch {
+        /* 宿主已拆时 remove 可能抛，忽略 */
+      }
+    }
+  }
   const previewViewportElement = selectElement('#preview-3d')
   /**
    * 创建 WebGL 渲染器，失败时逐步降级。
@@ -327,15 +350,9 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps) {
           renderer: appCtx.threeRenderer,
           maxSamples: interactionResourcePolicy.motion.maxSamples,
         })),
-        window.addEventListener(
-          'pagehide',
-          () => {
-            disposeShadowAtlas(), appCtx.shadowAtlasCanvas.dispose()
-          },
-          {
-            once: true,
-          },
-        )),
+        registerPageHide(() => {
+          disposeShadowAtlas(), appCtx.shadowAtlasCanvas.dispose()
+        })),
       /**
        * 舞台也要方向光阴影（见 `interactionResourcePolicy.stageSunShadow`）。
        *
@@ -356,15 +373,9 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps) {
           renderer: appCtx.threeRenderer,
         })),
         (deps.previewResources = createPreviewResourceHandoff2((resource: any) => resource?.dispose?.())),
-        window.addEventListener(
-          'pagehide',
-          () => {
-            appCtx.compiledShaderCache?.dispose(), deps.effectCache?.dispose(), deps.previewResources?.release()
-          },
-          {
-            once: true,
-          },
-        )),
+        registerPageHide(() => {
+          appCtx.compiledShaderCache?.dispose(), deps.effectCache?.dispose(), deps.previewResources?.release()
+        })),
       ensureDiagnosticsHud(),
       (appCtx.orbitControls = createOrbitControls(appCtx.threeCamera)),
       publishModelLoadState(),
@@ -491,9 +502,7 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps) {
         }
       },
     })),
-      window.addEventListener('pagehide', () => appCtx.overviewStackController?.dispose(), {
-        once: true,
-      }),
+      registerPageHide(() => appCtx.overviewStackController?.dispose()),
       isEmbedStageMode
         ? ((appCtx.contactShadowController = createContactShadowController2({
             THREE: ns2,
@@ -673,6 +682,8 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps) {
       disposeRendererEvents = () => {
         if (rendererEventsDisposed) return
         rendererEventsDisposed = true
+        // 先摘本实例登记过的 pagehide（含它自己）：否则闭包把 appCtx / deps 钉住。
+        removePageHideListeners()
         ev2()
         document.removeEventListener('visibilitychange', handlePageVisibility)
         rendererDomElement.removeEventListener('hb-i3d-parent-visibility', handleParentVisibility)
@@ -701,7 +712,7 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps) {
         }
       }
       // 整页卸载（pagehide）与 SPA 内显式回收都会走到同一个清理函数，重复调用是幂等的。
-      window.addEventListener('pagehide', disposeRendererEvents, { once: true })
+      registerPageHide(disposeRendererEvents)
       // B12：先让首帧出画，再在空闲时用 compileAsync 预热着色器，减少后续交互的编译卡顿。
       shaderWarmupCanceller = startShaderWarmup(appCtx.threeRenderer, appCtx.threeScene, appCtx.threeCamera)
       handlePageVisibility()
@@ -732,6 +743,15 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps) {
     })
     console.error(frameDriverError)
     // 引导中途中止时渲染器可能已经建好：兜底 handler 也一并撤掉，避免挂到废弃上下文上。
+    removePageHideListeners()
+    // 上下文资源追踪器给 `EventDispatcher.prototype.addEventListener` 装了引用计数补丁：
+    // 不在失败分支里还原，整个页面会一直带着这个补丁，并继续收集后续渲染器的资源。
+    try {
+      appCtx.contextResources?.dispose?.()
+    } catch {
+      /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失 */
+    }
+    appCtx.contextResources = null
     lightingShaderFailsafe?.dispose(), (lightingShaderFailsafe = null)
     disposeWeatherHostMessages?.(), (disposeWeatherHostMessages = null)
   }

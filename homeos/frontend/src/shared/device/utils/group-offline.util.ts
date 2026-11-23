@@ -3,8 +3,19 @@ import { getEntityDomain } from '@homeos/shared'
 import { DOMAIN_LIST, MONITORED_ENTITY_IDS } from '@/shared/constants/device-group'
 import type { DeviceGroupEntitiesStoreLike, DeviceGroupUiStoreLike } from '@/shared/device/utils/group-battery.util'
 
+/** 域白名单预编译成 Set：`DOMAIN_LIST.includes()` 每次都是线性查找。 */
+const DOMAIN_SET = new Set(DOMAIN_LIST)
+/**
+ * 「监控类噪声实体」的片段表预编译成正则。
+ *
+ * 原实现是 `MONITORED_ENTITY_IDS.some((x) => entityId.toLowerCase().includes(x))`：
+ * 每个候选实体都要**新分配一个小写字符串** + 9 次 `includes`。这个函数在离线角标
+ * 计算里对全屋每个实体各跑一次，而角标是常驻首页的 computed。
+ */
+const MONITORED_ENTITY_PATTERN = new RegExp(MONITORED_ENTITY_IDS.join('|'))
+
 function isMonitoredExcludedEntity(entityId: string) {
-  return MONITORED_ENTITY_IDS.some((x) => entityId.toLowerCase().includes(x))
+  return MONITORED_ENTITY_PATTERN.test(entityId.toLowerCase())
 }
 /** 离线设备：收藏 + 顶层浮动组件中不可用实体构成的 critical 集合 */
 export function computeOfflineCriticalSet(
@@ -49,7 +60,7 @@ export function listOfflineOtherEntityIds(entitiesStore: DeviceGroupEntitiesStor
     const eid = rawEid ?? ''
     if (!eid || seen.has(eid)) return
     seen.add(eid)
-    if (!DOMAIN_LIST.includes(getEntityDomain(eid))) return
+    if (!DOMAIN_SET.has(getEntityDomain(eid))) return
     if (criticalSet.has(eid) || isMonitoredExcludedEntity(eid)) return
     if (entitiesStore.entities[eid]?.state !== 'unavailable') return
     ids.push(eid)

@@ -7,8 +7,35 @@ import type { EntitiesMap, EntityProjection, EntityProjectionChange, HaEntitySta
 /** 投影缓存：entity_id → EntityProjection（shallowReactive Map，键级响应） */
 const projections = shallowReactive(new Map<string, EntityProjection>())
 
-/** 当前路由活跃的实体 ID 集合（setProjectionScope 设定） */
+/**
+ * 每个路由视图各自的作用域（owner 用对象身份，取 `useRouteEntityProjection` 里的令牌）。
+ *
+ * 早期只有一个模块级 `activeIds`：`/devices` 与「设备详情」两个视图各自持有
+ * `useRouteEntityProjection`，又在 `keep-alive :max="8"` 下同时存活，于是每一批 WS
+ * 更新都会互相把对方的作用域清空再重建一遍（两个视图各自的 watcher 都触发）。
+ */
+const scopeByOwner = new Map<object, Set<string>>()
+
+/** 未指定 owner 的调用方共用这一份作用域（保持旧 API 语义）。 */
+const DEFAULT_SCOPE_OWNER = {}
+
+/** 所有 owner 的并集：投影是否「还有人用」只看它 */
 let activeIds = new Set<string>()
+
+/** 上次参与投影的实体对象引用：store 按对象替换更新，引用没变 ⇒ 投影一定没变。 */
+const sourceEntityById = new Map<string, HaEntityState>()
+
+/** 重新计算并集，并清掉已经没人引用的投影。 */
+function rebuildMergedScope(): void {
+  const merged = new Set<string>()
+  for (const scope of scopeByOwner.values()) for (const id of scope) merged.add(id)
+  activeIds = merged
+  for (const key of projections.keys()) {
+    if (merged.has(key)) continue
+    projections.delete(key)
+    sourceEntityById.delete(key)
+  }
+}
 
 /**
  * 将完整实体状态转换为精简投影
@@ -42,11 +69,26 @@ function toEntityProjection(entity: HaEntityState | null | undefined): EntityPro
  * 调用场景：路由切换、楼层切换等导致组件关心的实体集合变化时。
  *
  * @param ids - 当前路由需要的实体 ID 可迭代对象
+ * @param owner - 作用域归属（同一时刻多个路由视图并存时必须区分）
  */
-export function setProjectionScope(ids: Iterable<string>): void {
-  activeIds = new Set(ids)
-  for (const key of projections.keys()) {
-    if (!activeIds.has(key)) projections.delete(key)
+export function setProjectionScope(ids: Iterable<string>, owner: object = DEFAULT_SCOPE_OWNER): void {
+  scopeByOwner.set(owner, new Set(ids))
+  rebuildMergedScope()
+}
+
+/**
+ * 释放某个 owner 的作用域（视图卸载时调用）。
+ *
+ * 不传 `owner` 等价于清空全部作用域（登出 / 重置）。
+ */
+export function clearProjectionScope(owner?: object): void {
+  if (owner) scopeByOwner.delete(owner)
+  else scopeByOwner.clear()
+  if (scopeByOwner.size) rebuildMergedScope()
+  else {
+    projections.clear()
+    sourceEntityById.clear()
+    activeIds = new Set<string>()
   }
 }
 
@@ -97,6 +139,15 @@ function projectionContentEqual(
  */
 export function upsertProjection(entityId: string, entity: HaEntityState | null | undefined): void {
   if (!activeIds.has(entityId)) return
+  // 快路径：store 按对象整体替换更新，引用没变就说明 state / attributes / friendly_name
+  // 都没变（`toEntityProjection` 的全部输入都在这一个对象上）。省掉每批每实体的
+  // markRaw 分配 + `getEntityDisplayName` 字符串处理。
+  if (entity) {
+    if (sourceEntityById.get(entityId) === entity) return
+    sourceEntityById.set(entityId, entity)
+  } else {
+    sourceEntityById.delete(entityId)
+  }
   const proj = toEntityProjection(entity)
   if (!proj) {
     if (projections.has(entityId)) projections.delete(entityId)
@@ -135,6 +186,8 @@ export function getProjection(entityId: string): EntityProjection | null {
 /** 清空所有投影与活跃作用域（登出 / 重置场景调用） */
 export function clearProjections(): void {
   projections.clear()
+  sourceEntityById.clear()
+  scopeByOwner.clear()
   activeIds = new Set<string>()
 }
 

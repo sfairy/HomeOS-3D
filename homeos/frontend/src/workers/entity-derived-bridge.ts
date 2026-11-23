@@ -95,6 +95,45 @@ let workerFailed = false
 let appliedEpoch = 0
 
 /**
+ * 超时竞速：`setTimeout` 必须在竞速结束后清掉。
+ *
+ * `Promise.race` 不会取消败者 —— 每次重建 / 补丁都会留下一个 400–500ms 的定时器，
+ * 连同闭包一起挂在宿主上。WS 突发时（派生刷新按 80ms 去抖）会同时存在几十上百个，
+ * 在堆快照里表现为持续的 GC 压力，而它们永远不会做任何有用的事。
+ */
+async function raceWithTimeout<T>(task: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | null = null
+  try {
+    return await Promise.race([
+      task,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(message)), timeoutMs)
+      }),
+    ])
+  } finally {
+    if (timer !== null) clearTimeout(timer)
+  }
+}
+
+/**
+ * 释放派生 worker（登出 / 断开实时连接 / 整页卸载）。
+ *
+ * 三个模块级单例原先**从不重置**：一次初始化失败会让 `workerFailed` 永久短路，整套派生
+ * 索引退回主线程计算；成功创建的 worker 在登出后仍存活，继续持有上一份数据集。
+ */
+export function disposeDerivedWorker(): void {
+  try {
+    worker?.terminate()
+  } catch (terminateError) {
+    logger.warn('[实体派生桥] worker 终止失败', terminateError)
+  }
+  worker = null
+  workerApi = null
+  workerFailed = false
+  appliedEpoch = -1
+}
+
+/**
  * 使主线程侧 Worker 基线失效（-1）。
  * 主线程索引被非 Worker 路径（主线程重建器 / 重置）直接修改后调用，
  * 强制下一次增量 patch 返回 null 并回退全量重建，避免基线分叉。
@@ -137,10 +176,7 @@ export async function rebuildDerivedSnapshotViaWorker(
   const api = await ensureDerivedWorker()
   if (!api?.rebuildDerivedSnapshot) return null
   try {
-    const res = await Promise.race([
-      api.rebuildDerivedSnapshot(entities, opts),
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Worker 超时')), timeoutMs)),
-    ])
+    const res = await raceWithTimeout(api.rebuildDerivedSnapshot(entities, opts), timeoutMs, 'Worker 超时')
     // 重建成功即建立新基线，主线程记录已应用版本
     appliedEpoch = res.epoch
     return res
@@ -161,19 +197,35 @@ export async function patchDerivedSnapshotViaWorker(
 ): Promise<DerivedSnapshotPatch | null> {
   const api = await ensureDerivedWorker()
   if (!api?.patchDerivedSnapshot) return null
+  // 保持同一个 Promise 引用：超时后仍要能拿到「迟到结果」里的 epoch。
+  const task = api.patchDerivedSnapshot(patches, {
+    deferSecondary: opts.deferSecondary ?? false,
+    expectedEpoch: appliedEpoch,
+  })
   try {
-    const patch = await Promise.race([
-      api.patchDerivedSnapshot(patches, {
-        deferSecondary: opts.deferSecondary ?? false,
-        expectedEpoch: appliedEpoch,
-      }),
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Worker 补丁超时')), timeoutMs)),
-    ])
+    const patch = await raceWithTimeout(task, timeoutMs, 'Worker 补丁超时')
     // 仅同步成功的 patch 版本；失步（null）时保持旧版本，由调用方回退全量重建
     if (patch) appliedEpoch = patch.epoch
     return patch
   } catch (err) {
     logger.warn('[实体派生桥] worker 补丁失败', err)
+    /*
+     * 超时不能就这么算了：Worker 已经把这一批 patch 应用并递增了自己的 epoch，
+     * 而主线程随后会把基线置成 -1；等下一次 patch 带着 expectedEpoch:-1 去问时，
+     * Worker 永远回 null —— 从此**每一批**都要多付一次无效往返 + 一次主线程全量 patch，
+     * 直到某次可见性变化触发全量重建才恢复。
+     *
+     * 这里在迟到结果返回时把基线补回来（只在调用方已经把它置为 -1 时才采纳，
+     * 避免覆盖一次更晚启动的全量重建的基线）。
+     */
+    void task.then(
+      (latePatch) => {
+        if (latePatch && appliedEpoch === -1) appliedEpoch = latePatch.epoch
+      },
+      () => {
+        /* 真的失败了：保持原样，调用方已经回退主线程 patch */
+      },
+    )
     return null
   }
 }

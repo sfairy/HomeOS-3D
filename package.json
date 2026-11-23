@@ -46,6 +46,8 @@
     "update:any-baseline": "node ops/checks/check_any_baseline.mjs --update",
     "check:frontend-complexity": "node ops/checks/check_frontend_complexity.mjs --check",
     "update:frontend-complexity-baseline": "node ops/checks/check_frontend_complexity.mjs --update",
+    "check:perf-ratchet": "node ops/checks/frontend/check_perf_ratchet.mjs --check",
+    "update:perf-ratchet": "node ops/checks/frontend/check_perf_ratchet.mjs --write",
     "check:duplicates": "node ops/checks/check_duplicates.mjs",
     "check:code-size": "node ops/checks/code-size.mjs --check ops/checks/code-size-baseline.json",
     "report:compression": "node ops/checks/compression-report.mjs",

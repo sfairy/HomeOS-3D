@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-23T04:41:11.420Z",
+  "generatedAt": "2026-11-23T13:19:18.098Z",
   "roots": [
     "homeos/frontend/src",
     "homeos/backend/src",
@@ -11,40 +11,40 @@
   ],
   "byRoot": {
     "homeos/frontend/src": {
-      "code": 442147,
-      "comment": 42363,
-      "blank": 29605,
-      "chars": 13228866,
-      "files": 2082,
+      "code": 442579,
+      "comment": 42638,
+      "blank": 29656,
+      "chars": 13241970,
+      "files": 2083,
       "byExt": {
         ".vue": {
-          "code": 67196,
-          "chars": 1927792,
+          "code": 67193,
+          "chars": 1927924,
           "files": 383
         },
         ".css": {
-          "code": 72090,
-          "chars": 1578478,
+          "code": 72093,
+          "chars": 1578563,
           "files": 218
         },
         ".ts": {
-          "code": 302861,
-          "chars": 9722596,
-          "files": 1481
+          "code": 303293,
+          "chars": 9735483,
+          "files": 1482
         }
       }
     },
     "homeos/backend/src": {
-      "code": 108875,
-      "comment": 6269,
-      "blank": 18284,
-      "chars": 3398189,
-      "files": 576,
+      "code": 108994,
+      "comment": 6302,
+      "blank": 18308,
+      "chars": 3402190,
+      "files": 577,
       "byExt": {
         ".py": {
-          "code": 108875,
-          "chars": 3398189,
-          "files": 576
+          "code": 108994,
+          "chars": 3402190,
+          "files": 577
         }
       }
     },
@@ -125,35 +125,35 @@
       }
     },
     "ops": {
-      "code": 20517,
-      "comment": 3256,
-      "blank": 3164,
-      "chars": 654117,
-      "files": 116,
+      "code": 20883,
+      "comment": 3394,
+      "blank": 3235,
+      "chars": 665780,
+      "files": 120,
       "byExt": {
         ".py": {
-          "code": 8293,
-          "chars": 273054,
-          "files": 57
-        },
-        ".mjs": {
-          "code": 12124,
-          "chars": 378965,
+          "code": 8409,
+          "chars": 276653,
           "files": 58
         },
+        ".mjs": {
+          "code": 12282,
+          "chars": 384091,
+          "files": 59
+        },
         ".ts": {
-          "code": 100,
-          "chars": 2098,
-          "files": 1
+          "code": 192,
+          "chars": 5036,
+          "files": 3
         }
       }
     }
   },
   "total": {
-    "code": 611630,
-    "comment": 55489,
-    "blank": 56681,
-    "chars": 18455887,
-    "files": 3065
+    "code": 612547,
+    "comment": 55935,
+    "blank": 56827,
+    "chars": 18484655,
+    "files": 3071
   }
 }

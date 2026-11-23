@@ -170,8 +170,19 @@ export function createStoreDerivedState(deps: EntityDerivedDeps) {
    * B7: 从 domainCounts 同步缓存域列表。
    * domainCounts 由派生增量 patch 维护（域数远小于实体数），避免 domains getter 在缓存未就绪时 O(n) 回退遍历
    */
+  /** 域列表内容比较：长度相同且逐项相等才算没变。 */
+  function sameDomainList(left: readonly string[], right: readonly string[]): boolean {
+    if (left.length !== right.length) return false
+    for (let index = 0; index < left.length; index += 1) if (left[index] !== right[index]) return false
+    return true
+  }
+
   function refreshCachedDomains(): void {
-    cachedDomains.value = [...domainCounts.keys()].sort()
+    const nextDomains = [...domainCounts.keys()].sort()
+    // 域集合远小于实体数，但它是「每个 WS 批次都会写一次」的响应式值：
+    // 内容没变还赋一个新数组，会让所有读 domains 的页面（设置页 / 事件筛选）整块重算。
+    if (sameDomainList(nextDomains, cachedDomains.value)) return
+    cachedDomains.value = nextDomains
   }
 
   /**

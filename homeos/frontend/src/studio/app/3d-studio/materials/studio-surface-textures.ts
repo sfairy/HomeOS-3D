@@ -308,6 +308,24 @@ const muralPainters = Object.freeze({
 
 const muralArtTextures = new Map()
 
+/**
+ * 回收模块级画布纹理缓存（壁画 / 特色墙 / 石板）。
+ *
+ * 这三张表按「样式枚举」做 key，样本有限但代价高：一张 1024×768 的 RGBA 画布约 3MB，
+ * 合起来是几十 MB 的常驻后备存储。更要紧的是渲染器上传纹理时会在纹理身上挂 dispose
+ * 监听并借此留住渲染器与画布 —— 不在这里统一释放，跨次进出 studio 会一直累积
+ * 旧渲染器的记账（与 `releaseMetalEnvironmentTextures` 是同一类问题）。
+ *
+ * 下次用到某样式时会重新绘制（像素绘制是确定性的），视觉完全一致。
+ */
+export function releaseSurfaceStyleTextures(): void {
+  for (const texturesByStyle of [muralArtTextures, featureWallTextures, stoneSlabTextures])
+    for (const texture of texturesByStyle.values()) texture?.dispose?.()
+  muralArtTextures.clear()
+  featureWallTextures.clear()
+  stoneSlabTextures.clear()
+}
+
 export function createMuralArtTexture(threeApi: any, styleValue: any, maxAnisotropy = 1) {
   const muralStyle = normalizeMuralArtStyle(styleValue)
   return createCachedCanvasTexture(muralArtTextures, threeApi, muralStyle, {

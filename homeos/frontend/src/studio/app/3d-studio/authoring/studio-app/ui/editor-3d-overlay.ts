@@ -176,16 +176,50 @@ function orbitOf(
  * 灯带 gizmo 的标签由 `editor-light-toolbar` 自己排版（它也有自己的 obstacles），
  * 所以这里只放叠层自己的两个。
  */
+/**
+ * 标签尺寸测量缓存。
+ *
+ * `buildOverlayLabels` 需要「这个数值牌有多宽」才能做避让。原实现每帧在**写完文本之后**
+ * 读 `offsetWidth` —— 同一任务里的写入→读取会让浏览器强制同步布局，相机阻尼滑行时
+ * 就是每秒 60 次。这里按文本缓存：文本不变就不读；文本变了也只读一次，
+ * 且调用点已挪到所有 DOM 写入之前（读取不再把布局标脏）。
+ */
+interface LabelMetrics {
+  text: string
+  width: number
+  height: number
+  /** 尺寸是否真的量到了（隐藏元素量不到，此时结果不进缓存）。 */
+  measured: boolean
+}
+
+const HIDDEN_LABEL_METRICS = new WeakMap<HTMLElement, LabelMetrics>()
+
+function measureLabel(element: HTMLElement, fallbackWidth: number, fallbackHeight: number): LabelMetrics {
+  const text = element.textContent ?? ''
+  const cached = HIDDEN_LABEL_METRICS.get(element)
+  if (cached && cached.measured && cached.text === text) return cached
+  const width = element.offsetWidth
+  const height = element.offsetHeight
+  // 隐藏（`[hidden]` / `display:none`）时量到 0：这次结果**不能**进缓存，
+  // 否则元素显示之后会一直拿兜底尺寸做避让。此时沿用上一次真实测量值。
+  if (!width || !height) {
+    return { text, width: cached?.width || fallbackWidth, height: cached?.height || fallbackHeight, measured: false }
+  }
+  const metrics: LabelMetrics = { text, width, height, measured: true }
+  HIDDEN_LABEL_METRICS.set(element, metrics)
+  return metrics
+}
+
 function buildOverlayLabels(
   dom: OverlayDom,
   read: EditorOverlayRead | null,
   orbit: { x: number; y: number; label: string } | null,
+  metrics: { height: LabelMetrics; orbit: LabelMetrics },
 ): EditorLabelAnchor[] {
   const labels: EditorLabelAnchor[] = []
   if (read && !dom.heightArrow.hidden) {
     const anchor = read.tip ?? read.screen
-    const width = dom.heightValue.offsetWidth || 90
-    const height = dom.heightValue.offsetHeight || 18
+    const { width, height } = metrics.height
     labels.push({
       id: 'height',
       anchor,
@@ -195,8 +229,7 @@ function buildOverlayLabels(
     })
   }
   if (orbit) {
-    const width = dom.orbitCaption.offsetWidth || 70
-    const height = dom.orbitCaption.offsetHeight || 14
+    const { width, height } = metrics.orbit
     labels.push({
       id: 'orbit',
       anchor: { x: orbit.x, y: orbit.y },
@@ -243,7 +276,19 @@ function renderOverlay(
   drag: DragController,
   state: { orbitUntil: number; previous: Map<string, { x: number; y: number }> },
 ): void {
+  /*
+   * 先读后写：这一帧需要的布局读数（标签尺寸 / 宿主尺寸 / 避让矩形）必须在任何 DOM
+   * 写入之前取走。写在前面会把布局标脏，之后的每次读都要浏览器同步重排一遍 ——
+   * 相机阻尼滑行时那边是每秒 60 次强制布局。
+   */
   const read = options.read()
+  const labelMetrics = {
+    height: measureLabel(dom.heightValue, 90, 18),
+    orbit: measureLabel(dom.orbitCaption, 70, 14),
+  }
+  const viewport = { width: options.host.clientWidth, height: options.host.clientHeight }
+  const obstacles = options.obstacles?.() ?? []
+
   dom.root.classList.toggle('is-visible', Boolean(read))
   const orbit = orbitOf(options, drag, state.orbitUntil)
   dom.orbitMarker.hidden = !orbit
@@ -270,11 +315,11 @@ function renderOverlay(
   dom.heightArrow.setAttribute('aria-label', `拖动调整离地高度${read.text ? `，${read.text}` : ''}`)
   dom.heightValue.textContent = read.text
 
-  const labels = buildOverlayLabels(dom, read, orbit)
+  const labels = buildOverlayLabels(dom, read, orbit, labelMetrics)
   const placements = layoutEditorLabels(labels, {
-    width: options.host.clientWidth,
-    height: options.host.clientHeight,
-    obstacles: options.obstacles?.() ?? [],
+    width: viewport.width,
+    height: viewport.height,
+    obstacles,
     previous: state.previous,
   })
   state.previous = applyOverlayLabels(dom, labels, placements, orbit)

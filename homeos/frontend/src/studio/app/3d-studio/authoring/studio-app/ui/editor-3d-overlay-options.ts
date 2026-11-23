@@ -156,10 +156,19 @@ function createElevationOptions({ runtime, geometry, selection, surfaceIndex }: 
   }
 }
 
+/** 灯带工具条的 DOM 引用缓存：每帧 `querySelector` 是白跑的 O(n)，断开时才重新查。 */
+let cachedLightToolbar: HTMLElement | null = null
+
+function lightToolbarElement(): HTMLElement | null {
+  if (cachedLightToolbar?.isConnected) return cachedLightToolbar
+  cachedLightToolbar = globalThis.document.querySelector<HTMLElement>('.editor-light-toolbar')
+  return cachedLightToolbar
+}
+
 /** 标签避让的障碍物：切换条 + 灯带工具条（两者都是浮在画布上的可点元素）。 */
 function obstaclesOf(runtime: StudioAppRuntime, host: HTMLElement) {
   const rects = collectOverlayObstacles(runtime.appCtx, host)
-  const toolbar = globalThis.document.querySelector<HTMLElement>('.editor-light-toolbar')
+  const toolbar = lightToolbarElement()
   if (!toolbar || toolbar.offsetParent === null) return rects
   const hostRect = host.getBoundingClientRect()
   const rect = toolbar.getBoundingClientRect()

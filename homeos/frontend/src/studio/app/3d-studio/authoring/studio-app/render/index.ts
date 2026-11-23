@@ -114,5 +114,5 @@ export {
 } from './stats'
 export { runStudioRenderLoop } from './studio-render-loop'
 export type { StudioRenderDeps } from './studio-render-loop'
-export { releaseStudioRenderer, clearStudioDocumentResidue } from './studio-render-release'
+export { releaseStudioRenderer, releaseStudioOwnedResources, clearStudioDocumentResidue } from './studio-render-release'
 export { scheduleShaderWarmup } from './studio-shader-compile-warmup'

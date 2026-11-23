@@ -39,16 +39,19 @@ export function useHubChart(
   async function render(retry = 0) {
     await nextTick()
     const el = elRef.value
-    // 容器尚未布局（宽高为 0）：通过调度器延迟重试
+    // 容器尚未布局（宽高为 0）：最多补两次以防布局还没完成。
+    // 折叠的 <details> / 隐藏页签在展开前**永远**是 0 尺寸，原来的 12 次重试链只是
+    // 每帧再失败一次（每个图表一次数据刷新就是 12 次双 rAF）。真正可见时
+    // `observeChartResize` 的 ResizeObserver 会回调 `schedule()`。
     if (!el || el.clientWidth <= 0 || el.clientHeight <= 0) {
-      if (retry < 12) scheduleEchartsTask(owner, () => render(retry + 1))
+      if (retry < 2) scheduleEchartsTask(owner, () => render(retry + 1))
       return
     }
     // getOrInitChart：并发渲染（onMounted 与 watch 同帧各调度一次）时
     // 两次调用都可能在 await 前通过 ``if (!chart)``，直接 init 会触发 ECharts 重复初始化告警
     if (!chart) chart = (await import('@/shared/utils/chart/echarts')).getOrInitChart(el)
     chart.setOption(buildOption(), true)
-    chart.resize()
+    // 尺寸由 ResizeObserver 负责；`init` 时已按容器尺寸建立坐标系。
   }
 
   /** 调度一次渲染（取消前一次同 owner 的待执行任务） */

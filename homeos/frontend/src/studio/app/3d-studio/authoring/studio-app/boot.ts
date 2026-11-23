@@ -230,6 +230,7 @@ import {
   refreshCanvasSizeUi as refreshCanvasSizeUiImpl, resolvePixelRatio as resolvePixelRatioImpl,
   resizeRenderCanvas as resizeRenderCanvasImpl, syncCanvasSizeInputs as syncCanvasSizeInputsImpl,
   handleCanvasSizeInput as handleCanvasSizeInputImpl, clearStudioDocumentResidue, releaseStudioRenderer,
+  releaseStudioOwnedResources,
 } from "./render";
 import {
   waitForStageReady as waitForStageReadyImpl, jumpWorkflowStep as jumpWorkflowStepImpl, bindAutoDiagramMessages,
@@ -699,6 +700,7 @@ export function bootStudio(): void {
     get gardenGateSnapCandidate() { return gardenGateSnapCandidate; },
     set gardenGateSnapCandidate(value: any) { gardenGateSnapCandidate = value; },
     get geometryCacheByKey() { return geometryCacheByKey; },
+    get textureCacheByKey() { return textureCacheByKey; },
     get getActiveFloor() { return getActiveFloor; },
     get getActiveWalls() { return getActiveWalls; },
     get getCameraFocalLength() { return getCameraFocalLength; },
@@ -4143,9 +4145,7 @@ startupStudio(studioBootDeps());
     gardenGateSnapCandidate = null
     shouldForceEffectFrame = false
     shouldTrimSharedGeometry = false
-    // createStudioRenderer 在 document / canvas 上登记的可见性与指针监听原先只挂在 pagehide
-    // 上（整页卸载才触发）；SPA 内路由切换不会触发 pagehide，不显式摘掉的话监听闭包会把整个
-    // appCtx 一起留住，并在真 pagehide 时打到已经释放的渲染器上（清空前也拿不到 domElement）。
+    // createStudioRenderer 的 document / canvas 监听原先只挂在 pagehide；SPA 路由切换不触发它，闭包会把 appCtx 一起留住。
     try {
       // 灯光过渡的定时器/句柄也在渲染循环里；必须在 sceneRootNode/renderer 置空之前结算。
       (appCtx as { settleLightTransitions?: () => void }).settleLightTransitions?.()
@@ -4156,7 +4156,7 @@ startupStudio(studioBootDeps());
       (activeStudioRenderLoop?.dispose?.(), (activeStudioRenderLoop = null))
     } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
     try {
-      disposeStudioRendererEvents?.()
+      disposeStudioRendererEvents?.(), releaseStudioOwnedResources(studioRuntime, externalModelRegistry, studioRuntime)
     } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
     disposeStudioRendererEvents = null
     disposeEnhancedSelects() // 下拉框登记表是模块级的：不释放就会跨实例留住整套编辑器 DOM

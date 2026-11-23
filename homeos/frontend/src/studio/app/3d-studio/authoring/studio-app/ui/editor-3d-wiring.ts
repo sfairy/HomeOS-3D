@@ -17,6 +17,12 @@ import * as three from '/static/vendor/three/0.187.0/three.module.min.js'
 import type { StudioAppRuntime } from '../runtime/studio-app-runtime'
 import { createSurfaceIndex } from '../interaction/editor-surface-index'
 import { createEditor3DOverlay } from './editor-3d-overlay'
+import {
+  createOverlayWatchdog,
+  SIGNATURE_LENGTH,
+  writeCameraSignature,
+  type OverlayWatchdog,
+} from './editor-3d-overlay-watchdog'
 import { createLightToolbar } from './editor-light-toolbar'
 import { isLightItem } from './editor-3d-overlay-state'
 import { createGeometry, findItem, type Geometry } from './editor-3d-geometry'
@@ -221,42 +227,6 @@ function createToolbarBinding(runtime: StudioAppRuntime, core: BindingCore) {
   )
 }
 
-/**
- * 相机 / 画布签名：任何一个数变了，叠层的投影就不再成立。
- *
- * 用三组 16 元矩阵（`matrixWorld` / `matrixWorldInverse` / `projectionMatrix`）+ 画布布局尺寸
- * + 场景修订号，比「监听某个事件」可靠 —— OrbitControls 会因相机模式切换被重建、
- * 帧循环有提前 return 的分支、`topRotation` 动画直接改矩阵而不发事件。
- *
- * `projectionMatrix` 不能漏：正交 ↔ 透视、改焦段、`resize` 都只动投影矩阵，
- * `matrixWorld` 可以一个字节都不变。0.8.7 每次 `render()` 之后无条件重排，
- * 所以它天然没有这个问题；这里靠签名兜底，就必须把投影算进去。
- * 只做数值比较，不分配对象。
- */
-function cameraSignature(runtime: StudioAppRuntime): number[] {
-  const camera = runtime.appCtx.threeCamera as {
-    matrixWorld?: { elements?: ArrayLike<number> }
-    matrixWorldInverse?: { elements?: ArrayLike<number> }
-    projectionMatrix?: { elements?: ArrayLike<number> }
-  } | null
-  const canvas = runtime.appCtx.threeRenderer?.domElement as HTMLCanvasElement | undefined
-  const signature: number[] = [canvas?.clientWidth ?? 0, canvas?.clientHeight ?? 0, runtime.appCtx.sceneRevisionCount]
-  for (const matrix of [camera?.matrixWorld, camera?.matrixWorldInverse, camera?.projectionMatrix])
-    if (matrix?.elements) for (let index = 0; index < 16; index += 1) signature.push(matrix.elements[index])
-  return signature
-}
-
-function signatureChanged(previous: number[], next: number[]): boolean {
-  if (previous.length !== next.length) return true
-  for (let index = 0; index < next.length; index += 1) {
-    // 相机矩阵有浮点抖动，1e-6 以内视为没动（否则松手后每帧都重排一次叠层）。
-    // 前 3 项是画布宽高与场景修订号（整数），同一容差即可 —— 早期给它们 0.5 的余量，
-    // 顺带把矩阵前三个元素也放过了一次，顶视旋转 90° 那种整元素变化会被吞掉。
-    if (Math.abs(previous[index] - next[index]) > 1e-6) return true
-  }
-  return false
-}
-
 export function bindEditor3D(runtime: StudioAppRuntime): Editor3DBinding {
   const host = globalThis.document.getElementById('preview-3d')
   const canvas = runtime.appCtx.threeRenderer?.domElement as HTMLCanvasElement | undefined
@@ -268,35 +238,19 @@ export function bindEditor3D(runtime: StudioAppRuntime): Editor3DBinding {
   // 否则「渲染末尾刷一次」与看门狗会在同一帧各写一次 DOM：两次读相机的时间点不同，
   // 相机在阻尼滑行时每帧都会变，第二次写入就比第一帧晚半帧，整层灯位圆点会在两个
   // 位置之间来回闪（这正是「旋转 / 缩放时灯光图抖动」的直接原因）。
-  let previousSignature = cameraSignature(runtime)
+  const previousSignature: number[] = new Array<number>(SIGNATURE_LENGTH).fill(0)
+  writeCameraSignature(runtime, previousSignature)
+  let watchdog: OverlayWatchdog | null = null
   const update = (): void => {
     overlay.update()
     toolbar.update()
     // 签名在**写完**之后记录：`project()` 会刷新 `camera.updateMatrixWorld()`，
     // 记在前面的签名可能已经过期，下一帧看门狗会再刷一次（多余的一次 DOM 写）。
-    previousSignature = cameraSignature(runtime)
+    writeCameraSignature(runtime, previousSignature)
+    watchdog?.touch()
   }
-  /*
-   * 兜底看门狗（与 0.8.7 的「渲染函数末尾刷一次」互补）：
-   * 每帧比对相机矩阵 / 画布尺寸，变了就重排叠层。这样无论相机是被 OrbitControls、
-   * 视角动画、还是 `topRotation` 直接改的，灯位圆点都会跟着走 —— 不依赖任何一个
-   * 可能被重建的事件监听，也不依赖帧循环是否提前 return。
-   */
-  let watchdogFrame = 0
-  const watchdog = (): void => {
-    const nextSignature = cameraSignature(runtime)
-    if (signatureChanged(previousSignature, nextSignature)) {
-      // 不在这里改 `previousSignature`：`update()` 会按它自己读到的签名记录，
-      // 这样「本帧已经刷过」时看门狗自动跳过，叠层每帧只写一次 DOM。
-      try {
-        update()
-      } catch (overlayError) {
-        console.warn('[studio] 编辑叠层刷新失败', overlayError)
-      }
-    }
-    watchdogFrame = requestAnimationFrame(watchdog)
-  }
-  watchdogFrame = requestAnimationFrame(watchdog)
+  watchdog = createOverlayWatchdog(runtime, globalThis.document, canvas, previousSignature, update)
+  watchdog.start()
 
   const binding: Editor3DBinding = {
     update,
@@ -307,8 +261,7 @@ export function bindEditor3D(runtime: StudioAppRuntime): Editor3DBinding {
       update()
     },
     dispose() {
-      cancelAnimationFrame(watchdogFrame)
-      watchdogFrame = 0
+      watchdog?.dispose()
       overlay.dispose()
       toolbar.dispose()
       editor3DBindings.delete(runtime.appCtx)

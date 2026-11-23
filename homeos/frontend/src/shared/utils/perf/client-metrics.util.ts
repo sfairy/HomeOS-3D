@@ -11,7 +11,25 @@
  * 开关：`?client-metrics=0|1` 显式覆盖；默认生产开启、开发关闭（避免本地噪声）。
  * 采样：`?client-metrics-rate=0.2` > `VITE_CLIENT_METRICS_SAMPLE_RATE` > 默认 1；
  * 低端设备未显式配置时降到 0.5（契约允许）。
+ *
+ * ## 为什么 LCP / CLS / INP / FCP / TTFB 用 `web-vitals` 而不是自己算
+ *
+ * 这五个指标的定义都有反直觉的规范细节，手写版本在本仓库里出过三个**会误导优化决策**的错：
+ *
+ * - **CLS**：`Σ shift.value` 是错的。规范是「会话窗口」（连续偏移间隔 < 1s，窗口总长 ≤ 5s）
+ *   的**最大**窗口和。直接累加会**只增不减**：长驻看板跑一天后 CLS 远超 PageSpeed 显示值，
+ *   且永远落进后端 `le=1.0` 以上的桶，让 `/metrics` 的均值失去意义。
+ * - **INP**：`max(duration)` 是错的。规范是交互延迟（按 `interactionId` 归组）的高分位，
+ *   而不是「最慢的那一次事件」。一次首帧期间的卡顿点击会让 INP 永久停在几百毫秒。
+ * - **LCP**：必须取 `renderTime || loadTime`、在首次输入时停止观测、并处理 bfcache /
+ *   prerender 的 `activationStart`。手写版只读 `startTime` 且不停止观测。
+ *
+ * 这些数字是本仓库判断「优化有没有生效」的唯一信号 —— 一个定义错误的仪表比没有仪表更糟。
+ * `web-vitals` 是 Chrome 团队维护的参考实现（Apache-2.0，约 2KB gzip），本文件只保留
+ * 上报链路（采样 / 归一化 / beacon / 批量 flush）与 `longtask` / `error` / `ws_reconnect`
+ * 这三项它不提供的指标。
  */
+import { onCLS, onFCP, onINP, onLCP, onTTFB, type Metric } from 'web-vitals'
 
 const METRICS_ENDPOINT = '/api/v1/logs/public-metrics'
 const FLUSH_INTERVAL_MS = 10_000
@@ -28,8 +46,16 @@ let metricsQueue: ClientMetricSample[] = []
 const activeObservers: PerformanceObserver[] = []
 const finalMetricValues = new Map<ClientMetricName, number>()
 let finalMetricsSettled = false
-let cumulativeLayoutShift = 0
-let interactionMaxDurationMs = 0
+let flushIntervalHandle: ReturnType<typeof setInterval> | null = null
+
+/** `web-vitals` 的指标名是缩写大写，后端白名单是小写 —— 只在这里做一次映射。 */
+const VITAL_NAME_BY_METRIC: Record<Metric['name'], ClientMetricName> = {
+  LCP: 'lcp',
+  CLS: 'cls',
+  INP: 'inp',
+  FCP: 'fcp',
+  TTFB: 'ttfb',
+}
 
 function readUrlParam(name: string): string | null {
   try {
@@ -116,7 +142,7 @@ function recordFinalMetric(name: ClientMetricName, value: number): void {
   finalMetricValues.set(name, value)
 }
 
-/** 页面隐藏 / 卸载时把「会话终值」一次性发出（LCP/CLS/INP/FCP/TTFB 各自只发一次）。 */
+/** 页面隐藏 / 卸载时把「会话终值」一次性发出（每个指标只发一次，与后端累加口径一致）。 */
 function flushFinalMetrics(): void {
   if (!metricsEnabled || finalMetricsSettled) return
   finalMetricsSettled = true
@@ -124,9 +150,6 @@ function flushFinalMetrics(): void {
   finalMetricValues.clear()
   flushMetricSamples()
 }
-
-type LayoutShiftEntry = PerformanceEntry & { value: number; hadRecentInput: boolean }
-type EventTimingEntry = PerformanceEntry & { interactionId?: number; duration: number }
 
 function observePerformance(type: string, callback: (entries: PerformanceEntry[]) => void): void {
   try {
@@ -145,14 +168,24 @@ function observePerformance(type: string, callback: (entries: PerformanceEntry[]
   }
 }
 
-function collectPaintMetrics(): void {
+/**
+ * 订阅五项 Web Vitals。
+ *
+ * `reportAllChanges` 让回调在数值演进过程中持续更新（我们只 `Map.set`，不额外上报），
+ * 收尾时 `flushFinalMetrics` 发的是**当前最完整**的值 —— 这样不依赖「谁的
+ * visibilitychange 监听先注册」，也不会因为回调只在隐藏时触发一次而漏掉终值。
+ */
+function observeWebVitals(): void {
+  const report = (metric: Metric) => recordFinalMetric(VITAL_NAME_BY_METRIC[metric.name], metric.value)
+  const alwaysReport = { reportAllChanges: true }
   try {
-    for (const paintEntry of performance.getEntriesByType('paint'))
-      paintEntry.name === 'first-contentful-paint' && recordFinalMetric('fcp', paintEntry.startTime)
-    const navigationEntry = (performance.getEntriesByType('navigation') as PerformanceNavigationTiming[])[0]
-    navigationEntry && recordFinalMetric('ttfb', navigationEntry.responseStart - navigationEntry.startTime)
+    onLCP(report, alwaysReport)
+    onCLS(report, alwaysReport)
+    onINP(report, alwaysReport)
+    onFCP(report)
+    onTTFB(report)
   } catch {
-    /* 无法读取时跳过 */
+    /* 不支持的中标环境静默：RUM 不能影响业务 */
   }
 }
 
@@ -182,31 +215,22 @@ export function startClientMetrics(): void {
     const sampleRate = resolveSampleRate()
     if (!(sampleRate > 0) || Math.random() >= sampleRate) return
     metricsEnabled = true
-    collectPaintMetrics()
-    observePerformance('largest-contentful-paint', (entries) => {
-      const lastEntry = entries[entries.length - 1]
-      lastEntry && recordFinalMetric('lcp', lastEntry.startTime)
-    })
-    observePerformance('layout-shift', (entries) => {
-      for (const entry of entries as LayoutShiftEntry[]) if (!entry.hadRecentInput) cumulativeLayoutShift += entry.value
-      cumulativeLayoutShift > 0 && recordFinalMetric('cls', cumulativeLayoutShift)
-    })
-    observePerformance('event', (entries) => {
-      for (const entry of entries as EventTimingEntry[])
-        if (entry.interactionId && Number.isFinite(entry.duration)) {
-          interactionMaxDurationMs = Math.max(interactionMaxDurationMs, entry.duration)
-          recordFinalMetric('inp', interactionMaxDurationMs)
-        }
-    })
+    observeWebVitals()
+    // 长任务不在 Web Vitals 定义里，但仍是有用的卡顿信号（后端按时间桶聚合）。
     observePerformance('longtask', (entries) => {
-      for (const entry of entries) enqueueMetric('longtask', entry.duration)
+      for (const entry of entries) if (entry.duration >= 50) enqueueMetric('longtask', entry.duration)
     })
     bindGlobalSignalListeners()
     document.addEventListener('visibilitychange', () => {
       document.visibilityState === 'hidden' && flushFinalMetrics()
     })
-    window.addEventListener('pagehide', () => flushFinalMetrics())
-    setInterval(flushMetricSamples, FLUSH_INTERVAL_MS)
+    window.addEventListener('pagehide', () => {
+      flushFinalMetrics()
+      if (flushIntervalHandle !== null) clearInterval(flushIntervalHandle)
+      flushIntervalHandle = null
+      for (const observer of activeObservers.splice(0)) observer.disconnect()
+    })
+    flushIntervalHandle = setInterval(flushMetricSamples, FLUSH_INTERVAL_MS)
     // 长驻页面（看板/大屏）可能一直不触发 pagehide：12s 后先结算一次终值。
     window.setTimeout(flushFinalMetrics, SETTLE_METRICS_DELAY_MS)
   } catch {

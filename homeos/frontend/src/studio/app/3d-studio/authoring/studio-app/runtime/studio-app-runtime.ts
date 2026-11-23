@@ -225,6 +225,8 @@ export interface StudioAppRuntime {
   readonly gardenGateItemType: any
   gardenGateSnapCandidate: any
   readonly geometryCacheByKey: any
+  /** 材质缓存（历史命名：里面放的是 `MeshStandardMaterial`，不是纹理）。 */
+  readonly textureCacheByKey: Map<unknown, unknown>
   readonly getActiveFloor: any
   readonly getActiveWalls: any
   readonly getCameraFocalLength: any

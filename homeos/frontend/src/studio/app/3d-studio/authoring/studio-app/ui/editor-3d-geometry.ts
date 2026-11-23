@@ -123,6 +123,14 @@ export function planPointOf(runtime: StudioAppRuntime, id: string): PlanPoint | 
   }
 }
 
+/** 两个 4×4 矩阵快照是否一致（长度不同即不一致：缺矩阵 ⇄ 有矩阵必须重算）。 */
+function matrixMatches(snapshot: number[], elements: ArrayLike<number> | undefined): boolean {
+  if (!elements) return snapshot.length === 0
+  if (snapshot.length !== 16) return false
+  for (let index = 0; index < 16; index += 1) if (snapshot[index] !== elements[index]) return false
+  return true
+}
+
 /** 真实几何高度范围：优先用已加载对象的包围盒，没有就按状态里的高（米）估算。 */
 export function heightBoundsOf(
   runtime: StudioAppRuntime,
@@ -148,6 +156,37 @@ export function heightBoundsOf(
   }
   if (!(height > 0)) return null
   return { min: elevation, max: elevation + height, exact: true }
+}
+
+/**
+ * 高度包络读取器：按「对象身份 + 根节点世界矩阵」缓存 `heightBoundsOf` 的结果。
+ *
+ * 逐帧 `traverseVisible` + `Box3.expandByObject` 的代价随选中模型的面片数增长，
+ * 而家具子树相对根是静止的：根矩阵没变就没有任何重算的理由。
+ */
+function createItemHeightBoundsReader(runtime: StudioAppRuntime, liveObject: (id: string) => SceneObjectLike | null) {
+  let cached: {
+    object: SceneObjectLike | null
+    matrix: number[]
+    value: { min: number; max: number; exact: boolean } | null
+  } | null = null
+  return {
+    read(id: string) {
+      const object = liveObject(id)
+      const elements = (object as { matrixWorld?: { elements?: ArrayLike<number> } } | null)?.matrixWorld?.elements
+      if (cached && cached.object === object && matrixMatches(cached.matrix, elements)) return cached.value
+      const value = heightBoundsOf(runtime, id, liveObject)
+      cached = {
+        object,
+        matrix: elements ? Array.from({ length: 16 }, (_, index) => elements[index]) : [],
+        value,
+      }
+      return value
+    },
+    invalidate() {
+      cached = null
+    },
+  }
 }
 
 /**
@@ -322,7 +361,16 @@ export function createGeometry(runtime: StudioAppRuntime, canvas: HTMLCanvasElem
     }
   }
 
-  const itemHeightBounds = (id: string) => heightBoundsOf(runtime, id, deps.liveObject)
+  /**
+   * 选中物件的高度包络缓存。
+   *
+   * `heightBoundsOf` 每帧都要对整个子树 `traverseVisible` + `Box3.expandByObject`，
+   * 而叠层刷新挂在主相机出图之后 —— 相机一转就重算一遍。这里按「对象身份 + 根节点
+   * 世界矩阵」缓存：家具子树相对根是静止的，根没动就完全没有重算的理由；
+   * 根动了（拖动 / 聚焦动画）矩阵必然变，立刻失效。
+   */
+  const heightBoundsReader = createItemHeightBoundsReader(runtime, deps.liveObject)
+  const itemHeightBounds = heightBoundsReader.read
 
   return {
     mapper: () => {
@@ -356,6 +404,9 @@ export function createGeometry(runtime: StudioAppRuntime, canvas: HTMLCanvasElem
       return toWorld(plan.x, plan.y, bounds ? bounds.max : plan.elevation + Number(findItem(runtime, id)?.height || 0))
     },
     itemHeightBounds,
-    clearCache: frames.clear,
+    clearCache: () => {
+      heightBoundsReader.invalidate()
+      frames.clear()
+    },
   }
 }

@@ -176,7 +176,7 @@
                     <DeviceRow
                       :key="item.entity_id"
                       :item="item"
-                      :selected="selectedIds.includes(item.entity_id)"
+                      :selected="selectedIdSet.has(item.entity_id)"
                       @toggle="toggleEntity"
                       @open="openControl"
                       @detail="openDetail"
@@ -277,10 +277,11 @@ const {
   toggleEntity,
 } = useDevicesView()
 
+/** 选中态的 O(1) 成员判定：`includes` 在选中 N 行时是 O(N) × 行数。 */
+const selectedIdSet = computed(() => new Set(selectedIds.value))
 const allFilteredSelected = computed(
-  () => filtered.value.length > 0 && filtered.value.every((item) => selectedIds.value.includes(item.entity_id)),
+  () => filtered.value.length > 0 && filtered.value.every((item) => selectedIdSet.value.has(item.entity_id)),
 )
-
 // 列表滚动容器：库分页切换后回到列表顶部，避免停留在空位。
 const listViewportRef = ref<HTMLElement | null>(null)
 function scrollListToTop() {

@@ -21,6 +21,7 @@ from .errors import endpoint_failure_reason
 from .http_pool import HAHttpClientPool, HAHttpConfiguration
 from .service_idempotency import _service_call_retry_safe
 from .service_timeouts import is_slow_service, remote_learning_timeout, slow_service_timeout
+from .states_snapshot import fetch_all_states_single_flight
 from ....platform.core.ha import ha_errors
 
 
@@ -392,16 +393,9 @@ class HAClient:
         # 批量路径：一次 GET /api/states，再本地过滤。实体较多时显著减少 HA 往返。
         if len(requested) >= 4:
             try:
-                async with self._http_client() as client:
-                    response = await client.get(
-                        f"{self.base_url}/api/states",
-                        headers=self.headers,
-                        timeout=self.timeout,
-                    )
-                    if response.status_code in {401, 403}:
-                        raise HAAuthError(ha_errors.token_invalid())
-                    response.raise_for_status()
-                    payload = response.json()
+                payload = await fetch_all_states_single_flight(
+                    self, lambda: HAAuthError(ha_errors.token_invalid())
+                )
                 if isinstance(payload, list):
                     return [
                         item

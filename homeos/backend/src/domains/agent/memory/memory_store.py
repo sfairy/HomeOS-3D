@@ -46,6 +46,13 @@ def _norm(value: str) -> str:
 #: 单用户偏好条数上限：系统提示会逐条拼接，模型每轮都写一条会把上下文撑爆。
 #: 工具层与设置页 API 共用这一份，避免两条写入路径各自为政。
 MAX_PREFERENCES = 50
+#: 单作用域记忆条数上限（含别名）。
+#:
+#: `MAX_PREFERENCES` 只管偏好，别名写入此前**没有任何上限**：每句「记住 X 是 Y」都会多一行，
+#: 而 `alias_map()` / `expand()` 每轮对话都要遍历全部别名。这里给一个总量上限兜底。
+MAX_MEMORIES_PER_SCOPE = 200
+#: 读缓存的 scope 数上限（纯内存降级时尤其重要：没有 TTL 过期清理之外的第二道闸）。
+MAX_CACHED_SCOPES = 256
 
 
 class AgentMemoryService:
@@ -67,7 +74,12 @@ class AgentMemoryService:
         if len(key) < 2 or not text:
             return False
         if self._session_factory is None:
-            self._local.setdefault(scope, {})[(kind, key)] = text
+            scope_items = self._local.setdefault(scope, {})
+            scope_items[(kind, key)] = text
+            # dict 保持插入顺序：超限就丢最早写入的那一条（与「记住」的语义一致：
+            # 越新的记忆越重要，旧别名可以靠再记一次恢复）。
+            while len(scope_items) > MAX_MEMORIES_PER_SCOPE:
+                scope_items.pop(next(iter(scope_items)))
             self._invalidate(scope)
             return True
         try:
@@ -162,6 +174,10 @@ class AgentMemoryService:
                 rows = []
             for row in rows:
                 items[(row.kind, row.memory_key)] = row.value
+        # 缓存按 scope 数封顶：每个 scope 的 items 是一个完整字典，无界缓存等于把
+        # 长期记忆再存一份。按插入顺序淘汰最早的 scope（TTL 之外的第二道闸）。
+        if len(self._cache) >= MAX_CACHED_SCOPES and scope not in self._cache:
+            self._cache.pop(next(iter(self._cache)), None)
         self._cache[scope] = (_now_ms(), items)
         return items
 

@@ -18,6 +18,12 @@ from ..platform.core.db.json_field import object_field
 
 #: 最近变更环形缓冲容量（``stateStore.maxRecentChanges`` 默认值，与 Nest 一致）。
 _RECENT_CHANGES_MAX = 3000
+#: 最近变更环形缓冲的**字节**上限（估算值）。
+#:
+#: 每条记录持有变更前那一版的完整 ``new_state``（含整个 attributes 字典），实体搬走之后
+#: 这些字典只被环形缓冲引用着。3000 条 × 单实体 ~1.5KB 就是 4–6MB 常驻，而配置上限
+#: 允许 50000 条（约 75MB）。按条数卡不住，必须同时按字节卡。
+_RECENT_CHANGES_BUDGET_BYTES = 8 * 1024 * 1024
 #: 数据陈旧判定阈值（``stateStore.staleThresholdMs`` 默认值，与 Nest 一致）。
 _STALE_THRESHOLD_MS = 12_000
 
@@ -33,6 +39,29 @@ def _iso_now() -> str:
     return now.strftime("%Y-%m-%dT%H:%M:%S.") + f"{now.microsecond // 1000:03d}Z"
 
 
+def _estimate_state_bytes(entity_id: str, state: dict[str, Any] | None) -> int:
+    """粗估一条变更记录的内存占用。
+
+    刻意**不**做 ``json.dumps``：``apply_change`` 在 HA 摄取热路径上，每个状态变更都会
+    走到这里。这里只做长度算术 —— 一个 dict 条目 / 列表项的真实开销远大于其字符串长度，
+    所以按经验系数放大约 3 倍，宁可高估（宁可少留几条，也不让缓冲悄悄吃掉几十 MB）。
+    """
+    size = len(entity_id) * 2 + 192
+    if not state:
+        return size
+    attributes = state.get("attributes")
+    if isinstance(attributes, dict):
+        for key, value in attributes.items():
+            size += len(str(key)) * 2 + 96
+            if isinstance(value, str):
+                size += len(value) * 2
+            elif isinstance(value, (int, float, bool)):
+                size += 48
+            elif isinstance(value, (list, tuple, dict)):
+                size += 192
+    return size
+
+
 class StateStore:
     def __init__(
         self,
@@ -41,7 +70,11 @@ class StateStore:
     ) -> None:
         self._states: dict[str, dict[str, Any]] = {}
         self._max_recent_changes = max(1, int(max_recent_changes))
-        self._recent: deque[dict[str, Any]] = deque(maxlen=self._max_recent_changes)
+        # 环形缓冲改为手工淘汰：`maxlen` 会静默丢掉最旧记录，淘汰出来的字节数就无从扣减。
+        self._recent: deque[dict[str, Any]] = deque()
+        #: 与 ``_recent`` 一一对应的逐条字节估算。
+        self._recent_sizes: deque[int] = deque()
+        self._recent_total_bytes = 0
         self._change_seq = 0
         self._ha_synced = False
         self._ha_connected = False
@@ -66,9 +99,20 @@ class StateStore:
             capacity = max(1, int(max_recent_changes))
             if capacity != self._max_recent_changes:
                 self._max_recent_changes = capacity
-                self._recent = deque(list(self._recent)[-capacity:], maxlen=capacity)
+                self._trim_recent()
         if stale_threshold_ms is not None:
             self._stale_threshold_ms = int(stale_threshold_ms)
+
+    # ---- 最近变更缓冲 ----
+    def _trim_recent(self) -> None:
+        """按「条数」与「字节」双上限淘汰最旧记录（至少保留最近 1 条用于回放起点）。"""
+        while self._recent and (
+            len(self._recent) > self._max_recent_changes or self._recent_total_bytes > _RECENT_CHANGES_BUDGET_BYTES
+        ):
+            if len(self._recent) <= 1:
+                break
+            self._recent.popleft()
+            self._recent_total_bytes -= self._recent_sizes.popleft()
 
     # ---- 全量 ----
     def get_all(self, domain: str | None = None) -> list[dict[str, Any]]:
@@ -181,6 +225,10 @@ class StateStore:
             "at": _parse_iso_ms(changed_at) or time.time() * 1000,
         }
         self._recent.append(record)
+        record_bytes = _estimate_state_bytes(entity_id, new_state)
+        self._recent_sizes.append(record_bytes)
+        self._recent_total_bytes += record_bytes
+        self._trim_recent()
         return record
 
     def get_recent_changes_since(self, since_ms: float, last_event_id: int) -> list[dict[str, Any]]:
@@ -376,14 +424,18 @@ class StateStore:
         }
 
     def get_memory_diagnostics(self) -> dict[str, Any]:
-        """估算 StateStore 内存占用构成（抽样 150 条实体序列化长度外推）。"""
+        """估算 StateStore 内存占用构成（抽样 20 条实体序列化长度外推）。
+
+        抽样从 150 降到 20：这个接口读的是内存构成，20 条的外推误差已经足够，
+        而每次调用都要真的做一遍 ``json.dumps``。
+        """
         entity_count = len(self._states)
         sample_bytes = 0
         sample_n = 0
         for entity in self._states.values():
             sample_bytes += len(json.dumps(entity, ensure_ascii=False, default=str))
             sample_n += 1
-            if sample_n >= 150:
+            if sample_n >= 20:
                 break
         estimated_bytes = round(sample_bytes / sample_n * entity_count) if sample_n else 0
         return {
@@ -391,6 +443,10 @@ class StateStore:
             "estimatedEntityStoreMb": round(estimated_bytes / 1024 / 1024 * 10) / 10,
             "recentChangesCount": len(self._recent),
             "recentChangesMax": self._max_recent_changes,
+            # 这个值以前完全没报：环形缓冲持有的是「被替换下来的完整实体快照」，
+            # 恰恰是排查内存时最容易漏掉的一块，面板不能只报条数。
+            "recentChangesEstMb": round(self._recent_total_bytes / 1024 / 1024 * 10) / 10,
+            "recentChangesBudgetMb": round(_RECENT_CHANGES_BUDGET_BYTES / 1024 / 1024),
             "haInitialStatesCached": False,
         }
 

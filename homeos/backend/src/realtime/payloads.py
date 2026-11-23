@@ -13,7 +13,31 @@ from typing import Any
 DELTA_ATTR_SKIP = frozenset({"last_changed", "last_updated", "last_reported"})
 _DELTA_DIFF_CACHE_TTL_MS = 80
 _DELTA_DIFF_CACHE_MAX = 4096
+#: 插入时最多顺手清掉多少个已过期条目（避免一次大扫除把热条目也丢掉）
+_DELTA_DIFF_PRUNE_BATCH = 64
 _delta_cache: dict[str, dict[str, Any]] = {}
+
+
+def _store_delta_cache_entry(cache_key: str, diff: dict[str, Any], now: float) -> None:
+    """写入 80ms diff 缓存；满仓时先按批清掉已过期条目。
+
+    过期条目的 TTL 只有 80ms，但以前只有「涨到 4096 条」这一个清理时机 ——
+    安静的家居环境里它们会一直挂着那些属性字典（还连着嵌套列表）。
+    """
+    if len(_delta_cache) < _DELTA_DIFF_CACHE_MAX:
+        _delta_cache[cache_key] = diff
+        return
+    pruned = 0
+    for stale_key in list(_delta_cache.keys()):
+        if pruned >= _DELTA_DIFF_PRUNE_BATCH:
+            break
+        cached_entry = _delta_cache.get(stale_key)
+        if cached_entry is not None and cached_entry["expiresAt"] <= now:
+            del _delta_cache[stale_key]
+            pruned += 1
+    if len(_delta_cache) >= _DELTA_DIFF_CACHE_MAX:
+        _delta_cache.clear()
+    _delta_cache[cache_key] = diff
 
 
 def _values_shallow_equal(left: Any, right: Any) -> bool:
@@ -163,9 +187,7 @@ def to_ws_state_change_payload(event: dict[str, Any]) -> dict[str, Any]:
         diff = cached
     else:
         diff = {**_compute_state_diff(event), "expiresAt": now + _DELTA_DIFF_CACHE_TTL_MS}
-        if len(_delta_cache) >= _DELTA_DIFF_CACHE_MAX:
-            _delta_cache.clear()
-        _delta_cache[cache_key] = diff
+        _store_delta_cache_entry(cache_key, diff, now)
 
     changed_attrs = diff["changed"]
     removed_attrs = diff["removed"]
