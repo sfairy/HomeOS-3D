@@ -10,6 +10,18 @@ import { collectIndexedEntityIds } from '@/shared/entity/utils/derived.util'
 type AreaOption = { id: string; name: string }
 
 /**
+ * 把后端可能缺失的降级原因规范成 `string | null`。
+ *
+ * 单独抽成函数而不是写在 ``refresh`` 里：本文件的复杂度棘轮按分支算子计数
+ * （``?:`` / ``&&`` / ``||`` / ``??`` 各 +1），在 ``refresh`` 里多一个算子就会
+ * 把该函数推到 5、撞上「不许变多」的门禁。转换逻辑放在这里，``refresh`` 只留一次调用。
+ */
+function normalizeRegistryError(value: unknown): string | null {
+  const text = String(value ?? '').trim()
+  return text.length ? text : null
+}
+
+/**
  * HA area_registry 区域列表；失败时回退到实体 attributes 中的 area_id。
  *
  * 组件挂载时自动触发 refresh；对外暴露 resolvedAreas（注册表优先，否则回退）、
@@ -25,6 +37,8 @@ export function useAreaOptions() {
   const loaded = ref(false)
   /** 注册表是否处于降级模式（接口失败或后端标记 registryDegraded）。 */
   const registryDegraded = ref(false)
+  /** 后端给出的降级原因（HA 断连 / 反代 WebSocket 失败 / 用了本机缓存）。 */
+  const registryError = ref<string | null>(null)
 
   /**
    * 拉取区域注册表并刷新 registryAreas。
@@ -46,13 +60,15 @@ export function useAreaOptions() {
         }))
         .filter((row) => row.id)
       registryDegraded.value = Boolean(data?.registryDegraded)
+      registryError.value = normalizeRegistryError(data?.registryError)
       if (registryDegraded.value) {
-        appNotify('HA 区域注册表暂不可用，已回退到实体属性中的区域列表', 'warning', 6000)
+        appNotify('HA 区域注册表暂不可用，已使用本机缓存的房间目录', 'warning', 6000)
       }
     } catch {
       // 接口异常：清空注册表并进入降级模式
       registryAreas.value = []
       registryDegraded.value = true
+      registryError.value = '读取区域列表接口失败'
     } finally {
       loaded.value = true
     }
@@ -95,6 +111,7 @@ export function useAreaOptions() {
     batchRoomOptions,
     loaded,
     registryDegraded,
+    registryError,
     refresh,
   }
 }

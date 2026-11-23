@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from datetime import UTC, datetime
 from typing import Annotated, Any
 
@@ -49,6 +50,8 @@ from ..realtime.state_store import (
 )
 
 router = NestRouter(prefix="/entities", tags=["connect"])
+
+logger = logging.getLogger(__name__)
 
 
 def _string_value(message: str):
@@ -287,19 +290,58 @@ async def list_areas(
     request: Request,
     user: dict[str, Any] = Depends(require_user),
 ):
+    """HA 区域清单。
+
+    读路径必须是**只读且永不 500**：前端把这个接口当作房间下拉/筛选的数据源，
+    失败时它已经准备好回退到实体属性里的 ``area_id``。所以这里：
+
+    1. 优先向 HA 拉最新 registry（名称以 HA 为准）；
+    2. 拉取失败（HA 断连、反代的 WebSocket 返回 500、令牌过期等）时，
+       回退到本机 ``ha_areas`` 目录 —— 与区域索引/时序归因同一份数据，
+       离线也能把房间列全；
+    3. 两条路都不行才返回空列表，并用 ``registryDegraded`` + ``registryError``
+       让调用方说明原因，而不是抛出去变成一个带着堆栈的 500。
+
+    本地顺序覆盖（``ha_areas.sortOrder``）在任何分支都照常应用。
+    """
     ha_connector = request.app.state.ha_connector
-    areas = await ha_connector.fetch_area_registry()
-    degraded = bool(ha_connector.is_registry_degraded())
+    areas: list[dict[str, Any]] = []
+    registry_error: str | None = None
+    try:
+        areas = await ha_connector.fetch_area_registry()
+        # 连接器内部对 HA 异常做了缓存/沿用，失败原因需要单独取：
+        # 直接抛异常只是其中一种情况（例如门面客户端解析就失败了）。
+        # getattr 兜底：测试里的连接器替身不一定实现该方法。
+        registry_error = getattr(ha_connector, "registry_error", lambda: None)()
+    except Exception as exc:
+        registry_error = str(exc) or "拉取 Home Assistant 区域注册表失败。"
+        logger.warning("读取 HA 区域注册表失败，回退到本地目录：%s", registry_error)
+    if not areas:
+        catalog_error = registry_error
+        # 本机 `ha_areas` 目录：与区域索引 / 时序归因同一份单读模型，
+        # 由连接器的 registry 同步写入，离线也能把房间列全。
+        catalog = await asyncio.to_thread(_entity_area(request).get_cached_ha_areas)
+        areas = [{"area_id": row.get("id"), "name": row.get("name")} for row in catalog]
+        # 本地目录命中时仍要标记降级：名称可能是上次同步的快照，
+        # 但「能用旧数据」比「返回 500 让界面空掉」更接近真实状态。
+        if areas and not catalog_error:
+            catalog_error = "HA 区域注册表暂不可用，已使用本机同步的区域目录。"
+        registry_error = catalog_error
     # 名称与成员以 HA registry 为准，顺序用本地 `ha_areas.sortOrder` 覆盖：
     # HA 区域没有排序字段，`PUT /ha/areas/sort` 只写本地，读路径必须在这里应用，
     # 否则设置页的「上移 / 下移」只是改库、界面看不到效果。
     order = await asyncio.to_thread(_local_area_order, request)
     rows = [{"id": str(a.get("area_id") or ""), "name": str(a.get("name") or a.get("area_id") or "")} for a in areas]
+    rows = [row for row in rows if row["id"]]
     rows.sort(key=lambda row: (order.get(row["id"], 1 << 30), row["name"]))
+    # 连接器自己也可能因为「未连接」而返回空列表（此时上方没有异常）。
+    degraded = bool(ha_connector.is_registry_degraded()) or bool(registry_error)
+    if degraded and not registry_error:
+        registry_error = ha_connector.get_registry_degraded_reason()
     return {
         "areas": rows,
         "registryDegraded": degraded,
-        "registryError": ha_connector.get_registry_degraded_reason() if degraded else None,
+        "registryError": registry_error,
     }
 
 

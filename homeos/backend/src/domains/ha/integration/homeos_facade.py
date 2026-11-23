@@ -42,6 +42,10 @@ logger = logging.getLogger("homeos.ha.facade")
 class HomeOSFacadeMixin:
     """homeos 兼容门面：把既有调用面直接映射到本连接器（无第二跳）。"""
 
+    #: 区域注册表缓存 TTL：房间清单几乎只在配置变更时变化，30s 足够挡住
+    #: 同一页面里多个组件同时挂载带来的握手突发，又不会让新加的房间看不到。
+    AREA_REGISTRY_TTL_SECONDS = 30.0
+
     # 装配期注入的钩子：类体给 ``None`` 默认值，满足
     # ``reportUninitializedInstanceVariable``（CI 硬门禁）；``attach_*`` 在 lifespan 里覆写。
     _sync_filter: Any = None
@@ -51,6 +55,14 @@ class HomeOSFacadeMixin:
     #: 当前连接上的 HA 版本号（``HAConnectorService.__init__`` 初始化、同步流程刷新）。
     # 类体声明只为满足 pyright 的实例变量检查。
     ha_version: str | None = None
+    #: 区域注册表短期缓存 ``(单调时钟, 行)``；见 ``fetch_area_registry``。
+    _area_registry_cache: Any = None
+    #: 最近一次成功的区域注册表结果，抓取失败时作为离线回退。
+    _area_registry_last_ok: Any = None
+    #: 最近一次区域注册表失败原因（成功时清空）。
+    _area_registry_error: Any = None
+    #: 区域注册表 single-flight 锁（并发调用合并成一次抓取）。
+    _area_registry_lock: Any = None
 
     @property
     def _host(self) -> Any:
@@ -284,11 +296,56 @@ class HomeOSFacadeMixin:
         return list(entities or [])
 
     async def fetch_area_registry(self) -> list[dict[str, Any]]:
-        client = await self._facade_client()
-        if client is None:
-            return []
-        _entities, _devices, areas = await client.fetch_registries()
-        return list(areas or [])
+        """区域注册表（带短期缓存 + 并发去重 + 失败时用上一次成功结果）。
+
+        为什么不在每次请求直接建一条新 WebSocket：
+        ``/entities/areas/list`` 会被房间下拉、设备筛选、批量操作、环境映射、
+        安防区域等多个组件各自挂载一次，一个页面就能同时打进来 3~5 个请求。
+        每个请求都新开 WS 握手，对 HA + 反代是一小段突发，实测出现过反代直接
+        回 500（``server rejected WebSocket connection: HTTP 500``）。
+
+        因此这里做三件事：
+        1. 命中 TTL 缓存直接返回，不碰网络；
+        2. 未命中时用一把锁做 single-flight：并发的调用方等同一次抓取结果；
+        3. 抓取失败时退回上一次成功快照（哪怕已过期），让房间下拉仍可用 ——
+           调用方通过 ``registry_error()`` 得知「这是旧数据」。
+        """
+        host = self._host
+        cached = getattr(host, "_area_registry_cache", None)
+        if cached is not None and (asyncio.get_running_loop().time() - cached[0]) < self.AREA_REGISTRY_TTL_SECONDS:
+            return list(cached[1])
+
+        lock = getattr(host, "_area_registry_lock", None)
+        if lock is None:
+            lock = asyncio.Lock()
+            host._area_registry_lock = lock
+        async with lock:
+            # 等锁期间可能已有别的调用方填充过缓存，再查一次
+            cached = getattr(host, "_area_registry_cache", None)
+            if cached is not None and (asyncio.get_running_loop().time() - cached[0]) < self.AREA_REGISTRY_TTL_SECONDS:
+                return list(cached[1])
+            previous = getattr(host, "_area_registry_last_ok", None)
+            client = await self._facade_client()
+            if client is None:
+                return list(previous or [])
+            try:
+                _entities, _devices, areas = await client.fetch_registries()
+            except HAClientError as exc:
+                host._area_registry_error = str(exc) or "无法读取 Home Assistant 区域注册表。"
+                logger.warning("区域注册表拉取失败，沿用上次结果：%s", host._area_registry_error)
+                return list(previous or [])
+            rows = list(areas or [])
+            host._area_registry_cache = (asyncio.get_running_loop().time(), rows)
+            # 只有成功拿到非空列表才刷新「上次成功」：HA 返回 None（命令被拒）时
+            # 不该把好快照覆盖成空，否则下一次失败就无数据可退。
+            if rows:
+                host._area_registry_last_ok = rows
+                host._area_registry_error = None
+            return rows
+
+    def registry_error(self) -> str | None:
+        """最近一次区域注册表拉取的失败原因（成功时为 ``None``）。"""
+        return getattr(self._host, "_area_registry_error", None)
 
     async def request_registry(self, type_: str) -> list[dict[str, Any]]:
         client = await self._facade_client()
