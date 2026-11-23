@@ -19,6 +19,7 @@ from fastapi import Depends, Query, Request
 from pydantic import BaseModel, ConfigDict, Field
 
 from .router import NestRouter
+from .schemas.base import ResponseModel
 from ..dependencies import license_feature
 from ..domains.license import features as feature_codes
 from ..platform.core.http.errors import BusinessException, ErrorCode
@@ -88,12 +89,59 @@ class TvEntityRequest(BaseModel):
     entityId: str = Field(min_length=3, max_length=255)
 
 
+class DeviceProfileItem(ResponseModel):
+    """画像列表项。
+
+    字段集与 `DeviceProfileService.list` 的返回**逐条对齐**，并用 `ResponseModel`
+    （`extra="ignore"`）：服务端多返回的键被忽略而不是把请求打成 500；少声明的字段
+    由 `ops/checks/unittests/test_device_profile_schema.py` 的键集断言发现。
+    """
+
+    entityId: str
+    domain: str
+    kind: str
+    confidence: float
+    confirmed: bool
+    source: str
+    aliases: list[str]
+    evidence: list[str]
+    available: bool
+    usable: bool
+    state: str
+    name: str
+    areaId: str
+    areaName: str
+    lastSeenAt: str | None
+    lastClassifiedAt: str | None
+
+
+class DeviceProfileListResponse(ResponseModel):
+    items: list[DeviceProfileItem]
+
+
+class DeviceProfileAuditItem(ResponseModel):
+    """人工确认审计条目（字段同样与 `service.audit` 对齐）。"""
+
+    id: str
+    entityId: str
+    action: str
+    fromKind: str
+    toKind: str
+    aliases: list[str]
+    actor: str
+    createdAt: str | None
+
+
+class DeviceProfileAuditResponse(ResponseModel):
+    items: list[DeviceProfileAuditItem]
+
+
 def _actor_of(user: dict[str, Any]) -> str:
     """审计里的操作者：优先用户名，退到 id。"""
     return str(user.get("username") or user.get("userId") or user.get("id") or "")
 
 
-@router.get("")
+@router.get("", response_model=DeviceProfileListResponse)
 async def list_profiles(
     request: Request,
     areaId: str | None = Query(default=None),
@@ -113,7 +161,7 @@ async def refresh_profiles(request: Request, user: dict[str, Any] = Depends(requ
     return {"success": True, **(await asyncio.to_thread(service.refresh))}
 
 
-@router.get("/audit")
+@router.get("/audit", response_model=DeviceProfileAuditResponse)
 async def list_audit(
     request: Request,
     entityId: str | None = Query(default=None, min_length=3),

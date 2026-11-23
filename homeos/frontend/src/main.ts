@@ -184,6 +184,12 @@ registerAuthChangeHandler(() => {
   void import('./stores/entities.store').then(({ useEntitiesStore }) => {
     useEntitiesStore().reconnectForAuthChange()
   })
+  // 3D 面板的设备类型来自后端画像（人工确认优先）：登录后重新投影，登出时清空。
+  // 投影失败静默退回空调兜底，不阻断任何主流程。
+  void import('@/services/device-profile-kinds').then(({ hydrateDeviceProfileKinds, forgetDeviceProfileKinds }) => {
+    if (useAuthStore().isAuthenticated) void hydrateDeviceProfileKinds(true)
+    else forgetDeviceProfileKinds()
+  })
   // 登出 / 401 时（isAuthenticated=false）额外清理用户态 store，避免下一个会话残留上一个用户的数据
   void import('./stores/auth.store').then(({ useAuthStore }) => {
     if (useAuthStore().isAuthenticated) return
@@ -273,6 +279,9 @@ function mountApp(): void {
 function applyPostConfigHooks(): void {
   // 建立配置可见性同步（控制台日志等仅在开发环境输出）
   setupFrontendConfigVisibilitySync()
+  // 3D 面板的设备类型（空调 / 浴霸 / 热水器）来自后端画像结论：已在登录态的冷启动
+  // 在这里补一次投影；未登录会静默失败，登录成功后再由 registerAuthChangeHandler 触发。
+  void import('@/services/device-profile-kinds').then(({ hydrateDeviceProfileKinds }) => hydrateDeviceProfileKinds())
   // 玻璃拟态效果同步（根据布局配置开/关毛玻璃）
   setupGlassEffectSync(() => useLayoutStore().layoutConfig)
   // 智能性能模式（根据设备能力动态调整渲染策略）

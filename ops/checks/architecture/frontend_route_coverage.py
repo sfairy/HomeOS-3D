@@ -111,6 +111,9 @@ ALLOWLIST = "allowlist"
 KNOWN_GAP = "known_gap"
 NEW_ORPHAN = "new_orphan"
 
+#: known_gap 的两种处置：保留（缺入口是设计选择）/ 已被替代待删除。
+GAP_DECISIONS = frozenset({"keep", "delete-candidate"})
+
 #: 任务分段标记（前端模板里未解析出的 `${...}`）。
 WILDCARD = "__WILDCARD__"
 
@@ -569,6 +572,9 @@ def collect_handlers() -> dict[str, str]:
 class Baseline:
     allowlist: dict[str, str]
     known_gaps: dict[str, str]
+    #: 每条 known_gap 的处理决策：``keep``（保留，缺入口是设计选择）或
+    #: ``delete-candidate``（已被替代，可删除）。没有决策就不算「已评估」。
+    gap_decisions: dict[str, str]
 
     def to_payload(self) -> dict:
         return {
@@ -578,10 +584,18 @@ class Baseline:
             ),
             "rules": (
                 "键为 `METHOD /完整路径`（尾斜杠折叠）。"
-                "known_gaps 里的接口一旦被前端调用会被要求移除；allowlist 只提示不失败"
+                "known_gaps 里的接口一旦被前端调用会被要求移除；allowlist 只提示不失败。"
+                "每条 known_gap 必须带 decision（keep / delete-candidate）"
             ),
             "allowlist": [{"key": key, "reason": self.allowlist[key]} for key in sorted(self.allowlist)],
-            "known_gaps": [{"key": key, "reason": self.known_gaps[key]} for key in sorted(self.known_gaps)],
+            "known_gaps": [
+                {
+                    "key": key,
+                    "reason": self.known_gaps[key],
+                    "decision": self.gap_decisions.get(key, ""),
+                }
+                for key in sorted(self.known_gaps)
+            ],
         }
 
 
@@ -595,9 +609,22 @@ def _read_entries(payload: dict, name: str) -> dict[str, str]:
     return entries
 
 
+def _read_decisions(payload: dict, name: str) -> dict[str, str]:
+    decisions: dict[str, str] = {}
+    for item in payload.get(name, []):
+        key = str(item.get("key", "")).strip()
+        if key:
+            decisions[key] = str(item.get("decision", "")).strip()
+    return decisions
+
+
 def load_baseline(path: Path) -> Baseline:
     payload = json.loads(path.read_text(encoding="utf-8"))
-    return Baseline(allowlist=_read_entries(payload, "allowlist"), known_gaps=_read_entries(payload, "known_gaps"))
+    return Baseline(
+        allowlist=_read_entries(payload, "allowlist"),
+        known_gaps=_read_entries(payload, "known_gaps"),
+        gap_decisions=_read_decisions(payload, "known_gaps"),
+    )
 
 
 def write_baseline(path: Path, baseline: Baseline) -> None:
@@ -652,6 +679,13 @@ def check(baseline: Baseline, verdicts: list[Verdict]) -> list[str]:
     for key in sorted(baseline.known_gaps):
         if key not in live_keys:
             problems.append(f"STALE-ENTRY {key}（known_gaps 有、实时路由没有，应移除）")
+        # 「登记了但没决策」等同于没评估：接口是删是留必须写明，否则这份清单永远只是免责声明。
+        decision = baseline.gap_decisions.get(key, "")
+        if decision not in GAP_DECISIONS:
+            problems.append(
+                f"NO-DECISION {key}（known_gaps 条目必须带 decision ∈ {sorted(GAP_DECISIONS)}，"
+                "否则无法区分「设计如此」与「已被替代、待删除」）"
+            )
     for key in sorted(baseline.allowlist):
         if key not in live_keys:
             problems.append(f"STALE-ENTRY {key}（allowlist 有、实时路由没有，应移除）")
@@ -694,7 +728,7 @@ def _table(rows: list[list[str]], header: list[str]) -> list[str]:
     return lines
 
 
-def render_report(verdicts: list[Verdict], handlers: dict[str, str]) -> str:
+def render_report(verdicts: list[Verdict], handlers: dict[str, str], baseline: Baseline) -> str:
     """生成 Markdown 报告（无时间戳，保证同样输入同样输出）。"""
     lines = [
         "# 后端接口 / 前端调用覆盖报告",
@@ -759,7 +793,13 @@ def render_report(verdicts: list[Verdict], handlers: dict[str, str]) -> str:
                     ]
                     for verdict in grouped[prefix]
                 ]
-                lines.extend(_table(rows, ["Method", "Path", "后端入口", "说明"]))
+                headers = ["Method", "Path", "后端入口", "说明"]
+                if status == KNOWN_GAP:
+                    # 决策单列一栏：批量评审时一眼能分出「设计如此」与「已被替代、待删除」。
+                    for row, verdict in zip(rows, grouped[prefix], strict=True):
+                        row.append(baseline.gap_decisions.get(verdict.key) or "**未决策**")
+                    headers.append("决策")
+                lines.extend(_table(rows, headers))
                 lines.append("")
         lines.append("")
 
@@ -805,17 +845,24 @@ def main() -> int:
     }
 
     if args.write:
-        previous = load_baseline(args.baseline) if args.baseline.is_file() else Baseline({}, {})
+        previous = load_baseline(args.baseline) if args.baseline.is_file() else Baseline({}, {}, {})
         scanned = classify(live, frontend, previous)
         gaps = dict(previous.known_gaps)
+        decisions = dict(previous.gap_decisions)
         for verdict in scanned:
             if verdict.status != NEW_ORPHAN:
                 continue
             gaps.setdefault(verdict.key, "待确认：后端已注册，前端没有调用点")
+            # 新登记的条目默认 `keep`（先钉住，再评估）；已有决策原样保留。
+            decisions.setdefault(verdict.key, "keep")
         for key in list(gaps):
             if any(verdict.status in (MATCHED, DYNAMIC) and verdict.key == key for verdict in scanned):
                 del gaps[key]
-        write_baseline(args.baseline, Baseline(allowlist=previous.allowlist, known_gaps=gaps))
+                decisions.pop(key, None)
+        write_baseline(
+            args.baseline,
+            Baseline(allowlist=previous.allowlist, known_gaps=gaps, gap_decisions=decisions),
+        )
         total = sum(len(items) for items in live.values())
         print(f"baseline written: {args.baseline}（路由 {total}，known_gaps {len(gaps)}）")
         return 0
@@ -828,7 +875,7 @@ def main() -> int:
     verdicts = classify(live, frontend, baseline)
 
     if args.report:
-        report = render_report(verdicts, collect_handlers())
+        report = render_report(verdicts, collect_handlers(), baseline)
         if args.out:
             args.out.parent.mkdir(parents=True, exist_ok=True)
             args.out.write_text(report + "\n", encoding="utf-8")

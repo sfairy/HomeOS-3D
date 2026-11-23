@@ -205,6 +205,15 @@ _F = Callable[..., str]
 API_ERROR: dict[str, str | _F] = {
     # auth
     "AUTH_SESSION_EXPIRED": "会话已失效，请重新登录",
+    "AUTH_LOGIN_STATE_EXPIRED": "登录状态已失效，请重新登录。",
+    "AUTH_CREDENTIALS_INVALID": "账号或密码错误。",
+    "AUTH_VERIFICATION_INVALID": "邮箱或验证码无效。",
+    "AUTH_LOCAL_ACCOUNT_EXISTS": "本机已有账号，请直接登录。",
+    "AUTH_LOCAL_ACCOUNT_EXISTS_RESET": "本机已有账号，请直接登录或重置密码。",
+    "AUTH_ACCOUNT_TAKEN": "账号或邮箱已被使用。",
+    "AUTH_CURRENT_PASSWORD_INCORRECT": "当前密码不正确。",
+    "AUTH_PASSWORD_UNCHANGED": "新密码与当前密码相同。",
+    "AUTH_LOGIN_RATE_LIMITED": "登录失败次数过多，请稍后再试。",
     # access / guards
     "ACCESS_ENTITY_DENIED": "当前账户无权操作该设备",
     "TARGET_LABEL_UNRESOLVED": lambda ids: (
@@ -228,6 +237,16 @@ API_ERROR: dict[str, str | _F] = {
     "UI_CONFIG_FILE_NOT_FOUND": "文件或目录未找到",
     "UI_CONFIG_ICON_NOT_FOUND": "图标文件不存在",
     "HA_NOT_CONNECTED": "HA 未连接",
+    # ha（连接 / 同步 / 控制的前置条件：文案在这里登记，前端按 apiErrorCode 判定）
+    "HA_CONNECTION_NOT_FOUND": "Home Assistant 连接不存在。",
+    "HA_CONNECTION_REQUIRED": "请先配置 Home Assistant 连接。",
+    "HA_TOKEN_REQUIRED": "首次连接必须输入 Home Assistant 访问令牌。",
+    "HA_CONFIGURE_NOT_LICENSED": "当前授权不允许配置 Home Assistant。",
+    "HA_SYNC_NOT_LICENSED": "当前授权不允许同步 Home Assistant。",
+    "HA_CONTROL_NOT_LICENSED": "当前授权不允许控制 Home Assistant。",
+    "HA_FORECAST_TYPE_INVALID": "天气预报类型无效。",
+    "HA_ENTITY_UNAVAILABLE": "实体不存在、已禁用或已失联。",
+    "HA_MEDIA_BROWSE_DOMAIN_INVALID": "媒体浏览只能用于媒体播放器实体。",
     "TTS_XIAOMI_PLAY_TEXT_NOT_FOUND": "未找到「播放文本」实体，请在 HA → Xiaomi Home 集成配置中开启 Action 调试模式",
     # alerts
     "ALERT_RULE_NAME_REQUIRED": "规则名称不能为空",

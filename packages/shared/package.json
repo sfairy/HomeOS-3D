@@ -17,7 +17,8 @@
     "./components/EntryShell.vue": "./src/components/EntryShell.vue",
   "./components/entry-step": "./src/components/entry-step.ts",
   "./notification/voice-alert": "./src/notification/voice-alert.ts",
-  "./scene/scene-values": "./src/scene/scene-values.ts",
+    "./entity/device-kind": "./src/entity/device-kind.ts",
+    "./scene/scene-values": "./src/scene/scene-values.ts",
     "./scene/touch-profile": "./src/scene/touch-profile.ts",
     "./security/password-policy": "./src/security/password-policy.ts",
     "./utils/clipboard": "./src/utils/clipboard.ts"

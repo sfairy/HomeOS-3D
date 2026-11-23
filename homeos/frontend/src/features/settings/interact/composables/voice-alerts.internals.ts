@@ -60,6 +60,8 @@ export function useVoiceAlertsEditor() {
   const expandedAlert = ref<string | null>(null)
   const builtinStyleState = reactive<Record<string, BuiltinStyleState>>({})
   const voiceSaveTip = ref<string>('')
+  /** 上一次保存是否失败：供模板决定提示颜色，避免解析文案。 */
+  const voiceSaveFailed = ref(false)
 
   const alertRuleGroups = computed(() => {
     const catalog = voiceMeta.value.alertCatalog?.length ? voiceMeta.value.alertCatalog : getVoiceAlertCatalog()
@@ -195,6 +197,9 @@ export function useVoiceAlertsEditor() {
     applyBuiltinStylesToVoice()
     voiceSaveTip.value = ''
     const ok = await saveVoice()
+    // 成败用独立标志位表达：模板不再靠文案里是否含「失败」二字决定颜色
+    // （改一句提示语就会改一次样式，且本地化后判断直接失效）。
+    voiceSaveFailed.value = !ok
     voiceSaveTip.value = ok ? '语音告警已保存' : '保存失败'
     return ok
   }
@@ -205,6 +210,7 @@ export function useVoiceAlertsEditor() {
     voiceLoadError,
     voiceSaving,
     voiceSaveTip,
+    voiceSaveFailed,
     ttsMediaPlayerId,
     speakCooldownMin,
     voiceMeta,

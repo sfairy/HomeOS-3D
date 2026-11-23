@@ -1,5 +1,5 @@
 /** 实体属性值友好格式化工具 */
-import { HVAC_MODE_LABELS as CLIMATE_HVAC_MODE_LABELS } from '@/shared/constants/climate-labels'
+import { HVAC_MODE_LABELS as CLIMATE_HVAC_MODE_LABELS, PRESET_MODE_LABELS } from '@/shared/constants/climate-labels'
 import { brightnessToPercent } from '@/shared/entity/utils/control/light-control-core'
 import { volumeLevelToPercent } from '@/shared/entity/utils/control/media-player-control-core'
 import { formatLocaleString } from '@/shared/utils/format/locale-format.util'
@@ -124,17 +124,8 @@ const FAN_MODE_LABELS: Record<string, string> = {
   off: '关闭',
 }
 
-const PRESET_MODE_LABELS: Record<string, string> = {
-  activity: '活动',
-  anti_freeze: '防冻',
-  away: '离家',
-  boost: '强力',
-  comfort: '舒适',
-  eco: '节能',
-  home: '在家',
-  none: '无',
-  sleep: '睡眠',
-}
+// PRESET_MODE_LABELS 直接复用 `shared/constants/climate-labels` 的那一份：属性展示与控件
+// 下拉必须对同一个预设给出同一个词，各写一份就是「下拉写强劲、详情写强力」的来源。
 
 const SWING_MODE_LABELS: Record<string, string> = {
   off: '关',

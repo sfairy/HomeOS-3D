@@ -24,6 +24,7 @@ from .energy_wiring import (
     make_energy_primary_provider,
 )
 from ..config import Settings
+from ..platform.core.runtime.background_tasks import background_tasks
 
 if TYPE_CHECKING:
     # 仅用于 `_StartupContext.agent_service` 的注解：智能管家域的 14 个服务模块
@@ -1531,6 +1532,8 @@ async def _shutdown_all(app: FastAPI, startup: _StartupContext) -> None:
     # 会滞留在内存队列里丢掉。
     if event_log is not None:
         await shutdown("全局日志刷盘", lambda: asyncio.to_thread(event_log.close, 5.0))
+    # 兜底收尾用 background_tasks.spawn 起的后台任务（不属于任何具体服务，服务 stop() 覆盖不到）。
+    await shutdown("后台任务", background_tasks.shutdown)
     startup.auto_backup.stop()
     # 调度器停掉不代表正在跑的备份线程已经结束；先等协调器锁空闲再释放数据库，
     # 否则备份线程可能在 VACUUM/zip 时撞上已 dispose 的连接。等待有上界，

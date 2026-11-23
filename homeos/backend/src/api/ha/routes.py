@@ -56,6 +56,7 @@ from ...platform.core.db.models import (
     LoginSession,
     User,
 )
+from ...platform.core.http.errors import BusinessException, ErrorCode, api_error
 from ...platform.core.runtime.observability import record_ha_counter
 from ...platform.security.request_origin import browser_origin_allowed
 from ...platform.security.session_store import session_token_hash
@@ -189,7 +190,7 @@ def get_connection(request: Request, database: DatabaseSession, _user: LicensedU
 async def delete_connection(request: Request, database: DatabaseSession, _user: LicensedUser) -> None:
     connection = active_connection(database)
     if connection is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Home Assistant 连接不存在。")
+        raise BusinessException(ErrorCode.NOT_FOUND, api_error("HA_CONNECTION_NOT_FOUND"))
     connector = request.app.state.studio_ha
     await connector.stop()
     try:
@@ -287,10 +288,7 @@ def _connection_access_token(
     if connection_input.access_token:
         return connection_input.access_token
     if connection is None:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="首次连接必须输入 Home Assistant 访问令牌。",
-        )
+        raise BusinessException(ErrorCode.VALIDATION_FAILED, api_error("HA_TOKEN_REQUIRED"))
     if new_addresses != previous_addresses and not connection_input.reuse_token_for_new_url:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -432,7 +430,7 @@ async def save_connection(
     _user: LicensedUser,
 ) -> dict[str, Any]:
     if not request.app.state.license_service.allows(feature_codes.FEATURE_HA_CONFIGURE):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="当前授权不允许配置 Home Assistant。")
+        raise BusinessException(ErrorCode.FORBIDDEN, api_error("HA_CONFIGURE_NOT_LICENSED"))
     connector = request.app.state.studio_ha
     connection = active_connection(database)
     verify_tls, external_verify_tls = _connection_verify_flags(command, connection)
@@ -495,7 +493,8 @@ def list_entities(
         # 房间内按本地顺序覆盖排序；没有覆盖的实体排在后面（再按域 + 实体名）。
         # 用子查询而不是整表 join：只取当前房间的行，避免大户型下 join 全表。
         order_sub = (
-            select(HAAreaEntityOrder.entity_id, HAAreaEntityOrder.sort_order)            .where(HAAreaEntityOrder.connection_id == connection.id, HAAreaEntityOrder.area_id == area_id)
+            select(HAAreaEntityOrder.entity_id, HAAreaEntityOrder.sort_order)
+            .where(HAAreaEntityOrder.connection_id == connection.id, HAAreaEntityOrder.area_id == area_id)
             .subquery()
         )
         query = query.outerjoin(order_sub, order_sub.c.entity_id == HAEntity.entity_id).order_by(
@@ -664,10 +663,10 @@ async def weather_forecast(
     """
     connection = await asyncio.to_thread(active_connection, database)
     if connection is None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="请先配置 Home Assistant 连接。")
+        raise BusinessException(ErrorCode.CONFLICT, api_error("HA_CONNECTION_REQUIRED"))
     require_viewer_entity(database, viewer, entity_id)
     if forecast_type not in ("auto", "daily", "hourly", "twice_daily"):
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="天气预报类型无效。")
+        raise BusinessException(ErrorCode.VALIDATION_FAILED, api_error("HA_FORECAST_TYPE_INVALID"))
     try:
         payload = await request.app.state.studio_ha.fetch_weather_forecast(connection, entity_id, forecast_type)
     except (HAClientError, CredentialCipherError) as error:
@@ -710,9 +709,9 @@ async def entity_history(
         entity_id,
     )
     if connection is None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="请先配置 Home Assistant 连接。")
+        raise BusinessException(ErrorCode.CONFLICT, api_error("HA_CONNECTION_REQUIRED"))
     if not entity_exists:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="实体不存在、已禁用或已失联。")
+        raise BusinessException(ErrorCode.NOT_FOUND, api_error("HA_ENTITY_UNAVAILABLE"))
     cache_key = (str(connection.id), int(hours), entity_id)
     cached = _history_cache_get(cache_key)
     if cached is not None:
@@ -1025,10 +1024,10 @@ def sync_status(request: Request, database: DatabaseSession, _viewer: LicensedVi
 @router.post("/sync")
 async def run_sync(request: Request, _database: DatabaseSession, _user: LicensedUser) -> dict[str, Any]:
     if not request.app.state.license_service.allows(feature_codes.FEATURE_HA_SYNC):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="当前授权不允许同步 Home Assistant。")
+        raise BusinessException(ErrorCode.FORBIDDEN, api_error("HA_SYNC_NOT_LICENSED"))
     connection = await asyncio.to_thread(load_active_connection_snapshot, request.app.state.database)
     if connection is None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="请先配置 Home Assistant 连接。")
+        raise BusinessException(ErrorCode.CONFLICT, api_error("HA_CONNECTION_REQUIRED"))
     try:
         counts = await request.app.state.studio_ha.sync_once(connection.id, reconciled=True)
     except (HAClientError, CredentialCipherError) as error:
@@ -1085,13 +1084,10 @@ async def browse_media(
     viewer: LicensedViewer,
 ) -> dict[str, Any]:
     if not request.app.state.license_service.allows(feature_codes.FEATURE_HA_CONTROL):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="当前授权不允许控制 Home Assistant。")
+        raise BusinessException(ErrorCode.FORBIDDEN, api_error("HA_CONTROL_NOT_LICENSED"))
     entity_domain = command.entity_id.partition(".")[0]
     if entity_domain != "media_player":
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="媒体浏览只能用于媒体播放器实体。",
-        )
+        raise BusinessException(ErrorCode.VALIDATION_FAILED, api_error("HA_MEDIA_BROWSE_DOMAIN_INVALID"))
     connection, entity_exists = await asyncio.to_thread(
         load_authorized_entity_context,
         request.app.state.database,
@@ -1099,9 +1095,9 @@ async def browse_media(
         command.entity_id,
     )
     if connection is None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="请先配置 Home Assistant 连接。")
+        raise BusinessException(ErrorCode.CONFLICT, api_error("HA_CONNECTION_REQUIRED"))
     if not entity_exists:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="实体不存在、已禁用或已失联。")
+        raise BusinessException(ErrorCode.NOT_FOUND, api_error("HA_ENTITY_UNAVAILABLE"))
     try:
         client = await request.app.state.studio_ha.client_for(connection)
         browse = client.browse_player_media if command.player_library else client.browse_media

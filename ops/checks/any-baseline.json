@@ -1,5 +1,5 @@
 {
-  "total": 16914,
+  "total": 16909,
   "files": {
     "homeos/frontend/src/studio/app/3d-studio/authoring/boot/studio-boot.ts": 13,
     "homeos/frontend/src/studio/app/3d-studio/authoring/items/item-model/living.ts": 1,
@@ -417,7 +417,7 @@
     "homeos/frontend/src/studio/app/renderer/scene-popup.ts": 9,
     "homeos/frontend/src/studio/app/renderer/weather-forecast.ts": 40,
     "homeos/frontend/src/studio/app/shared/action-rules.ts": 8,
-    "homeos/frontend/src/studio/app/shared/device/climate.ts": 50,
+    "homeos/frontend/src/studio/app/shared/device/climate.ts": 45,
     "homeos/frontend/src/studio/app/shared/device/entity-metadata.ts": 1,
     "homeos/frontend/src/studio/app/shared/device/light-runtime.ts": 27,
     "homeos/frontend/src/studio/app/shared/device/vacuum-map-state.ts": 7,

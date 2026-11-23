@@ -28,6 +28,7 @@ from fastapi import Body, Depends, Query, Request
 from fastapi.responses import Response, StreamingResponse
 
 from ..router import NestRouter
+from ..schemas.base import ResponseModel
 from ...platform.core.db.pagination import parse_bounded_limit
 from ...platform.core.db.runtime_kv import load_runtime_kv
 from ...platform.core.runtime.adaptive_perf import build_backend_perf_suggestions
@@ -89,20 +90,24 @@ class _BoundedLogQueue:
         dropped, self._dropped = self._dropped, 0
         return dropped
 
+
 # 依赖读取
 def _runtime_buffer(request: Request) -> RuntimeLogBuffer:
     return request.app.state.runtime_logs
 
+
 def _jobs(request: Request) -> Any:
     return request.app.state.jobs
+
 
 def _int_or_none(raw: str | None) -> int | None:
     if raw is None or raw == "":
         return None
     try:
         return int(raw)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError):  # fmt: skip
         return None
+
 
 def _js_number(value: float) -> str:
     """数值文本：整数值去掉 ``.0``（对齐 JS 模板字符串数字格式）。"""
@@ -110,21 +115,22 @@ def _js_number(value: float) -> str:
         return str(int(value))
     return repr(float(value))
 
+
 def _json_number(value: float) -> float | int:
     """JSON 数值：整数值输出 int（对齐 ``JSON.stringify`` 的 "0" 而非 "0.0"）。"""
     return int(value) if float(value).is_integer() else float(value)
 
+
 def _format_locale_string(moment: datetime, locale: str = "zh-CN") -> str:
     """等价 ``new Date().toLocaleString('zh-CN')``（月/日不补零）。"""
     _ = locale
-    return (
-        f"{moment.year}/{moment.month}/{moment.day} "
-        f"{moment.hour:02d}:{moment.minute:02d}:{moment.second:02d}"
-    )
+    return f"{moment.year}/{moment.month}/{moment.day} {moment.hour:02d}:{moment.minute:02d}:{moment.second:02d}"
+
 
 def _or_none(value: Any) -> Any:
     """等价 JS ``value || null``（空串 / 0 / None 都归一为 None）。"""
     return value or None
+
 
 def _load_drift_repair_last_run(request: Request) -> dict[str, Any] | None:
     database = request.app.state.database
@@ -140,7 +146,7 @@ def _load_drift_repair_last_run(request: Request) -> dict[str, Any] | None:
     def number(value: Any) -> int:
         try:
             return int(value)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError):  # fmt: skip
             return 0
 
     errors = row.get("errors")
@@ -151,6 +157,7 @@ def _load_drift_repair_last_run(request: Request) -> dict[str, Any] | None:
         "failed": number(row.get("failed")),
         "errorCount": len(errors) if isinstance(errors, list) else 0,
     }
+
 
 def _render_diagnostics_text(diagnostics: dict[str, Any]) -> str:
     """把诊断事实渲染成一段可复制到剪贴板的纯文本摘要。"""
@@ -213,6 +220,7 @@ async def get_jobs(request: Request, user: dict[str, Any] = Depends(require_user
     """调度作业统一仪表盘（setInterval / Cron 心跳与耗时）。"""
     _ = user
     return {"success": True, "data": _jobs(request).list()}
+
 
 @router.get("/diagnostics")
 async def get_diagnostics(request: Request, user: dict[str, Any] = Depends(require_user)):
@@ -279,8 +287,7 @@ async def get_diagnostics(request: Request, user: dict[str, Any] = Depends(requi
             "wsLeader": ha.get("ha_ws_leader"),
             "wsMode": ha.get("ha_ws_mode"),
             "reconnectCount": ha.get("reconnect_count") or 0,
-            "registryAvailable": bool(ha.get("connected"))
-            and not app.state.ha_connector.is_registry_degraded(),
+            "registryAvailable": bool(ha.get("connected")) and not app.state.ha_connector.is_registry_degraded(),
         },
         "entities": {
             "count": entity_count,
@@ -304,12 +311,12 @@ async def get_diagnostics(request: Request, user: dict[str, Any] = Depends(requi
         "haWsDeferredDroppedTotal": deferred_dropped,
         "retention": {
             "days": retention_days,
-            "note": f"事件/环境/用水等历史默认保留 {retention_days} 天；"
-            "查询窗口超过保留期时图表可能不完整",
+            "note": f"事件/环境/用水等历史默认保留 {retention_days} 天；查询窗口超过保留期时图表可能不完整",
         },
         "driftRepairLastRun": drift_repair_last_run,
         "copyText": copy_text(),
     }
+
 
 # 运行日志（REST + SSE）
 @router.get("/runtime-logs")
@@ -324,9 +331,7 @@ async def get_runtime_logs(
 ):
     """后端运行日志（进程内环形缓冲）。"""
     _ = user
-    buffered_limit = parse_bounded_limit(
-        limit, DEFAULT_QUERY_LIMIT, maximum=MAX_QUERY_LIMIT
-    )
+    buffered_limit = parse_bounded_limit(limit, DEFAULT_QUERY_LIMIT, maximum=MAX_QUERY_LIMIT)
     return _runtime_buffer(request).query(
         {
             "limit": buffered_limit,
@@ -337,13 +342,13 @@ async def get_runtime_logs(
         }
     )
 
+
 def _sse_frame(event_type: str, data: Any, event_id: int) -> str:
     """序列化单条 SSE 消息（字段顺序 event → id → data，与 Nest SseStream 一致）。"""
-    payload = (
-        data if isinstance(data, str) else json.dumps(data, ensure_ascii=False, separators=(",", ":"))
-    )
+    payload = data if isinstance(data, str) else json.dumps(data, ensure_ascii=False, separators=(",", ":"))
     data_block = "".join(f"data: {line}\n" for line in re.split(r"\r\n|\r|\n", payload))
     return f"event: {event_type}\nid: {event_id}\n{data_block}\n"
+
 
 @router.get("/runtime-logs/stream")
 async def stream_runtime_logs(
@@ -366,9 +371,7 @@ async def stream_runtime_logs(
         event_id = 0
         try:
             # 先推增量缺口，再订阅实时写入
-            backlog = buffer.query(
-                {**query_filter, "afterId": after if after > 0 else None, "limit": 200}
-            )
+            backlog = buffer.query({**query_filter, "afterId": after if after > 0 else None, "limit": 200})
             yield "\n"
             for item in backlog["items"]:
                 event_id += 1
@@ -409,11 +412,13 @@ async def stream_runtime_logs(
         },
     )
 
+
 @router.delete("/runtime-logs")
 async def delete_runtime_logs(request: Request, user: dict[str, Any] = Depends(require_user)):
     """清空后端运行日志缓冲。"""
     _ = user
     return _runtime_buffer(request).clear()
+
 
 # 设备管理
 @router.get("/devices")
@@ -421,6 +426,7 @@ async def get_devices_overview(request: Request, user: dict[str, Any] = Depends(
     """设备管理总览：僵尸绑定列表（按来源分组）。"""
     _ = user
     return await request.app.state.device_management.get_devices_overview()
+
 
 @router.post("/devices/unbind")
 async def unbind_zombies(
@@ -432,18 +438,55 @@ async def unbind_zombies(
     _ = user
     return await request.app.state.device_management.unbind_zombies(body or {})
 
+
 # 版本 / 健康 / 网络
-@router.get("/info")
+
+
+class SystemInfoResponse(ResponseModel):
+    """``GET /system/info``：版本与服务器时间。
+
+    字段集与 ``SystemService.get_system_info`` 的返回逐字对齐。用 ``ResponseModel``
+    （``extra="ignore"``）：多返回的键被忽略而不是把请求打成 500，漏声明的键由
+    ``ops/checks/unittests/test_system_schema.py`` 的键集断言发现。
+    """
+
+    version: str
+    timestamp: str
+
+
+class SystemHealthResponse(ResponseModel):
+    """``GET /system/health``：CPU / 内存 / 库体积 / 运行时长。
+
+    数值字段全部是**整数**（百分比与 MB 都已在服务层取整）；``dbSize`` / ``uptime`` 是
+    给人看的短标签（``"12.3 MB"`` / ``"3h20m"``），故意保持字符串 —— 前端直接展示，
+    不参与计算。
+    """
+
+    cpu: int
+    memory: int
+    memoryMb: int
+    memoryLimitMb: int
+    rssMb: int
+    heapUsedMb: int
+    heapTotalMb: int
+    dbSize: str
+    uptime: str
+    version: str
+
+
+@router.get("/info", response_model=SystemInfoResponse)
 async def get_system_info(request: Request, user: dict[str, Any] = Depends(require_user)):
     """获取系统版本信息。"""
     _ = user
     return await request.app.state.system_service.get_system_info()
 
-@router.get("/health")
+
+@router.get("/health", response_model=SystemHealthResponse)
 async def get_health(request: Request, user: dict[str, Any] = Depends(require_user)):
     """获取系统健康状态。"""
     _ = user
     return await request.app.state.system_service.get_health()
+
 
 @router.get("/network-info")
 async def get_network_info(request: Request, user: dict[str, Any] = Depends(require_user)):
@@ -451,6 +494,7 @@ async def get_network_info(request: Request, user: dict[str, Any] = Depends(requ
     _ = user
     headers = {key.lower(): value for key, value in request.headers.items()}
     return await request.app.state.system_service.get_network_info({"headers": headers})
+
 
 @router.get("/img/0")
 async def proxy_image(
@@ -467,10 +511,9 @@ async def proxy_image(
             status_code=400,
             media_type="text/html; charset=utf-8",
         )
-    result = await request.app.state.moviepilot_proxy.proxy_image(
-        imgurl, dict(request.headers)
-    )
+    result = await request.app.state.moviepilot_proxy.proxy_image(imgurl, dict(request.headers))
     headers = dict(result.headers or {})
     return Response(content=result.body, status_code=result.status, headers=headers)
+
 
 __all__ = ["SSE_HEARTBEAT_MS", "router"]

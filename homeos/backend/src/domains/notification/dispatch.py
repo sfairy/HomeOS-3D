@@ -287,7 +287,7 @@ class NotificationDispatchHelper:
 
     @staticmethod
     def _decorate_notification(notification: dict[str, Any], meta: dict[str, Any]) -> dict[str, Any]:
-        """补 actionPrompt / 门铃类型 / 提示音 / 免打扰标记。"""
+        """补 actionPrompt / 门铃类型 / 提示音 / 免打扰标记 / 设备监控类别。"""
         if meta["actionPrompt"]:
             notification["actionPrompt"] = meta["actionPrompt"]
         camera_entity_id = str(meta["opts"].get("cameraEntityId") or "").strip()
@@ -297,6 +297,11 @@ class NotificationDispatchHelper:
         sound = str(meta["opts"].get("sound") or "").strip()
         if sound:
             notification["sound"] = sound
+        # 设备监控类别（offline / online / low_battery）：前端「离线提醒 / 低电量提醒」
+        # 按它分流，不再匹配中文文案（旧实现靠 ``message.includes('离线')``，改一句文案就改行为）。
+        monitor_kind = str(meta["opts"].get("monitorKind") or "").strip()
+        if monitor_kind:
+            notification["monitorKind"] = monitor_kind
         if meta["deferred"]:
             notification["deferred"] = True
         return notification

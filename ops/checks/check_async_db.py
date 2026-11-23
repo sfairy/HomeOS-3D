@@ -27,8 +27,18 @@ SCAN_ROOTS = [
 ]
 EXTRA_FILES = [ROOT / "homeos/backend/src/app.py"]
 ORM_METHODS = {
-    "execute", "query", "get", "commit", "flush", "scalar", "scalars",
-    "add", "delete", "merge", "refresh", "begin",
+    "execute",
+    "query",
+    "get",
+    "commit",
+    "flush",
+    "scalar",
+    "scalars",
+    "add",
+    "delete",
+    "merge",
+    "refresh",
+    "begin",
 }
 DB_NAMES = {
     "session",

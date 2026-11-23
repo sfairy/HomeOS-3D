@@ -128,6 +128,7 @@
       "createConfigurationFeedback"
     ],
     "config-ui/configuration-picker.ts": [
+      "configurationSegmentedControl",
       "configurationSummary",
       "openConfigurationPicker"
     ],
@@ -158,7 +159,8 @@
     ],
     "core/background-theme.ts": [
       "BACKGROUND_THEMES",
-      "createBackgroundTheme"
+      "createBackgroundTheme",
+      "normalizeBackgroundTheme"
     ],
     "core/editor-preview.ts": [
       "acquireEditorPreview",
@@ -178,6 +180,7 @@
       "backgroundOpacity"
     ],
     "core/marker-input.ts": [
+      "createMarkerHold",
       "createMarkerTouch",
       "nearestMarkerTarget"
     ],
@@ -228,6 +231,7 @@
       "expandGroupMembers",
       "isSameCameraPose",
       "lampIconSvgMarkup",
+      "lightPresetEntries",
       "postHostMessage",
       "resolveMarkerIconSize",
       "syncPanelFit"
@@ -383,6 +387,7 @@
     ],
     "device/entity-capabilities.ts": [
       "attributesOf",
+      "brightnessModes",
       "extraContextChanged",
       "fanCapabilities",
       "featureFlags",
@@ -416,7 +421,9 @@
     ],
     "device/generic-device-catalog.ts": [
       "GENERIC_DEVICE_KINDS",
-      "genericDeviceMetadata"
+      "genericDeviceMetadata",
+      "genericDeviceProfile",
+      "isGenericDeviceKind"
     ],
     "editor/configuration-floor.ts": [
       "chooseConfigurationFloor",
@@ -464,6 +471,7 @@
     "environment/weather/frame.ts": [],
     "environment/weather/ground-quad.ts": [
       "NEAR_GROUND_BAND_START",
+      "NEAR_GROUND_V_MAX",
       "createSeededRandom",
       "fallbackGroundQuad",
       "nearGroundCutY",
@@ -501,7 +509,9 @@
     ],
     "environment/weather/sprites.ts": [
       "RAIN_TILT_BUCKETS",
+      "RAIN_TILT_STEP",
       "createSpriteCache",
+      "rainTiltBucket",
       "rainTiltRatio"
     ],
     "environment/weather/stars.ts": [

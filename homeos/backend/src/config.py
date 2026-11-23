@@ -31,6 +31,20 @@ REPO_ROOT = PROJECT_ROOT.parent
 WORKSPACE_ROOT = REPO_ROOT.parent
 
 
+DEFAULT_DATA_DIRNAME = "data"
+
+
+def resolve_data_dir() -> Path:
+    """运行期数据目录的**唯一**解析口径（``HOMEOS_DATA_DIR`` > 项目根下 ``data``）。
+
+    为什么要有这个函数：同一条回退链此前在 ``load_settings`` 与可观测性（磁盘余量指标）
+    里各写了一遍，而两处的兜底值**并不相同** —— 后者回落到 ``"."``（进程 cwd），于是
+    「数据盘剩余空间」指标量的其实是启动目录。统一到这里之后，指标与真实数据目录一致。
+    """
+    configured = (os.getenv("HOMEOS_DATA_DIR") or "").strip()
+    return Path(configured or PROJECT_ROOT.parent / DEFAULT_DATA_DIRNAME).expanduser().resolve()
+
+
 def _environment_bool(name: str, default: bool = False) -> bool:
     value = os.getenv(name)
     if value is None:
@@ -55,7 +69,7 @@ PRODUCTION_ENV_VALUES = {"production", "prod"}
 
 
 def environment_is_production() -> bool:
-    """是否生产环境（读取 ``APP_ENVIRONMENT``）。"""
+    """当前进程是否按生产口径运行（``APP_ENVIRONMENT`` ∈ production / prod）。"""
     return environment_is_production_from(os.environ)
 
 
@@ -513,7 +527,8 @@ def load_settings() -> Settings:
     ``CORS_ORIGINS`` 等），使同一份 ``backend/.env`` 可被两套后端共用。
     """
     # 兜底值必须与 `.env.example` 的 `#HOMEOS_DATA_DIR=./homeos/data` 及 `ops/dev.mjs` 一致。
-    data_dir = Path(os.getenv("HOMEOS_DATA_DIR") or PROJECT_ROOT.parent / "data").expanduser().resolve()
+    # 解析口径收敛在 `resolve_data_dir`：磁盘余量指标用的是同一份，避免两处兜底值不同。
+    data_dir = resolve_data_dir()
     additional_public_origins = _validated_public_origins()
     return Settings(
         data_dir=data_dir,

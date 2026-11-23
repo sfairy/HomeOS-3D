@@ -34,6 +34,11 @@ from sqlalchemy.orm import sessionmaker
 import homeos.backend.src.platform.core.db.device_profile_models as profile_models  # noqa: F401
 from homeos.backend.src.domains.agent.runtime.fast_path import FastPathService
 from homeos.backend.src.domains.agent.runtime.lang_templates import get_lang_template
+from homeos.backend.src.domains.device_profile.classify import (
+    AVAILABLE_CONFIDENCE,
+    CLIMATE_KINDS,
+    CLIMATE_RENDER_TYPE_BY_KIND,
+)
 from homeos.backend.src.domains.device_profile.climate import validate_climate_command
 from homeos.backend.src.domains.device_profile.service import (
     DeviceProfileService,
@@ -93,9 +98,25 @@ def test_classify() -> None:
     check("分类: 名称含音箱 → speaker", speaker_hint["kind"] == "speaker", str(speaker_hint))
     climate = classify(entity("climate.a", hvac_modes=["off", "cool"]))
     check(
-        "分类: 空调恒为 unknown 且要求确认",
-        climate["kind"] == "unknown" and any("requires_confirmation" in item for item in climate["evidence"]),
+        "分类: 有制冷档 → 推断为分体空调，但仍需确认",
+        climate["kind"] == "ac_split"
+        and climate["confidence"] < AVAILABLE_CONFIDENCE
+        and any("requires_confirmation" in item for item in climate["evidence"]),
         str(climate),
+    )
+    bath = classify(entity("climate.b", friendly_name="主卫浴霸", hvac_modes=["off", "heat", "vent"]))
+    check(
+        "分类: 名称/换气档 → 推断为浴霸，但仍需确认",
+        bath["kind"] == "bath_heater"
+        and bath["confidence"] < AVAILABLE_CONFIDENCE
+        and any("requires_confirmation" in item for item in bath["evidence"]),
+        str(bath),
+    )
+    heat_only = classify(entity("climate.c", hvac_modes=["off", "heat"]))
+    check(
+        "分类: 只有制热档 → 低置信推断为浴霸",
+        heat_only["kind"] == "bath_heater" and heat_only["confidence"] < AVAILABLE_CONFIDENCE,
+        str(heat_only),
     )
     heater = classify(entity("water_heater.a", operation_list=["off", "eco", "heat"]))
     check(
@@ -104,6 +125,22 @@ def test_classify() -> None:
         str(heater),
     )
     check("分类: 不支持的域", classify(entity("light.a"))["evidence"] == ["unsupported_domain"])
+
+
+def test_kind_render_map() -> None:
+    """kind → 渲染形态：表必须覆盖全部 kind，且只产出三种 UI 形态。"""
+    check(
+        "kind 映射覆盖全部 climate kind",
+        set(CLIMATE_RENDER_TYPE_BY_KIND) == set(CLIMATE_KINDS),
+        f"{sorted(CLIMATE_RENDER_TYPE_BY_KIND)} vs {sorted(CLIMATE_KINDS)}",
+    )
+    check(
+        "kind 映射只产出三种渲染形态",
+        set(CLIMATE_RENDER_TYPE_BY_KIND.values()) == {"air-conditioner", "bath-heater", "water-heater"},
+        str(sorted(set(CLIMATE_RENDER_TYPE_BY_KIND.values()))),
+    )
+    check("浴霸 kind 映射到浴霸面板", CLIMATE_RENDER_TYPE_BY_KIND["bath_heater"] == "bath-heater")
+    check("热水器 kind 映射到热水器面板", CLIMATE_RENDER_TYPE_BY_KIND["water_heater"] == "water-heater")
 
 
 def test_aliases() -> None:
@@ -315,6 +352,7 @@ def test_fast_path() -> None:
 
 def main() -> int:
     test_classify()
+    test_kind_render_map()
     test_aliases()
     test_reachability()
     test_service()

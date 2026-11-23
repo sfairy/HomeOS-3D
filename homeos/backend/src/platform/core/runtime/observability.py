@@ -456,7 +456,11 @@ def _process_resource_metric_lines() -> list[str]:
                 f"homeos_process_open_fds {fds}",
             ]
         )
-    data_dir = os.getenv("HOMEOS_DATA_DIR", "").strip() or "."
+    # 磁盘余量按**真实数据目录**统计：旧实现回落到 ``"."``（进程 cwd），量的其实是启动目录，
+    # 与配置的数据盘可能不是同一个挂载点。
+    from ....config import resolve_data_dir
+
+    data_dir = str(resolve_data_dir())
     try:
         free_bytes = shutil.disk_usage(data_dir).free
     except OSError:

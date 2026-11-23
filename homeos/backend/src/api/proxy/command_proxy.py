@@ -26,6 +26,7 @@ from fastapi import Depends, HTTPException, Request
 
 from ..router import NestRouter
 from ..schemas.command_proxy import BatchCallServiceDto, CallServiceDto
+from ...config import environment_is_production
 from ...domains.agent.runtime.attribution import mark_local_control_for_request
 from ...domains.ha.integration.service_call import load_ha_entity_context
 from ...domains.license import features as feature_codes
@@ -64,7 +65,7 @@ def _strict_entry_enabled() -> bool:
         return True
     if raw.strip().lower() not in {"0", "false", "no", "off"}:
         return True
-    environment = (os.getenv("APP_ENVIRONMENT") or "").strip().lower()
+    environment = "production" if environment_is_production() else ""
     if environment in _PRODUCTION_ENVIRONMENTS:
         logger.warning(
             "%s=0 在生产环境被忽略：跳过许可/连接/实体三层校验只允许用于非生产排障。",

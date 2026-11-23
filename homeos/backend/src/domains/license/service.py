@@ -29,7 +29,19 @@ from .features import (
     granted,
 )
 from .hardware import hardware_instance_id
+from .heartbeat import heartbeat_seconds, min_heartbeat_seconds
 from .process_lock import LicenseProcessLock
+from .status_view import (
+    TERMINAL_STATES as TERMINAL_STATES_VIEW,
+)
+from .status_view import (
+    aware,
+    decide_effective_status,
+    downgrade_if_unverified,
+    lease_features_and_products,
+    mask_email,
+    signed_timestamp,
+)
 from .trust import verify_license_trust_anchors
 from ...config import Settings
 from ...platform.core.db.database import Database
@@ -44,50 +56,16 @@ logger = logging.getLogger("homeos.license.service")
 
 RETRY_DELAYS = (2, 5, 10, 30, 60, 300)
 
-#: 心跳间隔下限（秒）：商店下发的 heartbeatIn 再小也不能低于这个值，否则会把商店打爆。
-#: 允许用 HOMEOS_LICENSE_HEARTBEAT_SECONDS 覆盖（现场排障时想更频繁地拉状态）。
-DEFAULT_MIN_HEARTBEAT_SECONDS = 30
-
-
-def min_heartbeat_seconds() -> int:
-    """心跳间隔下限（秒）：环境变量优先，缺失或非法值回落到 30，且至少 1 秒。"""
-    raw = os.getenv("HOMEOS_LICENSE_HEARTBEAT_SECONDS")
-    if not raw:
-        return DEFAULT_MIN_HEARTBEAT_SECONDS
-    try:
-        value = int(raw)
-    except (TypeError, ValueError):  # fmt: skip
-        return DEFAULT_MIN_HEARTBEAT_SECONDS
-    return max(1, value)
+#: 心跳间隔下限（秒）等纯计算已移到 ``heartbeat.py``；``service`` 继续对外导出这两个名字，
+#: 既有调用方（``bootstrap`` / 自检脚本）无需改动。
 
 
 def _heartbeat_seconds(raw: Any, default: int = 300) -> int:
-    """商店返回的心跳间隔（秒）。
-
-    ``heartbeatIn`` 是远端 JSON 字段：``None`` / ``"5m"`` / 列表都会让裸 ``int()`` 抛
-    ``TypeError``/``ValueError``，而这条路径上调用方只捕获 ``LicenseClientError`` ——
-    一次畸形响应就会把「已写入的激活状态」留在库里、却给用户一个 500。
-    """
-    if isinstance(raw, bool) or not isinstance(raw, (int, float, str)):
-        return default
-    try:
-        value = int(float(raw))
-    except (TypeError, ValueError):  # fmt: skip
-        logger.warning("商店返回的 heartbeatIn 非法，按默认 %s 秒处理: %r", default, raw)
-        return default
-    return value if value > 0 else default
+    """兼容别名：实现见 ``heartbeat.heartbeat_seconds``。"""
+    return heartbeat_seconds(raw, default)
 
 
-TERMINAL_STATES = {
-    "INVALID",
-    "REVOKED",
-    "DEACTIVATED",
-    "CLOCK_ROLLBACK",
-    "REMOTE_REJECTED",
-    "INSTANCE_CHANGED",
-    "INSTANCE_MISMATCH",
-    "RECOVERY_REQUIRED",
-}
+TERMINAL_STATES = TERMINAL_STATES_VIEW
 
 
 CONFIRMED_REVOCATION_CODES = frozenset({"REVOKED", "LICENSE_REVOKED"})
@@ -219,12 +197,6 @@ STATUS_LABELS = {
     "ACCESS_EXPIRED": "授权已到期",
     "STARTUP_VALIDATION_REQUIRED": "等待启动联网验证",
 }
-
-
-def aware(value):
-    if value is None or value.tzinfo is not None:
-        return value
-    return value.replace(tzinfo=UTC)
 
 
 class LicenseService:
@@ -1301,27 +1273,13 @@ class LicenseService:
 
     @staticmethod
     def _signed_timestamp(payload: dict, key: str) -> datetime | None:
-        """读签名租约里的时间戳；缺失或格式异常时返回 ``None``（由调用方决定降级口径）。"""
-        raw = payload.get(key)
-        if not isinstance(raw, str) or not raw:
-            return None
-        try:
-            return aware(parse_timestamp(raw))
-        except (LicenseCryptoError, TypeError, ValueError):  # fmt: skip
-            return None
+        """兼容入口：实现见 ``status_view.signed_timestamp``。"""
+        return signed_timestamp(payload, key)
 
     @staticmethod
     def _mask_email(email: str | None) -> str | None:
-        """邮箱脱敏：``ab***@example.com``。状态面板要展示又不宜全明文。"""
-        value = (email or "").strip()
-        if not value or "@" not in value:
-            return value or None
-        local, _, domain = value.partition("@")
-        if len(local) <= 2:
-            masked_local = local[:1] + "***"
-        else:
-            masked_local = local[:2] + "***"
-        return f"{masked_local}@{domain}"
+        """兼容入口：实现见 ``status_view.mask_email``。"""
+        return mask_email(email)
 
     def _public_key_fingerprint(self) -> str:
         """授权公钥指纹（只给前后缀），供状态页核对是否与商店发布一致。"""
@@ -1370,36 +1328,25 @@ class LicenseService:
         signed_lease: dict,
         now: datetime,
     ) -> tuple[str, str | None, bool]:
-        """推算面板用的有效状态 / 错误文案 / 是否已验证通过。"""
-        effective_status = state.status
-        effective_error = state.last_error
-        skew = timedelta(seconds=self.settings.license_clock_skew_seconds)
-        server_issued_at = self._signed_timestamp(signed_lease, "issuedAt")
-        if server_issued_at is not None and server_issued_at > now + skew:
-            effective_status = "CLOCK_ROLLBACK"
-            effective_error = "授权服务器签发的租约时间晚于本机时间，请校准系统时间后重试。"
-        lease_expires = self._signed_timestamp(signed_lease, "expiresAt") or aware(state.lease_expires_at)
-        if (
-            effective_status != "CLOCK_ROLLBACK"
-            and lease_expires
-            and lease_expires <= now
-            and effective_status in {"ACTIVE", "CONNECTION_WARNING"}
-        ):
-            effective_status = "LEASE_EXPIRED"
-            if not effective_error:
-                effective_error = "授权租约已到期。"
-        if (
-            self.settings.license_required
-            and self._startup_validation_pending
-            and effective_status in {"ACTIVE", "CONNECTION_WARNING"}
-        ):
-            effective_status = "STARTUP_VALIDATION_REQUIRED"
-            effective_error = state.last_error or "服务重启后正在等待授权后台确认最新租约。"
+        """推算面板用的有效状态 / 错误文案 / 是否已验证通过。
+
+        判定本身在 ``status_view.decide_effective_status``（纯函数，可单测）；这里只负责
+        提供实例状态、落状态记录、以及最后一步「本地校验失败 → INVALID」。
+        """
+        lease_expires = signed_timestamp(signed_lease, "expiresAt") or aware(state.lease_expires_at)
+        effective_status, effective_error = decide_effective_status(
+            base_status=state.status,
+            base_error=state.last_error,
+            signed_lease=signed_lease,
+            now=now,
+            skew_seconds=self.settings.license_clock_skew_seconds,
+            lease_expires=lease_expires,
+            license_required=self.settings.license_required,
+            startup_pending=self._startup_validation_pending,
+        )
         self._record_status(effective_status)
         allowed = self._verified_access(state)
-        if not allowed and effective_status in {"ACTIVE", "CONNECTION_WARNING", "STARTUP_VALIDATION_REQUIRED"}:
-            effective_status = "INVALID"
-            effective_error = "本地授权签名或会话记录校验失败，请联系管理员检查。"
+        effective_status, effective_error = downgrade_if_unverified(effective_status, effective_error, verified=allowed)
         return effective_status, effective_error, allowed
 
     def _lease_features_and_products(
@@ -1409,30 +1356,12 @@ class LicenseService:
         signed_lease: dict,
         allowed: bool,
     ) -> tuple[list, list[dict]]:
-        """从签名租约（或本地缓存）取出 features 列表与可见商品。"""
-        # 能力清单同样以**签名租约**为准（服务端签的 features/entitlements 不可被改），
-        # ``feature_set`` 只是本地缓存，租约不可读时才退回它。
-        lease_features = signed_lease.get("features")
-        if not isinstance(lease_features, list):
-            try:
-                lease_features = json.loads(state.feature_set or "[]")
-            except json.JSONDecodeError:
-                lease_features = []
-        visible_products: list[dict] = []
-        raw_products = signed_lease.get("products")
-        if isinstance(raw_products, list):
-            for product_entry in raw_products:
-                if not isinstance(product_entry, dict) or not isinstance(product_entry.get("name"), str):
-                    continue
-                product_name = product_entry["name"].strip()
-                if not product_name:
-                    continue
-                product_type = product_entry.get("type") if isinstance(product_entry.get("type"), str) else "module"
-                expires_at = product_entry.get("expiresAt") if isinstance(product_entry.get("expiresAt"), str) else None
-                visible_products.append({"name": product_name, "type": product_type, "expiresAt": expires_at})
-        if allowed and not visible_products:
-            visible_products = [{"name": "基础版", "type": "base", "expiresAt": None}]
-        return lease_features, visible_products
+        """兼容入口：实现见 ``status_view.lease_features_and_products``。"""
+        return lease_features_and_products(
+            signed_lease=signed_lease,
+            cached_feature_set=state.feature_set,
+            allowed=allowed,
+        )
 
     def _build_license_status_body(
         self,

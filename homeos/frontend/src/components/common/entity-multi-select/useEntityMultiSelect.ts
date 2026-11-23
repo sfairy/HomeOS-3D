@@ -15,6 +15,7 @@
  */
 import { getEntityDomain } from '@homeos/shared'
 import { ref, computed, watch, nextTick, type ComponentPublicInstance } from 'vue'
+import { inferSuggestDeviceClassFromPlaceholder } from '@/shared/entity/utils/suggest-device-class.util'
 import { useClickOutside } from '@/composables/ui/useClickOutside'
 import { useEntityPickerSession } from '@/composables/entity/useEntityPickerSession'
 import { useEntitiesStore } from '@/stores/entities.store'
@@ -165,15 +166,10 @@ export function useEntityMultiSelect(props: EntityMultiSelectProps, emit: Entity
     })
   }
 
-  /** 当前激活的推荐设备类型（根据占位符智能识别） */
+  /** 当前激活的推荐设备类型（根据占位符智能识别；判据收敛在 shared 里，与 EntityInput 同一份） */
   const activeSuggestDeviceClass = computed(() => {
     if (props.suggestDeviceClass) return props.suggestDeviceClass
-    const hint = (props.placeholder || '').toLowerCase()
-    if (hint.includes('smoke') || hint.includes('烟雾')) return 'smoke'
-    if (hint.includes('gas') || hint.includes('燃气') || hint.includes('methane')) return 'gas'
-    if (hint.includes('water') || hint.includes('leak') || hint.includes('漏水') || hint.includes('水浸'))
-      return 'moisture'
-    return ''
+    return inferSuggestDeviceClassFromPlaceholder(String(props.placeholder || ''))
   })
 
   /**

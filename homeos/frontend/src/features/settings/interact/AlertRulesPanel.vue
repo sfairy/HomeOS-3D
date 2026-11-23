@@ -63,7 +63,7 @@
 
     <p
       v-if="voiceSaveTip"
-      :class="['text-xs px-1', voiceSaveTip.includes('失败') ? 'text-danger' : 'text-success']"
+      :class="['text-xs px-1', voiceSaveFailed ? 'text-danger' : 'text-success']"
     >
       {{ voiceSaveTip }}
     </p>
@@ -580,6 +580,7 @@ const {
   voiceAlertsPending,
   voiceSaving,
   voiceSaveTip,
+  voiceSaveFailed,
   dndSaving,
   dndDirty,
   hasPendingChanges,

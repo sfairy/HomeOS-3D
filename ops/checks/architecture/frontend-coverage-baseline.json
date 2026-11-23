@@ -122,179 +122,223 @@
   "known_gaps": [
     {
       "key": "GET /api/v1/agent/learning/audit",
-      "reason": "学习审计无页面入口（前端只用 /agent/learning 列表）"
+      "reason": "学习审计无页面入口（前端只用 /agent/learning 列表）",
+      "decision": "keep"
     },
     {
       "key": "GET /api/v1/config/all/export",
-      "reason": "旧配置导入导出入口，前端已改用 /system/config/export"
+      "reason": "旧配置导入导出入口，前端已改用 /system/config/export",
+      "decision": "delete-candidate"
     },
     {
       "key": "GET /api/v1/entities/domains",
-      "reason": "域清单未接线（前端从实体列表本地聚合）"
+      "reason": "域清单未接线（前端从实体列表本地聚合）",
+      "decision": "keep"
     },
     {
       "key": "GET /api/v1/events/reports/compare",
-      "reason": "报表对比无页面入口"
+      "reason": "报表对比无页面入口",
+      "decision": "keep"
     },
     {
       "key": "GET /api/v1/events/timeline",
-      "reason": "时间线接口未接线（前端用 /events 分页）"
+      "reason": "时间线接口未接线（前端用 /events 分页）",
+      "decision": "keep"
     },
     {
       "key": "GET /api/v1/modules/interaction3d/climate-capabilities",
-      "reason": "3D 舞台 / HA 自定义面板消费，前端无直接调用"
+      "reason": "3D 舞台 / HA 自定义面板消费，前端无直接调用",
+      "decision": "keep"
     },
     {
       "key": "GET /api/v1/modules/interaction3d/projects/{project_id}/components/{component_id}/config",
-      "reason": "3D 舞台 / HA 自定义面板消费，前端无直接调用"
+      "reason": "3D 舞台 / HA 自定义面板消费，前端无直接调用",
+      "decision": "keep"
     },
     {
       "key": "GET /api/v1/modules/interaction3d/scenes/{scene_id}",
-      "reason": "3D 舞台 / HA 自定义面板消费，前端无直接调用"
+      "reason": "3D 舞台 / HA 自定义面板消费，前端无直接调用",
+      "decision": "keep"
     },
     {
       "key": "GET /api/v1/modules/interaction3d/scenes/{scene_id}/background/{asset_id}",
-      "reason": "3D 舞台 / HA 自定义面板消费，前端无直接调用"
+      "reason": "3D 舞台 / HA 自定义面板消费，前端无直接调用",
+      "decision": "keep"
     },
     {
       "key": "GET /api/v1/modules/interaction3d/water-heater-capabilities",
-      "reason": "3D 舞台 / HA 自定义面板消费，前端无直接调用"
+      "reason": "3D 舞台 / HA 自定义面板消费，前端无直接调用",
+      "decision": "keep"
     },
     {
       "key": "GET /api/v1/notifications/alerts/active",
-      "reason": "告警生命周期无界面入口（通知页只用 /notifications 列表）"
+      "reason": "告警生命周期无界面入口（通知页只用 /notifications 列表）",
+      "decision": "keep"
     },
     {
       "key": "GET /api/v1/security-panel/away-sim/pattern",
-      "reason": "离家模拟无界面开关"
+      "reason": "离家模拟无界面开关",
+      "decision": "keep"
     },
     {
       "key": "GET /api/v1/security-panel/away-sim/status",
-      "reason": "离家模拟无界面开关"
+      "reason": "离家模拟无界面开关",
+      "decision": "keep"
     },
     {
       "key": "GET /api/v1/security/frigate/events",
-      "reason": "Frigate 摄像头事件未接入安防页"
+      "reason": "Frigate 摄像头事件未接入安防页",
+      "decision": "keep"
     },
     {
       "key": "GET /api/v1/system/advisor/report",
-      "reason": "设备使用报告无页面入口"
+      "reason": "设备使用报告无页面入口",
+      "decision": "keep"
     },
     {
       "key": "GET /api/v1/system/client-power/pending",
-      "reason": "待配对列表未展示（前端只接了 dismiss）"
+      "reason": "待配对列表未展示（前端只接了 dismiss）",
+      "decision": "keep"
     },
     {
       "key": "GET /api/v1/system/external/calendar-events",
-      "reason": "外部日历未接入前端"
+      "reason": "外部日历未接入前端",
+      "decision": "keep"
     },
     {
       "key": "GET /api/v1/system/external/dynamic-pricing",
-      "reason": "动态电价未接入前端"
+      "reason": "动态电价未接入前端",
+      "decision": "keep"
     },
     {
       "key": "GET /api/v1/system/external/electricity-price",
-      "reason": "电价查询未接入前端"
+      "reason": "电价查询未接入前端",
+      "decision": "keep"
     },
     {
       "key": "GET /api/v1/system/external/weather-alerts",
-      "reason": "天气预警未接入前端"
+      "reason": "天气预警未接入前端",
+      "decision": "keep"
     },
     {
       "key": "GET /api/v1/system/info",
-      "reason": "系统信息未接线（前端用 /system/health 与 /public/config）"
+      "reason": "系统信息未接线（前端用 /system/health 与 /public/config）",
+      "decision": "keep"
     },
     {
       "key": "GET /api/v1/system/media/scene/presets",
-      "reason": "媒体场景未接线（前端只用播放列表接口）"
+      "reason": "媒体场景未接线（前端只用播放列表接口）",
+      "decision": "keep"
     },
     {
       "key": "GET /orders/{order_no}/refunds",
-      "reason": "退款明细未在后台订单页展示（退款金额取自订单 payload）"
+      "reason": "退款明细未在后台订单页展示（退款金额取自订单 payload）",
+      "decision": "keep"
     },
     {
       "key": "POST /accounts/{account_id}/activate",
-      "reason": "后台账号启用 / 停用未提供入口（只有 PATCH / DELETE）"
+      "reason": "后台账号启用 / 停用未提供入口（只有 PATCH / DELETE）",
+      "decision": "keep"
     },
     {
       "key": "POST /accounts/{account_id}/deactivate",
-      "reason": "后台账号启用 / 停用未提供入口（只有 PATCH / DELETE）"
+      "reason": "后台账号启用 / 停用未提供入口（只有 PATCH / DELETE）",
+      "decision": "keep"
     },
     {
       "key": "POST /api/v1/config/all/import",
-      "reason": "旧配置导入导出入口，前端已改用 /system/config/import"
+      "reason": "旧配置导入导出入口，前端已改用 /system/config/import",
+      "decision": "delete-candidate"
     },
     {
       "key": "POST /api/v1/config/backgrounds/mkdir",
-      "reason": "背景图库刻意不提供新建目录（见 useAssetManager 注释）"
+      "reason": "背景图库刻意不提供新建目录（见 useAssetManager 注释）",
+      "decision": "keep"
     },
     {
       "key": "POST /api/v1/device-profiles/tv/suspend",
-      "reason": "电视遥控只接了 tv/open，挂起 / 熄屏未接线"
+      "reason": "电视遥控只接了 tv/open，挂起 / 熄屏未接线",
+      "decision": "keep"
     },
     {
       "key": "POST /api/v1/ha/sync",
-      "reason": "手动触发 HA 同步未接线（前端只读 /ha/sync/status）"
+      "reason": "手动触发 HA 同步未接线（前端只读 /ha/sync/status）",
+      "decision": "keep"
     },
     {
       "key": "POST /api/v1/notifications/alerts/acknowledge",
-      "reason": "告警生命周期无界面入口（通知页只用 /notifications 列表）"
+      "reason": "告警生命周期无界面入口（通知页只用 /notifications 列表）",
+      "decision": "keep"
     },
     {
       "key": "POST /api/v1/security-panel/away-sim/disable",
-      "reason": "离家模拟无界面开关"
+      "reason": "离家模拟无界面开关",
+      "decision": "keep"
     },
     {
       "key": "POST /api/v1/security-panel/away-sim/enable",
-      "reason": "离家模拟无界面开关"
+      "reason": "离家模拟无界面开关",
+      "decision": "keep"
     },
     {
       "key": "POST /api/v1/security-panel/events/ack",
-      "reason": "安防事件确认未接线（前端只用 /security-panel/events 列表）"
+      "reason": "安防事件确认未接线（前端只用 /security-panel/events 列表）",
+      "decision": "keep"
     },
     {
       "key": "POST /api/v1/security/frigate/ack",
-      "reason": "Frigate 摄像头事件未接入安防页"
+      "reason": "Frigate 摄像头事件未接入安防页",
+      "decision": "keep"
     },
     {
       "key": "POST /api/v1/system/advisor/report/clear",
-      "reason": "设备使用报告无页面入口"
+      "reason": "设备使用报告无页面入口",
+      "decision": "keep"
     },
     {
       "key": "POST /api/v1/system/external/dynamic-pricing/sync",
-      "reason": "动态电价未接入前端"
+      "reason": "动态电价未接入前端",
+      "decision": "keep"
     },
     {
       "key": "POST /api/v1/system/media/group/sync",
-      "reason": "多房间音频分组未接线"
+      "reason": "多房间音频分组未接线",
+      "decision": "keep"
     },
     {
       "key": "POST /api/v1/system/media/group/unjoin",
-      "reason": "多房间音频分组未接线"
+      "reason": "多房间音频分组未接线",
+      "decision": "keep"
     },
     {
       "key": "POST /api/v1/system/media/scene",
-      "reason": "媒体场景未接线（前端只用播放列表接口）"
+      "reason": "媒体场景未接线（前端只用播放列表接口）",
+      "decision": "keep"
     },
     {
       "key": "POST /store/v1/account/email",
-      "reason": "前台未提供修改邮箱入口"
+      "reason": "前台未提供修改邮箱入口",
+      "decision": "keep"
     },
     {
       "key": "POST /store/v1/account/email/verify",
-      "reason": "前台未提供修改邮箱入口"
+      "reason": "前台未提供修改邮箱入口",
+      "decision": "keep"
     },
     {
       "key": "POST /store/v1/verifications/verify",
-      "reason": "验证码随注册 / 改密一并提交，独立校验接口未使用"
+      "reason": "验证码随注册 / 改密一并提交，独立校验接口未使用",
+      "decision": "keep"
     },
     {
       "key": "PUT /api/v1/notifications/preferences",
-      "reason": "通知偏好未接线（前端只用 /notifications/settings）"
+      "reason": "通知偏好未接线（前端只用 /notifications/settings）",
+      "decision": "keep"
     },
     {
       "key": "PUT /api/v1/projects/{project_id}/active",
-      "reason": "前端统一走 PUT /config/project/active"
+      "reason": "前端统一走 PUT /config/project/active",
+      "decision": "keep"
     }
   ]
 }

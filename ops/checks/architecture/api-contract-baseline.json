@@ -2,8 +2,8 @@
   "description": "两个后端的 API 契约覆盖率棘轮：逐文件统计 operations / response_model / status_code，任一计数下降即失败",
   "rules": "只认装饰器或 add_api_route 上显式声明的 response_model= / status_code=",
   "totals": {
-    "operations": 512,
-    "response_model": 10,
+    "operations": 508,
+    "response_model": 14,
     "status_code": 35
   },
   "files": {
@@ -54,7 +54,7 @@
     },
     "homeos/backend/src/api/device_profile.py": {
       "operations": 12,
-      "response_model": 0,
+      "response_model": 2,
       "status_code": 0
     },
     "homeos/backend/src/api/device_timer.py": {
@@ -184,7 +184,7 @@
     },
     "homeos/backend/src/api/system/core.py": {
       "operations": 11,
-      "response_model": 0,
+      "response_model": 2,
       "status_code": 0
     },
     "homeos/backend/src/api/system/lifestyle.py": {
@@ -203,7 +203,7 @@
       "status_code": 0
     },
     "homeos/backend/src/api/ui_config.py": {
-      "operations": 22,
+      "operations": 18,
       "response_model": 0,
       "status_code": 0
     },

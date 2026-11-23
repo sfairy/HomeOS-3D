@@ -23,53 +23,53 @@
     "ops"
   ],
   "totals": {
-    "sources": 3583,
-    "lines": 702517,
+    "sources": 3612,
+    "lines": 707985,
     "clones": 157,
-    "duplicatedLines": 2613,
-    "percentage": 0.3719,
-    "tokens": 4118525,
-    "duplicatedTokens": 12698
+    "duplicatedLines": 2609,
+    "percentage": 0.3685,
+    "tokens": 4148551,
+    "duplicatedTokens": 12634
   },
   "byFormat": {
     "css": {
       "sources": 38,
-      "lines": 3355,
+      "lines": 3346,
       "duplicatedLines": 0,
       "percentage": 0,
       "clones": 0
     },
     "html": {
       "sources": 415,
-      "lines": 28307,
+      "lines": 28304,
       "duplicatedLines": 275,
-      "percentage": 0.9715,
+      "percentage": 0.9716,
       "clones": 20
     },
     "javascript": {
-      "sources": 296,
-      "lines": 42525,
-      "duplicatedLines": 188,
-      "percentage": 0.4421,
+      "sources": 300,
+      "lines": 43489,
+      "duplicatedLines": 184,
+      "percentage": 0.4231,
       "clones": 13
     },
     "python": {
-      "sources": 695,
-      "lines": 169034,
+      "sources": 713,
+      "lines": 172331,
       "duplicatedLines": 523,
-      "percentage": 0.3094,
+      "percentage": 0.3035,
       "clones": 39
     },
     "typescript": {
-      "sources": 1715,
-      "lines": 372463,
+      "sources": 1722,
+      "lines": 373680,
       "duplicatedLines": 1627,
-      "percentage": 0.4368,
+      "percentage": 0.4354,
       "clones": 85
     },
     "vue": {
       "sources": 424,
-      "lines": 86833,
+      "lines": 86835,
       "duplicatedLines": 0,
       "percentage": 0,
       "clones": 0
@@ -243,12 +243,6 @@
       "first": "homeos/backend/src/api/device_profile.py",
       "second": "homeos/backend/src/api/media.py",
       "lines": 19
-    },
-    {
-      "fingerprint": "2bac10a7270a1652ec410377e60c6ef460f655c6",
-      "first": "ops/checks/check_any_baseline.mjs",
-      "second": "ops/checks/check_hardcoded_styles.mjs",
-      "lines": 15
     },
     {
       "fingerprint": "2cd585137774455fa7ae592f640d31bb8bfd71f5",
@@ -843,6 +837,12 @@
       "first": "homeos/frontend/src/studio/app/renderer/panel-seams/runtime/optimistic-state.ts",
       "second": "homeos/frontend/src/studio/app/renderer/panel-seams/runtime/optimistic-state.ts",
       "lines": 14
+    },
+    {
+      "fingerprint": "d59acf10f77557b078fd6d707634b27624b9094a",
+      "first": "ops/checks/check_any_baseline.mjs",
+      "second": "ops/checks/check_hardcoded_styles.mjs",
+      "lines": 11
     },
     {
       "fingerprint": "d5d13c77fe0f5c96fdad445a4c355d710c86d8e5",

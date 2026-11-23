@@ -7,6 +7,26 @@ import { HVAC_MODE_LABELS, FAN_MODE_LABELS, PRESET_MODE_LABELS } from '@/shared/
 
 export { HVAC_MODE_LABELS, FAN_MODE_LABELS, PRESET_MODE_LABELS }
 
+/**
+ * 开关态 / 运行态判据的**唯一实现**在 `@/shared/device/climate-power`。
+ *
+ * 这里再导出一层是给 Vue 侧（弹窗、仪表盘卡片）用的固定入口：它们与 3D 面板共用
+ * 同一份判据，不必各自写 `state === 'off'`。别在本文件里重新实现这几个函数 ——
+ * 浴霸「主开关关着但仍在换气」这类语义只有一处能改对。
+ */
+export {
+  bathHeaterModeUsesAirflow,
+  bathHeaterPresentationMode,
+  climateIsPoweredOn,
+  climateIsRunning,
+  climatePresentationMode,
+  normalizeClimateModeKey,
+  WATER_HEATER_HEATING_TOLERANCE_C,
+  type ClimateDeviceTypeInput,
+  type ClimateRenderType,
+  type ClimateStateSnapshot,
+} from '@/shared/device/climate-power'
+
 const FAN_MODE_EMOJI: Record<string, string> = {
   auto: '🤖',
   low: '🌬',

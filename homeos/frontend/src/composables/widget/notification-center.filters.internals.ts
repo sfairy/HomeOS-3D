@@ -35,10 +35,13 @@ interface NotificationCenterPrefs {
 
 /** 判断通知是否为「设备离线/恢复在线」类型。 */
 function isOfflineNotification(notification: NotificationCenterItem): boolean {
+  // 结构化字段优先：后端在 ``_decorate_notification`` 里写入 ``monitorKind``。
   if (notification.monitorKind === 'offline' || notification.monitorKind === 'online') return true
   // HA（中枢）失联 / 恢复不是「设备离线」：它恰恰是解释「为什么一批设备离线告警没来」的
   // 系统性通知，绝不能被「设备离线提醒」开关连带吞掉（后端也已把它归为不可静音类）。
   if (notification.source === 'ha-connection') return false
+  // 以下文案匹配只为历史条目（旧版本入库的通知没有 monitorKind）：不要在新代码里
+  // 依赖 message 文案做业务判断 —— 改一句文案就改一次行为。
   const message = notification.message || ''
   return (
     notification.source === 'device-monitor' ||
@@ -52,6 +55,7 @@ function isOfflineNotification(notification: NotificationCenterItem): boolean {
 /** 判断通知是否为「低电量」类型。 */
 function isLowBatteryNotification(notification: NotificationCenterItem): boolean {
   if (notification.monitorKind === 'low_battery') return true
+  // 同上：文案匹配仅兜底历史条目。
   const message = notification.message || ''
   return message.includes('电量') || message.includes('低电量') || message.includes('battery')
 }

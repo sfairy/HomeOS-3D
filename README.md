@@ -219,12 +219,39 @@ bun run dev -- --lan     # 局域网
 
 | 组 | 管什么 | 项 |
 | --- | --- | --- |
-| `static` | typecheck / Biome / ruff / node 类型、**工具链版本一致性**、场景资源、`any` 与重复代码棘轮、画布断点与缩放、DOM 工厂、多边形与场景载荷不变量、样式棘轮、静默 `except`、async DB、Python 锁与镜像导入、PEP 758、WS 鉴权、路由基线与 API 契约、文件体积 / 复杂度、**设备画像自检**、**备份域自检**、**事件日志写入自检**、studio 拆分、前后端依赖方向 | 43 |
+| `static` | 类型 / lint / 契约 / 棘轮 / 不变量 / 业务规则（见下表标签） | 57 |
 | `model` | 几何、槽位、槽位角色、材质角色、资产、目录布局、中文名索引 | 7 |
-| `build` | 清 `dist` → 构建与产物断言 → 预压缩 → chunk 初始化顺序 → 字体子集 | 4 |
+| `build` | 清 `dist` → 构建与产物断言 → 预压缩 → chunk 初始化顺序 → 字体子集 | 5 |
 | `infra` | shellcheck / actionlint / compose ×3 / Caddy 格式与校验 / Cython | 9 |
 
-`bun run gate` = static + model。`node ops/gates.mjs --all` 含 build + infra。缺工具本机 SKIP、CI 失败。
+static 的 57 条按**标签**分六类（`--list` 按此打印，`--tag` 可整类跑）：
+
+| 标签 | 含义 | 项 |
+| --- | --- | --- |
+| `types` | 编译 / 类型 | 2 |
+| `lint` | 格式与语法（Biome / ruff / CSS 语法 / 受限写法） | 5 |
+| `contract` | 跨端或跨文件契约（工具链版本、WS 鉴权、路由基线、设备 kind 表） | 14 |
+| `ratchet` | 只许降的计数基线（`any` / 重复 / 代码量 / 复杂度 / 静默 except…） | 16 |
+| `invariant` | 纯逻辑 / 几何 / 状态机不变量（含 3D 放置与场景载荷） | 17 |
+| `business` | 业务规则自检（19 个 `*_selftest.py` 合并为一条步骤）+ 前后端单测 | 3 |
+
+常用入口：
+
+```bash
+bun run gate                 # static + model（默认）
+bun run gate:fast            # 日常快检：static 的 types + lint
+node ops/gates.mjs --tag ratchet            # 只跑某一类
+node ops/gates.mjs --step energy            # 只跑名字匹配的步骤（子串）
+node ops/gates.mjs --group static --jobs 1  # 串行逐条看
+node ops/gates.mjs --list                   # 按组 / 标签打印清单
+```
+
+默认并行 4（`--jobs` / `HOMEOS_GATE_JOBS` 可改）；`build` / `infra` 有组内先后依赖，恒为串行。
+并行模式下通过的步骤只留一行结果，失败才展开完整输出 —— 50 条绿色日志不会再把失败原因淹掉。
+缺工具本机 SKIP、CI 失败。
+
+`static` 新增检查必须在 `ops/gates.mjs` 的 `TAG_GROUPS` 里登记标签，否则启动即报错：
+分类过期比没有分类更糟。
 
 棘轮（`any` / 重复代码 / 代码量 / 样式 / 复杂度 / 文件体积）只许降。`update:<同名>(-baseline)` 是放宽手段，
 必须在提交说明里写清为什么（拆文件导致的平移要说明「总量不变」）。
@@ -241,16 +268,20 @@ bun run dev -- --lan     # 局域网
 （上游工具链常还没支持最新 minor，强行要求相等会把「升 Python」卡在工具上），但绝不允许超前 ——
 超前等于放行跑不了的语法。
 
-`check:device-profile`（52 项）、`check:backup`（29 项）与 `check:event-log`（25 项）是业务规则层
-「跑断言」的门禁（`ops/checks/*_selftest.py`，标准库 + 运行期依赖，不需要 pytest）：
+业务规则层「跑断言」的门禁是 `ops/checks/*_selftest.py`（标准库 + 运行期依赖，不需要 pytest），
+门禁里由 `check:selftests` 一个解释器串完 19 个模块；单项调试仍用原脚本
+（`bun run check:device-profile`、`check:backup`、`check:event-log` …）：
 
-- 设备画像：分类规则、别名归一与房间作用域、在线 / 可用二分、确认与审计、房间默认设备校验、
-  climate / water_heater 命令校验、快路径不 fail-open；
-- 备份：排除项语义（`backups/` 永不算业务数据）、超限报错必须点名占位最大项、
+- 设备画像（58 项）：分类规则、别名归一与房间作用域、在线 / 可用二分、确认与审计、
+  房间默认设备校验、climate / water_heater 命令校验、快路径不 fail-open；
+- 备份（29 项）：排除项语义（`backups/` 永不算业务数据）、超限报错必须点名占位最大项、
   迁移快照按字节预算清理且永不清空；
-- 事件日志：能耗副作用失败时**不得**重复写事件日志、批内去重、清空世代，以及
+- 事件日志（37 项）：能耗副作用失败时**不得**重复写事件日志、批内去重、清空世代，以及
   「保留策略的键 / 表 / 时间列必须三处对齐」（写错列名会静默删 0 行）。
+- 其余：用水 / 用能 / 室内环境监测、电价与逐小时聚合、昼夜节律、日出日落、安防进入延时、
+  设备倒计时、通知静音、公开配置、商店入口、UI 素材、设备时序、来源判定、命令出口。
 
+合并只改执行方式：省掉 19 次 Python 启动与重复导入，断言一条不少；失败仍按模块名定位。
 仓库没有通用测试套件，其余 `check:*` 都是「读源码 / 读产物做不变量断言」（几何、场景载荷、DOM 工厂等）。
 
 ### 调试

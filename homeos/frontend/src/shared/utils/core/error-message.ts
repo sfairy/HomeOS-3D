@@ -117,7 +117,11 @@ export function isLicenseInactiveError(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false
   const e = error as AxiosLikeError
   if (e.response?.status !== 401) return false
+  // 结构化码优先：信封里有两个字段（``apiErrorCode`` 是给客户端判定的分类码，
+  // ``errorCode`` 是 Nest 形状的稳定码），任一命中即可，不必解析文案。
   if (e.response?.data?.apiErrorCode === 'LICENSE_INACTIVE') return true
+  if ((e.response?.data as { errorCode?: unknown } | undefined)?.errorCode === 'LICENSE_INACTIVE') return true
+  // 文案兜底仅用于「码被代理 / 包装层丢掉」的场景：不要把它当成主判据。
   const text = flattenApiMessage(e.response?.data?.message)
   return text.includes('LICENSE_INACTIVE') || text.includes('未激活')
 }

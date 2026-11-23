@@ -20,18 +20,14 @@
  *   node ops/checks/check_any_baseline.mjs --json     # 机器可读输出
  */
 import { readFileSync, writeFileSync } from 'node:fs'
-import { join, relative, resolve } from 'node:path'
+import { join, relative } from 'node:path'
 
+import { parseArgs } from '../lib/args.mjs'
 import { walkFiles } from '../lib/walk.mjs'
 
-const args = process.argv.slice(2)
-const argOf = (name, fallback) => {
-  const index = args.indexOf(`--${name}`)
-  return index >= 0 && args[index + 1] ? args[index + 1] : fallback
-}
-const repoRoot = resolve(argOf('root', resolve(import.meta.dirname, '../..')))
-const update = args.includes('--update')
-const asJson = args.includes('--json')
+const { has, repoRoot } = parseArgs()
+const update = has('update')
+const asJson = has('json')
 
 const SCOPE = 'homeos/frontend/src/studio'
 const BASELINE = join(repoRoot, 'ops/checks/any-baseline.json')
@@ -55,6 +51,35 @@ for (const file of files) {
   if (count === 0) continue
   counts[relative(repoRoot, file)] = count
   total += count
+}
+
+/**
+ * 按目录汇总存量：基线是逐文件的，「总数 16914」本身不告诉任何人该先收哪一块。
+ * 分组刻意用业务分区而不是 `studio/` 一整块：app（编辑器/渲染）与 runtime（舞台逐文件
+ * 产物）的容忍度不同，混在一起看会掩盖「舞台产物本可以更干净」这个事实。
+ */
+const AREA_RULES = [
+  ['studio/app/3d-studio', 'studio/app/3d-studio'],
+  ['studio/app/editor', 'studio/app/editor'],
+  ['studio/app/renderer', 'studio/app/renderer'],
+  ['studio/app/bridge', 'studio/app/bridge'],
+  ['studio/app/shared', 'studio/app/shared'],
+  ['studio/app/display', 'studio/app/display'],
+  ['studio/app/others', 'studio/app'],
+  ['studio/runtime', 'studio/runtime'],
+  ['studio/chrome', 'studio/chrome'],
+  ['studio/platform', 'studio/platform'],
+]
+const byArea = new Map(AREA_RULES.map(([label]) => [label, 0]))
+for (const [file, count] of Object.entries(counts)) {
+  const area = AREA_RULES.find(
+    ([, prefix]) => file.startsWith(`homeos/frontend/src/${prefix}/`) || file === `homeos/frontend/src/${prefix}`,
+  )
+  const label = area ? area[0] : 'others'
+  byArea.set(label, (byArea.get(label) ?? 0) + count)
+}
+for (const [label, count] of [...byArea]) {
+  if (count === 0) byArea.delete(label)
 }
 
 if (update) {
@@ -94,7 +119,7 @@ if (problems.length === 0 && total > baselineTotal) {
 }
 
 if (asJson) {
-  console.log(JSON.stringify({ total, baselineTotal, problems, shrank }, null, 2))
+  console.log(JSON.stringify({ total, baselineTotal, problems, shrank, byArea }, null, 2))
 } else if (problems.length > 0) {
   console.error(`any 棘轮失败：${problems.length} 个文件增加了 any`)
   for (const line of problems) console.error(`  - ${line}`)
@@ -103,6 +128,12 @@ if (asJson) {
 } else {
   const note = shrank > 0 ? `，比基线少 ${shrank} 处（可跑 --update 压低基线）` : ''
   console.log(`any 棘轮通过：${Object.keys(counts).length} 个文件 / 共 ${total} 处${note}`)
+  // 按目录把存量债务摊开：单个总数看不出「钱花在哪」，也就没人知道该先收哪一块。
+  console.log('  存量分布（按目录）：')
+  for (const [area, count] of byArea) {
+    const share = total > 0 ? ((count / total) * 100).toFixed(1) : '0.0'
+    console.log(`    ${area.padEnd(28)} ${String(count).padStart(6)} 处  ${share.padStart(5)}%`)
+  }
 }
 
 process.exit(problems.length > 0 ? 1 : 0)

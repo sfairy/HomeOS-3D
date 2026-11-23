@@ -40,7 +40,7 @@ from ..domains.store import (
 from ..platform.core.db.db_exec import run_db
 from ..platform.core.db.models import LoginSession, User
 from ..platform.core.http.diagnostics import update_request_context
-from ..platform.core.http.errors import BusinessException, unauthorized
+from ..platform.core.http.errors import BusinessException, ErrorCode, api_error, unauthorized
 from ..platform.security.auth_context import invalidate_session_cache
 from ..platform.security.client_address import (
     client_ip_from_request,
@@ -212,10 +212,7 @@ async def send_verification(
     store_purpose: VerificationPurpose
     if payload.purpose == "register":
         if await run_db(_has_existing_account, session_factory):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="本机已有账号，请直接登录或重置密码。",
-            )
+            raise BusinessException(ErrorCode.CONFLICT, api_error("AUTH_LOCAL_ACCOUNT_EXISTS_RESET"))
         store_purpose = "homeos_register"
     else:
         if not await run_db(_email_registered, session_factory, payload.email):
@@ -245,10 +242,7 @@ async def send_verification(
 def _assert_registrable(session: Session) -> None:
     """注册判据：本机既没有可用账号，也没有可接管的无凭据行（否则 409）。"""
     if _claimable_credentialless_user(session) is None and _has_any_user(session):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="本机已有账号，请直接登录。",
-        )
+        raise BusinessException(ErrorCode.CONFLICT, api_error("AUTH_LOCAL_ACCOUNT_EXISTS"))
 
 
 def _registration_precheck(session_factory) -> None:
@@ -302,7 +296,7 @@ def _register_in_transaction(
             # 接管时这一行就是「自己」，不能把自己判成冲突（否则用回原账号名会被 409）。
             conflict_query = conflict_query.where(User.id != claim.id)
         if session.scalar(conflict_query) is not None:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="账号或邮箱已被使用。")
+            raise BusinessException(ErrorCode.CONFLICT, api_error("AUTH_ACCOUNT_TAKEN"))
         if claim is not None:
             user = claim
             user.username = username
@@ -325,7 +319,7 @@ def _register_in_transaction(
             session.flush()
         except IntegrityError as error:
             # 兜底：users_email_idx / users.username 唯一约束（并发注册绕过了上面的判据）。
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="账号或邮箱已被使用。") from error
+            raise BusinessException(ErrorCode.CONFLICT, api_error("AUTH_ACCOUNT_TAKEN")) from error
         # 只清该账号自己的会话：接管无凭据行后旧会话必须失效，但不能误踢别的账号。
         session.execute(delete(LoginSession).where(LoginSession.user_id == user.id))
         token = new_session_token()
@@ -373,21 +367,12 @@ def _change_password_in_db(
     with session_factory() as session:
         account = session.get(User, user_id)
         if account is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="登录状态已失效，请重新登录。",
-            )
+            raise BusinessException(ErrorCode.UNAUTHORIZED, api_error("AUTH_LOGIN_STATE_EXPIRED"))
         if not verify_password(current_password, account.password):
             # 用 422 而不是 403：403 在本项目里还表示「CSRF 失效 / 授权受限」，会误导前端。
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="当前密码不正确。",
-            )
+            raise BusinessException(ErrorCode.VALIDATION_FAILED, api_error("AUTH_CURRENT_PASSWORD_INCORRECT"))
         if verify_password(new_password, account.password):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="新密码与当前密码相同。",
-            )
+            raise BusinessException(ErrorCode.CONFLICT, api_error("AUTH_PASSWORD_UNCHANGED"))
         account.password = hash_password(new_password)
         clear_login_sessions(session, account.id)
         token = create_login_session(session, request, account.id, max_age_seconds=max_age_seconds)
@@ -494,9 +479,10 @@ def _login(session: Session, payload: LoginRequest, request: Request, response: 
         account_limiter.retry_after(account_key),
     )
     if any(limiter.blocked(key) for key in limiter_keys) or account_limiter.blocked(account_key):
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="登录失败次数过多，请稍后再试。",
+        raise BusinessException(
+            ErrorCode.VALIDATION_FAILED,
+            api_error("AUTH_LOGIN_RATE_LIMITED"),
+            http_status=status.HTTP_429_TOO_MANY_REQUESTS,
             headers=retry_after_headers(retry_after),
         )
     user = session.scalar(select(User).where(or_(User.username == account, func.lower(User.email) == account_lower)))
@@ -507,10 +493,7 @@ def _login(session: Session, payload: LoginRequest, request: Request, response: 
         for key in limiter_keys:
             limiter.record_failure(key)
         account_limiter.record_failure(account_key)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="账号或密码错误。",
-        )
+        raise BusinessException(ErrorCode.UNAUTHORIZED, api_error("AUTH_CREDENTIALS_INVALID"))
     for key in limiter_keys:
         limiter.reset(key)
     account_limiter.reset(account_key)
@@ -576,10 +559,7 @@ async def reset_password(
     session_factory = request.app.state.database.session_factory
     result = await run_db(_reset_password_in_db, session_factory, payload.email, payload.password)
     if result is None:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="邮箱或验证码无效。",
-        )
+        raise BusinessException(ErrorCode.VALIDATION_FAILED, api_error("AUTH_VERIFICATION_INVALID"))
     user_id, username = result
     invalidate_session_cache(None)
     clear_session_cookie(response, request.app.state.settings, request)

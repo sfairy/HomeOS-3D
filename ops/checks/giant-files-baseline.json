@@ -1,0 +1,167 @@
+{
+  "minLines": 1500,
+  "totals": {
+    "lines": 61304,
+    "imports": 797,
+    "depsFns": 39,
+    "depsEntries": 1930
+  },
+  "files": {
+    "homeos/backend/src/api/ha/routes.py": {
+      "lines": 1657,
+      "imports": 41,
+      "depsFns": 0,
+      "depsEntries": 0
+    },
+    "homeos/backend/src/bootstrap/lifespan.py": {
+      "lines": 1695,
+      "imports": 93,
+      "depsFns": 0,
+      "depsEntries": 0
+    },
+    "homeos/backend/src/domains/agent/runtime/service.py": {
+      "lines": 1670,
+      "imports": 35,
+      "depsFns": 0,
+      "depsEntries": 0
+    },
+    "homeos/backend/src/domains/license/service.py": {
+      "lines": 1612,
+      "imports": 29,
+      "depsFns": 0,
+      "depsEntries": 0
+    },
+    "homeos/backend/src/domains/state_store/entity_references.py": {
+      "lines": 1548,
+      "imports": 20,
+      "depsFns": 0,
+      "depsEntries": 0
+    },
+    "homeos/backend/src/modules/interaction3d/api.py": {
+      "lines": 1604,
+      "imports": 50,
+      "depsFns": 0,
+      "depsEntries": 0
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/items/item-catalog.ts": {
+      "lines": 2171,
+      "imports": 2,
+      "depsFns": 0,
+      "depsEntries": 0
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/boot.ts": {
+      "lines": 4199,
+      "imports": 62,
+      "depsFns": 17,
+      "depsEntries": 498
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/studio-render-loop.ts": {
+      "lines": 3027,
+      "imports": 37,
+      "depsFns": 0,
+      "depsEntries": 0
+    },
+    "homeos/frontend/src/studio/app/3d-studio/loaders/studio-external-models.ts": {
+      "lines": 2571,
+      "imports": 35,
+      "depsFns": 0,
+      "depsEntries": 0
+    },
+    "homeos/frontend/src/studio/app/3d-studio/materials/studio-model-material-roles.ts": {
+      "lines": 1569,
+      "imports": 5,
+      "depsFns": 0,
+      "depsEntries": 0
+    },
+    "homeos/frontend/src/studio/app/3d-studio/plan/geometry.ts": {
+      "lines": 2039,
+      "imports": 2,
+      "depsFns": 0,
+      "depsEntries": 0
+    },
+    "homeos/frontend/src/studio/app/3d-studio/plan/studio-plan-item-drawing.ts": {
+      "lines": 1658,
+      "imports": 14,
+      "depsFns": 0,
+      "depsEntries": 0
+    },
+    "homeos/frontend/src/studio/app/3d-studio/plan/studio-plan2-contact-shadows.ts": {
+      "lines": 1527,
+      "imports": 5,
+      "depsFns": 0,
+      "depsEntries": 0
+    },
+    "homeos/frontend/src/studio/app/bridge/editor.ts": {
+      "lines": 2787,
+      "imports": 14,
+      "depsFns": 0,
+      "depsEntries": 0
+    },
+    "homeos/frontend/src/studio/app/editor/component-templates.ts": {
+      "lines": 1772,
+      "imports": 5,
+      "depsFns": 0,
+      "depsEntries": 0
+    },
+    "homeos/frontend/src/studio/app/editor/home/lifecycle/boot.ts": {
+      "lines": 4917,
+      "imports": 78,
+      "depsFns": 15,
+      "depsEntries": 512
+    },
+    "homeos/frontend/src/studio/app/renderer/panel-renderer.ts": {
+      "lines": 2140,
+      "imports": 44,
+      "depsFns": 0,
+      "depsEntries": 0
+    },
+    "homeos/frontend/src/studio/app/renderer/panel-seams/popups/custom-popup.ts": {
+      "lines": 2074,
+      "imports": 15,
+      "depsFns": 0,
+      "depsEntries": 0
+    },
+    "homeos/frontend/src/studio/entries/StudioView.vue": {
+      "lines": 1766,
+      "imports": 15,
+      "depsFns": 0,
+      "depsEntries": 0
+    },
+    "homeos/frontend/src/studio/runtime/config-ui/config-editor/rendering/panel-assembly.ts": {
+      "lines": 3475,
+      "imports": 30,
+      "depsFns": 0,
+      "depsEntries": 0
+    },
+    "homeos/frontend/src/studio/runtime/config-ui/light-range-editor.ts": {
+      "lines": 1568,
+      "imports": 3,
+      "depsFns": 0,
+      "depsEntries": 0
+    },
+    "homeos/frontend/src/studio/runtime/core/runtime.ts": {
+      "lines": 2739,
+      "imports": 26,
+      "depsFns": 0,
+      "depsEntries": 0
+    },
+    "homeos/frontend/src/studio/runtime/core/stage.ts": {
+      "lines": 4866,
+      "imports": 81,
+      "depsFns": 7,
+      "depsEntries": 920
+    },
+    "homeos/frontend/src/studio/runtime/core/stage/stage-handlers.ts": {
+      "lines": 2050,
+      "imports": 33,
+      "depsFns": 0,
+      "depsEntries": 0
+    },
+    "homeos/frontend/src/studio/runtime/security/security-editor.ts": {
+      "lines": 2603,
+      "imports": 23,
+      "depsFns": 0,
+      "depsEntries": 0
+    }
+  }
+}

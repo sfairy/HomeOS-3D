@@ -23,7 +23,7 @@ def _rss_bytes() -> int:
         for line in status.splitlines():
             if line.startswith("VmRSS:"):
                 return int(line.split()[1]) * 1024
-    except (OSError, ValueError, IndexError):
+    except (OSError, ValueError, IndexError):  # fmt: skip
         pass
     try:
         import resource
@@ -45,16 +45,27 @@ def _memory_limit_bytes() -> int:
             raw = Path(candidate).read_text(encoding="utf-8").strip()
             if raw and raw != "max" and int(raw) > 0:
                 return int(raw)
-        except (OSError, ValueError):
+        except (OSError, ValueError):  # fmt: skip
             continue
     try:
         pages = os.sysconf("SC_PHYS_PAGES")
         page_size = os.sysconf("SC_PAGE_SIZE")
         if pages > 0 and page_size > 0:
             return int(pages) * int(page_size)
-    except (ValueError, OSError, AttributeError):
+    except (ValueError, OSError, AttributeError):  # fmt: skip
         pass
     return 1024 * _MB
+
+
+#: ``get_process_memory_health`` 产出的键集合（响应模型必须全部声明，否则指标静默消失）。
+MEMORY_HEALTH_FIELDS = (
+    "memory",
+    "memoryMb",
+    "memoryLimitMb",
+    "rssMb",
+    "heapUsedMb",
+    "heapTotalMb",
+)
 
 
 def get_process_memory_health() -> dict[str, int]:
@@ -73,4 +84,4 @@ def get_process_memory_health() -> dict[str, int]:
     }
 
 
-__all__ = ["get_process_memory_health"]
+__all__ = ["MEMORY_HEALTH_FIELDS", "get_process_memory_health"]

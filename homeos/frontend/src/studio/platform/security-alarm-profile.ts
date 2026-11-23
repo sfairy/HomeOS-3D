@@ -37,6 +37,16 @@ export const SMOKE_ENUM_STATES: Record<string, string> = {
 /** HA event.* 烟雾事件类型 */
 export const SMOKE_EVENT_TYPE = '检测到高浓度烟雾'
 
+/**
+ * 小米气感 / 烟感的 ``select`` 选项值（**集成下发的数据，不是界面文案**）。
+ *
+ * 这些字符串来自 HA 集成的 option 列表，前端改不了本地化：只能按值匹配。集中在这里是为了
+ * 一眼看出「这些不是可以直接改的提示语」；集成换词时必须同步本表与 `GAS/SMOKE_ENUM_STATES`。
+ */
+const ENUM_OPTION_NORMAL = '监测正常'
+const ENUM_OPTION_SMOKE_ALARM = '烟雾告警'
+const ENUM_OPTION_GAS_ALARM = '天然气泄漏报警'
+
 export function securityAlarmEntityMode(kind: string, entity: any = {}, stateEntry: any = {}) {
   const stateObject = stateEntry?.newState || stateEntry
   const deviceClass =
@@ -58,8 +68,10 @@ export function securityAlarmEntityMode(kind: string, entity: any = {}, stateEnt
   if (!['gas', 'smoke'].includes(kind) || !/^sensor\.[a-z0-9_]+$/.test(entityId)) return ''
   if (deviceClass && deviceClass !== 'enum') return ''
   const options = stateObject?.attributes?.options || entity?.attributes?.options || entity?.options
-  const alarmOption = kind === 'smoke' ? '烟雾告警' : '天然气泄漏报警'
-  return Array.isArray(options) && options.includes('监测正常') && options.includes(alarmOption) ? kind + '-enum' : ''
+  const alarmOption = kind === 'smoke' ? ENUM_OPTION_SMOKE_ALARM : ENUM_OPTION_GAS_ALARM
+  return Array.isArray(options) && options.includes(ENUM_OPTION_NORMAL) && options.includes(alarmOption)
+    ? kind + '-enum'
+    : ''
 }
 
 function entityMatchesAlarmKind(entity: HaEntityEntry, kind: string) {

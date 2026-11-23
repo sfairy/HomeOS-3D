@@ -402,7 +402,7 @@ class NotificationService:
             if not self._ha_states_trustworthy() or not self._is_still_offline(entity_id):
                 return
             name = friendly_name or entity_id
-            sent = await self.notify("warn", f"{name} 已离线", "device-monitor", entity_id)
+            sent = await self.notify("warn", f"{name} 已离线", "device-monitor", entity_id, {"monitorKind": "offline"})
             if not sent:
                 return
             self.set_cooldown(cooldown_key, float(cfg.get("offlineCooldownMin") or 30))
@@ -518,7 +518,9 @@ class NotificationService:
         if self.is_in_cooldown(cooldown_key):
             return
         name = friendly_name or entity_id
-        sent = await self.notify("warn", f"{name} 电量低 ({level}%)", "device-monitor", entity_id)
+        sent = await self.notify(
+            "warn", f"{name} 电量低 ({level}%)", "device-monitor", entity_id, {"monitorKind": "low_battery"}
+        )
         if not sent:
             return
         self.set_cooldown(cooldown_key, float(cfg.get("lowBatteryCooldownMin") or 120))

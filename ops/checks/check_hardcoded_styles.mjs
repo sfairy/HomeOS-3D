@@ -29,19 +29,15 @@
  *   node ops/checks/check_hardcoded_styles.mjs --json    # 机器可读输出
  */
 import { readFileSync, writeFileSync } from 'node:fs'
-import { join, relative, resolve } from 'node:path'
+import { join, relative } from 'node:path'
 
+import { parseArgs } from '../lib/args.mjs'
 import { walkFiles } from '../lib/walk.mjs'
 
-const args = process.argv.slice(2)
-const argOf = (name, fallback) => {
-  const index = args.indexOf(`--${name}`)
-  return index >= 0 && args[index + 1] ? args[index + 1] : fallback
-}
+const { has, repoRoot } = parseArgs()
 
-const repoRoot = resolve(argOf('root', resolve(import.meta.dirname, '../..')))
-const update = args.includes('--update')
-const asJson = args.includes('--json')
+const update = has('update')
+const asJson = has('json')
 const BASELINE = join(repoRoot, 'ops/checks/hardcoded-styles-baseline.json')
 
 /** 与 check_frontend_complexity.mjs 保持一致的两棵前端源码树。 */

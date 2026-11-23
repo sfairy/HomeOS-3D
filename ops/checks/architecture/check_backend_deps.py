@@ -155,9 +155,7 @@ HOMEOS = Profile(
 STORE = Profile(
     name="store",
     root=REPO_ROOT / "homeos-store" / "backend" / "src",
-    top=frozenset(
-        {"api", "commerce", "core", "infra", "licensing", "ops", "payments", "security"}
-    ),
+    top=frozenset({"api", "commerce", "core", "infra", "licensing", "ops", "payments", "security"}),
     leaf_layers=frozenset({"core"}),
     lower_layers=frozenset({"commerce", "infra", "licensing", "payments", "security"}),
     forbidden_targets=frozenset({"api"}),
@@ -177,9 +175,7 @@ STORE = Profile(
         "payments": frozenset({"commerce", "core", "infra", "security"}),
         "licensing": frozenset({"core", "infra", "security"}),
         "ops": frozenset({"core", "infra", "payments"}),
-        "api": frozenset(
-            {"commerce", "core", "infra", "licensing", "ops", "payments", "security"}
-        ),
+        "api": frozenset({"commerce", "core", "infra", "licensing", "ops", "payments", "security"}),
     },
 )
 

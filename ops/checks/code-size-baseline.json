@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-23T13:32:29.148Z",
+  "generatedAt": "2026-11-23T15:39:58.842Z",
   "roots": [
     "homeos/frontend/src",
     "homeos/backend/src",
@@ -11,15 +11,15 @@
   ],
   "byRoot": {
     "homeos/frontend/src": {
-      "code": 442592,
-      "comment": 42660,
-      "blank": 29657,
-      "chars": 13242271,
-      "files": 2083,
+      "code": 442666,
+      "comment": 42889,
+      "blank": 29694,
+      "chars": 13244770,
+      "files": 2087,
       "byExt": {
         ".vue": {
-          "code": 67193,
-          "chars": 1927924,
+          "code": 67194,
+          "chars": 1927928,
           "files": 383
         },
         ".css": {
@@ -28,23 +28,23 @@
           "files": 218
         },
         ".ts": {
-          "code": 303306,
-          "chars": 9735784,
-          "files": 1482
+          "code": 303379,
+          "chars": 9738279,
+          "files": 1486
         }
       }
     },
     "homeos/backend/src": {
-      "code": 108994,
-      "comment": 6302,
-      "blank": 18308,
-      "chars": 3402190,
-      "files": 577,
+      "code": 109327,
+      "comment": 6344,
+      "blank": 18432,
+      "chars": 3413503,
+      "files": 580,
       "byExt": {
         ".py": {
-          "code": 108994,
-          "chars": 3402190,
-          "files": 577
+          "code": 109327,
+          "chars": 3413503,
+          "files": 580
         }
       }
     },
@@ -87,11 +87,11 @@
       }
     },
     "packages/shared/src": {
-      "code": 4107,
-      "comment": 1950,
-      "blank": 529,
-      "chars": 120054,
-      "files": 62,
+      "code": 4143,
+      "comment": 1988,
+      "blank": 537,
+      "chars": 121187,
+      "files": 63,
       "byExt": {
         ".vue": {
           "code": 417,
@@ -99,9 +99,9 @@
           "files": 3
         },
         ".ts": {
-          "code": 3200,
-          "chars": 87417,
-          "files": 56
+          "code": 3236,
+          "chars": 88550,
+          "files": 57
         },
         ".css": {
           "code": 490,
@@ -125,35 +125,35 @@
       }
     },
     "ops": {
-      "code": 20883,
-      "comment": 3394,
-      "blank": 3235,
-      "chars": 665780,
-      "files": 120,
+      "code": 24060,
+      "comment": 3731,
+      "blank": 3853,
+      "chars": 766105,
+      "files": 145,
       "byExt": {
         ".py": {
-          "code": 8409,
-          "chars": 276653,
-          "files": 58
+          "code": 10695,
+          "chars": 349092,
+          "files": 75
         },
         ".mjs": {
-          "code": 12282,
-          "chars": 384091,
-          "files": 59
+          "code": 12925,
+          "chars": 403835,
+          "files": 63
         },
         ".ts": {
-          "code": 192,
-          "chars": 5036,
-          "files": 3
+          "code": 440,
+          "chars": 13178,
+          "files": 7
         }
       }
     }
   },
   "total": {
-    "code": 612560,
-    "comment": 55957,
-    "blank": 56828,
-    "chars": 18484956,
-    "files": 3071
+    "code": 616180,
+    "comment": 56603,
+    "blank": 57615,
+    "chars": 18600226,
+    "files": 3104
   }
 }

@@ -16,6 +16,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import unicodedata
 from typing import Any
 
 MEDIA_KINDS = ("apple_tv", "tv", "speaker", "receiver", "unknown")
@@ -30,11 +31,29 @@ CLIMATE_KINDS = (
 )
 #: HA 原生 ``water_heater`` 域只区分「热水器 / 未定」：形态（储水 / 燃气 / 热泵）由用户确认。
 WATER_HEATER_KINDS = ("water_heater", "unknown")
+#: kind → 前端渲染形态（3D 面板 / 控制弹窗只有三种形态）。
+#:
+#: 这张表是「分类结论 → UI 形态」的唯一换算，必须与
+#: ``packages/shared/src/entity/device-kind.ts`` 的 ``CLIMATE_RENDER_TYPE_BY_KIND``
+#: 逐条相等 —— 由 ``ops/checks/check_device_kinds_parity.py`` 断言。
+#: 供暖类（``boiler`` / ``floor_heating``）复用空调面板：温度 + 模式的交互同构，
+#: 单开第四套 UI 只会让四份气候代码变成五份。
+CLIMATE_RENDER_TYPE_BY_KIND: dict[str, str] = {
+    "ac_split": "air-conditioner",
+    "ac_central": "air-conditioner",
+    "boiler": "air-conditioner",
+    "floor_heating": "air-conditioner",
+    "water_heater": "water-heater",
+    "bath_heater": "bath-heater",
+    "unknown": "air-conditioner",
+}
 DEFAULT_MEDIA_KINDS = ("speaker", "apple_tv", "tv")
 #: 可用阈值：confirmed 或 confidence >= 0.85 才算「可自动选目标」。
 AVAILABLE_CONFIDENCE = 0.85
 #: 分类规则版本：规则变更时递增，让存量画像在下一次刷新时重新分类。
-CLASSIFIER_VERSION = "rule-v1"
+#: rule-v2：climate 的形态推断从「恒 unknown」改为「低置信推断 + 仍需确认」，
+#: 与前端旧启发式逐条等价（结论统一到这里，前端不再自己猜）。
+CLASSIFIER_VERSION = "rule-v2"
 #: 画像关心的实体域
 PROFILE_DOMAINS = ("media_player", "climate", "water_heater")
 #: 域 → 允许的 kind（写入校验的唯一口径）
@@ -56,6 +75,7 @@ _HASH_FIELDS = (
     "supported_features",
     "hvac_modes",
     "operation_list",
+    "preset_modes",
     "min_temp",
     "max_temp",
 )
@@ -102,7 +122,7 @@ def classify(entity: dict[str, Any]) -> dict[str, Any]:
     domain = entity_id.split(".", 1)[0]
     attrs = attr_map(entity)
     if domain in ("climate", "water_heater"):
-        return _classify_climate(domain, attrs)
+        return _classify_climate(domain, attrs, entity)
     if domain != "media_player":
         return {"kind": "unknown", "confidence": 0.0, "evidence": ["unsupported_domain"]}
     raw_sources = attrs.get("source_list")
@@ -116,21 +136,114 @@ def classify(entity: dict[str, Any]) -> dict[str, Any]:
     )
 
 
-def _classify_climate(domain: str, attrs: dict[str, Any]) -> dict[str, Any]:
-    """空调 / 热水器：制热形态必须人工确认，带模式列表便于前端解释。"""
+def normalize_mode_key(raw: Any) -> str:
+    """模式名归一，与前端 ``normalizeClimateModeKey`` 同口径。
+
+    HA 集成的模式名来自各家厂商：``preset_mode`` 可能是 ``Quick Heat`` /
+    ``quickHeat`` / ``quick_heat``，中文集成则直接给「快速取暖」。判据必须在同一口径上
+    比较，否则「浴霸」与「空调」的结论会随集成实现漂移。
+    """
+    value = unicodedata.normalize("NFKC", text(raw))
+    value = re.sub(r"([a-z\d])([A-Z])", r"\1_\2", value)
+    value = value.replace("+", "_and_").replace("&", "_and_")
+    value = value.lower()
+    value = re.sub(r"[\s./-]+", "_", value)
+    value = re.sub(r"_+", "_", value).strip("_")
+    return value
+
+
+#: 浴霸（风暖）独有的运行模式：出现任意一个就说明它不是普通空调。
+#:
+#: 与前端旧启发式逐条一致（含中文别名）：换气 / 吹风 / 除雾 / 干燥这些档位普通空调没有。
+BATH_HEATER_MODE_KEYS = frozenset(
+    {
+        "vent",
+        "ventilate",
+        "ventilation",
+        "exhaust",
+        "air_exchange",
+        "defog",
+        "quick_heat",
+        "quick_defog",
+        "drying",
+        "取暖",
+        "吹风",
+        "换气",
+        "除雾",
+        "干燥",
+    }
+)
+#: 名称里出现这些词即可判定浴霸（中文集成普遍只在 friendly_name 里体现形态）。
+_BATH_HEATER_NAME_PATTERN = re.compile(r"(浴霸|风暖|暖风|浴室取暖|bath.?heater)", re.IGNORECASE)
+#: 形态推断的置信度：全部低于 ``AVAILABLE_CONFIDENCE``，因此**永远不会**被语音 / 管家
+#: 自动选中 —— 只是让面板一开始就画对形态，仍需用户确认后才算可用画像。
+_INFERRED_KIND_CONFIDENCE = 0.55
+_INFERRED_KIND_WEAK_CONFIDENCE = 0.45
+
+
+def _classify_climate(domain: str, attrs: dict[str, Any], entity: dict[str, Any] | None = None) -> dict[str, Any]:
+    """空调 / 浴霸 / 热水器的形态推断。
+
+    ``climate`` 域的形态无法从 HA 属性直接读出（``hvac_modes`` 只说明能力，不说明是
+    分体空调还是浴霸），因此这里做**低置信推断**：结论只用于选面板形态，不用于自动
+    选目标。判不出来的保持 ``unknown`` + ``requires_confirmation``。
+
+    此前这段推断只存在于前端（``resolveClimateDeviceType()`` 按设备中文名正则 +
+    ``hvac_modes`` 启发式），后端一律回 ``unknown``：于是 3D 面板按猜测画、语音与
+    自动化按确认状态选，同一台设备两套结论。规则搬到这里之后只有一处结论。
+    """
     modes = attrs.get("hvac_modes" if domain == "climate" else "operation_list")
     mode_list = [str(item) for item in modes] if isinstance(modes, list) else []
     capability = ",".join(mode_list) or "unknown"
     if domain == "water_heater":
+        # 形态（储水 / 燃气 / 热泵）不在 HA 属性里，且 kind 只有 water_heater 一个取值，
+        # 因此仍要求人工确认：``water_heater`` 域本身不足以推进 ``usable`` 状态。
         return {
             "kind": "unknown",
             "confidence": 0.0,
             "evidence": [f"water_heater_modes:{capability}", "water_heater_requires_confirmation"],
         }
+
+    friendly_name = text(attr_map(entity).get("friendly_name"))
+    normalized_modes = [normalize_mode_key(item) for item in mode_list if str(item).strip()]
+    preset_modes = attrs.get("preset_modes")
+    normalized_presets = (
+        [normalize_mode_key(item) for item in preset_modes if str(item).strip()]
+        if isinstance(preset_modes, list)
+        else []
+    )
+
+    evidence = [f"climate_capabilities:{capability}"]
+    if _BATH_HEATER_NAME_PATTERN.search(friendly_name):
+        return {
+            "kind": "bath_heater",
+            "confidence": _INFERRED_KIND_CONFIDENCE,
+            "evidence": [*evidence, "name:bath_heater", "climate_requires_confirmation"],
+        }
+    if any(key in BATH_HEATER_MODE_KEYS for key in (*normalized_modes, *normalized_presets)):
+        return {
+            "kind": "bath_heater",
+            "confidence": _INFERRED_KIND_CONFIDENCE,
+            "evidence": [*evidence, "mode:bath_heater", "climate_requires_confirmation"],
+        }
+    if any(key in ("cool", "heat_cool") for key in normalized_modes):
+        return {
+            "kind": "ac_split",
+            "confidence": _INFERRED_KIND_CONFIDENCE,
+            "evidence": [*evidence, "mode:cool", "climate_requires_confirmation"],
+        }
+    active_heat_modes = [key for key in normalized_modes if key != "off"]
+    if active_heat_modes == ["heat"]:
+        # 只有一个制热档、没有制冷：浴霸的典型形态（普通空调必有 cool）。
+        return {
+            "kind": "bath_heater",
+            "confidence": _INFERRED_KIND_WEAK_CONFIDENCE,
+            "evidence": [*evidence, "mode:heat_only", "climate_requires_confirmation"],
+        }
     return {
         "kind": "unknown",
         "confidence": 0.0,
-        "evidence": [f"climate_capabilities:{capability}", "climate_requires_confirmation"],
+        "evidence": [*evidence, "climate_requires_confirmation"],
     }
 
 
@@ -223,6 +336,7 @@ __all__ = [
     "AVAILABLE_CONFIDENCE",
     "CLASSIFIER_VERSION",
     "CLIMATE_KINDS",
+    "CLIMATE_RENDER_TYPE_BY_KIND",
     "DEFAULT_MEDIA_KINDS",
     "MAX_ALIASES",
     "MAX_ALIAS_CHARS",
@@ -237,6 +351,7 @@ __all__ = [
     "is_reachable",
     "is_usable_profile",
     "normalize_aliases",
+    "normalize_mode_key",
     "normalize_text",
     "text",
 ]

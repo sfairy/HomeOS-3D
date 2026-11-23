@@ -1,4 +1,48 @@
-const climateDeviceTypesSet = new Set(['auto', 'air-conditioner', 'bath-heater'])
+/**
+ * 气候 / 热水器 / 浴霸的**能力归一与判据**（纯函数层，无 DOM、无 Vue、无 3D 依赖）。
+ *
+ * 为什么放在 `shared/device/` 而不是 `studio/app/shared/device/`
+ * --------------------------------------------------------------
+ * 这套判据此前只存在于 3D 侧（`studio/app/shared/device/climate.ts`），于是同一个问题被
+ * 至少四处各答一遍：
+ *
+ * - `studio/app/renderer/**`（3D 面板渲染，import 本模块）
+ * - `studio/runtime/climate/climate-panel.ts`（舞台面板，自己判模式与开关态）
+ * - `composables/entity/popup/useClimateControlPopup.ts`（Vue 弹窗，走 `climate-control-core`）
+ * - `components/widgets/climate/**`（仪表盘卡片）
+ *
+ * 四份实现最容易分叉的地方恰恰是最难测的：`climateIsPoweredOn` 对浴霸的判定（`off` 状态下
+ * 靠 `preset_mode` 推断吹风）、`climatePowerCommand` 的开机模式优先级、`climateIsRunning`
+ * 对水温的容差。放到 `shared/` 之后，Vue 侧与 3D 侧能 import 同一份，不必复制。
+ *
+ * 边界：本模块只依赖 `@homeos/shared`（跨端类型）与 `shared/`（标签表、画像投影缓存），
+ * 不 import `studio/`、`composables/`、`components/`。
+ */
+
+import { climateRenderTypeFromKind } from '@homeos/shared/entity/device-kind'
+import {
+  BATH_HEATER_MODE_LABELS,
+  CLIMATE_MODE_LABELS,
+  HORIZONTAL_POSITION_LABELS,
+  HORIZONTAL_SWING_LABELS,
+  VERTICAL_SWING_LABELS,
+  WATER_HEATER_MODE_LABELS,
+} from '@/shared/constants/climate-labels'
+import { deviceProfileKind } from '@/shared/device/device-profile-kind-cache'
+// 开关态 / 运行态判据与 Vue 侧、舞台侧共用同一份实现（`shared/device/climate-power`）：
+// 这三条是最容易分叉、又最难测的逻辑（浴霸 off 态仍可能换气、热水器 0.4 度容差、
+// unknown 不算开机）。此处 re-export 保持既有 `@app/shared/device/climate` 导入不变。
+import {
+  bathHeaterModeUsesAirflow,
+  climateIsPoweredOn,
+  climateIsRunning,
+  climatePresentationMode,
+  normalizeClimateModeKey,
+} from '@/shared/device/climate-power'
+
+export { bathHeaterModeUsesAirflow, climateIsPoweredOn, climateIsRunning, climatePresentationMode }
+
+const climateDeviceTypesSet = new Set(['auto', 'air-conditioner', 'bath-heater', 'water-heater'])
 function normalizeStringList(values: any) {
   return Array.isArray(values) ? [...new Set(values.map((entry) => String(entry ?? '').trim()).filter(Boolean))] : []
 }
@@ -119,175 +163,19 @@ export function climateControlStructureKey(entityId: any, structureState: any, d
     presetModes: structureCapabilities.presetModes,
   })
 }
-export function resolveClimateDeviceType(deviceComponent: any, deviceState: any, friendlyName = '') {
+export function resolveClimateDeviceType(deviceComponent: any, deviceState: any, entityId = '') {
   const configuredDeviceType = configuredClimateDeviceType(deviceComponent)
   if (configuredDeviceType !== 'auto') return configuredDeviceType
-  const resolvedCapabilities = normalizeClimateCapabilities(deviceState),
-    nameSearchText = [deviceComponent?.properties?.label, deviceState?.attributes?.friendly_name, friendlyName]
-      .map((namePart) => String(namePart || '').toLowerCase())
-      .join(' ')
-  if (/(浴霸|风暖|暖风|浴室取暖|bath.?heater)/i.test(nameSearchText)) return 'bath-heater'
-  const hvacModeKeys = resolvedCapabilities.hvacModes.map(normalizeClimateModeKey),
-    presetModeKeys = resolvedCapabilities.presetModes.map(normalizeClimateModeKey)
-  if (
-    [...hvacModeKeys, ...presetModeKeys].some((bathHeaterModeKey) =>
-      [
-        'vent',
-        'ventilate',
-        'ventilation',
-        'exhaust',
-        'air_exchange',
-        'defog',
-        'quick_heat',
-        'quick_defog',
-        'drying',
-        '取暖',
-        '吹风',
-        '换气',
-        '除雾',
-        '干燥',
-      ].includes(bathHeaterModeKey),
-    )
-  )
-    return 'bath-heater'
-  if (hvacModeKeys.some((coolModeKey) => ['cool', 'heat_cool'].includes(coolModeKey))) return 'air-conditioner'
-  const activeHeatModes = hvacModeKeys.filter((heatModeKey) => heatModeKey !== 'off')
-  return activeHeatModes.length === 1 && activeHeatModes[0] === 'heat' ? 'bath-heater' : 'air-conditioner'
-}
-const CLIMATE_MODE_LABELS = {
-    off: '关闭',
-    cool: '制冷',
-    heat: '制热',
-    dry: '除湿',
-    fan_only: '送风',
-    fan: '送风',
-    auto: '自动',
-    heat_cool: '冷暖自动',
-    unavailable: '不可用',
-    unknown: '未知',
-    idle: '待机',
-    none: '无',
-    eco: '节能',
-    boost: '强劲',
-    performance: '强劲',
-    silent: '静音',
-    sleep: '睡眠',
-    comfort: '舒适',
-    away: '离家',
-    mold_prev: '防霉',
-    eco_and_mold_prev: '节能＋防霉',
-    eco_mold_prev: '节能＋防霉',
-  },
-  BATH_HEATER_MODE_LABELS = {
-    off: '关闭',
-    heat: '取暖',
-    heating: '取暖',
-    fan_only: '吹风',
-    fan: '吹风',
-    ventilation: '换气',
-    ventilate: '换气',
-    vent: '换气',
-    exhaust: '换气',
-    air_exchange: '换气',
-    defog: '除雾',
-    defogging: '除雾',
-    demist: '除雾',
-    anti_fog: '除雾',
-    quick_heat: '快速取暖',
-    rapid_heat: '快速取暖',
-    fast_heat: '快速取暖',
-    quick_defog: '快速除雾',
-    rapid_defog: '快速除雾',
-    fast_defog: '快速除雾',
-    dry: '干燥',
-    drying: '干燥',
-    auto: '自动',
-    unavailable: '不可用',
-    unknown: '未知',
-    idle: '待机',
-    standby: '待机',
-    none: '无',
-    eco: '节能',
-    boost: '强劲',
-    performance: '强劲',
-    silent: '静音',
-    sleep: '睡眠',
-    mold_prev: '防霉',
-    eco_and_mold_prev: '节能＋防霉',
-    eco_mold_prev: '节能＋防霉',
-    制热: '取暖',
-    暖风: '取暖',
-    取暖: '取暖',
-    吹风: '吹风',
-    换气: '换气',
-    除雾: '除雾',
-    干燥: '干燥',
-    待机: '待机',
-  },
-  WATER_HEATER_MODE_LABELS = {
-    off: '关闭',
-    normal: '普通',
-    standard: '普通',
-    eco: '节能',
-    adaptive: '自适温',
-    auto: '自适温',
-    heat_pump: '热泵',
-    electric: '电加热',
-    gas: '燃气',
-    performance: '强力',
-    vacation: '假期',
-    普通: '普通',
-    自适温: '自适温',
-    节能: '节能',
-    加热: '加热',
-    保温: '保温',
-  },
-  VERTICAL_SWING_LABELS = {
-    off: '关闭',
-    auto: '自动',
-    default: '默认',
-    full_swing: '全范围摆动',
-    vertical: '上下摆动',
-    horizontal: '左右摆动',
-    both: '上下左右',
-    fixed_upper: '固定上方',
-    fixed_upper_middle: '固定中上',
-    fixed_middle: '固定中间',
-    fixed_lower_middle: '固定中下',
-    fixed_lower: '固定下方',
-    swing_upper: '上方摆动',
-    swing_upper_middle: '中上摆动',
-    swing_middle: '中间摆动',
-    swing_lower_middle: '中下摆动',
-    swing_lower: '下方摆动',
-  },
-  HORIZONTAL_SWING_LABELS = {
-    off: '关闭',
-    auto: '自动',
-    default: '默认',
-    full_swing: '全范围摆动',
-    left: '固定左侧',
-    left_center: '固定中左',
-    center: '固定居中',
-    right_center: '固定中右',
-    right: '固定右侧',
-  },
-  HORIZONTAL_POSITION_LABELS = {
-    horizontal_leftmost: '固定最左',
-    horizontal_middle_left: '固定左中',
-    horizontal_middle_right: '固定右中',
-    horizontal_rightmost: '固定最右',
-  }
-function normalizeClimateModeKey(rawModeKey: any) {
-  return String(rawModeKey || '')
-    .normalize('NFKC')
-    .trim()
-    .replace(/([a-z\d])([A-Z])/g, '$1_$2')
-    .replace(/[+&]/g, '_and_')
-    .toLowerCase()
-    .replace(/[\s./-]+/g, '_')
-    .replace(/_+/g, '_')
-    .replace(/^_|_$/g, '')
+  // 权威来源：后端 device_profile 的分类结论（人工确认优先，其次规则分类）。
+  // 这里**不再**按设备中文名（浴霸 / 风暖）或 hvac_modes 启发式猜型号 ——
+  // 猜出来的结论与后端 `classify()` 是两套规则，同一台设备在 3D 面板、
+  // 语音选目标与自动化执行里会被判成不同类型。投影由 `device-kind-cache` 提供。
+  const profileRenderType = climateRenderTypeFromKind(deviceProfileKind(entityId))
+  if (profileRenderType) return profileRenderType
+  // 兜底只承认结构事实（实体域），不猜型号：water_heater 域必然是热水器面板，
+  // 其余（climate / 未知）沿用历史默认的空调面板，等用户在设置里确认后自动升级。
+  const entityDomain = String(entityId || deviceState?.entity_id || '').split('.', 1)[0]
+  return entityDomain === 'water_heater' ? 'water-heater' : 'air-conditioner'
 }
 function measureTextWidth(text: any, fontSizePx: any) {
   return Array.from(String(text || '')).reduce(
@@ -417,63 +305,6 @@ export function climateSwingModeLabel(
       attributes: [swingDirection === 'horizontal' ? 'swing_horizontal_mode' : 'swing_mode'],
     }) || swingModeName
   )
-}
-export function bathHeaterModeUsesAirflow(airflowModeInput: any) {
-  const normalizedAirflowKey = normalizeClimateModeKey(airflowModeInput)
-  return normalizedAirflowKey
-    ? !['off', 'idle', 'standby', 'unknown', 'unavailable', '待机', '关闭'].includes(normalizedAirflowKey)
-    : false
-}
-export function climatePresentationMode(presentationState: any, presentationDeviceType = 'air-conditioner') {
-  const rawStateName = String(presentationState?.state || 'off').trim()
-  if (presentationDeviceType === 'water-heater')
-    return ['off', 'unknown', 'unavailable'].includes(rawStateName.toLowerCase())
-      ? rawStateName
-      : String(presentationState?.attributes?.operation_mode || rawStateName).trim()
-  if (presentationDeviceType !== 'bath-heater' || ['unknown', 'unavailable'].includes(rawStateName.toLowerCase()))
-    return rawStateName
-  if (rawStateName.toLowerCase() === 'off') {
-    const presetMode = String(
-      presentationState?.attributes?.preset_mode || presentationState?.attributes?.mode || '',
-    ).trim()
-    return bathHeaterModeUsesAirflow(presetMode) ? presetMode : 'off'
-  }
-  return String(
-    presentationState?.attributes?.preset_mode ||
-      presentationState?.attributes?.mode ||
-      presentationState?.attributes?.fan_mode ||
-      rawStateName,
-  ).trim()
-}
-export function climateIsPoweredOn(powerState: any, powerDeviceType = 'air-conditioner') {
-  const lowercasedState = String(powerState?.state || 'off')
-    .trim()
-    .toLowerCase()
-  if (powerDeviceType === 'bath-heater') {
-    if (!lowercasedState || ['unknown', 'unavailable'].includes(lowercasedState)) return false
-    const presentationMode = normalizeClimateModeKey(climatePresentationMode(powerState, powerDeviceType))
-    return ['off', 'idle', 'standby', '待机', '关闭'].includes(presentationMode)
-      ? false
-      : lowercasedState === 'off'
-        ? bathHeaterModeUsesAirflow(presentationMode)
-        : true
-  }
-  return !['off', 'unknown', 'unavailable'].includes(lowercasedState)
-}
-export function climateIsRunning(climateState: any, deviceType = 'air-conditioner') {
-  if (!climateIsPoweredOn(climateState, deviceType)) return false
-  if (deviceType === 'water-heater') {
-    const measuredTemperature = toNumberOrDefault(climateState?.attributes?.current_temperature),
-      targetTemperatureValue = toNumberOrDefault(climateState?.attributes?.temperature)
-    return measuredTemperature !== null && targetTemperatureValue !== null
-      ? measuredTemperature < targetTemperatureValue - 0.4
-      : true
-  }
-  if (deviceType === 'bath-heater') return bathHeaterModeUsesAirflow(climatePresentationMode(climateState, deviceType))
-  const hvacAction = String(climateState?.attributes?.hvac_action || '')
-    .trim()
-    .toLowerCase()
-  return !['idle', 'off'].includes(hvacAction)
 }
 export function climateEffectMode(effectState: any, effectDeviceType = 'air-conditioner') {
   if (!climateIsPoweredOn(effectState, effectDeviceType)) return 'off'

@@ -1,6 +1,15 @@
 /** `entity` 域的公开面：由根 barrel（`src/index.ts`）转发，调用方仍可只 import `@homeos/shared`。 */
 
 export { getEntityDomain, getEntityLeaf } from './domain'
+export {
+  CLIMATE_KINDS,
+  CLIMATE_RENDER_TYPES,
+  CLIMATE_RENDER_TYPE_BY_KIND,
+  type ClimateDeviceKind,
+  type ClimateRenderType,
+  isClimateDeviceKind,
+  climateRenderTypeFromKind,
+} from './device-kind'
 export { attrValueEquals } from './attr-value-equals.util'
 export { isControllableEntityDomain, isControllableEntityId } from './controllable'
 export {

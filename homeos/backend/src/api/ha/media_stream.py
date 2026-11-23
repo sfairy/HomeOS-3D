@@ -31,6 +31,7 @@ from ...dependencies import ViewerPrincipal
 from ...domains.ha.integration.connection_query import active_connection
 from ...domains.license import features as feature_codes
 from ...platform.core.db.database import Database
+from ...platform.core.runtime.background_tasks import background_tasks
 from ...platform.security.viewer_scope import require_viewer_entity
 
 CAMERA_SNAPSHOT_CACHE_TTL_SECONDS = 8
@@ -188,7 +189,12 @@ def _schedule_camera_snapshot_refresh(
     existing = camera_snapshot_refreshes.get(key)
     if existing and not existing.done():
         return
-    task = asyncio.create_task(_refresh_camera_snapshot(key, target, headers, verify_tls, timeout))
+    # 走受管任务：`asyncio` 只对任务持弱引用，仅存在 dict 里的强引用是这里**唯一**的存活依据，
+    # 一旦字典被换掉任务就可能静默消失；受管登记簿同时负责异常留痕与停机收尾。
+    task = background_tasks.spawn(
+        _refresh_camera_snapshot(key, target, headers, verify_tls, timeout),
+        label=f"ha.camera.snapshot.{key}",
+    )
     camera_snapshot_refreshes[key] = task
     return
 

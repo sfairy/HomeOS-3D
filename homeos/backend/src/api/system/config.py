@@ -30,6 +30,7 @@ from ...domains.license import features as feature_codes
 from ...platform.core.db.pagination import parse_page_limit
 from ...platform.core.db.retention import RETENTION_TABLE_KEYS
 from ...platform.core.http.errors import api_error, bad_request
+from ...platform.core.runtime.background_tasks import background_tasks
 from ...platform.security.auth_context import require_user
 
 router = NestRouter(prefix="/system", tags=["system"])
@@ -124,17 +125,9 @@ async def get_public_config(request: Request):
     if enrichment is not None:
         # 预热只为后续实体列表少一次注册表往返，绝不能让登录 / 首屏等它：
         # 注册表慢时每次都会吃满等待上限（实测 2s），而响应体并不依赖这份索引。
-        load = asyncio.create_task(enrichment.ensure_loaded())
-
-        def _log_warm_failure(task: asyncio.Task[Any]) -> None:
-            if task.cancelled():
-                return
-            exc = task.exception()
-            if exc is not None:
-                # 预热失败只影响后续实体补全（那里另有降级），这里留痕即可。
-                logger.warning("HA 区域索引预热失败: %s", exc)
-
-        load.add_done_callback(_log_warm_failure)
+        # 走受管任务：旧写法把任务放在局部变量里，事件循环只持弱引用，预热可能被 GC
+        # 打断；受管登记簿同时负责异常留痕（预热失败只影响后续补全，那里另有降级）。
+        background_tasks.spawn(enrichment.ensure_loaded(), label="system.config.area-index-warmup")
 
     app_config = _app_config(request)
     base = app_config.get_public()
