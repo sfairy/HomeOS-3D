@@ -5,8 +5,9 @@
 那样再守一个内置 Caddy：少一个进程、少一个自签端口，也少一类「自签证书被客户机 / 支付
 平台拒绝」的故障。历史上容器内有过 8804 自签反代，已移除。
 
-容器内固定绑 0.0.0.0；**内网能不能打开由宿主决定** —— compose 的 `STORE_BIND` 默认只发布
-回环（商店无 TLS，直连端口不许暴露到公网）。排查入口一律看 `docker port homeos-store`。
+容器内固定绑 0.0.0.0；**内网能不能打开由宿主决定** —— compose 的 `STORE_BIND` 默认也是
+0.0.0.0（覆盖所有网卡），但可以为收窄暴露面改成回环或单个网卡。排查入口一律看
+`docker port homeos-store`。
 """
 from __future__ import annotations
 
@@ -96,12 +97,13 @@ def main() -> None:
         print(f"商店已有管理员，跳过初始化。服务端口 {store_port}。", flush=True)
 
     # 「内网能不能打开」不由本容器决定：这里只绑定 0.0.0.0，能否从局域网访问取决于**宿主的
-    # 端口发布**（compose 的 `STORE_BIND`，默认只发回环 127.0.0.1）。说成「内网访问：
-    # http://<局域网IP>:8802」会让人以为已经通了，然后拿着一个连不上的地址去排错。
+    # 端口发布**（compose 的 `STORE_BIND`，默认 0.0.0.0，可收窄成回环或某个网卡）。
+    # 说成「内网访问：http://<局域网IP>:8802」会让人以为已经通了，而宿主只发回环时那个
+    # 地址其实是连不上的（容器内视角看不到这件事）。
     print(
         f"监听 {environment.get('STORE_HOST', '0.0.0.0')}:{store_port}（容器内）。"
-        "能否从内网访问看宿主端口发布："
-        "`docker port homeos-store` 显示 0.0.0.0:8802 才可以（STORE_BIND=0.0.0.0）。",
+        "能否从内网访问看宿主端口发布：`docker port homeos-store` 应为 0.0.0.0:8802"
+        "（只显示 127.0.0.1 时把 STORE_BIND 改成 0.0.0.0 再 up -d --force-recreate）。",
         flush=True,
     )
 

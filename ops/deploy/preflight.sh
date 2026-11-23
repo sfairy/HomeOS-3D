@@ -130,8 +130,8 @@ check_local_port "商店" "$STORE_CT" "$STORE_PORT" "/healthz"
 
 head_ "2a. 宿主端口发布（内网能不能打开，就看这一段）"
 # 「容器内 0.0.0.0 监听」与「从别的设备能连上」是两件事：后者只取决于 compose 把端口发布到
-# 哪个宿主地址。商店默认 `STORE_BIND:-127.0.0.1`，也就是**只有本机能连**；启动日志里那句
-# 「监听 0.0.0.0:8802」说的是容器内视角，看它排查只会绕圈。
+# 哪个宿主地址。默认 `STORE_BIND:-0.0.0.0` 覆盖所有网卡；但有人为收窄暴露面改成回环，
+# 那时**只有本机能连**，而启动日志里那句「监听 0.0.0.0:8802」说的是容器内视角，看它会绕圈。
 # 注意 Docker 会绕过 ufw / firewalld 直接写 iptables，所以「防火墙没开这个端口」既可能
 # 是没发布，也可能是 NAS 自带的入站管控（飞牛 / 群晖那一类），两者要分开看。
 check_lan_publish() {
@@ -162,7 +162,7 @@ check_lan_publish() {
 }
 
 check_lan_publish homeos-store "$STORE_PORT" "/healthz" \
-  "两条路：① 让隧道 / 反代目标改成 http://127.0.0.1:${STORE_PORT}（客户端与商店同机时最安全，也是本仓库的设计口径）；② 改 compose 的 STORE_BIND=0.0.0.0 后 docker compose up -d homeos-store（restart 不改端口映射）。" \
+  "改 compose 的 STORE_BIND=0.0.0.0（或删掉 .env 里的 STORE_BIND 用默认值），再 docker compose up -d --force-recreate homeos-store —— 端口映射在容器创建时固定，restart 不会重新应用。" \
   "$STORE_CT"
 check_lan_publish homeos "$APP_PORT" "/health/ready" \
   "改 compose 的 ports 为 \"$APP_PORT:$APP_PORT\"（不要写 127.0.0.1:前缀）后 up -d homeos。" \
