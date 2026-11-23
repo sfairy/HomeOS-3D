@@ -78,6 +78,39 @@ else
   bad "商店 $STORE_PORT 不健康（看 docker logs $STORE_CT）"
 fi
 
+head_ "2a. 宿主端口发布（内网能不能打开，就看这一段）"
+# 「容器内 0.0.0.0 监听」与「从别的设备能连上」是两件事：后者只取决于 compose 把端口发布到
+# 哪个宿主地址。商店默认 `STORE_BIND:-127.0.0.1`，也就是**只有本机能连**；启动日志里那句
+# 「监听 0.0.0.0:8802」说的是容器内视角，看它排查只会绕圈。
+# 注意 Docker 会绕过 ufw / firewalld 直接写 iptables，所以「防火墙没开这个端口」既可能
+# 是没发布，也可能是 NAS 自带的入站管控（飞牛 / 群晖那一类），两者要分开看。
+check_lan_publish() {
+  # $1 = 服务名, $2 = 端口, $3 = 路径, $4 = 修法提示
+  local svc="$1" port="$2" path="$3" hint="$4" published
+  published="$(docker port "$svc" "$port/tcp" 2>/dev/null | head -1)"
+  if [ -z "$published" ]; then
+    bad "$svc 没有发布 $port（容器在跑也连不上）"
+    return 0
+  fi
+  case "$published" in
+    127.0.0.1:*|\[::1\]:*|::1:*)
+      bad "$svc 只发布到回环：$published —— 只有本机能连，内网打不开。$hint" ;;
+    *)
+      ok "$svc 发布到 $published"
+      if [ "$LAN_IP" != "127.0.0.1" ] \
+        && curl -fsS -m 5 -o /dev/null "http://$LAN_IP:$port$path" 2>/dev/null; then
+        ok "  从本机走内网地址可达：http://$LAN_IP:$port$path"
+      elif [ "$LAN_IP" != "127.0.0.1" ]; then
+        bad "  http://$LAN_IP:$port$path 不通：端口已发布，问题在 NAS / 路由器的入站管控（或不在同一网段）"
+      fi ;;
+  esac
+}
+
+check_lan_publish homeos-store "$STORE_PORT" "/healthz" \
+  "两条路：① 让隧道 / 反代目标改成 http://127.0.0.1:$STORE_PORT（客户端与商店同机时最安全，也是本仓库的设计口径）；② 改 compose 的 STORE_BIND=0.0.0.0 后 docker compose up -d homeos-store（restart 不改端口映射）。"
+check_lan_publish homeos "$APP_PORT" "/health/ready" \
+  "改 compose 的 ports 为 \"$APP_PORT:$APP_PORT\"（不要写 127.0.0.1:前缀）后 up -d homeos。"
+
 head_ "2b. 内置 HTTPS 反代（:8803）"
 # :8803 是**只讲 TLS** 的端口（ops/caddy/app.Caddyfile 只写了 :8803 + tls internal）。
 # 用 http:// 打开一定失败 —— 那不是故障，而是协议用错了；真正会坏的是下面两件事：

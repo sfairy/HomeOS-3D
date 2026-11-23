@@ -35,6 +35,7 @@ const DEPLOY_ONLY = new Map([
   ['ACME_EMAIL', 'docker-compose.yml 的 caddy-public 段'],
   ['HOMEOS_CADDY_ACCESS_LOG', 'compose 传给内置 Caddy'],
   ['STORE_PUBLISH_PORT', 'compose 宿主端口映射'],
+  ['STORE_BIND', 'docker-compose.yml 的 ports 前缀（宿主发布地址）'],
   ['APP_PUBLISH_PORT', 'compose 宿主端口映射；运行期由 network_info 读取'],
   ['APP_PROXY_PUBLISH_PORT', 'compose 宿主端口映射；运行期由 network_info 读取'],
 ])

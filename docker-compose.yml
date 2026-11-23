@@ -87,7 +87,9 @@ services:
       # X-Forwarded-For 冒充任意来源 IP，绕过 MCP 白名单与按 IP 的登录/注册限流。
       # 宿主机反代 / 隧道部署请填**实际代理地址**的精确值（例如 172.28.0.1），
       # 或让它把源地址改写为 127.0.0.1 后经 Caddy 进入。
-      STORE_TRUSTED_PROXIES: 127.0.0.1,::1
+      # 解析不到这个值时它退化成「不信任何转发头」：HTTPS 入口的 Session Cookie 会
+      # 不带 Secure，HSTS 也不发（登录仍可用，只是少一层保护）。
+      STORE_TRUSTED_PROXIES: ${STORE_TRUSTED_PROXIES:-127.0.0.1,::1}
       # 商店没有任何 HTTPS 入口：内网 http://<IP>:8802，公网由隧道 / 反代在 80·443 终止 TLS。
       # 验证码投递：log = 只写容器日志（首装够用）。公开售卖前请在 /admin 配好 SMTP，
       # 否则客户收不到验证码。
