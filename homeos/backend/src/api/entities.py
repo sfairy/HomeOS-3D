@@ -15,7 +15,9 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import logging
+from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Annotated, Any
 
@@ -285,6 +287,22 @@ async def get_changed_entities(
     }
 
 
+async def _safe_call(label: str, fn: Callable[[], Any], fallback: Any) -> Any:
+    """读路径的降级包裹：失败只留痕并返回 ``fallback``，不向上抛。
+
+    区域清单的契约是「只读且永不 500」，可这条路径要碰 HA、本机目录表、本地排序表
+    三处外部状态；任何一处抖动都该退化成 ``registryDegraded`` 而不是整块变 500。
+    """
+    try:
+        result = fn()
+        if inspect.isawaitable(result):
+            result = await result
+    except Exception as exc:
+        logger.warning("%s失败，使用降级值：%s", label, exc)
+        return fallback
+    return result
+
+
 @router.get("/areas/list")
 async def list_areas(
     request: Request,
@@ -320,7 +338,9 @@ async def list_areas(
         catalog_error = registry_error
         # 本机 `ha_areas` 目录：与区域索引 / 时序归因同一份单读模型，
         # 由连接器的 registry 同步写入，离线也能把房间列全。
-        catalog = await asyncio.to_thread(_entity_area(request).get_cached_ha_areas)
+        catalog = await _safe_call(
+            "读取本机区域目录", lambda: asyncio.to_thread(_entity_area(request).get_cached_ha_areas), []
+        )
         areas = [{"area_id": row.get("id"), "name": row.get("name")} for row in catalog]
         # 本地目录命中时仍要标记降级：名称可能是上次同步的快照，
         # 但「能用旧数据」比「返回 500 让界面空掉」更接近真实状态。
@@ -330,14 +350,16 @@ async def list_areas(
     # 名称与成员以 HA registry 为准，顺序用本地 `ha_areas.sortOrder` 覆盖：
     # HA 区域没有排序字段，`PUT /ha/areas/sort` 只写本地，读路径必须在这里应用，
     # 否则设置页的「上移 / 下移」只是改库、界面看不到效果。
-    order = await asyncio.to_thread(_local_area_order, request)
+    order = await _safe_call("读取本地房间顺序", lambda: asyncio.to_thread(_local_area_order, request), {})
     rows = [{"id": str(a.get("area_id") or ""), "name": str(a.get("name") or a.get("area_id") or "")} for a in areas]
     rows = [row for row in rows if row["id"]]
     rows.sort(key=lambda row: (order.get(row["id"], 1 << 30), row["name"]))
     # 连接器自己也可能因为「未连接」而返回空列表（此时上方没有异常）。
-    degraded = bool(ha_connector.is_registry_degraded()) or bool(registry_error)
+    degraded = bool(await _safe_call("读取区域降级状态", ha_connector.is_registry_degraded, False)) or bool(
+        registry_error
+    )
     if degraded and not registry_error:
-        registry_error = ha_connector.get_registry_degraded_reason()
+        registry_error = await _safe_call("读取区域降级原因", ha_connector.get_registry_degraded_reason, None)
     return {
         "areas": rows,
         "registryDegraded": degraded,

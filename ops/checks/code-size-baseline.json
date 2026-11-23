@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-23T03:03:31.165Z",
+  "generatedAt": "2026-11-23T03:53:10.417Z",
   "roots": [
     "homeos/frontend/src",
     "homeos/backend/src",
@@ -35,15 +35,15 @@
       }
     },
     "homeos/backend/src": {
-      "code": 108925,
+      "code": 108944,
       "comment": 6267,
-      "blank": 18293,
-      "chars": 3399497,
+      "blank": 18296,
+      "chars": 3400020,
       "files": 576,
       "byExt": {
         ".py": {
-          "code": 108925,
-          "chars": 3399497,
+          "code": 108944,
+          "chars": 3400020,
           "files": 576
         }
       }
@@ -150,10 +150,10 @@
     }
   },
   "total": {
-    "code": 612604,
+    "code": 612623,
     "comment": 55499,
-    "blank": 56742,
-    "chars": 18471688,
+    "blank": 56745,
+    "chars": 18472211,
     "files": 3064
   }
 }
