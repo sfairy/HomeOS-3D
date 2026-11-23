@@ -138,6 +138,9 @@ const GATE_GROUPS = {
     { name: 'check:ws-auth', ...bun('run', 'check:ws-auth') },
     { name: 'check:store-routes', ...bun('run', 'check:store-routes') },
     { name: 'check:api-contract', ...bun('run', 'check:api-contract') },
+    // 接口覆盖：后端实时路由 vs 两个前端的调用点。孤儿接口必须登记在
+    // frontend-coverage-baseline.json 才能过门禁，避免「后端有、前端没人调」继续堆积。
+    { name: 'check:frontend-coverage', ...bun('run', 'check:frontend-coverage') },
     // 「域 → 控制类型」契约表在 Python（后端校验命令）与 TS（播放器渲染面板）各有一份。
     // 两端不一致时「面板能显示、命令发不出去」，类型检查看不见这种跨语言漂移，只能靠这条对齐检查。
     { name: 'check:extra-types', ...bun('run', 'check:extra-types') },
