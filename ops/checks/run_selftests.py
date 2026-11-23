@@ -38,7 +38,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 CHECKS_DIR = Path(__file__).resolve().parent
-for entry in (str(CHECKS_DIR), str(ROOT)):
+#: 自检脚本统一放在 `business/`：它们只跑业务断言，与门禁工具链分开。
+BUSINESS_DIR = CHECKS_DIR / "business"
+for entry in (str(BUSINESS_DIR), str(CHECKS_DIR), str(ROOT)):
     if entry not in sys.path:
         sys.path.insert(0, entry)
 

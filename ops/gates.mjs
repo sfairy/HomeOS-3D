@@ -22,10 +22,18 @@
  * - `infra`：shell / workflow / compose / Caddyfile / Cython 兼容性。
  *
  * 两层分类：**组**回答「在哪个 job 跑」，**标签**回答「这是什么检查」。
- * static 的 50+ 条如果只按组看就是一张平铺的长清单；`TAG_GROUPS` 把它们收成
- * types / lint / contract / ratchet / invariant / business 六类，`--tag` 可整类跑，
- * `--list` 也按类打印。新增 static 检查必须登记标签，否则启动即报错 ——
+ * `TAG_GROUPS` 把 static 收成 types / lint / contract / ratchet / invariant / business 六类，
+ * `--tag` 可整类跑，`--list` 也按类打印。新增 static 检查必须登记标签，否则启动即报错 ——
  * 分类过期比没有分类更糟。
+ *
+ * 批量入口与 `covers`
+ * -------------------
+ * 同一批文件被多条检查反复扫描时（前端 10 条、后端 10 条、路由 5 条），门禁里只登记一个
+ * 批量入口（`check:frontend` 等），被合并的原脚本名写进 `covers`：
+ *
+ * - `--step` 仍能按原脚本名子串命中（`--step duplicates` → `check:size`）；
+ * - `--list --json` 输出 `covers`，供「合并前后覆盖对照」机器比对；
+ * - 单项调试仍走原脚本（`bun run check:any`），合并只改执行方式，不改判定口径。
  *
  * 三类跳过都必须**显式打印**，不允许静默成功：
  * - 缺工具（shellcheck / actionlint / docker）：本机给安装提示并 SKIP，CI 里直接 FAIL；
@@ -40,15 +48,16 @@
  * node ops/gates.mjs --all        # 含 build + infra
  * node ops/gates.mjs --group static,model
  * node ops/gates.mjs --list       # 打印清单，不执行
+ * node ops/gates.mjs --list --json # 机器可读（含 covers，用于覆盖对照）
  * node ops/gates.mjs --tag ratchet          # 只跑某一类检查
- * node ops/gates.mjs --step check:energy    # 只跑名字匹配的步骤（子串）
+ * node ops/gates.mjs --step duplicates      # 只跑名字匹配的步骤（含批量入口的 covers）
  * node ops/gates.mjs --jobs 8               # 并行度（默认 4；build/infra 恒为串行）
  * node ops/gates.mjs --fail-fast
  * HOMEOS_GATE_CONTEXT=ci bun run gate:infra   # CI 上下文：ciOnly 步骤参与、缺工具即失败
  * ```
  */
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
@@ -80,148 +89,129 @@ const bun = (...args) => ({ cmd: 'bun', args })
  */
 const GATE_GROUPS = {
   static: [
+    // ---- types -------------------------------------------------------
     { name: 'typecheck', ...bun('run', 'typecheck'), serial: true },
-    // 单一 Biome 配置覆盖主应用 / 商店 / shared / ops。三个子包各自的 `lint:ci`
-    // 已退化成委托到这里（见各 package.json），不再有「一处加规则、另一处静默少一条」。
-    // 走 `biome ci` 而不是 `biome check`：CI 形态语义明确（只读、格式化差异即失败），
-    // 避免将来有人给门禁那条命令顺手加上 `--write` 把「检查」变成「改代码」。
+    { name: 'typecheck:node', ...bun('run', 'typecheck:node') },
+    // ---- lint --------------------------------------------------------
+    // 单一 Biome 配置覆盖主应用 / 商店 / shared / ops。走 `biome ci` 而不是 `biome check`：
+    // CI 形态语义明确（只读、格式化差异即失败），避免有人顺手加 `--write` 把「检查」变「改代码」。
     { name: 'lint:biome', ...bun('run', 'format:check') },
     // CSS 语法仍走 esbuild（与构建同一引擎）：Biome 的 CSS 解析器不认识 Tailwind 的
     // `@import` / `@config` 顺序，也不认 Vue 的 `:deep()`，用它判定会与真实产物脱节。
-    // 三个子包共用一条命令（根脚本按 frontend → store → shared 依次跑）：
-    // 它们用的是同一个脚本，拆成三个门禁步骤只会让清单变长、失败时多两段重复日志。
     { name: 'check:css-syntax', ...bun('run', 'check:css-syntax') },
-    // Biome 没有 no-restricted-syntax 的等价物，这两条规范约束用脚本承接。
-    { name: 'check:restricted-syntax', ...bun('run', 'check:restricted-syntax') },
-    // 画布断点守卫：壳层宽度断点必须是 @container hos-canvas，不能再回落到读窗口宽度的 @media
-    // （缩放开启后二者不是一回事，回落即「缩放后顶栏文字消失 / 操作区被裁」）。
-    { name: 'check:canvas-breakpoints', ...bun('run', 'check:canvas-breakpoints') },
-    // 分辨率审计：5 档设计基准 × 15 档真实终端，验证画布两轴铺满、不变形、不错档。
-    { name: 'audit:scaling', ...bun('run', 'audit:scaling') },
-    { name: 'lint:py', ...bun('run', 'lint:py') },
-    { name: 'typecheck:node', ...bun('run', 'typecheck:node') },
-    // 工具链版本一致性：Bun（packageManager）、Python（镜像解释器）、基础镜像摘要
-    // 这三条版本线各有两处以上副本，漂移不报错、只会在换机或发版时才暴露。
+    // ruff check + 新增 .py 的 ruff format 校验：同一个解释器、同一条规则来源，
+    // 拆成两步只会在失败时跑两遍解释器。
+    { name: 'lint:py', ...bun('run', 'lint:py'), covers: ['check:python-format'] },
+    // ---- contract ----------------------------------------------------
+    // 版本三条线（Bun / 基础镜像 / Python）各有两处以上副本，漂移不报错、只在换机或发版时暴露。
     { name: 'check:toolchain', ...bun('run', 'check:toolchain') },
-    // 环境变量对账：`.env.example` 里不能再留着没人读的键（历史上有整段失效的
-    // `APP_HA_*` / `STORE_WECHAT_*`，读模板等于读一份假契约）。
-    { name: 'check:env-inventory', ...bun('run', 'check:env-inventory') },
-    { name: 'check:scene', ...bun('run', 'check:scene') },
-    { name: 'check:any', ...bun('run', 'check:any') },
-    // 别名 / 模块级可变状态棘轮：三个巨型编排文件之所以拆不动，很大原因是 `xxx2`
-    // 别名（命名冲突）、`xxxImpl` 转发层与模块级 let。只许下降，拆分阶段逐块压低。
-    { name: 'check:aliases', ...bun('run', 'check:aliases') },
-    { name: 'check:frontend-complexity', ...bun('run', 'check:frontend-complexity') },
-    // 性能棘轮：deep:true 监听 / transition:all / 匿名 pagehide / 热路径 JSON.stringify
-    // 只许降不许增。这四类写法都不会让任何编译或类型检查失败，只会让交互变卡、内存变高。
-    { name: 'check:perf-ratchet', ...bun('run', 'check:perf-ratchet') },
-    // 重复代码棘轮：jscpd 精确克隆（≥10 行且 ≥50 token）对比基线，涨了即失败。
-    // 近似重复（相似度阈值）不进门禁 —— 主观阈值卡 CI 只会催生「改得更不像」的动机。
-    { name: 'check:duplicates', ...bun('run', 'check:duplicates') },
-    // 代码量棘轮：有效代码行（去空行/整行注释）与有效字符数只允许持平或下降。
-    { name: 'check:code-size', ...bun('run', 'check:code-size') },
-    // CSS 重复声明体：可证明安全的那部分必须已经合并完（见 ops/scripts/merge-css-duplicates.mjs）。
-    { name: 'check:css-duplicates', ...bun('run', 'check:css-duplicates') },
-    // 令牌可解析性：`var(--x)` 必须能追到声明处，否则该属性静默失效（浏览器不报错）。
-    { name: 'check:css-tokens', ...bun('run', 'check:css-tokens') },
-    // `domElement` 与「建元素 + 设类名 + 设文本」的等价性证明（假 document 逐字段比对）。
-    { name: 'check:dom-factory', ...bun('run', 'check:dom-factory') },
-    // 平面多边形布尔内核的数学不变量（空集恒等 / 幂等 / 面积守恒 / 洞语义 / 点归属）。
-    // 「模型门禁」看的是 GLB 文件，「这条」看的是户型绘制用的并集/差集内核，两者互不覆盖。
-    { name: 'check:plan-geometry', ...bun('run', 'check:plan-geometry') },
-    // 毫米标尺与拖动吸附的几何不变量（OBB 四角 / 墙厚表面 / 往返一致 / freedom / previous）。
-    { name: 'check:studio-placement', ...bun('run', 'check:studio-placement') },
-    // 3D 视口编辑 / 标尺的**语义**不变量（目标优先的离地吸附 / 量化基准 / 竖直容差 / 指纹 / 取景保持）。
-    { name: 'check:studio-gesture', ...bun('run', 'check:studio-gesture') },
-    // 窗型「删扇撤销 / 墙体合并朝向」不变量（只加回消失的窗扇、朝反向才翻转）。
-    { name: 'check:studio-window-undo', ...bun('run', 'check:studio-window-undo') },
-    // 存草稿兼容层：老草稿经归一化载入、编辑后整份写回，漏挑一个字段就是静默丢数据。
-    { name: 'check:scene-payload', ...bun('run', 'check:scene-payload') },
-    { name: 'check:styles', ...bun('run', 'check:styles') },
-    { name: 'check:silent-except', ...bun('run', 'check:silent-except') },
-    // 错误契约：禁止新增「detail 是中文文案的 HTTPException」—— 这类响应没有稳定
-    // apiErrorCode，前端只能拿文案当契约（改一句话就改一次接口语义）。
-    { name: 'check:error-contract', ...bun('run', 'check:error-contract') },
-    // 后台任务：裸 asyncio.create_task 的异常只在循环关闭时报一条无上下文的日志，
-    // 且停机不等待。新代码必须走 background_tasks.spawn，存量只许下降。
-    { name: 'check:background-tasks', ...bun('run', 'check:background-tasks') },
-    // 配置唯一入口是 Settings；直读 os.getenv 会让配置无法注入、两处兜底值不一致
-    // （实测数据目录指标量的是 cwd）。白名单 + 只许下降，每条必须写明理由。
-    { name: 'check:env-access', ...bun('run', 'check:env-access') },
-    { name: 'check:async-db', ...bun('run', 'check:async-db') },
-    { name: 'check:python-lock', ...bun('run', 'check:python-lock') },
-    { name: 'check:image-imports', ...bun('run', 'check:image-imports') },
-    // `except A, B:`（PEP 758）在 Cython 3.3.0 里会被解析成 `except A as B:`：编译**通过**
-    // 但只捕获 A，check:cython 看不见。这条静态守卫在本地就能拦住（ruff format 会主动改成
-    // 无括号形式，所以守卫必须比 check:cython 更早、更便宜）。
-    { name: 'check:pep758-except', ...bun('run', 'check:pep758-except') },
-    // 六个结构性棘轮：WS 鉴权、商店路由契约、API 契约覆盖率、文件规模、Python 复杂度、新增文件格式。
-    { name: 'check:ws-auth', ...bun('run', 'check:ws-auth') },
-    { name: 'check:store-routes', ...bun('run', 'check:store-routes') },
-    { name: 'check:api-contract', ...bun('run', 'check:api-contract') },
-    // 响应模型基类：`StrictModel` 是给请求体的（extra="forbid"）。误用到 response_model
-    // 上时，服务层多返回一个键就会在序列化阶段 500 —— 类型检查与路由基线都看不见。
-    { name: 'check:response-models', ...bun('run', 'check:response-models') },
-    // 接口覆盖：后端实时路由 vs 两个前端的调用点。孤儿接口必须登记在
-    // frontend-coverage-baseline.json 才能过门禁，避免「后端有、前端没人调」继续堆积。
-    { name: 'check:frontend-coverage', ...bun('run', 'check:frontend-coverage') },
-    // 「域 → 控制类型」契约表在 Python（后端校验命令）与 TS（播放器渲染面板）各有一份。
-    // 两端不一致时「面板能显示、命令发不出去」，类型检查看不见这种跨语言漂移，只能靠这条对齐检查。
-    { name: 'check:extra-types', ...bun('run', 'check:extra-types') },
-    // 设备 kind → 渲染形态的换算表在 Python（分类结论）与 TS（3D 面板同步读）各有一份。
-    // 两端漂移时「面板画错形态、语音选的却是另一种设备」，类型检查看不见跨语言差异。
-    { name: 'check:device-kinds', ...bun('run', 'check:device-kinds') },
-    // 设备形态推断从前端搬到后端（rule-v2）后，必须证明「既有结论没变」：
-    // 语料里逐条记录旧启发式的结论，任何一条变化都要求复核。
-    { name: 'check:device-kinds-regression', ...bun('run', 'check:device-kinds-regression') },
-    // 单元测试：stdlib unittest 覆盖后端授权状态推算 / 错误契约 / 受管后台任务 /
-    // 棘轮骨架；bun test 覆盖 TS 侧契约表（设备 kind 换算、占位符推断）。
-    // 两类用例同在 ops/checks/unittests/：同一个目录便于「改契约就想到改测试」。
-    { name: 'check:unit-tests', ...bun('run', 'check:unit-tests') },
-    { name: 'check:backend-unit-tests', ...bun('run', 'check:backend-unit-tests') },
-    { name: 'check:file-size', ...bun('run', 'check:file-size') },
-    // 巨型文件的**扇出**：行数只看「长不长」，这里看「为什么拆不动」——
-    // stage.ts 有 7 个 deps 函数共 920 个依赖条目，是三个巨型文件里耦合最重的，
-    // 而单看行数/Impl 数完全看不出来。拆分进度按这个指标衡量。
-    { name: 'check:giant-files', ...bun('run', 'check:giant-files') },
-    { name: 'check:complexity', ...bun('run', 'check:complexity') },
-    // 业务规则自检（19 个 `*_selftest.py`）：设备画像 / 备份 / 事件日志 / 用水与用能 /
-    // 电价与逐小时聚合 / 昼夜节律 / 日出日落 / 安防进入延时 / 设备倒计时 / 通知静音 /
-    // 公开配置 / 商店入口 / UI 素材 / 设备时序 / 来源判定 / 命令出口。
-    // 守的都是「不报错但会静默错」的语义（重复写事件日志、漏结算一条时序、静音掉
-    // 生命安全告警），编译与类型检查都看不见。
-    //
-    // 合并成一条步骤只改**执行方式**：一个解释器里串完 19 个模块，省掉 19 次 Python
-    // 启动与重复导入；断言一条不少，失败仍按模块名定位。单项调试仍用原脚本
-    // （`bun run check:circadian` 等，package.json 里都保留着）。
-    { name: 'check:selftests', ...bun('run', 'check:selftests') },
-    // 画布基准：超宽屏（21:9 / 32:9）换 16:9 系基准后，画布仍必须铺满视口且不变形。
-    { name: 'check:canvas-layout', ...bun('run', 'check:canvas-layout') },
-    // 状态发布游标：舞台 `onPatch` 原地写状态表，必须靠版本号判断变化 ——
-    // 退回对象引用比较会把单实体 `state_changed` 全部吞掉（画面不更新且不报错）。
-    { name: 'check:state-revision', ...bun('run', 'check:state-revision') },
-    // UI 溢出棘轮：裸 `1fr` 网格与非白名单 `overflow-x:auto` 只许降不许增
-    // （设置页是 overflow-x:hidden，长串撑破列宽时内容会被静默裁掉）。
-    { name: 'check:ui-overflow', ...bun('run', 'check:ui-overflow') },
-    { name: 'check:python-format', ...bun('run', 'check:python-format') },
-    // 以下四条原属 test 组：它们只读源码、不跑用例，测试移除后并入 static，避免门禁丢项。
-    { name: 'check:studio-split', ...bun('run', 'check:studio-split') },
-    // `studio/runtime/**` 同时被主 bundle 与 `vite.runtime.config.ts` 的逐文件产物消费。
-    // 导出面一改，主 bundle 类型检查照样通过，舞台产物只在运行时炸 —— 用契约快照拦住。
+    // 环境变量契约：模板里不许有没人读的键（inventory）+ `os.getenv` 只许出现在白名单叶子
+    // （access）。同一主题，两条脚本各自守一个方向。
+    { name: 'check:env', ...bun('run', 'check:env'), covers: ['check:env-inventory', 'check:env-access'] },
+    // 路由 / 契约五合一：一次后端导入（routes / store-routes / ws-auth / api-contract /
+    // frontend-coverage）。覆盖检查复用前两条算出的路由表缓存。
+    {
+      name: 'check:contracts',
+      ...bun('run', 'check:contracts'),
+      covers: ['check:routes', 'check:store-routes', 'check:ws-auth', 'check:api-contract', 'check:frontend-coverage'],
+    },
+    // 分层依赖方向：前端 `check_frontend_deps` + 后端 `check_backend_deps`，同一主题两端各一道。
+    { name: 'check:deps', ...bun('run', 'check:deps'), covers: ['check:frontend-deps', 'check:backend-deps'] },
+    // `studio/runtime/**` 同时被主 bundle 与逐文件产物消费；导出面一改，主 bundle 类型检查
+    // 照样通过，舞台只在运行时炸 —— 用契约快照拦住。
     { name: 'check:runtime-contract', ...bun('run', 'check:runtime-contract') },
-    { name: 'check:frontend-deps', ...bun('run', 'check:frontend-deps') },
-    { name: 'check:backend-deps', ...bun('run', 'check:backend-deps') },
-    // 导入真实路由注册表，需要后端运行期依赖（CI static job 为此装 requirements.txt）。
-    { name: 'check:routes', ...bun('run', 'check:routes') },
+    // ---- ratchet -----------------------------------------------------
+    // 前端十条棘轮/守卫（any / 别名 / 复杂度 / 性能 / 硬编码样式 / UI 溢出 / CSS 重复 /
+    // CSS 令牌 / 画布断点 / 受限写法）。合并的意义是**共享一次遍历与一份 AST**，
+    // 每条断言的判定口径与基线都不变。
+    {
+      name: 'check:frontend',
+      ...bun('run', 'check:frontend'),
+      covers: [
+        'check:any',
+        'check:aliases',
+        'check:frontend-complexity',
+        'check:perf-ratchet',
+        'check:styles',
+        'check:ui-overflow',
+        'check:css-duplicates',
+        'check:css-tokens',
+        'check:canvas-breakpoints',
+        'check:restricted-syntax',
+      ],
+    },
+    // 体量四条（代码量 / 文件行数 / 巨型文件扇出 / 重复代码）。行数只由 file-size 判，
+    // giant-files 只判扇出 —— 同一处新增不该被两个模块各报一次。
+    {
+      name: 'check:size',
+      ...bun('run', 'check:size'),
+      covers: ['check:code-size', 'check:file-size', 'check:giant-files', 'check:duplicates'],
+    },
+    // 后端静态检查。合并的意义是共享一份 `ast.parse` 缓存：此前每条都把 694 个 .py
+    // 重新解析一遍（合计约 25s），现在一个解释器跑完约 5s。
+    {
+      name: 'check:backend',
+      ...bun('run', 'check:backend'),
+      covers: [
+        'check:silent-except',
+        'check:error-contract',
+        'check:background-tasks',
+        'check:complexity',
+        'check:env-access',
+        // 两条合并脚本：guards = async 同步 DB / PEP 758 / 响应模型；parity = 设备 kind 两表 +
+        // 域控制类型表 + 迁移回归。原六条单项脚本已删除，判定逻辑与口径不变。
+        'check:guards',
+        'check:parity',
+      ],
+    },
+    // ---- invariant ---------------------------------------------------
+    // 3D / 画布八条纯逻辑断言（几何内核 / 放置吸附 / 视口手势 / 窗型撤销 / 场景归一化 /
+    // 状态游标 / 画布基准 / 分辨率审计）。
+    {
+      name: 'check:studio-invariants',
+      ...bun('run', 'check:studio-invariants'),
+      covers: [
+        'check:plan-geometry',
+        'check:studio-placement',
+        'check:studio-gesture',
+        'check:studio-window-undo',
+        'check:scene-payload',
+        'check:state-revision',
+        'check:canvas-layout',
+        'audit:scaling',
+      ],
+    },
+    // 入户场景静态资源：真源在 packages/shared/scene/static，两个前端只是 `sync:scene` 的产物。
+    { name: 'check:scene', ...bun('run', 'check:scene') },
+    // 运行期 Python 依赖锁：与 requirements.txt 指纹漂移时，镜像里装的包与代码假设不一致。
+    { name: 'check:python-lock', ...bun('run', 'check:python-lock') },
+    // 镜像包的导入门禁：源码里的绝对 `src.` 导入在镜像里不存在。
+    { name: 'check:image-imports', ...bun('run', 'check:image-imports') },
+    // Studio 拆分预算：入口/族文件行数、族顺序、族文件不得 import 入口、不得有模块级 let。
+    // 分支级哈希比对（verify_item_model）降级为手动 `audit:item-model`：items/ 仍在持续改，
+    // 放进门禁只会训练出「红了就重写基线」。
+    { name: 'check:studio-split', ...bun('run', 'check:studio-split') },
+    // ---- business ----------------------------------------------------
+    // 三类断言：bun test 契约单测 + stdlib unittest + 19 个业务规则自检。三段都跑完再汇总。
+    {
+      name: 'check:tests',
+      ...bun('run', 'check:tests'),
+      covers: ['check:unit-tests', 'check:backend-unit-tests', 'check:selftests'],
+    },
   ],
   model: [
-    { name: 'check:geometry', ...bun('run', 'check:geometry') },
-    { name: 'check:slots', ...bun('run', 'check:slots') },
-    { name: 'check:slot-roles', ...bun('run', 'check:slot-roles') },
-    { name: 'check:materials', ...bun('run', 'check:materials') },
-    { name: 'check:assets', ...bun('run', 'check:assets') },
-    { name: 'check:models-layout', ...bun('run', 'check:models-layout') },
-    { name: 'check:model-names', ...bun('run', 'check:model-names') },
+    // 资产 / 几何 / 槽位 / 材质四条只读审计（各自产出报告，不写基线）。
+    {
+      name: 'check:model-assets',
+      ...bun('run', 'check:model-assets'),
+      covers: ['check:assets', 'check:geometry', 'check:slots', 'check:materials'],
+    },
+    // 目录分区与中文名索引：新增/移动模型后这两处必须同步。
+    {
+      name: 'check:model-index',
+      ...bun('run', 'check:model-index'),
+      covers: ['check:models-layout', 'check:model-names'],
+    },
   ],
   build: [
     {
@@ -241,13 +231,17 @@ const GATE_GROUPS = {
       args: ['ops/ci/build_frontend_verify.sh'],
     },
     // 体积预算棘轮已移除：入口 chunk / runtime 数随功能迭代自然漂移，
-    // 构建组只守下面三条（chunk 初始化顺序、字体子集、静态 CSS 是否真被压过）。
+    // 构建组只守下面三条（chunk 初始化顺序、字体子集、静态产物是否真被处理过）。
     { name: 'check:chunk-init', ...bun('run', 'check:chunk-init') },
     { name: 'check:font-subset', ...bun('run', 'check:font-subset') },
-    // `public/static` 的 CSS 靠 `minify-static-css` 压（Vite 只压 `assets/` 下打包过的样式）。
-    // 这条路只在 `build:frontend` 链条里跑：裸 `vite build` 会静默产出 124KB / 5694 行的
-    // `studio.css`，页面照常工作、没有任何报错，只有这一条能把「产物没压过」变成红灯。
-    { name: 'check:minified-css', ...bun('run', 'check:minified-css') },
+    // `public/static` 的 CSS 靠 `minify-static-css` 压、`.br`/`.gz` 靠 `precompress-static` 生成
+    // （Vite 只压 `assets/` 下打包过的样式）。裸 `vite build` 会静默产出未压缩的 `studio.css`
+    // 且不生成 sidecar，页面照常工作、没有报错，只有这两条能把「产物没处理过」变成红灯。
+    {
+      name: 'check:dist-assets',
+      ...bun('run', 'check:dist-assets'),
+      covers: ['check:minified-css', 'check:precompress'],
+    },
   ],
   infra: [
     {
@@ -270,16 +264,22 @@ const GATE_GROUPS = {
       hint: 'brew install actionlint（CI 由 lint-infra job 安装）',
     },
     {
-      name: 'compose config (docker-compose.yml)',
-      cmd: 'docker',
-      args: ['compose', '-f', 'docker-compose.yml', 'config', '-q'],
-      tools: ['docker'],
-      hint: '装 Docker Desktop / colima；CI runner 自带',
-    },
-    {
-      name: 'compose config (docker-compose.app.yml)',
-      cmd: 'docker',
-      args: ['compose', '-f', 'docker-compose.app.yml', 'config', '-q'],
+      // 两份交付 compose 的解析：同一件事分两个步骤只会让清单更长，失败时多一段重复日志。
+      name: 'compose config',
+      covers: ['compose config (docker-compose.yml)', 'compose config (docker-compose.app.yml)'],
+      fn: () => {
+        for (const file of ['docker-compose.yml', 'docker-compose.app.yml']) {
+          const result = spawnSync('docker', ['compose', '-f', file, 'config', '-q'], {
+            cwd: REPO_ROOT,
+            encoding: 'utf8',
+          })
+          if (result.status !== 0) {
+            console.error(result.stderr || `docker compose -f ${file} config 失败`)
+            return result.status ?? 1
+          }
+        }
+        return 0
+      },
       tools: ['docker'],
       hint: '装 Docker Desktop / colima；CI runner 自带',
     },
@@ -364,62 +364,34 @@ const DEFAULT_GROUPS = ['static', 'model']
  */
 const TAG_GROUPS = {
   types: ['typecheck', 'typecheck:node'],
-  lint: ['lint:biome', 'check:css-syntax', 'check:restricted-syntax', 'lint:py', 'check:python-format'],
-  contract: [
-    'check:toolchain',
-    'check:env-inventory',
-    'check:ws-auth',
-    'check:store-routes',
-    'check:api-contract',
-    'check:response-models',
-    'check:frontend-coverage',
-    'check:extra-types',
-    'check:device-kinds',
-    'check:device-kinds-regression',
-    'check:runtime-contract',
-    'check:frontend-deps',
-    'check:backend-deps',
-    'check:routes',
-  ],
-  ratchet: [
-    'check:any',
-    'check:aliases',
-    'check:frontend-complexity',
-    'check:perf-ratchet',
-    'check:duplicates',
-    'check:code-size',
-    'check:css-duplicates',
-    'check:file-size',
-    'check:giant-files',
-    'check:complexity',
-    'check:silent-except',
-    'check:error-contract',
-    'check:background-tasks',
-    'check:env-access',
-    'check:ui-overflow',
-    'check:styles',
-  ],
+  lint: ['lint:biome', 'check:css-syntax', 'lint:py'],
+  contract: ['check:toolchain', 'check:env', 'check:contracts', 'check:deps', 'check:runtime-contract'],
+  ratchet: ['check:frontend', 'check:size', 'check:backend'],
   invariant: [
-    'check:canvas-breakpoints',
-    'audit:scaling',
+    'check:studio-invariants',
     'check:scene',
-    'check:css-tokens',
-    'check:dom-factory',
-    'check:plan-geometry',
-    'check:studio-placement',
-    'check:studio-gesture',
-    'check:studio-window-undo',
-    'check:scene-payload',
-    'check:canvas-layout',
-    'check:state-revision',
-    'check:studio-split',
-    'check:async-db',
     'check:python-lock',
     'check:image-imports',
-    'check:pep758-except',
+    'check:studio-split',
   ],
-  business: ['check:unit-tests', 'check:backend-unit-tests', 'check:selftests'],
+  business: ['check:tests'],
 }
+
+/**
+ * 手动入口清单（**显式登记**，不再从 package.json 推断）。
+ *
+ * 为什么改成显式：推断版只能看出「命令里有没有被 gates 引用」，合并成批量入口后，
+ * 被合并的脚本仍在 `covers` 里，推断会漏判；而真正的「手动工具」又只能靠名字猜。
+ * 这份清单是给人看的：这些命令**不阻断 CI**，别误以为门禁已经在跑。
+ */
+const MANUAL_SCRIPTS = [
+  'check:licenses', // 依赖许可证审计：需要联网，跑在 audit.yml（定时）
+  'check:studio-parity', // 人工 A/B：要 Chrome + 两个服务，见 ops/scripts/studio-visual-parity.mjs
+  'check:scene-payload-mutations', // 突变测试：会临时改源树
+  'check:plan-geometry-mutations', // 同上
+  'audit:item-model', // 分支级哈希基线：items/ 仍在改，手动跑（见 README）
+  'audit:materials', // 材质报告：只产出文档，判定在 check:materials
+]
 
 /** 把标签挂到步骤上，并校验「每个 static 步骤恰好一类」。 */
 function attachTags() {
@@ -457,10 +429,21 @@ function splitList(value) {
 }
 
 function parseArgs(argv) {
-  const options = { groups: [], tags: [], steps: [], jobs: null, all: false, list: false, failFast: false, help: false }
+  const options = {
+    groups: [],
+    tags: [],
+    steps: [],
+    jobs: null,
+    all: false,
+    list: false,
+    json: false,
+    failFast: false,
+    help: false,
+  }
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i]
     if (arg === '--list') options.list = true
+    else if (arg === '--json') options.json = true
     else if (arg === '--all') options.all = true
     else if (arg === '--fail-fast') options.failFast = true
     else if (arg === '--serial') options.jobs = 1
@@ -513,8 +496,10 @@ function matchesFilters(step, group) {
     if (!options.tags.includes(step.tag)) return false
   }
   if (options.steps.length) {
-    const name = step.name.toLowerCase()
-    if (!options.steps.some((needle) => name.includes(needle.toLowerCase()))) return false
+    // 批量步骤（check:frontend 等）还接受被合并的原脚本名：`--step duplicates` 仍能命中
+    // `check:size`，否则合并之后连「只复跑失败的那一条」都做不到。
+    const haystack = [step.name, ...(step.covers ?? [])].map((item) => item.toLowerCase())
+    if (!options.steps.some((needle) => haystack.some((item) => item.includes(needle.toLowerCase())))) return false
   }
   return true
 }
@@ -528,7 +513,7 @@ function printHelp() {
   console.log(`门禁编排器（分组见文件头注释）
 
 用法：
-  node ops/gates.mjs [--group|--only <组>[,<组>] ...] [--all] [--fail-fast] [--list]
+  node ops/gates.mjs [--group|--only <组>[,<组>] ...] [--all] [--fail-fast] [--list [--json]]
                      [--tag <类>[,<类>]] [--step <名字子串>[,<名字子串>]] [--jobs <n|auto>] [--serial]
 
 组：${Object.keys(GATE_GROUPS).join(' / ')}
@@ -539,7 +524,7 @@ function printHelp() {
 
 示例：
   node ops/gates.mjs --tag ratchet --jobs 1     # 一条一条看棘轮
-  node ops/gates.mjs --step energy             # 只跑名字里带 energy 的步骤
+  node ops/gates.mjs --step duplicates         # 命中 check:size（批量入口按 covers 匹配）
   bun run gate:fast                            # 日常快检：types + lint（其余留给 pre-push / CI）
 `)
 }
@@ -821,6 +806,23 @@ function stepMarks(step) {
 }
 
 if (options.list) {
+  // `--list --json`：供「合并前后覆盖对照」这类机器比对使用（脚本无需解析人类可读表格）。
+  if (options.json) {
+    const payload = Object.fromEntries(
+      Object.entries(GATE_GROUPS).map(([group, steps]) => [
+        group,
+        steps.map((step) => ({
+          name: step.name,
+          tag: step.tag ?? null,
+          covers: step.covers ?? [],
+          tools: step.tools ?? [],
+          ciOnly: step.ciOnly === true,
+        })),
+      ]),
+    )
+    console.log(JSON.stringify({ context: CONTEXT, groups: payload, manual: MANUAL_SCRIPTS }, null, 2))
+    process.exit(0)
+  }
   console.log(`上下文：${CONTEXT}`)
   for (const [group, steps] of Object.entries(GATE_GROUPS)) {
     console.log(`\n${group}（${steps.length}）`)
@@ -841,35 +843,14 @@ if (options.list) {
       console.log(`  - ${step.name}${marks ? `  [${marks}]` : ''}`)
     }
   }
-  printUnregisteredScripts()
+  printManualScripts()
   process.exit(0)
 }
 
-/**
- * `--list` 末尾列出「package.json 里有、但不属于任何组」的 check 脚本。
- *
- * 这些是手动入口（mutation / golden / licenses 之类），不阻断 CI，但也很容易被误以为
- * 「门禁已经在跑」。把它们显式列出来，免得下次再有人从 README 的命令表里推断覆盖率。
- */
-function printUnregisteredScripts() {
-  const registered = new Set()
-  for (const steps of Object.values(GATE_GROUPS)) {
-    for (const step of steps) {
-      const runIndex = step.args?.indexOf('run') ?? -1
-      if (runIndex >= 0 && step.args[runIndex + 1] && !step.args[runIndex + 1].startsWith('-')) {
-        registered.add(step.args[runIndex + 1])
-      }
-    }
-  }
-  const pkg = JSON.parse(readFileSync(path.join(REPO_ROOT, 'package.json'), 'utf8'))
-  // 单个 `*_selftest.py` 的脚本是 `check:selftests` 的调试入口（批量步骤里已经在跑），
-  // 列出来只会让人以为 19 条自检没进门禁 —— 按「命令里引用了 selftest 脚本」排除。
-  const manual = Object.keys(pkg.scripts ?? {}).filter(
-    (name) => name.startsWith('check:') && !registered.has(name) && !/_selftest\.py/.test(pkg.scripts[name] ?? ''),
-  )
-  if (manual.length === 0) return
-  console.log(`\n未登记为门禁（手动运行）：${manual.length} 条`)
-  for (const name of manual) console.log(`  - ${name}  =>  ${pkg.scripts[name]}`)
+/** `--list` 末尾打印手动入口：避免「门禁已经在跑」的误解。 */
+function printManualScripts() {
+  console.log(`\n手动入口（不属于门禁）：${MANUAL_SCRIPTS.length} 条`)
+  for (const name of MANUAL_SCRIPTS) console.log(`  - ${name}`)
 }
 
 console.log(`gates：上下文=${CONTEXT}，组=${groups.join(' + ')}`)

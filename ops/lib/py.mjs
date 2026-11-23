@@ -8,7 +8,7 @@
  * CI 那份在开发机上可能缺依赖。
  *
  * 现在本地与 CI 都走这一层：
- *   node ops/lib/py.mjs ops/checks/check_async_db.py
+ *   node ops/lib/py.mjs ops/checks/python/check_guards.py --module async-db
  *
  * 选择顺序：
  *   1. `HOMEOS_PYTHON`（显式覆盖，路径或命令名）；
@@ -85,10 +85,33 @@ if (!python) {
   process.exit(127)
 }
 
+/**
+ * 注入 `PYTHONPATH`：仓库根 + 各检查子目录。
+ *
+ * 为什么在这里做而不是每个脚本各写 `sys.path.insert`：门禁脚本散在 `ops/checks/` 的九个
+ * 子目录里，各自抄 3 行前导会变成 `check:duplicates` 眼里的克隆；而「脚本放在哪一层」
+ * 本来就不该影响它能不能导入 —— 那是运行方式的问题，交由唯一的解释器入口处理。
+ *
+ * 副作用：直接 `python3 ops/checks/x.py`（不经本入口）会缺少这些路径。仓库约定就是
+ * 「Python 只走 `ops/lib/py.mjs`」（见 README），因此这是把隐含约定写实，而不是新增限制。
+ */
+function pythonPath() {
+  const dirs = [
+    REPO_ROOT,
+    path.join(REPO_ROOT, 'ops'),
+    path.join(REPO_ROOT, 'ops', 'checks'),
+    ...['business', 'python', 'contract', 'architecture', 'security', 'size', 'studio', 'unittests', 'lib'].map(
+      (name) => path.join(REPO_ROOT, 'ops', 'checks', name),
+    ),
+  ]
+  const existing = process.env.PYTHONPATH
+  return existing ? `${dirs.join(path.delimiter)}${path.delimiter}${existing}` : dirs.join(path.delimiter)
+}
+
 const result = spawnSync(python, args, {
   cwd: REPO_ROOT,
   stdio: 'inherit',
-  env: process.env,
+  env: { ...process.env, PYTHONPATH: pythonPath() },
 })
 
 // `status === null` 只有「进程压根没起来」一种情况：和「脚本自己退出 1」必须区分开，

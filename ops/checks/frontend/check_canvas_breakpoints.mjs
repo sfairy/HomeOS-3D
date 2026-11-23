@@ -20,7 +20,7 @@
  * 规则内出现 `@media` 且带宽度条件（`min-width` / `max-width` /
  * `min-inline-size` / `max-inline-size` 或 range 语法）即为违规，除非：
  *
- * - 文件在基线 `ops/checks/frontend/canvas-breakpoints-baseline.json` 的 `allow` 里
+ * - 文件在基线 `ops/checks/baselines/frontend/canvas-breakpoints-baseline.json` 的 `allow` 里
  *   （`.viewport-frame` 这类**容器自身/其祖先**的元素，容器查询无法作用于自己）；
  * - 路径在 `EXEMPT_DIRS`（studio 3D runtime 用独立的 iframe 视口与 `--i3d-*` 缩放，
  *   不在主壳内，按窗口决策是设计意图）。
@@ -34,11 +34,10 @@
  * node ops/checks/frontend/check_canvas_breakpoints.mjs --json   # 机器可读
  * ```
  */
-import { readdirSync, readFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 
-const repoRoot = resolve(import.meta.dirname, '../../..')
-const asJson = process.argv.includes('--json')
+import { isMain } from '../../lib/cli.mjs'
+import { createContext, readBaseline, report } from '../../lib/ratchet.mjs'
 
 /** 参与校验的范围：主壳渲染路径上的所有样式 */
 const SCOPE_DIRS = [
@@ -70,21 +69,9 @@ const ALLOWED_CONTAINER_NAMES = new Set(['hos-canvas', 'settings-scroll'])
  * scaled-viewport.css：写的是 `.viewport-frame`（容器的**祖先**）与 `.app-shell--scaling`
  * 自身。容器查询只能命中容器的后代，对容器自身/祖先无效，只能继续用媒体查询。
  */
-const BASELINE_PATH = 'ops/checks/frontend/canvas-breakpoints-baseline.json'
-const baseline = JSON.parse(readFileSync(join(repoRoot, BASELINE_PATH), 'utf8'))
-const ALLOW_FILES = new Set(baseline.allow)
+const BASELINE_REL = 'ops/checks/baselines/frontend/canvas-breakpoints-baseline.json'
 
 const WIDTH_CONDITION = /\((?:min|max)-(?:width|inline-size):[^)]*\)|\(\s*(?:width|inline-size)\s*(?:<=|>=|<|>)/i
-
-function walk(dir, out = []) {
-  for (const entry of readdirSync(join(repoRoot, dir), { withFileTypes: true })) {
-    const rel = `${dir}/${entry.name}`
-    if (EXEMPT_DIRS.some((exempt) => rel.startsWith(exempt))) continue
-    if (entry.isDirectory()) walk(rel, out)
-    else if (/\.(css|vue)$/.test(entry.name)) out.push(rel)
-  }
-  return out
-}
 
 /** 去掉注释，避免把文档里的示例当成真实规则 */
 function stripComments(source) {
@@ -95,8 +82,8 @@ function stripComments(source) {
 function atRuleHeads(source, name) {
   const heads = []
   const re = new RegExp(`@${name}\\b`, 'g')
-  let match
-  while ((match = re.exec(source))) {
+  let match = re.exec(source)
+  while (match) {
     const brace = source.indexOf('{', match.index)
     if (brace === -1) break
     let depth = 0
@@ -112,6 +99,7 @@ function atRuleHeads(source, name) {
       }
     }
     heads.push({ index: match.index, head: source.slice(match.index, brace), body: source.slice(brace + 1, end) })
+    match = re.exec(source)
   }
   return heads
 }
@@ -132,50 +120,68 @@ function lineOf(source, index) {
   return source.slice(0, index).split('\n').length
 }
 
-const violations = []
-let containerQueries = 0
+/**
+ * @param {ReturnType<typeof createContext>} ctx
+ */
+export function audit(ctx) {
+  const loaded = readBaseline(join(ctx.repoRoot, BASELINE_REL), BASELINE_REL)
+  const allowFiles = new Set(loaded.ok ? (loaded.data.allow ?? []) : [])
+  const skipDirs = new Set(['node_modules', 'dist', 'build', '.git'])
 
-for (const file of SCOPE_DIRS.flatMap((dir) => walk(dir))) {
-  const source = stripComments(readFileSync(join(repoRoot, file), 'utf8'))
+  const violations = []
+  const documentLevel = []
+  let containerQueries = 0
 
-  for (const { index, head } of atRuleHeads(source, 'container')) {
-    const containerName = head.replace(/^@container\s+/, '').split(/[\s(]/)[0]
-    if (!containerName || containerName.startsWith('(')) {
-      violations.push(
-        `${file}:${lineOf(source, index)} 容器查询必须命名（hos-canvas / settings-scroll）：${head.trim()}`,
-      )
-    } else if (!ALLOWED_CONTAINER_NAMES.has(containerName)) {
-      violations.push(`${file}:${lineOf(source, index)} 未知容器名 ${containerName}：${head.trim()}`)
-    } else if (containerName === 'hos-canvas') {
-      containerQueries++
+  for (const dir of SCOPE_DIRS) {
+    for (const file of ctx.walk(dir, new Set(['.css', '.vue']), skipDirs)) {
+      const rel = ctx.rel(file)
+      if (EXEMPT_DIRS.some((exempt) => rel.startsWith(exempt))) continue
+      const source = stripComments(ctx.text(file))
+
+      for (const { index, head } of atRuleHeads(source, 'container')) {
+        const containerName = head.replace(/^@container\s+/, '').split(/[\s(]/)[0]
+        if (!containerName || containerName.startsWith('(')) {
+          violations.push(
+            `${rel}:${lineOf(source, index)} 容器查询必须命名（hos-canvas / settings-scroll）：${head.trim()}`,
+          )
+        } else if (!ALLOWED_CONTAINER_NAMES.has(containerName)) {
+          violations.push(`${rel}:${lineOf(source, index)} 未知容器名 ${containerName}：${head.trim()}`)
+        } else if (containerName === 'hos-canvas') {
+          containerQueries++
+        }
+      }
+
+      if (allowFiles.has(rel)) continue
+
+      for (const { index, head, body } of atRuleHeads(source, 'media')) {
+        if (!WIDTH_CONDITION.test(head)) continue
+        if (isDocumentLevelBlock(body)) {
+          documentLevel.push(`${rel}:${lineOf(source, index)}`)
+          continue
+        }
+        violations.push(
+          `${rel}:${lineOf(source, index)} 宽度断点仍用 @media（读窗口宽度），应改 @container hos-canvas：${head.trim()}`,
+        )
+      }
+
+      if (/html:not\(\.hos-canvas-scaled\)/.test(source)) {
+        violations.push(`${rel} 仍在使用 html:not(.hos-canvas-scaled) 门控，应直接写 @container hos-canvas`)
+      }
     }
   }
 
-  if (ALLOW_FILES.has(file)) continue
-
-  for (const { index, head, body } of atRuleHeads(source, 'media')) {
-    if (!WIDTH_CONDITION.test(head)) continue
-    if (isDocumentLevelBlock(body)) {
-      console.log(`允许 ${file}:${lineOf(source, index)} 文档级 :root 令牌块保留媒体查询`)
-      continue
-    }
-    violations.push(
-      `${file}:${lineOf(source, index)} 宽度断点仍用 @media（读窗口宽度），应改 @container hos-canvas：${head.trim()}`,
-    )
-  }
-
-  const gated = source.match(/html:not\(\.hos-canvas-scaled\)/g)
-  if (gated) {
-    violations.push(`${file} 仍在使用 html:not(.hos-canvas-scaled) 门控，应直接写 @container hos-canvas`)
+  return {
+    name: '画布断点守卫',
+    summary: `${containerQueries} 个 hos-canvas 容器查询，无窗口宽度断点残留`,
+    problems: violations,
+    notes: documentLevel.length > 0 ? [`文档级 :root 令牌块保留媒体查询：${documentLevel.length} 处`] : [],
+    json: { ok: violations.length === 0, containerQueries, documentLevel, violations },
   }
 }
 
-if (asJson) {
-  console.log(JSON.stringify({ ok: violations.length === 0, containerQueries, violations }, null, 2))
-} else if (violations.length) {
-  console.error(`画布断点守卫失败：${violations.length} 处\n${violations.join('\n')}`)
-} else {
-  console.log(`画布断点守卫通过：${containerQueries} 个 hos-canvas 容器查询，无窗口宽度断点残留`)
+/** 单跑入口。 */
+export function cli(argv = process.argv.slice(2)) {
+  return report(audit(createContext(join(import.meta.dirname, '../../..'))), { json: argv.includes('--json') })
 }
 
-process.exit(violations.length === 0 ? 0 : 1)
+if (isMain(import.meta.url)) process.exit(cli())

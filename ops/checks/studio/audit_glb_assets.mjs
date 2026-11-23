@@ -41,7 +41,7 @@ import {
 
 const hereDir = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(hereDir, '../../..')
-const baselineFile = path.join(hereDir, 'asset-baseline.json')
+const baselineFile = path.join(hereDir, '../baselines/model/asset-baseline.json')
 
 /** 体积预算：回滚后实测全库 27.8MB / lite 7.1MB，留出正常增长余量。 */
 export const BUDGETS = Object.freeze({

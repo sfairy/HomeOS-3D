@@ -49,7 +49,7 @@ const repoRoot = path.resolve(hereDir, '../../..')
 const frontendDir = path.join(repoRoot, 'homeos/frontend')
 const modelsDir = path.join(frontendDir, 'public/static/3d-studio/models')
 const specsFile = path.join(frontendDir, 'scripts/models/specs/model-specs.json')
-const baselineFile = path.join(hereDir, 'geometry-baseline.json')
+const baselineFile = path.join(hereDir, '../baselines/model/geometry-baseline.json')
 
 /** 判定阈值：与计划 §1 一字对应。 */
 export const THRESHOLDS = Object.freeze({

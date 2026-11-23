@@ -93,7 +93,14 @@ HomeOS/
 │   ├── dev.mjs / build.py / ports.mjs   # 本地联调 / 镜像与后端构建 / 端口唯一真源
 │   ├── docker-pins.json           # 基础镜像 tag + digest 真源
 │   ├── contracts/                 # feature_codes.json（能力码唯一真源，18 项 / 2 组）
-│   ├── checks/                    # 架构 / 模型 / 棘轮 / 边界 / 不变量自检
+│   ├── checks/                    # 检查脚本，按域分目录：
+│   │   ├── run_*.{mjs,py}          #   批量入口（一个进程跑完一类检查）
+│   │   ├── business/               #   19 个业务规则自检 + 共享骨架
+│   │   ├── python/ frontend/ size/ contract/ studio/   # 各类静态检查
+│   │   ├── architecture/ security/ #   路由契约 / 依赖方向 / WS 鉴权
+│   │   ├── baselines/              #   全部棘轮基线（按域再分一层）
+│   │   ├── unittests/              #   bun test + stdlib unittest
+│   │   └── lib/ fixtures/          #   断言辅助、夹具
 │   ├── scripts/                   # 构建期与离线工具：CSS 压缩、预压缩 sidecar、codemod、时序表瘦身
 │   ├── lib/                       # 解释器入口（py.mjs）、walk、vue-tsc 与 biome 包装
 │   ├── release/                   # set-version.mjs
@@ -211,50 +218,66 @@ bun run dev -- --lan     # 局域网
 | `typecheck` | shared 构建 + 两个前端 `vue-tsc` |
 | `typecheck:node` | vite 配置 / `ops` 脚本类型 |
 | `lint:py` | `ruff check`（Python 唯一阻断项；类型检查无 `bun run` 入口，直接跑 `.venv-store/bin/pyright`） |
-| `report:compression` | 代码量压缩报告（只读统计） |
 
 ### 门禁
 
-清单唯一来源 `ops/gates.mjs`（`--list` 查）。分三层：阻断（`gate:*`）、手动审计（`audit:*`）、生成（`generate:*` / `organize:*` / `index:*` / `rebuild:*` / `build:slot-contracts`）。
+清单唯一来源 `ops/gates.mjs`（`--list` / `--list --json` 查）。分三层：阻断（`gate:*`）、手动审计（`audit:*`）、生成（`generate:*` / `organize:*` / `index:*` / `rebuild:*` / `build:slot-contracts`）。
 
-| 组 | 管什么 | 项 |
+| 组 | 管什么 |
+| --- | --- |
+| `static` | 类型 / lint / 契约（路由·依赖·环境变量）/ 棘轮 / 不变量 / 测试 |
+| `model` | 资产·几何·槽位·材质审计 + 目录布局与中文名索引 |
+| `build` | 清 `dist` → 构建与产物断言 → chunk 初始化顺序 → 字体子集 → 静态产物处理 |
+| `infra` | shellcheck / actionlint / compose / Caddy 格式与校验 / Cython |
+
+static 的步骤按**标签**分六类（`--list` 按此打印，`--tag` 可整类跑）：`types` / `lint` /
+`contract` / `ratchet` / `invariant` / `business`。新增 static 步骤必须在 `TAG_GROUPS` 里登记标签，
+否则启动即报错 —— 分类过期比没有分类更糟。
+
+### 批量入口与单项调试
+
+同一批文件被多条检查反复扫描时，门禁只登记一个**批量入口**，被合并的原脚本写进 `covers`：
+
+| 入口 | 子检查 | 合并收益 |
 | --- | --- | --- |
-| `static` | 类型 / lint / 契约 / 棘轮 / 不变量 / 业务规则（见下表标签） | 57 |
-| `model` | 几何、槽位、槽位角色、材质角色、资产、目录布局、中文名索引 | 7 |
-| `build` | 清 `dist` → 构建与产物断言 → 预压缩 → chunk 初始化顺序 → 字体子集 | 5 |
-| `infra` | shellcheck / actionlint / compose ×3 / Caddy 格式与校验 / Cython | 9 |
+| `check:frontend` | 10 | 1974 个 ts/vue 只遍历一次；复杂度与受限写法共用同一份 `SourceFile` |
+| `check:backend` | 7 | 694 个 `.py` 只 `ast.parse` 一次（此前每条都重解析）；`guards` / `parity` 各收三条 |
+| `check:contracts` | 6 | 后端应用只导入一次；覆盖率检查复用前两条算出的路由表；`parity` 收两张跨语言表 |
+| `check:size` | 4 | 行数只由 `check:file-size` 判，`check:giant-files` 只判扇出（imports / deps） |
+| `check:tests` | 3 | 三类断言一个步骤，失败仍按模块定位 |
+| `check:studio-invariants` | 7 | 八条不变量里画布两条合成一条（同一份 `canvas-layout.util.ts`） |
+| `check:model-assets` | 4 | 四条 GLB 只读审计 |
+| `check:model-index` | 2 | 目录布局 + 中文名索引 |
 
-static 的 57 条按**标签**分六类（`--list` 按此打印，`--tag` 可整类跑）：
+单项调试不必跑整批：批量入口都收 `--module`（精确名优先、其余按子串），例如
+`bun run check:backend -- --module guards`；原脚本也都能单独执行
+（`bun run check:parity`、`node ops/checks/python/check_guards.py --module pep758`）。
 
-| 标签 | 含义 | 项 |
-| --- | --- | --- |
-| `types` | 编译 / 类型 | 2 |
-| `lint` | 格式与语法（Biome / ruff / CSS 语法 / 受限写法） | 5 |
-| `contract` | 跨端或跨文件契约（工具链版本、WS 鉴权、路由基线、设备 kind 表） | 14 |
-| `ratchet` | 只许降的计数基线（`any` / 重复 / 代码量 / 复杂度 / 静默 except…） | 16 |
-| `invariant` | 纯逻辑 / 几何 / 状态机不变量（含 3D 放置与场景载荷） | 17 |
-| `business` | 业务规则自检（19 个 `*_selftest.py` 合并为一条步骤）+ 前后端单测 | 3 |
+**脚本按域分目录**：`business/`（19 个自检）/ `python/`（后端 AST 检查）/ `frontend/`（前端扫描与棘轮）/
+`size/`（体量棘轮）/ `contract/`（版本、环境变量、跨语言表）/ `studio/`（3D 与模型）/ `architecture/`、
+`security/`（路由与鉴权）/ `baselines/`（全部基线）。`run_*.{mjs,py}` 留在顶层作为唯一执行入口，
+`ops/checks/` 顶层因此只有 9 个文件 + 子目录。
 
-常用入口：
+Python 脚本的 `PYTHONPATH`（仓库根 + 各子目录）由 `ops/lib/py.mjs` 统一注入 —— 脚本里不再各写
+`sys.path.insert`，否则那 3 行会变成九份克隆。
 
 ```bash
 bun run gate                 # static + model（默认）
 bun run gate:fast            # 日常快检：static 的 types + lint
-node ops/gates.mjs --tag ratchet            # 只跑某一类
-node ops/gates.mjs --step energy            # 只跑名字匹配的步骤（子串）
+bun run check:frontend       # 只跑前端那批
+bun run check:backend -- --module kinds   # 批量入口里的单条（子串匹配）
+node ops/gates.mjs --tag ratchet          # 只跑某一类
+node ops/gates.mjs --step duplicates      # 命中 check:size（批量入口按 covers 匹配）
 node ops/gates.mjs --group static --jobs 1  # 串行逐条看
-node ops/gates.mjs --list                   # 按组 / 标签打印清单
+node ops/gates.mjs --list --json          # 机器可读（含 covers）
 ```
 
 默认并行 4（`--jobs` / `HOMEOS_GATE_JOBS` 可改）；`build` / `infra` 有组内先后依赖，恒为串行。
-并行模式下通过的步骤只留一行结果，失败才展开完整输出 —— 50 条绿色日志不会再把失败原因淹掉。
-缺工具本机 SKIP、CI 失败。
-
-`static` 新增检查必须在 `ops/gates.mjs` 的 `TAG_GROUPS` 里登记标签，否则启动即报错：
-分类过期比没有分类更糟。
+并行模式下通过的步骤只留一行结果，失败才展开完整输出。缺工具本机 SKIP、CI 失败。
 
 棘轮（`any` / 重复代码 / 代码量 / 样式 / 复杂度 / 文件体积）只许降。`update:<同名>(-baseline)` 是放宽手段，
-必须在提交说明里写清为什么（拆文件导致的平移要说明「总量不变」）。
+必须在提交说明里写清为什么（拆文件导致的平移要说明「总量不变」）。基线统一放在
+`ops/checks/baselines/{frontend,backend,contracts,size,model}/`。
 
 `check:toolchain` 守三条「写了两遍以上」的版本线，任何一处漂移都不影响编译、只会在换机或发版时才炸：
 
@@ -268,8 +291,9 @@ node ops/gates.mjs --list                   # 按组 / 标签打印清单
 （上游工具链常还没支持最新 minor，强行要求相等会把「升 Python」卡在工具上），但绝不允许超前 ——
 超前等于放行跑不了的语法。
 
-业务规则层「跑断言」的门禁是 `ops/checks/*_selftest.py`（标准库 + 运行期依赖，不需要 pytest），
-门禁里由 `check:selftests` 一个解释器串完 19 个模块；单项调试仍用原脚本
+业务规则层「跑断言」的门禁是 `ops/checks/business/*_selftest.py`（标准库 + 运行期依赖，不需要 pytest）。
+`check:tests` 串起三类断言（bun test 契约单测 + stdlib unittest + 19 个自检模块，都在
+`ops/checks/business/` 与 `ops/checks/unittests/`），单项调试仍用原脚本
 （`bun run check:device-profile`、`check:backup`、`check:event-log` …）：
 
 - 设备画像（58 项）：分类规则、别名归一与房间作用域、在线 / 可用二分、确认与审计、
@@ -281,8 +305,8 @@ node ops/gates.mjs --list                   # 按组 / 标签打印清单
 - 其余：用水 / 用能 / 室内环境监测、电价与逐小时聚合、昼夜节律、日出日落、安防进入延时、
   设备倒计时、通知静音、公开配置、商店入口、UI 素材、设备时序、来源判定、命令出口。
 
-合并只改执行方式：省掉 19 次 Python 启动与重复导入，断言一条不少；失败仍按模块名定位。
-仓库没有通用测试套件，其余 `check:*` 都是「读源码 / 读产物做不变量断言」（几何、场景载荷、DOM 工厂等）。
+合并只改执行方式：省掉重复的解释器启动与导入，断言一条不少；失败仍按模块名定位。
+其余 `check:*` 都是「读源码 / 读产物做不变量断言」（几何、场景载荷、状态游标等）。
 
 ### 调试
 
@@ -328,7 +352,7 @@ bfcache 交接在 `shared/utils/page-cache-lifecycle.ts`：`pagehide(persisted)`
 
 ## 5. 3D Studio 与模型库
 
-创作页与展示页共用 `buildStudioScene`。根应用只 `import '@/studio'`，不直达 `@app/*` / `@runtime/*`（`check:frontend-deps` 守）。
+创作页与展示页共用 `buildStudioScene`。根应用只 `import '@/studio'`，不直达 `@app/*` / `@runtime/*`（`check:deps` 守）。
 
 ### 模型库
 
@@ -337,8 +361,9 @@ bfcache 交接在 `shared/utils/page-cache-lifecycle.ts`：`pagehide(persisted)`
 - 每 id 两文件：`<中文名>-lite.glb`（首选）、`<中文名>.glb`（兜底）。
 - 磁盘中文名、代码英文 id；映射在 `model-asset-folders.ts` + `model-file-names.generated.ts`。
 - `MODEL-NAMES.md` 由 `bun run index:model-names` 生成。
-- 物品模型 14 族 / 59 类型分支（`item-model/`），族序不可重排；分支条件与分支体由
-  `ops/checks/studio/verify_item_model.mjs` 逐条哈希比对（`check:studio-split`）。
+- 物品模型 14 族 / 59 类型分支（`item-model/`），族序不可重排（`check:studio-split` 守）；
+  分支条件与分支体的逐条哈希比对降级为手动 `audit:item-model`，因为 `items/` 目录仍在持续改动，
+  把它放进门禁只会训练出「红了就重写基线」。
 - vendor：three 0.187.0、hls.js 1.7.4、meshoptimizer 0.25、mdi 7.4.47、meteocons。
 
 新增模型：`model-asset-folders.ts` 登记 id → 放两个 GLB → `StudioView.vue` 加 `data-library-name` 卡片 → `index:model-names` → `gate:model`。
@@ -350,8 +375,8 @@ bfcache 交接在 `shared/utils/page-cache-lifecycle.ts`：`pagehide(persisted)`
 | `model-slot-contracts.json` | `build:slot-contracts` |
 | `model-slot-roles.generated.ts` | `generate:slot-tables` |
 | `legacy-material-aliases.generated.ts` | `generate:slot-tables` |
-| `material-role-baseline.json`（672 文件 / 3136 条） | `audit_glb_materials.mjs --write-role-baseline` |
-| `asset-baseline.json`、`geometry-baseline.json` | 对应 `audit:*` |
+| `baselines/model/material-role-baseline.json`（672 文件 / 3136 条） | `audit_glb_materials.mjs --write-role-baseline` |
+| `baselines/model/{asset,geometry}-baseline.json` | 对应 `audit:*` |
 
 顺序：`audit:materials`（写 `docs/model-audit/glb-material-audit.json`）→ `build:slot-contracts` → `generate:slot-tables`。日常构建只需已提交的 `model-slot-contracts.json`。
 
@@ -359,14 +384,11 @@ bfcache 交接在 `shared/utils/page-cache-lifecycle.ts`：`pagehide(persisted)`
 
 | 命令 | 作用 |
 | --- | --- |
-| `check:assets` | GLB 结构 |
-| `check:geometry` | 包围盒 / 拓扑 / 面数 |
-| `check:slots` | 槽位命名与契约 |
-| `check:slot-roles` | 槽位角色与契约一致 |
-| `check:materials` / `audit:materials` | 材质角色指纹 / 写报告 |
-| `check:models-layout` / `organize:models` | 目录布局 |
-| `check:model-names` / `index:model-names` | 中文名索引 |
-| `check:studio-split` | 拆分预算 + 物品模型等价性（`static` 组） |
+| `check:model-assets` | 资产 / 几何 / 槽位 / 材质四条审计（`--module` 可单跑） |
+| `check:model-index` | 目录布局 + 中文名索引（`--module` 可单跑） |
+| `audit:materials` | 写材质报告（不判定；判定在 `check:model-assets`） |
+| `organize:models` / `index:model-names` | 迁移目录 / 生成索引（生成物，需提交） |
+| `check:studio-split` | 拆分预算（`static` 组）；分支级哈希为手动 `audit:item-model` |
 | `rebuild:items` | 按配方重建精修件 |
 
 无 `repair:*` 层。模型坏了用 `audit:*` 定位后重导出或 `rebuild:items`。

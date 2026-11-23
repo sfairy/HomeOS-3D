@@ -416,7 +416,7 @@ async def register(
     ``BEGIN IMMEDIATE`` 事务内复核 + 建号 + 签发会话。
 
     所有数据库操作都在 ``run_db``（``asyncio.to_thread``）里执行，事件循环不碰
-    同步 SQLAlchemy 调用（``ops/checks/check_async_db.py`` 会拦）。
+    同步 SQLAlchemy 调用（``ops/checks/python/check_guards.py --module async-db`` 会拦）。
     """
     require_same_origin_write(request)
     if not is_password_policy_compliant(payload.password):

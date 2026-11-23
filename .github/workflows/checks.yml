@@ -2,9 +2,9 @@ name: Checks
 
 # 门禁入口（不构建镜像、不推 GHCR）。四个 job 与 `ops/gates.mjs` 的四个组一一对应：
 #
-#   static  → bun run gate:static   类型 / lint / ruff / 结构规则 / 棘轮 / 依赖方向与路由基线
-#   model   → bun run gate:model    3D 模型库只读审计（几何 / 槽位 / 材质 / 资产 / 布局）
-#   build   → bun run gate:build    前端产物构建 + 结构断言 + 体积预算 + chunk 初始化
+#   static  → bun run gate:static   类型 / lint / ruff / 契约（路由·依赖·环境变量）/ 棘轮 / 不变量 / 测试
+#   model   → bun run gate:model    3D 模型库只读审计（资产·几何·槽位·材质 / 目录与命名）
+#   build   → bun run gate:build    前端产物构建 + 结构断言 + chunk 初始化 + 静态产物检查
 #   infra   → bun run gate:infra    shell / workflow / compose / Caddyfile / Cython
 #
 # 单一来源：**清单在 ops/gates.mjs**，这里只负责「装环境 + 按组调用」。改检查只改那一处，
@@ -38,7 +38,12 @@ permissions:
 jobs:
   # 静态检查：不需要构建产物，几十秒内就能给出「语义回退」的红灯。
   #
-  # `check:image-imports` 与 `check:python-lock` 也在这里：两者都是纯静态、不联网、不编译，
+  # 单个步骤内部是多条检查的批量入口（`check:frontend` / `check:backend` / `check:contracts`
+  # / `check:size` / `check:tests` / `check:studio-invariants`）：合并只改执行方式（共享一次
+  # 遍历与 AST 解析），判定口径与基线不变。`node ops/gates.mjs --list --json` 可看每条入口
+  # 覆盖了哪些原脚本（`covers`）。
+  #
+  # `check:image-imports` 与 `check:python-lock` 仍是独立步骤：两者都是纯静态、不联网、不编译，
   # 却各自守着一个「本地看不出来、发版才炸」的失败面（镜像里的包名改写、依赖锁与
   # requirements.txt 指纹漂移）。
   static:
@@ -76,7 +81,7 @@ jobs:
       - name: Install ruff
         run: pip install "ruff==0.17.6"
 
-      # `check:routes` 导入真实路由注册表（fastapi / sqlalchemy 在导入链上），
+      # `check:contracts` 导入真实路由注册表（fastapi / sqlalchemy 在导入链上），
       # 装开区间的 requirements.txt，不碰 requirements.lock（镜像用的才是那份锁）。
       - name: Install backend deps for route gate
         run: |
@@ -88,10 +93,13 @@ jobs:
 
   # 模型库只读审计：不依赖前端构建，也不写盘。
   #
-  # 入口是 `gate:model`，包含此前从未接线、却各自守着一类真实退化的检查：
-  # - `check:materials`：材质角色指纹与基线（改模型必须留下可解释的 diff）；
-  # - `check:models-layout` / `check:model-names`：目录分区与中文名索引是否最新；
-  # - 以及几何 / 槽位 / 角色 / 资产预算（后者守「文件里还剩什么」，前几条只看新文件自身一致）。
+  # 入口是 `gate:model`，两条批量步骤：
+  # - `check:model-assets`：资产预算 / 几何 / 槽位 / 材质四条只读审计。资产那条守「文件里还剩
+  #   什么」（体积、扩展、贴图、名字），其余几条只看新文件自身一致 —— 互补而非重复；
+  # - `check:model-index`：目录分区与中文名索引是否最新（新增/移动模型必须同步）。
+  #
+  # 槽位「角色不漂移」的 git 历史比对（原 `check:slot-roles`）已删除：它读的是已提交的改名
+  # 证据，而 `check:slots` 已经在守「槽位角色 == 契约」。
   model:
     runs-on: ubuntu-24.04
     env:

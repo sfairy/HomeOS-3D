@@ -29,11 +29,15 @@ from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+from ops.checks._bootstrap import REPO_ROOT, parse_tree
+
 DEFAULT_SRC = REPO_ROOT / "homeos-store" / "backend" / "src"
-DEFAULT_BASELINE = Path(__file__).with_name("store-routes-baseline.json")
+DEFAULT_BASELINE = REPO_ROOT / "ops/checks/baselines/contracts/store-routes-baseline.json"
 HTTP_METHODS = frozenset({"get", "post", "put", "patch", "delete", "head", "options"})
 AUTH_ORDER = ("admin", "account", "optional-account", "public")
+
+#: `collect_routes()` 的进程内缓存（键：解析后的 src 路径），供批量入口复用。
+_ROUTES_CACHE: dict[str, list[StoreRoute]] = {}
 
 
 @dataclass(frozen=True)
@@ -91,8 +95,15 @@ def _decorator_method(decorator: ast.Call) -> str | None:
 
 
 def collect_routes(src: Path = DEFAULT_SRC) -> list[StoreRoute]:
-    """返回排序后的路由清单（按 method + path + 鉴权）。"""
+    """返回排序后的路由清单（按 method + path + 鉴权）。
+
+    进程内缓存：`frontend_route_coverage` 会再次请求同一份表，批量入口里因此只扫一遍。
+    """
     src = src.resolve()
+    cached = _ROUTES_CACHE.get(str(src))
+    if cached is not None:
+        return list(cached)
+
     if not src.is_dir():
         raise FileNotFoundError(src)
     files = sorted(file for file in src.rglob("*.py") if "__pycache__" not in file.parts)
@@ -100,7 +111,7 @@ def collect_routes(src: Path = DEFAULT_SRC) -> list[StoreRoute]:
     prefixes: dict[str, str] = {}
     for file in files:
         relative = file.relative_to(src).as_posix()
-        tree = ast.parse(file.read_text(encoding="utf-8"), filename=str(file))
+        tree = parse_tree(file)
         trees[relative] = tree
         prefixes.update(_router_prefixes(tree, relative))
 
@@ -131,7 +142,9 @@ def collect_routes(src: Path = DEFAULT_SRC) -> list[StoreRoute]:
                         auth=_auth_kind(node),
                     )
                 )
-    return sorted(routes, key=lambda route: (route.method, route.path, route.auth))
+    result = sorted(routes, key=lambda route: (route.method, route.path, route.auth))
+    _ROUTES_CACHE[str(src)] = result
+    return list(result)
 
 
 def _load_baseline(path: Path) -> list[str]:
@@ -148,14 +161,14 @@ def _write_baseline(path: Path, routes: list[StoreRoute]) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--src", type=Path, default=DEFAULT_SRC)
     parser.add_argument("--baseline", type=Path, default=DEFAULT_BASELINE)
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--write", action="store_true", help="写入基线")
     mode.add_argument("--check", action="store_true", help="与基线比对（默认）")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     routes = collect_routes(args.src)
     counts = Counter(route.auth for route in routes)

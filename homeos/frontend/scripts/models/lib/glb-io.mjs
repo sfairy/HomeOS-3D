@@ -12,7 +12,6 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
-import { execFileSync } from 'node:child_process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const hereDir = path.dirname(fileURLToPath(import.meta.url))
@@ -28,7 +27,7 @@ export const specsDir = path.join(scriptsDir, 'specs')
  * 磁盘上是中文目录 / 中文文件名，代码里是英文 id。翻译表只有一份
  * （`model-asset-folders.ts`），这里按需加载，避免各脚本各写一套正则。
  */
-const { modelAssetFolder, modelAssetFolderFromPath, modelAssetIdForStem } = await import(
+const { modelAssetFolderFromPath, modelAssetIdForStem } = await import(
   pathToFileURL(path.join(frontendDir, 'src/studio/app/3d-studio/loaders/external-models/model-asset-folders.ts')).href
 )
 
@@ -89,30 +88,6 @@ export function modelIdFromUrl(url) {
   const folder = segments.length ? modelAssetFolderFromPath(segments.slice(-2).join('/')) : undefined
   const stem = fileName.replace(/-lite\.glb$/i, '').replace(/\.glb$/i, '')
   return modelAssetIdForStem(stem, folder) ?? stem
-}
-
-/**
- * 读模型在某个 git 版本里的字节。
- *
- * 改名迁移期间 HEAD 里还是英文路径，提交之后又只剩中文路径 —— 两条都试一次，
- * 让「当前 vs HEAD」这类比较门禁在迁移前后都能工作。
- */
-export function readModelAtRevision(relativePath, revision = 'HEAD') {
-  const parsed = parseModelPath(relativePath)
-  const folder = modelAssetFolder(parsed.id)
-  const legacyPath = folder ? `${folder}/${parsed.id}${parsed.variant === 'lite' ? '-lite' : ''}.glb` : null
-  for (const candidate of [relativePath, legacyPath].filter(Boolean)) {
-    try {
-      return execFileSync('git', ['show', `${revision}:homeos/frontend/public/static/3d-studio/models/${candidate}`], {
-        cwd: repoRoot,
-        maxBuffer: 64 * 1024 * 1024,
-        stdio: ['ignore', 'pipe', 'ignore'],
-      })
-    } catch {
-      // 换下一个候选
-    }
-  }
-  return null
 }
 
 /** 模型 id → { lite, full } 相对路径（缺的变体不出现）。 */

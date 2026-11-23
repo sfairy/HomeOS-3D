@@ -46,7 +46,7 @@ const repoRoot = resolve(argOf('root', resolve(import.meta.dirname, '../../..'))
 const update = args.includes('--update')
 const asJson = args.includes('--json')
 const RUNTIME_DIR = join(repoRoot, 'homeos/frontend/src/studio/runtime')
-const CONTRACT = join(repoRoot, 'ops/checks/studio/runtime-contract.json')
+const CONTRACT = join(repoRoot, 'ops/checks/baselines/contracts/runtime-contract.json')
 
 /**
  * 从一个运行时源文件里取出**对外导出的值名**（排序后返回）。

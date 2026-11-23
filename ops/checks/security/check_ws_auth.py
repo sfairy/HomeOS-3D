@@ -29,9 +29,11 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
+from ops.checks._bootstrap import parse_tree
+
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_SRC = REPO_ROOT / "homeos" / "backend" / "src"
-DEFAULT_BASELINE = Path(__file__).with_name("ws-routes-baseline.json")
+DEFAULT_BASELINE = REPO_ROOT / "ops/checks/baselines/contracts/ws-routes-baseline.json"
 
 #: 允许作为"这条 WS 已鉴权"证据的调用名。不要放宽成任意 `*auth*`：
 #: 名字匹配会让 `_unauth_debug` 之类的函数误判通过。
@@ -132,7 +134,7 @@ def scan(root: Path = DEFAULT_SRC) -> list[Route]:
         if "__pycache__" in file.parts:
             continue
         relative = file.relative_to(root).as_posix()
-        tree = ast.parse(file.read_text(encoding="utf-8"), filename=str(file))
+        tree = parse_tree(file)
         functions = {
             node.name: node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
         }
@@ -175,14 +177,14 @@ def _load_baseline(path: Path) -> set[tuple[str, str, str]]:
     return {(str(item["file"]), str(item["function"]), str(item["path"])) for item in payload.get("routes", [])}
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--src", type=Path, default=DEFAULT_SRC)
     parser.add_argument("--baseline", type=Path, default=DEFAULT_BASELINE)
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--write", action="store_true", help="写入基线")
     mode.add_argument("--check", action="store_true", help="与基线比对（默认）")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     routes = scan(args.src)
     for route in routes:

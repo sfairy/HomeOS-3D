@@ -13,7 +13,7 @@
  * 两个函数都只做一件事：按**原顺序**把值交回原语。参数表达式的求值顺序是
  * `parent → [w,h,d] → [x,y,z] → color → options`，数组字面量的元素按书写顺序求值，因此与
  * `parent, w, h, d, x, y, z, color, options` 完全一致（无副作用重排）。
- * `ops/checks/geometry-call-golden.mjs` 对每个调用点逐字段比对参数表达式，作为可执行的证明。
+ * 改写当时由 `geometry-call-golden` 逐调用点比对参数表达式证明，脚本随改写合入后一并删除。
  *
  * 为什么 `cyl` 直接 import 原语而不是走 `ItemModelScope` 注入：宿主注入的就是本模块 import 的
  * 同一个函数对象（`authoring/studio-app/geometry/index.ts` 的 re-export 与 `boot.ts` 传入的是

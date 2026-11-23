@@ -53,7 +53,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+from ops.checks._bootstrap import REPO_ROOT, parse_tree
 
 #: 后端顶层包（唯一真源；改动要与 backend 的实际顶层目录同步）。
 BACKEND_TOP = frozenset({"api", "domains", "platform", "modules", "bootstrap", "realtime", "panel"})
@@ -355,7 +355,7 @@ def parsed_files(root: Path, profile: Profile) -> list[tuple[str, ast.AST]]:
         if not parts or parts[0] not in profile.top:
             continue
         try:
-            tree = ast.parse(path.read_text(encoding="utf-8"), filename=rel)
+            tree = parse_tree(path)
         except SyntaxError:
             continue
         parsed.append((rel, tree))

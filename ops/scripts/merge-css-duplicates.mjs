@@ -25,7 +25,7 @@
  * - 不处理 `.vue` 的 `<style>` 块（与 SFC 解析耦合，收益小于风险）；
  * - 声明体不足 3 条、或属性同族规则夹在中间时，一律不合并。
  *
- * 用法
+ * 用法（批量入口 `bun run check:frontend` 走 `--check`）
  * ----
  *     node ops/scripts/merge-css-duplicates.mjs --report   # 只列可合并项
  *     node ops/scripts/merge-css-duplicates.mjs --check    # 有可合并项即退出 1
@@ -33,18 +33,12 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
-import process from 'node:process'
 
-import { walkFiles } from '../lib/walk.mjs'
+import { isMain } from '../lib/cli.mjs'
+import { createContext } from '../lib/ratchet.mjs'
 
-const REPO_ROOT = path.resolve(import.meta.dirname, '../..')
-const SCAN_ROOT = path.join(REPO_ROOT, 'homeos/frontend/src')
+const SCAN_ROOT = 'homeos/frontend/src'
 const MIN_DECLARATIONS = 3
-
-const args = process.argv.slice(2)
-const WRITE = args.includes('--write')
-const CHECK = args.includes('--check')
-const REPORT = args.includes('--report') || (!WRITE && !CHECK)
 
 /** 极简 CSS 结构扫描：切出「选择器 + 声明体」与 at-rule 容器，不建完整 AST。 */
 function parseContainer(source, start, end) {
@@ -203,35 +197,74 @@ function applyEdits(source, edits) {
   return output
 }
 
-let totalMerged = 0
-let totalDelta = 0
-const perFile = []
-const files = walkFiles(SCAN_ROOT, { extensions: new Set(['.css']) }).sort()
+/**
+ * 扫描全仓可合并项；`write` 时直接落盘。
+ *
+ * @param {ReturnType<typeof createContext>} ctx
+ * @param {{write?: boolean}} [options]
+ */
+export function collect(ctx, { write = false } = {}) {
+  let totalMerged = 0
+  let totalDelta = 0
+  const perFile = []
 
-for (const file of files) {
-  if (file.includes('/public/')) continue
-  const original = fs.readFileSync(file, 'utf8')
-  const edits = collectEdits(original)
-  if (edits.length === 0) continue
-  const next = applyEdits(original, edits)
-  const lineDelta = next.split('\n').length - original.split('\n').length
-  perFile.push({ file: path.relative(REPO_ROOT, file), merged: edits.length, lineDelta })
-  totalMerged += edits.length
-  totalDelta += lineDelta
-  if (WRITE) fs.writeFileSync(file, next)
+  for (const file of ctx.walk(SCAN_ROOT, new Set(['.css']))) {
+    const original = ctx.text(file)
+    const edits = collectEdits(original)
+    if (edits.length === 0) continue
+    const next = applyEdits(original, edits)
+    const lineDelta = next.split('\n').length - original.split('\n').length
+    perFile.push({ file: ctx.rel(file), merged: edits.length, lineDelta })
+    totalMerged += edits.length
+    totalDelta += lineDelta
+    if (write) fs.writeFileSync(file, next)
+  }
+
+  return { totalMerged, totalDelta, perFile }
 }
 
-const mode = WRITE ? '[write] ' : CHECK ? '[check] ' : '[report] '
-console.log(
-  `${mode}合并 ${totalMerged} 条重复规则 / ${perFile.length} 个文件，预期行数变化 ${totalDelta >= 0 ? '+' : ''}${totalDelta}`,
-)
-for (const row of [...perFile].sort((left, right) => left.lineDelta - right.lineDelta).slice(0, 20)) {
-  console.log(
-    `  ${String(row.merged).padStart(3)} 条  ${row.lineDelta >= 0 ? '+' : ''}${row.lineDelta} 行  ${row.file}`,
-  )
+/**
+ * 判定语义：可合并项不为 0 即失败（`--check`）。
+ *
+ * @param {ReturnType<typeof createContext>} ctx
+ * @param {{write?: boolean}} [options]
+ */
+export function audit(ctx, { write = false } = {}) {
+  const result = collect(ctx, { write })
+  const rows = [...result.perFile]
+    .sort((left, right) => left.lineDelta - right.lineDelta)
+    .slice(0, 20)
+    .map(
+      (row) => `${String(row.merged).padStart(3)} 条  ${row.lineDelta >= 0 ? '+' : ''}${row.lineDelta} 行  ${row.file}`,
+    )
+
+  return {
+    name: 'CSS 重复声明体',
+    summary: `合并 ${result.totalMerged} 条重复规则 / ${result.perFile.length} 个文件，预期行数变化 ${result.totalDelta >= 0 ? '+' : ''}${result.totalDelta}`,
+    problems:
+      !write && result.totalMerged > 0
+        ? [`仍有 ${result.totalMerged} 条可合并的重复声明体（确认无误后运行 --write）`]
+        : [],
+    notes: rows,
+    json: { ok: write || result.totalMerged === 0, ...result },
+  }
 }
-if (CHECK && totalMerged > 0) {
-  console.error('仍有可合并的重复声明体；确认无误后运行 --write。')
-  process.exit(1)
+
+/** 单跑入口。 */
+export function cli(argv = process.argv.slice(2)) {
+  const write = argv.includes('--write')
+  const check = argv.includes('--check')
+  const result = audit(createContext(path.resolve(import.meta.dirname, '../..')), { write })
+  const mode = write ? '[write] ' : check ? '[check] ' : '[report] '
+  console.log(`${mode}${result.summary}`)
+  for (const row of result.notes ?? []) console.log(`  ${row}`)
+
+  if (check && result.problems.length > 0) {
+    console.error(result.problems[0])
+    return 1
+  }
+  if (!write && !check && result.json.totalMerged === 0) console.log('没有可合并项。')
+  return 0
 }
-if (REPORT && totalMerged === 0) console.log('没有可合并项。')
+
+if (isMain(import.meta.url)) process.exit(cli())

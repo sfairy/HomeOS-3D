@@ -21,13 +21,26 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_SRC = REPO_ROOT / "homeos" / "backend" / "src"
-DEFAULT_BASELINE = Path(__file__).with_name("routes-baseline.json")
+DEFAULT_BASELINE = REPO_ROOT / "ops/checks/baselines/contracts/routes-baseline.json"
 HTTP_METHODS = {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
+
+#: `collect_operations()` 的进程内缓存（键：解析后的 src 路径）。
+#: 批量入口里 `frontend_route_coverage` 会重复请求同一份路由表，缓存让它只导入一次后端应用。
+_OPERATIONS_CACHE: dict[str, list[str]] = {}
 
 
 def collect_operations(src: Path = DEFAULT_SRC) -> list[str]:
-    """返回排序后的 ``METHOD PATH`` 列表。"""
+    """返回排序后的 ``METHOD PATH`` 列表。
+
+    进程内缓存：`frontend_route_coverage` 会再次调用本函数取同一份路由表，
+    批量入口（`run_contract_checks.py`）里因此只导入一次后端应用。
+    返回的是副本，调用方排序 / 修改不会污染缓存。
+    """
     src = src.resolve()
+    cached = _OPERATIONS_CACHE.get(str(src))
+    if cached is not None:
+        return list(cached)
+
     if not src.is_dir():
         raise FileNotFoundError(src)
     with tempfile.TemporaryDirectory(prefix="homeos-route-probe-") as tmp:
@@ -58,7 +71,9 @@ def collect_operations(src: Path = DEFAULT_SRC) -> list[str]:
         for method in methods:
             if str(method).lower() in HTTP_METHODS:
                 operations.append(f"{str(method).upper()} {path}")
-    return sorted(operations)
+    result = sorted(operations)
+    _OPERATIONS_CACHE[str(src)] = result
+    return list(result)
 
 
 def _load(path: Path) -> list[str]:
@@ -74,14 +89,14 @@ def _dump(path: Path, operations: list[str]) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--src", type=Path, default=DEFAULT_SRC)
     parser.add_argument("--baseline", type=Path, default=DEFAULT_BASELINE)
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--write", action="store_true", help="写入基线")
     mode.add_argument("--check", action="store_true", help="与基线比对")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     operations = collect_operations(args.src)
     print(f"operations={len(operations)} paths={len({op.split(' ', 1)[1] for op in operations})}")

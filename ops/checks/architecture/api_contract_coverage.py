@@ -37,8 +37,9 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
-DEFAULT_BASELINE = Path(__file__).with_name("api-contract-baseline.json")
+from ops.checks._bootstrap import REPO_ROOT, parse_tree
+
+DEFAULT_BASELINE = REPO_ROOT / "ops/checks/baselines/contracts/api-contract-baseline.json"
 HTTP_METHODS = frozenset({"get", "post", "put", "patch", "delete", "head", "options"})
 ROUTER_FACTORIES = frozenset({"APIRouter", "NestRouter"})
 SKIP_PARTS = frozenset({"__pycache__", "tests"})
@@ -158,7 +159,7 @@ def collect_routes(src: Path, project: str) -> list[Route]:
     constants: dict[str, list[str]] = {}
     for path in files:
         relative = path.relative_to(REPO_ROOT).as_posix()
-        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        tree = parse_tree(path)
         trees[relative] = tree
         prefixes.update(_prefixes(tree, relative))
         constants.update(_list_constants(tree))
@@ -267,12 +268,12 @@ def compare(expected: dict, actual: dict) -> list[str]:
     return problems
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--baseline", type=Path, default=DEFAULT_BASELINE)
     parser.add_argument("--write", action="store_true", help="重写基线")
     parser.add_argument("--json", action="store_true", help="机器可读输出")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     per_file: dict[str, dict[str, int]] = {}
     per_project: dict[str, list[Route]] = {}

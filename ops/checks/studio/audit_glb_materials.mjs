@@ -1868,7 +1868,7 @@ const models = modelIds.map(auditModel)
  * 角色段完全重复（同样的 roleDrift / roleBaselineMissing，只是错误条数上限不同）。`--check`
  * 已经覆盖它，多一个模式只意味着多一条没人调用的分支，故删除。
  * ------------------------------------------------------------------ */
-const ROLE_BASELINE_PATH = path.join(hereDir, 'material-role-baseline.json')
+const ROLE_BASELINE_PATH = path.join(hereDir, '../baselines/model/material-role-baseline.json')
 
 /** 当前解析结果：`{ "<英文 id>.glb": ["body", "panel", ...] }`，数组下标 = 材质下标。 */
 const roleSnapshot = {}

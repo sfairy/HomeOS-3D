@@ -25,7 +25,7 @@ const repoRoot = path.resolve(import.meta.dirname, '../../..')
 const root = path.resolve(get('root', repoRoot))
 const entryFile = path.join(root, 'homeos/frontend/src/studio/app/3d-studio/authoring/items/studio-item-model.ts')
 const familyDir = path.join(root, 'homeos/frontend/src/studio/app/3d-studio/authoring/items/item-model')
-const manifestFile = path.join(root, get('manifest', 'ops/checks/studio/item-model-baseline.json'))
+const manifestFile = path.join(root, get('manifest', 'ops/checks/baselines/model/item-model-baseline.json'))
 const beforeFile = get('before', '')
 const writeBaseline = args.includes('--write-baseline')
 const asJson = args.includes('--json')
@@ -226,7 +226,7 @@ if (args.includes('--accept-body-refactor')) {
       now: 'box/cyl 元组薄包装',
       reason:
         'S1：`box` / `cyl` 是纯转发包装（items/mesh-shorthand.ts），按原顺序把值交回 addBoxMesh / addCylinderMesh；' +
-        '每个调用点的参数表达式由 ops/checks/geometry-call-golden.mjs 逐字段比对证明未变。分派条件未改。',
+        '每个调用点的参数表达式在改写当时由 geometry-call-golden 逐字段比对证明未变（该脚本已随改写合入删除）。分派条件未改。',
     })
     accepted += 1
   })

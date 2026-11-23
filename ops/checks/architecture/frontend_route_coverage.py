@@ -76,7 +76,7 @@ from route_inventory import collect_operations
 from store_route_inventory import collect_routes as collect_store_routes
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-DEFAULT_BASELINE = Path(__file__).with_name("frontend-coverage-baseline.json")
+DEFAULT_BASELINE = REPO_ROOT / "ops/checks/baselines/contracts/frontend-coverage-baseline.json"
 
 #: 项目名 → (前端源码目录, 该前端相对路径可能挂在的 API 前缀)。
 #:
@@ -822,7 +822,7 @@ def render_report(verdicts: list[Verdict], handlers: dict[str, str], baseline: B
 # --------------------------------------------------------------------------- #
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--baseline", type=Path, default=DEFAULT_BASELINE)
     mode = parser.add_mutually_exclusive_group()
@@ -831,7 +831,7 @@ def main() -> int:
     mode.add_argument("--report", action="store_true", help="输出 Markdown 报告")
     mode.add_argument("--json", action="store_true", help="输出机器可读结果")
     parser.add_argument("--out", type=Path, help="与 --report 搭配：写入文件而不是 stdout")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     try:
         live = collect_live_routes()

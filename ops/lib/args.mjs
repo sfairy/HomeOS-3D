@@ -24,7 +24,7 @@ export function parseArgs(argv = process.argv.slice(2)) {
     argv,
     value,
     has,
-    /** 仓库根：`--root` 优先，默认从脚本位置回退两级（`ops/checks/x.mjs` → 仓库根）。 */
+    /** 仓库根：`--root` 优先，默认从脚本位置回退两级（`ops/lib/x.mjs` → `ops/` 的上两级 = 仓库根）。 */
     repoRoot: resolve(value('root', resolve(import.meta.dirname, '../..'))),
   }
 }

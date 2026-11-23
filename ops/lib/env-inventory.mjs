@@ -1,4 +1,4 @@
-/** 环境变量读取点扫描：门禁（`ops/checks/check_env_inventory.mjs`）与审计报告共用。
+/** 环境变量读取点扫描：门禁（`ops/checks/contract/check_env_inventory.mjs`）与审计报告共用。
  *
  * 为什么单点：这段正则此前有两份（门禁一份、审计脚本一份），各自漏掉不同的取值写法 ——
  * `_port("APP_PUBLISH_PORT", …)`、`environment.get("APP_CLIENT_KEYS_FETCH")`、

@@ -10,7 +10,7 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { measure } from '../check_giant_files.mjs'
+import { measure } from '../size/check_giant_files.mjs'
 
 function measureSource(source: string) {
   const directory = mkdtempSync(join(tmpdir(), 'giant-'))
