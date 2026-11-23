@@ -47,7 +47,7 @@ jobs:
       tag: ${{ steps.meta.outputs.tag }}
       release: ${{ steps.meta.outputs.release }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # 版本号唯一来源：仓库根 package.json 的 version。
       # 发布标签只有两个：该版本号（如 0.8.8）与 latest，且只在默认分支推送，
@@ -141,17 +141,17 @@ jobs:
             frontend_artifact: frontend-store
             frontend_path: dist/homeos-store/frontend
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # 前端产物由 checks.build 在宿主机构建，这里只取回自己项目的那一份。
       # 取回后落在 frontend_path，与当初构建时的工作区布局一致，Dockerfile 无需改动。
       - name: Download prebuilt frontend dist
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: ${{ matrix.frontend_artifact }}
           path: ${{ matrix.frontend_path }}
 
-      - uses: docker/setup-buildx-action@v4
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
 
       # 后端 Cython 编译成 .so 并导出到根 dist/；运行镜像直接 COPY，不编译后端。
       # 与下面的 build-push-action 共用 gha 缓存 scope，避免后端被编译两遍。
@@ -165,14 +165,14 @@ jobs:
             --cache-to type=gha,mode=max,scope=${{ matrix.target }}-${{ matrix.arch }}
 
       - name: Login to GHCR
-        uses: docker/login-action@v4
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Build and push ${{ matrix.target }} / ${{ matrix.arch }}
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
           file: ./Dockerfile
@@ -191,7 +191,9 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
           cache-from: type=gha,scope=${{ matrix.target }}-${{ matrix.arch }}
           cache-to: type=gha,mode=max,scope=${{ matrix.target }}-${{ matrix.arch }}
-          provenance: false
+          # 保留 SLSA 来源证明：客户机拉的是 :latest，没有 attestation 就无法核验
+          # 镜像由本仓库的本条流水线构建（关闭它等于放弃唯一的来源证据）。
+          provenance: true
 
   # 把 <tag>-amd64 与 <tag>-arm64 合成为一个 manifest list：docker pull 时按宿主架构自动选。
   merge:
@@ -204,10 +206,10 @@ jobs:
           - suffix: ""
           - suffix: "-store"
     steps:
-      - uses: docker/setup-buildx-action@v4
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
 
       - name: Login to GHCR
-        uses: docker/login-action@v4
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.repository_owner }}

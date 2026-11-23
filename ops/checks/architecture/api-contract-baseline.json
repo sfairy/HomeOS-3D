@@ -2,9 +2,9 @@
   "description": "两个后端的 API 契约覆盖率棘轮：逐文件统计 operations / response_model / status_code，任一计数下降即失败",
   "rules": "只认装饰器或 add_api_route 上显式声明的 response_model= / status_code=",
   "totals": {
-    "operations": 436,
-    "response_model": 9,
-    "status_code": 27
+    "operations": 512,
+    "response_model": 10,
+    "status_code": 35
   },
   "files": {
     "homeos/backend/src/api/advisor_usage.py": {
@@ -13,7 +13,12 @@
       "status_code": 0
     },
     "homeos/backend/src/api/agent.py": {
-      "operations": 19,
+      "operations": 25,
+      "response_model": 1,
+      "status_code": 1
+    },
+    "homeos/backend/src/api/agent_learning.py": {
+      "operations": 11,
       "response_model": 0,
       "status_code": 0
     },
@@ -23,9 +28,14 @@
       "status_code": 2
     },
     "homeos/backend/src/api/auth.py": {
-      "operations": 8,
+      "operations": 9,
       "response_model": 5,
       "status_code": 6
+    },
+    "homeos/backend/src/api/automation.py": {
+      "operations": 8,
+      "response_model": 0,
+      "status_code": 0
     },
     "homeos/backend/src/api/backups.py": {
       "operations": 4,
@@ -33,7 +43,7 @@
       "status_code": 4
     },
     "homeos/backend/src/api/channels.py": {
-      "operations": 8,
+      "operations": 9,
       "response_model": 0,
       "status_code": 0
     },
@@ -42,25 +52,40 @@
       "response_model": 0,
       "status_code": 0
     },
+    "homeos/backend/src/api/device_profile.py": {
+      "operations": 12,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos/backend/src/api/device_timer.py": {
+      "operations": 3,
+      "response_model": 0,
+      "status_code": 1
+    },
     "homeos/backend/src/api/earthquake.py": {
       "operations": 9,
       "response_model": 0,
       "status_code": 0
     },
     "homeos/backend/src/api/entities.py": {
-      "operations": 8,
+      "operations": 9,
       "response_model": 0,
       "status_code": 0
     },
     "homeos/backend/src/api/events.py": {
-      "operations": 6,
+      "operations": 8,
       "response_model": 0,
       "status_code": 0
     },
-    "homeos/backend/src/api/global_logs.py": {
-      "operations": 5,
+    "homeos/backend/src/api/fonts.py": {
+      "operations": 4,
       "response_model": 0,
-      "status_code": 3
+      "status_code": 2
+    },
+    "homeos/backend/src/api/global_logs.py": {
+      "operations": 6,
+      "response_model": 0,
+      "status_code": 4
     },
     "homeos/backend/src/api/ha/proxy.py": {
       "operations": 1,
@@ -68,7 +93,7 @@
       "status_code": 0
     },
     "homeos/backend/src/api/ha/routes.py": {
-      "operations": 16,
+      "operations": 23,
       "response_model": 0,
       "status_code": 1
     },
@@ -97,18 +122,23 @@
       "response_model": 0,
       "status_code": 1
     },
+    "homeos/backend/src/api/media.py": {
+      "operations": 6,
+      "response_model": 0,
+      "status_code": 0
+    },
     "homeos/backend/src/api/notification.py": {
-      "operations": 13,
+      "operations": 16,
       "response_model": 0,
       "status_code": 0
     },
     "homeos/backend/src/api/projects.py": {
-      "operations": 10,
+      "operations": 11,
       "response_model": 1,
       "status_code": 4
     },
     "homeos/backend/src/api/proxy/command_proxy.py": {
-      "operations": 1,
+      "operations": 2,
       "response_model": 0,
       "status_code": 0
     },
@@ -163,9 +193,9 @@
       "status_code": 0
     },
     "homeos/backend/src/api/system/ops.py": {
-      "operations": 6,
+      "operations": 9,
       "response_model": 0,
-      "status_code": 1
+      "status_code": 2
     },
     "homeos/backend/src/api/system/setup.py": {
       "operations": 9,
@@ -182,6 +212,11 @@
       "response_model": 0,
       "status_code": 0
     },
+    "homeos/backend/src/api/water.py": {
+      "operations": 3,
+      "response_model": 0,
+      "status_code": 2
+    },
     "homeos/backend/src/app.py": {
       "operations": 4,
       "response_model": 0,
@@ -193,7 +228,7 @@
       "status_code": 0
     },
     "homeos/backend/src/modules/interaction3d/api.py": {
-      "operations": 13,
+      "operations": 15,
       "response_model": 0,
       "status_code": 2
     },

@@ -341,20 +341,25 @@ def send_verification_email(
             error=error,
         )
 
-    log_plaintext_code = mode == "log"
-    if log_plaintext_code:
+    # ``mail_mode=log`` 曾经把**明文验证码**写进容器日志：任何能读日志的人（日志聚合、
+    # 支持包、共享主机）都能对商店账号（含管理员）发起密码重置并直接读到码。
+    # 现在默认只记录指纹；首次安装确实需要看码时，用显式开关
+    # ``STORE_LOG_PLAINTEXT_CODE=1`` 打开（文档标注仅限本机首装），且必须 mail_mode=log。
+    plaintext_allowed = mode == "log" and settings.log_plaintext_code
+    if plaintext_allowed:
         logger.warning(
-            "[验证码] 收件人=%s 用途=%s 验证码=%s（mail_mode=%s）",
+            "[验证码] 收件人=%s 用途=%s 验证码=%s（mail_mode=%s；"
+            "STORE_LOG_PLAINTEXT_CODE=1 已开启，仅限本机首装，完成后请关闭）",
             email,
             purpose,
             code,
             mode,
         )
     else:
-        logger.error(
-            "验证码无法投递：mail_mode=%s 但 SMTP 未就绪，本次已回退为日志投递。"
-            "为避免把可用的验证码写进生产日志，这里只记录掩码 %s，"
-            "请尽快补全 SMTP 配置（收件人=%s 用途=%s）。",
+        logger.warning(
+            "验证码未投递（mail_mode=%s，SMTP 未就绪）。为避免把可用验证码写进日志，"
+            "这里只记录指纹 %s。请在后台配置 SMTP；本机首装可临时设置 "
+            "STORE_LOG_PLAINTEXT_CODE=1（收件人=%s 用途=%s）。",
             mode,
             _code_fingerprint(code),
             email,
@@ -366,7 +371,11 @@ def send_verification_email(
             "验证码邮件未发出：SMTP 配置不完整（缺少服务器地址，或填了用户名但没填授权码）。"
             "请联系管理员在后台「站点配置 → 注册邮件」补全，或改用其它邮箱重试。"
         )
-    return MailResult(delivered=False, mode="log", error=delivery_error)
+    elif not plaintext_allowed:
+        # fail-closed：日志里既然不下发可用验证码，就必须如实告诉调用方「没送到」，
+        # 否则用户会一直等一封不会来的邮件，而接口返回 delivered=True。
+        delivery_error = "验证码邮件未投递：邮件服务未配置（mail_mode=log）。请联系管理员在后台配置 SMTP 后重试。"
+    return MailResult(delivered=plaintext_allowed, mode="log", error=delivery_error)
 
 
 def _render_license_plain(

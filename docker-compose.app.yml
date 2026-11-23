@@ -55,6 +55,10 @@ services:
     hostname: homeos
     restart: unless-stopped
     stop_grace_period: 30s
+    # 容器硬化：入口脚本需要 root 做 chown / setuid，因此不能 cap_drop ALL；
+    # 但禁止「再提权」（no-new-privileges 会拦掉 setuid 二进制与 capability 增益）。
+    security_opt:
+      - no-new-privileges:true
     ports:
       # 8801：HTTP 直连；8803：内置 Caddy 的 HTTPS（自签证书）。
       - "8801:8801"
@@ -71,10 +75,10 @@ services:
       APP_CLIENT_KEYS_DIR: /data/client-keys
       # 会话 / CSRF Cookie：auto = 按本次请求实际协议判定（8801 明文不带、8803 或反代带）。
       COOKIE_SECURE: "auto"
-      # 可信代理：回环 = 容器内 Caddy；docker 网段 = 宿主机 / 其它容器里的隧道客户端
-      # （纯局域网部署可删回 127.0.0.1,::1）。
-      APP_TRUSTED_PROXIES: 127.0.0.1,::1,172.16.0.0/12
-      UVICORN_FORWARDED_ALLOW_IPS: 127.0.0.1,::1,172.16.0.0/12
+      # 可信代理：只信回环。纯局域网部署不需要更多；宿主反代 / 隧道请填实际代理的
+      # 精确地址（例如 172.28.0.1），不要填整个私网段。
+      APP_TRUSTED_PROXIES: ${APP_TRUSTED_PROXIES:-127.0.0.1,::1}
+      UVICORN_FORWARDED_ALLOW_IPS: ${UVICORN_FORWARDED_ALLOW_IPS:-127.0.0.1,::1}
       # 本机也走反代 / 内网穿透时填浏览器用的公网地址（例如 https://home.example.com）；
       # 纯局域网留空即可。填了之后**局域网 IP:端口 仍然可用**（同源判定与 WebSocket 都
       # 额外接受「与本请求 Host 同源」）；不填时公网域名的实时通道也能靠这条同源兜底建立，
@@ -138,3 +142,10 @@ services:
 volumes:
   homeos-data:      # 数据（公钥缓存等；备份包走 ./backups 的 bind mount）
   homeos-secrets:   # 签名密钥
+
+networks:
+  default:
+    # 固定子网：可信代理只填精确地址时与之对应，不再依赖「整个 172.16/12」。
+    ipam:
+      config:
+        - subnet: ${HOMEOS_NET_SUBNET:-172.29.0.0/24}

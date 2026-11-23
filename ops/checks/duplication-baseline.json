@@ -23,53 +23,53 @@
     "ops"
   ],
   "totals": {
-    "sources": 3515,
-    "lines": 690031,
+    "sources": 3589,
+    "lines": 703283,
     "clones": 157,
     "duplicatedLines": 2613,
-    "percentage": 0.3787,
-    "tokens": 4038901,
+    "percentage": 0.3715,
+    "tokens": 4122242,
     "duplicatedTokens": 12698
   },
   "byFormat": {
     "css": {
-      "sources": 35,
-      "lines": 2816,
+      "sources": 40,
+      "lines": 3520,
       "duplicatedLines": 0,
       "percentage": 0,
       "clones": 0
     },
     "html": {
-      "sources": 413,
-      "lines": 28232,
+      "sources": 418,
+      "lines": 28484,
       "duplicatedLines": 275,
-      "percentage": 0.9741,
+      "percentage": 0.9655,
       "clones": 20
     },
     "javascript": {
-      "sources": 293,
-      "lines": 41556,
+      "sources": 296,
+      "lines": 42433,
       "duplicatedLines": 188,
-      "percentage": 0.4524,
+      "percentage": 0.4431,
       "clones": 13
     },
     "python": {
-      "sources": 647,
-      "lines": 159566,
+      "sources": 694,
+      "lines": 168701,
       "duplicatedLines": 523,
-      "percentage": 0.3278,
+      "percentage": 0.31,
       "clones": 39
     },
     "typescript": {
-      "sources": 1705,
-      "lines": 372055,
+      "sources": 1714,
+      "lines": 372567,
       "duplicatedLines": 1627,
-      "percentage": 0.4373,
+      "percentage": 0.4367,
       "clones": 85
     },
     "vue": {
-      "sources": 422,
-      "lines": 85806,
+      "sources": 427,
+      "lines": 87578,
       "duplicatedLines": 0,
       "percentage": 0,
       "clones": 0
@@ -185,6 +185,12 @@
       "lines": 13
     },
     {
+      "fingerprint": "1adef3c96e809fccff2fc3af7a4d3fd09503dddc",
+      "first": "homeos/backend/src/domains/license/service.py",
+      "second": "homeos/backend/src/domains/license/service.py",
+      "lines": 14
+    },
+    {
       "fingerprint": "1bf277cca9a32c67bcf3ce948c92d084f81ded30",
       "first": "homeos/frontend/src/studio/app/3d-studio/authoring/items/studio-static-item-meshes.ts",
       "second": "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/scene-build/scene-layers.ts",
@@ -263,12 +269,6 @@
       "lines": 19
     },
     {
-      "fingerprint": "2fc9be083ab62f484d865a80ab8585a7d62de27a",
-      "first": "homeos/backend/src/domains/retention/service.py",
-      "second": "homeos/backend/src/domains/weather/watch.py",
-      "lines": 12
-    },
-    {
       "fingerprint": "3449a41b146acbceb3af373bcb6a98905efb2e77",
       "first": "homeos/frontend/src/features/device/components/DeviceAnalyticsPanel.vue",
       "second": "homeos/frontend/src/features/device/components/DeviceUsageStats.vue",
@@ -338,6 +338,12 @@
       "fingerprint": "4762a0c8726d4e91e3a137631690f03c8c4334b9",
       "first": "homeos/frontend/src/studio/runtime/security/security-editor.ts",
       "second": "homeos/frontend/src/studio/runtime/security/security-editor.ts",
+      "lines": 12
+    },
+    {
+      "fingerprint": "477bda4b5e93db49a91aa6a37188eebc61964d23",
+      "first": "homeos/backend/src/domains/retention/service.py",
+      "second": "homeos/backend/src/domains/weather/watch.py",
       "lines": 12
     },
     {
@@ -452,12 +458,6 @@
       "fingerprint": "5c6c9b74f941a7d9a42122e12689aa16f15047d4",
       "first": "ops/checks/check_complexity.py",
       "second": "ops/checks/check_python_format.py",
-      "lines": 14
-    },
-    {
-      "fingerprint": "5fdb8ecb5b11d2285c8bfaa1e01ad1a5dea9bc62",
-      "first": "homeos/backend/src/domains/license/service.py",
-      "second": "homeos/backend/src/domains/license/service.py",
       "lines": 14
     },
     {

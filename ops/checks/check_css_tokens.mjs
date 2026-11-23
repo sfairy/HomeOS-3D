@@ -184,7 +184,8 @@ function referencedTokens(sheets) {
   return refs
 }
 
-function normalizeForCompare(map) {
+// 与 `normalizeForCompare` 同口径的比较辅助；当前未被调用，保留以便调试时按名导出。
+function _normalizeForCompare(map) {
   return Object.fromEntries([...map.entries()].sort(([a], [b]) => a.localeCompare(b)))
 }
 

@@ -9,6 +9,7 @@ ops/dev.mjs（命令 ``python -m ops.license_keys dev-env``）、
 ops/docker/start_store.py、ops/docker/start_app.py。密钥生成只在商店侧，
 见 ensure_store_keys。
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -17,12 +18,12 @@ import os
 from collections.abc import Mapping
 from pathlib import Path
 
-SIGNING_PUBLIC_KEY_FILENAME = 'license-public.pem'
-TRANSPORT_PUBLIC_KEY_FILENAME = 'license-transport-public.pem'
-PUBLIC_KEY_MARKER = b'-----BEGIN PUBLIC KEY-----'
+SIGNING_PUBLIC_KEY_FILENAME = "license-public.pem"
+TRANSPORT_PUBLIC_KEY_FILENAME = "license-transport-public.pem"
+PUBLIC_KEY_MARKER = b"-----BEGIN PUBLIC KEY-----"
 
-DEFAULT_STORE_KEYS_DIR = Path(__file__).resolve().parents[1] / 'homeos-store' / 'keys' / 'local'
-DEFAULT_CLIENT_KEYS_DIR = Path(__file__).resolve().parents[1] / 'keys'
+DEFAULT_STORE_KEYS_DIR = Path(__file__).resolve().parents[1] / "homeos-store" / "keys" / "local"
+DEFAULT_CLIENT_KEYS_DIR = Path(__file__).resolve().parents[1] / "keys"
 
 
 def public_key_sha256(path: Path) -> str:
@@ -32,7 +33,7 @@ def public_key_sha256(path: Path) -> str:
 
 def derive_key_id(path: Path) -> str:
     """由公钥文件派生 keyId（hb-<sha256 前 16 位>），口径同商店侧。"""
-    return f'hb-{public_key_sha256(path)[:16]}'
+    return f"hb-{public_key_sha256(path)[:16]}"
 
 
 def _mirror_public(sync_dir: Path, source: Path | None, name: str) -> bool:
@@ -74,18 +75,27 @@ def sync_client_keys(
 
 
 def apply_client_key_env(environment: dict, client_keys_dir: Path) -> dict:
-    """按已同步的公钥目录写入主应用的路径与指纹环境变量。"""
+    """按已同步的公钥目录写入主应用的路径与指纹环境变量。
+
+    **不覆盖部署方显式钉死的指纹**：启动时从商店取回的公钥只能证明「这份文件与响应
+    自带的指纹一致」，不能证明它就是厂商签发的那一对。若部署时已用
+    ``APP_LICENSE_PUBLIC_KEY_SHA256`` 钉死（或镜像里烘了常量），那才是唯一的外部信任锚；
+    用刚下载文件的 hash 覆盖它，等于把「首次取钥被中间人替换」变成静默通过。
+    """
     signing = client_keys_dir / SIGNING_PUBLIC_KEY_FILENAME
     transport = client_keys_dir / TRANSPORT_PUBLIC_KEY_FILENAME
-    environment['APP_LICENSE_PUBLIC_KEY_FILE'] = str(signing)
-    environment['APP_LICENSE_TRANSPORT_PUBLIC_KEY_FILE'] = str(transport)
-    environment['APP_LICENSE_PUBLIC_KEY_SHA256'] = public_key_sha256(signing)
-    environment['APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256'] = public_key_sha256(transport)
+    environment["APP_LICENSE_PUBLIC_KEY_FILE"] = str(signing)
+    environment["APP_LICENSE_TRANSPORT_PUBLIC_KEY_FILE"] = str(transport)
+    pinned_signing = str(environment.get("APP_LICENSE_PUBLIC_KEY_SHA256") or "").strip()
+    pinned_transport = str(environment.get("APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256") or "").strip()
+    environment["APP_LICENSE_PUBLIC_KEY_SHA256"] = pinned_signing or public_key_sha256(signing)
+    environment["APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256"] = pinned_transport or public_key_sha256(transport)
     return environment
 
 
 def keys_ready(directory: Path) -> bool:
     """目录里两个公钥是否都已是完整 PEM。"""
+
     def ok(path: Path) -> bool:
         try:
             payload = path.read_bytes()
@@ -103,12 +113,12 @@ def _licensing_keys_module():
     src），发行产物是 ``app.licensing.keys``（构建时把 src 映射成 app，见 Dockerfile）。
     所以按候选名逐个探测，而不是写死其中一个。
     """
-    for name in ('src.licensing.keys', 'app.licensing.keys'):
+    for name in ("src.licensing.keys", "app.licensing.keys"):
         try:
             return importlib.import_module(name)
         except ImportError:
             continue
-    raise ImportError('找不到商店密钥模块（src.licensing.keys / app.licensing.keys）')
+    raise ImportError("找不到商店密钥模块（src.licensing.keys / app.licensing.keys）")
 
 
 def ensure_store_keys(keys_dir: Path) -> None:
@@ -122,20 +132,20 @@ def ensure_store_keys(keys_dir: Path) -> None:
 
     signing = license_keys.generate_ed25519(
         license_keys.KeyPairPaths(
-            keys_dir / 'license-private.pem',
+            keys_dir / "license-private.pem",
             keys_dir / SIGNING_PUBLIC_KEY_FILENAME,
         )
     )
     transport = license_keys.generate_x25519(
         license_keys.KeyPairPaths(
-            keys_dir / 'license-transport-private.pem',
+            keys_dir / "license-transport-private.pem",
             keys_dir / TRANSPORT_PUBLIC_KEY_FILENAME,
         )
     )
     if signing.created:
-        print(f'已生成授权签名密钥：sha256={signing.sha256}', flush=True)
+        print(f"已生成授权签名密钥：sha256={signing.sha256}", flush=True)
     if transport.created:
-        print(f'已生成授权传输密钥：sha256={transport.sha256}', flush=True)
+        print(f"已生成授权传输密钥：sha256={transport.sha256}", flush=True)
 
 
 def _configured_value(environment: Mapping[str, str] | None, key: str) -> str:
@@ -147,8 +157,8 @@ def _configured_value(environment: Mapping[str, str] | None, key: str) -> str:
     意料之外的目录。所以路径解析也走同一个 dict。
     """
     if environment is not None:
-        return str(environment.get(key) or '').strip()
-    return os.getenv(key, '').strip()
+        return str(environment.get(key) or "").strip()
+    return os.getenv(key, "").strip()
 
 
 def store_keys_dir(
@@ -158,7 +168,7 @@ def store_keys_dir(
     """商店公钥来源目录：显式参数 > STORE_LICENSE_KEYS_DIR > 同机默认位置。"""
     if explicit:
         return Path(explicit).expanduser()
-    configured = _configured_value(environment, 'STORE_LICENSE_KEYS_DIR')
+    configured = _configured_value(environment, "STORE_LICENSE_KEYS_DIR")
     return Path(configured).expanduser() if configured else DEFAULT_STORE_KEYS_DIR
 
 
@@ -169,7 +179,7 @@ def client_keys_dir(
     """主应用读取公钥的目录：显式参数 > APP_CLIENT_KEYS_DIR > 项目内 keys/。"""
     if explicit:
         return Path(explicit).expanduser()
-    configured = _configured_value(environment, 'APP_CLIENT_KEYS_DIR')
+    configured = _configured_value(environment, "APP_CLIENT_KEYS_DIR")
     return Path(configured).expanduser() if configured else DEFAULT_CLIENT_KEYS_DIR
 
 
@@ -192,13 +202,14 @@ def sync_store_keys(
     ``授权公钥：`` 前缀）。诊断信息由 ``start_app``（keyId / 等待超时）与
     ``start_store``（生成 / 同步结果）负责，它们才知道自己是什么角色。
     """
+
     def _log(message: str) -> None:
         if not announce:
             return
         if log is not None:
             log(message)
         else:
-            print(f'授权公钥：{message}', flush=True)
+            print(f"授权公钥：{message}", flush=True)
 
     source_dir = store_keys_dir(store_dir, environment)
     target = client_keys_dir(target_dir, environment)
@@ -207,11 +218,11 @@ def sync_store_keys(
     transport = source_dir / TRANSPORT_PUBLIC_KEY_FILENAME
     if not signing.is_file() or not transport.is_file():
         if keys_ready(target):
-            _log(f'未找到商店公钥（{source_dir}），沿用已有目录 {target}。')
+            _log(f"未找到商店公钥（{source_dir}），沿用已有目录 {target}。")
             if environment is not None:
                 apply_client_key_env(environment, target)
             return _env_overrides(target)
-        _log(f'警告：未找到商店公钥（{source_dir}），且 {target} 也没有可用公钥。')
+        _log(f"警告：未找到商店公钥（{source_dir}），且 {target} 也没有可用公钥。")
         return {}
 
     changed = sync_client_keys(
@@ -222,20 +233,20 @@ def sync_store_keys(
         ),
     )
     if changed:
-        _log(f'已同步商店授权公钥到 {target}：{"、".join(changed)}')
+        _log(f"已同步商店授权公钥到 {target}：{'、'.join(changed)}")
     if environment is not None:
         apply_client_key_env(environment, target)
-    _log(f'就绪目录 {target}（签名 keyId={derive_key_id(target / SIGNING_PUBLIC_KEY_FILENAME)}）')
+    _log(f"就绪目录 {target}（签名 keyId={derive_key_id(target / SIGNING_PUBLIC_KEY_FILENAME)}）")
     return _env_overrides(target)
 
 
 def _env_overrides(target: Path) -> dict[str, str]:
     """供调用方直接注入子进程的环境变量覆盖项。"""
     return {
-        'APP_LICENSE_PUBLIC_KEY_FILE': str(target / SIGNING_PUBLIC_KEY_FILENAME),
-        'APP_LICENSE_TRANSPORT_PUBLIC_KEY_FILE': str(target / TRANSPORT_PUBLIC_KEY_FILENAME),
-        'APP_LICENSE_PUBLIC_KEY_SHA256': public_key_sha256(target / SIGNING_PUBLIC_KEY_FILENAME),
-        'APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256': public_key_sha256(target / TRANSPORT_PUBLIC_KEY_FILENAME),
+        "APP_LICENSE_PUBLIC_KEY_FILE": str(target / SIGNING_PUBLIC_KEY_FILENAME),
+        "APP_LICENSE_TRANSPORT_PUBLIC_KEY_FILE": str(target / TRANSPORT_PUBLIC_KEY_FILENAME),
+        "APP_LICENSE_PUBLIC_KEY_SHA256": public_key_sha256(target / SIGNING_PUBLIC_KEY_FILENAME),
+        "APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256": public_key_sha256(target / TRANSPORT_PUBLIC_KEY_FILENAME),
     }
 
 
@@ -253,17 +264,17 @@ def _cli_dev_env() -> int:
     import sys
 
     root = Path(__file__).resolve().parents[1]
-    for candidate in (str(root / 'homeos-store' / 'backend'), str(root)):
+    for candidate in (str(root / "homeos-store" / "backend"), str(root)):
         if candidate not in sys.path:
             sys.path.insert(0, candidate)
 
-    keys_dir = root / 'homeos-store' / 'keys' / 'local'
-    target = root / 'keys'
+    keys_dir = root / "homeos-store" / "keys" / "local"
+    target = root / "keys"
     ensure_store_keys(keys_dir)
     overrides = sync_store_keys(
         store_dir=keys_dir,
         target_dir=target,
-        log=lambda message: print(f'授权公钥：{message}', file=sys.stderr, flush=True),
+        log=lambda message: print(f"授权公钥：{message}", file=sys.stderr, flush=True),
     )
     print(json.dumps(overrides, ensure_ascii=False), flush=True)
     return 0
@@ -274,11 +285,11 @@ def main(arguments: list[str] | None = None) -> int:
     import sys
 
     argv = list(arguments if arguments is not None else sys.argv[1:])
-    if argv[:1] == ['dev-env']:
+    if argv[:1] == ["dev-env"]:
         return _cli_dev_env()
-    print('用法：python -m ops.license_keys dev-env', file=sys.stderr)
+    print("用法：python -m ops.license_keys dev-env", file=sys.stderr)
     return 2
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     raise SystemExit(main())

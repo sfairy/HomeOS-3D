@@ -53,11 +53,17 @@ services:
     container_name: homeos-store
     restart: unless-stopped
     stop_grace_period: 30s
+    # 容器硬化：入口脚本需要 root 做 chown / setuid，因此不能 cap_drop ALL；
+    # 但禁止「再提权」（no-new-privileges 会拦掉 setuid 二进制与 capability 增益）。
+    security_opt:
+      - no-new-privileges:true
     ports:
       # 只发布 8802：局域网直连与公网反代 / 隧道都从这里进。
-      # ⚠ 8802 不要对公网放行（Docker 端口映射会绕过 ufw，用云安全组收敛）；
-      #    只想给内网网卡开放时写成 "192.168.1.20:8802:8802"。
-      - "8802:8802"
+      # 默认只绑回环：商店没有内置 TLS，绑 0.0.0.0 等于把管理后台与会话 Cookie
+      # 明文暴露到整个局域网（Docker 端口映射还会绕过 ufw）。
+      # 需要局域网直连时显式设置 STORE_BIND=0.0.0.0（或某个网卡 IP），
+      # 并确认它只在内网可达、公网由隧道 / 反代终止 TLS。
+      - "${STORE_BIND:-127.0.0.1}:8802:8802"
     environment:
       APP_ENVIRONMENT: production
       STORE_DATA_DIR: /data
@@ -75,12 +81,17 @@ services:
       # 会话 Cookie 的 Secure：auto = 按本次请求实际协议判定（https 带、内网 http 不带）。
       # true / false 只适合单一协议部署，双入口请保持 auto。依赖入口透传 X-Forwarded-Proto。
       STORE_COOKIE_SECURE: "auto"
-      # 可信代理：127.0.0.1,::1 = 容器内回环；172.16.0.0/12 = 宿主机反代 / 隧道进来的
-      # 网桥网关，以及容器化入口。网段与 homeos-net 实际地址池不一致时按实际值改。
-      STORE_TRUSTED_PROXIES: 127.0.0.1,::1,172.16.0.0/12
+      # 可信代理：只信容器内回环（Caddy 反代就在同容器 127.0.0.1 上）。
+      # 不要再把整个 docker 私网段（172.16/12）填进来：同网段任意容器都能带
+      # X-Forwarded-For 冒充任意来源 IP，绕过 MCP 白名单与按 IP 的登录/注册限流。
+      # 宿主机反代 / 隧道部署请填**实际代理地址**的精确值（例如 172.28.0.1），
+      # 或让它把源地址改写为 127.0.0.1 后经 Caddy 进入。
+      STORE_TRUSTED_PROXIES: 127.0.0.1,::1
       # 商店没有任何 HTTPS 入口：内网 http://<IP>:8802，公网由隧道 / 反代在 80·443 终止 TLS。
       # 验证码投递：log = 只写容器日志（首装够用）。公开售卖前请在 /admin 配好 SMTP，
       # 否则客户收不到验证码。
+      # fail-closed：log 模式下不再把明文验证码写进日志；本机首装要看码时临时设置
+      # STORE_LOG_PLAINTEXT_CODE: "1"，装完请删掉这一行。
       STORE_MAIL_MODE: log
     volumes:
       - homeos-store-data:/data
@@ -117,6 +128,10 @@ services:
     hostname: homeos
     restart: unless-stopped
     stop_grace_period: 30s
+    # 容器硬化：入口脚本需要 root 做 chown / setuid，因此不能 cap_drop ALL；
+    # 但禁止「再提权」（no-new-privileges 会拦掉 setuid 二进制与 capability 增益）。
+    security_opt:
+      - no-new-privileges:true
     # 商店先 healthy 再起主应用，省掉首次启动取公钥的等待。
     depends_on:
       homeos-store:
@@ -146,10 +161,11 @@ services:
       APP_CLIENT_KEYS_DIR: /data/client-keys
       # 会话 / CSRF Cookie：auto = 按本次请求实际协议判定（双入口部署必须用它）。
       COOKIE_SECURE: "auto"
-      # 可信代理：回环 = 容器内 Caddy；docker 网段 = 宿主机上的隧道客户端 / 反代。
-      # 隧道回灌到发布端口时，容器看到的源是网桥网关（172.x），不是 127.0.0.1。
-      APP_TRUSTED_PROXIES: 127.0.0.1,::1,172.16.0.0/12
-      UVICORN_FORWARDED_ALLOW_IPS: 127.0.0.1,::1,172.16.0.0/12
+      # 可信代理：只信容器内回环（Caddy 就在同容器 127.0.0.1）。填整个私网段会让
+      # 同网段任意容器伪造 X-Forwarded-For，绕过 MCP IP 白名单与按 IP 的限流。
+      # 宿主机反代 / 隧道部署请改成实际代理的精确地址。
+      APP_TRUSTED_PROXIES: ${APP_TRUSTED_PROXIES:-127.0.0.1,::1}
+      UVICORN_FORWARDED_ALLOW_IPS: ${UVICORN_FORWARDED_ALLOW_IPS:-127.0.0.1,::1}
       # 主应用公网地址（穿透后的域名）。同源校验、WebSocket 来源、socket.io 白名单都认它；
       # 填了之后局域网 IP 直连仍然可用（校验同时接受与本请求 Host 同源）。
       APP_BASE_URL: ${APP_BASE_URL:-https://homelife.iepose.cn}
@@ -245,6 +261,10 @@ services:
 networks:
   homeos-net:
     name: homeos-net
+    # 固定子网：可信代理只填精确地址时，这里也要与之对应；不再依赖「整个 172.16/12」。
+    ipam:
+      config:
+        - subnet: ${HOMEOS_NET_SUBNET:-172.28.0.0/24}
 
 volumes:
   homeos-store-data:     # 商店：库、订单、审计、授权私钥

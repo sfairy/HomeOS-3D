@@ -36,11 +36,13 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import sessionmaker
 
+from homeos.backend.src.domains.logs import event_log as event_log_module
+from homeos.backend.src.domains.logs import event_log_report as report_module
 from homeos.backend.src.domains.logs.event_log import EventLogService
 from homeos.backend.src.platform.core.db import models  # noqa: F401
 from homeos.backend.src.platform.core.db.database import Base
@@ -63,16 +65,44 @@ class FakeDatabase:
         self.session_factory = factory
 
 
-def build_service(tmp: Path) -> tuple[EventLogService, Any]:
+def build_factory(tmp: Path) -> Any:
     tmp.mkdir(parents=True, exist_ok=True)
     engine = create_engine(
         f"sqlite+pysqlite:///{tmp / 'events.db'}",
         connect_args={"check_same_thread": False},
     )
     Base.metadata.create_all(engine)
-    factory = sessionmaker(bind=engine)
+    return sessionmaker(bind=engine)
+
+
+def build_service(tmp: Path) -> tuple[EventLogService, Any]:
+    factory = build_factory(tmp)
     service = EventLogService(FakeDatabase(factory))
     return service, factory
+
+
+def test_constructor_matches_lifespan() -> None:
+    """构造签名必须与 ``bootstrap/lifespan`` 传的关键字一致。
+
+    这条断言存在的理由：``lifespan`` 里传了 ``energy_circuit_entities``，而
+    ``EventLogService.__init__`` 曾漏掉该参数 —— 静态门禁与其余自检全都通过，
+    只有**真正启动应用**时才会炸 ``TypeError: unexpected keyword argument``，
+    开发服务器因此静默退出了 6 小时（浏览器看到的是 vite 代理的 503）。
+    """
+    with tempfile.TemporaryDirectory() as raw:
+        factory = build_factory(Path(raw))
+        constructed = EventLogService(
+            FakeDatabase(factory),
+            # 与 lifespan 传的是同一种「零参数回调」：这里直接给可调用对象即可。
+            energy_primary_entities=set,
+            energy_bindings=lambda: {"primary": "", "scope": "total", "day": "", "month": ""},
+            energy_circuit_entities=set,
+        )
+    check("按 lifespan 的关键字构造 EventLogService", constructed is not None)
+    check(
+        "分回路提供方被接受并落地",
+        constructed._resolve_energy_circuit_entities() == set(),
+    )
 
 
 def event(entity: str, old: str, new: str, at: str = AT_A) -> dict[str, Any]:
@@ -112,14 +142,102 @@ def test_energy_failure_does_not_duplicate(tmp: Path) -> None:
     after_first = count_rows(factory)
     check("能耗抛错后显示行仍落库", after_first == 1, f"实际 {after_first} 行")
 
-    # 回灌重试 5 轮：旧实现每轮都会再写一遍（事故里是 12614 轮）。
+    # 回灌重试 5 轮：同一 (实体, 时刻, 变化) 现在由**库级唯一索引**挡住，
+    # 跨批次重放也只保留 1 行（此前只有批内去重，每轮会再写一遍，事故里是 12614 轮）。
     for _ in range(5):
         service._write_batch(batch, service._clear_epoch)
     after_retries = count_rows(factory)
     check(
-        "重试不会叠加显示行（旧实现会是 6 行）",
-        after_retries == 6,  # 每轮 1 行是「新的一批」而非「同一批重复」
+        "重试不会叠加显示行（跨批次同一事件只留 1 行）",
+        after_retries == 1,
         f"实际 {after_retries} 行",
+    )
+
+
+def test_stats_rollup(tmp: Path) -> None:
+    """小时汇总：只统计真正落库的行，且清空时一并清掉。
+
+    报表读汇总表而不是原始行（P14）。这里钉住两条容易出错的语义：
+
+    1. 跨批次重放被唯一索引挡掉后，汇总**不能**跟着翻倍（否则只是把「原始表爆表」
+       换成「汇总虚高」）；
+    2. 清空事件日志必须同时清空汇总，否则报表继续显示已删除的旧数据。
+    """
+    service, factory = build_service(tmp / "rollup")
+    row = {
+        "entity_id": "light.a",
+        "old_state": {"state": "off"},
+        "new_state": {"state": "on"},
+        "state_diff": "off→on",
+        "created_at": AT_A,
+    }
+    service._write_batch([row], service._clear_epoch)
+    stats = service.get_stats(24 * 30)
+    check("汇总统计到 1 条", stats["total"] == 1, str(stats["total"]))
+
+    # 重放 3 次：唯一索引挡住原始行，汇总也不应变大
+    for _ in range(3):
+        service._write_batch([row], service._clear_epoch)
+    stats = service.get_stats(24 * 30)
+    check("重放不放大汇总", stats["total"] == 1, str(stats["total"]))
+    check("按域名分组也正确", stats["byDomain"] == {"light": 1}, str(stats["byDomain"]))
+
+    # 清空：原始行与汇总都要归零
+    service.clear_all_records()
+    stats = service.get_stats(24 * 30)
+    check("清空后汇总归零", stats["total"] == 0, str(stats["total"]))
+    check("清空后原始行归零", count_rows(factory) == 0)
+
+
+def test_stats_and_compare_share_rollup(tmp: Path) -> None:
+    """``/events/stats`` 与 ``/reports/compare?metric=events`` 读同一张汇总表。
+
+    「现在」必须钉死：周口径的当前周期从本周一 00:00 起算，若用真实时间，周一凌晨跑
+    自检会有 3 条事件落到上周，断言偶尔失败（真实踩过：周一 00:05 跑出 4 vs 1）。
+    钉死到周三 12:00 UTC，四条事件（间隔 1 小时）全部落在本周内。
+    """
+    service, _factory = build_service(tmp / "compare")
+    frozen = datetime(2026, 11, 18, 12, 0, tzinfo=UTC)
+    originals = (event_log_module._report_now, report_module._report_now)
+    event_log_module._report_now = lambda _ops: frozen
+    report_module._report_now = lambda _ops: frozen
+    try:
+        batch = [
+            {
+                "entity_id": "light.c",
+                "old_state": {"state": "off"},
+                "new_state": {"state": "on"},
+                "state_diff": f"off→on{i}",
+                "created_at": frozen.replace(tzinfo=None) - timedelta(hours=i),
+            }
+            for i in range(4)
+        ]
+        service._write_batch(batch, service._clear_epoch)
+        stats = service.get_stats(24 * 30)
+        report = service.report_compare({"metric": "events", "granularity": "week"})
+    finally:
+        event_log_module._report_now, report_module._report_now = originals
+    series_total = sum(point["value"] for point in report["series"]["current"])
+    check("统计与报表同源", stats["total"] == series_total == 4, f"{stats['total']} vs {series_total}")
+    check("报表按实体给出对比行", any(row["key"] == "light.c" for row in report["byEntity"]), str(report["byEntity"]))
+
+
+def test_full_tier_stores_only_changed_attrs() -> None:
+    """``tier=full`` 只存「变化了的受控属性」，不存整份 attributes（P41）。"""
+    from homeos.backend.src.domains.logs.event_log_tier import serialize_event_log_states
+
+    event = {
+        "entity_id": "light.ke_wei",
+        "old_state": {"state": "off", "attributes": {"brightness": 0, "effect_list": ["a", "b"]}},
+        "new_state": {"state": "on", "attributes": {"brightness": 180, "effect_list": ["a", "b"]}},
+    }
+    _old, new = serialize_event_log_states(event, "full")
+    check("保留变化后的属性值", new["attributes"] == {"brightness": 180}, str(new["attributes"]))
+    check("不存未变化的属性", "effect_list" not in new["attributes"])
+    check(
+        "不随 attributes 数量增长（未变化字段一律不带）",
+        set(new["attributes"]) == {"brightness"},
+        str(new["attributes"]),
     )
 
 
@@ -164,10 +282,11 @@ def test_batch_dedup(tmp: Path) -> None:
     rows = count_rows(factory)
     check("批内重复折叠为 1 条", rows == 1, f"实际 {rows} 行")
 
-    # 同实体同变化但不同时刻 = 真实的不同事件，不能折叠
+    # 同实体同变化但不同时刻 = 真实的不同事件，不能折叠。
+    # （同一条 ``row`` 已在上一批写过，库级唯一索引会忽略它 —— 所以新增的是 1 行。）
     row2 = dict(row, created_at=AT_B)
     service._write_batch([row, row2], service._clear_epoch)
-    check("不同时刻不算重复", count_rows(factory) == 3)
+    check("不同时刻不算重复", count_rows(factory) == 2, f"实际 {count_rows(factory)} 行")
 
 
 def test_clear_epoch(tmp: Path) -> None:
@@ -219,11 +338,15 @@ def test_retention_wiring() -> None:
 
 
 def main() -> int:
+    test_constructor_matches_lifespan()
     with tempfile.TemporaryDirectory() as tmp:
         base = Path(tmp)
         test_energy_failure_does_not_duplicate(base)
         test_internal_isolation(base)
         test_batch_dedup(base)
+        test_stats_rollup(base)
+        test_stats_and_compare_share_rollup(base)
+        test_full_tier_stores_only_changed_attrs()
         test_clear_epoch(base)
         test_retention_wiring()
     print(f"事件日志自检通过：{len(CHECKS)} 项")

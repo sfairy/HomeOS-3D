@@ -149,6 +149,39 @@ const GATE_GROUPS = {
     // 事件日志写入路径：能耗副作用失败时事件日志**不得**重复写入（11-18→11-21 的
     // 1200 万行重复就是这条路径漏了隔离）。顺带钉住批内去重与清空世代。
     { name: 'check:event-log', ...bun('run', 'check:event-log') },
+    // 业务监测：这 5 组曾经是「配置里有开关、后端没有发布端」，自检钉住
+    // 「配置关闭不触发 / 冷却内不重复 / 读不到数据不乱报」三类边界。
+    { name: 'check:water-monitor', ...bun('run', 'check:water-monitor') },
+    { name: 'check:energy-guard', ...bun('run', 'check:energy-guard') },
+    { name: 'check:iaq-monitor', ...bun('run', 'check:iaq-monitor') },
+    // 电价计费是「数字正确性」：给定分时电价与固定输入，逐项核对峰/谷/平金额。
+    { name: 'check:energy-cost', ...bun('run', 'check:energy-cost') },
+    // 小时聚合与精确峰谷计价：日粒度估算会系统偏低，这里钉死逐小时算式。
+    { name: 'check:energy-hourly', ...bun('run', 'check:energy-hourly') },
+    // 昼夜节律的硬约束：绝不开灯、只动配置里点名的灯、默认不改亮度。
+    { name: 'check:circadian', ...bun('run', 'check:circadian') },
+    // 日出/日落触发：读不到太阳时间必须跳过（不能退回 06:00 / 18:00 的猜测）。
+    { name: 'check:sun-trigger', ...bun('run', 'check:sun-trigger') },
+    // 安防进入延时：撤防要能取消、到点必须真告警、人体传感器不延迟。
+    { name: 'check:entry-delay', ...bun('run', 'check:entry-delay') },
+    // 设备倒计时：落库续算（停机期间到期要补发）+ 覆盖而非叠加。
+    { name: 'check:device-timer', ...bun('run', 'check:device-timer') },
+    // 通知静音：danger / 生命安全永不静音，前缀只按同族匹配。
+    { name: 'check:notif-mute', ...bun('run', 'check:notif-mute') },
+    // 免鉴权的公开配置不得下发凭据（voice.ttsApiKey / ttsApiBase 曾整体 deepcopy 出去）。
+    { name: 'check:public-config', ...bun('run', 'check:public-config') },
+    // 设备时序：批内连续变化必须结算上一条（autoflush=False 下漏 flush 会留下
+    // 永远「仍在持续」的行）、数值节流不得吞掉真实突变、区域归因失败要计数。
+    { name: 'check:timeline', ...bun('run', 'check:timeline') },
+    // 来源判定：CORS 只认显式白名单、同源写拒绝同站不同端口、WS 必须带来源。
+    { name: 'check:security', ...bun('run', 'check:security') },
+    // 命令出口：HA 断连时幂等控制命令入队、同实体只留最后意图、重连补发。
+    { name: 'check:command-proxy', ...bun('run', 'check:command-proxy') },
+    // 画布基准：超宽屏（21:9 / 32:9）换 16:9 系基准后，画布仍必须铺满视口且不变形。
+    { name: 'check:canvas-layout', ...bun('run', 'check:canvas-layout') },
+    // UI 溢出棘轮：裸 `1fr` 网格与非白名单 `overflow-x:auto` 只许降不许增
+    // （设置页是 overflow-x:hidden，长串撑破列宽时内容会被静默裁掉）。
+    { name: 'check:ui-overflow', ...bun('run', 'check:ui-overflow') },
     { name: 'check:python-format', ...bun('run', 'check:python-format') },
     // 以下四条原属 test 组：它们只读源码、不跑用例，测试移除后并入 static，避免门禁丢项。
     { name: 'check:studio-split', ...bun('run', 'check:studio-split') },

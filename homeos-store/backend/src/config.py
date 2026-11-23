@@ -1,5 +1,4 @@
-"""授权商店服务的运行配置。
-"""
+"""授权商店服务的运行配置。"""
 
 from __future__ import annotations
 
@@ -22,19 +21,15 @@ def _detect_project_root() -> Path:
     """源码布局 ``homeos-store/backend/src`` 或镜像布局 ``/app/app``。"""
     candidate_src = STORE_ROOT.parents[1]
     candidate_docker = STORE_ROOT.parent
-    if (candidate_src / 'frontend').is_dir() or (candidate_src / 'backend').is_dir():
+    if (candidate_src / "frontend").is_dir() or (candidate_src / "backend").is_dir():
         return candidate_src
-    if (candidate_docker / 'dist').is_dir() or (candidate_docker / 'app').is_dir():
+    if (candidate_docker / "dist").is_dir() or (candidate_docker / "app").is_dir():
         return candidate_docker
     return candidate_src
 
 
 PROJECT_ROOT = _detect_project_root()
-REPO_ROOT = (
-    PROJECT_ROOT.parent
-    if (PROJECT_ROOT.parent / "homeos").is_dir()
-    else PROJECT_ROOT
-)
+REPO_ROOT = PROJECT_ROOT.parent if (PROJECT_ROOT.parent / "homeos").is_dir() else PROJECT_ROOT
 
 
 def _detect_frontend_root() -> Path:
@@ -60,7 +55,12 @@ DEFAULT_HOST = "0.0.0.0"
 
 DEFAULT_ORDER_TTL_SECONDS = 900
 DEFAULT_DEVICE_RELEASE_COOLDOWN_SECONDS = 28800
-DEFAULT_LEASE_TTL_SECONDS = 72 * 3600
+#: 租约有效期。**同时是「断网后还能用多久」**。
+#:
+#: 72 小时对家用设备太短：家庭断网 / 商店域名故障 / 云维护超过 3 天，租约无法续期，
+#: 主应用的 HTTP 与实时通道会被门禁整体关掉（只剩登录与激活页），而本地 HA 明明还在线。
+#: 30 天既不削弱「按月/年付费」的商业约束，也给了家庭网络足够的容错窗口。
+DEFAULT_LEASE_TTL_SECONDS = 30 * 24 * 3600
 DEFAULT_HEARTBEAT_INTERVAL_SECONDS = 300
 DEFAULT_VERIFICATION_TTL_SECONDS = 600
 DEFAULT_VERIFICATION_COOLDOWN_SECONDS = 60
@@ -184,8 +184,7 @@ def _env_int(
     minimum: int | None = None,
     maximum: int | None = None,
 ) -> int:
-    """读一个整数环境变量。
-    """
+    """读一个整数环境变量。"""
     return _env_number(name, default, cast=int, label="整数", minimum=minimum, maximum=maximum)
 
 
@@ -233,6 +232,8 @@ class StoreSettings:
     setup_token: str = ""
 
     mail_mode: str = "log"
+    #: 仅本机首装用：``mail_mode=log`` 时是否允许把明文验证码写进日志。默认关闭（fail-closed）。
+    log_plaintext_code: bool = False
     mail_from: str = "HomeOS <no-reply@homeos.local>"
     smtp_host: str = ""
     smtp_port: int = 465
@@ -297,8 +298,7 @@ class StoreSettings:
 
     @property
     def appearance_path(self) -> Path:
-        """站点配色文件；删除该文件并重启即可回到设计系统默认配色。
-        """
+        """站点配色文件；删除该文件并重启即可回到设计系统默认配色。"""
         return self.data_dir / "appearance.json"
 
     @property
@@ -327,8 +327,7 @@ class StoreSettings:
 
     @property
     def retired_private_key_path(self) -> Path:
-        """退役代的签名私钥：轮换时把上一代 **重命名** 到这里（不要删）。
-        """
+        """退役代的签名私钥：轮换时把上一代 **重命名** 到这里（不要删）。"""
         return self.license_keys_dir / "license-private.retired.pem"
 
     @property
@@ -345,8 +344,7 @@ class StoreSettings:
 
     @property
     def retired_key_marker_path(self) -> Path:
-        """退役时刻标记（ISO-8601 文本）。缺省回退到退役公钥文件的 mtime。
-        """
+        """退役时刻标记（ISO-8601 文本）。缺省回退到退役公钥文件的 mtime。"""
         return self.license_keys_dir / "license-retired-at"
 
     @property
@@ -376,8 +374,7 @@ class StoreSettings:
 
     @property
     def smtp_ready(self) -> bool:
-        """SMTP 是否具备真正发信的条件。
-        """
+        """SMTP 是否具备真正发信的条件。"""
         if self.mail_mode != "smtp" or not self.smtp_host:
             return False
         return not (self.smtp_username and not self.smtp_password)
@@ -393,18 +390,12 @@ class StoreSettings:
     @property
     def wechat_merchant_private_key_text(self) -> str:
         """商户 API 私钥：文件优先于内联值（PEM 是多行的，文件更不容易错）。"""
-        return (
-            _read_secret_file(self.wechat_merchant_private_key_path)
-            or self.wechat_merchant_private_key
-        )
+        return _read_secret_file(self.wechat_merchant_private_key_path) or self.wechat_merchant_private_key
 
     @property
     def wechat_platform_public_key_text(self) -> str:
         """微信支付公钥（或平台证书）：同样是文件优先。"""
-        return (
-            _read_secret_file(self.wechat_platform_public_key_path)
-            or self.wechat_platform_public_key
-        )
+        return _read_secret_file(self.wechat_platform_public_key_path) or self.wechat_platform_public_key
 
     @property
     def alipay_public_key_text(self) -> str:
@@ -433,9 +424,7 @@ def _env_core_values() -> dict[str, Any]:
         # 只解析一次，避免同一份取值被两处读到不同结果。
         **_cookie_secure_settings(),
         "trusted_proxies": tuple(
-            piece.strip()
-            for piece in _env_str("STORE_TRUSTED_PROXIES").split(",")
-            if piece.strip()
+            piece.strip() for piece in _env_str("STORE_TRUSTED_PROXIES").split(",") if piece.strip()
         ),
         "session_max_age_seconds": _env_int(
             "STORE_SESSION_MAX_AGE_SECONDS",
@@ -445,9 +434,7 @@ def _env_core_values() -> dict[str, Any]:
         ),
         "schema_mode": (_env_str("STORE_SCHEMA_MODE", "auto") or "auto").strip().lower(),
         "setup_token": _env_str("STORE_SETUP_TOKEN", ""),
-        "products_cache_ttl_seconds": _env_int(
-            "STORE_PRODUCTS_CACHE_TTL_SECONDS", 5, minimum=0, maximum=300
-        ),
+        "products_cache_ttl_seconds": _env_int("STORE_PRODUCTS_CACHE_TTL_SECONDS", 5, minimum=0, maximum=300),
     }
 
 
@@ -455,6 +442,8 @@ def _env_mail_values() -> dict[str, Any]:
     """邮件与验证码相关环境变量。"""
     return {
         "mail_mode": (_env_str("STORE_MAIL_MODE", "log") or "log").lower(),
+        # 明文验证码入日志的显式开关：默认关。首装临时打开，装完必须关掉。
+        "log_plaintext_code": _env_bool("STORE_LOG_PLAINTEXT_CODE", False),
         "mail_from": _env_str("STORE_MAIL_FROM", "HomeOS <no-reply@homeos.local>") or "HomeOS <no-reply@homeos.local>",
         "smtp_host": _env_str("STORE_SMTP_HOST"),
         "smtp_port": _env_int("STORE_SMTP_PORT", 465, minimum=1, maximum=65535),
@@ -464,9 +453,7 @@ def _env_mail_values() -> dict[str, Any]:
         "smtp_starttls": _env_bool("STORE_SMTP_STARTTLS"),
         "smtp_timeout_seconds": _env_int("STORE_SMTP_TIMEOUT_SECONDS", 15, minimum=1, maximum=300),
         "smtp_max_attempts": _env_int("STORE_SMTP_MAX_ATTEMPTS", 3, minimum=1, maximum=10),
-        "smtp_retry_backoff_seconds": _env_float(
-            "STORE_SMTP_RETRY_BACKOFF_SECONDS", 1.0, minimum=0.0, maximum=60.0
-        ),
+        "smtp_retry_backoff_seconds": _env_float("STORE_SMTP_RETRY_BACKOFF_SECONDS", 1.0, minimum=0.0, maximum=60.0),
         "verification_ttl_seconds": _env_int(
             "STORE_VERIFICATION_TTL_SECONDS",
             DEFAULT_VERIFICATION_TTL_SECONDS,
@@ -490,10 +477,12 @@ def _env_payment_values() -> dict[str, Any]:
     return {
         "payment_provider": (_env_str("STORE_PAYMENT_PROVIDER", "") or "").lower(),
         "alipay_app_id": _env_str("STORE_ALIPAY_APP_ID"),
-        "alipay_gateway_url": _env_str("STORE_ALIPAY_GATEWAY_URL", "https://openapi.alipay.com/gateway.do") or "https://openapi.alipay.com/gateway.do",
+        "alipay_gateway_url": _env_str("STORE_ALIPAY_GATEWAY_URL", "https://openapi.alipay.com/gateway.do")
+        or "https://openapi.alipay.com/gateway.do",
         "alipay_app_private_key": _env_str("STORE_ALIPAY_APP_PRIVATE_KEY"),
         "alipay_public_key": _env_str("STORE_ALIPAY_PUBLIC_KEY"),
-        "alipay_transaction_description": _env_str("STORE_ALIPAY_TRANSACTION_DESCRIPTION", "HomeOS 授权") or "HomeOS 授权",
+        "alipay_transaction_description": _env_str("STORE_ALIPAY_TRANSACTION_DESCRIPTION", "HomeOS 授权")
+        or "HomeOS 授权",
         "alipay_app_private_key_path": _env_str("STORE_ALIPAY_APP_PRIVATE_KEY_PATH"),
         "alipay_public_key_path": _env_str("STORE_ALIPAY_PUBLIC_KEY_PATH"),
         "alipay_seller_id": _env_str("STORE_ALIPAY_SELLER_ID"),
@@ -504,9 +493,7 @@ def _env_payment_values() -> dict[str, Any]:
         "order_ttl_seconds": _env_int(
             "STORE_ORDER_TTL_SECONDS", DEFAULT_ORDER_TTL_SECONDS, minimum=30, maximum=24 * 3600
         ),
-        "payment_sweep_interval_seconds": _env_int(
-            "STORE_PAYMENT_SWEEP_INTERVAL_SECONDS", 30, minimum=5, maximum=3600
-        ),
+        "payment_sweep_interval_seconds": _env_int("STORE_PAYMENT_SWEEP_INTERVAL_SECONDS", 30, minimum=5, maximum=3600),
         "payment_sweep_batch": _env_int("STORE_PAYMENT_SWEEP_BATCH", 25, minimum=1, maximum=500),
     }
 
@@ -517,9 +504,7 @@ def _env_license_ops_values() -> dict[str, Any]:
         "license_keys_dir": _env_path("STORE_LICENSE_KEYS_DIR", PROJECT_ROOT / "keys" / "local"),
         "license_key_id_override": _env_str("STORE_LICENSE_KEY_ID"),
         "license_transport_key_id_override": _env_str("STORE_LICENSE_TRANSPORT_KEY_ID"),
-        "lease_ttl_seconds": _env_int(
-            "STORE_LEASE_TTL_SECONDS", DEFAULT_LEASE_TTL_SECONDS, minimum=60
-        ),
+        "lease_ttl_seconds": _env_int("STORE_LEASE_TTL_SECONDS", DEFAULT_LEASE_TTL_SECONDS, minimum=60),
         "heartbeat_interval_seconds": _env_int(
             "STORE_HEARTBEAT_INTERVAL_SECONDS",
             DEFAULT_HEARTBEAT_INTERVAL_SECONDS,
@@ -591,8 +576,7 @@ _RANGED_FIELDS: tuple[tuple[str, float | None, float | None], ...] = (
 
 
 def _validate_settings(settings: StoreSettings) -> None:
-    """启动即校验，配错就抛 —— 不静默纠正、不带着坏值继续跑。
-    """
+    """启动即校验，配错就抛 —— 不静默纠正、不带着坏值继续跑。"""
     for field, minimum, maximum in _RANGED_FIELDS:
         value = getattr(settings, field)
         if minimum is not None and value < minimum:
@@ -615,8 +599,7 @@ def _validate_settings(settings: StoreSettings) -> None:
 
 
 def _validate_verification_window_config(settings: StoreSettings) -> None:
-    """交叉校验验证码「有效期 / 重发冷却」。
-    """
+    """交叉校验验证码「有效期 / 重发冷却」。"""
     ttl = int(settings.verification_ttl_seconds or 0)
     cooldown = int(settings.verification_cooldown_seconds or 0)
     if cooldown >= ttl:
@@ -630,17 +613,13 @@ def _validate_verification_window_config(settings: StoreSettings) -> None:
 ALIPAY_ORDER_TTL_FLOOR_SECONDS = 300
 
 
-def _warn_order_ttl_against_qr(
-    settings: StoreSettings, *, enabled_providers: tuple[str, ...] = ()
-) -> None:
+def _warn_order_ttl_against_qr(settings: StoreSettings, *, enabled_providers: tuple[str, ...] = ()) -> None:
     """支付宝收款下，订单 TTL 太短会给每一笔支付制造人工复核。
 
     ``enabled_providers`` 用于启动后拿到 DB 站点配置再复查一次：只读环境变量会漏掉
     “后台选了支付宝、env 没设”的部署。
     """
-    providers = {
-        str(item or "").strip().lower() for item in enabled_providers if str(item or "").strip()
-    }
+    providers = {str(item or "").strip().lower() for item in enabled_providers if str(item or "").strip()}
     providers.add((settings.payment_provider or "").strip().lower())
     if "alipay" not in providers:
         return
@@ -658,20 +637,21 @@ def _warn_order_ttl_against_qr(
     )
 
 
-_LEASE_TTL_WARN_SECONDS = 7 * 24 * 3600
+#: 超过 90 天才提示：默认值已是 30 天（家庭断网容错），再往上才需要提醒吊销延迟。
+_LEASE_TTL_WARN_SECONDS = 90 * 24 * 3600
 
 
 def _warn_lease_revocation_bound(settings: StoreSettings) -> None:
-    """把「吊销生效上界」在启动日志里说清楚。
-    """
+    """把「吊销生效上界」在启动日志里说清楚。"""
     seconds = int(settings.lease_ttl_seconds or 0)
     if seconds <= _LEASE_TTL_WARN_SECONDS:
         return
     logger.warning(
         "STORE_LEASE_TTL_SECONDS=%d（约 %.1f 天）偏大：该值同时是「离线可用时长」"
         "与「吊销生效上界」—— 对一台持续离线的客户端，停用授权/解绑设备最慢要等"
-        "这么久才会真正生效。若这不是有意为之，请调小（默认 %d 秒 = 72 小时）。",
+        "这么久才会真正生效。若这不是有意为之，请调小（默认 %d 秒 = %.0f 天）。",
         seconds,
         seconds / 86400,
         DEFAULT_LEASE_TTL_SECONDS,
+        DEFAULT_LEASE_TTL_SECONDS / 86400,
     )
