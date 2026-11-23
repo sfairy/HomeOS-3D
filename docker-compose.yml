@@ -82,14 +82,18 @@ services:
       # 会话 Cookie 的 Secure：auto = 按本次请求实际协议判定（https 带、内网 http 不带）。
       # true / false 只适合单一协议部署，双入口请保持 auto。依赖入口透传 X-Forwarded-Proto。
       STORE_COOKIE_SECURE: "auto"
-      # 可信代理：只信容器内回环（Caddy 反代就在同容器 127.0.0.1 上）。
-      # 不要再把整个 docker 私网段（172.16/12）填进来：同网段任意容器都能带
+      # 可信代理：只列**精确地址**，绝不填整个私网段 —— 同网段任意容器都能带
       # X-Forwarded-For 冒充任意来源 IP，绕过 MCP 白名单与按 IP 的登录/注册限流。
-      # 宿主机反代 / 隧道部署请填**实际代理地址**的精确值（例如 172.28.0.1），
-      # 或让它把源地址改写为 127.0.0.1 后经 Caddy 进入。
+      #   127.0.0.1,::1   —— 容器内回环。
+      #   172.28.0.1      —— 本机作为代理的那条路：隧道 / 反代在**宿主机**上，目标是
+      #                      `http://<宿主局域网IP>:8802` 时，商店看到的 TCP 对端就是
+      #                      compose 网桥网关（本文件固定子网 172.28.0.0/24 → 网关 .1）。
+      #                      LAN 设备直连已发布端口时源是它自己的真实 IP（不被信任），
+      #                      所以这里放开网关不会让直连方伪造来源。
+      # 改过 HOMEOS_NET_SUBNET 时网关跟着变（<子网>.1），请覆盖本变量。
       # 解析不到这个值时它退化成「不信任何转发头」：HTTPS 入口的 Session Cookie 会
-      # 不带 Secure，HSTS 也不发（登录仍可用，只是少一层保护）。
-      STORE_TRUSTED_PROXIES: ${STORE_TRUSTED_PROXIES:-127.0.0.1,::1}
+      # 不带 Secure、HSTS 也不发，且所有经代理的请求共用一个限流桶（登录仍可用）。
+      STORE_TRUSTED_PROXIES: ${STORE_TRUSTED_PROXIES:-127.0.0.1,::1,172.28.0.1}
       # 商店没有任何 HTTPS 入口：内网 http://<IP>:8802，公网由隧道 / 反代在 80·443 终止 TLS。
       # 验证码投递：log = 只写容器日志（首装够用）。公开售卖前请在 /admin 配好 SMTP，
       # 否则客户收不到验证码。
@@ -167,11 +171,18 @@ services:
       APP_CLIENT_KEYS_DIR: /data/client-keys
       # 会话 / CSRF Cookie：auto = 按本次请求实际协议判定（双入口部署必须用它）。
       COOKIE_SECURE: "auto"
-      # 可信代理：只信容器内回环（Caddy 就在同容器 127.0.0.1）。填整个私网段会让
-      # 同网段任意容器伪造 X-Forwarded-For，绕过 MCP IP 白名单与按 IP 的限流。
-      # 宿主机反代 / 隧道部署请改成实际代理的精确地址。
-      APP_TRUSTED_PROXIES: ${APP_TRUSTED_PROXIES:-127.0.0.1,::1}
-      UVICORN_FORWARDED_ALLOW_IPS: ${UVICORN_FORWARDED_ALLOW_IPS:-127.0.0.1,::1}
+      # 可信代理：只列**精确地址**，绝不填整个私网段 —— 同网段任意容器都能伪造
+      # X-Forwarded-For，绕过 MCP IP 白名单与按 IP 的限流。
+      #   127.0.0.1,::1   —— 容器内 Caddy（8803）。
+      #   172.28.0.1      —— 本机作为代理的那条路：隧道 / 反代在**宿主机**上、目标是
+      #                      `http://<宿主局域网IP>:8801` 时，应用看到的 TCP 对端就是
+      #                      compose 网桥网关（本文件固定子网 172.28.0.0/24 → 网关 .1）。
+      #                      不列它的话 `X-Forwarded-Proto: https` 不被采信：公网 HTTPS
+      #                      入口的会话 Cookie 不带 Secure、HSTS 也不发。
+      # 改过 HOMEOS_NET_SUBNET 时网关跟着变（<子网>.1），请覆盖这两个变量。
+      APP_TRUSTED_PROXIES: ${APP_TRUSTED_PROXIES:-127.0.0.1,::1,172.28.0.1}
+      # uvicorn 自己也要信同一层（它负责改写 scope 的 scheme）；两行必须同口径。
+      UVICORN_FORWARDED_ALLOW_IPS: ${UVICORN_FORWARDED_ALLOW_IPS:-127.0.0.1,::1,172.28.0.1}
       # 主应用公网地址（穿透后的域名）。同源校验、WebSocket 来源、socket.io 白名单都认它；
       # 填了之后局域网 IP 直连仍然可用（校验同时接受与本请求 Host 同源）。
       APP_BASE_URL: ${APP_BASE_URL:-https://homelife.iepose.cn}
