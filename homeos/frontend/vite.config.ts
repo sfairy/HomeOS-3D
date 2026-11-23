@@ -13,6 +13,7 @@ import embedProxyFallbackPlugin from './vite-plugin-embed-fallback.ts'
 import rootAssetsPlugin from './vite-plugin-root-assets.ts'
 import { ensureLockParent, pidAlive, withFileLock } from './vite-file-lock.ts'
 import { SPA_ENTRY, assertSpaShellPresent, stripCssComments } from '../../ops/vite/build-helpers.js'
+import { publishFrontendEntries } from '../../ops/vite/publish-frontend.js'
 import {
   THREE_VENDOR,
   isRuntimeExternal,
@@ -47,15 +48,6 @@ function walkFiles(root: string): string[] {
     }
   }
   return out
-}
-
-function pruneStale(liveRoot: string, buildRoot: string): void {
-  if (!fs.existsSync(liveRoot) || !fs.existsSync(buildRoot)) return
-  const keep = new Set(walkFiles(buildRoot).map((f) => f.slice(buildRoot.length + 1).replace(/\\/g, '/')))
-  for (const file of walkFiles(liveRoot)) {
-    const rel = file.slice(liveRoot.length + 1).replace(/\\/g, '/')
-    if (!keep.has(rel)) fs.rmSync(file, { force: true })
-  }
 }
 
 /** 清掉崩溃残留的旁路目录 / 发布锁（超过 30 分钟）；不动其他仍在跑的 pid 旁路。 */
@@ -117,14 +109,9 @@ async function publishStagingToLive(): Promise<void> {
       ...entries.filter((name) => name !== 'index.html'),
       ...entries.filter((name) => name === 'index.html'),
     ]
-    for (const name of ordered) {
-      const from = resolve(outDir, name)
-      const to = resolve(finalOutDir, name)
-      fs.cpSync(from, to, { recursive: true, force: true })
-    }
-    for (const bucket of ['static'] as const) {
-      pruneStale(resolve(finalOutDir, bucket), resolve(outDir, bucket))
-    }
+    // sidecar（`.br` / `.gz`）是构建收尾才生成的，旁路里永远没有；拷贝 + 修剪时复用线上
+    // 「内容未变」的那份，细节见 ops/vite/publish-frontend.ts。
+    publishFrontendEntries({ staging: outDir, live: finalOutDir, ordered })
     // 根层残留清理：删掉本次未发布的顶层条目（旧 ``.vite/``、调试用 ``__fridge_*.html``、
     // 已删除的入口等），但保留运行期模块目录 ``modules``。原先只剪 assets/static 两层，
     // 于是根目录的脏文件会随每次增量发布一直留着。

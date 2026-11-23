@@ -203,10 +203,12 @@ class Settings:
     data_dir: Path
     project_root: Path = PROJECT_ROOT
     # 授权 / 联网商店
-    #: 商店的**浏览器入口**地址（``APP_STORE_URL``）：登录页「忘记密码 / 商店」跳转用。
-    #: 留空（推荐）= 由 ``/public/config`` 向商店问回它的对外地址，并修正浏览器解析不了的
-    #: 主机名（同机部署的容器服务名 → 浏览器正在用的宿主 / 域名，见
-    #: ``domains/store/discovery.py``）。只有地址特殊到推导不出来时才显式写死。
+    #: 商店的**浏览器入口**地址（``APP_STORE_URL``）：登录页「忘记密码 / 商店」、注册页与
+    #: 激活页的购买入口都用它。两份 compose 默认写死公网商店域名（与 ``STORE_BASE_URL``
+    #: 同域），保证这些跳转一律走公网、不落到内网地址。留空 = 由 ``/public/config`` 向商店
+    #: 问回它的对外地址：商店声明了 ``STORE_BASE_URL`` 时声明优先，没声明才修正浏览器解析
+    #: 不了的主机名（同机部署的容器服务名 → 浏览器正在用的宿主 / 域名，见
+    #: ``domains/store/discovery.py``）。
     store_url: str = ""
     # 认证
     jwt_secret: str = ""

@@ -12,16 +12,11 @@
 的地址），所以问商店本人：``GET /store/v1/base-url``（见商店侧
 ``security.request_security.request_origin``）。商店的回答带一个 ``declared`` 标记：
 
-- ``declared=true``：商店显式配了 ``STORE_BASE_URL`` —— 那是运维的声明，**原样采信**
-  （但同机 + 浏览器在用 IP 访问时另有一条更可靠的推断，见下）；
-- ``declared=false``：回答只是回显「你是怎么连上我的」—— 同机部署下它就是容器服务名，
-  于是把主机名换成浏览器正在用的那个（见 :func:`resolve_browser_store_url`）。
-
-**同机 + IP 访问**（``http://192.168.31.175:8801``）不走上面任何一条：那时商店必然在
-同一台机器的 ``:8802`` 上（compose 只差端口），直接把链接拼成 ``http://192.168.31.175:8802``。
-这个判断依据是**容器出站主机名**（:func:`same_machine_store`），不受 ``STORE_BASE_URL``
-里写的公网域名影响 —— 否则局域网用户会被送去公网域名，穿透一抖就打不开，而明明旁边的
-``:8802`` 是通的。
+- ``declared=true``：显式配了 ``STORE_BASE_URL`` —— 运维的声明，**原样采信且优先于同机
+  推断**：声明成公网域名就意味着注册 / 激活 / 商店入口一律走公网（默认 compose 只把商店
+  发布到回环，``<局域网IP>:8802`` 反而打不开）；
+- ``declared=false``：只是回显「你怎么连上我的」—— 没配对外地址时，同机部署的局域网用户
+  才走「同一 IP 的商店端口」这条离线推断（见 :func:`resolve_browser_store_url`）。
 
 显式配置了 ``APP_STORE_URL`` 时本模块不产生任何网络请求 —— 显式值永远优先。
 """
@@ -120,29 +115,25 @@ def resolve_browser_store_url(
 
     三种情形，按优先级：
 
-    1. **同机 + 浏览器在用 IP/端口访问**（``http://192.168.31.175:8801``）：商店就在同一
-       台机器的 ``:8802`` 上，直接用 ``http://192.168.31.175:8802``。这条推断不依赖任何
-       配置、不依赖公网、离线也成立 —— 局域网现场访问时它永远是对的。
-       scheme 固定 ``http``：商店**没有** HTTPS 入口；从 ``:8803`` 的自签 HTTPS 页面点过去
-       是一次顶层跳转（不是混合内容请求），浏览器允许。
-    2. 商店显式声明了 ``STORE_BASE_URL``（``declared=true``）：原样采信 —— 那是运维的声明，
-       公网域名访问时就是它。
-    3. 否则（商店回显「你怎么连上我的」）：回答里的主机名浏览器能用（分机部署的公网域名）
-       就原样用；不能用（同机部署的容器服务名）且当前是公网域名访问时，说明这个部署没有
-       声明商店的公网入口 —— 返回空串，让前端隐藏入口，而不是拼一个 ``:8802`` 的 404。
-
-    返回空串表示「没有可用入口」，调用方据此隐藏链接，而不是给用户一个假地址。
+    1. 商店声明了 ``STORE_BASE_URL``（``declared=true``）：原样采信，**优先于同机推断**
+       —— 声明成公网域名就意味着注册 / 激活 / 商店入口一律走公网，局域网访问也不例外。
+    2. 同机 + 浏览器在用 IP/端口访问，且商店**没声明**对外地址：商店就在同一台机器的
+       ``:8802`` 上，直接用 ``http://<同一 IP>:<port>``（离线也成立，纯内网现场的兜底；
+       scheme 固定 ``http``，商店没有 HTTPS 入口，从 ``:8803`` 自签页点过去是顶层跳转）。
+    3. 否则（商店回显「你怎么连上我的」）：主机名浏览器能用就原样用；不能用（同机部署的
+       容器服务名）且当前是公网域名访问时返回空串 —— 让前端隐藏入口，而不是给 404 链接。
     """
+    text = _normalize(answer.url)
+    if answer.declared and text:
+        return text
+
     source = urlsplit(_normalize(browser_origin))
     host = source.hostname or ''
     if same_machine and host and direct_port_host(host):
         return f'http://{authority(host, port)}'
 
-    text = _normalize(answer.url)
     if not text:
         return ''
-    if answer.declared:
-        return text
     if same_machine and host and browser_reachable(host):
         # 同机但走的是公网域名，而商店没声明自己的公网地址：`<这个域名>:8802` 几乎肯定
         # 没被发布（公网只开 443）。宁可返回空串让前端隐藏入口，也不给一个 404 链接。
@@ -213,23 +204,24 @@ class StoreBaseUrlResolver:
     async def resolve_for_browser(self, browser_origin: str) -> str:
         """商店的对外地址，**浏览器的口径**。
 
-        显式 ``APP_STORE_URL`` 永远优先；否则同机 + IP 访问直接拼 ``<同一 IP>:<商店端口>``
-        （不联网、不受穿透状态影响）；其余情形才问商店要它的对外地址并按需换主机名。
+        显式 ``APP_STORE_URL`` 优先；其次商店声明（``STORE_BASE_URL``，优先于同机推断）；
+        都没答时才走「同机 + IP → 拼商店端口」的离线兜底（见 :func:`resolve_browser_store_url`）。
+        回答带缓存与失败退避（见 :meth:`_discover`），稳态下不会每次请求都联网。
         """
         explicit = self._explicit()
         if explicit:
             return explicit
         same_machine = same_machine_store(self._settings)
         port = store_port(self._settings)
-        if same_machine:
+        answer = await self._discover()
+        if same_machine and not answer.declared:
             source = urlsplit(_normalize(browser_origin))
             host = source.hostname or ''
             if host and direct_port_host(host):
-                # 同机直连：连商店的回答都不需要，`/public/config` 因此永远不会被商店
-                # 不可达拖慢（这条最常被 LAN 现场访问命中）。
+                # 商店没声明对外地址 + 浏览器在用 IP 直连：拼同机端口。
                 return f'http://{authority(host, port)}'
         return resolve_browser_store_url(
-            await self._discover(), browser_origin, same_machine=same_machine, port=port
+            answer, browser_origin, same_machine=same_machine, port=port
         )
 
     async def _discover(self) -> StoreAnswer:

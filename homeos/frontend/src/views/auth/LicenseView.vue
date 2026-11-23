@@ -477,9 +477,6 @@ onBeforeUnmount(() => {
           <li>选购版本、下单付款</li>
           <li>激活码发到下单邮箱，也能在商店账号中心随时查看</li>
         </ol>
-        <p class="license-buy__warn" role="note">
-          激活码按下单邮箱归属：下面「授权邮箱」必须与下单邮箱一致，填本机登录账号是通不过的。
-        </p>
       </template>
       <div v-if="storeUrl" class="license-buy__actions">
         <a class="hos-btn-primary" :href="buyPrimaryUrl" target="_blank" rel="noopener noreferrer">
@@ -602,18 +599,6 @@ onBeforeUnmount(() => {
 .license-buy__note strong {
   color: var(--hos-fg-1, var(--hos-ink));
   font-weight: 700;
-}
-
-/* 「邮箱必须一致」是这一页最容易踩的一脚：用提示条的暖光底色单独强调，
-   不要混进上面的步骤里被读成第四步。 */
-.license-buy__warn {
-  margin: 0 0 var(--hos-space-3);
-  padding: 8px 10px;
-  border-radius: var(--hos-r-1);
-  background: rgba(var(--hb-lumen-rgb), 0.08);
-  color: var(--hb-lumen);
-  font-size: 0.78rem;
-  line-height: 1.55;
 }
 
 .license-buy__actions {

@@ -10,9 +10,10 @@
 # 四条地址链路，别混：
 #   ① 容器 → 商店      APP_LICENSE_SERVER_URL=http://homeos-store:8802（写死，别改成域名）
 #   ② 浏览器 → 主应用  https://homelife.iepose.cn（穿透）/ http://<IP>:8801、https://<IP>:8803（内网）
-#   ③ 浏览器 → 商店    **跟着访问者走**：从内网 IP 打开主应用 → http://<同一IP>:8802；
-#                      从公网域名打开 → https://homelifepay.iepose.cn。APP_STORE_URL 留空，
-#                      由 domains/store/discovery.py 推导（同机 IP 访问时不联网、不依赖穿透状态）。
+#   ③ 浏览器 → 商店    默认**一律走公网域名** https://homelifepay.iepose.cn（APP_STORE_URL
+#                      显式写死，见下方 environment）。注册 / 激活 / 商店入口因此永远不会
+#                      落到 `<局域网IP>:8802`。要让局域网用户走同机商店，需同时发布商店端口
+#                      并覆盖 APP_STORE_URL（两处都写了怎么改）。
 #   ④ 支付平台 → 商店  由 STORE_BASE_URL 推导的回调地址（必须填公网域名）
 #
 # 入口组合（两条入口必须同时可用，缺一不可）：
@@ -144,14 +145,17 @@ services:
       APP_ENVIRONMENT: production
       # 容器出站：同项目服务名，永远不用改（换 IP / 域名 / 入口抖动都不影响）。
       APP_LICENSE_SERVER_URL: http://homeos-store:8802
-      # 浏览器打开的商店地址（登录页「忘记密码 / 商店」）。与上一行用途不同，别混。
+      # 浏览器打开的商店地址（登录页「忘记密码 / 商店」，以及注册页 / 激活页的购买入口）。
+      # 与上一行用途不同，别混：上一行是容器出站，这一行是**浏览器**要打开的绝对地址。
       #
-      # 这里**留空**是有意的：开发者这台有两个入口 —— 局域网 `http://<IP>:8801` 与公网
-      # 域名 —— 商店入口必须跟着**访问者此刻用的那个**走（局域网 → `<同一 IP>:8802`，
-      # 公网 → STORE_BASE_URL 声明的商店域名）。写死任一个都会让另一条入口点不过去：
-      # 局域网用户被送去公网域名（穿透一抖就 404，而旁边的 :8802 明明是通的）。
-      # 推导逻辑见 domains/store/discovery.py（同机 + IP 访问时不联网）。
-      APP_STORE_URL: ${APP_STORE_URL:-}
+      # 默认写死公网域名，并故意与 STORE_BASE_URL 同域：注册 / 激活 / 商店链接一律走公网，
+      # 不会因为访问者从局域网 IP 打开主应用就被推导成 `<同一 IP>:8802`（默认 STORE_BIND
+      # 只发布回环，那个地址反而打不开）。想让局域网用户也走同机商店，必须同时：
+      #   1) 把 STORE_BIND 设为 0.0.0.0（或某个网卡 IP）；
+      #   2) 在这里显式覆盖 APP_STORE_URL=http://<宿主IP>:8802。
+      # 推导逻辑（未显式配置时）见 domains/store/discovery.py：商店声明 STORE_BASE_URL 时
+      # 声明优先，只有没声明才拼同机端口。
+      APP_STORE_URL: ${APP_STORE_URL:-https://homelifepay.iepose.cn}
       # 授权公钥目录：**全部分部署形态都是 /data/client-keys**（镜像默认、客户机 compose、
       # 这里的同机部署）。差别只在「这份文件从哪来」，不在路径名：
       #   · 同机 → 商店写出的 homeos-client-keys 卷按只读挂到同一路径（下面 volumes）；

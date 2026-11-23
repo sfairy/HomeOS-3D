@@ -17,6 +17,8 @@
  * - 原子写入（同目录 tmp + rename）：构建机并发读产物时不会读到半截 sidecar；
  * - sidecar 的 mtime 保持**等于源文件 mtime**：幂等判断只看「sidecar 是否与源同 mtime」，
  *   源文件没变就一个字节都不重写（`--check` 用同一口径校验缺失 / 过期）。
+ *   主应用的发布流程（`ops/vite/publish-frontend.ts`）也按这个不变量复用线上 sidecar：
+ *   内容逐字节相同才留、发布后把 mtime 对齐新源文件，于是下一次 precompress 直接跳过。
  *
  * 为什么不压 GLB / 图片 / woff2 / .map
  * ------------------------------------

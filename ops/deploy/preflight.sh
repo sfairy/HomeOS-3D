@@ -178,10 +178,14 @@ fi
 
 head_ "4. 商店对外身份（STORE_BASE_URL）与公钥"
 BASE_URL_JSON="$(curl -fsS -m 8 "http://127.0.0.1:$STORE_PORT/store/v1/base-url" 2>/dev/null || true)"
+DECLARED_STORE_URL=""
 if [ -n "$BASE_URL_JSON" ]; then
   ok "base-url：$BASE_URL_JSON"
   case "$BASE_URL_JSON" in
-    *'"declared":true'*) : ;;
+    *'"declared":true'*)
+      # 声明了 STORE_BASE_URL：主应用会原样采信它（优先于任何同机推断），
+      # 所以下面第 6 步三种入口的期望值都是这个地址。
+      DECLARED_STORE_URL="$(printf '%s' "$BASE_URL_JSON" | sed -n 's/.*"baseUrl":"\([^"]*\)".*/\1/p')" ;;
     *) warn "declared=false：商店在回显调用方 Host，公网入口换域名时要留意" ;;
   esac
   case "$BASE_URL_JSON" in
@@ -213,10 +217,13 @@ else
   bad "读不到 /api/v1/license/availability"
 fi
 
-head_ "6. 浏览器视角：商店入口（按访问地址推导，不是写死的）"
-# 同一个主应用会被三种地址访问：局域网 IP:端口、内置自签 HTTPS、公网域名。商店入口必须跟着
-# **访问者当前用的那个地址**走，否则局域网用户点「商店」会被送去公网域名（穿透一抖就 404，
-# 而旁边的 :8802 明明是通的）。这里分别用这三种 Host 探一次。
+head_ "6. 浏览器视角：商店入口（注册 / 激活 / 商店链接）"
+# 取值口径（见 homeos/backend/src/domains/store/discovery.py）：
+#   1) 显式 APP_STORE_URL 永远优先 —— 两份 compose 默认都写公网商店域名；
+#   2) 未显式配置时，商店声明了 STORE_BASE_URL（declared=true）就原样采信，**声明优先于
+#      任何同机推断**，所以从局域网 IP 打开主应用也还是公网地址；
+#   3) 只有商店**没声明**时，局域网 / 回环访问才拼成同一台机器的 :8802（纯内网现场兜底）。
+# 这里分别用三种 Host 探一次：有公网口径时三者都该是它，没有时才回落到同机端口。
 
 probe_store_url() {
   # $1 = 说明, $2 = Host 头, $3 = 期望值
@@ -238,14 +245,27 @@ probe_store_url() {
   ok "$label → $url"
   if curl -fsS -m 8 -o /dev/null "${url%/}/healthz" 2>/dev/null; then
     ok "  这个地址从本机可达"
+  elif [ -n "$PUBLIC_STORE_EXPECT" ] && [ "$url" = "$PUBLIC_STORE_EXPECT" ]; then
+    # 公网地址在服务器本机探不到很常见（NAT 回环、穿透客户端不在本机），
+    # 浏览器视角仍以它为准，不当作部署失败。
+    warn "  这台机器上探不到 $url（浏览器视角仍以它为准；确认 DNS / 穿透 / 证书即可）"
   else
     bad "  这个地址不可达：浏览器点「商店 / 重置密码」会 404 或超时"
   fi
 }
 
-probe_store_url "局域网 IP" "$LAN_IP:$APP_PORT" "http://$LAN_IP:$STORE_PORT"
-probe_store_url "回环"      "127.0.0.1:$APP_PORT" "http://127.0.0.1:$STORE_PORT"
-probe_store_url "公网域名"  "${APP_DOMAIN#*://}"  ""
+# 公网口径：容器里显式配的 APP_STORE_URL 优先，其次商店声明的 STORE_BASE_URL。
+APP_STORE_URL_ENV="$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$APP_CT" 2>/dev/null \
+  | awk -F= '/^APP_STORE_URL=/{sub(/^APP_STORE_URL=/,""); print; exit}')"
+PUBLIC_STORE_EXPECT="${APP_STORE_URL_ENV:-$DECLARED_STORE_URL}"
+if [ -n "$PUBLIC_STORE_EXPECT" ]; then
+  ok "公网口径：$PUBLIC_STORE_EXPECT（三种入口都该是它）"
+fi
+probe_store_url "局域网 IP" "$LAN_IP:$APP_PORT" "${PUBLIC_STORE_EXPECT:-http://$LAN_IP:$STORE_PORT}"
+probe_store_url "回环"      "127.0.0.1:$APP_PORT" "${PUBLIC_STORE_EXPECT:-http://127.0.0.1:$STORE_PORT}"
+if [ -n "$APP_DOMAIN" ]; then
+  probe_store_url "公网域名" "${APP_DOMAIN#*://}" "$PUBLIC_STORE_EXPECT"
+fi
 
 head_ "7. 机器指纹来源（授权绑定，换机/重建都不能变）"
 for path in /host/etc/machine-id /host/sys/class/dmi/id; do

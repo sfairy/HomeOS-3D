@@ -170,6 +170,9 @@ const GATE_GROUPS = {
     { name: 'check:notif-mute', ...bun('run', 'check:notif-mute') },
     // 免鉴权的公开配置不得下发凭据（voice.ttsApiKey / ttsApiBase 曾整体 deepcopy 出去）。
     { name: 'check:public-config', ...bun('run', 'check:public-config') },
+    // 商店入口（注册 / 激活 / 商店链接）不得落到内网地址：声明 STORE_BASE_URL 时声明优先，
+    // 只有没声明才允许「同机 + IP → <同一 IP>:8802」的离线推断。
+    { name: 'check:store-links', ...bun('run', 'check:store-links') },
     // UI 素材（背景图）服务：两层合并优先级、删除随包素材只写隐藏标记、SVG 消毒、
     // 图标目录退役改名。这些都是「不报错但会静默失效」的语义，编译与类型检查都看不见。
     { name: 'check:ui-assets', ...bun('run', 'check:ui-assets') },
