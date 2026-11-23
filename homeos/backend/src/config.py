@@ -334,10 +334,10 @@ class Settings:
 
     @property
     def ui_assets_dir(self) -> Path:
-        """用户可写的 UI 静态资源根（图标 / 背景图上传层）。
+        """用户可写的 UI 静态资源根（背景图上传层）。
 
-        与随包发布的默认素材树（``builtin_assets_dir`` 旁的 ``assets/icons`` /
-        ``assets/backgrounds``）分开：上传 / 删除只作用于这一层，随包目录保持只读，
+        与随包发布的默认素材树（``builtin_assets_dir`` 旁的 ``assets/backgrounds``）
+        分开：上传 / 删除只作用于这一层，随包目录保持只读，
         避免「用户覆盖了默认图，升级后又被镜像内容回滚」和「删目录连带删掉默认素材」。
         """
         return self.data_dir / "ui-assets"

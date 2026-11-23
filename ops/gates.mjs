@@ -170,6 +170,9 @@ const GATE_GROUPS = {
     { name: 'check:notif-mute', ...bun('run', 'check:notif-mute') },
     // 免鉴权的公开配置不得下发凭据（voice.ttsApiKey / ttsApiBase 曾整体 deepcopy 出去）。
     { name: 'check:public-config', ...bun('run', 'check:public-config') },
+    // UI 素材（背景图）服务：两层合并优先级、删除随包素材只写隐藏标记、SVG 消毒、
+    // 图标目录退役改名。这些都是「不报错但会静默失效」的语义，编译与类型检查都看不见。
+    { name: 'check:ui-assets', ...bun('run', 'check:ui-assets') },
     // 设备时序：批内连续变化必须结算上一条（autoflush=False 下漏 flush 会留下
     // 永远「仍在持续」的行）、数值节流不得吞掉真实突变、区域归因失败要计数。
     { name: 'check:timeline', ...bun('run', 'check:timeline') },
@@ -179,6 +182,9 @@ const GATE_GROUPS = {
     { name: 'check:command-proxy', ...bun('run', 'check:command-proxy') },
     // 画布基准：超宽屏（21:9 / 32:9）换 16:9 系基准后，画布仍必须铺满视口且不变形。
     { name: 'check:canvas-layout', ...bun('run', 'check:canvas-layout') },
+    // 状态发布游标：舞台 `onPatch` 原地写状态表，必须靠版本号判断变化 ——
+    // 退回对象引用比较会把单实体 `state_changed` 全部吞掉（画面不更新且不报错）。
+    { name: 'check:state-revision', ...bun('run', 'check:state-revision') },
     // UI 溢出棘轮：裸 `1fr` 网格与非白名单 `overflow-x:auto` 只许降不许增
     // （设置页是 overflow-x:hidden，长串撑破列宽时内容会被静默裁掉）。
     { name: 'check:ui-overflow', ...bun('run', 'check:ui-overflow') },

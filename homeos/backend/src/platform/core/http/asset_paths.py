@@ -1,7 +1,7 @@
 """静态资源路径与公开 URL 工具（对齐 ``project-paths.util.ts`` / ``public-url.util.ts`` /
 ``http-security/path.util.ts`` 的 SVG 消毒子集）。
 
-目录解析顺序：单项环境变量（``ICONS_DIR`` 等）→ ``HOMEOS_ASSETS_DIR``（实例目录，容器里
+目录解析顺序：单项环境变量（``BACKGROUNDS_DIR`` 等）→ ``HOMEOS_ASSETS_DIR``（实例目录，容器里
 跟宿主机 ``./assets`` bind mount）→ 工作区 ``assets/<name>`` → 仓库 ``assets/<name>`` →
 随包默认素材 ``assets-default/<name>`` → ``backend/assets/<name>``。
 """
@@ -100,14 +100,18 @@ def _asset_dir(env_name: str, default_name: str) -> Path:
     return _LOCAL_ASSETS / default_name
 
 
-def get_icons_dir() -> Path:
-    """图标目录（对外 URL ``/icons/...``）。"""
-    return _asset_dir("ICONS_DIR", "icons")
-
-
 def get_backgrounds_dir() -> Path:
     """仪表盘背景图目录（对外 URL ``/backgrounds/...``）。"""
     return _asset_dir("BACKGROUNDS_DIR", "backgrounds")
+
+
+def get_instance_asset_roots() -> tuple[Path, ...]:
+    """可替换素材的**实例根**（宿主 / 实例目录，不含随包默认层）。
+
+    用于启动期清理已下线的素材目录：这些目录由管理员 / 用户可写，随包目录只读、
+    不应被启动流程改写。
+    """
+    return _asset_roots()
 
 
 def get_logo_dir() -> Path:
@@ -378,7 +382,7 @@ __all__ = [
     "UPLOAD_IMAGE_SUFFIXES",
     "get_backgrounds_dir",
     "get_fonts_dir",
-    "get_icons_dir",
+    "get_instance_asset_roots",
     "get_logo_dir",
     "get_sounds_dir",
     "get_ui_assets_dir",

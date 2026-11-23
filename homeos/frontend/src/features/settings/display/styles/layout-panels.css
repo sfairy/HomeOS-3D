@@ -1,4 +1,4 @@
-/* 合并自：widgets-panel.css, settings-embeds.css, widget-config-theme.css, embed-panel.css, assets-panel.css, settings-layout-footer-section.css */
+/* 合并自：widgets-panel.css, settings-embeds.css, widget-config-theme.css, embed-panel.css, settings-layout-footer-section.css */
 
 /* ── widgets-panel.css ── */
 
@@ -1002,57 +1002,6 @@
   }
 }
 
-/* ── assets-panel.css ── */
-.assets-hub {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.assets-launcher__cta {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  /* 高度钉到 sm 档：chip 内边距 + 行高 + 发丝边框凑出 31px。 */
-  height: var(--control-height-sm);
-  padding: 0 var(--hos-chip-pad-x, 12px);
-  border-radius: var(--hos-radius-card);
-  font-size: var(--set-fs-micro, 12px);
-  font-weight: 600;
-  transition:
-    background 0.15s ease,
-    border-color 0.15s ease,
-    transform 0.15s ease;
-}
-
-.assets-launcher__cta--sky {
-  color: var(--module-accent-layout-sub, #22d3ee);
-  background: var(--set-info-bg);
-  border: var(--hos-hairline) solid var(--set-info-border);
-}
-
-.assets-launcher__cta--amber {
-  color: var(--set-warn, #fbbf24);
-  background: var(--set-warn-bg, rgba(251, 191, 36, 0.12));
-  border: var(--hos-hairline) solid var(--set-warn-border, rgba(251, 191, 36, 0.28));
-}
-
-.assets-launcher__cta--violet {
-  color: var(--page-accent-text);
-  background: var(--page-accent-bg);
-  border: var(--hos-hairline) solid var(--page-accent-border);
-}
-
-.assets-launcher__cta--emerald {
-  color: var(--set-success, #34d399);
-  background: var(--set-success-bg, rgba(52, 211, 153, 0.12));
-  border: var(--hos-hairline) solid var(--set-success-border, rgba(52, 211, 153, 0.28));
-}
-
-.assets-launcher__arrow {
-  opacity: 0.7;
-}
-
 /* ── settings-layout-footer-section.css ── */
 .lf-icon-warn {
   color: var(--set-warn, #fcd34d);
@@ -1607,25 +1556,6 @@
   background: var(--page-accent-bg, rgba(124, 58, 237, 0.12));
   border: var(--hos-hairline) solid var(--page-accent-border, rgba(124, 58, 237, 0.22));
 }
-.ah-icon-amber {
-  color: var(--set-warn, #fbbf24);
-}
-.ah-orb-amber {
-  background: var(--set-warn-bg, rgba(251, 191, 36, 0.12));
-  border: var(--hos-hairline) solid var(--set-warn-border, rgba(251, 191, 36, 0.28));
-}
-.ah-icon-accent {
-  color: var(--premium-accent-violet, #c084fc);
-}
-.ah-orb-accent {
-  background: var(--page-accent-bg, rgba(124, 58, 237, 0.12));
-  border: var(--hos-hairline) solid var(--page-accent-border, rgba(124, 58, 237, 0.22));
-}
-.assets-flow-band__shell {
-  --flow-glow-a: rgba(var(--page-accent-rgb, 126, 184, 255), var(--flow-glow-alpha-a));
-  --flow-glow-b: rgba(34, 211, 238, var(--flow-glow-alpha-b));
-}
-
 /* —— SettingsEmbeds —— */
 .embeds-hub {
   --page-accent-rgb: var(--module-accent-layout-rgb);

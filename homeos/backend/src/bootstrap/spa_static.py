@@ -25,7 +25,6 @@ from ..platform.core.http.frontend_static import (
     FAVICON_PATH,
     FONTS_MOUNT_PREFIX,
     FRONTEND_ASSET_SUFFIXES,
-    ICONS_MOUNT_PREFIX,
     LOGO_MOUNT_PREFIX,
     MANIFEST_PATH,
     MODULES_MOUNT_PREFIX,
@@ -282,17 +281,16 @@ def _register_pwa_asset_routes(app: FastAPI, frontend_dir: Path) -> None:
 
 
 def _mount_replaceable_asset_dirs(app: FastAPI, settings: Settings) -> None:
-    """可替换静态资源（图标 / 背景图 / 音效 / Logo / 内置字体）；缺失目录不挂载。
+    """可替换静态资源（背景图 / 音效 / Logo / 内置字体）；缺失目录不挂载。
 
-    图标与背景图是**分层**的：随包默认素材（``assets/icons`` / ``assets/backgrounds``）
-    只读，用户上传落到 ``<data_dir>/ui-assets`` 并优先命中。这样上传覆盖默认图、删除默认
-    素材都不再改动随包目录（否则升级 / 重建镜像后改动会被回滚）。
+    背景图是**分层**的：随包默认素材（``assets/backgrounds``）只读，用户上传落到
+    ``<data_dir>/ui-assets`` 并优先命中。这样上传覆盖默认图、删除默认素材都不再改动
+    随包目录（否则升级 / 重建镜像后改动会被回滚）。
     """
     from ..platform.core.http.asset_paths import (
         UPLOAD_CONTENT_TYPES,
         get_backgrounds_dir,
         get_fonts_dir,
-        get_icons_dir,
         get_logo_dir,
         get_sounds_dir,
         layered_asset_path,
@@ -300,51 +298,42 @@ def _mount_replaceable_asset_dirs(app: FastAPI, settings: Settings) -> None:
     )
 
     ui_assets_root = settings.ui_assets_dir
-    for mount_path, kind, builtin_root in (
-        (ICONS_MOUNT_PREFIX, "icons", get_icons_dir()),
-        (BACKGROUNDS_MOUNT_PREFIX, "backgrounds", get_backgrounds_dir()),
-    ):
-        user_root = ui_assets_root / kind
+    user_root = ui_assets_root / "backgrounds"
+    builtin_root = get_backgrounds_dir()
 
-        def _layered_asset(
-            asset_path: str,
-            *,
-            _kind: str = kind,
-            _builtin: Path = builtin_root,
-            _user: Path = user_root,
-        ) -> FileResponse:
-            hidden = load_hidden_assets(ui_assets_root)
-            resolved = layered_asset_path(_builtin, _user, hidden, _kind, asset_path)
-            if resolved is None:
-                raise HTTPException(status_code=404, detail="资源不存在。")
-            response = FileResponse(resolved, media_type=UPLOAD_CONTENT_TYPES.get(resolved.suffix.lower()))
-            # 随包默认素材（背景图 84 KB、图标几 KB）只在发版时变，重复打开仪表盘不必每次
-            # 回源校验；用户上传层仍走 no-cache，覆盖 / 隐藏能立即生效。
-            response.headers["Cache-Control"] = (
-                f"private, max-age={_BUILTIN_ASSET_MAX_AGE}"
-                if resolved.is_relative_to(_builtin)
-                else "private, no-cache"
-            )
-            return response
-
-        app.api_route(
-            f"{mount_path}/{{asset_path:path}}",
-            methods=["GET", "HEAD"],
-            include_in_schema=False,
-            name=f"layered{mount_path}",
-        )(_layered_asset)
-
-        # 无尾斜杠的挂载点本身不是资源：显式 404，避免回落到 SPA 外壳把目录当页面返回
-        # （``StaticFiles`` 时期这里是 308 重定向到 ``/icons/``）。
-        def _bare_asset_dir() -> None:
+    def _layered_background(asset_path: str) -> FileResponse:
+        hidden = load_hidden_assets(ui_assets_root)
+        resolved = layered_asset_path(builtin_root, user_root, hidden, "backgrounds", asset_path)
+        if resolved is None:
             raise HTTPException(status_code=404, detail="资源不存在。")
+        response = FileResponse(resolved, media_type=UPLOAD_CONTENT_TYPES.get(resolved.suffix.lower()))
+        # 随包默认素材（背景图 84 KB）只在发版时变，重复打开仪表盘不必每次回源校验；
+        # 用户上传层仍走 no-cache，覆盖 / 隐藏能立即生效。
+        response.headers["Cache-Control"] = (
+            f"private, max-age={_BUILTIN_ASSET_MAX_AGE}"
+            if resolved.is_relative_to(builtin_root)
+            else "private, no-cache"
+        )
+        return response
 
-        app.api_route(
-            mount_path,
-            methods=["GET", "HEAD"],
-            include_in_schema=False,
-            name=f"layered-bare{mount_path}",
-        )(_bare_asset_dir)
+    app.api_route(
+        f"{BACKGROUNDS_MOUNT_PREFIX}/{{asset_path:path}}",
+        methods=["GET", "HEAD"],
+        include_in_schema=False,
+        name="layered-backgrounds",
+    )(_layered_background)
+
+    # 无尾斜杠的挂载点本身不是资源：显式 404，避免回落到 SPA 外壳把目录当页面返回
+    # （``StaticFiles`` 时期这里是 308 重定向到 ``/backgrounds/``）。
+    def _bare_asset_dir() -> None:
+        raise HTTPException(status_code=404, detail="资源不存在。")
+
+    app.api_route(
+        BACKGROUNDS_MOUNT_PREFIX,
+        methods=["GET", "HEAD"],
+        include_in_schema=False,
+        name="layered-bare-backgrounds",
+    )(_bare_asset_dir)
 
     for suffix, media_type in FONT_TYPES.items():
         mimetypes.add_type(media_type, suffix)

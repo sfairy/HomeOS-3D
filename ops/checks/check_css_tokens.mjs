@@ -246,6 +246,28 @@ if (unresolved.length) {
   for (const line of unresolved.sort()) console.error(`  ${line}`)
   process.exit(1)
 }
+
+/*
+ * 循环引用：`--a: var(--b)` 与 `--b: var(--a)` 各自都能「解析到声明」，普通未声明检测
+ * 看不出来；但按 CSS 语义整条链是无效值，属性静默丢弃 —— 例如圆角归零、颜色变透明。
+ *
+ * 真实触发场景：`design-tokens.css` 定义数值、`theme-overrides.css` 把语义别名指过去，
+ * 若有人在中间文件加了反向别名（`--hos-r-1: var(--hos-radius-control)`），两族就成环。
+ * 这类改动看起来像「统一命名」，diff 里完全看不出渲染会坏，只能靠解析器判定。
+ */
+const cycles = []
+for (const [name, value] of table) {
+  const { missing } = resolve(value, table)
+  for (const entry of missing) {
+    if (entry.startsWith('循环引用')) cycles.push(`${name} → ${entry.replace('循环引用 ', '')}`)
+  }
+}
+if (cycles.length) {
+  console.error(`有 ${cycles.length} 个 :root 令牌互相引用成环（CSS 会判为无效值，属性静默丢弃）：`)
+  for (const line of [...new Set(cycles)].sort()) console.error(`  ${line}`)
+  process.exit(1)
+}
+
 console.log(
   `CSS 令牌：:root 声明 ${table.size} 个，任意作用域声明 ${declared.size} 个，被引用 ${refs.size} 个，全部有来源。`,
 )

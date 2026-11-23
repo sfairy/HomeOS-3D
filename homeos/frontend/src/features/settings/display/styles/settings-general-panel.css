@@ -204,3 +204,108 @@
   --flow-glow-a: rgba(129, 140, 248, var(--flow-glow-alpha-strong));
   --flow-glow-b: rgba(56, 189, 248, var(--flow-glow-alpha-b));
 }
+
+/* ── 大屏背景（开灯 / 关灯背景图） ── */
+.general-backdrop-icon--warn {
+  color: var(--set-warn);
+}
+
+.general-backdrop-orb--warn {
+  background: var(--set-warn-bg);
+  border: var(--hos-hairline) solid var(--set-warn-border);
+}
+
+.general-backdrop__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--control-height-sm);
+  padding: 0 var(--hos-chip-pad-x, 12px);
+  border-radius: var(--hos-radius-card);
+  font-size: var(--set-fs-micro, 12px);
+  font-weight: 600;
+  color: var(--set-warn);
+  background: var(--set-warn-bg);
+  border: var(--hos-hairline) solid var(--set-warn-border);
+}
+
+.general-backdrop__cta:hover {
+  transform: translateX(1px);
+}
+
+.general-backdrop {
+  display: grid;
+  /* minmax(0, …) 不能省：裸 1fr 的最小尺寸是 auto，槽位里的长文件名 / 长路径
+     会把列撑过容器宽度，在面板里表现为静默裁切或整页横滚。 */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  margin-top: 14px;
+}
+
+@container hos-canvas (min-width: 768px) {
+  .general-backdrop {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+.general-backdrop__slot {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+  padding: 10px;
+  border-radius: var(--hos-radius-card);
+  background: rgba(255, 255, 255, 0.025);
+  border: var(--hos-hairline) solid rgba(var(--set-warn-rgb), 0.14);
+}
+
+.general-backdrop__preview {
+  width: 72px;
+  min-height: 56px;
+  flex-shrink: 0;
+  border-radius: var(--hos-radius-card);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.28);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.06);
+}
+
+.general-backdrop__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.general-backdrop__placeholder {
+  width: 22px;
+  height: 22px;
+  color: var(--set-warn);
+  opacity: 0.55;
+}
+
+.general-backdrop__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.general-backdrop__pick {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-height-xs);
+  height: var(--control-height-xs);
+  border-radius: var(--hos-radius-control);
+  background: var(--set-warn);
+  /* 亮底上的深字：与主按钮共用同一个「on-accent」前景令牌 */
+  color: var(--hos-fg-on-accent);
+  transition: filter var(--hos-dur-fast) var(--hos-ease-out);
+}
+
+.general-backdrop__pick:hover {
+  filter: brightness(1.08);
+}

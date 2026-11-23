@@ -136,7 +136,7 @@ HomeOS/
 | --- | --- |
 | 入门与连接 | 首装向导 / HA 连接 / 集成绑定 / 绑定清理 |
 | 家居配置 | 房间配置 / 设备画像 / 生活账户 / 智能充放电 / 常用设备库 |
-| 界面与体验 | 基础设置 / 素材库 / 仪表板编辑 / 面板部件 / 浮动组件 / 内嵌网页管理 |
+| 界面与体验 | 基础设置 / 仪表板编辑 / 面板部件 / 浮动组件 / 内嵌网页管理 |
 | 自动化与安防 | 家庭模式 / 安防场景 / 自动化草案 |
 | 感知交互 | 语音中心 / 智能管家 / 告警规则 / 媒体与入库 |
 | 系统与账户 | 家庭状态 / 访问控制 / 方案与备份 / 授权状态 / 数据保留 / 运维诊断 / 网络信息 / 高级参数 |
@@ -148,6 +148,18 @@ HomeOS/
 - 按钮只用 `settings-btn-accent / settings-btn-ghost`（紧凑档加 `settings-btn--sm`），高度取 `--control-height-*`；
 - 颜色 / 时长只用 `--hos-*` / `--set-*` 令牌（`check:styles` 拦硬编码 hex 与裸秒数）；
 - 断点用 `@container hos-canvas`，不写窗口 `@media`（`check:canvas-breakpoints` 拦）。
+
+开机氛围（原「素材库」入口已并入此处，不再有独立 Tab）：
+
+- **基础设置 → 大屏背景**（`/settings?tab=general&section=backdrop`）：开灯 / 关灯两张图，
+  写入布局的 `lightOnBackgroundUrl` / `lightOffBackgroundUrl`，随侧栏「保存布局」一起落库；
+- 消费方是 `composables/display/display-light-backdrop.ts`：总览首页由 `MainLayout` 铺在页面布局区域，
+  独立整屏（`display` / `homeos`）由 `App.vue` 铺满视口；灯亮判定优先看收藏灯，否则看 `lightCount`；
+- 图片存在「随包只读层（`homeos/assets/backgrounds`）+ 用户层（`data/ui-assets/backgrounds`）」，
+  `/backgrounds/**` 分层取值；删随包图只写 `.hidden-assets.json`，升级不会复活；
+- 旧链接 `?tab=assets` 会自动改写到 `tab=general&section=backdrop`（`LEGACY_TAB_SECTIONS`）；
+- 状态图标素材库已下线：`/icons/**` 与 `/api/v1/config/icons*` 不再存在，历史 `icons/` 目录在
+  启动时改名为 `.icons-retired`（`UiConfigStaticAssetService.retire_legacy_icon_assets`，只改名不删）。
 - 保存口径两种：多数面板随布局一起保存（侧栏「保存全部」），列在 `INDEPENDENT_SAVE_TABS` 的面板
   自己即时保存、不受「保存全部」影响 —— 新增面板要先决定属于哪一类，别两边都写。
 

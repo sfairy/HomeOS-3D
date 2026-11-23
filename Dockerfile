@@ -245,10 +245,10 @@ COPY --chown=homeos:homeos dist/homeos/frontend /app/dist
 #
 # bind mount 会整个遮住镜像里的同名目录，所以默认素材**不能只放 /app/assets**：
 # 首次启动必须由 ``ops/container_entrypoint.py`` 从种子铺一份进去，否则
-# ``/icons``、``/backgrounds``、``/sounds``、``/logo`` 会全部 404，并连带
+# ``/backgrounds``、``/sounds``、``/logo`` 会全部 404，并连带
 # ``sw.js`` 的 ``cache.addAll(['/logo/logo.svg', …])`` 失败、Service Worker 装不上。
 #
-# 路径口径：``asset_paths`` 的解析顺序是「单项 env（ICONS_DIR 等）→ HOMEOS_ASSETS_DIR →
+# 路径口径：``asset_paths`` 的解析顺序是「单项 env（BACKGROUNDS_DIR 等）→ HOMEOS_ASSETS_DIR →
 # REPO_ROOT/assets → PROJECT_ROOT/assets」。镜像里 PROJECT_ROOT=/app，所以不设 env 时实例
 # 目录也正是 /app/assets；这里显式钉住 HOMEOS_ASSETS_DIR，让 entrypoint 与后端读同一份
 # 环境变量，不给「两边各推一次」留漂移空间。
@@ -256,7 +256,6 @@ COPY --chown=homeos:homeos homeos/assets-default /app/assets-default
 RUN mkdir -p /app/assets \
     && chown homeos:homeos /app/assets \
     && test -f /app/assets-default/logo/logo.svg \
-    && test -d /app/assets-default/icons \
     && test -d /app/assets-default/backgrounds \
     && test -d /app/assets-default/sounds \
     && test -f /app/assets-default/fonts/catalog.json

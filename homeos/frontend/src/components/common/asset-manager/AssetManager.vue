@@ -1,49 +1,36 @@
 <template>
   <div
-    :class="['asset-manager', embedded && 'asset-manager--embedded', dragActive && 'asset-manager--drag']"
+    class="asset-manager"
     @dragenter.prevent="onDragEnter"
     @dragover.prevent
     @dragleave="onDragLeave"
     @drop.prevent="onDrop"
   >
     <AssetManagerHeader
-      :type="type"
       :breadcrumbs="breadcrumbs"
-      :search-query="searchQuery"
-      :view-mode="viewMode"
-      :set-search-input="setSearchInput"
       :set-file-input="setFileInput"
       :navigate-to="navigateTo"
-      :create-folder="createFolder"
       :trigger-upload="triggerUpload"
       :on-upload="onUpload"
-      @update:search-query="searchQuery = $event"
-      @update:view-mode="viewMode = $event"
     />
 
     <AssetManagerBody
       :loading="loading"
       :items="items"
-      :filtered-items="filteredItems"
-      :search-query="searchQuery"
-      :view-mode="viewMode"
+      :sorted-items="sortedItems"
       :use-virtual-grid="useVirtualGrid"
       :grid-columns="gridColumns"
       :grid-row-height="gridRowHeight"
       :is-picker="isPicker"
-      :type="type"
       :can-preview="canPreview"
-      :is-image="isImage"
       :on-preview-error="onPreviewError"
       :on-item-click="onItemClick"
       :copy-path="copyPath"
       :delete-item="deleteItem"
     />
 
-    <div v-if="filteredItems.length > 0" class="asset-footer">
-      <span class="text-xs am-text-muted">
-        {{ `${filteredItems.length} 个项目` }}
-      </span>
+    <div v-if="sortedItems.length > 0" class="asset-footer">
+      <span class="text-xs am-text-muted">{{ `${sortedItems.length} 个项目` }}</span>
     </div>
 
     <!-- 拖拽上传落点提示：可一次性拖入多张图片，超过单次上限时会在提交阶段提示 -->
@@ -66,37 +53,23 @@
         />
       </div>
     </div>
-
-    <VFolderCreateModal
-      v-model="folderModalOpen"
-      :busy="folderModalBusy"
-      :error="folderModalError"
-      @confirm="confirmCreateFolder"
-    />
   </div>
 </template>
 
 <script setup lang="ts">
-/** - 通过 useAssetManager 组合式函数管理目录列表、搜索、视图、上传、删除等状态； */
+/** - 通过 useAssetManager 组合式函数管理目录列表、上传、删除等状态； */
 import { ref, type ComponentPublicInstance } from 'vue'
 import { Loader2, UploadCloud } from '@lucide/vue'
 import AssetManagerHeader from './AssetManagerHeader.vue'
 import AssetManagerBody from './AssetManagerBody.vue'
-import VFolderCreateModal from '../base/VFolderCreateModal.vue'
 import { MAX_UPLOAD_FILES, useAssetManager } from './useAssetManager'
 import './styles/asset-manager.css'
 import './styles/asset-manager-header.css'
 import './styles/asset-manager-body.css'
 
 const props = defineProps({
-  /** 初始路径（相对资源根目录） */
-  initialPath: { default: '' },
   /** 是否为拾取器模式 */
   isPicker: { type: Boolean },
-  /** 是否嵌入到非模态容器（影响样式） */
-  embedded: { type: Boolean, default: false },
-  /** 资源类型：'icon' / 'background' */
-  type: { default: 'background' },
 })
 
 const emit = defineEmits(['select'])
@@ -105,26 +78,17 @@ const emit = defineEmits(['select'])
 const {
   items,
   loading,
-  viewMode,
-  searchQuery,
   fileInput,
-  searchInputRef,
   breadcrumbs,
-  filteredItems,
+  sortedItems,
   useVirtualGrid,
   gridColumns,
   gridRowHeight,
   canPreview,
-  isImage,
   onPreviewError,
   navigateTo,
   onItemClick,
   uploadProgress,
-  folderModalOpen,
-  folderModalBusy,
-  folderModalError,
-  createFolder,
-  confirmCreateFolder,
   triggerUpload,
   onUpload,
   onDropFiles,
@@ -143,7 +107,7 @@ function onDragEnter() {
   dragActive.value = true
 }
 
-/** 拖拽离开：递减计数，归零后才隐藏提示 */
+/** 拖拽离开：递减计数，归零后才隐藏落点提示 */
 function onDragLeave() {
   dragDepth = Math.max(0, dragDepth - 1)
   if (dragDepth === 0) dragActive.value = false
@@ -167,14 +131,6 @@ function onDrop(e: DragEvent) {
  */
 function setFileInput(el: Element | ComponentPublicInstance | null) {
   fileInput.value = el as HTMLInputElement | null
-}
-
-/**
- * 设置搜索框的 DOM 引用（供自动聚焦等使用）
- * @param el 搜索输入框元素（或组件实例）
- */
-function setSearchInput(el: Element | ComponentPublicInstance | null) {
-  searchInputRef.value = el as HTMLInputElement | null
 }
 </script>
 
@@ -228,7 +184,7 @@ function setSearchInput(el: Element | ComponentPublicInstance | null) {
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  border-radius: var(--hos-r-1);
+  border-radius: var(--hos-radius-control);
   font-size: 12px;
   color: #e8f1ff;
   background: rgba(8, 12, 20, 0.92);

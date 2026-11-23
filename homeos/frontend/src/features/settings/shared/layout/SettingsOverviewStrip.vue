@@ -38,7 +38,6 @@ const TAB_DEEP_LINKS: Record<string, () => string> = {
   connection: () => SETTINGS_ROUTES.connection(),
   'setup-wizard': () => SETTINGS_ROUTES.setupWizard(),
   widgets: () => SETTINGS_ROUTES.widgets(),
-  assets: () => SETTINGS_ROUTES.assets(),
   embeds: () => SETTINGS_ROUTES.embeds(),
   'smart-charge': () => SETTINGS_ROUTES.smartCharge(),
   family: () => SETTINGS_ROUTES.family(),

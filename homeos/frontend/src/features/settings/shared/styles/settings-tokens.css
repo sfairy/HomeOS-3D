@@ -131,7 +131,6 @@
 }
 
 .settings-page.widgets-hub,
-.settings-page.assets-hub-page,
 .settings-page.sm-panel {
   --hos-color-accent-strong: var(--hos-color-accent);
   --hos-color-accent-strong-rgb: var(--hos-color-accent-rgb);

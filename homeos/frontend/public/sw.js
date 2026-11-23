@@ -18,7 +18,6 @@ const SHELL_URLS = ['/', '/index.html', '/manifest.json', '/logo/logo.svg']
 /** 由 SW 接管的静态资源前缀：只有稳定 URL 的可替换素材。
  *  `/static/assets/` 是内容哈希产物，由 HTTP 缓存（no-cache + ETag）负责，见 fetch 处理器。 */
 const STATIC_PREFIXES = [
-  '/icons/',
   '/backgrounds/',
   '/sounds/',
   '/logo/',

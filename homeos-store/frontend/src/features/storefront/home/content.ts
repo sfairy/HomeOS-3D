@@ -106,7 +106,7 @@ export const CAPABILITY_DOMAINS: CapabilityDomain[] = [
       },
       {
         title: "房间与素材",
-        description: "房间目录、区域归属与内置素材库统一管理；上传图片可直接用于控件背景与展示页。",
+        description: "房间目录与区域归属统一管理；仪表盘开 / 关灯背景图可在设置中上传替换。",
         tone: "cool",
         icon: "fa-images",
       },

@@ -32,8 +32,7 @@ MODULES_MOUNT_PREFIX = "/modules"
 ASSETS_MOUNT_PREFIX = "/assets"
 
 #: 由 ``spa_static._mount_replaceable_asset_dirs`` 挂载 / 登记的可替换素材目录
-#: （图标 / 背景图 / 音效 / Logo；用户上传的版本优先于随包默认素材）。
-ICONS_MOUNT_PREFIX = "/icons"
+#: （背景图 / 音效 / Logo；用户上传的版本优先于随包默认素材）。
 BACKGROUNDS_MOUNT_PREFIX = "/backgrounds"
 SOUNDS_MOUNT_PREFIX = "/sounds"
 LOGO_MOUNT_PREFIX = "/logo"
@@ -47,7 +46,6 @@ FRONTEND_STATIC_MOUNT_PREFIXES = (
     STATIC_MOUNT_PREFIX,
     ASSETS_MOUNT_PREFIX,
     MODULES_MOUNT_PREFIX,
-    ICONS_MOUNT_PREFIX,
     BACKGROUNDS_MOUNT_PREFIX,
     SOUNDS_MOUNT_PREFIX,
     LOGO_MOUNT_PREFIX,
@@ -201,7 +199,6 @@ __all__ = [
     "FRONTEND_ASSET_SUFFIXES",
     "FRONTEND_STATIC_MOUNT_PREFIXES",
     "FRONTEND_STATIC_ROOT_FILES",
-    "ICONS_MOUNT_PREFIX",
     "LOGO_MOUNT_PREFIX",
     "MANIFEST_PATH",
     "MODULES_MOUNT_PREFIX",

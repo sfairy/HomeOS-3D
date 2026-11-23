@@ -25,7 +25,6 @@ const TAB_LABELS: Record<string, string> = {
   embeds: '内嵌网页管理',
   general: '基础设置',
   layout: '仪表板编辑',
-  assets: '素材库',
   'home-mode': '家庭模式',
   params: '高级参数',
   profiles: '方案与备份',
@@ -48,7 +47,6 @@ const PAGE_TITLE_LABELS: Record<string, string> = {
   floating: '浮动组件 管理',
   params: '高级运行参数',
   widgets: '面板部件管理',
-  assets: '素材库管理',
   devices: '绑定清理',
 }
 
@@ -63,9 +61,8 @@ const PAGE_DESC_LABELS: Record<string, string> = {
   embeds: '在顶部导航嵌入外部网页',
   favorites: '常用设备写入布局，供总览快捷弹窗',
   floating: '浮动层：芯片与安防/环境/门锁等中心面板',
-  general: '站点品牌、导航标签、底部信息栏与显示缩放',
+  general: '站点品牌、导航标签、底部信息栏、大屏背景与显示缩放',
   layout: '仪表盘编辑器与 3D 户型图绘制入口（总览为只读展示）',
-  assets: '背景图与状态图标素材管理',
   'smart-charge': '按电量自动开关充电器；屏保时开关关→开可亮屏',
   'life-accounts': '电力、燃气、水务与运营商账户绑定',
   'home-mode': '全屋模式、动作序列与自动触发',
@@ -118,7 +115,7 @@ export function isTabFeatureGranted(tabId: string, featureAccess?: Record<string
 export const NAV_STRUCTURE = [
   { id: 'connect', tabs: ['setup-wizard', 'connection', 'bindings', 'devices'] },
   { id: 'home', tabs: ['rooms', 'device-profiles', 'life-accounts', 'smart-charge', 'favorites'] },
-  { id: 'display', tabs: ['general', 'assets', 'layout', 'widgets', 'floating', 'embeds'] },
+  { id: 'display', tabs: ['general', 'layout', 'widgets', 'floating', 'embeds'] },
   { id: 'automate', tabs: ['home-mode', 'security-modes', 'automation-drafts'] },
   { id: 'interact', tabs: ['voice', 'agent', 'alerts', 'media'] },
   {
@@ -165,10 +162,28 @@ export function pageDescription(tabId: string) {
   return PAGE_DESC_LABELS[tabId] ?? ''
 }
 
-/** 规范化 Tab：空或非法时回退 DEFAULT_TAB */
+/**
+ * 已下线 Tab 的兼容别名。
+ *
+ * ``assets``（独立素材库）已并入「基础设置 → 大屏背景」：旧书签 / 旧安装的
+ * ``localStorage`` 最近访问仍可能带这个 id，直接回退到首页会让人以为「设置丢了」。
+ * 这里把它折到 ``general``，并给出去向 section（见 ``LEGACY_TAB_SECTIONS``）。
+ */
+const LEGACY_TAB_ALIASES: Record<string, string> = {
+  assets: 'general',
+}
+
+/** 已下线 Tab 在目标 Tab 内的落点 section（供设置页一次性改写 URL）。 */
+export const LEGACY_TAB_SECTIONS: Record<string, string> = {
+  assets: 'backdrop',
+}
+
+/** 规范化 Tab：空、非法或已下线别名按上表折回 */
 export function resolveTab(tab: string | undefined | null) {
   const raw = tab || DEFAULT_TAB
-  return ALL_TAB_IDS.has(raw) ? raw : DEFAULT_TAB
+  if (ALL_TAB_IDS.has(raw)) return raw
+  const alias = LEGACY_TAB_ALIASES[raw]
+  return alias && ALL_TAB_IDS.has(alias) ? alias : DEFAULT_TAB
 }
 
 /** 判定 Tab id 是否为合法设置页 Tab */

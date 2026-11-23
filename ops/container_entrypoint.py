@@ -15,8 +15,8 @@ RUN_AS_USER = "homeos"
 DEFAULT_ASSETS_DIR = "/app/assets-default"
 
 #: 实例目录下需要保证「有内容」的子目录；与 ``spa_static._mount_replaceable_asset_dirs``
-#: 挂载的四个前缀一一对应（``/icons``、``/backgrounds``、``/sounds``、``/logo``）。
-ASSET_SUBDIRECTORIES = ("icons", "backgrounds", "sounds", "logo")
+#: 挂载的前缀一一对应（``/backgrounds``、``/sounds``、``/logo``）。
+ASSET_SUBDIRECTORIES = ("backgrounds", "sounds", "logo")
 
 
 def _path_from(environment: Mapping[str, str], key: str, fallback: str) -> Path:

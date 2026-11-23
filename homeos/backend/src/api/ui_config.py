@@ -3,7 +3,7 @@
 覆盖：
 - 激活方案 / 新终端默认策略 / 终端绑定解析与绑定（``/config/project*``、``/config/terminal*``）；
 - 项目 UI 配置读取 / 保存 / 删除 / 列表 / 导入导出（``/config/project/:id``、``/config/profiles``、``/config/all/*``）；
-- 背景图 / 图标静态资源的列表 / 建目录 / 上传 / 删除。
+- 背景图静态资源的列表 / 建目录 / 上传 / 删除。
 """
 
 from __future__ import annotations
@@ -178,14 +178,6 @@ async def list_backgrounds(
 ):
     return await _list_assets(request, "backgrounds", path)
 
-@router.get("/icons")
-async def list_icons(
-    request: Request,
-    path: str | None = Query(default=None),
-    user: dict[str, Any] = Depends(require_user),
-):
-    return await _list_assets(request, "icons", path)
-
 # 静态资源：建目录
 def _require_sub_path(payload: MkdirDto) -> str:
     sub_path = (payload.path or "").strip()
@@ -205,30 +197,18 @@ async def create_background_directory(
 ):
     return _mkdir(request, "create_background_directory", payload)
 
-@router.post("/icons/mkdir")
-async def create_icon_directory(
-    payload: MkdirDto,
-    request: Request,
-    user: dict[str, Any] = Depends(require_user),
-):
-    return _mkdir(request, "create_icon_directory", payload)
-
 # 静态资源：上传
 async def _upload(
     request: Request,
     files: list[UploadFile],
     sub_path: str | None,
     save_method: str,
-    svg_only: bool = False,
 ) -> dict[str, Any]:
     if not files:
         bad_request(api_error("UI_CONFIG_FILE_REQUIRED"))
     names = [file.filename or "" for file in files]
     for name in names:
-        if svg_only:
-            if not name.lower().endswith(".svg"):
-                bad_request(api_error("UI_CONFIG_SVG_ONLY"))
-        elif _suffix(name) not in ALLOWED_IMAGE_EXTS:
+        if _suffix(name) not in ALLOWED_IMAGE_EXTS:
             bad_request(f"不允许的文件类型：{name}")
 
     service = _service(request)
@@ -253,15 +233,6 @@ async def upload_backgrounds(
 ):
     return await _upload(request, files[:MAX_UPLOAD_FILES], path, "save_background")
 
-@router.post("/icons/upload")
-async def upload_icons(
-    request: Request,
-    files: list[UploadFile] = File(default=[]),
-    path: str | None = Query(default=None),
-    user: dict[str, Any] = Depends(require_user),
-):
-    return await _upload(request, files[:MAX_UPLOAD_FILES], path, "save_icon", svg_only=True)
-
 # 静态资源：删除
 def _delete(request: Request, method_name: str, full_path: str | None) -> dict[str, Any]:
     if not full_path:
@@ -276,13 +247,5 @@ async def delete_background(
     user: dict[str, Any] = Depends(require_user),
 ):
     return _delete(request, "delete_background", path)
-
-@router.delete("/icons")
-async def delete_icon(
-    request: Request,
-    path: str | None = Query(default=None),
-    user: dict[str, Any] = Depends(require_user),
-):
-    return _delete(request, "delete_icon", path)
 
 __all__ = ["router"]

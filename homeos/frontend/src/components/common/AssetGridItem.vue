@@ -1,9 +1,8 @@
 <template>
   <div
-    class="agi-item group"
+    class="agi-item group agi-item--image"
     :class="{
       'agi-item--picker': isPicker,
-      'agi-item--image': type === 'background',
     }"
   >
     <!--
@@ -72,8 +71,6 @@ const props = defineProps({
   item: { type: Object, required: true },
   /** 是否为拾取器模式（影响视觉与交互） */
   isPicker: { type: Boolean },
-  /** 资源类型，'background' / 'icon'，影响默认样式 */
-  type: { type: String, default: 'background' },
 })
 
 defineEmits(['click', 'copy', 'delete', 'previewError'])

@@ -1,9 +1,9 @@
 {
   "totals": {
-    "files": 375,
-    "color": 4282,
-    "duration": 1421,
-    "important": 363
+    "files": 371,
+    "color": 4253,
+    "duration": 1393,
+    "important": 360
   },
   "files": {
     "homeos-store/frontend/src/features/admin/components/PalettePanel.vue": {
@@ -33,7 +33,7 @@
     },
     "homeos/frontend/src/assets/styles/hos-design-system.css": {
       "color": 1,
-      "duration": 1,
+      "duration": 0,
       "important": 0
     },
     "homeos/frontend/src/assets/styles/hos-dropdown-theme.css": {
@@ -156,23 +156,13 @@
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/components/common/asset-manager/AssetManagerListItem.vue": {
-      "color": 1,
-      "duration": 0,
-      "important": 0
-    },
-    "homeos/frontend/src/components/common/asset-manager/styles/asset-manager-body.css": {
-      "color": 3,
-      "duration": 3,
-      "important": 0
-    },
     "homeos/frontend/src/components/common/asset-manager/styles/asset-manager-header.css": {
-      "color": 6,
-      "duration": 4,
+      "color": 4,
+      "duration": 2,
       "important": 0
     },
     "homeos/frontend/src/components/common/asset-manager/styles/asset-manager.css": {
-      "color": 2,
+      "color": 1,
       "duration": 0,
       "important": 0
     },
@@ -195,11 +185,6 @@
       "color": 1,
       "duration": 3,
       "important": 0
-    },
-    "homeos/frontend/src/components/common/base/styles/v-folder-create-modal.css": {
-      "color": 11,
-      "duration": 14,
-      "important": 1
     },
     "homeos/frontend/src/components/common/base/styles/v-notification.css": {
       "color": 0,
@@ -779,7 +764,7 @@
     "homeos/frontend/src/features/security/styles/security.css": {
       "color": 0,
       "duration": 61,
-      "important": 11
+      "important": 9
     },
     "homeos/frontend/src/features/settings/automate/SettingsSecurityModesEmergencySection.vue": {
       "color": 1,
@@ -921,11 +906,6 @@
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/features/settings/display/SettingsAssetsPanel.vue": {
-      "color": 2,
-      "duration": 3,
-      "important": 0
-    },
     "homeos/frontend/src/features/settings/display/composables/layout-dashboard.internals.ts": {
       "color": 1,
       "duration": 0,
@@ -957,8 +937,8 @@
       "important": 0
     },
     "homeos/frontend/src/features/settings/display/styles/layout-panels.css": {
-      "color": 66,
-      "duration": 38,
+      "color": 61,
+      "duration": 35,
       "important": 4
     },
     "homeos/frontend/src/features/settings/display/styles/settings-general-panel.css": {
@@ -1152,7 +1132,7 @@
       "important": 11
     },
     "homeos/frontend/src/features/settings/shared/styles/settings-orch-tabs.css": {
-      "color": 64,
+      "color": 60,
       "duration": 21,
       "important": 0
     },
@@ -1198,7 +1178,7 @@
     },
     "homeos/frontend/src/features/settings/system/styles/admin-hubs.css": {
       "color": 0,
-      "duration": 3,
+      "duration": 1,
       "important": 4
     },
     "homeos/frontend/src/features/settings/system/styles/license-panel.css": {

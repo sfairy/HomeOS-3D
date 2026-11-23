@@ -18,7 +18,7 @@
 .asset-header__badge {
   width: 28px;
   height: 28px;
-  border-radius: 8px;
+  border-radius: var(--hos-radius-control);
   background: linear-gradient(135deg, rgba(250, 204, 21, 0.2), rgba(251, 191, 36, 0.06));
   color: #facc15;
   display: flex;
@@ -63,64 +63,10 @@
   margin-left: auto;
 }
 
-.asset-header__search {
-  position: relative;
-}
-.asset-header__search-icon {
-  width: 14px;
-  height: 14px;
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--hos-text-secondary);
-  pointer-events: none;
-}
-.asset-header__search-input {
-  height: 32px;
-  width: 140px;
-  padding: 0 28px 0 32px;
-  border-radius: 8px;
-  border: 1px solid var(--premium-border-strong);
-  background: rgba(0, 0, 0, 0.3);
-  color: #e2e8f0;
-  font-size: var(--premium-fs-caption);
-  outline: none;
-  transition: all 0.2s;
-}
-.asset-header__search-input:focus {
-  border-color: rgba(59, 130, 246, 0.4);
-  width: 180px;
-}
-.asset-header__search-input::placeholder {
-  color: rgba(255, 255, 255, 0.2);
-}
-.asset-header__search-clear {
-  position: absolute;
-  right: 6px;
-  top: 50%;
-  transform: translateY(-50%);
-  padding: 2px;
-  border-radius: 4px;
-  color: var(--hos-text-secondary);
-  background: none;
-  border: none;
-  cursor: pointer;
-}
-.asset-header__search-clear:hover {
-  color: rgba(255, 255, 255, 0.6);
-}
-
-.asset-header__divider {
-  width: 1px;
-  height: 20px;
-  background: var(--premium-glass-bg-hover);
-}
-
 .asset-header__btn {
   width: 32px;
   height: 32px;
-  border-radius: 8px;
+  border-radius: var(--hos-radius-control);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -141,29 +87,9 @@
   background: rgba(59, 130, 246, 0.12);
 }
 
-.asset-header__view-toggle {
-  display: flex;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.04);
-  padding: 2px;
-}
-.asset-header__view-btn {
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--hos-text-secondary);
-  background: none;
-  border: none;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-.asset-header__view-btn:hover {
-  color: var(--hos-text-secondary);
-}
-.asset-header__view-btn--active {
-  background: rgba(59, 130, 246, 0.15);
-  color: #93c5fd;
+@media (pointer: coarse), (hover: none) {
+  .asset-header__btn {
+    width: var(--touch-target-min);
+    height: var(--touch-target-min);
+  }
 }

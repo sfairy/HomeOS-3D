@@ -4,7 +4,7 @@
   "stats": {
     "homeos": {
       "files": 76,
-      "lines": 113601,
+      "lines": 113496,
       "gt1000": 52,
       "max": 4917
     },
@@ -84,7 +84,7 @@
     "homeos/frontend/src/studio/runtime/config-ui/config-editor/rendering/panel-dialogs.ts": 886,
     "homeos/frontend/src/studio/runtime/config-ui/config-editor/rendering/panel-sections.ts": 1431,
     "homeos/frontend/src/studio/runtime/config-ui/light-range-editor.ts": 1568,
-    "homeos/frontend/src/studio/runtime/core/runtime.ts": 2844,
+    "homeos/frontend/src/studio/runtime/core/runtime.ts": 2739,
     "homeos/frontend/src/studio/runtime/core/stage.ts": 4866,
     "homeos/frontend/src/studio/runtime/core/stage/stage-handlers.ts": 2050,
     "homeos/frontend/src/studio/runtime/cover/cover-panel.ts": 825,

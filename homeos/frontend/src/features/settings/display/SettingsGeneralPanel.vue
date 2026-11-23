@@ -224,6 +224,84 @@
       />
     </div>
 
+    <div v-if="generalSection === 'backdrop'" class="settings-hub-section">
+      <SettingsCard full static>
+        <SettingsCardIntro
+          :icon="SunMoon"
+          icon-class="general-backdrop-icon--warn"
+          orb-class="general-backdrop-orb--warn"
+          eyebrow="大屏氛围"
+          title="仪表盘背景图"
+          description="按开灯 / 关灯状态切换大屏氛围；从背景图库拾取或手动填写路径"
+        >
+          <template #actions>
+            <button
+              type="button"
+              class="general-backdrop__cta"
+              @click="backgroundManagerOpen = true"
+            >
+              <FolderOpen class="w-4 h-4" />
+              <span>管理背景库</span>
+              <ChevronRight class="w-4 h-4" />
+            </button>
+          </template>
+        </SettingsCardIntro>
+
+        <div class="general-backdrop">
+          <div
+            v-for="slot in bgSlots"
+            :key="slot.key"
+            class="general-backdrop__slot"
+          >
+            <div class="general-backdrop__preview" aria-hidden="true">
+              <img
+                v-if="slot.url"
+                :src="slot.url"
+                alt=""
+                class="general-backdrop__img"
+                @error="onBgPreviewError(slot.key)"
+              />
+              <component :is="slot.icon" v-else class="general-backdrop__placeholder" />
+            </div>
+            <div class="general-backdrop__body">
+              <label class="settings-form-label" :for="`backdrop-${slot.key}`">{{ slot.label }}</label>
+              <div class="relative mt-1">
+                <input
+                  :id="`backdrop-${slot.key}`"
+                  v-model="layoutStore.layoutConfig[slot.model]"
+                  type="text"
+                  class="settings-field font-mono text-xs pr-10"
+                  :placeholder="slot.placeholder"
+                />
+                <button
+                  type="button"
+                  class="general-backdrop__pick"
+                  :title="`从背景图库拾取${slot.label}`"
+                  :aria-label="`从背景图库拾取${slot.label}`"
+                  @click="openBgPick(slot.key)"
+                >
+                  <Search class="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </SettingsCard>
+
+      <AssetManagerModal
+        :is-open="backgroundManagerOpen"
+        title="背景图库"
+        description="浏览、上传与管理仪表盘开/关灯背景图"
+        @close="backgroundManagerOpen = false"
+      />
+
+      <AssetPickerModal
+        :is-open="bgPickerOpen"
+        @close="bgPickerOpen = false"
+        @select="onSelectBgAsset"
+      />
+    </div>
+
     <div v-if="generalSection === 'whole-home-off'" class="settings-hub-section">
       <SettingsWholeHomeOffSection />
     </div>
@@ -231,7 +309,7 @@
 </template>
 
 <script setup>
-import { ref, watch, computed, nextTick } from 'vue'
+import { ref, watch, computed, nextTick, defineAsyncComponent } from 'vue'
 import { useLayoutConfigRef } from '@/composables/ui/useLayoutConfigRef'
 import SettingsPageShell from '@/components/common/settings-page-shell/SettingsPageShell.vue'
 import SettingsCardIntro from '@/components/common/settings-page-shell/SettingsCardIntro.vue'
@@ -249,6 +327,12 @@ import {
   Type,
   Zap,
   Grip,
+  SunMoon,
+  Lightbulb,
+  Moon,
+  FolderOpen,
+  ChevronRight,
+  Search,
 } from '@lucide/vue'
 import SettingsWholeHomeOffSection from '@/features/settings/display/SettingsWholeHomeOffSection.vue'
 import SettingsScreensaverSection from '@/features/settings/display/SettingsScreensaverSection.vue'
@@ -280,6 +364,74 @@ const chrome = useChromeStore()
 const { layoutStore, layoutConfig } = useLayoutConfigRef()
 // 当前激活的子导航区段
 const generalSection = ref('brand')
+
+// 大屏背景图：开 / 关灯两个槽位，以及背景图库（管理 + 拾取）弹窗
+const backgroundManagerOpen = ref(false)
+const bgPickerOpen = ref(false)
+/** @type {import('vue').Ref<'on' | 'off' | null>} */
+const pickingBgSlot = ref(null)
+/** 预览加载失败的槽位，避免坏图反复请求 */
+const bgPreviewBroken = ref(new Set())
+
+// 背景图库组件按需加载：管理 / 拾取弹窗只在打开时才需要
+const AssetManagerModal = defineAsyncComponent(() => import('@/components/common/asset-manager/AssetManagerModal.vue'))
+const AssetPickerModal = defineAsyncComponent(() => import('@/components/common/AssetPickerModal.vue'))
+
+const bgSlots = computed(() => {
+  const onUrl = String(layoutConfig.value.lightOnBackgroundUrl || '').trim()
+  const offUrl = String(layoutConfig.value.lightOffBackgroundUrl || '').trim()
+  return [
+    {
+      key: 'on',
+      label: '开灯背景',
+      model: 'lightOnBackgroundUrl',
+      placeholder: '/backgrounds/light_on.webp',
+      icon: Lightbulb,
+      url: onUrl && !bgPreviewBroken.value.has('on') ? onUrl : '',
+    },
+    {
+      key: 'off',
+      label: '关灯背景',
+      model: 'lightOffBackgroundUrl',
+      placeholder: '/backgrounds/light_off.webp',
+      icon: Moon,
+      url: offUrl && !bgPreviewBroken.value.has('off') ? offUrl : '',
+    },
+  ]
+})
+
+// 开 / 关灯背景 URL 变化时重置坏图标记
+watch(
+  () => [layoutConfig.value.lightOnBackgroundUrl, layoutConfig.value.lightOffBackgroundUrl],
+  () => {
+    bgPreviewBroken.value = new Set()
+  },
+)
+
+/** 打开背景图拾取弹窗，记录当前拾取的槽位 */
+function openBgPick(slot) {
+  pickingBgSlot.value = slot
+  bgPickerOpen.value = true
+}
+
+/** 拾取背景图后回填到对应槽位并提示 */
+function onSelectBgAsset(url) {
+  if (pickingBgSlot.value === 'on') {
+    layoutConfig.value.lightOnBackgroundUrl = url
+  } else if (pickingBgSlot.value === 'off') {
+    layoutConfig.value.lightOffBackgroundUrl = url
+  }
+  chrome.notify('路径已自动填入', 'success')
+  bgPickerOpen.value = false
+  pickingBgSlot.value = null
+}
+
+/** @param {'on' | 'off'} key */
+function onBgPreviewError(key) {
+  const next = new Set(bgPreviewBroken.value)
+  next.add(key)
+  bgPreviewBroken.value = next
+}
 
 const initialLayoutConfig = ref(null)
 const { pendingCount: pendingChanges, takeSnapshot } = useSettingsPendingChanges({
@@ -319,6 +471,7 @@ const generalSubnavSections = computed(() => {
     { id: 'brand', label: '站点品牌', emoji: '🎨' },
     { id: 'nav', label: '导航标签', emoji: '🧭' },
     { id: 'footer', label: '底部信息栏', emoji: '📊' },
+    { id: 'backdrop', label: '大屏背景', emoji: '🖼️' },
     { id: 'screensaver', label: '锁屏屏保', emoji: '🌙' },
     { id: 'scaling', label: '显示缩放', emoji: '🖥️' },
     { id: 'runtime', label: '性能调试', emoji: '⚡' },

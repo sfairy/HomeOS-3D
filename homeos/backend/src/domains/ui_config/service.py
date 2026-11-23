@@ -626,32 +626,17 @@ class UiConfigService:
     def get_safe_background_path(self, sub_path: str = ""):
         return self._static_assets.get_safe_background_path(sub_path)
 
-    def get_safe_icon_path(self, sub_path: str = ""):
-        return self._static_assets.get_safe_icon_path(sub_path)
-
     def list_backgrounds(self, sub_path: str = ""):
         return self._static_assets.list_backgrounds(sub_path)
-
-    def list_icons(self, sub_path: str = ""):
-        return self._static_assets.list_icons(sub_path)
 
     def create_background_directory(self, sub_path: str):
         return self._static_assets.create_background_directory(sub_path)
 
-    def create_icon_directory(self, sub_path: str):
-        return self._static_assets.create_icon_directory(sub_path)
-
     def save_background(self, filename: str, buffer: bytes, sub_path: str = ""):
         return self._static_assets.save_background(filename, buffer, sub_path)
 
-    def save_icon(self, filename: str, buffer: bytes, sub_path: str = ""):
-        return self._static_assets.save_icon(filename, buffer, sub_path)
-
     def delete_background(self, full_path: str):
         return self._static_assets.delete_background(full_path)
-
-    def delete_icon(self, full_path: str):
-        return self._static_assets.delete_icon(full_path)
 
 
 __all__ = ["UiConfigService"]

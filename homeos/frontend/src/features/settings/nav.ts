@@ -30,7 +30,6 @@ import {
   Workflow,
   Home,
   House,
-  Image,
   Bot,
   Cpu,
   Database,
@@ -46,12 +45,13 @@ import {
   tabLabel,
   resolveTab,
   isValidSettingsTab,
+  LEGACY_TAB_SECTIONS,
   INDEPENDENT_SAVE_TABS,
   isTabFeatureGranted,
 } from '@/shared/utils/registry/settings-nav.util'
 import { PANEL_MAP } from '@/features/settings/panel-chunks'
 
-export { DEFAULT_TAB, resolveTab, isValidSettingsTab, INDEPENDENT_SAVE_TABS }
+export { DEFAULT_TAB, resolveTab, isValidSettingsTab, LEGACY_TAB_SECTIONS, INDEPENDENT_SAVE_TABS }
 
 export { PANEL_MAP }
 
@@ -59,7 +59,6 @@ export { PANEL_MAP }
 const TAB_ICONS: Record<string, Component> = {
   favorites: Star,
   layout: Layout,
-  assets: Image,
   widgets: Puzzle,
   floating: Grip,
   embeds: Globe,

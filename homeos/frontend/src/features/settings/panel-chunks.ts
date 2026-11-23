@@ -104,7 +104,6 @@ const homePanels = {
 const displayPanels = {
   general: lazyPanel('general', () => import('@/features/settings/display/SettingsGeneralPanel.vue')),
   layout: lazyPanel('layout', () => import('@/features/settings/display/SettingsLayoutPanel.vue')),
-  assets: lazyPanel('assets', () => import('@/features/settings/display/SettingsAssetsPanel.vue')),
   widgets: lazyPanel('widgets', () => import('@/features/settings/display/SettingsWidgetsPanel.vue')),
   floating: lazyPanel('floating', () => import('@/features/settings/display/SettingsFloatingPanel.vue')),
   embeds: lazyPanel('embeds', () => import('@/features/settings/display/SettingsEmbeds.vue')),

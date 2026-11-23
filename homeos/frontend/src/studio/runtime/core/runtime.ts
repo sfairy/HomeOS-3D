@@ -15,6 +15,9 @@ import { createWeatherAtmospherePublisher } from './weather-atmosphere-publish'
 import { createWeatherPreview } from './weather-preview'
 import { ensureInteraction3dSelectControls } from '../config-ui/select-controls'
 import { createLabelConfigPatch } from './state-update-plan'
+import { sanitizeCounts } from './lifecycle-counts'
+import { createBreadcrumbStore } from './reload-breadcrumbs'
+import { createStateRevision } from './state-revision'
 import { applyStageGpuHint, createStageFrameLazyMountGate, scheduleSlowLoadHint } from './stage-frame-lazy-mount'
 import { hostLoadTiming } from '@app/bridge/scene/load-timing'
 import { forwardedStageFlags } from '@app/bridge/scene/stage-flags'
@@ -56,27 +59,6 @@ const INTERACTION3D_API_BASE = '/api/v1/modules/interaction3d',
     count: 0,
   },
   runtimeInstanceToken = Date.now() + '-' + Math.random().toString(36).slice(2),
-  NUMERIC_COUNT_FIELDS = [
-    'loadSequence',
-    'frameLoads',
-    'sourceRevision',
-    'floorCount',
-    'durationMs',
-    'pending',
-    'active',
-    'queued',
-    'replacementFrames',
-    'width',
-    'height',
-    'dpr',
-    'fromCategory',
-    'toCategory',
-    'geometries',
-    'textures',
-    'programs',
-    'mapPixels',
-    'mapTextures',
-  ],
   ACCEPTED_EVENT_CODES = new Set([
     'mount-initial',
     'mount-repeat',
@@ -87,95 +69,6 @@ const INTERACTION3D_API_BASE = '/api/v1/modules/interaction3d',
     'gpu-lost',
     'gpu-restored',
   ])
-function sanitizeCounts(rawCounts: Record<string, any> = {}) {
-  const sanitizedCounts: Record<string, any> = {}
-  for (const numericField of NUMERIC_COUNT_FIELDS)
-    typeof (rawCounts as any)?.[numericField] == 'number' &&
-      Number.isFinite((rawCounts as any)[numericField]) &&
-      ((sanitizedCounts as any)[numericField] = Math.max(0, Math.min(1000000000, (rawCounts as any)[numericField])))
-  for (const booleanField of ['replacementPending', 'persisted'])
-    typeof (rawCounts as any)?.[booleanField] == 'boolean' &&
-      ((sanitizedCounts as any)[booleanField] = (rawCounts as any)[booleanField])
-  return sanitizedCounts
-}
-function createBreadcrumbStore() {
-  const breadcrumbStorageKey = 'homeos:i3d-reload-breadcrumbs:v1',
-    readStoredBreadcrumbs = () => {
-      try {
-        const storedBreadcrumbsJson = window.sessionStorage?.getItem(breadcrumbStorageKey)
-        if (!storedBreadcrumbsJson || storedBreadcrumbsJson.length > 65536) return []
-        const parsedBreadcrumbs = JSON.parse(storedBreadcrumbsJson),
-          readAtMs = Date.now()
-        return Array.isArray(parsedBreadcrumbs)
-          ? parsedBreadcrumbs
-              .slice(-16)
-              .filter(
-                (rawBreadcrumb) =>
-                  rawBreadcrumb &&
-                  typeof rawBreadcrumb.key == 'string' &&
-                  rawBreadcrumb.key.length < 180 &&
-                  typeof rawBreadcrumb.document == 'string' &&
-                  rawBreadcrumb.document.length < 80 &&
-                  Array.isArray(rawBreadcrumb.events),
-              )
-              .map((rawEntry) => ({
-                key: rawEntry.key,
-                document: rawEntry.document,
-                events: rawEntry.events
-                  .slice(-8)
-                  .filter(
-                    (rawEvent: any) =>
-                      rawEvent &&
-                      ACCEPTED_EVENT_CODES.has(rawEvent.code) &&
-                      Number.isFinite(rawEvent.at) &&
-                      readAtMs >= rawEvent.at &&
-                      readAtMs - rawEvent.at <= 900000,
-                  )
-                  .map((rawValidEvent: any) => ({
-                    code: rawValidEvent.code,
-                    at: rawValidEvent.at,
-                    counts: sanitizeCounts(rawValidEvent.counts),
-                  })),
-              }))
-              .filter((rawKeptEntry) => rawKeptEntry.events.length)
-          : []
-      } catch {
-        return []
-      }
-    }
-  return {
-    previous(lookupKey: any) {
-      const matchedBreadcrumb = readStoredBreadcrumbs().find(
-        (candidateBreadcrumb) => candidateBreadcrumb.key === lookupKey,
-      )
-      return matchedBreadcrumb && matchedBreadcrumb.document !== runtimeInstanceToken ? matchedBreadcrumb.events : []
-    },
-    remember(rememberKey: any, breadcrumbEventCode: any, breadcrumbEventCounts: any) {
-      if (ACCEPTED_EVENT_CODES.has(breadcrumbEventCode))
-        try {
-          const storedBreadcrumbs = readStoredBreadcrumbs(),
-            existingBreadcrumb = storedBreadcrumbs.find((candidateEntry) => candidateEntry.key === rememberKey),
-            breadcrumbEvents = existingBreadcrumb?.document === runtimeInstanceToken ? existingBreadcrumb.events : []
-          breadcrumbEvents.push({
-            code: breadcrumbEventCode,
-            at: Date.now(),
-            counts: sanitizeCounts(breadcrumbEventCounts),
-          })
-          const remainingBreadcrumbs = storedBreadcrumbs.filter((removedEntry) => removedEntry.key !== rememberKey)
-          remainingBreadcrumbs.push({
-            key: rememberKey,
-            document: runtimeInstanceToken,
-            events: breadcrumbEvents.slice(-8),
-          })
-          const trimmedBreadcrumbs = remainingBreadcrumbs.slice(-16)
-          for (; JSON.stringify(trimmedBreadcrumbs).length > 32768; ) trimmedBreadcrumbs.shift()
-          window.sessionStorage?.setItem(breadcrumbStorageKey, JSON.stringify(trimmedBreadcrumbs))
-        } catch {
-          /* 存储写入是 best-effort：隐私模式 / 配额 / 序列化失败都不应影响本次渲染 */
-        }
-    },
-  }
-}
 const BREADCRUMB_CODE_MESSAGES = Object.freeze({
   'mount-initial': ['info', '3D 组件首次挂载'],
   'mount-repeat': ['warning', '3D 组件在当前页面重新挂载'],
@@ -229,7 +122,7 @@ function createLifecycleReporter(projectId: any, componentId: any) {
     )
       mountDiagnosticsByInstance.delete(mountDiagnosticsByInstance.keys().next().value)
     const mountCount = mountDiagnostics.mounts,
-      breadcrumbStore = createBreadcrumbStore(),
+      breadcrumbStore = createBreadcrumbStore(runtimeInstanceToken, ACCEPTED_EVENT_CODES),
       previousEvents = mountCount === 1 ? breadcrumbStore.previous(diagnosticsKey) : [],
       reportLifecycleEvent = (lifecycleEventCode: any, lifecycleEventCounts: Record<string, any> = {}) => {
         try {
@@ -749,8 +642,9 @@ export function mountInteraction3d(
   function handleVisibilityChange() {
     document.hidden && closePopupLayoutPreview(), refreshActivityState()
   }
+  // 状态表「已发布」游标：原地 patch 不改引用，只能靠版本号判断变化（见 `state-revision`）。
+  const stateRevision = createStateRevision()
   let latestStatesByEntityId: Record<string, any> = {},
-    lastPublishedStates: any = null,
     supportsStatePatches = false
   /**
    * 窗帘姿态记忆（0.8.4）：后端攒「上次位置 + 补间样本」，本地状态观测按 `at` 取新合并。
@@ -767,6 +661,7 @@ export function mountInteraction3d(
       ? createLightStream({
           onStates(incomingStates) {
             ;(latestStatesByEntityId = incomingStates),
+              stateRevision.bump(),
               coverMemoryClient.observe(incomingStates),
               fetchClimateCapabilities()
             if (isPreviewSuspended) {
@@ -781,9 +676,9 @@ export function mountInteraction3d(
           },
           onPatch(statePatch) {
             // 定点写入而非整表展开：后者每条增量都复制全表（墙屏数百实体 = 每帧 O(N)）。
-            for (const entityId of Object.keys(statePatch)) {
-              latestStatesByEntityId[entityId] = statePatch[entityId]
-            }
+            // 原地写入不改引用，必须 bump 才能让 `publishStatesNow` 察觉。
+            for (const entityId of Object.keys(statePatch)) latestStatesByEntityId[entityId] = statePatch[entityId]
+            stateRevision.bump()
             coverMemoryClient.observe(statePatch, { patch: true })
             if (isPreviewSuspended) {
               publishStatusHistory(statePatch, true)
@@ -910,7 +805,7 @@ export function mountInteraction3d(
         ? reportedTemperatureUnit
         : null
       normalizedTemperatureUnit !== temperatureUnit &&
-        ((temperatureUnit = normalizedTemperatureUnit), (lastPublishedStates = null), publishStates())
+        ((temperatureUnit = normalizedTemperatureUnit), stateRevision.invalidate(), publishStates())
     } catch {
       /* 上报 / 观测类调用是 best-effort：观测通道失败不应中断业务主流程 */
     } finally {
@@ -1337,7 +1232,7 @@ export function mountInteraction3d(
     // 与 0.7.9 一致：预览挂起时 `states` 直接停发（历史通道由 onStates/onPatch 自己兜底）。
     if (isPreviewSuspended) return false
     if (isPageHidden) return false
-    if (lightStream && currentStates === lastPublishedStates) return true
+    if (lightStream && !stateRevision.changed()) return true
     const shouldSendPatch = !!lightStream && supportsStatePatches && incomingPatch !== null
     postToStageFrame({
       type: 'states',
@@ -1348,7 +1243,7 @@ export function mountInteraction3d(
           }
         : {}),
     }),
-      (lastPublishedStates = currentStates),
+      stateRevision.markPublished(),
       lightStream || (focusDevicePopup?.updateStates?.(), onStatesUpdate?.(currentStates))
     return true
   }
@@ -1522,7 +1417,7 @@ export function mountInteraction3d(
         states: mergeMotorReverseStates(getCurrentStates()),
       }),
       (pendingResetPreviewSession = false),
-      (lastPublishedStates = getCurrentStates()),
+      stateRevision.markPublished(),
       publishNumberFormats(),
       isScenePresented || refreshActivityState(true)
   }
@@ -1899,7 +1794,7 @@ export function mountInteraction3d(
             loadSequence: reloadGeneration,
           }),
         (supportsStatePatches = stageMessage.statePatches === true),
-        (lastPublishedStates = null),
+        stateRevision.invalidate(),
         (lastConfigJson = ''),
         (lastSentConfigPayload = null),
         (hasLoadFailed = false),

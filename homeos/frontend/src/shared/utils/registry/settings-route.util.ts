@@ -81,7 +81,6 @@ export const SETTINGS_ROUTES = {
   connection: (section?: string) => settingsRoute({ tab: 'connection', ...(section ? { section } : {}) }),
   setupWizard: (section?: string) => settingsRoute({ tab: 'setup-wizard', ...(section ? { section } : {}) }),
   widgets: () => settingsRoute({ tab: 'widgets' }),
-  assets: () => settingsRoute({ tab: 'assets' }),
   embeds: (section?: string) => settingsRoute({ tab: 'embeds', ...(section ? { section } : {}) }),
   /** 媒体库（MoviePilot / Music Assistant 连接与入库通知） */
   media: (section?: string) => settingsRoute({ tab: 'media', ...(section ? { section } : {}) }),

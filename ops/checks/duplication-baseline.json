@@ -23,53 +23,53 @@
     "ops"
   ],
   "totals": {
-    "sources": 3589,
-    "lines": 703283,
+    "sources": 3583,
+    "lines": 702517,
     "clones": 157,
     "duplicatedLines": 2613,
-    "percentage": 0.3715,
-    "tokens": 4122242,
+    "percentage": 0.3719,
+    "tokens": 4118525,
     "duplicatedTokens": 12698
   },
   "byFormat": {
     "css": {
-      "sources": 40,
-      "lines": 3520,
+      "sources": 38,
+      "lines": 3355,
       "duplicatedLines": 0,
       "percentage": 0,
       "clones": 0
     },
     "html": {
-      "sources": 418,
-      "lines": 28484,
+      "sources": 415,
+      "lines": 28307,
       "duplicatedLines": 275,
-      "percentage": 0.9655,
+      "percentage": 0.9715,
       "clones": 20
     },
     "javascript": {
       "sources": 296,
-      "lines": 42433,
+      "lines": 42525,
       "duplicatedLines": 188,
-      "percentage": 0.4431,
+      "percentage": 0.4421,
       "clones": 13
     },
     "python": {
-      "sources": 694,
-      "lines": 168701,
+      "sources": 695,
+      "lines": 169034,
       "duplicatedLines": 523,
-      "percentage": 0.31,
+      "percentage": 0.3094,
       "clones": 39
     },
     "typescript": {
-      "sources": 1714,
-      "lines": 372567,
+      "sources": 1715,
+      "lines": 372463,
       "duplicatedLines": 1627,
-      "percentage": 0.4367,
+      "percentage": 0.4368,
       "clones": 85
     },
     "vue": {
-      "sources": 427,
-      "lines": 87578,
+      "sources": 424,
+      "lines": 86833,
       "duplicatedLines": 0,
       "percentage": 0,
       "clones": 0
@@ -374,6 +374,12 @@
       "fingerprint": "49b33f3c29fb9a01aaf77846bee74281d16fc47f",
       "first": "homeos/frontend/src/stores/entities/ws/ws-bind-domain.ts",
       "second": "homeos/frontend/src/stores/entities/ws/ws-bind-domain.ts",
+      "lines": 13
+    },
+    {
+      "fingerprint": "4cce771a748ee8c2a662c770a26c8ba51a606d6e",
+      "first": "homeos/frontend/src/components/common/AssetPickerModal.vue",
+      "second": "homeos/frontend/src/components/common/asset-manager/AssetManagerModal.vue",
       "lines": 13
     },
     {
@@ -725,12 +731,6 @@
       "lines": 29
     },
     {
-      "fingerprint": "b261d5dabb050a78e51d03d8366d38e6209fcae4",
-      "first": "homeos/frontend/src/components/common/AssetPickerModal.vue",
-      "second": "homeos/frontend/src/components/common/asset-manager/AssetManagerModal.vue",
-      "lines": 13
-    },
-    {
       "fingerprint": "b28eddccf830d6db943cd6a58b51b1d30e36ff6a",
       "first": "homeos/frontend/src/studio/app/editor/home/lifecycle/asset-dialog-wiring.ts",
       "second": "homeos/frontend/src/studio/app/editor/home/lifecycle/boot.ts",
@@ -747,12 +747,6 @@
       "first": "homeos/backend/src/domains/earthquake/feeds.py",
       "second": "homeos/backend/src/domains/earthquake/feeds.py",
       "lines": 14
-    },
-    {
-      "fingerprint": "b8bca3d3cfd26c970b88b91859fea16b97123526",
-      "first": "homeos/backend/src/api/entities.py",
-      "second": "homeos/backend/src/api/voice.py",
-      "lines": 23
     },
     {
       "fingerprint": "b9a631c8924bf44b999f60ac7f4d9a94ee95b4af",
@@ -915,6 +909,12 @@
       "first": "homeos/frontend/src/features/home-mode/composables/useModeLogsAnalytics.ts",
       "second": "homeos/frontend/src/features/home-mode/composables/useModeLogsAnalytics.ts",
       "lines": 13
+    },
+    {
+      "fingerprint": "e4891999bd3c5cb5baa39cea9612fdc03d605b7b",
+      "first": "homeos/backend/src/api/entities.py",
+      "second": "homeos/backend/src/api/voice.py",
+      "lines": 23
     },
     {
       "fingerprint": "e596f4575dae2a272dd62cacf37ce4ad49882c25",

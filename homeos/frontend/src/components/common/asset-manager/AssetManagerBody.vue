@@ -5,17 +5,16 @@
       <p class="text-xs amb-text-muted mt-3">{{ '加载中…' }}</p>
     </div>
 
-    <div v-else-if="filteredItems.length === 0" class="asset-body__state">
+    <div v-else-if="sortedItems.length === 0" class="asset-body__state">
       <div class="asset-body__empty-icon">
         <FolderOpen class="w-12 h-12" />
       </div>
-      <p class="text-sm amb-text-muted mt-2">{{ '空空如也，或者没有匹配的项目' }}</p>
-      <p v-if="searchQuery" class="text-xs amb-text-muted mt-1">{{ '试试其他关键词' }}</p>
+      <p class="text-sm amb-text-muted mt-2">{{ '还没有背景图，点右上角上传' }}</p>
     </div>
 
     <VirtualGrid
-      v-if="viewMode === 'grid' && useVirtualGrid"
-      :items="filteredItems"
+      v-if="useVirtualGrid"
+      :items="sortedItems"
       :columns="gridColumns"
       :row-height="gridRowHeight"
       :row-gap="10"
@@ -28,7 +27,6 @@
             :key="item.name"
             :item="item"
             :is-picker="isPicker"
-            :type="type"
             @click="onItemClick(item)"
             @copy="copyPath(item)"
             @delete="deleteItem(item)"
@@ -38,31 +36,16 @@
       </template>
     </VirtualGrid>
 
-    <div v-else-if="viewMode === 'grid'" class="asset-grid">
+    <div v-else class="asset-grid">
       <AssetGridItem
-        v-for="item in filteredItems"
+        v-for="item in sortedItems"
         :key="item.name"
         :item="item"
         :is-picker="isPicker"
-        :type="type"
         @click="onItemClick(item)"
         @copy="copyPath(item)"
         @delete="deleteItem(item)"
         @preview-error="onPreviewError"
-      />
-    </div>
-
-    <div v-else class="asset-list">
-      <AssetManagerListItem
-        v-for="item in filteredItems"
-        :key="item.name"
-        :item="item"
-        :can-preview="canPreview"
-        :is-image="isImage"
-        :on-preview-error="onPreviewError"
-        @click="onItemClick(item)"
-        @copy="copyPath(item)"
-        @delete="deleteItem(item)"
       />
     </div>
   </div>
@@ -72,19 +55,15 @@
 import { Loader2, FolderOpen } from '@lucide/vue'
 import VirtualGrid from '@/components/common/base/VirtualGrid.vue'
 import AssetGridItem from '@/components/common/AssetGridItem.vue'
-import AssetManagerListItem from './AssetManagerListItem.vue'
 import type { AssetItem } from './useAssetManager'
 
 // 组件属性：由父组件通过 useAssetManager 注入，包含渲染所需的状态与回调
 defineProps<{
   loading: boolean
-  /** 当前目录下全部条目（未经过滤） */
+  /** 当前目录下全部条目（未排序） */
   items: AssetItem[]
-  /** 经搜索过滤并排序后的条目列表 */
-  filteredItems: AssetItem[]
-  searchQuery: string
-  /** 视图模式：grid 网格 / list 列表 */
-  viewMode: 'grid' | 'list'
+  /** 排序后的条目列表（目录优先 + 名称升序） */
+  sortedItems: AssetItem[]
   /** 是否启用虚拟网格（大数据量优化） */
   useVirtualGrid: boolean
   gridColumns: number
@@ -92,10 +71,7 @@ defineProps<{
   gridRowHeight: number
   /** 是否为选择器模式（点击文件即触发 select 事件） */
   isPicker?: boolean
-  /** 资源类型：icon 图标 / background 背景图等 */
-  type: string
   canPreview: (item: AssetItem) => boolean
-  isImage: (item: AssetItem) => boolean
   /** 预览失败时的回调（用于记录失败条目避免重复尝试） */
   onPreviewError: (name: string) => void
   /** 条目点击回调（目录则进入，文件则按 picker 模式触发选择） */

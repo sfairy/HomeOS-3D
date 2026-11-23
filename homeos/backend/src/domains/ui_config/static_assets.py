@@ -1,6 +1,6 @@
 """UI 静态资源服务（对齐 ``modules/ui-config/static-asset.service.ts``）。
 
-管理背景图 / 图标两类静态资源的文件系统操作，
+管理背景图静态资源的文件系统操作，
 所有路径操作经 :func:`resolve_safe_path` 防止目录穿越。
 """
 
@@ -9,13 +9,14 @@ from __future__ import annotations
 import logging
 import os
 import tempfile
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from ...platform.core.http.asset_paths import (
     ALLOWED_IMAGE_EXTS,
     get_backgrounds_dir,
-    get_icons_dir,
+    get_instance_asset_roots,
     hidden_asset_key,
     is_hidden_asset,
     load_hidden_assets,
@@ -30,10 +31,6 @@ logger = logging.getLogger("homeos.ui_config.assets")
 
 def _background_url(*segments: str) -> str:
     return public_asset_url("backgrounds", *segments)
-
-
-def _icon_url(*segments: str) -> str:
-    return public_asset_url("icons", *segments)
 
 
 def _ensure_dir(target: Path) -> None:
@@ -197,32 +194,57 @@ def delete_image_asset(
 
 
 class UiConfigStaticAssetService:
-    """背景图 / 图标静态资源服务（随包默认层 + 用户可写层）。"""
+    """背景图静态资源服务（随包默认层 + 用户可写层）。"""
 
     def __init__(self, ui_assets_root: Path) -> None:
-        #: 用户可写层根（``<data_dir>/ui-assets``）；随包默认层来自 ``assets/icons`` /
+        #: 用户可写层根（``<data_dir>/ui-assets``）；随包默认层来自
         #: ``assets/backgrounds``，永远只读。
         self.ui_assets_root = Path(ui_assets_root)
-        self.icons_root = self.ui_assets_root / "icons"
         self.backgrounds_root = self.ui_assets_root / "backgrounds"
 
     def ensure_dirs(self) -> None:
-        for label, directory in (
-            ("背景图", self.backgrounds_root),
-            ("图标", self.icons_root),
-        ):
-            # 绝对路径只在开发者排查「上传的图去哪了」时有用，启动日志里打两行纯属噪音。
-            logger.debug("%s资源目录:%s", label, directory)
-            if not Path(directory).exists():
-                logger.info("已创建%s资源目录:%s", label, directory)
-                os.makedirs(directory, mode=0o755, exist_ok=True)
+        directory = self.backgrounds_root
+        logger.debug("背景图资源目录:%s", directory)
+        if not Path(directory).exists():
+            logger.info("已创建背景图资源目录:%s", directory)
+            os.makedirs(directory, mode=0o755, exist_ok=True)
+        # 图标素材库已下线：启动时把历史 ``icons`` 目录改名隔离（见下方法）。
+        self.retire_legacy_icon_assets(get_instance_asset_roots())
+
+    def retire_legacy_icon_assets(self, instance_roots: tuple[Path, ...] = ()) -> None:
+        """把已下线的图标素材目录移出服务路径（改名隔离，不物理删除）。
+
+        图标素材库已整体移除：``/icons`` 不再有路由，``<data>/ui-assets/icons`` 与实例
+        素材目录里的 ``icons/`` 都不会再被读取。这些文件在升级后仍会留在盘上（用户以前
+        上传的状态 SVG），启动时统一改名为隐藏目录 ``.icons-retired[-时间戳]``：
+
+        - 不再占用「看起来还在用」的目录名，避免管理员误以为图标库仍在生效；
+        - 不 ``rmtree``：素材可能是用户自己画的，改名可随时找回。
+
+        目录只认**已知根目录下、名字恰为 ``icons`` 的实体目录**；符号链接一律跳过
+        （避免顺链改到根目录之外），随包只读层也不在清理范围内。
+        任何失败只记 warning，绝不阻断启动。
+        """
+        timestamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+        retired: list[tuple[Path, Path]] = []
+        for root in (self.ui_assets_root, *instance_roots):
+            candidate = Path(root) / "icons"
+            try:
+                if candidate.is_symlink() or not candidate.is_dir():
+                    continue
+                target = Path(root) / ".icons-retired"
+                if target.exists():
+                    target = Path(root) / f".icons-retired-{timestamp}"
+                candidate.rename(target)
+                retired.append((candidate, target))
+            except OSError as error:
+                logger.warning("图标素材目录退役失败:%s(%s)", candidate, error)
+        for source, target in retired:
+            logger.info("图标素材库已下线:%s -> %s", source, target)
 
     # 安全路径（用户层：写入永远落在这里）
     def get_safe_background_path(self, sub_path: str = "") -> Path:
         return resolve_safe_path(self.backgrounds_root, sub_path)
-
-    def get_safe_icon_path(self, sub_path: str = "") -> Path:
-        return resolve_safe_path(self.icons_root, sub_path)
 
     # 背景图
     def list_backgrounds(self, sub_path: str = "") -> list[dict[str, Any]]:
@@ -255,50 +277,6 @@ class UiConfigStaticAssetService:
             full_path,
             "背景图",
         )
-
-    # 图标（仅 SVG）
-    def create_icon_directory(self, sub_path: str) -> dict[str, Any]:
-        return create_image_directory(get_icons_dir(), self.icons_root, sub_path, "图标")
-
-    def list_icons(self, sub_path: str = "") -> list[dict[str, Any]]:
-        return list_image_assets(
-            get_icons_dir(),
-            self.icons_root,
-            self.ui_assets_root,
-            "icons",
-            _icon_url,
-            sub_path,
-            "图标",
-            allowed_exts=frozenset({".svg"}),
-        )
-
-    def save_icon(self, filename: str, buffer: bytes, sub_path: str = "") -> dict[str, Any]:
-        target_dir = self.get_safe_icon_path(sub_path) if sub_path else Path(self.icons_root).resolve()
-        _ensure_dir(target_dir)
-        safe_name = os.path.basename(filename)
-        if not safe_name.lower().endswith(".svg"):
-            bad_request(api_error("UI_CONFIG_SVG_ONLY"))
-        dest = target_dir / safe_name
-        safe_buffer = sanitize_uploaded_svg(buffer)
-        _write_asset(dest, safe_buffer)
-        logger.info("图标已保存到 %s:%s(%s 字节)", sub_path, safe_name, len(safe_buffer))
-        return {
-            "name": safe_name,
-            "url": _icon_url(sub_path, safe_name),
-            "size": len(safe_buffer),
-        }
-
-    def delete_icon(self, full_path: str) -> None:
-        delete_image_asset(
-            get_icons_dir(),
-            self.icons_root,
-            self.ui_assets_root,
-            "icons",
-            full_path,
-            "图标",
-            not_found_code="UI_CONFIG_ICON_NOT_FOUND",
-        )
-
 
 __all__ = [
     "UiConfigStaticAssetService",

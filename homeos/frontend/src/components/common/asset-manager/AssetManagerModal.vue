@@ -12,14 +12,8 @@
         >
           <div class="hos-modal-head">
             <div class="hos-modal-head-left">
-              <div
-                class="hos-modal-head-icon"
-                :class="
-                  type === 'icon' ? 'hos-modal-head-icon--accent' : 'hos-modal-head-icon--blue'
-                "
-              >
-                <Sparkles v-if="type === 'icon'" class="w-5 h-5" />
-                <Images v-else class="w-5 h-5" />
+              <div class="hos-modal-head-icon hos-modal-head-icon--blue">
+                <Images class="w-5 h-5" />
               </div>
               <div>
                 <h3 id="asset-manager-title" class="hos-modal-title">{{ title }}</h3>
@@ -34,7 +28,7 @@
           <div
             class="hos-modal-body hos-modal-body--flush hos-modal-body--no-scroll asset-manager-modal__body"
           >
-            <AssetManager v-if="isOpen" :type="type" :is-picker="false" />
+            <AssetManager v-if="isOpen" :is-picker="false" />
           </div>
         </div>
       </div>
@@ -44,7 +38,7 @@
 
 <script setup lang="ts">
 import { defineAsyncComponent, computed, ref, watch } from 'vue'
-import { X, Images, Sparkles } from '@lucide/vue'
+import { X, Images } from '@lucide/vue'
 import { useKeepAliveGate } from '@/composables/ui/useKeepAliveGate'
 import { useShellTeleportTarget } from '@/composables/ui/shell/useShellTeleportTarget'
 import { useFocusTrap } from '@/composables/ui/useFocusTrap'
@@ -57,8 +51,6 @@ const AssetManager = defineAsyncComponent(() => import('@/components/common/asse
 
 const props = defineProps({
   isOpen: { type: Boolean, default: false },
-  /** 资源类型：'icon' / 'background' */
-  type: { type: String, default: 'background' },
   title: { type: String, required: true },
   description: { type: String, default: '' },
 })

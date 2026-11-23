@@ -155,7 +155,15 @@ import {
 } from '@/composables/settings-kernel/pending.internals'
 import SettingsSidebar from './shared/layout/SettingsSidebar.vue'
 import SettingsOverviewStrip from './shared/layout/SettingsOverviewStrip.vue'
-import { PANEL_MAP, buildNavGroups, resolveTab, DEFAULT_TAB, isValidSettingsTab, INDEPENDENT_SAVE_TABS } from './nav'
+import {
+  PANEL_MAP,
+  buildNavGroups,
+  resolveTab,
+  DEFAULT_TAB,
+  isValidSettingsTab,
+  INDEPENDENT_SAVE_TABS,
+  LEGACY_TAB_SECTIONS,
+} from './nav'
 import { isTabFeatureGranted } from '@/shared/utils/registry/settings-nav.util'
 import { useLicenseFeatureAccess } from '@/router/license-gate'
 import {
@@ -569,15 +577,19 @@ watch(
   { immediate: true },
 )
 
-// 无效 ?tab= 纠偏
+// 无效 ?tab= 纠偏；已下线 Tab（如旧「素材库」assets）折到它的新落点
 watch(
   () => [route.query.tab, route.path],
   ([tab]) => {
     if (!isOnSettingsRoute()) return
     const raw = String(tab || '')
-    if (raw && !isValidSettingsTab(raw)) {
-      router.replace({ path: '/settings', query: { ...route.query, tab: DEFAULT_TAB } })
+    if (!raw || isValidSettingsTab(raw)) return
+    const section = LEGACY_TAB_SECTIONS[raw]
+    if (section) {
+      router.replace({ path: '/settings', query: { ...route.query, tab: resolveTab(raw), section } })
+      return
     }
+    router.replace({ path: '/settings', query: { ...route.query, tab: DEFAULT_TAB } })
   },
   { immediate: true },
 )

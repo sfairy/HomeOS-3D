@@ -95,7 +95,6 @@ _HOMEOS_FRONTEND_RESOURCE_PREFIXES = (
     # 内置 3D 素材路由（/assets/builtin/**）。
     "/assets/",
     "/backgrounds/",
-    "/icons/",
     "/sounds/",
     "/logo/",
 )

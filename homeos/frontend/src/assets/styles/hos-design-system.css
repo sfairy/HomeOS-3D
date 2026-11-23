@@ -18,8 +18,14 @@
      control：按钮 / 下拉等控制件；card：卡片 / 列表项；
      panel：面板 / 弹窗 / 抽屉 / 侧栏。
      shell 为兼容别名，统一折叠到 panel，避免出现第三档容器圆角。
-     全站圆角只有一个命名族（`--hos-radius-*`），旧族（`--radius-*` / `--radius-ipad-*`）
-     一律只能写成指向本族的别名。 */
+
+     ⚠ 圆角有**两层**，改动前必须一起看：
+       1. 数值在 `packages/shared/src/styles/design-tokens.css`（`--hos-r-1…4` / `--hos-r-pill`）；
+       2. 语义在 `packages/shared/src/styles/theme-overrides.css`，把
+          control/card/panel/shell/pill 逐个指向 r-1…r-4 —— 该文件最后加载，**会盖掉本文件的数值**。
+     所以这里写的 8/14/20/9999 只是覆盖前的基线。**不要在此处声明 `--hos-r-*`**：一旦写成
+     `--hos-r-1: var(--hos-radius-control)` 就与 theme-overrides 的同名反向映射构成循环引用，
+     CSS 会把整条链判为无效、圆角静默归零（`check:css-tokens` 已加循环检测守住这条）。 */
   --hos-radius-control: 8px;
   --hos-radius-card: 14px;
   --hos-radius-panel: 20px;
