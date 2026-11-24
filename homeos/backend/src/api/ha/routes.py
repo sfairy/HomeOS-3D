@@ -26,7 +26,6 @@ from ...dependencies import (
     viewer_entity_ids,
 )
 from ...domains.agent.runtime.attribution import mark_local_control_for_request
-from ...domains.ha.config.perf_windows import runtime_state_batch_window_ms
 from ...domains.ha.integration.client import HAClientError
 from ...domains.ha.integration.connection_admin import (
     connection_access_token,
@@ -48,6 +47,13 @@ from ...domains.ha.integration.endpoints import endpoint_candidates
 from ...domains.ha.integration.errors import connection_error_message
 from ...domains.ha.integration.numeric_sources import numeric_sources
 from ...domains.ha.integration.percentage_sources import percentage_sources
+from ...domains.ha.integration.runtime_frames import (
+    diff_runtime_states,
+    drain_runtime_queue,
+    drain_runtime_queue_now,
+    merge_runtime_state_events,
+    runtime_queue_put,
+)
 from ...domains.ha.integration.service_call import (
     ServiceCallRejected,
     execute_service_call,
@@ -69,7 +75,6 @@ from ...platform.core.db.models import (
 )
 from ...platform.core.http.errors import BusinessException, ErrorCode, api_error
 from ...platform.core.http.fast_json import dumps_text, json_response
-from ...platform.core.runtime.observability import record_ha_counter
 from ...platform.security.request_origin import browser_origin_allowed
 from ...platform.security.session_store import session_token_hash
 from ...platform.security.viewer_scope import require_viewer_entity
@@ -93,10 +98,6 @@ MAX_RUNTIME_ENTITIES = 1000
 # 实时连接的授权复检间隔（秒）：连接建立后授权仍可能到期或被吊销，
 # 长连必须周期性回看，否则一份过期授权可以靠一条已建立的连接无限用下去。
 RUNTIME_LICENSE_CHECK_SECONDS = 30
-#: `/ws/runtime` 出站合并窗口（秒）：默认 4ms，可用
-#: HOMEOS_HA_RUNTIME_STATE_BATCH_WINDOW_MS 覆盖；探测窗口不超过合批窗本身。
-RUNTIME_STATE_BATCH_WINDOW_SECONDS = runtime_state_batch_window_ms() / 1000.0
-RUNTIME_DRAIN_PROBE_SECONDS = min(0.002, RUNTIME_STATE_BATCH_WINDOW_SECONDS)
 
 
 def _runtime_access_cache_seconds(websocket: WebSocket) -> float:
@@ -1082,108 +1083,6 @@ class _RuntimeSubscriptionState:
         self.supports_state_batch = False
 
 
-async def _drain_runtime_queue(queue: Any) -> list[dict]:
-    """在合并窗口内把队列里已经到达的事件一次性取空。
-
-    分两段等，避免给「稳态下的孤立事件」白加 12ms：
-
-    - 第一段只等 ``RUNTIME_DRAIN_PROBE_SECONDS``（2ms）：这一小段就能判断出当前是否
-      处于突发（场景切换 / 全屋开关会把几十上百条同步塞进队列）；
-    - 一旦确认有后续事件，再放宽到 ``RUNTIME_STATE_BATCH_WINDOW_SECONDS``（12ms），
-      把整波都收进来按实体合并；收不到就立即返回，不再等满窗口。
-    """
-    events: list[dict] = []
-    deadline = time.monotonic() + RUNTIME_STATE_BATCH_WINDOW_SECONDS
-    probing = True
-    while True:
-        wait = RUNTIME_DRAIN_PROBE_SECONDS if probing else deadline - time.monotonic()
-        if wait <= 0:
-            return events
-        try:
-            events.append(await asyncio.wait_for(queue.get(), timeout=wait))
-        except TimeoutError:
-            return events
-        probing = False
-
-
-def _merge_runtime_state_events(events: list[dict]) -> list[dict]:
-    """按实体合并：同一实体只保留窗口内的最后一条，非状态事件保持原顺序。"""
-    merged: list[dict] = []
-    positions: dict[str, int] = {}
-    for event in events:
-        if event.get("type") == "state_changed":
-            entity_id = str(event.get("entityId") or "")
-            if entity_id and entity_id in positions:
-                merged[positions[entity_id]] = event
-                continue
-            if entity_id:
-                positions[entity_id] = len(merged)
-        merged.append(event)
-    return merged
-
-
-def _drain_runtime_queue_now(queue: Any) -> int:
-    """非阻塞清空订阅队列，返回丢掉的帧数。
-
-    握手期 / 补全期排队的帧都早于「即将下发的快照」，留着只会在快照之后被再推一遍
-    （值相同，纯浪费带宽；值更旧时甚至会把界面推回过去 —— 前端只有快照后的
-    ``last_updated`` 守卫兜底）。
-    """
-    dropped = 0
-    while True:
-        try:
-            queue.get_nowait()
-        except asyncio.QueueEmpty:
-            logger.debug("实时订阅队列已空，停止排空")
-            return dropped
-        dropped += 1
-
-
-def _diff_runtime_states(current: list[dict], previous: list[dict]) -> list[dict]:
-    """补全前后的两份 hub 快照 → 只需要下发的差异帧。
-
-    ``updatedAt`` 是 hub 里的权威更新时刻：相同即同一次更新，不必再推。旧实现直接对
-    两份完整快照做 ``!=`` 深比较，一旦有差异就整包重发（几百个实体 × 全量属性）。
-    """
-    before = {str(item.get("entityId") or ""): item for item in previous if isinstance(item, dict)}
-    changed: list[dict] = []
-    for item in current:
-        if not isinstance(item, dict):
-            continue
-        entity_id = str(item.get("entityId") or "")
-        if not entity_id:
-            continue
-        old = before.get(entity_id)
-        if old is None:
-            changed.append(item)
-            continue
-        if old.get("updatedAt") != item.get("updatedAt") or old.get("state") != item.get("state"):
-            changed.append(item)
-    return changed
-
-
-def _runtime_queue_put(queue: Any, frame: dict) -> None:
-    """往订阅队列里塞一帧（可能来自订阅增量更新），满了就丢掉最旧的再塞。"""
-    try:
-        queue.put_nowait(frame)
-        return
-    except asyncio.QueueFull:
-        logger.warning("实时订阅队列已满，丢弃最旧帧后重试")
-    while True:
-        try:
-            queue.get_nowait()
-        except asyncio.QueueEmpty:
-            logger.debug("实时订阅队列已空，停止丢弃旧帧")
-            break
-    try:
-        queue.put_nowait(frame)
-    except asyncio.QueueFull:
-        # 极端情况（单帧就超过队列容量）：退化成「建议整表重拉」，绝不静默丢帧。
-        logger.warning("实时订阅队列连一帧都容不下，退化为要求整表重拉")
-        record_ha_counter("resync")
-        queue.put_nowait({"type": "resync_required"})
-
-
 async def _send_runtime_state_frames(
     states: list[dict], subscription: _RuntimeSubscriptionState, send_licensed
 ) -> bool:
@@ -1255,7 +1154,7 @@ async def _runtime_subscribe_and_stream(
             await studio_ha.remove_runtime_entity_watch(removed)
         if added:
             await studio_ha.add_runtime_entity_watch(added, ensure_states=False)
-        _runtime_queue_put(
+        runtime_queue_put(
             subscription.queue,
             {"type": "snapshot", "states": await studio_ha.state_hub.snapshot(next_ids)},
         )
@@ -1269,7 +1168,7 @@ async def _runtime_subscribe_and_stream(
     async def send_updates() -> None:
         """推送初始快照，然后持续转发状态事件并保活。"""
         # 先清握手期残留帧再取快照：快照本身已经包含它们。
-        _drain_runtime_queue_now(subscription.queue)
+        drain_runtime_queue_now(subscription.queue)
         initial_snapshot = await websocket.app.state.studio_ha.state_hub.snapshot(entity_ids)
         if not await send_licensed({"type": "snapshot", "states": initial_snapshot}):
             return
@@ -1299,7 +1198,7 @@ async def _runtime_subscribe_and_stream(
         # 补全只会「新增 / 更新」少量实体：只推差异帧，不再整包重发一份快照。
         # 整包重发要前端整表替换 + 逐组件重绘，而差异通常只有个位数。
         hydrated_snapshot = await websocket.app.state.studio_ha.state_hub.snapshot(entity_ids)
-        changed = _diff_runtime_states(hydrated_snapshot, initial_snapshot)
+        changed = diff_runtime_states(hydrated_snapshot, initial_snapshot)
         if changed and not await _send_runtime_state_frames(changed, subscription, send_licensed):
             return
         while True:
@@ -1313,8 +1212,8 @@ async def _runtime_subscribe_and_stream(
             # 逐条一帧会让墙屏解析 + 逐组件重绘的成本被放大同样的倍数。
             # 这里只等一个 12ms 的网络抖动级窗口（比一帧 16ms 还短），
             # 然后按实体取最后一条，把「N 条同一实体的中间态」压成一条。
-            batch = [event] + await _drain_runtime_queue(subscription.queue)
-            merged = _merge_runtime_state_events(batch)
+            batch = [event] + await drain_runtime_queue(subscription.queue)
+            merged = merge_runtime_state_events(batch)
             state_events = [item for item in merged if item.get("type") == "state_changed"]
             for item in merged:
                 if item.get("type") == "state_changed":
