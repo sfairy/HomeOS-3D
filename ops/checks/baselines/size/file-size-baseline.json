@@ -4,8 +4,8 @@
   "stats": {
     "homeos": {
       "files": 77,
-      "lines": 114132,
-      "gt1000": 52,
+      "lines": 112812,
+      "gt1000": 51,
       "max": 4917
     },
     "homeos-store": {
@@ -39,8 +39,8 @@
     "homeos/frontend/src/components/shell/AgentCompanion.vue": 1226,
     "homeos/frontend/src/features/settings/interact/SettingsAgentPanel.vue": 1268,
     "homeos/frontend/src/shared/energy/constants/energy-attr-maps.ts": 817,
+    "homeos/frontend/src/studio/app/3d-studio/authoring/items/catalog/furniture.ts": 851,
     "homeos/frontend/src/studio/app/3d-studio/authoring/items/collection-item-catalog.ts": 847,
-    "homeos/frontend/src/studio/app/3d-studio/authoring/items/item-catalog.ts": 2171,
     "homeos/frontend/src/studio/app/3d-studio/authoring/scene/floor/studio-floor-transition.ts": 843,
     "homeos/frontend/src/studio/app/3d-studio/authoring/scene/shadow/studio-floor-directional-shadow.ts": 838,
     "homeos/frontend/src/studio/app/3d-studio/authoring/scene/shadow/studio-shadow-atlas.ts": 1188,

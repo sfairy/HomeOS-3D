@@ -1,8 +1,8 @@
 {
   "totals": {
-    "files": 371,
+    "files": 374,
     "color": 4253,
-    "duration": 1393,
+    "duration": 1392,
     "important": 360
   },
   "files": {
@@ -568,7 +568,7 @@
     },
     "homeos/frontend/src/features/device/styles/device-row.css": {
       "color": 1,
-      "duration": 3,
+      "duration": 2,
       "important": 0
     },
     "homeos/frontend/src/features/device/styles/devices-theme.css": {
@@ -1326,13 +1326,28 @@
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/items/collection-item-catalog.ts": {
-      "color": 99,
+    "homeos/frontend/src/studio/app/3d-studio/authoring/items/catalog/decorLight.ts": {
+      "color": 23,
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/items/item-catalog.ts": {
-      "color": 239,
+    "homeos/frontend/src/studio/app/3d-studio/authoring/items/catalog/furniture.ts": {
+      "color": 102,
+      "duration": 0,
+      "important": 0
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/items/catalog/garden.ts": {
+      "color": 83,
+      "duration": 0,
+      "important": 0
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/items/catalog/kitchenBath.ts": {
+      "color": 31,
+      "duration": 0,
+      "important": 0
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/items/collection-item-catalog.ts": {
+      "color": 99,
       "duration": 0,
       "important": 0
     },

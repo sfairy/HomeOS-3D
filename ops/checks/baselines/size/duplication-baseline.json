@@ -23,12 +23,12 @@
     "ops"
   ],
   "totals": {
-    "sources": 3650,
-    "lines": 714784,
+    "sources": 3656,
+    "lines": 715241,
     "clones": 153,
     "duplicatedLines": 2553,
-    "percentage": 0.3572,
-    "tokens": 4181869,
+    "percentage": 0.3569,
+    "tokens": 4183903,
     "duplicatedTokens": 12385
   },
   "byFormat": {
@@ -48,23 +48,23 @@
     },
     "javascript": {
       "sources": 310,
-      "lines": 44568,
+      "lines": 44722,
       "duplicatedLines": 161,
-      "percentage": 0.3612,
+      "percentage": 0.36,
       "clones": 11
     },
     "python": {
-      "sources": 731,
-      "lines": 176078,
+      "sources": 732,
+      "lines": 176290,
       "duplicatedLines": 490,
-      "percentage": 0.2783,
+      "percentage": 0.278,
       "clones": 37
     },
     "typescript": {
-      "sources": 1732,
-      "lines": 375279,
+      "sources": 1737,
+      "lines": 375370,
       "duplicatedLines": 1627,
-      "percentage": 0.4335,
+      "percentage": 0.4334,
       "clones": 85
     },
     "vue": {
