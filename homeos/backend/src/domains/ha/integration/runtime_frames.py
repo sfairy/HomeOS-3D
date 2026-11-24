@@ -28,8 +28,8 @@ import logging
 import time
 from typing import Any
 
-from ....platform.core.runtime.observability import record_ha_counter
 from ..config.perf_windows import runtime_state_batch_window_ms
+from ....platform.core.runtime.observability import record_ha_counter
 
 logger = logging.getLogger("homeos.ha.runtime_frames")
 
