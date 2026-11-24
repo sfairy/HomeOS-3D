@@ -85,7 +85,24 @@ def parse_state_diff(state_diff: str | None) -> ParsedStateDiff:
     return {"state": state_diff, "oldState": "", "attrText": None}
 
 
-def map_history_row(event_log: EventLog) -> EventHistoryRow:
+#: 历史列表只读这四列。列裁剪不是微优化：``oldState`` / ``newState`` 是 Text，
+#: 单行几十到几百字节，200 行/页白读几十 KB，还会多触一次页访问。
+#: 用列元组而不是 ``load_only``：后者在访问未加载列时会触发**逐行**延迟加载（N+1）。
+#: 使用方必须只读这四个属性 —— 需要全文时走 ``include_full_state`` 那条分支。
+HISTORY_COLUMNS = (
+    EventLog.id,
+    EventLog.entity_id,
+    EventLog.state_diff,
+    EventLog.created_at,
+)
+
+
+def map_history_row(event_log: Any) -> EventHistoryRow:
+    """一条历史行 → DTO。
+
+    入参可以是 ORM 实例，也可以是 ``select(*HISTORY_COLUMNS)`` 产出的 Row —— 两者对这四个
+    字段都支持属性访问，因此不必为「裁剪后的查询」再写一份映射。
+    """
     parsed = parse_state_diff(event_log.state_diff)
     return {
         "id": event_log.id,

@@ -16,6 +16,7 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from .energy_report import EnergyReportExtraMixin
 from .energy_store import EnergyStoreMixin
 from .event_log_report import (
+    HISTORY_COLUMNS,
     EventLogReportMixin,
     EventLogStatsPayload,
     _full_event_row,
@@ -466,17 +467,14 @@ class EventLogService(EventLogReportMixin, EnergyReportExtraMixin, EnergyStoreMi
         with self._log_database.session_factory() as session:
             conditions = self._history_conditions(since, restrictions, entity_id, domain)
             total = session.execute(select(func.count()).select_from(EventLog).where(*conditions)).scalar_one()
-            rows = (
-                session.execute(
-                    select(EventLog)
-                    .where(*conditions)
-                    .order_by(EventLog.created_at.desc())
-                    .offset(skip)
-                    .limit(page_size)
-                )
-                .scalars()
-                .all()
-            )
+            # 只取 map_history_row 真正读的四列（见 HISTORY_COLUMNS 的说明）。
+            rows = session.execute(
+                select(*HISTORY_COLUMNS)
+                .where(*conditions)
+                .order_by(EventLog.created_at.desc())
+                .offset(skip)
+                .limit(page_size)
+            ).all()
         return {
             "total": int(total),
             "page": current_page,
@@ -526,16 +524,26 @@ class EventLogService(EventLogReportMixin, EnergyReportExtraMixin, EnergyStoreMi
         max_take = meta["timelineLimit"] if meta["timelineLimit"] > 0 else 80
         take = min(max(int(limit or 60), 1), max_take)
         with self._log_database.session_factory() as session:
-            rows = (
-                session.execute(
-                    select(EventLog)
-                    .where(EventLog.created_at >= _naive_utc(since), EventLog.entity_id.in_(cleaned))
-                    .order_by(EventLog.created_at.desc())
-                    .limit(take)
+            # ``include_full_state`` 才需要 oldState / newState 两个 Text 列；
+            # 默认路径只读四列（见 HISTORY_COLUMNS）。
+            columns = (
+                (
+                    EventLog.id,
+                    EventLog.entity_id,
+                    EventLog.old_state,
+                    EventLog.new_state,
+                    EventLog.state_diff,
+                    EventLog.created_at,
                 )
-                .scalars()
-                .all()
+                if include_full_state
+                else HISTORY_COLUMNS
             )
+            rows = session.execute(
+                select(*columns)
+                .where(EventLog.created_at >= _naive_utc(since), EventLog.entity_id.in_(cleaned))
+                .order_by(EventLog.created_at.desc())
+                .limit(take)
+            ).all()
         if include_full_state:
             return {"events": [_full_event_row(row) for row in rows]}
         return {"events": [map_history_row(row) for row in rows]}
