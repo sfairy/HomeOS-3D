@@ -8,8 +8,6 @@ import logging
 import threading
 import time
 import traceback
-from collections.abc import Sequence
-from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
@@ -30,10 +28,23 @@ from ...dependencies import (
 from ...domains.agent.runtime.attribution import mark_local_control_for_request
 from ...domains.ha.config.perf_windows import runtime_state_batch_window_ms
 from ...domains.ha.integration.client import HAClientError
+from ...domains.ha.integration.connection_admin import (
+    connection_access_token,
+    connection_verify_flags,
+    create_connection_row,
+    log_connection_address_change,
+    log_connection_endpoint_warnings,
+    probe_connection_endpoints,
+    resolved_connection_targets,
+    update_connection_row,
+)
 from ...domains.ha.integration.connection_query import active_connection, load_active_connection_snapshot
-from ...domains.ha.integration.connection_setup import addresses_label, failed_endpoint_summary, probe_endpoints
+from ...domains.ha.integration.connection_setup import (
+    failed_endpoint_summary,
+    probe_endpoints,
+)
 from ...domains.ha.integration.crypto import CredentialCipherError
-from ...domains.ha.integration.endpoints import HAEndpoint, endpoint_candidates
+from ...domains.ha.integration.endpoints import endpoint_candidates
 from ...domains.ha.integration.errors import connection_error_message
 from ...domains.ha.integration.numeric_sources import numeric_sources
 from ...domains.ha.integration.percentage_sources import percentage_sources
@@ -232,7 +243,7 @@ async def test_connection(
             raise HAClientError("首次连接必须输入 Home Assistant 访问令牌。")
         # 与「保存连接」走同一个开关推导：未显式提交就沿用已保存值，
         # 避免测试连接和保存后的实际连接用两套 TLS 口径。
-        verify_tls, external_verify_tls = _connection_verify_flags(command, connection)
+        verify_tls, external_verify_tls = connection_verify_flags(command, connection)
         endpoints = endpoint_candidates(command.base_url, verify_tls, command.external_base_url, external_verify_tls)
         results = await probe_endpoints(endpoints, token, request.app.state.settings.ha_request_timeout_seconds)
     except (HAClientError, CredentialCipherError) as error:
@@ -256,175 +267,6 @@ async def test_connection(
     }
 
 
-@dataclass(frozen=True)
-class _ConnectionTargets:
-    """探测后确定的内网 / 外网地址与版本摘要。"""
-
-    internal: str
-    external: str | None
-    tested: dict[str, Any]
-
-
-def _connection_verify_flags(connection_input: HAConnectionInput, connection: HAConnection | None) -> tuple[bool, bool]:
-    """未显式提交时沿用已保存的 TLS 校验开关。"""
-    verify_tls = (
-        connection.verify_tls
-        if connection and "verify_tls" not in connection_input.model_fields_set
-        else connection_input.verify_tls
-    )
-    external_verify_tls = (
-        connection.external_verify_tls
-        if connection and "external_verify_tls" not in connection_input.model_fields_set
-        else connection_input.external_verify_tls
-    )
-    return verify_tls, external_verify_tls
-
-
-def _connection_access_token(
-    connection_input: HAConnectionInput,
-    connection: HAConnection | None,
-    connector: Any,
-    new_addresses: tuple[str, str | None],
-    previous_addresses: tuple[str, str | None] | None,
-) -> str:
-    """确定本次保存使用的令牌：显式提交优先，否则判断已保存令牌能否复用。"""
-    if connection_input.access_token:
-        return connection_input.access_token
-    if connection is None:
-        raise BusinessException(ErrorCode.VALIDATION_FAILED, api_error("HA_TOKEN_REQUIRED"))
-    if new_addresses != previous_addresses and not connection_input.reuse_token_for_new_url:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={
-                "code": "HA_URL_CHANGED_TOKEN_REUSE",
-                "message": "地址已变更：复用已保存的 Home Assistant 令牌前请确认新地址可信（确认后重发 reuseTokenForNewUrl=true，或直接重新输入令牌）。",
-            },
-        )
-    try:
-        return connector.cipher.decrypt(connection.encrypted_access_token)
-    except CredentialCipherError as error:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=str(error),
-        ) from error
-
-
-async def _probe_connection_endpoints(
-    request: Request, endpoints: Sequence[HAEndpoint], token: str
-) -> list[dict[str, Any]]:
-    """探测候选端点；连接层异常按原样转 422。"""
-    try:
-        return await probe_endpoints(endpoints, token, request.app.state.settings.ha_request_timeout_seconds)
-    except HAClientError as error:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=connection_error_message(error),
-        ) from error
-
-
-def _resolved_connection_targets(
-    test_results: list[dict[str, Any]], connection_input: HAConnectionInput
-) -> _ConnectionTargets:
-    """从探测结果里取主端点、最终内网 / 外网地址与版本摘要。"""
-    reachable = [probe_entry for probe_entry in test_results if probe_entry["ok"]]
-    if not reachable:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=failed_endpoint_summary(test_results)
-        )
-    primary = reachable[0]
-    resolved_internal = next(
-        (probe_entry["baseUrl"] for probe_entry in test_results if probe_entry["kind"] == "internal"),
-        connection_input.base_url,
-    )
-    resolved_external = next(
-        (probe_entry["baseUrl"] for probe_entry in test_results if probe_entry["kind"] == "external"),
-        None,
-    )
-    tested = {"version": primary.get("version"), "locationName": primary.get("locationName")}
-    return _ConnectionTargets(internal=resolved_internal, external=resolved_external, tested=tested)
-
-
-def _create_connection_row(
-    connection_input: HAConnectionInput,
-    connector: Any,
-    token: str,
-    verify_tls: bool,
-    external_verify_tls: bool,
-    targets: _ConnectionTargets,
-) -> HAConnection:
-    """首次保存：构造 HAConnection 行。"""
-    return HAConnection(
-        name=connection_input.name.strip(),
-        base_url=targets.internal,
-        external_base_url=targets.external,
-        encrypted_access_token=connector.cipher.encrypt(token),
-        verify_tls=verify_tls,
-        external_verify_tls=external_verify_tls,
-        ha_version=targets.tested.get("version"),
-    )
-
-
-def _update_connection_row(
-    connection: HAConnection,
-    connection_input: HAConnectionInput,
-    connector: Any,
-    verify_tls: bool,
-    external_verify_tls: bool,
-    targets: _ConnectionTargets,
-) -> None:
-    """覆盖已保存连接的地址 / 证书开关 / 版本，并清掉上次错误状态。"""
-    connection.name = connection_input.name.strip()
-    connection.base_url = targets.internal
-    connection.external_base_url = targets.external
-    connection.verify_tls = verify_tls
-    connection.external_verify_tls = external_verify_tls
-    connection.ha_version = targets.tested.get("version")
-    connection.last_error = None
-    connection.active_endpoint = None
-    if connection_input.access_token:
-        connection.encrypted_access_token = connector.cipher.encrypt(connection_input.access_token)
-
-
-async def _log_connection_address_change(
-    request: Request,
-    connection_input: HAConnectionInput,
-    previous_addresses: tuple[str, str | None] | None,
-    connection: HAConnection,
-) -> None:
-    """地址变更时写一条 warning 日志（区分是否同时更新了令牌）。"""
-    if previous_addresses is None or previous_addresses == (connection.base_url, connection.external_base_url):
-        return
-    previous_label = addresses_label(*previous_addresses)
-    current_label = addresses_label(connection.base_url, connection.external_base_url)
-    await request.app.state.global_log.append_async(
-        "warning",
-        "Home Assistant",
-        "连接",
-        f"Home Assistant 地址已变更：{previous_label} → {current_label}（令牌已复用，请确认新地址可信）"
-        if not connection_input.access_token
-        else f"Home Assistant 地址已变更：{previous_label} → {current_label}（同时更新了令牌）",
-    )
-
-
-async def _log_connection_endpoint_warnings(
-    request: Request, test_results: list[dict[str, Any]], connection: HAConnection
-) -> None:
-    """保存成功后记录不可达备用地址与整体成功日志。"""
-    if [probe_entry for probe_entry in test_results if not probe_entry["ok"]]:
-        await request.app.state.global_log.append_async(
-            "warning",
-            "Home Assistant",
-            "连接",
-            f"Home Assistant 连接已保存，但以下地址当前不通（将作为备用，不通时自动跳过）：{failed_endpoint_summary(test_results)}",
-        )
-    await request.app.state.global_log.append_async(
-        "success",
-        "Home Assistant",
-        "连接",
-        f"Home Assistant 连接配置已保存（{connection.name}，版本 {connection.ha_version or '未知'}）",
-    )
-
-
 @router.put("/connection")
 async def save_connection(
     command: HAConnectionInput,
@@ -436,29 +278,29 @@ async def save_connection(
         raise BusinessException(ErrorCode.FORBIDDEN, api_error("HA_CONFIGURE_NOT_LICENSED"))
     connector = request.app.state.studio_ha
     connection = active_connection(database)
-    verify_tls, external_verify_tls = _connection_verify_flags(command, connection)
+    verify_tls, external_verify_tls = connection_verify_flags(command, connection)
     endpoints = endpoint_candidates(command.base_url, verify_tls, command.external_base_url, external_verify_tls)
     new_addresses = (command.base_url, command.external_base_url)
     previous_addresses = (connection.base_url, connection.external_base_url) if connection is not None else None
-    token = _connection_access_token(command, connection, connector, new_addresses, previous_addresses)
-    test_results = await _probe_connection_endpoints(request, endpoints, token)
-    targets = _resolved_connection_targets(test_results, command)
+    token = connection_access_token(command, connection, connector, new_addresses, previous_addresses)
+    test_results = await probe_connection_endpoints(request, endpoints, token)
+    targets = resolved_connection_targets(test_results, command)
 
     def _persist_connection() -> HAConnection:
         row = connection
         if row is None:
-            row = _create_connection_row(command, connector, token, verify_tls, external_verify_tls, targets)
+            row = create_connection_row(command, connector, token, verify_tls, external_verify_tls, targets)
             database.add(row)
         else:
-            _update_connection_row(row, command, connector, verify_tls, external_verify_tls, targets)
+            update_connection_row(row, command, connector, verify_tls, external_verify_tls, targets)
         database.commit()
         database.refresh(row)
         return row
 
     connection = await run_db(_persist_connection)
     await connector.restart()
-    await _log_connection_address_change(request, command, previous_addresses, connection)
-    await _log_connection_endpoint_warnings(request, test_results, connection)
+    await log_connection_address_change(request, command, previous_addresses, connection)
+    await log_connection_endpoint_warnings(request, test_results, connection)
     return {**connection_payload(connection, request), "test": targets.tested, "endpoints": test_results}
 
 
@@ -842,9 +684,7 @@ async def sort_area_entities(
     return {"success": True, "count": len(payload.entity_ids)}
 
 
-def _persist_area_entity_order(
-    database, connection_id: str, area_id: str, entity_ids: list[str]
-) -> None:
+def _persist_area_entity_order(database, connection_id: str, area_id: str, entity_ids: list[str]) -> None:
     """整份覆盖该房间的顺序，并顺手清掉不在本次列表里的孤儿行。"""
     existing = {
         row.entity_id: row
@@ -861,9 +701,7 @@ def _persist_area_entity_order(
         row = existing.get(entity_id)
         if row is None:
             database.add(
-                HAAreaEntityOrder(
-                    connection_id=connection_id, area_id=area_id, entity_id=entity_id, sort_order=index
-                )
+                HAAreaEntityOrder(connection_id=connection_id, area_id=area_id, entity_id=entity_id, sort_order=index)
             )
         else:
             row.sort_order = index
