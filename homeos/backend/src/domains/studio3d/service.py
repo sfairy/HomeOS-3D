@@ -35,8 +35,8 @@ from .doors import validate_door_openings
 from .lighting import valid_base_lighting_by_theme
 from .schemas import Studio3DDraftUpdate
 from .windows import validate_window_designs
+from ...domains.projects.schema import Project, ProjectDraft
 from ...panel.asset_refs import validate_assets
-from ...platform.core.db.models import Project, ProjectDraft
 
 #: 保存成功后回给客户端 / 写进日志的持久化状态（一档，见 ``_save_draft_locked``）。
 DRAFT_PERSISTED_STATE = "草稿已保存"

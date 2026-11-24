@@ -55,10 +55,10 @@ from ..dependencies import (
 )
 from ..domains.fonts import FontStore
 from ..domains.license import features as feature_codes
+from ..domains.projects.schema import Project
 from ..domains.ui_config.global_popups import global_popups
 from ..modules.interaction3d.studio_draft_scene import read_current_studio_draft
 from ..panel.asset_refs import saved_project_documents, studio_asset_ids
-from ..platform.core.db.models import Project
 from ..platform.core.http.asset_paths import (
     UPLOAD_CONTENT_TYPES,
     UPLOAD_IMAGE_SUFFIXES,

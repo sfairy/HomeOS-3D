@@ -21,17 +21,18 @@ import logging
 from dataclasses import dataclass
 from threading import RLock
 from time import monotonic
+from typing import Any
 from urllib.parse import urlsplit
 
 from fastapi import HTTPException, status
-from sqlalchemy import text
+from sqlalchemy import select, text
 
+from ....domains.projects.schema import GlobalCustomPopupState, ProjectDraft
 from ....platform.core.db.models import HAConnection
 from ....platform.security.viewer_scope import (
     ViewerPrincipal,
     require_viewer_entity,
     revalidate_viewer,
-    viewer_scope_revision,
 )
 
 #: 复检被拒只留一条可查的线索：不记 URL / 令牌，只记拒绝原因。
@@ -56,19 +57,19 @@ def connection_identity(connection: HAConnection) -> tuple:
 
 def principal_identity(viewer: ViewerPrincipal) -> tuple:
     """查看者的「同一性」：登录会话取用户 id（本项目没有展示设备维度）。"""
-    return ('admin', viewer.user.id)
+    return ("admin", viewer.user.id)
 
 
 def hls_token(path: str) -> str | None:
     """从 HLS 片段路径里取能力令牌：``/api/hls/<token>/<segment>``。"""
-    parts = urlsplit(path).path.split('/')
-    if len(parts) >= 5 and parts[1:3] == ['api', 'hls'] and parts[3]:
+    parts = urlsplit(path).path.split("/")
+    if len(parts) >= 5 and parts[1:3] == ["api", "hls"] and parts[3]:
         return parts[3]
     return None
 
 
 def _grants(request) -> dict[tuple, tuple[str, float]]:
-    grants = getattr(request.app.state, 'ha_media_grants', None)
+    grants = getattr(request.app.state, "ha_media_grants", None)
     if grants is None:
         grants = {}
         request.app.state.ha_media_grants = grants
@@ -101,17 +102,17 @@ def media_entity(request, connection: HAConnection, viewer: ViewerPrincipal) -> 
     """
     path = request.url.path
     domains = {
-        'camera_proxy': 'camera',
-        'camera_proxy_stream': 'camera',
-        'image_proxy': 'image',
-        'media_player_proxy': 'media_player',
+        "camera_proxy": "camera",
+        "camera_proxy_stream": "camera",
+        "image_proxy": "image",
+        "media_player_proxy": "media_player",
     }
-    parts = path.split('/')
+    parts = path.split("/")
     if len(parts) >= 4 and parts[2] in domains:
         entity = parts[3]
         # HA 的媒体路径形如 ``camera.kitchen``：域名必须一致，且必须带对象名。
-        if entity.partition('.')[0] != domains[parts[2]] or not entity.partition('.')[2]:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='媒体实体不存在。')
+        if entity.partition(".")[0] != domains[parts[2]] or not entity.partition(".")[2]:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="媒体实体不存在。")
         return entity
     token = hls_token(path)
     key = (connection_identity(connection), token)
@@ -122,7 +123,7 @@ def media_entity(request, connection: HAConnection, viewer: ViewerPrincipal) -> 
             return grant[0]
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
-        detail='摄像头流授权已失效，请重新打开摄像头。',
+        detail="摄像头流授权已失效，请重新打开摄像头。",
     )
 
 
@@ -145,7 +146,7 @@ def authorize_media(request, connection: HAConnection, viewer: ViewerPrincipal) 
     """
     entity = media_entity(request, connection, viewer)
     with request.app.state.database.session_factory() as database:
-        database.execute(text('BEGIN'))
+        database.execute(text("BEGIN"))
         if entity is not None:
             require_viewer_entity(database, viewer, entity)
         revision = viewer_scope_revision(database, viewer)
@@ -158,13 +159,38 @@ def authorize_media(request, connection: HAConnection, viewer: ViewerPrincipal) 
     )
 
 
+def viewer_scope_revision(database: Any, viewer: Any) -> tuple | None:
+    """查看者可见范围的廉价版本戳。
+
+    提交式响应靠它判断「授权范围变了吗」，只在真的变了时才重新展开实体 / 素材白名单。
+    现行模型没有 per-viewer 的项目收敛（``viewer.project_ids`` 不存在 → 恒 ``None``），
+    因此这里与上游「无仪表盘作用域时返回 ``None``」的分支同义；接入展示设备作用域后
+    只需让 ``ViewerPrincipal`` 暴露 ``project_ids``，本函数无需改动。
+
+    **位置**：原先在 ``platform/security/viewer_scope.py``，而它要读 ``project_drafts``
+    与 ``global_custom_popup_state`` 两张域表 —— 那是 ``platform → domains`` 的反向依赖
+    （B1 禁止，只是当时表都住在 platform 里才没暴露）。本模块是它唯一的调用方，
+    搬到调用点旁边后 platform 不再需要认识任何域表。
+    """
+    project_ids = getattr(viewer, "project_ids", None)
+    if not project_ids:
+        return None
+    drafts = database.execute(
+        select(ProjectDraft.project_id, ProjectDraft.revision)
+        .where(ProjectDraft.project_id.in_(project_ids))
+        .order_by(ProjectDraft.project_id)
+    ).all()
+    popups = database.scalar(select(GlobalCustomPopupState.revision).where(GlobalCustomPopupState.id == 1))
+    return (tuple(tuple(row) for row in drafts), popups)
+
+
 def check_media_access(request, load_connection) -> bool:
     """持续响应的复检：身份 / 连接换了，或作用域版本变了且实体不再可见 → ``False``。
 
     ``load_connection`` 由调用方注入（代理模块自己的 ``load_active_connection``），
     避免这里反向依赖 API 层。上一次复检在 ``ACCESS_CHECK_SECONDS`` 内的直接放行。
     """
-    access = getattr(getattr(request, 'state', None), 'ha_media_access', None)
+    access = getattr(getattr(request, "state", None), "ha_media_access", None)
     if access is None:
         # 入口未建立凭证（无查看者身份的调用路径）：没有可复检的作用域。
         return True
@@ -186,6 +212,6 @@ def check_media_access(request, load_connection) -> bool:
             access.scope_revision = revision
         access.checked_at = monotonic()
     except HTTPException as error:
-        LOGGER.warning('媒体访问复检被拒绝：%s', error.detail)
+        LOGGER.warning("媒体访问复检被拒绝：%s", error.detail)
         return False
     return True

@@ -22,7 +22,7 @@ from fastapi import HTTPException
 from sqlalchemy import CursorResult, text
 from sqlalchemy.orm import Session
 
-from ...platform.core.db.models import StudioInteractionSync
+from ...domains.projects.schema import StudioInteractionSync
 from ...platform.core.http.upload_limits import MAX_STUDIO3D_DRAFT_BYTES
 
 logger = logging.getLogger(__name__)

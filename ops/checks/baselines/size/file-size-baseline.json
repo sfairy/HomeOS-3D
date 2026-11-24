@@ -4,7 +4,7 @@
   "stats": {
     "homeos": {
       "files": 75,
-      "lines": 109246,
+      "lines": 109138,
       "gt1000": 50,
       "max": 4917
     },
@@ -30,8 +30,8 @@
     "homeos/backend/src/domains/notification/service.py": 802,
     "homeos/backend/src/domains/security/panel_helpers.py": 1089,
     "homeos/backend/src/domains/state_store/entity_references.py": 1548,
-    "homeos/backend/src/modules/interaction3d/api.py": 1605,
-    "homeos/backend/src/platform/core/db/models.py": 945,
+    "homeos/backend/src/modules/interaction3d/api.py": 1606,
+    "homeos/backend/src/platform/core/db/models.py": 836,
     "homeos/backend/src/platform/core/runtime/observability.py": 807,
     "homeos/frontend/scripts/models/lib/geometry-ops.mjs": 871,
     "homeos/frontend/scripts/models/specs/spec-overrides.mjs": 1295,

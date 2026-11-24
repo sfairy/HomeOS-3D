@@ -22,6 +22,12 @@ from ..dependencies import (
     require_viewer_project,
 )
 from ..domains.license import features as feature_codes
+from ..domains.projects.schema import (
+    GlobalCustomPopupState,
+    Project,
+    ProjectDraft,
+    ProjectDraftEntityRef,
+)
 from ..domains.studio3d.cleanup import (
     new_binding_references,
     repair_binding_document,
@@ -44,12 +50,6 @@ from ..panel.asset_refs import validate_assets
 from ..panel.documents import create_blank_project
 from ..panel.schema import validate_panel_document
 from ..platform.core.db.db_exec import run_db
-from ..platform.core.db.models import (
-    GlobalCustomPopupState,
-    Project,
-    ProjectDraft,
-    ProjectDraftEntityRef,
-)
 from ..platform.core.entity.entity_refs import document_entity_ids
 from ..platform.core.http.diagnostics import update_request_context
 from ..platform.http_cache import make_etag, not_modified, request_etag_matches, set_private_revalidate

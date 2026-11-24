@@ -28,6 +28,7 @@ from .service_support import (
 )
 from ..display_precision import apply_sensor_display_precision
 from ...logs.global_log import _safe_text
+from ...projects.schema import ProjectDraftEntityRef
 from ...ui_config.global_popups import global_popups
 from ....platform.core.db.models import (
     HAArea,
@@ -35,7 +36,6 @@ from ....platform.core.db.models import (
     HADevice,
     HAEntity,
     HASyncState,
-    ProjectDraftEntityRef,
     utc_now,
 )
 from ....platform.core.entity.entity_refs import document_entity_ids

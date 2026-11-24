@@ -35,6 +35,7 @@ from .domains.agent.learning import schema as _agent_learning_schema
 from .domains.automation import schema as _automation_schema
 from .domains.device_profile import schema as _device_profile_schema
 from .domains.media import schema as _media_schema
+from .domains.projects import schema as _projects_schema
 
 # 平台层的通用表（用户 / 会话 / 通知 / 系统配置 / 安全事件 / 能耗 / 项目 / HA 目录 / Agent）。
 from .platform.core.db import models as _platform_models  # 注册到 Base.metadata
@@ -50,9 +51,11 @@ def main_metadata() -> MetaData:
     assert _automation_schema is not None
     assert _device_profile_schema is not None
     assert _agent_learning_schema is not None
+    assert _projects_schema is not None
     assert _automation_schema is not None
     assert _device_profile_schema is not None
     assert _agent_learning_schema is not None
+    assert _projects_schema is not None
     return Base.metadata
 
 

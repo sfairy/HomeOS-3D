@@ -1,20 +1,14 @@
 {
   "minLines": 1500,
   "totals": {
-    "lines": 61330,
-    "imports": 800,
+    "lines": 53742,
+    "imports": 750,
     "depsFns": 39,
     "depsEntries": 1930
   },
   "files": {
-    "homeos/backend/src/api/ha/routes.py": {
-      "lines": 1659,
-      "imports": 42,
-      "depsFns": 0,
-      "depsEntries": 0
-    },
     "homeos/backend/src/bootstrap/lifespan.py": {
-      "lines": 1718,
+      "lines": 1770,
       "imports": 94,
       "depsFns": 0,
       "depsEntries": 0
@@ -38,14 +32,8 @@
       "depsEntries": 0
     },
     "homeos/backend/src/modules/interaction3d/api.py": {
-      "lines": 1605,
-      "imports": 51,
-      "depsFns": 0,
-      "depsEntries": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/items/item-catalog.ts": {
-      "lines": 2171,
-      "imports": 2,
+      "lines": 1606,
+      "imports": 52,
       "depsFns": 0,
       "depsEntries": 0
     },
@@ -73,12 +61,6 @@
       "depsFns": 0,
       "depsEntries": 0
     },
-    "homeos/frontend/src/studio/app/3d-studio/plan/geometry.ts": {
-      "lines": 2039,
-      "imports": 2,
-      "depsFns": 0,
-      "depsEntries": 0
-    },
     "homeos/frontend/src/studio/app/3d-studio/plan/studio-plan-item-drawing.ts": {
       "lines": 1658,
       "imports": 14,
@@ -94,12 +76,6 @@
     "homeos/frontend/src/studio/app/bridge/editor.ts": {
       "lines": 2787,
       "imports": 14,
-      "depsFns": 0,
-      "depsEntries": 0
-    },
-    "homeos/frontend/src/studio/app/editor/component-templates.ts": {
-      "lines": 1772,
-      "imports": 5,
       "depsFns": 0,
       "depsEntries": 0
     },

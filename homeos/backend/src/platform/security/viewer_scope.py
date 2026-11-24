@@ -10,11 +10,10 @@ from dataclasses import dataclass
 from typing import Annotated
 
 from fastapi import Depends, Request, Response
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .auth_context import authenticate_session
-from ..core.db.models import GlobalCustomPopupState, ProjectDraft, User
+from ..core.db.models import User
 from ..core.http.errors import unauthorized
 
 
@@ -92,26 +91,6 @@ def revalidate_viewer(request: Request) -> ViewerPrincipal:
         viewer = authenticated_viewer(request, Response(), database, refresh=False)
         database.expunge(viewer.user)
         return viewer
-
-
-def viewer_scope_revision(database: DatabaseSession, viewer: ViewerPrincipal) -> tuple | None:
-    """查看者可见范围的廉价版本戳（0.8.1 新增）。
-
-    提交式响应靠它判断「授权范围变了吗」，只在真的变了时才重新展开实体 / 素材白名单。
-    现行模型没有 per-viewer 的项目收敛（``viewer.project_ids`` 不存在 → 恒 ``None``），
-    因此这里与上游「无仪表盘作用域时返回 ``None``」的分支同义；接入展示设备作用域后
-    只需让 ``ViewerPrincipal`` 暴露 ``project_ids``，本函数无需改动。
-    """
-    project_ids = getattr(viewer, "project_ids", None)
-    if not project_ids:
-        return None
-    drafts = database.execute(
-        select(ProjectDraft.project_id, ProjectDraft.revision)
-        .where(ProjectDraft.project_id.in_(project_ids))
-        .order_by(ProjectDraft.project_id)
-    ).all()
-    popups = database.scalar(select(GlobalCustomPopupState.revision).where(GlobalCustomPopupState.id == 1))
-    return (tuple(tuple(row) for row in drafts), popups)
 
 
 def require_viewer_entity(database: DatabaseSession, viewer: ViewerPrincipal, entity_id: str) -> None:
