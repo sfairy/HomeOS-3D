@@ -10,7 +10,8 @@ import type { DeviceGroupEntitiesStoreLike, DeviceGroupUiStoreLike } from '@/sha
  */
 export function useDeviceGroupEntityIds() {
   const entityIds = ref<string[]>([])
-  const showAudit = ref(false)
+  // 系统审计面板默认展开（弹窗打开时由父组件重置为 true）
+  const showAudit = ref(true)
 
   /**
    * 重新计算实体 ID 列表。

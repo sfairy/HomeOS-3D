@@ -243,7 +243,8 @@ watch(
   () => props.isOpen,
   (open, wasOpen) => {
     if (open && !wasOpen) {
-      showAudit.value = false
+      // 系统审计默认展开：次要连接问题直接可见，不必再点一次「展开」。
+      showAudit.value = true
       batchExecResult.value = null
       lastBatchPayload.value = null
     }
@@ -256,7 +257,7 @@ watch(
 
 watch([() => props.domain, () => layoutStore.layoutConfig.floatingWidgets], () => {
   if (!props.isOpen) return
-  showAudit.value = false
+  showAudit.value = true
   batchExecResult.value = null
   lastBatchPayload.value = null
   void computeEntityIds(props, entitiesStore, layoutStore)
