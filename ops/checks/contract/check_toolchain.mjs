@@ -216,7 +216,7 @@ const pythonPin = String(images.python?.upstream_tag || '')
 const pythonFromTag = /python:(\d+)\.(\d+)/.exec(pythonPin)
 const runtimeMinor = pythonFromTag ? Number(pythonFromTag[2]) : null
 if (!pythonFromTag) {
-  fail(`ops/docker-pins.json 的 images.python.upstream_tag 应形如 python:3.15-slim-bookworm，实际是 "${pythonPin}"`)
+  fail(`ops/docker-pins.json 的 images.python.upstream_tag 应形如 python:3.15-slim-trixie，实际是 "${pythonPin}"`)
 }
 
 for (const pin of pins.filter((item) => item.key === 'python-version')) {

@@ -437,13 +437,15 @@ bfcache 交接在 `shared/utils/page-cache-lifecycle.ts`：`pagehide(persisted)`
 | JS 依赖 | `package.json` + `bun.lock` | 全仓（hoisted） |
 | Bun | 根 `packageManager`（`homeos-store` 另有 `engines`）；CI 的 `bun-version` 必须跟随，`check:toolchain` 守 | workflow `bun-version` |
 | Python 解释器 | `ops/docker-pins.json` 的 `python` 标签 | `Dockerfile` 的 `PYTHON_IMAGE`、workflow 的 `python-version`、`ruff.toml` / `pyproject.toml` 的声明（允许落后一个 minor） |
-| Python 依赖 | 两个 `requirements.txt` | `python_lock.py` → 根 `requirements.lock`（48 项 + sha256），构建按 `--require-hashes` 装 |
+| Python 依赖 | 两个 `requirements.txt` | `python_lock.py` → 根 `requirements.lock`（49 项 + sha256），构建按 `--require-hashes --only-binary=:all:` 装 |
 | 基础镜像 digest | `ops/docker-pins.json` | Dockerfile ARG / compose / `ops/build.py`（`check:toolchain` 对账） |
 | 端口 | `ops/ports.mjs` | dev 脚本 / compose |
 | 设置页标签与文案 | `shared/utils/registry/settings-nav.util.ts` | 侧栏 / 页头 / 深链 |
 | 能力码 | `ops/contracts/feature_codes.json` | 授权校验（18 项 / 2 组） |
 
-改 Python 依赖必须 `python3 ops/ci/python_lock.py generate`（单包 `--upgrade-package <名>`），否则 `check:python-lock` 与镜像 `--require-hashes` 都会失败。`overrides` 与子包声明要一起改。
+改 Python 依赖必须 `python3 ops/ci/python_lock.py generate`（单包 `--upgrade-package <名>`），否则 `check:python-lock` 与镜像的哈希校验都会失败。`overrides` 与子包声明要一起改。
+
+镜像装依赖同时要求 `--require-hashes` 与 `--only-binary=:all:`：前者校验下载物的哈希，后者禁止任何「没有兼容轮子就退回源码编译」的降级 —— 两件事独立，只靠前者时，锁里同时钉了 sdist 哈希的包会静默走源码编译，而 base 阶段没有 C/Rust 工具链，失败点会停在编译器上而非真因（基础镜像 glibc 太旧，见 `Dockerfile` 里 trixie 那段）。因此**升级基础镜像或改 Python minor 时必须核对锁里每个包是否都有匹配的轮子**：比 `manylinux_2_<N>` 的 N 还低的 glibc 会让对应包直接装不上。
 
 ## 8. 文档
 

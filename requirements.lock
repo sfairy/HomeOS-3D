@@ -5,8 +5,10 @@
 #   - homeos-store/backend/requirements.txt
 # 合并成一份的原因（两个后端装进镜像的同一层，拆开会产生互相冲突的 pin）见脚本 docstring。
 #
-# 为什么每个依赖都带 --hash：镜像里用 `pip install --require-hashes` 安装，任何 pin 或
-# 哈希对不上都会直接构建失败 —— 供应链校验不留「警告后继续」的口子。
+# 为什么每个依赖都带 --hash：镜像里用 `pip install --require-hashes --only-binary=:all:`
+# 安装，任何 pin 或哈希对不上都会直接构建失败 —— 供应链校验不留「警告后继续」的口子。
+# 锁里同时记下了每个包的 sdist 哈希（uv 生成时一并带上），但 `--only-binary` 让它们不会被
+# 选中：sdist 在本阶段意味着现场编译，而 base 只有运行时、没有 C/Rust 工具链。
 # 锁里没有 index-url：Dockerfile 的 `--pip-index` 要能把它换到镜像站。
 #
 # 校验（不联网）：python3 ops/ci/python_lock.py verify —— CI 的 checks 工作流会跑。

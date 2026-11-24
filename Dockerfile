@@ -2,7 +2,7 @@
 
 # 基础镜像：**按 digest 钉死**（tag 后面跟 @sha256:<manifest-list 摘要>）。
 #
-# 只写 tag（`python:3.15-slim-bookworm`）是**可变引用**：上游随时重推同一个 tag，同一份
+# 只写 tag（`python:3.15-slim-trixie`）是**可变引用**：上游随时重推同一个 tag，同一份
 # 源码在不同时间构建出的镜像不同，且此前构建过的产物无法复现 —— 对「出货给客户的私有化
 # 部署」是实打实的供应链风险（也是 .github/workflows/docker.yml 里 release 必须在
 # 不可取消的 concurrency group 里跑的原因：单架构镜像已推、manifest list 没合成，就会留下
@@ -17,16 +17,23 @@
 #
 # **apt 级版本不再逐个钉**：摘要已经把 apt 包索引钉在同一个 Debian 快照上，`ca-certificates` /
 # `curl` / `tini` 每次拿到的都是那一份（`apt-get update` 读的就是该快照里的索引）；反过来写死
-# `apt-get install ca-certificates=<版本>` 会在 bookworm 发小版本后**直接装不上**。真需要换 apt
+# `apt-get install ca-certificates=<版本>` 会在 Debian 发小版本后**直接装不上**。真需要换 apt
 # 包版本时，正确动作是升级上面的 digest。
 #
 # **Python 侧构建工具单独钉**（顶部 PIP_VERSION / SETUPTOOLS_VERSION / CYTHON_VERSION）：它们
 # 来自 PyPI 而不是这个 Debian 快照，基础镜像摘要管不到，`pip install cython setuptools` 这类
 # 裸包名会随上游滚动（见下方 ARG 处的说明）。
 #
+# **为什么是 trixie 而不是 bookworm**：发行版同时决定了 glibc 版本，而 pip 选轮子第一关就是
+# 它。orjson 从 cp315 起只发 manylinux_2_39 的轮子（3.12 / 3.13 都是，更早的版本压根没有
+# cp315 轮子），bookworm 的 glibc 2.36 不够 —— pip 会判定轮子不可用、退到 sdist 现场用
+# Rust/maturin 编译，而本阶段没有 Rust 工具链，构建必挂。trixie 是 glibc 2.41，够用。
+# 换 Debian 版本时这条要一起看：比 `manylinux_2_<N>` 的 N 还低的镜像会让某些 cp3xx 轮子
+# 悄悄退回源码编译（`--require-hashes` 拦不住这种降级，它只校验下载物的哈希）。
+#
 # 两个 ARG 整体指向镜像站/私有仓库（ops/build.py 的 --base-mirror）：镜像站是**另一个仓库**，
 # 摘要必然不同，所以走镜像站时会显式去掉 `@sha256:…` 并在构建期打印警告（见 ops/build.py）。
-ARG PYTHON_IMAGE=python:3.15-slim-bookworm@sha256:4e03260adeeebafccd084f3584e6b84823aba5651cfb53ef8a078ed441ddf9cd
+ARG PYTHON_IMAGE=python:3.15-slim-trixie@sha256:1c670c3568107e243bfd05457ad9ca0b11c35a855c985af73e4452db9a714e70
 #: 与 python 同样按 digest 钉死。曾试过跟随 `latest`，因它是 TLS 终止与全部路由入口、
 #: 浮动会让上游改默认值时静默改变线上行为而收回（见文件顶部说明）。
 ARG CADDY_IMAGE=caddy:2.11.9-alpine@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0
@@ -88,12 +95,19 @@ ARG PIP_VERSION
 #: `--require-hashes` 是刻意的硬约束：锁里每个 pin 都必须带哈希，任何一项对不上（版本被改、
 #: 镜像站的包与 PyPI 不一致）就直接失败，不留「警告后继续」的口子；它同时让 pip 拒绝一切
 #: 没出现在锁里的传递依赖，等于把「运行期到底装了哪些包」钉死在这一个文件上。
-#: PyYAML 6.0.3（uvicorn[standard] 的依赖）尚未发布 cp315 wheel，而本阶段没有编译器。
-#: PYYAML_FORCE_LIBYAML=0 让它的构建关闭 C 扩展、产出纯 Python wheel —— PyYAML 在这里
-#: 只服务于 uvicorn 的 YAML 日志配置，纯 Python 实现足够；等上游发布 cp315 wheel 后删掉。
+#:
+#: `--only-binary=:all:` 补上 `--require-hashes` 管不到的那一半：后者只校验**下载到的那个
+#: 文件**的哈希，锁里同时钉了 sdist 哈希时，pip 仍有两条路可选 —— 拿轮子，或退回 sdist 现场
+#: 编译。而 sdist 编译在本阶段要现成编译器（C / Rust），没有就必挂，且失败点离真因很远
+#: （历史上 orjson 的 cp315 轮子要求 glibc ≥ 2.39、基础镜像是 glibc 2.36，于是静默退到
+#: Rust 编译，报错停在 maturin 上，见顶部 trixie 那段说明）。
+#: 强制只用轮子后，同样的情况会在这一行直接报 `No matching distribution found`，指向轮子可用性
+#: —— 与「基础镜像 glibc 太旧」这个真因只隔一步。锁里 sdist 的哈希条目仍在（`uv` 生成时一并
+#: 记下），留着无害：它们只是不再有被选中的机会。PyYAML 6.0.4 已有 cp315 轮子，不再需要
+#: 曾经的 PYYAML_FORCE_LIBYAML=0 退路。
 #: --no-cache-dir 显式写死（不依赖 ENV，防被覆盖）：pip 缓存留在 /root/.cache/pip 会撑大镜像层。
-RUN PYYAML_FORCE_LIBYAML=0 pip install --upgrade --no-cache-dir "pip==${PIP_VERSION}" ${PIP_INDEX_URL:+--index-url $PIP_INDEX_URL} \
-    && PYYAML_FORCE_LIBYAML=0 pip install --no-cache-dir ${PIP_INDEX_URL:+--index-url $PIP_INDEX_URL} --require-hashes \
+RUN pip install --upgrade --no-cache-dir "pip==${PIP_VERSION}" ${PIP_INDEX_URL:+--index-url $PIP_INDEX_URL} \
+    && pip install --no-cache-dir ${PIP_INDEX_URL:+--index-url $PIP_INDEX_URL} --require-hashes --only-binary=:all: \
         -r /tmp/requirements.lock \
     && rm -f /tmp/requirements.lock \
     && rm -rf /root/.cache/pip
