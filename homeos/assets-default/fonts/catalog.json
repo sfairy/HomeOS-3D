@@ -5,11 +5,12 @@
       "name": "Noto Sans SC",
       "role": "chinese",
       "weight": "100 900",
-      "file": "noto-sans-sc.ttf",
-      "size": 17772300,
-      "sha256": "a3041811a78c361b1de50f953c805e0244951c21c5bd412f7232ef0d899af0da",
+      "file": "noto-sans-sc.woff2",
+      "size": 7782056,
+      "sha256": "cdce1bf11ebf2c62fe4ad11a92a8d05cf75b576c061c2b5e39864112422708e4",
       "source": "https://raw.githubusercontent.com/google/fonts/5bb28733cec313b63fbd415b574b5ae35c8aa8b8/ofl/notosanssc/NotoSansSC%5Bwght%5D.ttf",
-      "licenseSource": "https://raw.githubusercontent.com/google/fonts/5bb28733cec313b63fbd415b574b5ae35c8aa8b8/ofl/notosanssc/OFL.txt"
+      "licenseSource": "https://raw.githubusercontent.com/google/fonts/5bb28733cec313b63fbd415b574b5ae35c8aa8b8/ofl/notosanssc/OFL.txt",
+      "note": "无损失 WOFF2（同字形集压缩；见 ops/scripts/compress-default-fonts.py）"
     },
     {
       "id": "source-han-serif",
@@ -27,11 +28,12 @@
       "name": "霞鹜文楷",
       "role": "chinese",
       "weight": "400",
-      "file": "lxgw-wenkai.ttf",
-      "size": 25928940,
-      "sha256": "2d73eea94ad808999d90c0000c239a84a33b09d4bc6ab6c5b8bbf1eda8a7fc8b",
+      "file": "lxgw-wenkai.woff2",
+      "size": 8098584,
+      "sha256": "398930b681203859d87df324194754dcf1688e9db1b82f44fd3619b5c10b2df5",
       "source": "https://github.com/lxgw/LxgwWenKai/releases/download/v1.530/LXGWWenKai-Regular.ttf",
-      "licenseSource": "https://raw.githubusercontent.com/lxgw/LxgwWenKai/v1.530/OFL.txt"
+      "licenseSource": "https://raw.githubusercontent.com/lxgw/LxgwWenKai/v1.530/OFL.txt",
+      "note": "无损失 WOFF2（同字形集压缩；见 ops/scripts/compress-default-fonts.py）"
     },
     {
       "id": "smiley-sans",
@@ -49,44 +51,48 @@
       "name": "Inter",
       "role": "latin",
       "weight": "100 900",
-      "file": "inter.ttf",
-      "size": 876576,
-      "sha256": "29160a80ff49ddcab2c97711247e08b1fab27a484a329ce8b813d820dc559031",
+      "file": "inter.woff2",
+      "size": 350632,
+      "sha256": "0246180e0cda8de8c3cda62a8951a27b6abb3a3bd06e66f8e69b6cfc399318f9",
       "source": "https://raw.githubusercontent.com/google/fonts/5bb28733cec313b63fbd415b574b5ae35c8aa8b8/ofl/inter/Inter%5Bopsz,wght%5D.ttf",
-      "licenseSource": "https://raw.githubusercontent.com/google/fonts/5bb28733cec313b63fbd415b574b5ae35c8aa8b8/ofl/inter/OFL.txt"
+      "licenseSource": "https://raw.githubusercontent.com/google/fonts/5bb28733cec313b63fbd415b574b5ae35c8aa8b8/ofl/inter/OFL.txt",
+      "note": "无损失 WOFF2（同字形集压缩；见 ops/scripts/compress-default-fonts.py）"
     },
     {
       "id": "barlow-condensed",
       "name": "Barlow Condensed",
       "role": "latin",
       "weight": "400",
-      "file": "barlow-condensed.ttf",
-      "size": 102480,
-      "sha256": "583cec5da3b84bc4dc7c9c72e2a565c94d34e431518b19d7e250b7830ad5f996",
+      "file": "barlow-condensed.woff2",
+      "size": 37296,
+      "sha256": "63e944747d80611dd662b88d6e8ffd604a137ddc4b78a0768400f1ba786dcfff",
       "source": "https://raw.githubusercontent.com/google/fonts/5bb28733cec313b63fbd415b574b5ae35c8aa8b8/ofl/barlowcondensed/BarlowCondensed-Regular.ttf",
-      "licenseSource": "https://raw.githubusercontent.com/google/fonts/5bb28733cec313b63fbd415b574b5ae35c8aa8b8/ofl/barlowcondensed/OFL.txt"
+      "licenseSource": "https://raw.githubusercontent.com/google/fonts/5bb28733cec313b63fbd415b574b5ae35c8aa8b8/ofl/barlowcondensed/OFL.txt",
+      "note": "无损失 WOFF2（同字形集压缩；见 ops/scripts/compress-default-fonts.py）"
     },
     {
       "id": "orbitron",
       "name": "Orbitron",
       "role": "latin",
       "weight": "400 900",
-      "file": "orbitron.ttf",
-      "size": 38576,
-      "sha256": "f42db2dd16e642258e35782916eceb1dcdbea06fb958d77ad71dc5963587e8fd",
+      "file": "orbitron.woff2",
+      "size": 16048,
+      "sha256": "f2ad03bf19c29908a3dd9f729af7dd858ac9b3a2ea8b34b8e4a8d409b3c0f8f8",
       "source": "https://raw.githubusercontent.com/google/fonts/5bb28733cec313b63fbd415b574b5ae35c8aa8b8/ofl/orbitron/Orbitron%5Bwght%5D.ttf",
-      "licenseSource": "https://raw.githubusercontent.com/google/fonts/5bb28733cec313b63fbd415b574b5ae35c8aa8b8/ofl/orbitron/OFL.txt"
+      "licenseSource": "https://raw.githubusercontent.com/google/fonts/5bb28733cec313b63fbd415b574b5ae35c8aa8b8/ofl/orbitron/OFL.txt",
+      "note": "无损失 WOFF2（同字形集压缩；见 ops/scripts/compress-default-fonts.py）"
     },
     {
       "id": "jetbrains-mono",
       "name": "JetBrains Mono",
       "role": "latin",
       "weight": "100 800",
-      "file": "jetbrains-mono.ttf",
-      "size": 187208,
-      "sha256": "48715a42ec242c21e9f02692891e147d022299a52e48d5e413e1a942193ffeda",
+      "file": "jetbrains-mono.woff2",
+      "size": 71596,
+      "sha256": "d41dcb110c3ae1b8c87f385f05dcf4da22e85c5885d8bc0beddf07f891b0ffad",
       "source": "https://raw.githubusercontent.com/google/fonts/5bb28733cec313b63fbd415b574b5ae35c8aa8b8/ofl/jetbrainsmono/JetBrainsMono%5Bwght%5D.ttf",
-      "licenseSource": "https://raw.githubusercontent.com/google/fonts/5bb28733cec313b63fbd415b574b5ae35c8aa8b8/ofl/jetbrainsmono/OFL.txt"
+      "licenseSource": "https://raw.githubusercontent.com/google/fonts/5bb28733cec313b63fbd415b574b5ae35c8aa8b8/ofl/jetbrainsmono/OFL.txt",
+      "note": "无损失 WOFF2（同字形集压缩；见 ops/scripts/compress-default-fonts.py）"
     }
   ]
 }
