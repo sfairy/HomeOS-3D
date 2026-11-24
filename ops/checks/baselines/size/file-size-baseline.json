@@ -4,7 +4,7 @@
   "stats": {
     "homeos": {
       "files": 75,
-      "lines": 109138,
+      "lines": 108958,
       "gt1000": 50,
       "max": 4917
     },
@@ -18,7 +18,7 @@
   "files": {
     "homeos/backend/src/api/assets.py": 922,
     "homeos/backend/src/api/ha/routes.py": 1340,
-    "homeos/backend/src/bootstrap/lifespan.py": 1770,
+    "homeos/backend/src/bootstrap/lifespan.py": 1590,
     "homeos/backend/src/domains/agent/runtime/service.py": 1670,
     "homeos/backend/src/domains/automation/drafts.py": 844,
     "homeos/backend/src/domains/awareness/advisor_usage.py": 944,
