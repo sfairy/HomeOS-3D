@@ -18,16 +18,6 @@ export {
   isExactEntityId,
 } from './voice-alert'
 export {
-  VOICE_ALERT_PRIORITY,
-  compareVoiceAlertPriority,
-} from './voice-alert-priority'
-export {
-  resolveTtsRoute,
-  sortAlertsByVoicePriority,
-  type TtsRoute,
-  type ResolveTtsRouteInput,
-} from './tts-route.util'
-export {
   NOTIFICATION_SOURCE_SHORT_LABELS,
   NOTIFICATION_FILTER_PRIORITY,
   normalizeNotificationSource,
