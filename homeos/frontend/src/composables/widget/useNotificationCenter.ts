@@ -329,9 +329,23 @@ export function useNotificationCenter() {
   /**
    * 拉取远程通知并写入 store。
    * 仅在已登录时执行，失败时记录错误信息。
+   *
+   * 同一时刻只允许一个请求在飞：WS 的 ``notification`` 事件是逐条触发的，一轮告警风暴
+   * （比如断电恢复后补推 20 条）会在 RTT 内触发 20 次调用，每次拉回来的都是同一份列表。
+   * 飞行中再次触发直接复用同一个 promise，风暴结束后自然只多一次刷新。
    */
-  async function fetchRemote() {
-    if (!authStore.isAuthenticated) return
+  let inflight: Promise<void> | null = null
+
+  function fetchRemote(): Promise<void> {
+    if (!authStore.isAuthenticated) return Promise.resolve()
+    if (inflight) return inflight
+    inflight = runFetchRemote()
+    return inflight.finally(() => {
+      inflight = null
+    })
+  }
+
+  async function runFetchRemote(): Promise<void> {
     remoteLoading.value = true
     remoteError.value = ''
     try {

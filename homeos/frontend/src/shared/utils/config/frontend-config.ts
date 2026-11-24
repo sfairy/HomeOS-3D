@@ -257,11 +257,72 @@ function applyConfig(data: Partial<AppPublicConfig> | null | undefined): void {
   }
 }
 
+const CONFIG_CACHE_KEY = 'homeos.publicConfig.v1'
+/** 缓存有效期：过期的配置可能缺少新增字段（会退回代码默认值），但比「等待网络」好。 */
+const CONFIG_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000
+
+interface CachedConfig {
+  at: number
+  data: Partial<AppPublicConfig>
+}
+
+function readCachedConfig(): Partial<AppPublicConfig> | null {
+  if (typeof localStorage === 'undefined') return null
+  try {
+    const raw = localStorage.getItem(CONFIG_CACHE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as CachedConfig
+    if (!parsed?.data || typeof parsed.at !== 'number') return null
+    if (Date.now() - parsed.at > CONFIG_CACHE_TTL_MS) return null
+    return parsed.data
+  } catch {
+    // 隐私模式 / 配额满 / 内容损坏：缓存只是加速手段，读不到就当作没有。
+    return null
+  }
+}
+
+function writeCachedConfig(data: Partial<AppPublicConfig> | null | undefined): void {
+  if (!data || typeof localStorage === 'undefined') return
+  try {
+    const payload: CachedConfig = { at: Date.now(), data }
+    localStorage.setItem(CONFIG_CACHE_KEY, JSON.stringify(payload))
+  } catch {
+    // 写失败不影响本次运行（配置已在内存里）。
+  }
+}
+
+/**
+ * 用上一份公开配置**同步**预填，供启动路径决定「是否还要等第一次网络往返再挂载」。
+ *
+ * 为什么值得：``main.ts`` 的主应用分支原先 ``await loadFrontendConfig()`` 之后才挂载，
+ * 而 axios 超时是 15s。后端冷启动 / 家庭网络抖动时，用户看到的是「外套已绘制、Vue 未挂载」
+ * 的空壳。有了这一份快照，首帧可以立刻挂载，配置差异由随后的 ``loadFrontendConfig()``
+ * 补齐（它会重新 apply 并触发 ``onConfigChange``）。
+ *
+ * 返回 ``true`` 表示已应用缓存，调用方可以立即挂载。
+ */
+export function primeFrontendConfigFromCache(): boolean {
+  const cached = readCachedConfig()
+  if (!cached) return false
+  applyConfig(cached)
+  return true
+}
+
+export function clearFrontendConfigCache(): void {
+  if (typeof localStorage === 'undefined') return
+  try {
+    localStorage.removeItem(CONFIG_CACHE_KEY)
+  } catch {
+    // 同 readCachedConfig：缓存不可用时无需处理。
+  }
+}
+
 async function fetchAndApplyPublicConfig(): Promise<FrontendSection> {
   // API 客户端同步读本模块的重试配置：静态引用 system 会形成 client → config → system → client 的值循环。
   const { fetchPublicSystemConfig } = await import('@/services/api/system')
   const { data } = await fetchPublicSystemConfig<Partial<AppPublicConfig>>()
   applyConfig(data)
+  writeCachedConfig(data)
   _loaded = true
   return _config
 }

@@ -55,7 +55,11 @@ import './assets/styles/multi-color.css'
 import '../../../packages/shared/src/styles/theme-overrides.css'
 // 触控 / 可访问性基线：最后加载，覆盖旧样式里的 outline:none 与触控几何
 import '../../../packages/shared/src/styles/touch-a11y.css'
-import { loadFrontendConfig, setupFrontendConfigVisibilitySync } from '@/shared/utils/config/frontend-config'
+import {
+  loadFrontendConfig,
+  primeFrontendConfigFromCache,
+  setupFrontendConfigVisibilitySync,
+} from '@/shared/utils/config/frontend-config'
 import { primeGlassEffectDocument, setupGlassEffectSync } from '@/shared/utils/ui/glass-effect.util'
 import { applyHomeOsTheme } from '@/shared/utils/ui/theme.util'
 import { setupSmartPerformanceMode } from '@/shared/utils/perf/smart-performance.util'
@@ -292,8 +296,15 @@ if (isEntryAuthRoute) {
   // 入户页：先挂载再拉配置，避免「深色空屏 → 场景 → 表单」的可见空窗。
   mountApp()
   void loadFrontendConfig().then(applyPostConfigHooks)
+} else if (primeFrontendConfigFromCache()) {
+  // 主应用 + 有上一份公开配置快照：立刻挂载，配置在后台刷新。
+  // 这样首帧不再等一次网络往返（axios 超时 15s，后端冷启动时会表现为长时间空壳）。
+  // 刷新的结果由 applyConfig 触发 onConfigChange，消费方照常收到变更。
+  applyPostConfigHooks()
+  mountApp()
+  void loadFrontendConfig().then(applyPostConfigHooks)
 } else {
-  // 主应用：仍等配置完成后再挂载，保证 stores 初始化参数正确。
+  // 首次访问（无快照）：仍等配置完成后再挂载，保证 stores 初始化参数正确。
   loadFrontendConfig().then(() => {
     applyPostConfigHooks()
     mountApp()

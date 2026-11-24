@@ -366,6 +366,66 @@ function isEntryRouteName(name: string | undefined): boolean {
  * @param from 来源路由
  * @returns 重定向目标或 undefined（放行）
  */
+/** `/license/status` 的一次请求结果；失败也被收敛成值，避免裸 promise 变成 unhandledrejection。 */
+interface LicenseFeatureResult {
+  ok: boolean
+  featureAccess?: Record<string, boolean>
+  error?: unknown
+}
+
+/** 发起功能码明细请求（成功/失败都落成值）。 */
+function requestLicenseFeatures(): Promise<LicenseFeatureResult> {
+  return getLicenseStatus().then(
+    (response) => ({ ok: true, featureAccess: response.data.featureAccess }),
+    (error: unknown) => ({ ok: false, error }),
+  )
+}
+
+/**
+ * 商业授权可用性探测（公开端点，未登录也要查）。
+ *
+ * 从守卫里抽出来：它自带重试语义与「不可达不假装已授权」的分支，留在守卫里只会让
+ * 守卫的圈复杂度继续上涨（`check:frontend-complexity` 对此有棘轮）。
+ */
+async function refreshLicenseAvailability(
+  forceRefresh: boolean,
+  early: ReturnType<typeof startEarlyLicenseAvailability>,
+): Promise<void> {
+  if (!shouldRefreshLicenseStatus(forceRefresh)) return
+  try {
+    const status = await fetchLicenseAvailability(early)
+    setLicenseActivated(!status.data.required || status.data.allowed)
+    // 同一份可用性快照留给激活页：它首帧就用这份数据画状态句 / 表单可见性。
+    rememberLicenseAvailability(status.data)
+  } catch (licenseError) {
+    logger.error('商业授权状态检查失败:', licenseError)
+    if (getLicenseActivated() === null && !isBackendUnreachableError(licenseError)) {
+      // 不可达时保持 null（随后由 offline 分支兜底），其余错误按未授权处理。
+      setLicenseActivated(false)
+    }
+  }
+}
+
+/**
+ * 功能码门禁明细（供导航栏与模块入口显隐）。
+ *
+ * `prefetched` 是与可用性探测并行发起的那一次请求；为 null 时（例如刷新判定刚刚变为真）
+ * 在这里补一次。拉取失败不标记 loaded，保持 fail-closed。
+ */
+async function refreshLicenseFeatureAccess(
+  auth: ReturnType<typeof useAuthStore>,
+  prefetched: Promise<LicenseFeatureResult> | null,
+): Promise<void> {
+  if (!auth.isAuthenticated || !getLicenseActivated() || !shouldRefreshLicenseFeatures()) return
+  const settled = prefetched ? await prefetched : await requestLicenseFeatures()
+  if (settled.ok) {
+    setLicenseFeatureAccess(settled.featureAccess)
+    return
+  }
+  logger.warn('功能码门禁明细读取失败，保持未加载（入口 fail-closed）', settled.error)
+  setLicenseFeatureAccess(null)
+}
+
 router.beforeEach(async (to, from) => {
   // 全量恢复后只认恢复流程的整页跳转（登录页）；401 / 授权失效触发的站内跳转一律中止。
   if (isNavigationLockedAfterRestore()) return false
@@ -473,36 +533,12 @@ router.beforeEach(async (to, from) => {
   //
   // 走 `/license/availability` 而不是 `/license/status`：后者要求登录会话，而这里可能
   // 还没建立会话（公开展示页）；`/availability` 公开脱敏，同样返回 `required` / `allowed`。
-  if (shouldRefreshLicenseStatus(forceLicenseRefresh)) {
-    try {
-      const status = await fetchLicenseAvailability(earlyLicenseAvailability)
-      setLicenseActivated(!status.data.required || status.data.allowed)
-      // 同一份可用性快照留给激活页：它首帧就用这份数据画状态句 / 表单可见性，
-      // 不再「先骨架、再面板」。守卫本来就要拉这一次，不额外多发请求。
-      rememberLicenseAvailability(status.data)
-    } catch (licenseError) {
-      logger.error('商业授权状态检查失败:', licenseError)
-      if (getLicenseActivated() === null) {
-        if (isBackendUnreachableError(licenseError)) {
-          // 不可达时不假装已授权（否则随后重试成功会误拉业务 API）
-          // 保持 null，下面兜底分支会进入 offline
-        } else {
-          setLicenseActivated(false)
-        }
-      }
-    }
-  }
-
-  // 功能码门禁明细：公开的 `/availability` 不下发它（要求登录会话的 `/status` 才有），
-  // 登录后按 TTL 刷新，供导航栏与模块入口显隐。拉取失败不标记 loaded，保持 fail-closed。
-  if (auth.isAuthenticated && getLicenseActivated() && shouldRefreshLicenseFeatures()) {
-    try {
-      setLicenseFeatureAccess((await getLicenseStatus()).data.featureAccess)
-    } catch (featureAccessError) {
-      logger.warn('功能码门禁明细读取失败，保持未加载（入口 fail-closed）', featureAccessError)
-      setLicenseFeatureAccess(null)
-    }
-  }
+  //
+  // 功能码明细与可用性快照互不依赖：登录态已知时并行发起，省掉一个串行 RTT。
+  // 两者的失败语义与重试都在 helper 内收敛（含「提前 return 时不留 unhandledrejection」）。
+  const featureAccessPromise = auth.isAuthenticated && shouldRefreshLicenseFeatures() ? requestLicenseFeatures() : null
+  await refreshLicenseAvailability(forceLicenseRefresh, earlyLicenseAvailability)
+  await refreshLicenseFeatureAccess(auth, featureAccessPromise)
 
   // 未激活：激活需本机会话，故放行 login / activation；其余按登录态分流，
   // 避免「未登录 → 激活页 401 → 想去登录又被踢回激活」的死锁。
