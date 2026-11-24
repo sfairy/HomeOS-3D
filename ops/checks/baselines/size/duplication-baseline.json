@@ -23,12 +23,12 @@
     "ops"
   ],
   "totals": {
-    "sources": 3656,
-    "lines": 715241,
+    "sources": 3668,
+    "lines": 716390,
     "clones": 153,
     "duplicatedLines": 2553,
-    "percentage": 0.3569,
-    "tokens": 4183903,
+    "percentage": 0.3564,
+    "tokens": 4190708,
     "duplicatedTokens": 12385
   },
   "byFormat": {
@@ -41,35 +41,35 @@
     },
     "html": {
       "sources": 415,
-      "lines": 28338,
+      "lines": 28366,
       "duplicatedLines": 275,
-      "percentage": 0.9704,
+      "percentage": 0.9695,
       "clones": 20
     },
     "javascript": {
       "sources": 310,
-      "lines": 44722,
+      "lines": 44755,
       "duplicatedLines": 161,
-      "percentage": 0.36,
+      "percentage": 0.3597,
       "clones": 11
     },
     "python": {
-      "sources": 732,
-      "lines": 176290,
+      "sources": 735,
+      "lines": 177069,
       "duplicatedLines": 490,
-      "percentage": 0.278,
+      "percentage": 0.2767,
       "clones": 37
     },
     "typescript": {
-      "sources": 1737,
-      "lines": 375370,
+      "sources": 1746,
+      "lines": 375598,
       "duplicatedLines": 1627,
-      "percentage": 0.4334,
+      "percentage": 0.4332,
       "clones": 85
     },
     "vue": {
       "sources": 424,
-      "lines": 87130,
+      "lines": 87211,
       "duplicatedLines": 0,
       "percentage": 0,
       "clones": 0
@@ -257,12 +257,6 @@
       "lines": 20
     },
     {
-      "fingerprint": "35585d4da0354daef98c3193f5d8c50fd36b5a0b",
-      "first": "homeos/frontend/src/studio/app/editor/component-templates.ts",
-      "second": "homeos/frontend/src/studio/app/editor/metadata/editor-navigation-style-metadata.ts",
-      "lines": 15
-    },
-    {
       "fingerprint": "36505fc8032df11fc5dfe4eef05ea846cdb225c5",
       "first": "homeos-store/backend/src/infra/mailer.py",
       "second": "homeos-store/backend/src/infra/mailer.py",
@@ -291,6 +285,12 @@
       "first": "homeos/backend/src/domains/channels/webpush_service.py",
       "second": "homeos/backend/src/domains/system/ops/moviepilot_proxy.py",
       "lines": 12
+    },
+    {
+      "fingerprint": "40f65844ea707b5192e46069c86001468a616571",
+      "first": "homeos/frontend/src/studio/app/editor/component-templates/button.ts",
+      "second": "homeos/frontend/src/studio/app/editor/metadata/editor-navigation-style-metadata.ts",
+      "lines": 23
     },
     {
       "fingerprint": "4244c75549b10992a5541e2d6306d696b1c7a018",
@@ -449,16 +449,16 @@
       "lines": 15
     },
     {
-      "fingerprint": "6b11fa48f5fcc601d49b901dacb9d452f3205f14",
-      "first": "homeos/frontend/src/studio/app/editor/component-templates.ts",
-      "second": "homeos/frontend/src/studio/app/editor/metadata/editor-navigation-style-metadata.ts",
-      "lines": 15
-    },
-    {
       "fingerprint": "6be0a53513dd0c158fc0f947640755f98e0b541a",
       "first": "homeos/backend/src/domains/security/frigate.py",
       "second": "homeos/backend/src/domains/security/mmwave.py",
       "lines": 11
+    },
+    {
+      "fingerprint": "6faaeaaafd02e82f4237f59ccd6ba5021be99842",
+      "first": "homeos/frontend/src/studio/app/editor/component-templates/control.ts",
+      "second": "homeos/frontend/src/studio/app/editor/metadata/editor-navigation-style-metadata.ts",
+      "lines": 15
     },
     {
       "fingerprint": "70cb18ea48fdd8cdce10ad7edf33ebfaae121681",
@@ -543,6 +543,12 @@
       "first": "homeos/frontend/src/studio/runtime/config-ui/config-editor/rendering/panel-assembly.ts",
       "second": "homeos/frontend/src/studio/runtime/config-ui/config-editor/rendering/panel-sections.ts",
       "lines": 12
+    },
+    {
+      "fingerprint": "8a756f1588c2e497a08b65c9f8a0d5510ab9d440",
+      "first": "homeos/frontend/src/studio/app/editor/component-templates/control.ts",
+      "second": "homeos/frontend/src/studio/app/editor/metadata/editor-navigation-style-metadata.ts",
+      "lines": 26
     },
     {
       "fingerprint": "8be9a4ba837064f102010d1827aaffd740b2e041",
@@ -683,6 +689,12 @@
       "lines": 42
     },
     {
+      "fingerprint": "aa2d44f8b390cbc319c23f0b427513ceece97249",
+      "first": "homeos/frontend/src/studio/app/editor/component-templates/button.ts",
+      "second": "homeos/frontend/src/studio/app/editor/metadata/editor-navigation-style-metadata.ts",
+      "lines": 15
+    },
+    {
       "fingerprint": "ac695c8f3f072dd808a118649a4c4d58a222e4f7",
       "first": "homeos/frontend/src/studio/app/editor/home/elements/inspectors-navigation.ts",
       "second": "homeos/frontend/src/studio/app/editor/home/lifecycle/boot.ts",
@@ -803,12 +815,6 @@
       "lines": 51
     },
     {
-      "fingerprint": "d3ef294525677ad4a9c15b2ebd49a23064398ae4",
-      "first": "homeos/frontend/src/studio/app/editor/component-templates.ts",
-      "second": "homeos/frontend/src/studio/app/editor/metadata/editor-navigation-style-metadata.ts",
-      "lines": 26
-    },
-    {
       "fingerprint": "d516c059c8c31ec727fa6586a263b3743d431ef7",
       "first": "homeos/frontend/src/studio/app/renderer/panel-seams/runtime/optimistic-state.ts",
       "second": "homeos/frontend/src/studio/app/renderer/panel-seams/runtime/optimistic-state.ts",
@@ -897,12 +903,6 @@
       "first": "homeos/frontend/src/components/common/AssetPickerModal.vue",
       "second": "homeos/frontend/src/components/common/asset-manager/AssetManagerModal.vue",
       "lines": 20
-    },
-    {
-      "fingerprint": "e76e297eed4f07ba1b35d8e4cd2582bac734c4a4",
-      "first": "homeos/frontend/src/studio/app/editor/component-templates.ts",
-      "second": "homeos/frontend/src/studio/app/editor/metadata/editor-navigation-style-metadata.ts",
-      "lines": 23
     },
     {
       "fingerprint": "e77efc7e48022367a732e1bcbe32dbfc4e86e7c8",
