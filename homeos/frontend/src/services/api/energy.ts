@@ -42,12 +42,21 @@ export interface EnergyHistoryResult {
  *
  * 与客户端按实体属性折算的区别：这里能拿到 SGCC 30 天日列表落库后的账户级总量，
  * 不依赖前端是否挂载对应实体。
+ *
+ * @param unit 要哪种能源的量（`kWh` 电 / `m³` 气与水）。**必须按卡片类别传**：
+ *   聚合表里两类行并存，不声明就等于求混合和（电力卡会凭空多出燃气的数字）。
  */
-export function getEnergyHistory(range: EnergyHistoryRange = 'W', entityIds?: string[], config?: AxiosRequestConfig) {
+export function getEnergyHistory(
+  range: EnergyHistoryRange = 'W',
+  entityIds?: string[],
+  unit?: string,
+  config?: AxiosRequestConfig,
+) {
   return apiGet<EnergyHistoryResult>('/events/reports/energy/history', {
     params: {
       range,
       ...(entityIds?.length ? { entity_ids: entityIds.join(',') } : {}),
+      ...(unit ? { unit } : {}),
     },
     dedupe: false,
     ...config,

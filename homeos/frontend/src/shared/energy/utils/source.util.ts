@@ -522,14 +522,20 @@ export function resolveEntityPrefix(
     }
   }
   if (cfg.mode === 'convention' || !cfg.mode) {
-    if (eid) {
-      const i = eid.lastIndexOf('_')
-      if (i > 0) return eid.substring(0, i + 1)
-    }
+    // convention 模式下**账户号是权威来源**，必须排在「从实体 ID 猜」前面。
+    //
+    // 从实体 ID 猜的规则是「取最后一个 `_` 之前」，对 convention 家族的多段后缀不成立：
+    // `sensor.gas_3430_daily_usage` → `sensor.gas_3430_daily_` → 拼出
+    // `sensor.gas_3430_daily_balance`（该实体不存在），于是 `daylist` / `monthlist` 全部取不到。
+    // 表现是「电力卡有日历、燃气卡永远是空的」，而两者配置形式完全一样。
     const account = resolveConventionAccountAtIndex(cfg, accountIndex)
     if (account) {
       const prefix = (ENERGY_CONVENTION_PREFIX as Record<string, string>)[cat]
-      return `sensor.${prefix}_${account.slice(-4)}_`
+      if (prefix) return `sensor.${prefix}_${account.slice(-4)}_`
+    }
+    if (eid) {
+      const i = eid.lastIndexOf('_')
+      if (i > 0) return eid.substring(0, i + 1)
     }
   }
   if (eid) {

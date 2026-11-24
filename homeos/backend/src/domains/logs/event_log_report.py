@@ -43,8 +43,7 @@ class EventLogStatsPayload(TypedDict):
 from .energy_history import (
     _format_short_label,
     _round2,
-    read_daily_history,
-    read_year_history,
+    read_range_history,
     select_energy_candidates,
 )
 from .event_stats_rollup import ensure_backfilled, entity_totals, series_by_day
@@ -402,24 +401,23 @@ class EventLogReportMixin:
         return ids
 
     def query_energy_history(
-        self, range_key: str | None, entity_ids: list[str] | None = None, restrictions: list[str] | None = None
+        self,
+        range_key: str | None,
+        entity_ids: list[str] | None = None,
+        restrictions: list[str] | None = None,
+        unit: str | None = None,
     ) -> dict[str, Any]:
         """能耗历史（``W`` 近 7 天 / ``M`` 近 30 天 / ``Y`` 近 12 个月）。
 
         与 ``/reports/compare`` 的区别：这里**直接读日/月聚合表**，不做事件流 LAG 差分。
-        SGCC 的 30 天日列表正是落在这两张表里，因此国网账户无需 HA 历史也能出图。
+        SGCC 的 30 天日列表正是落在这两张表里，因此国网账户无需 HA 历史也能出图；
+        ``unit`` 由调用方声明（电 ``kWh`` / 气水 ``m³``），聚合表里两类行并存。
         """
         resolved = normalize_energy_range(range_key)
-        now = _report_now(self._ops)
-        today = now.date()
+        today = _report_now(self._ops).date()
         with self._database.session_factory() as session:
             ids = self._resolve_energy_entity_ids(session, entity_ids, restrictions)
-            if not ids:
-                return {"range": resolved, "unit": "kWh", "total": 0.0, "source": "empty", "series": []}
-            if resolved == "Y":
-                payload = read_year_history(session, ids, today)
-            else:
-                payload = read_daily_history(session, ids, today, days=7 if resolved == "W" else 30)
+            payload = read_range_history(session, ids, today, resolved, unit)
         # 费用：有完整小时行时逐小时精确计价，否则按段时长占比估算（见 ``_with_cost``）。
         return self._with_cost(payload, ids)
 

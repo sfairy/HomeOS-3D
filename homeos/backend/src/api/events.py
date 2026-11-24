@@ -144,11 +144,15 @@ def get_energy_history(
     request: Request,
     range: str | None = Query(default=None),
     entity_ids: str | None = Query(default=None),
+    unit: str | None = Query(default=None),
     user: dict[str, Any] = Depends(require_user),
 ):
     """能耗历史：``W`` 近 7 天 / ``M`` 近 30 天 / ``Y`` 近 12 个月（直接读日/月聚合表）。
 
     SGCC 日列表与实时累计表都落在这两张表里，因此国网账户不依赖 HA 历史即可出图。
+
+    ``unit`` 声明要哪种能源的量（``kWh`` 电 / ``m³`` 气与水）。聚合表里两类行并存，
+    不传就等于求混合和 —— 电力卡会凭空多出燃气的数字。前端按能源卡类别显式传。
     """
     require_license_feature(request, feature_codes.FEATURE_ENERGY)
     restrictions = resolve_entity_restrictions(user)
@@ -157,7 +161,7 @@ def get_energy_history(
         for entity_id in ids:
             if not is_entity_allowed(entity_id, restrictions):
                 forbidden("无权查看该实体的报表数据")
-    return _service(request).query_energy_history(range, ids, restrictions)
+    return _service(request).query_energy_history(range, ids, restrictions, unit)
 
 
 @router.get("/reports/energy/circuits")

@@ -10,6 +10,7 @@ import 点与测试都不用改。
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 #: 能源绑定实体类型（与前端 ``EnergyEntityKind`` 对齐）。
@@ -28,6 +29,19 @@ METER_SCOPES = (SCOPE_TOTAL, SCOPE_YEAR, SCOPE_MONTH, SCOPE_DAY)
 #: 瞬时量单位 / 设备类型：拒绝作为「可差分累计电量」
 _REJECT_DEVICE_CLASSES = {"power", "current", "voltage", "apparent_power"}
 _REJECT_UNITS = {"w", "kw", "mw", "va", "kva", "a", "v"}
+
+#: 可差分的**非电**累计用量单位（燃气 / 水）。
+#:
+#: 为什么需要：``is_cumulative_energy_meter`` 原本只认 ``device_class=energy`` 或
+#: ``kWh/Wh/MWh``，于是燃气与水的累计表底（``m³``）永远判不出来 —— 表现是
+#: 「电力卡有历史曲线、燃气卡/水务卡永远是空的」，因为日聚合表里从没写过非电行。
+#: 这三类读数的语义完全相同（单调递增、差分即用量），没有理由只支持电。
+#:
+#: 只列**体积**单位，不列流量：``m³/h`` 是瞬时速率，差分它没有意义，由下面的
+#: ``_RATE_UNIT_RE`` 挡掉。
+_VOLUME_UNITS = {"m³", "m3", "l", "ft³", "ft3", "gal", "gallon"}
+#: 速率单位（含斜杠或 ``_per_``）：``m³/h`` / ``m3/h`` / ``L/min``。
+_RATE_UNIT_RE = re.compile(r"[/]|_per_|persecond|perhour", re.IGNORECASE)
 #: 瞬时功率单位：可用于「当前负荷 / 功率异常」但不能做电量差分。
 _POWER_UNITS = {"w", "kw", "mw"}
 
@@ -38,7 +52,16 @@ def normalize_unit(unit: Any) -> str:
 
 
 def is_cumulative_energy_meter(attrs: dict[str, Any] | None) -> bool:
-    """是否为可差分累计的电量实体（排除功率/电流/电压等瞬时量）。"""
+    """是否为可差分的累计用量实体（电 / 燃气 / 水；排除功率、流量等瞬时量）。
+
+    判据是**语义**而不是「是不是电」：
+    - ``device_class`` 为 ``energy`` / ``gas`` / ``water`` 之一，或
+    - 单位是可差分累计单位（``kWh`` 系或体积 ``m³`` 系），且
+    - 不是瞬时量（功率 / 电流 / 电压）也不是速率（``m³/h``）。
+
+    燃气与水的累计表底此前被判成「非能耗实体」，于是日聚合表里永远没有它们的行，
+    界面上就表现为「电力卡有曲线、燃气卡是空的」。
+    """
     if not attrs:
         return False
     device_class = str(attrs.get("device_class") or "").lower()
@@ -47,9 +70,12 @@ def is_cumulative_energy_meter(attrs: dict[str, Any] | None) -> bool:
         return False
     if unit in _REJECT_UNITS:
         return False
-    if device_class == "energy":
+    # 速率（m³/h / L/min）是瞬时量：差分它只会得到无意义的小数。
+    if _RATE_UNIT_RE.search(unit):
+        return False
+    if device_class in ("energy", "gas", "water"):
         return True
-    return unit in ("kwh", "wh", "mwh")
+    return unit in ("kwh", "wh", "mwh") or unit in _VOLUME_UNITS
 
 
 def is_power_sensor(attrs: dict[str, Any] | None) -> bool:

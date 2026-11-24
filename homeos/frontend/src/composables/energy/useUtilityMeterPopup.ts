@@ -16,6 +16,15 @@ import { useServerEnergyHistory } from './useServerEnergyHistory'
 /** 有服务端日/月聚合的账户类型（后端按实体推导单位，电 kWh / 燃气、水 m³）。 */
 const SERVER_AGGREGATE_SOURCES = new Set(['grid', 'gas', 'water'])
 
+/**
+ * 能源卡类别 → 聚合表里该读哪个单位。
+ *
+ * 必须显式声明：`energy_usage_daily` / `energy_usage_monthly` 里电与气的行并存，
+ * 不按单位过滤就等于把立方米直接加到度电上 —— 电力卡凭空气涨、燃气卡拿到混合和。
+ * 用查表而不是三元，是因为这里的读取动作本身不该引入分支（复杂度门禁只许变简单）。
+ */
+const SERVER_UNITS: Record<string, string> = { grid: 'kWh', gas: 'm³', water: 'm³' }
+
 interface UtilityMeterPopupProps {
   entityId?: string
   anchor?: unknown
@@ -47,7 +56,13 @@ export function useUtilityMeterPopup(opts: UtilityMeterPopupOpts) {
   // 只有电费账户有服务端日/月聚合表；水/气继续走 HA 属性，避免把 kWh 表套到 m³ 上。
   // 电 / 燃气 / 水务都走服务端聚合：后端已按单位隔离（kWh vs m³），
   // 只给电开会让燃气与水永远只有「当前读数」、没有趋势。
-  const serverHistory = useServerEnergyHistory(computed(() => SERVER_AGGREGATE_SOURCES.has(sourceKey)))
+  //
+  // 单位必须**按卡片类别显式传**：聚合表里电与气的行并存，不声明就等于求混合和。
+  const serverUnit = computed(() => SERVER_UNITS[sourceKey])
+  const serverHistory = useServerEnergyHistory(
+    computed(() => SERVER_AGGREGATE_SOURCES.has(sourceKey)),
+    serverUnit,
+  )
   const lists = createUtilityMeterLists({
     popField: account.popField,
     popNum: account.popNum,

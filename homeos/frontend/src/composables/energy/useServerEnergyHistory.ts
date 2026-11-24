@@ -33,15 +33,16 @@ export interface ServerEnergyLists {
 /**
  * 拉取服务端日/月聚合，产出弹窗可直接消费的条目数组。
  *
- * @param enabled 电 / 燃气 / 水务账户都启用。单位由服务端按实体推导（kWh 或 m³），
- *  报表按 ``unit`` 分组，因此不同单位不会串味。
+ * @param enabled 电 / 燃气 / 水务账户都启用。报表按 ``unit`` 分组，因此不同单位不会串味。
+ * @param unit 该能源卡要的单位（``kWh`` 电 / ``m³`` 气与水）。**必须传**：聚合表里
+ *   电与气的行并存，不声明就等于求混合和 —— 电力卡会凭空多出燃气的数字。
  */
-export function useServerEnergyHistory(enabled: Ref<boolean>): ServerEnergyLists {
+export function useServerEnergyHistory(enabled: Ref<boolean>, unit: Ref<string>): ServerEnergyLists {
   const dayItems = ref<ServerListItems>([])
   const monthItems = ref<ServerListItems>([])
   const cost = ref<number | null>(null)
   const costEstimated = ref(false)
-  const unit = ref('kWh')
+  const unitLabel = ref('kWh')
   let loading = false
   let disposed = false
 
@@ -49,19 +50,28 @@ export function useServerEnergyHistory(enabled: Ref<boolean>): ServerEnergyLists
     if (!enabled.value || loading || disposed) return
     loading = true
     try {
-      const [monthlyResponse, yearlyResponse] = await Promise.all([getEnergyHistory('M'), getEnergyHistory('Y')])
+      const requestedUnit = unit.value
+      const [monthlyResponse, yearlyResponse] = await Promise.all([
+        getEnergyHistory('M', undefined, requestedUnit),
+        getEnergyHistory('Y', undefined, requestedUnit),
+      ])
       if (disposed) return
       const monthly = monthlyResponse.data
       const yearly = yearlyResponse.data
       // `empty` 表示服务端这张表还没有该家庭的数据：保持空数组，让弹窗回退到属性列表。
+      //
+      // 字段名必须用**中性**的 `usage`，不能沿用电力专有的 `dayEleNum` / `monthEleNum`：
+      // 燃气与水的解析器只认 `usage` / `cycleTotalVolume`，拿电名字写进去等于让燃气卡
+      // 把每一天都解析成 0（日历重新变回整片 `--`）。合并属性条目时另一个后果更隐蔽 ——
+      // 属性里那份 `usage` 会盖住同一条目的服务端数值，日期来自服务端、用量来自上个月。
       dayItems.value =
-        monthly.source === 'empty' ? [] : monthly.series.map((point) => ({ day: point.date, dayEleNum: point.value }))
+        monthly.source === 'empty' ? [] : monthly.series.map((point) => ({ day: point.date, usage: point.value }))
       monthItems.value =
-        yearly.source === 'empty' ? [] : yearly.series.map((point) => ({ month: point.date, monthEleNum: point.value }))
+        yearly.source === 'empty' ? [] : yearly.series.map((point) => ({ month: point.date, usage: point.value }))
       // 费用与单位只在服务端有数据时采用：空表时保持 null，弹窗回退到属性里的单价。
       cost.value = monthly.cost ?? null
       costEstimated.value = monthly.costEstimated === true
-      unit.value = monthly.unit || 'kWh'
+      unitLabel.value = monthly.unit || requestedUnit
     } catch {
       // 服务端不可用属正常降级路径：清空，弹窗继续读 HA 属性。
       dayItems.value = []
@@ -80,5 +90,5 @@ export function useServerEnergyHistory(enabled: Ref<boolean>): ServerEnergyLists
     disposed = true
   })
 
-  return { dayItems, monthItems, cost, costEstimated, unit, reload }
+  return { dayItems, monthItems, cost, costEstimated, unit: unitLabel, reload }
 }

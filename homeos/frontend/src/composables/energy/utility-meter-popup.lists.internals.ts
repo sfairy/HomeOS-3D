@@ -135,35 +135,49 @@ function buildPatchedYearlist(
 }
 
 /**
+ * 取一条明细行的日期键，用于把属性条目与服务端条目对齐。
+ *
+ * `readingTime` 不能漏：燃气 / 水表的日明细用这个字段名（电表用 `day`）。漏掉它时
+ * 合并永远匹配不上，服务端条目拿不到属性里的 `amount`，日历费用列就只剩 `--`。
+ */
+function rowDateKey(row: Record<string, unknown>): string {
+  return String(row.day ?? row.month ?? row.date ?? row.readingTime ?? '')
+}
+
+/**
  * 服务端列表与属性列表二选一，并把属性条目的额外字段（费用、日期说明）合并回来。
  *
- * 规则分三种情况：
- * - 属性列表为空：直接用服务端（这是「集成只暴露余额实体」时唯一的出图来源）；
- * - 只有单个账户（`serverWins`）：服务端条目不短于属性列表就用服务端 —— 服务端来自
- *   日/月聚合表，含回填与国网 30 天列表，比单个实体的属性更完整；
- * - 多账户：属性列表按户号各自独立，服务端聚合表只有「全家合计」，套到每个户号上
- *   会把别家的用量算进来，所以此时属性优先。
+ * 规则：
+ * - 服务端为空：用属性列表（服务端未启用 / 表还没数据）；
+ * - 多账户（`serverWins=false`）且属性有数据：用属性 —— 服务端聚合表只有「全家合计」，
+ *   套到每个户号上会把别家的用量算进来；
+ * - 其余情况**一律用服务端**。
  *
- * 合并时条目本身（用量/日期）以服务端为准，属性只补服务端没有的字段（如
- * `dayEleCost`），这样费用列不会因为切换数据源而变成 `--`。
+ * 这里刻意**不**比较两者长度。曾经的条件是「服务端比属性短就让属性胜出」，理由是
+ * 「属性更全」，但实测反例很常见：SGCC 集成的 `daylist` 属性是**上一个自然月**的整月表
+ * （31 条），而服务端是**近 30 天**窗口 —— 属性多 1 条就抢走数据源，于是用户翻到本月
+ * 发现日历全是 `--`，而列表里显示的是上个月的日期。日聚合表是实时写的（每轮 HA 同步
+ * 都会更新），拿它当权威比「谁条目多」合理得多。
+ *
+ * 合并时条目本身（用量/日期）以服务端为准，属性只补服务端没有的字段（如 `dayEleCost`），
+ * 这样费用列不会因为切换数据源而变成 `--`。
  */
-function preferServerList(attrRaw: unknown, serverRaw: unknown, serverWins: boolean): unknown {
+export function preferServerList(attrRaw: unknown, serverRaw: unknown, serverWins: boolean): unknown {
   const attrList = Array.isArray(attrRaw) ? attrRaw : []
   const serverList = Array.isArray(serverRaw) ? serverRaw : []
   if (!serverList.length) return attrList.length ? attrList : attrRaw
   if (!serverWins && attrList.length) return attrList
-  if (serverList.length < attrList.length) return attrList.length ? attrList : attrRaw
   const attrByLabel = new Map<string, Record<string, unknown>>()
   for (const item of attrList) {
     if (!item || typeof item !== 'object') continue
     const row = item as Record<string, unknown>
-    const label = String(row.day ?? row.month ?? row.date ?? '')
+    const label = rowDateKey(row)
     if (label) attrByLabel.set(label, row)
   }
   return serverList.map((item) => {
     if (!item || typeof item !== 'object') return item
     const row = item as Record<string, unknown>
-    const rich = attrByLabel.get(String(row.day ?? row.month ?? ''))
+    const rich = attrByLabel.get(rowDateKey(row))
     return rich ? { ...rich, ...row } : row
   })
 }

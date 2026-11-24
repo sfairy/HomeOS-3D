@@ -81,33 +81,38 @@ const FLUID_COST_KEYS = ['amount', 'cycleTotalValues', 'money', 'cost']
 export const parseGasMonthItem = makeUtilityMeterParser({
   usageKeys: FLUID_USAGE_KEYS,
   costKeys: FLUID_COST_KEYS,
-  labelKeys: ['month', 'date'],
+  // `readingTime` 与日明细同一个字段名（部分燃气/水集成三类明细都用它）。
+  // 不列它的话月/年列表的 `_label` 是空串，日历与年视图都读不出日期。
+  labelKeys: ['month', 'readingTime', 'date'],
   ...numericUsageCost,
 })
 /** parseGasYearItem：常量，取值语义见定义处。 */
 export const parseGasYearItem = makeUtilityMeterParser({
   usageKeys: FLUID_USAGE_KEYS,
   costKeys: FLUID_COST_KEYS,
-  labelKeys: ['year', 'date'],
+  labelKeys: ['year', 'readingTime', 'date'],
   ...numericUsageCost,
 })
 /** parseGridDayItem：常量，取值语义见定义处。 */
 export const parseGridDayItem = makeUtilityMeterParser({
-  usageKeys: ['dayEleNum', 'ele'],
+  // `usage` 排在最前：服务端聚合条目用中性字段名（电 / 气 / 水共用同一条渲染链），
+  // 合并属性条目时它必须压过属性里的 `dayEleNum` —— 否则日期来自服务端窗口、
+  // 用量却来自属性里的上个月整月表，日历会显示错位的数据。
+  usageKeys: ['usage', 'dayEleNum', 'ele'],
   costKeys: ['dayEleCost', 'cost'],
   labelKeys: ['day', 'date'],
   ...rawFieldUsageCost,
 })
 /** parseGridMonthItem：常量，取值语义见定义处。 */
 export const parseGridMonthItem = makeUtilityMeterParser({
-  usageKeys: ['monthEleNum', 'ele'],
+  usageKeys: ['usage', 'monthEleNum', 'ele'],
   costKeys: ['monthEleCost', 'cost'],
   labelKeys: ['month', 'date'],
   ...rawFieldUsageCost,
 })
 /** parseGridYearItem：常量，取值语义见定义处。 */
 export const parseGridYearItem = makeUtilityMeterParser({
-  usageKeys: ['yearEleNum', 'ele'],
+  usageKeys: ['usage', 'yearEleNum', 'ele'],
   costKeys: ['yearEleCost', 'cost'],
   labelKeys: ['year', 'date'],
   ...rawFieldUsageCost,

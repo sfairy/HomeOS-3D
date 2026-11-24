@@ -10,7 +10,11 @@
     :disabled="teleportDisabled"
   >
     <div class="entity-control-backdrop" @click.self="$emit('close')">
-      <component :is="PopupComp" v-bind="popupProps" @close="$emit('close')" />
+      <!--
+        `:key` 按实体区分：公事业弹窗在 setup 里确定能源类别与解析器，实例复用会把
+        上一个实体（例如电力）的数据渲染到新实体（例如燃气）的卡片上。
+      -->
+      <component :is="PopupComp" :key="entityId" v-bind="popupProps" @close="$emit('close')" />
     </div>
   </Teleport>
 </template>
