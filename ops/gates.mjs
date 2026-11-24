@@ -246,10 +246,15 @@ const GATE_GROUPS = {
       cmd: 'bash',
       args: ['ops/ci/build_frontend_verify.sh'],
     },
-    // 体积预算棘轮已移除：入口 chunk / runtime 数随功能迭代自然漂移，
-    // 构建组只守下面三条（chunk 初始化顺序、字体子集、静态产物是否真被处理过）。
+    // 体积预算棘轮：只守「首屏 preload+CSS 的 gzip 总量」与「最大懒 chunk」。
+    // 这两项一旦漂移，症状是慢网下的白屏 / 首点延迟 —— 靠人肉 review 发现不了；
+    // 具体数字与预算口径见 ops/checks/frontend/check_bundle_budget.mjs。
+    { name: 'check:bundle-budget', ...bun('run', 'check:bundle-budget') },
     { name: 'check:chunk-init', ...bun('run', 'check:chunk-init') },
     { name: 'check:font-subset', ...bun('run', 'check:font-subset') },
+    // 内置字体（assets-default/fonts）：catalog 的 size/sha256 必须与实际文件一致。
+    // 换了文件名却忘了回写 catalog 会让浏览器按旧 `?v=` 一直拿旧缓存，症状是「字体没更新」。
+    { name: 'check:default-fonts', ...bun('run', 'check:default-fonts') },
     // `public/static` 的 CSS 靠 `minify-static-css` 压、`.br`/`.gz` 靠 `precompress-static` 生成
     // （Vite 只压 `assets/` 下打包过的样式）。裸 `vite build` 会静默产出未压缩的 `studio.css`
     // 且不生成 sidecar，页面照常工作、没有报错，只有这两条能把「产物没处理过」变成红灯。
@@ -354,6 +359,28 @@ const GATE_GROUPS = {
       // 本机没装时跑不动，而「本机没装」不是密码：声明成 ciOnly 比让人自己装一份更诚实。
       ciOnly: true,
     },
+  ],
+  /**
+   * 浏览器级检查（视觉回归 / 可访问性 / 端到端冒烟 / Web Vitals）。
+   *
+   * 为什么不并进 static：它们需要「本地 dev 服务器 + 一个开了调试端口的浏览器」，
+   * 在干净的 CI runner 上必然缺失。因此单独成组，**不进默认组**：
+   *   bun run gate:ux
+   * 缺环境时三条脚本都以退出码 3 结束，这里按 SKIP 处理（不是通过，也不算失败）。
+   */
+  /**
+   * 性能基准（HTTP 热路径）。**必须独占执行**：这些数字在并行 4 路时会翻倍
+   * （typecheck 与 bench 抢同一批核心），所以单独成组且串行，不进默认组。
+   *
+   *   bun run gate:perf          # 校验（容差 15% + 0.5ms 宽限）
+   *   bun run update:perf-http   # 改动确认后重录基线
+   */
+  perf: [{ name: 'check:perf-http', ...bun('run', 'check:perf-http'), serial: true }],
+  ux: [
+    { name: 'check:e2e', ...bun('run', 'check:e2e'), skipExitCodes: [3] },
+    { name: 'check:a11y', ...bun('run', 'check:a11y'), skipExitCodes: [3] },
+    { name: 'check:visual', ...bun('run', 'check:visual'), skipExitCodes: [3] },
+    { name: 'check:vitals', ...bun('run', 'check:vitals'), skipExitCodes: [3] },
   ],
 }
 
@@ -468,6 +495,7 @@ const TAG_GROUPS = {
 const MANUAL_SCRIPTS = [
   'check:licenses', // 依赖许可证审计：需要联网，跑在 audit.yml（定时）
   'check:studio-parity', // 人工 A/B：要 Chrome + 两个服务，见 ops/scripts/studio-visual-parity.mjs
+  'soak', // 长跑泄漏观测：需要浏览器长连接稳定，见 ops/checks/perf/soak.mjs
   'check:scene-payload-mutations', // 突变测试：会临时改源树
   'check:plan-geometry-mutations', // 同上
   'audit:item-model', // 分支级哈希基线：items/ 仍在改，手动跑（见 README）

@@ -1,0 +1,29 @@
+{
+  "auth-login": {
+    "file": "auth-login.png",
+    "sha256": "a08c98cc4d97c257",
+    "width": 1600,
+    "height": 900,
+    "maxDiffRatio": 0.02,
+    "path": "/login",
+    "base": "homeos"
+  },
+  "auth-register": {
+    "file": "auth-register.png",
+    "sha256": "c5ecd2acb6ccfb9a",
+    "width": 1600,
+    "height": 900,
+    "maxDiffRatio": 0.02,
+    "path": "/register",
+    "base": "homeos"
+  },
+  "store-home": {
+    "file": "store-home.png",
+    "sha256": "10abe15a90767436",
+    "width": 1600,
+    "height": 900,
+    "maxDiffRatio": 0.001,
+    "path": "/",
+    "base": "store"
+  }
+}

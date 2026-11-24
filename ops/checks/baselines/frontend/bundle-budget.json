@@ -1,0 +1,36 @@
+{
+  "homeos": {
+    "indexHtml": "dist/homeos/frontend/index.html",
+    "preloadFiles": 12,
+    "cssFiles": 8,
+    "preloadRaw": 625880,
+    "preloadGzip": 217418,
+    "cssRaw": 249488,
+    "cssGzip": 46250,
+    "firstScreenRaw": 875368,
+    "firstScreenGzip": 263668,
+    "maxChunk": {
+      "file": "dist/homeos/frontend/static/assets/shared-B6WjDKiK.js",
+      "raw": 1539825,
+      "gzip": 483506
+    },
+    "missing": []
+  },
+  "store": {
+    "indexHtml": "dist/homeos-store/frontend/index.html",
+    "preloadFiles": 18,
+    "cssFiles": 18,
+    "preloadRaw": 151580,
+    "preloadGzip": 60633,
+    "cssRaw": 334713,
+    "cssGzip": 70530,
+    "firstScreenRaw": 486293,
+    "firstScreenGzip": 131163,
+    "maxChunk": {
+      "file": "dist/homeos-store/frontend/static/assets/index-igQF2S5h.js",
+      "raw": 102774,
+      "gzip": 35909
+    },
+    "missing": []
+  }
+}

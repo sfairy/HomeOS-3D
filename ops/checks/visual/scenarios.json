@@ -1,0 +1,87 @@
+{
+  "$comment": "视觉回归检查点。base 指向本地开发服务器；requiresAuth=true 的场景需要 HOMEOS_VISUAL_COOKIE（登录 Cookie），未提供时自动跳过而不是判失败。maxDiffRatio 是该场景允许的像素差异比例：静态页给 0，含动画/抗锯齿的给 0.001–0.003。",
+  "scenarios": [
+    {
+      "name": "auth-login",
+      "base": "homeos",
+      "path": "/login",
+      "waitMs": 3000,
+      "maxDiffRatio": 0.02,
+      "requiresAuth": false,
+      "note": "未登录可见：登录页（首屏骨架 + 品牌字 + 表单）。 入户页有动画场景与输入光标，阈值放到 2%。"
+    },
+    {
+      "name": "auth-register",
+      "base": "homeos",
+      "path": "/register",
+      "waitMs": 3000,
+      "maxDiffRatio": 0.02,
+      "requiresAuth": false,
+      "note": "未登录可见：注册页。 入户页有动画场景与输入光标，阈值放到 2%。"
+    },
+    {
+      "name": "homeos-display",
+      "base": "homeos",
+      "path": "/",
+      "viewport": {
+        "width": 1224,
+        "height": 810,
+        "deviceScaleFactor": 2
+      },
+      "waitMs": 6000,
+      "maxDiffRatio": 0.002,
+      "requiresAuth": true,
+      "note": "展示端首屏：3D 舞台 + 静态面板。等 6s 让首帧与字体稳定。"
+    },
+    {
+      "name": "homeos-devices",
+      "base": "homeos",
+      "path": "/devices",
+      "waitMs": 2500,
+      "maxDiffRatio": 0.001,
+      "requiresAuth": true,
+      "note": "设备列表页：分页表格与筛选条。"
+    },
+    {
+      "name": "homeos-events",
+      "base": "homeos",
+      "path": "/events",
+      "waitMs": 2500,
+      "maxDiffRatio": 0.001,
+      "requiresAuth": true,
+      "note": "事件日志页：时间线与统计卡。"
+    },
+    {
+      "name": "homeos-settings-display",
+      "base": "homeos",
+      "path": "/settings/display",
+      "waitMs": 2500,
+      "maxDiffRatio": 0.001,
+      "requiresAuth": true,
+      "note": "设置页代表：布局与显示。"
+    },
+    {
+      "name": "homeos-3d-studio",
+      "base": "homeos",
+      "path": "/3d-studio",
+      "viewport": {
+        "width": 1224,
+        "height": 810,
+        "deviceScaleFactor": 2
+      },
+      "waitMs": 9000,
+      "maxDiffRatio": 0.003,
+      "requiresAuth": true,
+      "note": "3D Studio 平面为主：几何、手柄、标尺。3D 内容帧间差异较大，阈值放宽。"
+    },
+    {
+      "name": "store-home",
+      "base": "store",
+      "path": "/",
+      "waitMs": 2500,
+      "maxDiffRatio": 0.001,
+      "requiresAuth": false,
+      "note": "商店首页：商品栅格与主题。"
+    }
+  ]
+}

@@ -23,6 +23,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
+import { CdpSession } from '../checks/lib/cdp-session.mjs'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = path.resolve(HERE, '../../..')
@@ -141,42 +142,8 @@ const PROBE = `(() => {
 })()`
 
 // ---------------------------------------------------------------- CDP 客户端
-
-class CdpSession {
-  #socket
-  #nextId = 1
-  #pending = new Map()
-
-  static async open(webSocketDebuggerUrl) {
-    const session = new CdpSession()
-    session.#socket = new WebSocket(webSocketDebuggerUrl)
-    await new Promise((resolve, reject) => {
-      session.#socket.addEventListener('open', resolve, { once: true })
-      session.#socket.addEventListener('error', reject, { once: true })
-    })
-    session.#socket.addEventListener('message', (event) => {
-      const payload = JSON.parse(String(event.data))
-      const pending = session.#pending.get(payload.id)
-      if (!pending) return
-      session.#pending.delete(payload.id)
-      if (payload.error) pending.reject(new Error(payload.error.message))
-      else pending.resolve(payload.result)
-    })
-    return session
-  }
-
-  send(method, params = {}) {
-    const id = this.#nextId++
-    return new Promise((resolve, reject) => {
-      this.#pending.set(id, { resolve, reject })
-      this.#socket.send(JSON.stringify({ id, method, params }))
-    })
-  }
-
-  close() {
-    this.#socket.close()
-  }
-}
+// 客户端实现与视觉回归/可访问性检查共用（ops/checks/lib/cdp-session.mjs）：
+// 三份各自维护的 WebSocket 封装会在「等一帧还是两帧」这类细节上悄悄分叉。
 
 async function openTab(url) {
   const response = await fetch(`${CDP}/json/new?${encodeURIComponent(url)}`, { method: 'PUT' })

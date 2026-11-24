@@ -23,53 +23,53 @@
     "ops"
   ],
   "totals": {
-    "sources": 3612,
-    "lines": 707985,
-    "clones": 157,
-    "duplicatedLines": 2609,
-    "percentage": 0.3685,
-    "tokens": 4148551,
-    "duplicatedTokens": 12634
+    "sources": 3650,
+    "lines": 714784,
+    "clones": 153,
+    "duplicatedLines": 2553,
+    "percentage": 0.3572,
+    "tokens": 4181869,
+    "duplicatedTokens": 12385
   },
   "byFormat": {
     "css": {
       "sources": 38,
-      "lines": 3346,
+      "lines": 3391,
       "duplicatedLines": 0,
       "percentage": 0,
       "clones": 0
     },
     "html": {
       "sources": 415,
-      "lines": 28304,
+      "lines": 28338,
       "duplicatedLines": 275,
-      "percentage": 0.9716,
+      "percentage": 0.9704,
       "clones": 20
     },
     "javascript": {
-      "sources": 300,
-      "lines": 43489,
-      "duplicatedLines": 184,
-      "percentage": 0.4231,
-      "clones": 13
+      "sources": 310,
+      "lines": 44568,
+      "duplicatedLines": 161,
+      "percentage": 0.3612,
+      "clones": 11
     },
     "python": {
-      "sources": 713,
-      "lines": 172331,
-      "duplicatedLines": 523,
-      "percentage": 0.3035,
-      "clones": 39
+      "sources": 731,
+      "lines": 176078,
+      "duplicatedLines": 490,
+      "percentage": 0.2783,
+      "clones": 37
     },
     "typescript": {
-      "sources": 1722,
-      "lines": 373680,
+      "sources": 1732,
+      "lines": 375279,
       "duplicatedLines": 1627,
-      "percentage": 0.4354,
+      "percentage": 0.4335,
       "clones": 85
     },
     "vue": {
       "sources": 424,
-      "lines": 86835,
+      "lines": 87130,
       "duplicatedLines": 0,
       "percentage": 0,
       "clones": 0
@@ -215,12 +215,6 @@
       "lines": 13
     },
     {
-      "fingerprint": "20131f3d1244463ce05e7f10493fb45dff9ff4ab",
-      "first": "homeos/frontend/scripts/models/lib/glb-io.mjs",
-      "second": "ops/checks/studio/audit_glb_materials.mjs",
-      "lines": 12
-    },
-    {
       "fingerprint": "284e7c53e34ef1a15f0f2ceb176cb541da913aef",
       "first": "homeos/frontend/src/stores/entities/entity-store-init.util.ts",
       "second": "homeos/frontend/src/stores/entities/entity-store-init.util.ts",
@@ -237,12 +231,6 @@
       "first": "homeos/frontend/src/studio/app/3d-studio/materials/studio-model-material-roles.ts",
       "second": "homeos/frontend/src/studio/app/3d-studio/materials/studio-model-material-roles.ts",
       "lines": 16
-    },
-    {
-      "fingerprint": "2b6fb7152e9742f9c1a8fd677ee209dbd5dffafb",
-      "first": "homeos/backend/src/api/device_profile.py",
-      "second": "homeos/backend/src/api/media.py",
-      "lines": 19
     },
     {
       "fingerprint": "2cd585137774455fa7ae592f640d31bb8bfd71f5",
@@ -453,12 +441,6 @@
       "first": "homeos/backend/src/domains/agent/policy/scheduler.py",
       "second": "homeos/backend/src/domains/agent/policy/scheduler.py",
       "lines": 12
-    },
-    {
-      "fingerprint": "5c6c9b74f941a7d9a42122e12689aa16f15047d4",
-      "first": "ops/checks/check_complexity.py",
-      "second": "ops/checks/check_python_format.py",
-      "lines": 14
     },
     {
       "fingerprint": "6494ba95e7f50df5927af1bc47384cafa872288e",
@@ -707,12 +689,6 @@
       "lines": 40
     },
     {
-      "fingerprint": "aeab1471cdbd1c0a2bc2f7a32e9ec9255832d2e3",
-      "first": "ops/checks/architecture/route_inventory.py",
-      "second": "ops/checks/architecture/store_route_inventory.py",
-      "lines": 12
-    },
-    {
       "fingerprint": "af6dc923fd046d56beaf6fd92509d0497e275fd1",
       "first": "homeos/frontend/src/composables/device/useDeviceAnalyticsCharts.ts",
       "second": "homeos/frontend/src/composables/device/useDeviceAnalyticsCharts.ts",
@@ -741,6 +717,12 @@
       "first": "homeos/backend/src/domains/earthquake/feeds.py",
       "second": "homeos/backend/src/domains/earthquake/feeds.py",
       "lines": 14
+    },
+    {
+      "fingerprint": "b8631078111c4b04fc4452da899a0b2f2e936ba2",
+      "first": "ops/checks/architecture/route_inventory.py",
+      "second": "ops/checks/architecture/store_route_inventory.py",
+      "lines": 12
     },
     {
       "fingerprint": "b9a631c8924bf44b999f60ac7f4d9a94ee95b4af",
@@ -837,12 +819,6 @@
       "first": "homeos/frontend/src/studio/app/renderer/panel-seams/runtime/optimistic-state.ts",
       "second": "homeos/frontend/src/studio/app/renderer/panel-seams/runtime/optimistic-state.ts",
       "lines": 14
-    },
-    {
-      "fingerprint": "d59acf10f77557b078fd6d707634b27624b9094a",
-      "first": "ops/checks/check_any_baseline.mjs",
-      "second": "ops/checks/check_hardcoded_styles.mjs",
-      "lines": 11
     },
     {
       "fingerprint": "d5d13c77fe0f5c96fdad445a4c355d710c86d8e5",

@@ -30,22 +30,19 @@ from __future__ import annotations
 
 import argparse
 import sys
-from pathlib import Path
 from typing import Any
 
-ROOT = Path(__file__).resolve().parents[3]
-BENCH_DIR = ROOT / "ops" / "bench"
-for entry in (str(ROOT), str(BENCH_DIR)):
-    if entry not in sys.path:
-        sys.path.insert(0, entry)
+# `ops/bench` 的 `sys.path` 注入收敛在 `_bench_bootstrap` 里（静态分析看不到这一步），
+# 因此它必须先于三个 bench 模块导入 —— 顺序本身就是语义，isort 不能重排。
+# isort: off
+from _bench_bootstrap import ROOT, support
 
-# `ops/bench` 由上面的 `sys.path` 注入在运行期解析；静态分析看不到这一步。
-import _support  # pyright: ignore[reportMissingImports]
 import bench_eventlog  # pyright: ignore[reportMissingImports]
 import bench_fanout  # pyright: ignore[reportMissingImports]
 import bench_json  # pyright: ignore[reportMissingImports]
+# isort: on
 
-BASELINE_PATH = _support.BASELINE_DIR / "backend-hotpaths.json"
+BASELINE_PATH = support.BASELINE_DIR / "backend-hotpaths.json"
 
 #: 确定性项的允许放大（字节类）。载荷瘦身会让它变小 —— 变小永远通过。
 BYTES_TOLERANCE = 1.15
@@ -175,11 +172,11 @@ def main(argv: list[str] | None = None) -> int:
     current = collect(args.iterations)
 
     if args.update:
-        _support.write_baseline(BASELINE_PATH, current)
+        support.write_baseline(BASELINE_PATH, current)
         print(f"已录制基线：{BASELINE_PATH.relative_to(ROOT)}")
         return 0
 
-    baseline = _support.load_baseline(BASELINE_PATH)
+    baseline = support.load_baseline(BASELINE_PATH)
     if baseline is None:
         print(
             f"缺少基线 {BASELINE_PATH.relative_to(ROOT)}；先跑一次 --update 并提交该文件。",
