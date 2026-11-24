@@ -21,6 +21,7 @@ from fastapi import FastAPI
 
 from ..domains.logs.energy_backfill import EnergyBackfillService
 from ..platform.core.runtime.observability import record_ha_counter
+from ..realtime.state_divergence import compare_state_models, record_divergence
 from ..realtime.ws_payloads import REPLAY_ONLY_MAX_CHANGES
 
 logger = logging.getLogger("homeos.app")
@@ -316,6 +317,27 @@ async def apply_state_changed_batch(app: FastAPI, gateway: Any, store: Any, payl
                 await _run_side_effects(app, change.get("entity_id"), change)
 
 
+async def _sample_state_divergence(app: FastAPI, store: Any) -> None:
+    """在快照点比较 Hub 与 L1，并把差异计入 ``/metrics``。
+
+    刻意**不抛**：这是一条观测路径，Hub 未装配、快照实现变更都不该让「对账」失败。
+    也刻意不用 gauge：瞬时差异会被下一次快照覆盖，看不出一段时间里的累计趋势。
+    """
+    studio_ha = getattr(app.state, "studio_ha", None)
+    state_hub = getattr(studio_ha, "state_hub", None) if studio_ha is not None else None
+    if state_hub is None:
+        return
+    try:
+        report = record_divergence(compare_state_models(await state_hub.state_pairs(), store.get_all()))
+    except Exception:
+        logger.debug("状态模型漂移采样失败（忽略）", exc_info=True)
+        return
+    if report.total:
+        # 只在真有差异时打日志：正常情况（两边都刚灌完同一份数据）应当恒为 0，
+        # 每次快照都打一行「0 条差异」会把有用的 WARNING 淹掉。
+        logger.warning("状态模型漂移：%s", report.as_dict())
+
+
 async def _apply_initial_snapshot(app: FastAPI, store: Any, payload: Any, bus: Any, sync_filter: Any) -> None:
     """初始 / 周期对账快照：L1 收全量，广播按展示过滤。
 
@@ -346,6 +368,9 @@ async def _apply_initial_snapshot(app: FastAPI, store: Any, payload: Any, bus: A
     # 返回值是「这次对账真正改变了什么」：断连窗口里错过的变化全在这里，不补推的话
     # 已连接的客户端会一直停在旧值上（它们不会重新拉 initial_states）。
     diff = store.set_all(entities, preserve=preserve)
+    # 快照点是「两边刚被灌入同一份权威数据」的时刻：此时仍不一致就是结构性漏写，
+    # 而不是正常的传播窗口。漂移计数见 realtime/state_divergence 的模块说明。
+    await _sample_state_divergence(app, store)
     app.state.ha_entity_count = len(broadcast_entities)
     # 能耗回填：按 attributes 发现电量实体并补齐近 N 天（旁路任务 + 节流，绝不阻塞快照）。
     _schedule_energy_backfill(app, broadcast_entities)

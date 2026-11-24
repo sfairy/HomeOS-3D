@@ -201,9 +201,11 @@ async def delete_connection(request: Request, database: DatabaseSession, _user: 
             database.commit()
 
         await run_db(_delete_connection_row)
-        from .connection_clear import clear_ha_catalog_after_disconnect as _clear
+        # 唯一重置入口（见 domains/ha/integration/state_reset 的模块说明）：
+        # 这里只需要表达「断开后清空」，Hub / L1 的成对清理与广播都在里面。
+        from ...domains.ha.integration.state_reset import reset_ha_state_models
 
-        await _clear(request.app.state, connector)
+        await reset_ha_state_models(request.app.state, connector, reason="connection-deleted")
     except Exception:
         database.rollback()
         raise

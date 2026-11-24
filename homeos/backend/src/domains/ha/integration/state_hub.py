@@ -238,6 +238,15 @@ class StateHub:
         except Exception:
             LOGGER.warning("状态观察回调失败（忽略，不影响状态分发）", exc_info=True)
 
+    async def state_pairs(self) -> dict[str, str]:
+        """``{entityId: state}`` 的轻量投影，供与 L1 做漂移比对。
+
+        为什么不复用 ``snapshot()``：它会按 ``HOMEOS_HA_STATE_HUB_COPY_PAYLOAD`` 深拷贝
+        整份 attributes（700 实体约 1MB），而漂移比对只需要 id 与 state 两个字符串。
+        """
+        async with self._lock:
+            return {key: str(value.get("state")) for key, value in self._states.items()}
+
     async def snapshot(self, entity_ids: set[str] | None = None) -> list[dict[str, Any]]:
         """返回内存状态的只读视图列表。
 
