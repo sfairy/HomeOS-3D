@@ -22,7 +22,7 @@ from typing import Any
 import httpx
 from sqlalchemy import delete, select
 
-from ...platform.core.db.media_models import MediaArrival
+from .schema import MediaArrival
 
 logger = logging.getLogger("homeos.media")
 

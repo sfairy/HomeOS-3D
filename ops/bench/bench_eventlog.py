@@ -30,10 +30,10 @@ from _support import measure, report, timing_summary
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import sessionmaker
 
+from homeos.backend.src.db_models import create_all_schemas
 from homeos.backend.src.domains.logs.event_log import EventLogService
 from homeos.backend.src.platform.core.db import models  # noqa: F401  # 注册模型到 Base.metadata
 from homeos.backend.src.platform.core.db.models import EventLog
-from homeos.backend.src.platform.core.db.schema import create_all_schemas
 
 
 class FakeDatabase:

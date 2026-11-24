@@ -34,10 +34,10 @@ if str(ROOT) not in sys.path:
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 
+from homeos.backend.src.db_models import create_all_schemas
 from homeos.backend.src.domains.agent.memory.timeline import AgentTimelineService, _numeric_jump
 from homeos.backend.src.platform.core.db import models  # noqa: F401
 from homeos.backend.src.platform.core.db.models import AgentContextTimeline
-from homeos.backend.src.platform.core.db.schema import create_all_schemas
 
 CHECKS: list[str] = []
 

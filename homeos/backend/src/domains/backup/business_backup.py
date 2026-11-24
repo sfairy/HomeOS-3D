@@ -896,8 +896,11 @@ def restore_business(
         # 4) 日志库不在备份里：还原后清空，由 prepare_schema 重建（见 reset_log_database）。
         reset_log_database(settings)
 
-        # 5) 补齐缺失的表并校验结构与完整性
-        prepare_schema(settings)
+        # 5) 补齐缺失的表并校验结构与完整性。
+        # metadata 来自组合根（src/db_models.py）：platform 是叶子层，不持有模型清单。
+        from ... import db_models
+
+        prepare_schema(settings, metadata=db_models.main_metadata(), log_metadata=db_models.log_metadata())
 
         journal["phase"] = "done"
         journal["finishedAt"] = _now_iso()

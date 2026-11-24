@@ -37,6 +37,7 @@ from .ha_state_effects import (
     _run_state_change_effects,
     apply_state_changed_batch,
 )
+from .. import db_models
 from ..domains.app_config import AppConfigBackupService, AppConfigService
 from ..domains.awareness import AdvisorUsageService, TtsSpeakService, VoiceService
 from ..domains.backup import AutoBackupService, ServerBackupService
@@ -372,7 +373,13 @@ async def _prepare_database_schema(app: FastAPI, startup: _StartupContext) -> No
     # 建库 + 迁移是纯同步 IO（SQLite 建表、执行迁移脚本、完整性校验），旧实现直接在
     # 事件循环里跑：迁移条数多的版本会把整个 loop 卡住，此时连 /health 都读不到，
     # 前端看到的「后端未就绪」窗口被无谓拉长。下放线程池后 loop 仍可响应。
-    await asyncio.to_thread(schema.prepare_schema, app_settings)
+    # metadata 由组合根提供（src/db_models.py）：platform 是叶子层，不能 import 域层表定义。
+    await asyncio.to_thread(
+        schema.prepare_schema,
+        app_settings,
+        metadata=db_models.main_metadata(),
+        log_metadata=db_models.log_metadata(),
+    )
 
 
 async def _init_core_services(app: FastAPI, startup: _StartupContext) -> None:

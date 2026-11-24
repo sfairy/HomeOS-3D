@@ -78,8 +78,8 @@ PAGE_SIZE = 200
 
 def _seed_database(database_dir: Path):
     """建一个临时 SQLite（两套表都在同一 engine 上）并灌入固定 fixture。"""
+    from homeos.backend.src.db_models import create_all_schemas
     from homeos.backend.src.platform.core.db.database import Database
-    from homeos.backend.src.platform.core.db.schema import create_all_schemas
 
     db_path = database_dir / "bench.db"
     database = Database(f"sqlite:///{db_path}")

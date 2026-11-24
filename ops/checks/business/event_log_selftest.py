@@ -41,12 +41,12 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import sessionmaker
 
+from homeos.backend.src.db_models import create_all_schemas
 from homeos.backend.src.domains.logs import event_log as event_log_module
 from homeos.backend.src.domains.logs import event_log_report as report_module
 from homeos.backend.src.domains.logs.event_log import EventLogService
 from homeos.backend.src.platform.core.db import models  # noqa: F401
 from homeos.backend.src.platform.core.db.models import EventLog
-from homeos.backend.src.platform.core.db.schema import create_all_schemas
 
 AT_A = datetime(2026, 11, 18, 13, 2, 38, 72132, tzinfo=UTC)
 AT_B = datetime(2026, 11, 18, 13, 2, 39, tzinfo=UTC)

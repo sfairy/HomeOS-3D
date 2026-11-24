@@ -88,6 +88,9 @@ HOMEOS_ROOT_MODULES: dict[str, str] = {
     "schemas": REQUEST_LAYER,
     "app": "bootstrap",
     "run": "bootstrap",
+    # ORM 元数据装配点（组合根）：必须 import 每个模型模块，其中包含域层的表定义。
+    # 这与 `app.py` 同类 —— 装配职责，不是业务逻辑。
+    "db_models": "bootstrap",
     "config": BASE_LAYER,
     "env": BASE_LAYER,
     "version": BASE_LAYER,

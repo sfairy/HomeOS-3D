@@ -68,7 +68,7 @@ TARGETS: dict[str, AppTarget] = {
         name="homeos",
         default_db=ROOT / "homeos" / "data" / "homeos.db",
         sys_path=None,
-        metadata_module="homeos.backend.src.platform.core.db.schema",
+        metadata_module="homeos.backend.src.db_models",
         baseline_module="homeos.backend.src.platform.core.db.migrations",
         app_key="homeos",
     ),
@@ -93,7 +93,7 @@ def _import(module_name: str, sys_path: Path | None):
 def _models(target: AppTarget) -> dict[str, object]:
     """{表名: Table}，来自 ORM 元数据（导入模型模块即注册）。"""
     module = _import(target.metadata_module, target.sys_path)
-    metadata = module._metadata()
+    metadata = module.main_metadata()
     return {table.name: table for table in metadata.tables.values()}
 
 

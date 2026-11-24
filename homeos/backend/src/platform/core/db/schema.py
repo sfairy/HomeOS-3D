@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import logging
 
-from sqlalchemy.engine import Engine
 from sqlalchemy.schema import MetaData
 
 from homeos_shared.schema_core import (
@@ -33,40 +32,6 @@ from ....config import Settings
 LOGGER = logging.getLogger("homeos.platform.core.schema")
 
 
-def _metadata() -> MetaData:
-    from . import (
-        automation_models,  # noqa: F401  # 注册自动化草案模型  # pyright: ignore[reportUnusedImport]
-        device_profile_models,  # noqa: F401  # 注册设备画像模型  # pyright: ignore[reportUnusedImport]
-        learning_models,  # noqa: F401  # 注册学习体系模型  # pyright: ignore[reportUnusedImport]
-        media_models,  # noqa: F401  # 注册媒体入库模型  # pyright: ignore[reportUnusedImport]
-        models,  # noqa: F401  # 注册模型到 Base.metadata  # pyright: ignore[reportUnusedImport]
-    )
-    from .database import Base
-
-    return Base.metadata
-
-
-def _log_metadata() -> MetaData:
-    """日志库的 metadata（同样靠 import models 注册，两个 metadata 一起就绪）。"""
-    _metadata()
-    from .log_base import LogBase
-
-    return LogBase.metadata
-
-
-def create_all_schemas(engine: Engine) -> None:
-    """在**同一个** engine 上建两套表（源码态 / 自检 / 单文件部署用）。
-
-    生产走 :func:`prepare_schema` 的两个库；这里只服务「一个临时 SQLite 跑自检」的场景，
-    让那些没有拆库的测试仍然拿得到日志表。定义在这里而不是 ``log_database``：本模块
-    本来就负责建表，且它已经是唯一允许同时 import 两个 metadata 的地方。
-    """
-    metadata = _metadata()
-    log_metadata = _log_metadata()
-    metadata.create_all(engine)
-    log_metadata.create_all(engine)
-
-
 def _integrity_note(report: IntegrityReport) -> str:
     """体检强度的一句话来历：日志里得能看出「这次到底有没有逐页全查」。"""
     if report.pragma == "skipped":
@@ -78,18 +43,20 @@ def _integrity_note(report: IntegrityReport) -> str:
     return "上次未干净关闭,故快速校验"
 
 
-def prepare_schema(settings: Settings) -> None:
+def prepare_schema(settings: Settings, *, metadata: MetaData, log_metadata: MetaData) -> None:
     """把两个库都迁移到当前版本、补齐 ORM 新增结构，并校验完整性。
 
     两个库：业务库 ``homeos.db``（跑迁移链）与日志库 ``homeos-logs.db``（只按
     ``LogBase.metadata`` 建表）。日志库里没有需要补列的历史，所以不需要迁移链 ——
     它的「历史」是数据，由 ``move_legacy_rows`` 一次性从主库搬过来。
+
+    **metadata 由调用方提供**（见 ``src/db_models.py`` 的说明）：本模块是 platform
+    叶子层，不能 import 域层的表定义。以前它在内部 import 全部模型模块，那是
+    ``platform → domains`` 的潜伏依赖，只是当时表都还住在 platform 里才没暴露。
     """
     from .database import Database
     from .log_database import LogDatabase, log_database_path, move_legacy_rows
 
-    metadata = _metadata()
-    log_metadata = _log_metadata()
     database = Database(settings.database_url)
     log_database = LogDatabase(settings.log_database_url)
     log_path = log_database_path(settings.data_dir)
