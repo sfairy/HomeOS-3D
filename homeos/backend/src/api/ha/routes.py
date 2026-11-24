@@ -26,6 +26,13 @@ from ...dependencies import (
     viewer_entity_ids,
 )
 from ...domains.agent.runtime.attribution import mark_local_control_for_request
+from ...domains.ha.integration.area_admin import (
+    persist_area_delete,
+    persist_area_entity_order,
+    persist_area_sort,
+    persist_area_update,
+    persist_area_upsert,
+)
 from ...domains.ha.integration.client import HAClientError
 from ...domains.ha.integration.connection_admin import (
     connection_access_token,
@@ -630,7 +637,7 @@ async def create_area(
     connection = active_connection(database)
     if connection is not None and area_id:
         await asyncio.to_thread(
-            _persist_area_upsert,
+            persist_area_upsert,
             database,
             connection.id,
             area_id,
@@ -640,33 +647,15 @@ async def create_area(
     return {"success": True, "data": {"areaId": area_id, **created}}
 
 
-def _persist_area_upsert(database, connection_id: str, area_id: str, name: str, icon: str | None) -> None:
-    """本地目录 upsert（同步；由路由 ``asyncio.to_thread`` 调用）。"""
-    row = database.scalars(
-        select(HAArea).where(HAArea.connection_id == connection_id, HAArea.area_id == area_id)
-    ).first()
-    if row is None:
-        row = HAArea(connection_id=connection_id, area_id=area_id, name=name)
-        database.add(row)
-    row.name = name
-    row.icon = icon
-    row.sync_status = "active"
-    database.commit()
-
-
 @router.put("/areas/sort")
 def sort_areas(payload: HAAreaSortRequest, database: DatabaseSession, _user: LicensedUser) -> dict[str, Any]:
     """房间排序：按数组顺序写本地 ``sortOrder``（HA 区域 registry 没有顺序字段）。"""
     connection = active_connection(database)
     if connection is None:
         return {"success": False, "message": "Home Assistant 未配置"}
-    for index, area_id in enumerate(payload.area_ids):
-        row = database.scalars(
-            select(HAArea).where(HAArea.connection_id == connection.id, HAArea.area_id == area_id)
-        ).first()
-        if row is not None:
-            row.sort_order = index
-    database.commit()
+    # 一次 IN 查询代替逐行 SELECT（原实现是每个 area_id 一条语句）。
+    # 本路由是同步 `def`：FastAPI 已在线程池里执行，不需要再 to_thread。
+    persist_area_sort(database, connection.id, payload.area_ids)
     return {"success": True, "count": len(payload.area_ids)}
 
 
@@ -681,35 +670,8 @@ async def sort_area_entities(
     connection = active_connection(database)
     if connection is None:
         return {"success": False, "message": "Home Assistant 未配置"}
-    await asyncio.to_thread(_persist_area_entity_order, database, connection.id, area_id, payload.entity_ids)
+    await asyncio.to_thread(persist_area_entity_order, database, connection.id, area_id, payload.entity_ids)
     return {"success": True, "count": len(payload.entity_ids)}
-
-
-def _persist_area_entity_order(database, connection_id: str, area_id: str, entity_ids: list[str]) -> None:
-    """整份覆盖该房间的顺序，并顺手清掉不在本次列表里的孤儿行。"""
-    existing = {
-        row.entity_id: row
-        for row in database.scalars(
-            select(HAAreaEntityOrder).where(
-                HAAreaEntityOrder.connection_id == connection_id,
-                HAAreaEntityOrder.area_id == area_id,
-            )
-        ).all()
-    }
-    kept: set[str] = set()
-    for index, entity_id in enumerate(entity_ids):
-        kept.add(entity_id)
-        row = existing.get(entity_id)
-        if row is None:
-            database.add(
-                HAAreaEntityOrder(connection_id=connection_id, area_id=area_id, entity_id=entity_id, sort_order=index)
-            )
-        else:
-            row.sort_order = index
-    for entity_id, row in existing.items():
-        if entity_id not in kept:
-            database.delete(row)
-    database.commit()
 
 
 @router.put("/areas/{area_id}")
@@ -730,7 +692,7 @@ async def update_area(
     connection = active_connection(database)
     if connection is not None:
         await asyncio.to_thread(
-            _persist_area_update,
+            persist_area_update,
             database,
             connection.id,
             area_id,
@@ -740,19 +702,6 @@ async def update_area(
     return {"success": True, "data": updated}
 
 
-def _persist_area_update(database, connection_id: str, area_id: str, name: str | None, icon: str | None) -> None:
-    row = database.scalars(
-        select(HAArea).where(HAArea.connection_id == connection_id, HAArea.area_id == area_id)
-    ).first()
-    if row is None:
-        return
-    if name is not None:
-        row.name = name
-    if icon is not None:
-        row.icon = icon or None
-    database.commit()
-
-
 @router.delete("/areas/{area_id}")
 async def delete_area(area_id: str, request: Request, database: DatabaseSession, _user: LicensedUser) -> dict[str, Any]:
     """删除房间：先删 HA，再清本地目录。"""
@@ -760,17 +709,8 @@ async def delete_area(area_id: str, request: Request, database: DatabaseSession,
     await connector.delete_area(area_id)
     connection = active_connection(database)
     if connection is not None:
-        await asyncio.to_thread(_persist_area_delete, database, connection.id, area_id)
+        await asyncio.to_thread(persist_area_delete, database, connection.id, area_id)
     return {"success": True}
-
-
-def _persist_area_delete(database, connection_id: str, area_id: str) -> None:
-    row = database.scalars(
-        select(HAArea).where(HAArea.connection_id == connection_id, HAArea.area_id == area_id)
-    ).first()
-    if row is not None:
-        database.delete(row)
-        database.commit()
 
 
 @router.put("/areas/{area_id}/entities")
