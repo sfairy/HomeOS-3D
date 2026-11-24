@@ -57,7 +57,7 @@ from ...platform.core.db.models import (
     User,
 )
 from ...platform.core.http.errors import BusinessException, ErrorCode, api_error
-from ...platform.core.http.fast_json import json_response
+from ...platform.core.http.fast_json import dumps_text, json_response
 from ...platform.core.runtime.observability import record_ha_counter
 from ...platform.security.request_origin import browser_origin_allowed
 from ...platform.security.session_store import session_token_hash
@@ -489,7 +489,7 @@ def list_entities(
         filters.append(HAEntity.area_id == area_id)
     if sync_status:
         filters.append(HAEntity.sync_status == sync_status)
-    query = select(HAEntity, func.count().over().label("total_count")).where(*filters)
+    query = select(HAEntity).where(*filters)
     if area_id:
         # 房间内按本地顺序覆盖排序；没有覆盖的实体排在后面（再按域 + 实体名）。
         # 用子查询而不是整表 join：只取当前房间的行，避免大户型下 join 全表。
@@ -505,13 +505,12 @@ def list_entities(
         )
     else:
         query = query.order_by(HAEntity.domain, HAEntity.entity_id)
-    rows = database.execute(query.offset(offset).limit(limit)).all()
-    items = [row[0] for row in rows]
-    total = (
-        int(rows[0][1])
-        if rows
-        else int(database.scalar(select(func.count()).select_from(HAEntity).where(*filters)) or 0)
-    )
+    rows = database.execute(query.offset(offset).limit(limit)).scalars().all()
+    # 独立的 COUNT 而不是 ``count() OVER ()``：窗口函数会让 SQLite 先物化**整个匹配集合**
+    # 再排序取页；分开查询时 COUNT 只走 WHERE 的索引、排序只作用于当前页。
+    # 代价是多一条语句（分页请求本来就有 2 条），换来大户型下（700+ 实体、搜索时全表）
+    # 不再为「取 200 行」把上千行连同属性一起读出来。
+    total = int(database.scalar(select(func.count()).select_from(HAEntity).where(*filters)) or 0)
     return {
         "items": [
             {
@@ -533,7 +532,7 @@ def list_entities(
                 "lastSeenAt": item.last_seen_at,
                 "missingSince": item.missing_since,
             }
-            for item in items
+            for item in rows
         ],
         "total": total,
         "limit": limit,
@@ -1179,7 +1178,10 @@ async def _runtime_log(
 
 async def _runtime_send_json(websocket: WebSocket, command: dict) -> None:
     try:
-        await websocket.send_json(command)
+        # 文本帧 + orjson：``send_json`` 走 stdlib ``json.dumps``，而这一条路径上首帧是
+        # 几百个实体的全量快照、批量帧可达 200 条 —— 实测（bench_json）orjson 约为
+        # stdlib 的 8 倍。帧类型仍是 text，客户端解析方式不变。
+        await websocket.send({"type": "websocket.send", "text": dumps_text(command)})
     except RuntimeError as error:
         if str(error) in {
             'Cannot call "send" once a close message has been sent.',

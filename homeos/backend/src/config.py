@@ -232,6 +232,9 @@ class Settings:
     session_max_age_seconds: int = 30 * 24 * 60 * 60
     #: 数据库迁移模式：auto（默认）/ check（只检测，有待执行迁移即启动失败）/ off（仅紧急逃生）。
     schema_mode: str = "auto"
+    #: 慢查询阈值（毫秒）：单条 SQL 超过它就计一次并打一条 WARNING。见
+    #: ``platform/core/runtime/observability``；设为 1 等于记录所有语句耗时。
+    slow_db_query_ms: int = 100
     #: 会话令牌 Cookie（homeos-3d 原生口径：``sessions`` 表的不透明令牌）。
     cookie_name: str = "auth_token"
     csrf_cookie_name: str = "csrf_token"
@@ -552,6 +555,7 @@ def load_settings() -> Settings:
         jwt_expires_in_seconds=int(os.getenv("JWT_EXPIRES_IN_SECONDS", "86400")),
         session_max_age_seconds=max(1, int(os.getenv("HOMEOS_SESSION_MAX_AGE_SECONDS", str(30 * 24 * 60 * 60)))),
         schema_mode=os.getenv("HOMEOS_SCHEMA_MODE", "auto").strip().lower() or "auto",
+        slow_db_query_ms=_environment_int("HOMEOS_SLOW_DB_QUERY_MS", 100, minimum=1, maximum=60000),
         cookie_name=os.getenv("COOKIE_NAME", "auth_token").strip() or "auth_token",
         csrf_cookie_name=os.getenv("CSRF_COOKIE_NAME", "csrf_token").strip() or "csrf_token",
         csrf_header_name=os.getenv("CSRF_HEADER_NAME", "X-CSRF-Token").strip() or "X-CSRF-Token",

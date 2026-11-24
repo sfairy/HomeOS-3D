@@ -49,25 +49,30 @@ def local_hour_key(moment: datetime, timezone: Any) -> str:
 
 
 def upsert_counts(session: Any, counts: dict[tuple[str, str, str, str], int]) -> None:
-    """把 ``(bucketKey, bucketUtc, domain, entityId) → 次数`` 累加进汇总表。"""
+    """把 ``(bucketKey, bucketUtc, domain, entityId) → 次数`` 累加进汇总表。
+
+    用 ``executemany``（一次 ``execute`` + 参数列表）而不是逐条执行：一批 500 行会在
+    一小时内产生最多 500 个不同的 (domain, entityId) 组合，逐条发送意味着 500 次
+    SQL 编译 + 500 次往返。SQLAlchemy 对带 ``on_conflict_do_update`` 的 insert 支持
+    参数列表，语句只编译一次。
+    """
     if not counts:
         return
-    for (bucket_key, bucket_utc, domain, entity_id), count in counts.items():
-        statement = (
-            sqlite_insert(EventLogStat)
-            .values(
-                bucket_key=bucket_key,
-                bucket_utc=bucket_utc,
-                domain=domain,
-                entity_id=entity_id,
-                count=int(count),
-            )
-            .on_conflict_do_update(
-                index_elements=["bucketKey", "domain", "entityId"],
-                set_={"count": EventLogStat.__table__.c.count + int(count)},
-            )
-        )
-        session.execute(statement)
+    statement = sqlite_insert(EventLogStat).on_conflict_do_update(
+        index_elements=["bucketKey", "domain", "entityId"],
+        set_={"count": EventLogStat.__table__.c.count + sqlite_insert(EventLogStat).excluded.count},
+    )
+    payload = [
+        {
+            "bucket_key": bucket_key,
+            "bucket_utc": bucket_utc,
+            "domain": domain,
+            "entity_id": entity_id,
+            "count": int(count),
+        }
+        for (bucket_key, bucket_utc, domain, entity_id), count in counts.items()
+    ]
+    session.execute(statement, payload)
 
 
 def build_counts(

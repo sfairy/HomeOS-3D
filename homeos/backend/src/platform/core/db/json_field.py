@@ -69,15 +69,6 @@ def read_json_object(value: Any, fallback: dict[str, Any] | None = None) -> dict
     return fallback
 
 
-def read_json_array(value: Any, fallback: list[Any] | None = None) -> list[Any]:
-    """读出数组（数组直通；非数组 → ``fallback``）。"""
-    if fallback is None:
-        fallback = []
-    if isinstance(value, list):
-        return value
-    return fallback
-
-
 def as_object(raw_value: Any) -> dict[str, Any]:
     """仅当值**本身**就是对象时返回它，否则 ``{}``。
 
@@ -104,7 +95,6 @@ __all__ = [
     "as_object",
     "object_field",
     "parse_json_array",
-    "read_json_array",
     "read_json_object",
     "to_input_json",
 ]

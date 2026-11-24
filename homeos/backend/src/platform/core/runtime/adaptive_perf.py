@@ -1,115 +1,14 @@
-"""自适应后端性能工具（对齐 ``common/observability/adaptive-backend-perf.util.ts``）。
+"""后端性能建议（对齐 ``common/observability/adaptive-backend-perf.util.ts``）。
 
-根据 HA 实体规模在内存中动态调整 WS 推送 / 状态存储批处理参数，避免大规模安装时
-出现 WS 风暴与补发缓冲压力；并提供面向运维诊断 API 的调优建议。
-
-设计要点：所有调参均为「内存热更新」，仅在进程运行期生效，不写回持久化配置文件。
+只提供**只读的调优建议**：早期版本还有一份 ``apply_adaptive_backend_perf_in_place``
+在内存里直接改 WS 批处理参数，但从未被调用（真实的自适应由 ``wsPush.latencyProfile``
+在配置层完成），已删除 —— 留着会让「谁会改我的配置」变成一个没有答案的问题。
 """
 
 from __future__ import annotations
 
-from typing import Any
-
-from .numbers import positive_number
-
 #: 默认「大实体」判定阈值：实体数 ≥ 2000 触发 large 档位自适应
 LARGE_ENTITY_THRESHOLD = 2000
-
-#: 上一次执行自适应时记录的实体数（数量未变化时短路跳过）
-_last_applied_count = 0
-
-#: 自适应基线快照：首次抬高参数前记录用户原始值，规模回落后恢复
-_adaptive_baseline: dict[str, Any] | None = None
-
-
-def _section(config: dict[str, Any], name: str) -> dict[str, Any]:
-    value = config.get(name)
-    if not isinstance(value, dict):
-        value = {}
-        config[name] = value
-    return value
-
-
-def apply_adaptive_backend_perf_in_place(config: dict[str, Any], entity_count: int) -> bool:
-    """超大规模安装时自动抬高 WS 批处理参数（内存热更新，不持久化覆盖用户更大值）。"""
-    global _last_applied_count, _adaptive_baseline
-
-    if not entity_count or entity_count == _last_applied_count:
-        return False
-
-    frontend = _section(config, "frontend")
-    ws_push = _section(config, "wsPush")
-    ha_connector = _section(config, "haConnector")
-    state_store = _section(config, "stateStore")
-
-    large_threshold = positive_number(frontend.get("largeEntityThreshold")) or LARGE_ENTITY_THRESHOLD
-    xlarge_threshold = positive_number(frontend.get("workerDerivedThreshold")) or 2000
-    profile = ws_push.get("latencyProfile") or "realtime"
-
-    if entity_count < large_threshold:
-        if _last_applied_count >= large_threshold and _adaptive_baseline:
-            if _adaptive_baseline.get("ingressCoalesceWindowMs") is not None:
-                ha_connector["ingressCoalesceWindowMs"] = _adaptive_baseline["ingressCoalesceWindowMs"]
-            if _adaptive_baseline.get("sensorFlushIntervalMs") is not None:
-                ws_push["sensorFlushIntervalMs"] = _adaptive_baseline["sensorFlushIntervalMs"]
-            if _adaptive_baseline.get("stateBatchMax") is not None:
-                ws_push["stateBatchMax"] = _adaptive_baseline["stateBatchMax"]
-            _adaptive_baseline = None
-        _last_applied_count = entity_count
-        return True
-
-    _last_applied_count = entity_count
-
-    # realtime：禁止因实体规模自动抬高延迟窗口（仍可收紧 recentChanges）
-    if profile == "realtime":
-        recent_cap = 1200 if entity_count >= xlarge_threshold else 2000
-        current_cap = state_store.get("maxRecentChanges")
-        current_cap = current_cap if isinstance(current_cap, int) else 3000
-        if current_cap > recent_cap:
-            state_store["maxRecentChanges"] = recent_cap
-            return True
-        return False
-
-    if not _adaptive_baseline:
-        _adaptive_baseline = {
-            "ingressCoalesceWindowMs": ha_connector.get("ingressCoalesceWindowMs"),
-            "sensorFlushIntervalMs": ws_push.get("sensorFlushIntervalMs"),
-            "stateBatchMax": ws_push.get("stateBatchMax"),
-        }
-
-    tier = "xlarge" if entity_count >= xlarge_threshold else "large"
-    if profile == "bulk":
-        targets = (
-            {"ingressCoalesceWindowMs": 40, "sensorFlushIntervalMs": 250, "stateBatchMax": 600}
-            if tier == "xlarge"
-            else {"ingressCoalesceWindowMs": 24, "sensorFlushIntervalMs": 180, "stateBatchMax": 400}
-        )
-    else:
-        targets = (
-            {"ingressCoalesceWindowMs": 30, "sensorFlushIntervalMs": 200, "stateBatchMax": 500}
-            if tier == "xlarge"
-            else {"ingressCoalesceWindowMs": 16, "sensorFlushIntervalMs": 150, "stateBatchMax": 350}
-        )
-
-    applied = False
-    if (ha_connector.get("ingressCoalesceWindowMs") or 16) < targets["ingressCoalesceWindowMs"]:
-        ha_connector["ingressCoalesceWindowMs"] = targets["ingressCoalesceWindowMs"]
-        applied = True
-    if (ws_push.get("sensorFlushIntervalMs") or 120) < targets["sensorFlushIntervalMs"]:
-        ws_push["sensorFlushIntervalMs"] = targets["sensorFlushIntervalMs"]
-        applied = True
-    if (ws_push.get("stateBatchMax") or 300) < targets["stateBatchMax"]:
-        ws_push["stateBatchMax"] = targets["stateBatchMax"]
-        applied = True
-
-    recent_cap = 1200 if tier == "xlarge" else 2000
-    current_cap = state_store.get("maxRecentChanges")
-    current_cap = current_cap if isinstance(current_cap, int) else 3000
-    if current_cap > recent_cap:
-        state_store["maxRecentChanges"] = recent_cap
-        applied = True
-
-    return applied
 
 
 def build_backend_perf_suggestions(
@@ -136,6 +35,5 @@ def build_backend_perf_suggestions(
 
 __all__ = [
     "LARGE_ENTITY_THRESHOLD",
-    "apply_adaptive_backend_perf_in_place",
     "build_backend_perf_suggestions",
 ]

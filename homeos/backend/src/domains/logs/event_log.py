@@ -174,9 +174,6 @@ class EventLogService(EventLogReportMixin, EnergyReportExtraMixin, EnergyStoreMi
             "tier_c_sample_rate": float(self._ops.get("eventLogTierCSampleRate") or 0),
         }
 
-    def _enabled_ck(self) -> bool:
-        return self._ops.get("eventLogTierEnabled", True) is False
-
     # ---- 保留策略 / meta ----
     def get_retention_days(self) -> int:
         cached = self._retention_cache

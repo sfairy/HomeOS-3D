@@ -126,3 +126,16 @@ def json_response(
     ``serialize_response``；``orjson`` 缺失时响应类内部回退标准库，调用方无需分支。
     """
     return OrjsonResponse(content, status_code=status_code, headers=headers)
+
+
+def dumps_text(content: Any) -> str:
+    """把内容编码为 JSON **文本**（WS 文本帧 / 日志行用）。
+
+    为什么不直接 ``send_bytes``：``/ws/runtime`` 的客户端按文本帧解析
+    （``JSON.parse(event.data)``）；改成二进制会让浏览器拿到 Blob，消息静默丢失。
+    这里只替换「编码方式」，帧类型仍是文本 —— 实测 orjson 比 stdlib 快约 8 倍
+    （见 ``ops/bench/bench_json.py``），而 ``websocket.send_json`` 走的是 stdlib。
+    """
+    if orjson is None:
+        return json.dumps(content, ensure_ascii=False, allow_nan=False, separators=(",", ":"))
+    return orjson.dumps(content, option=_ORJSON_OPTIONS).decode("utf-8")

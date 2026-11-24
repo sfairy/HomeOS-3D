@@ -97,7 +97,11 @@ from ..platform.core.http.resource_publication import recover_resource_publicati
 from ..platform.core.runtime.config_events import subscribe as subscribe_config_updates
 from ..platform.core.runtime.distributed_lock import DistributedLockService
 from ..platform.core.runtime.log import configure_app_logging
-from ..platform.core.runtime.observability import EventLoopLagMonitor
+from ..platform.core.runtime.observability import (
+    EventLoopLagMonitor,
+    configure_db_capacity,
+    configure_slow_query_threshold,
+)
 from ..platform.core.runtime.runtime_logs import RuntimeLogBuffer, install_runtime_log_handler
 from ..realtime.domain_events import DomainEventBridge
 from ..realtime.gateway import RealtimeGateway
@@ -378,6 +382,15 @@ async def _init_core_services(app: FastAPI, startup: _StartupContext) -> None:
     # 日志 / 观测量库（``homeos-logs.db``）：与业务库分文件，独立 WAL 与 checkpoint。
     # 必须在任何会写 ``event_logs`` / ``agent_context_timeline`` 的服务之前建好。
     app.state.log_database = LogDatabase(app_settings.log_database_url)
+    # 容量指标：只对文件型 SQLite 有意义（内存库/Postgres 不登记）。
+    try:
+        configure_db_capacity(
+            main=str(app_settings.database_path),
+            logs=str(app_settings.log_database_path),
+        )
+    except Exception:  # pragma: no cover - 指标登记失败不应阻断启动
+        logger.debug("数据库容量指标登记失败，已跳过", exc_info=True)
+    configure_slow_query_threshold(app_settings.slow_db_query_ms)
     app.state.settings = app_settings
     app.state.version = startup.version
     app.state.started_at = time.monotonic()

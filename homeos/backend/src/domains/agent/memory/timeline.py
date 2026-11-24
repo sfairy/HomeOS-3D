@@ -165,6 +165,20 @@ def _numeric_jump(old_state: Any, new_state: Any) -> bool:
     return abs(after - before) / max(abs(before), abs(after)) >= NUMERIC_RECORD_RATIO
 
 
+def _aware_to_naive_utc(value: Any) -> datetime:
+    """把时间归一成 naive UTC。
+
+    落库口径统一为 naive UTC：``_parse_time`` 已经这样归一，但从库里读回的
+    ``previous.changed_at`` 也是 naive —— 若调用方直接塞进来 aware datetime，
+    时长相减会抛「can't subtract offset-naive and offset-aware」，整批写入失败。
+    """
+    if isinstance(value, datetime):
+        if value.tzinfo is not None:
+            return value.astimezone(UTC).replace(tzinfo=None)
+        return value
+    return _parse_time(value)
+
+
 def _parse_time(raw: Any) -> datetime:
     """解析 HA 的 ISO 时间；非法 / 缺失回退当前时间（不带时区偏移，落库口径统一）。"""
     if isinstance(raw, datetime):
@@ -554,63 +568,65 @@ class AgentTimelineService:
             return
         spawn_background(self.prune())
 
-    def _write_sync(self, row: dict[str, Any]) -> None:
-        """单行写入（兼容入口）。"""
-        self._write_many_sync([row])
-
     def _write_many_sync(self, rows: list[dict[str, Any]]) -> None:
-        """一个事务写一批：SQLite 单写者，批量提交把每条 4 条语句降到 1 次 commit。"""
+        """一个事务写一批：一次查询结算 + 一次批量插入。
+
+        旧实现逐行「查未结束行 → add → flush」（每批 64 行 = 64 SELECT + 64 INSERT +
+        64 flush）。这里把两件事都批量化：
+
+        - **结算**：一条 ``WHERE entityId IN (...) AND endedAt IS NULL`` 取回所有待结算行，
+          再在内存里按实体挂上「最后一条未结束记录」；
+        - **批内链式**：同一批里同实体出现多次时，后一条直接结算**本批刚建的对象**
+          （不再依赖 flush 让它可见），语义与原来的 flush-per-row 等价；
+        - **写入**：``add_all`` 一次，交给 commit 统一 flush。
+        """
         if self._log_session_factory is None or not rows:
             return
         with self._log_session_factory() as session:
-            for row in rows:
-                self._write_row(session, row)
-            session.commit()
-
-    def _write_row(self, session: Any, row: dict[str, Any]) -> None:
-        # 落库口径统一为 naive UTC：``_parse_time`` 已经这样归一，但从库里读回的
-        # ``previous.changed_at`` 也是 naive —— 若调用方直接塞进来 aware datetime，
-        # 下面的时长相减会抛「can't subtract offset-naive and offset-aware」，
-        # 整批写入失败（一条脏时间把一批事件全丢掉）。
-        changed_at = row["changed_at"]
-        if isinstance(changed_at, datetime) and changed_at.tzinfo is not None:
-            changed_at = changed_at.astimezone(UTC).replace(tzinfo=None)
-        # 结算上一条：同实体的上一条记录在这里结束
-        previous = (
-            session.execute(
-                select(AgentContextTimeline)
-                .where(
-                    AgentContextTimeline.entity_id == row["entity_id"],
-                    AgentContextTimeline.ended_at.is_(None),
+            pending: dict[str, Any] = {}
+            entity_ids = {str(row["entity_id"]) for row in rows}
+            existing = (
+                session.execute(
+                    select(AgentContextTimeline)
+                    .where(
+                        AgentContextTimeline.entity_id.in_(entity_ids),
+                        AgentContextTimeline.ended_at.is_(None),
+                    )
+                    .order_by(AgentContextTimeline.changed_at.asc())
                 )
-                .order_by(AgentContextTimeline.changed_at.desc())
+                .scalars()
+                .all()
             )
-            .scalars()
-            .first()
-        )
-        if previous is not None:
-            previous.ended_at = changed_at
-            previous.duration_seconds = max(0, int((changed_at - previous.changed_at).total_seconds()))
-        session.add(
-            AgentContextTimeline(
-                entity_id=row["entity_id"],
-                domain=row["domain"],
-                area_id=row["area_id"],
-                area_name=row["area_name"],
-                old_state=row["old_state"],
-                new_state=row["new_state"],
-                changed_at=changed_at,
-                trigger_source=row["trigger_source"],
-                actor=row["actor"],
-                context=json.dumps(row["context"], ensure_ascii=False),
-                peer_snapshot=json.dumps(row["peer_snapshot"], ensure_ascii=False),
-            )
-        )
-        # 必须 flush：sessionmaker 配的是 ``autoflush=False``（见 platform/core/db/database.py），
-        # 不 flush 时下一条的「找同实体未结束行」看不到本条刚 add 的 INSERT，于是同一批里
-        # 连续变化的实体永远留下前一条 ``endedAt IS NULL``（实测 929 条、最多单实体 70 条），
-        # 「该状态仍在持续」与 ``durationSeconds`` 全部失真。
-        session.flush()
+            for previous in existing:
+                # 升序遍历：同实体多条未结束行（历史脏数据）以最后一条为准，与旧实现
+                # 的 ``order_by(changed_at.desc()).first()`` 取值一致。
+                pending[previous.entity_id] = previous
+
+            created: list[AgentContextTimeline] = []
+            for row in rows:
+                entity_id = str(row["entity_id"])
+                changed_at = _aware_to_naive_utc(row["changed_at"])
+                previous = pending.get(entity_id)
+                if previous is not None:
+                    previous.ended_at = changed_at
+                    previous.duration_seconds = max(0, int((changed_at - previous.changed_at).total_seconds()))
+                record = AgentContextTimeline(
+                    entity_id=entity_id,
+                    domain=row["domain"],
+                    area_id=row["area_id"],
+                    area_name=row["area_name"],
+                    old_state=row["old_state"],
+                    new_state=row["new_state"],
+                    changed_at=changed_at,
+                    trigger_source=row["trigger_source"],
+                    actor=row["actor"],
+                    context=json.dumps(row["context"], ensure_ascii=False),
+                    peer_snapshot=json.dumps(row["peer_snapshot"], ensure_ascii=False),
+                )
+                created.append(record)
+                pending[entity_id] = record
+            session.add_all(created)
+            session.commit()
 
     # 查询
     async def query(

@@ -23,8 +23,25 @@ from dataclasses import dataclass
 from typing import Any
 
 from .client_metrics import client_metric_lines
+from .db_metrics import (
+    configure_db_capacity,
+    configure_slow_query_threshold,
+    get_db_capacity,
+    get_db_query_counts,
+    get_slow_query_stats,
+)
 
 logger = logging.getLogger(__name__)
+
+#: 公开面：数据库指标（实现见 ``db_metrics``）从本模块再导出，启动装配只需一条 import。
+__all__ = [
+    "configure_db_capacity",
+    "configure_slow_query_threshold",
+    "format_homeos_prometheus_metrics",
+    "get_db_capacity",
+    "get_db_query_counts",
+    "get_slow_query_stats",
+]
 
 # traceId（contextvars，等价 AsyncLocalStorage）
 _trace_id: contextvars.ContextVar[str | None] = contextvars.ContextVar("trace_id", default=None)
@@ -153,32 +170,6 @@ def record_ha_counter(name: str, value: int = 1) -> None:
 def get_ha_counters() -> dict[str, int]:
     with _ha_counter_lock:
         return dict(_ha_counters)
-
-
-# 数据库查询计数（Phase 3 观测）：按语句首关键字分 select / write / other。
-# SQLAlchemy 的 before_cursor_execute 在 DB 线程回调，锁只保护三个整数，开销可忽略。
-_db_query_lock = threading.Lock()
-_db_query_counts: dict[str, int] = {"select": 0, "write": 0, "other": 0}
-
-
-def record_db_query(statement: str | None) -> None:
-    keyword = ""
-    if statement:
-        stripped = statement.lstrip()
-        keyword = stripped.split(None, 1)[0].upper() if stripped else ""
-    if keyword in {"SELECT", "WITH", "EXPLAIN"}:
-        kind = "select"
-    elif keyword in {"INSERT", "UPDATE", "DELETE", "REPLACE"}:
-        kind = "write"
-    else:
-        kind = "other"
-    with _db_query_lock:
-        _db_query_counts[kind] += 1
-
-
-def get_db_query_counts() -> dict[str, int]:
-    with _db_query_lock:
-        return dict(_db_query_counts)
 
 
 # HTTP 路由延迟直方图（Phase 4 观测）：按路由模板 / 方法 / 状态聚合，避免把路径参数
@@ -501,7 +492,46 @@ def _runtime_metric_lines(
         f'homeos_db_queries_total{{kind="select"}} {queries.get("select", 0)}',
         f'homeos_db_queries_total{{kind="write"}} {queries.get("write", 0)}',
         f'homeos_db_queries_total{{kind="other"}} {queries.get("other", 0)}',
+        *_slow_query_metric_lines(get_slow_query_stats()),
+        *_db_capacity_metric_lines(),
         *_process_resource_metric_lines(),
+    ]
+
+
+def _db_capacity_metric_lines() -> list[str]:
+    """数据库文件 / WAL 字节数（没有登记路径时整块省略，避免输出全 0 的假 series）。"""
+    capacity = get_db_capacity()
+    if not capacity:
+        return []
+    lines = [
+        "# HELP homeos_db_file_bytes SQLite database file size in bytes",
+        "# TYPE homeos_db_file_bytes gauge",
+        "# HELP homeos_db_wal_bytes SQLite WAL file size in bytes",
+        "# TYPE homeos_db_wal_bytes gauge",
+    ]
+    for name, sizes in capacity.items():
+        lines.append(f'homeos_db_file_bytes{{name="{name}"}} {int(sizes["file"])}')
+        lines.append(f'homeos_db_wal_bytes{{name="{name}"}} {int(sizes["wal"])}')
+    return lines
+
+
+def _slow_query_metric_lines(slow: dict[str, Any]) -> list[str]:
+    """慢查询块：总数、历史最大耗时、当前阈值。
+
+    只暴露三个标量：SQL 文本本身基数不可控（每张表/每个 where 都不同），
+    作为标签会让 /metrics 体积随业务增长。需要看具体语句时读 WARNING 日志
+    （``[slow-sql] <ms> <statement>``），或用 ``ops/scripts/slow_query_report.py``。
+    """
+    return [
+        "# HELP homeos_db_slow_queries_total Database statements slower than the configured threshold",
+        "# TYPE homeos_db_slow_queries_total counter",
+        f"homeos_db_slow_queries_total {int(slow.get('total', 0))}",
+        "# HELP homeos_db_slow_query_max_ms Slowest observed statement within the threshold window",
+        "# TYPE homeos_db_slow_query_max_ms gauge",
+        f"homeos_db_slow_query_max_ms {_metric_number(float(slow.get('max_ms', 0.0)))}",
+        "# HELP homeos_db_slow_query_threshold_ms Configured slow query threshold milliseconds",
+        "# TYPE homeos_db_slow_query_threshold_ms gauge",
+        f"homeos_db_slow_query_threshold_ms {_metric_number(float(slow.get('threshold_ms', 0.0)))}",
     ]
 
 

@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import bisect
 import json
 import time
 from collections import deque
@@ -541,8 +542,10 @@ def slice_entities_by_cursor(entities: list[dict[str, Any]], cursor: str | None,
     start_idx = 0
     marker = str(cursor or "").strip()
     if marker:
-        idx = next((i for i, e in enumerate(ordered) if str(e.get("entity_id") or "") > marker), -1)
-        start_idx = idx if idx >= 0 else total
+        # 二分而不是 `next((i for i, e in enumerate(ordered) if id > marker), -1)`：
+        # 游标翻页时每页都从列表头线性扫一遍，705 实体的第 4 页要比较 600+ 次。
+        ids = [str(e.get("entity_id") or "") for e in ordered]
+        start_idx = bisect.bisect_right(ids, marker)
 
     page = ordered[start_idx : start_idx + safe_limit]
     has_more = start_idx + len(page) < total

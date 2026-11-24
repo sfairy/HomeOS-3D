@@ -14,6 +14,7 @@ Socket.IO 多连接读）补齐连接级 PRAGMA：
 from __future__ import annotations
 
 import os
+import time
 from collections.abc import Callable, Iterator
 from typing import TypeVar
 
@@ -21,7 +22,7 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
-from ..runtime.observability import record_db_query
+from ..runtime.db_metrics import record_db_query
 
 #: 写锁等待毫秒数（HA 状态批量写入与业务写入并发时的削峰阈值）。
 SQLITE_BUSY_TIMEOUT_MS = 5000
@@ -77,9 +78,16 @@ class Base(DeclarativeBase):
     """所有 ORM 模型基类。"""
 
 
-def _record_query(_connection, _cursor, statement, _parameters, _context, _executemany) -> None:
-    """SQLAlchemy 语句计数（只累加整数，不参与执行路径）。"""
-    record_db_query(statement)
+def _mark_query_start(_connection, _cursor, _statement, _parameters, context, _executemany) -> None:
+    """记录语句开始时刻（挂在 SQLAlchemy 的 execution context 上，逐语句独立）。"""
+    context._homeos_query_started = time.perf_counter()
+
+
+def _record_query(_connection, _cursor, statement, _parameters, context, _executemany) -> None:
+    """语句结束时累加计数并按需上报慢查询（``after_cursor_execute`` 回调）。"""
+    started = getattr(context, "_homeos_query_started", None)
+    duration_ms = (time.perf_counter() - started) * 1000.0 if started is not None else None
+    record_db_query(statement, duration_ms=duration_ms)
 
 
 def _configure_sqlite(dbapi_connection, _connection_record) -> None:
@@ -165,7 +173,10 @@ class Database:
         )
         if database_url.startswith("sqlite"):
             event.listen(self.engine, "connect", _configure_sqlite)
-        event.listen(self.engine, "before_cursor_execute", _record_query)
+        # 计数与慢查询：before 只记开始时刻，after 计算耗时 —— 只在 after 里累加，
+        # 语句执行失败（抛异常）时不会留下「有开始没有结束」的脏计数。
+        event.listen(self.engine, "before_cursor_execute", _mark_query_start)
+        event.listen(self.engine, "after_cursor_execute", _record_query)
         self.session_factory = sessionmaker(
             bind=self.engine,
             autoflush=False,
