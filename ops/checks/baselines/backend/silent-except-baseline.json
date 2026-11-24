@@ -4,7 +4,7 @@
     "homeos/backend/src",
     "homeos-store/backend/src"
   ],
-  "total": 525,
+  "total": 524,
   "files": {
     "homeos-store/backend/src/__init__.py": 2,
     "homeos-store/backend/src/api/payments/license.py": 3,
@@ -100,6 +100,7 @@
     "homeos/backend/src/domains/client_power/linkage.py": 1,
     "homeos/backend/src/domains/client_power/percent.py": 1,
     "homeos/backend/src/domains/client_power/service.py": 1,
+    "homeos/backend/src/domains/device_profile/schema.py": 1,
     "homeos/backend/src/domains/earthquake/catalog_notify.py": 1,
     "homeos/backend/src/domains/earthquake/eew_poll.py": 1,
     "homeos/backend/src/domains/earthquake/feeds.py": 3,
@@ -125,7 +126,7 @@
     "homeos/backend/src/domains/ha/integration/state_hub.py": 4,
     "homeos/backend/src/domains/ha/integration/weather_forecast.py": 2,
     "homeos/backend/src/domains/home_exec/execute_action_sequence.py": 1,
-    "homeos/backend/src/domains/home_mode/actions.py": 3,
+    "homeos/backend/src/domains/home_mode/actions.py": 2,
     "homeos/backend/src/domains/home_mode/runtime.py": 2,
     "homeos/backend/src/domains/home_mode/service.py": 1,
     "homeos/backend/src/domains/license/features.py": 1,
@@ -191,7 +192,6 @@
     "homeos/backend/src/modules/interaction3d/render_cache.py": 2,
     "homeos/backend/src/modules/interaction3d/window.py": 1,
     "homeos/backend/src/platform/core/db/database.py": 1,
-    "homeos/backend/src/platform/core/db/device_profile_models.py": 1,
     "homeos/backend/src/platform/core/db/json_field.py": 3,
     "homeos/backend/src/platform/core/db/pagination.py": 1,
     "homeos/backend/src/platform/core/db/retention.py": 3,

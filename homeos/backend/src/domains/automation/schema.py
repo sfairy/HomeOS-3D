@@ -6,6 +6,11 @@
 草案**不会**被自动执行：``specJson`` 只是「如果要做，会是什么样」的说明。用户显式确认后，
 它会被落成一条本项目计划任务（``executionId`` 记录任务 ID），到期执行仍走 ``control_device``
 的同一套权限与高危拦截；写 HA 自动化仍然需要用户另行操作。
+
+## 为什么在本域
+
+表定义住在所属域；元数据装配在组合根（见 ``src/db_models.py``）。
+类名与 ``__tablename__`` 与搬迁前逐字相同。
 """
 
 from __future__ import annotations
@@ -15,8 +20,8 @@ from datetime import datetime
 from sqlalchemy import DateTime, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from .database import Base
-from .models import new_uuid, utc_now
+from ...platform.core.db.database import Base
+from ...platform.core.db.models import new_uuid, utc_now
 
 
 class AutomationDraft(Base):

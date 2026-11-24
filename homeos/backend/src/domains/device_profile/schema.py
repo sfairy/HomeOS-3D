@@ -11,6 +11,11 @@
 
 ``DeviceProfileAudit`` 记录人工确认 / 撤销 / 别名改写，供面板回看「谁在什么时候把
 这台设备改成了什么」—— 撤销确认不再是一次不可追溯的覆盖。
+
+## 为什么在本域
+
+表定义住在所属域；元数据装配在组合根（见 ``src/db_models.py``）。
+类名与 ``__tablename__`` 与搬迁前逐字相同。
 """
 
 from __future__ import annotations
@@ -21,8 +26,8 @@ from datetime import datetime
 from sqlalchemy import Boolean, DateTime, Float, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from .database import Base
-from .models import new_uuid, utc_now
+from ...platform.core.db.database import Base
+from ...platform.core.db.models import new_uuid, utc_now
 
 
 class DeviceProfile(Base):

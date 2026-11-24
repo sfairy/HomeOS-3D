@@ -19,7 +19,7 @@ from typing import Any
 
 from sqlalchemy import select
 
-from ....platform.core.db.learning_models import (
+from .schema import (
     HABIT_DISMISSED,
     HABIT_GRADUATED,
     HABIT_OBSERVING,

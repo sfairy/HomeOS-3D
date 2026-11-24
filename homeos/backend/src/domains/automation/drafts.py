@@ -28,6 +28,7 @@ from sqlalchemy import delete, select
 
 from .findings import read_ha_automations, read_policy_rules, read_scheduled_rules, scan_conflicts
 from .landing import build_ha_automation_payload, build_task_payload, describe_landing
+from .schema import AutomationDraft, AutomationDraftRevision
 from .spec import (
     INTENT_SUMMARY_MAX,
     MAX_CANDIDATES,
@@ -43,7 +44,6 @@ from .spec import (
     spec_hash,
     text,
 )
-from ...platform.core.db.automation_models import AutomationDraft, AutomationDraftRevision
 
 logger = logging.getLogger("homeos.automation")
 

@@ -22,7 +22,7 @@ from typing import Any
 from sqlalchemy import delete, select
 
 from .appletv import AppleTvMixin
-from ...platform.core.db.device_profile_models import DeviceProfile, DeviceProfileAudit, DeviceProfileDefault
+from .schema import DeviceProfile, DeviceProfileAudit, DeviceProfileDefault
 
 logger = logging.getLogger("homeos.device_profile")
 

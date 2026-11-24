@@ -31,7 +31,7 @@ if str(ROOT) not in sys.path:
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-import homeos.backend.src.platform.core.db.device_profile_models as profile_models  # noqa: F401
+import homeos.backend.src.domains.device_profile.schema as profile_models  # noqa: F401
 from homeos.backend.src.domains.agent.runtime.fast_path import FastPathService
 from homeos.backend.src.domains.agent.runtime.lang_templates import get_lang_template
 from homeos.backend.src.domains.device_profile.classify import (

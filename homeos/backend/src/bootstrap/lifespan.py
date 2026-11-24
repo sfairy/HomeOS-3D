@@ -37,7 +37,6 @@ from .ha_state_effects import (
     _run_state_change_effects,
     apply_state_changed_batch,
 )
-from .. import db_models
 from ..domains.app_config import AppConfigBackupService, AppConfigService
 from ..domains.awareness import AdvisorUsageService, TtsSpeakService, VoiceService
 from ..domains.backup import AutoBackupService, ServerBackupService
@@ -291,6 +290,9 @@ class _StartupContext:
 
     app_settings: Settings
     version: str
+    #: ORM 模型清单的提供者（组合根注入，见 ``create_lifespan``）。
+    metadata_provider: Callable[[], Any]
+    log_metadata_provider: Callable[[], Any]
     recovery_required: bool
     #: 贯穿整个运行期的进程锁（同一数据目录只允许一个 HomeOS 实例）。
     #: 由 lifespan 在迁移**之前**获取、停机末尾释放；授权服务只借用不拥有。
@@ -328,9 +330,19 @@ class _StartupContext:
     eew_poll: EewPollService = _pending()
     catalog_notify: EarthquakeCatalogNotifyService = _pending()
 
-    def __init__(self, app_settings: Settings, version: str) -> None:
+    def __init__(
+        self,
+        app_settings: Settings,
+        version: str,
+        *,
+        metadata_provider: Callable[[], Any],
+        log_metadata_provider: Callable[[], Any],
+    ) -> None:
         self.app_settings = app_settings
         self.version = version
+        #: ORM 模型清单的提供者（组合根注入；本模块不 import 域层表定义）。
+        self.metadata_provider = metadata_provider
+        self.log_metadata_provider = log_metadata_provider
         self.recovery_required = False
 
 
@@ -373,12 +385,13 @@ async def _prepare_database_schema(app: FastAPI, startup: _StartupContext) -> No
     # 建库 + 迁移是纯同步 IO（SQLite 建表、执行迁移脚本、完整性校验），旧实现直接在
     # 事件循环里跑：迁移条数多的版本会把整个 loop 卡住，此时连 /health 都读不到，
     # 前端看到的「后端未就绪」窗口被无谓拉长。下放线程池后 loop 仍可响应。
-    # metadata 由组合根提供（src/db_models.py）：platform 是叶子层，不能 import 域层表定义。
+    # metadata 由组合根注入（见 create_lifespan 的 metadata_provider 参数）：
+    # platform 是叶子层，不能 import 域层表定义，所以「谁的表」必须在装配处给出。
     await asyncio.to_thread(
         schema.prepare_schema,
         app_settings,
-        metadata=db_models.main_metadata(),
-        log_metadata=db_models.log_metadata(),
+        metadata=startup.metadata_provider(),
+        log_metadata=startup.log_metadata_provider(),
     )
 
 
@@ -880,6 +893,8 @@ async def _build_home_mode(app: FastAPI, startup: _StartupContext) -> None:
         jobs=app.state.jobs,
         # 动作执行走命令通道（白名单 + 幂等 + 断连拦截 + 后置校验），不再直连连接器。
         command_proxy=getattr(app.state, "command_proxy", None),
+        # 在场上下文：模式条件里的「有人在家」靠它求值，不注入则这类条件永远不成立。
+        is_anyone_home=startup.presence.is_anyone_home,
     )
     await home_mode.start()
     app.state.home_mode = home_mode
@@ -1711,14 +1726,31 @@ async def _run_startup_phases(app: FastAPI, startup: _StartupContext, started: f
     logger.debug("启动阶段原始耗时(ms):%s", startup_phases)
 
 
-def create_lifespan(app_settings: Settings, version: str):
-    """构造 FastAPI lifespan 上下文管理器。"""
+def create_lifespan(
+    app_settings: Settings,
+    version: str,
+    *,
+    metadata_provider: Callable[[], Any],
+    log_metadata_provider: Callable[[], Any],
+):
+    """构造 FastAPI lifespan 上下文管理器。
+
+    ``metadata_provider`` / ``log_metadata_provider`` 由 ``app.create_app`` 注入
+    （指向 ``src/db_models.py``）：本模块是 bootstrap 层，虽然可以依赖域层，但
+    「模型清单」属于组合根的知识；写死在这里会让 ``lifespan`` 再次变成十五个潜在
+    依赖的汇聚点（``check:giant-files`` 守的就是这个扇出）。
+    """
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         startup_started = time.perf_counter()
         app.state.startup_phases = []
-        startup = _StartupContext(app_settings=app_settings, version=version)
+        startup = _StartupContext(
+            app_settings=app_settings,
+            version=version,
+            metadata_provider=metadata_provider,
+            log_metadata_provider=log_metadata_provider,
+        )
         # 进程锁必须在**迁移与装配之前**拿到：两个进程同时对同一个数据目录跑建表 /
         # 回滚中断的还原，损坏的是用户的真实数据，而不是「第二个实例启动失败」这么轻。
         # 顺序即约束：数据目录检查 → acquire → 装配与运行 → release。

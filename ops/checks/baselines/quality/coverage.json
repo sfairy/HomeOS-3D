@@ -6,8 +6,8 @@
     "domains": 0.29,
     "modules": 0.0,
     "panel": 0.0,
-    "platform": 1.47,
-    "realtime": 1.8
+    "platform": 1.51,
+    "realtime": 1.85
   },
   "files": {
     "__init__.py": {
@@ -260,7 +260,7 @@
     },
     "bootstrap/lifespan.py": {
       "covered": 0,
-      "executable": 1139
+      "executable": 1145
     },
     "bootstrap/middleware.py": {
       "covered": 0,
@@ -290,6 +290,10 @@
       "covered": 0,
       "executable": 362
     },
+    "db_models.py": {
+      "covered": 0,
+      "executable": 28
+    },
     "dependencies.py": {
       "covered": 0,
       "executable": 103
@@ -313,6 +317,10 @@
     "domains/agent/learning/negative.py": {
       "covered": 0,
       "executable": 63
+    },
+    "domains/agent/learning/schema.py": {
+      "covered": 0,
+      "executable": 66
     },
     "domains/agent/learning/store.py": {
       "covered": 0,
@@ -758,6 +766,10 @@
       "covered": 0,
       "executable": 230
     },
+    "domains/automation/schema.py": {
+      "covered": 0,
+      "executable": 37
+    },
     "domains/automation/spec.py": {
       "covered": 0,
       "executable": 220
@@ -804,7 +816,7 @@
     },
     "domains/backup/business_backup.py": {
       "covered": 0,
-      "executable": 789
+      "executable": 790
     },
     "domains/backup/scope.py": {
       "covered": 0,
@@ -913,6 +925,10 @@
     "domains/device_profile/climate.py": {
       "covered": 0,
       "executable": 111
+    },
+    "domains/device_profile/schema.py": {
+      "covered": 0,
+      "executable": 63
     },
     "domains/device_profile/service.py": {
       "covered": 0,
@@ -1194,9 +1210,13 @@
       "covered": 0,
       "executable": 99
     },
+    "domains/home_mode/deps.py": {
+      "covered": 0,
+      "executable": 97
+    },
     "domains/home_mode/execution_record.py": {
       "covered": 0,
-      "executable": 108
+      "executable": 110
     },
     "domains/home_mode/linkage.py": {
       "covered": 0,
@@ -1216,15 +1236,15 @@
     },
     "domains/home_mode/policy.py": {
       "covered": 0,
-      "executable": 77
+      "executable": 78
     },
     "domains/home_mode/presence_rules.py": {
       "covered": 0,
-      "executable": 98
+      "executable": 112
     },
     "domains/home_mode/presets.py": {
       "covered": 0,
-      "executable": 450
+      "executable": 451
     },
     "domains/home_mode/restore.py": {
       "covered": 0,
@@ -1240,7 +1260,7 @@
     },
     "domains/home_mode/service.py": {
       "covered": 0,
-      "executable": 571
+      "executable": 488
     },
     "domains/home_mode/snapshot.py": {
       "covered": 0,
@@ -1385,6 +1405,10 @@
     "domains/media/__init__.py": {
       "covered": 0,
       "executable": 3
+    },
+    "domains/media/schema.py": {
+      "covered": 0,
+      "executable": 24
     },
     "domains/media/service.py": {
       "covered": 0,
@@ -1918,10 +1942,6 @@
       "covered": 0,
       "executable": 1
     },
-    "platform/core/db/automation_models.py": {
-      "covered": 0,
-      "executable": 37
-    },
     "platform/core/db/database.py": {
       "covered": 0,
       "executable": 99
@@ -1929,10 +1949,6 @@
     "platform/core/db/db_exec.py": {
       "covered": 0,
       "executable": 10
-    },
-    "platform/core/db/device_profile_models.py": {
-      "covered": 0,
-      "executable": 63
     },
     "platform/core/db/device_timer_model.py": {
       "covered": 0,
@@ -1942,10 +1958,6 @@
       "covered": 0,
       "executable": 56
     },
-    "platform/core/db/learning_models.py": {
-      "covered": 0,
-      "executable": 66
-    },
     "platform/core/db/log_base.py": {
       "covered": 0,
       "executable": 7
@@ -1953,10 +1965,6 @@
     "platform/core/db/log_database.py": {
       "covered": 0,
       "executable": 112
-    },
-    "platform/core/db/media_models.py": {
-      "covered": 0,
-      "executable": 24
     },
     "platform/core/db/migrations.py": {
       "covered": 0,
@@ -1984,7 +1992,7 @@
     },
     "platform/core/db/schema.py": {
       "covered": 0,
-      "executable": 85
+      "executable": 69
     },
     "platform/core/db/water_usage_model.py": {
       "covered": 0,
@@ -2319,8 +2327,8 @@
       "executable": 175
     },
     "realtime/state_divergence.py": {
-      "covered": 38,
-      "executable": 74
+      "covered": 39,
+      "executable": 73
     },
     "realtime/state_store.py": {
       "covered": 0,

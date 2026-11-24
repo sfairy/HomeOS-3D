@@ -30,12 +30,11 @@ from __future__ import annotations
 from sqlalchemy.engine import Engine
 from sqlalchemy.schema import MetaData
 
-from .domains.media import schema as _media_schema  # 域层表定义（第一个样板）
-from .platform.core.db import (  # noqa: F401  # 同上：import 即注册
-    automation_models,
-    device_profile_models,
-    learning_models,
-)
+# 域层表定义：谁的表归谁，装配点只负责 import（见模块说明）。
+from .domains.agent.learning import schema as _agent_learning_schema
+from .domains.automation import schema as _automation_schema
+from .domains.device_profile import schema as _device_profile_schema
+from .domains.media import schema as _media_schema
 
 # 平台层的通用表（用户 / 会话 / 通知 / 系统配置 / 安全事件 / 能耗 / 项目 / HA 目录 / Agent）。
 from .platform.core.db import models as _platform_models  # 注册到 Base.metadata
@@ -48,6 +47,12 @@ def main_metadata() -> MetaData:
     # 引用一次，明确「本函数依赖上面的 import 副作用」，避免被判定为无用导入而删除。
     assert _platform_models is not None
     assert _media_schema is not None
+    assert _automation_schema is not None
+    assert _device_profile_schema is not None
+    assert _agent_learning_schema is not None
+    assert _automation_schema is not None
+    assert _device_profile_schema is not None
+    assert _agent_learning_schema is not None
     return Base.metadata
 
 

@@ -20,7 +20,7 @@ from fastapi.responses import JSONResponse, Response
 
 from homeos_shared.single_process import assert_single_process
 
-from . import load_app_version
+from . import db_models, load_app_version
 from .bootstrap.exception_handlers import iso_timestamp, register_exception_handlers
 from .bootstrap.lifespan import create_lifespan
 from .bootstrap.middleware import (
@@ -71,9 +71,7 @@ def _register_probe_routes(app: FastAPI, app_settings: Settings, version: str) -
     async def health(request: Request):
         db_ok = await asyncio.to_thread(_probe_db, request.app)
         ha_connected = bool(getattr(request.app.state, "ha_connected", False))
-        ha_registry_available = ha_connected and not bool(
-            getattr(request.app.state, "ha_registry_degraded", False)
-        )
+        ha_registry_available = ha_connected and not bool(getattr(request.app.state, "ha_registry_degraded", False))
         # 启动期已建库并核对结构；健康检查只反映数据库可用性。
         return {
             "status": "ok" if db_ok else "degraded",
@@ -94,9 +92,7 @@ def _register_probe_routes(app: FastAPI, app_settings: Settings, version: str) -
             with database.engine.connect() as connection:
                 connection.exec_driver_sql("SELECT 1")
                 # 迁移版本进 readiness：镜像启动后若 schema 落后或版本表丢失，立即摘流量。
-                applied = connection.exec_driver_sql(
-                    "SELECT MAX(version) FROM schema_migrations"
-                ).scalar()
+                applied = connection.exec_driver_sql("SELECT MAX(version) FROM schema_migrations").scalar()
             if applied is None:
                 raise RuntimeError("schema_migrations 为空，数据库未完成初始化")
             return int(applied)
@@ -139,9 +135,7 @@ def _register_probe_routes(app: FastAPI, app_settings: Settings, version: str) -
             ha_connected=bool(getattr(request.app.state, "ha_connected", False)),
             entity_count=int(getattr(request.app.state, "ha_entity_count", 0)),
             socket_clients=int(getattr(request.app.state, "socket_clients", 0)),
-            uptime_seconds=int(
-                time.monotonic() - getattr(request.app.state, "started_at", time.monotonic())
-            ),
+            uptime_seconds=int(time.monotonic() - getattr(request.app.state, "started_at", time.monotonic())),
             loop_lag=loop_lag.snapshot() if loop_lag is not None else None,
             startup_duration_ms=float(getattr(request.app.state, "startup_duration_ms", 0.0)),
             startup_phases=list(getattr(request.app.state, "startup_phases", []) or []),
@@ -166,7 +160,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(
         title="HomeOS",
         version=version,
-        lifespan=create_lifespan(app_settings, version),
+        # metadata 提供者由组合根给出（`db_models`）：`platform` 是叶子层，不能持有
+        # 域层表定义；而 `lifespan` 也不该为了这件事多一条 import 扇出（giant-files 门禁）。
+        lifespan=create_lifespan(
+            app_settings,
+            version,
+            metadata_provider=db_models.main_metadata,
+            log_metadata_provider=db_models.log_metadata,
+        ),
         docs_url=None,
         redoc_url=None,
         openapi_url=None,
@@ -223,9 +224,7 @@ def create_asgi_app(settings: Settings | None = None, *, boot_import_ms: float |
     import socketio
 
     fastapi_app = create_app(settings)
-    fastapi_app.state.boot_import_ms = float(
-        boot_import_ms if boot_import_ms is not None else _MODULE_IMPORT_MS
-    )
+    fastapi_app.state.boot_import_ms = float(boot_import_ms if boot_import_ms is not None else _MODULE_IMPORT_MS)
     socketio_app = socketio.ASGIApp(
         fastapi_app.state.realtime.sio,
         other_asgi_app=fastapi_app,

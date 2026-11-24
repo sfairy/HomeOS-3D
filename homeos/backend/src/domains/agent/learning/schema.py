@@ -12,6 +12,11 @@
   避免把用户后续的人工修改覆盖掉。
 - **习惯候选独立表**：候选状态（OBSERVING / PROMPTED / DISMISSED / GRADUATED）
   与计数分开存，池满时按 ``evidenceCount / (空闲天数 + 1)`` 淘汰。
+
+## 为什么在本域
+
+表定义住在所属域；元数据装配在组合根（见 ``src/db_models.py``）。
+类名与 ``__tablename__`` 与搬迁前逐字相同。
 """
 
 from __future__ import annotations
@@ -21,8 +26,8 @@ from datetime import datetime
 from sqlalchemy import Boolean, DateTime, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from .database import Base
-from .models import new_uuid, utc_now
+from ....platform.core.db.database import Base
+from ....platform.core.db.models import new_uuid, utc_now
 
 #: 配置种类
 KIND_ALIAS = "DEVICE_ALIAS"

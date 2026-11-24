@@ -321,7 +321,7 @@ class MediaService:
         try:
             from sqlalchemy import select as _select
 
-            from ...platform.core.db.device_profile_models import DeviceProfileDefault
+            from ..device_profile.schema import DeviceProfileDefault
 
             with self._session_factory() as session:
                 rows = session.scalars(_select(DeviceProfileDefault)).all()

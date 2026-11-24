@@ -20,7 +20,7 @@ from typing import Any
 
 from sqlalchemy import select, update
 
-from ....platform.core.db.learning_models import (
+from .schema import (
     ACTION_CREATE,
     ACTION_DELETE,
     ACTION_PAUSE,
