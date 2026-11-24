@@ -1,6 +1,6 @@
 {
   "totals": {
-    "functions": 29006,
+    "functions": 29013,
     "gt10": 1308,
     "gt15": 712,
     "gt80": 806
@@ -714,7 +714,7 @@
       "max": 2
     },
     "homeos/frontend/src/features/home-mode/composables/useHomeModeSwitcher.ts": {
-      "functions": 47,
+      "functions": 51,
       "gt10": 0,
       "gt15": 0,
       "gt80": 1,
@@ -3268,12 +3268,26 @@
       "gt80": 0,
       "max": 17
     },
-    "homeos/frontend/src/studio/app/editor/component-templates.ts": {
-      "functions": 29,
+    "homeos/frontend/src/studio/app/editor/component-template-metrics.ts": {
+      "functions": 3,
       "gt10": 1,
       "gt15": 1,
-      "gt80": 3,
+      "gt80": 0,
       "max": 18
+    },
+    "homeos/frontend/src/studio/app/editor/component-templates/button.ts": {
+      "functions": 5,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 2,
+      "max": 5
+    },
+    "homeos/frontend/src/studio/app/editor/component-templates/control.ts": {
+      "functions": 6,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 4
     },
     "homeos/frontend/src/studio/app/editor/controls/number-stepper.ts": {
       "functions": 10,

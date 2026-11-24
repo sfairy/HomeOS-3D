@@ -1,6 +1,6 @@
 {
   "totals": {
-    "files": 374,
+    "files": 379,
     "color": 4253,
     "duration": 1392,
     "important": 360
@@ -1452,7 +1452,32 @@
       "important": 0
     },
     "homeos/frontend/src/studio/app/editor/component-templates.ts": {
-      "color": 89,
+      "color": 28,
+      "duration": 0,
+      "important": 0
+    },
+    "homeos/frontend/src/studio/app/editor/component-templates/button.ts": {
+      "color": 21,
+      "duration": 0,
+      "important": 0
+    },
+    "homeos/frontend/src/studio/app/editor/component-templates/control.ts": {
+      "color": 18,
+      "duration": 0,
+      "important": 0
+    },
+    "homeos/frontend/src/studio/app/editor/component-templates/display.ts": {
+      "color": 18,
+      "duration": 0,
+      "important": 0
+    },
+    "homeos/frontend/src/studio/app/editor/component-templates/media.ts": {
+      "color": 1,
+      "duration": 0,
+      "important": 0
+    },
+    "homeos/frontend/src/studio/app/editor/component-templates/shared-defaults.ts": {
+      "color": 3,
       "duration": 0,
       "important": 0
     },

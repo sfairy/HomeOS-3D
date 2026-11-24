@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-24T15:23:33.324Z",
+  "generatedAt": "2026-11-24T15:33:29.129Z",
   "roots": [
     "homeos/frontend/src",
     "homeos/backend/src",
@@ -11,39 +11,39 @@
   ],
   "byRoot": {
     "homeos/frontend/src": {
-      "code": 443308,
-      "comment": 43336,
-      "blank": 29807,
-      "chars": 13264773,
-      "files": 2095,
+      "code": 443422,
+      "comment": 43390,
+      "blank": 29832,
+      "chars": 13267745,
+      "files": 2102,
       "byExt": {
         ".vue": {
-          "code": 67406,
-          "chars": 1934742,
+          "code": 67446,
+          "chars": 1935873,
           "files": 383
         },
         ".css": {
-          "code": 72168,
-          "chars": 1580335,
+          "code": 72178,
+          "chars": 1580584,
           "files": 218
         },
         ".ts": {
-          "code": 303734,
-          "chars": 9749696,
-          "files": 1494
+          "code": 303798,
+          "chars": 9751288,
+          "files": 1501
         }
       }
     },
     "homeos/backend/src": {
-      "code": 110549,
-      "comment": 6558,
-      "blank": 18675,
-      "chars": 3452194,
+      "code": 110556,
+      "comment": 6556,
+      "blank": 18685,
+      "chars": 3454003,
       "files": 585,
       "byExt": {
         ".py": {
-          "code": 110549,
-          "chars": 3452194,
+          "code": 110556,
+          "chars": 3454003,
           "files": 585
         }
       }
@@ -125,15 +125,15 @@
       }
     },
     "ops": {
-      "code": 26658,
+      "code": 26684,
       "comment": 4601,
-      "blank": 4518,
-      "chars": 848367,
+      "blank": 4522,
+      "chars": 849460,
       "files": 172,
       "byExt": {
         ".py": {
-          "code": 12592,
-          "chars": 413779,
+          "code": 12618,
+          "chars": 414872,
           "files": 87
         },
         ".mjs": {
@@ -150,10 +150,10 @@
     }
   },
   "total": {
-    "code": 620596,
-    "comment": 58116,
-    "blank": 58629,
-    "chars": 18739949,
-    "files": 3142
+    "code": 620743,
+    "comment": 58168,
+    "blank": 58668,
+    "chars": 18745823,
+    "files": 3149
   }
 }
