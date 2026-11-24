@@ -45,8 +45,8 @@ from homeos.backend.src.domains.logs import event_log as event_log_module
 from homeos.backend.src.domains.logs import event_log_report as report_module
 from homeos.backend.src.domains.logs.event_log import EventLogService
 from homeos.backend.src.platform.core.db import models  # noqa: F401
-from homeos.backend.src.platform.core.db.database import Base
 from homeos.backend.src.platform.core.db.models import EventLog
+from homeos.backend.src.platform.core.db.schema import create_all_schemas
 
 AT_A = datetime(2026, 11, 18, 13, 2, 38, 72132, tzinfo=UTC)
 AT_B = datetime(2026, 11, 18, 13, 2, 39, tzinfo=UTC)
@@ -71,7 +71,7 @@ def build_factory(tmp: Path) -> Any:
         f"sqlite+pysqlite:///{tmp / 'events.db'}",
         connect_args={"check_same_thread": False},
     )
-    Base.metadata.create_all(engine)
+    create_all_schemas(engine)
     return sessionmaker(bind=engine)
 
 

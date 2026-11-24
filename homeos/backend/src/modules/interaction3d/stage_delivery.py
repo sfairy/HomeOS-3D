@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import logging
@@ -15,8 +16,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlencode
 
+import orjson
 from fastapi import HTTPException, Request, Response
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse
 
 from ...config import Settings
 from ...platform.core.http.frontend_resources import frontend_resource_url
@@ -81,17 +83,24 @@ def build_current_scene_entry(
     """``command`` 为 None 表示草稿不可用、退回快照。"""
     fallback = command is None
     if fallback:
-        # 缓存里的快照只读：退回路径会就地注入底图 URL，先深拷贝（referenceScene 与 scene 同一对象，与原行为一致）。
-        command = json.loads(json.dumps(reference))
+        # 缓存里的快照只读：退回路径会就地注入底图 URL，先深拷贝（referenceScene 与 scene
+        # 同一对象，与原行为一致）。``copy.deepcopy`` 而不是 ``json.loads(json.dumps())``：
+        # 后者对 160KB 的场景要真实编码 + 解析一遍，纯 C 的 deepcopy 快一个数量级，
+        # 且不会把 int 键 / 元组这类结构悄悄变成 str / list。
+        command = copy.deepcopy(reference)
         reference_scene = command["scene"]
     else:
         reference_scene = reference["scene"]
+    # 规范哈希必须继续用标准库 ``sort_keys``：它是 ``syncKey`` 的稳定口径，orjson 没有
+    # 这个选项（改口径 = 所有客户端的缓存同时失效）。
     key = hashlib.sha256(json.dumps(command["scene"], sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     command["syncKey"] = key
     command["referenceScene"] = reference_scene
     inject_background_urls(command["scene"], scene_id, project_id)
     command.pop(source_key, None)
-    return CurrentSceneEntry(sync_key=key, body=bytes(JSONResponse(command).body), fallback=fallback)
+    # 响应体只编码一次（旧实现 ``JSONResponse(command).body`` 走标准库，且与上面的
+    # 哈希编码各算一遍）。
+    return CurrentSceneEntry(sync_key=key, body=orjson.dumps(command), fallback=fallback)
 
 
 def scene_document_response(request: Request, command: dict, scene_id: str, project_id: str) -> Response:
@@ -100,7 +109,7 @@ def scene_document_response(request: Request, command: dict, scene_id: str, proj
     户型文档在同一 projectId 下稳定；此前是 ``no-store``，每次打开都全量重传并重新解析。
     换成 ``private, no-cache`` + ETag 后，未变化时只回一个空 304。
     """
-    body = JSONResponse(command).body
+    body = orjson.dumps(command)
     etag = make_etag("i3d-scene-v1", scene_id, project_id, hashlib.sha256(body).hexdigest())
     if request_etag_matches(request, etag):
         return not_modified(etag)

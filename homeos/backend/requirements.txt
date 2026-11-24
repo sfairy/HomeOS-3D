@@ -14,6 +14,11 @@ uvicorn[standard]>=0.54.0
 python-socketio>=5.18.1
 msgpack>=1.2.4
 pydantic>=2.14.4
+# 响应体序列化：FastAPI 的 JSONResponse 走标准库 json + jsonable_encoder（纯 Python 递归
+# 复制）。实测 90KB 的布局文档单次编码 0.39ms，orjson 0.06ms（约 6 倍），且两者输出逐字节
+# 一致（见 ops/bench/bench_json.py 的确定性断言）。规范哈希（ETag / syncKey）仍用标准库
+# 的 sort_keys —— orjson 没有该选项。
+orjson>=3.13.0
 python-multipart>=0.0.34
 sqlalchemy>=2.1.9
 httpx>=0.28.1

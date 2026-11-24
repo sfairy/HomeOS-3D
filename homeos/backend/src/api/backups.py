@@ -27,6 +27,7 @@ from ..domains.backup.business_backup import (
     MAX_ARCHIVE,
     BackupError,
     create_archive,
+    dispose_databases,
     durable_work,
     inspect_archive,
     refresh_runtime_after_restore,
@@ -368,7 +369,7 @@ async def restore_backup(
             lambda: restore_business(
                 request.app.state.settings,
                 directory,
-                dispose=(database.engine.dispose if database is not None else None),
+                dispose=(lambda: dispose_databases(request.app)) if database is not None else None,
             )
         )
         # 数据库已整体替换：重建系统配置 / 素材目录 / HA 连接等进程内缓存

@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field
 
 from ..backup_guard import verify_admin_password
 from ..router import NestRouter
-from ...domains.backup.business_backup import BackupError, refresh_runtime_after_restore
+from ...domains.backup.business_backup import BackupError, dispose_databases, refresh_runtime_after_restore
 from ...platform.core.http.errors import BusinessException
 from ...platform.security.auth_context import require_user
 from ...platform.security.request_origin import require_same_origin_write
@@ -133,7 +133,7 @@ async def restore_server_backup_file(
             _server(request).restore_file,
             str(payload.name or ""),
             {"confirm": payload.confirm is True},
-            dispose=(database.engine.dispose if database is not None else None),
+            dispose=(lambda: dispose_databases(request.app)) if database is not None else None,
         )
         # 与 /backups/restore 对齐：refresh 必须在 maintenance 窗口内完成，
         # 否则新库已切换而进程内配置/HA 仍是旧的，并发请求会脏读脏写。

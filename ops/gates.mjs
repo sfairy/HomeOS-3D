@@ -164,6 +164,10 @@ const GATE_GROUPS = {
         'check:parity',
       ],
     },
+    // ---- perf --------------------------------------------------------
+    // 后端热点性能门禁：扇出次数 / 载荷字节 / 日志行字节是确定性项（硬失败），
+    // 耗时默认只报不判（CI 宿主机抖动能到数倍）。基线见 ops/checks/baselines/perf/。
+    { name: 'check:perf', ...bun('run', 'check:perf') },
     // ---- invariant ---------------------------------------------------
     // 3D / 画布八条纯逻辑断言（几何内核 / 放置吸附 / 视口手势 / 窗型撤销 / 场景归一化 /
     // 状态游标 / 画布基准 / 分辨率审计）。
@@ -443,7 +447,7 @@ const TAG_GROUPS = {
   types: ['typecheck', 'typecheck:node'],
   lint: ['lint:biome', 'check:css-syntax', 'lint:py'],
   contract: ['check:toolchain', 'check:env', 'check:contracts', 'check:deps', 'check:runtime-contract'],
-  ratchet: ['check:frontend', 'check:size', 'check:backend'],
+  ratchet: ['check:frontend', 'check:size', 'check:backend', 'check:perf'],
   invariant: [
     'check:studio-invariants',
     'check:scene',

@@ -328,10 +328,10 @@ class EventLogReportMixin:
         # 12M 行时是秒级）。汇总表的 bucketKey 是写入时按家庭时区算好的墙钟文本，
         # 顺带解决了「单一固定偏移跨夏令时算错日期」的问题（F-14）。
         ensure_backfilled(
-            self._database.session_factory,
+            self._log_database.session_factory,
             resolve_business_timezone(_resolve_ops_timezone_name(self._ops)),
         )
-        with self._database.session_factory() as session:
+        with self._log_database.session_factory() as session:
             cur_series = self._aggregate_event_series(session, periods["current"], entity_ids, restrictions)
             prev_series = self._aggregate_event_series(session, periods["previous"], entity_ids, restrictions)
             cur_entities = self._aggregate_event_by_entity(session, periods["current"], entity_ids, restrictions)

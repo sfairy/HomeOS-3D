@@ -36,8 +36,8 @@ from sqlalchemy.orm import sessionmaker
 
 from homeos.backend.src.domains.agent.memory.timeline import AgentTimelineService, _numeric_jump
 from homeos.backend.src.platform.core.db import models  # noqa: F401
-from homeos.backend.src.platform.core.db.database import Base
 from homeos.backend.src.platform.core.db.models import AgentContextTimeline
+from homeos.backend.src.platform.core.db.schema import create_all_schemas
 
 CHECKS: list[str] = []
 
@@ -54,7 +54,7 @@ def build(tmp: Path) -> tuple[AgentTimelineService, Any]:
         f"sqlite+pysqlite:///{tmp / 'timeline.db'}",
         connect_args={"check_same_thread": False},
     )
-    Base.metadata.create_all(engine)
+    create_all_schemas(engine)
     factory = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
     # state_store / enrichment 都不给：本自检只关心写入结算与节流。
     return AgentTimelineService(factory, None), factory

@@ -59,6 +59,7 @@ from .scope import (
     is_excluded,
     oversize_message,
 )
+from ...platform.core.db.log_database import reset_log_database
 from ...platform.core.db.schema import prepare_schema
 from ...platform.core.http.upload_limits import MAX_BACKUP_ARCHIVE_BYTES
 from ...platform.core.runtime.async_work import durable_work as _durable_work
@@ -813,6 +814,22 @@ def _rollback_restore(
             os.chmod(settings.database_path, 0o600)
 
 
+def dispose_databases(app: Any) -> None:
+    """还原前释放**两个**库的连接池（业务库 + 日志库）。
+
+    只 dispose 主库会让日志库的连接继续指向被替换/删除的 inode：还原后写进一个已经
+    不在目录里的文件，表现为「历史永远停在还原前一秒」，且重启才恢复。
+    """
+    for attribute in ("database", "log_database"):
+        database = getattr(getattr(app, "state", None), attribute, None)
+        dispose = getattr(database, "dispose", None)
+        if callable(dispose):
+            try:
+                dispose()
+            except Exception:
+                logger.warning("释放 %s 连接池失败", attribute, exc_info=True)
+
+
 def restore_business(
     settings: Any,
     directory: Path,
@@ -876,7 +893,10 @@ def restore_business(
         os.replace(restored_db, settings.database_path)
         os.chmod(settings.database_path, 0o600)
 
-        # 4) 补齐缺失的表并校验结构与完整性
+        # 4) 日志库不在备份里：还原后清空，由 prepare_schema 重建（见 reset_log_database）。
+        reset_log_database(settings)
+
+        # 5) 补齐缺失的表并校验结构与完整性
         prepare_schema(settings)
 
         journal["phase"] = "done"

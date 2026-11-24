@@ -315,6 +315,21 @@ class Settings:
         return f"sqlite:///{self.database_path}"
 
     @property
+    def log_database_path(self) -> Path:
+        """日志 / 观测量库（``homeos-logs.db``）。
+
+        与业务库**分文件**：日志洪峰与大删除不再和业务写入抢同一把锁、同一次 checkpoint
+        （见 ``platform/core/db/log_database``）。刻意不跟 ``HOMEOS_DATABASE_URL`` 走：
+        那个覆盖是给「把主库放到别的盘」用的，日志库始终跟数据目录一起，备份口径也依赖
+        这一点（它整体不进备份）。
+        """
+        return self.data_dir / "homeos-logs.db"
+
+    @property
+    def log_database_url(self) -> str:
+        return f"sqlite:///{self.log_database_path}"
+
+    @property
     def secrets_dir(self) -> Path:
         return self.data_dir / "secrets"
 

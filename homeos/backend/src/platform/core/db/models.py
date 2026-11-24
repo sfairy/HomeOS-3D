@@ -31,6 +31,7 @@ from .database import Base
 
 # 设备倒计时表在独立模块：import 只为把表注册进 metadata（create_all 依赖它）。
 from .device_timer_model import DeviceTimer  # noqa: F401
+from .log_base import LogBase
 from .model_mixins import AlertRuleStructuredMixin, AlertRuleTimingMixin, HomeModeExtraMixin
 from .water_usage_model import WaterUsageDaily  # noqa: F401
 
@@ -140,6 +141,13 @@ class Notification(Base):
 
 
 class SecurityEvent(Base):
+    """安防审计事件。
+
+    刻意**留在业务库**：它是每天个位数量级的低写入表，且写入点分散在安防面板、首装向导、
+    联动审计等多条链路（各自只持有主库会话）。为它引入第二个会话工厂，收益为零、
+    改动面却覆盖整个审计面 —— 拆库的判据是「高频写入 + 大体积」，它两条都不满足。
+    """
+
     __tablename__ = "security_events"
     __table_args__ = (
         Index("security_events_type_idx", "type"),
@@ -289,7 +297,7 @@ class WebPushSubscription(Base):
     )
 
 
-class EventLog(Base):
+class EventLog(LogBase):
     """HA 状态事件日志。
 
     相对 Prisma 的分区表：SQLite 用自增主键 + 复合索引；保留策略按 ``createdAt``
@@ -298,13 +306,16 @@ class EventLog(Base):
 
     __tablename__ = "event_logs"
     __table_args__ = (
-        Index("event_logs_entityId_createdAt_idx", "entityId", "createdAt"),
         Index("event_logs_domain_createdAt_idx", "domain", "createdAt"),
         Index("event_logs_createdAt_idx", "createdAt"),
         # 库级幂等：同一实体的同一时刻、同一变化只存一条。应用层只在**批内**去重，
         # 跨批次重复投递（重试 / 上游 fan-out / 多进程）会永久留下重复行 ——
         # 11-18→11-21 的 1200 万行重复就是这样滚出来的。写入侧配
         # ``INSERT … ON CONFLICT DO NOTHING``，升级路径见 migrations.py 的 3 号迁移。
+        #
+        # 这条唯一索引的**前缀**恰好是 ``(entityId, createdAt)``：原先还单独有一条
+        # ``event_logs_entityId_createdAt_idx``，两者对同一个查询形状完全等价，等于每次
+        # 插入多维护一棵 B-tree、并占掉可观磁盘。8 号迁移负责在老库上把它删掉。
         Index(
             "event_logs_entity_created_diff_uq",
             "entityId",
@@ -323,7 +334,7 @@ class EventLog(Base):
     created_at: Mapped[datetime] = mapped_column("createdAt", DateTime, nullable=False, default=utc_now)
 
 
-class EventLogStat(Base):
+class EventLogStat(LogBase):
     """事件日志的小时汇总（**报表唯一读取源**）。
 
     为什么需要：``/events/stats`` 原先直接对原始行做 3 次 ``GROUP BY``，分桶键还是
@@ -879,7 +890,7 @@ class AgentTaskExecutionLog(Base):
     result: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
 
 
-class AgentContextTimeline(Base):
+class AgentContextTimeline(LogBase):
     """设备状态翻转时序：用于「这段时间为什么变了」的归因与时长统计。"""
 
     __tablename__ = "agent_context_timeline"

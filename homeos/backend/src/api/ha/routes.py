@@ -16,7 +16,7 @@ from uuid import uuid4
 
 from anyio import CancelScope, create_task_group
 from fastapi import APIRouter, HTTPException, Query, Request, WebSocket, WebSocketDisconnect, status
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import Response
 from sqlalchemy import func, or_, select
 
 from ...config import DEFAULT_RUNTIME_ACCESS_CACHE_SECONDS
@@ -57,6 +57,7 @@ from ...platform.core.db.models import (
     User,
 )
 from ...platform.core.http.errors import BusinessException, ErrorCode, api_error
+from ...platform.core.http.fast_json import json_response
 from ...platform.core.runtime.observability import record_ha_counter
 from ...platform.security.request_origin import browser_origin_allowed
 from ...platform.security.session_store import session_token_hash
@@ -671,7 +672,8 @@ async def weather_forecast(
         payload = await request.app.state.studio_ha.fetch_weather_forecast(connection, entity_id, forecast_type)
     except (HAClientError, CredentialCipherError) as error:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(error)) from error
-    return JSONResponse(payload, headers={"Cache-Control": "no-store"})
+    # 预报载荷常有几百个点：用 orjson 直接编码，绕开 jsonable_encoder 的递归复制。
+    return json_response(payload, headers={"Cache-Control": "no-store"})
 
 
 @router.get("/translations")

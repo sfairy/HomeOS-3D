@@ -54,6 +54,7 @@ MODULES: tuple[str, ...] = (
     "device_health_selftest",
     "backup_selftest",
     "event_log_selftest",
+    "log_database_selftest",
     "water_monitor_selftest",
     "energy_guard_selftest",
     "iaq_monitor_selftest",

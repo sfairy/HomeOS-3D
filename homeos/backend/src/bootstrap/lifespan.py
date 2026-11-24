@@ -92,6 +92,7 @@ from ..domains.ui_config import UiConfigService
 from ..domains.weather import WeatherAutoLinkageService, WeatherWatchService
 from ..platform.core.db import schema
 from ..platform.core.db.database import Database
+from ..platform.core.db.log_database import LogDatabase
 from ..platform.core.http.resource_publication import recover_resource_publications
 from ..platform.core.runtime.config_events import subscribe as subscribe_config_updates
 from ..platform.core.runtime.distributed_lock import DistributedLockService
@@ -374,6 +375,9 @@ async def _init_core_services(app: FastAPI, startup: _StartupContext) -> None:
     """启动第一阶段：数据库 / 日志 / 作业 / 授权 / 保留 / 事件日志。"""
     app_settings = startup.app_settings
     app.state.database = Database(app_settings.database_url)
+    # 日志 / 观测量库（``homeos-logs.db``）：与业务库分文件，独立 WAL 与 checkpoint。
+    # 必须在任何会写 ``event_logs`` / ``agent_context_timeline`` 的服务之前建好。
+    app.state.log_database = LogDatabase(app_settings.log_database_url)
     app.state.settings = app_settings
     app.state.version = startup.version
     app.state.started_at = time.monotonic()
@@ -411,7 +415,12 @@ async def _init_core_services(app: FastAPI, startup: _StartupContext) -> None:
     await studio3d_plane.install(app, app_settings, app.state.database)
 
     # 数据保留：策略面板 + 分批清理（首次延迟 + 周期调度在此接入）
-    database_retention = DatabaseRetentionService(app.state.database.session_factory, app_config, jobs=app.state.jobs)
+    database_retention = DatabaseRetentionService(
+        app.state.database.session_factory,
+        app_config,
+        jobs=app.state.jobs,
+        log_session_factory=app.state.log_database.session_factory,
+    )
     database_retention.start()
     await database_retention.start_schedule()
     app.state.database_retention = database_retention
@@ -425,6 +434,7 @@ async def _init_core_services(app: FastAPI, startup: _StartupContext) -> None:
     # 若干分路电量，全部聚合会把今日用电重复计费；没有绑定时才回退到全量识别。
     event_log_service = EventLogService(
         app.state.database,
+        log_database=app.state.log_database,
         energy_primary_entities=make_energy_primary_provider(app_config),
         energy_bindings=make_energy_bindings_provider(app_config),
         energy_circuit_entities=make_energy_circuit_provider(app_config),
@@ -922,6 +932,7 @@ async def _build_agent_domain(app: FastAPI, startup: _StartupContext) -> None:
         app.state.database.session_factory,
         startup.external_api,
         agent_config,
+        log_session_factory=app.state.log_database.session_factory,
     )
     app.state.home_tools = home_tools
 
@@ -1031,6 +1042,7 @@ def _build_agent_automation(
         startup.state_store,
         enrichment=app.state.entity_area,
         event_bus=startup.security_bus,
+        log_session_factory=app.state.log_database.session_factory,
     )
     agent_timeline.bind_events()
     app.state.agent_timeline = agent_timeline
@@ -1535,9 +1547,17 @@ async def _shutdown_all(app: FastAPI, startup: _StartupContext) -> None:
     # 兜底收尾用 background_tasks.spawn 起的后台任务（不属于任何具体服务，服务 stop() 覆盖不到）。
     await shutdown("后台任务", background_tasks.shutdown)
     startup.auto_backup.stop()
-    # 调度器停掉不代表正在跑的备份线程已经结束；先等协调器锁空闲再释放数据库，
-    # 否则备份线程可能在 VACUUM/zip 时撞上已 dispose 的连接。等待有上界，
-    # 超时则不 dispose（进程即将退出，交给 OS 回收），避免制造 use-after-dispose。
+    await _dispose_databases_after_shutdown(app, startup)
+
+
+async def _dispose_databases_after_shutdown(app: FastAPI, startup: _StartupContext) -> None:
+    """收尾释放两个库的连接池（业务库 + 日志库）。
+
+    调度器停掉不代表正在跑的备份线程已经结束；先等协调器锁空闲再释放数据库，
+    否则备份线程可能在 VACUUM/zip 时撞上已 dispose 的连接。等待有上界，
+    超时则不 dispose（进程即将退出，交给 OS 回收），避免制造 use-after-dispose。
+    日志库不参与备份，但同样只在「干净收尾」时 dispose —— 否则它的 WAL 会留在盘上。
+    """
     dispose_database = True
     coordinator = getattr(app.state, "business_backup", None)
     if coordinator is not None:
@@ -1553,6 +1573,9 @@ async def _shutdown_all(app: FastAPI, startup: _StartupContext) -> None:
         # dispose 被跳过时（备份线程还在跑）不落标记 —— 那种收尾本来就不算干净，
         # 下次启动必须逐页全查。
         mark_clean_shutdown(startup.app_settings.database_path)
+    log_database = getattr(app.state, "log_database", None)
+    if log_database is not None and dispose_database:
+        log_database.dispose()
 
 
 @asynccontextmanager

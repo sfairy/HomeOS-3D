@@ -17,6 +17,16 @@ from typing import Any
 DB_NAME = "homeos.db"
 DB_SIDECARS = ("-wal", "-shm", "-journal")
 
+#: 日志 / 观测量库。它**整体不进备份**：其中每张表（``event_logs`` /
+#: ``event_log_stats_hourly`` / ``agent_context_timeline``）本来就在
+#: ``EXCLUDED_DB_TABLES`` 里 —— 备份只保「换机后仍然有意义」的配置与用户数据，
+#: 「什么时候什么变成了什么」是本机观测历史。把它当业务文件收集反而会让备份包
+#: 多出与库同量级的体积（正是 2026-11-22 那次超限失败的同一类错误）。
+LOG_DB_NAME = "homeos-logs.db"
+
+#: 需要从数据文件收集里排除的库文件名（主库 + 日志库；改名时两边一起改）。
+DATABASE_FILE_NAMES = (DB_NAME, LOG_DB_NAME)
+
 #: 归档展开后的体积上限。
 #:
 #: 这个数字不是「业务数据能有多大」，而是「备份包必须能在客户机上生成并在浏览器里下载」：
@@ -99,7 +109,9 @@ def is_excluded(relative: str) -> bool:
     if any(relative == prefix or relative.startswith(prefix + "/") for prefix in EXCLUDED_REL_PREFIXES):
         return True
     name = parts[-1] if parts else relative
-    return name == DB_NAME or name in {f"{DB_NAME}{suffix}" for suffix in DB_SIDECARS}
+    if name in DATABASE_FILE_NAMES:
+        return True
+    return any(name == f"{db}{suffix}" for db in DATABASE_FILE_NAMES for suffix in DB_SIDECARS)
 
 
 def oversize_message(reason: str, total: int, count: int, biggest: list[tuple[int, str]]) -> str:

@@ -114,7 +114,11 @@ class HomeToolsInsightsMixin(HomeToolsHost):
             return list(session.execute(select(EnergyUsageDaily).where(EnergyUsageDaily.day == today_key)).scalars())
 
     def _load_event_rows(self, since: datetime, entity_id: str, domain: str, fetch_size: int) -> list[EventLog]:
-        with self._session_scope() as session:
+        # 事件历史住日志库：走 ``_log_session_factory``（缺省回退业务库）。
+        factory = self._log_session_factory
+        if factory is None:
+            raise ValueError("数据库未就绪")
+        with factory() as session:
             query = select(EventLog).where(EventLog.created_at >= since)
             if entity_id:
                 query = query.where(EventLog.entity_id == entity_id)

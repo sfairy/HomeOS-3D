@@ -27,6 +27,9 @@ class HomeToolsHost:
     _presence: Any = None
     _scheduler: Any = None
     _session_factory: Any = None
+    #: 日志库会话工厂（``homeos-logs.db``：event_logs / agent_context_timeline）。
+    #: 与业务库分开是为了让「读事件历史的工具调用」不去和业务写入抢同一个库。
+    _log_session_factory: Any = None
     _state_store: Any = None
     _timeline: Any = None
     _ui_config: Any = None

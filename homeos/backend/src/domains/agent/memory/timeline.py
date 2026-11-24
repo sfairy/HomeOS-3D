@@ -201,8 +201,14 @@ class AgentTimelineService:
         state_store: Any = None,
         enrichment: Any = None,
         event_bus: Any = None,
+        *,
+        log_session_factory: Any = None,
     ) -> None:
+        #: 业务库会话（保留策略读取 ``system_configs`` 等）。
         self._session_factory = session_factory
+        #: 日志库会话（``agent_context_timeline`` 住在这里：实测每天 20 万行，是写入最热的
+        #: 时序表）。未提供时回退业务库 —— 自检与单文件部署只有一份库。
+        self._log_session_factory = log_session_factory or session_factory
         self._state_store = state_store
         self._enrichment = enrichment
         self._event_bus = event_bus
@@ -554,9 +560,9 @@ class AgentTimelineService:
 
     def _write_many_sync(self, rows: list[dict[str, Any]]) -> None:
         """一个事务写一批：SQLite 单写者，批量提交把每条 4 条语句降到 1 次 commit。"""
-        if self._session_factory is None or not rows:
+        if self._log_session_factory is None or not rows:
             return
-        with self._session_factory() as session:
+        with self._log_session_factory() as session:
             for row in rows:
                 self._write_row(session, row)
             session.commit()
@@ -627,9 +633,9 @@ class AgentTimelineService:
         return rows
 
     def _query_sync(self, entity_id: str, area_id: str, since: datetime, limit: int) -> list[dict[str, Any]]:
-        if self._session_factory is None:
+        if self._log_session_factory is None:
             return []
-        with self._session_factory() as session:
+        with self._log_session_factory() as session:
             query = select(AgentContextTimeline).where(AgentContextTimeline.changed_at >= since)
             if entity_id:
                 query = query.where(AgentContextTimeline.entity_id == entity_id)
@@ -657,7 +663,7 @@ class AgentTimelineService:
     async def last_on_since(self, entity_ids: list[str]) -> dict[str, datetime]:
         """取每个实体最近一次「变为开启」的时间（看门狗判断空转时长用）。"""
         ids = [str(item) for item in entity_ids if item]
-        if not ids or self._session_factory is None:
+        if not ids or self._log_session_factory is None:
             return {}
         try:
             return await run_db(self._last_on_sync, ids)
@@ -666,10 +672,10 @@ class AgentTimelineService:
             return {}
 
     def _last_on_sync(self, entity_ids: list[str]) -> dict[str, datetime]:
-        if self._session_factory is None:
+        if self._log_session_factory is None:
             return {}
         on_states = ("on", "open", "playing", "heat", "cool", "auto", "heat_cool", "dry", "fan_only")
-        with self._session_factory() as session:
+        with self._log_session_factory() as session:
             rows = list(
                 session.execute(
                     select(AgentContextTimeline)
@@ -689,7 +695,7 @@ class AgentTimelineService:
     # 保留期
     async def prune(self) -> int:
         """清理超过保留期的时序记录（返回删除条数）。"""
-        if self._session_factory is None:
+        if self._log_session_factory is None:
             return 0
         async with self._prune_lock:
             cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=self._retention_days)
@@ -708,11 +714,11 @@ class AgentTimelineService:
         旧实现是一条无 ``LIMIT`` 的 ``DELETE``：库里数十万过期行时单个事务长时间持有
         写锁。这里按 ``PRUNE_BATCH_SIZE`` 分批，并给批数上限，剩余留到下一轮。
         """
-        if self._session_factory is None:
+        if self._log_session_factory is None:
             return 0
         total = 0
         for _ in range(PRUNE_MAX_BATCHES):
-            with self._session_factory() as session:
+            with self._log_session_factory() as session:
                 ids = list(
                     session.execute(
                         select(AgentContextTimeline.id)

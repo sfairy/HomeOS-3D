@@ -68,7 +68,23 @@ _TIMELINE_OPEN_INDEX_SQL = (
 )
 
 
+def _table_exists(connection: sqlite3.Connection, table: str) -> bool:
+    """表是否还在主库。
+
+    日志 / 观测量的三张表已经搬到 ``homeos-logs.db``（见 ``log_database`` 模块）：
+    全新库里主库**没有**这些表，而 ``ensure_schema(LogBase.metadata)`` 已经按模型建好了
+    正确结构（含索引与唯一约束）。这些迁移只服务「升级上来的老库」，表不在就跳过 ——
+    否则会在全新安装的第一步直接 ``no such table``。
+    """
+    row = connection.execute(
+        "SELECT 1 FROM main.sqlite_master WHERE type='table' AND name=? LIMIT 1", (table,)
+    ).fetchone()
+    return row is not None
+
+
 def _timeline_open_index(connection: sqlite3.Connection, _context: MigrationContext) -> None:
+    if not _table_exists(connection, "agent_context_timeline"):
+        return
     connection.execute(_TIMELINE_OPEN_INDEX_SQL)
 
 
@@ -86,6 +102,9 @@ _EVENT_LOG_UNIQUE_INDEX_SQL = (
 
 
 def _event_log_dedupe(connection: sqlite3.Connection, _context: MigrationContext) -> None:
+    # 老库才有这张表；新库里它由 LogBase.metadata 直接建成带唯一索引的形状。
+    if not _table_exists(connection, "event_logs"):
+        return
     connection.execute(_EVENT_LOG_DEDUPE_SQL)
     connection.execute(_EVENT_LOG_UNIQUE_INDEX_SQL)
 
@@ -101,6 +120,8 @@ _EVENT_STATS_UTC_INDEX_SQL = (
 
 
 def _event_stats_utc_index(connection: sqlite3.Connection, _context: MigrationContext) -> None:
+    if not _table_exists(connection, "event_log_stats_hourly"):
+        return
     connection.execute(_EVENT_STATS_UTC_INDEX_SQL)
 
 
@@ -169,6 +190,23 @@ def _water_usage_table(connection: sqlite3.Connection, _context: MigrationContex
         connection.execute(statement)
 
 
+#: 8 号：删掉 ``event_logs`` 上与唯一索引重复的实体索引。
+#:
+#: 3 号建的 ``event_logs_entity_created_diff_uq`` 前缀正好是 ``(entityId, createdAt)``，
+#: 与 ``event_logs_entityId_createdAt_idx`` 对同一查询形状完全等价。两条并存时：
+#:
+#: - 每次插入多维护一棵 B-tree（日志是高频写入表）；
+#: - 实测时间序列表占库 96%（表 513 MB + 索引 333 MB），其中一条是纯重复；
+#: - ``query_history`` 的 ``WHERE entityId = ?`` 仍能走唯一索引的前缀。
+#:
+#: ``DROP INDEX IF EXISTS`` 对「表还不存在」（全新库先跑迁移再 ``create_all``）是空操作。
+_EVENT_LOG_REDUNDANT_INDEX_SQL = "DROP INDEX IF EXISTS event_logs_entityId_createdAt_idx"
+
+
+def _drop_event_log_redundant_index(connection: sqlite3.Connection, _context: MigrationContext) -> None:
+    connection.execute(_EVENT_LOG_REDUNDANT_INDEX_SQL)
+
+
 MIGRATIONS: tuple[Migration, ...] = (
     Migration(BASELINE_VERSION, BASELINE_NAME, BASELINE_CHECKSUM, _noop),
     Migration(2, "agent-timeline-open-index", "h0002-timeline-open-index", _timeline_open_index),
@@ -177,6 +215,7 @@ MIGRATIONS: tuple[Migration, ...] = (
     Migration(5, "energy-usage-unit", "h0005-energy-usage-unit", _energy_unit_columns),
     Migration(6, "energy-usage-hourly", "h0006-energy-usage-hourly", _energy_hourly_table),
     Migration(7, "water-usage-daily", "h0007-water-usage-daily", _water_usage_table),
+    Migration(8, "event-log-drop-redundant-index", "h0008-event-log-drop-dup-index", _drop_event_log_redundant_index),
 )
 
 

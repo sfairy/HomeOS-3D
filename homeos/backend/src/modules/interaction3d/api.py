@@ -12,7 +12,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, Response
 from pydantic import Field
 from sqlalchemy import select
 from starlette.concurrency import run_in_threadpool
@@ -43,6 +43,7 @@ from ...domains.ha.integration.service_call import (
 )
 from ...platform.core.db.models import HAEntity, ProjectDraft
 from ...platform.core.http.asset_paths import UPLOAD_CONTENT_TYPES, user_asset_file
+from ...platform.core.http.fast_json import json_response
 from ...platform.core.http.frontend_static import strip_auth_scene_assets
 from ...platform.core.runtime.atomic_write import restrict_private_file
 from ...platform.http_cache import request_etag_matches
@@ -1463,8 +1464,8 @@ async def put_render_cache(scene_id: str, cache_key: str, request: Request, view
 
 
 @router.get('/access')
-def get_access(request: Request, _viewer: LicensedViewer) -> JSONResponse:
-    return JSONResponse(access_grant(request), headers={'Cache-Control': 'no-store'})
+def get_access(request: Request, _viewer: LicensedViewer) -> Response:
+    return json_response(access_grant(request), headers={'Cache-Control': 'no-store'})
 
 
 @router.get('/projects/{project_id}/components/{component_id}/config')

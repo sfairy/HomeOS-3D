@@ -15,7 +15,7 @@ import logging
 from ipaddress import ip_address
 from urllib.parse import urlsplit
 
-from fastapi import Request
+from fastapi import Request, WebSocket
 
 from ..core.http.errors import RequestRejected
 from ..core.http.hostnames import browser_reachable
@@ -76,12 +76,17 @@ def _allowed_origins(settings) -> set[tuple[str, str, int]]:
 
 
 def browser_origin_allowed(
-    connection: Request,
+    connection: Request | WebSocket,
     *,
     websocket: bool = False,
     public_report: bool = False,
 ) -> bool:
     """统一的浏览器来源判定（HTTP 写操作 / WebSocket 握手 / 匿名上报共用）。
+
+    ``connection`` 允许 ``Request`` 或 ``WebSocket``：本函数只读 ``headers``、
+    ``url.scheme`` 与 ``app.state.settings``，这两个类都有（Starlette 的 ``HTTPConnection``
+    就是它们的公共基类）。原先只标 ``Request``，于是 WS 握手那条调用点必然被类型检查判成
+    不兼容 —— 运行时一直是对的，错的只是标注。
 
     判据按强度递进：
 

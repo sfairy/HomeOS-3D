@@ -1,0 +1,52 @@
+{
+  "eventlog": {
+    "p95_ms": 46.528,
+    "state_chars_per_row": 46.0
+  },
+  "fanout": {
+    "bytes_per_batch": 42997,
+    "emits_per_batch": 4,
+    "p95_ms": 1.194,
+    "serializations_per_batch": 4
+  },
+  "json": {
+    "entities": {
+      "canonical": 45858,
+      "encoder": 45858,
+      "fastapi": 45858,
+      "orjson": 45858
+    },
+    "scene": {
+      "canonical": 78015,
+      "encoder": 78015,
+      "fastapi": 78015,
+      "orjson": 78015
+    },
+    "ui-config": {
+      "canonical": 91461,
+      "encoder": 91461,
+      "fastapi": 91461,
+      "orjson": 91461
+    }
+  },
+  "json_p95_ms": {
+    "entities": {
+      "canonical": 0.492,
+      "encoder": 2.597,
+      "fastapi": 0.177,
+      "orjson": 0.063
+    },
+    "scene": {
+      "canonical": 0.757,
+      "encoder": 5.711,
+      "fastapi": 0.627,
+      "orjson": 0.095
+    },
+    "ui-config": {
+      "canonical": 1.041,
+      "encoder": 6.724,
+      "fastapi": 0.603,
+      "orjson": 0.097
+    }
+  }
+}

@@ -41,6 +41,29 @@ logger = logging.getLogger("homeos.ui_config")
 
 _LAYOUT_CONFIG_UPDATED_EVENT = "layout.config.updated"
 
+#: 已解析 layout 的进程内缓存：``project_id -> (原始 JSON 文本, 解析结果)``。
+#:
+#: 设置页与画布每次加载都要读一次 ``ProjectConfig.layout``（几十到几百 KB 的 JSON），
+#: 解析是纯 Python 的 ``json.loads``。键用**原始文本**而不是 ``updatedAt``：文本变了就
+#: 重新解析，永远不会读到过期内容（整库还原、直接改库都不会穿透缓存）。
+#: 上限刻意很小：真实安装只有几个 layout（默认项目 + 各终端），8 条足够。
+_LAYOUT_CACHE_LIMIT = 8
+_layout_cache: dict[str, tuple[str, dict[str, Any]]] = {}
+
+
+def _parse_layout_cached(project_id: str, raw: Any) -> dict[str, Any]:
+    """``read_json_object`` + 按原始文本缓存解析结果（非字符串输入不走缓存）。"""
+    if not isinstance(raw, str):
+        return read_json_object(raw)
+    cached = _layout_cache.get(project_id)
+    if cached is not None and cached[0] == raw:
+        return cached[1]
+    parsed = read_json_object(raw)
+    if len(_layout_cache) >= _LAYOUT_CACHE_LIMIT and project_id not in _layout_cache:
+        _layout_cache.pop(next(iter(_layout_cache)), None)
+    _layout_cache[project_id] = (raw, parsed)
+    return parsed
+
 
 def _iso(value: datetime | None) -> str | None:
     if value is None:
@@ -121,7 +144,7 @@ class UiConfigService:
         return {
             "id": config.id,
             "projectId": config.project_id,
-            "layout": read_json_object(config.layout),
+            "layout": _parse_layout_cached(config.project_id, config.layout),
             "createdAt": _iso(config.created_at),
             "updatedAt": _iso(config.updated_at),
         }

@@ -13,6 +13,22 @@ from typing import Any
 from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
+from .energy_report import EnergyReportExtraMixin
+from .energy_store import EnergyStoreMixin
+from .event_log_report import (
+    EventLogReportMixin,
+    EventLogStatsPayload,
+    _full_event_row,
+    _naive_utc,
+    _report_now,
+    _resolve_event_occurred_at,
+    _resolve_ops_timezone_name,
+    _restriction_conditions,
+    _state_text,
+    build_event_log_stats,
+    map_history_row,
+    resolve_event_log_time_granularity,
+)
 from .event_log_tier import (
     build_record_filter,
     get_changed_control_attr,
@@ -37,20 +53,11 @@ from ...platform.security.entity_access import is_entity_allowed
 
 logger = logging.getLogger("homeos.event_log")
 
-from .event_log_report import (
-    EventLogReportMixin,
-    EventLogStatsPayload,
-    _full_event_row,
-    _naive_utc,
-    _report_now,
-    _resolve_event_occurred_at,
-    _resolve_ops_timezone_name,
-    _restriction_conditions,
-    _state_text,
-    build_event_log_stats,
-    map_history_row,
-    resolve_event_log_time_granularity,
-)
+try:  # orjson 是运行期依赖；缺失时行编码回退标准库
+    import orjson
+except ImportError:  # pragma: no cover - 依赖缺失的降级路径
+    orjson = None  # type: ignore[assignment]
+    logger.debug("orjson 未安装，事件日志行编码回退标准库")
 
 #: `clear_all_records` 的批数上限（批大小见 ops 的 `retentionDeleteBatchSize`，默认 800）。
 #: 触顶不是错误（库里可能真有上百万行），但必须把 `complete=False` 如实返回给调用方。
@@ -73,8 +80,28 @@ ENERGY_BUFFER_MAX = 2000
 RETENTION_CACHE_TTL_SECONDS = 5.0
 
 
-from .energy_report import EnergyReportExtraMixin
-from .energy_store import EnergyStoreMixin
+def _encode_state(state: dict[str, Any]) -> str:
+    """状态 dict → 列里的 JSON 文本（orjson 优先，缺失时回退标准库）。"""
+    if orjson is not None:
+        return orjson.dumps(state).decode("utf-8")
+    return json.dumps(state, ensure_ascii=False)
+
+
+def _keep_old_state(entity_id: str, old_state: Any, event: dict[str, Any]) -> Any:
+    """非电表行不再落 ``oldState``；电表必须保留。
+
+    列表接口的旧态本来就不读这一列：``map_history_row`` 从 ``stateDiff``（``old→new``
+    文本）解析，只有 ``includeFullState`` 的详情接口读它。而每行两份 JSON 是这张表的
+    写入成本大头 —— 高频 ``light`` 行里 ``oldState`` 与 ``newState`` 形状几乎一样
+    （属性只保留变化键，state 只差一个词）。
+
+    电表不能省：``compute_meter_delta`` 靠前后两个读数算增量，缺一档就丢记账。
+    """
+    if old_state is None:
+        return None
+    if is_energy_meter_state(entity_id, event.get("old_state"), event.get("new_state")):
+        return old_state
+    return None
 
 
 class EventLogService(EventLogReportMixin, EnergyReportExtraMixin, EnergyStoreMixin):
@@ -84,6 +111,7 @@ class EventLogService(EventLogReportMixin, EnergyReportExtraMixin, EnergyStoreMi
         self,
         database,
         *,
+        log_database=None,
         is_leader: Any = None,
         is_entity_syncable: Any = None,
         energy_primary_entities: Any = None,
@@ -91,6 +119,11 @@ class EventLogService(EventLogReportMixin, EnergyReportExtraMixin, EnergyStoreMi
         energy_circuit_entities: Any = None,
     ) -> None:
         self._database = database
+        #: 日志库（``homeos-logs.db``）：``event_logs`` 与小时汇总只住在这里。
+        #: 配置读取（``system_configs``）和能耗日/月聚合仍走主库 —— 一次记账跨两个库
+        #: 的取舍见 ``platform/core/db/log_database`` 的模块说明。
+        #: 未传时回退主库：自检与单文件部署只有一份库，行为与拆分前一致。
+        self._log_database = log_database or database
         self._is_leader = is_leader or (lambda: True)
         self._is_entity_syncable = is_entity_syncable or (lambda _entity_id: True)
         #: 返回「应计入总耗的电表集合」；为空集合时回退到全量识别（老装机无绑定）。
@@ -219,6 +252,7 @@ class EventLogService(EventLogReportMixin, EnergyReportExtraMixin, EnergyStoreMi
                 if self._dropped_events % 100 == 1:
                     logger.error("事件日志缓冲区溢出,已丢弃 %s 条事件", self._dropped_events)
             old_state, new_state = serialize_event_log_states(event, tier)
+            old_state = _keep_old_state(entity_id, old_state, event)
             self._buffer.append(
                 {
                     "entity_id": entity_id,
@@ -384,7 +418,7 @@ class EventLogService(EventLogReportMixin, EnergyReportExtraMixin, EnergyStoreMi
                 deduped.append(row)
             if len(deduped) < len(batch):
                 logger.debug("事件日志批次内去重：%s → %s 条", len(batch), len(deduped))
-            with self._database.session_factory() as session:
+            with self._log_database.session_factory() as session:
                 # 多行一条语句 + `ON CONFLICT DO NOTHING RETURNING`：
                 # 被库级唯一索引挡掉的重复行不会返回，因此汇总表只统计**真正落库**的行
                 # （否则「重试 → 汇总虚高」会替代「重试 → 原始表爆表」，只是换了张表出问题）。
@@ -392,12 +426,11 @@ class EventLogService(EventLogReportMixin, EnergyReportExtraMixin, EnergyStoreMi
                     {
                         "entity_id": row["entity_id"],
                         "domain": get_entity_domain(row["entity_id"]) or "",
-                        "old_state": None
-                        if row["old_state"] is None
-                        else json.dumps(row["old_state"], ensure_ascii=False),
-                        "new_state": None
-                        if row["new_state"] is None
-                        else json.dumps(row["new_state"], ensure_ascii=False),
+                        # 列里存的是 JSON 文本：orjson 与标准库在这类小 dict 上输出逐字节
+                        # 一致（`ensure_ascii=False` 对应 orjson 的 UTF-8 输出），但快 3-5 倍。
+                        # 批大小 200–1000 时这是写入路径上最实在的一处 CPU 节省。
+                        "old_state": None if row["old_state"] is None else _encode_state(row["old_state"]),
+                        "new_state": None if row["new_state"] is None else _encode_state(row["new_state"]),
                         "state_diff": row["state_diff"],
                         "created_at": _naive_utc(row["created_at"]),
                     }
@@ -433,7 +466,7 @@ class EventLogService(EventLogReportMixin, EnergyReportExtraMixin, EnergyStoreMi
         page_size = min(max(int(limit or 20), 5), 200)
         current_page = max(int(page or 1), 1)
         skip = (current_page - 1) * page_size
-        with self._database.session_factory() as session:
+        with self._log_database.session_factory() as session:
             conditions = self._history_conditions(since, restrictions, entity_id, domain)
             total = session.execute(select(func.count()).select_from(EventLog).where(*conditions)).scalar_one()
             rows = (
@@ -495,7 +528,7 @@ class EventLogService(EventLogReportMixin, EnergyReportExtraMixin, EnergyStoreMi
         since = datetime.now(UTC) - timedelta(hours=window_hours)
         max_take = meta["timelineLimit"] if meta["timelineLimit"] > 0 else 80
         take = min(max(int(limit or 60), 1), max_take)
-        with self._database.session_factory() as session:
+        with self._log_database.session_factory() as session:
             rows = (
                 session.execute(
                     select(EventLog)
@@ -525,9 +558,9 @@ class EventLogService(EventLogReportMixin, EnergyReportExtraMixin, EnergyStoreMi
         # 报表读**小时汇总表**，不再对原始行做三次 GROUP BY：分桶键是预聚合好的
         # 家庭时区文本，既不需要 `datetime()` 包裹索引列，也没有整窗口物化排序。
         ensure_backfilled(
-            self._database.session_factory, resolve_business_timezone(_resolve_ops_timezone_name(self._ops))
+            self._log_database.session_factory, resolve_business_timezone(_resolve_ops_timezone_name(self._ops))
         )
-        with self._database.session_factory() as session:
+        with self._log_database.session_factory() as session:
             domain_rows, entity_rows, bucket_rows = query_totals(
                 session,
                 since_bucket=local_hour_key(_naive_utc(since), now.tzinfo),
@@ -569,7 +602,7 @@ class EventLogService(EventLogReportMixin, EnergyReportExtraMixin, EnergyStoreMi
             if self._flush_timer is not None:
                 self._flush_timer.cancel()
                 self._flush_timer = None
-        with self._database.session_factory() as session:
+        with self._log_database.session_factory() as session:
             # 汇总表与原始表同生命周期：只清原始表会让报表继续显示已删除的旧数据。
             clear_stats_rollup(session)
             deadline = time.monotonic() + CLEAR_ALL_TIME_BUDGET_SECONDS

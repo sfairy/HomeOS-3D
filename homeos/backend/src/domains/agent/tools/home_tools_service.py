@@ -74,6 +74,8 @@ class HomeToolsService(
         session_factory: Any,
         external_api: Any,
         agent_config: AgentConfigService,
+        *,
+        log_session_factory: Any = None,
     ) -> None:
         self._state_store = state_store
         self._command_proxy = command_proxy
@@ -83,6 +85,8 @@ class HomeToolsService(
         self._ha_connector = ha_connector
         self._home_mode = home_mode
         self._session_factory = session_factory
+        #: 日志库（事件历史 / 设备时序）。未传时回退业务库（自检与单文件部署）。
+        self._log_session_factory = log_session_factory or session_factory
         self._external_api = external_api
         self._agent_config = agent_config
         # 进程内发消息频控（每用户每分钟 / 每天）

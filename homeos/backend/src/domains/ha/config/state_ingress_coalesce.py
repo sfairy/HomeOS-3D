@@ -17,7 +17,11 @@ from ....platform.core.runtime.observability import record_ha_sync_latency
 logger = logging.getLogger("homeos.state_ingress_coalesce")
 
 #: 配置缓存有效期（毫秒）：避免每个事件都读一次 SystemConfig。
-_CONFIG_TTL_MS = 5_000
+#:
+#: 60 秒只是**兜底**，不是热更新延迟：``app.config.updated`` 一旦发布就会调用
+#: ``invalidate_config``（见 ``bootstrap/lifespan`` 的接线），用户改配置立即生效。
+#: 旧值 5 秒等于在安静环境里把所有分区（单行大 JSON）无谓地重新解析一遍。
+_CONFIG_TTL_MS = 60_000
 
 #: 默认合并域（配置缺失时回退，与 Nest 一致）。
 #:

@@ -47,10 +47,22 @@ from .ws_payloads import (
     visibility_cache_for,
 )
 from ..platform.core.runtime.observability import record_ha_sync_fe_latency_samples, record_ha_sync_latency
+from ..platform.security.entity_access import resolve_entity_restrictions
 
 _SERVER_TOKEN = "server"
 
 logger = logging.getLogger("homeos.realtime.gateway")
+
+
+def _restriction_key(user: dict[str, Any]) -> Any:
+    """用户实体限制的不可变指纹（``None`` = 无限制）。
+
+    与 ``visibility_cache_for`` 的分桶键同一口径：同一份限制列表只解析一次。
+    """
+    restrictions = resolve_entity_restrictions(user)
+    if restrictions is None:
+        return None
+    return () if not restrictions else tuple(restrictions)
 
 #: 单客户端 websocket 写缓冲背压阈值默认值（对齐 Nest ``WS_PUSH_BACKPRESSURE_WRITE_BUFFER``）。
 #: 实际生效值在实例化时由 ``HOMEOS_WS_PUSH_BACKPRESSURE_FRAMES`` 覆盖（见 ws_buffer.py）。
@@ -317,11 +329,21 @@ class RealtimeGateway(BroadcastMixin, ConnectionLifecycleMixin, SubscriptionInde
         if not changes:
             return
         event_log = getattr(self.app.state, "event_log", None)
-        if event_log is not None:
-            self._log_state_changes(event_log, changes)
+        # 没有已完成基线的连接：一个帧都不会发，但历史照写（事件列表是产品功能，
+        # 与「当前有没有人看」无关）。提前返回省掉整批 delta 计算与时间戳注入。
+        if not self._baseline_ready:
+            self._log_state_changes_if_present(event_log, changes)
+            return
         started = time.monotonic()
         ws_cfg = await self._ws_config_async()
         await self._apply_state_config_async()
+        critical = set(ws_cfg.critical_domains)
+        # 先算候选再构 payload：没有任何连接关心这批变更时，delta 计算与 `_pipelineTs`
+        # 注入都是白做。候选为空是常态（例如只订阅了别的域的墙板 + 没有钉选）。
+        candidates = self._candidate_sids_for_changes(changes, critical)
+        if not candidates:
+            self._log_state_changes_if_present(event_log, changes)
+            return
         payloads = [to_ws_state_change_payload(change) for change in changes]
         # 出站时刻（epoch ms）：前端据此对齐「后端广播 → UI apply」这一段。
         # 之前 payloads 只读 event.pipeline_ts，而没有任何地方写入它，于是前端
@@ -330,7 +352,6 @@ class RealtimeGateway(BroadcastMixin, ConnectionLifecycleMixin, SubscriptionInde
         for payload in payloads:
             payload.setdefault("_pipelineTs", emitted_at_ms)
         timestamp = iso_now()
-        critical = set(ws_cfg.critical_domains)
         # 可见性判定按用户缓存：同一账号可能有多个连接（多端/多标签），
         # `is_entity_allowed` 会对每个 (连接 × 变更) 重算一次限制列表；
         # 这里按「限制列表指纹」复用同一批次内的判定结果。
@@ -338,38 +359,7 @@ class RealtimeGateway(BroadcastMixin, ConnectionLifecycleMixin, SubscriptionInde
         # 先按域/钉选收窄候选，再对候选做精确可见性过滤（见 _baseline_ready 说明）。
         # 记录「可见的 payload 下标」而不是 payload 本身：多客户端往往看到完全相同的
         # 集合，按集合下标分桶后可以共享同一份列表、只序列化一次。
-        deliveries: list[tuple[str, tuple[int, ...], bool]] = []
-        for sid in self._candidate_sids_for_changes(changes, critical):
-            session = self._session_for(sid)
-            user = session.get("user") or {}
-            subscribed = as_set(session.get("subscribedDomains"))
-            pinned = as_set(session.get("pinnedEntityIds"), require_dot=True)
-            scope_entities = self._scope_entities_for(session)
-            visible_indices: list[int] = []
-            has_pinned = False
-            user_cache = visibility_cache_for(visibility_cache, user)
-            for index, change in enumerate(changes):
-                entity_id = change["entity_id"]
-                allowed = user_cache.get(entity_id)
-                if allowed is None:
-                    allowed = entity_visible(user, entity_id)
-                    user_cache[entity_id] = allowed
-                if not allowed:
-                    continue
-                if not is_entity_visible_to_client(
-                    entity_id,
-                    subscribed,
-                    pinned,
-                    critical,
-                    ws_cfg.cold_entity_on_demand,
-                    scope_entities,
-                ):
-                    continue
-                visible_indices.append(index)
-                if pinned is not None and entity_id in pinned:
-                    has_pinned = True
-            if visible_indices:
-                deliveries.append((sid, tuple(visible_indices), has_pinned))
+        deliveries = self._collect_deliveries(candidates, changes, critical, ws_cfg, visibility_cache)
         if deliveries:
             # 按「可见集 + 是否含钉选」分桶：一桶一次 emit，python-socketio 单次 emit
             # 只序列化一次（旧实现逐连接 emit，即每个连接一次 json.dumps）。
@@ -397,6 +387,88 @@ class RealtimeGateway(BroadcastMixin, ConnectionLifecycleMixin, SubscriptionInde
                     # 否则后面所有订阅者都会漏掉这一批变更。
                     logger.warning("推送状态变更失败 sids=%s", bucket_sids, exc_info=result)
         record_ha_sync_latency("ws_emit", (time.monotonic() - started) * 1000)
+        # 事件日志放在广播**之后**。
+        #
+        # 它是纯内存入队，但每行要做分级判定（`resolve_event_log_tier`）与两次属性
+        # 序列化，CPU 成本随批大小线性增长 —— 排在「构 payload → 广播」前面时，用户按
+        # 开关到墙屏亮起之间就白白多了这段。历史晚一个批窗写进去没有任何损失，顺序仍按
+        # 批次（同一个单消费者队列）。
+        self._log_state_changes_if_present(event_log, changes)
+
+    def _log_state_changes_if_present(self, event_log: Any, changes: list[dict[str, Any]]) -> None:
+        """事件日志是旁路：没装配（测试 / 精简部署）时什么都不做。"""
+        if event_log is not None:
+            self._log_state_changes(event_log, changes)
+
+    def _collect_deliveries(
+        self,
+        candidates: set[str],
+        changes: list[dict[str, Any]],
+        critical: set[str],
+        ws_cfg: Any,
+        visibility_cache: dict[Any, dict[str, bool]],
+    ) -> list[tuple[str, tuple[int, ...], bool]]:
+        """逐连接算出「本批谁可见」，返回 ``(sid, 可见下标元组, 是否含钉选)``。
+
+        下标而不是 payload：多客户端往往看到完全相同的集合，按集合分桶后可以共享
+        同一份列表、只序列化一次。
+        """
+        deliveries: list[tuple[str, tuple[int, ...], bool]] = []
+        for sid in candidates:
+            visible_indices, has_pinned = self._visible_indices_for(
+                sid, changes, critical, ws_cfg, visibility_cache
+            )
+            if visible_indices:
+                deliveries.append((sid, tuple(visible_indices), has_pinned))
+        return deliveries
+
+    def _visible_indices_for(
+        self,
+        sid: str,
+        changes: list[dict[str, Any]],
+        critical: set[str],
+        ws_cfg: Any,
+        visibility_cache: dict[Any, dict[str, bool]],
+    ) -> tuple[list[int], bool]:
+        """某个连接在本批可见的 payload 下标，以及是否含钉选。"""
+        session = self._session_for(sid)
+        user = session.get("user") or {}
+        subscribed = as_set(session.get("subscribedDomains"))
+        pinned = as_set(session.get("pinnedEntityIds"), require_dot=True)
+        scope_entities = self._scope_entities_for(session)
+        # 快路径：无实体限制、无区域范围、不限域 —— 整批都可见。这是墙屏的默认形态
+        # （`subscribeDomains` 为空即「全收」），占安装里的大多数；跳过逐条判定能把这
+        # 类连接的扇出成本从「变更条数 × 3 次函数调用」压到一次列表构造。
+        if scope_entities is None and subscribed is None and _restriction_key(user) is None:
+            if not pinned:
+                return list(range(len(changes))), False
+            changed_ids = [str(change.get("entity_id") or "") for change in changes]
+            has_pinned = any(entity_id in pinned for entity_id in changed_ids)
+            return list(range(len(changes))), has_pinned
+        visible_indices: list[int] = []
+        has_pinned = False
+        user_cache = visibility_cache_for(visibility_cache, user)
+        for index, change in enumerate(changes):
+            entity_id = change["entity_id"]
+            allowed = user_cache.get(entity_id)
+            if allowed is None:
+                allowed = entity_visible(user, entity_id)
+                user_cache[entity_id] = allowed
+            if not allowed:
+                continue
+            if not is_entity_visible_to_client(
+                entity_id,
+                subscribed,
+                pinned,
+                critical,
+                ws_cfg.cold_entity_on_demand,
+                scope_entities,
+            ):
+                continue
+            visible_indices.append(index)
+            if pinned is not None and entity_id in pinned:
+                has_pinned = True
+        return visible_indices, has_pinned
 
     async def _emit_pinned_under_backpressure(
         self,

@@ -1,21 +1,21 @@
 {
   "minLines": 1500,
   "totals": {
-    "lines": 61304,
-    "imports": 797,
+    "lines": 61330,
+    "imports": 800,
     "depsFns": 39,
     "depsEntries": 1930
   },
   "files": {
     "homeos/backend/src/api/ha/routes.py": {
-      "lines": 1657,
-      "imports": 41,
+      "lines": 1659,
+      "imports": 42,
       "depsFns": 0,
       "depsEntries": 0
     },
     "homeos/backend/src/bootstrap/lifespan.py": {
-      "lines": 1695,
-      "imports": 93,
+      "lines": 1718,
+      "imports": 94,
       "depsFns": 0,
       "depsEntries": 0
     },
@@ -38,8 +38,8 @@
       "depsEntries": 0
     },
     "homeos/backend/src/modules/interaction3d/api.py": {
-      "lines": 1604,
-      "imports": 50,
+      "lines": 1605,
+      "imports": 51,
       "depsFns": 0,
       "depsEntries": 0
     },

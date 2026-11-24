@@ -23,6 +23,7 @@ from typing import Any
 from sqlalchemy import delete, literal_column, select, text
 
 from ..logs.event_stats_rollup import prune_before
+from ...platform.core.db.log_database import LOG_TABLE_NAMES
 from ...platform.core.db.models import (
     AgentContextTimeline,
     EnergyUsageHourly,
@@ -150,8 +151,10 @@ def resolve_vacuum_min_rows() -> int:
 
 
 class DatabaseRetentionService:
-    def __init__(self, session_factory, app_config, jobs=None, lock=None) -> None:
+    def __init__(self, session_factory, app_config, jobs=None, lock=None, log_session_factory=None) -> None:
         self._session_factory = session_factory
+        #: 日志库会话（``event_logs`` / 小时汇总 / 设备时序）。未传时回退主库。
+        self._log_session_factory = log_session_factory or session_factory
         self._app_config = app_config
         self._jobs = jobs
         self._lock = lock
@@ -160,6 +163,14 @@ class DatabaseRetentionService:
         self._last_cleanup_stats: dict[str, Any] | None = None
         self._stop = False
         self._task: asyncio.Task[Any] | None = None
+
+    def _factory_for(self, table_name: str):
+        """按表归属选会话工厂：日志库的表走日志库，其余走业务库。
+
+        同一轮清理里两种库并存是刻意的（``security_events`` 留在业务库），所以不能按
+        「整轮清理」二选一；判据必须落到表名上，且与 ``LOG_TABLE_NAMES`` 同源。
+        """
+        return self._log_session_factory if table_name in LOG_TABLE_NAMES else self._session_factory
 
     @property
     def lock(self) -> Any:
@@ -327,8 +338,9 @@ class DatabaseRetentionService:
         没有再退回 ``MAX(rowid)``（rowid 主键上的 O(1) 查找，删除留空洞只会高估）。
         """
         result = dict.fromkeys(RETENTION_TABLE_KEYS, 0)
-        with self._session_factory() as session:
-            for key, (_model, table, _time_col) in _RETENTION_MODELS.items():
+        for key, (_model, table, _time_col) in _RETENTION_MODELS.items():
+            # 逐表选库：日志库的表不在主库里，用主库会话查它们只会得到 0。
+            with self._factory_for(table) as session:
                 result[key] = self._estimate_rows(session, table)
         return result
 
@@ -470,7 +482,7 @@ class DatabaseRetentionService:
         cutoff = self.cutoff_for_days(self.resolve_retention_days_for("eventLog"))
         cutoff_hour = cutoff.strftime("%Y-%m-%d %H")
         try:
-            with self._session_factory() as session:
+            with self._log_session_factory() as session:
                 removed = prune_before(session, cutoff_hour)
                 if removed:
                     session.commit()
@@ -513,7 +525,7 @@ class DatabaseRetentionService:
         if mode == "off":
             logger.debug("EventLog 附加维护已关闭(本次删除 %s 行)", deleted_count)
             return
-        with self._session_factory() as session:
+        with self._log_session_factory() as session:
             try:
                 engine = session.get_bind()
             except Exception as exc:
@@ -562,7 +574,7 @@ class DatabaseRetentionService:
         for _batch in range(_MAX_DELETE_BATCHES):
             subquery = select(rowid).select_from(table).where(created_col < cutoff).limit(batch_size)
             statement = table.delete().where(literal_column("rowid").in_(subquery))
-            with self._session_factory() as session:
+            with self._factory_for(table.name) as session:
                 result = session.execute(statement)
                 session.commit()
                 count = result.rowcount or 0

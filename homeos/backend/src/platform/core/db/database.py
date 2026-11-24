@@ -118,7 +118,13 @@ def _configure_sqlite(dbapi_connection, _connection_record) -> None:
 class Database:
     """全局 Engine + 会话工厂封装。"""
 
-    def __init__(self, database_url: str) -> None:
+    def __init__(
+        self,
+        database_url: str,
+        *,
+        pool_size: int | None = None,
+        max_overflow: int | None = None,
+    ) -> None:
         self.database_url = database_url
         parsed_url = make_url(database_url)
         is_sqlite = parsed_url.get_backend_name() == "sqlite"
@@ -134,9 +140,15 @@ class Database:
         # pool_timeout；SQLite 文件与 Postgres 走可配的 QueuePool。
         pool_kwargs: dict[str, object] = {}
         if not (is_sqlite and parsed_url.database in (None, "", ":memory:")):
+            # 显式入参（日志库等第二个库）优先于环境变量：一个进程里两个库的写入特征
+            # 完全不同，用同一个 ``HOMEOS_DB_POOL_SIZE`` 同时调两个既做不到也不合理。
             pool_kwargs = {
-                "pool_size": _environment_int("HOMEOS_DB_POOL_SIZE", DEFAULT_POOL_SIZE, minimum=1),
-                "max_overflow": _environment_int("HOMEOS_DB_MAX_OVERFLOW", DEFAULT_MAX_OVERFLOW),
+                "pool_size": pool_size
+                if pool_size is not None
+                else _environment_int("HOMEOS_DB_POOL_SIZE", DEFAULT_POOL_SIZE, minimum=1),
+                "max_overflow": max_overflow
+                if max_overflow is not None
+                else _environment_int("HOMEOS_DB_MAX_OVERFLOW", DEFAULT_MAX_OVERFLOW),
                 # 回收陈旧连接，避免长期运行的进程持有已迁移/删除的库文件句柄。
                 "pool_recycle": 1800,
                 "pool_timeout": _environment_float(
