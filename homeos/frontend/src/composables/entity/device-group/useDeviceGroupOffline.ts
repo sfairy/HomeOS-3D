@@ -9,7 +9,71 @@ import type { DeviceGroupEntitiesStoreLike, DeviceGroupUiStoreLike } from '@/sha
 import type { HaEntityState } from '@/shared/types/entity-store'
 import type { Component } from 'vue'
 
-/** 各 domain 的离线长原因文案 */
+/**
+ * 离线的**故障性质**：从设备自身的实体集合算出来，不是查表猜的。
+ *
+ * HA 对离线实体只给 `unavailable` / `unknown` 两个值，单看这个等于每行都写「不可用」，
+ * 没有信息量。真正可操作的是下面几档 —— 它们回答「整机掉线还是部分失效」：
+ *
+ * - `整台离线`：该设备**全部**实体都不可用 —— 集成/电源层面断了，按一台查；
+ * - `部分失效 N/M`：只有 N 个实体不可用 —— 单个实体或子功能坏了，按条目查；
+ * - `无状态`：状态是 `unknown` —— 集在线但没上报（刚重启 / 电池设备休眠）；
+ * - `未同步`：实体不在状态库 —— 只有注册表记录，还没收到状态。
+ *
+ * 与 `offlineReason` 的区别：那个按 domain 猜原因（措辞必须写「可能原因」），
+ * 这个是从实体集合直接数出来的事实。
+ */
+export interface OfflineStateLabel {
+  label: string
+  /** 供 CSS 选色：整台掉线与部分失效的处置优先级不同。 */
+  tone: 'down' | 'partial' | 'unknown' | 'missing'
+}
+
+/**
+ * 按设备聚合出的故障性质。
+ *
+ * @param entityIds 该设备下的**全部**实体（`groupOfflineByDevice` 的 `entityIds`）
+ * @param getEntity 取实体
+ */
+function offlineStateLabel(
+  entityIds: string[],
+  getEntity: (eid: string) => HaEntityState | null | undefined,
+): OfflineStateLabel {
+  if (entityIds.length === 0) return { label: '未同步', tone: 'missing' }
+  const present = entityIds.map((eid) => getEntity(eid)).filter((entity): entity is HaEntityState => Boolean(entity))
+  if (present.length === 0) return { label: '未同步', tone: 'missing' }
+
+  const lower = (entity: HaEntityState) => String(entity.state || '').toLowerCase()
+  const unknown = present.filter((entity) => lower(entity) === 'unknown').length
+  // 全是 unknown：没上报，不是联系不上 —— 与 unavailable 的处置完全不同。
+  if (unknown === present.length) return { label: '无状态', tone: 'unknown' }
+
+  const total = present.length
+  const unavailable = present.filter((entity) => lower(entity) === 'unavailable').length
+  // 「全部实体都不可用」才是整机掉线。HA 的 device 里常混着 button / event 等辅助实体，
+  // 只要有一个还活着就说明集成在线，问题局限在个别实体上。
+  if (unavailable >= total) return { label: '整台离线', tone: 'down' }
+  return { label: `部分失效 ${unavailable}/${total}`, tone: 'partial' }
+}
+
+/**
+ * 实体所属**集成名**（`xiaomi_home` / `miwifi_router` / `generic` …）。
+ *
+ * 设备掉线时这是唯一可操作的线索 —— 它回答「去 HA 里看哪个集成」。后端从实体注册表
+ * 取 `platform` 写进 `attributes.platform`（见 `entity_area.enrich_entity_areas`）。
+ */
+function integrationOf(eid: string, getEntity: (eid: string) => HaEntityState | null | undefined): string {
+  const attrs = getEntity(eid)?.attributes as Record<string, unknown> | undefined
+  return String(attrs?.platform ?? '').trim()
+}
+
+/**
+ * 离线的**可能原因**（启发式提示，不是诊断结论）。
+ *
+ * 只按 domain 查表，不读任何证据。因此所有展示点都必须带「可能原因」限定措辞 ——
+ * 曾经紧凑列表直接把它当结论显示，于是路由器的软件开关也写着「电源故障？」，
+ * 用户会去检查一个没坏的电源。紧凑列表现在改为显示离线时长（唯一有据可查的信号）。
+ */
 const OFFLINE_REASON: Record<string, string> = {
   binary_sensor: '无响应，链路质量可能较差。',
   camera: '连接失败，请检查电源与 Wi-Fi。',
@@ -19,14 +83,6 @@ const OFFLINE_REASON: Record<string, string> = {
   media_player: '设备不可达，请检查局域网状态。',
   sensor: '信号丢失，请检查电池或网关桥接。',
   switch: '插座不可达，请检查电源与距离。',
-}
-/** 各 domain 的离线短原因文案（用于紧凑列表） */
-const OFFLINE_SHORT_REASON: Record<string, string> = {
-  camera: '离线',
-  light: '电源故障？',
-  lock: '桥接错误',
-  sensor: '信号丢失',
-  switch: '电源故障？',
 }
 /** domain -> 离线图标映射（未命中回退 AlertTriangle） */
 const offlineIconMap: Record<string, Component> = {
@@ -48,8 +104,34 @@ const offlineIconMap: Record<string, Component> = {
  * @param entitiesStore 实体 store
  * @param uiStore UI store（layoutConfig 等）
  * @param getEntity 按 ID 取实体的函数
- * @returns offlineStats 离线统计；batteryStats 低电量统计；offlineIcon/offlineReason/shortReason/timeAgo/batteryColor 辅助方法
+ * @returns offlineStats 离线统计；batteryStats 低电量统计；offlineIcon/offlineReason/offlineState/integration/timeAgo/batteryColor 辅助方法
  */
+/**
+ * 离线统计（按**设备**聚合，再拆「严重告警」与「系统审计」）。
+ *
+ * 抽成模块级函数而不是内联 computed：内联写法的注释 + 逻辑会把
+ * `useDeviceGroupOffline` 的函数体推过 80 行（`check:frontend-complexity` 的 gt80 棘轮）。
+ *
+ * 口径是设备而不是实体 —— 一台掉线的多传感器设备会贡献 5~10 条实体，按实体列会让
+ * 弹窗标题写成「共 131 个设备」而实际只有十几台连不上。拆两组的依据是**代表实体**是否
+ * 在 critical 集合（用户收藏 / 首页浮动组件）里，同一台设备只出现在一侧。
+ */
+function buildOfflineStats(
+  entityIds: string[],
+  entitiesStore: DeviceGroupEntitiesStoreLike,
+  uiStore: DeviceGroupUiStoreLike,
+) {
+  const criticalSet = computeOfflineCriticalSet(uiStore, entitiesStore)
+  const groups = groupOfflineByDevice(entityIds, entitiesStore.entities)
+  const isCritical = (group: { entityIds: string[] }) => group.entityIds.some((eid) => criticalSet.has(eid))
+  return {
+    critical: groups.filter(isCritical),
+    others: groups.filter((group) => !isCritical(group)),
+    /** 离线设备总数（弹窗标题用）。 */
+    deviceCount: groups.length,
+  }
+}
+
 export function useDeviceGroupOffline(
   props: { domain?: string },
   entityIds: Ref<string[]>,
@@ -57,23 +139,10 @@ export function useDeviceGroupOffline(
   uiStore: DeviceGroupUiStoreLike,
   getEntity: (eid: string) => HaEntityState | null | undefined,
 ) {
-  // 离线统计：仅 domain === 'offline' 时计算。
-  //
-  // 口径是**设备**而不是实体：一台掉线的多传感器设备会贡献 5~10 条实体，
-  // 按实体列会让弹窗标题写成「共 131 个设备」而实际只有十几台连不上。
-  // 先按 `device_id` 聚合，再用代表实体判定它属于「严重告警」（用户收藏 / 首页浮动组件）
-  // 还是「系统审计」—— 同一台设备只出现在一侧。
-  const offlineStats = computed(() => {
-    if (props.domain !== 'offline') return null
-    const criticalSet = computeOfflineCriticalSet(uiStore, entitiesStore)
-    const groups = groupOfflineByDevice(entityIds.value, entitiesStore.entities)
-    return {
-      critical: groups.filter((group) => group.entityIds.some((eid) => criticalSet.has(eid))),
-      others: groups.filter((group) => !group.entityIds.some((eid) => criticalSet.has(eid))),
-      /** 离线设备总数（弹窗标题用）。 */
-      deviceCount: groups.length,
-    }
-  })
+  // 离线统计：仅 domain === 'offline' 时计算（口径说明见 buildOfflineStats）。
+  const offlineStats = computed(() =>
+    props.domain === 'offline' ? buildOfflineStats(entityIds.value, entitiesStore, uiStore) : null,
+  )
   // 低电量统计：仅 domain === 'battery' 时计算，按电量升序排序后分临界 / 正常两组
   const batteryStats = computed(() => {
     if (props.domain !== 'battery') return null
@@ -95,17 +164,20 @@ export function useDeviceGroupOffline(
   function offlineIcon(eid: string) {
     return offlineIconMap[getEntityDomain(eid)] || AlertTriangle
   }
-  /** 按 domain 取离线长原因文案，未命中回退通用文案。 */
+  /** 按 domain 取离线的「可能原因」（启发式，见模块顶部的 OFFLINE_REASON 说明）。 */
   function offlineReason(eid: string) {
     const d = getEntityDomain(eid)
-    return OFFLINE_REASON[d] ?? '连接中断，需要排查故障。'
+    return OFFLINE_REASON[d] ?? '未上报可用状态。'
   }
-  /** 按 domain 取离线短原因文案，未命中回退'超时'。 */
-  function shortReason(eid: string) {
-    const d = getEntityDomain(eid)
-    return OFFLINE_SHORT_REASON[d] ?? '超时'
+  /** 故障性质（整台离线 / 部分失效 / 无状态 / 未同步），按设备实体集合算出。 */
+  function offlineState(entityIds: string[]) {
+    return offlineStateLabel(entityIds, getEntity)
   }
-  /** 取实体 last_changed 的相对时间文案（刚刚 / N 分钟前 / N 小时前 / N 天前）。 */
+  /** 该设备所属集成名（掉线时指向「去 HA 查哪个集成」）。 */
+  function integration(eid: string) {
+    return integrationOf(eid, getEntity)
+  }
+  /** 离线时长文案：离线实体的 `last_changed` 就是它变为不可用的时刻。 */
   function timeAgo(eid: string) {
     const e = getEntity(eid)
     // 收敛到 ``formatRelativeFromNow``：这里此前是一份手写副本，跨过 30 天时永远回
@@ -125,7 +197,8 @@ export function useDeviceGroupOffline(
     batteryStats,
     offlineIcon,
     offlineReason,
-    shortReason,
+    offlineState,
+    integration,
     timeAgo,
     batteryColor,
   }

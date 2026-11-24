@@ -46,6 +46,12 @@ const ALLOWED = new Map([
     'homeos/frontend/src/features/device/components/DeviceStatsDashboard.vue',
     '实体级在线/总数，与列表行同量纲；设备数另由 countOfflineDevices 给出',
   ],
+  // 设备聚合本身的实现：`offlineStateLabel` 要算「该设备 N 个实体里几个不可用」。
+  // 这个 N/M 是**刻意**的实体数 —— 它是「部分失效 3/12」的分子分母，不是离线总数。
+  [
+    'homeos/frontend/src/composables/entity/device-group/useDeviceGroupOffline.ts',
+    '在**单个设备内部**数个数字体（N/M）；离线总数仍由 groupOfflineByDevice 给出',
+  ],
 ])
 
 /**

@@ -85,7 +85,8 @@
               :get-entity="getEntity"
               :offline-icon="offlineIcon"
               :offline-reason="offlineReason"
-              :short-reason="shortReason"
+              :offline-state="offlineState"
+              :integration="integration"
               :time-ago="timeAgo"
             />
 
@@ -206,7 +207,7 @@ function getEntity(eid) {
   return getEntityFromStore(entitiesStore.entities, eid)
 }
 
-const { offlineStats, batteryStats, offlineIcon, offlineReason, shortReason, timeAgo, batteryColor } =
+const { offlineStats, batteryStats, offlineIcon, offlineReason, offlineState, integration, timeAgo, batteryColor } =
   useDeviceGroupOffline(props, entityIds, entitiesStore, layoutStore, getEntity)
 
 /**

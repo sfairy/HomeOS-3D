@@ -18,7 +18,9 @@
             <component :is="offlineIcon(group.entityId)" class="w-6 h-6 dgm-icon-danger" />
           </div>
           <h3 class="dgm-offline-name">{{ getEntityDisplayName(group.entityId, getEntity(group.entityId)) }}</h3>
-          <p class="dgm-offline-reason">{{ offlineReason(group.entityId) }}</p>
+          <!-- 「可能原因」限定措辞：这段文案只按 domain 查表，没有任何诊断证据。
+               直接写成结论时，路由器的软件开关也会显示「电源故障？」，把人引去查电源。 -->
+          <p class="dgm-offline-reason">可能原因：{{ offlineReason(group.entityId) }}</p>
           <div class="dgm-offline-foot">
             <span class="dgm-offline-time">{{ timeAgo(group.entityId) }}</span>
             <span class="dgm-offline-badge">{{ '离线' }}</span>
@@ -36,7 +38,16 @@
             <span class="dgm-audit-name">{{ getEntityDisplayName(group.entityId, getEntity(group.entityId)) }}</span>
             <span class="dgm-audit-id">{{ auditSubtitle(group) }}</span>
           </div>
-          <span class="dgm-audit-reason">{{ shortReason(group.entityId) }}</span>
+          <!-- 集成名：设备掉线时唯一可操作的线索 —— 指向「去 HA 里看哪个集成」。
+               没有它，用户只能逐条去 HA 里翻实体找归属。 -->
+          <span v-if="integration(group.entityId)" class="dgm-audit-platform" :title="`集成：${integration(group.entityId)}`">
+            {{ integration(group.entityId) }}
+          </span>
+          <!-- 故障性质：按该设备**全部实体**的状态算出，区分「整台离线」与「部分失效」。 -->
+          <span class="dgm-audit-state" :data-tone="offlineState(group.entityIds).tone">
+            {{ offlineState(group.entityIds).label }}
+          </span>
+          <span class="dgm-audit-reason">{{ timeAgo(group.entityId) }}</span>
         </div>
       </div>
     </div>
@@ -54,16 +65,18 @@ import type { OfflineDeviceGroup } from '@/shared/device/utils/group-offline.uti
  * @property {Object|null} stats - 离线统计对象，critical（严重）/ others（次要）均为**设备**分组
  * @property {Function} getEntity - 由父组件传入的实体查询函数，根据 entity_id 返回实体对象
  * @property {Function} offlineIcon - 根据 entity_id 返回对应域的图标组件
- * @property {Function} offlineReason - 根据 entity_id 返回完整的离线原因描述
- * @property {Function} shortReason - 根据 entity_id 返回简短的离线原因（用于审计列表）
- * @property {Function} timeAgo - 根据 entity_id 返回离线时长的友好表达（如「5 分钟前」）
+ * @property {Function} offlineReason - 根据 entity_id 返回「可能原因」文案（启发式提示，非诊断结论）
+ * @property {Function} offlineState - 按设备实体集合返回故障性质 { label, tone }
+ * @property {Function} integration - 返回实体所属集成名（platform）
+ * @property {Function} timeAgo - 根据 entity_id 返回离线时长（last_changed 的相对时间）
  */
 defineProps({
   stats: { type: Object, default: null },
   getEntity: { type: Function, required: true },
   offlineIcon: { type: Function, required: true },
   offlineReason: { type: Function, required: true },
-  shortReason: { type: Function, required: true },
+  offlineState: { type: Function, required: true },
+  integration: { type: Function, required: true },
   timeAgo: { type: Function, required: true },
 })
 

@@ -1129,6 +1129,73 @@ button.dgm-light-card:focus-visible {
   white-space: nowrap;
 }
 
+/**
+ * 集成名列：设备掉线时指向「去 HA 里看哪个集成」。
+ *
+ * 定宽 + 单行省略：`xiaomi_home` / `miwifi_router` 这类名字长度差很多，不定宽会让
+ * 后面的状态列在一片行里左右跳。
+ */
+.dgm-audit-platform {
+  flex: 0 0 auto;
+  max-width: 8.5em;
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: var(--hos-surface-2);
+  border: var(--hos-hairline) solid var(--hos-border-hairline);
+  font-family: ui-monospace, monospace;
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/**
+ * 故障性质列：按设备**全部实体**的状态算出，四档各有处置优先级。
+ *
+ * - `整台离线`：集成/电源层面断了 —— 危险色，按一台查；
+ * - `部分失效 N/M`：单实体或子功能坏了 —— 警示色，按条目查；
+ * - `无状态`：集在线但没上报 —— 中性，通常等等就好；
+ * - `未同步`：状态还没到 —— 最弱，属于过渡态而不是故障。
+ *
+ * 用 `min-width` 而不是固定宽：`部分失效 3/12` 比 `整台离线` 长，定宽会截断数字。
+ */
+.dgm-audit-state {
+  flex: 0 0 auto;
+  min-width: 5.5em;
+  padding: 1px 7px;
+  font-size: var(--premium-fs-micro);
+  text-align: center;
+  border-radius: 9999px;
+  border: var(--hos-hairline) solid transparent;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dgm-audit-state[data-tone="down"] {
+  color: var(--hos-color-danger);
+  border-color: var(--hos-color-danger-line);
+  background: var(--hos-color-danger-soft);
+}
+
+.dgm-audit-state[data-tone="partial"] {
+  color: var(--hos-color-warning);
+  border-color: var(--hos-color-warning-line);
+  background: var(--hos-color-warning-soft);
+}
+
+.dgm-audit-state[data-tone="unknown"] {
+  color: var(--hos-text-secondary);
+  border-color: var(--hos-border-hairline);
+  background: var(--hos-surface-2);
+}
+
+.dgm-audit-state[data-tone="missing"] {
+  color: var(--hos-text-tertiary);
+  border-color: var(--hos-border-hairline);
+  background: var(--hos-surface-2);
+}
+
 .dgm-audit-reason {
   flex-shrink: 0;
   max-width: 38%;

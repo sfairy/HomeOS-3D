@@ -62,6 +62,12 @@ def build_entity_area_index(
         }
         if device_id:
             row["device_id"] = device_id
+        # 集成名（`xiaomi_home` / `miwifi_router` / `generic` …）：设备掉线时这是唯一
+        # 可操作的线索 —— 它回答「去 HA 里看哪个集成」。不带它，界面上只能写「离线」，
+        # 用户得自己逐条去 HA 里翻实体找归属。
+        platform = str(entry.get("platform") or "").strip()
+        if platform:
+            row["platform"] = platform
         index[entity_id] = row
     return index
 
@@ -74,14 +80,17 @@ def enrich_entity_areas(entity: dict[str, Any], index: dict[str, dict[str, str]]
     attr_id = str(attrs.get("area_id") or "").strip()
     attr_name = str(attrs.get("area_name") or "").strip()
     attr_device = str(attrs.get("device_id") or "").strip()
+    attr_platform = str(attrs.get("platform") or "").strip()
 
     if from_registry is not None:
         area_id = str(from_registry.get("area_id") or "").strip()
         area_name = str(from_registry.get("area_name") or area_id).strip()
         device_id = str(from_registry.get("device_id") or "").strip()
+        platform = str(from_registry.get("platform") or "").strip()
         area_ok = not area_id or (attr_id == area_id and attr_name == area_name)
         device_ok = not device_id or attr_device == device_id
-        if area_ok and device_ok:
+        platform_ok = not platform or attr_platform == platform
+        if area_ok and device_ok and platform_ok:
             return entity
         next_attrs = dict(attrs)
         if area_id:
@@ -89,6 +98,8 @@ def enrich_entity_areas(entity: dict[str, Any], index: dict[str, dict[str, str]]
             next_attrs["area_name"] = area_name or area_id
         if device_id:
             next_attrs["device_id"] = device_id
+        if platform:
+            next_attrs["platform"] = platform
         return {**entity, "attributes": next_attrs}
 
     if not attr_id and not attr_name:
@@ -413,7 +424,14 @@ class EntityAreaEnrichmentService:
             # 「离线按设备统计」就退化成按实体（一台路由器被数成三台）。
             before_device = str(current_attrs.get("device_id") or "").strip()
             after_device = str(enriched_attrs.get("device_id") or "").strip()
-            if before_id == after_id and before_name == after_name and before_device == after_device:
+            before_platform = str(current_attrs.get("platform") or "").strip()
+            after_platform = str(enriched_attrs.get("platform") or "").strip()
+            if (
+                before_id == after_id
+                and before_name == after_name
+                and before_device == after_device
+                and before_platform == after_platform
+            ):
                 continue
             self._state_store.apply_change(entity_id, enriched, changed_at)
             self._emit_state_changed(
