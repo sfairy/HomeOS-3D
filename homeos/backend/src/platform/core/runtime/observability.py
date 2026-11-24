@@ -152,10 +152,12 @@ HA_COUNTER_NAMES: tuple[str, ...] = (
     # 这两个数长期大于 0 说明存在乱序来源（合并窗口 / 重放），而不是正常抖动。
     "state_stale_rejected",
     "state_hub_stale_rejected",
-    # StateHub 与 StateStore（L1）两份内存模型的漂移条数。只在**快照点**采样
+    # StateHub 与 StateStore（L1）的真差异条数。只在**快照点**采样
     # （见 realtime/state_divergence）：非零说明存在结构性漏写，不是正常的传播窗口。
+    #
+    # 刻意**不**统计「L1 有而 Hub 无」：Hub 只装 watched 实体、L1 收全量，那是设计，
+    # 不是差异（实测每个快照 549 条，收进指标只会稀释真正的告警）。
     "state_divergence_missing_in_l1",
-    "state_divergence_missing_in_hub",
     "state_divergence_state_mismatch",
     # ``/ws/runtime`` 队列溢出时的「按实体合并」次数。这个数持续增长说明墙屏侧的
     # 消费速度跟不上推送（订阅范围过大 / 前端卡顿），而中间态正在被吃掉。

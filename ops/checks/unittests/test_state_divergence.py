@@ -1,11 +1,14 @@
 """状态模型漂移度量的单元测试（stdlib unittest，自动被 ``unittest discover`` 发现）。
 
-覆盖三件事：
+覆盖四件事：
 
-1. 三类差异（Hub 有/L1 无、L1 有/Hub 无、state 不同）能分别识别；
-2. **计数是精确值**，不会被样本上限截断（这是第一版的真实 bug：用列表长度当计数，
-   超过 10 条的不一致会被静默当成 10 条）；
-3. 一致时 ``total == 0`` —— 这一条是「新增的观测不要自己制造噪音」的守卫。
+1. 三类差异能分别识别；
+2. **``hub_subset_gap`` 不计入 ``total``** —— Hub 只装 watched 实体，L1 收全量，
+   「L1 有而 Hub 无」是设计而非缺陷。第一版把它算进 total，接上真实 HA 后每次快照
+   都报 549 条「差异」，指标直接变成噪音；
+3. **计数是精确值**，不会被样本上限截断（第一版的另一个 bug：用列表长度当计数，
+   超过 10 条会被静默当成 10 条）；
+4. 一致时 ``total == 0`` —— 「新增的观测不要自己制造噪音」的守卫。
 """
 
 from __future__ import annotations
@@ -18,7 +21,7 @@ ROOT = Path(__file__).resolve().parents[3]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from homeos.backend.src.realtime.state_divergence import (  # noqa: E402
+from homeos.backend.src.realtime.state_divergence import (
     SAMPLE_LIMIT,
     compare_state_models,
 )
@@ -40,13 +43,15 @@ class CompareStateModelsTest(unittest.TestCase):
         report = compare_state_models({"light.a": "on", "light.b": "off"}, _l1(("light.a", "on")))
         self.assertEqual(report.missing_in_l1_count, 1)
         self.assertEqual(report.missing_in_l1, ["light.b"])
-        self.assertEqual(report.missing_in_hub_count, 0)
+        self.assertEqual(report.hub_subset_gap_count, 0)
         self.assertEqual(report.state_mismatch_count, 0)
 
-    def test_missing_in_hub(self) -> None:
-        report = compare_state_models({"light.a": "on"}, _l1(("light.a", "on"), ("light.ghost", "off")))
-        self.assertEqual(report.missing_in_hub_count, 1)
-        self.assertEqual(report.missing_in_hub, ["light.ghost"])
+    def test_subset_gap_is_expected_and_not_a_divergence(self) -> None:
+        """L1 有而 Hub 无 = Hub 未订阅该实体，属预期；不计入 total，但仍要计数。"""
+        report = compare_state_models({"light.a": "on"}, _l1(("light.a", "on"), ("light.hidden", "off")))
+        self.assertEqual(report.hub_subset_gap_count, 1)
+        self.assertEqual(report.hub_subset_gap, ["light.hidden"])
+        self.assertEqual(report.total, 0)
 
     def test_state_mismatch(self) -> None:
         report = compare_state_models({"light.a": "on"}, _l1(("light.a", "off")))
@@ -77,8 +82,9 @@ class CompareStateModelsTest(unittest.TestCase):
         report = compare_state_models({"light.a": "on"}, _l1(("light.b", "off")))
         payload = report.as_dict()
         self.assertEqual(payload["missingInL1"], 1)
-        self.assertEqual(payload["missingInHub"], 1)
-        self.assertEqual(payload["total"], 2)
+        self.assertEqual(payload["hubSubsetGap"], 1)
+        # total 只含真差异：hub 多出来的 1 条，不含 L1 多出来的 1 条。
+        self.assertEqual(payload["total"], 1)
         self.assertEqual(payload["samples"]["missingInL1"], ["light.a"])
 
 
