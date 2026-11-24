@@ -4,7 +4,7 @@
   "stats": {
     "homeos": {
       "files": 75,
-      "lines": 108958,
+      "lines": 108975,
       "gt1000": 50,
       "max": 4917
     },
@@ -26,7 +26,7 @@
     "homeos/backend/src/domains/ha/integration/client.py": 1030,
     "homeos/backend/src/domains/home_mode/actions.py": 1196,
     "homeos/backend/src/domains/license/service.py": 1612,
-    "homeos/backend/src/domains/logs/event_log_report.py": 816,
+    "homeos/backend/src/domains/logs/event_log_report.py": 833,
     "homeos/backend/src/domains/notification/service.py": 802,
     "homeos/backend/src/domains/security/panel_helpers.py": 1089,
     "homeos/backend/src/domains/state_store/entity_references.py": 1548,

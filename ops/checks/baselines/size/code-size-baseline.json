@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-24T16:07:30.230Z",
+  "generatedAt": "2026-11-24T23:42:42.984Z",
   "roots": [
     "homeos/frontend/src",
     "homeos/backend/src",
@@ -11,15 +11,15 @@
   ],
   "byRoot": {
     "homeos/frontend/src": {
-      "code": 443485,
-      "comment": 43399,
+      "code": 443508,
+      "comment": 43400,
       "blank": 29837,
-      "chars": 13269869,
+      "chars": 13270503,
       "files": 2102,
       "byExt": {
         ".vue": {
-          "code": 67463,
-          "chars": 1936404,
+          "code": 67481,
+          "chars": 1936837,
           "files": 383
         },
         ".css": {
@@ -28,23 +28,23 @@
           "files": 218
         },
         ".ts": {
-          "code": 303840,
-          "chars": 9752765,
+          "code": 303845,
+          "chars": 9752966,
           "files": 1501
         }
       }
     },
     "homeos/backend/src": {
-      "code": 111190,
-      "comment": 6620,
-      "blank": 18861,
-      "chars": 3474286,
-      "files": 591,
+      "code": 111560,
+      "comment": 6680,
+      "blank": 18944,
+      "chars": 3486363,
+      "files": 596,
       "byExt": {
         ".py": {
-          "code": 111190,
-          "chars": 3474286,
-          "files": 591
+          "code": 111560,
+          "chars": 3486363,
+          "files": 596
         }
       }
     },
@@ -87,10 +87,10 @@
       }
     },
     "packages/shared/src": {
-      "code": 4098,
+      "code": 4100,
       "comment": 1975,
       "blank": 530,
-      "chars": 119978,
+      "chars": 120011,
       "files": 61,
       "byExt": {
         ".vue": {
@@ -99,8 +99,8 @@
           "files": 3
         },
         ".ts": {
-          "code": 3191,
-          "chars": 87341,
+          "code": 3193,
+          "chars": 87374,
           "files": 55
         },
         ".css": {
@@ -125,16 +125,16 @@
       }
     },
     "ops": {
-      "code": 26957,
-      "comment": 4610,
-      "blank": 4603,
-      "chars": 860257,
-      "files": 175,
+      "code": 27424,
+      "comment": 4619,
+      "blank": 4681,
+      "chars": 874705,
+      "files": 178,
       "byExt": {
         ".py": {
-          "code": 12891,
-          "chars": 425669,
-          "files": 90
+          "code": 13358,
+          "chars": 440117,
+          "files": 93
         },
         ".mjs": {
           "code": 13242,
@@ -150,10 +150,10 @@
     }
   },
   "total": {
-    "code": 621714,
-    "comment": 58255,
-    "blank": 58930,
-    "chars": 18779051,
-    "files": 3158
+    "code": 622576,
+    "comment": 58325,
+    "blank": 59091,
+    "chars": 18806243,
+    "files": 3166
   }
 }
