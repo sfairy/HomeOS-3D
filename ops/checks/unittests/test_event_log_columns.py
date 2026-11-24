@@ -23,12 +23,12 @@ from _support import ensure_repo_on_path
 
 ensure_repo_on_path()
 
-from sqlalchemy import create_engine, event  # noqa: E402
-from sqlalchemy.orm import sessionmaker  # noqa: E402
+from sqlalchemy import create_engine, event
+from sqlalchemy.orm import sessionmaker
 
-from homeos.backend.src.db_models import create_all_schemas  # noqa: E402
-from homeos.backend.src.domains.logs.event_log import EventLogService  # noqa: E402
-from homeos.backend.src.platform.core.db.models import EventLog  # noqa: E402
+from homeos.backend.src.db_models import create_all_schemas
+from homeos.backend.src.domains.logs.event_log import EventLogService
+from homeos.backend.src.platform.core.db.models import EventLog
 
 
 class _FakeDatabase:
@@ -109,7 +109,7 @@ class EventLogHistoryColumnsTest(unittest.TestCase):
         service, engine = _service()
         statements: list[str] = []
 
-        def _record(_conn, _cursor, statement, _params, _ctx, _many) -> None:  # noqa: ANN001
+        def _record(_conn, _cursor, statement, _params, _ctx, _many) -> None:
             statements.append(statement)
 
         event.listen(engine, "before_cursor_execute", _record)
