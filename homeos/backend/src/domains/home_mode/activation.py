@@ -29,6 +29,20 @@ def normalize_execution_mode(raw: Any) -> str:
     return value if value in EXECUTION_MODES else "queued"
 
 
+async def resolve_execution_mode(fetch_mode: Any, mode_id: str) -> str:
+    """读取模式的执行模式；读不到时按 ``queued``（旧行为）处理。
+
+    诊断性读取失败不能阻断激活，但必须留痕 —— 否则「这次为什么排队而不是重启」
+    只能靠猜。
+    """
+    try:
+        mode = await fetch_mode(mode_id)
+    except Exception:  # 诊断读取失败不能阻断激活
+        logger.debug("读取模式执行模式失败，按 queued 处理: %s", mode_id, exc_info=True)
+        mode = None
+    return normalize_execution_mode((mode or {}).get("executionMode"))
+
+
 async def run_with_execution_mode(
     mode_id: str,
     *,
@@ -78,4 +92,4 @@ async def run_with_execution_mode(
                 current_task_holder[0] = None
 
 
-__all__ = ["normalize_execution_mode", "run_with_execution_mode"]
+__all__ = ["normalize_execution_mode", "resolve_execution_mode", "run_with_execution_mode"]

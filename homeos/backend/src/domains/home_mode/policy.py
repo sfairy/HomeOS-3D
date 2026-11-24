@@ -32,6 +32,9 @@ HOME_MODE_DEFAULT_CONFIG: dict[str, Any] = {
     "showHomeMode": True,
     "manualLockTtlMin": 30,
     "linkageClaimTtlMin": 15,
+    #: 单选语义（默认开）：家只有一个「当前状态」。到家后切睡眠，回家模式随之退场，
+    #: 而不是两个勾同时挂在 header 上。关掉它才启用「不同互斥组可同时生效」的进阶用法。
+    "singleActiveMode": True,
 }
 
 SECURITY_DEFAULT_CONFIG: dict[str, Any] = {

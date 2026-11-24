@@ -19,7 +19,8 @@ from .actions import (
     activate_home_mode,
     deactivate_home_mode,
 )
-from .activation import normalize_execution_mode, run_with_execution_mode
+from .activation import resolve_execution_mode, run_with_execution_mode
+from .deps import HomeModeDeps
 from .linkage import HomeModeLinkageArbiter
 from .notify_dispatch import apply_security_mode_or_fail, dispatch_home_mode_notify
 from .persistence import (
@@ -36,10 +37,13 @@ from .policy import (
     compute_baseline_settling,
     seconds_until_next_minute,
 )
+from .presence_rules import evict_other_modes
+from .restore import summarize_pending_restore
 from .runtime import (
     HomeModeRuntimeLogStore,
     clamp_int,
 )
+from .settle import settle_home_mode
 from .triggers import (
     HomeModeTriggersState,
     check_home_mode_time_triggers,
@@ -54,6 +58,7 @@ from ...platform.core.db.db_exec import run_db
 from ...platform.core.db.models import HomeMode
 from ...platform.core.http.errors import api_error, bad_request, not_found
 from ...platform.core.runtime.app_config import load_raw_config
+from ...platform.core.runtime.background_tasks import background_tasks
 
 logger = logging.getLogger("homeos.home_mode")
 
@@ -80,6 +85,7 @@ class HomeModeService:
         is_leader=None,
         jobs=None,
         command_proxy=None,
+        is_anyone_home=None,
     ) -> None:
         self._session_factory = session_factory
         self._ha_connector = ha_connector
@@ -88,6 +94,7 @@ class HomeModeService:
         self._security_mode_setter = set_security_mode
         self._security_mode_getter = get_security_mode
         self._away_sim_entity_matcher = is_away_simulated_entity
+        self._is_anyone_home = is_anyone_home
         self._emit_event = emit_event
         self._is_leader = is_leader or (lambda: True)
         self._jobs = jobs
@@ -100,12 +107,14 @@ class HomeModeService:
         self._transition_lock = asyncio.Lock()
         #: 「当前正在执行的激活任务」槽（单元素列表，供 restart 模式取消旧的）。
         self._activation_slot: list[asyncio.Task | None] = [None]
+        #: 过渡模式的自动回落定时器（mode_id → task）。
+        self._settle_tasks: dict[str, asyncio.Task[Any]] = {}
         self._runtime_logs = HomeModeRuntimeLogStore(session_factory, self._runtime_limits)
         self._trigger_state = HomeModeTriggersState()
         self._home_mode_cfg: dict[str, Any] = dict(HOME_MODE_DEFAULT_CONFIG)
         self._security_cfg: dict[str, Any] = dict(SECURITY_DEFAULT_CONFIG)
         self._home_timezone: str | None = None
-        self._deps = _HomeModeDeps(self)
+        self._deps = HomeModeDeps(self)
         self._activate_state = HomeModeActivateState(lambda: self._active_mode_id, self._set_active_mode_id)
 
     # 生命周期
@@ -118,16 +127,56 @@ class HomeModeService:
         self._active_mode_id = active["id"] if active is not None else None
         if active is not None:
             logger.info("已恢复激活家庭模式: %s", active["name"])
+            # 过渡模式（如「回家」）在重启后重新计时：丢失的时间戳无法可靠还原，
+            # 而让一次进门动作永久挂在 header 上才是真问题。
+            self._schedule_settle(active)
         await self.reload_trigger_bindings()
         await self._runtime_logs.load()
         self._timer = asyncio.create_task(self._time_trigger_loop(), name="home-mode-time-triggers")
 
+    # 自动回落（过渡模式）
+    def _cancel_settle(self, mode_id: str | None = None) -> None:
+        """取消回落定时器；``mode_id`` 为空时清全部。"""
+        targets = [mode_id] if mode_id else list(self._settle_tasks)
+        for key in targets:
+            task = self._settle_tasks.pop(key, None)
+            if task is not None and not task.done():
+                task.cancel()
+
+    def _schedule_settle(self, mode: dict[str, Any] | None) -> None:
+        """为 ``settleMinutes > 0`` 的模式安排一次自动回落（0 = 不回落）。"""
+        if not isinstance(mode, dict):
+            return
+        mode_id = str(mode.get("id") or "")
+        minutes = int(mode.get("settleMinutes") or 0)
+        self._cancel_settle(mode_id)
+        if not mode_id or minutes <= 0:
+            return
+        # 走受管后台任务：异常统一落日志、停机时统一取消（裸 create_task 会丢异常）。
+        self._settle_tasks[mode_id] = background_tasks.spawn(
+            self._settle_after(mode_id, float(minutes)), label=f"home-mode.settle.{mode_id}"
+        )
+
+    async def _settle_after(self, mode_id: str, minutes: float) -> None:
+        """到期后回落；异常只影响这一次回落，不能拖垮进程。"""
+        try:
+            await asyncio.sleep(minutes * 60)
+            async with self._transition_lock:
+                result = await settle_home_mode(self._activate_state, self._deps, mode_id)
+            if isinstance(result, dict) and result.get("settled"):
+                await self._notify("info", str(result.get("message") or "模式已自动回落"), "home-mode")
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:  # 回落失败不能静默：否则模式会一直挂着
+            logger.warning("模式自动回落失败(%s): %s", mode_id, exc)
+        finally:
+            self._settle_tasks.pop(mode_id, None)
+
     def _load_active_mode_row(self) -> dict[str, Any] | None:
         """读取当前激活模式（同步；由 :meth:`start` 放进线程池）。
 
-        多互斥组会同时存在多条激活记录；排序必须与 :meth:`get_active_modes` 一致
-        （priority 降序、sort_order 升序），否则重启后指针对齐的是「另一条」激活模式，
-        无参 :meth:`deactivate` 会和前端展示的主模式错位。
+        排序必须与 :meth:`get_active_modes` 一致（priority 降序、sort_order 升序），
+        否则重启后指针指向的是「另一条」激活模式，无参 :meth:`deactivate` 会和前端错位。
         """
         with self._session_factory() as session:
             active = session.execute(
@@ -139,6 +188,7 @@ class HomeModeService:
         return mode_to_dict(active) if active is not None else None
 
     async def stop(self) -> None:
+        self._cancel_settle()
         if self._timer is not None:
             self._timer.cancel()
             with contextlib.suppress(asyncio.CancelledError, Exception):
@@ -171,8 +221,7 @@ class HomeModeService:
                 raw = load_raw_config(session)
         except Exception:
             raw = {}
-        # 先绑定再判类型：重复 `raw.get(K)` 时收窄不会传递到第二次读取，类型里会一直挂着 None，
-        # 字典解包因此被判成「可能不是映射」。
+        # 先绑定再判类型：重复 `raw.get(K)` 时收窄不会传递到第二次读取，类型里会一直挂着 None。
         home_mode_source = raw.get("homeMode")
         home_mode: dict[str, Any] = home_mode_source if isinstance(home_mode_source, dict) else {}
         security_source = raw.get("security")
@@ -203,8 +252,7 @@ class HomeModeService:
         }
 
     async def reload_trigger_bindings(self) -> None:
-        # 不再限制前 N 个模式：达到上限后第 N+1 个模式的定时 / 状态触发器会静默失效，
-        # 这类「看起来配好了但永远不触发」的问题没有日志可查。
+        # 不再限制前 N 个模式：达到上限后第 N+1 个模式的定时 / 状态触发器会静默失效。
         modes = await run_db(self._load_mode_dicts)
         self._trigger_state.cached_modes = modes
         self._trigger_state.trigger_bindings = parse_home_mode_trigger_bindings(modes)
@@ -364,6 +412,7 @@ class HomeModeService:
                 "sortOrder": (source.get("sortOrder") or 0) + 1,
                 "exclusiveGroup": source.get("exclusiveGroup"),
                 "priority": source.get("priority"),
+                "settleMinutes": source.get("settleMinutes"),
             }
         )
 
@@ -403,6 +452,7 @@ class HomeModeService:
                     "sortOrder": mode.get("sortOrder"),
                     "exclusiveGroup": mode.get("exclusiveGroup"),
                     "priority": mode.get("priority"),
+                    "settleMinutes": mode.get("settleMinutes"),
                 }
             )
         logger.info("已创建 %s 个默认全屋模式", len(presets_module.HOME_MODE_DEFAULT_MODES))
@@ -444,6 +494,7 @@ class HomeModeService:
                     "sortOrder": (existing_dict.get("sortOrder") or 0) + 1,
                     "exclusiveGroup": preset.get("exclusiveGroup"),
                     "priority": preset.get("priority"),
+                    "settleMinutes": preset.get("settleMinutes"),
                 }
             )
             return {**mode_snapshot, "unresolvedActions": plan["unresolvedActions"]}
@@ -458,6 +509,7 @@ class HomeModeService:
                 "sortOrder": int(max_order or 0) + 1,
                 "exclusiveGroup": preset.get("exclusiveGroup"),
                 "priority": preset.get("priority"),
+                "settleMinutes": preset.get("settleMinutes"),
             }
         )
         return {**mode_snapshot, "unresolvedActions": plan["unresolvedActions"]}
@@ -469,7 +521,7 @@ class HomeModeService:
         编排策略住在 ``activation.run_with_execution_mode``：这里只负责取模式配置、
         提供锁与「当前任务槽」。
         """
-        execution_mode = await self._execution_mode_of(mode_id)
+        execution_mode = await resolve_execution_mode(self.find_one_async, mode_id)
         result = await run_with_execution_mode(
             mode_id,
             execution_mode=execution_mode,
@@ -477,22 +529,32 @@ class HomeModeService:
             current_task_holder=self._activation_slot,
             run=lambda: activate_home_mode(self._activate_state, self._deps, mode_id, meta),
         )
+        # 单选（默认）：家只有一个当前状态，新模式生效后其它模式退场。
+        # 离家/度假即使在关掉单选时也要退场（家里没人时睡眠、影音不该继续存在）。
+        # 锁已在此刻释放，退出操作才能拿到同一把锁；设备冲突由归属仲裁兜底。
+        # ``alreadyActive`` 不再退场：重复激活一个已生效的模式不应顺手杀掉叠加活动。
+        if isinstance(result, dict) and result.get("active") and not result.get("alreadyActive"):
+            await evict_other_modes(
+                mode_id,
+                self.find_one_async,
+                self._deps.get_active_modes,
+                self.deactivate,
+                self._notify,
+                self._home_mode_cfg,
+            )
+        # 过渡模式（如「回家」，settleMinutes > 0）安排一次自动回落：
+        # 到期只清激活标记、不还原设备 —— 进门开的灯不该因为模式结束而关掉。
+        if isinstance(result, dict) and result.get("active"):
+            self._schedule_settle(await self.find_one_async(mode_id))
         return result
-
-    async def _execution_mode_of(self, mode_id: str) -> str:
-        """读取该模式的执行模式；读不到时按 ``queued``（旧行为）处理。"""
-        try:
-            mode = await self.find_one_async(mode_id)
-        except Exception:  # 诊断读取失败不能阻断激活
-            logger.debug("读取模式执行模式失败，按 queued 处理: %s", mode_id, exc_info=True)
-            mode = None
-        return normalize_execution_mode((mode or {}).get("executionMode"))
 
     async def find_one_async(self, mode_id: str) -> dict[str, Any] | None:
         """异步取单个模式（把同步 DB 读放进线程池）。"""
         return await run_db(self.find_one, mode_id)
 
     async def deactivate(self, mode_id: str | None = None, *, force: bool = False) -> HomeModeDeactivateResult:
+        # 先撤回落定时器：用户主动退出后不该再有一次「自动回落」通知。
+        self._cancel_settle(mode_id)
         async with self._transition_lock:
             return await deactivate_home_mode(self._activate_state, self._deps, mode_id, force=force)
 
@@ -530,6 +592,8 @@ class HomeModeService:
             # 但用户看不到「为什么这个模式不生效」。这里给出计数供界面提示，
             # **不自动改用户数据**（改配置必须由人来确认）。
             "invalidActions": self.count_invalid_actions(),
+            # 停用态但还留着设备快照 = 上次顶替 / 强制退出的恢复没做完，给前端重试入口。
+            "pendingRestore": summarize_pending_restore(self._load_mode_dicts()),
         }
 
     def count_invalid_actions(self) -> int:
@@ -697,151 +761,3 @@ class HomeModeService:
         result = self._emit_event(name, payload)
         if asyncio.iscoroutine(result):
             await result
-
-
-class _HomeModeDeps:
-    """激活 / 触发编排所需依赖集合（对齐 actions.internals / triggers.internals 的 deps）。
-
-    它不是第二个服务门面，而是 `HomeModeService` 交给 actions / triggers 的**窄接口**：
-    需要的动作以具名方法暴露，状态读写仍然只有服务一个真源。
-
-    `request_activate` / `request_deactivate` 是**回调进服务**（转换锁与「同组互斥 +
-    快照恢复」那套编排只在服务里）：命名刻意带 `request_` —— 写成 `activate` 时，调用方
-    很容易以为这是「另一条独立的激活通路」。
-    """
-
-    def __init__(self, service: HomeModeService) -> None:
-        self._service = service
-
-    # 日志
-    def log(self, message: str) -> None:
-        logger.info(message)
-
-    def warn(self, message: str) -> None:
-        logger.warning(message)
-
-    # 数据访问
-    async def find_mode(self, mode_id: str) -> dict[str, Any] | None:
-        return await run_db(self._service._find_mode_row, mode_id)
-
-    async def list_active_modes(self) -> list[dict[str, Any]]:
-        return await run_db(self._service._list_active_modes)
-
-    async def find_first_active(self) -> dict[str, Any] | None:
-        return await run_db(self._service._find_first_active)
-
-    async def switch_active_group(
-        self,
-        conflicting_modes: list[dict[str, Any]],
-        conflict_restore: dict[str, HomeModeSnapshotOutcome],
-        mode_id: str,
-        snapshot: dict[str, Any],
-    ) -> None:
-        await run_db(
-            self._service._switch_active_group,
-            conflicting_modes,
-            conflict_restore,
-            mode_id,
-            snapshot,
-        )
-
-    async def deactivate_in_db(
-        self,
-        mode_id: str,
-        *,
-        keep_snapshot: bool = False,
-        snapshot: dict[str, Any] | None = None,
-    ) -> None:
-        await run_db(
-            self._service._deactivate_in_db,
-            mode_id,
-            keep_snapshot=keep_snapshot,
-            snapshot=snapshot,
-        )
-
-    async def clear_group_active(self, group_ids: list[str], incomplete: bool) -> None:
-        await run_db(self._service._clear_group_active, group_ids, incomplete)
-
-    async def get_active_mode(self) -> dict[str, Any] | None:
-        return await run_db(self._service.get_active)
-
-    async def get_active_modes(self) -> list[dict[str, Any]]:
-        """全部激活模式（可跨互斥组）。
-
-        触发器优先级必须按「同组」比较：只用 ``get_active_mode()``（全局主模式）时，
-        多互斥组下目标组的真实对手常被漏掉，让位逻辑会整个失效。
-        """
-        return await run_db(self._service.get_active_modes)
-
-    def get_active_mode_id(self) -> str | None:
-        return self._service.get_active_mode_id()
-
-    # 执行 / 集成
-    async def call_service(self, domain: str, service: str, entity_id: str, data: dict[str, Any]) -> Any:
-        return await self._service._call_service(domain, service, entity_id, data)
-
-    async def fetch_entity_state(self, entity_id: str) -> dict[str, Any] | None:
-        return await self._service._fetch_entity_state(entity_id)
-
-    async def get_ha_status(self) -> dict[str, Any]:
-        return await self._service._ha_connector.get_status()
-
-    async def notify(self, level: str, message: str, source: str) -> Any:
-        return await self._service._notify(level, message, source)
-
-    async def set_security_mode(self, mode: str, source: str) -> bool:
-        return await self._service._apply_security_mode(mode, source)
-
-    async def get_security_mode(self) -> str | None:
-        return await self._service._read_security_mode()
-
-    def is_away_simulated_entity(self, entity_id: str) -> bool:
-        return self._service.is_away_simulated_entity(entity_id)
-
-    def is_baseline_settling(self) -> bool:
-        """HA 连接静置期内返回真；触发链据此整体跳过（见 HomeModeService 同名方法）。"""
-        return self._service.is_baseline_settling()
-
-    async def emit_home_mode_event(self, name: str, payload: dict[str, Any]) -> None:
-        await self._service._emit_home_mode_event(name, payload)
-
-    def push_trigger_log(self, entry: dict[str, Any]) -> None:
-        self._service._runtime_logs.push_trigger_log(entry)
-
-    def record_execution(self, entry: dict[str, Any]) -> None:
-        self._service._runtime_logs.record_execution(entry)
-
-    # 配置 / 触发器
-    @property
-    def linkage_arbiter(self) -> HomeModeLinkageArbiter:
-        return self._service.linkage_arbiter
-
-    def get_home_mode_config(self) -> dict[str, Any]:
-        return self._service._home_mode_cfg
-
-    def get_security_config(self) -> dict[str, Any]:
-        return self._service._security_cfg
-
-    def get_apply_max_retries(self) -> int:
-        return int(self._service._home_mode_cfg.get("applyMaxRetries") or 0)
-
-    def get_trigger_cooldown_ms(self) -> int:
-        return int(self._service._home_mode_cfg.get("triggerCooldownMs") or 60_000)
-
-    def get_home_timezone(self) -> str | None:
-        return self._service._home_timezone
-
-    def is_leader(self) -> bool:
-        return bool(self._service._is_leader())
-
-    async def request_activate(self, mode_id: str, meta: dict[str, Any] | None = None) -> Any:
-        """触发器路径请求激活：回调进服务的 `activate`（那里有转换锁与同组互斥编排）。"""
-        return await self._service.activate(mode_id, meta)
-
-    async def request_deactivate(self, mode_id: str | None = None) -> Any:
-        """触发器路径请求停用：回调进服务的 `deactivate`。
-
-        ``mode_id`` 必须显式传给「只退某一个组」的调用方：不传会退回内存指针指向的
-        主模式（多互斥组下常常是另一个组），把不该退的模式退掉、该退的却还留着。
-        """
-        return await self._service.deactivate(mode_id)

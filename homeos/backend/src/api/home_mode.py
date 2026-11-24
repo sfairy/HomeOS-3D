@@ -13,6 +13,7 @@ from fastapi import Depends, Query, Request
 from .router import NestRouter
 from .schemas.base import StrictModel
 from ..dependencies import license_feature
+from ..domains.home_mode.restore import build_activation_preview
 from ..domains.license import features as feature_codes
 from ..platform.core.db.db_exec import run_db
 from ..platform.core.db.pagination import parse_crud_pagination
@@ -43,10 +44,15 @@ class ReorderModesDto(StrictModel):
     items: list[ReorderModeItemDto]
 
 
-class CreateHomeModeDto(StrictModel):
-    name: str
+class _HomeModeOptionalFields(StrictModel):
+    """创建 / 更新共用字段。
+
+    两份 DTO 各写一遍会让「新增字段只加了一边」成为高频事故（``settleMinutes`` 就差点
+    只加到创建上）：共用基类让字段集合只有一个真源。
+    """
+
     icon: str | None = None
-    config: list[Any]
+    config: list[Any] | None = None
     triggers: list[Any] | None = None
     sortOrder: float | None = None
     exclusiveGroup: str | None = None
@@ -55,18 +61,18 @@ class CreateHomeModeDto(StrictModel):
     conditions: list[Any] | None = None
     #: 执行模式：queued（默认，旧行为）/ single / restart。
     executionMode: str | None = None
+    #: 自动回落分钟数（0 = 不回落）：过渡模式到期退回「日常」，不还原设备。
+    settleMinutes: float | None = None
 
 
-class UpdateHomeModeDto(StrictModel):
+class CreateHomeModeDto(_HomeModeOptionalFields):
+    name: str
+    #: 创建时动作列表必填（空模式没有意义，且会让激活流程遇到空配置）。
+    config: list[Any]
+
+
+class UpdateHomeModeDto(_HomeModeOptionalFields):
     name: str | None = None
-    icon: str | None = None
-    config: list[Any] | None = None
-    triggers: list[Any] | None = None
-    sortOrder: float | None = None
-    exclusiveGroup: str | None = None
-    priority: float | None = None
-    conditions: list[Any] | None = None
-    executionMode: str | None = None
 
 
 def _parse_pagination(page: str | None, limit: str | None) -> dict[str, Any]:
@@ -101,6 +107,19 @@ async def get_active(request: Request, user: dict[str, Any] = Depends(require_us
 @router.get("/context")
 async def get_context(request: Request, user: dict[str, Any] = Depends(require_user)):
     return await run_db(_service(request).get_mode_context)
+
+
+@router.get("/{mode_id}/activation-preview")
+async def get_activation_preview(mode_id: str, request: Request, user: dict[str, Any] = Depends(require_user)):
+    """激活前预览：这次激活会与哪些仍生效的模式改动同一批设备。
+
+    跨互斥组并存是允许的（同组才互斥），但两模式改到同一台设备时「后激活的为准」
+    是隐式语义。前端在确认框里点名冲突让用户先决定，而不是激活后才发现灯被改了。
+    """
+    service = _service(request)
+    mode = await run_db(service.find_one, mode_id)
+    active = await run_db(service.get_active_modes)
+    return build_activation_preview(mode, active)
 
 
 @router.get("/trigger-logs")

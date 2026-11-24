@@ -135,6 +135,7 @@
     "check:iaq-monitor": "node ops/lib/py.mjs ops/checks/business/iaq_monitor_selftest.py",
     "check:circadian": "node ops/lib/py.mjs ops/checks/business/circadian_selftest.py",
     "check:sun-trigger": "node ops/lib/py.mjs ops/checks/business/sun_trigger_selftest.py",
+    "check:home-mode-restore": "node ops/lib/py.mjs ops/checks/business/home_mode_restore_selftest.py",
     "check:entry-delay": "node ops/lib/py.mjs ops/checks/business/security_entry_delay_selftest.py",
     "check:device-timer": "node ops/lib/py.mjs ops/checks/business/device_timer_selftest.py",
     "check:energy-cost": "node ops/lib/py.mjs ops/checks/business/energy_cost_selftest.py",

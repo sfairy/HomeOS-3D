@@ -123,6 +123,7 @@
     "GET /api/v1/modes/templates",
     "GET /api/v1/modes/trigger-logs",
     "GET /api/v1/modes/{mode_id}",
+    "GET /api/v1/modes/{mode_id}/activation-preview",
     "GET /api/v1/modules/interaction3d/access",
     "GET /api/v1/modules/interaction3d/climate-capabilities",
     "GET /api/v1/modules/interaction3d/cover-memory",

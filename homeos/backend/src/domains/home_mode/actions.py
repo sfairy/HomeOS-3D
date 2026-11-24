@@ -5,10 +5,10 @@
   2. 用户 / Agent 触发时校验动作实体 ACL；
   3. 联动仲裁（HomeModeLinkageArbiter）；
   4. HA 连接检查；
-  5. 互斥组旧模式快照恢复 + 新模式设备快照采集；
+  5. 互斥组旧模式快照恢复 + 新模式设备快照采集（跨组设备归属见 ``restore.py``）；
   6. 事务内原子切换 isActive；
-  7. 联动去重后串行执行动作，失败按配置重试；
-  8. 全部失败则回滚快照并取消激活；否则记录日志与执行历史。
+  7. 联动去重后串行执行动作，失败按配置重试（安防动作不降级）；
+  8. 失败达阈值则回滚快照并取消激活；否则记录日志与执行历史。
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ import json
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Any, NotRequired, TypedDict, cast
+from typing import Any, TypedDict, cast
 
 from .execution_record import (
     build_action_trace,
@@ -30,17 +30,20 @@ from .execution_record import (
     execution_record as _execution_record_impl,
 )
 from .notify_result import build_notify_action_result, build_security_action_result
+from .presence_rules import away_conflict_result, find_blocking_away_mode
 from .presets import collect_home_mode_target_actions, resolve_action_kind
-from .snapshot import (
-    HA_ENTITY_FETCH_CONCURRENCY,
-    collect_device_snapshot,
+from .restore import (
+    SNAPSHOT_MISSING_KEY,
+    HomeModeSnapshotOutcome,
+    read_snapshot,
+    restore_mode_snapshot,
 )
+from .security_actions import run_security_actions
+from .snapshot import collect_device_snapshot
 from .validation import is_action_permitted
 from ..home_exec.execute_action_sequence import execute_action_sequence
-from ..home_exec.snapshot_restore import build_snapshot_restore_calls, describe_restore_support
 from ..proxy.verification import describe_service_verification
 from ..security.entity_execute_acl import assert_entity_targets_execute_authorized
-from ...platform.core.entity.entity_domain import get_entity_domain
 from ...platform.core.http.errors import api_error, bad_request, not_found
 
 logger = logging.getLogger("homeos.home_mode")
@@ -48,9 +51,6 @@ logger = logging.getLogger("homeos.home_mode")
 #: 服务调用响应里没有目标实体时（HA 对离线 / 跳过同样返回 200）回读状态的等待时间。
 #: WS 状态回推通常 <100ms，留一点余量后仍读不到就按「未确认」处理，而不是伪造成功。
 HA_VERIFY_RETRY_DELAY_SECONDS = 0.25
-
-#: 快照里记录「采集失败实体」的保留键：恢复时据此如实报告「这些设备无法恢复」。
-SNAPSHOT_MISSING_KEY = "_missing"
 
 #: 激活失败阈值：失败动作占比达到这个比例就整体回滚（此前是「全部失败才回滚」，
 #: 于是 1/9 成功也会显示为「已激活」，房子停在没人预期的状态）。
@@ -70,18 +70,6 @@ def _read_actions(raw: Any) -> list[dict[str, Any]]:
             return parsed
     bad_request(api_error("HOME_MODE_CONFIG_PARSE_FAILED"))
     return []
-
-
-def _read_snapshot(raw: Any) -> dict[str, Any]:
-    if isinstance(raw, dict):
-        return raw
-    if isinstance(raw, str) and raw:
-        try:
-            parsed = json.loads(raw)
-            return parsed if isinstance(parsed, dict) else {}
-        except (TypeError, ValueError):  # fmt: skip
-            return {}
-    return {}
 
 
 def filter_home_mode_actions_for_linkage_dedupe(
@@ -226,120 +214,6 @@ async def _execute_home_mode_action_inner(deps: Any, action: dict[str, Any]) -> 
         }
 
 
-async def _restore_entity_from_snapshot(deps: Any, entity_id: str, snapshot: dict[str, Any]) -> None:
-    calls = build_snapshot_restore_calls(entity_id, snapshot)
-
-    semaphore = asyncio.Semaphore(HA_ENTITY_FETCH_CONCURRENCY)
-
-    async def _run(call: dict[str, Any]) -> None:
-        async with semaphore:
-            await deps.call_service(call["domain"], call["service"], call["entityId"], call["data"])
-
-    await asyncio.gather(*(_run(call) for call in calls))
-
-
-def _snapshot_state_matches(current: dict[str, Any] | None, snap: dict[str, Any]) -> bool:
-    if not current or current.get("state") != snap.get("state"):
-        return False
-    return json.dumps(current.get("attributes"), sort_keys=True, default=str) == json.dumps(
-        snap.get("attributes"), sort_keys=True, default=str
-    )
-
-
-async def _restore_entity_from_snapshot_if_not_changed(deps: Any, entity_id: str, snap: dict[str, Any]) -> str:
-    """把实体恢复到快照状态；返回 ``unchanged``（已一致）/ ``restored``（已回写）。"""
-    try:
-        current = await deps.fetch_entity_state(entity_id)
-    except Exception:
-        # 读不到当前状态时按「与快照不一致」处理，会照常回写一次 —— 但这样一来
-        # 「恢复条数」里就混进了「其实没查成功」的条目，必须有日志可对账。
-        logger.warning("恢复快照前读取实体当前状态失败，按需要回写处理: %s", entity_id, exc_info=True)
-        current = None
-    if _snapshot_state_matches(current, snap):
-        return "unchanged"
-    await _restore_entity_from_snapshot(deps, entity_id, snap)
-    return "restored"
-
-
-async def _restore_mode_snapshot(deps: Any, mode: dict[str, Any]) -> HomeModeSnapshotOutcome:
-    """把设备恢复到模式快照记录的状态，如实统计 recovered/skipped。
-
-    ``restored + unchanged == attempted``；``skippedDomains`` 记录恢复表覆盖不到的域
-    （scene / script / button 等），调用方据此判断「已恢复 N 个设备」是否名副其实。
-    ``failedEntities`` / ``missingEntities`` 指名道姓列出没恢复成功的设备：
-    只给一个 ``failed`` 计数时，用户无法知道该去检查哪台设备。
-    """
-    outcome: HomeModeSnapshotOutcome = {
-        "restored": 0,
-        "unchanged": 0,
-        "failed": 0,
-        "incomplete": False,
-        "attempted": 0,
-        "skippedDomains": [],
-        "failedEntities": [],
-        "missingEntities": [],
-    }
-    # 拷贝一份：``_read_snapshot`` 对 dict 直接返回原对象，pop 保留键会污染调用方的快照。
-    snapshot = dict(_read_snapshot(mode.get("deviceSnapshot")))
-    missing = snapshot.pop(SNAPSHOT_MISSING_KEY, [])
-    outcome["missingEntities"] = (
-        [str(entity_id) for entity_id in missing if isinstance(entity_id, str) and entity_id]
-        if isinstance(missing, list)
-        else []
-    )
-    if not snapshot:
-        return outcome
-    try:
-        status = await deps.get_ha_status()
-        if not status.get("connected"):
-            outcome["incomplete"] = True
-            # 标记成「HA 离线」：此时 attempted=0，直接报「0/0 个设备恢复失败」既没线索
-            # 又让人以为设备真的失败了。停用流程据此给「可强制退出」的提示。
-            outcome["haOffline"] = True
-            return outcome
-        entries = list(snapshot.items())
-        if not entries:
-            return outcome
-
-        skipped_domains: set[str] = set()
-        restorable: list[tuple[str, dict[str, Any]]] = []
-        for entity_id, snap in entries:
-            snap_row = snap if isinstance(snap, dict) else {}
-            if describe_restore_support(entity_id, snap_row) == "skipped":
-                skipped_domains.add(get_entity_domain(entity_id))
-                continue
-            restorable.append((entity_id, snap_row))
-        outcome["skippedDomains"] = sorted(skipped_domains)
-        outcome["attempted"] = len(restorable)
-        if not restorable:
-            return outcome
-
-        semaphore = asyncio.Semaphore(HA_ENTITY_FETCH_CONCURRENCY)
-        results: list[str] = []
-        failed_entities: list[str] = []
-
-        async def _run(entity_id: str, snap: dict[str, Any]) -> None:
-            async with semaphore:
-                try:
-                    results.append(await _restore_entity_from_snapshot_if_not_changed(deps, entity_id, snap))
-                except Exception as exc:
-                    # 恢复失败必须与「本就一致」区分开，否则会误判回滚完整而丢弃快照。
-                    deps.warn(f"恢复设备 {entity_id} 到快照失败: {exc}")
-                    results.append("failed")
-                    failed_entities.append(entity_id)
-
-        await asyncio.gather(*(_run(entity_id, snap) for entity_id, snap in restorable))
-        outcome["restored"] = sum(1 for result in results if result == "restored")
-        outcome["unchanged"] = sum(1 for result in results if result == "unchanged")
-        outcome["failed"] = sum(1 for result in results if result == "failed")
-        outcome["failedEntities"] = failed_entities
-        outcome["incomplete"] = outcome["failed"] > 0
-    except Exception as exc:
-        outcome["incomplete"] = True
-        deps.warn(f"解析设备快照失败: {exc}")
-    return outcome
-
-
 class HomeModeActivateState:
     def __init__(self, getter, setter) -> None:
         self._get = getter
@@ -454,36 +328,16 @@ class HomeModeDeactivateResult(TypedDict, total=False):
     restoreIncomplete: bool
     haOffline: bool
     skippedDomains: list[str]
+    #: 被其他激活模式接管的实体：按归属仲裁跳过，不算恢复失败。
+    skippedOwned: list[str]
+    #: 本次调用是「回放残留快照」（模式本来就不在激活态）。
+    retryRestore: bool
+    #: 本次是自动回落（模式结束但设备保持现状）。
+    settled: bool
     failedEntities: list[str]
     missingEntities: list[str]
     exclusiveGroup: str
     message: str
-
-
-class HomeModeSnapshotOutcome(TypedDict):
-    """快照恢复计数。
-
-    所有键总是同时写入（见 :func:`_restore_mode_snapshot`），故声明为必选：
-    调用方 ``outcome["restored"]`` 才不会被判成「可能缺失的键」。
-
-    - ``attempted``：真正尝试恢复的实体数（restored + unchanged + failed）
-    - ``skippedDomains``：恢复表覆盖不到的域（scene / script / button …），
-      它们不会进入 ``restored``，避免「已恢复 N 个设备」虚高。
-    - ``failedEntities``：恢复失败的实体 id（用于前端点名提示）。
-    - ``missingEntities``：激活时就没采集到快照的实体 id —— 它们无法恢复。
-    - ``haOffline``：HA 未连接导致根本没开始恢复（``attempted`` 为 0）。可选：
-      只有离线分支才写，其他分支不出现该键。
-    """
-
-    restored: int
-    unchanged: int
-    failed: int
-    incomplete: bool
-    attempted: int
-    skippedDomains: list[str]
-    failedEntities: list[str]
-    missingEntities: list[str]
-    haOffline: NotRequired[bool]
 
 
 def _already_active_home_mode_result(mode: dict[str, Any], mode_id: str) -> HomeModeActivateResult:
@@ -562,9 +416,9 @@ async def _reassert_displaced_modes(deps: Any, activation: _ActivationContext) -
     """
     incomplete_modes: list[str] = []
     for displaced in activation.displaced_modes:
-        if not _read_snapshot(displaced.get("deviceSnapshot")):
+        if not read_snapshot(displaced.get("deviceSnapshot")):
             continue
-        outcome = await _restore_mode_snapshot(deps, displaced)
+        outcome = await restore_mode_snapshot(deps, displaced)
         if outcome["incomplete"]:
             incomplete_modes.append(str(displaced.get("name") or displaced.get("id") or "?"))
     return incomplete_modes
@@ -588,7 +442,7 @@ async def _abort_failed_activation(
         f"模式 {mode['name']} 失败动作超过阈值({MODE_ACTIVATION_FAILURE_RATIO:.0%}),"
         f"回滚快照并取消激活({applied_count}/{len(results)} 成功)"
     )
-    rollback = await _restore_mode_snapshot(deps, {"deviceSnapshot": snapshot})
+    rollback = await restore_mode_snapshot(deps, {"deviceSnapshot": snapshot}, respect_active_owners=False)
     # 回滚不完整（HA 断连 / 部分实体恢复失败）时必须保留快照：
     # 否则用户失去唯一的手动恢复依据，设备将停留在半执行状态。
     rollback_incomplete = bool(rollback.get("incomplete"))
@@ -810,6 +664,11 @@ async def activate_home_mode(
     conditions_ok, unmet = await check_mode_conditions(deps, mode)
     if not conditions_ok:
         return cast(HomeModeActivateResult, skipped_result(deps, mode, mode_id, meta, unmet))
+    # ①c 在场互斥：离家/度假生效（家里没人）期间，睡眠、影音、用餐不该被**自动**唤醒。
+    # 手动切换与「到家类」模式放行：开锁进门必须能结束离家，否则回家回不来。
+    blocking_away = find_blocking_away_mode(mode, await deps.get_active_modes(), (meta or {}).get("source"))
+    if blocking_away is not None:
+        return cast(HomeModeActivateResult, away_conflict_result(deps, mode, mode_id, meta, blocking_away))
     entity_configs = _read_actions(mode.get("config"))
 
     assert_entity_targets_execute_authorized(
@@ -926,7 +785,7 @@ async def _prepare_activation_snapshot(
     activation.displaced_modes = list(conflicting_modes)
     # 先把旧模式的设备恢复到「进入该模式之前」的状态，让新动作从干净状态开始。
     for active in conflicting_modes:
-        activation.conflict_restore[active["id"]] = await _restore_mode_snapshot(deps, active)
+        activation.conflict_restore[active["id"]] = await restore_mode_snapshot(deps, active)
 
     snapshot, snapshot_missing = await collect_device_snapshot(deps, entity_configs)
     if snapshot_missing:
@@ -956,9 +815,14 @@ async def _execute_activation_actions(
     # 中途异常时兜底回滚才知道是否需要把面板还原。
     activation.security_action_count = len(security_configs)
     activation.previous_security_mode = await deps.get_security_mode() if security_configs else None
-    security_results: list[dict[str, Any]] = []
-    for config in security_configs:
-        security_results.append(await _execute_home_mode_action(deps, config))
+    security_results = await run_security_actions(
+        deps,
+        mode_name=activation.mode["name"],
+        current_mode=activation.previous_security_mode,
+        source=activation.trigger.source,
+        configs=security_configs,
+        execute=lambda config: _execute_home_mode_action(deps, config),
+    )
 
     device_results = await execute_action_sequence(
         device_configs,
@@ -1046,6 +910,24 @@ async def _forced_incomplete_note(
     return f"；{failed} 个设备恢复失败（已强制退出，快照保留供手动恢复）", True
 
 
+def _pending_restore_done_message(name: str, restored: int, skipped_owned: list[str]) -> str:
+    """待恢复快照回放成功的文案（与停用文案区分：模式本来就不在激活态）。"""
+    message = f"「{name}」的残留设备快照已恢复 {restored} 个"
+    if skipped_owned:
+        message += f"，{len(skipped_owned)} 个设备由其他激活模式控制，保持现状"
+    return message
+
+
+def _pending_restore_incomplete_message(mode: dict[str, Any], outcome: HomeModeSnapshotOutcome) -> str:
+    """待恢复快照回放失败的文案：说清是「没恢复完」而不是「模式还激活着」。"""
+    if outcome.get("haOffline"):
+        return f"「{mode['name']}」的残留快照未能恢复：HA 未连接，快照已保留可稍后重试"
+    return (
+        f"「{mode['name']}」的残留快照恢复未完成："
+        f"{outcome['failed']}/{outcome['attempted']} 个设备失败，快照已保留可重试"
+    )
+
+
 async def _report_incomplete_deactivate(
     deps: Any,
     mode: dict[str, Any],
@@ -1096,6 +978,97 @@ async def _report_incomplete_deactivate(
     }
 
 
+async def _restore_note_suffixes(
+    deps: Any,
+    mode: dict[str, Any],
+    outcome: HomeModeSnapshotOutcome,
+    force: bool,
+    failed: int,
+    attempted: int,
+) -> tuple[str, bool]:
+    """拼「停用结果」文案并补齐相关通知，返回 ``(文案后缀, 是否强制退出且未完全恢复)``。
+
+    每种没恢复的原因都必须说清：域不支持 / 被其他模式接管 / 激活时就没快照。
+    只给一句「已恢复 N 个设备」会让用户以为剩下的设备也恢复了。
+    """
+    forced_note, forced_incomplete = await _forced_incomplete_note(
+        deps, mode, outcome, bool(outcome["incomplete"]), force, failed, attempted
+    )
+    message = forced_note
+    skipped_domains = outcome["skippedDomains"]
+    if skipped_domains:
+        message += f"，{len(skipped_domains)} 类域不支持恢复（{'/'.join(skipped_domains)}）"
+    if outcome["skippedOwned"]:
+        # 归属仲裁跳过的设备不是「恢复失败」：它们由另一个仍生效的模式接管，
+        # 硬回放只会把对方刚设好的状态改回去。必须让用户知道是谁在管。
+        owners = set(outcome["ownedElsewhere"].values())
+        message += (
+            f"，{len(outcome['skippedOwned'])} 个设备由其他激活模式（{'、'.join(sorted(owners))}）控制，保持其设置"
+        )
+    missing_entities = outcome["missingEntities"]
+    if missing_entities:
+        # 激活时就没采集到快照的设备：它们的状态永远不会被恢复，必须点名而不是沉默。
+        message += f"，{len(missing_entities)} 个设备激活时未采集快照（无法恢复）"
+        await deps.notify(
+            "warning",
+            f"模式 {mode['name']} 有 {len(missing_entities)} 个设备未采集过快照，已跳过恢复："
+            + "、".join(missing_entities[:5]),
+            "home-mode",
+        )
+    return message, forced_incomplete
+
+
+async def _restore_pending_snapshot(
+    deps: Any,
+    mode: dict[str, Any],
+    mode_id: str,
+    group: str,
+    restore_outcome: HomeModeSnapshotOutcome,
+) -> HomeModeDeactivateResult:
+    """回放「停用态 + 残留快照」并收尾（模式本来就没激活，不能报「仍激活」）。
+
+    以前 ``deactivate`` 对这类模式直接返回「模式未激活」，于是同组顶替 / 强制退出留下的
+    孤儿快照既不在激活列表里、也没有回放入口 —— 设备停在半恢复状态且无从补救。
+    """
+    if restore_outcome["incomplete"]:
+        message = _pending_restore_incomplete_message(mode, restore_outcome)
+        await deps.notify("warning", message, "home-mode")
+        return {
+            "success": False,
+            "modeId": mode_id,
+            "modeName": mode["name"],
+            "active": False,
+            "restoreIncomplete": True,
+            "retryRestore": True,
+            "haOffline": bool(restore_outcome.get("haOffline")),
+            "failed": restore_outcome["failed"],
+            "failedEntities": restore_outcome["failedEntities"],
+            "skippedOwned": restore_outcome["skippedOwned"],
+            "exclusiveGroup": group,
+            "message": message,
+        }
+    await deps.deactivate_in_db(mode_id)
+    message = _pending_restore_done_message(mode["name"], restore_outcome["restored"], restore_outcome["skippedOwned"])
+    deps.push_trigger_log(
+        {"modeId": mode_id, "modeName": mode["name"], "source": "deactivate", "reason": message, "success": True}
+    )
+    return {
+        "success": True,
+        "modeId": mode_id,
+        "modeName": mode["name"],
+        "active": False,
+        "restored": restore_outcome["restored"],
+        "unchanged": restore_outcome["unchanged"],
+        "failed": 0,
+        "incomplete": False,
+        "restoreIncomplete": False,
+        "retryRestore": True,
+        "skippedOwned": restore_outcome["skippedOwned"],
+        "exclusiveGroup": group,
+        "message": message,
+    }
+
+
 async def deactivate_home_mode(
     state: HomeModeActivateState, deps: Any, mode_id: str | None = None, *, force: bool = False
 ) -> HomeModeDeactivateResult:
@@ -1128,19 +1101,27 @@ async def deactivate_home_mode(
         if state.get_active_mode_id() == target_id:
             state.set_active_mode_id(None)
         return {"success": True, "message": "无激活模式"}
-    if not mode.get("isActive") and state.get_active_mode_id() != target_id:
+    was_active = bool(mode.get("isActive"))
+    # 停用态但还留着快照 = 上次顶替 / 强制退出时恢复不完整。以前这里是「模式未激活」
+    # 直接返回，于是孤儿快照永远没有回放入口（用户既看不到也没法重试）。
+    pending_restore = bool(read_snapshot(mode.get("deviceSnapshot")))
+    if not was_active and not pending_restore and state.get_active_mode_id() != target_id:
         return {"success": True, "message": "模式未激活"}
 
     prev_mode_id = target_id
     group = mode.get("exclusiveGroup") or "default"
-    restore_outcome = await _restore_mode_snapshot(deps, mode)
+    restore_outcome = await restore_mode_snapshot(deps, mode)
     restored = restore_outcome["restored"]
     attempted = restore_outcome["attempted"]
     failed = restore_outcome["failed"]
     skipped_domains = restore_outcome["skippedDomains"]
+    skipped_owned = restore_outcome["skippedOwned"]
     failed_entities = restore_outcome["failedEntities"]
     missing_entities = restore_outcome["missingEntities"]
     restore_incomplete = bool(restore_outcome["incomplete"])
+
+    if not was_active:
+        return await _restore_pending_snapshot(deps, mode, prev_mode_id, group, restore_outcome)
 
     active_modes = await deps.list_active_modes()
     group_ids = [m["id"] for m in active_modes if (m.get("exclusiveGroup") or "default") == group]
@@ -1182,21 +1163,8 @@ async def deactivate_home_mode(
             },
         )
     restored_message = f"已恢复 {restored} 个设备"
-    forced_note, forced_incomplete = await _forced_incomplete_note(
-        deps, mode, restore_outcome, restore_incomplete, force, failed, attempted
-    )
+    forced_note, forced_incomplete = await _restore_note_suffixes(deps, mode, restore_outcome, force, failed, attempted)
     restored_message += forced_note
-    if skipped_domains:
-        restored_message += f"，{len(skipped_domains)} 类域不支持恢复（{'/'.join(skipped_domains)}）"
-    if missing_entities:
-        # 激活时就没采集到快照的设备：它们的状态永远不会被恢复，必须点名而不是沉默。
-        restored_message += f"，{len(missing_entities)} 个设备激活时未采集快照（无法恢复）"
-        await deps.notify(
-            "warning",
-            f"模式 {mode['name']} 有 {len(missing_entities)} 个设备未采集过快照，已跳过恢复："
-            + "、".join(missing_entities[:5]),
-            "home-mode",
-        )
     deps.push_trigger_log(
         {
             "modeId": prev_mode_id,
@@ -1220,6 +1188,7 @@ async def deactivate_home_mode(
         "restoreIncomplete": forced_incomplete,
         "haOffline": bool(restore_outcome.get("haOffline")),
         "skippedDomains": skipped_domains,
+        "skippedOwned": skipped_owned,
         "failedEntities": failed_entities,
         "missingEntities": missing_entities,
         "exclusiveGroup": group,

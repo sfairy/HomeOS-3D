@@ -16,6 +16,22 @@ from ...platform.core.http.errors import api_error, not_found
 # 安防布防模式枚举（对齐 @homeos/shared security-map）。
 SECURITY_ARMING_MODES = ("armed_home", "armed_away", "armed_night", "disarmed")
 
+#: 布防强度：触发链不允许把更强的布防**自动**降级（离家 → 睡眠 = 无人在家却只留夜间警戒）。
+#: ``armed_night`` 高于 ``armed_home``：夜间模式对周边区的判定更严格。
+SECURITY_ARMING_RANK: dict[str, int] = {"disarmed": 0, "armed_home": 1, "armed_night": 2, "armed_away": 3}
+
+
+def is_security_downgrade(current: str | None, target: str) -> bool:
+    """``target`` 是否比 ``current`` 更弱。
+
+    任一值未知（``None`` / 自建档位）时返回 ``False``：不猜、不拦，交给安防域自己的
+    状态机裁决。手动切换也不该走这条判断（用户明确要求撤防是合法意图）。
+    """
+    if not current:
+        return False
+    return SECURITY_ARMING_RANK.get(str(target), -1) < SECURITY_ARMING_RANK.get(str(current), -1)
+
+
 HOME_MODE_ACTION_TEMPLATES: list[dict[str, Any]] = [
     {
         "id": "away_lights_off",
@@ -73,7 +89,9 @@ HOME_MODE_PRESETS: list[dict[str, Any]] = [
         "id": "preset_home",
         "name": "回家",
         "icon": "door-open",
-        "description": "开玄关灯、居家布防、舒适空调温度",
+        "description": "开玄关灯、居家布防、舒适空调温度（20 分钟后自动回到「日常」，设备保持）",
+        # 一次性的进门动作：人进屋后家就回到「日常」，不该让 header 一直挂着「回家」。
+        "settleMinutes": 20,
         "entityKeys": [
             {"key": "entrance_light", "label": "玄关灯", "placeholder": "light.entrance"},
             {"key": "climate", "label": "空调（可选）", "placeholder": "climate.living_room"},
@@ -113,7 +131,13 @@ HOME_MODE_PRESETS: list[dict[str, Any]] = [
         "triggers": [{"type": "all_leave"}],
         "actions": [
             {"key": "lights", "kind": "entity", "entity_id": "light.all", "domain": "light", "service": "turn_off"},
-            {"key": "climate", "kind": "entity", "entity_id": "climate.all", "domain": "climate", "service": "turn_off"},
+            {
+                "key": "climate",
+                "kind": "entity",
+                "entity_id": "climate.all",
+                "domain": "climate",
+                "service": "turn_off",
+            },
             {"kind": "security", "entity_id": "armed_away", "domain": "security", "service": "arm"},
             {"kind": "notify", "entity_id": "已切换离家模式", "domain": "notify", "service": "send_message"},
         ],
@@ -123,7 +147,6 @@ HOME_MODE_PRESETS: list[dict[str, Any]] = [
         "name": "睡眠",
         "icon": "moon",
         "description": "关窗帘、睡眠场景、白噪音、夜间布防与勿扰提示",
-        "exclusiveGroup": "comfort",
         "priority": 80,
         "entityKeys": [
             {"key": "curtains", "label": "卧室窗帘（可选）", "placeholder": "cover.bedroom"},
@@ -132,7 +155,13 @@ HOME_MODE_PRESETS: list[dict[str, Any]] = [
         ],
         "triggers": [{"type": "time", "at": "22:30"}],
         "actions": [
-            {"key": "curtains", "kind": "entity", "entity_id": "cover.bedroom", "domain": "cover", "service": "close_cover"},
+            {
+                "key": "curtains",
+                "kind": "entity",
+                "entity_id": "cover.bedroom",
+                "domain": "cover",
+                "service": "close_cover",
+            },
             {
                 "key": "sleep_scene",
                 "kind": "scene",
@@ -172,14 +201,20 @@ HOME_MODE_PRESETS: list[dict[str, Any]] = [
         "name": "影院",
         "icon": "film",
         "description": "关主灯、激活观影场景",
-        "exclusiveGroup": "comfort",
+        "exclusiveGroup": "overlay",
         "priority": 50,
         "entityKeys": [
             {"key": "main_light", "label": "主灯", "placeholder": "light.living_room"},
             {"key": "cinema_scene", "label": "观影场景", "placeholder": "scene.cinema"},
         ],
         "actions": [
-            {"key": "main_light", "kind": "entity", "entity_id": "light.living_room", "domain": "light", "service": "turn_off"},
+            {
+                "key": "main_light",
+                "kind": "entity",
+                "entity_id": "light.living_room",
+                "domain": "light",
+                "service": "turn_off",
+            },
             {
                 "key": "cinema_scene",
                 "kind": "scene",
@@ -195,6 +230,7 @@ HOME_MODE_PRESETS: list[dict[str, Any]] = [
         "name": "会客",
         "icon": "users",
         "description": "会客灯光、通知家人",
+        "exclusiveGroup": "overlay",
         "entityKeys": [{"key": "guest_lights", "label": "会客区灯光", "placeholder": "light.living_room"}],
         "actions": [
             {
@@ -212,11 +248,19 @@ HOME_MODE_PRESETS: list[dict[str, Any]] = [
         "id": "preset_cleaning",
         "name": "清扫中",
         "icon": "vacuum",
-        "description": "启动扫地机器人并通知家人",
+        "description": "启动扫地机器人并通知家人（90 分钟后自动结束）",
+        "exclusiveGroup": "overlay",
+        "settleMinutes": 90,
         "entityKeys": [{"key": "vacuum", "label": "扫地机", "placeholder": "vacuum.robot"}],
         "actions": [
             {"key": "vacuum", "kind": "entity", "entity_id": "vacuum.robot", "domain": "vacuum", "service": "start"},
-            {"kind": "notify", "entity_id": "清扫模式已启用", "domain": "notify", "service": "send_message", "delay": 300},
+            {
+                "kind": "notify",
+                "entity_id": "清扫模式已启用",
+                "domain": "notify",
+                "service": "send_message",
+                "delay": 300,
+            },
         ],
     },
 ]
@@ -236,8 +280,14 @@ HOME_MODE_DEFAULT_MODES: list[dict[str, Any]] = [
         "name": "回家模式",
         "icon": "door-open",
         "sortOrder": 0,
+        "settleMinutes": 20,
         "config": [
-            {"entity_id": "light.xuan_guan", "domain": "light", "service": "turn_on", "service_data": {"brightness_pct": 80}},
+            {
+                "entity_id": "light.xuan_guan",
+                "domain": "light",
+                "service": "turn_on",
+                "service_data": {"brightness_pct": 80},
+            },
             build_home_mode_security_action("armed_home"),
             {
                 "entity_id": "climate.ke_ting",
@@ -267,11 +317,15 @@ HOME_MODE_DEFAULT_MODES: list[dict[str, Any]] = [
         "name": "睡眠模式",
         "icon": "moon",
         "sortOrder": 2,
-        "exclusiveGroup": "comfort",
         "priority": 80,
         "config": [
             {"entity_id": "light.all", "domain": "light", "service": "turn_off"},
-            {"entity_id": "climate.wo_shi", "domain": "climate", "service": "set_temperature", "service_data": {"temperature": 26}},
+            {
+                "entity_id": "climate.wo_shi",
+                "domain": "climate",
+                "service": "set_temperature",
+                "service_data": {"temperature": 26},
+            },
             build_home_mode_security_action("armed_night"),
         ],
         "triggers": [{"type": "time", "at": "22:30"}],
@@ -280,7 +334,7 @@ HOME_MODE_DEFAULT_MODES: list[dict[str, Any]] = [
         "name": "影音模式",
         "icon": "film",
         "sortOrder": 3,
-        "exclusiveGroup": "comfort",
+        "exclusiveGroup": "overlay",
         "priority": 50,
         "config": [
             {
@@ -296,6 +350,7 @@ HOME_MODE_DEFAULT_MODES: list[dict[str, Any]] = [
         "name": "用餐模式",
         "icon": "utensils",
         "sortOrder": 4,
+        "exclusiveGroup": "overlay",
         "config": [
             {
                 "entity_id": "light.can_ting",
@@ -409,9 +464,7 @@ def _get_unresolved_preset_keys(
 ) -> list[str]:
     unresolved: list[str] = []
     for entity_key in preset.get("entityKeys") or []:
-        value = str(overrides.get(entity_key["key"]) or "").strip() or str(
-            entity_key.get("placeholder") or ""
-        ).strip()
+        value = str(overrides.get(entity_key["key"]) or "").strip() or str(entity_key.get("placeholder") or "").strip()
         if "." not in value or value not in known_entity_ids:
             unresolved.append(entity_key["label"])
     return unresolved
@@ -425,8 +478,7 @@ def _build_preset_actions(preset: dict[str, Any], overrides: dict[str, str]) -> 
             out.append(
                 {
                     "kind": "notify",
-                    "entity_id": str(overrides.get(action.get("key") or "") or "").strip()
-                    or action.get("entity_id"),
+                    "entity_id": str(overrides.get(action.get("key") or "") or "").strip() or action.get("entity_id"),
                     "domain": action.get("domain"),
                     "service": action.get("service"),
                     "service_data": action.get("service_data"),
@@ -474,9 +526,7 @@ def _build_preset_triggers(preset: dict[str, Any], overrides: dict[str, str]) ->
     return result
 
 
-def enrich_home_mode_presets(
-    entity_ids: list[str], existing_modes: list[dict[str, Any]]
-) -> list[dict[str, Any]]:
+def enrich_home_mode_presets(entity_ids: list[str], existing_modes: list[dict[str, Any]]) -> list[dict[str, Any]]:
     known = set(entity_ids)
     mode_id_by_name = {mode["name"]: mode["id"] for mode in existing_modes}
     views: list[dict[str, Any]] = []

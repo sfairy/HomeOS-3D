@@ -494,6 +494,8 @@ def _default_home_mode_and_media_sections() -> dict[str, Any]:
             "maxExecHistory": 100,
             "showAwayButton": True,
             "showHomeMode": True,
+            # 单选语义：家只有一个当前状态（用餐 / 影音等叠加活动除外）。
+            "singleActiveMode": True,
             "manualLockTtlMin": 30,
             "linkageClaimTtlMin": 15,
         },

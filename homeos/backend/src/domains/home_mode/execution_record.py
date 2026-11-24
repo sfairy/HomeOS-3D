@@ -134,6 +134,7 @@ def skipped_result(
     而「今天深夜不执行回家模式」是完全正常的行为，不该让用户以为出了问题。
     """
     deps.log(f"模式 {mode['name']} 条件不满足，跳过本次激活: {unmet}")
+    reason = f"「{mode['name']}」的 {len(unmet)} 项启用条件当前不满足，本次未执行"
     deps.push_trigger_log(
         {
             "modeId": mode_id,
@@ -152,6 +153,8 @@ def skipped_result(
         "skipped": True,
         "reason": "condition_unmet",
         "unmetConditions": unmet,
+        # 前端直接展示这句：只说「条件不满足」用户不知道自己配错了哪一条。
+        "message": reason,
         "executed": 0,
         "total": 0,
     }

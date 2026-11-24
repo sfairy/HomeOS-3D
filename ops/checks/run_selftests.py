@@ -62,6 +62,7 @@ MODULES: tuple[str, ...] = (
     "energy_hourly_selftest",
     "circadian_selftest",
     "sun_trigger_selftest",
+    "home_mode_restore_selftest",
     "security_entry_delay_selftest",
     "device_timer_selftest",
     "notification_mute_selftest",

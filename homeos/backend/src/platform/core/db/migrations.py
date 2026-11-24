@@ -46,6 +46,7 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
+from typing import Any
 
 from homeos_shared.schema_migrate import Migration, MigrationContext
 from homeos_shared.sqlite_schema import table_columns, table_indexes
@@ -273,6 +274,158 @@ def _draft_entity_refs_table(connection: sqlite3.Connection, _context: Migration
         )
 
 
+#: 10 号：家庭模式的分组归一 + 自动回落列。
+#:
+#: 两件事都必须由迁移做，``create_all`` 只能给新库建列、补不了**已有数据**：
+#:
+#: 1. ``settleMinutes`` 列：「回家」这类一次性过渡模式到期后应退回「日常」，
+#:    否则一个进门动作会永久挂在 header 上。
+#: 2. 旧 ``comfort`` 分组归一：它把「睡眠」（家庭状态）和「影音/用餐」（叠加活动）
+#:    混在一组，导致吃饭会把回家的玄关灯回滚掉。按名称语义拆到 ``overlay`` / ``default``。
+#:
+#: 归一后同组可能出现多条 ``isActive``，与部分唯一索引冲突 —— 先按优先级保留一条，
+#: 其余置为停用但**保留设备快照**（界面会以「待恢复设备」展示，用户可自行决定）。
+_MODE_ACTIVITY_NAME_HINTS: tuple[str, ...] = (
+    "影音",
+    "影院",
+    "观影",
+    "电影",
+    "用餐",
+    "吃饭",
+    "会客",
+    "清扫",
+    "派对",
+    "娱乐",
+    "游戏",
+    "k歌",
+)
+_MODE_ARRIVAL_TRIGGERS = ("lock_unlock", "arrive_home")
+#: 到家类模式默认自动回落 20 分钟：够换鞋、开灯、放东西，又不至于一直挂着。
+DEFAULT_ARRIVAL_SETTLE_MINUTES = 20
+
+
+def _mode_is_activity(name: str) -> bool:
+    lowered = name.lower()
+    return any(hint in lowered for hint in _MODE_ACTIVITY_NAME_HINTS)
+
+
+def _mode_implies_arrival(triggers: Any, config: Any) -> bool:
+    """模式是否是「有人到家」：开锁/到家触发器，或布防 ``armed_home``。"""
+    try:
+        trigger_list = json.loads(triggers) if isinstance(triggers, str) and triggers else triggers
+        action_list = json.loads(config) if isinstance(config, str) and config else config
+    except (TypeError, ValueError):  # fmt: skip
+        # 配置解析失败的模式不参与判定：宁可不动，也不要把用户数据改错。
+        LOGGER.debug("家庭模式触发器/动作不是合法 JSON，跳过分组判定")
+        return False
+    if isinstance(trigger_list, list) and any(
+        isinstance(item, dict) and item.get("type") in _MODE_ARRIVAL_TRIGGERS for item in trigger_list
+    ):
+        return True
+    return isinstance(action_list, list) and any(
+        isinstance(item, dict) and str(item.get("entity_id") or "").strip() == "armed_home" for item in action_list
+    )
+
+
+def _home_mode_settle_column(connection: sqlite3.Connection, _context: MigrationContext) -> None:
+    if not _table_exists(connection, "home_modes"):
+        return
+    columns = {row[1] for row in connection.execute("PRAGMA table_info(home_modes)")}
+    if "settleMinutes" not in columns:
+        connection.execute("ALTER TABLE home_modes ADD COLUMN settleMinutes INTEGER NOT NULL DEFAULT 0")
+    _normalize_home_mode_groups(connection)
+
+
+def _normalize_home_mode_groups(connection: sqlite3.Connection) -> None:
+    """旧分组归一 + 同组多激活收敛；全部按主键更新，可重复执行。"""
+    rows = connection.execute(
+        "SELECT id, name, exclusiveGroup, isActive, priority, sortOrder, triggers, config FROM home_modes"
+    ).fetchall()
+    target_group: dict[str, str] = {}
+    for mode_id, name, group, _active, _priority, _sort, _triggers, _config in rows:
+        current = str(group or "default")
+        if current == "comfort":
+            current = "overlay" if _mode_is_activity(str(name or "")) else "default"
+        target_group[str(mode_id)] = current
+
+    # 先收敛激活态：同组只留「优先级最高、排序最前」的一条，避免更新分组时撞唯一索引。
+    best: dict[str, tuple[int, int, str]] = {}
+    active_ids: list[str] = []
+    for mode_id, _name, _group, active, priority, sort, _triggers, _config in rows:
+        if not active:
+            continue
+        active_ids.append(str(mode_id))
+        key = (int(priority or 0), -int(sort or 0), str(mode_id))
+        group = target_group[str(mode_id)]
+        if group not in best or key > best[group]:
+            best[group] = key
+    keep = {key[2] for key in best.values()}
+    for mode_id in active_ids:
+        if mode_id not in keep:
+            # 保留 deviceSnapshot：这些模式确实改过设备，用户需要能重试恢复。
+            connection.execute("UPDATE home_modes SET isActive = 0 WHERE id = ?", (mode_id,))
+            LOGGER.warning("家庭模式分组归一：同组存在多条激活，已停用 %s（快照保留）", mode_id)
+
+    for mode_id, name, _group, _active, _priority, _sort, triggers, config in rows:
+        connection.execute(
+            "UPDATE home_modes SET exclusiveGroup = ? WHERE id = ? AND IFNULL(exclusiveGroup, '') <> ?",
+            (target_group[str(mode_id)], str(mode_id), target_group[str(mode_id)]),
+        )
+        if target_group[str(mode_id)] == "overlay" or not _mode_implies_arrival(triggers, config):
+            continue
+        connection.execute(
+            "UPDATE home_modes SET settleMinutes = ? WHERE id = ? AND IFNULL(settleMinutes, 0) = 0",
+            (DEFAULT_ARRIVAL_SETTLE_MINUTES, str(mode_id)),
+        )
+        LOGGER.info("家庭模式「%s」已设置自动回落 %s 分钟", name, DEFAULT_ARRIVAL_SETTLE_MINUTES)
+
+
+#: 11 号：把手动型的活动模式从 ``default`` 挪到 ``overlay``。
+#:
+#: 10 号只拆了 ``comfort``，但更早的种子数据把「用餐」直接放在 ``default`` 组 —— 于是
+#: 吃饭会顶掉「回家」，饭后又把玄关灯回滚掉。判据刻意收紧，只动「明显是活动」的模式：
+#:
+#: - 分组是 ``default``；
+#: - 名称命中活动关键词；
+#: - 没有安防动作（布防决定家庭状态，不该被当成活动）；
+#: - 触发器为空或只有 ``manual``（有时间/离家/开锁触发的模式是家庭状态）。
+_ACTIVITY_TRIGGER_TYPES = ("time", "sun", "all_leave", "arrive_home", "lock_unlock", "calendar_away")
+
+
+def _mode_is_manual_activity(name: Any, triggers: Any, config: Any) -> bool:
+    if not _mode_is_activity(str(name or "")):
+        return False
+    try:
+        action_list = json.loads(config) if isinstance(config, str) and config else config
+        trigger_list = json.loads(triggers) if isinstance(triggers, str) and triggers else triggers
+    except (TypeError, ValueError):  # fmt: skip
+        # 配置解析失败的模式不参与判定：宁可不动，也不要把用户数据改错。
+        LOGGER.debug("家庭模式触发器/动作不是合法 JSON，跳过分组判定")
+        return False
+    if isinstance(action_list, list) and any(
+        isinstance(item, dict)
+        and (str(item.get("kind") or "") == "security" or str(item.get("entity_id") or "").startswith("armed_"))
+        for item in action_list
+    ):
+        return False
+    if not isinstance(trigger_list, list):
+        return True
+    return all(isinstance(item, dict) and str(item.get("type") or "manual") == "manual" for item in trigger_list)
+
+
+def _home_mode_activity_groups(connection: sqlite3.Connection, _context: MigrationContext) -> None:
+    if not _table_exists(connection, "home_modes"):
+        return
+    rows = connection.execute("SELECT id, name, exclusiveGroup, triggers, config FROM home_modes").fetchall()
+    for mode_id, name, group, triggers, config in rows:
+        if str(group or "default") != "default":
+            continue
+        if not _mode_is_manual_activity(name, triggers, config):
+            continue
+        connection.execute("UPDATE home_modes SET exclusiveGroup = 'overlay' WHERE id = ?", (str(mode_id),))
+        LOGGER.info("家庭模式「%s」是手动活动，已归入叠加活动组", name)
+
+
 MIGRATIONS: tuple[Migration, ...] = (
     Migration(BASELINE_VERSION, BASELINE_NAME, BASELINE_CHECKSUM, _noop),
     Migration(2, "agent-timeline-open-index", "h0002-timeline-open-index", _timeline_open_index),
@@ -283,6 +436,8 @@ MIGRATIONS: tuple[Migration, ...] = (
     Migration(7, "water-usage-daily", "h0007-water-usage-daily", _water_usage_table),
     Migration(8, "event-log-drop-redundant-index", "h0008-event-log-drop-dup-index", _drop_event_log_redundant_index),
     Migration(9, "draft-entity-refs-and-indexes", "h0009-draft-refs", _draft_entity_refs_table),
+    Migration(10, "home-mode-settle-and-groups", "h0010-mode-settle-groups", _home_mode_settle_column),
+    Migration(11, "home-mode-activity-groups", "h0011-mode-activity-groups", _home_mode_activity_groups),
 )
 
 

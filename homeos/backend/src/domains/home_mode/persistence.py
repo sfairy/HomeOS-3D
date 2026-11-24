@@ -94,6 +94,8 @@ def mode_to_dict(mode: Any) -> dict[str, Any]:
         "sortOrder": mode.sort_order,
         "exclusiveGroup": mode.exclusive_group,
         "priority": mode.priority,
+        # 自动回落分钟数（0 = 不回落）：过渡模式到期退回「日常」，不还原设备。
+        "settleMinutes": int(getattr(mode, "settle_minutes", 0) or 0),
         # 条件组：None 表示无条件（旧行为）。
         "conditions": _parse_json_loud(mode.conditions, None, field="conditions", mode_id=mode_id),
         "executionMode": mode.execution_mode or "queued",
@@ -131,6 +133,7 @@ def build_mode_row(fields: dict[str, Any]) -> dict[str, Any]:
         "sort_order": coerce_int_field(fields.get("sortOrder"), "sortOrder", 0),
         "exclusive_group": fields.get("exclusiveGroup") or "default",
         "priority": coerce_int_field(fields.get("priority"), "priority", 50),
+        "settle_minutes": coerce_int_field(fields.get("settleMinutes"), "settleMinutes", 0),
         "conditions": json.dumps(fields["conditions"], ensure_ascii=False) if fields.get("conditions") else None,
         "execution_mode": normalize_execution_mode(fields.get("executionMode")),
     }
@@ -149,6 +152,7 @@ _MODE_FIELD_APPLIERS: dict[str, Any] = {
     "sortOrder": lambda row, value: setattr(row, "sort_order", coerce_int_field(value, "sortOrder", 0)),
     "exclusiveGroup": lambda row, value: setattr(row, "exclusive_group", value or "default"),
     "priority": lambda row, value: setattr(row, "priority", coerce_int_field(value, "priority", 50)),
+    "settleMinutes": lambda row, value: setattr(row, "settle_minutes", coerce_int_field(value, "settleMinutes", 0)),
     "conditions": lambda row, value: setattr(row, "conditions", _json_or_none(value or None)),
     "executionMode": lambda row, value: setattr(row, "execution_mode", normalize_execution_mode(value)),
 }

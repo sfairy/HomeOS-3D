@@ -123,7 +123,7 @@ def build_snapshot_restore_calls(entity_id: str, snap: dict[str, Any] | None) ->
 def describe_restore_support(entity_id: str, snap: dict[str, Any] | None) -> str:
     """判定一条快照能否恢复：``restorable`` / ``skipped``。
 
-    ``_restore_mode_snapshot`` 用它统计 ``skippedDomains`` —— 「已恢复 N 个设备」必须
+    ``restore_mode_snapshot`` 用它统计 ``skippedDomains`` —— 「已恢复 N 个设备」必须
     只数真正恢复的，不能把 scene / button 这类根本恢复不了的也算进去。
     """
     snapshot = snap if isinstance(snap, dict) else {}
