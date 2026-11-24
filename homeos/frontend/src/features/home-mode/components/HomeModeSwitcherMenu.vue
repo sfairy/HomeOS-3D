@@ -14,12 +14,13 @@
  * - 支持退出当前模式
  * - 跳转到设置页面管理模式
  */
+import { computed } from 'vue'
 import { Home, Power, Check } from '@lucide/vue'
 import { RouterLink } from 'vue-router'
 import { resolveHomeModeIcon } from '@/shared/home-mode'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 
-defineProps({
+const props = defineProps({
   open: { type: Boolean, required: true },
   /** 菜单弹出方向 top/bottom */
   menuPlacement: { type: String, required: true },
@@ -31,18 +32,39 @@ defineProps({
   loading: { type: Boolean, required: true },
   /** 可用模式列表 */
   modes: { type: Array, required: true },
+  /** 家庭状态（回家 / 离家 / 睡眠…）与叠加活动（用餐 / 影音）分组展示 */
+  baseModes: { type: Array, default: () => [] },
+  overlayModes: { type: Array, default: () => [] },
   /** 当前激活的模式 */
   activeMode: { type: [Object, null], default: null },
-  /** 全部激活模式 id（多互斥组可同时激活；菜单必须把每一项都标为已激活） */
+  /** 全部激活模式 id（家庭状态单选 + 叠加活动可并存；菜单必须把每一项都标为已激活） */
   activeModeIds: { type: Array, required: true },
   /** 模式上下文（含触发日志等） */
   modeContext: { type: Object, required: true },
+  /** 切换请求进行中：禁用点击，避免「点了没反应」的静默丢弃 */
+  acting: { type: Boolean, default: false },
+  /** 激活态读取失败原因（非空时菜单顶部提示，避免把读失败当成「没有激活模式」） */
+  stateError: { type: String, default: '' },
+  /** 待恢复快照模式：[{ id, name, entities }] */
+  pendingRestore: { type: Array, default: () => [] },
   /** 菜单 DOM 注册回调 */
   registerMenuRef: { type: Function, required: true },
 })
 
-/** 组件事件：select-mode（选择模式）、toggle-off（退出当前模式） */
-const emit = defineEmits(['select-mode', 'toggle-off'])
+/** 组件事件：select-mode（选择模式）、toggle-off（退出当前模式）、restore-pending（重试回放残留快照） */
+const emit = defineEmits(['select-mode', 'toggle-off', 'restore-pending'])
+
+/**
+ * 菜单分组：家庭状态在上（单选），叠加活动在下（可叠加）。
+ * 用一份数据驱动渲染，避免两组各写一遍同样的按钮（重复代码门禁也会红）。
+ */
+const sections = computed(() => {
+  const groups = [
+    { key: 'base', label: '家庭状态', modes: props.baseModes, overlay: false },
+    { key: 'overlay', label: '叠加活动', modes: props.overlayModes, overlay: true },
+  ]
+  return groups.filter((group) => group.modes.length > 0)
+})
 </script>
 
 <template>
@@ -59,35 +81,65 @@ const emit = defineEmits(['select-mode', 'toggle-off'])
       >
         <div v-if="loading" class="home-mode-switcher__empty">{{ '加载中…' }}</div>
         <template v-else>
-          <div v-if="modes.length" class="home-mode-switcher__section-label">{{ '切换模式' }}</div>
-          <button
-            v-for="m in modes"
-            :key="m.id"
-            type="button"
-            class="home-mode-switcher__item"
-            :class="{ 'home-mode-switcher__item--active': activeModeIds.includes(String(m.id)) }"
-            @click="emit('select-mode', m)"
-          >
-            <component
-              :is="resolveHomeModeIcon(m.icon, Home)"
-              class="w-3.5 h-3.5 shrink-0 opacity-80"
-            />
-            <span class="home-mode-switcher__item-label">{{ m.name }}</span>
-            <Check
-              v-if="activeModeIds.includes(String(m.id))"
-              class="home-mode-switcher__item-check"
-              aria-hidden="true"
-            />
-          </button>
+          <div v-if="stateError" class="home-mode-switcher__hint">{{ stateError }}</div>
+          <template v-for="section in sections" :key="section.key">
+            <div class="home-mode-switcher__section-label">{{ section.label }}</div>
+            <button
+              v-for="m in section.modes"
+              :key="m.id"
+              type="button"
+              :class="[
+                'home-mode-switcher__item',
+                section.overlay && 'home-mode-switcher__item--overlay',
+                activeModeIds.includes(String(m.id)) && 'home-mode-switcher__item--active',
+              ]"
+              :disabled="acting"
+              @click="emit('select-mode', m)"
+            >
+              <component
+                :is="resolveHomeModeIcon(m.icon, Home)"
+                class="w-3.5 h-3.5 shrink-0 opacity-80"
+              />
+              <span class="home-mode-switcher__item-label">{{ m.name }}</span>
+              <Check
+                v-if="activeModeIds.includes(String(m.id))"
+                class="home-mode-switcher__item-check"
+                aria-hidden="true"
+              />
+            </button>
+          </template>
+          <div v-if="activeModeIds.length > 1" class="home-mode-switcher__hint">
+            {{ '勾选 = 已生效；再点一次退出该项。叠加活动退出后会回到家庭状态。' }}
+          </div>
           <button
             v-if="activeMode"
             type="button"
             class="home-mode-switcher__item home-mode-switcher__item--off"
+            :disabled="acting"
             @click="emit('toggle-off')"
           >
             <Power class="w-3.5 h-3.5" />
-            <span>{{ activeModeIds.length > 1 ? '退出主模式' : '退出当前模式' }}</span>
+            <span>{{ `退出「${activeMode.name || '当前模式'}」` }}</span>
           </button>
+          <div v-if="activeMode?.settleMinutes" class="home-mode-switcher__hint">
+            {{ `${activeMode.settleMinutes} 分钟后自动回到「日常」，设备保持现状` }}
+          </div>
+          <div v-if="pendingRestore.length" class="home-mode-switcher__logs">
+            <div class="home-mode-switcher__logs-title">{{ '待恢复设备' }}</div>
+            <button
+              v-for="item in pendingRestore"
+              :key="item.id"
+              type="button"
+              class="home-mode-switcher__log-item home-mode-switcher__log-item--action"
+              :disabled="acting"
+              @click="emit('restore-pending', item)"
+            >
+              <span class="hmsm-dot-fail">●</span>
+              <span class="truncate">{{ item.name }}</span>
+              <span class="home-mode-switcher__log-reason">{{ item.entities }} 个设备</span>
+            </button>
+          </div>
+          <div v-if="acting" class="home-mode-switcher__hint">{{ '正在切换，请稍候…' }}</div>
           <div v-if="modeContext.triggerLogs?.length" class="home-mode-switcher__logs">
             <div class="home-mode-switcher__logs-title">{{ '最近触发' }}</div>
             <div

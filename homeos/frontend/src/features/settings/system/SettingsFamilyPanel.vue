@@ -133,6 +133,20 @@
                 </li>
               </ul>
 
+              <ul v-if="pendingRestore.length" class="family-status-modes">
+                <li
+                  v-for="item in pendingRestore"
+                  :key="`restore-${item.id}`"
+                  class="family-status-mode family-status-mode--pending"
+                >
+                  <span class="family-status-mode__dot" aria-hidden="true" />
+                  <span>{{ `${item.name}（${item.entities} 个设备待恢复）` }}</span>
+                  <button type="button" class="family-status-mode__retry" @click="retryRestore(item)">
+                    {{ '恢复' }}
+                  </button>
+                </li>
+              </ul>
+
               <p class="family-status-card__hint">{{ modeHint }}</p>
             </article>
 
@@ -231,10 +245,12 @@ import { Sparkles, Moon, Bell, Check, X, Eye } from '@lucide/vue'
 import SettingsPageShell from '@/components/common/settings-page-shell/SettingsPageShell.vue'
 import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import ApiQueryState from '@/components/common/ApiQueryState.vue'
-import { fetchActiveHomeMode } from '@/services/api/home-modes'
+import { fetchActiveHomeMode, fetchHomeModeContext, deactivateHomeMode } from '@/services/api/home-modes'
 import { fetchNotificationSettings } from '@/services/api/notifications'
 import { useAuthStore } from '@/stores/auth.store'
+import { useChromeStore } from '@/stores/chrome.store'
 import { logger } from '@/shared/utils/core/logger'
+import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import { formatShortDateTime } from '@/shared/utils/format/locale-format.util'
 
 defineProps({ activeTab: { type: String, default: 'family' } })
@@ -254,6 +270,12 @@ const activeModeList = computed(() => {
   return single?.id ? [{ id: single.id, name: single.name }] : []
 })
 const notifySettings = ref(null)
+/** 模式上下文：`pendingRestore` 是「停用态但还留着设备快照」的记录（顶替/强制退出后没恢复完）。 */
+const modeContext = ref(null)
+const pendingRestore = computed(() => {
+  const list = modeContext.value?.pendingRestore
+  return Array.isArray(list) ? list : []
+})
 let familyLoaded = false
 /** 当前时刻（每 30s 刷新，用于勿扰时间轴上的「现在」刻度；长驻页面也能保持准确）。 */
 const nowMs = ref(Date.now())
@@ -351,6 +373,23 @@ const activeFeatureCount = computed(() => {
   return count
 })
 
+/** 重试回放残留快照：成功后后端清掉快照，这里重新拉一遍状态。 */
+async function retryRestore(item) {
+  const chrome = useChromeStore()
+  try {
+    const { data } = await deactivateHomeMode(item.id)
+    if (data?.success === false) {
+      chrome.notify(data?.message || getApiErrorMessage(null, '设备恢复未完成，可稍后重试'), 'warning')
+      return
+    }
+    chrome.notify(`「${item.name}」的设备状态已恢复`, 'success')
+    await load({ silent: true })
+  } catch (e) {
+    chrome.notify(getApiErrorMessage(e, '设备恢复失败'), 'error')
+    logger.warn('重试恢复家庭模式快照失败', e)
+  }
+}
+
 async function load(options = {}) {
   if (!authStore.isAuthenticated) {
     loadError.value = '请先登录后再查看家庭状态'
@@ -363,11 +402,16 @@ async function load(options = {}) {
     loadError.value = ''
   }
   try {
-    const [modeRes, notifyRes] = await Promise.all([fetchActiveHomeMode(), fetchNotificationSettings()])
+    const [modeRes, notifyRes, contextRes] = await Promise.all([
+      fetchActiveHomeMode(),
+      fetchNotificationSettings(),
+      fetchHomeModeContext(),
+    ])
     // 必须保留整个响应：`activeModes` 才是全部激活模式，只取 `activeMode`
     // 会把多互斥组里另一个组的激活模式吞掉（界面上看起来只有一个在生效）。
     activeMode.value = modeRes.data ?? null
     notifySettings.value = notifyRes.data
+    modeContext.value = contextRes.data
     familyLoaded = true
     loadError.value = ''
   } catch (e) {

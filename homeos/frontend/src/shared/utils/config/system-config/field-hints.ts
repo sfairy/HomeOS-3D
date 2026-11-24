@@ -241,6 +241,8 @@ const HINT_TEXT: Record<string, string> = {
   'settings.systemConfig.fieldHint.widgetPollIntervals': '各微件独立轮询间隔（ms）；表格中删除行并保存即可移除该微件',
   'settings.systemConfig.fieldHint.showAwayButton': '控制主页顶部是否显示「无人在家」状态徽章。推荐开启',
   'settings.systemConfig.fieldHint.showHomeMode': '控制主页顶部是否显示家庭模式切换器。推荐开启',
+  'settings.systemConfig.fieldHint.singleActiveMode':
+    '开启后家只有一个当前状态：切换到睡眠/离家会自动退出其它状态；用餐、影音等叠加活动不受影响。关掉才启用「不同互斥组同时生效」的进阶用法',
 }
 
 /** 按文案 key 查询提示文本；未命中返回空串 */

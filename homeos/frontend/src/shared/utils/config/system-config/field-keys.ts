@@ -180,4 +180,5 @@ export const SYSTEM_CONFIG_FIELD_KEYS = new Set([
   'wsPongTimeoutMs',
   'showAwayButton',
   'showHomeMode',
+  'singleActiveMode',
 ])

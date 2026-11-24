@@ -32,6 +32,19 @@
   background: rgba(255, 255, 255, 0.06);
 }
 
+/* 切换进行中：禁用但保持可读，避免「点了没反应」被理解成没选中 */
+.home-mode-switcher__item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.home-mode-switcher__hint {
+  padding: 4px 10px 2px;
+  font-size: var(--premium-fs-micro);
+  line-height: 1.4;
+  color: var(--hos-text-secondary);
+}
+
 .home-mode-switcher__item--active {
   background: rgba(52, 211, 153, 0.12);
   color: #6ee7b7;
@@ -44,6 +57,12 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* 叠加活动：与「家庭状态」视觉分层，避免被误读成又一个主状态 */
+.home-mode-switcher__item--overlay .home-mode-switcher__item-label {
+  padding-left: 2px;
+  color: var(--hos-text-secondary);
 }
 
 .home-mode-switcher__item-check {
@@ -119,6 +138,20 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* 待恢复条目是按钮（可重试回放），外观与只读日志行一致 */
+.home-mode-switcher__log-item--action {
+  width: 100%;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.home-mode-switcher__log-item--action:hover {
+  background: var(--hos-color-danger-soft);
 }
 
 .home-mode-switcher__empty {

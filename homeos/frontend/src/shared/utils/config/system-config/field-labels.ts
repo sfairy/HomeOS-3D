@@ -180,6 +180,7 @@ const LABEL_TEXT: Record<string, string> = {
   'settings.systemConfig.field.widgetPollIntervals': '各微件独立轮询（结构化配置）',
   'settings.systemConfig.field.showAwayButton': '显示无人在家徽章',
   'settings.systemConfig.field.showHomeMode': '显示家庭模式切换器',
+  'settings.systemConfig.field.singleActiveMode': '同一时间只生效一个家庭状态',
 }
 
 /** 按文案 key 查询标签文本；未命中返回空串 */

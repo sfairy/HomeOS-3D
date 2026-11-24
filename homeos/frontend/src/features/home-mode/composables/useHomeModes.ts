@@ -34,6 +34,8 @@ interface HomeModeRow {
   name?: string
   icon?: string
   isActive?: boolean
+  /** 分组：``overlay`` 是叠加活动（用餐 / 影音），其余是家庭状态。 */
+  exclusiveGroup?: string
   [key: string]: unknown
 }
 
@@ -63,6 +65,8 @@ const activeMode = ref<HomeModeRow | null>(null)
 const activeModeIds = computed(() => activeModes.value.map((mode) => String(mode.id)))
 const loading = ref(false)
 const loadError = ref<string>('')
+/** 激活态读取失败的原因：此时**保留**上次结果，不能把「读失败」显示成「没有激活模式」。 */
+const activeLoadError = ref<string>('')
 const acting = ref(false)
 let initialized = false
 let wsStop: (() => void) | null = null
@@ -175,8 +179,11 @@ async function fetchActive() {
     const payload = (data ?? null) as { activeModes?: HomeModeRow[] } | null
     const list = Array.isArray(payload?.activeModes) ? payload.activeModes.filter(Boolean) : []
     applyActiveModes(list)
-  } catch {
-    applyActiveModes([])
+    activeLoadError.value = ''
+  } catch (e) {
+    // 不能清空成「没有激活模式」：网络抖动时 header 会显示「日常」而设备仍在某个模式里，
+    // 用户接下来的激活 / 退出全部建立在错误前提上。保留上次结果并标记错误态。
+    activeLoadError.value = getApiErrorMessage(e, '模式激活状态读取失败')
   }
 }
 
@@ -253,6 +260,11 @@ async function deactivate(modeId?: string | number, options?: { force?: boolean 
   }
 }
 
+/** 回放「停用态 + 残留快照」的设备（同组顶替 / 强制退出后恢复未完成），成功后快照被清除。 */
+async function restorePending(modeId: string) {
+  return deactivate(modeId)
+}
+
 async function seedDefaults() {
   const { data } = await seedHomeModes()
   await fetchModes({ silent: true })
@@ -324,11 +336,13 @@ export function useHomeModes(options: UseHomeModesOptions = {}) {
     activeModeIds,
     loading,
     loadError,
+    activeLoadError,
     acting,
     fetchModes,
     fetchActive,
     activate,
     deactivate,
+    restorePending,
     seedDefaults,
     createMode,
     updateMode,

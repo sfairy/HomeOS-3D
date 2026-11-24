@@ -19,6 +19,7 @@ export const HOME_MODE_LOG_SOURCE_LABELS: Record<string, string> = {
   entity: '实体变化', // 实体状态变化
   everyone_left: '全员离家', // 全员离家自动切换
   time: '定时', // 定时计划
+  auto_settle: '自动回落', // 过渡模式到期（设备保持现状）
 }
 
 /**

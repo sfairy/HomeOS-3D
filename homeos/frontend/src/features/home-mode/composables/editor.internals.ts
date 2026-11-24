@@ -94,8 +94,10 @@ export function useHomeModeEditor(modesRef: Ref<HomeModeRecord[] | null | undefi
   ])
 
   const exclusiveGroupOptions = [
-    { value: 'default', label: '默认（日常模式互斥）' },
-    { value: 'comfort', label: '舒适（睡眠/影音等互斥）' },
+    { value: 'default', label: '家庭状态（回家 / 离家 / 睡眠互斥）' },
+    { value: 'overlay', label: '叠加活动（用餐 / 影音，退出后回到家庭状态）' },
+    // 旧版分组：行为与「家庭状态」相同，保留选项让历史数据能正常显示与保存。
+    { value: 'comfort', label: '家庭状态（旧版分组）' },
   ]
 
   const homeModeIconOptions = computed(() => [

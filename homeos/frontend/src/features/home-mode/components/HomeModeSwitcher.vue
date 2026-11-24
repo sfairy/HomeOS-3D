@@ -7,7 +7,7 @@
   最近触发日志/设置跳转）。
   无 props / emits（完全由 composable 管理状态）：
   - 核心状态由 useHomeModeSwitcher 提供：rootRef/menuRef/open/menuPlacement/menuStyle/
-  menuTeleportTarget/menuTeleportDisabled/modes/activeMode/loading/acting/label/
+  menuTeleportTarget/menuTeleportDisabled/modes/activeMode/primaryActiveMode/loading/acting/label/
   modeIcon/presenceHome/modeContext/presenceMembers/showPresenceBadge/showPresenceEmpty/
   presenceSummary/presenceAtHomeCount/presenceTipOpen；
   - 事件方法：selectMode/toggleOff/togglePresenceTip/toggleMenuOpen 直接绑定到子组件。
@@ -35,10 +35,14 @@ const {
   menuTeleportTarget,
   menuTeleportDisabled,
   modes,
+  baseModes,
+  overlayModes,
   activeMode,
+  primaryActiveMode,
   activeModeIds,
   loading,
   acting,
+  activeLoadError,
   label,
   activeLabelTitle,
   modeIcon,
@@ -50,8 +54,10 @@ const {
   presenceSummary,
   presenceAtHomeCount,
   presenceTipOpen,
+  pendingRestoreModes,
   selectMode,
   toggleOff,
+  restorePendingMode,
   togglePresenceTip,
   toggleMenuOpen,
 } = useHomeModeSwitcher()
@@ -89,7 +95,7 @@ function registerMenuRef(el) {
     />
     <HomeModeSwitcherTrigger
       v-if="showHomeMode"
-      :active-mode="activeMode"
+      :active-mode="primaryActiveMode"
       :loading="loading"
       :acting="acting"
       :label="label"
@@ -106,12 +112,18 @@ function registerMenuRef(el) {
       :teleport-disabled="menuTeleportDisabled"
       :loading="loading"
       :modes="modes"
-      :active-mode="activeMode"
+      :base-modes="baseModes"
+      :overlay-modes="overlayModes"
+      :active-mode="primaryActiveMode"
       :active-mode-ids="activeModeIds"
       :mode-context="modeContext"
+      :acting="acting"
+      :state-error="activeLoadError"
+      :pending-restore="pendingRestoreModes"
       :register-menu-ref="registerMenuRef"
       @select-mode="selectMode"
       @toggle-off="toggleOff"
+      @restore-pending="restorePendingMode"
     />
   </div>
 </template>

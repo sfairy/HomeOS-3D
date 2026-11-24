@@ -33,6 +33,8 @@ export interface ModeDraft {
   sortOrder: number
   exclusiveGroup: string
   priority: number
+  /** 自动回落分钟数（0 = 不回落）：过渡模式到期退回「日常」，设备保持现状。 */
+  settleMinutes?: number
   actions: ModeActionDraft[]
   triggers: ModeTriggerDraft[]
   isNew?: boolean
@@ -45,6 +47,7 @@ export interface HomeModeRecord {
   sortOrder?: number
   exclusiveGroup?: string
   priority?: number
+  settleMinutes?: number
   config?: unknown
   triggers?: unknown
   [key: string]: unknown
@@ -216,6 +219,7 @@ function emptyDraftWithName(name: string): ModeDraft {
     sortOrder: 0,
     exclusiveGroup: 'default',
     priority: 50,
+    settleMinutes: 0,
     actions: [],
     triggers: [],
     isNew: true,
@@ -229,6 +233,7 @@ export function modeRecordToDraft(modeRecord: HomeModeRecord): ModeDraft {
     sortOrder: modeRecord.sortOrder ?? 0,
     exclusiveGroup: modeRecord.exclusiveGroup || 'default',
     priority: modeRecord.priority ?? 50,
+    settleMinutes: modeRecord.settleMinutes ?? 0,
     actions: parseModeActions(modeRecord.config),
     triggers: parseModeTriggers(modeRecord.triggers),
     isNew: false,
@@ -274,6 +279,7 @@ export function buildSaveBody(draft: ModeDraft) {
     sortOrder: draft.sortOrder ?? 0,
     exclusiveGroup: draft.exclusiveGroup?.trim() || 'default',
     priority: Number.isFinite(Number(draft.priority)) ? Number(draft.priority) : 50,
+    settleMinutes: Number.isFinite(Number(draft.settleMinutes)) ? Math.max(0, Number(draft.settleMinutes)) : 0,
   }
 }
 

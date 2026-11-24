@@ -80,6 +80,12 @@ export type SharedHomeModeConfig = {
   showAwayButton: boolean
   /** 首页是否显示家庭模式切换入口（纯安防用户可隐藏） */
   showHomeMode: boolean
+  /**
+   * 单选语义（默认开）：家只有一个「当前状态」。
+   * 开启后激活任意模式会退出其它家庭状态，只保留叠加活动（用餐 / 影音）。
+   * 关掉它才启用「不同互斥组可同时生效」的进阶用法。
+   */
+  singleActiveMode: boolean
 }
 
 /** 能源分区（设置页常用字段：电表绑定、异常检测冷却与预算冷却） */

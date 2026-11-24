@@ -64,6 +64,20 @@
           />
           <p class="hm-field__hint">{{ '数值越高，自动触发时越优先覆盖同组模式' }}</p>
         </div>
+        <div class="hm-field hm-field--priority">
+          <label class="hm-field__label">{{ '自动回落（分钟）' }}</label>
+          <input
+            v-model.number="activeDraft.settleMinutes"
+            type="number"
+            min="0"
+            step="5"
+            class="hm-field__input"
+            :placeholder="'0'"
+          />
+          <p class="hm-field__hint">
+            {{ '0 = 不回落。回家这类过渡动作到期后模式自动结束，设备保持当时状态（不会关灯）' }}
+          </p>
+        </div>
       </div>
 
       <section v-if="actionTemplates.length" class="hm-template-section">

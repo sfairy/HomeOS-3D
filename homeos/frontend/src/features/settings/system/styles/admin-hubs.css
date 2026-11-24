@@ -449,6 +449,29 @@
   box-shadow: 0 0 6px currentColor;
 }
 
+/* 待恢复快照：与「已生效」区分（这是提醒项，不是成功态） */
+.family-status-mode--pending {
+  color: var(--hos-color-warning-text);
+  background: var(--hos-color-warning-soft);
+  border-color: var(--hos-color-warning-line);
+}
+
+.family-status-mode__retry {
+  margin-left: 4px;
+  padding: 2px 8px;
+  border-radius: var(--hos-r-pill);
+  border: var(--hos-hairline) solid currentColor;
+  background: transparent;
+  color: inherit;
+  font-size: var(--set-fs-caption);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.family-status-mode__retry:hover {
+  background: var(--hos-color-warning-soft);
+}
+
 /* 24h 勿扰时间轴：色带为勿扰窗口，白线为当前时刻 */
 .family-status-timeline {
   display: flex;

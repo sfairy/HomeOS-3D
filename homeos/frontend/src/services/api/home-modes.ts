@@ -17,6 +17,11 @@ export function fetchHomeModeContext(config?: AxiosRequestConfig) {
   return apiGet('/modes/context', config)
 }
 
+/** 激活前预览：这次激活会与哪些仍生效的模式改动同一批设备。 */
+export function fetchHomeModeActivationPreview(id: string, config?: AxiosRequestConfig) {
+  return apiGet(`/modes/${id}/activation-preview`, config)
+}
+
 /** 获取模式触发日志。 */
 export function fetchHomeModeTriggerLogs(
   params?: { page?: number; limit?: number; source?: string; result?: 'ok' | 'fail' | '' },
