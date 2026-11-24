@@ -26,7 +26,7 @@ HOME_MODE_RUNTIME_CONFIG_ID = "home-mode-runtime"
 def clamp_int(value: Any, minimum: int, maximum: int) -> int:
     try:
         number = float(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError):  # fmt: skip
         return minimum
     if not math.isfinite(number):
         return minimum
@@ -64,9 +64,7 @@ def aggregate_home_mode_trigger_logs(logs: list[dict[str, Any]]) -> dict[str, An
         key=lambda item: item["count"],
         reverse=True,
     )
-    day_buckets = [
-        {"date": date, "count": by_day[date]} for date in sorted(by_day.keys())
-    ]
+    day_buckets = [{"date": date, "count": by_day[date]} for date in sorted(by_day.keys())]
     return {
         "sourceBuckets": source_buckets,
         "dayBuckets": day_buckets,
