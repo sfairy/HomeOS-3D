@@ -340,7 +340,7 @@ class DatabaseRetentionService:
         result = dict.fromkeys(RETENTION_TABLE_KEYS, 0)
         for key, (_model, table, _time_col) in _RETENTION_MODELS.items():
             # 逐表选库：日志库的表不在主库里，用主库会话查它们只会得到 0。
-            with self._factory_for(table) as session:
+            with self._factory_for(table)() as session:
                 result[key] = self._estimate_rows(session, table)
         return result
 
@@ -574,7 +574,7 @@ class DatabaseRetentionService:
         for _batch in range(_MAX_DELETE_BATCHES):
             subquery = select(rowid).select_from(table).where(created_col < cutoff).limit(batch_size)
             statement = table.delete().where(literal_column("rowid").in_(subquery))
-            with self._factory_for(table.name) as session:
+            with self._factory_for(table.name)() as session:
                 result = session.execute(statement)
                 session.commit()
                 count = result.rowcount or 0
