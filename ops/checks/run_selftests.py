@@ -51,6 +51,7 @@ ensure_repo_on_path()
 #: 顺序与原门禁清单一致（快而纯逻辑的在前），便于与历史日志对照。
 MODULES: tuple[str, ...] = (
     "device_profile_selftest",
+    "device_health_selftest",
     "backup_selftest",
     "event_log_selftest",
     "water_monitor_selftest",

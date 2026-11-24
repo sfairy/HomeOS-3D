@@ -38,6 +38,9 @@ homeos-store/backend/src/_version.py
 # 依赖与构建产物
 node_modules/
 dist/
+
+# `bun run dev` 的运行时标记：告诉 gate:build「dist 正在被服务，别清空」
+.dev-server.json
 *.tsbuildinfo
 .ruff_cache/
 .pnpm-store/

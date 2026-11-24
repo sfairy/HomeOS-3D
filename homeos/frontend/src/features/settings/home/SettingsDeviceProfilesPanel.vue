@@ -254,6 +254,8 @@ import DeviceProfilesAuditCard from './DeviceProfilesAuditCard.vue'
 import DeviceProfilesDefaultsCard from './DeviceProfilesDefaultsCard.vue'
 import HosSelect from '@/components/common/base/HosSelect.vue'
 import { useChromeStore } from '@/stores/chrome.store'
+import { useEntitiesStore } from '@/stores/entities.store'
+import { countOfflineDevices } from '@/shared/device/utils/group-offline.util'
 import {
   clearDeviceProfileConfirmation,
   confirmDeviceProfile,
@@ -296,6 +298,7 @@ const EVIDENCE_SUFFIX_LABELS = { source_list: '」' }
 
 const roomsLink = SETTINGS_ROUTES.rooms('catalog')
 const chrome = useChromeStore()
+const entitiesStore = useEntitiesStore()
 const auditCard = ref(null)
 const loading = ref(false)
 const refreshing = ref(false)
@@ -310,7 +313,18 @@ const onlyPending = ref(false)
 /** 域筛选：'' = 全部 */
 const domainFilter = ref('')
 
-const offlineCount = computed(() => profiles.value.filter((item) => !item.available).length)
+/**
+ * 不在线设备数。
+ *
+ * 按**设备**去重：一台热泵常同时暴露 `climate.*` 与 `water_heater.*` 两条画像实体，
+ * 全部不可用时按实体数会写成「2 不在线」而其实只有一台机器。
+ */
+const offlineCount = computed(() =>
+  countOfflineDevices(
+    profiles.value.filter((item) => !item.available).map((item) => item.entityId),
+    entitiesStore.entities,
+  ),
+)
 const pendingCount = computed(() => profiles.value.filter((item) => !item.confirmed).length)
 const confirmedCount = computed(() => profiles.value.filter((item) => item.confirmed).length)
 /** 自动识别已经给出明确类型、只差用户点确认的设备（批量确认只碰这一批）。 */

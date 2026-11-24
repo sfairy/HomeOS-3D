@@ -16,6 +16,7 @@ import {
 } from '@homeos/shared'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
+import { countOfflineDevices } from '@/shared/device/utils/group-offline.util'
 
 /** 危险绑定行类型：传感器种类扩展阀门与排风 */
 type HazardBindingRowKind = HazardSensorKind | 'gas_valve' | 'water_valve' | 'exhaust'
@@ -172,7 +173,30 @@ export function useHazardBindingStatus(
   // 告警行数
   const alertCount = computed(() => rows.value.filter((r) => r.status === 'alert').length)
   // 离线行数
-  const offlineCount = computed(() => rows.value.filter((r) => r.status === 'offline').length)
+  //
+  // 按**设备**计：危险源面板列的是「一路监测」，而同一台探测器的
+  // 报警 / 电量 / 信号实体可能同时 offline，按实体数会把一台设备报成 3 条。
+  const offlineCount = computed(() => countOfflineRowsByDevice(rows.value, entitiesStore.entities))
 
   return { rows, watchedIds, alertCount, offlineCount }
+}
+
+/**
+ * 把「离线行」折算成**设备**台数。
+ *
+ * 抽成模块级函数而不是内联 computed：内联写法会把 `useHazardBindingStatus` 的函数体推过
+ * 80 行（`check:frontend-complexity` 的 gt80 棘轮当场报红）。逻辑本身与行数无关，
+ * 独立出来也让「行 → 设备」这一步可以单独测。
+ *
+ * @param rows 危险源状态行（每行是一个实体）
+ * @param entities 实体表（读 `attributes.device_id`）
+ */
+export function countOfflineRowsByDevice(
+  rows: Array<{ entityId: string; status: string }>,
+  entities: Record<string, { attributes?: Record<string, unknown> } | undefined>,
+): number {
+  return countOfflineDevices(
+    rows.filter((row) => row.status === 'offline').map((row) => row.entityId),
+    entities,
+  )
 }

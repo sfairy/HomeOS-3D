@@ -22,6 +22,7 @@ import { useHaDegrade } from '@/composables/ui/useHaDegrade'
 import { collectHazardWatchedEntityIds } from '@homeos/shared'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 import { securityCameraEntityIds } from '@/shared/utils/layout/security-cameras.util'
+import { countOfflineDevices } from '@/shared/device/utils/group-offline.util'
 import { resolveSecurityHeroTone } from '@/features/security/composables/security-view-events.internals'
 import { useSecurityEventsCalendar } from '@/features/security/composables/useSecurityEventsCalendar'
 
@@ -186,17 +187,20 @@ export function useSecurityView() {
   }
 
   // 离线传感器数量：遍历所有区域的传感器
+  //
+  // 按**设备**计：一行「区域传感器离线」对应的是「几台探测器失联」，
+  // 而一台探测器的电量 / 信号 / 报警实体全 unavailable 时会贡献 3 条实体。
   const offlineSensorCount = computed(() => {
     void entitiesStore.getDomainEpoch('binary_sensor')
     void entitiesStore.getDomainEpoch('sensor')
-    let count = 0
+    const offlineIds: string[] = []
     for (const zone of zones.value) {
       for (const sid of zone.sensors || []) {
         const entity = entitiesStore.entities[sid]
-        if (!entity || entity.state === 'unavailable' || entity.state === 'unknown') count++
+        if (!entity || entity.state === 'unavailable' || entity.state === 'unknown') offlineIds.push(sid)
       }
     }
-    return count
+    return countOfflineDevices(offlineIds, entitiesStore.entities)
   })
 
   // 离线摄像头数量

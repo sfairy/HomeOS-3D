@@ -9,9 +9,17 @@ export interface DeviceHealthSample {
   state?: string
 }
 
+/** 离线实体的按域分解（数量降序）。 */
+export interface DeviceHealthDomainCount {
+  domain: string
+  count: number
+}
+
 export interface DeviceHealthSummary {
-  offline: { count: number; samples: DeviceHealthSample[] }
+  offline: { count: number; samples: DeviceHealthSample[]; byDomain?: DeviceHealthDomainCount[] }
   firmwareUpdates: { count: number; samples: DeviceHealthSample[] }
+  /** 参与统计的实体总数：面板用它做离线率的分母。 */
+  totalEntities?: number
   generatedAt?: string
 }
 

@@ -52,7 +52,8 @@
         </div>
         <div>
           <div class="dev-metric__value">{{ stats.offline }}</div>
-          <div class="dev-metric__label">{{ '离线' }}</div>
+          <!-- 标注「台」：旁边「在线」是实体数，不写单位会让两个数字被当成同一量纲比较 -->
+          <div class="dev-metric__label">{{ stats.offline > 0 ? `离线（${stats.offlineEntities} 个实体）` : '离线' }}</div>
         </div>
       </div>
       <div class="dev-metric">
@@ -94,6 +95,7 @@ import type * as EchartsModuleNS from '@/shared/utils/chart/echarts'
 
 import { DEVICE_CHART_COLORS, deviceSidebarPieTooltip, deviceChartBase } from '@/shared/utils/chart/device-chart-theme'
 import { getDomainLabel } from '@/shared/device/utils/domain-labels.util'
+import { countOfflineDevices } from '@/shared/device/utils/group-offline.util'
 import { entityDomainColor } from '@/shared/constants/entity-domain-meta'
 import { ensureDeviceChartOnElement } from '@/shared/utils/chart/device-chart-boot.util'
 
@@ -127,7 +129,15 @@ let resizeObserver: ResizeObserver | null = null
 let renderScheduled = false
 
 /**
- * 计算属性：统计指标。遍历所有实体计算总数、在线数、低电量数，离线数由总数减在线数得出。
+ * 计算属性：统计指标。
+ *
+ * 四个数字的量纲**刻意不同**，各自标注清楚：
+ * - `total` / `online` 是**实体**数（这一页列的也是实体，两者必须同量纲才能对照）；
+ * - `offline` 是**设备**台数 —— 一台掉线的多传感器设备会贡献 5~10 条实体，
+ *   按实体数会写成「离线 131」而实际只有十几台设备连不上（与首页角标、诊断页不同口径）；
+ * - `lowBattery` 是实体数（电池是实体级属性，没有「设备电量」的统一来源）。
+ *
+ * 因此 `offline` **不等于** `total - online`，不能再用减法推出来。
  */
 const stats = computed(() => {
   const devices = entitiesStore.entities
@@ -135,10 +145,12 @@ const stats = computed(() => {
   const total = keys.length
   let online = 0
   let lowBattery = 0
+  const offlineIds: string[] = []
 
   for (const key of keys) {
     const d = devices[key]
     if (d.state !== 'unavailable' && d.state !== 'unknown') online++
+    else offlineIds.push(key)
     const batteryLevel = d.attributes?.battery_level
     if (typeof batteryLevel === 'number' && batteryLevel <= 20) lowBattery++
   }
@@ -146,7 +158,9 @@ const stats = computed(() => {
   return {
     total,
     online,
-    offline: total - online,
+    // 按设备去重：`total - online` 是实体差额，不能当设备数
+    offline: countOfflineDevices(offlineIds, devices),
+    offlineEntities: offlineIds.length,
     lowBattery,
   }
 })
@@ -235,7 +249,9 @@ async function initStatusChart() {
         labelLine: { show: false },
         data: [
           { value: stats.value.online, name: '在线', itemStyle: { color: '#34d399' } },
-          { value: stats.value.offline, name: '离线', itemStyle: { color: '#f87171' } },
+          // 饼图两块必须同量纲：上面是**实体**数，这里也得是实体数。
+          // 用设备台数会让「在线 950 实体 vs 离线 14 台」拼成一张比例失真的图。
+          { value: stats.value.offlineEntities, name: '离线', itemStyle: { color: '#f87171' } },
         ],
       },
     ],

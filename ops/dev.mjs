@@ -701,6 +701,41 @@ async function shutdown(children) {
       /* 进程已退出 */
     }
   }
+  clearServingMarker()
+}
+
+/**
+ * 「dev 正在服务 dist」的标记文件。
+ *
+ * 写它是因为 `gate:build` 的第一步是 `rm -rf dist` —— 在 `bun run dev` 运行时跑构建门禁，
+ * 会把**正在被后端伺服的前端产物**删掉 20~32 秒（watch-build 重建期间）。那段时间里
+ * `/static/*` 全部失败、`/stage.html` 回 503「前端产物尚未就绪」，浏览器只报一行
+ * `Failed to load resource: 503`，排查方向会被误导到「后端挂了」。
+ *
+ * 标记放在仓库根而不是 `dist/` 内：`dist/` 正是会被清空的那一侧。
+ * 内容带 pid，`gates.mjs` 会先校验进程是否还活着 —— 否则 Ctrl-C 被杀（SIGKILL）留下的
+ * 陈旧标记会让构建门禁永远拒绝执行。
+ */
+const SERVING_MARKER = path.join(ROOT, '.dev-server.json')
+
+function writeServingMarker(ports) {
+  try {
+    fs.writeFileSync(
+      SERVING_MARKER,
+      `${JSON.stringify({ pid: process.pid, startedAt: new Date().toISOString(), ports }, null, 2)}\n`,
+    )
+  } catch (error) {
+    // 标记只是给 gate:build 的提示，写不出来不该拦住 dev 启动。
+    console.log(`[dev] 无法写入 ${SERVING_MARKER}：${error instanceof Error ? error.message : error}`)
+  }
+}
+
+function clearServingMarker() {
+  try {
+    fs.rmSync(SERVING_MARKER, { force: true })
+  } catch {
+    /* 已经不在或不可删 */
+  }
 }
 
 async function main() {
@@ -841,6 +876,8 @@ async function main() {
     if (!options.backendOnly) {
       console.log('改页面走 HMR 地址。改 runtime 另开：bun run --cwd homeos dev:runtime')
     }
+    // 标记「dist 正在被服务」：gate:build 会据此拒绝清空 dist（见 SERVING_MARKER 注释）。
+    writeServingMarker({ app: Number(APP_PORT), store: Number(STORE_PORT) })
     if (!LOOPBACK_BIND_HOSTS.has(options.host)) {
       const lanAddress = primaryLanAddress()
       console.log('')

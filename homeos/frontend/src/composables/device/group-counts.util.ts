@@ -1,5 +1,9 @@
 /** 设备分组：实体列表与计数同步解析 */
-import { computeOfflineCriticalSet, listOfflineOtherEntityIds } from '@/shared/device/utils/group-offline.util'
+import {
+  computeOfflineCriticalSet,
+  groupOfflineByDevice,
+  listOfflineOtherEntityIds,
+} from '@/shared/device/utils/group-offline.util'
 import {
   BATTERY_LOW_THRESHOLD,
   countBatteryLow,
@@ -94,7 +98,26 @@ export function countQuickActionOffline(
   statsSensors?: Record<string, string | undefined> | null,
 ) {
   touchEntityStoreDisplayDeps(entitiesStore)
-  return resolveDeviceGroupEntityIds('offline', entitiesStore, uiStore, statsSensors).length
+  const ids = resolveDeviceGroupEntityIds('offline', entitiesStore, uiStore, statsSensors)
+  // 按**设备**计数而不是实体：一台掉线的多传感器设备会贡献 5~10 条实体，
+  // 按实体数会让角标写成「131」而实际只有十几台设备连不上。
+  return groupOfflineByDevice(ids, entitiesStore.entities).length
+}
+
+/**
+ * 离线设备（按设备聚合）：传给弹窗展示，与 `countQuickActionOffline` 同源。
+ *
+ * 弹窗此前按实体逐个列卡片，同一台设备会重复出现；这里返回「一台设备一条」，
+ * `entityIds` 仍保留明细，供展开查看。
+ */
+export function listOfflineDevices(
+  entitiesStore: EntityStoreSlice,
+  uiStore: UiStoreSlice,
+  statsSensors?: Record<string, string | undefined> | null,
+) {
+  touchEntityStoreDisplayDeps(entitiesStore)
+  const ids = resolveDeviceGroupEntityIds('offline', entitiesStore, uiStore, statsSensors)
+  return groupOfflineByDevice(ids, entitiesStore.entities)
 }
 
 /** 低电量数：与弹窗「低电量告警」分区一致 */

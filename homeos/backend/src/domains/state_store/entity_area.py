@@ -407,7 +407,13 @@ class EntityAreaEnrichmentService:
             before_name = str(current_attrs.get("area_name") or "").strip()
             after_id = str(enriched_attrs.get("area_id") or "").strip()
             after_name = str(enriched_attrs.get("area_name") or "").strip()
-            if before_id == after_id and before_name == after_name:
+            # `device_id` 必须一起比：实体注册表通常在状态快照**之后**才加载，那时
+            # 快照里的实体还没有设备归属。只比 area 会让「补上 device_id」这件事
+            # 永远不被判定为变化，于是前端在整个进程生命周期里都拿不到设备归属 ——
+            # 「离线按设备统计」就退化成按实体（一台路由器被数成三台）。
+            before_device = str(current_attrs.get("device_id") or "").strip()
+            after_device = str(enriched_attrs.get("device_id") or "").strip()
+            if before_id == after_id and before_name == after_name and before_device == after_device:
                 continue
             self._state_store.apply_change(entity_id, enriched, changed_at)
             self._emit_state_changed(

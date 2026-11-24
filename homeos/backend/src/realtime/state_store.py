@@ -400,9 +400,22 @@ class StateStore:
         }
 
     def get_availability_summary(self, limit: int = 20) -> dict[str, Any]:
-        """全量可用性派生摘要：不可用 / 陈旧实体计数与样例（运维诊断用）。"""
+        """全量可用性派生摘要：不可用 / 陈旧实体计数与样例（运维诊断用）。
+
+        同时给出**实体级**与**设备级**两个数：
+
+        - ``unavailableCount``：不可用**实体**数。原始诊断要看这个 —— 它回答「有多少条
+          状态流断了」，用于判断 WS 摄取是否正常；
+        - ``unavailableDeviceCount``：把这些实体按 ``attributes.device_id`` 归组后的
+          **设备**数。用户界面上写「离线 N 台」时必须用这个：一台掉线的多传感器设备
+          会贡献 5~10 条实体，两者差一个数量级。
+
+        口径与前端 ``groupOfflineByDevice`` / ``device_health._device_key`` 一致：
+        没有 ``device_id`` 的实体各自算一台。
+        """
         unavailable: list[str] = []
         stale: list[str] = []
+        offline_devices: set[str] = set()
         now = time.time() * 1000
         for entity_id, state in self._states.items():
             if not isinstance(state, dict):
@@ -410,6 +423,11 @@ class StateStore:
             state_value = str(state.get("state") or "").lower()
             if state_value in ("unavailable", "unknown"):
                 unavailable.append(entity_id)
+                attributes = state.get("attributes")
+                device_id = ""
+                if isinstance(attributes, dict):
+                    device_id = str(attributes.get("device_id") or "").strip()
+                offline_devices.add(device_id or entity_id)
                 continue
             raw_updated = state.get("last_updated") or state.get("lastUpdated") or state.get("updatedAt")
             updated_ms = _parse_iso_ms(str(raw_updated or ""))
@@ -418,6 +436,8 @@ class StateStore:
         return {
             "entityCount": len(self._states),
             "unavailableCount": len(unavailable),
+            # 设备数：UI 的「离线 N 台」用这个
+            "unavailableDeviceCount": len(offline_devices),
             "staleCount": len(stale),
             "unavailableSample": sorted(unavailable)[:limit],
             "staleSample": sorted(stale)[:limit],

@@ -2,7 +2,7 @@
 import { getEntityDomain } from '@homeos/shared'
 import { computed, type Ref } from 'vue'
 import { Sun, Plug, Bell, Camera, Lock, Thermometer, Music, AlertTriangle } from '@lucide/vue'
-import { computeOfflineCriticalSet, splitOfflineEntityIds } from '@/shared/device/utils/group-offline.util'
+import { computeOfflineCriticalSet, groupOfflineByDevice } from '@/shared/device/utils/group-offline.util'
 import { BATTERY_LOW_THRESHOLD, resolveBatteryLevel } from '@/shared/device/utils/group-battery.util'
 import { formatRelativeFromNow } from '@/shared/utils/format/locale-format.util'
 import type { DeviceGroupEntitiesStoreLike, DeviceGroupUiStoreLike } from '@/shared/device/utils/group-battery.util'
@@ -57,11 +57,22 @@ export function useDeviceGroupOffline(
   uiStore: DeviceGroupUiStoreLike,
   getEntity: (eid: string) => HaEntityState | null | undefined,
 ) {
-  // 离线统计：仅 domain === 'offline' 时计算，按关键集合与当前 entityIds 求交并拆分
+  // 离线统计：仅 domain === 'offline' 时计算。
+  //
+  // 口径是**设备**而不是实体：一台掉线的多传感器设备会贡献 5~10 条实体，
+  // 按实体列会让弹窗标题写成「共 131 个设备」而实际只有十几台连不上。
+  // 先按 `device_id` 聚合，再用代表实体判定它属于「严重告警」（用户收藏 / 首页浮动组件）
+  // 还是「系统审计」—— 同一台设备只出现在一侧。
   const offlineStats = computed(() => {
     if (props.domain !== 'offline') return null
     const criticalSet = computeOfflineCriticalSet(uiStore, entitiesStore)
-    return splitOfflineEntityIds(criticalSet, entityIds.value)
+    const groups = groupOfflineByDevice(entityIds.value, entitiesStore.entities)
+    return {
+      critical: groups.filter((group) => group.entityIds.some((eid) => criticalSet.has(eid))),
+      others: groups.filter((group) => !group.entityIds.some((eid) => criticalSet.has(eid))),
+      /** 离线设备总数（弹窗标题用）。 */
+      deviceCount: groups.length,
+    }
   })
   // 低电量统计：仅 domain === 'battery' 时计算，按电量升序排序后分临界 / 正常两组
   const batteryStats = computed(() => {

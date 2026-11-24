@@ -52,6 +52,42 @@ def _schedule_energy_backfill(app: FastAPI, entities: list[dict[str, Any]]) -> N
         logger.debug("能耗回填调度失败", exc_info=True)
 
 
+def _enrich_entity(app: FastAPI, entity: dict[str, Any]) -> dict[str, Any]:
+    """给单个实体补全区域与设备归属；索引未就绪 / 无变化时原样返回。
+
+    抽出来的原因：快照路径要逐条调用它，写成内联会重复「取服务 + 判空」这两步。
+    """
+    service = getattr(app.state, "entity_area", None)
+    enrich = getattr(service, "enrich_entity_sync", None)
+    if not callable(enrich):
+        return entity
+    return enrich(entity)
+
+
+def _enrich_state_pair(app: FastAPI, change: dict[str, Any]) -> None:
+    """给状态变更的 ``new_state`` / ``old_state`` 补全区域与**设备归属**。
+
+    为什么必须在**入库前**做：HA 的 ``/api/states`` 与 WS 推送都**不携带**
+    ``attributes.device_id`` —— 它只存在于 HA 的实体注册表里（``config/entity_registry/list``）。
+    而 WS 广播（``to_ws_state_change_payload``）把 ``new_state`` 原样透传给前端，
+    前端因此永远拿不到设备归属，只能把「一台设备」数成它的实体个数：
+    截图里一台路由器会分成「WiFi管理 / 访客WiFi / 指示灯」三台，主卫三件套分成三台。
+
+    补在这一层而不是各消费点：凡是读 ``store`` 的地方（WS 增量、REST 列表、派生索引、
+    设备健康、离线计数）都走同一份 dict，补一次全部受益。
+
+    ``enrich_entity_sync`` 在索引未就绪时原样返回，因此早期事件不会报错，只是暂时没有归属；
+    索引加载后由 ``publish_entity_area_updates`` 补发（那条路径同样比对 ``device_id``）。
+    """
+    for key in ("new_state", "old_state"):
+        state = change.get(key)
+        if not isinstance(state, dict):
+            continue
+        enriched = _enrich_entity(app, state)
+        if enriched is not state:
+            change[key] = enriched
+
+
 def _apply_state_change(app: FastAPI, gateway: Any, store: Any, change: dict[str, Any]) -> bool:
     """把单条 HA 状态变更落到 L1（同步热路径）；返回是否真的写入。
 
@@ -65,6 +101,8 @@ def _apply_state_change(app: FastAPI, gateway: Any, store: Any, change: dict[str
     entity_id = change.get("entity_id")
     if not entity_id:
         return False
+    # 先补全 device_id / 区域，再写库并向下扇出：前端拿到的每一份状态都要带设备归属。
+    _enrich_state_pair(app, change)
     if change.get("old_state") is None:
         previous = store.get(str(entity_id))
         if previous is not None:
@@ -287,7 +325,14 @@ async def _apply_initial_snapshot(app: FastAPI, store: Any, payload: Any, bus: A
     """
     raw_states = payload.get("states") if isinstance(payload, dict) else payload
     preserve = payload.get("preserve") if isinstance(payload, dict) else None
-    entities = [entity for entity in (raw_states or []) if isinstance(entity, dict) and entity.get("entity_id")]
+    # 全量快照同样要补 device_id：首屏（以及整表重拉）走的就是这条路径。
+    # 不补的话「刷新一次页面，离线分组又退回按实体」—— 增量路径补了、快照路径没补，
+    # 会变成更难查的「有时对有时不对」。
+    entities = [
+        _enrich_entity(app, entity)
+        for entity in (raw_states or [])
+        if isinstance(entity, dict) and entity.get("entity_id")
+    ]
     broadcast_entities = entities
     if sync_filter is not None:
         broadcast_entities = sync_filter.filter_syncable_states(entities)

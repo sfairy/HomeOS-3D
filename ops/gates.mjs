@@ -57,7 +57,7 @@
  * ```
  */
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, rmSync } from 'node:fs'
+import { existsSync, readFileSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
@@ -220,8 +220,20 @@ const GATE_GROUPS = {
       // （2026-10-10 的构建锁 ENOENT 就是被它兜住的）。
       fn: () => {
         const dist = path.join(REPO_ROOT, 'dist')
+        // 先确认没人在服务 dist：`bun run dev` 的后端直接把 dist 当静态根，
+        // 在它运行时清空 = 把线上正在用的产物删掉 20~32 秒（watch-build 重建期间）。
+        // 现象是浏览器里一堆 `Failed to load resource: 503`、`/stage.html` 回
+        // 「前端产物尚未就绪」，但后端本身是健康的 —— 排查方向会被带偏。
+        const dev = devServerServing()
+        if (dev.serving && process.env.HOMEOS_GATE_FORCE_CLEAN !== '1') {
+          console.error(`  拒绝清空 dist/：${dev.reason}`)
+          console.error('  `bun run gate:build` 会先删 dist 再重建；dev 正在服务它时这会中断前端 20~32 秒。')
+          console.error('  做法：先停掉 `bun run dev` 再跑构建门禁（CI 上不存在这个问题）。')
+          console.error('  确需在 dev 运行时清空：HOMEOS_GATE_FORCE_CLEAN=1 bun run gate:build')
+          return 1
+        }
         if (existsSync(dist)) rmSync(dist, { recursive: true, force: true })
-        console.log('  已清空 dist/')
+        console.log(dev.serving ? '  已清空 dist/（HOMEOS_GATE_FORCE_CLEAN=1 强制）' : '  已清空 dist/')
         return 0
       },
     },
@@ -342,6 +354,71 @@ const GATE_GROUPS = {
 }
 
 const DEFAULT_GROUPS = ['static', 'model']
+
+/**
+ * 「是否有人在服务 dist」的判定。
+ *
+ * 两个信号，按可靠性排序：
+ *
+ * 1. **运行时标记** `.dev-server.json`（由 `ops/dev.mjs` 写入，退出时删除）。里面带 pid，
+ *    因此 Ctrl-C 或 SIGKILL 留下的陈旧标记不会让构建门禁永久拒绝执行 —— 进程不在了就忽略。
+ * 2. **端口探测**：标记不存在但 `8801/8805` 有响应时，说明 dev 很可能是**在本改动之前**
+ *    启动的（那时还不写标记）。此时同样拒绝，避免「第一次就踩坑」。
+ *
+ * 容器里的后端也会响应 8801，但容器用的是**镜像内自己的 dist**，清空宿主 dist 不影响它 ——
+ * 代价只是本机会多拒绝一次，而误删的代价是前端中断 20~32 秒。宁可多拦。
+ *
+ * @returns {{serving: boolean, reason: string}}
+ */
+function devServerServing() {
+  const marker = path.join(REPO_ROOT, '.dev-server.json')
+  if (existsSync(marker)) {
+    try {
+      const payload = JSON.parse(readFileSyncText(marker))
+      const pid = Number(payload?.pid)
+      if (Number.isInteger(pid) && pid > 0 && processAlive(pid)) {
+        return {
+          serving: true,
+          reason: `\`bun run dev\`（pid ${pid}，启动于 ${payload?.startedAt ?? '未知'}）正在服务 dist/`,
+        }
+      }
+    } catch {
+      // 标记损坏：当作不存在，继续走端口探测。
+    }
+  }
+  for (const [port, label] of [
+    [8801, '主应用 API'],
+    [8805, '主应用 Vite'],
+  ]) {
+    if (portResponding(port)) {
+      return { serving: true, reason: `${label}（127.0.0.1:${port}）有响应，dist/ 可能正被服务` }
+    }
+  }
+  return { serving: false, reason: '' }
+}
+
+/** 读文本（只在判定标记时用一次，不值得为它再加一个具名导入的别名）。 */
+function readFileSyncText(file) {
+  return readFileSync(file, 'utf8')
+}
+
+/** 进程是否还活着：`kill(pid, 0)` 只做存在性检查，不发信号。 */
+function processAlive(pid) {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** 端口是否有 HTTP 响应（300ms 超时：本机回环，不该慢）。 */
+function portResponding(port) {
+  const probe = spawnSync('curl', ['-s', '-o', '/dev/null', '-m', '1', `http://127.0.0.1:${port}/`], {
+    stdio: 'ignore',
+  })
+  return probe.status === 0
+}
 
 /* ------------------------------------------------------------------ *
  * 分类（标签）

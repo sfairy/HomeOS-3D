@@ -21,7 +21,7 @@
               </div>
               <div>
                 <h2 class="hos-modal-title">{{ domainInfo.label }}</h2>
-                <p class="hos-modal-subtitle">{{ `共 ${entityIds.length} 个设备` }}</p>
+                <p class="hos-modal-subtitle">{{ deviceCountLabel }}</p>
               </div>
             </div>
             <button
@@ -208,6 +208,22 @@ function getEntity(eid) {
 
 const { offlineStats, batteryStats, offlineIcon, offlineReason, shortReason, timeAgo, batteryColor } =
   useDeviceGroupOffline(props, entityIds, entitiesStore, layoutStore, getEntity)
+
+/**
+ * 标题下方的计数。
+ *
+ * 离线按**设备**数（`offlineStats.deviceCount`），其余域仍按实体数 —— 「灯 12」指的是
+ * 12 个灯实体，而「离线 9」指 9 台设备，两者本来就是不同量纲。离线若用实体数，
+ * 一台多传感器设备会贡献 5~10 个，标题会写着「共 131 个设备」却只列出十几条。
+ */
+const deviceCountLabel = computed(() => {
+  if (props.domain === 'offline' && offlineStats.value) {
+    const devices = offlineStats.value.deviceCount
+    const entities = entityIds.value.length
+    return devices === entities ? `共 ${devices} 台离线` : `共 ${devices} 台离线（${entities} 个实体）`
+  }
+  return `共 ${entityIds.value.length} 个设备`
+})
 
 const { batchExecuting, batchExecResult, lastBatchPayload, batchToggle, retryFailed } = useDeviceGroupBatch(
   entityIds,

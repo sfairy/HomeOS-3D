@@ -37,6 +37,7 @@ import { audit as complexityAudit } from './frontend/check_frontend_complexity.m
 import { audit as stylesAudit } from './frontend/check_hardcoded_styles.mjs'
 import { audit as cssTokensAudit } from './frontend/check_css_tokens.mjs'
 import { audit as canvasAudit } from './frontend/check_canvas_breakpoints.mjs'
+import { audit as offlineCountingAudit } from './frontend/check_offline_counting.mjs'
 import { audit as perfAudit } from './frontend/check_perf_ratchet.mjs'
 import { audit as restrictedAudit } from './frontend/check_restricted_syntax.mjs'
 import { audit as uiOverflowAudit } from './frontend/ui_overflow_ratchet.mjs'
@@ -56,6 +57,11 @@ const MODULES = [
   { name: 'ui-overflow', covers: ['check:ui-overflow'], run: (ctx) => uiOverflowAudit(ctx) },
   { name: 'perf-ratchet', covers: ['check:perf-ratchet'], run: (ctx) => perfAudit(ctx) },
   { name: 'canvas-breakpoints', covers: ['check:canvas-breakpoints'], run: (ctx) => canvasAudit(ctx) },
+  {
+    name: 'offline-counting',
+    covers: ['check:offline-counting'],
+    run: () => offlineCountingAudit(),
+  },
   { name: 'restricted-syntax', covers: ['check:restricted-syntax'], run: (ctx) => restrictedAudit(ctx) },
   {
     name: 'frontend-complexity',

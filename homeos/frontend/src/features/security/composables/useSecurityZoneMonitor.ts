@@ -23,6 +23,7 @@ import {
   type SecurityZoneDraft,
 } from '@/features/security/utils/zone-room.util'
 import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
+import { countOfflineDevices } from '@/shared/device/utils/group-offline.util'
 
 /**
  * 安防区域监控 composable
@@ -96,7 +97,12 @@ export function useSecurityZoneMonitor(
       activeInMode: zoneActiveInMode(mode, zoneType, armedKnown, armed),
       sensors,
       alertCount: sensors.filter((s) => s.alert).length,
-      offlineCount: sensors.filter((s) => s.offline).length,
+      // 离线按**设备**计：一个烟感常挂「烟感 + 电量 + 信号」多个实体，
+      // 按实体数会让一张区域卡片写着「3 离线」而其实只有一台设备出问题。
+      offlineCount: countOfflineDevices(
+        sensors.filter((s) => s.offline).map((s) => s.entity_id),
+        entitiesStore.entities,
+      ),
       sensorTotal: sensors.length,
     }
   }

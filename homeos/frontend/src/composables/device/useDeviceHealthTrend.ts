@@ -3,6 +3,7 @@ import { readLocalStorage, writeLocalStorageJson } from '@/shared/utils/core/loc
 
 import { computed, onMounted, ref } from 'vue'
 import { useEntitiesStore } from '@/stores/entities.store'
+import { countOfflineDevices } from '@/shared/device/utils/group-offline.util'
 
 // localStorage 中的存储 key
 const STORAGE_KEY = 'homeos:device-health-trend'
@@ -85,17 +86,23 @@ export function useDeviceHealthTrend() {
     void entitiesStore.derivedEpoch
     const devices = entitiesStore.entities
     const keys = Object.keys(devices)
-    let offline = 0
+    const offlineIds: string[] = []
     let lowBattery = 0
     for (const key of keys) {
       const d = devices[key]
       // 不可用 / 未知状态视为离线
-      if (d.state === 'unavailable' || d.state === 'unknown') offline++
+      if (d.state === 'unavailable' || d.state === 'unknown') offlineIds.push(key)
       const level = d.attributes?.battery_level
       // battery_level 为数值且 <= 20 视为低电量
       if (typeof level === 'number' && level <= 20) lowBattery++
     }
-    return { offline, lowBattery, total: keys.length }
+    return {
+      // 按**设备**计：趋势图的纵轴是「离线设备数」，按实体算会让一台多传感器设备
+      // 贡献 5~10 个点，趋势看起来像整批掉线而实际只是几台。
+      offline: countOfflineDevices(offlineIds, devices),
+      lowBattery,
+      total: keys.length,
+    }
   })
 
   /**

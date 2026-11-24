@@ -20,10 +20,26 @@ import { getDomainLabel } from '@/shared/device/utils/domain-labels.util'
 import { appNotify } from '@/shared/utils/bridge/store-bridge'
 import { hasEntityControlPopup } from '@/shared/entity/utils/popup-registry.util'
 import { filterMemoryDeviceItems } from '@/features/device/composables/devices-view-filter.internals'
+import {
+  DEVICE_QUERY_DOMAIN,
+  DEVICE_QUERY_STATUS,
+  parseDeviceQueryFilters,
+  toDeviceQueryParams,
+} from '@/features/device/composables/devices-view-query.internals'
 import { resolveDeviceToggleCommand } from '@/features/device/composables/devices-view-actions.internals'
 import { buildDevicesDomainTabs, mapDeviceEntityRow } from '@/features/device/composables/devices-view-map.internals'
 
 const FILTER_STORAGE_KEY = 'homeos:devices-filter'
+
+/**
+ * `/devices` 的 URL 筛选键。
+ *
+ * 为什么需要：「设备健康」面板里的「传感器 88」是可点的 —— 点进去必须落到**同一批实体**上。
+ * 若 URL 不能表达筛选，这个跳转只能落到「全部实体」，数字与列表对不上，比不能点更糟。
+ *
+ * 只覆盖 `domain` 与 `status`：其余筛选（房间 / 排序 / 仅可控）是用户在本页自己调的偏好，
+ * 进了 URL 会让链接又长又难读。解析与回写在 `devices-view-query.internals.ts`（有单测）。
+ */
 
 /**
  * /devices 列表 REST 分页回退阈值。
@@ -76,6 +92,8 @@ export function useDevicesView() {
     } catch {
       // 忽略：sessionStorage 不可用或解析失败
     }
+    // 顺序有意为之：query 在 sessionStorage **之后**应用，让外部链接的描述优先于上次偏好。
+    applyQueryFilters()
   })
 
   watch(
@@ -89,6 +107,72 @@ export function useDevicesView() {
     },
     { deep: true },
   )
+
+  /**
+   * 把 query 里的 `domain` / `status` 应用到当前筛选。
+   *
+   * 只在 query 确实**带来新值**时才动手，且此时一并关掉 `controllableOnly`：
+   * 该值默认 `true`，会把传感器 / 二元传感器整类隐藏，而设备健康面板的分解里点的恰恰
+   * 主要就是传感器 —— 不关的话点进去是空列表，「传感器 88」变成「0 项」。
+   *
+   * 反面约束（容易写错的地方）：不要在每次 query 变化时都强制 `controllableOnly = false`。
+   * 本页会把当前域回写到 URL，于是「用户手动打开仅可控 → 切域 Tab → URL 变了」会让
+   * 这个 watcher 再跑一遍，把用户的开关又关掉。因此只在**真正应用了新值**的那一次处理。
+   *
+   * 返回是否真的改动了状态。
+   */
+  function applyQueryFilters(): boolean {
+    const { domain, status, present } = parseDeviceQueryFilters(route.query as Record<string, unknown>)
+    if (!present) return false
+
+    let applied = false
+    if (domain && activeDomain.value !== domain) {
+      activeDomain.value = domain
+      applied = true
+    }
+    if (status && currentFilter.value.status !== status) {
+      currentFilter.value = { ...currentFilter.value, status }
+      applied = true
+    }
+    if (!applied) return false
+
+    if (currentFilter.value.controllableOnly) {
+      currentFilter.value = { ...currentFilter.value, controllableOnly: false }
+    }
+    // 从外部链接进来时直接看列表：分析模式下应用筛选是看不见效果的。
+    if (pageTab.value !== 'list') pageTab.value = 'list'
+    return true
+  }
+
+  /**
+   * 把当前 `domain` / `status` 回写到 URL。
+   *
+   * 单向读 URL 会让链接**说谎**：用户进来后改了域 Tab，地址栏还写着旧域，复制出去就是错的链接。
+   * 因此两个方向都同步，用「值相同就不动」的守卫避免来回触发。
+   */
+  function syncFiltersToQuery() {
+    const { domain, status } = toDeviceQueryParams({
+      domain: activeDomain.value,
+      status: currentFilter.value.status,
+    })
+
+    const currentDomain = String(route.query[DEVICE_QUERY_DOMAIN] || '')
+    const currentStatus = String(route.query[DEVICE_QUERY_STATUS] || '')
+    if (currentDomain === (domain ?? '') && currentStatus === (status ?? '')) return
+
+    const next: Record<string, string> = { ...route.query } as Record<string, string>
+    if (domain) next[DEVICE_QUERY_DOMAIN] = domain
+    else delete next[DEVICE_QUERY_DOMAIN]
+    if (status) next[DEVICE_QUERY_STATUS] = status
+    else delete next[DEVICE_QUERY_STATUS]
+    router.replace({ query: next })
+  }
+
+  watch(
+    () => [route.query[DEVICE_QUERY_DOMAIN], route.query[DEVICE_QUERY_STATUS]],
+    () => applyQueryFilters(),
+  )
+  watch([activeDomain, () => currentFilter.value.status], () => syncFiltersToQuery())
 
   const useRestList = computed(() => {
     configEpoch.value
