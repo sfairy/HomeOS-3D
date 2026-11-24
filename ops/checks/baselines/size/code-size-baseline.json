@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-24T15:10:04.119Z",
+  "generatedAt": "2026-11-24T15:23:33.324Z",
   "roots": [
     "homeos/frontend/src",
     "homeos/backend/src",
@@ -11,40 +11,40 @@
   ],
   "byRoot": {
     "homeos/frontend/src": {
-      "code": 443190,
-      "comment": 43300,
-      "blank": 29786,
-      "chars": 13261373,
-      "files": 2093,
+      "code": 443308,
+      "comment": 43336,
+      "blank": 29807,
+      "chars": 13264773,
+      "files": 2095,
       "byExt": {
         ".vue": {
-          "code": 67372,
-          "chars": 1933659,
+          "code": 67406,
+          "chars": 1934742,
           "files": 383
         },
         ".css": {
-          "code": 72138,
-          "chars": 1579710,
+          "code": 72168,
+          "chars": 1580335,
           "files": 218
         },
         ".ts": {
-          "code": 303680,
-          "chars": 9748004,
-          "files": 1492
+          "code": 303734,
+          "chars": 9749696,
+          "files": 1494
         }
       }
     },
     "homeos/backend/src": {
-      "code": 110264,
-      "comment": 6546,
-      "blank": 18629,
-      "chars": 3444144,
-      "files": 584,
+      "code": 110549,
+      "comment": 6558,
+      "blank": 18675,
+      "chars": 3452194,
+      "files": 585,
       "byExt": {
         ".py": {
-          "code": 110264,
-          "chars": 3444144,
-          "files": 584
+          "code": 110549,
+          "chars": 3452194,
+          "files": 585
         }
       }
     },
@@ -125,16 +125,16 @@
       }
     },
     "ops": {
-      "code": 26401,
-      "comment": 4596,
-      "blank": 4462,
-      "chars": 839425,
-      "files": 171,
+      "code": 26658,
+      "comment": 4601,
+      "blank": 4518,
+      "chars": 848367,
+      "files": 172,
       "byExt": {
         ".py": {
-          "code": 12335,
-          "chars": 404837,
-          "files": 86
+          "code": 12592,
+          "chars": 413779,
+          "files": 87
         },
         ".mjs": {
           "code": 13242,
@@ -150,10 +150,10 @@
     }
   },
   "total": {
-    "code": 619936,
-    "comment": 58063,
-    "blank": 58506,
-    "chars": 18719557,
-    "files": 3138
+    "code": 620596,
+    "comment": 58116,
+    "blank": 58629,
+    "chars": 18739949,
+    "files": 3142
   }
 }
