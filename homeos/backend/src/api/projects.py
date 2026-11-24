@@ -10,7 +10,7 @@ from typing import Any
 from uuid import uuid4
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response, status
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
 
 from .proxy.go2rtc import validate_camera_source_addresses
@@ -44,7 +44,13 @@ from ..panel.asset_refs import validate_assets
 from ..panel.documents import create_blank_project
 from ..panel.schema import validate_panel_document
 from ..platform.core.db.db_exec import run_db
-from ..platform.core.db.models import GlobalCustomPopupState, Project, ProjectDraft
+from ..platform.core.db.models import (
+    GlobalCustomPopupState,
+    Project,
+    ProjectDraft,
+    ProjectDraftEntityRef,
+)
+from ..platform.core.entity.entity_refs import document_entity_ids
 from ..platform.core.http.diagnostics import update_request_context
 from ..platform.http_cache import make_etag, not_modified, request_etag_matches, set_private_revalidate
 from ..schemas import (
@@ -222,14 +228,16 @@ def create_project(body: ProjectCreateRequest, request: Request, database: Datab
         description=body.description.strip(),
         created_by=user.id,
     )
+    stored_document = strip_document_popups(document)
     draft = ProjectDraft(
         project_id=project_id,
         schema_version=document["schemaVersion"],
         revision=1,
-        document_json=serialize_document(strip_document_popups(document)),
+        document_json=serialize_document(stored_document),
         updated_by=user.id,
     )
     database.add_all([project, draft])
+    _replace_draft_entity_refs(database, project_id, stored_document)
     commit_project_name(database)
     database.refresh(project)
     request.app.state.global_log.append(
@@ -286,14 +294,16 @@ def duplicate_project(
         description=source.description,
         created_by=user.id,
     )
+    stored_document = strip_document_popups(document)
     duplicate_draft = ProjectDraft(
         project_id=duplicate_id,
         schema_version=document["schemaVersion"],
         revision=1,
-        document_json=serialize_document(strip_document_popups(document)),
+        document_json=serialize_document(stored_document),
         updated_by=user.id,
     )
     database.add_all([duplicate, duplicate_draft])
+    _replace_draft_entity_refs(database, duplicate_id, stored_document)
     commit_project_name(database)
     database.refresh(duplicate)
     request.app.state.global_log.append(
@@ -520,6 +530,23 @@ def _remove_popup_refs_from_drafts(
             )
 
 
+def _replace_draft_entity_refs(database: DatabaseSession, project_id: str, document: dict[str, Any]) -> None:
+    """把草稿文档引用的实体写进派生表（与草稿同事务）。
+
+    ``document_json`` 仍是唯一真源：这里只是把「文档里出现了哪些实体」物化，避免
+    ``_load_persistent_entity_ids`` 每次保存都解析全表 JSON。先删后插的代价是每个项目
+    几十到几百行，远小于解析 30–90KB 文档。
+    """
+    database.execute(delete(ProjectDraftEntityRef).where(ProjectDraftEntityRef.project_id == project_id))
+    entity_ids = sorted(document_entity_ids(document))
+    if not entity_ids:
+        return
+    database.execute(
+        ProjectDraftEntityRef.__table__.insert(),
+        [{"project_id": project_id, "entity_id": entity_id} for entity_id in entity_ids],
+    )
+
+
 def _write_draft_document(
     database: DatabaseSession,
     user_id: str,
@@ -674,7 +701,8 @@ def update_project_draft(
                 "currentRevision": popup_state.revision,
             },
         )
-    serialized_document = serialize_document(strip_document_popups(document))
+    stored_document = strip_document_popups(document)
+    serialized_document = serialize_document(stored_document)
     asset_guard = request.app.state.asset_catalog.mutation_lock if user_asset_ids else nullcontext()
     with asset_guard:
         if user_asset_ids:
@@ -686,6 +714,10 @@ def update_project_draft(
         _write_draft_document(
             database, user.id, project_id, body.revision, serialized_document, document["schemaVersion"]
         )
+        # 派生表与草稿同事务：commit 在下面 commit_project_name 里统一提交。
+        # 用**落库的那份**文档（已剥离全局弹窗）算引用，与旧实现的
+        # 「解析 document_json」口径一致；弹窗引用由 global_popups 单独并入。
+        _replace_draft_entity_refs(database, project_id, stored_document)
         database.execute(update(Project).where(Project.id == project_id).values(name=document["name"]))
         commit_project_name(database)
     # 0.8.7：仪表盘草稿保存也单独记一条（此前只有创建 / 复制 / 删除有事件）。

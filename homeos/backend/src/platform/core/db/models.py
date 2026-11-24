@@ -550,6 +550,27 @@ class ProjectDraft(Base):
     )
 
 
+class ProjectDraftEntityRef(Base):
+    """草稿引用的 HA 实体（派生表）。
+
+    为什么把它抽出来：``_load_persistent_entity_ids`` 原先要读**所有**草稿的
+    ``document_json``（单份 30–90KB）并逐份 ``json.loads`` + 递归遍历，而触发点包括
+    每次草稿保存、删除仪表盘、HA 全量同步 —— 一次保存就扫全表。把「文档里出现了哪些
+    实体」物化成索引表后，同一次调用变成一条 ``SELECT DISTINCT entity_id``。
+
+    维护口径：与草稿文档**同事务**写入（见 ``api/projects._replace_draft_entity_refs``），
+    因此不存在「文档更新了、索引还是旧的」的窗口。``document_json`` 仍是唯一真源，
+    本表可随时由它整体重建（迁移 9 的回填就是这么做的）。
+    """
+
+    __tablename__ = "project_draft_entity_refs"
+
+    project_id: Mapped[str] = mapped_column(
+        ForeignKey("project_drafts.project_id", ondelete="CASCADE"), primary_key=True
+    )
+    entity_id: Mapped[str] = mapped_column(String(255), primary_key=True, index=True)
+
+
 class StudioInteractionSync(Base):
     """Studio ↔ interaction3d 的同步文档（单例行，``id`` 恒为 1）。"""
 

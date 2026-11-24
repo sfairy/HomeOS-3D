@@ -35,7 +35,7 @@ from ....platform.core.db.models import (
     HADevice,
     HAEntity,
     HASyncState,
-    ProjectDraft,
+    ProjectDraftEntityRef,
     utc_now,
 )
 from ....platform.core.entity.entity_refs import document_entity_ids
@@ -78,17 +78,17 @@ class HASyncMixin(HAConnectorHost):
     ha_version: str | None = None
 
     def _load_persistent_entity_ids(self) -> set[str]:
-        result = set()
+        """草稿里引用到的实体 + 全局弹窗里引用到的实体。
+
+        草稿侧走派生表 ``project_draft_entity_refs``（与草稿同事务维护）：旧实现要读
+        全部 ``document_json`` 并逐份 ``json.loads`` + 递归遍历，而本函数在「每次草稿
+        保存 / 删除仪表盘 / HA 全量同步」都会跑。
+        """
+        result: set[str] = set()
         with self.database.session_factory() as database:
-            documents = database.scalars(select(ProjectDraft.document_json)).all()
-            popup_document = {"customPopups": global_popups(database)}
-            for document_json in documents:
-                try:
-                    document = json.loads(document_json)
-                except (TypeError, ValueError):  # fmt: skip
-                    continue
-                result.update(document_entity_ids(document))
-            result.update(document_entity_ids(popup_document))
+            entity_ids = database.scalars(select(ProjectDraftEntityRef.entity_id).distinct())
+            result.update(str(entity_id) for entity_id in entity_ids)
+            result.update(document_entity_ids({"customPopups": global_popups(database)}))
         return result
 
     async def watched_entity_ids(self) -> set[str]:

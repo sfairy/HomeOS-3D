@@ -43,10 +43,14 @@ node ops/lib/py.mjs ops/scripts/reset-schema-version.py --app homeos            
 
 from __future__ import annotations
 
+import json
+import logging
 import sqlite3
 
 from homeos_shared.schema_migrate import Migration, MigrationContext
 from homeos_shared.sqlite_schema import table_columns, table_indexes
+
+LOGGER = logging.getLogger("homeos.platform.core.migrations")
 
 #: 1 号基线：空操作。表结构由 ORM 模型负责（见模块说明）。
 BASELINE_VERSION = 1
@@ -60,7 +64,7 @@ def _noop(connection: sqlite3.Connection, _context: MigrationContext) -> None:
 
 #: 2 号：时序表的「未结束行」查询索引。
 #:
-#: ``timeline._write_row`` 每次写入都要找同实体最后一条 ``endedAt IS NULL`` 的记录来结算，
+#: 时序写入每次都要找同实体最后一条 ``endedAt IS NULL`` 的记录来结算（批量后仍是一条 IN 查询），
 #: 没有这个复合索引时只能沿 ``entityId`` 索引反向扫该实体的全部历史（实测单实体 6.6 万行）。
 #: ``create_all`` 不会为已存在的表补索引，因此升级路径必须显式建（幂等）。
 _TIMELINE_OPEN_INDEX_SQL = (
@@ -207,6 +211,68 @@ def _drop_event_log_redundant_index(connection: sqlite3.Connection, _context: Mi
     connection.execute(_EVENT_LOG_REDUNDANT_INDEX_SQL)
 
 
+#: 9 号：草稿实体引用派生表 + 两个高频过滤索引。
+#:
+#: 三件事放在同一个迁移里，都属于「升级上来的库缺少、而 ``create_all`` 不会补」的结构：
+#:
+#: 1. ``project_draft_entity_refs``：把「草稿文档里出现哪些实体」物化。原先
+#:    ``_load_persistent_entity_ids`` 每次都要读全部 ``document_json`` 并逐个解析，
+#:    而保存草稿 / 删仪表盘 / HA 同步都会触发。表建好后立刻按现存草稿回填一次。
+#: 2. ``notifications(source, createdAt)``：通知列表按来源过滤 + 倒序分页，
+#:    现有索引只有 ``(createdAt)`` 与 ``(read, createdAt)``，带来源时仍需回表过滤。
+#: 3. ``energy_usage_daily(day)``：保留期清理与跨实体按天范围查询只能扫
+#:    唯一索引 ``(entityId, day)`` 的第二列，等于全表。
+_PROJECT_DRAFT_REFS_SQL: tuple[str, ...] = (
+    """
+    CREATE TABLE IF NOT EXISTS project_draft_entity_refs (
+        project_id VARCHAR(36) NOT NULL,
+        entity_id VARCHAR(255) NOT NULL,
+        PRIMARY KEY (project_id, entity_id),
+        FOREIGN KEY (project_id) REFERENCES project_drafts (project_id) ON DELETE CASCADE
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS ix_project_draft_entity_refs_entity_id ON project_draft_entity_refs (entity_id)",
+)
+
+_ADDITIONAL_INDEX_SQL: tuple[str, ...] = (
+    "CREATE INDEX IF NOT EXISTS notifications_source_createdAt_idx ON notifications (source, createdAt)",
+    "CREATE INDEX IF NOT EXISTS energy_usage_daily_day_idx ON energy_usage_daily (day)",
+)
+
+
+def _draft_entity_refs_table(connection: sqlite3.Connection, _context: MigrationContext) -> None:
+    for statement in _PROJECT_DRAFT_REFS_SQL:
+        connection.execute(statement)
+    for statement in _ADDITIONAL_INDEX_SQL:
+        # 表可能还不存在（全新库先迁移后 create_all）：``IF NOT EXISTS`` 不覆盖「无此表」，
+        # 这里先判存在性，避免在空库上 ``no such table``。
+        table = statement.split(" ON ", 1)[1].split(" ", 1)[0]
+        if _table_exists(connection, table):
+            connection.execute(statement)
+
+    # 回填：只在表为空时做一次。文档 JSON 是唯一真源，解析失败的行跳过（下次保存会补齐）。
+    existing = connection.execute("SELECT COUNT(*) FROM project_draft_entity_refs").fetchone()[0]
+    if existing:
+        return
+    # 延迟导入：迁移模块在启动早期被导入，避免把实体遍历的依赖一并拉进这条链路。
+    from ..entity.entity_refs import document_entity_ids
+
+    rows = connection.execute("SELECT project_id, document_json FROM project_drafts").fetchall()
+    payload: list[tuple[str, str]] = []
+    for project_id, document_json in rows:
+        try:
+            document = json.loads(document_json)
+        except (TypeError, ValueError) as error:  # fmt: skip
+            LOGGER.warning("草稿文档 JSON 解析失败，回填跳过：project=%s（%s）", project_id, error)
+            continue
+        payload.extend((str(project_id), str(entity_id)) for entity_id in document_entity_ids(document))
+    if payload:
+        connection.executemany(
+            "INSERT OR IGNORE INTO project_draft_entity_refs (project_id, entity_id) VALUES (?, ?)",
+            payload,
+        )
+
+
 MIGRATIONS: tuple[Migration, ...] = (
     Migration(BASELINE_VERSION, BASELINE_NAME, BASELINE_CHECKSUM, _noop),
     Migration(2, "agent-timeline-open-index", "h0002-timeline-open-index", _timeline_open_index),
@@ -216,6 +282,7 @@ MIGRATIONS: tuple[Migration, ...] = (
     Migration(6, "energy-usage-hourly", "h0006-energy-usage-hourly", _energy_hourly_table),
     Migration(7, "water-usage-daily", "h0007-water-usage-daily", _water_usage_table),
     Migration(8, "event-log-drop-redundant-index", "h0008-event-log-drop-dup-index", _drop_event_log_redundant_index),
+    Migration(9, "draft-entity-refs-and-indexes", "h0009-draft-refs", _draft_entity_refs_table),
 )
 
 
