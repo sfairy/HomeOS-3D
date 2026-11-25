@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-25T02:21:04.835Z",
+  "generatedAt": "2026-11-25T09:36:04.099Z",
   "roots": [
     "homeos/frontend/src",
     "homeos/backend/src",
@@ -11,10 +11,10 @@
   ],
   "byRoot": {
     "homeos/frontend/src": {
-      "code": 443519,
-      "comment": 43449,
-      "blank": 29844,
-      "chars": 13271375,
+      "code": 443535,
+      "comment": 43473,
+      "blank": 29848,
+      "chars": 13272021,
       "files": 2103,
       "byExt": {
         ".vue": {
@@ -28,22 +28,22 @@
           "files": 218
         },
         ".ts": {
-          "code": 303856,
-          "chars": 9753838,
+          "code": 303872,
+          "chars": 9754484,
           "files": 1502
         }
       }
     },
     "homeos/backend/src": {
       "code": 111560,
-      "comment": 6680,
+      "comment": 6685,
       "blank": 18944,
-      "chars": 3486363,
+      "chars": 3486379,
       "files": 596,
       "byExt": {
         ".py": {
           "code": 111560,
-          "chars": 3486363,
+          "chars": 3486379,
           "files": 596
         }
       }
@@ -150,10 +150,10 @@
     }
   },
   "total": {
-    "code": 622628,
-    "comment": 58385,
-    "blank": 59107,
-    "chars": 18808654,
+    "code": 622644,
+    "comment": 58414,
+    "blank": 59111,
+    "chars": 18809316,
     "files": 3168
   }
 }

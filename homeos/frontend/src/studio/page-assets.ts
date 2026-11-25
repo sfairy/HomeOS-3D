@@ -112,6 +112,15 @@ export const PAGE_ASSETS = {
 } as const
 
 const MANAGED_ATTR = 'data-spa-managed'
+
+/**
+ * 服务端注入的首屏样式表预载标记（见 `homeos/backend/src/bootstrap/spa_static.py`）。
+ *
+ * 与 `3D 舞台` 自己那条 `rel=preload as=style`（`controls.css`，由 `stage.css` 的
+ * `@import` 消费）区分开：这里只认 SPA 外壳标注过的那批，避免把舞台的串行引用提前
+ * 变成一条独立样式表而改变层叠顺序。
+ */
+const PRELOAD_ATTR = 'data-spa-preload'
 // 用 href 匹配而不是全等：入口里的 href 可能带查询串（构建期补的 `?v=`）或片段，
 // 全等匹配会落空。包含匹配把受管样式表锚定在 SPA 外壳样式之后，两种环境下顺序都成立。
 const ANCHOR_SELECTOR = 'link[href*="/static/spa-shell.css"]'
@@ -199,10 +208,27 @@ function isInPlace(el: Element, ref: Element | null, boundary: Element | null): 
   return el.parentNode === document.head
 }
 
+/**
+ * 受管样式表在 `<head>` 中的落点：紧跟 `spa-shell.css`；锚点缺失（精简入口 / 独立页）时
+ * 退到第一张非受管（= Vite 打包）样式表**之前**，而不是 `<head>` 末尾 ——
+ * 见 `UNMANAGED_STYLESHEET_SELECTOR` 的说明。
+ *
+ * 打上受管标记并按游标就位，返回新的游标；已在位则一条 DOM 变更都不产生（见 `isInPlace`）。
+ */
+function placeManagedStylesheet(el: HTMLLinkElement, cursor: Element | null): Element {
+  el.setAttribute(MANAGED_ATTR, 'css')
+  const boundary = cursor ? null : document.head.querySelector(UNMANAGED_STYLESHEET_SELECTOR)
+  if (isInPlace(el, cursor, boundary)) return el
+  if (cursor) cursor.after(el)
+  else if (boundary) boundary.before(el)
+  else document.head.appendChild(el)
+  return el
+}
+
 /** 让受管样式表按 `urls` 的顺序、紧跟在 SPA 外壳样式之后挂载（已在位则一条 DOM 变更都不产生）。 */
 function applyStylesheets(urls: readonly string[]): void {
-  const anchor = document.head.querySelector(ANCHOR_SELECTOR)
   const revision = shellRevisionQuery()
+  const anchor: Element | null = document.head.querySelector(ANCHOR_SELECTOR)
   // 期望集合按**路径**比对，并带上外壳的 revision：预装的 `<link>` 已经带 `?v=`，
   // 裸路径比对会把它们判成多余、摘掉再挂（首帧闪烁 + 二次下载）。
   const desired = new Set(urls.map((url) => hrefKey(url)))
@@ -210,17 +236,6 @@ function applyStylesheets(urls: readonly string[]): void {
   for (const el of [...document.head.querySelectorAll<HTMLLinkElement>(`link[${MANAGED_ATTR}]`)]) {
     if (!desired.has(hrefKey(el.getAttribute('href') || ''))) el.remove()
   }
-  /**
-   * 兜底边界：`spa-shell.css` 不在（精简入口 / 独立页）时插到第一张非受管样式表**之前**，
-   * 而不是 `appendChild` 到 `<head>` 末尾 —— 见 UNMANAGED_STYLESHEET_SELECTOR 的说明。
-   */
-  const boundary = anchor ?? document.head.querySelector(UNMANAGED_STYLESHEET_SELECTOR)
-  /**
-   * 逐个节点就位，**只移动真正不在位的那个**。
-   *
-   * 逐个判断：就位的原地不动，新增的插到游标之后，顺序错的才搬。整组重排会让跨壳
-   * 换装时（keepStylesheets 保留 + 新表追加）已经就位的场景四片被无谓摘挂一次。
-   */
   let cursor: Element | null = anchor
   for (const url of urls) {
     const href = targetHref(url)
@@ -235,13 +250,7 @@ function applyStylesheets(urls: readonly string[]): void {
       // 相对路径比对）下一轮全部落空 —— 表会被判成「不在期望集合里」反复摘掉重挂。
       el.setAttribute('href', href)
     }
-    el.setAttribute(MANAGED_ATTR, 'css')
-    if (!isInPlace(el, cursor, boundary)) {
-      if (cursor) cursor.after(el)
-      else if (boundary) boundary.before(el)
-      else document.head.appendChild(el)
-    }
-    cursor = el
+    cursor = placeManagedStylesheet(el, cursor)
   }
 }
 
@@ -256,6 +265,34 @@ function findStylesheetLink(path: string): HTMLLinkElement | null {
     if (hrefKey(el.getAttribute('href') || '') === path) return el
   }
   return null
+}
+
+/**
+ * 把外壳里服务端注入的首屏样式表**预载**立刻升级成样式表（入口模块求值时调用）。
+ *
+ * `rel=preload` 只是下载提示，「已使用」要等真正的样式表请求命中它 —— 也就是
+ * `applyStylesheets` 挂上 `<link rel=stylesheet>` 的那一刻，而那一步在路由守卫之后
+ * （冷启动 / 后端未就绪时可能阻塞十几秒）。这期间预载已下载完却无人认领，Chrome 会在
+ * load 后数秒报「preloaded but not used」，随后同一张表再下一次。
+ *
+ * 这里复用**同一个节点与同一个带 `?v=` 的 URL** 就地升级，浏览器直接复用已下载的响应；
+ * 位置按 `applyStylesheets` 的规则摆放（紧跟 `spa-shell.css`、打包 CSS 之前），层叠顺序
+ * 不变，后续 `applyPageAssets` 判定「已在位」= 零 DOM 变更。只处理带
+ * {@link PRELOAD_ATTR} 的节点，3D 舞台自己那条 `controls.css` 预载（由 `stage.css` 的
+ * `@import` 消费）不受影响。若当前路由最终不是这批表所属页面，`applyStylesheets` 会照常
+ * 把它们从受管集合摘掉。
+ */
+export function adoptPreloadedStylesheets(): void {
+  if (typeof document === 'undefined') return
+  const preloads = [...document.head.querySelectorAll<HTMLLinkElement>(`link[rel="preload"][${PRELOAD_ATTR}]`)]
+  if (preloads.length === 0) return
+  let cursor: Element | null = document.head.querySelector(ANCHOR_SELECTOR)
+  for (const el of preloads) {
+    // `as` 只对预载有意义；留着会让部分工具把它当成「还是一张预载」。
+    el.removeAttribute('as')
+    el.rel = 'stylesheet'
+    cursor = placeManagedStylesheet(el, cursor)
+  }
 }
 
 function setMeta(id: string, attr: 'content', value: string): void {

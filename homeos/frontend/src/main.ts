@@ -80,6 +80,7 @@ import { swipeClose } from './directives/swipe-close'
 import { scrollRegion } from './directives/scroll-region'
 import { studioStartupReady } from '@/shared/utils/ui/studio-startup'
 import { forgetLicenseAvailability } from '@/shared/utils/auth/license-probe.util'
+import { adoptPreloadedStylesheets } from '@/studio'
 
 // CSRF 兜底注入已收敛到单 HTTP 栈：`services/api/client` 在模块求值时调用
 // `services/api/csrf.ts#installFetchCsrf()`，覆盖 studio 遗留的裸 fetch 写请求。
@@ -97,6 +98,12 @@ window.__homeos_vue__ = {
   onBeforeUnmount,
   defineComponent,
 }
+// 服务端注入的首屏样式表预载（`link[rel=preload][data-spa-preload]`）在这里**立刻认领**：
+// 升级成样式表并挪到外壳样式之后。预载只是下载提示，"已使用"要等真正的样式表请求命中它；
+// 若等到路由守卫（冷启动时可能阻塞十几秒）放行后才挂，Chrome 会在 load 后数秒报
+// 「preloaded but not used」并把同一张表再下一次。入口模块求值早于任何守卫 await。
+adoptPreloadedStylesheets()
+
 // 优先加载系统配置（阻塞直到完成，确保 stores 使用正确参数）
 const app = createApp(App)
 // 注册全局基础组件，避免在每个使用处重复 import

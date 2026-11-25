@@ -48,6 +48,11 @@ _PAGE_LICENSE_FEATURE: tuple[tuple[tuple[str, ...], str], ...] = (
 #: 路由 → 首屏样式表（与 ``homeos/frontend/src/studio/page-assets.ts`` 的 ``PAGE_ASSETS`` 保持一致）。
 #: 只在 SPA 外壳里输出 ``rel=preload``：不改变前端「按路由挂载样式表」的时机与顺序，
 #: 只让浏览器在解析 HTML 时提前开始下载，把首屏 CSS 的串行等待压到 JS 执行之前。
+#:
+#: 每条预载都带 ``data-spa-preload``：前端入口（``main.ts`` 的 ``adoptPreloadedStylesheets()``）
+#: 在模块求值时把它们**就地升级**成样式表并挪到外壳样式之后。少了这一步，预载要等路由守卫
+#: 放行（冷启动可能十几秒）才被真正使用，Chrome 会在 load 后数秒报「preloaded but not used」，
+#: 同一张表随后还会被再下一次。
 _ROUTE_PRELOAD_STYLESHEETS: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     (("/3d-studio",), ("/static/3d-studio/studio.css",)),
     (
@@ -152,7 +157,7 @@ def _inject_preload_stylesheets(html: str, urls: tuple[str, ...], frontend_dir: 
     if not urls:
         return html
     hrefs = ((frontend_resource_url(frontend_dir, url) if frontend_dir is not None else url) for url in urls)
-    tags = "".join(f'<link rel="preload" as="style" href="{html_escape(href)}">' for href in hrefs)
+    tags = "".join(f'<link rel="preload" as="style" data-spa-preload href="{html_escape(href)}">' for href in hrefs)
     if "</head>" in html:
         return html.replace("</head>", f"{tags}</head>", 1)
     return f"{tags}{html}"
