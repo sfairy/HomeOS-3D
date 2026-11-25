@@ -50,9 +50,31 @@ function loadStageFonts(env: typeof globalThis, searchParams: URLSearchParams): 
   )
 }
 
+/**
+ * 加载舞台模块，失败时**换一个 URL 重试一次**。
+ *
+ * 两个真实场景都只能靠换 URL 解决，重试同一个地址没用：
+ *
+ * - **preload 失败污染**：`stage.html` 里有 `<link rel="modulepreload" href="…stage.js?v=X">`。
+ *   这个预加载若失败（弱网、连接被复用打断），Safari 会把「该 URL 取不到」记在模块映射里，
+ *   随后的 `import()` 同一个 URL **直接失败、不再发请求** —— 手机 / 平板最常见，
+ *   桌面 Chrome 不会这样，所以症状看起来是「只有移动端坏」。
+ * - **浏览器按 URL 缓存 import 失败**：同一会话内重试同址不会重新发请求。
+ *
+ * 重试 URL 只多一个查询参数：后端 `get_resource` 的入参是 manifest 里的相对路径，
+ * 额外 query 不影响命中；`?v=` 不再匹配时它只把缓存策略降为 `no-cache`（仍然 200）。
+ * 只重试一次：真断网时第二次也失败，立即让调用方给出可操作文案，而不是无限重试。
+ */
+function loadStageModule(env: typeof globalThis = globalThis) {
+  const url = preloadedStageModuleUrl(env)
+  return import(/* @vite-ignore */ url).catch(
+    () => import(/* @vite-ignore */ `${url}${url.includes('?') ? '&' : '?'}retry=1`),
+  )
+}
+
 function beginStageStartup({
   env: env = globalThis,
-  loadModule: loadModule = () => import(/* @vite-ignore */ preloadedStageModuleUrl(env)),
+  loadModule: loadModule = () => loadStageModule(env),
   createCache: createCache = createScenePersistentCache,
 } = {}) {
   const configuredStagePath = (env as { HABridgeEmbed?: { path?: unknown } }).HABridgeEmbed?.path

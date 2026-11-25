@@ -24,6 +24,7 @@ import { forwardedStageFlags } from '@app/bridge/scene/stage-flags'
 import { vacuumStatusBinding } from '@app/shared/device/vacuum-runtime'
 import { entityNumberFormats, temperatureHumidityEntities } from '@app/bridge/temperature-humidity'
 import { stageFontParams } from '@app/shared/dashboard-fonts'
+import { describeStageFailure } from '@app/shared/util/stage-failure-message'
 
 type HostLogger = HomeOSLog & {
   report?: (level: string, category?: string, message?: string, details?: unknown, detailsText?: string) => void
@@ -1483,16 +1484,9 @@ export function mountInteraction3d(
    * 通过 type:"error" 消息透传上来；直接展示在画布中央既不可读也像崩溃。
    */
   function friendly3dErrorMessage(failureMessage: any) {
-    const raw =
-      typeof failureMessage === 'string'
-        ? failureMessage.trim()
-        : failureMessage instanceof Error
-          ? failureMessage.message.trim()
-          : ''
-    if (!raw) return '3D 画布初始化失败，请重试或改用 2D 控件。'
-    return /webgl|webgpu|context lost|disabled|renderer|three\.|reading 'render'|cannot read propert/i.test(raw)
-      ? '当前设备无法创建 3D 画面（WebGL 不可用）。请开启浏览器「使用图形加速」并重启浏览器，或改用 2D 控件。'
-      : raw
+    // 统一收敛在 `describeStageFailure`：这里过去只映射 WebGL，`Failed to fetch dynamically
+    // imported module: …` 这类原始英文会原样写到 `.i3d-loading` 上（墙屏上一次就是整行英文 URL）。
+    return describeStageFailure(failureMessage) || '3D 画布初始化失败，请重试或改用 2D 控件。'
   }
   function failSceneLoad(failureMessage: any) {
     const friendlyMessage = friendly3dErrorMessage(failureMessage)

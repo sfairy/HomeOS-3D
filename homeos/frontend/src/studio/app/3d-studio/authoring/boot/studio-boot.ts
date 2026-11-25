@@ -15,6 +15,7 @@ import {
 } from '../../../shared/dashboard-fonts'
 import { prepareSceneDocument as prepareSceneDocument2 } from '../../cache/scene-persistent-cache'
 import { stageStartup as stageStartup2 } from '../../stage-startup'
+import { describeStageFailure } from '../../../shared/util/stage-failure-message'
 import { STUDIO_COMPAT_NOTICE, studioCompatModeSource } from '../../studio-gpu-compat'
 import {
   studioStartupActive,
@@ -152,18 +153,15 @@ export async function startupStudio(deps: StudioBootDeps) {
     }
   } catch (startupError: any) {
     // 失败优先交给遮罩：它负责「暂时无法打开 + 原因 + 重新加载」，比擦肩而过的 toast 有用得多。
-    // 遮罩不在管这一屏（嵌入态 / 直接 dev）时下面照样按原契约报错。
-    studioStartupFail(startupError?.message)
+    // 文案走 `describeStageFailure`：模块 import 失败时原始 message 是浏览器英文，见该模块说明。
+    const friendlyFailure = describeStageFailure(startupError) || '无法载入 3D 户型。'
+    studioStartupFail(friendlyFailure)
     if (deps.isEmbeddedStage) {
       window.parent.postMessage(
-        {
-          channel: 'hb-i3d-v1',
-          type: 'error',
-          message: startupError.message || '无法载入3D户型。',
-        },
+        { channel: 'hb-i3d-v1', type: 'error', message: friendlyFailure },
         window.location.origin,
       )
     }
-    deps.showSaveState('载入失败', 'error'), deps.showToast(startupError.message || '无法载入项目。', 'error')
+    deps.showSaveState('载入失败', 'error'), deps.showToast(friendlyFailure, 'error')
   }
 }
