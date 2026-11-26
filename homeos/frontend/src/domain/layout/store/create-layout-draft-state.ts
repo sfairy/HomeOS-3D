@@ -15,7 +15,7 @@ import { readLocalStorage, removeLocalStorage, writeLocalStorage } from '@/kerne
 import type { Ref } from 'vue'
 import { logger } from '@/kernel/utils/core/logger'
 import { clonePlain } from '@/kernel/utils/core/clone-plain.util'
-import type { UILayoutConfig } from '@/domain/layout/types'
+import type { UILayoutConfig } from '@/kernel/types/layout'
 
 /** localStorage 中草稿的存储 key */
 const DRAFT_KEY = 'homeos_layout_draft'

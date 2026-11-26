@@ -38,7 +38,7 @@ import {
   climateIsRunning,
   climatePresentationMode,
   normalizeClimateModeKey,
-} from '@/features/device/model/climate-power'
+} from '@/domain/entity/model/climate-power'
 
 export { bathHeaterModeUsesAirflow, climateIsPoweredOn, climateIsRunning, climatePresentationMode }
 

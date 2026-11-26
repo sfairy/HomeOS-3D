@@ -16,7 +16,7 @@ import {
   syncGlobalLayoutPendingSnapshot,
   useSettingsPendingChanges,
 } from '@/features/settings/kernel/pending.internals'
-import { getEmergencyPresets, normalizeSecurityEmergency } from '@/kernel/constants/security-emergency'
+import { getEmergencyPresets, normalizeSecurityEmergency } from '@/domain/layout/constants/security-emergency'
 import { getSecurityModePresets } from '@/kernel/constants/security-mode-presets'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'

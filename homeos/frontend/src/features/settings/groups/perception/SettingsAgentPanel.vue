@@ -1083,7 +1083,7 @@ import {
   Sparkles,
   Square,
 } from '@lucide/vue'
-import HosSelect from '@/kernel/ui/primitives/HosSelect.vue'
+import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
 import EntityMultiSelect from '@/domain/entity/components/entity-multi-select/EntityMultiSelect.vue'
 import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
 import SettingsCardIntro from '@/features/settings/components/shell/SettingsCardIntro.vue'

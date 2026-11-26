@@ -8,7 +8,7 @@ import {
   QUICK_BUTTON_OPTIONS,
   normalizeQuickButtons,
 } from '@/domain/widget/quick-actions.config'
-import type { PanelWidget } from '@/domain/layout/types'
+import type { PanelWidget } from '@/kernel/types/layout'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { FLOATING_HUB_DEFAULT_TAB } from '@/kernel/utils/registry/floating-hub-tab-options'
 import {

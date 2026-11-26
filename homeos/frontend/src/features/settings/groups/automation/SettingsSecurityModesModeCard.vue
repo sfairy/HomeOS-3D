@@ -202,7 +202,7 @@
 </template>
 
 <script setup>
-import HosSelect from '@/kernel/ui/primitives/HosSelect.vue'
+import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
 import { computed, ref } from 'vue'
 import { Zap, Plus, Layers } from '@lucide/vue'
 import SecurityActionRow from './SecurityActionRow.vue'

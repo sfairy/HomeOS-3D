@@ -13,7 +13,7 @@ import {
 import { fetchAreasList } from '@/domain/api/entities'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import type { EntitiesMap } from '@/kernel/types/entity-store'
-import { reloadFrontendConfig } from '@/kernel/utils/config/frontend-config'
+import { reloadFrontendConfig } from '@/kernel/config/frontend-config'
 import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
 import { logger } from '@/kernel/utils/core/logger'
 import { invalidateSharedFetchPrefix } from '@/kernel/utils/core/poll-scheduler'

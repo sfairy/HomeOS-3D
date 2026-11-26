@@ -139,7 +139,7 @@ import { ref, computed, watch } from 'vue'
 import { ShieldCheck, Shield, ShieldOff, Home, Moon, Loader2, ChevronDown } from '@lucide/vue'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
-import { useSecurityPanelStatus } from '@/features/security/composables/useSecurityPanelStatus'
+import { useSecurityPanelStatus } from '@/features/security/composables/use-security-panel-status'
 import { executeSecurityPanelArm, interpretSecurityArmResult } from '@/features/security/model/utils/panel-arm.util'
 import { postSecurityZonesSafe, normalizeZonesForApi } from '@/features/security/model/utils/zones-api.util'
 import { bootstrapSecurityPanelZonesOnce } from '@/features/security/model/utils/panel-zones-bootstrap.util'
@@ -148,7 +148,7 @@ import { hapticAlert } from '@/kernel/utils/ui/haptics.util'
 import { notifyError } from '@/kernel/ui/notify'
 import ApiQueryState from '@/kernel/ui/ApiQueryState.vue'
 import WidgetHubHeader from '@/domain/widget/components/WidgetHubHeader.vue'
-import { useHubTabs } from '@/domain/widget/composables/useHubTabs'
+import { useHubTabs } from '@/domain/widget/composables/use-hub-tabs'
 
 const chrome = useChromeStore()
 const layoutStore = useLayoutStore()

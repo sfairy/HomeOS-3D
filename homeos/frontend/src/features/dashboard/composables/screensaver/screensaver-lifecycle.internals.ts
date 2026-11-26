@@ -9,16 +9,16 @@ import {
   onConfigChange,
   loadFrontendConfig,
   configEpoch,
-} from '@/kernel/utils/config/frontend-config'
+} from '@/kernel/config/frontend-config'
 import { setScreensaverVisible } from '@/kernel/utils/ui/screensaver-background-idle.util'
 import { schedulePoll } from '@/kernel/utils/core/poll-scheduler'
-import { useWakeWord } from '@/features/voice/composables/useWakeWord'
-import { useTtsSpeak } from '@/features/voice/composables/useTtsSpeak'
-import { executeVoiceCommand } from '@/domain/api/system'
+import { useWakeWord } from '@/features/voice/composables/use-wake-word'
+import { useTtsSpeak } from '@/domain/voice/use-tts-speak'
+import { executeVoiceCommand } from '@/kernel/http/system-api'
 import { getClientDeviceId } from '@/domain/client/utils/system.util'
 import { resolveChargerSwitchWakeEntityIdForDevice, shouldDismissScreensaverOnChargerSwitch } from '@homeos/shared'
 import type { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import type { useEarthquakeStore } from '@/features/earthquake/store/earthquake.store'
+import type { useEarthquakeStore } from '@/domain/earthquake/earthquake.store'
 
 type EntitiesStore = ReturnType<typeof useEntitiesStore>
 type EarthquakeStore = ReturnType<typeof useEarthquakeStore>

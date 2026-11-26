@@ -3,7 +3,7 @@
  * @module frontend/src/composables/ui
  */
 import { ref, computed, type Ref } from 'vue'
-import { getConfigSection } from '@/kernel/utils/config/frontend-config'
+import { getConfigSection } from '@/kernel/config/frontend-config'
 import { computeScreensaverLayout, readViewportBox } from '@/kernel/ui/hooks/use-scaling'
 import { resolveDesignMetrics } from '@/kernel/utils/layout/canvas-layout.util'
 import { screensaverBackgroundIdle } from '@/kernel/utils/ui/screensaver-background-idle.util'

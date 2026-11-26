@@ -24,9 +24,9 @@
  */
 import { ref, watch, onUnmounted, computed, nextTick } from 'vue'
 import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
-import { startCameraWebRtc } from '@/features/device/camera/composables/useHaWebRtcPlayer'
-import { startCameraMediaTransport } from '@/features/device/camera/composables/useCameraMediaTransport'
-import { useGo2RtcMseTransport } from '@/features/device/camera/composables/useGo2RtcMseTransport'
+import { startCameraWebRtc } from '@/features/device/camera/composables/use-ha-web-rtc-player'
+import { startCameraMediaTransport } from '@/features/device/camera/composables/use-camera-media-transport'
+import { useGo2RtcMseTransport } from '@/features/device/camera/composables/use-go2-rtc-mse-transport'
 import { logger } from '@/kernel/utils/core/logger'
 
 const props = defineProps({

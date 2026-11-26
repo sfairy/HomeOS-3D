@@ -141,10 +141,10 @@ import { getEntityDomain } from '@homeos/shared'
 import { Sparkles, RefreshCw, BarChart3, Clock, Radar, Zap, Activity } from '@lucide/vue'
 import type { EChartsCoreOption } from 'echarts/core'
 import type * as EchartsModuleNS from '@/kernel/utils/chart/echarts'
-import { fetchAdvisorUsageSummary } from '@/domain/api/system'
+import { fetchAdvisorUsageSummary } from '@/kernel/http/system-api'
 import { fetchEventStats } from '@/domain/api/entities'
-import { useDeviceUsageStats } from '@/features/device/composables/useDeviceUsageStats'
-import { useDeviceEventStats } from '@/features/device/composables/useDeviceEventStats'
+import { useDeviceUsageStats } from '@/features/device/composables/use-device-usage-stats'
+import { useDeviceEventStats } from '@/features/device/composables/use-device-event-stats'
 import DeviceChartHeader from './DeviceChartHeader.vue'
 import {
   DEVICE_CHART_COPY,

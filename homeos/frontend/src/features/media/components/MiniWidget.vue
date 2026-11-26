@@ -145,12 +145,12 @@ import { Music, Pause, Play, SkipBack, SkipForward } from '@lucide/vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useHaConnectionStore } from '@/domain/ha/ha-connection.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { useEntityDisplayEpoch } from '@/domain/entity/composables/useEntityDisplayEpoch'
+import { useEntityDisplayEpoch } from '@/domain/entity/composables/use-entity-display-epoch'
 import { resolveHaEntityPicture } from '@/kernel/utils/ha/media-url.util'
 import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
 import { useSwiperDraggable } from '@/kernel/ui/hooks/use-swiper-draggable'
 import WidgetHubHeader from '@/domain/widget/components/WidgetHubHeader.vue'
-import { useHubTabs } from '@/domain/widget/composables/useHubTabs'
+import { useHubTabs } from '@/domain/widget/composables/use-hub-tabs'
 
 const MediaPlaylistWidget = defineAsyncComponent(() => import('./PlaylistWidget.vue'))
 

@@ -40,7 +40,7 @@ import {
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
-import type { UILayoutConfig } from '@/domain/layout/types'
+import type { UILayoutConfig } from '@/kernel/types/layout'
 import {
   buildEnergyConfigPatch,
   isCumulativeEnergyMeter,

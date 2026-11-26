@@ -17,7 +17,7 @@ import {
   runSessionRefresh,
 } from '@/kernel/utils/bridge/store-bridge'
 import { getPageTraceId } from '@/kernel/utils/telemetry/trace.util'
-import { getFrontendConfig } from '@/kernel/utils/config/frontend-config'
+import { getFrontendConfig } from '@/kernel/config/frontend-config'
 import { logger } from '@/kernel/utils/core/logger'
 import { isLicenseInactiveError } from '@/kernel/utils/core/error-message'
 import { isNavigationLockedAfterRestore } from '@/kernel/utils/core/post-restore-lock'

@@ -70,11 +70,11 @@
 import { weatherStateLabel, weatherVisualKey } from '@/features/weather/model/constants/weather-labels'
 import { formatLocaleDate } from '@/kernel/utils/format/locale-format.util'
 import { computed, onMounted, watch } from 'vue'
-import { useScheduledPoll } from '@/domain/widget/composables/useScheduledPoll'
+import { useScheduledPoll } from '@/domain/widget/composables/use-scheduled-poll'
 import { RouterLink } from 'vue-router'
 import { Cloud, Sun, Droplets, Wind, Moon, CloudRain, CloudFog, CloudLightning, CloudSnow } from '@lucide/vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { useWeatherEntity } from '@/domain/entity/composables/useWeatherEntity'
+import { useWeatherEntity } from '@/domain/entity/composables/use-weather-entity'
 import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
 
 const props = defineProps({

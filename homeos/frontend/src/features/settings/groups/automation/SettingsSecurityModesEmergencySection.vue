@@ -253,7 +253,7 @@
 </template>
 
 <script setup>
-import HosSelect from '@/kernel/ui/primitives/HosSelect.vue'
+import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import { Zap, Plus, Layers, AlertTriangle } from '@lucide/vue'
@@ -262,7 +262,7 @@ import SettingsRangeField from '@/features/settings/shared/layout/SettingsRangeF
 import { SETTINGS_RANGE_STEP } from '@/kernel/utils/settings/range-steps.util'
 import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
-import { normalizeSecurityEmergency } from '@/kernel/constants/security-emergency'
+import { normalizeSecurityEmergency } from '@/domain/layout/constants/security-emergency'
 
 const props = defineProps({
   embedded: { type: Boolean, default: false },

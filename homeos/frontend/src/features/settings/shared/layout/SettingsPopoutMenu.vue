@@ -34,10 +34,10 @@ import {
   rectToDropdownPosition,
   buildDropdownFixedStyle,
   viewportPointToPopupAnchor,
-} from '@/kernel/ui/popup/usePopupPosition'
+} from '@/kernel/ui/popup/use-popup-position'
 import { useKeepAliveGate } from '@/kernel/ui/hooks/use-keep-alive-gate'
-import { useExclusiveDropdown } from '@/kernel/ui/popup/useExclusiveDropdown'
-import { useShellTeleportTarget } from '@/app/shell/composables/useShellTeleportTarget'
+import { useExclusiveDropdown } from '@/kernel/ui/popup/use-exclusive-dropdown'
+import { useShellTeleportTarget } from '@/kernel/ui/shell/use-shell-teleport-target'
 import { getTeleportContainerSize } from '@/kernel/ui/popup/popup-position-shared.util'
 import { clampNum as clamp } from '@/kernel/utils/core/misc.util'
 

@@ -131,7 +131,7 @@
 </template>
 
 <script setup>
-import HosSelect from '@/kernel/ui/primitives/HosSelect.vue'
+import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
 import { computed, ref, watch } from 'vue'
 import EntityInput from '@/domain/entity/components/entity-input/EntityInput.vue'
 import EntityMultiSelect from '@/domain/entity/components/entity-multi-select/EntityMultiSelect.vue'

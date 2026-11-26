@@ -11,7 +11,7 @@ import {
   syncGlobalLayoutPendingSnapshot,
 } from '@/features/settings/kernel/pending.internals'
 import { useReduceSecuritySensitivity } from '@/features/security/index'
-import { completeSetupWizard, fetchSetupWizardStatus, validateSetupWizardEntities } from '@/domain/api/system'
+import { completeSetupWizard, fetchSetupWizardStatus, validateSetupWizardEntities } from '@/kernel/http/system-api'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'

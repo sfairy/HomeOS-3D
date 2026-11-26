@@ -5,7 +5,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import { fetchConfigHealth } from '@/domain/api/system'
+import { fetchConfigHealth } from '@/kernel/http/system-api'
 import { useSetupChecklist } from '@/domain/status/index'
 import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
 import { getRecentSettingsTabs } from '@/kernel/utils/registry/settings-recent-tabs.util'

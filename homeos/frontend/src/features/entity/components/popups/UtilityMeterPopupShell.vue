@@ -109,7 +109,7 @@
  * - 包含标题、关闭按钮等通用元素
  * - 作为各类型仪表弹窗的容器
  */
-import HosSelect from '@/kernel/ui/primitives/HosSelect.vue'
+import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
 import { computed } from 'vue'
 import { ChevronDown } from '@lucide/vue'
 import '@/app/styles/utility-meter-popup.css'

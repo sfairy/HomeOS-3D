@@ -1,5 +1,5 @@
 /** 安防摄像头绑定工具：`[{entityId, go2rtcUrl?}]`。 */
-import type { HaConfig, SecurityCameraBinding } from '@/domain/layout/types'
+import type { HaConfig, SecurityCameraBinding } from '@/kernel/types/layout'
 
 /**
  * 把布局里的安防摄像头绑定归一成结构化列表。

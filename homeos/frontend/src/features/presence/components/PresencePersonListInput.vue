@@ -185,7 +185,7 @@
 import { Radio, Trash2, UserPlus, UserRound, ChevronLeft, ChevronRight } from '@lucide/vue'
 import './styles/presence-person-list-input.css'
 import EntityMultiSelect from '@/domain/entity/components/entity-multi-select/EntityMultiSelect.vue'
-import { usePresencePersonListInput } from '@/features/presence/model/composables/usePresencePersonListInput'
+import { usePresencePersonListInput } from '@/features/presence/model/composables/use-presence-person-list-input'
 
 const props = defineProps({
   /** 人员数组，每项含 id/name/userId/entityIds 等字段 */

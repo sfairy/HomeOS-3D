@@ -273,7 +273,7 @@
 <script setup>
 import { computed, ref, toRef } from 'vue'
 import { Loader2, Save, ChevronDown, PanelLeftClose, Search, X, LogOut, KeyRound } from '@lucide/vue'
-import { useSettingsSidebar } from '@/features/settings/shared/layout/useSettingsSidebar'
+import { useSettingsSidebar } from '@/features/settings/shared/layout/use-settings-sidebar'
 
 const props = defineProps({
   groups: { type: Array, required: true },

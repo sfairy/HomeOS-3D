@@ -3,7 +3,7 @@
  * @module frontend/src/views
  */
 /** 安防模式：紧急场景配置 */
-import { getEmergencyPresets, normalizeSecurityEmergency } from '@/kernel/constants/security-emergency'
+import { getEmergencyPresets, normalizeSecurityEmergency } from '@/domain/layout/constants/security-emergency'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'

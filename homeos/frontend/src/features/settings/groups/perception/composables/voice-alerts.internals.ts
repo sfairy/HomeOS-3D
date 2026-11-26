@@ -17,7 +17,7 @@ import {
   stylesForAlertKey,
 } from '@/features/voice/model/utils/speech.util'
 import { useVoiceConfig } from '@/features/settings/groups/perception/composables/voice-config.internals'
-import { fetchVoiceMeta } from '@/domain/api/system'
+import { fetchVoiceMeta } from '@/kernel/http/system-api'
 import { logger } from '@/kernel/utils/core/logger'
 
 interface AlertCatalogEntry {

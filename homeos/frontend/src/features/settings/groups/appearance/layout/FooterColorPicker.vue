@@ -49,7 +49,7 @@ import { ref, computed } from 'vue'
 import { ChevronDown } from '@lucide/vue'
 import { DASHBOARD_FOOTER_COLORS, DASHBOARD_FOOTER_COLOR_ACCENT } from '@/domain/energy/constants/dashboard-footer'
 import { useClickOutside } from '@/kernel/ui/hooks/use-click-outside'
-import { useDropdownPosition } from '@/kernel/ui/popup/useDropdownPosition'
+import { useDropdownPosition } from '@/kernel/ui/popup/use-dropdown-position'
 
 // 颜色 key → 中文标签映射
 const COLOR_LABELS = {

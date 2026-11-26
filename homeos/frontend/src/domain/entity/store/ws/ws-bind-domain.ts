@@ -4,11 +4,11 @@
  */
 /** entity WebSocket：家庭模式 / 通知 / 安防 / 在场 / 能源 / 地震等业务域事件 */
 import type { EntitySocketHandlerContext } from '@/kernel/types/entity-store'
-import { notificationLevelToToastType, shouldSkipNotificationToast } from '@/features/notifications/model/utils/ws-sync.util'
+import { notificationLevelToToastType, shouldSkipNotificationToast } from '@/domain/notifications/utils/ws-sync.util'
 import { refreshEnergyFromSocket } from '@/kernel/utils/bridge/store-bridge'
-import { speakLocal } from '@/features/voice/model/utils/local-speech.util'
-import { isEarthquakeAlertEnabled } from '@/features/earthquake/store/earthquake-layout.util'
-import { useEarthquakeStore } from '@/features/earthquake/store/earthquake.store'
+import { speakLocal } from '@/domain/voice/local-speech.util'
+import { isEarthquakeAlertEnabled } from '@/domain/earthquake/earthquake-layout.util'
+import { useEarthquakeStore } from '@/domain/earthquake/earthquake.store'
 import type { EarthquakeAlertPayload } from '@/kernel/types/earthquake'
 import { isEewSimulationEventId, WS_CLIENT_EVENTS } from '@homeos/shared'
 import type { Socket } from 'socket.io-client'

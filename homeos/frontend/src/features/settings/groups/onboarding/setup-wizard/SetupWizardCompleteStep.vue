@@ -22,7 +22,7 @@ import {
 import { RouterLink } from 'vue-router'
 import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
 import { fetchSystemConfigFresh } from '@/domain/layout/composables/system-config-core.internals'
-import { dismissSetupChecklist, fetchSetupChecklist } from '@/domain/api/system'
+import { dismissSetupChecklist, fetchSetupChecklist } from '@/kernel/http/system-api'
 import { logger } from '@/kernel/utils/core/logger'
 import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'

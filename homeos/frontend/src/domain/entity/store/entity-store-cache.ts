@@ -11,7 +11,7 @@ import {
 } from '@/domain/entity/model/utils/idb-cache'
 import { partitionEntitiesForCacheHydrate } from '@/domain/entity/model/utils/sync-priority.util'
 import type { EntitiesMap, HaEntityState } from '@/kernel/types/entity-store'
-import type { UILayoutConfig } from '@/domain/layout/types'
+import type { UILayoutConfig } from '@/kernel/types/layout'
 
 /** 懒加载最小实体数：缓存总数 ≥ 此值且 deferred 非空时启用懒加载分流 */
 const CACHE_LAZY_HYDRATE_MIN = 400

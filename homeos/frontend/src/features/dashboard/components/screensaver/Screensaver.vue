@@ -65,7 +65,7 @@
 </template>
 
 <script setup lang="ts">
-import { useScreensaver } from '@/features/dashboard/composables/screensaver/useScreensaver'
+import { useScreensaver } from '@/features/dashboard/composables/screensaver/use-screensaver'
 import ScreensaverBackground from '@/features/dashboard/components/screensaver/Background.vue'
 import ScreensaverBrand from '@/features/dashboard/components/screensaver/Brand.vue'
 import ScreensaverClockPanel from '@/features/dashboard/components/screensaver/ClockPanel.vue'

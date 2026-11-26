@@ -329,7 +329,7 @@ import {
   fetchEarthquakeHistory,
   fetchGlobalEarthquakes,
 } from '@/domain/api/earthquake'
-import HosSelect from '@/kernel/ui/primitives/HosSelect.vue'
+import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
 import ApiQueryState from '@/kernel/ui/ApiQueryState.vue'
 import ListPageHero from '@/kernel/ui/list-page/ListPageHero.vue'
 import ListPageMetrics from '@/kernel/ui/list-page/ListPageMetrics.vue'
@@ -342,7 +342,7 @@ import {
   computeAnalyticsSummary,
   shortenPlace,
 } from '@/features/earthquake/model/utils/history-analytics.util'
-import { formatEarthquakeMagnitude, earthquakeMagnitudeTone } from '@/features/earthquake/store/earthquake-layout.util'
+import { formatEarthquakeMagnitude, earthquakeMagnitudeTone } from '@/domain/earthquake/earthquake-layout.util'
 import { formatLocaleString } from '@/kernel/utils/format/locale-format.util'
 import {
   EEW_MAGNITUDE_OPTIONS,

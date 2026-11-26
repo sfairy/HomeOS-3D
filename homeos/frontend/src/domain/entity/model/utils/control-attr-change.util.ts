@@ -1,7 +1,7 @@
 /** - 定义各域（climate / light / fan 等）"控制 / 设定类"属性白名单。 */
 import { getEntityDomain } from '@homeos/shared'
 import type { EntitySnapshot } from '@/kernel/types/entity'
-import { formatEntityAttrValueText } from '@/features/device/model/utils/attr-format.util'
+import { formatEntityAttrValueText } from '@/domain/entity/model/utils/attr-format.util'
 
 type EntityAttributes = NonNullable<EntitySnapshot['attributes']>
 

@@ -31,7 +31,7 @@ import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { getLargeEntityThreshold, getWsPushPublicConfig } from '@/kernel/utils/config/frontend-config'
+import { getLargeEntityThreshold, getWsPushPublicConfig } from '@/kernel/config/frontend-config'
 
 const STORAGE_KEY = 'homeos:dismiss-cold-entity-hint'
 

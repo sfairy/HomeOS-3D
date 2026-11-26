@@ -45,7 +45,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useHubChart } from '@/features/settings/composables/life/useLifeChartHost'
+import { useHubChart } from '@/features/settings/composables/life/use-life-chart-host'
 import { useCanvasMetrics } from '@/kernel/ui/hooks/use-canvas-metrics'
 // 域内相对导入：引用自己的域根 barrel 会被 feature-self-barrel 门禁判违规。
 import {
@@ -54,7 +54,7 @@ import {
   buildModeTimelineOption,
   EMPTY_MODE_LOG_ANALYTICS,
   type ModeLogAnalytics,
-} from '../composables/useModeLogsAnalytics'
+} from '../composables/use-mode-logs-analytics'
 
 const props = defineProps<{
   analytics?: ModeLogAnalytics | null

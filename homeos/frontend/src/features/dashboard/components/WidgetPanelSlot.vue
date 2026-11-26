@@ -20,7 +20,7 @@ import { ref, watch } from 'vue'
 import {
   useWidgetPanelVisibility,
   PANEL_VISIBILITY_WIDGET_TYPES,
-} from '@/app/shell/composables/useWidgetPanelVisibility'
+} from '@/app/shell/composables/use-widget-panel-visibility'
 
 /**
  * 组件 Props

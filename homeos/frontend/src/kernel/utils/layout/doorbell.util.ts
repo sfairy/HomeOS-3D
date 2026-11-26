@@ -1,6 +1,6 @@
 /** 门铃配置工具。 */
 import type { DoorbellConfig } from '@/kernel/types/setup-wizard'
-import type { HaConfig } from '@/domain/layout/types'
+import type { HaConfig } from '@/kernel/types/layout'
 
 /**
  * 确保 HaConfig 上存在 doorbells 数组（无则初始化为空数组）。

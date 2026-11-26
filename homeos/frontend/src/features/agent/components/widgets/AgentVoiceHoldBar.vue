@@ -9,7 +9,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Mic } from '@lucide/vue'
-import { useHoldToTalk } from '@/features/voice/composables/useHoldToTalk'
+import { useHoldToTalk } from '@/features/voice/composables/use-hold-to-talk'
 
 const props = defineProps({
   /** 忙 / 未配置管家时不可按 */

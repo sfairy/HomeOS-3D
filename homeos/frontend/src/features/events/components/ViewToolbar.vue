@@ -5,8 +5,8 @@
 <script setup>
 import { computed } from 'vue'
 import { Activity, Clock, Flame, Search, Layers } from '@lucide/vue'
-import HosSelect from '@/kernel/ui/primitives/HosSelect.vue'
-import SearchableSelect from '@/kernel/ui/primitives/SearchableSelect.vue'
+import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
+import SearchableSelect from '@/domain/entity/components/entity-select/SearchableSelect.vue'
 import { getDomainLabel } from '@/features/device/model/utils/domain-labels.util'
 import ListPageQueryToolbar from '@/kernel/ui/list-page/ListPageQueryToolbar.vue'
 import '../styles/events-toolbar.css'

@@ -188,7 +188,7 @@ import SettingsPageShell from '@/features/settings/components/shell/SettingsPage
 import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useRegisterSettingsTabPending } from '@/features/settings/kernel/pending.internals'
-import { fetchRetentionConfig, updateRetentionConfig } from '@/domain/api/system'
+import { fetchRetentionConfig, updateRetentionConfig } from '@/kernel/http/system-api'
 import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
 import { formatFullDateTime } from '@/kernel/utils/format/locale-format.util'
 

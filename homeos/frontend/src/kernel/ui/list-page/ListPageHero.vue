@@ -37,7 +37,7 @@
 import { computed } from 'vue'
 // 列表页壳层样式（list-page / views / premium-head）：随本组件所在的懒路由按需注入，
 // 不再计入首屏 CSS 预算。详见 assets/styles/lazy/list-page-shell.ts 顶部说明。
-import '@/app/styles/lazy/list-page-shell'
+import '@/kernel/ui/list-page/lazy/list-page-shell'
 
 const props = defineProps({
   /** 主标题 */

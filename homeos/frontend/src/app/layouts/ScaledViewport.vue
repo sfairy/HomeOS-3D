@@ -50,7 +50,7 @@ import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { getDefaultLayout } from '@/domain/layout/store/defaults'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useScaling, holdScaledCanvasFlag } from '@/kernel/ui/hooks/use-scaling'
-import { getConfigSection, configEpoch, getWorkerDerivedThreshold } from '@/kernel/utils/config/frontend-config'
+import { getConfigSection, configEpoch, getWorkerDerivedThreshold } from '@/kernel/config/frontend-config'
 import { resolveDesignMetrics } from '@/kernel/utils/layout/canvas-layout.util'
 import { adaptiveTier } from '@/kernel/utils/perf/adaptive-perf.util'
 

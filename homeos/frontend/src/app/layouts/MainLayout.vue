@@ -13,10 +13,10 @@
 <script setup>
 import { computed, defineAsyncComponent, watch, onMounted, onUnmounted, ref, provide, nextTick } from 'vue'
 import { Bell, Ellipsis, ChevronDown, MessageCircle } from '@lucide/vue'
-import { useAuthStore } from '@/features/auth/store/auth.store'
-import { useNotificationCenter } from '@/domain/widget/composables/useNotificationCenter'
+import { useAuthStore } from '@/domain/auth/auth.store'
+import { useNotificationCenter } from '@/domain/widget/composables/use-notification-center'
 import { NOTIFICATION_CENTER_KEY } from '@/domain/widget/composables/notification-center.context'
-import { useTeleportTargetGuard } from '@/app/shell/composables/useTeleportTargetGuard'
+import { useTeleportTargetGuard } from '@/kernel/ui/shell/use-teleport-target-guard'
 import EntityControlHost from '@/features/entity/components/EntityControlHost.vue'
 import ScaledViewport from '@/app/layouts/ScaledViewport.vue'
 import { AlertOverlay as EarthquakeAlertOverlay, CencBulletinCard } from '@/features/earthquake/index'
@@ -32,9 +32,9 @@ const SettingsLockModal = defineAsyncComponent(() => loadShellOverlays().then((m
 import { HomeModeSwitcher } from '@/features/home-mode/index'
 import HaStatusDegradeBanner from '@/domain/entity/components/HaStatusDegradeBanner.vue'
 const NotificationDrawer = defineAsyncComponent(() => loadShellOverlays().then((m) => m.NotificationDrawer))
-import { useMainLayoutChrome } from '@/app/shell/composables/useMainLayoutChrome'
-import { useDailyAdvisorGreeting } from '@/features/voice/composables/useDailyAdvisorGreeting'
-import { useEntityWsSubscriptionSync } from '@/domain/entity/composables/useEntityWsSubscriptionSync'
+import { useMainLayoutChrome } from '@/app/shell/composables/use-main-layout-chrome'
+import { useDailyAdvisorGreeting } from '@/features/voice/composables/use-daily-advisor-greeting'
+import { useEntityWsSubscriptionSync } from '@/domain/entity/composables/use-entity-ws-subscription-sync'
 import { useEarthquakeBootstrap } from '@/features/earthquake/index'
 import { useDisplayLightBackdropState } from '@/features/dashboard/composables/display-light-backdrop'
 import { setDerivedRoutePath } from '@/domain/entity/model/utils/derived-route.util'
@@ -50,9 +50,9 @@ import {
   viewportPointToPopupAnchor,
   measureDropdownFitWidth,
 } from '@/kernel/ui/popup/popup-position-dropdown.util'
-import { useShellTeleportTarget } from '@/app/shell/composables/useShellTeleportTarget'
+import { useShellTeleportTarget } from '@/kernel/ui/shell/use-shell-teleport-target'
 import { useEscLayer } from '@/kernel/ui/hooks/use-esc-stack'
-import { isLicenseFeatureGranted } from '@/app/router/license-gate'
+import { isLicenseFeatureGranted } from '@/domain/license/license-gate'
 import { getTeleportContainerSize } from '@/kernel/ui/popup/popup-position-shared.util'
 import Screensaver from '@/features/dashboard/components/screensaver/Screensaver.vue'
 // 仪表盘外壳：浮动组件 / 右侧栏 / 页脚。

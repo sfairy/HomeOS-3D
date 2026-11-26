@@ -276,13 +276,13 @@
 
 <script setup>
 import { computed } from 'vue'
-import HosSelect from '@/kernel/ui/primitives/HosSelect.vue'
+import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
 import { Copy, Monitor, RefreshCw, Smartphone, Trash2 } from '@lucide/vue'
 import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
 import ApiQueryState from '@/kernel/ui/ApiQueryState.vue'
-import { useProfilesSection } from './useProfilesSection'
+import { useProfilesSection } from './use-profiles-section'
 
 const profileFlowSteps = [
   { label: 'UI 布局', meta: '布局配置', icon: Monitor, tone: 'in' },

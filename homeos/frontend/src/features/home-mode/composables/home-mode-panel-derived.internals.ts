@@ -8,7 +8,7 @@ import { CalendarDays, Link2, Radio, Users, Zap } from '@lucide/vue'
 import type { ActionTemplate, ModeActionDraft } from './draft.internals'
 import type { useHomeModeEditor } from './editor.internals'
 import type { useHomeModePanelContext } from './home-mode-panel-context.internals'
-import type { useHomeModes } from './useHomeModes'
+import type { useHomeModes } from './use-home-modes'
 import type { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 
 export type HomeModeTabs = ReturnType<typeof useHomeModeEditor>['modeTabs']

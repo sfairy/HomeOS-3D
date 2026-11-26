@@ -85,10 +85,10 @@
 <script setup lang="ts">
 import { ref, useId } from 'vue'
 
-import { useShellTeleportTarget } from '@/app/shell/composables/useShellTeleportTarget'
+import { useShellTeleportTarget } from '@/kernel/ui/shell/use-shell-teleport-target'
 import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
 import { PASSWORD_POLICY_MESSAGE, isPasswordPolicyCompliant } from '@homeos/shared/security/password-policy'
-import { useAuthStore } from '@/features/auth/store/auth.store'
+import { useAuthStore } from '@/domain/auth/auth.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 
 const authStore = useAuthStore()

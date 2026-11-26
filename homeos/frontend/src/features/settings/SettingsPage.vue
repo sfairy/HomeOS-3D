@@ -144,7 +144,7 @@ import { computed, nextTick, ref, watch, defineAsyncComponent, onMounted, onBefo
 import { PanelLeft, ChevronRight, Link2, KeyRound, LogOut } from '@lucide/vue'
 import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { useAuthStore } from '@/features/auth/store/auth.store'
+import { useAuthStore } from '@/domain/auth/auth.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { useSettingsSave } from '@/features/settings/kernel/save.internals'
@@ -165,7 +165,7 @@ import {
   LEGACY_TAB_SECTIONS,
 } from './nav'
 import { isTabFeatureGranted } from '@/kernel/utils/registry/settings-nav.util'
-import { useLicenseFeatureAccess } from '@/app/router/license-gate'
+import { useLicenseFeatureAccess } from '@/domain/license/license-gate'
 import {
   hasIndependentSettingsPending,
   getIndependentPendingTabIds,

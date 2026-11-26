@@ -188,8 +188,8 @@ import {
 } from '@/domain/api/backups'
 import { downloadBlob } from '@/kernel/utils/core/misc.util'
 import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
-import { navigateAfterRestore, resolvePostRestoreDestination } from '@/kernel/utils/core/post-restore.util'
-import { useShellTeleportTarget } from '@/app/shell/composables/useShellTeleportTarget'
+import { navigateAfterRestore, resolvePostRestoreDestination } from '@/domain/license/post-restore.util'
+import { useShellTeleportTarget } from '@/kernel/ui/shell/use-shell-teleport-target'
 
 const props = defineProps({
   /** 未保存/保存中时禁止导出；设置页默认允许。 */

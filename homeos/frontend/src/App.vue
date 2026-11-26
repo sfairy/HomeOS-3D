@@ -64,11 +64,11 @@
 /** HomeOS 应用根组件 */
 import { computed, defineAsyncComponent, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useAuthStore } from '@/features/auth/store/auth.store'
+import { useAuthStore } from '@/domain/auth/auth.store'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { useAppTheme } from '@/kernel/ui/hooks/use-app-theme'
 import { logger } from '@/kernel/utils/core/logger'
-import { useClientPowerReporter } from '@/features/energy/composables/useClientPowerReporter'
+import { useClientPowerReporter } from '@/features/energy/composables/use-client-power-reporter'
 import { useDisplayLightBackdropState } from '@/features/dashboard/composables/display-light-backdrop'
 import ErrorBoundary from '@/kernel/ui/ErrorBoundary.vue'
 import VConfirmModal from '@/kernel/ui/primitives/VConfirmModal.vue'

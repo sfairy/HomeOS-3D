@@ -17,7 +17,7 @@ import { ENERGY_FIELD_DEFS, type EnergyFieldDef } from '@/domain/energy/model/co
 import type { DashboardFooterItem, FooterFieldOption } from '@/kernel/types/dashboard-footer'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
-import type { UILayoutConfig } from '@/domain/layout/types'
+import type { UILayoutConfig } from '@/kernel/types/layout'
 import type { Ref } from 'vue'
 import { computed, ref } from 'vue'
 

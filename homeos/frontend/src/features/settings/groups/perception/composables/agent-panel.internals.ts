@@ -34,7 +34,7 @@ import type {
   AgentProactiveConfig,
   ChannelConfig,
   SceneVoiceControl,
-} from '@/domain/layout/types'
+} from '@/kernel/types/layout'
 import {
   agentQuickPromptsDirty,
   agentQuickPromptsRevert,

@@ -394,7 +394,7 @@
 <script setup>
 import { computed } from 'vue'
 import { Volume2, Loader2, Speaker, Timer, Monitor, Sparkles, Check } from '@lucide/vue'
-import HosSelect from '@/kernel/ui/primitives/HosSelect.vue'
+import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
 import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
 import SettingsOrchTabs from '@/features/settings/components/SettingsOrchTabs.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
@@ -403,8 +403,8 @@ import EntityMultiSelect from '@/domain/entity/components/entity-multi-select/En
 import VoiceSpeechComposer from '@/features/settings/groups/perception/voice/SpeechComposer.vue'
 import SettingsVoiceAgentSpeechSection from '@/features/settings/groups/perception/voice/SettingsVoiceAgentSpeechSection.vue'
 import { previewDailyAdvisor } from '@/features/voice/model/utils/speech.util'
-import { greetedToday } from '@/features/voice/composables/useDailyAdvisorGreeting'
-import { useAudioDevices } from '@/features/voice/composables/useAudioDevices'
+import { greetedToday } from '@/features/voice/composables/use-daily-advisor-greeting'
+import { useAudioDevices } from '@/features/voice/composables/use-audio-devices'
 
 const props = defineProps({
   voiceOutputTabs: { type: Array, default: () => [] },

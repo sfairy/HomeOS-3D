@@ -6,7 +6,7 @@ import type {
   HaEntityState,
   SnapshotAcceptOptions,
 } from '@/kernel/types/entity-store'
-import { getWorkerDerivedThreshold } from '@/kernel/utils/config/frontend-config'
+import { getWorkerDerivedThreshold } from '@/kernel/config/frontend-config'
 import { setPollTickMs } from '@/kernel/utils/core/poll-scheduler'
 import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
 import { isStaleState, mergeChunkIntoNewerEntity } from '@/domain/entity/model/utils/state-delta.util'

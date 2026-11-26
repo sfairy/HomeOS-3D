@@ -167,7 +167,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { AlertCircle, ChevronRight, Layers, Link2, Loader2, RefreshCw, Trash2, Workflow } from '@lucide/vue'
-import { useDeviceEntityReferences } from '@/features/device/composables/useDeviceEntityReferences'
+import { useDeviceEntityReferences } from '@/features/device/composables/use-device-entity-references'
 import {
   ENTITY_REFERENCE_KIND_LABELS,
   ENTITY_REFERENCE_KIND_ORDER,

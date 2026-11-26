@@ -182,7 +182,7 @@ import DeviceEntityReferencesPanel from './components/DeviceEntityReferencesPane
 import DeviceOverviewPanel from './components/DeviceOverviewPanel.vue'
 import DeviceStateHistoryPanel from './components/DeviceStateHistoryPanel.vue'
 import DeviceUsageStats from './components/DeviceUsageStats.vue'
-import { useDeviceDetailView } from './composables/useDeviceDetailView'
+import { useDeviceDetailView } from './composables/use-device-detail-view'
 
 /**
  * 页面主色注入（DeviceDetail 与 Devices 共用 sky 主题）

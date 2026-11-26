@@ -517,7 +517,7 @@
 </template>
 
 <script setup>
-import HosSelect from '@/kernel/ui/primitives/HosSelect.vue'
+import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
 import { toRef, ref, watch, computed, provide } from 'vue'
 import SettingsPageShell from '@/features/settings/components/shell/SettingsPageShell.vue'
 import SettingsHubSubnav from '@/features/settings/shared/layout/SettingsHubSubnav.vue'

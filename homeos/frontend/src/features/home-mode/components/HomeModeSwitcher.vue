@@ -14,7 +14,7 @@
 -->
 <script setup>
 /** - 通过 useHomeModeSwitcher 组合式函数管理模式列表、当前模式、在场人员等状态； */
-import { useHomeModeSwitcher } from '@/features/home-mode/composables/useHomeModeSwitcher'
+import { useHomeModeSwitcher } from '@/features/home-mode/composables/use-home-mode-switcher'
 import HomeModePresenceBadge from '@/features/home-mode/components/HomeModePresenceBadge.vue'
 import HomeModeSwitcherTrigger from '@/features/home-mode/components/HomeModeSwitcherTrigger.vue'
 import HomeModeSwitcherMenu from '@/features/home-mode/components/HomeModeSwitcherMenu.vue'

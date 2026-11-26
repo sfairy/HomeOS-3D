@@ -3,11 +3,11 @@
  * @module frontend/src/views
  */
 /** composables：配置与档案备份 */
-import { exportSystemConfig, importSystemConfig } from '@/domain/api/system'
-import { useAuthStore } from '@/features/auth/store/auth.store'
+import { exportSystemConfig, importSystemConfig } from '@/kernel/http/system-api'
+import { useAuthStore } from '@/domain/auth/auth.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
-import { reloadFrontendConfig } from '@/kernel/utils/config/frontend-config'
+import { reloadFrontendConfig } from '@/kernel/config/frontend-config'
 import { downloadBlob } from '@/kernel/utils/core/misc.util'
 import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
 import type { NotifyType } from '@/kernel/types/notify'

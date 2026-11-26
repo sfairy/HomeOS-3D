@@ -118,7 +118,7 @@ import {
   formatSunCountdown,
   resolveSunriseSunset,
 } from '@/features/weather/model/utils/sun-times.util'
-import { filterPresenceMembers, usePresenceHome } from '@/features/presence/model/composables/usePresenceHome'
+import { filterPresenceMembers, usePresenceHome } from '@/features/presence/model/composables/use-presence-home'
 import { normalizeWeatherHubConfig } from '@/kernel/utils/registry/weather-hub-options'
 
 /**

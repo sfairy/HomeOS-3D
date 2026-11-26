@@ -2,7 +2,7 @@
  * 一次性拉取在家状态（非轮询场景用；轮询请用 usePresenceHome）
  */
 import { fetchPresenceHome } from '@/domain/api/security'
-import type { PresenceHomeMember } from '@/features/presence/model/composables/usePresenceHome'
+import type { PresenceHomeMember } from '@/features/presence/model/composables/use-presence-home'
 
 type PresenceHomeData = {
   members?: PresenceHomeMember[]

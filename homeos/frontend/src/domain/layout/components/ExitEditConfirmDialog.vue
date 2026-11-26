@@ -55,7 +55,7 @@
 /** 避免误触退出导致修改丢失。 */
 import { computed, ref } from 'vue'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
-import { useShellTeleportTarget } from '@/app/shell/composables/useShellTeleportTarget'
+import { useShellTeleportTarget } from '@/kernel/ui/shell/use-shell-teleport-target'
 import { useFocusTrap } from '@/kernel/ui/hooks/use-focus-trap'
 import { useEscLayer } from '@/kernel/ui/hooks/use-esc-stack'
 import { useBackgroundInert } from '@/kernel/ui/hooks/use-background-inert'

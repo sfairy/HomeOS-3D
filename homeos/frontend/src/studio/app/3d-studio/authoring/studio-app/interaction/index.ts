@@ -8,8 +8,8 @@
  */
 export { applyToolSetting } from './tools'
 export type { ApplyToolSettingDeps } from './tools'
-export { createSceneItem } from './createSceneItem'
-export type { CreateSceneItemDeps } from './createSceneItem'
+export { createSceneItem } from './create-scene-item'
+export type { CreateSceneItemDeps } from './create-scene-item'
 export { handlePointerDown } from './pointer-input'
 export type { HandlePointerDownDeps } from './pointer-input'
 export { handlePointerUp } from './pointer-input'

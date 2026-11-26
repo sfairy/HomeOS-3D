@@ -95,7 +95,7 @@ import type * as EchartsModuleNS from '@/kernel/utils/chart/echarts'
 
 import { DEVICE_CHART_COLORS, deviceSidebarPieTooltip, deviceChartBase } from '@/kernel/utils/chart/device-chart-theme'
 import { getDomainLabel } from '@/features/device/model/utils/domain-labels.util'
-import { countOfflineDevices } from '@/features/device/model/utils/group-offline.util'
+import { countOfflineDevices } from '@/domain/entity/model/utils/group-offline.util'
 import { entityDomainColor } from '@/kernel/constants/entity-domain-meta'
 import { ensureDeviceChartOnElement } from '@/kernel/utils/chart/device-chart-boot.util'
 

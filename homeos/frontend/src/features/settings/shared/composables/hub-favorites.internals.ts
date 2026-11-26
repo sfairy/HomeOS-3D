@@ -9,7 +9,7 @@ import {
   countQuickActionDomainActive,
   countQuickActionLightsOn,
   countQuickActionOffline,
-} from '@/features/device/composables/group-counts.util'
+} from '@/domain/entity/model/utils/group-counts.util'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'

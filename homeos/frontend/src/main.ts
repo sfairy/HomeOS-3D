@@ -48,7 +48,7 @@ import './app/styles/motion.css'
 // 列表页样式（list-page / list-page-views ~39 KB）改为随路由懒加载：
 // 见 assets/styles/lazy/list-page-shell.ts。入口只保留首屏消费者（通知抽屉 / 全局空态）
 // 真正用到的那几条 `.list-page__btn*` / `.list-page__muted`。
-import './app/styles/list-page-eager.css'
+import './kernel/ui/list-page/styles/list-page-eager.css'
 import './app/styles/degrade-banner.css'
 import './app/styles/multi-color.css'
 // 主题覆盖层：必须排在所有既有样式之后 —— 它与 design-tokens 同为 :root 特异度，靠加载顺序生效
@@ -59,7 +59,7 @@ import {
   loadFrontendConfig,
   primeFrontendConfigFromCache,
   setupFrontendConfigVisibilitySync,
-} from '@/kernel/utils/config/frontend-config'
+} from '@/kernel/config/frontend-config'
 import { primeGlassEffectDocument, setupGlassEffectSync } from '@/kernel/utils/ui/glass-effect.util'
 import { applyHomeOsTheme } from '@/kernel/utils/ui/theme.util'
 import { setupSmartPerformanceMode } from '@/kernel/utils/perf/smart-performance.util'
@@ -70,7 +70,7 @@ import {
   registerSessionRefreshHandler,
   registerUiNotifyHandler,
 } from '@/kernel/utils/bridge/store-bridge'
-import { useAuthStore } from './features/auth/store/auth.store'
+import { useAuthStore } from './domain/auth/auth.store'
 import { useLayoutStore } from './domain/layout/store/layout.store'
 import { useChromeStore } from './kernel/ui/chrome/chrome-store'
 import VSkeleton from './kernel/ui/primitives/VSkeleton.vue'
@@ -80,7 +80,7 @@ import { swipeClose } from './app/directives/swipe-close'
 import { scrollRegion } from './app/directives/scroll-region'
 import { studioStartupReady } from '@/kernel/utils/ui/studio-startup'
 import { ensureStudioLoadingStyle } from '@/kernel/utils/ui/studio-loading-style'
-import { forgetLicenseAvailability } from '@/kernel/utils/auth/license-probe.util'
+import { forgetLicenseAvailability } from '@/domain/license/license-probe.util'
 import { adoptPreloadedStylesheets } from '@/studio/index'
 
 // CSRF 兜底注入已收敛到单 HTTP 栈：`services/api/client` 在模块求值时调用
@@ -206,12 +206,12 @@ registerAuthChangeHandler(() => {
     else forgetDeviceProfileKinds()
   })
   // 登出 / 401 时（isAuthenticated=false）额外清理用户态 store，避免下一个会话残留上一个用户的数据
-  void import('./features/auth/store/auth.store').then(({ useAuthStore }) => {
+  void import('./domain/auth/auth.store').then(({ useAuthStore }) => {
     if (useAuthStore().isAuthenticated) return
     void import('./domain/layout/store/layout.store').then(({ useLayoutStore }) => {
       useLayoutStore().resetForAuthChange()
     })
-    void import('./features/earthquake/store/earthquake.store').then(({ useEarthquakeStore }) => {
+    void import('./domain/earthquake/earthquake.store').then(({ useEarthquakeStore }) => {
       useEarthquakeStore().reset()
     })
     // HA 连接快照里带着 ``baseUrl``：摄像头快照 / HLS 用它拼绝对 URL。不清的话，

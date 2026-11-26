@@ -55,7 +55,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, type PropType } from 'vue'
-import { useEchartsHost } from '@/kernel/ui/hooks/use-echarts-host'
+import { useEchartsHost } from '@/domain/layout/composables/use-echarts-host'
 import {
   barGradient,
   chartLinearGradient,
@@ -273,5 +273,5 @@ watch(
 )
 </script>
 
-<style src="@/app/styles/list-page-analytics.css"></style>
+<style src="@/kernel/ui/list-page/styles/list-page-analytics.css"></style>
 <style scoped src="../styles/view-analytics.css"></style>

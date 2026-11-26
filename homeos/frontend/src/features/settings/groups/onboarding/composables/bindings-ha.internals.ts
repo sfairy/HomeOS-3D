@@ -5,7 +5,7 @@
 /** HA 绑定：摄像头 / 门铃 */
 
 import { computed, type Ref } from 'vue'
-import type { UILayoutConfig, SecurityCameraBinding } from '@/domain/layout/types'
+import type { UILayoutConfig, SecurityCameraBinding } from '@/kernel/types/layout'
 import { clearDoorbellCamera, toggleDoorbellCamera } from '@/kernel/utils/layout/doorbell.util'
 import { normalizeSecurityCameras } from '@/kernel/utils/layout/security-cameras.util'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'

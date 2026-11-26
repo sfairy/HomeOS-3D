@@ -328,7 +328,7 @@
 </template>
 
 <script setup>
-import HosSelect from '@/kernel/ui/primitives/HosSelect.vue'
+import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
 import { computed, ref, onUnmounted, watch } from 'vue'
 import {
   Activity,

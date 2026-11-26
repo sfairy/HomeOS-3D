@@ -1,0 +1,222 @@
+<template>
+  <div
+    class="asset-manager"
+    @dragenter.prevent="onDragEnter"
+    @dragover.prevent
+    @dragleave="onDragLeave"
+    @drop.prevent="onDrop"
+  >
+    <AssetManagerHeader
+      :breadcrumbs="breadcrumbs"
+      :set-file-input="setFileInput"
+      :navigate-to="navigateTo"
+      :trigger-upload="triggerUpload"
+      :on-upload="onUpload"
+    />
+
+    <AssetManagerBody
+      :loading="loading"
+      :items="items"
+      :sorted-items="sortedItems"
+      :use-virtual-grid="useVirtualGrid"
+      :grid-columns="gridColumns"
+      :grid-row-height="gridRowHeight"
+      :is-picker="isPicker"
+      :can-preview="canPreview"
+      :on-preview-error="onPreviewError"
+      :on-item-click="onItemClick"
+      :copy-path="copyPath"
+      :delete-item="deleteItem"
+    />
+
+    <div v-if="sortedItems.length > 0" class="asset-footer">
+      <span class="text-xs am-text-muted">{{ `${sortedItems.length} 个项目` }}</span>
+    </div>
+
+    <!-- 拖拽上传落点提示：可一次性拖入多张图片，超过单次上限时会在提交阶段提示 -->
+    <div v-if="dragActive" class="asset-drop-hint">
+      <UploadCloud class="w-6 h-6" />
+      <span class="asset-drop-hint__text">{{ '松开即可上传到当前目录' }}</span>
+      <span class="asset-drop-hint__meta">{{ `单次最多 ${MAX_UPLOAD_FILES} 个` }}</span>
+    </div>
+
+    <!-- 分批上传进度：显示已完成/总数，避免大批量传输时界面无反馈 -->
+    <div v-if="uploadProgress" class="asset-upload-bar">
+      <Loader2 class="w-3.5 h-3.5 animate-spin" />
+      <span class="asset-upload-bar__text">
+        {{ `正在上传 ${uploadProgress.done} / ${uploadProgress.total}` }}
+      </span>
+      <div class="asset-upload-bar__track">
+        <div
+          class="asset-upload-bar__fill"
+          :style="{ width: `${Math.round((uploadProgress.done / uploadProgress.total) * 100)}%` }"
+        />
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+/** - 通过 useAssetManager 组合式函数管理目录列表、上传、删除等状态； */
+import { ref, type ComponentPublicInstance } from 'vue'
+import { Loader2, UploadCloud } from '@lucide/vue'
+import AssetManagerHeader from './AssetManagerHeader.vue'
+import AssetManagerBody from './AssetManagerBody.vue'
+import { MAX_UPLOAD_FILES, useAssetManager } from './use-asset-manager'
+import './styles/asset-manager.css'
+import './styles/asset-manager-header.css'
+import './styles/asset-manager-body.css'
+
+const props = defineProps({
+  /** 是否为拾取器模式 */
+  isPicker: { type: Boolean },
+})
+
+const emit = defineEmits(['select'])
+
+// 资源管理核心状态与操作，全部由组合式函数提供
+const {
+  items,
+  loading,
+  fileInput,
+  breadcrumbs,
+  sortedItems,
+  useVirtualGrid,
+  gridColumns,
+  gridRowHeight,
+  canPreview,
+  onPreviewError,
+  navigateTo,
+  onItemClick,
+  uploadProgress,
+  triggerUpload,
+  onUpload,
+  onDropFiles,
+  deleteItem,
+  copyPath,
+} = useAssetManager(props, emit)
+
+/** 是否有文件正拖拽在本组件之上（用于显示落点提示） */
+const dragActive = ref(false)
+// 拖拽深度计数：dragenter/dragleave 会在子元素间反复触发，用计数避免提示层闪烁
+let dragDepth = 0
+
+/** 拖拽进入：累加计数并显示落点提示 */
+function onDragEnter() {
+  dragDepth += 1
+  dragActive.value = true
+}
+
+/** 拖拽离开：递减计数，归零后才隐藏落点提示 */
+function onDragLeave() {
+  dragDepth = Math.max(0, dragDepth - 1)
+  if (dragDepth === 0) dragActive.value = false
+}
+
+/**
+ * 放下文件：交给组合式函数按批次上传。
+ * @param e 拖拽事件
+ */
+function onDrop(e: DragEvent) {
+  dragDepth = 0
+  dragActive.value = false
+  const files = e.dataTransfer?.files
+  if (!files?.length) return
+  void onDropFiles(Array.from(files))
+}
+
+/**
+ * 设置隐藏文件输入框的 DOM 引用（供上传触发使用）
+ * @param el 文件输入框元素（或组件实例）
+ */
+function setFileInput(el: Element | ComponentPublicInstance | null) {
+  fileInput.value = el as HTMLInputElement | null
+}
+</script>
+
+<style scoped>
+/* ── 作用域语义色类（替代 Tailwind 颜色工具类） ── */
+.am-text-muted {
+  color: var(--hos-fg-2);
+}
+
+.asset-manager {
+  position: relative;
+}
+
+/* ── 拖拽上传落点提示 ── */
+.asset-drop-hint {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 14px;
+  color: #dceaff;
+  background: rgba(6, 10, 18, 0.82);
+  border: 1px dashed rgba(130, 200, 255, 0.55);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  pointer-events: none;
+}
+
+.asset-drop-hint__text {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.asset-drop-hint__meta {
+  font-size: 12px;
+  color: rgba(220, 234, 255, 0.6);
+}
+
+/* ── 分批上传进度条 ── */
+.asset-upload-bar {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--hos-radius-control);
+  font-size: 12px;
+  color: #e8f1ff;
+  background: rgba(8, 12, 20, 0.92);
+  border: 1px solid rgba(130, 200, 255, 0.28);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+.asset-upload-bar__text {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.asset-upload-bar__track {
+  flex: 1;
+  min-width: 60px;
+  height: 5px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.asset-upload-bar__fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(130, 200, 255, 0.9), rgba(168, 140, 255, 0.9));
+  transition: width 0.25s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .asset-upload-bar__fill {
+    transition: none;
+  }
+}
+</style>

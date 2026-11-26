@@ -183,7 +183,7 @@
 </template>
 
 <script setup>
-import HosSelect from '@/kernel/ui/primitives/HosSelect.vue'
+import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Shield, AlertTriangle, Settings as SettingsIcon } from '@lucide/vue'
@@ -191,7 +191,7 @@ import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useHaConnectionStore } from '@/domain/ha/ha-connection.store'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { useEntityDisplayEpoch } from '@/domain/entity/composables/useEntityDisplayEpoch'
+import { useEntityDisplayEpoch } from '@/domain/entity/composables/use-entity-display-epoch'
 import SecurityCameraTile from '@/features/security/components/CameraTile.vue'
 import HaCameraStream from '@/features/device/components/HaCameraStream.vue'
 import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'

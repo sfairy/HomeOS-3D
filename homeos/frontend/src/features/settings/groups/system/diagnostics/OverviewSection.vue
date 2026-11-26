@@ -457,7 +457,7 @@ import SettingsOrchTabs from '@/features/settings/components/SettingsOrchTabs.vu
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import VProgressBar from '@/kernel/ui/primitives/VProgressBar.vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { useDiagnosticsSection } from './useDiagnosticsSection'
+import { useDiagnosticsSection } from './use-diagnostics-section'
 import { BACKEND_MEM_WARN_PCT } from './constants'
 import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
 

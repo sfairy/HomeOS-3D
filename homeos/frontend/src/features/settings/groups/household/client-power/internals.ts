@@ -6,7 +6,7 @@ import {
   patchSystemConfig,
   useSystemConfig,
 } from '@/domain/layout/composables/system-config-core.internals'
-import { dismissClientPowerOffline, dismissClientPowerPending, fetchClientPowerStatus } from '@/domain/api/system'
+import { dismissClientPowerOffline, dismissClientPowerPending, fetchClientPowerStatus } from '@/kernel/http/system-api'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import type {
   ClientPowerClient,
@@ -25,7 +25,7 @@ import {
   getSystemInfoFromClientRow,
 } from '@/domain/client/utils/system-display.util'
 import { getClientDeviceId } from '@/domain/client/utils/system.util'
-import { reloadFrontendConfig } from '@/kernel/utils/config/frontend-config'
+import { reloadFrontendConfig } from '@/kernel/config/frontend-config'
 import { copyTextWithNotify } from '@/kernel/ui/notify'
 import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
 import { logger } from '@/kernel/utils/core/logger'

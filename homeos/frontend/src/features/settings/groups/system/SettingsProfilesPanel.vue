@@ -40,7 +40,7 @@ import SettingsHubSubnav from '@/features/settings/shared/layout/SettingsHubSubn
 import ProfilesDisplaySection from './profiles/DisplaySection.vue'
 import ProfilesBackupSection from './profiles/BackupSection.vue'
 import { useProfilesPanel } from './profiles/internals'
-import { PROFILES_KEY } from './profiles/useProfilesSection'
+import { PROFILES_KEY } from './profiles/use-profiles-section'
 
 const props = defineProps({ activeTab: { type: String, default: 'profiles' } })
 

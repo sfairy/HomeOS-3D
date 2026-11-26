@@ -169,7 +169,7 @@ import SystemConfigAuditCard from '@/features/settings/shared/config-fields/Syst
 import SystemConfigValidationBanner from './system-config/SystemConfigValidationBanner.vue'
 import SystemConfigSearchView from './system-config/SystemConfigSearchView.vue'
 import SystemConfigWorkspace from './system-config/SystemConfigWorkspace.vue'
-import { useSystemConfigPanelShell } from './system-config/useSystemConfigPanelShell'
+import { useSystemConfigPanelShell } from './system-config/use-system-config-panel-shell'
 
 const props = defineProps({ activeTab: { type: String, default: '' } })
 const route = useRoute()

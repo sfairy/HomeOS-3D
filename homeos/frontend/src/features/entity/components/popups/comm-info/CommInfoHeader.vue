@@ -1,7 +1,7 @@
 /** - 展示运营商品牌标签（电信/联通）、账户标签 */
 <script setup lang="ts">
 import type { PropType } from 'vue'
-import HosSelect from '@/kernel/ui/primitives/HosSelect.vue'
+import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
 import { Signal } from '@lucide/vue'
 
 defineProps({

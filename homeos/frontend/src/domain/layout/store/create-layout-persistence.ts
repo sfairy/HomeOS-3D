@@ -13,12 +13,12 @@
  */
 import { nextTick, type Ref } from 'vue'
 import { fetchProject, saveProject, setActiveProject } from '@/domain/api/config'
-import { useAuthStore } from '@/features/auth/store/auth.store'
+import { useAuthStore } from '@/domain/auth/auth.store'
 import { getDefaultLayout } from '@/domain/layout/store/defaults'
 import { normalizePageBackground } from '@/kernel/utils/widget/page-background.util'
 import { NAV_TAB_ORDER_DEFAULT, normalizeEmbedNavTabLayoutFields } from '@/kernel/utils/layout/nav-tabs.util'
 import { normalizeDashboardFooter } from '@/domain/energy/constants/dashboard-footer'
-import { normalizeSecurityEmergency } from '@/kernel/constants/security-emergency'
+import { normalizeSecurityEmergency } from '@/domain/layout/constants/security-emergency'
 import { normalizeWholeHomeOff } from '@/kernel/constants/whole-home-off'
 import { logger } from '@/kernel/utils/core/logger'
 import {
@@ -35,8 +35,8 @@ import { ensureDoorbellList } from '@/kernel/utils/layout/doorbell.util'
 import { normalizeSecurityCameras } from '@/kernel/utils/layout/security-cameras.util'
 import { clonePlain } from '@/kernel/utils/core/clone-plain.util'
 import { pushServerAccessConfig } from '@/kernel/utils/bridge/native-bridge'
-import { fetchSystemNetworkInfo } from '@/domain/api/system'
-import type { HaConfig, PanelWidget, FloatingWidget } from '@/domain/layout/types'
+import { fetchSystemNetworkInfo } from '@/kernel/http/system-api'
+import type { HaConfig, PanelWidget, FloatingWidget } from '@/kernel/types/layout'
 
 /**
  * 把服务端访问配置推送给原生端（fire-and-forget）。

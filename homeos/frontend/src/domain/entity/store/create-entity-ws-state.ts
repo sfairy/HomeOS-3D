@@ -6,7 +6,7 @@ import { ref } from 'vue'
 import type { Ref } from 'vue'
 import type { Socket } from 'socket.io-client'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
-import { useAuthStore } from '@/features/auth/store/auth.store'
+import { useAuthStore } from '@/domain/auth/auth.store'
 import { refreshPinnedEntitiesAfterStale } from './cold-refresh.util'
 import { applyEntityStatesBatch } from './ws/state-update'
 import type { EntityStateUpdateDeps } from './ws/state-update'
@@ -20,7 +20,7 @@ import {
   refreshNotificationsFromSocket,
   refreshEventLogFromSocket,
 } from '@/kernel/utils/bridge/store-bridge'
-import { getFrontendConfig } from '@/kernel/utils/config/frontend-config'
+import { getFrontendConfig } from '@/kernel/config/frontend-config'
 import { onPageCacheResume, onPageCacheSuspend } from '@/kernel/utils/page-cache-lifecycle'
 import { WS_PUSH_CRITICAL_DOMAINS } from '@homeos/shared'
 import { createEntityInitHelpers } from '@/domain/entity/store/entity-store-init.util'

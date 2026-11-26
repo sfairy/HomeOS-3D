@@ -11,7 +11,7 @@ import { Code } from '@lucide/vue'
 import { FLOATING_HUB_TYPE_SET, getWidgetIcon } from '@/kernel/utils/registry/widget-catalog'
 import { hasConfigurableTabs, serializeHubTabsConfig } from '@/kernel/utils/registry/hub-tabs-options'
 import { mirrorSecurityPanelZonesToLayout } from '@/features/security/model/utils/panel-layout.util'
-import type { FloatingWidget } from '@/domain/layout/types'
+import type { FloatingWidget } from '@/kernel/types/layout'
 import type { Ref } from 'vue'
 import { useRouter } from 'vue-router'
 

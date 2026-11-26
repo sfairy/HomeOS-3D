@@ -5,7 +5,7 @@ import {
   normalizeGo2rtcTarget,
   GO2RTC_TRANSPORT_NAME,
   type Go2RtcMseTransportHandle,
-} from '@/features/device/camera/composables/useGo2RtcMseTransport'
+} from '@/features/device/camera/composables/use-go2-rtc-mse-transport'
 import { ensureHls, isExpiredStreamAddressError, prefetchHlsOnIdle, canPlayNativeHls } from '@/features/device/camera/hls-loader'
 import { clampNumberWithFallback, normalizeCssColor, appendSvgElement, createCameraVisualState } from './_shared'
 import { cameraStreamBudget, withCameraHttpSlot } from '@/studio/platform/camera/camera-budget'

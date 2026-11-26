@@ -6,8 +6,8 @@
  * 「这个域提供什么」在调用点一眼可见，同时把导入行数压回可控范围。
  * 域内文件之间仍直接相对 import，不经 barrel（避免环与无谓的间接层）。
  */
-export { addLightModel } from './addLightModel'
-export type { AddLightModelDeps } from './addLightModel'
+export { addLightModel } from './add-light-model'
+export type { AddLightModelDeps } from './add-light-model'
 export {
   refreshBaseLighting,
   setShadowQualityHigh,

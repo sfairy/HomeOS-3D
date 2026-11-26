@@ -4,8 +4,8 @@ import EventsViewAnalytics from './components/ViewAnalytics.vue'
 import EventsViewHero from './components/ViewHero.vue'
 import EventsViewStream from './components/ViewStream.vue'
 import EventsViewToolbar from './components/ViewToolbar.vue'
-import { useEventsView } from './composables/useEventsView'
-import '@/app/styles/list-page-dual-pane.css'
+import { useEventsView } from './composables/use-events-view'
+import '@/kernel/ui/list-page/styles/list-page-dual-pane.css'
 import './premium.css'
 
 const {

@@ -13,7 +13,7 @@
  * - memberInitial/memberTone：从 useHomeModeSwitcher 复用的人员头像首字母与色调计算函数
  */
 import { Home, MapPin, Users } from '@lucide/vue'
-import { memberInitial, memberTone } from '@/features/home-mode/composables/useHomeModeSwitcher'
+import { memberInitial, memberTone } from '@/features/home-mode/composables/use-home-mode-switcher'
 
 /**
  * 组件 props 定义

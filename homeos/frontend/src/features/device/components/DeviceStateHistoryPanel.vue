@@ -211,7 +211,7 @@ import {
   hoursForRange,
   type DeviceHistoryRange,
   type DeviceStateHistoryEvent,
-} from '@/features/device/composables/useDeviceStateHistory'
+} from '@/features/device/composables/use-device-state-history'
 import { displayEventState } from '@/features/events/model/utils/events-display.util'
 import { displayEntityStateLabel } from '@/kernel/constants/entity-state-labels'
 import { formatDetailedDateTimeOrDash } from '@/kernel/utils/format/locale-format.util'
@@ -223,7 +223,7 @@ import {
   DEVICE_CHART_COLORS,
   chartVerticalGradient,
 } from '@/kernel/utils/chart/device-chart-theme'
-import { configEpoch, getEventLogConfig } from '@/kernel/utils/config/frontend-config'
+import { configEpoch, getEventLogConfig } from '@/kernel/config/frontend-config'
 
 /** 图表实例类型：来自按需加载 echarts 入口模块的 init 返回值 */
 type EchartsModule = typeof EchartsModuleNS

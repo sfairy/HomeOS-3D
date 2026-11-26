@@ -3,7 +3,7 @@
  * @module frontend/src/views
  */
 /** composables：useHomeModePanel / useHomeModeRecommend */
-import { useHomeModes } from './useHomeModes'
+import { useHomeModes } from './use-home-modes'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { buildHomeModeRecommendations } from '@/domain/recommend/utils/home-mode-recommend.util'
 import { useSettingsSave } from '@/features/settings/kernel/save.internals'

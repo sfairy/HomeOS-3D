@@ -4,10 +4,10 @@
  * entity WebSocket domain 订阅解析：按路由与布局计算订阅白名单 / pinned 实体收集
  * （含本机人来亮屏充电器开关，避免冷实体漏推）。
  */
-import type { PanelWidget } from '@/domain/layout/types'
+import type { PanelWidget } from '@/kernel/types/layout'
 import { getEntityDomain, resolveChargerSwitchWakeEntityIdForDevice } from '@homeos/shared'
 import { getClientDeviceId } from '@/domain/client/utils/system.util'
-import { getConfigSection } from '@/kernel/utils/config/frontend-config'
+import { getConfigSection } from '@/kernel/config/frontend-config'
 
 // ── entity-ws-subscription.util ──
 /**

@@ -8,7 +8,7 @@ import {
   getLargeEntityThreshold,
   getWorkerDerivedThreshold,
   onConfigChange,
-} from '@/kernel/utils/config/frontend-config'
+} from '@/kernel/config/frontend-config'
 import {
   registerAdaptiveFpsTick,
   startFpsScheduler,

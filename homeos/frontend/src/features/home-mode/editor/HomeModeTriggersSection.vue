@@ -210,7 +210,7 @@
 
 <script setup>
 import { ref, computed, nextTick } from 'vue'
-import HosSelect from '@/kernel/ui/primitives/HosSelect.vue'
+import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
 import { Clock, Plus, Trash2 } from '@lucide/vue'
 import EntityInput from '@/domain/entity/components/entity-input/EntityInput.vue'
 import RecommendInsightCard from '@/domain/recommend/components/RecommendInsightCard.vue'

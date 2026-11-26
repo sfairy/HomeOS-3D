@@ -75,7 +75,7 @@ import {
   countQuickActionLightsOn,
   countQuickActionOffline,
   countQuickActionDomainActive,
-} from '@/features/device/composables/group-counts.util'
+} from '@/domain/entity/model/utils/group-counts.util'
 import { QUICK_BUTTON_META, normalizeQuickButtons } from '@/domain/widget/quick-actions.config'
 
 const props = defineProps({ config: {} })

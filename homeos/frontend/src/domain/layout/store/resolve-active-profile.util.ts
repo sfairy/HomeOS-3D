@@ -3,7 +3,7 @@ import { fetchProject, resolveTerminalProfile, updateSelfTerminalBinding } from 
 import { getClientDeviceId } from '@/domain/client/utils/system.util'
 import { readStoredProfileId, hasStoredProfileId, writeStoredProfileId } from '@/domain/layout/store/create-layout-state'
 import { logger } from '@/kernel/utils/core/logger'
-import type { UILayoutConfig } from '@/domain/layout/types'
+import type { UILayoutConfig } from '@/kernel/types/layout'
 
 /** profile 解析来源标签，用于调试与埋点 */
 type ProfileResolveSource = 'url' | 'local' | 'binding' | 'activeProfile' | 'default'

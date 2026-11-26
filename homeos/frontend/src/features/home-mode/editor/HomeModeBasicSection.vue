@@ -119,7 +119,7 @@
 <script setup>
 import { computed } from 'vue'
 import { Bell, Bot, Clapperboard, Cloud, Lightbulb, Plus, Sparkles } from '@lucide/vue'
-import HosSelect from '@/kernel/ui/primitives/HosSelect.vue'
+import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
 import { ENTITY_DOMAIN_COLORS } from '@/kernel/constants/entity-domain-meta'
 import { isHomeModeEmojiIcon, resolveHomeModeIcon } from '@/features/home-mode/model/index'
 

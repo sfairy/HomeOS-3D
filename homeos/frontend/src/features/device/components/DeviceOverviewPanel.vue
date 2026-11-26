@@ -365,14 +365,14 @@ import type { Component } from 'vue'
 import { getEntityDomain, resolveEntityArea } from '@homeos/shared'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { getDomainLabel } from '@/features/device/model/utils/domain-labels.util'
-import { formatEntityAttrValue } from '@/features/device/model/utils/attr-format.util'
+import { formatEntityAttrValue } from '@/domain/entity/model/utils/attr-format.util'
 import { formatEntityAttrLabel } from '@/features/device/model/utils/entity-attr-labels.util'
 import { displayClimateOperatingLabel, displayEntityStateLabel } from '@/kernel/constants/entity-state-labels'
 import { displayEventState } from '@/features/events/model/utils/events-display.util'
 import { formatAuditTimestamp, formatLocaleTime } from '@/kernel/utils/format/locale-format.util'
-import { useDeviceOverview } from '@/features/device/composables/useDeviceOverview'
+import { useDeviceOverview } from '@/features/device/composables/use-device-overview'
 import DeviceHealthScore from './DeviceHealthScore.vue'
-import { HVAC_ACTION_LABELS, HVAC_MODE_LABELS } from '@/features/device/model/utils/attr-format.util'
+import { HVAC_ACTION_LABELS, HVAC_MODE_LABELS } from '@/domain/entity/model/utils/attr-format.util'
 
 const props = withDefaults(
   defineProps<{

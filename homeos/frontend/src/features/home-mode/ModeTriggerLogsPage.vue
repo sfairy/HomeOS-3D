@@ -181,7 +181,7 @@
 </template>
 
 <script setup lang="ts">
-import HosSelect from '@/kernel/ui/primitives/HosSelect.vue'
+import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
 import { ref, computed, onMounted } from 'vue'
 import { History } from '@lucide/vue'
 import ApiQueryState from '@/kernel/ui/ApiQueryState.vue'
@@ -190,7 +190,7 @@ import ListPageHero from '@/kernel/ui/list-page/ListPageHero.vue'
 import ListPageMetrics from '@/kernel/ui/list-page/ListPageMetrics.vue'
 import ModeLogsAnalyticsRail from './components/ModeLogsAnalyticsRail.vue'
 // 域内相对导入：引用自己的域根 barrel 会被 feature-self-barrel 门禁判违规。
-import { EMPTY_MODE_LOG_ANALYTICS, type ModeLogAnalytics } from './composables/useModeLogsAnalytics'
+import { EMPTY_MODE_LOG_ANALYTICS, type ModeLogAnalytics } from './composables/use-mode-logs-analytics'
 import { formatDetailedDateTimeOrDash } from '@/kernel/utils/format/locale-format.util'
 import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
 import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'

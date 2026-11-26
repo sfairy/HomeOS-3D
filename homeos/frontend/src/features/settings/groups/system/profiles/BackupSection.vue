@@ -194,9 +194,9 @@ import { computed, ref, watch } from 'vue'
 import { Upload, Loader2, Settings, Package, HardDrive, Save, Clock, Archive } from '@lucide/vue'
 import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
-import HosSelect from '@/kernel/ui/primitives/HosSelect.vue'
+import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
 import BackupRestoreDialog from './BackupRestoreDialog.vue'
-import { useProfilesSection } from './useProfilesSection'
+import { useProfilesSection } from './use-profiles-section'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 
 const chrome = useChromeStore()

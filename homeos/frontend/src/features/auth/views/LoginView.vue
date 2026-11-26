@@ -7,11 +7,11 @@
  */
 import { computed, nextTick, ref } from 'vue'
 
-import { useStoreLinks } from '@/features/auth/composables/useStoreLinks'
+import { useStoreLinks } from '@/features/auth/composables/use-store-links'
 import SceneStage from '@/kernel/ui/SceneStage.vue'
 import AuthShell from '@/features/auth/components/AuthShell.vue'
 import PasswordField from '@homeos/shared/components/PasswordField.vue'
-import { useAuthStore } from '@/features/auth/store/auth.store'
+import { useAuthStore } from '@/domain/auth/auth.store'
 import { getSystemInitialized } from '@/app/router/system-init.state'
 import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
 import { AUTH_FLOW_ACCESS, AUTH_FLOW_SETUP, renderAuthSteps } from '@/kernel/utils/auth/auth-flow.util'

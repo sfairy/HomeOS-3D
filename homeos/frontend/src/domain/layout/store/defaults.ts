@@ -3,7 +3,7 @@ import { createDefaultEnergySources } from '@/domain/energy/model/constants/ener
 import { createDefaultDashboardFooter } from '@/domain/energy/constants/dashboard-footer'
 import { createDefaultWholeHomeOff } from '@/kernel/constants/whole-home-off'
 import { createDefaultEarthquakeConfig } from '@/kernel/types/earthquake'
-import type { UILayoutConfig } from '@/domain/layout/types'
+import type { UILayoutConfig } from '@/kernel/types/layout'
 
 /**
  * 构建默认布局

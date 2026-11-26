@@ -1,5 +1,5 @@
 /** TTS 播报音箱解析工具 */
-import { getConfigSection } from '@/kernel/utils/config/frontend-config'
+import { getConfigSection } from '@/kernel/config/frontend-config'
 
 /** 实体表最小形状：entity_id → { state? } */
 type EntityMap = Record<string, { state?: string } | undefined>

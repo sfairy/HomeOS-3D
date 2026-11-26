@@ -23,7 +23,7 @@
 import { computed } from 'vue'
 import AccountListRows from './AccountListRows.vue'
 import { syncMultiAccounts } from '@/domain/energy/model/utils/account.util'
-import { useBindingAccountListEditor } from './useBindingAccountListEditor'
+import { useBindingAccountListEditor } from './use-binding-account-list-editor'
 
 const props = defineProps({
   source: { type: Object, required: true },

@@ -20,7 +20,7 @@ import {
   formatHour,
   isHourInDnd,
   parseNotificationSettings,
-} from '@/features/notifications/model/utils/dnd.util'
+} from '@/domain/notifications/utils/dnd.util'
 
 /** 告警规则面板：免打扰时段编辑 */
 export function useAlertRulesPanelDnd(options: { alertSection: Ref<string> }) {

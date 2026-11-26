@@ -162,7 +162,7 @@ import {
   Moon,
 } from '@lucide/vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { useWeatherEntity } from '@/domain/entity/composables/useWeatherEntity'
+import { useWeatherEntity } from '@/domain/entity/composables/use-weather-entity'
 import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
 import { collectSensorEntityIds, readAqiNumber } from '@/features/weather/model/utils/weather-metric.util'
 

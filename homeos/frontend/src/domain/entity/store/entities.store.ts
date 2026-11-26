@@ -7,14 +7,14 @@ import { defineStore } from 'pinia'
 import { ref, toRaw, shallowReactive, reactive, watch } from 'vue'
 import { apiClient } from '@/domain/api/index'
 import { resyncEntities } from '@/domain/api/entities'
-import { useAuthStore } from '@/features/auth/store/auth.store'
+import { useAuthStore } from '@/domain/auth/auth.store'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { logger } from '@/kernel/utils/core/logger'
 import {
   getFrontendConfig,
   getLargeEntityThreshold,
   getWorkerDerivedThreshold,
-} from '@/kernel/utils/config/frontend-config'
+} from '@/kernel/config/frontend-config'
 import type {
   DerivedBatteryEntry,
   DerivedOfflineEntry,

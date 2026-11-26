@@ -45,7 +45,7 @@ import { RefreshCw } from '@lucide/vue'
 import SettingsPageShell from '@/features/settings/components/shell/SettingsPageShell.vue'
 import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { fetchSystemNetworkInfo } from '@/domain/api/system'
+import { fetchSystemNetworkInfo } from '@/kernel/http/system-api'
 import { apiPost } from '@/kernel/http/client'
 import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
 

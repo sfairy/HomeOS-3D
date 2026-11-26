@@ -4,7 +4,7 @@
  * 悬浮伴侣可自由拖动，位置以视口百分比中心点（`xPercent` / `yPercent`）保存。
  * 组件渲染与设置页滑块共用这里的归一化口径，避免两处换算结果对不上。
  */
-import type { AgentCompanionConfig } from '@/domain/layout/types'
+import type { AgentCompanionConfig } from '@/kernel/types/layout'
 
 /** 机器人直径（px），与 AgentCompanion.vue 的 .companion-root / .companion-trigger 一致 */
 export const AGENT_COMPANION_FACE_SIZE = 66

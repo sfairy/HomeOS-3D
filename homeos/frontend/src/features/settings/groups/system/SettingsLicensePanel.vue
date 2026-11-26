@@ -268,7 +268,7 @@ import SettingsPageShell from '@/features/settings/components/shell/SettingsPage
 import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
 import SettingsHubSubnav from '@/features/settings/shared/layout/SettingsHubSubnav.vue'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { useAuthStore } from '@/features/auth/store/auth.store'
+import { useAuthStore } from '@/domain/auth/auth.store'
 import {
   getLicenseStatus,
   licenseErrorMessage,
@@ -278,7 +278,7 @@ import {
   reactivateLicense,
   retryLicense,
 } from '@/domain/api/license'
-import { setLicenseFeatureAccess } from '@/app/router/license-gate'
+import { setLicenseFeatureAccess } from '@/domain/license/license-gate'
 import { featureLabel } from '@/kernel/utils/registry/feature-labels.util'
 import { isUnauthorizedError } from '@/kernel/utils/core/error-message'
 

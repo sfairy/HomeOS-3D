@@ -4,8 +4,8 @@
  */
 /** 智能管家设置面板：对话 / 语音输入 */
 import { computed, nextTick, ref, watch, type Ref, type ComponentPublicInstance } from 'vue'
-import { useAgentSpeech } from '@/features/voice/composables/useAgentSpeech'
-import { useSpeechToText } from '@/features/voice/composables/useSpeechToText'
+import { useAgentSpeech } from '@/features/voice/composables/use-agent-speech'
+import { useSpeechToText } from '@/features/voice/composables/use-speech-to-text'
 import { clipAgentChatMessage, AGENT_CHAT_MAX_LENGTH } from '@/features/agent/model/utils/chat-limit.util'
 import {
   agentChatStream,

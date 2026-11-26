@@ -124,7 +124,7 @@ import { nextTick } from 'vue'
 import SecurityOverviewCommandBar from '@/features/security/components/OverviewCommandBar.vue'
 import SecurityOverviewBody from '@/features/security/components/OverviewBody.vue'
 import { AlertTriangle } from '@lucide/vue'
-import { useSecurityOverview } from '@/features/security/composables/useSecurityOverview'
+import { useSecurityOverview } from '@/features/security/composables/use-security-overview'
 
 const {
   linkageFailureRecent,

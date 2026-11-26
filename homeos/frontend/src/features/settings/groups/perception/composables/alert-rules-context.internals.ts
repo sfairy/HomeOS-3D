@@ -4,7 +4,7 @@
  */
 /** 告警规则面板上下文 */
 import { useSettingsHubPending } from '@/features/settings/kernel/pending.internals'
-import { useAuthStore } from '@/features/auth/store/auth.store'
+import { useAuthStore } from '@/domain/auth/auth.store'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'

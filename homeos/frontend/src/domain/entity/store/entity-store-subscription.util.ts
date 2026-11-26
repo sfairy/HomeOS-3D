@@ -9,7 +9,7 @@ import type {
   RemoteNotificationEntry,
   RemoteNotificationPayload,
 } from '@/kernel/types/entity-store'
-import { getFrontendConfig, getMaxStateListeners, reloadFrontendConfig } from '@/kernel/utils/config/frontend-config'
+import { getFrontendConfig, getMaxStateListeners, reloadFrontendConfig } from '@/kernel/config/frontend-config'
 import {
   dispatchStateListener,
   getStateListenerCount,

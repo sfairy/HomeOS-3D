@@ -6,5 +6,5 @@
  * 不叫 system/diagnostics/setup：这些桶名在本仓库已各有其主，避免同名双义。
  */
 
-export { useSetupChecklist } from './composables/useSetupChecklist'
-export { useSystemDiagnostics } from './composables/useSystemDiagnostics'
+export { useSetupChecklist } from './composables/use-setup-checklist'
+export { useSystemDiagnostics } from './composables/use-system-diagnostics'

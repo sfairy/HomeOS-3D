@@ -1,6 +1,6 @@
 /** Vue Router 路由配置 */
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
-import { useAuthStore } from '@/features/auth/store/auth.store'
+import { useAuthStore } from '@/domain/auth/auth.store'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { logger } from '@/kernel/utils/core/logger'
@@ -18,7 +18,7 @@ import {
   setLicenseFeatureAccess,
   shouldRefreshLicenseFeatures,
   shouldRefreshLicenseStatus,
-} from './license-gate'
+} from '../../domain/license/license-gate'
 import { getLicenseAvailability, getLicenseStatus } from '@/domain/api/license'
 import { ensurePageAssets, PAGE_ASSETS as STUDIO_ASSETS, type PageAssets } from '@/studio/index'
 /**
@@ -32,9 +32,9 @@ import { ensurePageAssets, PAGE_ASSETS as STUDIO_ASSETS, type PageAssets } from 
  *
  * 五条路由共用同一个 `entry` 模块，因此登录 → 注册 → 找回密码之间不会重复下载依赖。
  */
-const loadAuthEntry = () => import('@/features/auth/views/entry')
+const loadAuthEntry = () => import('@/features/auth/views')
 import { prefetchStoreLinks } from '@/kernel/utils/store-links.util'
-import { rememberLicenseAvailability } from '@/kernel/utils/auth/license-probe.util'
+import { rememberLicenseAvailability } from '@/domain/license/license-probe.util'
 import { getSystemInitialized, setSystemInitialized } from './system-init.state'
 
 /** 离线通知去重标记，避免每次导航都弹 toast */

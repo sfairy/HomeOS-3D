@@ -23,7 +23,7 @@
 </template>
 
 <script setup lang="ts">
-import { useCompanionA11yMenu } from './useCompanionA11yMenu'
+import { useCompanionA11yMenu } from './use-companion-a11y-menu'
 import './companion-a11y-menu.css'
 
 const props = defineProps<{

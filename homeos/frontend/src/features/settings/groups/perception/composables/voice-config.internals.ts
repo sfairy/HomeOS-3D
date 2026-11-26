@@ -12,9 +12,9 @@ import {
   normalizeEntityTtsAlerts,
   normalizeWakeWords,
 } from '@/kernel/constants/voice-alert-catalog'
-import { fetchVoicePresets } from '@/domain/api/system'
+import { fetchVoicePresets } from '@/kernel/http/system-api'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { reloadFrontendConfig } from '@/kernel/utils/config/frontend-config'
+import { reloadFrontendConfig } from '@/kernel/config/frontend-config'
 import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
 import { logger } from '@/kernel/utils/core/logger'
 import { useSettingsSave } from '@/features/settings/kernel/save.internals'

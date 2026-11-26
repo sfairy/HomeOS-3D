@@ -64,8 +64,8 @@ export {
   buildModeResultBarOption,
   buildModeSourcePieOption,
   buildModeTimelineOption,
-} from './composables/useModeLogsAnalytics'
-export type { ModeLogAnalytics } from './composables/useModeLogsAnalytics'
+} from './composables/use-mode-logs-analytics'
+export type { ModeLogAnalytics } from './composables/use-mode-logs-analytics'
 
 // ── 编辑器契约 ──
 // 跨域：features/settings 的自动化面板、features/security 的区域编辑器都复用这些。
@@ -78,4 +78,4 @@ export { useHomeModeActionsSection } from './composables/editor.internals'
 export { useHomeModeItemExpansion, useHomeModeItemFocus } from './composables/editor.internals'
 
 // ── 场景选项（security modes 复用）──
-export { useHomeosSceneOptions } from './composables/useHomeosSceneOptions'
+export { useHomeosSceneOptions } from './composables/use-homeos-scene-options'

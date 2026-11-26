@@ -1,5 +1,5 @@
 /** 系统配置核心组合式函数 */
-import { fetchSystemConfig, updateSystemConfig } from '@/domain/api/system'
+import { fetchSystemConfig, updateSystemConfig } from '@/kernel/http/system-api'
 import type { NotifyType } from '@/kernel/types/notify'
 import type {
   SystemConfig,

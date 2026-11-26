@@ -8,7 +8,7 @@
 import { readLocalStorage, writeLocalStorage } from '@/kernel/utils/core/local-storage.util'
 
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { getConfigSection, configEpoch } from '@/kernel/utils/config/frontend-config'
+import { getConfigSection, configEpoch } from '@/kernel/config/frontend-config'
 import { logger } from '@/kernel/utils/core/logger'
 import {
   buildCanvasVars,

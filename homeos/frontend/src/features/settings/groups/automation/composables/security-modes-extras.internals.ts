@@ -11,7 +11,7 @@ import {
   syncGlobalLayoutPendingSnapshot,
 } from '@/features/settings/kernel/pending.internals'
 import { createDefaultWholeHomeOff } from '@/kernel/constants/whole-home-off'
-import { fetchAdvisorForgotten } from '@/domain/api/system'
+import { fetchAdvisorForgotten } from '@/kernel/http/system-api'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import type { RecommendChip } from '@/domain/recommend/types/recommend.types'

@@ -340,7 +340,7 @@ import SettingsLayoutDisplaySection from '@/features/settings/groups/appearance/
 import SettingsLayoutFooterSection from '@/features/settings/groups/appearance/layout/SettingsLayoutFooterSection.vue'
 import { useDashboardFooterEditor } from '@/features/settings/groups/appearance/composables/layout-dashboard.internals'
 import { useScaling } from '@/kernel/ui/hooks/use-scaling'
-import { reloadFrontendConfig } from '@/kernel/utils/config/frontend-config'
+import { reloadFrontendConfig } from '@/kernel/config/frontend-config'
 import { handleSystemConfigPatchError, useSystemConfig } from '@/domain/layout/composables/system-config-core.internals'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
@@ -374,8 +374,8 @@ const pickingBgSlot = ref(null)
 const bgPreviewBroken = ref(new Set())
 
 // 背景图库组件按需加载：管理 / 拾取弹窗只在打开时才需要
-const AssetManagerModal = defineAsyncComponent(() => import('@/kernel/ui/asset-picker/AssetManagerModal.vue'))
-const AssetPickerModal = defineAsyncComponent(() => import('@/kernel/ui/AssetPickerModal.vue'))
+const AssetManagerModal = defineAsyncComponent(() => import('@/features/settings/components/asset-picker/AssetManagerModal.vue'))
+const AssetPickerModal = defineAsyncComponent(() => import('@/features/settings/components/asset-picker/AssetPickerModal.vue'))
 
 const bgSlots = computed(() => {
   const onUrl = String(layoutConfig.value.lightOnBackgroundUrl || '').trim()

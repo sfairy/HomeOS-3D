@@ -99,6 +99,9 @@ const GATE_GROUPS = {
     // CSS 语法仍走 esbuild（与构建同一引擎）：Biome 的 CSS 解析器不认识 Tailwind 的
     // `@import` / `@config` 顺序，也不认 Vue 的 `:deep()`，用它判定会与真实产物脱节。
     { name: 'check:css-syntax', ...bun('run', 'check:css-syntax') },
+    // CSS 路径真源一致性：spa_static 预载 / page-assets 挂载 / index.html / public-static.seed
+    // 四处人工同步、零校验，改一处漏一处只会表现为「首屏变慢」或「登录页丢样式」。
+    { name: 'check:css-manifests', ...bun('run', 'check:css-manifests') },
     // ruff check + 新增 .py 的 ruff format 校验：同一个解释器、同一条规则来源，
     // 拆成两步只会在失败时跑两遍解释器。
     { name: 'lint:py', ...bun('run', 'lint:py'), covers: ['check:python-format'] },
@@ -449,7 +452,7 @@ function portResponding(port) {
  */
 const TAG_GROUPS = {
   types: ['typecheck', 'typecheck:node'],
-  lint: ['lint:biome', 'check:css-syntax', 'lint:py'],
+  lint: ['lint:biome', 'check:css-syntax', 'check:css-manifests', 'lint:py'],
   contract: ['check:toolchain', 'check:env', 'check:contracts', 'check:deps', 'check:runtime-contract'],
   ratchet: ['check:frontend', 'check:size', 'check:backend'],
   invariant: ['check:studio-invariants', 'check:scene', 'check:python-lock', 'check:image-imports'],

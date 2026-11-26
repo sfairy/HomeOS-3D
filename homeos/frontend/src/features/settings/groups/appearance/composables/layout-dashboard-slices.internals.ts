@@ -4,7 +4,7 @@
  */
 /** 布局切片 pick/live/apply */
 import { clonePlain } from '@/kernel/utils/core/clone-plain.util'
-import type { HaConfig, StatsSensorsConfig, UILayoutConfig } from '@/domain/layout/types'
+import type { HaConfig, StatsSensorsConfig, UILayoutConfig } from '@/kernel/types/layout'
 import { createDefaultEarthquakeConfig } from '@/kernel/types/earthquake'
 
 // ── settings-layout-snapshot.util ──

@@ -1,6 +1,6 @@
 /** - 读取后台 ui 配置中的 accentColor，将其应用到 document.documentElement 的 CSS 变量。 */
 import { onMounted, onUnmounted } from 'vue'
-import { getConfigSection, onConfigChange } from '@/kernel/utils/config/frontend-config'
+import { getConfigSection, onConfigChange } from '@/kernel/config/frontend-config'
 import type { ConfigChangeListener } from '@/kernel/types/frontend-config'
 import { hexToRgb, resolveReadableAccent } from '@/kernel/utils/ui/color.util'
 

@@ -5,7 +5,7 @@
 /** 家居模式：动作段落编辑 */
 
 import { computed, nextTick, reactive, ref, type Ref } from 'vue'
-import { sceneEntityIdFromRecord, scriptEntityIdFromRecord } from '@/kernel/utils/ha/scene-script.util'
+import { sceneEntityIdFromRecord, scriptEntityIdFromRecord } from '@/domain/entity/model/utils/scene-script.util'
 import { useHomeModeItemExpansion, useHomeModeItemFocus } from './editor-expansion.internals'
 
 interface HomeModeActionDraft {

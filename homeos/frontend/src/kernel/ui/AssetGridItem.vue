@@ -96,4 +96,4 @@ const mainLabel = computed(() =>
 )
 </script>
 
-<style scoped src="./asset-picker/styles/asset-grid-item.css"></style>
+<style scoped src="../../features/settings/components/asset-picker/styles/asset-grid-item.css"></style>

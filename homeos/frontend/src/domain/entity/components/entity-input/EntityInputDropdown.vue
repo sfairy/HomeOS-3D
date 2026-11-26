@@ -97,7 +97,7 @@
 import type { CSSProperties, VNodeRef } from 'vue'
 import VirtualList from '@/kernel/ui/primitives/VirtualList.vue'
 import EntityInputDomainFilter from '@/domain/entity/components/entity-input/EntityInputDomainFilter.vue'
-import type { EntityInputGroup, EntityInputItem } from '@/domain/entity/composables/useEntityInput'
+import type { EntityInputGroup, EntityInputItem } from '@/domain/entity/composables/use-entity-input'
 
 const props = defineProps<{
   show: boolean

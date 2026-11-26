@@ -53,7 +53,7 @@ import EntityMultiSelectDropdown from '@/domain/entity/components/entity-multi-s
 import {
   type EntityMultiSelectStaticOption,
   useEntityMultiSelect,
-} from '@/domain/entity/components/entity-multi-select/useEntityMultiSelect'
+} from '@/domain/entity/components/entity-multi-select/use-entity-multi-select'
 import type { PropType } from 'vue'
 import './styles/entity-multi-select-dropdown.css'
 

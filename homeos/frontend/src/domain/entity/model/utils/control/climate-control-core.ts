@@ -25,7 +25,7 @@ export {
   type ClimateDeviceTypeInput,
   type ClimateRenderType,
   type ClimateStateSnapshot,
-} from '@/features/device/model/climate-power'
+} from '@/domain/entity/model/climate-power'
 
 const FAN_MODE_EMOJI: Record<string, string> = {
   auto: '🤖',

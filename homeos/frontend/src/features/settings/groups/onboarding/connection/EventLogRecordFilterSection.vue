@@ -11,7 +11,7 @@ import { computed, onMounted } from 'vue'
 import { FileText, Loader2, CheckCircle2, AlertCircle, ShieldOff, Ban, ListFilter, Save } from '@lucide/vue'
 import EntityMultiSelect from '@/domain/entity/components/entity-multi-select/EntityMultiSelect.vue'
 import RecommendInsightCard from '@/domain/recommend/components/RecommendInsightCard.vue'
-import { useRecommendInsight } from '@/domain/recommend/composables/useRecommendInsight'
+import { useRecommendInsight } from '@/domain/recommend/composables/use-recommend-insight'
 import { formatCount, hoursLabel } from '@/features/events/model/utils/events-display.util'
 import { useEventLogRecordFilter } from '@/features/settings/groups/onboarding/composables/event-log-record-filter.util'
 

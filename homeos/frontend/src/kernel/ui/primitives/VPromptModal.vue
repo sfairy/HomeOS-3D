@@ -71,7 +71,7 @@ import { useFocusTrap } from '@/kernel/ui/hooks/use-focus-trap'
 import { useBackgroundInert } from '@/kernel/ui/hooks/use-background-inert'
 import { useBodyScrollLock } from '@/kernel/ui/hooks/use-body-scroll-lock'
 import { useEscLayer } from '@/kernel/ui/hooks/use-esc-stack'
-import { useShellTeleportTarget } from '@/app/shell/composables/useShellTeleportTarget'
+import { useShellTeleportTarget } from '@/kernel/ui/shell/use-shell-teleport-target'
 const chrome = useChromeStore()
 const { teleportTarget, shellTeleportPending } = useShellTeleportTarget()
 const teleportDisabled = shellTeleportPending

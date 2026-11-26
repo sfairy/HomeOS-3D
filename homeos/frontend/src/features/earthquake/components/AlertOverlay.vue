@@ -127,9 +127,9 @@
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import { Activity, ArrowUpDown, MapPin, Radio } from '@lucide/vue'
 import { storeToRefs } from 'pinia'
-import { useEarthquakeStore } from '@/features/earthquake/store/earthquake.store'
+import { useEarthquakeStore } from '@/domain/earthquake/earthquake.store'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
-import { useEarthquakeTts } from '../composables/useEarthquakeTts'
+import { useEarthquakeTts } from '../composables/use-earthquake-tts'
 import EewSafetyTips from './EewSafetyTips.vue'
 import EewSlideUnlock from './EewSlideUnlock.vue'
 

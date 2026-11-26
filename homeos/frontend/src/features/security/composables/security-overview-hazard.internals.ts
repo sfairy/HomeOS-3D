@@ -5,7 +5,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { callService } from '@/domain/api/entities'
-import { sceneEntityIdFromRecord } from '@/kernel/utils/ha/scene-script.util'
+import { sceneEntityIdFromRecord } from '@/domain/entity/model/utils/scene-script.util'
 import { runHazardDrill as runHazardDrillApi } from '@/domain/api/security'
 import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
 import { hasAnyHazardSensorBinding, formatHazardBindingSummaryText } from '@homeos/shared'

@@ -139,9 +139,9 @@ import {
   CircleCheck,
   TriangleAlert,
 } from '@lucide/vue'
-import { useExclusiveDropdown } from '@/kernel/ui/popup/useExclusiveDropdown'
-import { viewportPointToPopupAnchor } from '@/kernel/ui/popup/usePopupPosition'
-import { useShellTeleportTarget } from '@/app/shell/composables/useShellTeleportTarget'
+import { useExclusiveDropdown } from '@/kernel/ui/popup/use-exclusive-dropdown'
+import { viewportPointToPopupAnchor } from '@/kernel/ui/popup/use-popup-position'
+import { useShellTeleportTarget } from '@/kernel/ui/shell/use-shell-teleport-target'
 import { getTeleportContainerSize } from '@/kernel/ui/popup/popup-position-shared.util'
 import type { DeviceListItem } from '@/kernel/types/device'
 import { copyTextWithNotify } from '@/kernel/ui/notify'

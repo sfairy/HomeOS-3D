@@ -5,7 +5,7 @@
 /** 告警规则：基于事件日志的推荐芯片 */
 
 import { computed, onMounted } from 'vue'
-import { useEventLogStats } from '@/domain/recommend/composables/useEventLogStats'
+import { useEventLogStats } from '@/domain/recommend/composables/use-event-log-stats'
 import { buildAlertRulesRecommendations } from '@/domain/recommend/utils/alert-rules-recommend.util'
 import type { RecommendChip } from '@/domain/recommend/types/recommend.types'
 

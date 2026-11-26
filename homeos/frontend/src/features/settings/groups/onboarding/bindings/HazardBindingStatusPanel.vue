@@ -37,7 +37,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { useEnsureVisibleEntities } from '@/domain/entity/composables/useEnsureVisibleEntities'
+import { useEnsureVisibleEntities } from '@/domain/entity/composables/use-ensure-visible-entities'
 import { useHazardBindingStatus } from '@/features/security/index'
 
 const props = defineProps({

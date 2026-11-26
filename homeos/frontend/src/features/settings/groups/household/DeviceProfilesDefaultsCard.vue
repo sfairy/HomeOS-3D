@@ -135,7 +135,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { Pencil, Speaker, Trash, Tv } from '@lucide/vue'
 import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
 import SettingsCardIntro from '@/features/settings/components/shell/SettingsCardIntro.vue'
-import HosSelect from '@/kernel/ui/primitives/HosSelect.vue'
+import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import {
   deleteDeviceProfileDefault,

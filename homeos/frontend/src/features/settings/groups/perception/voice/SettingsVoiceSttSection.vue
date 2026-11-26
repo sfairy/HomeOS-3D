@@ -237,7 +237,7 @@
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
-import HosSelect from '@/kernel/ui/primitives/HosSelect.vue'
+import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
 
 import { Mic, Radio, Ear, Cpu, PanelLeft } from '@lucide/vue'
 import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
@@ -245,10 +245,10 @@ import SettingsOrchTabs from '@/features/settings/components/SettingsOrchTabs.vu
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
 import EntityInput from '@/domain/entity/components/entity-input/EntityInput.vue'
-import { fetchVoiceSttStatus, processVoiceConversation } from '@/domain/api/system'
+import { fetchVoiceSttStatus, processVoiceConversation } from '@/kernel/http/system-api'
 import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { useAudioDevices } from '@/features/voice/composables/useAudioDevices'
+import { useAudioDevices } from '@/features/voice/composables/use-audio-devices'
 
 defineProps({
   voiceInputTabs: { type: Array, default: () => [] },

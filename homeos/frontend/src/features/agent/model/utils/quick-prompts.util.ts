@@ -13,8 +13,8 @@ import {
   AGENT_QUICK_PROMPTS,
   normalizeAgentQuickPrompts,
   type AgentQuickPrompt,
-} from '@/features/agent/model/constants/agent-quick-prompts'
-import { configEpoch, getConfigSection } from '@/kernel/utils/config/frontend-config'
+} from '@/kernel/constants/agent-quick-prompts'
+import { configEpoch, getConfigSection } from '@/kernel/config/frontend-config'
 
 /**
  * 当前生效的快捷指令。

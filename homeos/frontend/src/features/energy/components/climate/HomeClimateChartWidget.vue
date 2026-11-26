@@ -36,7 +36,7 @@ import { ref, computed, type ComponentPublicInstance } from 'vue'
 import HomeClimateChartChrome from './home-climate-chart/HomeClimateChartChrome.vue'
 import HomeClimateChartBody from './home-climate-chart/HomeClimateChartBody.vue'
 import HomeClimateChartSummary from './home-climate-chart/HomeClimateChartSummary.vue'
-import { useHomeClimateChart } from './home-climate-chart/useHomeClimateChart'
+import { useHomeClimateChart } from './home-climate-chart/use-home-climate-chart'
 import './home-climate-chart/styles/home-climate-chart.css'
 
 const props = defineProps({

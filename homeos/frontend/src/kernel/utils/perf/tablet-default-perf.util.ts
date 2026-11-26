@@ -12,7 +12,7 @@ import { readLocalStorageFlag, writeLocalStorage } from '@/kernel/utils/core/loc
  */
 import { probeDeviceProfile } from '@/kernel/utils/perf/adaptive-perf.util'
 import { clearAutoPerformanceMode, setAutoPerformanceMode } from '@/kernel/utils/perf/runtime-perf-mode.util'
-import { getWorkerDerivedThreshold } from '@/kernel/utils/config/frontend-config'
+import { getWorkerDerivedThreshold } from '@/kernel/config/frontend-config'
 
 const USER_SET_KEY = 'homeos:performanceMode:userSet'
 

@@ -71,7 +71,7 @@
 
 <script setup lang="ts">
 import { toRefs } from 'vue'
-import { useNotificationsViewAnalytics } from '../composables/useNotificationsViewAnalytics'
+import { useNotificationsViewAnalytics } from '../composables/use-notifications-view-analytics'
 import { formatPercent } from '@/features/notifications/model/utils/analytics.util'
 import type {
   NotificationAnalyticsSummary,
@@ -110,5 +110,5 @@ const { bindSourceChart, bindLevelChart, bindRankChart, bindTimeChart, bindReadC
   })
 </script>
 
-<style src="@/app/styles/list-page-analytics.css"></style>
+<style src="@/kernel/ui/list-page/styles/list-page-analytics.css"></style>
 <style scoped src="../styles/view-analytics.css"></style>

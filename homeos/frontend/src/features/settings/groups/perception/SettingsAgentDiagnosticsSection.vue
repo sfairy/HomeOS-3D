@@ -73,7 +73,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { Activity } from '@lucide/vue'
-import HosSelect from '@/kernel/ui/primitives/HosSelect.vue'
+import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
 import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
 import SettingsCardIntro from '@/features/settings/components/shell/SettingsCardIntro.vue'
 import { getApiErrorMessage } from '@/kernel/utils/core/error-message'

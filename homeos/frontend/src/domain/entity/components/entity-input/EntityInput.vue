@@ -64,7 +64,7 @@
 /** - 输入框 + 自动补全下拉（支持域过滤、分组、虚拟滚动）； */
 import { ref } from 'vue'
 import { X } from '@lucide/vue'
-import { useEntityInput } from '@/domain/entity/composables/useEntityInput'
+import { useEntityInput } from '@/domain/entity/composables/use-entity-input'
 import EntityInputDropdown from '@/domain/entity/components/entity-input/EntityInputDropdown.vue'
 import './index.css'
 

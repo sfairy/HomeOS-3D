@@ -1,6 +1,6 @@
 /** - 管理 IndexedDB 数据库（homeos_entity_cache）的打开、升级与修复。 */
 import type { EntityCacheAccessUser, EntityCacheSnapshot, HaEntityState } from '@/kernel/types/entity-store'
-import { getFrontendConfig } from '@/kernel/utils/config/frontend-config'
+import { getFrontendConfig } from '@/kernel/config/frontend-config'
 import { logger } from '@/kernel/utils/core/logger'
 
 const DB_NAME = 'homeos_entity_cache'

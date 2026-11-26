@@ -25,7 +25,7 @@ import { computed, provide, watchEffect } from 'vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { resolveEntityPopupComponent } from '@/features/entity/components/popup-registry'
 import { getEntityPopupProps } from '@/domain/entity/model/utils/popup-registry.util'
-import { useShellTeleportTarget } from '@/app/shell/composables/useShellTeleportTarget'
+import { useShellTeleportTarget } from '@/kernel/ui/shell/use-shell-teleport-target'
 
 /**
  * 组件 Props 定义

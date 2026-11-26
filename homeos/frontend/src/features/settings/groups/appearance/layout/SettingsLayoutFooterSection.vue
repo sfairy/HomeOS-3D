@@ -353,18 +353,18 @@
 </template>
 
 <script setup>
-import HosSelect from '@/kernel/ui/primitives/HosSelect.vue'
+import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
 import { computed } from 'vue'
 import { PanelBottom, Eye, EyeOff, Plus, Sparkles, RotateCcw, Trash2, Type, Database, Radio } from '@lucide/vue'
 import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
 import SettingsCardIntro from '@/features/settings/components/shell/SettingsCardIntro.vue'
 import SettingsOrchTabs from '@/features/settings/components/SettingsOrchTabs.vue'
 import EntityInput from '@/domain/entity/components/entity-input/EntityInput.vue'
-import FooterIconPicker from '@/kernel/ui/FooterIconPicker.vue'
+import FooterIconPicker from '@/features/settings/components/FooterIconPicker.vue'
 import FooterColorPicker from './FooterColorPicker.vue'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { resolveFooterItemValue } from '@/app/shell/composables/useDashboardFooter'
+import { resolveFooterItemValue } from '@/app/shell/composables/use-dashboard-footer'
 import {
   normalizeDashboardFooter,
   resolveFooterItemLabel,

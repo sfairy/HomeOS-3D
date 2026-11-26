@@ -10,7 +10,7 @@
 /** composables：浮动小组件与浮动面板展示 */
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
-import type { FloatingWidget, UILayoutConfig } from '@/domain/layout/types'
+import type { FloatingWidget, UILayoutConfig } from '@/kernel/types/layout'
 import { clampPct } from '@/kernel/utils/core/misc.util'
 export { clampPct }
 import { FLOATING_HUB_DEFAULT_TAB } from '@/kernel/utils/registry/floating-hub-tab-options'

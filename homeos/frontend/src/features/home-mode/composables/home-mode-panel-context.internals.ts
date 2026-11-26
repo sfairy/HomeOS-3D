@@ -9,7 +9,7 @@ import {
   fetchHomeModeTemplates,
   installHomeModePreset,
 } from '@/domain/api/home-modes'
-import { collectHaSceneScriptRecords } from '@/kernel/utils/ha/scene-script.util'
+import { collectHaSceneScriptRecords } from '@/domain/entity/model/utils/scene-script.util'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { fetchPresenceHome } from '@/domain/api/security'
 import { downloadBlob } from '@/kernel/utils/core/misc.util'
@@ -19,7 +19,7 @@ import { formatPresenceBadgeSummary } from '@/features/presence/model/utils/disp
 import type { Ref } from 'vue'
 import { computed, ref } from 'vue'
 import type { ActionTemplate } from './draft.internals'
-import type { useHomeModes } from './useHomeModes'
+import type { useHomeModes } from './use-home-modes'
 import type { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 
 type HomeModesApi = Pick<ReturnType<typeof useHomeModes>, 'modes' | 'fetchModes' | 'createMode'>

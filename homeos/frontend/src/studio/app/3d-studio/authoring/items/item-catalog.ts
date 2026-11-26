@@ -1,9 +1,9 @@
 /** 物品类型目录：类型 → 名称/字形/尺寸/离地/颜色的装配点，以及各类型集合。 */
 import { COLLECTION_ITEM_CATALOG, COLLECTION_ITEM_CATALOG_APPLIANCE_TYPES } from './collection-item-catalog'
-import { decorLightCatalog } from './catalog/decorLight'
+import { decorLightCatalog } from './catalog/decor-light'
 import { furnitureCatalog } from './catalog/furniture'
 import { gardenCatalog } from './catalog/garden'
-import { kitchenBathCatalog } from './catalog/kitchenBath'
+import { kitchenBathCatalog } from './catalog/kitchen-bath'
 
 /**
  * 全量物品目录。

@@ -48,7 +48,7 @@ import { computed, inject, ref, toRef, watch } from 'vue'
 import { Bell, X } from '@lucide/vue'
 import NotificationCenter from '@/features/notifications/components/widgets/NotificationCenter.vue'
 import { NOTIFICATION_CENTER_KEY } from '@/domain/widget/composables/notification-center.context'
-import { useShellTeleportTarget } from '@/app/shell/composables/useShellTeleportTarget'
+import { useShellTeleportTarget } from '@/kernel/ui/shell/use-shell-teleport-target'
 import { useFocusTrap } from '@/kernel/ui/hooks/use-focus-trap'
 
 const props = defineProps({

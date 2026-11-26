@@ -115,8 +115,8 @@
 <script setup>
 import { nextTick, onUnmounted, ref, watch } from 'vue'
 import { RefreshCw, Trash2, Radio, Search, AlertCircle, Terminal } from '@lucide/vue'
-import { useRuntimeLogs } from './useRuntimeLogs'
-import { useDiagnosticsSection } from './useDiagnosticsSection'
+import { useRuntimeLogs } from './use-runtime-logs'
+import { useDiagnosticsSection } from './use-diagnostics-section'
 
 const props = defineProps({
   active: { type: Boolean, default: true },

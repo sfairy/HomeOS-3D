@@ -5,7 +5,7 @@
 <script setup>
 import { Clock, Filter } from '@lucide/vue'
 
-import HosSelect from '@/kernel/ui/primitives/HosSelect.vue'
+import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
 import ListPageQueryToolbar from '@/kernel/ui/list-page/ListPageQueryToolbar.vue'
 
 defineProps({
