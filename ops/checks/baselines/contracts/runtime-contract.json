@@ -305,6 +305,18 @@
       "createSyncMarkers",
       "createUpdateDevicePanel"
     ],
+    "core/stage/view-camera.ts": [
+      "VIEW_CAMERA_MAX_DISTANCE",
+      "VIEW_CAMERA_MAX_POLAR",
+      "VIEW_CAMERA_MIN_DISTANCE",
+      "VIEW_CAMERA_MIN_POLAR",
+      "applyViewGestureIntent",
+      "cameraDistance",
+      "cameraOffset",
+      "panCamera",
+      "rotateCamera",
+      "zoomCamera"
+    ],
     "core/stage/weather-ground.ts": [
       "createWeatherGroundEmitter"
     ],
@@ -312,10 +324,21 @@
       "applyLabelConfigPatch",
       "createDeviceStateMemo",
       "createLabelConfigPatch",
+      "createMarkerStateIndex",
       "createStateUpdatePlan",
       "createStateUpdatePlanner",
       "labelPatchAffects",
       "lightBindingsForUpdate"
+    ],
+    "core/view-gestures.ts": [
+      "VIEW_GESTURE_DRAG_SLOP",
+      "VIEW_GESTURE_MIN_INTERVAL_MS",
+      "VIEW_GESTURE_PAN_SPEED",
+      "VIEW_GESTURE_PINCH_SLOP",
+      "VIEW_GESTURE_PINCH_WHEEL_ZOOM",
+      "VIEW_GESTURE_ROTATE_SPEED",
+      "VIEW_GESTURE_WHEEL_ZOOM",
+      "installViewGestures"
     ],
     "cover/cover-feedback.ts": [
       "coverEaseTangent",
@@ -336,6 +359,16 @@
       "mergeCoverMemoryEntries",
       "normalizeCoverMemoryEntry",
       "observeCoverMemoryState"
+    ],
+    "cover/cover-memory-travel.ts": [
+      "isAssumedState",
+      "mergeTravelState",
+      "nextTravelState",
+      "observedTimestamp",
+      "readLastState",
+      "readTravelPayload",
+      "supportedFeatureBits",
+      "travelDirectionOf"
     ],
     "cover/cover-panel.ts": [
       "createCoverPanel"

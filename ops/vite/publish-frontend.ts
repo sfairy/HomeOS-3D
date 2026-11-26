@@ -3,7 +3,7 @@
  *
  * 从 `homeos/frontend/vite.config.ts` 下沉到这里，原因有两个：
  *
- *   1. 那段逻辑与 Vite 配置无关，只依赖两个目录路径 —— 留在配置里让本已顶到 file-size 棘轮的
+ *   1. 那段逻辑与 Vite 配置无关，只依赖两个目录路径 —— 留在配置里会让本已很大的
  *      配置文件继续膨胀；
  *   2. sidecar 复用的正确性条件（逐字节相同 + mtime 口径一致）值得单独成文件写清楚，见
  *      `ops/vite/sidecar-reuse.ts`。

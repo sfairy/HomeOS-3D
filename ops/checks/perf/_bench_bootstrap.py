@@ -2,9 +2,9 @@
 
 为什么单独一个模块
 ------------------
-``bench_http.py`` 与 ``check_backend_hotpaths.py`` 都要做同一件事：把仓库根和
+``bench_http.py`` 与 ``ops/bench/run_bench.py`` 都要做同一件事：把仓库根和
 ``ops/bench`` 塞进 ``sys.path``，再 ``import _support``（百分位统计 / 夹具 / 基线读写）。
-两份各写一遍会被 ``check:duplicates`` 如实报出来 —— 基准/门禁自己长重复最没说服力。
+两份各写一遍会被 ``check:duplicates`` 如实报出来 —— 基准脚本自己长重复最没说服力。
 
 用法（两个脚本的 sys.path[0] 就是本目录，因此裸 import 即可）::
 

@@ -1,4 +1,22 @@
 {
+  "homeos-3d-studio": {
+    "file": "homeos-3d-studio.png",
+    "sha256": "0cffbf0b3cfaef10",
+    "width": 2448,
+    "height": 1620,
+    "maxDiffRatio": 0.02,
+    "path": "/3d-studio",
+    "base": "homeos"
+  },
+  "homeos-devices": {
+    "file": "homeos-devices.png",
+    "sha256": "c9466b62455f5aa8",
+    "width": 1600,
+    "height": 900,
+    "maxDiffRatio": 0.01,
+    "path": "/devices",
+    "base": "homeos"
+  },
   "auth-login": {
     "file": "auth-login.png",
     "sha256": "a08c98cc4d97c257",
@@ -17,6 +35,24 @@
     "path": "/register",
     "base": "homeos"
   },
+  "homeos-events": {
+    "file": "homeos-events.png",
+    "sha256": "019504eb7f904abb",
+    "width": 1600,
+    "height": 900,
+    "maxDiffRatio": 0.001,
+    "path": "/events",
+    "base": "homeos"
+  },
+  "homeos-settings-display": {
+    "file": "homeos-settings-display.png",
+    "sha256": "31ed60716fff56cf",
+    "width": 1600,
+    "height": 900,
+    "maxDiffRatio": 0.001,
+    "path": "/settings/display",
+    "base": "homeos"
+  },
   "store-home": {
     "file": "store-home.png",
     "sha256": "10abe15a90767436",
@@ -25,5 +61,14 @@
     "maxDiffRatio": 0.001,
     "path": "/",
     "base": "store"
+  },
+  "homeos-display": {
+    "file": "homeos-display.png",
+    "sha256": "cfaa4bdf953105d4",
+    "width": 2448,
+    "height": 1620,
+    "maxDiffRatio": 0.002,
+    "path": "/",
+    "base": "homeos"
   }
 }

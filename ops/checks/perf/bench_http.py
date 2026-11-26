@@ -32,11 +32,11 @@ node ops/lib/py.mjs ops/checks/perf/bench_http.py --update         # 录制基�
 node ops/lib/py.mjs ops/checks/perf/bench_http.py --check          # 与基线比对（容差 15%）
 ```
 
-基线文件：``ops/checks/baselines/perf/http-hotpaths.json``（与 ``backend-hotpaths.json`` 并列）。
+基线文件：``ops/checks/baselines/perf/http-hotpaths.json``。
 
 ## 判据：确定性项硬失败，耗时项默认只报
 
-与 ``check_backend_hotpaths.py`` 同一口径。**语句条数**（每条场景的 SELECT / 写入次数）
+**语句条数**（每条场景的 SELECT / 写入次数）
 在任何机器上完全一致，是最该拦住的一类回归（N+1、少一个索引导致的额外扫描）；
 **毫秒**在开发机与 CI 上会因宿主机负载差一倍以上，用它做硬门禁只会训练大家忽略红灯。
 

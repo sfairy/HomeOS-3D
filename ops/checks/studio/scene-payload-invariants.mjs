@@ -107,7 +107,32 @@ await build({
 const module = await import(`${outfile}?v=${Date.now()}`)
 fs.rmSync(outfile, { force: true })
 
+/**
+ * 第二入口：楼层文档净化（`normalizeStudioDocument`）。
+ *
+ * 0.8.9 新字段（`floorRegions` / `floorFinishTones` / `lightRegionOverrides`）
+ * 挂在**楼层文档**上而不是单层场景上，必须单独验证 —— 只测 `normalizeScenePayload`
+ * 看不到它们，正是「白名单漏一个字段 → 保存一次静默丢失」的高发位置。
+ */
+const DOCUMENT_ENTRY = path.join(
+  REPO_ROOT,
+  'homeos/frontend/src/studio/app/3d-studio/authoring/scene/payload/studio-document-payload.ts',
+)
+const documentOutfile = path.join(os.tmpdir(), `homeos-studio-document-${process.pid}.mjs`)
+await build({
+  entryPoints: [DOCUMENT_ENTRY],
+  bundle: true,
+  format: 'esm',
+  platform: 'neutral',
+  outfile: documentOutfile,
+  logLevel: 'silent',
+  plugins: [threeStubPlugin],
+})
+const documentModule = await import(`${documentOutfile}?v=${Date.now()}`)
+fs.rmSync(documentOutfile, { force: true })
+
 const { normalizeScenePayload, createStudioDocument } = module
+const { normalizeStudioDocument } = documentModule
 
 /**
  * 外部模型注册表的最小桩：归一化只用它查「这个物品类型对应哪个外部模型」，
@@ -245,6 +270,138 @@ check(
   JSON.stringify(preservedWindow?.windowDesign),
 )
 check('remark 被带过（漏掉即窗扇显示名丢失）', preservedWindow?.remark === '客厅窗')
+
+// ── 7b. 0.8.9 新字段：自定义装饰 / 地面分区 / 柔光范围 ──────────────────
+const decorationScene = normalize({
+  walls: [wall('w1', 0, 0, 4, 0)],
+  items: [
+    {
+      id: 'deco-1',
+      type: 'user-decoration',
+      assetId: '0123456789abcdef0123456789abcdef',
+      name: '落地花瓶',
+      modelScale: 999,
+      x: 1,
+      y: 1,
+    },
+    { id: 'deco-bad', type: 'user-decoration', assetId: 'not-a-hex-id', name: '坏模型', x: 2, y: 2 },
+  ],
+})
+const decorationItem = decorationScene.items.find((entry) => entry.id === 'deco-1')
+check(
+  'user-decoration 类型不被兜底成 table（漏掉即保存一次变普通桌子）',
+  decorationItem?.type === 'user-decoration',
+  String(decorationItem?.type),
+)
+check('装饰 assetId 被带过', decorationItem?.assetId === '0123456789abcdef0123456789abcdef')
+check('装饰展示名被带过', decorationItem?.name === '落地花瓶')
+check('装饰等比缩放被夹到 20 以内', decorationItem?.modelScale === 20, String(decorationItem?.modelScale))
+const badDecoration = decorationScene.items.find((entry) => entry.id === 'deco-bad')
+check(
+  '非法 assetId 的装饰被保留但资产置空（不整条丢弃）',
+  badDecoration?.assetId === '',
+  String(badDecoration?.assetId),
+)
+
+const documentSource = {
+  schemaVersion: 8,
+  activeFloorId: 'floor-a',
+  floors: [
+    {
+      id: 'floor-a',
+      name: '1层',
+      elevation: 0,
+      scene: { walls: [wall('w1', 0, 0, 4, 0)] },
+      floorRegions: [
+        {
+          id: 'region-1',
+          finish: 'wood',
+          outline: [
+            { x: 0, y: 0 },
+            { x: 4, y: 0 },
+            { x: 4, y: 3 },
+          ],
+        },
+        {
+          id: 'region-bad',
+          finish: 'wood',
+          outline: [
+            { x: 0, y: 0 },
+            { x: 1, y: 0 },
+          ],
+        },
+        {
+          id: 'region-2',
+          finish: 'nope',
+          outline: [
+            { x: 0, y: 0 },
+            { x: 4, y: 0 },
+            { x: 0, y: 3 },
+          ],
+        },
+      ],
+      floorFinishTones: { wood: 99, tile: -99 },
+    },
+  ],
+  lightRegionOverrides: {
+    sceneA: { 'region-key-1': { shape: 'circle', width: 99, heightMin: 8, heightMax: 2 } },
+    sceneEmpty: {},
+  },
+  lightRangeArchive: {
+    sceneA: [{ floorId: 'floor-a', itemId: 'lamp-1', previous: { shape: 'square', depth: 3 }, at: 1 }],
+  },
+}
+const normalizedDocument = normalizeStudioDocument(documentSource, {
+  externalModelRegistry: registryStub,
+  studioProject: { defaultFloorHeight: 3 },
+})
+const normalizedFloor = normalizedDocument.floors[0]
+check(
+  'floorRegions 被带过（漏掉即保存一次全部铺面丢失）',
+  normalizedFloor?.floorRegions?.length === 2,
+  String(normalizedFloor?.floorRegions?.length),
+)
+check(
+  '合法分区保留铺面类型',
+  normalizedFloor?.floorRegions?.[0]?.finish === 'wood',
+  String(normalizedFloor?.floorRegions?.[0]?.finish),
+)
+check(
+  '非法铺面回落到 theme',
+  normalizedFloor?.floorRegions?.[1]?.finish === 'theme',
+  String(normalizedFloor?.floorRegions?.[1]?.finish),
+)
+check('不足 3 点的退化分区被丢弃', !normalizedFloor?.floorRegions?.some((region) => region.id === 'region-bad'))
+check(
+  'floorFinishTones 被夹到 ±5',
+  normalizedFloor?.floorFinishTones?.wood === 5 && normalizedFloor?.floorFinishTones?.tile === -5,
+  JSON.stringify(normalizedFloor?.floorFinishTones),
+)
+check(
+  'lightRegionOverrides 按场景保留',
+  normalizedDocument?.lightRegionOverrides?.sceneA?.['region-key-1']?.width === 20,
+  JSON.stringify(normalizedDocument?.lightRegionOverrides?.sceneA?.['region-key-1']),
+)
+check(
+  'heightMax 被抬到不低于 heightMin',
+  normalizedDocument?.lightRegionOverrides?.sceneA?.['region-key-1']?.heightMax === 8,
+  String(normalizedDocument?.lightRegionOverrides?.sceneA?.['region-key-1']?.heightMax),
+)
+check('空场景的柔光表被丢弃（不堆空对象）', !('sceneEmpty' in (normalizedDocument?.lightRegionOverrides ?? {})))
+check(
+  'lightRangeArchive 被带过',
+  normalizedDocument?.lightRangeArchive?.sceneA?.[0]?.itemId === 'lamp-1',
+  JSON.stringify(normalizedDocument?.lightRangeArchive?.sceneA),
+)
+const documentSecondPass = normalizeStudioDocument(normalizedDocument, {
+  externalModelRegistry: registryStub,
+  studioProject: { defaultFloorHeight: 3 },
+})
+check(
+  '楼层文档归一化幂等（含新字段）',
+  JSON.stringify(documentSecondPass) === JSON.stringify(normalizedDocument),
+  '第二次归一化改变了字节，说明新字段在归一化中不稳定',
+)
 
 // ── 8. 可序列化 ─────────────────────────────────────────────────────────
 const serialized = JSON.stringify(firstPass)

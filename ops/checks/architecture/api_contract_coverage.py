@@ -15,7 +15,7 @@
 - `response_model` = 装饰器/`add_api_route` 显式传了 `response_model=`；
 - `status_code` = 显式传了 `status_code=`（不传时 FastAPI 默认 200，属于「未声明」）。
 
-棘轮语义（与 `check_complexity.py` / `check_frontend_complexity.mjs` 一致）
+棘轮语义（与 `frontend_route_coverage.py` 一致）
 --------------------------------------------------------------------------
 基线记录**逐文件**的 `operations` / `response_model` / `status_code`。任一文件的
 `response_model` 或 `status_code` 计数下降即失败；总数下降也失败。新增文件不设门槛

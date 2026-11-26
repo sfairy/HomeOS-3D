@@ -101,7 +101,7 @@ export function assertSpaShellPresent(outDir: string, hint: string): void {
 /**
  * 剥掉 CSS 注释，保留字符串里的内容与 `/*!` 许可声明。
  *
- * 原先写在 `homeos/frontend/vite.config.ts` 里（那里己顶到 file-size 基线），但它是纯文本
+ * 原先写在 `homeos/frontend/vite.config.ts` 里（那里已经很大），但它是纯文本
  * 变换、不依赖任何构建配置，所以下沉到这里。`public/static` 下的 .css 是手写文档，注释占
  * 首屏样式体积的 ~39%（gzip）：例如 fonts.css 的字体策略说明、scene.css 的分区注释。这些
  * 注释只在源码里有用；而 `/*!` 是第三方资产常见的许可声明，必须原样保留，否则会把许可

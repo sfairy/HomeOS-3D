@@ -3,11 +3,10 @@
  *
  * 为什么抽出这一层
  * ---------------
- * `check_any_baseline` / `check_alias_ratchet` / `check_frontend_complexity` /
- * `check_hardcoded_styles` / `ui_overflow_ratchet` / `check_perf_ratchet` 六条棘轮各自抄了
+ * `check_alias_ratchet` / `check_perf_ratchet` / `check_offline_counting` 等棘轮各自抄了
  * 一遍「遍历 → 逐文件计数 → 读基线 → 比变多 → 打印」。每加一条新棘轮就再抄一遍，结果是
  * 门禁代码自己成了重复代码（`check:duplicates` 会如实报出来）；更实际的问题是**每个脚本
- * 都重新遍历一次同一个源码树**，8 个前端检查加起来对 1974 个 ts/vue 走了 8 遍。
+ * 都重新遍历一次同一个源码树**，多条前端检查加起来对近 2000 个 ts/vue 反复走了多遍。
  *
  * 现在：
  * - `createContext()` 提供**按进程缓存**的 `walk` / `text`，批量入口里所有模块共用一份；
@@ -215,8 +214,8 @@ export function report(result, { json = false } = {}) {
 /**
  * 声明式棘轮：把「update 分支 / 读基线 / 逐文件比对 / 结果对象」这段骨架收成一处。
  *
- * 为什么需要它：`check_frontend_complexity` / `check_hardcoded_styles` / `check_any_baseline` /
- * `check_alias_ratchet` 的 `audit()` 骨架逐字相同，只有指标名与提示语不同 —— 这正是
+ * 为什么需要它：`check_alias_ratchet` / `check_perf_ratchet` 的 `audit()` 骨架逐字相同，
+ * 只有指标名与提示语不同 —— 这正是
  * `check:duplicates` 会抓的 15 行克隆。抽出后每条棘轮只剩「怎么数」与「怎么表述」。
  *
  * @param {{
@@ -283,7 +282,7 @@ export function singleMetric(counts, metric = 'count') {
 /**
  * 构造单跑入口：解析 `--update` / `--json`，跑 `audit`，打印并返回退出码。
  *
- * 为什么抽出来：六条棘轮的 CLI 尾巴逐字相同（`--update` → 打印摘要 → 否则 `report()`），
+ * 为什么抽出来：各棘轮的 CLI 尾巴逐字相同（`--update` → 打印摘要 → 否则 `report()`），
  * 各写一份只会在 `check:duplicates` 里变成一堆同构克隆。
  *
  * @param {(ctx: object, options: object) => object} audit

@@ -153,8 +153,8 @@ HomeOS/
 - 外壳统一 `SettingsPageShell`（页头 + actions + 单/双列 `layout`）+ `SettingsCard`；
 - 卡片开头优先用 `SettingsCardIntro`（图标球 + 眉标 + 标题 + 说明；已有 20 处采用，新面板照抄即可）；
 - 按钮只用 `settings-btn-accent / settings-btn-ghost`（紧凑档加 `settings-btn--sm`），高度取 `--control-height-*`；
-- 颜色 / 时长只用 `--hos-*` / `--set-*` 令牌（`check:styles` 拦硬编码 hex 与裸秒数）；
-- 断点用 `@container hos-canvas`，不写窗口 `@media`（`check:canvas-breakpoints` 拦）。
+- 颜色 / 时长只用 `--hos-*` / `--set-*` 令牌（约定，不再由门禁逐字面量扫描）；
+- 断点用 `@container hos-canvas`，不写窗口 `@media`（约定，同上）。
 
 开机氛围（原「素材库」入口已并入此处，不再有独立 Tab）：
 
@@ -240,10 +240,10 @@ static 的步骤按**标签**分六类（`--list` 按此打印，`--tag` 可整�
 
 | 入口 | 子检查 | 合并收益 |
 | --- | --- | --- |
-| `check:frontend` | 10 | 1974 个 ts/vue 只遍历一次；复杂度与受限写法共用同一份 `SourceFile` |
-| `check:backend` | 7 | 694 个 `.py` 只 `ast.parse` 一次（此前每条都重解析）；`guards` / `parity` 各收三条 |
+| `check:frontend` | 4 | 1974 个 ts/vue 只遍历一次；别名 / 性能 / 离线计数 / 受限写法共用同一份 `SourceFile` |
+| `check:backend` | 6 | 694 个 `.py` 只 `ast.parse` 一次（此前每条都重解析）；`guards` / `parity` 各收三条 |
 | `check:contracts` | 6 | 后端应用只导入一次；覆盖率检查复用前两条算出的路由表；`parity` 收两张跨语言表 |
-| `check:size` | 4 | 行数只由 `check:file-size` 判，`check:giant-files` 只判扇出（imports / deps） |
+| `check:size` | 2 | 只剩代码量与重复代码两条棘轮；文件行数 / 巨型文件扇出改手动审计，不设门禁口径 |
 | `check:tests` | 3 | 三类断言一个步骤，失败仍按模块定位 |
 | `check:studio-invariants` | 7 | 八条不变量里画布两条合成一条（同一份 `canvas-layout.util.ts`） |
 | `check:model-assets` | 4 | 四条 GLB 只读审计 |
@@ -275,9 +275,18 @@ node ops/gates.mjs --list --json          # 机器可读（含 covers）
 默认并行 4（`--jobs` / `HOMEOS_GATE_JOBS` 可改）；`build` / `infra` 有组内先后依赖，恒为串行。
 并行模式下通过的步骤只留一行结果，失败才展开完整输出。缺工具本机 SKIP、CI 失败。
 
-棘轮（`any` / 重复代码 / 代码量 / 样式 / 复杂度 / 文件体积）只许降。`update:<同名>(-baseline)` 是放宽手段，
-必须在提交说明里写清为什么（拆文件导致的平移要说明「总量不变」）。基线统一放在
-`ops/checks/baselines/{frontend,backend,contracts,size,model}/`。
+仍保留的棘轮只守**语义**：重复代码、代码量、接口覆盖（路由 / `response_model` / 状态码）。
+`update:<同名>(-baseline)` 是放宽手段，必须在提交说明里写清为什么（拆文件导致的平移要说明
+「总量不变」）。基线统一放在 `ops/checks/baselines/{frontend,backend,contracts,size,model}/`。
+
+已删除的门禁（连同脚本、基线、`package.json` 条目）：`any` 计数、前端 / 后端函数复杂度、
+硬编码样式、UI 溢出、CSS 重复、CSS 令牌、画布断点、Studio 拆分预算、0.8.9 对齐、
+后端热点字节预算、bundle 体积预算。它们共同的问题是把「代码长什么样」固化成数字门槛，
+而数字只能靠不断重录基线维持 —— 与「不设巨型文件定义」是同一条原则。
+
+**不设「巨型文件」定义**：`audit:file-size`（行数）与 `audit:giant-files`（imports / deps 扇出）
+是手动审计入口，只在需要取证或评估拆分时运行；它们都带一个默认筛选门槛，但那是报告参数，
+不是门禁标准，也不参与 CI / `pre-push`。
 
 `check:toolchain` 守三条「写了两遍以上」的版本线，任何一处漂移都不影响编译、只会在换机或发版时才炸：
 
@@ -361,9 +370,9 @@ bfcache 交接在 `shared/utils/page-cache-lifecycle.ts`：`pagehide(persisted)`
 - 每 id 两文件：`<中文名>-lite.glb`（首选）、`<中文名>.glb`（兜底）。
 - 磁盘中文名、代码英文 id；映射在 `model-asset-folders.ts` + `model-file-names.generated.ts`。
 - `MODEL-NAMES.md` 由 `bun run index:model-names` 生成。
-- 物品模型 14 族 / 59 类型分支（`item-model/`），族序不可重排（`check:studio-split` 守）；
-  分支条件与分支体的逐条哈希比对降级为手动 `audit:item-model`，因为 `items/` 目录仍在持续改动，
-  把它放进门禁只会训练出「红了就重写基线」。
+- 物品模型 14 族 / 59 类型分支（`item-model/`），族序即命中优先级，重排前先确认没有交叠条件；
+  分支级哈希比对是手动 `audit:item-model`（`items/` 目录仍在持续改动，放进日常门禁只会训练出
+  「红了就重写基线」）。
 - vendor：three 0.187.0、hls.js 1.7.4、meshoptimizer 0.25、mdi 7.4.47、meteocons。
 
 新增模型：`model-asset-folders.ts` 登记 id → 放两个 GLB → `StudioView.vue` 加 `data-library-name` 卡片 → `index:model-names` → `gate:model`。
@@ -388,7 +397,7 @@ bfcache 交接在 `shared/utils/page-cache-lifecycle.ts`：`pagehide(persisted)`
 | `check:model-index` | 目录布局 + 中文名索引（`--module` 可单跑） |
 | `audit:materials` | 写材质报告（不判定；判定在 `check:model-assets`） |
 | `organize:models` / `index:model-names` | 迁移目录 / 生成索引（生成物，需提交） |
-| `check:studio-split` | 拆分预算（`static` 组）；分支级哈希为手动 `audit:item-model` |
+| `audit:item-model` | 手动：分支级哈希比对（不在门禁里） |
 | `rebuild:items` | 按配方重建精修件 |
 
 无 `repair:*` 层。模型坏了用 `audit:*` 定位后重导出或 `rebuild:items`。

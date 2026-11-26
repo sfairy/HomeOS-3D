@@ -33,7 +33,7 @@
   字面量出现在该文件里（`adminApi(`/orders/${no}/${action}`)` + `runAction(order, "refund", ...)`）。
   这类路由算「已接线」但会在报告里单列，提示把 action 写成字面量。
 
-棘轮语义（与 `check_complexity.py` / `api_contract_coverage.py` 一致）
+棘轮语义（与 `api_contract_coverage.py` 一致）
 --------------------------------------------------------------------
 基线把路由分成两档，两档都是**显式登记**：
 

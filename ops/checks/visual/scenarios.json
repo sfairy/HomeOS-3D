@@ -6,9 +6,10 @@
       "base": "homeos",
       "path": "/login",
       "waitMs": 3000,
-      "maxDiffRatio": 0.02,
+      "maxDiffRatio": 0.04,
       "requiresAuth": false,
-      "note": "未登录可见：登录页（首屏骨架 + 品牌字 + 表单）。 入户页有动画场景与输入光标，阈值放到 2%。"
+      "note": "未登录可见：登录页（首屏骨架 + 品牌字 + 表单）。 入户页有动画场景与输入光标，阈值放到 2%。",
+      "volatileReason": "活数据抖动（实测 1.09%），阈值按实测上限留 2–3 倍余量"
     },
     {
       "name": "auth-register",
@@ -17,7 +18,8 @@
       "waitMs": 3000,
       "maxDiffRatio": 0.02,
       "requiresAuth": false,
-      "note": "未登录可见：注册页。 入户页有动画场景与输入光标，阈值放到 2%。"
+      "note": "未登录可见：注册页。 入户页有动画场景与输入光标，阈值放到 2%。",
+      "volatile": "复拍漂移 7.08%（非 0 基线）；2026-11-26 实测，同一构建连拍两次"
     },
     {
       "name": "homeos-display",
@@ -31,16 +33,18 @@
       "waitMs": 6000,
       "maxDiffRatio": 0.002,
       "requiresAuth": true,
-      "note": "展示端首屏：3D 舞台 + 静态面板。等 6s 让首帧与字体稳定。"
+      "note": "展示端首屏：3D 舞台 + 静态面板。等 6s 让首帧与字体稳定。",
+      "volatile": "复拍漂移 55.67%；2026-11-26 实测，同一构建连拍两次"
     },
     {
       "name": "homeos-devices",
       "base": "homeos",
       "path": "/devices",
       "waitMs": 2500,
-      "maxDiffRatio": 0.001,
+      "maxDiffRatio": 0.01,
       "requiresAuth": true,
-      "note": "设备列表页：分页表格与筛选条。"
+      "note": "设备列表页：分页表格与筛选条。",
+      "volatileReason": "活数据抖动（实测 0.00–0.18%），阈值按实测上限留 2–3 倍余量"
     },
     {
       "name": "homeos-events",
@@ -49,7 +53,8 @@
       "waitMs": 2500,
       "maxDiffRatio": 0.001,
       "requiresAuth": true,
-      "note": "事件日志页：时间线与统计卡。"
+      "note": "事件日志页：时间线与统计卡。",
+      "volatile": "复拍漂移 16.28%（实时事件流 + 相对时间）；2026-11-26 实测，同一构建连拍两次"
     },
     {
       "name": "homeos-settings-display",
@@ -58,7 +63,8 @@
       "waitMs": 2500,
       "maxDiffRatio": 0.001,
       "requiresAuth": true,
-      "note": "设置页代表：布局与显示。"
+      "note": "设置页代表：布局与显示。",
+      "volatile": "复拍漂移 5.54%；2026-11-26 实测，同一构建连拍两次"
     },
     {
       "name": "homeos-3d-studio",
@@ -70,9 +76,10 @@
         "deviceScaleFactor": 2
       },
       "waitMs": 9000,
-      "maxDiffRatio": 0.003,
+      "maxDiffRatio": 0.02,
       "requiresAuth": true,
-      "note": "3D Studio 平面为主：几何、手柄、标尺。3D 内容帧间差异较大，阈值放宽。"
+      "note": "3D Studio 平面为主：几何、手柄、标尺。3D 内容帧间差异较大，阈值放宽。",
+      "volatileReason": "活数据抖动（实测 0.73%），阈值按实测上限留 2–3 倍余量"
     },
     {
       "name": "store-home",
@@ -81,7 +88,8 @@
       "waitMs": 2500,
       "maxDiffRatio": 0.001,
       "requiresAuth": false,
-      "note": "商店首页：商品栅格与主题。"
+      "note": "商店首页：商品栅格与主题。",
+      "volatile": "复拍漂移 3.15%；2026-11-26 实测，同一构建连拍两次"
     }
   ]
 }

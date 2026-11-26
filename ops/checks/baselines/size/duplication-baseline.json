@@ -23,12 +23,12 @@
     "ops"
   ],
   "totals": {
-    "sources": 3668,
-    "lines": 716390,
+    "sources": 3789,
+    "lines": 739558,
     "clones": 153,
-    "duplicatedLines": 2553,
-    "percentage": 0.3564,
-    "tokens": 4190708,
+    "duplicatedLines": 2552,
+    "percentage": 0.3451,
+    "tokens": 4321277,
     "duplicatedTokens": 12385
   },
   "byFormat": {
@@ -41,35 +41,35 @@
     },
     "html": {
       "sources": 415,
-      "lines": 28366,
+      "lines": 28450,
       "duplicatedLines": 275,
-      "percentage": 0.9695,
+      "percentage": 0.9666,
       "clones": 20
     },
     "javascript": {
-      "sources": 310,
-      "lines": 44755,
+      "sources": 316,
+      "lines": 46847,
       "duplicatedLines": 161,
-      "percentage": 0.3597,
+      "percentage": 0.3437,
       "clones": 11
     },
     "python": {
-      "sources": 735,
-      "lines": 177069,
+      "sources": 768,
+      "lines": 183879,
       "duplicatedLines": 490,
-      "percentage": 0.2767,
+      "percentage": 0.2665,
       "clones": 37
     },
     "typescript": {
-      "sources": 1746,
-      "lines": 375598,
-      "duplicatedLines": 1627,
-      "percentage": 0.4332,
+      "sources": 1828,
+      "lines": 389480,
+      "duplicatedLines": 1626,
+      "percentage": 0.4175,
       "clones": 85
     },
     "vue": {
       "sources": 424,
-      "lines": 87211,
+      "lines": 87511,
       "duplicatedLines": 0,
       "percentage": 0,
       "clones": 0
@@ -497,12 +497,6 @@
       "lines": 14
     },
     {
-      "fingerprint": "7e664c39cd3f9ea1ed6834d671d86b5df2c9ce95",
-      "first": "homeos/frontend/src/studio/runtime/config-ui/config-editor/rendering/panel-assembly.ts",
-      "second": "homeos/frontend/src/studio/runtime/config-ui/config-editor/rendering/panel-assembly.ts",
-      "lines": 14
-    },
-    {
       "fingerprint": "7ec66c5a15fc8a571fa84ab69a742274de814f56",
       "first": "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/export/export-presets.ts",
       "second": "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/camera-frames.ts",
@@ -813,6 +807,12 @@
       "first": "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/boot.ts",
       "second": "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/studio-render-loop.ts",
       "lines": 51
+    },
+    {
+      "fingerprint": "cc3a31a512c5c1a4818bd6b6ccf53aa842ce00ff",
+      "first": "homeos/frontend/src/studio/runtime/config-ui/config-editor/rendering/panel-assembly.ts",
+      "second": "homeos/frontend/src/studio/runtime/config-ui/config-editor/rendering/panel-assembly.ts",
+      "lines": 13
     },
     {
       "fingerprint": "d516c059c8c31ec727fa6586a263b3743d431ef7",

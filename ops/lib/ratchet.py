@@ -46,7 +46,7 @@ ScanResult = tuple[dict[str, list[int]], int]
 def resolve_ruff(repo_root: Path) -> str:
     """定位 ruff：`RUFF` 环境变量 → PATH → 共享 venv。
 
-    为什么放在共享库：`check_complexity` 与 `check_python_format` 都需要它，两处各抄一份
+    为什么放在共享库：`check_python_format` 与 `check_guards` 都需要它，两处各抄一份
     10 行只会在 `check:duplicates` 里变成克隆。优先级顺序也是仓内约定（先尊重显式覆盖，
     再让 CI 用 PATH 里的，最后才回落到本机 venv）。
     """

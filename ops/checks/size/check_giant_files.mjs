@@ -1,11 +1,17 @@
 #!/usr/bin/env node
 /**
- * 巨型文件「耦合度」度量与棘轮（只读判定，只许下降）。
+ * 大文件「耦合度」度量（只读，手动入口）。
+ *
+ * 这不是门禁
+ * ----------
+ * 「多少行算巨型文件」是项目取舍，不是能由门禁固化的客观阈值。这条脚本因此不再进
+ * `gate:*` / `pre-push`，只保留为手动审计 `audit:giant-files`：拆分前评估「先搬哪个
+ * 文件、要先收哪些依赖」时运行。`--min-lines` 只是**报告的筛选参数**，不是项目定义。
  *
  * 为什么不能只看行数
  * -----------------
- * `check:file-size` 已经在守「文件不能再变长」，但行数不是拆不动的真正原因。实测三个
- * 巨型编排文件（`studio-app/boot.ts` 4199 / `editor/home/lifecycle/boot.ts` 4917 /
+ * `audit:file-size` 还能给出单文件行数，但行数不是拆不动的真正原因。实测三个
+ * 大编排文件（`studio-app/boot.ts` 4199 / `editor/home/lifecycle/boot.ts` 4917 /
  * `runtime/core/stage.ts` 4866）里，真正的障碍是**扇出**：
  *
  * - `studio-app/boot.ts` 有 16 组 `xxx(...args)` → `xxxImpl(...args, xxxDeps())` 包装，
@@ -23,14 +29,15 @@
  * - `depsFns`：`function xxxDeps()` 数量（依赖注入包装层）；
  * - `depsEntries`：这些 `xxxDeps()` 里列出的依赖条目总数（真正的耦合强度）。
  *
- * 棘轮只看「变多」：任一文件任一指标超过基线即失败。减少不失败，但应 `--update` 压低。
+ * 手动审计只看「变多」：任一文件任一指标超过基线即报出。减少则鼓励 `--update` 压低。
  *
  * 用法
  * ----
- *   node ops/checks/check_giant_files.mjs            # 校验
- *   node ops/checks/check_giant_files.mjs --update   # 重写基线
- *   node ops/checks/check_giant_files.mjs --report   # 只打印度量表（不判定）
- *   node ops/checks/check_giant_files.mjs --json
+ *   bun run audit:giant-files                     # 对比基线
+ *   bun run audit:giant-files -- --update         # 重写基线
+ *   bun run audit:giant-files -- --report         # 只打印度量表（不判定）
+ *   bun run audit:giant-files -- --json
+ *   bun run audit:giant-files -- --min-lines 800  # 改报告筛选门槛（不是项目定义）
  */
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
@@ -43,7 +50,9 @@ const { has, repoRoot, value } = parseArgs()
 const update = has('update')
 const asJson = has('json')
 const report = has('report')
-const minLines = Number(value('min-lines', '1500'))
+// 报告筛选门槛：只统计 ≥ 3000 行的文件。和 `check_file_size.py` 用同一个默认值只是
+// 为了让两份手写报告能对照，**不是**「巨型文件」的项目定义。
+const minLines = Number(value('min-lines', '3000'))
 const BASELINE = join(repoRoot, 'ops/checks/baselines/size/giant-files-baseline.json')
 const ROOTS = ['homeos/frontend/src', 'homeos-store/frontend/src', 'homeos/backend/src', 'homeos-store/backend/src']
 const EXTENSIONS = new Set(['.ts', '.vue', '.py'])
@@ -94,7 +103,7 @@ function main() {
   if (update) {
     writeFileSync(BASELINE, `${JSON.stringify({ minLines, totals, files: counts }, null, 2)}\n`, 'utf8')
     console.log(
-      `巨型文件基线已更新：${Object.keys(counts).length} 个文件，lines=${totals.lines} ` +
+      `大文件基线已更新：${Object.keys(counts).length} 个文件，lines=${totals.lines} ` +
         `depsEntries=${totals.depsEntries}`,
     )
     return 0
@@ -103,7 +112,7 @@ function main() {
   const ranked = Object.entries(counts).sort((a, b) => b[1].depsEntries - a[1].depsEntries)
 
   if (report) {
-    console.log(`巨型文件耦合度量（≥ ${minLines} 行，共 ${ranked.length} 个）`)
+    console.log(`大文件耦合度量（≥ ${minLines} 行，共 ${ranked.length} 个，仅作参考口径）`)
     console.log('  depsEntries  depsFns  imports    lines  file')
     for (const [file, found] of ranked.slice(0, 15)) {
       console.log(
@@ -118,13 +127,13 @@ function main() {
   try {
     baseline = JSON.parse(readFileSync(BASELINE, 'utf8'))
   } catch (error) {
-    console.error(`巨型文件棘轮：读不到基线（${error.message}）。首次启用请先跑 --update。`)
+    console.error(`大文件审计：读不到基线（${error.message}）。首次启用请先跑 --update。`)
     return 2
   }
 
   const baselineFiles = baseline.files || {}
-  // 行数不参与判定：`check:file-size` 已经是行数的唯一棘轮，两处都判会让「拆一半」既
-  // 触发 file-size 又触发这里，报错重复且口径容易漂移。这里只守**扇出**。
+  // 行数不参与判定：`audit:file-size` 已单独给出行数，两处都判会让同一处新增被报两次。
+  // 这里只看**扇出**。
   const JUDGED = ['imports', 'depsFns', 'depsEntries']
   const problems = []
   for (const [file, found] of Object.entries(counts).sort()) {
@@ -147,13 +156,13 @@ function main() {
   if (asJson) {
     console.log(JSON.stringify({ totals, violations: problems }, null, 2))
   } else if (problems.length > 0) {
-    console.error(`巨型文件棘轮失败：${problems.length} 项变多`)
+    console.error(`大文件审计：${problems.length} 项变多`)
     for (const line of problems) console.error(`  - ${line}`)
-    console.error('  说明：行数已由 check:file-size 守；这里守的是**扇出**（imports / deps）。')
+    console.error('  说明：行数由 audit:file-size 单独报告；这里只看**扇出**（imports / deps）。')
     console.error('  拆分应先收依赖再搬代码，拆完跑 --update 压低基线（只该下降）。')
   } else {
     console.log(
-      `巨型文件棘轮通过：${Object.keys(counts).length} 个文件，` +
+      `大文件审计通过：${Object.keys(counts).length} 个文件，` +
         `lines=${totals.lines} depsEntries=${totals.depsEntries} imports=${totals.imports}`,
     )
     for (const [file, found] of ranked.slice(0, 5)) {

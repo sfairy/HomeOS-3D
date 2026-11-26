@@ -32,6 +32,7 @@ if str(ROOT) not in sys.path:
 
 from homeos.backend.src.domains.backup.business_backup import _data_files
 from homeos.backend.src.domains.backup.scope import (
+    BACKUP_ROOTS,
     EXCLUDED_DB_TABLES,
     EXCLUDED_TOP_DIRS,
     MAX_EXPANDED,
@@ -72,6 +73,23 @@ def test_exclusions() -> None:
     check("不误排 studio3d", not is_excluded("studio3d/a.json"))
     for table in ("event_logs", "agent_context_timeline", "agent_task_execution_logs", "sessions"):
         check(f"清表含 {table}", table in EXCLUDED_DB_TABLES)
+    # 0.8.9：派生图片缓存必须排除，否则备份凭空多出上百 MB
+    check(
+        "排除 display-images 缓存",
+        is_excluded("modules/interaction3d/display-images/abc.webp"),
+    )
+    check(
+        "排除 render-cache",
+        is_excluded("modules/interaction3d/render-cache/x.bin"),
+    )
+    # 0.8.9：装饰模型必须**进**包 —— 换机后自定义装饰要还在
+    for required in (
+        "modules/interaction3d/models",
+        "modules/interaction3d/scenes",
+        "modules/interaction3d/cover-memory",
+    ):
+        check(f"备份根含 {required}", required in BACKUP_ROOTS)
+        check(f"不误排 {required}", not is_excluded(f"{required}/x"))
 
 
 def test_data_files_skip_backups() -> None:

@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
-"""文件规模棘轮（只读，纯标准库）。
+"""文件行数审计（只读，纯标准库，手动入口）。
 
-为什么需要它
-------------
-仓库里已经有 `check_complexity.py`（函数圈复杂度 / 长度）与
-`check_frontend_complexity.mjs`（TS/Vue 函数复杂度），但**没有一条门禁在看「文件有多长」**。
-于是「再往这个 5,278 行的编排宿主里加 40 行」永远不会触发任何红灯 —— 而这正是
-`boot.ts` / `stage.ts` / `orders.py` 长到今天的路径：每一次增量都小到不值得评审，
-累积起来却让单文件无法被任何人完整读完。
+这不是门禁
+----------
+「多少行算巨型文件」是一个项目取舍，不是能由门禁固化的客观阈值。这条脚本因此不再
+进 `gate:*` / `pre-push`，只保留为手动审计 `audit:file-size`：需要取证、评估拆分收益
+或对比拆分前后体量时运行。默认门槛只是**审计的筛选参数**，
+不代表项目对「巨型文件」给出了定义。
 
 口径
 ----
@@ -15,22 +14,22 @@
 - 只统计**代码文件**，`.css` 不计（样式文件的体量由 bundle 预算管，且天然是顺序追加）；
 - 排除 `node_modules` / `dist` / `data` / `public` / `__pycache__` 等产物与运行数据。
 
-棘轮语义
+判定语义
 --------
 基线记录所有 **≥ `THRESHOLD` 行**的文件及其行数：
 
-- 基线里的文件可以变小（允许并鼓励），变大即失败；
-- 任何文件涨过 `THRESHOLD` 而基线里没有它 → 失败（新巨型文件必须当次就拆）；
+- 基线里的文件可以变小（允许并鼓励），变大即报出；
+- 超过 `THRESHOLD` 且基线里没有的文件会报 `NEW-OVERSIZE`，供人工判断是否需要关注；
 - 低于 `THRESHOLD` 的文件不进基线，不产生噪音。
 
 清理后跑 `--update` 压低基线；基线只能变小。`--report` 只打印不判定，供分析取证使用。
 
 用法
 ----
-    node ops/lib/py.mjs ops/checks/check_file_size.py            # 校验（默认）
-    node ops/lib/py.mjs ops/checks/check_file_size.py --update   # 重写基线
-    node ops/lib/py.mjs ops/checks/check_file_size.py --report   # 只打印统计
-    node ops/lib/py.mjs ops/checks/check_file_size.py --json     # 机器可读
+    bun run audit:file-size                                  # 对比基线（默认）
+    bun run audit:file-size -- --update                      # 重写基线
+    bun run audit:file-size -- --report                      # 只打印统计
+    bun run audit:file-size -- --json                        # 机器可读
 """
 
 from __future__ import annotations
@@ -44,8 +43,9 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_BASELINE = REPO_ROOT / "ops/checks/baselines/size/file-size-baseline.json"
 
-#: 进入基线的行数门槛。高于它才需要「被管理」，低于它只是普通文件。
-THRESHOLD = 800
+#: 审计默认筛选门槛：只报告 ≥ 3000 行的文件。它**不是**「巨型文件」的定义，
+#: 只是让报告不淹没在几千个中小文件里的一个默认参数，不需要也不应该被门禁钉成项目级定义。
+THRESHOLD = 3000
 
 CODE_EXTENSIONS = frozenset({".py", ".ts", ".vue", ".mjs", ".js"})
 SKIP_DIRS = frozenset(
@@ -130,7 +130,7 @@ def compare(expected: dict[str, int], actual: dict[str, int]) -> list[str]:
             problems.append(f"GROWTH {path}: {lines} → {current} 行（+{current - lines}）")
     for path, lines in actual.items():
         if path not in expected:
-            problems.append(f"NEW-HUGE {path}: {lines} 行（基线里没有，新文件不得越过 {THRESHOLD} 行）")
+            problems.append(f"NEW-OVERSIZE {path}: {lines} 行（超过审计门槛 {THRESHOLD}，基线里没有）")
     return problems
 
 
@@ -148,7 +148,7 @@ def main() -> int:
     if args.update:
         payload = {
             "description": (
-                f"两个产品项目的文件规模棘轮：记录全部 ≥ {THRESHOLD} 行的代码文件，任一文件变大或出现新的巨型文件即失败"
+                f"文件行数审计基线（手动 audit:file-size）：记录全部 ≥ {THRESHOLD} 行的代码文件，不参与门禁"
             ),
             "threshold": THRESHOLD,
             "stats": stats,
@@ -187,7 +187,7 @@ def main() -> int:
         for problem in problems:
             print(problem, file=sys.stderr)
         return 1
-    print("file size ratchet ok")
+    print("file size audit ok")
     return 0
 
 

@@ -8,9 +8,7 @@ import fs from 'node:fs'
 import crypto from 'node:crypto'
 import { resolve } from 'path'
 import { fileURLToPath } from 'url'
-import devNoCachePlugin from './vite-plugin-dev-no-cache.ts'
-import embedProxyFallbackPlugin from './vite-plugin-embed-fallback.ts'
-import rootAssetsPlugin from './vite-plugin-root-assets.ts'
+import devServerPlugin from './vite-plugin-dev-server.ts'
 import { ensureLockParent, pidAlive, withFileLock } from './vite-file-lock.ts'
 import { SPA_ENTRY, assertSpaShellPresent, stripCssComments } from '../../ops/vite/build-helpers.js'
 import { publishFrontendEntries } from '../../ops/vite/publish-frontend.js'
@@ -133,7 +131,7 @@ function mirrorPublicDirIntoStaging(): void {
 
 /**
  * 剥掉 CSS 注释（保留字符串里的内容与 `/*!` 许可声明），实现见
- * `ops/vite/build-helpers.ts`：纯文本变换、无配置耦合，而本文件已顶在 file-size 基线。
+ * `ops/vite/build-helpers.ts`：纯文本变换、无配置耦合，而本文件已经很大。
  */
 function stripStagingCssComments(): void {
   for (const file of walkFiles(resolve(outDir, 'static'))) {
@@ -663,9 +661,7 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
   // bundle-stats.html，却也不报错 —— 一条静默空转的入口，故补上 --mode 这条。
   const analyzeBundle = process.env.ANALYZE === '1' || mode === 'analyze'
   const plugins: UserConfig['plugins'] = [
-    embedProxyFallbackPlugin(),
-    rootAssetsPlugin(),
-    devNoCachePlugin(),
+    devServerPlugin(),
     // 3D Studio 外置契约：three → /static/vendor 绝对 URL；/api/** 运行时资源原样保留。
     vendorResolvePlugin(),
     runtimeUrlExternalPlugin(),
@@ -677,7 +673,7 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
     // 于是 `<img src="/static/assets/icons/*.svg">` 被编译成
     // `import _imports_0 from "/static/assets/icons/*.svg?import"`。
     // build 里它最终还能落回 URL 字符串，但 dev 下这条 import 是一个**真实的模块请求**：
-    // 它先被 `rootAssetsPlugin` 的 `/static/**` 中间件按磁盘文件直读（`image/svg+xml`），
+    // 它先被 `devServerPlugin` 的 `/static/**` 中间件按磁盘文件直读（`image/svg+xml`），
     // 浏览器随即报 `Failed to load module script: Expected a JavaScript-or-Wasm module
     // script but the server responded with a MIME type of "image/svg+xml"`。
     // 这些路径本来就该原样保留（public 下的稳定 URL），不参与模块图。

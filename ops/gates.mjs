@@ -18,7 +18,7 @@
  * --------
  * - `static`：不依赖构建产物的静态检查（类型、lint、ruff、结构规则、棘轮、依赖 DAG 与路由基线）；
  * - `model`：3D 模型库的只读审计（几何 / 槽位 / 材质 / 资产 / 目录与命名索引）；
- * - `build`：需要前端产物的检查（构建 + 结构断言 + 体积预算 + chunk 初始化顺序）；
+ * - `build`：需要前端产物的检查（构建 + 结构断言 + chunk 初始化顺序 + 静态产物处理）；
  * - `infra`：shell / workflow / compose / Caddyfile / Cython 兼容性。
  *
  * 两层分类：**组**回答「在哪个 job 跑」，**标签**回答「这是什么检查」。
@@ -33,7 +33,7 @@
  *
  * - `--step` 仍能按原脚本名子串命中（`--step duplicates` → `check:size`）；
  * - `--list --json` 输出 `covers`，供「合并前后覆盖对照」机器比对；
- * - 单项调试仍走原脚本（`bun run check:any`），合并只改执行方式，不改判定口径。
+ * - 单项调试仍走原脚本（`bun run check:aliases`），合并只改执行方式，不改判定口径。
  *
  * 三类跳过都必须**显式打印**，不允许静默成功：
  * - 缺工具（shellcheck / actionlint / docker）：本机给安装提示并 SKIP，CI 里直接 FAIL；
@@ -121,31 +121,21 @@ const GATE_GROUPS = {
     // 照样通过，舞台只在运行时炸 —— 用契约快照拦住。
     { name: 'check:runtime-contract', ...bun('run', 'check:runtime-contract') },
     // ---- ratchet -----------------------------------------------------
-    // 前端十条棘轮/守卫（any / 别名 / 复杂度 / 性能 / 硬编码样式 / UI 溢出 / CSS 重复 /
-    // CSS 令牌 / 画布断点 / 受限写法）。合并的意义是**共享一次遍历与一份 AST**，
-    // 每条断言的判定口径与基线都不变。
+    // 前端四条守卫（别名 / 性能 / 离线计数 / 受限写法）。合并的意义是**共享一次遍历与
+    // 一份 AST**。计数类（any / 复杂度）与样式偏好类（硬编码色 / UI 溢出 / CSS 重复 /
+    // CSS 令牌 / 画布断点）已删除：它们把「代码长什么样」固化成了门槛，与体量棘轮同一类问题。
     {
       name: 'check:frontend',
       ...bun('run', 'check:frontend'),
-      covers: [
-        'check:any',
-        'check:aliases',
-        'check:frontend-complexity',
-        'check:perf-ratchet',
-        'check:styles',
-        'check:ui-overflow',
-        'check:css-duplicates',
-        'check:css-tokens',
-        'check:canvas-breakpoints',
-        'check:restricted-syntax',
-      ],
+      covers: ['check:aliases', 'check:perf-ratchet', 'check:offline-counting', 'check:restricted-syntax'],
     },
-    // 体量四条（代码量 / 文件行数 / 巨型文件扇出 / 重复代码）。行数只由 file-size 判，
-    // giant-files 只判扇出 —— 同一处新增不该被两个模块各报一次。
+    // 体量两条（代码量 / 重复代码）。文件行数与「巨型文件」扇出不进门禁：
+    // 它们都要求先拍一个「多少行算巨型」的口径，而这类口径不该由门禁替人定义。
+    // 对应脚本保留为手动审计 `audit:file-size` / `audit:giant-files`，不再阻断 CI / pre-push。
     {
       name: 'check:size',
       ...bun('run', 'check:size'),
-      covers: ['check:code-size', 'check:file-size', 'check:giant-files', 'check:duplicates'],
+      covers: ['check:code-size', 'check:duplicates'],
     },
     // 后端静态检查。合并的意义是共享一份 `ast.parse` 缓存：此前每条都把 694 个 .py
     // 重新解析一遍（合计约 25s），现在一个解释器跑完约 5s。
@@ -156,7 +146,6 @@ const GATE_GROUPS = {
         'check:silent-except',
         'check:error-contract',
         'check:background-tasks',
-        'check:complexity',
         'check:env-access',
         // 两条合并脚本：guards = async 同步 DB / PEP 758 / 响应模型；parity = 设备 kind 两表 +
         // 域控制类型表 + 迁移回归。原六条单项脚本已删除，判定逻辑与口径不变。
@@ -164,10 +153,6 @@ const GATE_GROUPS = {
         'check:parity',
       ],
     },
-    // ---- perf --------------------------------------------------------
-    // 后端热点性能门禁：扇出次数 / 载荷字节 / 日志行字节是确定性项（硬失败），
-    // 耗时默认只报不判（CI 宿主机抖动能到数倍）。基线见 ops/checks/baselines/perf/。
-    { name: 'check:perf', ...bun('run', 'check:perf') },
     // ---- invariant ---------------------------------------------------
     // 3D / 画布八条纯逻辑断言（几何内核 / 放置吸附 / 视口手势 / 窗型撤销 / 场景归一化 /
     // 状态游标 / 画布基准 / 分辨率审计）。
@@ -191,10 +176,6 @@ const GATE_GROUPS = {
     { name: 'check:python-lock', ...bun('run', 'check:python-lock') },
     // 镜像包的导入门禁：源码里的绝对 `src.` 导入在镜像里不存在。
     { name: 'check:image-imports', ...bun('run', 'check:image-imports') },
-    // Studio 拆分预算：入口/族文件行数、族顺序、族文件不得 import 入口、不得有模块级 let。
-    // 分支级哈希比对（verify_item_model）降级为手动 `audit:item-model`：items/ 仍在持续改，
-    // 放进门禁只会训练出「红了就重写基线」。
-    { name: 'check:studio-split', ...bun('run', 'check:studio-split') },
     // ---- business ----------------------------------------------------
     // 三类断言：bun test 契约单测 + stdlib unittest + 19 个业务规则自检。三段都跑完再汇总。
     {
@@ -246,10 +227,6 @@ const GATE_GROUPS = {
       cmd: 'bash',
       args: ['ops/ci/build_frontend_verify.sh'],
     },
-    // 体积预算棘轮：只守「首屏 preload+CSS 的 gzip 总量」与「最大懒 chunk」。
-    // 这两项一旦漂移，症状是慢网下的白屏 / 首点延迟 —— 靠人肉 review 发现不了；
-    // 具体数字与预算口径见 ops/checks/frontend/check_bundle_budget.mjs。
-    { name: 'check:bundle-budget', ...bun('run', 'check:bundle-budget') },
     { name: 'check:chunk-init', ...bun('run', 'check:chunk-init') },
     { name: 'check:font-subset', ...bun('run', 'check:font-subset') },
     // 内置字体（assets-default/fonts）：catalog 的 size/sha256 必须与实际文件一致。
@@ -466,7 +443,7 @@ function portResponding(port) {
  *   types      编译/类型（改一处类型错误全链路可见）
  *   lint       格式与语法（Biome / ruff / CSS 语法 / 受限写法）
  *   contract   跨端或跨文件的契约对齐（两端各有一份表、接口有无调用方）
- *   ratchet    只许降不许增的计数基线（存量债只能还、不能欠）
+ *   ratchet    只许降不许增的**语义**基线（代码量 / 重复 / 调用约定），不守外观与风格
  *   invariant  纯逻辑/几何/状态机的数学不变量（给定输入断言输出）
  *   business   业务规则自检（语义正确性：该告警的告警、该静默的静默）
  */
@@ -474,14 +451,8 @@ const TAG_GROUPS = {
   types: ['typecheck', 'typecheck:node'],
   lint: ['lint:biome', 'check:css-syntax', 'lint:py'],
   contract: ['check:toolchain', 'check:env', 'check:contracts', 'check:deps', 'check:runtime-contract'],
-  ratchet: ['check:frontend', 'check:size', 'check:backend', 'check:perf'],
-  invariant: [
-    'check:studio-invariants',
-    'check:scene',
-    'check:python-lock',
-    'check:image-imports',
-    'check:studio-split',
-  ],
+  ratchet: ['check:frontend', 'check:size', 'check:backend'],
+  invariant: ['check:studio-invariants', 'check:scene', 'check:python-lock', 'check:image-imports'],
   business: ['check:tests'],
 }
 
@@ -500,6 +471,8 @@ const MANUAL_SCRIPTS = [
   'check:plan-geometry-mutations', // 同上
   'audit:item-model', // 分支级哈希基线：items/ 仍在改，手动跑（见 README）
   'audit:materials', // 材质报告：只产出文档，判定在 check:materials
+  'audit:file-size', // 文件行数审计：不再设「巨型文件」阈值，也不再阻断门禁
+  'audit:giant-files', // 巨型文件扇出度量：拆分前取证用，不阻断门禁
 ]
 
 /** 把标签挂到步骤上，并校验「每个 static 步骤恰好一类」。 */

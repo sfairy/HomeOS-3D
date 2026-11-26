@@ -48,8 +48,12 @@ from homeos.backend.src.domains.logs.event_log import EventLogService
 from homeos.backend.src.platform.core.db import models  # noqa: F401
 from homeos.backend.src.platform.core.db.models import EventLog
 
-AT_A = datetime(2026, 11, 18, 13, 2, 38, 72132, tzinfo=UTC)
-AT_B = datetime(2026, 11, 18, 13, 2, 39, tzinfo=UTC)
+# 时间点必须**相对当前时刻**算：查询窗口上限是保留天数（默认 7 天），
+# 写死某一天会让这条自检在几天后无声变成「窗口内 0 条」—— 2026-11-18 的常量
+# 就是这样在 11-26 起持续失败（产品代码没问题，是夹具过期）。
+_AT_BASE = datetime.now(UTC).replace(minute=2, second=38, microsecond=72132)
+AT_A = _AT_BASE - timedelta(hours=2)
+AT_B = AT_A + timedelta(seconds=1)
 
 CHECKS: list[str] = []
 

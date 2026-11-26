@@ -39,9 +39,8 @@ jobs:
   # 静态检查：不需要构建产物，几十秒内就能给出「语义回退」的红灯。
   #
   # 单个步骤内部是多条检查的批量入口（`check:frontend` / `check:backend` / `check:contracts`
-  # / `check:size` / `check:tests` / `check:studio-invariants`）：合并只改执行方式（共享一次
-  # 遍历与 AST 解析），判定口径与基线不变。`node ops/gates.mjs --list --json` 可看每条入口
-  # 覆盖了哪些原脚本（`covers`）。
+  # / `check:size` / `check:tests`）：合并只改执行方式（共享一次遍历与 AST 解析），判定
+  # 口径与基线不变。`node ops/gates.mjs --list --json` 可看每条入口覆盖了哪些原脚本（`covers`）。
   #
   # `check:image-imports` 与 `check:python-lock` 仍是独立步骤：两者都是纯静态、不联网、不编译，
   # 却各自守着一个「本地看不出来、发版才炸」的失败面（镜像里的包名改写、依赖锁与
