@@ -95,6 +95,18 @@
         </form>
     </dialog>
 
+    <!-- 我的装饰 · 上传说明（0.8.9）：额度行由 `decoration-library.ts` 按服务端上限填。 -->
+    <dialog id="decoration-upload-dialog" class="scale-dialog decoration-upload-dialog"
+        aria-labelledby="decoration-upload-title">
+        <form method="dialog">
+            <button class="dialog-close" type="submit" aria-label="关闭上传说明">×</button>
+            <h2 id="decoration-upload-title">上传说明</h2>
+            <p>请上传静态 GLB 2.0 模型。贴图须内嵌为 PNG 或 JPEG。</p>
+            <p id="decoration-limits" class="decoration-limits" hidden></p>
+            <div class="dialog-actions"><button class="primary-action" type="submit" autofocus>知道了</button></div>
+        </form>
+    </dialog>
+
     <dialog id="export-preset-rename-dialog" class="scale-dialog light-group-rename-dialog">
         <form id="export-preset-rename-form" method="dialog"> <button id="export-preset-rename-close"
                 class="dialog-close" type="button" aria-label="关闭">×</button> <span class="dialog-index">EXPORT
@@ -314,5 +326,38 @@
                         px</span><span>透明灯光层与底图严格对齐</span></div>
             </main>
         </div>
+    </dialog>
+    <!-- 0.8.9 应用户型：保存后引导用户选「2D 导图」还是「3D 交互控件」，
+         并解释两种光影模式的区别 —— 这是用户在绘制页最后一步最容易迷路的地方。 -->
+    <dialog id="apply-floorplan-dialog" class="scale-dialog apply-floorplan-dialog"
+        aria-labelledby="apply-floorplan-title">
+        <form method="dialog">
+            <button class="dialog-close" type="submit" aria-label="关闭应用户型">×</button>
+            <h2 id="apply-floorplan-title">应用户型</h2>
+            <div class="apply-floorplan-branches">
+                <section aria-labelledby="apply-floorplan-2d-title">
+                    <h3 id="apply-floorplan-2d-title">2D 导图</h3>
+                    <p>用标准光影导出户型底图和灯光图层，用于 2D 仪表盘。</p>
+                    <button id="apply-floorplan-export" type="button" class="primary-action">打开导图</button>
+                </section>
+                <section aria-labelledby="apply-floorplan-3d-title">
+                    <h3 id="apply-floorplan-3d-title">3D 交互控件</h3>
+                    <p>保存户型后，在仪表盘添加「3D 交互」，载入户型并配置灯光和设备。</p>
+                    <p class="apply-floorplan-mode-path">画面效果 → 灯光模式</p>
+                    <dl>
+                        <div>
+                            <dt>标准光影</dt>
+                            <dd>根据灯具的照射距离和光束角投光，呈现阴影。</dd>
+                        </div>
+                        <div>
+                            <dt>轻量柔光</dt>
+                            <dd>按柔光范围照亮，可单独调整灯具的覆盖区。</dd>
+                        </div>
+                    </dl>
+                    <p>绘制页的 3D 实时预览也能切换这两种效果。</p>
+                    <button id="apply-floorplan-interaction" type="button">返回仪表盘编辑器</button>
+                </section>
+            </div>
+        </form>
     </dialog>
 </template>

@@ -3,6 +3,7 @@ import { normalizeBaseLightingByTheme as normalizeBaseLightingByTheme2 } from '.
 import { normalizeSceneStyle as normalizeSceneStyle2 } from '../../../../shared/scene-styles'
 import { previewStyleOrDefault, syncPreviewStyleSelect } from '../ui/studio-preview-style'
 import { syncNaturalWoodForAppCtx } from '../ui/studio-natural-wood-runtime'
+import { syncLightingRow } from '../ui/lighting-row-install'
 
 import type { StudioAppContext } from '../studio-app-context'
 export interface ApplyLoadedDraftDeps {
@@ -61,6 +62,28 @@ function draftBaseLighting(
   runtime.appCtx.sceneStyle = style
   const byTheme = normalizeBaseLightingByTheme2(project?.baseLightingByTheme)
   return byTheme[normalizeSceneStyle2(style)] ?? project?.baseLighting
+}
+
+/**
+ * 把草稿里的光影模式变成**当前管线**（0.8.9）。
+ *
+ * 只改字段不换管线的话，按钮会显示「轻量柔光」而画面还是标准光影 ——
+ * 正是上游注释里说的「切了和没切一样」。抽成函数是为了不给
+ * `applyLoadedDraft` 那个超长函数再加一个三元。
+ *
+ * 顺带把按钮的选中态同步一次：`installLightingRow` 绑定时草稿还没到，那次读到的是缺省值
+ * （标准光影）。不同步的话画面已经是草稿里的「轻量柔光」，按钮却停在「标准光影」——
+ * 用户点高亮的那个按钮会被 `readDraftLightingMode === requested` 直接吞掉（看起来
+ * 「点了没反应」），只能去点另一个（而那个会触发一次整场景重建）。
+ */
+function applyDraftLightingMode(deps: ApplyLoadedDraftDeps, isEmbeddedStage: boolean): void {
+  const appCtx = deps.appCtx,
+    draftMode = appCtx.studioState?.settings?.lightingMode === 'region' ? 'region' : 'standard'
+  if (((appCtx.previewLightingMode = draftMode), isEmbeddedStage)) return
+  // 嵌入舞台的管线由 URL 决定（`isEmbedStageMode`），草稿字段对它无效；
+  // 在那里调 `applyLightingPipeline` 会把刚刚建好的区域控制器拆了重建，白丢一次接触阴影预热。
+  appCtx.applyLightingPipeline?.(draftMode)
+  syncLightingRow(deps)
 }
 
 export async function applyLoadedDraft(deps: ApplyLoadedDraftDeps, draftPayload: any, draftScene: any = null) {
@@ -159,6 +182,7 @@ export async function applyLoadedDraft(deps: ApplyLoadedDraftDeps, draftPayload:
         (appCtx.activeFloorId = floorSelectionRecord.id))
   }
   ;(appCtx.studioState = getActiveFloor().scene),
+    applyDraftLightingMode(deps, isEmbeddedStage),
     (appCtx.activeLightGroupId = ''),
     refreshSelection(),
     refreshPreviewScene(),

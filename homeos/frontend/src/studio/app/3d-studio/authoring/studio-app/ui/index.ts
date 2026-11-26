@@ -41,3 +41,10 @@ export {
   commitWallOpacity,
 } from './wall-inputs'
 export { bindWindowDesignerWiring } from './window-designer-wiring'
+
+// 0.8.9：从 boot.ts 切出的四块（boot 在 studio split 预算上，且它的 imports 扇出也受棘轮约束，
+// 所以这些入口统一从本桶转出，boot 只加 4 个名字而不是 4 条 import）。
+export { toolHelpMessages } from './studio-tool-help'
+export { placeUserDecorationAtViewCenter, DECORATION_DEFAULT_SIZE } from './user-decoration-placement'
+export { applyUserDecorationStageContext } from './user-decoration-stage-context'
+export { planCanvasContext } from './plan-canvas-context'

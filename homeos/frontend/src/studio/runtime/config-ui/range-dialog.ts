@@ -1,3 +1,4 @@
+import { LIGHT_RANGE_COPY } from './light-range-copy'
 import { mountInteraction3d } from '../core/runtime'
 import { requestInteraction3dAccess, subscribeInteraction3dAccess } from '@app/bridge/bridge'
 import { domElement } from '@app/shared/util/dom-factory'
@@ -18,11 +19,12 @@ export async function openInteraction3dRangeEditor({
     (stylesheetLink.href = '/api/v1/modules/interaction3d/core/runtime.css'),
     document.head.append(stylesheetLink)
   const dialogElement = createElement('dialog', 'i3d-editor i3d-range-dialog')
-  dialogElement.setAttribute('aria-label', '照射范围'), dialogElement.setAttribute('data-i3d-preview-scope', '')
+  dialogElement.setAttribute('aria-label', LIGHT_RANGE_COPY.ariaLabel),
+    dialogElement.setAttribute('data-i3d-preview-scope', '')
   const headerElement = createElement('header'),
-    saveButton = createElement('button', 'primary', '保存'),
+    saveButton = createElement('button', 'primary', LIGHT_RANGE_COPY.save),
     closeButton = createElement('button', 'i3d-range-close', '×')
-  closeButton.setAttribute('aria-label', '关闭照射范围'),
+  closeButton.setAttribute('aria-label', LIGHT_RANGE_COPY.close),
     (closeButton.title = '关闭'),
     (saveButton.type = closeButton.type = 'button'),
     (saveButton.disabled = true)
@@ -32,7 +34,7 @@ export async function openInteraction3dRangeEditor({
   ;(reloadButton.type = 'button'), (reloadButton.hidden = true)
   const bodyElement = createElement('div', 'i3d-range-dialog-body'),
     mountElement = createElement('div')
-  headerElement.append(createElement('strong', '', '照射范围'), reloadButton, saveButton, closeButton),
+  headerElement.append(createElement('strong', '', LIGHT_RANGE_COPY.ariaLabel), reloadButton, saveButton, closeButton),
     bodyElement.append(mountElement),
     dialogElement.append(headerElement, statusElement, bodyElement),
     document.body.append(dialogElement)
@@ -93,7 +95,7 @@ export async function openInteraction3dRangeEditor({
             if ((await editorHandle.openRangeEditor(), isClosed || requestGeneration !== generation)) return
             ;(isRangeReady = true),
               (saveButton.disabled = false),
-              (statusElement.textContent = '平面编辑调整照射范围，3D 预览实时查看高度效果；两个视图共用参数。'),
+              (statusElement.textContent = LIGHT_RANGE_COPY.planEdit),
               resolveReady()
           } catch (loadError: any) {
             requestGeneration === generation && handleLoadError(loadError)
@@ -138,14 +140,15 @@ export async function openInteraction3dRangeEditor({
           if ((await requestInteraction3dAccess(), isClosed)) return
           await onSave(savedOverrides),
             isClosed ||
+              // 保存后没有再改 → 「可继续调整」；保存期间又改了 → 「另有新修改待保存」（上游两条分支）。
               ((statusElement.textContent =
                 revisionAtSave === overridesRevision
-                  ? '已保存到灯光配置，可继续调整。关闭后点击“保存配置”完成保存。'
-                  : '已保存，另有新修改待保存。'),
+                  ? LIGHT_RANGE_COPY.savedToLightConfig
+                  : LIGHT_RANGE_COPY.savedWithMoreChanges),
               statusElement.classList.remove('is-error'))
         } catch (saveError: any) {
           if (isClosed) return
-          ;(statusElement.textContent = saveError.message || '保存失败，请重试。'),
+          ;(statusElement.textContent = saveError.message || LIGHT_RANGE_COPY.saveFailed),
             statusElement.classList.add('is-error')
         } finally {
           ;(isSaving = false),

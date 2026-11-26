@@ -304,11 +304,18 @@ import {
   commitWallHeight as commitWallHeightImpl, commitWallThickness as commitWallThicknessImpl,
   commitWallOpacity as commitWallOpacityImpl, bindToolOptionWiring, bindWindowDesignerWiring, bindExportDialogWiring,
   refreshStepChecklist, prepareSaveConflictDialog,
+  applyUserDecorationStageContext,
+  placeUserDecorationAtViewCenter,
+  planCanvasContext,
+  toolHelpMessages,
 } from "./ui";
 import { installPlacedItemsPanel } from "./ui/placed-items-wiring";
 import { installScrollbarReveal } from "./ui/scrollbar-reveal";
 import { refreshDistanceRulers } from "./ui/studio-distance-rulers-wiring";
-import { bindStudioChrome } from "./ui/studio-chrome-bindings";
+import {
+  bindStudioChrome,
+  syncCameraFocalAvailability,
+} from "./ui/studio-chrome-bindings";
 import { refreshWorkspaceViewFor } from "./ui/studio-workspace-view";
 import { naturalWoodRuntimeFor } from "./ui/studio-natural-wood-runtime";
 import { placeSelectedItemOnSurface } from "./ui/place-surface-action";
@@ -445,11 +452,6 @@ import { createStudioAppContext } from "./studio-app-context";
 import {
   type StudioStaticItemMeshesDeps,
 } from "../items/studio-static-item-meshes";
-
-/** 嵌入舞台可能只挂隐藏 stub；缺节点时用离屏 canvas，避免 bootStudio 同步崩溃导致永不出图。 */
-function planCanvasContext(canvas: HTMLCanvasElement | null) {
-  return (canvas || document.createElement("canvas")).getContext("2d");
-}
 
 let disposeActiveStudio: (() => void) | null = null;
 /** teardown 前置落盘钩子（boot 闭包内注册；dispose 在闭包外执行，必须经此暴露）。 */
@@ -610,6 +612,7 @@ export function bootStudio(): void {
     get createOutlinePath() { return createOutlinePath; },
     get createRugMaterial() { return createRugMaterial; },
     get createSceneItem() { return createSceneItem; },
+    get placeUserDecoration() { return placeUserDecoration; },
     get createSelectionRef() { return createSelectionRef; },
     get cursorPositionElement() { return cursorPositionElement; },
     get defaultExportHeight() { return defaultExportHeight; },
@@ -1544,6 +1547,8 @@ export function bootStudio(): void {
     isEmbeddedStage && resolveStageLightingPipeline(stageSearchParams),
   defaultWallRuntimeProfile = "baseline";
 window.__homeosWallRuntimeProfile = defaultWallRuntimeProfile || "baseline";
+// 0.8.9：把舞台上下文交给用户装饰的模型登记表（见 `applyUserDecorationStageContext`）。
+applyUserDecorationStageContext(isEmbeddedStage);
 const renderCacheWriter = isEmbeddedStage
   ? createRenderCache2({
       sceneId: new URLSearchParams(window.location.search).get("sceneId"),
@@ -1878,6 +1883,10 @@ const floorGroupCacheByKey = new Map(),
     "rounddiningtable",
   ]),
   optimizationItemTypeSet = new Set([
+    // 0.8.9 用户装饰：它的网格**完全**来自外部 GLB（`user-decoration` 没有程序化兜底
+    // 几何），必须走「挂外部模型」这条链路。不加进这个集合的实际表现是：
+    // 物品建出来了、也在物品列表里，但场景里什么都看不见。
+    "user-decoration",
     "drawer-chest",
     "wardrobe",
     "office-chair",
@@ -1950,30 +1959,7 @@ const floorGroupCacheByKey = new Map(),
     "nas",
     "printer",
   ]);
-const toolHelpMessages = {
-    "courtyard-area": [
-      "庭院地面",
-      "圈出区域或拖画矩形，选择草坪、木平台、铺装；靠近墙面吸附，Enter 完成",
-    ],
-    "courtyard-path": ["汀步路径", "逐点画路线，自动排列汀步；Enter 完成，Esc 取消"],
-    "courtyard-gate": ["庭院门", "靠近围挡预览门洞，点击放置；门款在右侧属性栏选择，Esc 退出"],
-    "courtyard-fence": ["庭院围挡", "逐点画路线，选择矮墙、木栅或绿篱；Enter 完成"],
-    flooropening: [
-      "楼板洞口",
-      "拖出矩形洞口；仅切除当前层楼板，楼梯通往上层时请在上层开洞。Esc 取消",
-    ],
-    select: [
-      "选择工具",
-      "移动时 Shift 锁轴；缩放时 Shift 等比例、拖多少就是多少（任意尺寸）；Option/Alt 拖动复制；⌘/Ctrl+C、V 复制粘贴",
-    ],
-    pan: ["平移画布", "按住左键拖动即可平移画布；滚轮缩放；中键或按住空格拖动同样可平移"],
-    scale: ["参考线工具", "依次单击两个端点；按住 Shift 强制锁定水平或垂直轴线"],
-    wall: ["连续画墙", "逐点绘制并回到起点闭合空间；未闭合不会生成地面，按住 Shift 锁轴，Esc 结束"],
-    window: ["窗户工具", "靠近墙体单击，窗户会自动吸附并生成真实窗洞"],
-    door: ["门工具", "靠近墙体单击，门会自动吸附并生成门洞；选中后可翻转开启方向"],
-    railing: ["玻璃栏杆", "靠近墙体单击，栏杆会吸附到墙段并替换对应的实体墙"],
-    label: ["户型铭牌", "单击画布放置；选中后可修改文字、拖动、缩放和旋转"],
-  },
+const
   isStudioEntry =
     isEmbeddedStage ||
     /^\/3d-studio\/?$/.test(window.location.pathname),
@@ -2388,6 +2374,16 @@ const MATERIAL_STYLE_CUSTOM_STORAGE_KEY = "homeos3d.studio.material-styles";
 function createSceneItem(...args: any[]): any {
   return (createSceneItemImpl as any)(createSceneItemDeps(), ...args);
 }
+/** 运行期 facade 转发的「放置装饰」入口（流程在 `ui/user-decoration-placement.ts`）。 */
+function placeUserDecoration(model: { assetId: string; name?: string }): void {
+  placeUserDecorationAtViewCenter(model, {
+    screenToPlan,
+    viewCenter: () => ({ x: appCtx.planViewWidth / 2, y: appCtx.planViewHeight / 2 }),
+    createSceneItem: (type, point, options) => createSceneItem(type, point, options),
+    showToast,
+  });
+}
+
 function createSceneItemDeps(): CreateSceneItemDeps {
   return {
     appCtx,
@@ -3452,6 +3448,8 @@ const finishPanelResize = (panelPointerUpEvent: any = null, shouldPersistPanelSi
       applyDetailsRatio(),
       markDocumentDirty());
   }));
+// 0.8.9：焦段可用性（面板本身由 `bindStudioChrome` 安装）。
+syncCameraFocalAvailability(getCameraMode());
 for (const cameraModeOptionRow of cameraModeControls)
   cameraModeOptionRow.addEventListener("click", () => {
     const cameraProjectionMode =
@@ -3460,6 +3458,8 @@ for (const cameraModeOptionRow of cameraModeControls)
       (appCtx.pendingRuntimeSettings || deselectAll(),
       (cameraSettings().cameraMode = cameraProjectionMode),
       setCameraMode(cameraProjectionMode),
+      // 0.8.9：投影切到正交时焦段无效，输入框必须一起置灰（否则用户改了没反应）。
+      syncCameraFocalAvailability(cameraProjectionMode),
       appCtx.pendingRuntimeSettings
         ? (exportStatusElement.textContent =
             cameraProjectionMode === "perspective" ? "已切换为透视构图" : "已切换为正交构图")

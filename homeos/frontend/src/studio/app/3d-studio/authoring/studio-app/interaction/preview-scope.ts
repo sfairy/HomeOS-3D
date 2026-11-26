@@ -115,3 +115,13 @@ export function setPreviewScope(runtime: StudioAppRuntime, scopeRequest: any) {
       })
   }
 }
+
+/**
+ * 「去掉墙体默认值」的预览（0.8.9 `withoutWallDefaults`）。
+ *
+ * 墙体默认值在场景装配时已剥离（`scene-build`），本函数保留为**语义入口**：
+ * 宿主若要临时看「纯家具」预览，可以从这里拿到不含墙体项的 id 列表。
+ */
+export function withoutWallDefaults<T extends { type?: string }>(items: readonly T[]): T[] {
+  return items.filter((item) => item?.type !== 'wall' && item?.type !== 'wall-opening')
+}

@@ -17,6 +17,7 @@ import {
   isGenericDeviceKind as isGenericDeviceKind2,
 } from '../device/generic-device-catalog'
 import { domElement } from '@app/shared/util/dom-factory'
+import { ENVIRONMENT_CATEGORY_LABELS } from './config-editor/rendering/picker-row'
 import { modelChoiceLabel } from '@app/shared/model-remarks'
 import { isMediaDeviceKind, mediaDeviceProfile } from '@app/bridge/presets/media-device-profiles'
 /** 走通用设备目录的 kind（含 nas / 电视 / 投影仪 / 音箱等没有 HA domain 的种类）。 */
@@ -30,6 +31,67 @@ function isCatalogDeviceKind(kind: string): boolean {
     kind === 'speaker' ||
     GENERIC_DEVICE_KINDS2.includes(kind)
   )
+}
+
+/** `environment` 是旧的入口别名（下一步会映射成 `climate`），也要按环境类别处理。 */
+function isEnvironmentKind(deviceKind: string): boolean {
+  return (
+    deviceKind === 'environment' ||
+    ENVIRONMENT_CATEGORY_LABELS.some(([environmentKind]) => environmentKind === deviceKind)
+  )
+}
+
+/** 环境「空调/采暖」族共用的文案、集合与默认图标（`applyKindFlags` 的同类分支收敛在这里）。 */
+function climateKindLabel(kind: string): string {
+  if (kind === 'water-heater') return '热水器'
+  if (kind === 'bath-heater') return '浴霸'
+  if (kind === 'heating-boiler') return '取暖壁挂炉'
+  if (kind === 'fan') return '风扇 / 吊扇'
+  if (kind === 'exhaust-fan') return '排气扇'
+  if (kind === 'purifier') return '空气净化器'
+  return '空调/浴霸'
+}
+
+function climateKindCollection(kind: string): string {
+  if (kind === 'water-heater') return 'waterHeaters'
+  if (kind === 'heating-boiler') return 'heatingBoilers'
+  if (kind === 'fan') return 'fans'
+  if (kind === 'exhaust-fan') return 'exhaustFans'
+  if (kind === 'purifier') return 'airPurifiers'
+  return 'airConditioners'
+}
+
+function climateKindIcon(kind: string): string {
+  if (kind === 'water-heater' || kind === 'heating-boiler') return 'mdi:water-boiler'
+  if (kind === 'bath-heater') return 'mdi:heating-coil'
+  if (kind === 'fan' || kind === 'exhaust-fan') return 'mdi:fan'
+  if (kind === 'purifier') return 'mdi:air-purifier'
+  return 'mdi:air-conditioner'
+}
+
+/** `climate` / `bath-heater` 共用 `airConditioners`，按条目的 `climateType` 判断归属。 */
+function bindingBelongsToKind(binding: unknown, kind: string): boolean {
+  const isBathHeater = (binding as { climateType?: unknown } | null)?.climateType === 'bath-heater'
+  return isBathHeater === (kind === 'bath-heater')
+}
+
+/** 把本类别的条目合并回共用的 `airConditioners`（另一类别原样保留，新条目追加在后）。 */
+function mergeClimateBindings(
+  previousItemList: readonly { id?: unknown }[],
+  nextItemList: readonly { id?: unknown }[],
+  deviceKind: string,
+): Array<{ id?: unknown }> {
+  const replacements = new Map(nextItemList.map((replacementItem) => [replacementItem.id, replacementItem])),
+    merged: Array<{ id?: unknown }> = []
+  for (const previousItem of previousItemList) {
+    const replacementItem = replacements.get(previousItem.id)
+    if (!bindingBelongsToKind(previousItem, deviceKind)) merged.push(previousItem)
+    else if (replacementItem) {
+      merged.push(replacementItem)
+      replacements.delete(previousItem.id)
+    }
+  }
+  return merged.concat([...replacements.values()])
 }
 
 export async function openInteraction3dEditor({
@@ -50,16 +112,7 @@ export async function openInteraction3dEditor({
   const initialAccessState = await requestInteraction3dAccess2()
   const initialAccessAllowed = initialAccessState?.allowed === true
   pickers?.loadEntities && (entities = await pickers.loadEntities())
-  const includes = [
-    'environment',
-    'climate',
-    'fan',
-    'exhaust-fan',
-    'purifier',
-    'cover',
-    'window-opener',
-    'temperature-humidity',
-  ].includes(deviceKind)
+  const includes = isEnvironmentKind(deviceKind)
   deviceKind === 'environment' && (deviceKind = 'climate')
   const isDeviceKind = isCatalogDeviceKind(deviceKind)
   deviceKind === 'devices' && (deviceKind = 'nas')
@@ -92,7 +145,15 @@ export async function openInteraction3dEditor({
       (isGenericDeviceMode = isGenericDeviceKind2(deviceKind)),
       (isAirerMode = deviceKind === 'airer'),
       (isWindowOpenerMode = deviceKind === 'window-opener'),
-      (isClimateMode = ['climate', 'fan', 'exhaust-fan', 'purifier', 'water-heater'].includes(deviceKind)),
+      (isClimateMode = [
+        'climate',
+        'bath-heater',
+        'heating-boiler',
+        'fan',
+        'exhaust-fan',
+        'purifier',
+        'water-heater',
+      ].includes(deviceKind)),
       (isCoverMode = deviceKind === 'cover'),
       (isNasMode = deviceKind === 'nas'),
       (isTemperatureHumidityMode = deviceKind === 'temperature-humidity'),
@@ -126,15 +187,7 @@ export async function openInteraction3dEditor({
                       : isCoverMode
                         ? '窗帘'
                         : isClimateMode
-                          ? deviceKind === 'water-heater'
-                            ? '热水器'
-                            : deviceKind === 'fan'
-                              ? '风扇 / 吊扇'
-                              : deviceKind === 'exhaust-fan'
-                                ? '排气扇'
-                                : deviceKind === 'purifier'
-                                  ? '空气净化器'
-                                  : '空调/浴霸'
+                          ? climateKindLabel(deviceKind)
                           : '灯光'),
       (editorKindTitle = includes ? '环境' : isDeviceKind ? '设备' : isVacuumShortcutMode ? '扫地机' : kindLabel),
       (collectionKey = isAirerMode
@@ -155,15 +208,7 @@ export async function openInteraction3dEditor({
                       ? 'nas'
                       : isCoverMode
                         ? 'curtains'
-                        : deviceKind === 'water-heater'
-                          ? 'waterHeaters'
-                          : deviceKind === 'fan'
-                            ? 'fans'
-                            : deviceKind === 'exhaust-fan'
-                              ? 'exhaustFans'
-                              : deviceKind === 'purifier'
-                                ? 'airPurifiers'
-                                : 'airConditioners'),
+                        : climateKindCollection(deviceKind)),
       (defaultIcon = isAirerMode
         ? 'mdi:hanger'
         : isWindowOpenerMode
@@ -183,15 +228,7 @@ export async function openInteraction3dEditor({
                       : isCoverMode
                         ? 'mdi:curtains'
                         : isClimateMode
-                          ? deviceKind === 'water-heater'
-                            ? 'mdi:water-boiler'
-                            : deviceKind === 'exhaust-fan'
-                              ? 'mdi:fan'
-                              : deviceKind === 'fan'
-                                ? 'mdi:fan'
-                                : deviceKind === 'purifier'
-                                  ? 'mdi:air-purifier'
-                                  : 'mdi:air-conditioner'
+                          ? climateKindIcon(deviceKind)
                           : 'mdi:lightbulb-outline'),
       (modelIdKey = usesModelBinding ? 'modelId' : 'groupId')
   }
@@ -302,15 +339,31 @@ export async function openInteraction3dEditor({
   const map = new Map(),
     findVacuumModel = () =>
       structuredClone2.devices?.vacuums?.find((vacuumModelProbe: any) => vacuumModelProbe.id === vacuumId),
-    getItemList = () =>
-      isVacuumShortcutMode
+    /**
+     * `climate` / `bath-heater` 共用 `airConditioners`：本仓的浴霸不是独立模型类型，而是
+     * 挂在空调模型上的 `climateType`。两个类别必须各看一半，否则同一台设备会在两个分类里
+     * 各算一次、也会在「关联模型」里互相抢占。
+     */
+    splitsClimateBindings = () => deviceKind === 'climate' || deviceKind === 'bath-heater',
+    getItemList = () => {
+      const itemList = isVacuumShortcutMode
         ? findVacuumModel()?.shortcuts || []
         : usesStatusPanel
           ? structuredClone2.devices[collectionKey]
           : usesModelBinding || isTemperatureHumidityMode
             ? structuredClone2.environment[collectionKey]
-            : structuredClone2.lights,
+            : structuredClone2.lights
+      return splitsClimateBindings()
+        ? (itemList || []).filter((binding: { climateType?: unknown }) => bindingBelongsToKind(binding, deviceKind))
+        : itemList
+    },
     setItemList = (nextItemList: any) => {
+      if (splitsClimateBindings()) {
+        structuredClone2.environment ||= {}
+        const previousItemList = structuredClone2.environment[collectionKey] || []
+        structuredClone2.environment[collectionKey] = mergeClimateBindings(previousItemList, nextItemList, deviceKind)
+        return
+      }
       isVacuumShortcutMode
         ? findVacuumModel() && (findVacuumModel().shortcuts = nextItemList)
         : usesStatusPanel
@@ -319,6 +372,11 @@ export async function openInteraction3dEditor({
             ? (structuredClone2.environment[collectionKey] = nextItemList)
             : (structuredClone2.lights = nextItemList)
     },
+    /** 未分桶的整份草稿集合（新增/关联模型去重要看全部，不能只看当前类别那一半）。 */
+    getCollectionItemList = () =>
+      usesModelBinding || isTemperatureHumidityMode
+        ? structuredClone2.environment?.[collectionKey] || []
+        : getItemList(),
     getCurtainGroupList = () => structuredClone2.environment?.curtainGroups || [],
     findCurtainGroupOf = (curtainId: any) =>
       getCurtainGroupList().find((curtainGroupEntry: any) => curtainGroupEntry.memberIds.includes(curtainId)),
@@ -354,6 +412,7 @@ export async function openInteraction3dEditor({
       findVacuumModel,
       getItemList,
       setItemList,
+      getCollectionItemList,
       getCurtainGroupList,
       findCurtainGroupOf,
       describeGroupFieldValue,

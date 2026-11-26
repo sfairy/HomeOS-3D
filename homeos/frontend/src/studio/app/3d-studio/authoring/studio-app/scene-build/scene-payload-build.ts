@@ -6,6 +6,7 @@ import {
   normalizeMaterialStyle,
 } from '../../../materials/studio-material-presets'
 import { buildStaticMaterialKey } from '../../../materials/studio-static-material-key'
+import { userDecorationModelDefinition } from '../../../loaders/external-models/user-decoration-models'
 import {
   RENDER_CACHE_VERSION as RENDER_CACHE_VERSION2,
   cacheSceneDescriptor as cacheSceneDescriptor2,
@@ -124,7 +125,12 @@ export function collectScenePayload(
         (floorEntry?.scene?.items || [])
           .filter((itemEntry: any) => includeCurtainFlag || itemEntry.type !== 'curtain')
           .map((itemRecord: any) => runtime.modelTypeForItem(itemRecord))
-          .filter((assetModelKey: any) => (ALL_ITEM_MODELS2 as any)[assetModelKey]),
+          // 用户装饰的键是 `model:<assetId>`，不在静态清单里。只按静态清单过滤会让
+          // 装饰模型**永远进不了预加载列表** —— 舞台（仪表盘 3D 控件）里于是什么都看不到。
+          .filter(
+            (assetModelKey: any) =>
+              (ALL_ITEM_MODELS2 as any)[assetModelKey] || userDecorationModelDefinition(assetModelKey),
+          ),
       ),
     ),
   ]
@@ -165,7 +171,8 @@ export function loadModelsForTypes(runtime: StudioAppRuntime, requestedModelType
     (runtime.appCtx.isExternalModelLoadDeferred = false),
     (window.externalModelLoadsDeferred = false)
   const filter = [...new Set(requestedModelTypes)].filter(
-    (modelTypeFilterKey) => (ALL_ITEM_MODELS2 as any)[modelTypeFilterKey],
+    (modelTypeFilterKey) =>
+      (ALL_ITEM_MODELS2 as any)[modelTypeFilterKey] || userDecorationModelDefinition(modelTypeFilterKey),
   )
   if (!filter.length) return []
   window.__homeosReleasingDeferredModels = true

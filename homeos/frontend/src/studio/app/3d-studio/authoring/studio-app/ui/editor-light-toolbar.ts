@@ -78,7 +78,7 @@ function axisValueText(pose: LightPoseLike | null, axis: LightAxis): string {
   return `${editNumberText(((value % 360) + 360) % 360)}°`
 }
 
-/** 三个轴按钮的态与读数（单独成函数，避免主同步函数超过复杂度棘轮）。 */
+/** 三个轴按钮的态与读数（单独成函数，避免主同步函数继续变长）。 */
 function syncAxisButtons(
   dom: ToolbarDom,
   pose: LightPoseLike | null,

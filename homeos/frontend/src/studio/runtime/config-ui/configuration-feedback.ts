@@ -30,6 +30,12 @@ export interface ConfigurationFeedback {
   readonly saving: boolean
   /** 数据被改过：之后按「已改动」口径判断脏。 */
   changed(): void
+  /**
+   * 批量应用之后的状态行（上游 `已应用到 N 个目标，待保存配置`）。
+   *
+   * 与 `changed()` 的区别只有文案：同样把数据标脏，否则「改了一半直接退出」的拦截会失效。
+   */
+  applied(statusText: string): void
   /** 外部数据换了基线（未改动过时才重取基线）。 */
   refresh(): void
   /** 进入保存：先把快照拷出来，保存成功后把它当作新基线。 */
@@ -105,6 +111,10 @@ export function createConfigurationFeedback({
     changed() {
       isTouched = true
       refreshStatus()
+    },
+    applied(statusText: string) {
+      isTouched = true
+      setMessage(statusText, 'dirty')
     },
     refresh() {
       if (!isTouched && !hasSavedOnce) baselineSnapshot = snapshotOf()

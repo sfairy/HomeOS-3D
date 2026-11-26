@@ -51,8 +51,15 @@ MAX_FILES = 50_000
 #: 于是 ``data/backups`` 被判成业务数据。这里改为**无条件排除**；恢复侧也用同一份清单
 #: 兜底（旧版本的包里可能带着它）。
 EXCLUDED_TOP_DIRS = frozenset({"cache", "logs", "backup-work", "backup-recovery", "backups"})
-#: 需要整体排除的相对路径前缀（渲染缓存：可按需重算，体积随户型增长）。
-EXCLUDED_REL_PREFIXES = ("modules/interaction3d/render-cache",)
+#: 需要整体排除的相对路径前缀。
+#:
+#: - ``render-cache``：渲染缓存，可按需重算，体积随户型增长；
+#: - ``display-images``（0.8.9）：按 ``displaySize`` 派生的图片副本，同样可重算。不排除的话
+#:   上限 128 MiB 的缓存会让备份包凭空多出上百 MB，复现「备份吃自己、每次卡在 4 GB」的事故。
+EXCLUDED_REL_PREFIXES = (
+    "modules/interaction3d/render-cache",
+    "modules/interaction3d/display-images",
+)
 
 #: 0.8.4 起必须进包的业务根目录（与上游 ``ROOTS`` 对齐，便于对照审查）。
 #: 本实现打包**整个** ``data_dir``，这份清单只用来断言「别把它们误加进排除项」：
@@ -64,6 +71,9 @@ BACKUP_ROOTS = (
     "studio3d",
     "modules/interaction3d/scenes",
     "modules/interaction3d/cover-memory",
+    # 0.8.9 装饰模型：用户上传的 GLB，没有它就等于「换机后所有自定义装饰全部消失」，
+    # 而且场景会大面积报「此户型快照中的装饰已删除」。必须进包。
+    "modules/interaction3d/models",
 )
 
 #: 不进全量备份的历史 / 日志 / 时序 / 运行时缓存表：快照后清空其数据（保留表结构）。

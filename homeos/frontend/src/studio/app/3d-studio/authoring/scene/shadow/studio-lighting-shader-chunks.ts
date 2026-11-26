@@ -1,7 +1,7 @@
 /**
  * 分层灯光的 GLSL 补丁（图集采样段 / 顶点段 / `lights_fragment_begin`）。
  *
- * 从 `studio-shadow-atlas.ts` 拆出来的：那边已经逼近文件规模棘轮（≥800 行不许再涨），
+ * 从 `studio-shadow-atlas.ts` 拆出来的：那边已经很大，
  * 而这一整段只依赖 `THREE.ShaderChunk` 的**字符串结构**，与图集的控制面（分配、渲染、
  * 回退状态机）完全解耦。补丁本身不持有任何运行期状态，失败一律通过 `onIncompatible`
  * 回调上报，由控制器决定退回原生逐灯。

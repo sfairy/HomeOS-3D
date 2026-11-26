@@ -113,6 +113,11 @@ export function createStudioDocument() {
       wallThickness: 0.15,
       wallOpacity: defaultViewSettings.wallOpacity,
       floorEdgeVisible: true,
+      // 0.8.9 绘制页 3D 预览的光影管线：standard = 逐灯按距离/光束角投光（默认），
+      // region = 按柔光范围照亮。与 3D 交互控件的 `lightingMode` 同义词，
+      // 但**分开存**：控件的模式属于组件属性，绘制页的模式属于这份户型草稿。
+      lightingMode: 'standard' as 'standard' | 'region',
+      lightingModeVersion: 2,
       planViewRotation: 0,
       cameraView: 'free',
       cameraTopRotation: 0,
@@ -228,6 +233,49 @@ export function normalizeMaterialSurfaceOverrides(rawSurfaceOverrides: any) {
 }
 
 /** 某个槽位上的表面覆盖（已净化）； */
+/** 自定义装饰的资产 id 形状（与后端 `MODEL_UUID` 同一正则）。 */
+const USER_DECORATION_ASSET_ID = /^[0-9a-f]{32}$/
+
+/**
+ * 剥掉 0.8.9 上游的 `model:` 前缀（本仓存裸 hex，上游带前缀）。
+ *
+ * 不剥的后果：从 0.8.9 导入的户型里，装饰的 `assetId` 会被清成空串
+ * —— 物件还在原位，但渲染不出任何网格（表现为「导入后装饰消失」）。
+ */
+function strippedDecorationAssetId(raw: unknown): string {
+  const text = String(raw || '').toLowerCase()
+  return text.startsWith('model:') ? text.slice('model:'.length) : text
+}
+/** 展示名上限（与后端 `MODEL_NAME_LIMIT` 同口径）。 */
+const USER_DECORATION_NAME_LIMIT = 64
+
+/**
+ * 自定义装饰条目净化。
+ *
+ * 只带 `assetId` / `name` / `modelScale` 三个额外字段：
+ * - 非 ``user-decoration`` 返回空对象（调用方直接展开，不给大函数加三元）；
+ * - `assetId` 非法时**保留条目但标记为空**（`assetId: ''`），由 UI 显示「模型已失联」，
+ *   比整条丢弃更接近用户预期（物体还在原位，只是暂时画不出来）；
+ * - `modelScale` 夹到 `0.05..20`，避免一份坏草稿把场景撑爆。
+ */
+export function normalizeUserDecorationRecord(rawItemRecord: Record<string, unknown> | null | undefined) {
+  if (rawItemRecord?.type !== 'user-decoration') return {}
+  // 双键读取：0.8.9 上游存 `modelAssetId` / `modelName`，本仓存 `assetId` / `name`。
+  // 只读一边的后果是「从 0.8.9 导入的装饰拿不到 assetId，物件在原位但画不出来」。
+  const assetId = strippedDecorationAssetId(rawItemRecord?.assetId ?? rawItemRecord?.modelAssetId)
+  const rawNameSource = rawItemRecord?.name ?? rawItemRecord?.modelName
+  const rawName = typeof rawNameSource === 'string' ? rawNameSource.trim() : ''
+  return {
+    assetId: USER_DECORATION_ASSET_ID.test(assetId) ? assetId : '',
+    name: rawName.slice(0, USER_DECORATION_NAME_LIMIT),
+    // 同时写出上游键名：这份文档若被 0.8.9 打开，`modelAssetId` / `modelName` 仍需可读。
+    // 带 `model:` 前缀是上游 `isDecorationAssetId` 的要求。
+    modelAssetId: USER_DECORATION_ASSET_ID.test(assetId) ? `model:${assetId}` : '',
+    modelName: rawName.slice(0, USER_DECORATION_NAME_LIMIT),
+    modelScale: clamp2(finite2(rawItemRecord?.modelScale, 1), 0.05, 20),
+  }
+}
+
 export function normalizeScenePayload(rawScene: any, externalModelRegistry: any) {
   const kd2 = createStudioDocument()
   if (!rawScene || typeof rawScene != 'object') return kd2
@@ -585,6 +633,10 @@ export function normalizeScenePayload(rawScene: any, externalModelRegistry: any)
                     pillarAxis: normalizePillarAxis2(rawItemRecord?.pillarAxis),
                   }
                 : {}),
+              // 0.8.9 自定义装饰：模型库条目（32 位 hex）+ 展示名 + 等比缩放。
+              // 少了这三项，保存一次就会退化成一张普通桌子（`type` 兜底 `table`）。
+              // 非装饰类型时函数返回 `{}`，展开即为空。
+              ...normalizeUserDecorationRecord(rawItemRecord),
               ...(rawItemRecord?.type === 'sofa-l'
                 ? {
                     sofaChaiseSide: rawItemRecord.sofaChaiseSide === 'left' ? 'left' : 'right',
@@ -648,6 +700,8 @@ export function normalizeScenePayload(rawScene: any, externalModelRegistry: any)
       wallThickness: clamp2(finite2(rawScene.settings?.wallThickness, 0.12), 0.01, 3),
       wallOpacity: clamp2(finite2(rawScene.settings?.wallOpacity, defaultViewSettings.wallOpacity), 0, 1),
       floorEdgeVisible: rawScene.settings?.floorEdgeVisible !== false,
+      lightingMode: rawScene.settings?.lightingMode === 'region' ? 'region' : 'standard',
+      lightingModeVersion: 2,
       planViewRotation: (((Math.round(finite2(rawScene.settings?.planViewRotation, 0) / 90) * 90) % 360) + 360) % 360,
       cameraView: rawScene.settings?.cameraView === 'top' ? 'top' : 'free',
       cameraTopRotation: (((Math.round(finite2(rawScene.settings?.cameraTopRotation, 0) / 90) * 90) % 360) + 360) % 360,

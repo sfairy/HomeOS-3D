@@ -23,6 +23,8 @@ from .router_registry import register_studio3d_routers
 from ..api.assets import AssetCatalog
 from ..domains.ha.integration.service import HAConnectorService as StudioHAConnectorService
 from ..domains.logs.global_log import GlobalLogStore
+from ..domains.studio3d.models import ModelLibrary
+from ..platform.core.http.display_images import DisplayImageCache
 from ..platform.security.login_limiter import LoginAttemptLimiter
 
 
@@ -55,6 +57,8 @@ async def install(
         settings.studio3d_dir,
         settings.studio3d_exports_dir,
         settings.effect_variants_dir,
+        settings.studio3d_models_dir,
+        settings.display_images_cache_dir,
     ):
         try:
             directory.mkdir(parents=True, exist_ok=True)
@@ -68,6 +72,22 @@ async def install(
         settings.effect_variants_dir,
         settings.fonts_dir,
     )
+    # 装饰模型库（0.8.9「我的装饰」）：目录 + JSON 索引 + 一把写锁。
+    # 启动自愈：清临时文件、摘掉「索引有但文件丢了」的条目、补登记「文件有但索引没记」的。
+    app.state.studio_models = ModelLibrary(settings.studio3d_models_dir)
+    recovery = app.state.studio_models.recover()
+    if any(recovery.values()):
+        app.state.global_log.append(
+            "warning",
+            "3D户型图编辑器",
+            "配置",
+            "装饰模型库已自愈："
+            f"清理临时文件 {recovery['temporary']} 个，"
+            f"摘除缺失条目 {recovery['missing']} 条，"
+            f"补登记文件 {recovery['orphan']} 个。",
+        )
+    # 按显示尺寸派生的图片缓存（0.8.9）：纯派生数据，不进备份，可随时清空重算。
+    app.state.display_images = DisplayImageCache(settings.display_images_cache_dir)
     # 单用户注册下「是否已注册」直接查 ``users`` 表，无需外置文件。
     # 3D 登录限流器（配对码 / 授权激活等端点使用）。
     # 登录桶开启指数退避：反复被封的键从 600s 起翻倍，避免「每天试几次」的慢速爆破。

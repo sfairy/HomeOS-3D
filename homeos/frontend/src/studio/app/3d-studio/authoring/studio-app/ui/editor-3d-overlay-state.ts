@@ -85,7 +85,7 @@ function selectedSingleId(selectedIds: string[]): string | null {
 
 /**
  * 离地手柄的类型 / 作用域门控（0.8.7 `fS()` 的前半段）。为什么单独成函数：这五条判定
- * 是**并列的排除项**，摊在 `readOverlayState` 里会把那个函数推过复杂度棘轮。
+ * 是**并列的排除项**，摊在 `readOverlayState` 里会让主线淹没在条件里。
  *
  * 1. 必须在当前素材分类作用域内（`Or`）——「家居」分类下选中一盏灯不会有离地手柄；
  * 2. 灯具不走这里（`fe.has`）——它们的离地高度在灯带工具条的 move 模式里拖；

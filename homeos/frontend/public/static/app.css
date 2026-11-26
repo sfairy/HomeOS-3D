@@ -1,3 +1,4 @@
+@import "./range-control.css";
 @import "./dashboard-fonts.css";
 @import "./ui-icons.css";
 
@@ -674,6 +675,18 @@ h2 {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+/* 0.8.9：页面背景的模板缩略图是 **6 张预设图拼的 3×2 网格**，
+   不是单图；用 grid 让六张都保持等比（单图 `object-fit: cover` 会把它们裁成一条）。 */
+.component-template-preview.page-background-template-preview {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 2px;
+}
+.page-background-template-preview img {
+  min-width: 0;
+  min-height: 0;
 }
 .component-template-card[data-template-id="device-button"] .component-template-preview img {
   object-fit: fill;
@@ -1556,34 +1569,7 @@ h2 {
   pointer-events: none;
 }
 .global-color-picker-hue {
-  width: 100%;
-  height: 14px;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 7px;
-  outline: none;
-  background: linear-gradient(90deg, red, #ff0, #0f0, #0ff, #00f, #f0f, red);
-  appearance: none;
-  -webkit-appearance: none;
-}
-.global-color-picker-hue::-webkit-slider-thumb {
-  width: 15px;
-  height: 15px;
-  border: 2px solid #fff;
-  border-radius: 50%;
-  background: transparent;
-  box-shadow: 0 0 0 1px #000000b3;
-  appearance: none;
-  -webkit-appearance: none;
-}
-.global-color-picker-hue::-moz-range-thumb {
-  width: 12px;
-  height: 12px;
-  border: 2px solid #fff;
-  border-radius: 50%;
-  background: transparent;
-  box-shadow: 0 0 0 1px #000000b3;
+  width: 100%;margin: 0;padding: 0
 }
 .global-color-picker-value-row {
   display: grid;
@@ -5673,24 +5659,7 @@ h2 {
 .hb-custom-popup-module--light .hb-light-details-slider-legend small {
   font-size: 18px;
 }
-.hb-custom-popup-module--light .hb-light-details-slider input {
-  height: 13px;
-}
-.hb-custom-popup-module--light .hb-light-details-slider input::-webkit-slider-runnable-track {
-  height: 13px;
-}
-.hb-custom-popup-module--light .hb-light-details-slider input::-webkit-slider-thumb {
-  width: 28px;
-  height: 28px;
-  margin-top: -7.5px;
-}
-.hb-custom-popup-module--light .hb-light-details-slider input::-moz-range-track {
-  height: 13px;
-}
-.hb-custom-popup-module--light .hb-light-details-slider input::-moz-range-thumb {
-  width: 26px;
-  height: 26px;
-}
+.hb-custom-popup-module--light .hb-light-details-slider input {}
 .hb-custom-popup-module--light > .hb-light-details-power {
   width: 100%;
   min-height: 50px;
@@ -5938,5 +5907,54 @@ h2 {
 }
 
 /* ---- 0.8.4 选择器级补丁 ---- */
-.binding-repair-list { max-height:42dvh;overflow:auto;padding:12px 12px 12px 28px;background:#00000026;border-radius:8px }
+.binding-repair-list { padding:12px 12px 12px 28px;background:#00000026;border-radius:8px }
 .binding-repair-list li { padding:5px 0;overflow-wrap:anywhere }
+
+/* ---- 0.8.9 失效配置修复：从「一段文本」改成「列表 + 逐条操作」 ----
+   容器与标题的声明**逐字取自上游**：`.binding-repair-results` 只限高滚动、
+   `.binding-repair-results h3` 是 13px + 上下 8px 边距。
+   此前我用 grid + `margin:0` 把它们压掉，实测整块比上游矮 80px。 */
+.binding-repair-results { max-height:46dvh;overflow:auto;overscroll-behavior:contain }
+.binding-repair-results h3 { margin:8px 0;font-size:13px }
+/* 行内排版与上游逐条相同（此前是自造值：11px/10px 字号 + 自定义按钮皮肤，
+   实测让整块比上游矮 14px、差异 17.7%）。上游只定 margin / opacity，其余继承全局。 */
+.binding-repair-list li p { margin:4px 0 }
+.binding-repair-list li small { display:block;opacity:.8 }
+.binding-repair-list li button { margin-top:6px }
+.binding-repair-status { margin:6px 0 0;color:#8b959d;font-size:10px;line-height:1.5 }
+/* 对话框：自建节点（`shellConfirm` 只吃字符串，无法给每条挂「定位控件」）。 */
+.binding-repair-dialog {
+  position:fixed;inset:0;z-index:60;box-sizing:border-box;display:flex;flex-direction:column;gap:10px;
+  width:min(520px,calc(100vw - 32px));height:max-content;max-height:calc(100dvh - 48px);margin:auto;padding:18px;
+  overflow:auto;border:1px solid #3a434b;border-radius:12px;background:#1b2228;color:#e6ecef;
+  box-shadow:0 18px 48px #000000a8;
+}
+.binding-repair-dialog h2 { margin:0;font-size:15px;font-weight:640 }
+.binding-repair-dialog > p { margin:0;color:#a7b1b8;font-size:11px;line-height:1.6 }
+.binding-repair-actions { display:flex;justify-content:flex-end;gap:8px;margin-top:4px }
+.binding-repair-actions button { min-height:34px;padding:6px 12px;border:1px solid #46515a;border-radius:7px;background:#222a31;color:#dfe6ea;font:inherit;font-size:11px;cursor:pointer }
+.binding-repair-actions .primary-action { border-color:#7e6a4a;background:#3a3125;color:#f0e2c8 }
+
+/* ---- 0.8.9 选择器级补丁 ---- */
+/* 页面背景检查器：图片选择器与「布局与位置」四格只在对应来源 / 布局下显示。
+   两个字段在标记里都是常驻节点（引擎按固定 id 绑定），所以必须有 [hidden] 规则把
+   `display:grid` 压掉 —— 否则「选了内置背景却仍看到图片选择器」。 */
+#page-background-image-field[hidden],
+#page-background-position[hidden] { display: none }
+
+/* 我的装饰上传说明里的额度行（`decoration-library.ts` 按服务端上限填）。 */
+.decoration-limits { margin: 6px 0 0; color: #7f8a92; font-size: 10px; line-height: 1.6 }
+
+/* 取色器色相轨道（0.8.9）：一条彩虹滑轨 + 透明拇指（拇指只留 1px 描边，
+   否则会在色带中间盖掉一块颜色）。几何全部来自 `range-control.css` 的 `--hb-rail-*`。 */
+.global-color-picker-hue-rail {
+  --hb-rail-border-width: 0px;
+  --hb-rail-background: linear-gradient(90deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);
+  --hb-rail-shadow: none;
+  --hb-rail-thumb-size: 15px;
+  --hb-rail-thumb-border: 2px;
+  --hb-rail-thumb-border-color: #fff;
+  --hb-rail-thumb-background: transparent;
+  --hb-rail-thumb-filter: none;
+  --hb-rail-thumb-shadow: 0 0 0 1px rgba(0, 0, 0, 0.7);
+}

@@ -18,6 +18,7 @@ content-length / content-encoding —— 这里会改写响应体（流式透传
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import Mapping
 from dataclasses import dataclass
 from time import monotonic
@@ -37,16 +38,19 @@ from .media_stream import (
     _remember_camera_snapshot,
     _schedule_camera_snapshot_refresh,
     _shared_media_client,
+    cached_media_artwork,
     camera_snapshot_cache,
     camera_snapshot_cache_key,
     camera_snapshot_refreshes,
     close_shared_media_clients,
     load_active_connection,
     load_authorized_camera_connection,
+    media_artwork_cache_key,
     open_licensed_camera_stream,
+    remember_media_artwork,
 )
 from ...dependencies import ShortLivedLicensedViewer, ViewerPrincipal
-from ...domains.ha.integration.client import HAClientError
+from ...domains.ha.integration.client import HAClientError, bypass_environment_proxy
 from ...domains.ha.integration.crypto import CredentialCipherError
 from ...domains.ha.integration.media_access import (
     authorize_media,
@@ -55,6 +59,9 @@ from ...domains.ha.integration.media_access import (
 )
 
 __all__ = ["close_shared_media_clients", "router"]
+
+#: 上游取图失败落回上一帧只留一条线索：不记 token / 完整查询串。
+LOGGER = logging.getLogger(__name__)
 
 router = APIRouter(include_in_schema=False)
 ALLOWED_MEDIA_PROXY_PREFIXES = (
@@ -241,6 +248,32 @@ def _classify_media_request(request: Request, client_config) -> _MediaRequestKin
     )
 
 
+def _is_media_artwork_request(request: Request) -> bool:
+    """``media_player_proxy`` 的 GET：封面多来自设备实时截屏，允许失败时回落上一帧。"""
+    return request.method == "GET" and request.url.path.startswith("/api/media_player_proxy/")
+
+
+def _fallback_media_artwork(request: Request, client_config, reason: str) -> Response | None:
+    """上游取图失败时把上一张成功封面继续给前端；没有缓存才让错误照常冒泡。
+
+    只覆盖 ``media_player_proxy``：这类封面是「锦上添花」的展示内容，短暂显示上一帧
+    远比整块屏幕闪回待机宣传画、并向后端日志写一条 5xx 要好。响应固定 ``no-store``，
+    避免浏览器把兜底帧当成新图长期缓存。
+    """
+    if not _is_media_artwork_request(request):
+        return None
+    entry = cached_media_artwork(media_artwork_cache_key(client_config.base_url, request.url.path))
+    if entry is None:
+        return None
+    LOGGER.warning("媒体封面上游取图失败（%s），回落到上一帧：%s", reason, request.url.path)
+    return Response(
+        content=entry.content,
+        media_type=entry.content_type,
+        status_code=200,
+        headers={"cache-control": "no-store"},
+    )
+
+
 async def _cached_snapshot(
     request: Request,
     client_config,
@@ -290,13 +323,16 @@ def _media_client(client_config, stream: bool) -> tuple[httpx.AsyncClient, bool]
         return (
             httpx.AsyncClient(
                 verify=client_config.verify_tls,
+                # 0.8.9：内网 HA 直连，不经环境代理。容器/主机上常见的
+                # ``HTTP_PROXY=socks5://…`` 到不了 192.168.x，会让 MJPEG 直接连不上。
+                trust_env=not bypass_environment_proxy(client_config.base_url),
                 # MJPEG 流本来就不该被总时长掐断：超时由观看端断开/任务取消来收尾。
                 timeout=None,  # noqa: S113 - 流式分支，见上
                 follow_redirects=False,
             ),
             True,
         )
-    return _shared_media_client(client_config.verify_tls), False
+    return _shared_media_client(client_config.verify_tls, bypass_environment_proxy(client_config.base_url)), False
 
 
 async def _dispatch_upstream(
@@ -387,6 +423,63 @@ async def _buffered_media_response(
     return Response(content=content, status_code=upstream.status_code, headers=response_headers)
 
 
+def _record_media_artwork(request: Request, client_config, upstream: httpx.Response) -> None:
+    """把成功取回的封面记进兜底缓存；失败 / 非封面请求直接跳过。"""
+    if not _is_media_artwork_request(request) or not 200 <= upstream.status_code < 300 or not upstream.content:
+        return
+    remember_media_artwork(
+        media_artwork_cache_key(client_config.base_url, request.url.path),
+        upstream.content,
+        upstream.headers.get("content-type", "image/jpeg"),
+    )
+
+
+async def _stale_media_artwork_response(
+    request: Request,
+    client_config,
+    upstream: httpx.Response,
+    client: httpx.AsyncClient,
+    owns_client: bool,
+) -> Response | None:
+    """上游 5xx 时回落到上一帧封面；回落前先把上游与独占 client 归还。"""
+    if upstream.status_code < 500:
+        return None
+    fallback = _fallback_media_artwork(request, client_config, f"HTTP {upstream.status_code}")
+    if fallback is None:
+        return None
+    await upstream.aclose()
+    if owns_client:
+        await client.aclose()
+    return fallback
+
+
+async def _respond_from_upstream(
+    request: Request,
+    client_config,
+    upstream: httpx.Response,
+    client: httpx.AsyncClient,
+    owns_client: bool,
+    kind: _MediaRequestKind,
+) -> Response:
+    """上游已返回：复检授权后按「封面兜底 / 流式 / 缓冲」三种方式收尾。"""
+    await _ensure_media_access(request, upstream, client, owns_client)
+    fallback = await _stale_media_artwork_response(request, client_config, upstream, client, owns_client)
+    if fallback is not None:
+        return fallback
+    response_headers = _response_headers(request, upstream, client_config)
+    _record_media_artwork(request, client_config, upstream)
+    if kind.stream:
+        _apply_frame_passthrough(request, response_headers)
+        return LicensedCameraStreamingResponse(
+            request,
+            upstream,
+            client,
+            status_code=upstream.status_code,
+            headers=response_headers,
+        )
+    return await _buffered_media_response(request, upstream, client, owns_client, kind, response_headers)
+
+
 async def proxy_http(request: Request, viewer: ViewerPrincipal | None) -> Response:
     await _guard_media_request(request)
     connection = await _proxy_connection(request, viewer)
@@ -402,18 +495,7 @@ async def proxy_http(request: Request, viewer: ViewerPrincipal | None) -> Respon
     client, owns_client = _media_client(client_config, kind.stream)
     try:
         upstream = await _dispatch_upstream(request, client, target, headers, client_config, kind.stream)
-        await _ensure_media_access(request, upstream, client, owns_client)
-        response_headers = _response_headers(request, upstream, client_config)
-        if kind.stream:
-            _apply_frame_passthrough(request, response_headers)
-            return LicensedCameraStreamingResponse(
-                request,
-                upstream,
-                client,
-                status_code=upstream.status_code,
-                headers=response_headers,
-            )
-        return await _buffered_media_response(request, upstream, client, owns_client, kind, response_headers)
+        return await _respond_from_upstream(request, client_config, upstream, client, owns_client, kind)
     except ClientDisconnect:
         # 观看端已经走了：上游不能因为没人接收而一直挂着。
         if owns_client:
@@ -423,6 +505,9 @@ async def proxy_http(request: Request, viewer: ViewerPrincipal | None) -> Respon
     except httpx.HTTPError as error:
         if owns_client:
             await client.aclose()
+        fallback = _fallback_media_artwork(request, client_config, type(error).__name__)
+        if fallback is not None:
+            return fallback
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY, detail=f"无法载入 Home Assistant 后台：{error}"
         ) from error

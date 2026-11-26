@@ -17,6 +17,7 @@ import {
   renderVacuumShortcutPanel as renderVacuumShortcutPanelCore,
 } from './rendering/panel-sections'
 import { ensureInteraction3dSelectControls } from '../select-controls'
+import { renderBoilerSection as renderBoilerSectionCore } from './rendering/boiler-section'
 import { renderPanelImpl as renderPanelCore } from './rendering/panel-assembly'
 import {
   openAddDialog as openAddDialogCore,
@@ -101,6 +102,15 @@ export function attachEditorPanelRendering(editorHost: any) {
   /** 附加控件分区（同上）。 */
   function renderExtraControlsSection() {
     return renderExtraControlsSectionCore(panelSectionsDeps())
+  }
+  /**
+   * 采暖分区（0.8.9 取暖壁挂炉）。
+   *
+   * 传入 `renderPanel`：选完实体要重绘分段标题，而 `panelSectionsDeps()` 里没有它
+   * （它是面板总装的局部递归句柄）。
+   */
+  function renderBoilerSection() {
+    return renderBoilerSectionCore({ ...panelSectionsDeps(), renderPanel })
   }
   /** 净化器绑定分区（同上）。 */
   function renderAirPurifierBindingSection(sizeFieldContainer: any, sizeFieldTarget: any, sizeFieldOptions: any) {
@@ -227,6 +237,7 @@ export function attachEditorPanelRendering(editorHost: any) {
     listChangedFields,
     renderVacuumShortcutPanel,
     renderExtraControlsSection,
+    renderBoilerSection,
     get buildRuntimeProperties() {
       return buildRuntimeProperties
     },
@@ -364,6 +375,11 @@ export function attachEditorPanelRendering(editorHost: any) {
     read: () => editorHost.structuredClone2,
     status: saveStatusElement,
     document,
+    // 扫地机窗口是从「设备与地图」跳过来的子流程：上游在保存后要求用户回到上一窗口，
+    // 不是笼统的「配置已应用」。
+    savedMessage: editorHost.isVacuumShortcutMode
+      ? '已应用到扫地机窗口，请返回并保存配置。'
+      : '配置已应用，请保存仪表盘。',
   })
   editorHost.configurationFeedback = configurationFeedback
   const saveEditorConfiguration = async () => {
@@ -584,19 +600,23 @@ export function attachEditorPanelRendering(editorHost: any) {
     return resolvedIconSize
   }
   function listAddableModels() {
+    // 去重必须看**整份**集合：`climate` 与 `bath-heater` 共用 `airConditioners`，
+    // 只看当前类别的 `getItemList()` 会把另一类别已占用的模型误判成可添加。
+    const boundItemList =
+      typeof editorHost.getCollectionItemList === 'function'
+        ? editorHost.getCollectionItemList()
+        : editorHost.getItemList()
     return (editorHost.sceneMetadata?.floors || [])
       .filter((candidateFloorEntry: any) => candidateFloorEntry.id === editorHost.floorSelection)
       .flatMap((floorWithModels: any) =>
         (editorHost.usesModelBinding ? floorWithModels[editorHost.collectionKey] || [] : floorWithModels.groups || [])
           .filter(
             (modelInFloor: any) =>
-              !editorHost
-                .getItemList()
-                .some(
-                  (existingModelItem: any) =>
-                    existingModelItem.floorId === floorWithModels.id &&
-                    existingModelItem[editorHost.modelIdKey] === modelInFloor.id,
-                ),
+              !boundItemList.some(
+                (existingModelItem: any) =>
+                  existingModelItem.floorId === floorWithModels.id &&
+                  existingModelItem[editorHost.modelIdKey] === modelInFloor.id,
+              ),
           )
           .map((addableModel: any) => ({
             floor: floorWithModels,
@@ -659,6 +679,7 @@ export function attachEditorPanelRendering(editorHost: any) {
     openCurtainGroupDialog,
     renderCurtainGroupSection,
     renderExtraControlsSection,
+    renderBoilerSection,
     renderAirPurifierBindingSection,
     openLabelBatchApplyDialog,
     renderPanel,

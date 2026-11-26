@@ -106,6 +106,48 @@ function syncIpadPwaDisplay(env = window): (() => void) | null {
 
 let disposeActiveDisplay: (() => void) | null = null
 
+/** 素材版本独立轮询的节流窗口（毫秒）。 */
+const ASSETS_VERSION_POLL_INTERVAL_MS = 30000
+
+/**
+ * 本轮轮询拿到的素材版本结论。
+ *
+ * - `key`：拿到了 `builtin:user` 规范化键；
+ * - `skipped`：还在节流窗口内，本轮不检查素材；
+ * - `failed`：独立版本请求失败 —— 调用方必须**中止**本轮刷新（与原有语义一致）。
+ */
+type AssetsVersionOutcome = { kind: 'key'; key: string } | { kind: 'skipped' } | { kind: 'failed' }
+
+/** 素材版本载荷（`/revision` 的 `assetVersions` 与 `/assets/version` 同形）。 */
+type AssetsVersionSource = { builtin?: unknown; user?: unknown }
+
+/** 把「内置 / 用户素材版本」拼成可比较的键。 */
+function joinAssetsVersion(versionSource: AssetsVersionSource | null | undefined): string {
+  return String(versionSource?.builtin || '') + ':' + String(versionSource?.user || '')
+}
+
+/**
+ * 解析本轮要用的素材版本键（0.8.9 `display.js` 的 `display_assets=1` 消费方式）。
+ *
+ * 优先用 `/projects/{id}/revision?display_assets=1` 随 revision 一起下发的 `assetVersions`：
+ * 中控不加载编辑器，却也必须在**同一次轮询**里知道素材有没有换过，否则每次都要多开
+ * 一条 `/assets/version` 请求。老后端不返回 `assetVersions` 时回退到独立请求，行为不变。
+ *
+ * 抽成模块级函数：`bootDisplay` 的刷新闭包已贴复杂度上限，内联这段会直接顶超门禁。
+ */
+async function resolveAssetsVersionOutcome(
+  revisionResponse: { assetVersions?: AssetsVersionSource | null } | null | undefined,
+  lastCheckAt: number,
+  request: (path: string) => Promise<AssetsVersionSource | null | undefined>,
+): Promise<AssetsVersionOutcome> {
+  if (revisionResponse?.assetVersions) {
+    return { kind: 'key', key: joinAssetsVersion(revisionResponse.assetVersions) }
+  }
+  if (Date.now() - lastCheckAt < ASSETS_VERSION_POLL_INTERVAL_MS) return { kind: 'skipped' }
+  const versionResponse = await request('/assets/version')
+  return versionResponse ? { kind: 'key', key: joinAssetsVersion(versionResponse) } : { kind: 'failed' }
+}
+
 /** 引导展示页（重复调用会先回收上一次）。 */
 export function bootDisplay(): void {
   teardownDisplay()
@@ -492,19 +534,22 @@ export function bootDisplay(): void {
           let revisionResponse: any = null,
             hasAssetsChange = loadedAssetsVersion !== assetsVersion
           if (panelRenderer) {
+            // `display_assets=1`：中控不加载编辑器，但仍要在**同一次轮询**里知道
+            // 「内置/用户素材有没有换过」（0.8.9 display.js 的消费方式）。缺这个参数
+            // 时每次都要多开一条 `/assets/version` 请求。
             if (
-              ((revisionResponse = await apiRequest('/projects/' + encodeURIComponent(project.id) + '/revision')),
+              ((revisionResponse = await apiRequest(
+                '/projects/' + encodeURIComponent(project.id) + '/revision?display_assets=1',
+              )),
               !revisionResponse)
             )
               return
-            const now = Date.now()
-            if (now - lastAssetsCheckAt >= 30000) {
-              const assetsVersionResponse = await apiRequest('/assets/version')
-              if (!assetsVersionResponse) return
-              const assetsKey = (assetsVersionResponse.builtin || '') + ':' + (assetsVersionResponse.user || '')
-              ;(hasAssetsChange = loadedAssetsVersion !== assetsKey),
-                (assetsVersion = assetsKey),
-                (lastAssetsCheckAt = now)
+            const assetsOutcome = await resolveAssetsVersionOutcome(revisionResponse, lastAssetsCheckAt, apiRequest)
+            if (assetsOutcome.kind === 'failed') return
+            if (assetsOutcome.kind === 'key') {
+              ;(hasAssetsChange = loadedAssetsVersion !== assetsOutcome.key),
+                (assetsVersion = assetsOutcome.key),
+                (lastAssetsCheckAt = Date.now())
             }
             if (
               !hasAssetsChange &&

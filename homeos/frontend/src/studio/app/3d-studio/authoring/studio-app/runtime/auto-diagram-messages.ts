@@ -39,8 +39,8 @@ export function bindAutoDiagramMessages(deps: Record<string, any>): void {
   } = deps
   /*
    * 0.8.7：构图（cameraSnapshot）回传。
-   * 用**独立的监听器**而不是并进下面按 `type` 串联的大 listener：复杂度棘轮按函数计，
-   * 主 listener 已经贴着基线。这里只认一种消息，逻辑全在模块函数里。
+   * 用**独立的监听器**而不是并进下面按 `type` 串联的大 listener：
+   * 主 listener 已经很长。这里只认一种消息，逻辑全在模块函数里。
    */
   const cameraBridgeState = { revision: 0, timer: 0 }
   const cameraBridgeDeps: AutoDiagramCameraBridgeDeps = {
@@ -292,7 +292,7 @@ export function handleAutoDiagramCameraCommand(
 
 /**
  * 相机指令落地：用分发表而不是 if 链。
- * 复杂度棘轮按函数计算，拆成每个命令一个 5 行以内的处理器最稳。
+ * 拆成每个命令一个 5 行以内的处理器最稳。
  */
 const AUTO_DIAGRAM_CAMERA_COMMANDS: Record<
   string,

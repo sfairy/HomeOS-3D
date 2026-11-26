@@ -36,6 +36,8 @@ const templateScopeOrder = {
       'scene-mode',
     ],
     page: [
+      // 页面背景排最前：它是整页底层，用户找它时通常在翻「页面级」控件。
+      'page-background',
       'image',
       'floorplan-auto-diagram',
       'title-button',

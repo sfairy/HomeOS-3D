@@ -29,6 +29,8 @@ export interface ConfigurationChoice {
   detail?: string
   state?: 'configured' | 'missing' | 'remaining'
   progress?: ConfigurationProgress
+  /** 禁用时的补充指引（上游类别弹窗的 `hint`）。 */
+  hint?: string
   unit?: string
 }
 
@@ -46,6 +48,8 @@ export interface ConfigurationPickerOptions {
   summary?: ConfigurationProgress
   unit?: string
   selectedId?: string
+  /** 关闭按钮的 `aria-label`；缺省是「关闭」+ 标题。 */
+  closeLabel?: string
   controls?: Node
   emptyMessage?: string
   onSelect: (choiceId: string) => Promise<unknown> | unknown
@@ -84,6 +88,21 @@ export function configurationSummary(
     summaryElement.append(labelElement)
   })
   return summaryElement
+}
+
+/** 选项的明细行（「模型缺失 · 可重新关联」这类灰字）。 */
+function createConfigurationDetail(ownerDocument: Document, text: string, state?: string): HTMLElement {
+  const detailElement = domElement(ownerDocument, 'span', 'i3d-configuration-detail' + (state ? ' is-' + state : ''))
+  detailElement.textContent = text
+  return detailElement
+}
+
+/** 选项的进度 / 禁用提示 / 明细行：类别弹窗与模型弹窗共用同一套渲染顺序。 */
+function appendChoiceMeta(optionButton: HTMLElement, choice: ConfigurationChoice, ownerDocument: Document): void {
+  choice.progress &&
+    optionButton.append(configurationSummary(choice.progress, { document: ownerDocument, unit: choice.unit }))
+  choice.hint && optionButton.append(createConfigurationDetail(ownerDocument, choice.hint))
+  choice.detail && optionButton.append(createConfigurationDetail(ownerDocument, choice.detail, choice.state))
 }
 
 export interface ConfigurationSegmentedControlOptions {
@@ -147,6 +166,7 @@ export function openConfigurationPicker({
   sections,
   summary,
   unit,
+  closeLabel,
   selectedId,
   controls,
   emptyMessage = '当前楼层没有可选对象。',
@@ -178,7 +198,7 @@ export function openConfigurationPicker({
   description && headingTextElement.append(create('p', 'i3d-note', description))
   summary && headingTextElement.append(configurationSummary(summary, { document: ownerDocument, unit }))
   const closeButtonElement = create('button', 'icon-button', '×') as HTMLButtonElement
-  ;(closeButtonElement.type = 'button'), closeButtonElement.setAttribute('aria-label', '关闭' + title)
+  ;(closeButtonElement.type = 'button'), closeButtonElement.setAttribute('aria-label', closeLabel || '关闭' + title)
   closeButtonElement.addEventListener('click', close)
   headingElement.append(headingTextElement, closeButtonElement)
   const bodyElement = create('div', 'i3d-device-category-dialog-body')
@@ -216,12 +236,7 @@ export function openConfigurationPicker({
       )
       choice.id === selectedId && topElement.append(create('span', 'i3d-device-category-option-current', '当前'))
       optionButton.append(topElement)
-      choice.progress &&
-        optionButton.append(configurationSummary(choice.progress, { document: ownerDocument, unit: choice.unit }))
-      choice.detail &&
-        optionButton.append(
-          create('span', 'i3d-configuration-detail' + (choice.state ? ' is-' + choice.state : ''), choice.detail),
-        )
+      appendChoiceMeta(optionButton, choice, ownerDocument)
       optionButton.addEventListener('click', async () => {
         if (isClosed || isSelecting || choice.disabled) return
         ;(isSelecting = true),

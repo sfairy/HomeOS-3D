@@ -104,6 +104,9 @@ class ProjectDraftUpdate(BaseModel):
     global_popup_revision: int | None = Field(default=None, alias="globalPopupRevision", ge=1)
     global_popups_dirty: bool = Field(default=True, alias="globalPopupsDirty")
     document: dict[str, Any]
+    #: 0.8.9：调用方「以为自己连的是哪台 HA」。换 HA 后旧页面保存会 409，
+    #: 而不是把旧页面里的实体绑定悄悄写进新机器的项目。
+    expected_ha_source: str | None = Field(default=None, alias="expectedHaSource", max_length=128)
 
 
 class ProjectBindingCheckRequest(BaseModel):
@@ -117,6 +120,7 @@ class ProjectBindingCheckRequest(BaseModel):
 
     document: dict[str, Any]
     component_ids: list[str] = Field(default_factory=list, alias="componentIds", max_length=1000)
+    expected_ha_source: str | None = Field(default=None, alias="expectedHaSource", max_length=128)
 
 
 class ProjectDuplicateRequest(BaseModel):

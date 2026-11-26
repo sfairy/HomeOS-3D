@@ -13,7 +13,7 @@
 
 import { CARD_TEXT_SIZE_PX } from '@app/bridge/presets/card-text-size'
 import { DEFAULT_BUTTON_SIZE, buttonIconSize } from '@app/bridge/presets/button-icon-size'
-import { openConfigurationPicker, configurationSegmentedControl } from '../../configuration-picker'
+import { openConfigurationPicker } from '../../configuration-picker'
 import { bindPickerRow, openDeviceCategoryPicker } from './picker-row'
 import { resolveDeviceCategoryProfile } from './device-category-choices'
 import { configurationProgress } from '../../configuration-progress'
@@ -22,6 +22,7 @@ import {
   curtainGroupCandidates as curtainGroupCandidates2,
   curtainGroupEntryId as curtainGroupEntryId2,
 } from '../../../cover/cover-groups'
+import { windowBindingHint } from '@app/shared/scene/window/window-models'
 import { randomUuid as randomUuid2 } from '@app/shared/util/random-id'
 import { withFixedLightEffects as withFixedLightEffects2 } from '@app/bridge/presets/light-effect-policy'
 import {
@@ -158,7 +159,8 @@ export function openAddDialog(deps: PanelDialogsDeps, addDialogTriggerEvent: any
         JSON.stringify([configuredItemProbe.floorId, configuredItemProbe[editorHost.modelIdKey as string]]),
       ),
     )
-  let selectedModelKind = 'air-conditioner'
+  // 「设备类型」不再放在新增弹窗里：0.8.9 起浴霸是独立环境类别，
+  // 在那一类里新增的条目固定写 `climateType: 'bath-heater'`；这里只处理空调模型。
   const pickerControlsElement = editorHost.createElement('div'),
     createPickerRow = bindPickerRow(editorHost, createSettingRow)
   editorHost.isDeviceKind &&
@@ -172,24 +174,19 @@ export function openAddDialog(deps: PanelDialogsDeps, addDialogTriggerEvent: any
           onPicked: (pickedDeviceKind: string) => switchEditorKind(pickedDeviceKind, true),
         }),
     })
-  editorHost.deviceKind === 'climate' &&
-    pickerControlsElement.append(
-      configurationSegmentedControl({
-        document: editorHost.editorDialogElement.ownerDocument,
-        label: '设备类型',
-        options: [
-          ['air-conditioner', '空调'],
-          ['bath-heater', '浴霸'],
-        ],
-        value: selectedModelKind,
-        onChange: (pickedModelKind: string) => {
-          selectedModelKind = pickedModelKind
-        },
-      }),
-    )
   const pickerChoices = floorModelList.map((floorModelEntry) => {
       const modelKey = JSON.stringify([currentFloorRecord?.id, floorModelEntry.id]),
-        isConfigured = configuredModelKeySet.has(modelKey) || !addableModelKeySet.has(modelKey)
+        isConfigured = configuredModelKeySet.has(modelKey) || !addableModelKeySet.has(modelKey),
+        // 开窗器与安防窗磁管同一扇窗：对面已经配过时必须提示，否则会重复绑一次。
+        oppositeSideHint =
+          editorHost.deviceKind === 'window-opener'
+            ? windowBindingHint(
+                floorModelEntry as { modelId?: string; legacyModels?: ReadonlyArray<{ modelId?: string }> },
+                String(currentFloorRecord?.id || ''),
+                'window-opener',
+                editorHost.structuredClone2,
+              )
+            : ''
       return {
         id: modelKey,
         label: editorHost.describeItem(floorModelEntry),
@@ -198,6 +195,7 @@ export function openAddDialog(deps: PanelDialogsDeps, addDialogTriggerEvent: any
         disabled: isConfigured,
         state: isConfigured ? ('configured' as const) : ('remaining' as const),
         detail: isConfigured ? '已配置' : '未配置 · 点击选择',
+        hint: oppositeSideHint,
       }
     }),
     addGeneration = ++editorHost.pickerGeneration
@@ -207,6 +205,8 @@ export function openAddDialog(deps: PanelDialogsDeps, addDialogTriggerEvent: any
     document: editorHost.editorDialogElement.ownerDocument,
     title: editorHost.isDeviceKind ? '添加设备' : '添加' + editorHost.kindLabel,
     kicker: 'MODEL SELECTION',
+    // 上游这一处关闭按钮的 aria 是固定句「关闭添加按钮窗口」（不是「关闭添加设备」）。
+    closeLabel: '关闭添加按钮窗口',
     unit: pickerUnit,
     description:
       (currentFloorRecord?.name ? '当前楼层：' + currentFloorRecord.name + '。' : '') +
@@ -264,7 +264,8 @@ export function openAddDialog(deps: PanelDialogsDeps, addDialogTriggerEvent: any
               ? 'mdi:ceiling-fan'
               : editorHost.defaultIcon,
           clickAction: editorHost.usesStatusPanel ? 'focus-panel' : 'focus',
-          ...(editorHost.deviceKind === 'climate' ? { climateType: selectedModelKind } : {}),
+          ...(editorHost.deviceKind === 'climate' ? { climateType: 'air-conditioner' } : {}),
+          ...(editorHost.deviceKind === 'bath-heater' ? { climateType: 'bath-heater' } : {}),
           ...(editorHost.deviceKind === 'fan' && chosenModel.group?.type === 'ceiling-fan'
             ? { visualMode: 'ceiling' }
             : editorHost.deviceKind === 'fan'
@@ -394,7 +395,7 @@ export function openCurtainGroupDialog(deps: PanelDialogsDeps, onCancel: any) {
       'i3d-note',
       '以“' +
         (onCancel.label || '当前窗帘') +
-        '”为第一层，继承其入口位置、尺寸、点击行为和聚焦视角。请选择同一位置的另一层窗帘。',
+        '”为第一层，继承其入口位置、尺寸、点击行为和聚焦视角。点击同一位置的另一层窗帘完成组合。',
     ),
   )
   const statusBodyElement = createSelectRow(
@@ -655,6 +656,8 @@ export function openCurtainGroupBatchApplyDialog(deps: PanelDialogsDeps, sourceG
   const displayFieldValue = linkedFieldProbe
       ? [
           ['size', '按钮大小', 'px'],
+          // 组合窗帘的批量字段与上游 `_0xfe895a(…, true)` 一致：大小 / 图标大小 / 触控范围 / 按钮显示。
+          ['iconSize', '图标大小', 'px'],
           ['hitSize', '触控范围', 'px'],
           ['buttonVisibility', '按钮显示', ''],
         ]
@@ -813,7 +816,12 @@ export function openCurtainGroupBatchApplyDialog(deps: PanelDialogsDeps, sourceG
       )
         throw new Error('配置已关闭或授权不可用')
       for (const batchTargetItem of nextMemberId) copyBatchFields2(batchTargetItem, options, createGroupError)
-      refreshEditorPreview(), renderPanel(), editorHost.configurationFeedback?.changed()
+      refreshEditorPreview(), renderPanel()
+      // 上游在批量应用后写的是「已应用到 N 个目标，待保存配置」（不是通用的「有未保存的修改」）。
+      const appliedStatusText = '已应用到 ' + nextMemberId.length + ' 个目标，待保存配置'
+      editorHost.configurationFeedback?.applied
+        ? editorHost.configurationFeedback.applied(appliedStatusText)
+        : editorHost.configurationFeedback?.changed()
     },
   })
 }
@@ -880,7 +888,12 @@ export function openLabelBatchApplyDialog(deps: PanelDialogsDeps, sourceLabelIte
       onApply: (appliedTargets: any, appliedValues: any) => {
         if (editorHost.isDisposed || !editorHost.isAccessAllowed) throw new Error('配置不可用')
         for (const _args of appliedTargets) copyBatchFields2(_args, sourceLabelItem, appliedValues)
-        refreshEditorPreview(), renderPanel(), editorHost.configurationFeedback?.changed()
+        refreshEditorPreview(), renderPanel()
+        // 环境标签的批量应用文案单独一份（上游 `已应用到 N 个环境标签，待保存配置`）。
+        const appliedStatusText = '已应用到 ' + appliedTargets.length + ' 个环境标签，待保存配置'
+        editorHost.configurationFeedback?.applied
+          ? editorHost.configurationFeedback.applied(appliedStatusText)
+          : editorHost.configurationFeedback?.changed()
       },
     }))
 }

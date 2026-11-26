@@ -19,12 +19,21 @@ from starlette.concurrency import run_in_threadpool
 
 from . import stage_delivery as delivery
 from . import studio_draft_scene as drafts
-from .access import access_grant, is_scene_id, module_components, require_access, scene_snapshot_file
+from .access import (
+    access_grant,
+    module_components,
+    require_access,
+    require_ha_source,
+    require_scene_transfer,
+    require_scene_viewer,
+)
 from .climate import require_air_conditioner_model, validate_climate_command
 from .cover import require_curtain_model, validate_cover_command
 from .game_console import fetch_switch_artwork, switch_artwork_url
 from .media_device import MEDIA_DEVICE_PROFILES
 from .render_cache import MAX_ENTRY_BYTES, cache_path, read_cache, write_cache
+from .scene_io import current_scene_payload, decode_draft_document, load_scene_document, scene_path
+from .studio_additions import router as studio_additions_router
 from ...config import Settings
 from ...dependencies import (
     DatabaseSession,
@@ -44,7 +53,6 @@ from ...domains.ha.integration.service_call import (
 from ...domains.projects.schema import ProjectDraft
 from ...platform.core.db.models import HAEntity
 from ...platform.core.http.asset_paths import UPLOAD_CONTENT_TYPES, user_asset_file
-from ...platform.core.http.fast_json import json_response
 from ...platform.core.http.frontend_static import strip_auth_scene_assets
 from ...platform.core.runtime.atomic_write import restrict_private_file
 from ...platform.http_cache import request_etag_matches
@@ -53,6 +61,8 @@ from ...platform.security.viewer_scope import require_viewer_entity
 from ...schemas import HAServiceCallRequest
 
 router = APIRouter(prefix='/modules/interaction3d', tags=['3D interaction'])
+# 0.8.9 新增路由（配置诊断 / 按场景下发装饰模型）单独成文件，见 studio_additions.py。
+router.include_router(studio_additions_router)
 
 LOGGER = logging.getLogger("homeos.interaction3d")
 
@@ -252,58 +262,6 @@ def light_history_scope(connection, viewer, project_id: str) -> str:
         hashlib.sha256(encrypted_token.encode('utf-8')).hexdigest(),
     ]
     return hashlib.sha256(json.dumps(identity, separators=(',', ':')).encode('utf-8')).hexdigest()
-
-
-def scene_path(request: Request, scene_id: str):
-    if not is_scene_id(scene_id):
-        raise HTTPException(404, detail='户型快照不存在。')
-    path = scene_snapshot_file(request.app.state.settings, scene_id)
-    if path is None:
-        raise HTTPException(404, detail='户型快照不存在，请重新载入户型。')
-    return path
-
-
-def load_scene_document(request: Request, scene_id: str) -> dict:
-    try:
-        command = json.loads(scene_path(request, scene_id).read_text(encoding='utf-8'))
-    except (OSError, ValueError) as error:
-        raise HTTPException(409, detail='户型快照损坏或无法读取，请重新保存后再试。') from error
-    if not isinstance(command, dict):
-        raise HTTPException(409, detail='户型快照损坏或无法读取，请重新保存后再试。')
-    return command
-
-
-def decode_draft_document(draft: ProjectDraft | None) -> dict | None:
-    if draft is None:
-        return None
-    try:
-        document = json.loads(draft.document_json)
-    except (TypeError, ValueError):
-        LOGGER.warning('仪表盘草稿 %s 的 document_json 无法解析，按空文档处理。', draft.project_id)
-        return None
-    return document if isinstance(document, dict) else None
-
-
-def require_scene_viewer(request, database, viewer, scene_id, project_id):
-    require_access(request)
-    # 配对码机制移除后，编辑器与展示页共用同一登录会话；管理员视角本就允许预览
-    # 尚未挂到仪表盘的户型快照，因此这里不做「场景 ↔ 仪表盘」归属收敛。
-    # 保留函数与参数，便于将来重新引入按项目隔离。
-
-
-def require_scene_transfer(request, viewer, scene_id, project_id):
-    database = request.app.state.database.session_factory()
-    with database:
-        require_scene_viewer(request, database, viewer, scene_id, project_id)
-
-
-def current_scene_payload(request: Request, database, scene_id: str, reference: dict, *, since: str = '') -> dict:
-    payload = drafts.read_current_studio_draft(database)
-    if payload is None:
-        if since:
-            raise ValueError('saved source unavailable')
-        return reference
-    return payload
 
 
 @router.post('/scenes', status_code=201)
@@ -1348,6 +1306,8 @@ async def _control_game_console(
 
 @router.post('/control')
 async def control_light(command: Interaction3dControlRequest, request: Request, database: DatabaseSession, viewer: LicensedViewer):
+    # 0.8.9：先核对「我以为连的那台 HA」是否仍是当前连接（换 HA 后旧页面必须失效）。
+    require_ha_source(request)
     # 授权校验（license.allows 内部可能开库）不能占住事件循环。
     await run_in_threadpool(require_access, request)
     if command.device_kind == 'game-console':
@@ -1464,9 +1424,12 @@ async def put_render_cache(scene_id: str, cache_key: str, request: Request, view
     return Response(status_code=204, headers={'Cache-Control': 'no-store'})
 
 
-@router.get('/access')
-def get_access(request: Request, _viewer: LicensedViewer) -> Response:
-    return json_response(access_grant(request), headers={'Cache-Control': 'no-store'})
+@router.get('/access', response_model=None)
+def get_access(response: Response, request: Request, _viewer: LicensedViewer) -> dict:
+    # 走 FastAPI 的 dict 序列化（比手拼 JSON 快、且与其它端点同一路径）；
+    # 只有这一条需要 `no-store`，用注入的 Response 设头，免得为它单独引一个序列化工具。
+    response.headers['Cache-Control'] = 'no-store'
+    return access_grant(request)
 
 
 @router.get('/projects/{project_id}/components/{component_id}/config')

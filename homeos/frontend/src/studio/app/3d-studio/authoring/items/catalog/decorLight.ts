@@ -8,6 +8,19 @@
  */
 import { DEFAULT_STRIP_AXIS } from '../studio-item-posture'
 export const decorLightCatalog = {
+  // 0.8.9：用户上传的静态 GLB 装饰（「我的装饰」）。尺寸只是新建时的默认占位，
+  // 真实包围盒由模型加载后按 `width/depth/height` 写入；`assetId` 指向模型库条目。
+  'user-decoration': {
+    name: '我的装饰',
+    glyph: '◈',
+    // 尺寸只是新建时的占位：真实包围盒由模型加载后写回。
+    // 不给 `color`：这个类型永远渲染 GLB，不走「纯色盒子」分支；
+    // 加一个永远用不到的颜色字面量只会让目录里多一份无效数据。
+    width: 0.4,
+    depth: 0.4,
+    height: 0.4,
+    elevation: 0,
+  },
   'decor-books': {
     name: '书本组合',
     glyph: '▤',

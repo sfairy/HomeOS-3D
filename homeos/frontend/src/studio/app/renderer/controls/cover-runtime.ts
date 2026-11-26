@@ -662,3 +662,36 @@ export function coverToggleServiceForComponent(
       ? 'close_cover'
       : 'open_cover'
 }
+
+/** 上报态的最小形状：只关心 `state` 与几个可能的位置属性。 */
+type CoverReportLike = {
+  state?: unknown
+  attributes?: Record<string, unknown> | null
+  raw?: { state?: unknown; attributes?: Record<string, unknown> | null } | null
+  current_position?: unknown
+  position?: unknown
+  currentPosition?: unknown
+}
+
+/** 上报态集合（0.8.9 `REPORTED_COVER_STATE`）：这些状态视为「设备已经动过」。 */
+export const REPORTED_COVER_STATE = Object.freeze(['open', 'opening', 'closed', 'closing'] as const)
+
+/** 上报位置（0.8.9 `reportedCoverPosition`）：优先 `position`，退回 `current_position`。 */
+export function reportedCoverPosition(state: CoverReportLike | null | undefined): number | null {
+  const raw = (state?.attributes ?? state?.raw?.attributes ?? state ?? {}) as Record<string, unknown>
+  for (const key of ['current_position', 'position', 'currentPosition']) {
+    const value = Number(raw?.[key])
+    if (Number.isFinite(value)) return Math.max(0, Math.min(100, value))
+  }
+  return null
+}
+
+/** 上报状态（0.8.9 `reportedCoverState`）：字符串状态优先，位置作为兜底。 */
+export function reportedCoverState(state: CoverReportLike | null | undefined): string {
+  const raw = state?.attributes ?? state?.raw?.attributes ?? state ?? {}
+  const value = String(state?.state ?? raw?.state ?? '')
+  if (value) return value
+  const position = reportedCoverPosition(state)
+  if (position === null) return 'unknown'
+  return position >= 100 ? 'open' : position <= 0 ? 'closed' : 'open'
+}

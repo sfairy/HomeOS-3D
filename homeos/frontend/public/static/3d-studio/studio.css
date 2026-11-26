@@ -2014,32 +2014,67 @@ html.list-drag-active * {
   cursor: move;
   user-select: none;
 }
+/* 0.8.9 预览标题条：flex 两段式（上游 `.preview-heading` 同口径）。
+   左段 `preview-heading-main` 放标题与光影行，右段 `preview-heading-actions`
+   放「同步/楼层/视角」与「风格/导图/相机」，中间靠 `space-between` 撑开。
+   高度不再写死 132px —— 光影行出现时会自然长高，而不是把控件挤出可视区。 */
 .preview-heading {
-  height: 132px;
-  min-height: 132px;
-  padding: 9px 12px 8px;
-  display: grid;
-  flex: 0 0 132px;
-  grid-template-columns: minmax(112px, max-content) minmax(0, 1fr);
-  grid-template-areas: "copy tip" "actions actions";
-  align-content: center;
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
   align-items: center;
-  column-gap: 10px;
-  row-gap: 5px;
-  overflow: hidden;
+  gap: 7px 16px;
+  /* 与上游基础规则同值（`padding:9px 12px`）；窄容器下由下面的
+     `@container (max-width: 520px)` 收到 8px —— 上游也是这么分两段的。 */
+  padding: 9px 12px;
   border-bottom: 1px solid var(--line);
 }
-.preview-heading-copy {
-  grid-area: copy;
+.preview-heading-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   min-width: 0;
+  gap: 7px 12px;
 }
-.preview-heading-copy h2 {
+.preview-heading-main h2 {
+  flex: 0 0 auto;
   white-space: nowrap;
 }
-.preview-title-row {
+.preview-heading-actions {
+  flex: 1 1 auto;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  /* **不是** `space-between`：这一行有三个子元素（视角组 / 工具组 / 质量状态）。
+     平分剩余空间会把「导图·相机设置」推到行中间、两侧各留一大段空白 —— 实测
+     状态条可见时工具组停在 x=911 而容器右边界是 1246，凭空多出 235px 空档。
+     改成靠左排 + 工具组 `margin-left: auto`：前两组贴左，工具组（连状态条）整块贴右，
+     且状态条隐藏时右边界不变。 */
+  justify-content: space-between;
+  min-width: 0;
+  /* 0.8.9 在后续同选择器里把 gap 收成 4px（`…,.preview-view-controls,.preview-tools{gap:4px}`），
+     这里直接写终值，像素比对方能落在同一档。 */
+  gap: 4px;
+}
+.preview-view-controls,
+.preview-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  min-width: 0;
+  gap: 5px 6px;
+}
+/* 工具组贴行尾：状态条 + 工具组作为一个块靠右，不参与前一组与尾部之间的分配。
+ * 自动外边距必须挂在**外层容器**上而不是 `.preview-tools`：状态条是偶发元素，
+ * 挂在内层的话它一隐藏，`margin-left: auto` 就跟着那一组的位置变化，
+ * 「导图·相机设置」会跳回行中。 */
+.preview-heading-tail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 8px;
+  margin-left: auto;
+  min-width: 0;
 }
 .preview-quality-status {
   min-width: 0;
@@ -2049,90 +2084,21 @@ html.list-drag-active * {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.preview-heading-tip {
-  grid-area: tip;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
-}
-.preview-control-tip {
-  min-width: 0;
-  display: block;
-  overflow: hidden;
-  color: #7f8c97;
-  font-size: 10px;
-  line-height: 1.25;
-  text-align: right;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.preview-heading-tip .open-base-lighting {
-  flex: 0 0 auto;
-  color: #aeb9c3;
-}
 .preview-heading button {
   min-height: 28px;
   padding: 5px 8px;
   border-radius: 7px;
   color: #a2adb6;
   font-size: 10px;
-}
-.preview-heading-actions button {
   white-space: nowrap;
 }
-.preview-heading-actions {
-  grid-area: actions;
-  min-width: 0;
-  min-height: 68px;
-  display: grid;
-  grid-template-rows: repeat(2, 30px);
-  align-content: center;
-  gap: 5px;
-  overflow: hidden;
+/* 标题条里的工具按钮更窄：三个一组必须能和一排开关同处一行。 */
+.preview-heading .preview-tools > button {
+  padding-inline: 5px;
 }
-.preview-primary-controls,
-.preview-secondary-controls,
-.preview-scope-controls {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-/* 0.8.7：副控件区内的按钮可以换行（窄窗口下不再挤成一排）。 */
-.preview-secondary-controls {
-  flex-wrap: wrap;
-}
-.preview-control-label {
-  width: 28px;
-  flex: 0 0 28px;
-  color: #66737e;
-  font-size: 9px;
-  font-weight: 750;
-  letter-spacing: 0.08em;
-}
-.preview-control-spacer {
-  min-width: 4px;
-  flex: 1 1 auto;
-}
-.preview-camera-settings {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.preview-primary-controls .open-export {
-  border-color: #ffa73a52;
-  color: #ffc071;
-  background: #ff9d2e17;
-}
-.preview-primary-controls .open-export:hover {
-  border-color: #ffa73a8f;
-  background: #ff9d2e26;
-}
-.preview-secondary-controls #reset-camera {
-  color: #8996a1;
+.preview-heading .preview-view-controls button {
+  min-width: 28px;
+  padding-inline: 4px;
 }
 .preview-sync-switch,
 .preview-floor-switch,
@@ -2145,11 +2111,14 @@ html.list-drag-active * {
   border-radius: 8px;
   background: #00000029;
 }
-.preview-sync-switch button,
-.preview-floor-switch button,
-.preview-view-switch button,
-.preview-camera-switch button,
-.fixed-camera-actions button {
+/* 分段开关内的按钮：按下述顺序必须压过 `.preview-camera-panel button`（后者定义在文件
+   更靠后的位置）。上游那两条规则是「先通用按钮、后分段开关」，靠源码顺序取胜；本仓把
+   通用规则排在后面，只能靠特异性 —— 加 `.preview-card` 前缀（0,2,1 > 0,1,1）。 */
+.preview-card .preview-sync-switch button,
+.preview-card .preview-floor-switch button,
+.preview-card .preview-view-switch button,
+.preview-card .preview-camera-switch button,
+.preview-card .fixed-camera-actions button {
   min-width: 31px;
   padding: 4px 5px;
   border: 0;
@@ -2534,60 +2503,36 @@ html.list-drag-active * {
   text-align: center;
   text-wrap: pretty;
 }
-@container (max-width: 480px) {
-  .preview-primary-controls,
-  .preview-scope-controls {
-    gap: 2px;
-  }
-  /*
-   * 0.8.7 在这里**单独**藏掉「预览」标签（「相机」仍然显示）。
-   * 后果是 420–480px 这一段两行标签不对称：第二行有「相机」缩进 28px，
-   * 第一行却从最左边直接是「实时」，看起来就像少画了一个字。
-   * 标签要么两行一起有、要么一起没有，所以这里不再单独隐藏主标签，
-   * 统一交给下方 (max-width: 420px) 那条规则一起收起。
-   */
-  .preview-heading button {
-    padding-inline: 4px;
-  }
-  .preview-sync-switch button,
-  .preview-floor-switch button,
-  .fixed-camera-actions button {
-    min-width: 28px;
-    padding-inline: 4px;
-  }
-  .floor-gap-control {
-    gap: 2px;
-    padding-inline: 4px;
-  }
-}
-@container (max-width: 420px) {
+/* 上游只有**一个**容器断点（`@container (max-width: 520px)`），且窄下来只把间距收到 4px、
+   按钮内边距收到 4–5px —— 标题条内边距仍是 8px。本仓此前自造了 480 / 420 两档、还把
+   内边距压到 7px、间距压到 2px，于是 340px 宽的面板在并排比对里整条都比上游窄 1px、
+   行间距少 2px（R11 的 g3 差异主要来自这里）。这里与上游合并为同一档、同取值。 */
+@container (max-width: 520px) {
   .preview-heading {
-    padding-inline: 7px;
+    padding-inline: 8px;
   }
-  .preview-heading-actions {
+  .preview-heading-actions,
+  .preview-view-controls,
+  .preview-tools {
     gap: 4px;
   }
-  .preview-primary-controls,
-  .preview-secondary-controls,
-  .preview-camera-settings,
-  .preview-scope-controls {
-    gap: 2px;
-  }
-  .preview-control-label {
-    display: none;
-  }
-  .preview-heading button {
-    padding-inline: 4px;
-  }
-  .preview-sync-switch button,
-  .preview-view-switch button,
-  .preview-camera-switch button,
-  .fixed-camera-actions button {
+  .preview-heading .preview-view-controls button {
     min-width: 28px;
     padding-inline: 4px;
   }
-  .camera-focal-control {
+  .preview-heading .preview-tools > button {
     padding-inline: 5px;
+  }
+  .preview-heading .preview-camera-toggle {
+    gap: 5px;
+  }
+  .preview-tools .studio-select {
+    flex-basis: 78px;
+    width: 78px;
+  }
+  .preview-view-controls .floor-gap-control {
+    gap: 2px;
+    padding-inline: 4px;
   }
 }
 .inspector-card {
@@ -4570,6 +4515,11 @@ body.auto-diagram-embedded .export-preview-frame {
 .asset-category-tabs {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
+/* 「我的装饰」独占一整行（上游 0.8.9）：5 个分类塞 4 列时它会掉到第二行第一格，
+   只有四分之一宽，中文被压成「我的／装饰」两行。让它跨满一行才像一个分类入口。 */
+.asset-category-tabs [data-asset-category="decoration"] {
+  grid-column: 1 / -1;
+}
 .plan-toolbar {
   flex-wrap: wrap;
 }
@@ -5415,35 +5365,13 @@ body.auto-diagram-embedded .export-preview-frame {
   container-type: inline-size;
   container-name: editor-preview;
 }
-.studio-shell[data-editor-workspace] .preview-heading:has(#editor-scene-style) {
-  height: auto;
-  min-height: 0;
-  flex: 0 0 auto;
-  overflow: visible;
-  row-gap: 7px;
-  align-content: start;
-}
+/* 编辑工作台里标题条会随窗口变窄：只放宽换行间距，不再清「两行网格」。 */
 .studio-shell[data-editor-workspace] .preview-heading-actions {
-  display: flex;
-  flex-wrap: wrap;
-  grid-template-rows: none;
-  min-height: 0;
   gap: 7px 12px;
-  overflow: visible;
 }
-.studio-shell[data-editor-workspace] .preview-primary-controls,
-.studio-shell[data-editor-workspace] .preview-secondary-controls {
-  flex: 0 1 auto;
-  flex-wrap: wrap;
+.studio-shell[data-editor-workspace] .preview-view-controls,
+.studio-shell[data-editor-workspace] .preview-tools {
   row-gap: 5px;
-}
-.studio-shell[data-editor-workspace] .preview-scope-controls,
-.studio-shell[data-editor-workspace] .preview-camera-settings {
-  flex-wrap: wrap;
-  row-gap: 5px;
-}
-.studio-shell[data-editor-workspace] .preview-control-spacer {
-  display: none;
 }
 .studio-shell[data-editor-workspace] ~ .toast {
   top: calc(var(--studio-header-height) + 12px);
@@ -5504,60 +5432,454 @@ body:has(.studio-shell[data-editor-workspace]) .studio-header {
   }
 }
 
-.preview-heading-tip {
-  grid-area: tip;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
-}
-.preview-heading-tip .open-base-lighting {
-  flex: 0 0 auto;
-  color: #aeb9c3;
-}
-/* ===== 0.8.7：预览标题行的风格选择器（#editor-scene-style） ===== */
+/* 原生 select 的兜底尺寸：JS 把它升级成 `.studio-select` 之前，首帧不能是一条通栏。
+   差值 100 + 边框 = 与升级后的 `.studio-select` 同宽，升级瞬间不跳。 */
 #editor-scene-style {
-  width: 115px;
-  font-size: 11px;
-  padding: 3px 6px;
+  flex: 0 0 auto;
+  width: 100px;
+  height: 28px;
+  font-size: 10px;
+  padding: 2px 6px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: #a2adb6;
+  background: #00000029;
 }
+
+/* 风格选择器在**光影行**里（紧挨「进阶设置」），高度对齐该行按钮（28px）。
+   `preview-tools` 那组保留同样的尺寸：它仍是 selector 的合法落点（嵌入态可能搬回第二行）。 */
+.preview-lighting-row .studio-select,
+.preview-tools .studio-select {
+  flex: 0 0 100px;
+  width: 100px;
+}
+/* 窄面板把选择器收到 78px（上游同款阈值）。算术：开关 148 + 选择器 78 +
+   进阶设置 88 + 两处 7px 间距 = 328px，刚好塞进第一行；保持 100px 就是 350px，
+   整组会被挤到下一行、白吃掉 3D 画布的高度。 */
+@container (max-width: 560px) {
+  .preview-lighting-row .studio-select {
+    flex: 0 0 78px;
+    width: 78px;
+  }
+}
+.preview-lighting-row .studio-select-trigger,
+.preview-tools .studio-select-trigger {
+  height: 28px;
+  line-height: 26px;
+  padding: 0 24px 0 8px;
+  font-size: 10px;
+}
+.preview-tools .open-export {
+  color: #c0cbd5;
+}
+.studio-select-floating-menu {
+  position: fixed;
+  top: auto;
+  right: auto;
+  left: auto;
+  z-index: 120;
+  width: auto;
+  min-width: 124px;
+}
+
+
+/* ===== 0.8.7：工作区主视图（逐条对齐上游 studio.css，media 上下文必须一致） ===== */
+/* 注意：`data-editor-workspace` 在初始化时就会写上，所以这里**不能**出现
+ * 「纵向堆叠」这类只在窄屏成立的声明 —— 上游把它们放在 @media (max-width:760px) 里，
+ * 无条件生效会把三栏 grid 变成竖排，整个编辑器高度塌掉。 */
+.studio-shell[data-editor-workspace] {
+  grid-template-columns: clamp(168px, 16vw, 204px) minmax(260px, 1fr) minmax(280px, var(--details-panel-width, 29vw));
+}
+.studio-shell[data-editor-workspace] .plan-toolbar {
+  padding: 6px;
+  gap: 5px;
+  flex-flow: row wrap;
+  align-items: center;
+}
+.studio-shell[data-editor-workspace] .tool-group {
+  display: flex;
+  max-width: 100%;
+  padding: 0;
+  gap: 4px;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.studio-shell[data-editor-workspace] .toolbar-actions {
+  justify-content: flex-end;
+  flex: 0 0 auto;
+}
+.studio-shell[data-editor-workspace] .tool-button {
+  min-width: 35px;
+  min-height: 35px;
+  padding: 3px 4px;
+  gap: 2px;
+  font-size: 10px;
+  border-radius: 6px;
+}
+.studio-shell[data-editor-workspace] .tool-button i {
+  width: 16px;
+  height: 16px;
+  font-size: 16px;
+}
+.studio-shell[data-editor-workspace] .canvas-hud.top-left {
+  max-width: calc(100% - 20px);
+  left: 10px;
+  top: 10px;
+  padding: 5px 8px;
+  border-radius: 6px;
+}
+.studio-shell[data-editor-workspace] .canvas-hud.top-left span {
+  font-size: 10px;
+}
+.studio-shell[data-editor-workspace] .preview-card {
+  container-type: inline-size;
+  container-name: editor-preview;
+}
+/* 编辑工作台里标题条会随窗口变窄：只放宽换行间距，不再清「两行网格」。 */
+.studio-shell[data-editor-workspace] .preview-heading-actions {
+  gap: 7px 12px;
+}
+.studio-shell[data-editor-workspace] .preview-view-controls,
+.studio-shell[data-editor-workspace] .preview-tools {
+  row-gap: 5px;
+}
+.studio-shell[data-editor-workspace] ~ .toast {
+  top: calc(var(--studio-header-height) + 12px);
+  bottom: auto;
+  width: max-content;
+  max-width: min(560px, calc(100vw - 32px));
+  padding: 10px 16px;
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+body:has(.studio-shell[data-editor-workspace]) {
+  min-width: 0;
+  overflow-x: hidden;
+}
+body:has(.studio-shell[data-editor-workspace]) .studio-header {
+  gap: 8px;
+  padding-inline: 12px;
+}
+@media (max-width: 1100px) {
+  body:has(.studio-shell[data-editor-workspace]) .header-leading p,
+  body:has(.studio-shell[data-editor-workspace]) .studio-help-link {
+    display: none;
+  }
+  body:has(.studio-shell[data-editor-workspace]) .back-link span {
+    display: none;
+  }
+  body:has(.studio-shell[data-editor-workspace]) .header-title-row {
+    gap: 5px;
+  }
+}
+@media (max-width: 900px) {
+  body:has(.studio-shell[data-editor-workspace]) .workflow-center {
+    display: none;
+  }
+  body:has(.studio-shell[data-editor-workspace]) .studio-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+/* 窄屏才改成纵向堆叠（上游同款断点）；无条件生效会把三栏 grid 压成竖排。 */
+@media (max-width: 760px) {
+  .studio-shell[data-editor-workspace] {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .studio-shell[data-editor-workspace] > .library-panel {
+    flex: 0 0 210px;
+    max-height: 210px;
+  }
+  .studio-shell[data-editor-workspace] > .editor-main-view {
+    flex: 0 0 560px;
+    min-height: 560px;
+  }
+  .studio-shell[data-editor-workspace] > .details-panel {
+    flex: 0 0 590px;
+    min-height: 590px;
+  }
+}
+
+/* ===== 预览风格选择器（#editor-scene-style）：位置由 `preview-tools` 决定 ===== */
 .interaction3d-stage #editor-scene-style {
   display: none;
 }
 .is-exporting #editor-scene-style {
   pointer-events: none;
 }
-.preview-heading:has(#editor-scene-style) {
-  height: auto;
-  min-height: 132px;
-  flex: 0 0 auto;
-  grid-template-columns: minmax(124px, max-content) minmax(0, 1fr);
-}
-.preview-title-row:has(#editor-scene-style) {
-  flex-wrap: wrap;
-  gap: 7px;
-}
-.preview-title-row:has(#editor-scene-style) h2 {
-  white-space: nowrap;
-  flex: 0 0 auto;
-}
-.preview-title-row .studio-select:has(#editor-scene-style) {
-  flex: 0 0 124px;
-  width: 124px;
+.studio-select-floating-menu {
+  position: fixed;
+  top: auto;
+  right: auto;
+  left: auto;
+  z-index: 120;
+  width: auto;
   min-width: 124px;
 }
-.preview-title-row .studio-select:has(#editor-scene-style) .studio-select-trigger {
-  height: 30px;
-  line-height: 28px;
-  padding: 0 28px 0 9px;
-  font-size: 11px;
-  white-space: nowrap;
+
+
+/* ===== 0.8.7：工作区主视图（逐条对齐上游 studio.css，media 上下文必须一致） ===== */
+/* 注意：`data-editor-workspace` 在初始化时就会写上，所以这里**不能**出现
+ * 「纵向堆叠」这类只在窄屏成立的声明 —— 上游把它们放在 @media (max-width:760px) 里，
+ * 无条件生效会把三栏 grid 变成竖排，整个编辑器高度塌掉。 */
+.studio-shell[data-editor-workspace] {
+  grid-template-columns: clamp(168px, 16vw, 204px) minmax(260px, 1fr) minmax(280px, var(--details-panel-width, 29vw));
 }
-@container editor-preview (max-width: 700px) {
-  .preview-heading-tip .preview-control-tip {
+.studio-shell[data-editor-workspace] .plan-toolbar {
+  padding: 6px;
+  gap: 5px;
+  flex-flow: row wrap;
+  align-items: center;
+}
+.studio-shell[data-editor-workspace] .tool-group {
+  display: flex;
+  max-width: 100%;
+  padding: 0;
+  gap: 4px;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.studio-shell[data-editor-workspace] .toolbar-actions {
+  justify-content: flex-end;
+  flex: 0 0 auto;
+}
+.studio-shell[data-editor-workspace] .tool-button {
+  min-width: 35px;
+  min-height: 35px;
+  padding: 3px 4px;
+  gap: 2px;
+  font-size: 10px;
+  border-radius: 6px;
+}
+.studio-shell[data-editor-workspace] .tool-button i {
+  width: 16px;
+  height: 16px;
+  font-size: 16px;
+}
+.studio-shell[data-editor-workspace] .canvas-hud.top-left {
+  max-width: calc(100% - 20px);
+  left: 10px;
+  top: 10px;
+  padding: 5px 8px;
+  border-radius: 6px;
+}
+.studio-shell[data-editor-workspace] .canvas-hud.top-left span {
+  font-size: 10px;
+}
+.studio-shell[data-editor-workspace] .preview-card {
+  container-type: inline-size;
+  container-name: editor-preview;
+}
+/* 编辑工作台里标题条会随窗口变窄：只放宽换行间距，不再清「两行网格」。 */
+.studio-shell[data-editor-workspace] .preview-heading-actions {
+  gap: 7px 12px;
+}
+.studio-shell[data-editor-workspace] .preview-view-controls,
+.studio-shell[data-editor-workspace] .preview-tools {
+  row-gap: 5px;
+}
+.studio-shell[data-editor-workspace] ~ .toast {
+  top: calc(var(--studio-header-height) + 12px);
+  bottom: auto;
+  width: max-content;
+  max-width: min(560px, calc(100vw - 32px));
+  padding: 10px 16px;
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+body:has(.studio-shell[data-editor-workspace]) {
+  min-width: 0;
+  overflow-x: hidden;
+}
+body:has(.studio-shell[data-editor-workspace]) .studio-header {
+  gap: 8px;
+  padding-inline: 12px;
+}
+@media (max-width: 1100px) {
+  body:has(.studio-shell[data-editor-workspace]) .header-leading p,
+  body:has(.studio-shell[data-editor-workspace]) .studio-help-link {
     display: none;
   }
+  body:has(.studio-shell[data-editor-workspace]) .back-link span {
+    display: none;
+  }
+  body:has(.studio-shell[data-editor-workspace]) .header-title-row {
+    gap: 5px;
+  }
+}
+@media (max-width: 900px) {
+  body:has(.studio-shell[data-editor-workspace]) .workflow-center {
+    display: none;
+  }
+  body:has(.studio-shell[data-editor-workspace]) .studio-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+/* 窄屏才改成纵向堆叠（上游同款断点）；无条件生效会把三栏 grid 压成竖排。 */
+@media (max-width: 760px) {
+  .studio-shell[data-editor-workspace] {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .studio-shell[data-editor-workspace] > .library-panel {
+    flex: 0 0 210px;
+    max-height: 210px;
+  }
+  .studio-shell[data-editor-workspace] > .editor-main-view {
+    flex: 0 0 560px;
+    min-height: 560px;
+  }
+  .studio-shell[data-editor-workspace] > .details-panel {
+    flex: 0 0 590px;
+    min-height: 590px;
+  }
+}
+
+/* 0.8.9：风格选择器从「标题行内联」移到 `preview-tools` 组里，宽度固定 100px，
+   与「导图」「相机设置」等宽一排；不再和 h2 抢同一行的空间。 */
+.studio-select-floating-menu {
+  position: fixed;
+  top: auto;
+  right: auto;
+  left: auto;
+  z-index: 120;
+  width: auto;
+  min-width: 124px;
+}
+
+
+/* ===== 0.8.7：工作区主视图（逐条对齐上游 studio.css，media 上下文必须一致） ===== */
+/* 注意：`data-editor-workspace` 在初始化时就会写上，所以这里**不能**出现
+ * 「纵向堆叠」这类只在窄屏成立的声明 —— 上游把它们放在 @media (max-width:760px) 里，
+ * 无条件生效会把三栏 grid 变成竖排，整个编辑器高度塌掉。 */
+.studio-shell[data-editor-workspace] {
+  grid-template-columns: clamp(168px, 16vw, 204px) minmax(260px, 1fr) minmax(280px, var(--details-panel-width, 29vw));
+}
+.studio-shell[data-editor-workspace] .plan-toolbar {
+  padding: 6px;
+  gap: 5px;
+  flex-flow: row wrap;
+  align-items: center;
+}
+.studio-shell[data-editor-workspace] .tool-group {
+  display: flex;
+  max-width: 100%;
+  padding: 0;
+  gap: 4px;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.studio-shell[data-editor-workspace] .toolbar-actions {
+  justify-content: flex-end;
+  flex: 0 0 auto;
+}
+.studio-shell[data-editor-workspace] .tool-button {
+  min-width: 35px;
+  min-height: 35px;
+  padding: 3px 4px;
+  gap: 2px;
+  font-size: 10px;
+  border-radius: 6px;
+}
+.studio-shell[data-editor-workspace] .tool-button i {
+  width: 16px;
+  height: 16px;
+  font-size: 16px;
+}
+.studio-shell[data-editor-workspace] .canvas-hud.top-left {
+  max-width: calc(100% - 20px);
+  left: 10px;
+  top: 10px;
+  padding: 5px 8px;
+  border-radius: 6px;
+}
+.studio-shell[data-editor-workspace] .canvas-hud.top-left span {
+  font-size: 10px;
+}
+.studio-shell[data-editor-workspace] .preview-card {
+  container-type: inline-size;
+  container-name: editor-preview;
+}
+/* 编辑工作台里标题条会随窗口变窄：只放宽换行间距，不再清「两行网格」。 */
+.studio-shell[data-editor-workspace] .preview-heading-actions {
+  gap: 7px 12px;
+}
+.studio-shell[data-editor-workspace] .preview-view-controls,
+.studio-shell[data-editor-workspace] .preview-tools {
+  row-gap: 5px;
+}
+.studio-shell[data-editor-workspace] ~ .toast {
+  top: calc(var(--studio-header-height) + 12px);
+  bottom: auto;
+  width: max-content;
+  max-width: min(560px, calc(100vw - 32px));
+  padding: 10px 16px;
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+body:has(.studio-shell[data-editor-workspace]) {
+  min-width: 0;
+  overflow-x: hidden;
+}
+body:has(.studio-shell[data-editor-workspace]) .studio-header {
+  gap: 8px;
+  padding-inline: 12px;
+}
+@media (max-width: 1100px) {
+  body:has(.studio-shell[data-editor-workspace]) .header-leading p,
+  body:has(.studio-shell[data-editor-workspace]) .studio-help-link {
+    display: none;
+  }
+  body:has(.studio-shell[data-editor-workspace]) .back-link span {
+    display: none;
+  }
+  body:has(.studio-shell[data-editor-workspace]) .header-title-row {
+    gap: 5px;
+  }
+}
+@media (max-width: 900px) {
+  body:has(.studio-shell[data-editor-workspace]) .workflow-center {
+    display: none;
+  }
+  body:has(.studio-shell[data-editor-workspace]) .studio-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+/* 窄屏才改成纵向堆叠（上游同款断点）；无条件生效会把三栏 grid 压成竖排。 */
+@media (max-width: 760px) {
+  .studio-shell[data-editor-workspace] {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .studio-shell[data-editor-workspace] > .library-panel {
+    flex: 0 0 210px;
+    max-height: 210px;
+  }
+  .studio-shell[data-editor-workspace] > .editor-main-view {
+    flex: 0 0 560px;
+    min-height: 560px;
+  }
+  .studio-shell[data-editor-workspace] > .details-panel {
+    flex: 0 0 590px;
+    min-height: 590px;
+  }
+}
+
+/* ===== 预览风格选择器（#editor-scene-style）：位置由 `preview-tools` 决定 ===== */
+.interaction3d-stage #editor-scene-style {
+  display: none;
+}
+.is-exporting #editor-scene-style {
+  pointer-events: none;
 }
 .studio-select-floating-menu {
   position: fixed;
@@ -5618,14 +5940,6 @@ body:has(.studio-shell[data-editor-workspace]) .studio-header {
 .overlap-items { position:fixed;z-index:10000;max-width:min(320px,calc(100vw - 16px));max-height:260px;overflow:auto;padding:8px;border:1px solid #62707d;border-radius:8px;background:#17212b;display:grid;gap:4px;box-shadow:0 8px 24px #0007 }
 .overlap-items strong { font-size:12px;color:#e1e8ec }
 .overlap-items button { text-align:left;white-space:normal;overflow-wrap:anywhere;padding:7px;font-size:12px }
-#editor-scene-style { width:115px;font-size:11px;padding:3px 6px }
-.interaction3d-stage #editor-scene-style { display:none }
-.is-exporting #editor-scene-style { pointer-events:none }
-.preview-heading:has(#editor-scene-style) { height:auto;min-height:132px;flex:0 0 auto;grid-template-columns:minmax(124px,max-content) minmax(0,1fr) }
-.preview-title-row:has(#editor-scene-style) { flex-wrap:wrap;gap:7px }
-.preview-title-row:has(#editor-scene-style) h2 { white-space:nowrap;flex:0 0 auto }
-.preview-title-row .studio-select:has(#editor-scene-style) { flex:0 0 124px;width:124px;min-width:124px }
-.preview-title-row .studio-select:has(#editor-scene-style) .studio-select-trigger { height:30px;line-height:28px;padding:0 28px 0 9px;font-size:11px;white-space:nowrap }
 .studio-select-floating-menu { position:fixed;z-index:10030;box-sizing:border-box }
 .studio-select-floating-menu .studio-select-option { font-size:12px;white-space:nowrap;padding:8px 10px }
 .library-mode-tabs { margin:8px 10px;padding:3px;gap:3px;border:1px solid var(--line);border-radius:9px;background:#00000029 }
@@ -5667,7 +5981,6 @@ body:has(.studio-shell[data-editor-workspace]) .studio-header {
 .editor-secondary-view .tool-group { display:none!important }
 .editor-secondary-view .plan-toolbar { min-height:31px }
 .editor-secondary-view .plan-toolbar:before { content:"\5e73\9762\526f\89c6\56fe";color:#8499a9;font-size:10px;flex:1 }
-.studio-shell[data-editor-workspace] .preview-heading:has(#editor-scene-style) { height:auto;min-height:0;flex:0 0 auto;overflow:visible;row-gap:7px;align-content:start }
 
 /* ===== 绘图工具条：三组折叠下拉（本项目形态，按用户要求恢复） ===== */
 .drawing-tool-section {
@@ -5838,3 +6151,781 @@ body:has(.studio-shell[data-editor-workspace]) .studio-header {
   left: auto;
   right: 0;
 }
+
+/* ── 0.8.9 地面分区检查器 ──────────────────────────────────────────────
+ *
+ * 与 0.8.9 的 `studio-floor-region-editor` 对齐：三个分段按钮选铺面，下面一行
+ * 「深浅」滑块（只在支持调深浅的铺面出现，`theme` 时整组隐藏）。
+ *
+ * 只写布局与交互态：颜色全部取既有 token（`--line` / `--surface` / 强调色），
+ * 不引入新的字面色 —— 复用 token 才能在换肤时一起变。
+ */
+.floor-region-inspector .selection-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* 引导语：占一行、允许换行，避免长句把按钮挤到下一行。 */
+.floor-region-inspector [data-floor-region-instruction] {
+  margin: 2px 0 10px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* 铺面与操作两组按钮：上游是 flex + 换行（`display:flex;flex-wrap:wrap;gap:6px`），
+   不是等宽三列 grid —— 写成 grid 会让窄面板下按钮被均分、字号被挤掉。 */
+.floor-region-finishes,
+.floor-region-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.floor-region-controls {
+  margin-top: 10px;
+}
+
+.floor-region-inspector button {
+  min-height: 30px;
+  padding: 0 9px;
+  border-radius: 7px;
+}
+
+.floor-region-finishes button[aria-pressed="true"] {
+  border-color: #ffb14f;
+  color: #ffbd70;
+  background: #35281c;
+}
+
+/* 深浅一行：标签 + 数值 + 滑块 + 复位，滑块占满剩余宽度。 */
+.floor-region-tone {
+  /* 与上游同构：`display:grid; grid-template-columns:minmax(0,1fr) auto;
+     align-items:center; gap:6px 10px; margin-top:13px`。
+     此前写成 4 列 + gap:8px + margin-bottom:4px，实测高度 57px（上游 76.5px），
+     `small` 的跨列与 label/output/input 的排布也跟着错位。 */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px 10px;
+  margin-top: 13px;
+}
+
+.floor-region-tone label {
+  color: #b4bec7;
+}
+
+.floor-region-tone output {
+  min-width: 30px;
+  color: #ffbd70;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 复用统一滑条：只挂类，不重写伪元素（几何由 range-control.css 决定）。
+   选择器与上游一致（`.floor-region-tone input`）：这一行里唯一的 input 就是滑条，
+   再叠 `[type=range]` 只会让对齐账本认成「另一个选择器」。 */
+.floor-region-tone input {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  accent-color: #ffb14f;
+}
+
+.floor-region-tone small {
+  grid-column: 1 / -1;
+  color: var(--muted);
+}
+
+/* ── 0.8.9 我的装饰（自定义 GLB 模型库）────────────────────────────────
+ *
+ * 卡片沿用 `.asset-card`（与模型库一致），这里只补「上传区 / 状态行 / 右键菜单」。
+ * 规则逐条对齐上游 `studio.css`，**不再给按钮写通用描边** —— 之前那条
+ * `.decoration-actions > button { border: 1px solid var(--line) }` 特异性高于
+ * `.primary-action`（0,1,1 > 0,1,0），把「上传 GLB」的橙色填充压成了描边，
+ * 与上游「主操作实心、次要操作纯文字」的层级正好相反。
+ */
+/* 「上传 GLB」主操作占满余量，「上传说明」按内容宽度贴右；下边框把它与列表分开。 */
+.decoration-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 7px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.decoration-actions button {
+  min-width: 0;
+  min-height: 32px;
+  padding-inline: 6px;
+  border-radius: 7px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.decoration-actions .primary-action {
+  box-shadow: none;
+}
+
+/* 「上传说明」是纯文字入口：没有描边和底色，悬停才加下划线。 */
+.decoration-actions [data-decoration-help] {
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+}
+
+.decoration-actions [data-decoration-help]:is(:hover, :focus-visible) {
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.decoration-upload-dialog p {
+  color: #aab5bf;
+  font-size: 13px;
+}
+
+.decoration-upload-dialog .decoration-limits {
+  margin-top: 10px;
+  white-space: pre-line;
+}
+
+.decoration-upload-dialog .dialog-actions {
+  margin-top: 18px;
+}
+
+/* 状态行：空串时不留高度（否则「一条空行」会把上传区推离顶部）。 */
+.decoration-status {
+  margin: 6px 0;
+  color: #aab5bf;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.decoration-status:empty {
+  margin: 0;
+}
+
+.decoration-status.error {
+  color: #ffb9a3;
+}
+
+/* 面板与上方的分类页签之间留 8px；同时把 `section` 的默认 padding/border 清掉
+   （否则会多出一圈边线与内缩，与页签的宽度对不齐）。 */
+#decoration-library {
+  margin-top: 8px;
+  padding: 0;
+  border: 0;
+}
+
+/* 卡片本体只是 grid 容器，**桌面尺寸就是普通资产卡**（40px 高、没有「管理」按钮）。
+   菜单在鼠标设备上只通过右键打开 —— 常驻一个「管理」按钮会把卡片从 40px 撑到 68px，
+   而面板只有两列、宽度由侧栏决定，68px 的卡片会明显少放两行。 */
+.decoration-card {
+  position: relative;
+  display: grid;
+  min-width: 0;
+}
+
+.decoration-card-options {
+  display: none;
+}
+
+/* 触屏设备：没有右键，所以把「管理」做成常驻按钮，并给卡片底部留出它的位置（34px）。
+   上游用的是 `any-pointer: coarse`（按**指针类型**判断，不是窗口宽度）——
+   窄窗口的桌面浏览器仍然有鼠标，不应被切成触屏布局。 */
+@media (any-pointer: coarse) {
+  .decoration-card > .asset-card {
+    min-height: 68px;
+    padding-bottom: 34px;
+  }
+
+  .decoration-card-options {
+    display: block;
+    position: absolute;
+    right: 3px;
+    bottom: 3px;
+    min-width: 44px;
+    min-height: 30px;
+    padding: 0 5px;
+    border: 0;
+    border-radius: 5px;
+    background: transparent;
+    color: #aab5bf;
+    font-size: 10px;
+  }
+}
+
+.decoration-card-options:is(:hover, :focus-visible) {
+  color: var(--text);
+  background: #ffffff12;
+}
+
+/* 名称滚动窗口：外层限宽裁切，内层单行按内容宽度居中。
+   悬停/聚焦时由 `installAssetNameScroll` 播放横向往复动画（见该模块注释）。 */
+.asset-card .asset-name-window {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.asset-card .asset-name-text {
+  display: block;
+  margin-inline: auto;
+  width: max-content;
+  max-width: none;
+  font: inherit;
+  font-weight: inherit;
+  white-space: nowrap;
+}
+
+.asset-card:is(:hover, :focus) .asset-name-window {
+  text-overflow: clip;
+}
+
+/* 删除是破坏性操作：菜单项用警示色（上游同款）。 */
+[data-decoration-menu] button[data-delete-decoration] {
+  color: #d77b80;
+}
+
+/* ── 0.8.9 光影切换行 ────────────────────────────────────────────────
+ *
+ * 放在 `preview-heading-main` 里（标题右侧），而不是另起一段工具条：
+ * 它影响的是「整个预览怎么打光」，与「看哪一层 / 哪个视角」不是同一类操作。
+ * 分段开关宽度固定 148px、两列等分 —— 字数不同（3+3）也能保持两半等宽。
+ */
+.preview-lighting-row {
+  max-width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 7px;
+}
+
+.preview-lighting-row[hidden] {
+  display: none;
+}
+
+.preview-lighting-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 148px;
+  padding: 2px;
+  gap: 2px;
+  border: 1px solid #495767;
+  border-radius: 8px;
+  background: #00000038;
+}
+
+.preview-lighting-switch button[data-drawing-lighting] {
+  min-width: 0;
+  padding: 4px 5px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #c4d0dc;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  /* 关掉全局 `button { transition: ... color .14s }` 的继承。
+   *
+   * 这个开关的两态是「深字 + 浅底」↔「浅字 + 透明底」——互补反转。任何插值都会经过
+   * 低对比度的中间色；而切换光影紧接着就要 dispose 控制器 + 重编整套 shader
+   * （实测 350~600ms 主线程占用），过渡会被**冻在中间那一帧**，看起来就是字体颜色闪一下。
+   *
+   * 状态必须原子上屏：同一帧里既翻 `aria-pressed` 又落到终态颜色。按下即有反馈的
+   * 手感由 `lighting-row-install.ts` 的「先绘制、后重活」保证，不靠这段过渡。 */
+  transition: none;
+}
+
+.preview-lighting-switch button[data-drawing-lighting]:focus-visible {
+  outline: 2px solid #ffca82;
+  outline-offset: -2px;
+}
+
+.preview-lighting-switch button[data-drawing-lighting][aria-pressed="true"] {
+  color: #151d29;
+  background: #bdcfe6;
+}
+
+/* 「进阶设置 / 调整柔光范围」是橙色描边按钮：它在标题条里唯一一个「会开面板」的入口。 */
+.preview-heading .preview-lighting-options button {
+  width: 88px;
+  padding: 4px 6px;
+  border-color: #ffa73a57;
+  color: #ffc071;
+  background: #ff9d2e12;
+}
+
+.preview-heading .preview-lighting-options button:hover {
+  border-color: #ffa73a8f;
+  background: #ff9d2e1f;
+}
+
+/* ── 0.8.9 视图操作提示 ──────────────────────────────────────────────
+ *
+ * 鼠标提示与触控提示互斥显示：在平板上提示「空格＋左键」等于没提示。
+ * 用 `pointer` 媒体特性判定，而不是宽度 —— 窄窗口的桌面浏览器仍需键鼠提示。
+ */
+.plan-bottom-hud {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.viewport-help {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.viewport-help .touch-view-hint {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .viewport-help .mouse-view-hint {
+    display: none;
+  }
+
+  .viewport-help .touch-view-hint {
+    display: inline;
+  }
+}
+
+.plan-coordinates {
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 0.8.9 应用户型对话框 ────────────────────────────────────────────
+ *
+ * 两栏并排（2D 导图 / 3D 交互控件）。窄容器下改成纵向堆叠 ——
+ * 用容器查询而不是窗口宽度：侧栏被压窄时两栏会挤成两行半个字。
+ */
+.apply-floorplan-dialog {
+  width: min(760px, 92vw);
+}
+
+.apply-floorplan-branches {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.apply-floorplan-branches > section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.apply-floorplan-branches h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.apply-floorplan-branches p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* 「画面效果 → 灯光模式」是路径提示，做成代码样式便于照做。 */
+.apply-floorplan-branches .apply-floorplan-mode-path {
+  color: var(--hos-color-accent, #d6ae65);
+  font-variant-numeric: tabular-nums;
+}
+
+.apply-floorplan-branches dl {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.apply-floorplan-branches dl > div {
+  display: grid;
+  grid-template-columns: 5em minmax(0, 1fr);
+  gap: 8px;
+}
+
+.apply-floorplan-branches dt {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.apply-floorplan-branches dd {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.apply-floorplan-branches button {
+  margin-top: auto;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.apply-floorplan-branches button.primary-action {
+  border-color: var(--hos-color-accent, #d6ae65);
+  color: var(--hos-color-accent, #d6ae65);
+}
+
+@container hos-canvas (max-width: 720px) {
+  .apply-floorplan-branches {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---- 0.8.9 相机面板 / 视图操作 HUD ---- */
+/* 面板：绝对定位在预览区右上，宽度夹到容器内（窄屏不溢出）。 */
+.preview-camera-panel {
+  position: absolute;
+  z-index: 20;
+  top: 8px;
+  right: 12px;
+  width: min(260px, calc(100% - 24px));
+  max-height: calc(100% - 16px);
+  display: grid;
+  gap: 7px;
+  padding: 9px;
+  overflow: auto;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  background: var(--panel-bg, var(--surface-2, #151e27));
+  box-shadow: var(--hos-shadow-lg, 0 10px 24px rgb(0 0 0 / 32%));
+}
+
+.preview-camera-panel[hidden] {
+  display: none;
+}
+
+.preview-camera-panel button {
+  min-height: 28px;
+  padding: 5px 8px;
+  border-radius: 7px;
+  color: #a2adb6;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.preview-camera-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 6px;
+}
+
+/* 一行里只有一两组控件时让它们等分：否则按钮挤在左边、右侧空一大片。 */
+.preview-camera-row > :is(button, .fixed-camera-actions, .preview-view-switch, .camera-focal-control),
+.preview-camera-row :is(.preview-camera-switch) {
+  flex: 1 1 auto;
+}
+
+/* 「相机设置」是折叠开关：带一个朝下的小箭头，展开后翻转朝上。 */
+.preview-camera-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.preview-camera-toggle:after {
+  content: "";
+  width: 5px;
+  height: 5px;
+  margin-top: -3px;
+  border: solid currentcolor;
+  border-width: 0 1px 1px 0;
+  transform: rotate(45deg);
+}
+
+.preview-camera-toggle[aria-expanded="true"] {
+  border-color: var(--line-strong);
+  color: #e2eaf2;
+  background: #869ece26;
+}
+
+.preview-camera-toggle[aria-expanded="true"]:after {
+  margin-top: 2px;
+  transform: rotate(225deg);
+}
+
+.camera-focal-control input:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* 视图操作 HUD（0.8.9 新增，替代 0.8.8 标题条里的 tip）。
+   鼠标与触控提示靠 `pointer` 特性互斥 —— 在平板上提示「空格＋左键」等于没提示。 */
+.preview-view-hud {
+  display: none;
+  right: 12px;
+  bottom: 12px;
+  max-width: calc(100% - 24px);
+  padding: 6px 9px;
+  border-radius: 7px;
+}
+
+.studio-shell[data-editor-workspace] .preview-3d:not(:has(.webgl-message:not([hidden]))) > .preview-view-hud {
+  display: flex;
+}
+
+/* 顶视提示默认隐藏（只有顶视时才换成它）。 */
+.top-view-hint {
+  display: none;
+}
+
+/* 顶视时「拖动旋转」不再成立：收起自由视角提示，改显示「去相机设置里旋转」。 */
+.preview-card:has(> .preview-heading [data-camera-view="top"][aria-pressed="true"]) .free-view-hint {
+  display: none;
+}
+
+.preview-card:has(> .preview-heading [data-camera-view="top"][aria-pressed="true"]) .top-view-hint {
+  display: inline;
+}
+
+/* ---- 0.8.9 地面分区检查器：地暖盘管开关 ---- */
+/* 开关不随「选中分区」显隐（它跟楼层走），所以单独一行 + 上下留白把它与分区操作分开。 */
+.floor-region-underfloor {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 9px;
+  padding-top: 9px;
+  border-top: 1px solid var(--line);
+  color: var(--fg-muted, #a9b6c1);
+  font-size: 11px;
+}
+
+/* ---- 0.8.9「应用户型」入口（步骤 6 与顶栏紧凑按钮） ---- */
+/* 步骤 6 不是状态标记而是按钮：透明底、沿用步骤条的字号与颜色，左边保留圆形序号。 */
+.workflow-apply {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 3px 6px 3px 2px;
+  border-color: transparent;
+  background: transparent;
+  color: #bac5cf;
+  font: inherit;
+  cursor: pointer;
+}
+
+.workflow-apply:hover,
+.workflow-apply:focus-visible {
+  color: var(--text);
+}
+
+.workflow-apply-arrow {
+  width: 5px;
+  height: 5px;
+  border-right: 1px solid currentcolor;
+  border-bottom: 1px solid currentcolor;
+  transform: translateY(-1px) rotate(45deg);
+}
+
+/* 顶栏紧凑入口：宽屏隐藏（步骤条里已经有），窄屏/步骤条被收起时才出现。 */
+.studio-apply-compact {
+  display: none;
+  white-space: nowrap;
+}
+
+@container studio-header (max-width: 720px) {
+  .studio-apply-compact {
+    display: inline-flex;
+    align-items: center;
+    height: 28px;
+    padding-inline: 7px;
+  }
+}
+
+/* ===== 0.8.9 预览标题条视觉精修 =====
+ *
+ * 三个实测出来的问题，都只在「同一行里混排」时才看得出来：
+ *
+ * 1. **行内高度不齐**：光影分段开关是 `border 1 + padding 2 + 按钮 padding 4`，
+ *    比同排的普通按钮（`min-height: 28`）高出 6px，一行里三种高度像没对齐的积木。
+ *    改为「边框 + 1px 内衬 + 24px 按钮」= 28px，与按钮齐平。
+ * 2. **第一行右侧空 90px**：`preview-heading-main` 是 `flex: 0 1 auto`，宽度只到内容边界，
+ *    右侧留白却不参与分配。让它撑满第一行，把「进阶设置」用 `margin-left: auto` 贴到行尾 ——
+ *    标题在左、光影模式在右、进阶设置在行末，三段各就各位。
+ * 3. **「已更新」长得像按钮**：它其实是同步状态（`isSceneDirty` 时变成「待更新 · 更新」）。
+ *    去掉边框与底色、压小字号，变成状态文本；只有真的可点时（`.is-dirty`）才给描边。
+ */
+
+/* 1. 光影分段开关：内外间距/圆角与上游逐值一致（2px / 2px / 8px） */
+.preview-lighting-switch {
+  padding: 2px;
+  gap: 2px;
+  border-radius: 8px;
+}
+
+.preview-lighting-switch button[data-drawing-lighting] {
+  padding: 4px 5px;
+  border-radius: 5px;
+}
+
+/* 2. 第一行吃满宽度靠 `preview-heading-actions` 的 flex 撑开；
+   `preview-heading-main` 本身不设 flex（上游同样没有），否则两块会平分剩余空间。 */
+.preview-lighting-row {
+  max-width: 100%;
+}
+
+/* 第一行右侧尾组：风格选择器 + 进阶设置。
+ *
+ * 为什么成组而不是各自 `margin-left: auto`：两个 auto 会把剩余空间**平分**成两段，
+ * 选择器于是浮在行中间；而单给「进阶设置」加 auto 又会让「默认风格」紧贴光影开关、
+ * 和它的操作对象（基础光）分居两端。成组后只有一个 auto，「选择器 + 进阶设置」作为
+ * 一个整体靠右，窄宽度下也整块折行、不会被拆散。 */
+.preview-lighting-tail {
+  display: flex;
+  /* 不在这里换行：整组作为一个块交给 `.preview-lighting-row` 去折行。
+     内部再换行会把「默认风格」和「进阶设置」拆成两行，右侧出现参差的半截。 */
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 7px;
+  margin-left: auto;
+  min-width: 0;
+}
+
+/* 3. 「已更新 / 待更新 · 更新」：上游只改颜色，尺寸沿用 `.preview-heading button` */
+.preview-heading .refresh-preview {
+  color: #71808d;
+}
+
+.preview-heading .refresh-preview:disabled {
+  opacity: 0.72;
+}
+
+.preview-heading .refresh-preview.is-dirty {
+  border-color: #ffa73a57;
+  background: #ff9d2e12;
+  color: #ffc071;
+}
+
+/* 分段开关的间距与按钮内边距按上游取值（`padding:2px` / `gap:2px` / 按钮 `padding:4px 5px`、
+   `min-height:28px`）。此前为把整组压到 28px 写成 1px / 24px，结果整条标题比上游矮 6px，
+   并排像素比对里是最大的一处差异 —— 上游本就用 34px 高的一组，没必要自创基线。 */
+
+/* 0.8.9 对齐：标题条内边距与行间跟上游一致（`padding:9px 12px`、`gap:7px 16px`）。
+   此前这里额外压到 7px/6px 想把 6px 还给画布，但实测这让整条比上游矮 2px、
+   且行间距与上游不同，在并排像素比对里贡献了可观的差异。 */
+
+/* ---- 0.8.9 增量选择器（选择器级移植，值取自上游同一条规则） ----
+   只补「本项目已有对应标记/行为、但缺这条规则」的项；上游删掉/本项目未移植的
+   （`.workflow-apply` / `.studio-apply-compact`）不在此列。 */
+
+/* 应用户型对话框：标题右侧要给关闭按钮留 32px；表单自身负责内边距，
+   两个分支卡片等宽并排（单列时塌成满宽）。 */
+.apply-floorplan-dialog h2 { margin: 0 32px 16px 0 }
+.apply-floorplan-dialog form { padding: 16px }
+.apply-floorplan-branches section {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #0000001f;
+}
+
+/* 资产分类页签里的「我的装饰」横跨整行（它是库入口，不是并列分类）。 */
+.asset-category-tabs [data-asset-category="decoration"] { grid-column: 1 / -1 }
+
+/* 装饰库操作区：主操作实心、说明按钮透明（悬停/聚焦才有下划线）。 */
+.decoration-actions [data-decoration-help]:is(:hover, :focus-visible) {
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* 灯具光影切换行：一行说明 + 右侧按钮，隐藏时整行不占位。 */
+.drawing-fixture-lighting {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 7px 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: #aeb9c3;
+  font-size: 11px;
+}
+.drawing-fixture-lighting button { min-height: 28px; color: #ffc071; font-size: 11px }
+.drawing-fixture-lighting[hidden] { display: none }
+
+/* 副视图里不重复渲染「拖动旋转」提示（顶视图已有专门提示）。 */
+.editor-secondary-view .plan-rotate-hint { display: none }
+
+/* 地面分区检查器的按钮/滑条口径已在上方 `.floor-region-*` 主块里声明（与上游逐字对齐），
+   这里不再重复，避免两处真相互相覆盖。 */
+
+/* 平面图底部 HUD 复用 `.canvas-hud`，但底部条自身已绝对定位，内层不能再来一次。 */
+.plan-bottom-hud > .canvas-hud { position: static }
+
+/* 预览相机设置面板：每行控件等宽伸缩；切换按钮展开时高亮 + 箭头翻转。 */
+.preview-camera-row > :is(button, .preview-camera-switch, .fixed-camera-actions),
+.preview-camera-row :is(.preview-camera-switch, .fixed-camera-actions) button {
+  flex: 1 1 auto;
+}
+.preview-camera-toggle[aria-expanded="true"] {
+  border-color: var(--line-strong);
+  color: #e2eaf2;
+  background: #869ece26;
+}
+.preview-camera-toggle[aria-expanded="true"]:after { margin-top: 2px; transform: rotate(225deg) }
+.preview-heading .preview-camera-toggle { gap: 5px }
+
+/* 顶视时「自由视角」提示没有意义，反之亦然：两条互斥显示。 */
+.preview-card:has(> .preview-heading [data-camera-view="top"][aria-pressed="true"]) .free-view-hint {
+  display: none;
+}
+.preview-card:has(> .preview-heading [data-camera-view="top"][aria-pressed="true"]) .top-view-hint {
+  display: inline;
+}
+.viewport-help .top-view-hint { display: none }
+
+/* 光影切换选中态：浅底深字，与深色工具条拉开对比。 */
+.preview-lighting-switch button[data-drawing-lighting][aria-pressed="true"] {
+  color: #151d29;
+  background: #bdcfe6;
+}
+
+/* 层间距控件在视图控制区里收紧内边距（外层已有 gap）。 */
+.preview-view-controls .floor-gap-control { gap: 2px; padding-inline: 4px }
+
+/* 分区预览时「按角度批量」没有意义（色档按层聚合，不按角度）。 */
+.studio-region-preview .light-batch-control:has(#light-angle) { display: none }
+
+/* 地面分区工具的图标（上游用 border-vertical，本项目 vendor 路径不同）。 */
+.tool-button[data-tool="floor-region"] > .hb-ui-icon {
+  --hb-ui-icon-source: url("/static/vendor/mdi/7.4.47/svg/border-vertical.svg");
+}
+
+/* 吸附提示用青色：与选中态的琥珀色区分，避免误读成「已选中」。 */
+#snap-indicator { color: var(--cyan) }

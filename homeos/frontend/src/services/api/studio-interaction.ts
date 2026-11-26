@@ -1,0 +1,85 @@
+/**
+ * 3D 户型相关的 0.8.9 增量接口：**柔光范围局部保存** 与 **配置只读诊断**。
+ *
+ * 两者共用一个文件，是因为它们解决同一个问题：绘制页与 3D 控件之间那份「配置」需要
+ * 能被**单独**读写，而不是每次都整份草稿来回搬。
+ *
+ * - `PUT /studio3d/light-ranges`（相对 `baseURL`，不要自己再加 `/api/v1`）：只提交受影响的场景，服务端合进草稿后走同一条保存链路
+ *   （revision 乐观并发、校验、级联清理都复用），因此这里的 `revision` 必须带对；
+ * - `POST /modules/interaction3d/config-diagnostics`：只读，**永不拒绝**，固定返回
+ *   `{valid, findings}`，让编辑器把失败项逐条列出来。
+ *
+ * 失败一律由 4xx 表达（错误码见 `@/shared/constants/api-error-codes`）。
+ */
+import type { AxiosResponse } from 'axios'
+import { apiPost, apiPut } from './client'
+import type { LightRangeArchiveStore, LightRegionOverrideStore } from '@/studio/app/3d-studio/plan/studio-light-ranges'
+
+/** 柔光范围局部保存的请求体。 */
+export type StudioLightRangesUpdate = {
+  /** 当前草稿 revision（不匹配 → 409）。 */
+  revision: number
+  /** 要更新的场景（`changes` 为 `null` 表示清空该场景）。 */
+  sceneId: string
+  changes: Record<string, unknown> | null
+  /** 可选的撤销记录追加（与 changes 一起提交，省一次往返）。 */
+  archive?: unknown[]
+}
+
+/** 柔光范围局部保存的响应。 */
+export type StudioLightRangesResult = {
+  revision: number
+  lightRegionOverrides: LightRegionOverrideStore
+  lightRangeArchive: LightRangeArchiveStore
+}
+
+/**
+ * 只保存柔光范围（不重传整份户型）。
+ *
+ * 返回 `AxiosResponse` 而不是解包后的 body：与其它服务（`device-profiles` 等）保持同一口径，
+ * 调用方按需取 `.data` —— 有些地方要在拦截器里读响应头。
+ */
+export function saveLightRanges(payload: StudioLightRangesUpdate): Promise<AxiosResponse<StudioLightRangesResult>> {
+  return apiPut<StudioLightRangesResult>('/studio3d/light-ranges', payload)
+}
+
+/** 一条配置诊断结论（`scope` 是分区名，`reason` 可直接展示）。 */
+export type ConfigDiagnosticFinding = {
+  scope: string
+  reason: string
+}
+
+/** 配置诊断结果。 */
+export type ConfigDiagnosticResult = {
+  valid: boolean
+  findings: ConfigDiagnosticFinding[]
+}
+
+/**
+ * 只读检查一份 3D 控件配置。
+ *
+ * 调用方拿到的永远是 200（除非未授权）：`valid: false` 时把 `findings` 逐条列给用户，
+ * 而不是抛错 —— 这正是「检查失效配置」与「保存失败」的区别。
+ */
+export function diagnoseInteractionConfig(
+  properties: Record<string, unknown>,
+): Promise<AxiosResponse<ConfigDiagnosticResult>> {
+  return apiPost<ConfigDiagnosticResult>('/api/v1/modules/interaction3d/config-diagnostics', { properties })
+}
+
+/**
+ * 把一张导出图转成 WebP（Safari 兜底）。
+ *
+ * Safari 的 `canvas.toBlob('image/webp')` 会**静默回退成 PNG**，所以前端探测到
+ * 「拿不到 WebP」时把 PNG 交给服务端转一次。
+ *
+ * 走 `apiPost` + `responseType: 'blob'`（而不是裸 fetch）：这样 CSRF 头、鉴权失效
+ * 跳转、超时与错误信封全部复用统一 HTTP 栈。
+ */
+export async function convertExportImageToWebp(png: Blob): Promise<Blob> {
+  const response = await apiPost<Blob>('/studio3d/exports/webp-fallback', png, {
+    responseType: 'blob',
+    headers: { 'content-type': png.type || 'image/png' },
+  })
+  return response.data
+}

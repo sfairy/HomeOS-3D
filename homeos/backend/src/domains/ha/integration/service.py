@@ -139,15 +139,21 @@ class HAConnectorService(
 
     # 窗帘姿态历史
 
-    def _active_credential(self) -> str:
-        """当前活跃连接的凭据（作用域隔离用：同一 ``entity_id`` 在别的 HA 上是另一台设备）。"""
+    def _active_connection_row(self):
+        """当前活跃连接行（读不到时返回 ``None``）。
+
+        抽出来是因为「连接身份」与「姿态历史作用域」都要看同一行：两次独立查询会在
+        切换连接的瞬间读到不同结果，导致身份与作用域错位（正是 0.8.9 要修的残留问题）。
+        """
         try:
             with self.database.session_factory() as database:
-                connection = database.scalar(
-                    select(HAConnection).where(HAConnection.is_active.is_(True))
-                )
+                return database.scalar(select(HAConnection).where(HAConnection.is_active.is_(True)))
         except Exception:
-            return ''
+            return None
+
+    def _active_credential(self) -> str:
+        """当前活跃连接的凭据（作用域隔离用：同一 ``entity_id`` 在别的 HA 上是另一台设备）。"""
+        connection = self._active_connection_row()
         return str(getattr(connection, 'encrypted_access_token', '') or '')
 
     def _observe_states(self, states) -> None:
@@ -164,9 +170,18 @@ class HAConnectorService(
         否则新连接的墙屏会读到上一台机器的位置。
         """
         memory = self.cover_memory
-        memory.credential = self._active_credential
+        memory.credential = self._active_credential()
         memory.activate()
         self.state_hub.source_key = memory.scope
+        # 0.8.9：同时刷新「面向浏览器的连接身份」。身份只由 base_url + 凭据指纹决定，
+        # 因此同一台 HA 断连重连不会换身份（前端缓存继续有效），换 HA 才会换（旧页面失效）。
+        base_url = str(getattr(self._active_connection_row(), 'base_url', '') or '')
+        identity = (
+            self.state_hub.browser_source_identity(base_url, self._active_credential())
+            if base_url
+            else ''
+        )
+        self.state_hub.set_runtime_online(bool(base_url), identity)
         return memory.scope
 
     # 高级参数（haConnector / other）

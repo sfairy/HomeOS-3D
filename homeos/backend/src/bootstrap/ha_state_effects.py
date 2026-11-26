@@ -38,8 +38,8 @@ RESYNC_BROADCAST_MAX_CHANGES = min(REPLAY_ONLY_MAX_CHANGES, 200)
 def _schedule_energy_backfill(app: FastAPI, entities: list[dict[str, Any]]) -> None:
     """按 attributes 发现电量实体并回填近 N 天（首次快照后按节流策略跑一次）。
 
-    放在这里而不是 ``lifespan`` 装配阶段：``lifespan`` 已被 ``check:file-size`` 棘轮
-    锁住（任何新增行都算失败），而本模块就是它的业务旁路，天然适合承载这类旁路任务。
+    放在这里而不是 ``lifespan`` 装配阶段：``lifespan`` 已经很大，而本模块就是它的
+    业务旁路，天然适合承载这类旁路任务。
     服务实例懒加载并挂在 ``app.state`` 上，避免启动早期就依赖 HA 已连接。
     """
     try:

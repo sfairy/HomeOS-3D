@@ -29,6 +29,7 @@ function defaultState(): StudioFacadeState {
     activeTool: null,
     planFocus: false,
     libraryCollapsed: false,
+    floorRegion: null,
   }
 }
 

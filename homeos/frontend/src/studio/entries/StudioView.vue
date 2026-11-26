@@ -20,7 +20,7 @@ function scheduleStudioTeardown(teardown: (() => Promise<void> | void) | null | 
 
 <script setup lang="ts">
 /** Vue 壳层（顶栏 / 工作流 / 平面聚焦 / 撤销）+ DOM 契约供 bootStudio 操作。 */
-import { computed, onBeforeUnmount, onMounted } from "vue";
+import { computed, onBeforeUnmount, onMounted, watch } from "vue";
 import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
 import { useStudioFloorplanStore } from "@/stores/studio-floorplan.store";
 import { useChromeStore } from "@/stores/chrome.store";
@@ -39,6 +39,7 @@ import StudioPlacedPanel from "@/studio/chrome/creator/StudioPlacedPanel.vue";
 import StudioDialogs from "@/studio/chrome/creator/StudioDialogs.vue";
 import StudioOverlays from "@/studio/chrome/creator/StudioOverlays.vue";
 import { WORKFLOW_STEPS } from "./studio-creator-async";
+import { shellNotify } from "@/studio/platform/shell-chrome";
 import { LEAVE_PLAN_FOCUS_EVENT } from "@app/3d-studio/authoring/studio-app/ui/workspace-events";
 
 const route = useRoute();
@@ -85,9 +86,87 @@ function goBack() {
 }
 
 function jumpStep(step: string) {
+  // 0.8.9：第 6 步不是「跳到导出面板」，而是先让用户选出路（2D 导图 / 3D 交互）。
+  // 上游把这一步做成 `apply-floorplan-dialog`；这里保持同一语义，弹窗由本文件绑定。
+  if (step === "export") {
+    openApplyFloorplanDialog();
+    return;
+  }
   floorplanStore.command({ type: "setWorkflowStep", step });
 }
 
+/**
+ * 打开「应用户型」弹窗。
+ *
+ * 弹窗标记在 `StudioDialogs.vue`（常驻 DOM，引擎按 id 绑定），这里只负责显隐与两个分支按钮：
+ * - 「打开导图」→ 关弹窗后点预览工具条上的「导图」（复用既有导出流程，不另开一条）；
+ * - 「返回仪表盘编辑器」→ 回 `/studio/editor`（仪表盘里再添加 3D 交互控件）。
+ */
+function openApplyFloorplanDialog() {
+  const dialog = document.getElementById("apply-floorplan-dialog") as HTMLDialogElement | null;
+  if (!dialog) return;
+  if (typeof dialog.showModal === "function") dialog.showModal();
+  else dialog.open = true;
+}
+
+function bindApplyFloorplanDialog() {
+  const dialog = document.getElementById("apply-floorplan-dialog") as HTMLDialogElement | null;
+  if (!dialog || dialog.dataset.applyFloorplanBound === "1") return;
+  dialog.dataset.applyFloorplanBound = "1";
+  dialog.querySelector("#apply-floorplan-export")?.addEventListener("click", () => {
+    dialog.close();
+    document.getElementById("open-export")?.click();
+  });
+  dialog.querySelector("#apply-floorplan-interaction")?.addEventListener("click", () => {
+    dialog.close();
+    router.push("/studio/editor").catch(() => undefined);
+  });
+}
+
+/**
+ * 0.8.9 地面分区检查器：按 facade 选区显隐。
+ *
+ * 标记必须常驻（boot 按固定 id 绑定元素），所以这里只切 `hidden` 与文案，
+ * 不创建/销毁节点 —— 否则 boot 再渲染时拿不到元素。
+ */
+function syncFloorRegionInspector(selection: { label: string; regionCount: number; canSplit: boolean } | null) {
+  const section = document.getElementById("floor-region-inspector");
+  if (!section) return;
+  section.hidden = !selection;
+  if (!selection) return;
+  const title = document.getElementById("floor-region-title");
+  if (title) title.textContent = selection.label;
+  const hint = section.querySelector<HTMLElement>("[data-floor-region-instruction]");
+  if (hint) {
+    hint.textContent = "点「画分割线」后在平面上依次点起点与终点；分割线需留在本区域内。";
+  }
+  const actions = section.querySelector<HTMLElement>("[data-floor-region-actions]");
+  if (actions) actions.hidden = !selection.canSplit;
+}
+
+/**
+ * 「画分割线」：只把工具状态切到切分模式，真正的两个点由画布点击收集。
+ * 动态 import 是必须的：工具模块会带进平面几何，不能进首屏 chunk。
+ */
+async function startFloorRegionSplit() {
+  const { beginFloorRegionSplit } = await import(
+    "@app/3d-studio/authoring/studio-app/interaction/floor-region-tool"
+  );
+  if (!beginFloorRegionSplit()) {
+    shellNotify("请先在平面上点选一块地面（地面分区工具）。", "warning");
+  }
+}
+/**
+ * 「取消画线」：放弃当前分割线的第一个点，回到选铺面状态（0.8.9）。
+ *
+ * 与 Esc 等价，但必须有一个可点的按钮：触屏设备没有 Esc。
+ */
+async function cancelFloorRegionSplit() {
+  const { cancelFloorRegionSplit: cancel } = await import(
+    "@app/3d-studio/authoring/studio-app/interaction/floor-region-tool"
+  );
+  cancel();
+}
 /**
  * 「平面聚焦」把右栏压成 0 宽（见 studio-chrome.css），而「3D为主」要把 3D 面板搬进那一列：
  * 引擎在切换前发这个事件，这里退出聚焦，避免 3D 画布量成 0×0、连切换条都一起隐身。
@@ -96,6 +175,13 @@ function jumpStep(step: string) {
 function leavePlanFocusForWorkspace() {
   floorplanStore.leavePlanFocus();
 }
+
+// 地面分区选区变化 → 检查器显隐（facade 是唯一来源；这里不缓存副本，避免两处状态打架）。
+watch(
+  () => floorplanStore.floorRegion,
+  (next) => syncFloorRegionInspector(next),
+  { flush: "post" },
+);
 
 onMounted(async () => {
   // 引擎侧的工作区切换会发这个事件：先挂监听，别等 boot 完成才收得到。
@@ -128,6 +214,8 @@ onMounted(async () => {
     collapsed: floorplanStore.libraryCollapsed,
   });
   floorplanStore.command({ type: "setPlanFocus", focus: floorplanStore.planFocus });
+  syncFloorRegionInspector(floorplanStore.floorRegion);
+  bindApplyFloorplanDialog();
   // 嵌入舞台：壳层裁成全屏后再催一次 resize，避免首帧按错误视口框相机
   if (!showCreatorChrome.value) {
     embeddedResizeFrame = requestAnimationFrame(() => {
@@ -327,7 +415,22 @@ onBeforeUnmount(() => {
                         data-asset-category="home" aria-pressed="true">家居</button><button type="button"
                         data-asset-category="appliance" aria-pressed="false">电器</button><button type="button"
                         data-asset-category="courtyard" aria-pressed="false">庭院</button><button type="button"
-                        data-asset-category="light" aria-pressed="false">灯光</button></div>
+                        data-asset-category="light" aria-pressed="false">灯光</button><button type="button"
+                        data-asset-category="decoration" aria-pressed="false">我的装饰</button></div>
+                <!-- 0.8.9 我的装饰：上传静态 GLB 后可拖入户型，也能在 3D 仪表盘与导图里显示。
+                     整段常驻（hidden 控制显隐），因为 boot 按固定 id 绑定元素。 -->
+                <section id="decoration-library" aria-label="我的装饰模型" hidden>
+                    <div class="decoration-actions">
+                        <button type="button" class="primary-action" data-decoration-upload>上传 GLB</button>
+                        <button type="button" data-decoration-help aria-haspopup="dialog"
+                            aria-controls="decoration-upload-dialog">上传说明</button>
+                    </div>
+                    <input type="file" accept=".glb,model/gltf-binary" aria-label="选择 GLB 文件" hidden>
+                    <p class="decoration-status" role="status" aria-live="polite"></p>
+                    <div class="asset-grid" data-decoration-list></div>
+                    <div class="light-group-context-menu" data-decoration-menu role="menu" aria-label="装饰模型操作"
+                        hidden><button type="button" data-delete-decoration role="menuitem">删除模型</button></div>
+                </section>
                 <p id="asset-search-empty" class="asset-search-empty" role="status" hidden>当前分类没有匹配的模型</p>
                 <div id="light-asset-row" class="light-asset-row" aria-label="灯具模板" hidden><button
                         class="asset-card light-asset-card" type="button" draggable="true" data-item-type="downlight"
@@ -1079,6 +1182,10 @@ onBeforeUnmount(() => {
                     <button class="asset-card" type="button" draggable="true" data-item-type="heater"
                         data-library-category="appliance" data-library-group="environment" data-library-name="取暖器"
                         data-asset-subcategory="environment"><i>▤</i><span>取暖器</span><small>0.52 × 0.29m</small></button>
+                    <!-- 0.8.9 取暖壁挂炉：程序化建模（无 GLB），尺寸与 `HEATING_BOILER_SIZE` 同一口径。 -->
+                    <button class="asset-card" type="button" draggable="true" data-item-type="heating-boiler"
+                        data-library-category="appliance" data-library-group="environment" data-library-name="取暖壁挂炉"
+                        data-asset-subcategory="environment"><i>▥</i><span>取暖壁挂炉</span><small>0.46 × 0.25m</small></button>
                     <button class="asset-card" type="button" draggable="true" data-item-type="airoutlet"
                         data-library-category="appliance" data-library-group="environment" data-library-name="空调出风口"
                         data-asset-subcategory="environment"><i>▥</i><span>空调出风口</span><small>0.19 × 2.00m</small></button>
@@ -1306,62 +1413,104 @@ onBeforeUnmount(() => {
           :aria-hidden="floorplanStore.planFocus"
         >
             <div class="editor-secondary-view"></div><section class="preview-card panel-surface">
+                <!-- 0.8.9 预览标题条：**两段式**（`preview-heading-main` + `preview-heading-actions`）。
+                     - 左段：标题 + 光影切换行（同一行，光影行自己会 wrap 到下一行）
+                     - 右段：`preview-view-controls`（同步/楼层/视角）+ `preview-tools`（风格/导图/相机）
+                     0.8.9 删掉了 `LIVE MODEL` 眉标、`预览`/`相机` 两个行内标签和整块 tip —— 这里同步删除。 -->
                 <div class="preview-heading">
-                    <div class="preview-heading-copy"><span class="eyebrow">LIVE MODEL</span>
-                        <div class="preview-title-row">
-                            <h2>3D 实时预览</h2><select data-floating-menu id="editor-scene-style" aria-label="编辑预览风格"><option value="default">默认风格</option><option value="warm-wood">暖阳原木</option><option value="natural-wood">自然木语</option></select><button id="refresh-preview" class="refresh-preview" type="button" hidden
-                                disabled>已更新</button><span id="preview-quality-status"
-                                class="preview-quality-status" hidden></span>
-                        </div>
-                    </div>
-                    <div class="preview-heading-actions">
-                        <div class="preview-primary-controls"> <span class="preview-control-label">预览</span>
-                            <div class="preview-scope-controls">
-                                <div class="preview-sync-switch" role="group" aria-label="3D 预览同步方式"><button
-                                        class="active" type="button" data-preview-sync="live">实时</button><button
-                                        type="button" data-preview-sync="manual">手动</button></div>
-                                <div class="preview-floor-switch" role="group" aria-label="3D 楼层显示"><button
-                                        class="active" type="button" data-preview-floor="active">当前层</button><button
-                                        type="button" data-preview-floor="all">全楼</button></div> <label
-                                    id="preview-floor-gap-control" class="floor-gap-control" hidden
-                                    title="等比例叠加开启后，调小间距可继续靠近，允许重叠"><span>层间距</span><input id="preview-floor-gap"
-                                        type="number" min="0" max="20" step="0.1" value="3"><i>m</i></label> <label
-                                    id="preview-floor-uniform-control" class="floor-gap-control"
-                                    hidden><span>等比例叠加</span><input id="preview-floor-uniform"
-                                        type="checkbox"><i>各层同视图</i></label>
-                            </div> <span class="preview-control-spacer"></span>
-                            <div id="floor-camera-actions" class="fixed-camera-actions" role="group"
-                                aria-label="当前楼层视角"> <button id="save-camera-view" type="button"
-                                    title="记录当前楼层的角度、缩放和投影方式">保存视角</button> <button id="fixed-camera-view" type="button"
-                                    title="恢复当前楼层保存的视角" disabled>恢复视角</button> </div>
-                            <div id="overview-camera-actions" class="fixed-camera-actions" role="group"
-                                aria-label="全楼总览视角" hidden> <button id="save-overview-view" type="button"
-                                    title="保存当前全楼角度和投影方式">保存总览</button> <button id="fixed-overview-view" type="button"
-                                    title="恢复上次保存的全楼视角" disabled>恢复总览</button> </div> <button
-                                id="open-export" class="open-export" type="button">导图</button>
-                        </div>
-                        <div class="preview-secondary-controls"> <span class="preview-control-label">相机</span>
-                            <div class="preview-camera-settings" aria-label="3D 实时预览视角设置">
-                                <div class="preview-view-switch" role="group" aria-label="3D 实时预览视角"><button
-                                        class="active" type="button" data-camera-view="free">自由</button><button
-                                        type="button" data-camera-view="top">顶视</button><button type="button"
-                                        data-camera-rotate-top title="将顶视顺时针旋转 90°" disabled>旋转90°</button>
+                    <div class="preview-heading-main">
+                        <h2>3D 实时预览</h2>
+                        <!-- 光影切换：标准光影按距离与光束角投光；轻量柔光按光区照亮。
+                             柔光范围按 sceneId 与 3D 交互控件共用，所以绘制页改了控件也会跟着变。 -->
+                        <div id="drawing-lighting-row" class="preview-lighting-row" hidden>
+                            <div class="preview-lighting-switch" role="group" aria-label="3D 预览光影模式">
+                                <button type="button" data-drawing-lighting="standard" aria-pressed="true"
+                                    title="按距离和光束角投光，可调基础光与阴影">标准光影</button>
+                                <button type="button" data-drawing-lighting="region" aria-pressed="false"
+                                    title="按光区照亮，可为每盏灯调整柔光范围">轻量柔光</button>
+                            </div>
+                            <!-- 风格选择器 + 进阶设置收成一组贴在第一行右侧。
+                                 两者都属于「整页怎么呈现」：一个是套用哪份光照预设、一个是改基础光参数，
+                                 和光影模式是同一件事的不同粒度；而第二行的实时/楼层/视角是「看哪里」。
+                                 成组而不是逐个 `margin-left: auto`：这样窄宽度下它们整块折行、
+                                 不会把「默认风格」和「进阶设置」拆到两行去。 -->
+                            <div class="preview-lighting-tail">
+                                <select data-floating-menu id="editor-scene-style" aria-label="编辑预览风格">
+                                    <option value="default">默认风格</option>
+                                    <option value="warm-wood">暖阳原木</option>
+                                    <option value="natural-wood">自然木语</option>
+                                </select>
+                                <div class="preview-lighting-options">
+                                    <button id="open-base-lighting" type="button" aria-controls="base-light-controls"
+                                        title="调节标准光影的基础光与阴影">进阶设置</button>
+                                    <button id="open-drawing-light-ranges" type="button" aria-haspopup="dialog"
+                                        title="编辑当前楼层的柔光范围" hidden>调整柔光范围</button>
                                 </div>
-                                <div class="preview-camera-switch" role="group" aria-label="3D 实时预览投影"><button
-                                        class="active" type="button" data-camera-mode="orthographic">正交</button><button
-                                        type="button" data-camera-mode="perspective">透视</button></div> <label
-                                    class="camera-focal-control" title="仅在透视模式下生效"><span>焦段</span><input
-                                        id="preview-camera-focal-length" data-camera-focal-length type="number" min="18"
-                                        max="120" step="1" value="50" inputmode="numeric"><i>mm</i></label>
-                            </div> <span class="preview-control-spacer"></span> <button id="reset-camera"
-                                type="button">重置视角</button>
+                            </div>
                         </div>
                     </div>
-                    <div class="preview-heading-tip"><small id="preview-control-tip" class="preview-control-tip">左键旋转 ·
-                            右键平移 · 滚轮缩放</small><button id="open-base-lighting" class="open-base-lighting"
-                            type="button">进阶设置</button></div>
+                        <div class="preview-heading-actions">
+                            <div class="preview-view-controls">                            <div class="preview-sync-switch" role="group" aria-label="3D 预览同步方式"><button
+                                    class="active" type="button" data-preview-sync="live">实时</button><button
+                                    type="button" data-preview-sync="manual">手动</button></div> <button
+                                id="refresh-preview" class="refresh-preview" type="button" hidden disabled>已更新</button>
+                            <div class="preview-floor-switch" role="group" aria-label="3D 楼层显示"><button
+                                    class="active" type="button" data-preview-floor="active">当前层</button><button
+                                    type="button" data-preview-floor="all">全楼</button></div> <label
+                                id="preview-floor-gap-control" class="floor-gap-control" hidden
+                                title="等比例叠加开启后，调小间距可继续靠近，允许重叠"><span>层间距</span><input
+                                    id="preview-floor-gap" type="number" min="0" max="20" step="0.1" value="3"><i>m</i></label>
+                            <!-- 本仓额外：全楼等比例叠加（上游无此控件，默认隐藏，不影响默认视觉）。 -->
+                            <label id="preview-floor-uniform-control" class="floor-gap-control"
+                                hidden><span>等比例叠加</span><input id="preview-floor-uniform" type="checkbox"><i>各层同视图</i></label>
+                            <div class="preview-view-switch" role="group" aria-label="3D 实时预览视角"><button
+                                    class="active" type="button" data-camera-view="free">自由</button><button
+                                    type="button" data-camera-view="top">顶视</button></div>
+                        </div>
+                        <!-- 风格选择器已随「进阶设置」移进第一行的 `.preview-lighting-tail`：
+                             它和光影模式同属「整页怎么呈现」，第二行只留「看哪里」。
+                             `#editor-scene-style` 仍支持 `preview-tools` 落点（嵌入舞台会把它藏起来）。 -->
+                        <!-- 右侧尾部：预览质量状态 + 导图 / 相机设置。
+                             成组的原因同 `.preview-lighting-tail`：状态条是**偶发**元素
+                             （只在有预览问题时出现），它一旦作为独立 flex 项参与
+                             `space-between`/换行，就会把「导图·相机设置」从行尾挤到行中，
+                             或在窄宽度下自己独占一行最左端。包成一组后，整组只占一个
+                             自动外边距，状态条出现/消失都不动工具组的位置。 -->
+                        <div class="preview-heading-tail">
+                            <span id="preview-quality-status" class="preview-quality-status" hidden></span>
+                            <div class="preview-tools"><button id="open-export" class="open-export"
+                                    type="button">导图</button> <button id="preview-camera-toggle"
+                                    class="preview-camera-toggle" type="button" aria-controls="preview-camera-panel"
+                                    aria-expanded="false">相机设置</button></div>
+                        </div>
+                    </div>
                 </div>
                 <div id="preview-3d" class="preview-3d" data-style="night">
+                    <!-- 相机设置面板（0.8.9）。子控件的 id / data-* 全部沿用，事件仍走全局委托。 -->
+                    <section id="preview-camera-panel" class="preview-camera-panel" aria-label="相机设置" hidden>
+                        <div class="preview-camera-row">
+                            <div class="preview-camera-switch" role="group" aria-label="3D 实时预览投影"><button
+                                    class="active" type="button" data-camera-mode="orthographic"
+                                    aria-pressed="true">正交</button><button type="button" data-camera-mode="perspective"
+                                    aria-pressed="false">透视</button></div> <label class="camera-focal-control"
+                                title="仅在透视模式下生效"><span>焦段</span><input id="preview-camera-focal-length"
+                                    data-camera-focal-length type="number" min="18" max="120" step="1" value="50"
+                                    inputmode="numeric"><i>mm</i></label>
+                        </div>
+                        <div class="preview-camera-row">
+                            <div id="floor-camera-actions" class="fixed-camera-actions" role="group"
+                                aria-label="当前楼层视角"> <button id="save-camera-view" type="button"
+                                    title="记录当前楼层的角度、缩放和投影方式">保存视角</button> <button id="fixed-camera-view"
+                                    type="button" title="恢复当前楼层保存的视角" disabled>恢复视角</button></div>
+                            <div id="overview-camera-actions" class="fixed-camera-actions" role="group"
+                                aria-label="全楼总览视角" hidden> <button id="save-overview-view" type="button"
+                                    title="保存当前全楼角度和投影方式">保存总览</button> <button id="fixed-overview-view"
+                                    type="button" title="恢复上次保存的全楼视角" disabled>恢复总览</button></div>
+                        </div>
+                        <div class="preview-camera-row"> <button type="button" data-camera-rotate-top
+                                title="将顶视顺时针旋转 90°" disabled>旋转 90°</button> <button id="reset-camera"
+                                type="button">重置视角</button></div>
+                    </section>
                     <div id="base-light-controls" class="base-light-controls" hidden>
                         <div class="base-light-controls-header"><strong>基础光调节</strong><span
                                 class="base-light-drag-hint">按住拖动</span><button id="close-base-lighting"
@@ -1422,6 +1571,17 @@ onBeforeUnmount(() => {
                                     type="button">恢复默认光照</button><button id="save-base-lighting"
                                     class="save-base-lighting" type="button">保存设置</button></div>
                         </div>
+                    </div>
+                    <!-- 0.8.9 视图操作提示 HUD（替代 0.8.8 标题条里的那行小字提示）。
+                         鼠标提示与触控提示靠 `pointer` 媒体特性互斥；顶视时 `free-view-hint` 收起、
+                         `top-view-hint` 出现（见 `.preview-card:has([data-camera-view=top]…)` 规则）。 -->
+                    <div class="canvas-hud preview-view-hud">
+                        <small class="viewport-help"> <span class="mouse-view-hint free-view-hint">左键拖动旋转</span>
+                            <span class="mouse-view-hint">右键拖动平移</span> <span class="mouse-view-hint">滚轮缩放</span>
+                            <span class="touch-view-hint free-view-hint">单指拖动旋转</span> <span
+                                class="touch-view-hint">双指拖动平移</span> <span
+                                class="touch-view-hint">双指捏合缩放</span> <span
+                                class="top-view-hint">相机设置 → 旋转 90°</span> </small>
                     </div> <canvas id="preview-light-cache" class="preview-light-cache" hidden></canvas><canvas
                         id="preview-render-shield" class="preview-render-shield" hidden></canvas>
                     <div id="webgl-message" class="webgl-message" hidden>当前浏览器无法创建 3D 画面：WebGL 已被禁用。请开启浏览器「使用图形加速」并重启浏览器；仍不行请改用 Chrome / Safari。</div>
@@ -1517,6 +1677,13 @@ onBeforeUnmount(() => {
                         </div>
                     </section>
                     <div id="item-fields" class="field-section" hidden>
+                        <!-- 0.8.9：单件灯具的柔光范围内联入口。只有灯具（且未绑定灯组范围）时显示，
+                             显隐与文案由 `light-range-editor.ts` 按当前选中件切。 -->
+                        <div id="drawing-fixture-lighting" class="drawing-fixture-lighting" hidden>
+                            <span id="drawing-fixture-range-status"></span>
+                            <button id="edit-drawing-fixture-range" type="button"
+                                aria-haspopup="dialog">编辑柔光范围</button>
+                        </div>
                         <section class="inspector-group" data-inspector-group="style">
                             <div class="inspector-group-body"> <label id="courtyard-gate-style-field"
                             class="door-type-field" hidden>庭院门款式<select id="courtyard-gate-style">
@@ -1755,6 +1922,41 @@ onBeforeUnmount(() => {
                                 </details>
                             </fieldset>
                         </div>
+                    </section>
+                    <!-- 0.8.9 地面分区：选中一块地面后换铺面 / 调深浅 / 切分。
+                         整组隐藏（`hidden`）由绘制页在「地面分割」工具下按选区显隐，
+                         因此这里的标记必须始终存在（boot 依赖固定 id 绑定元素）。 -->
+                    <section id="floor-region-inspector" class="inspector-section floor-region-inspector" hidden
+                        aria-labelledby="floor-region-title">
+                        <header class="selection-heading">
+                            <strong id="floor-region-title">地面分区</strong>
+                        </header>
+                        <p data-floor-region-instruction aria-live="polite"></p>
+                        <div data-floor-region-actions hidden>
+                            <div class="floor-region-finishes" role="group" aria-label="地面铺面">
+                                <button type="button" data-floor-finish="theme" aria-pressed="true">跟随主题</button>
+                                <button type="button" data-floor-finish="wood" aria-pressed="false" title="木地板">原色</button>
+                                <button type="button" data-floor-finish="tile" aria-pressed="false" title="瓷砖">浅色</button>
+                            </div>
+                            <div class="floor-region-tone" data-floor-tone-fields hidden>
+                                <label data-floor-tone-label for="floor-tone-slider">深浅</label>
+                                <output data-floor-tone-value for="floor-tone-slider">默认</output>
+                                <input id="floor-tone-slider" type="range" value="0" step="1" aria-describedby="floor-tone-scope">
+                                <button type="button" data-floor-tone-reset>恢复默认</button>
+                                <small id="floor-tone-scope">本层使用同一色档的分区一起调整</small>
+                            </div>
+                            <div class="floor-region-controls">
+                                <button type="button" data-floor-region-cut @click="startFloorRegionSplit">画分割线</button>
+                                <button type="button" data-floor-region-cancel @click="cancelFloorRegionSplit">取消画线</button>
+                                <button type="button" data-floor-region-remove>移除分区</button>
+                            </div>
+                        </div>
+                        <!-- 地暖盘管显示（0.8.9）：跟着**楼层**走，不受当前选中哪一块影响，
+                             所以放在 `data-floor-region-actions` 之外（未选中分区时也能改）。
+                             勾上后按分区自动铺蛇形盘管；没有分区时不显示。 -->
+                        <label class="floor-region-underfloor">
+                            <input type="checkbox" id="floor-underfloor-heating"> 显示本层地暖盘管
+                        </label>
                     </section>
                 </form>
             </section>

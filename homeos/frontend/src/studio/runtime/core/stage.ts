@@ -168,6 +168,7 @@ import { onPermanentPageHide } from './page-disposal'
 import { installNativeSelectionGuard } from './native-selection'
 import { createMarkerHold } from './marker-input'
 import { runStageDisposeSteps } from './stage/dispose-pagehide'
+import { installStageViewGestures } from './stage/view-gestures-wiring'
 import { settleControlRequest, trackControlRequest } from './stage/control-requests'
 import { createFocusExitListeners } from './stage/focus-exit-listeners'
 
@@ -181,6 +182,8 @@ const getComputedStyleForDeps = (measurementTarget: Element) => window.getComput
 
 export function mountStage(mountOptions: any) {
   const { THREE: three, container: element, canvas: canvasElement } = mountOptions
+  // 手势句柄：换楼层 / 页面卸载时解绑，否则「换层后手势重复响应」（AbortController 只解绑一次）。
+  let viewGestureHandle: { dispose: () => void } | null = null
   const ctx = createStageContext()
   ctx.pageBehavior = resolvePageBehavior2()
   // 外移到 stage/preview-markers.ts 的两个函数在这里收口宿主值：调用点保持不变，签名收敛在入口。
@@ -4110,6 +4113,9 @@ export function mountStage(mountOptions: any) {
   canvasElement.addEventListener('pointerup', releaseFocusExit, { capture: true }),
     canvasElement.addEventListener('pointercancel', releaseFocusExit, { capture: true }),
     focusExitListeners.install(),
+    // 0.8.9 单层浏览手势：默认关闭，由控件配置 `viewGesturesEnabled` 打开。
+    // 只在「非编辑态 + 无面板编辑 + 无照射范围编辑 + 非跟随扫地机」时接管指针，
+    // 其余情况直接不认领（点击 / 长按路径完全不受影响）。
     canvasElement.addEventListener('pointerdown', (gestureStartEvent: any) => {
       ctx.pointerGesture =
         (gestureStartEvent.button == null || gestureStartEvent.button === 0) && gestureStartEvent.isPrimary !== false
@@ -4706,6 +4712,26 @@ export function mountStage(mountOptions: any) {
         (cameraChanged || ctx.pageBehavior.hideIconsWhileRotating === true) && wakeSceneBackground()
     })
   cameraChangeUnsubscribe || controls.addEventListener('change', renderMarkerPositions)
+  viewGestureHandle = installStageViewGestures({
+    surface: canvasElement,
+    controls: controls as unknown as {
+      position: { x: number; y: number; z: number }
+      target: { x: number; y: number; z: number }
+    },
+    // 配置键 `viewGesturesEnabled`：`=== true` 才开启（缺省关闭，保持旧行为）。
+    canStart: () =>
+      ctx.baseStageConfig?.viewGesturesEnabled === true &&
+      !ctx.isEditing &&
+      !ctx.panelDisplayMode &&
+      !ctx.isRangeEditorOpen &&
+      !ctx.isAwaitingFloorViewAdjust &&
+      !ctx.followVacuumId,
+    clearPointerTap: () => {
+      ctx.pointerGesture = null
+    },
+    onCameraChanged: () => renderMarkerPositions(),
+    requestRender: () => mountOptions.requestRender?.(),
+  })
   const uninstallNativeSelectionGuard = installNativeSelectionGuard(element)
   const resizeObserver = new ResizeObserver(() => (weatherGround.sync(), syncLayoutMetrics()))
   resizeObserver.observe(element),
@@ -4793,6 +4819,7 @@ export function mountStage(mountOptions: any) {
         failCoverRequest(pendingSceneRequestId, '页面已关闭。')
       // P5：子系统 dispose 走可门禁小块（完整 mountStage 拆分另开，避免本轮 mega-split）
       runStageDisposeSteps([
+        { label: 'viewGestures', run: () => viewGestureHandle?.dispose() },
         { label: 'markerHold', run: () => markerHold.dispose() },
         { label: 'lightModeMenu', run: () => lightModeMenu.dispose() },
         { label: 'lightColorPicker', run: () => lightColorPicker.dispose() },

@@ -5,6 +5,44 @@ import {
 
 const onOffDomainSet = new Set(['light', 'switch', 'input_boolean', 'fan', 'humidifier', 'siren']),
   runningStateDomainSet = new Set(['climate', 'water_heater'])
+
+/**
+ * 开合类设备（窗帘 / 车库门 / 开窗器 / 晾衣架）的状态集合（0.8.9）。
+ *
+ * 口径：**未完全关闭计入数量**。因此 `opening` / `closing` 也算「开」——
+ * 用户问「几扇窗开着」，正在关的那扇还没关完，算开着更符合直觉。
+ */
+const COVER_ON_STATES = new Set(['open', 'opening', 'closing', 'opened'])
+const COVER_OFF_STATES = new Set(['closed', 'off'])
+
+/** HA 属性表：只读、形状不可信，按 `unknown` 收进来再逐字段窄化。 */
+type AttributesLike = Record<string, unknown>
+
+function readCoverPosition(attributes: AttributesLike | null | undefined): number | null {
+  const rawPosition = attributes?.current_position ?? attributes?.currentPosition
+  if (rawPosition === null || rawPosition === undefined || rawPosition === '') return null
+  const parsed = Number(rawPosition)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+/**
+ * 开合设备的开关判定。
+ *
+ * 状态字符串优先（HA 的 cover 一定给 `open`/`closed`），只有在状态不可用时才回落到
+ * `current_position`。`assumed_state` 是 HA 用来标记「这个状态是推测的」——
+ * 推测态仍然可用，不因此判成异常（否则无位置回传的设备会永远统计不出来）。
+ */
+function coverStateStatus(
+  normalizedState: string,
+  attributes: AttributesLike | null | undefined,
+): 'on' | 'off' | 'abnormal' {
+  if (COVER_ON_STATES.has(normalizedState)) return 'on'
+  if (COVER_OFF_STATES.has(normalizedState)) return 'off'
+  const position = readCoverPosition(attributes)
+  if (position !== null) return position > 0 ? 'on' : 'off'
+  return 'abnormal'
+}
+
 function resolveEntityDomain(entityRef: any) {
   const resolvedEntityId =
     typeof entityRef == 'string' ? entityRef : String(entityRef?.entityId || entityRef?.entity_id || '')
@@ -41,21 +79,66 @@ export function lightStatisticsEntitySupport(supportEntity: any) {
             supported: true,
             message: '按开启/关闭状态统计。',
           }
-        : runningStateDomainSet.has(entityDomain)
+        : entityDomain === 'cover'
           ? {
               supported: true,
-              message: '按关闭/运行状态统计。',
+              message: '按开合状态统计，未完全关闭计入数量。',
             }
-          : isBluetoothOnlineStatusSensor(supportEntity)
+          : runningStateDomainSet.has(entityDomain)
             ? {
                 supported: true,
-                message: '按在线/离线状态统计，在线计入数量。',
+                message: '按关闭/运行状态统计。',
               }
-            : {
-                supported: false,
-                message: '该实体没有明确的开启/关闭状态。',
-              }
+            : isBluetoothOnlineStatusSensor(supportEntity)
+              ? {
+                  supported: true,
+                  message: '按在线/离线状态统计，在线计入数量。',
+                }
+              : {
+                  supported: false,
+                  message: '该实体没有明确的开启/关闭状态。',
+                }
 }
+/** 控件/实体标识的最小形状（只读这几个键，其余交给 climate 判定函数）。 */
+type EntityLike =
+  | string
+  | null
+  | undefined
+  | { entityId?: unknown; entity_id?: unknown; name?: unknown; originalName?: unknown }
+
+/** 控件引用 → 实体 id（字符串直接用，否则读 `entityId` / `entity_id`）。 */
+function entityIdOf(statusEntity: EntityLike): string {
+  if (typeof statusEntity === 'string') return statusEntity
+  return String(statusEntity?.entityId || statusEntity?.entity_id || '')
+}
+
+/** 控件引用 → 展示名（用于 climate 形态判定里按名称匹配「浴霸」这类规则）。 */
+function entityLabelOf(statusEntity: EntityLike): unknown {
+  if (typeof statusEntity !== 'object' || statusEntity === null) return ''
+  return statusEntity.name || statusEntity.originalName || ''
+}
+
+/** 浴霸按 climate 能力判定（0.7.9 F5）：吹风、换气等非 on 状态也算开启。 */
+function bathHeaterStatus(
+  statusEntity: EntityLike,
+  normalizedState: string,
+  stateSource: { attributes?: Record<string, unknown> } | null | undefined,
+): 'on' | 'off' | null {
+  const climateStateSnapshot = { state: normalizedState, attributes: stateSource?.attributes || {} }
+  const climateDeviceComponent = { properties: { label: entityLabelOf(statusEntity) } }
+  const deviceType = resolveClimateDeviceType2(climateDeviceComponent, climateStateSnapshot, entityIdOf(statusEntity))
+  if (deviceType !== 'bath-heater') return null
+  return climateIsPoweredOn2(climateStateSnapshot, 'bath-heater') ? 'on' : 'off'
+}
+
+/** 蓝牙在线状态传感器的中文/英文状态 → on/off（其它一律 abnormal）。 */
+function bluetoothStatus(normalizedState: string): 'on' | 'off' | 'abnormal' {
+  const sensorState = normalizedState.replace(/^设备\s*\d+\s*-\s*/, '')
+  if (['在线', 'online', 'on'].includes(sensorState)) return 'on'
+  if (['离线', 'offline', 'off'].includes(sensorState)) return 'off'
+  return 'abnormal'
+}
+
 export function lightStatisticsEntityStateStatus(statusEntity: any, stateSource: any) {
   if (!lightStatisticsEntitySupport(statusEntity).supported) return 'abnormal'
   const statusEntityDomain = resolveEntityDomain(statusEntity),
@@ -63,39 +146,19 @@ export function lightStatisticsEntityStateStatus(statusEntity: any, stateSource:
       .trim()
       .toLowerCase()
   if (!normalizedState || ['unknown', 'unavailable'].includes(normalizedState)) return 'abnormal'
-  // 浴霸/空调按 climate 能力判定（0.7.9 F5）：吹风、换气等非 on 状态也算开启，
-  // 否则会被统计成「异常」而不是「已开启」。
+  // 开合类设备（0.8.9）：`opening`/`closing` 也算开，`current_position` 作为兜底。
+  if (statusEntityDomain === 'cover')
+    return coverStateStatus(normalizedState, stateSource?.attributes as AttributesLike | undefined)
   if (statusEntityDomain === 'climate' || statusEntityDomain === 'fan') {
-    const climateEntityId =
-        typeof statusEntity == 'string'
-          ? statusEntity
-          : String(statusEntity?.entityId || statusEntity?.entity_id || ''),
-      climateStateSnapshot = {
-        state: normalizedState,
-        attributes: stateSource?.attributes || {},
-      },
-      climateDeviceComponent = {
-        properties: {
-          label: statusEntity?.name || statusEntity?.originalName || '',
-        },
-      }
-    if (resolveClimateDeviceType2(climateDeviceComponent, climateStateSnapshot, climateEntityId) === 'bath-heater')
-      return climateIsPoweredOn2(climateStateSnapshot, 'bath-heater') ? 'on' : 'off'
+    const heaterStatus = bathHeaterStatus(statusEntity, normalizedState, stateSource)
+    if (heaterStatus) return heaterStatus
   }
-  if (isBluetoothOnlineStatusSensor(statusEntity)) {
-    const sensorState = normalizedState.replace(/^设备\s*\d+\s*-\s*/, '')
-    return ['在线', 'online', 'on'].includes(sensorState)
-      ? 'on'
-      : ['离线', 'offline', 'off'].includes(sensorState)
-        ? 'off'
-        : 'abnormal'
-  }
-  return normalizedState === 'off'
-    ? 'off'
-    : normalizedState === 'on' || runningStateDomainSet.has(statusEntityDomain)
-      ? 'on'
-      : 'abnormal'
+  if (isBluetoothOnlineStatusSensor(statusEntity)) return bluetoothStatus(normalizedState)
+  if (normalizedState === 'off') return 'off'
+  if (normalizedState === 'on' || runningStateDomainSet.has(statusEntityDomain)) return 'on'
+  return 'abnormal'
 }
+
 function readLookupEntry(lookupStore: any, lookupKey: any) {
   return typeof lookupStore?.get == 'function'
     ? lookupStore.get(lookupKey) || null
@@ -150,4 +213,14 @@ export function lightStatisticsSummary(entityIds: any, stateByEntityId = new Map
     abnormal: entitySummaries.filter((abnormalEntry) => abnormalEntry.status === 'abnormal').length,
     items: entitySummaries,
   }
+}
+
+/**
+ * 统计状态（0.8.9 `lightStatisticsState`）：把三个纯函数收口成上游形状。
+ *
+ * 上游是一个大函数返回整块状态；本项目拆成「支持判定 / 单实体状态 / 汇总」三块，
+ * 便于对每一层单独断言（尤其是 `assumed_state` 与 `abnormal` 的边界）。
+ */
+export function lightStatisticsState(entityIds: unknown, stateByEntityId = new Map(), metadataByEntityId = new Map()) {
+  return lightStatisticsSummary(entityIds, stateByEntityId, metadataByEntityId)
 }

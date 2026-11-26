@@ -15,6 +15,7 @@
 
 from __future__ import annotations
 
+import io
 import json
 import os
 import shutil
@@ -41,6 +42,42 @@ MAX_EXPORT_EXPANDED_BYTES = 1073741824
 #: 单个成员解压后上限：累计上限挡不住「一个条目吃掉整个预算」的高压缩率 zip。
 MAX_EXPORT_ENTRY_BYTES = 67108864
 MAX_EXPORT_FILES = 512
+
+#: 「导出图转 WebP」兜底的单边像素上限。
+#:
+#: 起因（0.8.9）：Safari 的 ``canvas.toBlob('image/webp')`` 会**静默回退成 PNG**，
+#: 于是导图在 Safari 下要么保存失败、要么落下一批体积是 WebP 三倍的 PNG。
+#: 前端探测到「拿不到 WebP」时把 PNG 交给这个端点，由服务端转一次。
+#: 上限与前端导图的画布上限一致：再大就不是「一张导出图」了。
+MAX_EXPORT_IMAGE_EDGE = 4096
+#: 转码后的 WebP 质量。与项目其它 WebP 口径一致（82）。
+EXPORT_WEBP_QUALITY = 82
+
+
+def encode_webp(image_bytes: bytes) -> bytes:
+    """把一张位图转成 WebP；不合法 / 过大时抛 ``ValueError``（由路由转成 422）。
+
+    PIL 在函数内导入：导出链路是冷路径，但 ``api/studio3d.py`` 会被首屏导入，
+    模块级 import PIL 会让每个请求都多吃一次导入成本（与 ``api/assets.py`` 同口径）。
+    """
+    from PIL import Image, UnidentifiedImageError
+
+    try:
+        with Image.open(io.BytesIO(image_bytes)) as opened:
+            (width, height) = opened.size
+            if width <= 0 or height <= 0:
+                raise ValueError('导出图像尺寸无效。')
+            if width > MAX_EXPORT_IMAGE_EDGE or height > MAX_EXPORT_IMAGE_EDGE:
+                raise ValueError('导出图像超过尺寸上限。')
+            # 动图（极少见）取第一帧：导出图本来就该是静态的。
+            if getattr(opened, 'is_animated', False):
+                opened.seek(0)
+            frame = opened.convert('RGBA') if opened.mode in {'RGBA', 'LA', 'P'} else opened.convert('RGB')
+            buffer = io.BytesIO()
+            frame.save(buffer, format='WEBP', quality=EXPORT_WEBP_QUALITY, method=4)
+            return buffer.getvalue()
+    except (Image.DecompressionBombError, UnidentifiedImageError, OSError) as error:
+        raise ValueError('导出图像无法解码，请重试。') from error
 _storage_lock = RLock()
 #: 目录名校验的非法字符；反斜杠本身在字符串里需要转义。
 INVALID_NAME_CHARACTERS = '<>:"/\\|?*'

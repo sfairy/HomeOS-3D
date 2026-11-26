@@ -55,13 +55,41 @@ function cachedTypeNames(): Record<string, string> {
 }
 
 /** 物件的最小形状：判断命中只需要尺寸与类型。 */
-type PlanItemLike = { id: string; type: string; width: number; depth: number; remark?: unknown; elevation?: unknown }
+type PlanItemLike = {
+  id: string
+  type: string
+  width: number
+  depth: number
+  remark?: unknown
+  elevation?: unknown
+  /** 用户装饰的模型名（本仓键）；浮层与属性标题都靠它区分同名条目。 */
+  name?: unknown
+  /** 用户装饰的模型名（0.8.9 上游键）。 */
+  modelName?: unknown
+}
 
 /** 命中盒：小件（插座）有一个最小像素下限，必须与 `hitTestPlanItem` 保持一致。 */
 function hitBoxFor(item: PlanItemLike, pixelsPerMeter: number, zoom: number) {
   if (item.type !== 'smart-socket-86') return itemWithPlanFootprint2(item, pixelsPerMeter)
   const minimum = 12 / (pixelsPerMeter * zoom)
   return { ...item, width: Math.max(item.width, minimum), depth: Math.max(item.depth, minimum) }
+}
+
+/**
+ * 「重叠物件」浮层里的候选名。
+ *
+ * 用户装饰显示**模型名**：目录里这类统一叫「我的装饰」，只取目录名会让
+ * 六件装饰在浮层里同名，用户点了也不知道选中哪一件。
+ *
+ * 抽成函数是为了与属性面板标题（`itemSelectionTitle`）、已放置清单
+ * （`placedItemName`）保持同一口径 —— 三处各写一份必然漂移（本轮就是这么漏的）。
+ */
+export function overlapCandidateLabel(
+  item: Pick<PlanItemLike, 'type' | 'name' | 'modelName'>,
+  typeNames: Record<string, string>,
+): string {
+  const modelName = item.type === 'user-decoration' ? String(item.name ?? item.modelName ?? '').trim() : ''
+  return modelName || typeNames[item.type] || String(item.type || '物件')
 }
 
 /** 该物件是否参与重叠候选（隐藏项、庭院地面、非当前分类都要排除）。 */
@@ -112,7 +140,8 @@ export function collectOverlapCandidates(
   )
   return hits.map(({ item }) => ({
     id: String(item.id),
-    label: cachedTypeNames()[item.type] || String(item.type || '物件'),
+    // 与属性面板标题同一口径（见 `overlapCandidateLabel`）。
+    label: overlapCandidateLabel(item, cachedTypeNames()),
     remark: String(item.remark || '') || undefined,
     height: candidateDetail(runtime, item),
   }))
@@ -261,7 +290,7 @@ export function offerOverlapPicker(runtime: StudioAppRuntime, planPoint: unknown
  * 松手后列候选（`pointer-input` 的入口：它只拿得到 `appCtx`）。
  *
  * 按 `appCtx` 反查这次运行时的接线：否则要给 `StudioAppRuntime` 再加一个成员，
- * 而 `boot.ts` 已经贴着文件规模棘轮，一行都不该再长。
+ * 而 `boot.ts` 已经很大，不该再往里加成员。
  */
 export function offerOverlapPickerFor(appCtx: object, planPoint: unknown, screenPoint: unknown): boolean {
   const wiring = wirings.get(appCtx)

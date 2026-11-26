@@ -88,6 +88,19 @@ DEVICE_PROFILES: dict[str, dict[str, Any]] = {
         'label': '机柜',
     },
     'humidifier': {'collection': 'humidifiers', 'model_type': 'humidifier', 'label': '加湿器'},
+    # 0.8.9：取暖器 / 除湿机 / 电动阀门。三者都复用「主实体 + 附加功能」的通用家电面板，
+    # 没有独立的渲染形态（不新增 climate kind，故 ``check:parity`` 不受影响）。
+    'heater': {'collection': 'heaters', 'model_type': 'heater', 'label': '取暖器'},
+    'dehumidifier': {
+        'collection': 'dehumidifiers',
+        'model_type': 'dehumidifier',
+        'label': '除湿机',
+    },
+    'electric-valve': {
+        'collection': 'electricValves',
+        'model_type': 'electric-valve',
+        'label': '电动阀门',
+    },
     'aroma-diffuser': {
         'collection': 'aromaDiffusers',
         'model_type': 'aroma-diffuser',

@@ -78,6 +78,10 @@ export function createSceneItem(
     createdItem = {
       id: generateId('item'),
       type: sceneItemType,
+      // 资产类字段（用户装饰的 assetId / name）由调用方经 `extraFields` 带入。
+      // 用 `Object.assign` 而不是 `...(x ?? {})`：后者会多一个 `??` 分支，
+      // 而这个函数已经很长。
+      ...Object.assign({}, sizeOverrides.extraFields),
       x: itemPosition.x,
       y: itemPosition.y,
       rotation: 0,

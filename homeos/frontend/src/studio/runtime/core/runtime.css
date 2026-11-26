@@ -1,4 +1,5 @@
 @import "/static/modules/interaction3d/controls.css";
+@import "/static/range-control.css";
 .hb-interaction3d-runtime {
   position: relative;
   width: 100%;
@@ -2992,4 +2993,42 @@ dialog.hb-interaction3d-runtime.is-borrowed-editor::backdrop {
 .editor-paged-picker-items.i3d-extra-device-picker .inspector-entity-name-line {
   white-space: normal;
   overflow-wrap: anywhere;
+}
+
+/* 3D 图形中断恢复层（0.8.9 `.i3d-graphics-recovery`）。
+   缺失时 GPU 进程崩掉只会让画面定格，用户既看不出发生了什么也没有重试入口。
+   覆盖层与运行时同级、盖住画布但保留可访问焦点（按钮是唯一出口）。 */
+.hb-interaction3d-runtime .i3d-graphics-recovery {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  box-sizing: border-box;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px;
+  /* 值来自上游字面量（`#171c22e8` / `#f2f2f2`），见 design-tokens 的 `--hos-*-recovery`。 */
+  background: var(--hos-bg-recovery);
+  color: var(--hos-fg-recovery);
+  text-align: center;
+  font: 14px / 1.5 sans-serif;
+}
+.i3d-graphics-recovery[hidden] {
+  display: none;
+}
+.i3d-graphics-recovery p {
+  margin: 0;
+}
+.i3d-graphics-recovery button {
+  min-height: 44px;
+  padding: 7px 12px;
+  border: 1px solid var(--hos-border-recovery);
+  border-radius: 6px;
+  background: var(--hos-btn-recovery);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
 }

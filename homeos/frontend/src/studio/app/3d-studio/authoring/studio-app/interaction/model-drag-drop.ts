@@ -1,5 +1,29 @@
 /* 模型库拖放到平面画布：dragenter / dragover / drop / dragleave 与落点建物。
  * 从 `studio-app/boot.ts` 整块搬出：读 `appCtx` 与画布句柄，写 `appCtx.*` 与文档。 */
+
+import {
+  decorationPlacementFields,
+  registerUserDecorationModel,
+} from '../../../loaders/external-models/user-decoration-models'
+
+/**
+ * 「我的装饰」卡片的拖拽 MIME（上游 `MODEL_DRAG_TYPE`）。
+ *
+ * 与资源库其它卡片的 `application/x-homeos-item` **分开**是必要的：
+ * 前者有效负载是 `assetId`（32 位 hex），后者是类型名（`sofa` / `wallac`）。
+ * 两者都是裸字符串，仅凭内容无法可靠区分，必须靠 MIME 分流。
+ */
+export const USER_DECORATION_DRAG_TYPE = 'application/x-ha-bridge-3d-item'
+
+/** 拖拽是否带了本画布认识的有效负载（任一约定 MIME 命中即可）。 */
+export function hasDraggablePayload(dragEvent: { dataTransfer?: DataTransfer | null }): boolean {
+  const types = dragEvent.dataTransfer?.types
+  if (!types) return false
+  return [...types].includes(USER_DECORATION_DRAG_TYPE) || [...types].includes('application/x-homeos-item')
+}
+
+/** 装饰的占位尺寸（米）：真实包围盒由加载后的模型写回。 */
+const USER_DECORATION_PLACEHOLDER_SIZE = 0.4
 export function bindModelDragDrop(deps: Record<string, any>): void {
   const {
     appCtx,
@@ -57,12 +81,36 @@ export function bindModelDragDrop(deps: Record<string, any>): void {
     updateCameraView,
     zoomByScale,
   } = deps
+  /**
+   * 在落点建一件用户装饰。
+   *
+   * **先注册模型 URL 再建物品**：建场景靠这条登记把 `user-decoration` 映射到真实 GLB，
+   * 顺序反了会得到一件看不见的物品。失败时给出 toast 而不是静默（拖拽最容易「没反应」）。
+   */
+  function createUserDecorationAt(assetId: string, planPoint: { x: number; y: number }): void {
+    const modelKey = registerUserDecorationModel(assetId, {
+      width: USER_DECORATION_PLACEHOLDER_SIZE,
+      height: USER_DECORATION_PLACEHOLDER_SIZE,
+      depth: USER_DECORATION_PLACEHOLDER_SIZE,
+    })
+    if (!modelKey) {
+      showToast('这个装饰模型不可用，请重新上传。', 'error')
+      return
+    }
+    createSceneItem('user-decoration', planPoint, {
+      width: USER_DECORATION_PLACEHOLDER_SIZE,
+      depth: USER_DECORATION_PLACEHOLDER_SIZE,
+      // 与「点击放置」共用同一份字段构造：两条路径各写一份必然漂移
+      // （历史上拖拽那条写死了 `name: '我的装饰'`，属性面板于是永远显示目录名）。
+      extraFields: decorationPlacementFields(assetId),
+    })
+  }
+
   planStageElement.addEventListener('dragenter', (assetDragEnterEvent: any) => {
-    ;[...assetDragEnterEvent.dataTransfer.types].includes('application/x-homeos-item') &&
-      planStageElement.classList.add('dragging-item')
+    hasDraggablePayload(assetDragEnterEvent) && planStageElement.classList.add('dragging-item')
   }),
     planStageElement.addEventListener('dragover', (assetDragOverEvent: any) => {
-      ;[...assetDragOverEvent.dataTransfer.types].includes('application/x-homeos-item') &&
+      hasDraggablePayload(assetDragOverEvent) &&
         (assetDragOverEvent.preventDefault(),
         (assetDragOverEvent.dataTransfer.dropEffect = 'copy'),
         planStageElement.classList.add('dragging-item'))
@@ -72,8 +120,17 @@ export function bindModelDragDrop(deps: Record<string, any>): void {
     }),
     planStageElement.addEventListener('drop', (assetDropEvent: any) => {
       assetDropEvent.preventDefault(), planStageElement.classList.remove('dragging-item')
+      const dropPoint = screenToPlan(eventToLocalPoint(assetDropEvent))
+      // 「我的装饰」卡片带的是 assetId（上游 `x-ha-bridge-3d-item` 契约），
+      // 资源库里其它卡片带的是类型名。先判装饰，再走类型名 —— 两者的有效负载
+      // 都可能是裸字符串，只靠内容无法区分，必须靠 MIME。
+      const decorationAssetId = assetDropEvent.dataTransfer.getData(USER_DECORATION_DRAG_TYPE)
+      if (decorationAssetId) {
+        createUserDecorationAt(decorationAssetId, dropPoint)
+        return
+      }
       const data = assetDropEvent.dataTransfer.getData('application/x-homeos-item')
-      data && createSceneItem(data, screenToPlan(eventToLocalPoint(assetDropEvent)))
+      data && createSceneItem(data, dropPoint)
     }),
     (deps.planPainter = createCourtyardDrawingEditor2({
       canvas: planCanvasElement,

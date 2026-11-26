@@ -1,0 +1,214 @@
+/*!
+ * 对齐滑轨（0.8.9 `range-control.css`）—— 全站滑条端点的**唯一**几何来源。
+ *
+ * ## 形状选择：类挂在 input 自身，而不是 0.8.9 的包裹层
+ *
+ * 0.8.9 用「`.hb-rail-shell` 包裹层 + `:is(...aligned-range)` 上画 `::before` 轨道」的形状，
+ * 因为它的轨道需要画在 input **下面**（拇指大于轨道时要上下居中、禁用态要整段切）。
+ *
+ * 本项目不能照搬这个结构，原因是可验证的：
+ * - `stage.css` 的 `.i3d-slider` 是 2 列网格，input 直接占第 2 列；插一层包裹就是改栅格；
+ * - `climate-panel.css` 有 `.i3d-climate-option-group > input[type="range"]` 这类
+ *   **直接子**选择器（2 条），包裹后全部失效；
+ * - 项目现有两套滑条（`hos-range-ui` / `i3d-control-range`）本来就把轨道画在 input 自身上
+ *   （`border` + `background` + `border-radius`），包裹层没有额外收益。
+ *
+ * 因此这里把 0.8.9 的**值**（尺寸 / 圆角 / 端点内缩 / 配色）搬过来，把**结构**换成本项目
+ * 已有的 input-self 形态。包裹层的那套规则仍保留在文末：将来若真要 0.8.9 结构，
+ * 挂上 `.hb-rail-shell` 即可生效，不会与下面这些规则冲突。
+ *
+ * ## 两种几何档案
+ *
+ * - `.hb-aligned-range`：2D 侧（面板 / 组合弹窗 / 取色器），与 `hos-range-ui` 同档
+ *   （16px 拇指 / 8px 轨道）；
+ * - `.i3d-aligned-range`：3D 舞台侧，与 `stage.css` 现值同档（36px 拇指 / 14px 轨道）。
+ *
+ * 分开的理由：同一个 36px 拇指放到 2D 检查器里会把行高撑开一倍。
+ *
+ * ## 端点为什么更容易读准
+ *
+ * 拇指是**圆形且带内缩**（`--hb-rail-inset`）：0% / 100% 时圆心正好落在轨道端点的
+ * 半圆内，视觉上"顶到头"，不会像方形拇指那样一半悬在轨道外、让人以为还能再拖。
+ * `--hb-rail-margin-start` 与 `--hb-rail-margin` 成对，保证上下内缩一致。
+ */
+
+/* ── 令牌 ─────────────────────────────────────────────────────────────── */
+
+:root,
+.hb-interaction3d-runtime,
+.interaction3d-stage {
+  /* 2D 档案（与 `hos-range-ui` 同档） */
+  --hb-rail-track-height: 8px;
+  --hb-rail-input-height: 8px;
+  --hb-rail-thumb-size: 16px;
+  --hb-rail-thumb-border: 2px;
+  --hb-rail-border-width: 1px;
+  --hb-rail-margin: 0px;
+  --hb-rail-margin-start: 0px;
+  --hb-rail-radius: var(--hos-radius-pill, 999px);
+
+  /* 配色：缺省指向项目色板（`hos-range-ui` 用的同一组令牌） */
+  --hb-rail-border-color: var(--muted, #89949d);
+  --hb-rail-track-color: var(--line, #303840);
+  --hb-rail-fill-color: var(--hos-range-ui-accent, #d6ae65);
+  --hb-rail-thumb-background: var(--hos-range-ui-accent, #d6ae65);
+  --hb-rail-thumb-border-color: transparent;
+  --hb-rail-thumb-filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.35));
+  --hb-rail-thumb-shadow: inset 0 1px rgba(255, 255, 255, 0.18);
+  --hb-rail-focus-ring: var(--hos-range-ui-accent, #d6ae65);
+
+  /* 端点内缩：拇指半径，让圆心贴住轨道端点 */
+  --hb-rail-inset: calc(var(--hb-rail-thumb-size) / 2);
+}
+
+/* 3D 档案：与 stage.css 现值同档（36px 拇指 / 14px 轨道 / 4px 描边） */
+.interaction3d-stage,
+.hb-interaction3d-runtime {
+  --hb-rail-track-height: 14px;
+  --hb-rail-input-height: 14px;
+  --hb-rail-thumb-size: 36px;
+  --hb-rail-thumb-border: 5px;
+  --hb-rail-border-width: 4px;
+  --hb-rail-radius: 99px;
+  --hb-rail-border-color: #252322;
+  --hb-rail-track-color: #3a342c;
+  --hb-rail-fill-color: #d6ae65;
+  --hb-rail-thumb-background: linear-gradient(145deg, #8a7865, #4e4339) padding-box;
+  --hb-rail-thumb-filter: drop-shadow(0 5px 7px #0009);
+  --hb-rail-thumb-shadow: inset 0 1px #ffffff2e;
+}
+
+/* ── 轨道（画在 input 自身） ─────────────────────────────────────────── */
+
+/*
+ * 2D 侧还有两类宿主**没有自己的几何**，一并纳入（这正是 0.8.9「端点在普通控件上
+ * 更难读准」指的那一批）：
+ *
+ * - `input.hb-range`：窗帘 / 开窗器 / 晾衣架的位置滑条。它被 `main.css` 的
+ *   `:not(.hb-range)` 链显式排除，此前退化成浏览器默认滑块（方形拇指、无端点内缩）；
+ * - `input.global-color-picker-hue`：色相轨道。它是彩虹底 + 空心环拇指，**不能**套填充色，
+ *   所以只取端点内缩（见文末的单独块）。
+ */
+:is(.hb-aligned-range, .i3d-aligned-range, input.hb-range) {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: var(--hb-rail-input-height);
+  /*
+   * 端点内缩：左右各留半个拇指，0%/100% 的圆心才贴住轨道半圆。
+   * 只设 `margin-inline`：纵向间距仍归宿主（`hos-range-ui` 的约定 ——
+   * 行距由宿主的 grid/flex gap 决定，滑条本身不写 margin-block）。
+   */
+  margin-inline: var(--hb-rail-inset);
+  padding: 0;
+  border: var(--hb-rail-border-width) solid var(--hb-rail-border-color);
+  border-radius: var(--hb-rail-radius);
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  touch-action: pan-y;
+  /*
+   * 进度填充：左侧用填充色、右侧用槽色，按 `--progress-pct` 裁切。
+   * `syncHtmlRangeProgress()` 会同时写 5 个别名变量（见 `shared/util/range-progress`），
+   * 这里优先用 0.8.9 的 `--hb-light-slider-progress`，回落到通用的 `--progress-pct`。
+   */
+  background: linear-gradient(
+    90deg,
+    var(--hb-rail-fill-color) 0,
+    var(--hb-rail-fill-color) var(--hb-rail-progress, var(--hb-light-slider-progress, var(--progress-pct, 0%))),
+    var(--hb-rail-track-color) var(--hb-rail-progress, var(--hb-light-slider-progress, var(--progress-pct, 0%))),
+    var(--hb-rail-track-color) 100%
+  );
+}
+
+:is(.hb-aligned-range, .i3d-aligned-range, input.hb-range):disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* 键盘焦点：焦点环画在轨道上，不跟随拇指（36px 拇指的焦点框会大出一圈） */
+:is(.hb-aligned-range, .i3d-aligned-range, input.hb-range):focus-visible {
+  outline: 2px solid var(--hb-rail-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ── 拇指：WebKit / Blink ─────────────────────────────────────────────── */
+
+:is(.hb-aligned-range, .i3d-aligned-range, input.hb-range)::-webkit-slider-runnable-track {
+  height: var(--hb-rail-track-height);
+  background: transparent;
+}
+
+:is(.hb-aligned-range, .i3d-aligned-range, input.hb-range)::-webkit-slider-thumb {
+  box-sizing: border-box;
+  width: var(--hb-rail-thumb-size);
+  height: var(--hb-rail-thumb-size);
+  /* 轨道比拇指矮时向上提，让拇指纵向居中于轨道 */
+  margin-top: calc((var(--hb-rail-track-height) - var(--hb-rail-thumb-size)) / 2);
+  border: var(--hb-rail-thumb-border) solid var(--hb-rail-thumb-border-color);
+  border-radius: 50%;
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--hb-rail-thumb-background);
+  filter: var(--hb-rail-thumb-filter);
+  box-shadow: var(--hb-rail-thumb-shadow);
+}
+
+/* ── 拇指：Firefox（与 WebKit 同尺寸；Firefox 不做 margin-top 补偿） ──── */
+
+:is(.hb-aligned-range, .i3d-aligned-range, input.hb-range)::-moz-range-track {
+  height: var(--hb-rail-track-height);
+  background: transparent;
+}
+
+:is(.hb-aligned-range, .i3d-aligned-range, input.hb-range)::-moz-range-thumb {
+  box-sizing: border-box;
+  width: var(--hb-rail-thumb-size);
+  height: var(--hb-rail-thumb-size);
+  border: var(--hb-rail-thumb-border) solid var(--hb-rail-thumb-border-color);
+  border-radius: 50%;
+  background: var(--hb-rail-thumb-background);
+  filter: var(--hb-rail-thumb-filter);
+  box-shadow: var(--hb-rail-thumb-shadow);
+}
+
+
+/*
+ * ── 色相轨道（只取端点内缩，不改配色）────────────────────────────────
+ *
+ * 取色器的轨道是彩虹底 + 空心环拇指，套 `--hb-rail-*` 的填充色会把色相盖掉。
+ * 这里只做 0.8.9 真正修的那件事：左右留半个拇指，让 0° / 360° 的圆心贴住轨道两端。
+ * 用 `calc(100% - 2×inset)` 而不是 `width:100% + margin`：后者会溢出父网格。
+ */
+input[type='range'].global-color-picker-hue {
+  width: calc(100% - var(--hb-rail-inset) * 2);
+  margin-inline: var(--hb-rail-inset);
+}
+
+input[type='range'].global-color-picker-hue::-webkit-slider-thumb {
+  /* 拇指比轨道高时向上提，纵向居中（色相条轨道 14px、拇指 15px） */
+  margin-top: calc((14px - 15px) / 2);
+}
+
+/*
+ * ── 包裹层形态（0.8.9 原结构，保留但**本项目当前未使用**）────────────────
+ *
+ * 宿主若采用「轨道画在 input 下面」的形态（例如将来从上游搬某个面板），
+ * 只加 `.hb-rail-shell` 包裹层即可：里面的 `::before` 负责轨道，`input` 保持透明。
+ * 这两条规则与上面的 input-self 规则互斥（`input` 上不会再挂 aligned-range），
+ * 因此不会出现双轨道。
+ */
+.hb-rail-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  width: 100%;
+}
+
+.hb-rail-shell:has(> input[hidden]) {
+  display: none;
+}
+
+.hb-rail-shell > .hb-aligned-range {
+  margin-inline: 0;
+}

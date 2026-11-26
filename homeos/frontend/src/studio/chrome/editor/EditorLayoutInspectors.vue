@@ -327,4 +327,52 @@ import ComponentActionTrigger from './ComponentActionTrigger.vue'
                         type="button">一键应用到同类型控件</button>
                 </section>
             </form>
+
+            <!-- 页面背景（0.8.9）：仪表盘文档组件。
+                 这是**整页**背景，`position` 是相对画布的百分比盒，`layoutMode=fill` 时忽略四格。
+                 所有节点常驻，显隐由 `home-page-background-inspector.ts` 按来源/布局切 —— 不要在这里写 v-if。 -->
+            <form id="page-background-inspector" class="inspector-form" hidden>
+                <section class="inspector-section">
+                    <h3>基础</h3>
+                    <div class="inspector-grid two-columns">
+                        <label>类型<input value="页面背景" readonly></label>
+                        <label>备注<input id="page-background-label" maxlength="128"></label>
+                    </div>
+                </section>
+                <section class="inspector-section">
+                    <h3>内容</h3>
+                    <div class="image-layout-control">
+                        <span>背景来源</span>
+                        <div id="page-background-sources" class="image-layout-options" role="group" aria-label="背景来源">
+                            <button type="button" data-background-source="preset">内置背景</button>
+                            <button type="button" data-background-source="image">图片</button>
+                        </div>
+                    </div>
+                    <label id="page-background-preset-field">背景主题<select id="page-background-preset"></select></label>
+                    <div id="page-background-image-field" class="inspector-picker" hidden>
+                        <span class="inspector-picker-title">选择背景图片</span>
+                        <button id="page-background-asset-button" class="inspector-picker-button" type="button"
+                            aria-haspopup="dialog">选择图片</button>
+                    </div>
+                    <label>透明度（%）<input id="page-background-opacity" type="number" min="0" max="100"
+                            step="1"></label>
+                </section>
+                <section class="inspector-section">
+                    <h3>布局与位置</h3>
+                    <div id="page-background-layouts" class="image-layout-options" role="group" aria-label="背景布局">
+                        <button type="button" data-background-layout="free">自由</button>
+                        <button type="button" data-background-layout="fill">铺满</button>
+                    </div>
+                    <div id="page-background-position" class="inspector-grid two-columns">
+                        <label>左侧（%）<input data-background-position="x" type="number" min="0" max="100"
+                                step="0.1"></label>
+                        <label>顶部（%）<input data-background-position="y" type="number" min="0" max="100"
+                                step="0.1"></label>
+                        <label>宽度（%）<input data-background-position="width" type="number" min="0.1" max="100"
+                                step="0.1"></label>
+                        <label>高度（%）<input data-background-position="height" type="number" min="0.1" max="100"
+                                step="0.1"></label>
+                    </div>
+                </section>
+            </form>
 </template>

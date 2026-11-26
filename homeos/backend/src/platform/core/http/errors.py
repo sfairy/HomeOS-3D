@@ -338,6 +338,34 @@ API_ERROR: dict[str, str | _F] = {
     "UI_CONFIG_LOAD_FAILED": lambda detail: f"无法加载配置。请确认已执行数据库初始化：{detail}",
     "WATER_VALVE_NOT_CONFIGURED": "未配置主水阀实体，请先在「系统参数 → 用水」中选择 valve.* 或 switch.* 实体",
     "WATER_VALVE_INVALID": lambda entity_id: f"主水阀实体 {entity_id} 无效（仅支持 valve.* / switch.*）",
+    # studio3d（0.8.9）：装饰模型库 / 柔光范围 / 绑定冲突
+    "STUDIO3D_MODEL_INVALID": lambda reason: f"静态装饰模型无效：{reason}",
+    "STUDIO3D_MODEL_TOO_LARGE": lambda limit: f"静态装饰模型超过 {limit} 上限。",
+    "STUDIO3D_MODEL_NOT_FOUND": "静态装饰模型不存在。",
+    "STUDIO3D_MODELS_UNAVAILABLE": "装饰模型库尚未就绪。",
+    "STUDIO3D_SCENE_MODEL_MISSING": "当前户型没有可用的静态装饰模型。",
+    "STUDIO3D_BINDING_CONFLICT": (
+        "此户型快照中的装饰已删除。请从「户型与布局」重新载入户型后再保存。"
+    ),
+    "STUDIO3D_SCENE_UNAVAILABLE": (
+        "保存的户型来源无法读取。请从「户型与布局」重新载入对应户型，再检查。"
+    ),
+    "STUDIO3D_SCENE_NOT_FOUND": "户型快照不存在。",
+    "STUDIO3D_SCENE_MISSING": "户型快照不存在，请重新载入户型。",
+    "STUDIO3D_SCENE_CORRUPT": "户型快照损坏或无法读取，请重新保存后再试。",
+    "STUDIO3D_EXPORT_IMAGE_INVALID": "导出图像无法解码或尺寸超出上限，请缩小画布后重试。",
+    "STUDIO3D_EXPORT_IMAGE_TOO_LARGE": "导出图像超过体积上限，请缩小画布后重试。",
+    "STUDIO3D_LIGHT_RANGE_INVALID": lambda reason: f"柔光范围无效：{reason}",
+    "STUDIO3D_FLOOR_REGION_INVALID": lambda reason: f"地面分区无效：{reason}",
+    # interaction3d（0.8.9）：结构化配置诊断
+    "INTERACTION3D_CONFIG_INVALID": "3D 交互配置中有无法保存的设置，请检查具体位置。",
+    "INTERACTION3D_CONFIG_UNSUPPORTED": "包含此版本无法识别的 3D 设置。",
+    "INTERACTION3D_SCENE_REQUIRED": "请先保存户型，再编辑柔光照射范围。",
+    # 显示图片按需缩放（0.8.9）
+    "DISPLAY_IMAGE_UNSUPPORTED": "不支持的图片格式。",
+    "DISPLAY_IMAGE_TOO_LARGE": lambda limit: f"图片超过 {limit} 上限。",
+    # HA 连接身份切换（0.8.9）
+    "HA_SOURCE_CHANGED": "Home Assistant 连接已切换，请重新同步。",
 }
 
 #: 静态文案 → 错误码（重复文案保留首个出现）。

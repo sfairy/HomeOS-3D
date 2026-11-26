@@ -46,6 +46,9 @@ from ..modules.interaction3d.access import (
 from ..modules.interaction3d.access import (
     require_document_changes as require_interaction3d_changes,
 )
+from ..modules.interaction3d.access import (
+    require_ha_source,
+)
 from ..panel.asset_refs import validate_assets
 from ..panel.documents import create_blank_project
 from ..panel.schema import validate_panel_document
@@ -398,18 +401,33 @@ async def get_project_draft(
 
 
 @router.get("/{project_id}/revision")
-def get_project_revision(project_id: str, database: DatabaseSession, viewer: LicensedViewer) -> dict:
-    """返回 display 客户端使用的轻量仪表盘修订版本。"""
+def get_project_revision(
+    project_id: str,
+    request: Request,
+    database: DatabaseSession,
+    viewer: LicensedViewer,
+    display_assets: bool = False,
+) -> dict:
+    """返回 display 客户端使用的轻量仪表盘修订版本。
+
+    `display_assets=1` 时附带 `assetVersions`（0.8.9）：中控设备不加载编辑器，
+    但要判断「内置/用户素材有没有换过」，因此把版本摘要挂在这条**同一份轮询**
+    里，避免它再开一条素材请求（上游 `display.js` 正是这样消费的）。
+    """
     require_viewer_project(viewer, project_id)
     draft = database.get(ProjectDraft, project_id)
     if draft is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="项目草稿不存在。")
-    return {
+    payload: dict[str, Any] = {
         "projectId": project_id,
         "revision": draft.revision,
         "globalPopupRevision": global_popup_state(database).revision,
         "updatedAt": draft.updated_at,
     }
+    if display_assets:
+        versions = request.app.state.asset_catalog.versions()
+        payload["assetVersions"] = {"builtin": versions["builtin"], "user": versions["user"]}
+    return payload
 
 
 @router.post("/{project_id}/binding-check")
@@ -427,6 +445,7 @@ def check_project_bindings(
     """
     require_project_write(request)
     require_interaction3d_access(request, database=database)
+    require_ha_source(request, payload.expected_ha_source)
     require_interaction3d_changes(request, payload.document, database=database)
     draft = database.get(ProjectDraft, project_id)
     if draft is None:
@@ -446,7 +465,7 @@ def check_project_bindings(
             )
         except ValueError as error:
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)) from error
-    return {"document": repaired, "issues": issues, "revision": draft.revision}
+    return {"document": repaired, "issues": issues, "configurationIssues": issues, "revision": draft.revision}
 
 
 def _collect_removed_popup_ids(document_value: dict, stored_global_popups: list, popups_dirty: bool) -> set[str]:
@@ -649,6 +668,7 @@ def update_project_draft(
     user: LicensedUser,
 ) -> dict:
     require_project_write(request)
+    require_ha_source(request, body.expected_ha_source)
     draft = database.get(ProjectDraft, project_id)
     if draft is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="项目草稿不存在。")

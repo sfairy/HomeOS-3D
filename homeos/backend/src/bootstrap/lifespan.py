@@ -1558,7 +1558,7 @@ def create_lifespan(
     ``metadata_provider`` / ``log_metadata_provider`` 由 ``app.create_app`` 注入
     （指向 ``src/db_models.py``）：本模块是 bootstrap 层，虽然可以依赖域层，但
     「模型清单」属于组合根的知识；写死在这里会让 ``lifespan`` 再次变成十五个潜在
-    依赖的汇聚点（``check:giant-files`` 守的就是这个扇出）。
+    依赖的汇聚点，启动顺序也会更难看清。
     """
 
     @asynccontextmanager

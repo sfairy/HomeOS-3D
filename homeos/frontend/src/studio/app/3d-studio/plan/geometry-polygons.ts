@@ -614,3 +614,13 @@ export function closedWallFloorPolygons(floorSourceWalls: any, floorTolerance = 
       keptFloorPolygons.push(polygon)
   return keptFloorPolygons
 }
+
+/**
+ * 上游导出名别名（0.8.9 `geometry.js`）。
+ *
+ * `closedWallRoomPolygons` 在本项目拆成了「按墙」与「按楼层地面」两个入口，
+ * 同名入口取按墙那个（上游也只吃墙数组）。`traceFilledPolygonLoops` 在本项目叫
+ * `validatedUnionPolygonLoops`（它同时做自交与洞校验，名字按「运算」取的）。
+ */
+export const closedWallRoomPolygons = closedWallPolygons
+export const traceFilledPolygonLoops = validatedUnionPolygonLoops

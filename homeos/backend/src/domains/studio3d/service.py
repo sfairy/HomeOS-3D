@@ -32,11 +32,17 @@ from sqlalchemy.orm import Session
 from . import cleanup as cleanup_service
 from . import draft_repository
 from .doors import validate_door_openings
-from .lighting import valid_base_lighting_by_theme
+from .floor_regions import retain_omitted_floor_finishes, validate_floor_regions
+from .lighting import (
+    valid_base_lighting_by_theme,
+    valid_light_range_archive,
+    valid_light_region_overrides,
+)
 from .schemas import Studio3DDraftUpdate
 from .windows import validate_window_designs
 from ...domains.projects.schema import Project, ProjectDraft
 from ...panel.asset_refs import validate_assets
+from ...platform.core.http.errors import BusinessException, ErrorCode, api_error
 
 #: 保存成功后回给客户端 / 写进日志的持久化状态（一档，见 ``_save_draft_locked``）。
 DRAFT_PERSISTED_STATE = "草稿已保存"
@@ -50,6 +56,36 @@ def get_draft(database: Session) -> dict:
     return {"revision": snapshot.revision, "scene": snapshot.scene, "updatedAt": snapshot.updated_at}
 
 
+def merge_light_ranges(scene: dict, payload) -> dict:
+    """把一次「只改柔光范围」的局部更新合进当前场景，返回新场景（不改入参）。
+
+    语义与前端 ``studio-light-ranges.ts`` 一致：
+    - ``changes is None`` → 删除该场景条目（清空）；
+    - ``changes == {}`` → 同样视为清空（等价于「没有自定义」）；
+    - ``archive`` 非空时追加到 ``lightRangeArchive[sceneId]`` 尾部。
+
+    不在这里做区间校验：合并后的场景会走 ``save_draft`` 的完整校验，
+    免得「局部更新」与「整份保存」出现两套判定。
+    """
+    merged = dict(scene) if isinstance(scene, dict) else {}
+    overrides = dict(merged.get("lightRegionOverrides") or {})
+    if payload.changes:
+        overrides[payload.sceneId] = payload.changes
+    else:
+        overrides.pop(payload.sceneId, None)
+    if overrides:
+        merged["lightRegionOverrides"] = overrides
+    else:
+        merged.pop("lightRegionOverrides", None)
+    if payload.archive:
+        archive = dict(merged.get("lightRangeArchive") or {})
+        entries = list(archive.get(payload.sceneId) or [])
+        entries.extend(payload.archive)
+        archive[payload.sceneId] = entries
+        merged["lightRangeArchive"] = archive
+    return merged
+
+
 def validate_base_lighting_by_theme(scene: Any) -> None:
     """草稿里的分主题基础光照必须合法（0.8.7 起每个风格各自保存一份）。"""
     if not isinstance(scene, dict) or "baseLightingByTheme" not in scene:
@@ -58,6 +94,28 @@ def validate_base_lighting_by_theme(scene: Any) -> None:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="户型图的主题光照设置无效。",
+        )
+
+
+def validate_light_ranges(scene: Any) -> None:
+    """草稿里的柔光范围与撤销记录必须合法（0.8.9 起绘制页与 3D 控件共用）。
+
+    这里保留 ``HTTPException`` 之外的结构，是因为这两张表**不是**互斥的用户输入：
+    撤销记录里允许出现「已经不再生效的旧范围」，所以校验只做形状与区间，不做引用检查。
+    """
+    if not isinstance(scene, dict):
+        return
+    if "lightRegionOverrides" in scene and not valid_light_region_overrides(scene["lightRegionOverrides"]):
+        raise BusinessException(
+            ErrorCode.VALIDATION_FAILED,
+            api_error("STUDIO3D_LIGHT_RANGE_INVALID", "范围字段或区间不合法。"),
+            422,
+        )
+    if "lightRangeArchive" in scene and not valid_light_range_archive(scene["lightRangeArchive"]):
+        raise BusinessException(
+            ErrorCode.VALIDATION_FAILED,
+            api_error("STUDIO3D_LIGHT_RANGE_INVALID", "撤销记录格式不合法。"),
+            422,
         )
 
 
@@ -75,22 +133,26 @@ def save_draft(database: Session, settings, user, payload: Studio3DDraftUpdate, 
     lock = catalog.mutation_lock if catalog is not None else nullcontext()
     with lock:
         validate_base_lighting_by_theme(payload.scene)
+        validate_light_ranges(payload.scene)
         validate_window_designs(payload.scene)
         validate_door_openings(payload.scene)
+        validate_floor_regions(payload.scene)
         if catalog is not None:
             validate_assets(catalog, payload.scene)
-        scene_json = draft_repository.encode_scene(payload.scene)
         # 读侧计划（快照 / 全表草稿扫描 / 影响面计算）先做完，再开写事务。
+        # 注意：计划阶段会把「旧写入方省略的地面分区 / 色档」按上一版补回，
+        # 因此**必须用 plan.scene 落盘**，不能用 payload.scene。
         try:
             plan = _plan_draft_save(database, settings, user, payload, catalog)
         except Exception:
             database.rollback()
             raise
+        scene_json = draft_repository.encode_scene(plan.scene)
         # rollback 结束隐式事务且丢弃无关脏写；commit 会误落盘。
         database.rollback()
         database.execute(text("BEGIN IMMEDIATE"))
         try:
-            return _save_draft_locked(database, user, payload, scene_json, plan)
+            return _save_draft_locked(database, user, plan, scene_json)
         except Exception:
             database.rollback()
             raise
@@ -106,6 +168,8 @@ class _DraftPlan:
     archive: list | None
     #: 计划期间读到的 ``ProjectDraft.revision``，仅含本次会被改写的项目。
     draft_revisions: dict[str, int]
+    #: 实际要落盘的场景：已按上一版补回「新写入方省略的地面分区 / 色档」。
+    scene: dict
 
 
 def _plan_draft_save(
@@ -121,12 +185,16 @@ def _plan_draft_save(
     if payload.revision != current_revision:
         raise _conflict(current_revision)
     previous_scene = snapshot.scene if snapshot is not None else {}
-    schema_version = _schema_version(payload.scene, snapshot)
+    # 0.8.9：老写入方省略 `floorRegions` / `floorFinishTones` 时按上一版补回；
+    # 显式空值仍然表示「用户清空了」。必须在计算身份集合之前合并 ——
+    # 分区不影响 3D 交互身份，但同一份 scene 要贯穿校验 / 清理 / 落盘三处。
+    merged_scene = retain_omitted_floor_finishes(previous_scene, payload.scene)
+    schema_version = _schema_version(merged_scene, snapshot)
     documents, changed, archive, impacts, draft_revisions = _plan_interaction_cleanup(
-        database, settings, previous_scene, payload.scene, catalog
+        database, settings, previous_scene, merged_scene, catalog
     )
     if impacts:
-        token = cleanup_service.confirmation_token(current_revision, payload.scene, documents, impacts)
+        token = cleanup_service.confirmation_token(current_revision, merged_scene, documents, impacts)
         if payload.interactionConfirmation != token:
             raise _confirmation_required(database, token, impacts)
     return _DraftPlan(
@@ -135,15 +203,15 @@ def _plan_draft_save(
         changed=changed,
         archive=archive,
         draft_revisions={key: value for key, value in draft_revisions.items() if key in changed},
+        scene=merged_scene,
     )
 
 
 def _save_draft_locked(
     database: Session,
     user,
-    payload: Studio3DDraftUpdate,
-    scene_json: str,
     plan: _DraftPlan,
+    scene_json: str,
 ) -> dict:
     """写事务内：重读 revision → 校验项目草稿未被并发改写 → CAS 写 → 提交。"""
     snapshot = draft_repository.read_snapshot(database)
@@ -170,7 +238,9 @@ def _save_draft_locked(
     database.commit()
     return {
         "revision": next_revision,
-        "scene": payload.scene,
+        # 回给客户端的是**实际落盘**的那份（含按上一版补回的分区 / 色档），
+        # 否则前端本地状态会和服务端分叉，下次保存再把补回的值当新增提交。
+        "scene": plan.scene,
         "updatedAt": timestamp.isoformat(),
         # 0.8.7 的保存响应带「上一修订」与「持久化状态」：全局日志据此显示
         # 「原修订 / 持久化状态」两列（前端 `global-log.ts` 已有这两个标签）。

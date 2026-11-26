@@ -52,8 +52,8 @@ const SUGGEST_DEVICE_CLASS_RULES: ReadonlyArray<readonly [string, readonly strin
  *
  * 顺序即优先级：``motion`` 必须在 ``door`` 之前、``carbon_monoxide`` 在 ``gas`` 之后，
  * 否则「一氧化碳」会被 ``gas`` 先命中（``一氧化碳`` 里没有 gas，但 ``co`` 会命中
- * ``carbon_monoxide`` 之前的任意分支）—— 修改顺序前先跑 `check:frontend-complexity`
- * 之外的既有自检，确认分类结果没有整体位移。
+ * ``carbon_monoxide`` 之前的任意分支）—— 修改顺序前先跑既有的分类自检，
+ * 确认分类结果没有整体位移。
  */
 export function inferSuggestDeviceClassFromPlaceholder(placeholder: string): string {
   const hint = (placeholder || '').toLowerCase()

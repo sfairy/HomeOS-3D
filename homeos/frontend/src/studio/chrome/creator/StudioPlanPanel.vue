@@ -58,6 +58,9 @@ const floorplanStore = useStudioFloorplanStore()
                                 title="将玻璃栏杆吸附到墙上"><i class="hb-ui-icon" aria-hidden="true"></i><span>栏杆</span><small>玻璃栏杆吸附到墙上</small></button>
                             <button class="tool-button" type="button" data-tool="flooropening" aria-pressed="false"
                                 title="拖出矩形，仅切除当前层楼板"><i class="hb-ui-icon" aria-hidden="true"></i><span>楼板洞口</span><small>仅切除当前层楼板</small></button>
+                            <!-- 0.8.9 地面分区：点选地面后换铺面，或画一条线把它切成两块。 -->
+                            <button class="tool-button" type="button" data-tool="floor-region" aria-pressed="false"
+                                title="点选地面，画线分割或换铺面"><i class="hb-ui-icon" aria-hidden="true"></i><span>地面分割</span><small>点选地面，画线分割或换铺面</small></button>
                         </div>
                     </div>
                     <div class="drawing-tool-section drawing-tool-section--courtyard">
@@ -181,7 +184,18 @@ const floorplanStore = useStudioFloorplanStore()
                     <button id="fit-view" type="button">适应画布</button>
                 </div>
             </div>
-            <div id="plan-stage" class="plan-stage"> <canvas id="plan-canvas" tabindex="0" aria-label="户型描摹画布"></canvas>
+            <div id="plan-stage" class="plan-stage"> <canvas id="plan-canvas" tabindex="0" aria-label="户型描摹画布"
+                    aria-describedby="plan-view-help"></canvas>
+                <!-- 0.8.9 视图操作提示：分「鼠标 / 触控」两套说明，避免在平板上提示键盘操作。 -->
+                <div class="plan-bottom-hud">
+                    <small id="plan-view-help" class="viewport-help">
+                        <span class="mouse-view-hint">平移用空格＋左键拖动或中键拖动</span>
+                        <span class="mouse-view-hint">滚轮缩放</span>
+                        <span class="touch-view-hint">点 ＋／− 缩放</span>
+                        <span class="plan-rotate-hint">点「旋转」转 90°</span>
+                    </small>
+                    <div class="plan-coordinates"></div>
+                </div>
                 <!-- 操作提示留在画布左上角 HUD 内（与 0.8.7 一致）：`#tool-help` 是对外契约，
                      副视图里由 CSS 隐藏，主视图里始终跟着工具名显示。 -->
                 <div class="canvas-hud top-left"><span id="active-tool-label">选择工具</span><small

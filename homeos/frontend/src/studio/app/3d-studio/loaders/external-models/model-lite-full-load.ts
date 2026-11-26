@@ -24,8 +24,7 @@ type LoadHelpers = {
   isDisposed: () => boolean
 }
 
-/** 主 URL 加载；lite 失败且允许时回退 fallbackUrl。 */
-export async function loadModelLiteOrFull(params: {
+/** 主 URL 加载；lite 失败且允许时回退 fallbackUrl。 */ export async function loadModelLiteOrFull(params: {
   itemDefinition: { url?: string; fallbackUrl?: string }
   itemTypeName: string
   preferFull: boolean
@@ -43,7 +42,17 @@ export async function loadModelLiteOrFull(params: {
       preparedCacheKey: cachePrepared ? templateCacheKey : null,
     }
   } catch (primaryLoadError: unknown) {
-    if (helpers.isDisposed() || !itemDefinition.fallbackUrl || preferFull) {
+    // 备用 URL 与主 URL 相同时**不再重试**。
+    //
+    // 用户装饰（`model:<assetId>`）的两个 URL 是同一个下载地址：没有 lite/full 两份字节，
+    // 重试只会在同一份 404 上再打一次请求，日志里还会多出一条误导性的
+    // 「主资源与备用资源都失败」—— 看起来像两套资源都坏了，实际只有一个地址。
+    if (
+      helpers.isDisposed() ||
+      !itemDefinition.fallbackUrl ||
+      itemDefinition.fallbackUrl === primaryUrl ||
+      preferFull
+    ) {
       helpers.reportPreviewIssue({
         stage: 'load',
         itemType: itemTypeName,

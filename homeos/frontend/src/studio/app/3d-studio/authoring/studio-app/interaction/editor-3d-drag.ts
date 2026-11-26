@@ -2,7 +2,7 @@
  * 3D 视口编辑的拖动状态机（从 `editor-3d-overlay.ts` 抽出）。
  *
  * 抽出原因：叠层模块同时负责 DOM 手柄与指针状态机，`createEditor3DOverlay` 会变得又长又深，
- * 直接顶到前端复杂度棘轮。这里只保留「开始 / 移动 / 结束」三个入口，
+ * 会很快变成一大团。这里只保留「开始 / 移动 / 结束」三个入口，
  * DOM 与事件注册仍留在叠层里。
  */
 import type { EditorPick } from './editor-picking'

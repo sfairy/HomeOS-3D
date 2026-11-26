@@ -287,7 +287,11 @@
         </div>
         <div class="settings-form">
             <div id="error-dialog-message" class="settings-message error"></div>
+            <!-- 0.8.9：配置保存失败时追加一行**可操作**提示 + 一个「检查失效配置」入口。
+                 两者默认隐藏，只有错误里带 `configDiagnostics` 时由 `editor-dialogs.ts` 打开。 -->
+            <p id="error-dialog-hint" class="settings-note" hidden></p>
             <div class="dialog-actions"><button id="error-dialog-confirm" class="primary" type="button">知道了</button>
+                <button id="error-dialog-check" class="primary" type="button" hidden>检查失效配置</button>
             </div>
         </div>
     </dialog>

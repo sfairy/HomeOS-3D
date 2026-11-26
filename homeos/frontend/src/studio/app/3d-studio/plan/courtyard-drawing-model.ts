@@ -53,7 +53,7 @@ type CourtyardThree = {
  * 一块庭院地面的材质：自然木语开着时按「地表种类」取库材质，否则用原来的暖木/标准材质。
  *
  * 抽成函数而不是写在循环里：`createCourtyardDrawingModel` 已是全仓库最复杂的几个函数
- * 之一（复杂度棘轮按函数计），这里再叠 5 个分支就会把它推过阈值。
+ * 之一，这里再叠 5 个分支会让材质选择与几何装配糊在一起。
  */
 function courtyardGroundMaterial(
   three: CourtyardThree,

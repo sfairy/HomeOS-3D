@@ -134,6 +134,13 @@ export interface StudioAppRuntime {
   readonly createOutlinePath: any
   readonly createRugMaterial: any
   readonly createSceneItem: any
+  /**
+   * 把一件「我的装饰」放进户型（0.8.9）。
+   *
+   * 会先按 assetId 注册模型 URL，再在视图中心建物品 —— 少了注册那一步，
+   * 物品能建出来但画不出任何网格（`user-decoration` 没有程序化兜底几何）。
+   */
+  readonly placeUserDecoration: ((model: { assetId: string; name?: string }) => void) | undefined
   readonly createSelectionRef: any
   readonly cursorPositionElement: any
   readonly defaultExportHeight: any

@@ -19,6 +19,9 @@ import { generateId } from '../../ui/studio-app-helpers'
 
 import { doorTypeCatalog } from '../../scene/payload/studio-scene-payload'
 
+import { handleFloorRegionPointer } from './floor-region-tool'
+import { patchStudioFacadeState } from '../../../../../engine/studio-facade'
+
 import type { StudioAppContext } from '../studio-app-context'
 export interface HandlePointerDownDeps {
   activeDoorType: keyof typeof doorTypeCatalog
@@ -173,17 +176,43 @@ export function handlePointerDown(deps: HandlePointerDownDeps, handlePointerDown
     return
   }
   if (appCtx.alignmentState && isSameAlignmentFloor(pr3)) return
-  if (appCtx.activeToolName === 'flooropening') {
-    if (!ensureCalibrationReady()) return
-    handlePointerDownPointerDownEvent.preventDefault(),
-      resetPlanInteraction(),
-      (appCtx.marqueeBox = {
-        type: 'draw-flooropening',
-        pointerId: handlePointerDownPointerDownEvent.pointerId,
-        start: pr3,
-        current: pr3,
-      }),
-      planCanvasElement.setPointerCapture(handlePointerDownPointerDownEvent.pointerId)
+  // 拖动类平面工具按名称查表：新增工具只加一个条目，不再给这个函数添分支
+  // （`floor-region` 就是这样并进来的）。
+  const planDragToolHandler: Record<string, (() => void) | undefined> = {
+    flooropening: () => {
+      if (!ensureCalibrationReady()) return
+      handlePointerDownPointerDownEvent.preventDefault(),
+        resetPlanInteraction(),
+        (appCtx.marqueeBox = {
+          type: 'draw-flooropening',
+          pointerId: handlePointerDownPointerDownEvent.pointerId,
+          start: pr3,
+          current: pr3,
+        }),
+        planCanvasElement.setPointerCapture(handlePointerDownPointerDownEvent.pointerId)
+    },
+    // 0.8.9：点选地面 / 画分割线。判定与落盘全在 `floor-region-tool`，这里只转发。
+    'floor-region': () => {
+      handlePointerDownPointerDownEvent.preventDefault()
+      handleFloorRegionPointer(
+        {
+          point: pr3,
+          source: { walls: appCtx.studioState.walls, mergeTolerance: Math.max(1, getPixelsPerMeter() * 0.01) },
+          activeFloorId: appCtx.activeFloorId,
+          floors: appCtx.studioProject?.floors || [],
+          createId: generateId,
+          pushUndoEntry,
+          markDocumentDirty,
+          notify: showToast,
+        },
+        patchStudioFacadeState,
+      )
+      refreshStudioView()
+    },
+  }
+  const planDragHandler = planDragToolHandler[appCtx.activeToolName]
+  if (planDragHandler) {
+    planDragHandler()
     return
   }
   if (appCtx.activeToolName === 'scale') {

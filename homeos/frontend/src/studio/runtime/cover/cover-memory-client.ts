@@ -25,11 +25,30 @@
  * ```
  */
 
+import {
+  isAssumedState,
+  mergeTravelState,
+  nextTravelState,
+  observedTimestamp,
+  readLastState,
+  readTravelPayload,
+  supportedFeatureBits,
+  type CoverMemoryTravel,
+} from './cover-memory-travel'
+
+export type { CoverMemoryTravel }
+
 /** 记忆里的一条「位置 + 时刻」。 */
 export interface CoverMemoryPoint {
   position: number
   at: number
   nativeTilt?: boolean
+  /**
+   * HA 标了 `assumed_state`：这个位置是**推测**出来的（红外/射频控制的电机、
+   * 重启后恢复的状态）。带这个标记的点仍然要更新显示，但渲染层不该把它当成
+   * 精确值去做「还差几厘米」的判断。
+   */
+  assumed?: boolean
 }
 
 /** 记忆里的一条补间样本（后端 `sample()` 的产物）。 */
@@ -48,6 +67,13 @@ export interface CoverMemoryEntry {
   closedAt?: number
   closedNative?: boolean
   estimates: Record<string, CoverMemoryEstimate>
+  /**
+   * 本段行程的起点（0.8.9）。没有它就只能在「最后一次上报」和「估算目标」之间插值，
+   * 而行程刚开始时最后一次上报可能已经过时几百毫秒 —— 起点让补间从正确的像素位置出发。
+   */
+  travel?: CoverMemoryTravel
+  /** 上一次观察到的开合状态（用于识别「刚进入 opening/closing」这个瞬间）。 */
+  lastState?: string
 }
 
 /** 归约后的实体记忆表。 */
@@ -75,6 +101,50 @@ function timestamp(value: any): number | null {
   return numericValue !== null && numericValue > 0 ? numericValue : null
 }
 
+/** 单轴「位置 + 时刻」点：`nativeTilt` / `assumed` 只在为真时写入（保持条目精简）。 */
+function readAxisPoint(value: unknown, fallbackAt: number | null): CoverMemoryPoint | null {
+  if (!value || typeof value != 'object') return null
+  const point = value as Record<string, unknown>
+  const pointPosition = coverPosition(point.position),
+    pointAt = timestamp(point.at) ?? fallbackAt
+  if (pointPosition === null || pointAt === null) return null
+  return {
+    position: pointPosition,
+    at: pointAt,
+    ...(point.nativeTilt === true ? { nativeTilt: true } : {}),
+    ...(point.assumed === true ? { assumed: true } : {}),
+  }
+}
+
+/**
+ * 读位置与倾角两轴。
+ *
+ * 两套形状都要认：上游 `{position: {...}, tilt: {...}}`，本仓库 `{open, attributes: {...}}`。
+ * 认不出来就留空，不猜。
+ */
+function readAxisPoints(raw: any, fallbackAt: number | null) {
+  const points: Pick<CoverMemoryEntry, 'position' | 'tilt'> = {}
+  const positionPoint = readAxisPoint(raw.position, fallbackAt)
+  if (positionPoint) points.position = positionPoint
+  else {
+    // 本仓库形状：`open` 是最近一次上报的位置，`reportAt` 是它的时刻。
+    const legacyPosition = coverPosition(raw.open ?? raw.attributes?.current_position)
+    if (legacyPosition !== null && fallbackAt !== null)
+      points.position = {
+        position: legacyPosition,
+        at: fallbackAt,
+        ...(raw.nativeTilt === true ? { nativeTilt: true } : {}),
+      }
+  }
+  const tiltPoint = readAxisPoint(raw.tilt, fallbackAt)
+  if (tiltPoint) points.tilt = tiltPoint
+  else {
+    const legacyTilt = coverPosition(raw.attributes?.tilt ?? raw.attributes?.current_tilt_position)
+    if (legacyTilt !== null && fallbackAt !== null) points.tilt = { position: legacyTilt, at: fallbackAt }
+  }
+  return points
+}
+
 /**
  * 把后端（0.8.4 上游或本仓库 `cover_memory.py`）的一条记录归一成 `CoverMemoryEntry`。
  *
@@ -89,37 +159,13 @@ export function normalizeCoverMemoryEntry(raw: any): CoverMemoryEntry | null {
   const entry: CoverMemoryEntry = { estimates: {} }
   const fallbackAt = timestamp(raw.reportAt) ?? timestamp(raw.at) ?? timestamp(raw.last_updated) ?? null
 
-  const readPoint = (value: any): CoverMemoryPoint | null => {
-    if (!value || typeof value != 'object') return null
-    const pointPosition = coverPosition(value.position),
-      pointAt = timestamp(value.at) ?? fallbackAt
-    if (pointPosition === null || pointAt === null) return null
-    return {
-      position: pointPosition,
-      at: pointAt,
-      ...(value.nativeTilt === true ? { nativeTilt: true } : {}),
-    }
-  }
+  Object.assign(entry, readAxisPoints(raw, fallbackAt))
 
-  const positionPoint = readPoint(raw.position)
-  if (positionPoint) entry.position = positionPoint
-  else {
-    // 本仓库形状：`open` 是最近一次上报的位置，`reportAt` 是它的时刻。
-    const legacyPosition = coverPosition(raw.open ?? raw.attributes?.current_position)
-    if (legacyPosition !== null && fallbackAt !== null)
-      entry.position = {
-        position: legacyPosition,
-        at: fallbackAt,
-        ...(raw.nativeTilt === true ? { nativeTilt: true } : {}),
-      }
-  }
-
-  const tiltPoint = readPoint(raw.tilt)
-  if (tiltPoint) entry.tilt = tiltPoint
-  else {
-    const legacyTilt = coverPosition(raw.attributes?.tilt ?? raw.attributes?.current_tilt_position)
-    if (legacyTilt !== null && fallbackAt !== null) entry.tilt = { position: legacyTilt, at: fallbackAt }
-  }
+  // 0.8.9：行程起点与上次状态。
+  const travel = readTravelPayload(raw.travel ?? raw.knownStart ?? raw.known_start)
+  if (travel) entry.travel = travel
+  const lastState = readLastState(raw.lastState, COVER_MEMORY_STATES)
+  if (lastState) entry.lastState = lastState
 
   const closedAt = timestamp(raw.closedAt)
   if (closedAt !== null) {
@@ -188,6 +234,8 @@ export function mergeCoverMemoryEntries(
     const existingEstimate = merged.estimates[axis]
     if (!existingEstimate || estimate.at >= existingEstimate.at) merged.estimates[axis] = estimate
   }
+  // 行程字段（起点 / 上次状态）单独合并，见 `mergeTravelState`。
+  mergeTravelState(merged, incoming)
   return merged
 }
 
@@ -209,30 +257,28 @@ export function observeCoverMemoryState(
     .toLowerCase()
   if (!COVER_MEMORY_STATES.includes(stateText)) return current
   const attributes = rawState.attributes && typeof rawState.attributes == 'object' ? rawState.attributes : {}
-  const updatedAtText = rawState.updatedAt || rawState.last_updated,
-    parsedUpdatedAt = typeof updatedAtText == 'string' ? Date.parse(updatedAtText) : NaN,
-    observedAt = Number.isFinite(parsedUpdatedAt) && parsedUpdatedAt > 0 ? parsedUpdatedAt : Date.now(),
-    supportedFeaturesRaw = attributes.supported_features
-  let supportedFeatures = 0
-  try {
-    supportedFeatures =
-      supportedFeaturesRaw === null || supportedFeaturesRaw === undefined
-        ? 0
-        : Math.trunc(Number(supportedFeaturesRaw)) || 0
-  } catch {
-    supportedFeatures = 0
-  }
+  const observedAt = observedTimestamp(rawState),
+    supportedFeatures = supportedFeatureBits(attributes)
   const next: CoverMemoryEntry = {
     ...(current || { estimates: {} }),
     estimates: { ...(current?.estimates || {}) },
   }
+  /*
+   * `assumed_state`（0.8.9）：HA 只在「它自己也不确定」时给这个标记 —— 红外/射频控制的
+   * 电机、重启后从 `restore_state` 恢复的位置。带标记的读数仍然要更新（否则显示会停在
+   * 旧值），但打上 `assumed` 让渲染层知道它不该被当成精确值。
+   */
+  const assumedState = isAssumedState(attributes, rawState)
   const reportedPosition = coverPosition(attributes.current_position)
   if (reportedPosition !== null && observedAt >= (next.position?.at || 0))
     next.position = {
       position: reportedPosition,
       at: observedAt,
       nativeTilt: coverPosition(attributes.current_tilt_position) !== null || !!(supportedFeatures & 240),
+      ...(assumedState ? { assumed: true } : {}),
     }
+  // 行程起点（0.8.9 `known_start`）：see `nextTravelState` for the "once per travel" rule.
+  Object.assign(next, nextTravelState(next, stateText, reportedPosition, observedAt))
   const reportedTilt = coverPosition(attributes.current_tilt_position)
   if (reportedTilt !== null && observedAt >= (next.tilt?.at || 0))
     next.tilt = { position: reportedTilt, at: observedAt }

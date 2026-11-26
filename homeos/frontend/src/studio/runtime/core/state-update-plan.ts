@@ -370,6 +370,84 @@ function bindLightingAndEnvironmentSets(component: any) {
     environment: boundEntityIds(componentRest),
   }
 }
+
+/** 标记（3D 标签）的最小形状：只关心它监听哪些实体。 */
+type MarkerLike = {
+  id?: unknown
+  entityId?: unknown
+  entityIds?: unknown
+}
+
+/**
+ * 3D 标签的**实体 → 标记**反查索引（0.8.9 `createMarkerStateIndex`）。
+ *
+ * 为什么需要：一次状态推送里可能有几十个实体变化，而场景里有几百个标签。逐个标签
+ * 去问「你监听的实体变了吗」是 O(标签 × 变更)，而且每次状态帧都要跑一遍 —— 这是
+ * 「改善 3D 标签的显示和命中」里被忽略的那一半：**命中**不只是 CSS 层级，还包括
+ * 「这一帧到底该刷新哪些标签」。
+ *
+ * 做成一次性建好的反查表后，一帧只需要 O(变更数 × 每个实体关联的标签数)。
+ *
+ * 只读输入、不缓存状态值：状态本身在舞台手里，这里只负责「谁受影响」。
+ */
+export function createMarkerStateIndex(markers: readonly MarkerLike[] = []) {
+  const markersByEntity = new Map<string, string[]>()
+  const markerIds: string[] = []
+  for (const [position, marker] of markers.entries()) {
+    if (!marker || typeof marker !== 'object') continue
+    const markerId = String(marker.id ?? `marker-${position}`)
+    const entityIds = markerEntityIds(marker)
+    if (!entityIds.length) continue
+    markerIds.push(markerId)
+    for (const entityId of entityIds) {
+      const existing = markersByEntity.get(entityId)
+      if (existing) existing.push(markerId)
+      else markersByEntity.set(entityId, [markerId])
+    }
+  }
+  // 冻结：这些数组是索引的内部结构，调用方（命中测试 / 刷新）只应读取。
+  for (const [entityId, ids] of markersByEntity) markersByEntity.set(entityId, Object.freeze(ids) as string[])
+  return {
+    /** 索引到的标签数量（不含没有实体绑定的标签）。 */
+    size: markerIds.length,
+    /** 某个实体关联的标签 id（未绑定返回空数组；数组已冻结，调用方不应改写）。 */
+    markersForEntity(entityId: string): readonly string[] {
+      return markersByEntity.get(entityId) ?? EMPTY_MARKER_IDS
+    },
+    /** 一批变更实体影响的标签 id（去重，顺序按首次出现）。 */
+    affectedBy(changedEntityIds: Iterable<string>): string[] {
+      const affected = new Set<string>()
+      for (const entityId of changedEntityIds) {
+        for (const markerId of markersByEntity.get(entityId) ?? EMPTY_MARKER_IDS) affected.add(markerId)
+      }
+      return [...affected]
+    },
+    /** 这批变更是否会影响任何标签（用于快速跳过整帧）。 */
+    affects(changedEntityIds: Iterable<string>): boolean {
+      for (const entityId of changedEntityIds) {
+        if (markersByEntity.has(entityId)) return true
+      }
+      return false
+    },
+  }
+}
+
+/** 空结果常量：避免每次查询都新建数组（标签刷新是热点路径）。 */
+const EMPTY_MARKER_IDS: readonly string[] = Object.freeze([])
+
+/** 从标记上取出它的实体列表（兼容 `entityId` 单值 / `entityIds` 数组 / 混合脏数据）。 */
+function markerEntityIds(marker: MarkerLike): string[] {
+  const collected: string[] = []
+  const push = (candidate: unknown) => {
+    if (typeof candidate !== 'string') return
+    const trimmed = candidate.trim()
+    if (trimmed && !collected.includes(trimmed)) collected.push(trimmed)
+  }
+  if (Array.isArray(marker.entityIds)) for (const candidate of marker.entityIds) push(candidate)
+  else push(marker.entityIds)
+  push(marker.entityId)
+  return collected
+}
 export function lightBindingsForUpdate(lights: any, plan: any) {
   if (!plan) return lights
   const lightKey = (light: any) => JSON.stringify([light.floorId, light.groupId]),

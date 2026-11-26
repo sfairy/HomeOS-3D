@@ -16,9 +16,9 @@
  *         1500KB → 2210KB，且被提升成入口的**静态**依赖，首屏预载 608KB → 2790KB（+2.18MB）；
  *       · `entriesAwareMergeThreshold` 28_000 → 20_000：JS chunk 111 → 132，该块仍 1500KB
  *         —— 它是自洽子图，不是被兜底组硬拼起来的碎模块。
- *      阈值取 1600 而非关掉：它再长胖、或出现第二个超大块仍会告警。体积预算棘轮已按计划
- *      移除（见 `ops/gates.mjs` 的 build 组注释），这里只保留构建期告警。这段说明放在本文件
- *      而不是配置里：`vite.config.ts` 已在 `check:file-size` 棘轮之上，只允许变小。
+ *      阈值取 1600 而非关掉：它再长胖、或出现第二个超大块仍会告警（只是构建期告警，
+ *      不是门禁）。这段说明放在本文件
+ *      而不是配置里：`vite.config.ts` 已经很大，不适合再往里堆说明。
  */
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'

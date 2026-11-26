@@ -140,6 +140,14 @@ export interface UILayoutConfig {
   lightOnBackgroundUrl: string
   /** 仪表盘关灯氛围背景图 URL（全部灯光关闭时） */
   lightOffBackgroundUrl: string
+  /**
+   * 侧边栏页面背景（0.8.9）。
+   *
+   * 与主页面的页面背景共用同一份模型（`studio/app/shared/page-background.ts`），
+   * 但作用域是**全局**：侧边栏本身不随页切换，把它做成按页配置会让用户在切页时
+   * 看到「背景变了、内容没变」。缺省 undefined 表示「不铺背景」，保持旧观感。
+   */
+  sidebarBackground?: import('@/shared/types/page-background').PageBackgroundConfig
   /** 悬浮组件（顶层） */
   floatingWidgets: FloatingWidget[]
   pageMaxWidth: number // 页面最大宽度（像素）

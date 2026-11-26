@@ -3,7 +3,7 @@
  *
  * 为什么是模块级函数而不是 composable：伴侣的调用点 `handleVoiceResult` 只需要
  * 「问 + 说」这一件事，做成 composable 就要在调用点多出一个实例化语句；而
- * `AgentCompanion.vue` 正卡在文件规模棘轮上（1273 行，只允许变小）。这里的
+ * `AgentCompanion.vue` 已经 1273 行，继续变长会更难读。这里的
  * 播放器是全局单例，反而天然满足「同一时刻只有一段管家声音」。
  *
  * 依赖都是懒创建的：`useTtsSpeak` 会访问 pinia store，模块加载期拿不到实例。

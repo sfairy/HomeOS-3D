@@ -12,6 +12,7 @@ import {
 import { copyComponentTargets as copyComponentTargets2 } from '../../component-page-copy'
 import { duplicateComponent } from '../../editor-component-collections'
 import { listComponentTemplates as listComponentTemplates2 } from '../../component-templates'
+import { appendTemplatePreview } from './template-preview'
 import { domElement } from '@app/shared/util/dom-factory'
 import {
   renderInteraction3dThumbnail as renderInteraction3dThumbnail2,
@@ -829,12 +830,9 @@ export function renderComponentTemplates(deps: ComponentEditingDeps) {
               templatePreviewElement.innerHTML =
                 '<svg class="percentage-template-chart" viewBox="0 0 520 260" aria-hidden="true">\n        <defs>\n          <linearGradient id="percentage-thumb-amber" x2="0" y2="1"><stop stop-color="#f2a20d" stop-opacity=".75"/><stop offset="1" stop-color="#f2a20d" stop-opacity=".08"/></linearGradient>\n          <linearGradient id="percentage-thumb-green" x2="0" y2="1"><stop stop-color="#68cc3e" stop-opacity=".75"/><stop offset="1" stop-color="#68cc3e" stop-opacity=".08"/></linearGradient>\n          <linearGradient id="percentage-thumb-gray" x2="0" y2="1"><stop stop-color="#94a5b3" stop-opacity=".75"/><stop offset="1" stop-color="#94a5b3" stop-opacity=".08"/></linearGradient>\n        </defs>\n        <g fill="#dce1e5" font-family="Helvetica Neue, sans-serif" font-size="42" text-anchor="middle" font-weight="300">\n          <text x="130" y="85">68<tspan font-size="22">%</tspan></text><text x="260" y="43">92<tspan font-size="22">%</tspan></text><text x="390" y="126">46<tspan font-size="22">%</tspan></text>\n        </g>\n        <rect x="94" y="99" width="72" height="123" rx="4" fill="url(#percentage-thumb-amber)" stroke="#f2a20d" stroke-opacity=".7" stroke-width="2"/>\n        <rect x="224" y="56" width="72" height="166" rx="4" fill="url(#percentage-thumb-green)" stroke="#68cc3e" stroke-opacity=".7" stroke-width="2"/>\n        <rect x="354" y="139" width="72" height="83" rx="4" fill="url(#percentage-thumb-gray)" stroke="#94a5b3" stroke-opacity=".7" stroke-width="2"/>\n        <g fill="#94a5b3" font-family="sans-serif" font-size="24" text-anchor="middle"><text x="130" y="251">液位</text><text x="260" y="251">电量</text><text x="390" y="251">湿度</text></g>\n      </svg>'
             else {
-              const templateThumbnailElement = document.createElement('img'),
-                thumbnailId = componentTemplate.thumbnailId || componentTemplate.id
-              ;(templateThumbnailElement.src =
-                '/static/component-thumbnails/' + encodeURIComponent(thumbnailId) + '.jpg'),
-                (templateThumbnailElement.alt = ''),
-                templatePreviewElement.append(templateThumbnailElement)
+              // 0.8.9：缩略图构建抽到 `template-preview.ts` —— 页面背景是六图网格，
+              // 其余是单张 jpg；这里不再内联图片构造，避免继续给这张卡片加分支。
+              appendTemplatePreview(templatePreviewElement, componentTemplate)
             }
           }
         }

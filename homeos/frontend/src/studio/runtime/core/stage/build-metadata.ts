@@ -4,6 +4,52 @@ import { genericDeviceMetadata } from '../../device/generic-device-catalog'
 import { MEDIA_DEVICE_PROFILES } from '@app/bridge/presets/media-device-profiles'
 import { SPEAKER_MODEL_TYPES, speakerModelProfile } from '../../speaker/speaker-models'
 import { normalizeModelRemark } from '@app/shared/model-remarks'
+import { windowModels } from '@app/shared/scene/window/window-models'
+import { heatingPanelStyleOf } from '../../climate/boiler-copy'
+
+/** 本项目的壁挂炉绑定记录长这样（只取归一需要的那三个字段）。 */
+type BoilerBindingLike = { floorId?: unknown; deviceId?: unknown; heatingPanelStyle?: unknown }
+
+/** 取出绑定记录数组；脏值（非数组 / 非对象元素）直接滤掉，不让它们参与匹配。 */
+function boilerBindingsFrom(
+  mountOptions: { document?: { environment?: { heatingBoilers?: unknown } } } | null | undefined,
+): BoilerBindingLike[] {
+  const boilers = mountOptions?.document?.environment?.heatingBoilers
+  if (!Array.isArray(boilers)) return []
+  return boilers.filter((entry): entry is BoilerBindingLike => Boolean(entry) && typeof entry === 'object')
+}
+
+/**
+ * 一条绑定记录是否属于「这个楼层的这台设备」。
+ *
+ * 主实体还没绑（`deviceId` 为空）时按楼层兜底：用户往往先调面板形态再选实体。
+ * item 上没有实体 id 时同理 —— 只按楼层匹配，避免因为一个空字段把配置丢掉。
+ */
+function bindingMatchesFloor(binding: BoilerBindingLike, floorId: unknown, entityId: string): boolean {
+  if (String(binding.floorId || '') !== String(floorId ?? '')) return false
+  const boundId = String(binding.deviceId || '')
+  return !boundId || !entityId || boundId === entityId
+}
+
+/**
+ * 壁挂炉的面板形态：item 上显式配了就照它（0.8.9 的 `heatingPanelStyle`），
+ * 否则回落到本项目的 `environment.heatingBoilers[]` 绑定记录（按楼层 + 主实体匹配）。
+ * 判据与上游一致：只有 `climate` 是空调卡，其余（含缺省）一律温控卡。
+ *
+ * 为什么放在 metadata 这一层：运行态面板拿到的是 item，配置编辑器写的是 environment，
+ * 两者之间必须有一处做归一，否则「配置改了、面板不变」。
+ */
+function boilerPanelStyleFor(
+  mountOptions: { document?: { environment?: { heatingBoilers?: unknown } } } | null | undefined,
+  floorId: unknown,
+  sceneItem: Record<string, unknown>,
+): 'climate' | 'thermostat' {
+  const own = sceneItem.heatingPanelStyle
+  if (own === 'climate' || own === 'thermostat') return own
+  const entityId = String(sceneItem.entityId ?? sceneItem.deviceId ?? '')
+  const record = boilerBindingsFrom(mountOptions).find((binding) => bindingMatchesFloor(binding, floorId, entityId))
+  return heatingPanelStyleOf(record)
+}
 
 export function buildMetadata(
   mountOptions: any,
@@ -240,15 +286,15 @@ export function buildMetadata(
             })),
           airConditioners: metadataFloorItem.scene.items
             .filter((airConditionerSceneItem: any) =>
-              ['wallac', 'floorac', 'airoutlet'].includes(airConditionerSceneItem.type),
+              ['bath-heater', 'wallac', 'floorac', 'airoutlet'].includes(airConditionerSceneItem.type),
             )
             .map((airConditionerMetadataItem: any, airConditionerMetadataIndex: any) => ({
               id: airConditionerMetadataItem.id,
               remark: normalizeModelRemark(airConditionerMetadataItem.remark),
               name:
                 airConditionerMetadataItem.name ||
-                (airConditionerMetadataItem.type === 'airpurifier'
-                  ? '空气净化器'
+                (airConditionerMetadataItem.type === 'bath-heater'
+                  ? '浴霸'
                   : airConditionerMetadataItem.type === 'airoutlet'
                     ? '空调出风口'
                     : airConditionerMetadataItem.type === 'wallac'
@@ -262,6 +308,20 @@ export function buildMetadata(
               height:
                 (Number(airConditionerMetadataItem.elevation) || 0) +
                 (Number(airConditionerMetadataItem.height) || 0.28) / 2,
+            })),
+          /** 开窗器可绑定的窗扇：与舞台的窗扇索引同一份算法（推拉组按组、平开按扇）。 */
+          windowOpeners: windowModels(metadataFloorItem),
+          /** 取暖壁挂炉：挂墙设备，锚点与壁挂空调同式。 */
+          heatingBoilers: metadataFloorItem.scene.items
+            .filter((boilerSceneItem: Record<string, unknown>) => boilerSceneItem.type === 'heating-boiler')
+            .map((boilerMetadataItem: Record<string, unknown>, boilerMetadataIndex: number) => ({
+              ...boilerMetadataItem,
+              // 面板形态配在 `environment.heatingBoilers[]`（本项目的绑定记录），
+              // 运行态面板读的是 item 上的同名属性（与 0.8.9 一致），这里做一次楼层归一。
+              heatingPanelStyle: boilerPanelStyleFor(mountOptions, metadataFloorItem.id, boilerMetadataItem),
+              remark: normalizeModelRemark(boilerMetadataItem.remark),
+              name: boilerMetadataItem.name || '取暖壁挂炉 ' + (boilerMetadataIndex + 1),
+              height: (Number(boilerMetadataItem.elevation) || 0) + (Number(boilerMetadataItem.height) || 0.76) / 2,
             })),
           groups: metadataFloorItem.scene.lightGroups.map((lightGroup: any) => {
             const groupLightItems = metadataFloorItem.scene.items.filter(

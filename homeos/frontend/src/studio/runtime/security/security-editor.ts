@@ -4,7 +4,7 @@ import { PRESENCE_TRIGGER_MODES, presenceTriggerIsTimed } from '../presence/pres
 import { doorModels, identifyLockEntities, lockEntityRole } from '@app/bridge/lock-state-runtime'
 import { CARD_TEXT_SIZE_PX } from '@app/bridge/presets/card-text-size'
 import { modelChoiceLabel } from '@app/shared/model-remarks'
-import { windowModels } from '@app/shared/scene/window/window-models'
+import { windowBindingHint, windowModels } from '@app/shared/scene/window/window-models'
 import { DEFAULT_BUTTON_SIZE, buttonIconSize } from '@app/bridge/presets/button-icon-size'
 import { temperatureHumidityFloorCenter } from '@app/bridge/temperature-humidity'
 import { validateGo2rtcUrl } from '../camera/go2rtc-url'
@@ -46,6 +46,7 @@ interface SecurityChoiceRecord {
 }
 import { mountInteraction3d } from '../core/runtime'
 import { openPresenceEditor } from '../presence/presence-editor'
+import { openWindowConfigMergeDialog, type WindowModelEntry, type WindowSecurityConfig } from './window-config-merge'
 import { randomUuid } from '@app/shared/util/random-id'
 import { requestInteraction3dAccess, subscribeInteraction3dAccess } from '@app/bridge/bridge'
 import { interaction3dPreviewSize, observeInteraction3dPreview } from '@app/bridge/presets/preview-layout'
@@ -133,6 +134,8 @@ export async function openSecurityEditor({
     presenceEditorHandle: any = null,
     isPresenceEditorOpen = false,
     batchDialogHandle: any = null,
+    /** 推拉窗整组合并弹窗（旧数据按扇存配置时才有）。 */
+    windowMergeHandle: { close?: () => void } | null = null,
     alarmPreviewOverlay: any = null
   function stopAlarmPreview() {
     alarmPreviewOverlay?.dispose()
@@ -236,6 +239,37 @@ export async function openSecurityEditor({
   }
   function closeActivePicker() {
     pickerGeneration++, activePickerHandle?.close(), (activePickerHandle = null)
+  }
+  /**
+   * 推拉窗「整组配置」合并（0.8.9 `选择整组使用的配置`）。
+   *
+   * 只有旧数据（窗模型带 `legacyModels`，且本层有 >1 条同组配置）才会弹；数据干净时是空操作，
+   * 所以这条迁移路径不会打扰正常配置。
+   */
+  function maybePromptWindowMerge() {
+    if (isDisposed || !isAccessAllowed || securityKind !== 'window' || windowMergeHandle) return
+    const mergeTargetItem = findSelectedItem()
+    if (!mergeTargetItem?.modelId) return
+    const mergeTargetWindowModel = (windowModels(findSelectedFloor() || {}) as WindowModelEntry[]).find(
+      (windowModelProbe) => windowModelProbe.modelId === mergeTargetItem.modelId,
+    )
+    if (!mergeTargetWindowModel?.legacyModels?.length) return
+    const mergeHandle = openWindowConfigMergeDialog({
+      document,
+      windows: draftProperties.security.windows as WindowSecurityConfig[],
+      floorId: mergeTargetItem.floorId,
+      windowModel: mergeTargetWindowModel,
+      onMerged(keptWindowConfig: WindowSecurityConfig) {
+        windowMergeHandle = null
+        selectedItemId = keptWindowConfig.id
+        markPropertiesDirty()
+        renderPanel()
+      },
+      onClose() {
+        windowMergeHandle === mergeHandle && (windowMergeHandle = null)
+      },
+    })
+    windowMergeHandle = mergeHandle
   }
   /**
    * 两段式分段控件。复用 `.i3d-focus-actions` 的双列栅格与
@@ -435,6 +469,7 @@ export async function openSecurityEditor({
         selectedItemId = nextSelectedItemId
         syncEditorRuntime()
         renderPanel()
+        maybePromptWindowMerge()
       },
       onClose() {
         activePickerHandle === itemPickerHandle && (activePickerHandle = null)
@@ -462,12 +497,18 @@ export async function openSecurityEditor({
       title: '添加' + getKindLabel(),
       kicker: 'MODEL SELECTION',
       unit: getKindLabel(),
-      emptyMessage: '本层没有' + getKindLabel() + '模型，请先在 3D 户型图绘制中增加模型。',
+      emptyMessage: '当前楼层暂无' + getKindLabel() + '模型，请先在 3D 户型图中添加。',
       sections: [
         {
           options: floorModelList.map((floorModel) => {
             const floorModelId = getCandidateModelId(floorModel),
-              isBound = boundModelIdSet.has(floorModelId)
+              isBound = boundModelIdSet.has(floorModelId),
+              // 同一扇窗可能在另一侧（环境 → 开窗器）已经配过：这里必须提示，
+              // 否则会再选一次，得到两条抢同一扇窗的配置。
+              oppositeSideHint =
+                securityKind === 'window'
+                  ? windowBindingHint(floorModel as WindowModelEntry, selectedFloorId, 'window', draftProperties)
+                  : ''
             return {
               id: floorModelId,
               label: floorModel.name || getKindLabel(),
@@ -475,6 +516,7 @@ export async function openSecurityEditor({
               disabled: isBound,
               state: isBound ? ('configured' as const) : ('remaining' as const),
               detail: isBound ? '已配置' : '未配置 · 点击选择',
+              hint: oppositeSideHint,
             }
           }),
         },
@@ -755,7 +797,7 @@ export async function openSecurityEditor({
             !isDisposed &&
               isAccessAllowed &&
               ((draftProperties.security = structuredClone(presenceDraft.security)),
-              setSaveResultMessage('路线已应用，请保存配置。'))
+              setSaveResultMessage('路线已应用到本窗口，请保存配置。'))
           },
           onClose: () => {
             ;(presenceEditorHandle = null),
@@ -880,8 +922,9 @@ export async function openSecurityEditor({
           label: windowFieldLabel,
         }))),
         batchFields.push(
-          { key: 'openPercent', label: '显示开度', unit: '%', optional: true },
+          // 顺序与文案按上游：动画时长在前，开度把单位写进标签（`显示开度 / %`）。
           { key: 'duration', label: '动画时长', unit: ' 秒', optional: true },
+          { key: 'openPercent', label: '显示开度 / %', optional: true },
         )
     } else
       securityKind === 'camera'
@@ -1438,7 +1481,8 @@ export async function openSecurityEditor({
               wrapLabel: true,
               disabled: true,
               state: 'missing' as const,
-              detail: selectedItem.modelId ? '原模型已移除' : '未关联模型',
+              // 明细行按上游两句：有 modelId 是「模型缺失」，没有就是「未关联模型」。
+              detail: selectedItem.modelId ? '模型缺失 · 可重新关联或删除' : '未关联模型 · 保留原有人物路线',
             })
           activePickerHandle?.close()
           const associatePickerHandle = openConfigurationPicker({
@@ -1912,7 +1956,7 @@ export async function openSecurityEditor({
               'p',
               'i3d-note',
               isWindowBinding
-                ? '选择标签外观、高度、显示开度或动画时长；保留模型、实体和坐标。'
+                ? '选择标签外观、高度、显示开度或动画时长。'
                 : '选择外观、高度或兼容门型的动作设置；保留模型、实体、坐标和视角。',
             ),
           )
@@ -2191,7 +2235,7 @@ export async function openSecurityEditor({
           },
         )
         currentContainerElement.append(
-          createElement('p', 'i3d-note', '标签显示设备状态；仅点击聚焦后连接视频，退出时断开。可拖动标签调整位置。'),
+          createElement('p', 'i3d-note', '点击标签聚焦并连接视频，退出时断开。可拖动标签调整位置。'),
         )
         const labelSettingsSectionElement = createSectionHeading('标签设置'),
           labelSettingsGridElement = createElement('div', 'i3d-security-scope-grid')
@@ -2579,7 +2623,7 @@ export async function openSecurityEditor({
                 !previewTargetList.some((previewTarget: any) => previewTarget.id === nextItemId)
               )
                 return
-              ;(securityKind = nextKind), (selectedItemId = nextItemId), renderPanel()
+              ;(securityKind = nextKind), (selectedItemId = nextItemId), renderPanel(), maybePromptWindowMerge()
             }
           }
         },
@@ -2596,6 +2640,8 @@ export async function openSecurityEditor({
     renderPanel(),
     updatePreviewSize(),
     isAccessAllowed && mountEditorRuntime(),
+    // 从 3D 舞台直接打开某扇推拉窗时也要给合并入口（旧数据按扇存配置）。
+    isAccessAllowed && maybePromptWindowMerge(),
     {
       close: closeEditor,
     }

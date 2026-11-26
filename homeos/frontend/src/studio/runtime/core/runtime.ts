@@ -1,4 +1,5 @@
 import { createPopupLayoutPreview, createFocusDevicePopup, popupHeightDraft } from './popup-preview'
+import { createGraphicsRecovery } from './graphics-recovery'
 import { createLightStream } from '../light/light-stream'
 import { createCoverMemoryClient } from '../cover/cover-memory-client'
 import { interaction3dControlTimeout } from '@app/shared/util/control-timeout'
@@ -92,8 +93,10 @@ const BREADCRUMB_CODE_MESSAGES = Object.freeze({
   'models-completion-resumed': ['info', '3D 已展示后再次完成模型替换'],
   // 0.8.4：分类过渡的性能采样（`category-transition-diagnostics`）。
   // 不在这里登记就会被 `reportLifecycleEvent` 的 hasOwnProperty 门禁直接丢掉。
-  'category-transition-profile': ['info', '3D 分类过渡性能采样'],
+  'category-transition-profile': ['info', '3D 分类过渡耗时'],
   'category-transition-slow': ['warning', '3D 分类过渡出现慢帧'],
+  // 图形中断后用户点「重新加载 3D」：和自动恢复分开记，才能区分「自己好了」和「人工救回」。
+  'load-graphics-recovery': ['warning', '用户重新载入图形中断的 3D 舞台'],
 })
 function createLifecycleReporter(projectId: any, componentId: any) {
   try {
@@ -197,6 +200,16 @@ export function mountInteraction3d(
   }: any,
 ) {
   hostElement.className = 'hb-interaction3d-runtime'
+  // 3D 图形中断恢复层：上下文丢失且未在宽限期内恢复时给出「重新载入」出口。
+  const graphicsRecovery = createGraphicsRecovery({
+    host: hostElement,
+    // 「人工重载」要单独记一条生命周期事件（`load-graphics-recovery`）：上报器在下面才创建，
+    // 这个闭包晚绑定，调用时才取值，所以顺序无碍。
+    onReload: () => {
+      reportRuntimeLifecycle('load-graphics-recovery')
+      window.location.reload()
+    },
+  })
   // 3D 配置类弹窗里的原生 <select> 统一换自绘下拉：各编辑入口（配置 / 安防 / 存在感应 / 音箱）
   // 都从这里挂载运行时，所以在这挂一次就够；装饰器本身幂等，只接管 3D 弹窗内的 select。
   ensureInteraction3dSelectControls()
@@ -2174,6 +2187,7 @@ export function mountInteraction3d(
           (listenerTarget as EventTarget).removeEventListener('freeze', handlePageFreeze),
           (listenerTarget as EventTarget).removeEventListener('resume', handlePageResume),
           stageFrameMountGate?.dispose(),
+          graphicsRecovery.dispose(),
           window.removeEventListener('blur', releaseHeldInput),
           activeRequestsSet.forEach((abortedRequest) => abortedRequest.abort('lifecycle')),
           stageFrameElement.removeAttribute('src'),

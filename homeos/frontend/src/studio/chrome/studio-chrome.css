@@ -569,11 +569,16 @@ body.interaction3d-stage.is-background-hidden #preview-3d {
   display: none !important;
 }
 
-/* 户型：压缩预览顶栏 */
+/* 户型：压缩预览顶栏。
+ *
+ * 只压**纵向**留白（padding / 行距），**不能**把列间距也压成 6px：
+ * 0.8.9 的标题条是「左段（标题 + 光影组）/ 右段（视角 + 工具）」两段式，
+ * 列间距就是两段之间唯一的分隔。压平之后「进阶设置」会紧贴「实时/手动」组，
+ * 两组读起来像同一簇（实测间距只有 6px）。 */
 .studio-chrome-root .preview-heading {
   min-height: 0;
   max-height: none;
-  gap: 6px;
+  gap: 6px 12px;
   padding: 8px 10px;
 }
 
@@ -592,7 +597,8 @@ body.interaction3d-stage.is-background-hidden #preview-3d {
 
 .studio-chrome-root .preview-heading-actions {
   flex-wrap: wrap;
-  gap: 4px;
+  /* 行距沿用压实值，列距留给「实时/手动 → 当前层/全楼 → 自由/顶视」之间的分组界线。 */
+  gap: 6px 8px;
 }
 
 .studio-chrome-root .preview-heading-actions .preview-control-row {

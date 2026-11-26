@@ -10,8 +10,15 @@
 
 import { DEFAULT_BUTTON_SIZE } from '@app/bridge/presets/button-icon-size'
 import { mediaDeviceProfile } from '@app/bridge/presets/media-device-profiles'
-import { genericDeviceProfile as genericDeviceProfile2 } from '../../../device/generic-device-catalog'
 import { resolveDeviceCategoryProfile } from './device-category-choices'
+import {
+  appendStatusOrGameMainSection,
+  autoPickGameMainEntity,
+  createExtraSourcesSection,
+  modelListHint,
+  openGameMainEntityPicker,
+  renderWindowOpenerSection,
+} from './sections'
 import { ENVIRONMENT_CATEGORY_LABELS, bindPickerRow, openDeviceCategoryPicker } from './picker-row'
 import { openConfigurationPicker, type ConfigurationChoice } from '../../configuration-picker'
 import { appendConfigListSummary } from '../../config-list-summary'
@@ -43,16 +50,7 @@ import {
   curtainGroupEntryId as curtainGroupEntryId2,
 } from '../../../cover/cover-groups'
 import { deviceEntityCatalog as deviceEntityCatalog2 } from '../../device-entity-config'
-import {
-  removeExtraDevice as removeExtraDevice2,
-  selectableExtraEntity as selectableExtraEntity2,
-} from '../../../device/extra-sources'
-import {
-  extraLabels as extraLabels2,
-  extraTypes as extraTypes2,
-  purifierDeviceChanged as purifierDeviceChanged2,
-  purifierRelatedEntities as purifierRelatedEntities2,
-} from '../../../climate/purifier-extras'
+import { purifierDeviceChanged as purifierDeviceChanged2 } from '../../../climate/purifier-extras'
 import { fanReverseStateOptions, fanSourceAllowed, resolveFanBindingState } from '../../../fan/fan-state'
 import { normalizeInteraction3dLightingMode as normalizeInteraction3dLightingMode2 } from '@app/bridge/definition'
 import { createStandardLightEffectsEditor } from '../../light-effects-editor'
@@ -137,6 +135,7 @@ export interface PanelAssemblyDeps {
   openAddDialog: (addDialogTriggerEvent?: any) => any
   /** 幕布分组分区。 */
   renderCurtainGroupSection: (curtainGroup: any) => any
+  renderBoilerSection: () => void
   /** 打开指标弹窗（0.8.1 起仅保留兼容句柄，NAS 指标选择已改为内联折叠面板）。 */
   openMetricsDialog: (metricsTargetEntry: any) => any
   /** 空气净化器绑定分区。 */
@@ -157,6 +156,17 @@ function hostDocumentOf(element: HTMLElement): Document {
 }
 
 type EntityStateSource = { get?: (entityId: string) => unknown } & Record<string, unknown>
+
+/**
+ * 取暖壁挂炉的整面板：没有「模型 → 卡片」集合，配置全在采暖段
+ * （主实体 / 地暖盘管 / 面板形态），不能落到通用模型列表。
+ */
+function renderHeatingBoilerPanel(deps: PanelAssemblyDeps, saveButtonElement: HTMLButtonElement): void {
+  deps.renderBoilerSection()
+  deps.editorHost.panelElement.append(deps.editorHost.errorMessageElement)
+  saveButtonElement.disabled =
+    deps.editorHost.isSaving || !deps.editorHost.isAccessAllowed || deps.editorHost.isCameraEditing
+}
 
 /** 读绑定实体的状态：优先状态中枢的 get，退化为普通对象下标。 */
 function readBoundEntityState(store: unknown, entityId: string) {
@@ -186,6 +196,31 @@ function mediaClickActionOptions(deviceKind: string) {
 /** 媒体设备在面板文案里的名字：电视 / 投影仪。 */
 function mediaDeviceLabel(deviceKind: string, fallback = '媒体设备') {
   return mediaDeviceProfile(deviceKind)?.label || fallback
+}
+
+/** 实体选择器的 `deviceKind`：电源类用专属文案，浴霸走 climate 域。 */
+function itemPickerDeviceKind(targetField: string, deviceKind: string, isMediaDevice: boolean, isBathHeater: boolean) {
+  if (targetField !== 'powerEntity') return isBathHeater ? 'bath-heater' : deviceKind
+  if (deviceKind === 'computer') return 'computer-power'
+  return isMediaDevice ? deviceKind + '-power' : 'television-power'
+}
+
+/** 实体选择器的「当前值」：不同目标字段各读条目上的一个字段。 */
+function itemPickerCurrentValue(
+  targetField: string,
+  context: {
+    vector: Record<string, any>
+    bindingContainer: boolean
+    temperatureHumidityKinds: () => string
+  },
+): any {
+  const { vector } = context
+  if (targetField === 'device') return context.bindingContainer ? context.temperatureHumidityKinds() : vector.deviceId
+  if (targetField === 'vacuum') return vector.deviceId
+  if (targetField === 'powerEntity') return vector.powerEntityId
+  if (targetField === 'nas') return vector.statusSource?.deviceId
+  if (targetField === 'icon') return vector.icon
+  return vector.entityId
 }
 
 export function renderPanelImpl(deps: PanelAssemblyDeps) {
@@ -297,6 +332,7 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
         (saveButtonElement.disabled = editorHost.isSaving || !editorHost.isAccessAllowed)
       return
     }
+    if (editorHost.deviceKind === 'heating-boiler') return renderHeatingBoilerPanel(deps, saveButtonElement)
     if (
       !editorHost.usesModelBinding &&
       normalizeInteraction3dLightingMode2(
@@ -452,7 +488,8 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                           floorModelRecords.find((modelProbe) => modelProbe.id === itemOptionEntry.modelId) ||
                             itemOptionEntry,
                         )
-                      : editorHost.kindLabel + '缺失 · 可重新关联或删除',
+                      : editorHost.kindLabel +
+                        (editorHost.usesModelBinding ? '缺失 · 可重新关联或删除' : '缺失 · 可删除此配置'),
               }
             }),
           },
@@ -473,9 +510,8 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
         ? pickerHandle.close()
         : (editorHost.pickerHandle = pickerHandle)
     }
-    // 「当前按钮」的初值必须和 `editorHost.text` 一起定：上面这一兜底会改写 text
-    // （换楼层 / 条目被删 / 预览里选中的是别层设备），而下拉拿不到匹配项时会静默退回
-    // 第一项 —— 看着就是「选中的灯被默认值顶掉了」。所以值在兜底之后再取一次。
+    // 「当前按钮」初值必须和 `editorHost.text` 一起定：上面的兜底会改写 text（换楼层 / 条目
+    // 被删 / 预览选中别层设备），而下拉兜底会静默退回第一项 —— 值必须在兜底之后再取一次。
     !floorItems.some((itemProbe: any) => itemProbe.id === curtainGroupOptions) &&
       !editorHost.selectedCurtainGroupId &&
       (editorHost.text = floorItems[0]?.id || ''),
@@ -503,6 +539,8 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
       return
     }
     const vector = editorHost.getItemList().find((matchedItemProbe: any) => matchedItemProbe.id === editorHost.text)
+    // 壁挂炉走独立整面板（`renderHeatingBoilerPanel`，在上面的分支里提前 return），
+    // 因此这里**不再**调用采暖段 —— 否则同一段会渲染两次。
     if (vector) {
       const removeItemButton = editorHost.createButton(
         editorHost.isDeviceKind ? '删除此设备' : '删除此' + editorHost.kindLabel + '按钮',
@@ -540,33 +578,15 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
           }),
         ),
         (currentContainer = createConfigSection('基础绑定'))
-      const isBathHeaterMode = editorHost.deviceKind === 'climate' && vector.climateType === 'bath-heater',
+      const isBathHeaterMode =
+          editorHost.deviceKind === 'bath-heater' ||
+          (editorHost.deviceKind === 'climate' && vector.climateType === 'bath-heater'),
         isPurifierMode = editorHost.deviceKind === 'purifier',
         isWaterHeaterMode = editorHost.deviceKind === 'water-heater',
         isFanMode = editorHost.deviceKind === 'fan',
         isExhaustFanMode = editorHost.deviceKind === 'exhaust-fan',
         bindingContainer = isBathHeaterMode || isPurifierMode || isWaterHeaterMode || isFanMode || isExhaustFanMode
-      bindingContainer && !vector.entityId && (vector.clickAction = 'focus'),
-        editorHost.deviceKind === 'climate' &&
-          createSelectRow(
-            currentContainer,
-            '设备类型',
-            [
-              ['air-conditioner', '空调'],
-              ['bath-heater', '浴霸'],
-            ],
-            vector.climateType || 'air-conditioner',
-            (pickedClimateType: any) => {
-              ;(vector.climateType = pickedClimateType),
-                pickedClimateType === 'air-conditioner' &&
-                  (vector.entityId?.startsWith('fan.') && (vector.entityId = ''),
-                  delete vector.bathEffects,
-                  delete vector.deviceId,
-                  delete vector.deviceName),
-                refreshEditorPreview(),
-                renderPanel()
-            },
-          )
+      bindingContainer && !vector.entityId && (vector.clickAction = 'focus')
       const bindingRowElement = currentContainer,
         nameRowElement = createConfigRow(bindingRowElement),
         nameInputElement = editorHost.createElement('input')
@@ -595,14 +615,15 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
             (candidateKeyProbe) => candidateKeyProbe.key === currentModelKey,
           ),
           occupiedModelKeys = new Set(
-            (editorHost.getItemList() as ReadonlyArray<PickerChoiceRecord>)
+            (editorHost.getCollectionItemList() as ReadonlyArray<PickerChoiceRecord>)
               .filter(
                 (occupiedItemProbe) =>
                   occupiedItemProbe !== vector && occupiedItemProbe.floorId === editorHost.floorSelection,
               )
               .map((occupiedItemProbe) => occupiedItemProbe.floorId + '/' + occupiedItemProbe.modelId),
           ),
-          associateModelLabel = '关联' + editorHost.kindLabel + '模型'
+          // 模型绑定型是「关联X模型」，灯组型（不需要选模型）是「关联灯组」（上游同口径）。
+          associateModelLabel = editorHost.usesModelBinding ? '关联' + editorHost.kindLabel + '模型' : '关联灯组'
         /** 关联模型选择器（上游 `v475('associate')`）：已占用模型禁用，当前项标「当前关联」。 */
         function openAssociateModelPicker() {
           const pickerGeneration = ++editorHost.pickerGeneration,
@@ -627,12 +648,13 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
               wrapLabel: true,
               disabled: true,
               state: 'missing',
-              detail: '原模型已移除',
+              // 关联选择器里的说明是「保留了什么」，不是「能做什么」（上游 `原实体绑定和按钮设置保留`）。
+              detail: '原实体绑定和按钮设置保留',
             })
           editorHost.pickerHandle?.close()
           const pickerHandle = openConfigurationPicker({
             document: editorHost.editorDialogElement.ownerDocument,
-            title: '关联' + editorHost.kindLabel + '模型',
+            title: editorHost.usesModelBinding ? '关联' + editorHost.kindLabel + '模型' : '关联灯组',
             kicker: 'MODEL SELECTION',
             unit: '模型',
             description:
@@ -731,35 +753,22 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
             const itemPickerHandle = await pickerMethod({
               trigger: itemPickerTrigger,
               deviceIcon: editorHost.defaultIcon,
-              deviceKind:
-                targetField === 'powerEntity'
-                  ? editorHost.deviceKind === 'computer'
-                    ? 'computer-power'
-                    : editorHost.isMediaDeviceMode
-                      ? editorHost.deviceKind + '-power'
-                      : 'television-power'
-                  : isBathHeaterMode
-                    ? 'bath-heater'
-                    : editorHost.deviceKind,
+              deviceKind: itemPickerDeviceKind(
+                targetField,
+                editorHost.deviceKind,
+                editorHost.isMediaDeviceMode,
+                isBathHeaterMode,
+              ),
               entityFilter:
                 bindingContainer && targetField === 'entity' && vector.deviceId
                   ? (deviceIdFilterProbe: any) =>
                       (deviceIdFilterProbe.deviceId || deviceIdFilterProbe.device_id) === vector.deviceId
                   : undefined,
-              current:
-                targetField === 'device'
-                  ? bindingContainer
-                    ? temperatureHumidityPickerKinds()
-                    : vector.deviceId
-                  : targetField === 'vacuum'
-                    ? vector.deviceId
-                    : targetField === 'powerEntity'
-                      ? vector.powerEntityId
-                      : targetField === 'nas'
-                        ? vector.statusSource?.deviceId
-                        : targetField === 'icon'
-                          ? vector.icon
-                          : vector.entityId,
+              current: itemPickerCurrentValue(targetField, {
+                vector,
+                bindingContainer,
+                temperatureHumidityKinds: temperatureHumidityPickerKinds,
+              }),
               onSelect(pickedDevice: any, pickedDeviceEntity: any) {
                 if (
                   !(
@@ -847,18 +856,20 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                             vector[carBindingFieldName] ||
                               (vector[carBindingFieldName] = (defaultCarBinding as any)[carBindingFieldName])
                         }
+                        // 游戏机：绑定设备后自动挑唯一候选主实体（多候选留空）。
+                        autoPickGameMainEntity(vector, editorHost.deviceKind, pickedDevice?.entities || [])
                         refreshEditorPreview(), renderPanel()
                       }
                     ;(deviceId2 || hasBoundExtras) && hasDeviceChanged
                       ? openDeviceChangeDialog(
                           clearDeviceExtras,
                           bindingContainer
-                            ? '更换或解绑设备将清空原主实体、附加功能和' +
+                            ? '更换或解绑设备将清空原主实体、原设备附加功能和' +
                                 (isWaterHeaterMode ? '指示灯' : '效果') +
-                                '规则。取消保留原配置，保存后生效。'
+                                '规则。其他关联设备的弹窗功能保留。取消保留原配置，保存后生效。'
                             : editorHost.deviceKind === 'smallcar'
-                              ? '更换或解绑设备将清空车辆状态、四轮胎压和附加功能绑定，胎压样式保留。取消保留原配置，保存后生效。'
-                              : '更换或解绑设备将清空弹窗内容及状态灯规则，保存后生效。',
+                              ? '更换或解绑设备将清空车辆状态、胎压和原设备附加功能绑定，胎压样式保留。其他关联设备的弹窗功能保留。取消保留原配置，保存后生效。'
+                              : '更换或解绑设备将清空原设备弹窗内容及状态灯规则，其他关联设备的弹窗功能保留。保存后生效。',
                         )
                       : clearDeviceExtras()
                     return
@@ -913,7 +924,28 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                           } else delete vector.statusSource
                         } else {
                           if (targetField === 'icon') vector.icon = pickedDevice
-                          else {
+                          else if (targetField === 'gameMain') {
+                            // 主实体只写 `mainEntityId`：它同时被状态灯和主面板读取，
+                            // 同时要从附加功能里摘掉，避免同一实体既当主实体又当附加功能。
+                            if (
+                              pickedDevice &&
+                              vector.deviceId &&
+                              deviceIdOfEntity(pickedDevice) &&
+                              deviceIdOfEntity(pickedDevice) !== vector.deviceId
+                            ) {
+                              editorHost.errorMessageElement.textContent = '主实体必须属于当前游戏机设备。'
+                              return
+                            }
+                            pickedDevice
+                              ? ((vector.mainEntityId = pickedDevice),
+                                (vector.extraControls = (vector.extraControls || []).filter(
+                                  (gameMainDuplicateProbe: any) => gameMainDuplicateProbe.entityId !== pickedDevice,
+                                )),
+                                refreshEditorPreview())
+                              : (delete vector.mainEntityId, refreshEditorPreview())
+                            renderPanel()
+                            return
+                          } else {
                             if (bindingContainer) {
                               const currentDeviceId = temperatureHumidityPickerKinds(),
                                 nextDeviceId = pickedDevice ? deviceIdOfEntity(pickedDevice) : currentDeviceId
@@ -965,7 +997,7 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                                 vector.statusRules)
                                 ? openDeviceChangeDialog(
                                     applyPickedPurifierEntity,
-                                    '更换为另一台设备的主实体将清空原附加功能和' +
+                                    '更换为另一台设备的主实体将清空原设备附加功能和' +
                                       (isWaterHeaterMode ? '指示灯' : '效果') +
                                       '规则。取消保留原配置，保存后生效。',
                                   )
@@ -979,19 +1011,14 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                                 (vector.extraControls?.length || vector.workingState || vector.statusRules) &&
                                 purifierDeviceChanged2(editorHost.entities, vector.entityId, pickedDevice)
                               ) {
-                                openDeviceChangeDialog(
-                                  () => {
-                                    vector.entityId = pickedDevice
-                                    vector.extraControls = []
-                                    delete vector.workingState
-                                    delete vector.statusRules
-                                    refreshEditorPreview()
-                                    renderPanel()
-                                  },
-                                  '更换' +
-                                    editorHost.kindLabel +
-                                    '设备会清除当前附加功能和指示灯规则，避免使用旧设备状态。取消将保留原绑定；外层保存后才正式生效。',
-                                )
+                                openDeviceChangeDialog(() => {
+                                  vector.entityId = pickedDevice
+                                  vector.extraControls = []
+                                  delete vector.workingState
+                                  delete vector.statusRules
+                                  refreshEditorPreview()
+                                  renderPanel()
+                                }, '更换设备会清除原设备附加功能和指示灯规则，避免使用旧设备状态。其他关联设备的弹窗功能保留。取消将保留原绑定；外层保存后才正式生效。')
                                 return
                               } else
                                 (vector.entityId = pickedDevice),
@@ -1272,9 +1299,10 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
         if (
           ((nasSourceButton.className = 'i3d-picker-button'),
           createSettingRow(currentContainer, 'NAS 数据来源', nasSourceButton),
-          vector.statusSource)
+          vector.statusSource?.metrics?.length)
         ) {
-          appendNasMetricChooser(currentContainer)
+          // 指标勾选独立成「功能设置」分区（上游同口径）：它和「数据来源」是两件事。
+          appendNasMetricChooser(createConfigSection('功能设置'))
         }
         currentContainer.append(
           editorHost.createElement(
@@ -1292,7 +1320,7 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
             editorHost.createElement(
               'p',
               'i3d-note',
-              '当前绑定仅按 on/off 控制指示灯，不会开关 NAS 或关联整台设备。安全状态表示告警，不应作为开机依据；选择 NAS 数据来源后将替换旧绑定。',
+              '旧版绑定仅按 on/off 控制指示灯，不会开关 NAS 或关联整台设备。安全状态表示告警，不应作为开机依据；选择 NAS 数据来源后将替换旧绑定。',
             ),
           )
         }
@@ -1403,9 +1431,8 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
         )
       }
       appendStandardLightEffectsEditor()
-      // 光效色温兜底（0.7.9 F4）：只有灯具/开关需要。设备能调色温时跟随设备；
-      // 不能调色温（或 switch 实体）时给「默认暖白 / 跟随户型」二选一，仅影响 3D 光效。
-      // 0.8.5 起标准光影用上面的逐灯编辑器取代这块兜底，只有轻量柔光还用它。
+      // 光效色温兜底（0.7.9 F4）：只有灯具/开关需要。设备能调色温时跟随设备，否则给
+      // 「默认暖白 / 跟随户型」二选一。0.8.5 起标准光影改用逐灯编辑器，只有轻量柔光还用它。
       if (
         !isStandardLightingMode &&
         !editorHost.usesModelBinding &&
@@ -1513,10 +1540,21 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
               ),
             )
         }
-        if (genericDeviceProfile2(editorHost.deviceKind).statusIndicator !== false) {
-          const statusLightSectionElement = createConfigSection('状态灯（可选）')
-          renderStatusRuleSection(statusLightSectionElement, vector)
-        } else delete vector.statusRules
+        appendStatusOrGameMainSection(
+          { editorHost, createConfigSection, createSettingRow, renderStatusRuleSection },
+          currentContainer,
+          vector,
+          (mainEntityTrigger: HTMLElement) =>
+            openGameMainEntityPicker({
+              editorHost,
+              item: vector,
+              trigger: mainEntityTrigger,
+              pickerGeneration: ++editorHost.pickerGeneration,
+              deviceIdOfEntity,
+              refreshEditorPreview,
+              renderPanel,
+            }),
+        )
         editorHost.deviceKind === 'computer' &&
           renderDeviceScreenImageSection(
             '电脑开机屏幕图片',
@@ -1837,331 +1875,29 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
         ['climate', 'airer', 'fan', 'purifier', 'water-heater'].includes(editorHost.deviceKind) ||
         (editorHost.isGenericDeviceMode && editorHost.deviceKind !== 'smallcar')
       ) {
-        let syncExtraControls = function () {
-          const selectedControlEntityIdSet = new Set(
-            (vector.extraControls || []).map((extraControlEntityProbe: any) => extraControlEntityProbe.entityId),
-          )
-          extraControlsDetailsElement.querySelector('summary').textContent =
-            '选择附加功能（已选 ' + selectedControlEntityIdSet.size + ' 项）'
-          for (const [
-            optionControlEntityId,
-            { check: extraControlCheckboxElement, disabled: isExtraControlDisabled },
-          ] of extraControlsByEntityId)
-            (extraControlCheckboxElement.checked = selectedControlEntityIdSet.has(optionControlEntityId)),
-              (extraControlCheckboxElement.disabled = !extraControlCheckboxElement.checked && isExtraControlDisabled)
-        }
-        const boundMeterEntityId = vector.extraControls || []
-        currentContainer = createConfigSection('附加功能')
-        // 0.8.4：关联设备——一台舞台设备背后可以挂多台 HA 设备的实体。
-        const associatedExtraDevices = Array.isArray(vector.extraDevices) ? vector.extraDevices : []
-        const extraDeviceCatalog = associatedExtraDevices.flatMap((deviceEntry: any) =>
-            deviceEntityCatalog2(
-              editorHost.entities,
-              deviceEntry.deviceId,
-              editorHost.latestStates || editorHost.states,
-            )
-              .filter(
-                (extraDeviceEntityProbe: any) =>
-                  extraDeviceEntityProbe.entityId !== vector.entityId && selectableExtraEntity2(extraDeviceEntityProbe),
+        // 0.8.9：整段「附加功能」由 extra-sources-section 渲染（按设备分组的 chooser）。
+        const extraSourcesSectionElement = createExtraSourcesSection({
+          editorHost,
+          createConfigSection,
+          item: vector,
+          primaryDeviceId: vector.deviceId || itemEntityMetadata?.deviceId || itemEntityMetadata?.device_id || '',
+          usesDeviceCatalog: editorHost.isGenericDeviceMode || bindingContainer,
+          refreshEditorPreview,
+          renderPanel,
+          onExtraControlChanged: (removedEntityId: string | null) => {
+            if (removedEntityId && isPurifierMode && vector.airflowEntityId === removedEntityId)
+              delete vector.airflowEntityId
+            if (removedEntityId && isBathHeaterMode)
+              vector.bathEffects = (vector.bathEffects || []).filter(
+                (bathEffectProbe: any) => bathEffectProbe.entityId !== removedEntityId,
               )
-              .map((extraDeviceEntity: any) => ({
-                ...extraDeviceEntity,
-                sourceDeviceId: deviceEntry.deviceId,
-              })),
-          ),
-          selectableExtraDeviceChoices = () => {
-            const remainingDevices = new Map<string, string>()
-            for (const entityEntry of editorHost.entities || []) {
-              const candidateDeviceId = entityEntry.deviceId || entityEntry.device_id,
-                candidateDeviceName =
-                  entityEntry.deviceName ||
-                  entityEntry.device_name ||
-                  editorHost.map?.get?.(candidateDeviceId)?.name ||
-                  editorHost.map?.get?.(candidateDeviceId)?.['name'] ||
-                  candidateDeviceId
-              candidateDeviceId &&
-                candidateDeviceId !== vector.deviceId &&
-                !associatedExtraDevices.some((deviceEntry: any) => deviceEntry.deviceId === candidateDeviceId) &&
-                !remainingDevices.has(candidateDeviceId) &&
-                remainingDevices.set(candidateDeviceId, candidateDeviceName)
-            }
-            return [...remainingDevices].map(([deviceId, deviceName]) => ({
-              id: deviceId,
-              label: deviceName,
-              detail: deviceId,
-            }))
+            isBathHeaterMode && editorHost.redrawBathEffects()
+            isPurifierMode && editorHost.renderAirflowSection()
+            editorHost.redrawDeviceMistSection()
+            editorHost.redrawRangehoodSection()
           },
-          relatedEntityCatalog =
-            editorHost.isGenericDeviceMode || bindingContainer
-              ? deviceEntityCatalog2(
-                  editorHost.entities,
-                  vector.deviceId || itemEntityMetadata?.deviceId || itemEntityMetadata?.device_id,
-                  editorHost.latestStates || editorHost.states,
-                ).filter((otherEntityProbe: any) => otherEntityProbe.entityId !== vector.entityId)
-              : purifierRelatedEntities2(editorHost.entities, vector.entityId),
-          fullRelatedEntityCatalog =
-            editorHost.isGenericDeviceMode || bindingContainer
-              ? [...relatedEntityCatalog, ...extraDeviceCatalog]
-              : relatedEntityCatalog,
-          deviceId3 =
-            editorHost.isGenericDeviceMode || bindingContainer
-              ? vector.deviceId || itemEntityMetadata?.deviceId || itemEntityMetadata?.device_id
-              : itemEntityMetadata?.deviceId || itemEntityMetadata?.device_id,
-          previewDevicePanel = async () => {
-            try {
-              await editorHost.editorRuntime?.focusCommand('preview-device-panel', vector.id)
-            } catch (meterMetadataProbe: any) {
-              editorHost.isDisposed || (editorHost.errorMessageElement.textContent = meterMetadataProbe.message)
-            }
-          },
-          previewDeviceButton = editorHost.createButton('实时预览弹窗', previewDevicePanel)
-        currentContainer.append(
-          previewDeviceButton,
-          editorHost.createElement(
-            'p',
-            'i3d-note',
-            '仅选择当前设备的附加实体，数量不限。预览随修改实时更新，不发送设备指令；保存后正式生效。',
-          ),
-        )
-        const extraControlsDetailsElement = editorHost.createElement('details')
-        extraControlsDetailsElement.append(
-          editorHost.createElement('summary', '', '选择附加功能（已选 ' + boundMeterEntityId.length + ' 项）'),
-        )
-        const extraSearchInputElement = editorHost.createElement('input')
-        ;(extraSearchInputElement.placeholder = '搜索本设备实体名称或 ID'),
-          extraSearchInputElement.setAttribute('aria-label', '搜索附加实体')
-        const extraControlListElement = editorHost.createElement('div', 'i3d-extra-entity-list'),
-          extraControlsByEntityId = new Map(),
-          // 0.8.4：状态行必须能随实时状态刷新，不能整块重建（会把勾选框焦点冲掉）。
-          extraStateLineByEntityId = new Map<string, { element: any; candidate: any }>(),
-          extraEntityStateText = (stateCandidate: any) => {
-            const stateCandidateDisabled = !!(
-                stateCandidate.disabledBy ||
-                stateCandidate.disabled_by ||
-                stateCandidate.enabled === false ||
-                ['disabled', 'missing'].includes(stateCandidate.status)
-              ),
-              stateCandidateState =
-                editorHost.latestStates?.[stateCandidate.entityId] ||
-                editorHost.states?.get?.(stateCandidate.entityId) ||
-                editorHost.states?.[stateCandidate.entityId],
-              stateCandidateSnapshot = stateCandidateState?.newState || stateCandidateState
-            return (
-              (extraLabels2 as any)[extraTypes2(stateCandidate.entityId)[0]] +
-              ' · ' +
-              (stateCandidate.sourceMissing
-                ? '实体已移除或归属已改变，可取消选择'
-                : stateCandidateDisabled
-                  ? '已禁用或移除'
-                  : stateCandidateSnapshot?.state || '暂无状态')
-            )
-          },
-          renderExtraControlList = () => {
-            extraControlListElement.replaceChildren(), extraControlsByEntityId.clear(), extraStateLineByEntityId.clear()
-            const lowerCase = extraSearchInputElement.value.trim().toLowerCase(),
-              staleExtraControlList = (vector.extraControls || [])
-                .filter(
-                  (extraControlProbe: any) =>
-                    !fullRelatedEntityCatalog.some(
-                      (knownCatalogProbe: any) => knownCatalogProbe.entityId === extraControlProbe.entityId,
-                    ),
-                )
-                .map((staleExtraControlEntry: any) => ({
-                  entityId: staleExtraControlEntry.entityId,
-                  name: '已失效或不属于当前设备',
-                  status: 'missing',
-                  // 0.8.4：条目曾经属于这台（或关联）设备，现在归属变了 / 被移除，
-                  // 提示要区分「还能在别处找回」和「实体本身被禁用」。
-                  sourceMissing: true,
-                })),
-              visibleExtraControlList = [...fullRelatedEntityCatalog, ...staleExtraControlList].filter(
-                (visibleControlProbe) =>
-                  ((visibleControlProbe.name || '') + ' ' + visibleControlProbe.entityId)
-                    .toLowerCase()
-                    .includes(lowerCase),
-              )
-            visibleExtraControlList.length ||
-              extraControlListElement.append(
-                editorHost.createElement(
-                  'p',
-                  'i3d-note',
-                  deviceId3
-                    ? lowerCase
-                      ? '没有匹配的实体。'
-                      : '此设备暂无可选实体；已有配置会保留。'
-                    : editorHost.isGenericDeviceMode || bindingContainer
-                      ? associatedExtraDevices.length
-                        ? '没有匹配的实体。'
-                        : '先添加关联设备，再选择弹窗内容。'
-                      : (vector.extraControls || []).length
-                        ? '原设备暂不可用'
-                        : '主实体没有设备关联，无法获取所属设备实体。',
-                ),
-              )
-            for (const extraCandidateEntity of visibleExtraControlList) {
-              const some2 = (vector.extraControls || []).some(
-                  (extraControlMatchProbe: any) => extraControlMatchProbe.entityId === extraCandidateEntity.entityId,
-                ),
-                isExtraEntityDisabled = !!(
-                  extraCandidateEntity.disabledBy ||
-                  extraCandidateEntity.disabled_by ||
-                  extraCandidateEntity.enabled === false ||
-                  ['disabled', 'missing'].includes(extraCandidateEntity.status)
-                ),
-                extraEntityRowElement = editorHost.createElement('label', 'i3d-extra-entity-row'),
-                extraEntityCheckboxElement = editorHost.createElement('input')
-              ;(extraEntityCheckboxElement.type = 'checkbox'),
-                (extraEntityCheckboxElement.checked = some2),
-                (extraEntityCheckboxElement.disabled = !some2 && isExtraEntityDisabled),
-                extraControlsByEntityId.set(extraCandidateEntity.entityId, {
-                  check: extraEntityCheckboxElement,
-                  disabled: isExtraEntityDisabled,
-                })
-              const extraEntityDetailElement = editorHost.createElement('span')
-              const extraEntityStateLineElement = editorHost.createElement(
-                'small',
-                '',
-                extraEntityStateText(extraCandidateEntity),
-              )
-              extraStateLineByEntityId.set(extraCandidateEntity.entityId, {
-                element: extraEntityStateLineElement,
-                candidate: extraCandidateEntity,
-              }),
-                (extraEntityDetailElement.title =
-                  (extraCandidateEntity.name || extraCandidateEntity.entityId) + '\n' + extraCandidateEntity.entityId),
-                extraEntityDetailElement.append(
-                  editorHost.createElement('strong', '', extraCandidateEntity.name || extraCandidateEntity.entityId),
-                  editorHost.createElement('small', '', extraCandidateEntity.entityId),
-                  extraEntityStateLineElement,
-                ),
-                extraEntityCheckboxElement.addEventListener('change', () => {
-                  const currentExtraControls = vector.extraControls || []
-                  ;(vector.extraControls = extraEntityCheckboxElement.checked
-                    ? [
-                        ...currentExtraControls,
-                        {
-                          entityId: extraCandidateEntity.entityId,
-                          type: extraTypes2(extraCandidateEntity.entityId)[0],
-                          label: '',
-                          // 0.8.4：来自关联设备的实体要记住归属，运行时按设备名区分。
-                          ...(extraCandidateEntity.sourceDeviceId
-                            ? { sourceDeviceId: extraCandidateEntity.sourceDeviceId }
-                            : {}),
-                        },
-                      ]
-                    : currentExtraControls.filter(
-                        (removedControlProbe: any) => removedControlProbe.entityId !== extraCandidateEntity.entityId,
-                      )),
-                    !extraEntityCheckboxElement.checked &&
-                      isPurifierMode &&
-                      vector.airflowEntityId === extraCandidateEntity.entityId &&
-                      delete vector.airflowEntityId,
-                    !extraEntityCheckboxElement.checked &&
-                      isBathHeaterMode &&
-                      (vector.bathEffects = (vector.bathEffects || []).filter(
-                        (removedBathEffectProbe: any) =>
-                          removedBathEffectProbe.entityId !== extraCandidateEntity.entityId,
-                      )),
-                    refreshEditorPreview(),
-                    syncExtraControls(),
-                    previewDevicePanel(),
-                    isBathHeaterMode && editorHost.redrawBathEffects(),
-                    isPurifierMode && editorHost.renderAirflowSection(),
-                    editorHost.redrawDeviceMistSection(),
-                    editorHost.redrawRangehoodSection()
-                }),
-                extraEntityRowElement.append(extraEntityCheckboxElement, extraEntityDetailElement),
-                extraControlListElement.append(extraEntityRowElement)
-            }
-          }
-        ;(extraControlsDetailsElement.className = 'i3d-extra-chooser'),
-          // 0.8.4 `refreshStates`：只改状态文字，保留勾选与焦点。
-          (editorHost.refreshExtraControlStates = () => {
-            if (editorHost.isDisposed) return
-            for (const { element: stateLineElement, candidate: stateCandidate } of extraStateLineByEntityId.values())
-              stateLineElement.isConnected && (stateLineElement.textContent = extraEntityStateText(stateCandidate))
-          }),
-          extraSearchInputElement.addEventListener('input', renderExtraControlList),
-          renderExtraControlList(),
-          extraControlsDetailsElement.append(extraSearchInputElement, extraControlListElement),
-          currentContainer.append(extraControlsDetailsElement),
-          extraControlsDetailsElement.addEventListener('toggle', () => {
-            extraControlsDetailsElement.open && previewDevicePanel()
-          })
-        // 0.8.4：关联设备清单——从其它 HA 设备补实体，失效设备可整台移除。
-        if (editorHost.isGenericDeviceMode) {
-          const associatedDeviceSection = createConfigSection('关联设备（可选）'),
-            addAssociatedDeviceButton = editorHost.createButton('添加关联设备', () => void addAssociatedDevice()),
-            associatedDeviceRowsElement = editorHost.createElement('div')
-          let associatedDevicePickerHandle: any = null
-          const addAssociatedDevice = async () => {
-            const deviceChoices = selectableExtraDeviceChoices()
-            if (!deviceChoices.length || editorHost.isDisposed || !editorHost.isAccessAllowed) return
-            associatedDevicePickerHandle?.close()
-            const devicePickerGeneration = editorHost.pickerGeneration
-            const pickerHandle = openConfigurationPicker({
-              document: editorHost.editorDialogElement.ownerDocument,
-              title: '添加关联设备',
-              kicker: 'DEVICE LINK',
-              unit: '设备',
-              description:
-                '选择要并入本控件的 HA 设备。关联后可以在这里挑选该设备的实体作为附加功能；移除设备会连同它名下的附加功能一起移除。',
-              selectedId: '',
-              emptyMessage: '没有可选设备。',
-              sections: [{ options: deviceChoices }],
-              async onSelect(pickedDeviceId: string) {
-                if (
-                  editorHost.isDisposed ||
-                  !editorHost.isAccessAllowed ||
-                  devicePickerGeneration !== editorHost.pickerGeneration
-                )
-                  throw new Error('该配置已变更，请重新选择。')
-                const pickedDeviceChoice = deviceChoices.find((choice: any) => choice.id === pickedDeviceId)
-                if (!pickedDeviceChoice) throw new Error('该设备已变更，请重新选择。')
-                ;(vector.extraDevices = [
-                  ...(Array.isArray(vector.extraDevices) ? vector.extraDevices : []),
-                  { deviceId: pickedDeviceId, deviceName: pickedDeviceChoice.label },
-                ]),
-                  refreshEditorPreview(),
-                  renderPanel()
-              },
-              onClose() {
-                editorHost.pickerHandle === pickerHandle && (editorHost.pickerHandle = null)
-              },
-            })
-            editorHost.pickerHandle = pickerHandle
-            associatedDevicePickerHandle = pickerHandle
-          }
-          for (const deviceEntry of associatedExtraDevices) {
-            const remainingDeviceRow = editorHost.createElement('div', 'i3d-associated-device-row'),
-              removeDeviceButton = editorHost.createButton('移除', () => {
-                if (removeDeviceButton.dataset.confirm !== 'true') {
-                  ;(removeDeviceButton.dataset.confirm = 'true'), (removeDeviceButton.textContent = '确认移除')
-                  return
-                }
-                removeExtraDevice2(vector, deviceEntry.deviceId), refreshEditorPreview(), renderPanel()
-              }),
-              remainingDeviceLabel = editorHost.createElement(
-                'span',
-                '',
-                deviceEntry.deviceName || deviceEntry.deviceId,
-              )
-            ;(remainingDeviceLabel.title = deviceEntry.deviceId),
-              remainingDeviceRow.append(remainingDeviceLabel, removeDeviceButton),
-              associatedDeviceRowsElement.append(remainingDeviceRow)
-          }
-          addAssociatedDeviceButton.setAttribute('disabled', String(!selectableExtraDeviceChoices().length)),
-            associatedDeviceSection.append(
-              associatedDeviceRowsElement,
-              addAssociatedDeviceButton,
-              editorHost.createElement(
-                'p',
-                'i3d-note',
-                '关联设备只借用其 HA 实体，主设备仍是当前绑定的设备。找不到原设备时，它的附加功能会保留但标记为失效。',
-              ),
-            ),
-            currentContainer.append(associatedDeviceSection)
-        }
+        })
+        currentContainer = extraSourcesSectionElement
       }
       if (isBathHeaterMode) {
         const bathAirflowSectionElement = createConfigSection('出风动画'),
@@ -2467,87 +2203,19 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
         )
         fanControlSection.append(bladeSection)
       }
-      if (editorHost.isWindowOpenerMode) {
-        currentContainer = createConfigSection('开窗器')
-        const openerSettingsRow = createConfigRow(currentContainer)
-        createSelectRow(
-          openerSettingsRow,
-          '动画来源',
-          [
-            ['auto', '自动：有位置用开窗器，无位置用窗磁'],
-            ['opener', '开窗器'],
-            ['contact', '安防窗磁'],
-          ],
-          ['auto', 'opener', 'contact'].includes(vector.motionSource) ? vector.motionSource : 'auto',
-          (pickedMotionSource: any) => {
-            ;(vector.motionSource = pickedMotionSource), refreshEditorPreview(), renderPanel()
+      if (editorHost.isWindowOpenerMode)
+        currentContainer = renderWindowOpenerSection(
+          {
+            editorHost,
+            createConfigSection,
+            createConfigRow,
+            createSelectRow,
+            createNumberRow,
+            refreshEditorPreview,
+            renderPanel,
           },
+          vector,
         )
-        if (vector.motionSource === 'contact') {
-          const configuredWindowContacts = (editorHost.structuredClone2.environment?.security?.windows || []).filter(
-            (windowEntry: any) => windowEntry.contactEntityId,
-          )
-          configuredWindowContacts.length ||
-            currentContainer.append(editorHost.createElement('p', 'i3d-note', '尚未配置窗磁，动画会保留当前姿态。'))
-        }
-        const estimateMotionRow = createConfigRow(currentContainer),
-          estimateMotionInput = editorHost.createElement('input')
-        Object.assign(estimateMotionInput, {
-          type: 'checkbox',
-          checked: vector.estimateMotion !== false,
-        }),
-          (estimateMotionInput.onchange = () => {
-            ;(vector.estimateMotion = estimateMotionInput.checked), refreshEditorPreview(), renderPanel()
-          }),
-          estimateMotionRow.append(
-            editorHost.createElement('span', '', '无位置回报时显示估算动画'),
-            estimateMotionInput,
-          )
-        createNumberRow(
-          openerSettingsRow,
-          '全行程时间（秒）',
-          Number.isFinite(vector.travelSeconds) ? vector.travelSeconds : 20,
-          5,
-          180,
-          1,
-          (pickedTravelSeconds: any) => {
-            ;(vector.travelSeconds = pickedTravelSeconds), refreshEditorPreview()
-          },
-        )
-        createNumberRow(
-          openerSettingsRow,
-          '最大显示开度（%）',
-          Number.isFinite(vector.openPercent) ? vector.openPercent : 100,
-          0,
-          100,
-          1,
-          (pickedOpenPercent: any) => {
-            ;(vector.openPercent = pickedOpenPercent), refreshEditorPreview()
-          },
-        )
-        currentContainer.append(
-          editorHost.createElement(
-            'p',
-            'i3d-note',
-            '位置回报优先。行程时间只用于无回报时的动画估算；动画到位不代表窗户已关好。最大显示开度只调整模型，不改变发给设备的目标。',
-          ),
-        )
-        const windowPreviewRow = editorHost.createElement('div', 'i3d-security-grid i3d-lock-motion-grid')
-        for (const [windowPreviewLabel, windowPreviewOpening] of [
-          ['预览开窗', true],
-          ['预览关窗', false],
-        ] as [string, boolean][]) {
-          const windowPreviewButton = editorHost.createButton(windowPreviewLabel, () =>
-            (editorHost as any).previewWindowMotion?.(vector.id, windowPreviewOpening),
-          )
-          ;(windowPreviewButton.disabled = !(editorHost as any).previewWindowMotion),
-            windowPreviewRow.append(windowPreviewButton)
-        }
-        currentContainer.append(
-          windowPreviewRow,
-          editorHost.createElement('p', 'i3d-note', '预览只检查模型动作，不发送设备指令。'),
-        )
-      }
       if (editorHost.isCoverMode) {
         if (!matchedCurtainGroup) {
           const combineCurtainButton = editorHost.createButton('组合另一扇窗帘', () => openCurtainGroupDialog(vector))
@@ -2791,7 +2459,7 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
         })
         ;(mapPickerButton.className = 'i3d-picker-button'),
           createSettingRow(currentContainer, '地图来源', mapPickerButton)
-        const alignMapButton = editorHost.createButton('底图对齐', () => {
+        const alignMapButton = editorHost.createButton('应用底图对齐', () => {
           const mapEntityState =
               editorHost.latestStates === null
                 ? editorHost.states?.get?.(vector.map?.entityId)
@@ -3400,59 +3068,7 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
       createConfigSection('绑定管理').append(removeItemButton)
     } else
       currentContainer.append(
-        editorHost.createElement(
-          'p',
-          'i3d-note',
-          editorHost.isVacuumMode
-            ? addItemButton.length
-              ? '点击“添加扫地机”，选择模型后绑定扫地机设备。'
-              : '当前楼层暂无扫地机模型，请先在 3D 户型图绘制中添加扫地机器人后更新户型。'
-            : editorHost.isGenericDeviceMode
-              ? addItemButton.length
-                ? '点击“添加' + editorHost.kindLabel + '”，选择模型并绑定 HA 设备。'
-                : '当前楼层暂无' +
-                  editorHost.kindLabel +
-                  '模型，请先在 3D 户型图绘制中添加' +
-                  editorHost.kindLabel +
-                  '后更新户型。'
-              : editorHost.isSpeakerMode
-                ? addItemButton.length
-                  ? '点击“添加设备”，选择智能音响、长条音响或立式音响模型，并绑定媒体播放器实体。'
-                  : '当前楼层暂无音响模型，请先在 3D 户型图绘制中添加智能音响、长条音响或立式音响后更新户型。'
-                : editorHost.isMediaDeviceMode
-                  ? addItemButton.length
-                    ? '点击“添加设备”，选择' + mediaDeviceLabel(editorHost.deviceKind) + '模型并绑定媒体播放器实体。'
-                    : '当前楼层暂无' +
-                      mediaDeviceLabel(editorHost.deviceKind) +
-                      '模型，请先在 3D 户型图绘制中添加后更新户型。'
-                  : editorHost.isNasMode
-                    ? addItemButton.length
-                      ? '点击“添加设备”，选择设备类型和模型，再绑定开启实体。'
-                      : '当前楼层暂无 NAS 模型，请先在 3D 户型图绘制中添加 NAS 模型后更新户型。'
-                    : editorHost.isCoverMode
-                      ? addItemButton.length
-                        ? '点击“添加窗帘”，选择需要控制的窗帘模型。'
-                        : '当前楼层暂无窗帘模型，请先在 3D 户型图绘制中添加普通窗帘后更新户型。'
-                      : editorHost.deviceKind === 'water-heater'
-                        ? addItemButton.length
-                          ? '点击“添加热水器”，选择需要控制的热水器模型。'
-                          : '当前楼层暂无热水器模型，请先在 3D 户型图绘制中添加储水式或燃气式热水器后更新户型。'
-                        : ['airer', 'fan', 'purifier'].includes(editorHost.deviceKind)
-                          ? addItemButton.length
-                            ? '点击“添加' + editorHost.kindLabel + '”，选择需要控制的' + editorHost.kindLabel + '模型。'
-                            : '当前楼层暂无' +
-                              editorHost.kindLabel +
-                              '模型，请先在 3D 户型图绘制中添加' +
-                              editorHost.kindLabel +
-                              '后更新户型。'
-                          : editorHost.isClimateMode
-                            ? addItemButton.length
-                              ? '点击“添加空调/浴霸”，选择设备类型和关联模型。'
-                              : '当前楼层暂无可关联模型，请先在 3D 户型图绘制中添加壁挂空调、柜机或空调出风口后更新户型。'
-                            : addItemButton.length
-                              ? '点击“添加灯光”，选择需要控制的灯组。'
-                              : '当前楼层暂无灯组，请先在 3D 户型图绘制中添加灯组后更新户型。',
-        ),
+        editorHost.createElement('p', 'i3d-note', modelListHint(editorHost, addItemButton.length > 0)),
       )
   }
   if (

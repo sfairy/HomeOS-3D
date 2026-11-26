@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import os
 from collections.abc import Callable, Iterable
@@ -98,6 +99,16 @@ class StateHub:
         #: 当前状态来源的标识（连接作用域）。``CoverMemory.observe`` 用它丢弃
         #: 上一轮连接迟到的状态 —— 换了 HA 之后旧连接的事件不该写进新连接的历史。
         self.source_key = ""
+        #: 面向浏览器的「HA 连接身份」（0.8.9）：由 base_url + 凭据指纹派生，
+        #: 跨传输重连保持稳定 —— 前端据此判断「还连着我以为的那台 HA 吗」。
+        #: 换 HA 后这个值必然变化，于是旧页面里的写操作会被 409 挡住。
+        self._runtime_source_identity = ""
+        #: 身份变化计数（单调递增）。前端缓存按它整体失效；后端日志用它把
+        #: 「第几次换连接之后出的问题」串起来。
+        self._runtime_epoch = 0
+        #: 运行时是否在线（HA 连接是否可用）。与「有状态」不是一回事：
+        #: 断连期间旧状态仍在内存里，但不能据此接受新操作。
+        self._runtime_online = False
         self._states = {}
         self._subscribers = set()
         self._subscriber_entities = {}
@@ -127,12 +138,66 @@ class StateHub:
 
     def _mark_fetch_changes(self, entity_ids: set[str]) -> None:
         """把一批实体的变更登记到所有进行中的取数窗口里。
-
         每个窗口有自己的 ``requested`` 范围，只登记它关心的那部分：否则补拉 A 状态的结果
         会把正在整表替换的窗口也标脏，导致那次替换白做。
         """
         for changes in self._fetch_changes.values():
             changes.changed.update(entity_ids if changes.requested is None else changes.requested & entity_ids)
+
+    # ── HA 连接身份（0.8.9）──────────────────────────────────────────────
+
+    @property
+    def runtime_source_identity(self) -> str:
+        """面向浏览器的 HA 连接身份（空串表示尚未连接）。"""
+        return self._runtime_source_identity
+
+    @property
+    def runtime_epoch(self) -> int:
+        """身份变化计数：换 HA 时自增，前端据此丢弃旧页面里的缓存与操作。"""
+        return self._runtime_epoch
+
+    @property
+    def runtime_online(self) -> bool:
+        return self._runtime_online
+
+    def source_changed(self, expected: str) -> bool:
+        """``expected`` 是否与当前身份不一致。
+
+        空串的 ``expected`` 视为「未声明」，一律放行 —— 旧客户端不发这个字段，
+        不能因此把它们全部 409 掉。
+        """
+        if not expected:
+            return False
+        return bool(self._runtime_source_identity) and expected != self._runtime_source_identity
+
+    def set_runtime_online(self, online: bool, identity: str = "") -> bool:
+        """更新在线状态与连接身份；身份变化时自增 epoch。返回是否发生了身份变化。
+
+        换 HA 的判定只看 ``identity``：断连重连（同一台 HA）不改变身份，因此
+        epoch 不变、前端缓存继续有效 —— 这正是「重连后状态回跳」要修的那类问题：
+        回跳来自旧连接的迟到帧，而它们带的是旧 ``source_key``。
+        """
+        previous = self._runtime_source_identity
+        if identity:
+            self._runtime_source_identity = identity
+            if previous and identity != previous:
+                self._runtime_epoch += 1
+        self._runtime_online = bool(online)
+        return bool(previous) and self._runtime_source_identity != previous
+
+    @staticmethod
+    def browser_source_identity(base_url: str, credential: str) -> str:
+        """由 base_url + 凭据指纹派生浏览器可见身份。
+
+        带 ``ha-browser-source-v1`` 前缀是为了让这个值**自解释**：日志里一眼能看出
+        它是 0.8.9 引入的「浏览器侧连接身份」，而不是某个实体 id 或会话 id。
+        用 ``sha256(...)[:16]`` 而不是原文：前端会把它写进 URL / 缓存键 / 日志，
+        不能把 base_url 里的内网主机名与凭据指纹原样带出去。
+        """
+        digest = hashlib.sha256(
+            f"ha-browser-source-v1\\x00{base_url.strip().rstrip('/')}\\x00{credential}".encode()
+        ).hexdigest()
+        return digest[:16]
 
     @staticmethod
     def normalize(raw: dict[str, Any]) -> dict[str, Any]:

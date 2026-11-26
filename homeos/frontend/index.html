@@ -57,9 +57,10 @@
 
     <!-- 机身外壳重置（margin / overflow / 背景）写在 /static/spa-shell.css 里。
          外壳页 CSP 是 `style-src 'self'`，行内 <style> 会被浏览器拦下，别挪回这里。 -->
-    <!-- 3D 户型图编辑器首屏加载遮罩样式。全局挂一张（1.7KB）：遮罩标记在 <body> 里，
-         没有这张表它在 `/3d-studio` 首帧就是一块无样式的纯文本。 -->
-    <link rel="stylesheet" href="/static/3d-studio/studio-loading.css">
+    <!-- 3D 户型图编辑器首屏加载遮罩样式**不在这里**（0.8.9 公告 9）。
+         原因：它只服务 `/3d-studio` 创作页，却被无条件挂在所有路由的首屏 ——
+         普通仪表盘用户为一个用不到的遮罩多付一次 CSS 请求与解析。
+         改由路由守卫在判定「进入创作页」后按需注入（见 `src/shared/utils/ui/studio-loading-style.ts`）。 -->
 </head>
 
 <body>

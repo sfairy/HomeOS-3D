@@ -1,5 +1,7 @@
 import { renderFlowLine } from './flow-line'
 import { renderInteraction3d } from '../../bridge/bridge'
+import { PAGE_BACKGROUND_COMPONENT_TYPE, mountPageBackgroundLayer } from '../controls/page-background-layer'
+import { staticAssetImageSource } from './asset-state'
 import {
   prewarmCameraMedia,
   mountCameraMedia,
@@ -56,6 +58,18 @@ registerComponent('interaction3d', {
 })
 registerComponent('flow-line', {
   render: renderFlowLine,
+})
+// 页面背景（0.8.9）：主页面宿主。侧边栏走 `RightSidebar.vue` 的同一份渲染实现。
+// 它是纯装饰层，不参与命中，因此不需要进「组件族」——不会拖慢展示端首屏。
+registerComponent(PAGE_BACKGROUND_COMPONENT_TYPE, {
+  render(pageBackgroundComponent: { properties?: unknown } | undefined) {
+    const layer = mountPageBackgroundLayer({
+      background: pageBackgroundComponent?.properties ?? pageBackgroundComponent,
+      resolveAssetUrl: staticAssetImageSource,
+    })
+    // 没有可画的内容时给一个零尺寸占位：注册表要求 render 返回节点。
+    return layer ?? document.createElement('div')
+  },
 })
 
 installRegistryComponents(registerComponent)

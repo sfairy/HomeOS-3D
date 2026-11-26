@@ -10,7 +10,7 @@
  * - 识别到「唤醒词 + 指令」时直接把指令交给一轮原地对话（用户已经说完了，
  *   再让他重新长按一次是多余的动作）；只说唤醒词时不抢占，交给长按流程。
  *
- * 抽成独立模块而不是写进组件：`AgentCompanion.vue` 卡在文件规模棘轮上。
+ * 抽成独立模块而不是写进组件：`AgentCompanion.vue` 已经很大。
  */
 import { computed, watch } from 'vue'
 import type { Ref } from 'vue'

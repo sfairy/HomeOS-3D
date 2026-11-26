@@ -164,6 +164,29 @@ const HOUSEHOLD_DEVICE_PROFILES: Record<string, DeviceProfile> = {
     icon: 'mdi:air-humidifier',
     height: 0.323,
   },
+  // 0.8.9：取暖器 / 除湿机 / 电动阀门。与后端 `DEVICE_PROFILES` 同名同集合；
+  // 三者复用通用家电面板（不新增渲染形态）。
+  heater: {
+    collection: 'heaters',
+    modelType: 'heater',
+    label: '取暖器',
+    icon: 'mdi:radiator',
+    height: 0.62,
+  },
+  dehumidifier: {
+    collection: 'dehumidifiers',
+    modelType: 'dehumidifier',
+    label: '除湿机',
+    icon: 'mdi:water-percent',
+    height: 0.53,
+  },
+  'electric-valve': {
+    collection: 'electricValves',
+    modelType: 'electric-valve',
+    label: '电动阀门',
+    icon: 'mdi:valve',
+    height: 0.22,
+  },
   'aroma-diffuser': {
     collection: 'aromaDiffusers',
     modelType: 'aroma-diffuser',

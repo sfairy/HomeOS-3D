@@ -142,7 +142,7 @@ export interface NaturalWoodMaterialLibrary {
 }
 
 /** 各「部位」对应的材质种类：把语义（model role）映射到种类。 */
-/** 部位语义 → 材质种类（单表，避免 switch 的分支数进复杂度棘轮）。 */
+/** 部位语义 → 材质种类（单表查起来比 switch 短，也便于后续加部位）。 */
 const ROLE_TO_KIND: Readonly<Record<string, NaturalWoodKind>> = Object.freeze({
   wood: 'wood',
   legs: 'wood',

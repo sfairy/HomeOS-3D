@@ -11,6 +11,10 @@ import { finite as finite2 } from '../../../loaders/studio-normalization'
 
 import { lampItemTypeSet } from '../../items/item-catalog'
 
+import { previewIssues } from '../../../loaders/preview-diagnostics'
+
+import { missingDecorationNames, exportFolderNameError } from './decoration-model-guard'
+
 import { refreshStepChecklist } from '../ui/step-checklist'
 
 import type { StudioAppContext } from '../studio-app-context'
@@ -101,23 +105,32 @@ export async function generateExportBundle(deps: GenerateExportBundleDeps) {
 
   if (!appCtx.pendingRuntimeSettings || appCtx.isInteractionLocked) return
   saveExportPreset()
-  const trim = exportFolderNameInput.value.trim()
-  if (
-    !trim ||
-    // biome-ignore lint/suspicious/noControlCharactersInRegex: 导出名校验：控制字符属于必须拒绝的非法文件名范围
-    /[<>:\"/\\|?*\x00-\x1f\x7f]/.test(trim) ||
-    trim.startsWith('.') ||
-    /[. ]$/.test(trim)
-  ) {
+  const trim = exportFolderNameInput.value.trim(),
+    folderNameErrorText = exportFolderNameError(exportFolderNameInput.value)
+  if (folderNameErrorText) {
     exportFolderNameInput.classList.add('invalid'),
       exportFolderNameInput.focus(),
-      (exportStatusElement.textContent = '请输入有效的文件夹名')
+      (exportStatusElement.textContent = folderNameErrorText)
     return
   }
   exportFolderNameInput.classList.remove('invalid')
   const qf2 = collectSelectedExportFiles()
   if (!qf2.size) {
     exportStatusElement.textContent = '请至少勾选一项图片'
+    return
+  }
+  /**
+   * 装饰模型缺失就先拦下（上游同款文案）。
+   *
+   * 编辑期它静默不渲染（`user-decoration` 没有程序化兜底几何），不拦的话导出的底图里
+   * 那一块就是空的，而用户拿到的是一份「看起来成功」的成品。放在最前面：
+   * 后面还有构图、逐层渲染、阴影复制，这些都做完再报错等于白跑一遍。
+   */
+  const missingDecorationNameList = missingDecorationNames(appCtx.studioProject?.floors, previewIssues())
+  if (missingDecorationNameList.length) {
+    const missingDetail = missingDecorationNameList.slice(0, 3).join('、')
+    exportStatusElement.textContent = '有装饰模型暂时无法载入，请检查后再导图。'
+    showToast(`有装饰模型暂时无法载入：${missingDetail}。请检查后再导图。`, 'error')
     return
   }
   const exportBaseSize = stateViewportAspectGetCanvasSize(),

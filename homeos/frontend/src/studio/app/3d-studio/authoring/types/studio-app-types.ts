@@ -198,7 +198,18 @@ export type DoorPartMaterial = {
 }
 
 /** createSceneItem 的尺寸覆盖（拖动排序 / 拖拽生成洞口时用）。 */
-export type SceneItemSizeOverrides = { width?: number; depth?: number }
+export type SceneItemSizeOverrides = {
+  width?: number
+  depth?: number
+  /**
+   * 额外写进物品记录的字段（0.8.9）。
+   *
+   * 用于「同一类型不同资产」的物品：用户装饰的 `user-decoration` 只有靠 `assetId`
+   * 才能区分是哪一件 GLB。做成通用通道而不是给 `createSceneItem` 再加参数，
+   * 是为了不再改动那个已经很长、调用点很多的函数签名。
+   */
+  extraFields?: Record<string, unknown>
+}
 
 /** refreshSceneRender 的重建范围。 */
 export type SceneRefreshOptions = {

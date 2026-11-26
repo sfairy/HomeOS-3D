@@ -362,4 +362,57 @@ export const displayTemplates = [
       }
     },
   },
+  {
+    id: 'page-background',
+    name: '页面背景',
+    type: 'page-background',
+    description: '为主页面选择内置背景或图片，支持铺满与自由布局、透明度调节。',
+    thumbnailId: 'page-background',
+    // 只能放在**页面顶层**（后端 `panel/schema.py` 会拒绝嵌套与侧边栏之外的层级）。
+    scopes: ['page'],
+    create({
+      id: pageBackgroundComponentId,
+      instanceName = '页面背景',
+      canvas,
+    }: {
+      id: string
+      instanceName?: string
+      canvas?: { width?: number; height?: number }
+    }) {
+      const pageBackgroundCanvasWidth = Number(canvas?.width || 2778),
+        pageBackgroundCanvasHeight = Number(canvas?.height || 1940)
+      return {
+        id: pageBackgroundComponentId,
+        type: 'page-background',
+        componentVersion: 1,
+        // 背景铺满整块画布，且 `zIndex` 取 0：其它控件默认 1，保证背景永远在最底层。
+        position: {
+          x: 0,
+          y: 0,
+          width: pageBackgroundCanvasWidth,
+          height: pageBackgroundCanvasHeight,
+          rotation: 0,
+          zIndex: 0,
+        },
+        // 页面背景没有实体绑定、没有动作、没有子控件：三个空容器按最小类型写
+        // （`Record<string, never>` / `unknown[]`），不留宽类型。
+        bindings: {} as Record<string, never>,
+        properties: {
+          instanceName,
+          source: 'preset',
+          preset: 'default/grid',
+          assetId: '',
+          opacity: 100,
+          layoutMode: 'fill',
+          position: { x: 0, y: 0, width: 100, height: 100 },
+        },
+        style: {
+          scale: 1,
+          visible: true,
+        },
+        actions: {} as Record<string, never>,
+        children: [] as unknown[],
+      }
+    },
+  },
 ]

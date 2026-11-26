@@ -1,4 +1,5 @@
 /** mountStage handler clusters — wired via explicit host from stage.ts */
+import { createMarkerStateIndex } from '../state-update-plan'
 import { resolveRuntimeFloor } from './floor-navigation'
 import { markerVisibilityHint } from './marker-visibility'
 import { placeMarker } from './marker-placement'
@@ -593,9 +594,21 @@ export function createSyncMarkers(host: StageHandlersHost) {
         host.map.delete(existingMarkerId),
         host.sceneCacheByKey.delete(existingMarkerId),
         (hasMarkerChange = true))
+    // 0.8.9 `createMarkerStateIndex`：这一帧**必然受影响**的标签，先建一次反查表。
+    // 命中集合里的标签直接进入刷新，不再对每个标签跑一遍 `boundEntityIds()`；
+    // 没命中的仍走原来的 `markerChange.affects()` 兜底（它会扫描标签的嵌套实体字段，
+    // 覆盖范围比索引更宽，不能直接用索引结果做否定判断）。
+    const changedEntityIds =
+      markerChange && markerChange.changed instanceof Set ? (markerChange.changed as Set<string>) : null
+    const affectedMarkerIds = changedEntityIds?.size
+      ? new Set(createMarkerStateIndex(syncMarkerItems).affectedBy(changedEntityIds))
+      : null
     for (const syncMarkerItem of syncMarkerItems) {
       let syncMarkerElement = host.map.get(syncMarkerItem.id)
-      if (syncMarkerElement && markerChange && !markerChange.affects(syncMarkerItem)) continue
+      if (syncMarkerElement && markerChange) {
+        const isDirectlyAffected = affectedMarkerIds?.has(syncMarkerItem.id) === true
+        if (!isDirectlyAffected && !markerChange.affects(syncMarkerItem)) continue
+      }
       if (((hasMarkerChange = true), !syncMarkerElement)) {
         ;(syncMarkerElement = createStageElement(
           syncMarkerItem.passiveSensor ||

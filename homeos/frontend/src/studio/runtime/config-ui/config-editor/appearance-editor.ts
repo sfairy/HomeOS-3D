@@ -202,7 +202,7 @@ export async function openInteraction3dAppearanceEditor({
     })
   const appearanceNoteElement = createPlainElement(
     'p',
-    '调整当前户型的整体光照与阴影。完成后点击页面上方保存，仅保存至当前 3D 控件。',
+    '调整当前户型的整体光照与阴影。完成后点击页面上方保存，保存至当前 3D 控件的这个主题。',
   )
   ;(appearanceNoteElement.className = 'i3d-note'),
     appearanceBodyElement.append(restoreDefaultsButton, appearanceNoteElement, appearanceErrorElement),

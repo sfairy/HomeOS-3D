@@ -1,8 +1,8 @@
 /**
  * 天气预览态：面板点「雨 / 雷雨…」先看 12 秒，到点自动恢复真实天气。
  *
- * 单独成模块的原因：这段状态（预览键、超时句柄、订阅者）原先散在 2800 行的
- * `runtime.ts` 里，而仓库有「文件只许变小」的门禁。抽出来之后运行时只保留一个
+ * 单独成模块的原因：这段状态（预览键、超时句柄、订阅者）原先散在数千行的
+ * `runtime.ts` 里，继续堆在里面只会让宿主更难读。抽出来之后运行时只保留一个
  * 入口，预览的合法性判断也集中在一处。
  */
 import { WEATHER_EFFECTS, WEATHER_PREVIEW_TIMEOUT_MS, weatherEffectKey } from '@/studio/platform/weather-settings'

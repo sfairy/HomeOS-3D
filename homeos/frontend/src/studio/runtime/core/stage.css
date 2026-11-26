@@ -1,5 +1,6 @@
 /* @import 必须位于所有普通规则之前，否则浏览器整条丢弃（设备面板样式会全部失效）。 */
 @import "/static/modules/interaction3d/controls.css";
+@import "/static/range-control.css";
 @import "../nas/nas-panel.css";
 @import "../climate/climate-panel.css";
 @import "../cover/cover-panel.css";
@@ -754,11 +755,12 @@ body.interaction3d-stage.is-background-hidden,
   align-self: end;
   width: 100%;
   min-width: 0;
-  height: 14px;
+  /* 几何全部取自 `range-control.css` 的 `--hb-rail-*`（0.8.9 对齐滑轨的唯一来源）。 */
+  height: var(--hb-rail-input-height);
   margin: 4px 0;
   padding: 0;
-  border: 4px solid #252322;
-  border-radius: 10px;
+  border: var(--hb-rail-border-width) solid var(--hb-rail-border-color);
+  border-radius: var(--hb-rail-radius);
   appearance: none;
   -webkit-appearance: none;
   /* 默认与亮度同款：按 --progress-pct 裁切，避免音量/风速等拇指后露装饰渐变 */
@@ -785,39 +787,30 @@ body.interaction3d-stage.is-background-hidden,
   ) !important;
 }
 .interaction3d-stage .i3d-temperature input {
-  background:
-    linear-gradient(
-      90deg,
-      transparent 0%,
-      transparent var(--hb-light-slider-progress, var(--progress-pct, 0%)),
-      #3a342c var(--hb-light-slider-progress, var(--progress-pct, 0%)),
-      #3a342c 100%
-    ),
-    linear-gradient(90deg, #eaa95b, #f1e1bf, #b8d6f4) !important;
 }
 .interaction3d-stage :is(.i3d-slider input, input.i3d-control-range)::-webkit-slider-runnable-track {
   background: transparent !important;
 }
 .interaction3d-stage :is(.i3d-slider input, input.i3d-control-range)::-webkit-slider-thumb {
-  width: 36px;
-  height: 36px;
-  border: 5px solid transparent;
+  width: var(--hb-rail-thumb-size);
+  height: var(--hb-rail-thumb-size);
+  border: var(--hb-rail-thumb-border) solid var(--hb-rail-thumb-border-color);
   border-radius: 50%;
-  background: linear-gradient(145deg, #8a7865, #4e4339) padding-box;
-  filter: drop-shadow(0 5px 7px #0009);
-  box-shadow: inset 0 1px #ffffff2e;
+  background: var(--hb-rail-thumb-background);
+  filter: var(--hb-rail-thumb-filter);
+  box-shadow: var(--hb-rail-thumb-shadow);
   appearance: none;
   -webkit-appearance: none;
 }
 .interaction3d-stage :is(.i3d-slider input, input.i3d-control-range)::-moz-range-thumb {
-  width: 27px;
-  height: 27px;
-  border: 5px solid transparent;
+  /* 与 WebKit 同尺寸（0.8.9 的对齐目标之一：两端观感一致，端点才读得准）。 */
+  width: var(--hb-rail-thumb-size);
+  height: var(--hb-rail-thumb-size);
+  border: var(--hb-rail-thumb-border) solid var(--hb-rail-thumb-border-color);
   border-radius: 50%;
-  background: linear-gradient(145deg, #8a7865, #4e4339) padding-box;
-  box-shadow:
-    0 5px 7px #0009,
-    inset 0 1px #ffffff2e;
+  background: var(--hb-rail-thumb-background);
+  filter: var(--hb-rail-thumb-filter);
+  box-shadow: var(--hb-rail-thumb-shadow);
 }
 .interaction3d-stage .i3d-slider-legend {
   display: flex;
@@ -3369,25 +3362,9 @@ body.interaction3d-stage.is-background-hidden,
 }
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-temperature input,
 .interaction3d-stage[data-scene-style="natural-wood"] .i3d-temperature input {
-  background:
-    linear-gradient(
-      90deg,
-      transparent 0%,
-      transparent var(--hb-light-slider-progress, var(--progress-pct, 0%)),
-      #ddd2c0 var(--hb-light-slider-progress, var(--progress-pct, 0%)),
-      #ddd2c0 100%
-    ),
-    linear-gradient(90deg, #e4ad6b, #f3ead9, #a8c7dd) !important;
 }
 .interaction3d-stage[data-scene-style="warm-wood"] .hb-cover-details-position input,
 .interaction3d-stage[data-scene-style="natural-wood"] .hb-cover-details-position input {
-  background: linear-gradient(
-    90deg,
-    #ae8c59 0%,
-    #ae8c59 var(--hb-cover-position-progress, var(--progress-pct, 0%)),
-    #ded4c3 var(--hb-cover-position-progress, var(--progress-pct, 0%)),
-    #ded4c3 100%
-  ) !important;
 }
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel,
 .interaction3d-stage[data-scene-style="natural-wood"] .i3d-climate-panel {
@@ -3542,17 +3519,6 @@ body.interaction3d-stage.is-background-hidden,
 }
 .interaction3d-stage[data-scene-style="warm-wood"] :is(button, input):focus-visible {
   outline-color: #886333;
-}
-.interaction3d-stage[data-scene-style="warm-wood"]
-  :is(.i3d-slider input, input.i3d-control-range)::-webkit-slider-thumb,
-.interaction3d-stage[data-scene-style="warm-wood"] .hb-cover-details-position input::-webkit-slider-thumb,
-.interaction3d-stage[data-scene-style="warm-wood"] :is(.i3d-slider input, input.i3d-control-range)::-moz-range-thumb,
-.interaction3d-stage[data-scene-style="warm-wood"] .hb-cover-details-position input::-moz-range-thumb,
-.interaction3d-stage[data-scene-style="natural-wood"] .hb-cover-details-position input::-webkit-slider-thumb,
-.interaction3d-stage[data-scene-style="natural-wood"] .hb-cover-details-position input::-moz-range-thumb {
-  background: linear-gradient(145deg, #fdf8ed, #d5be98) padding-box;
-  filter: drop-shadow(0 2px 3px #6e542444);
-  box-shadow: inset 0 1px #fff;
 }
 
 .interaction3d-stage[data-scene-style="warm-wood"] :is(.i3d-nas-panel, .i3d-device-panel, .i3d-lock-panel) {
@@ -4674,5 +4640,50 @@ body.interaction3d-stage.is-background-hidden,
 }
 .interaction3d-stage .i3d-floor-tabs button:before {
   /* 背景块的缩放必须留在自己的图层里，否则每帧都要重栅格化它所在按钮的文字。 */
+  will-change: transform;
+}
+
+/* 温度滑条：冷↔暖渐变（同一档在暖色主题下由下面的主题规则覆盖）。 */
+.interaction3d-stage .i3d-temperature {
+  --hb-rail-background: var(--hos-color-temperature-grad);
+}
+
+/* ---- 0.8.9 主题化滑条 ----
+   暖阳原木 / 自然木语下，滑轨与拇指换成浅木色。`range-control.css` 里的默认值是
+   深色档案（3D 舞台），不覆盖的话浅色场景里会出现一条突兀的深色轨道。
+   色值来自 `--hos-color-wood-*` 令牌（见 `packages/shared/src/styles/design-tokens.css`），
+   舞台样式本身不新增硬编码颜色。 */
+.interaction3d-stage:is([data-scene-style="warm-wood"], [data-scene-style="natural-wood"])
+  :is(.i3d-slider, .i3d-device-rail, .hb-cover-details-position) {
+  --hb-rail-border-color: var(--hos-color-wood-rail-border);
+  --hb-rail-shadow: var(--hos-color-wood-rail-shadow);
+  --hb-rail-thumb-background: var(--hos-color-wood-thumb-grad) padding-box;
+  --hb-rail-thumb-filter: var(--hos-color-wood-thumb-filter);
+  --hb-rail-thumb-shadow: var(--hos-color-wood-thumb-shadow);
+}
+.interaction3d-stage:is([data-scene-style="warm-wood"], [data-scene-style="natural-wood"])
+  :is(.i3d-brightness, .i3d-device-rail) {
+  --hb-rail-background: var(--hos-color-wood-rail-fill);
+}
+.interaction3d-stage:is([data-scene-style="warm-wood"], [data-scene-style="natural-wood"]) .i3d-temperature {
+  --hb-rail-background: var(--hos-color-wood-temperature);
+}
+.interaction3d-stage:is([data-scene-style="warm-wood"], [data-scene-style="natural-wood"]) .hb-cover-details-position {
+  --hb-cover-track-fill: var(--hos-color-wood-accent);
+  --hb-cover-track-empty: var(--hos-color-wood-track);
+}
+
+/* 胎压标签：容器只是投影锚点，不能让 `display:flex` 参与布局。 */
+.interaction3d-stage .i3d-car-tires:not([hidden]) {
+  display: contents;
+}
+
+/* 户型轮廓层要压在标签之下、场景之上。 */
+.interaction3d-stage #preview-3d > .i3d-model-outlines {
+  z-index: 8;
+}
+
+/* 楼层页签切到「全部」时会对整组做位移过渡，提前给合成层。 */
+.interaction3d-stage .i3d-floor-tabs:has(button[data-floor="all"][aria-pressed="true"]) {
   will-change: transform;
 }

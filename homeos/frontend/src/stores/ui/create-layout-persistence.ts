@@ -15,6 +15,7 @@ import { nextTick, type Ref } from 'vue'
 import { fetchProject, saveProject, setActiveProject } from '@/services/api/config'
 import { useAuthStore } from '@/stores/auth.store'
 import { getDefaultLayout } from '@/stores/defaults'
+import { normalizePageBackground } from '@/shared/utils/widget/page-background.util'
 import { NAV_TAB_ORDER_DEFAULT, normalizeEmbedNavTabLayoutFields } from '@/shared/utils/layout/nav-tabs.util'
 import { normalizeDashboardFooter } from '@/shared/constants/dashboard-footer'
 import { normalizeSecurityEmergency } from '@/shared/constants/security-emergency'
@@ -133,6 +134,19 @@ interface LayoutPersistenceDeps {
 /** 归一化背景图 URL：空值返回 `undefined`（由调用方回落到默认值）。 */
 function normalizeDisplayBackdropUrl(raw: unknown): string | undefined {
   return String(raw ?? '').trim() || undefined
+}
+
+/**
+ * 归一化侧边栏页面背景（0.8.9）。
+ *
+ * 与主页面共用同一份模型（`shared/utils/widget/page-background.util`），这里直接转调，
+ * 避免「布局配置一套区间、文档组件另一套区间」导致同一份背景在两侧显示不同。
+ *
+ * 返回可展开的片段：缺失时不产生键（旧观感），给了才归一化 ——
+ * 这样 `mergeLayoutWithDefaults` 里不必再写一个三元。
+ */
+function sidebarBackgroundField(raw: unknown): { sidebarBackground?: ReturnType<typeof normalizePageBackground> } {
+  return raw ? { sidebarBackground: normalizePageBackground(raw) } : {}
 }
 
 /** 取字符串字段：优先传给服务端的值，其次默认值，都没有时给空串。 */
@@ -291,6 +305,9 @@ export function createLayoutPersistence({
       lightOffBackgroundUrl:
         normalizeDisplayBackdropUrl(layout.lightOffBackgroundUrl) ?? getDefaultLayout().lightOffBackgroundUrl,
       rightPanelWidgets: sanitizePanelWidgets(layout.rightPanelWidgets),
+      // 0.8.9 侧边栏页面背景：缺失保持 undefined（旧观感），给了才归一化。
+      // `cloneLayoutForApi` 会深拷整个 config，归一化后的对象原样上行；旧后端宽表不丢键。
+      ...sidebarBackgroundField(layout.sidebarBackground),
       securityEmergency: normalizeSecurityEmergency({
         ...getDefaultLayout().securityEmergency,
         ...(securityEmergency || {}),
@@ -400,7 +417,7 @@ export function createLayoutPersistence({
    * 把一次成功的加载结果应用到本地状态。
    *
    * 独立成函数是为了让在途请求的 IIFE 只剩「取数 + 错误分级」，避免一个几百行的匿名
-   * 箭头函数把成功路径埋在中间（也让长度 / 圈复杂度棘轮不必为它让步）。
+   * 箭头函数把成功路径埋在中间。
    * 竞态保护留在调用点：requestId 与方案都未变化才算有效响应。
    * @param payload 接口返回的 data.data
    * @param profile 发起请求时的方案 ID

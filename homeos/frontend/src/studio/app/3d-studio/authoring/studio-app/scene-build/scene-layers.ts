@@ -11,6 +11,7 @@ import { mergeGeometries as mergeGeometries2 } from '/static/vendor/three/0.187.
 import { lampItemTypeSet } from '../../items/item-catalog'
 import { isPlacedItemHidden, placedVisibilityKey } from '../../items/placed-item-state'
 import { applyItemOrientation } from '../geometry/item-orientation'
+import { mountFloorRegionVisualsForScene } from './floor-region-visuals'
 
 export function previewTransformContext(runtime: StudioAppRuntime) {
   const previewTransformOrigin =
@@ -220,6 +221,13 @@ export function buildArchitectureLayer(
     !mg4 ||
     (runtime.buildSceneLayers('architecture'),
     runtime.buildInteriorScene(mg4),
+    // 0.8.9 地面分区 / 铺面色档 / 地暖盘管：在整板建好之后覆盖，幂等（自己会清上一轮）。
+    mountFloorRegionVisualsForScene({
+      appCtx: runtime.appCtx,
+      toWorld: mg4.toWorld,
+      floorSurfaceY: mg4.floorSurfaceY,
+      floorColor: runtime.backgroundSettings().floor,
+    }),
     preserveArchitectureLightCache || runtime.appCtx.contactShadowController?.invalidate(),
     runtime.setupSceneShadows(architectureShadowRoot, {
       rebuildAtlas: !preserveArchitectureLightCache,

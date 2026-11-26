@@ -60,6 +60,11 @@ export interface StudioFacadeState {
   activeTool: string | null
   planFocus: boolean
   libraryCollapsed: boolean
+  /**
+   * 0.8.9 地面分区选区。只带**显示需要的最小信息**（标题 / 可选数量 / 能否切分），
+   * 几何留在 app 层 —— engine 不依赖 3D 编辑器的类型。
+   */
+  floorRegion: { label: string; regionCount: number; canSplit: boolean } | null
 }
 
 export interface DisplayFacadeState {

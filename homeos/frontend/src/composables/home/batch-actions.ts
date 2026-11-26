@@ -131,7 +131,7 @@ interface BatchItem {
  * 按配置收集「需要关闭」的条目。
  *
  * 抽成独立函数是为了把四段同构的 `if (开关) for (实体) push(...)` 收敛到一处：
- * 堆在 turnOffWholeHome 里会让它轻易越过复杂度棘轮，而这段本身没有分支逻辑可言。
+ * 堆在 turnOffWholeHome 里会让它迅速变长，而这段本身没有分支逻辑可言。
  */
 function collectWholeHomeOffItems(overrides: WholeHomeOffOptions): BatchItem[] {
   const items: BatchItem[] = []

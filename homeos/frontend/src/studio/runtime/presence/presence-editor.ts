@@ -10,6 +10,18 @@ import { DESIGNS, createWalker, animateWalker, disposeWalker } from './presence-
 import { randomUuid } from '@app/shared/util/random-id'
 import { domElement } from '@app/shared/util/dom-factory'
 import { createSvgElement as createSvgNode } from '@app/shared/util/svg-factory'
+
+/**
+ * 「本层还没有人体传感器」时的提示文案。
+ *
+ * 从安防面板打开时这里不允许加传感器，只能指回去；从人体感应编辑器打开时是普通说明。
+ * 单独成函数是为了把分支留在 `openPresenceEditor` 之外 —— 它的圈复杂度已在棘轮基线上，
+ * 多一个三元表达式就会被门禁拦下。
+ */
+function missingSensorNote(manageBindings: boolean): string {
+  return manageBindings ? '有人时走动，无人时隐藏。' : '本层尚未配置人体传感器，请返回安防设置添加。'
+}
+
 export async function openPresenceEditor({
   component: component,
   panelDocument: panelDocument,
@@ -528,7 +540,9 @@ export async function openPresenceEditor({
         bindingsPanel.append(listedSensorButton)
     }
     if (!selectedSensor) {
-      controlsPanel.append(createDomElement('p', '有人时走动，无人时隐藏。', 'presence-note')),
+      // 从安防面板打开时不能在这里添加传感器，要指回去（上游同口径）。
+      // 文案选择抽成模块级小函数：把分支留在 `openPresenceEditor` 里会让它的圈复杂度 +1。
+      controlsPanel.append(createDomElement('p', missingSensorNote(manageBindings), 'presence-note')),
         fitPlanToContent(),
         syncRuntimePreview()
       return

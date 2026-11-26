@@ -161,7 +161,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         title="HomeOS",
         version=version,
         # metadata 提供者由组合根给出（`db_models`）：`platform` 是叶子层，不能持有
-        # 域层表定义；而 `lifespan` 也不该为了这件事多一条 import 扇出（giant-files 门禁）。
+        # 域层表定义；而 `lifespan` 也不该为了这件事多一条 import 扇出。
         lifespan=create_lifespan(
             app_settings,
             version,

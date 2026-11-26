@@ -12,7 +12,11 @@ import { lampItemTypeSet } from '../../items/item-catalog'
 import { patchStudioFacadeState } from '../../../../../engine'
 import type { StudioControlElement } from '../../types/studio-app-types'
 import { generateId } from '../../ui/studio-app-helpers'
-
+import {
+  floorRegionFacadeValue,
+  installUnderfloorHeatingToggle,
+  resetFloorRegionToolIfLeaving,
+} from './floor-region-tool'
 export function setDrawingToolGroupOpen(
   _runtime: StudioAppRuntime,
   drawingToolSection: any,
@@ -79,7 +83,11 @@ export function selectStudioTool(runtime: StudioAppRuntime, toolId: any) {
     toolButton.classList.toggle('active', toolButton.dataset.tool === toolId),
       toolButton.setAttribute('aria-pressed', String(toolButton.dataset.tool === toolId))
   patchStudioFacadeState({ activeTool: toolId })
-  patchStudioFacadeState({ activeTool: toolId })
+  // 0.8.9：换工具必须清空地面选区/分割线，否则分割线会跟着带到下一个工具里。
+  resetFloorRegionToolIfLeaving(toolId)
+  // 无条件安装（内部幂等）：这里加 `if` 会让 `selectStudioTool` 超复杂度基线。
+  installFloorRegionToolBindings(runtime)
+  patchStudioFacadeState({ floorRegion: floorRegionFacadeValue(0) })
   runtime.closeDrawingToolGroups(),
     runtime.syncDrawingToolGroupStates(),
     ([runtime.activeToolLabel.textContent, runtime.toolHelpElement.textContent] =
@@ -409,4 +417,20 @@ export function rotateSelection(runtime: StudioAppRuntime) {
       runtime.markDocumentDirty(),
       runtime.syncStudioClipboardFacade(),
       runtime.showToast('已粘贴 ' + movedClones.length + ' 个物件。'))
+}
+
+/**
+ * 地面分区工具的附加绑定：楼层级「显示地暖盘管」开关。
+ *
+ * 单独一个函数而不是塞进 `selectStudioTool`：那个函数已经很长，再加分支会读不出主线。
+ */
+function installFloorRegionToolBindings(runtime: StudioAppRuntime): void {
+  installUnderfloorHeatingToggle({
+    floors: () => runtime.appCtx.studioProject?.floors || [],
+    activeFloorId: () => runtime.appCtx.activeFloorId,
+    markDirty: () => runtime.markDocumentDirty(),
+    // 盘管与地面板一起挂，所以必须重建建筑层（只刷视图看不到变化）。
+    rebuildArchitecture: () => runtime.rebuildFloorLayers({ layers: new Set(['architecture']) }),
+    notify: runtime.showToast,
+  })
 }

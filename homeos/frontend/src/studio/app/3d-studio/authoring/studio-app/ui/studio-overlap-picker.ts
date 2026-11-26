@@ -11,7 +11,7 @@
  *
  * 结构说明：面板的可变状态收在一个 `PickerContext` 里，所有行为都是模块级函数，
  * 而不是挂在 `createOverlapPicker` 闭包里 —— 闭包版会让单个函数超过 80 行
- * （前端复杂度棘轮按函数长度计）。
+ * 状态与渲染也就分不开了。
  */
 
 export type OverlapCandidate = {

@@ -12,7 +12,7 @@
     · 04 合成与音色（子组件）：引擎/音色左列，语速/音调右列
 
   宽度仍然交给 SettingsCard：不加 max-width、不居中，和页签左边缘对齐。
-  所有颜色用令牌或 rgba()，动画时长用 --hos-dur-*，避免硬编码样式棘轮上涨。
+  所有颜色用令牌或 rgba()，动画时长用 --hos-dur-*，便于整体换肤。
 -->
 <template>
   <div class="settings-hub-section vox-hub">

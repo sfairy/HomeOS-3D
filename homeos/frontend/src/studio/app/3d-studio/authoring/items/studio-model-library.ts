@@ -37,12 +37,19 @@ const LIBRARY_GROUPS = Object.freeze({
 
 export type LibraryGroupId = keyof typeof LIBRARY_GROUPS
 
-/** 类目分组：家居 / 电器 / 庭院 / 灯光，与 `data-library-category` 一致。 */
-type LibraryCategoryId = 'home' | 'appliance' | 'courtyard' | 'light'
+/**
+ * 类目分组：家居 / 电器 / 庭院 / 灯光 / 我的装饰，与 `data-library-category` 一致。
+ *
+ * `decoration` 是 0.8.9 新增的**动态**大类：卡片来自服务端模型库，不在静态栅格里，
+ * 所以它必须能被收窄成合法值 —— 否则点「我的装饰」会静默回落到「家居」。
+ */
+type LibraryCategoryId = 'home' | 'appliance' | 'courtyard' | 'light' | 'decoration'
 
 /** 判定用的大类：把外部传进来的字符串收窄成 `LibraryCategoryId`，非法值回落到 `home`。 */
 export function normalizeLibraryCategory(category: unknown): LibraryCategoryId {
-  return category === 'appliance' || category === 'courtyard' || category === 'light' ? category : 'home'
+  return category === 'appliance' || category === 'courtyard' || category === 'light' || category === 'decoration'
+    ? category
+    : 'home'
 }
 
 function normalizeLibrarySearchText(searchText: unknown) {
@@ -177,4 +184,18 @@ export function installLibraryNameScroll(
 
   lifecycle?.addEventListener('pagehide', onPageHide)
   return { cancelAll, dispose }
+}
+
+/**
+ * 用户装饰的类型标记（0.8.9 `USER_DECORATION`）。
+ *
+ * 上游是一个带字段的常量对象；本项目用字符串 + 前缀表达（`USER_DECORATION_MODEL_PREFIX`），
+ * 这里补一个只读常量让「类型名」有单一来源，避免各处手写 `'user-decoration'`。
+ */
+export const USER_DECORATION = Object.freeze({ type: 'user-decoration', prefix: 'model:' })
+
+/** 装饰目录项定义（0.8.9 `decorationModelDefinition`）：同一份字段构造，杜绝多处漂移。 */
+export function decorationModelDefinition(assetId: string, name = '') {
+  const key = assetId.replace(/^model:/i, '').toLowerCase()
+  return { assetId: key, name: name.trim() || '我的装饰', modelScale: 1, type: 'user-decoration' }
 }

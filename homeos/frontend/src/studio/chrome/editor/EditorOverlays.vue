@@ -37,8 +37,13 @@
 
     <div id="global-color-picker" class="global-color-picker" role="dialog" aria-label="颜色选择器" hidden>
         <div id="global-color-picker-sv" class="global-color-picker-sv" aria-label="选择颜色饱和度和亮度"><i
-                id="global-color-picker-marker"></i></div> <input id="global-color-picker-hue"
-            class="global-color-picker-hue" type="range" min="0" max="360" step="1" aria-label="色相">
+                id="global-color-picker-marker"></i></div>
+        <!-- 0.8.9：色相轨道套统一滑轨外壳（`hb-aligned-range` + `hb-rail-shell`），
+             几何与拇指全部来自 `range-control.css` 的 `--hb-rail-*`，不再各写一份。 -->
+        <span class="global-color-picker-hue-rail hb-aligned-range hb-rail-shell">
+            <input id="global-color-picker-hue" class="global-color-picker-hue" type="range" min="0" max="360"
+                step="1" aria-label="色相">
+        </span>
         <div class="global-color-picker-value-row"> <i id="global-color-picker-swatch" aria-hidden="true"></i> <input
                 id="global-color-picker-hex" maxlength="7" spellcheck="false" autocomplete="off" aria-label="十六进制颜色值">
             <button id="global-color-picker-copy" type="button" title="复制颜色值" aria-label="复制颜色值"><svg

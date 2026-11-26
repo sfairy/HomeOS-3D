@@ -25,7 +25,7 @@
           control/card/panel/shell/pill 逐个指向 r-1…r-4 —— 该文件最后加载，**会盖掉本文件的数值**。
      所以这里写的 8/14/20/9999 只是覆盖前的基线。**不要在此处声明 `--hos-r-*`**：一旦写成
      `--hos-r-1: var(--hos-radius-control)` 就与 theme-overrides 的同名反向映射构成循环引用，
-     CSS 会把整条链判为无效、圆角静默归零（`check:css-tokens` 已加循环检测守住这条）。 */
+     CSS 会把整条链判为无效、圆角静默归零（改之前先搜一遍同名声明，别做双向引用）。 */
   --hos-radius-control: 8px;
   --hos-radius-card: 14px;
   --hos-radius-panel: 20px;

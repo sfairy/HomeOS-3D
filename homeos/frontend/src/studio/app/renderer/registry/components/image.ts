@@ -6,6 +6,7 @@
  * 自己那一族的 DOM 构建逻辑，装配函数只负责按顺序调用。
  */
 import { staticAssetImageSource } from '../asset-state'
+import { mountDisplayImage } from '../../controls/display-images'
 
 export function registerImageComponent(registerComponent: (type: any, def: any) => void) {
   registerComponent('image', {
@@ -21,9 +22,11 @@ export function registerImageComponent(registerComponent: (type: any, def: any) 
         )
       }
       const imageElement = document.createElement('img')
+      // 按实际显示尺寸取图（0.8.9）：一块 200×120 的控件不该下 4000×3000 的原图。
+      // `mountDisplayImage` 内部只在可派生 URL 上生效，外链 / SVG 原样保留。
+      mountDisplayImage(imageElement, imageSourceUrl)
       return (
         (imageElement.className = 'hb-image-component'),
-        (imageElement.src = imageSourceUrl),
         (imageElement.alt = imageProperties.alt || imageProperties.label || '图片'),
         (imageElement.draggable = false),
         (imageElement.style.objectFit = 'contain'),

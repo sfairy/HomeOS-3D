@@ -38,6 +38,8 @@ export const useStudioFloorplanStore = defineStore('studioFloorplan', () => {
   const canCopy = computed(() => facade.value.clipboard.canCopy)
   const canPaste = computed(() => facade.value.clipboard.canPaste)
   const activeTool = computed(() => facade.value.activeTool)
+  /** 0.8.9 地面分区选区（标题 / 数量 / 能否切分）；`null` 表示没选中。 */
+  const floorRegion = computed(() => facade.value.floorRegion ?? null)
   const workflowStep = computed(() => facade.value.workflowStep)
 
   function persist() {
@@ -106,6 +108,7 @@ export const useStudioFloorplanStore = defineStore('studioFloorplan', () => {
     canCopy,
     canPaste,
     activeTool,
+    floorRegion,
     workflowStep,
     bindFacade,
     unbindFacade,

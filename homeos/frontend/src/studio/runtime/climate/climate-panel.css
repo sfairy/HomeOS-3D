@@ -800,9 +800,7 @@
 .i3d-extra-range input {
   width: 100%;
   min-width: 0;
-  height: 18px;
   padding: 0;
-  accent-color: var(--hb-climate-accent);
 }
 .i3d-airer-extras {
   margin-top: 8px;

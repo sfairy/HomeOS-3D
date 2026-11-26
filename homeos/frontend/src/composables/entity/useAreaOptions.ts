@@ -12,9 +12,8 @@ type AreaOption = { id: string; name: string }
 /**
  * 把后端可能缺失的降级原因规范成 `string | null`。
  *
- * 单独抽成函数而不是写在 ``refresh`` 里：本文件的复杂度棘轮按分支算子计数
- * （``?:`` / ``&&`` / ``||`` / ``??`` 各 +1），在 ``refresh`` 里多一个算子就会
- * 把该函数推到 5、撞上「不许变多」的门禁。转换逻辑放在这里，``refresh`` 只留一次调用。
+ * 单独抽成函数而不是写在 ``refresh`` 里：``refresh`` 已经很长，
+ * 再挂上类型收窄与默认值兜底会把两件事混在一起。转换逻辑放在这里，``refresh`` 只留一次调用。
  */
 function normalizeRegistryError(value: unknown): string | null {
   const text = String(value ?? '').trim()

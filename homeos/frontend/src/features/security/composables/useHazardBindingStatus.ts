@@ -184,8 +184,7 @@ export function useHazardBindingStatus(
 /**
  * 把「离线行」折算成**设备**台数。
  *
- * 抽成模块级函数而不是内联 computed：内联写法会把 `useHazardBindingStatus` 的函数体推过
- * 80 行（`check:frontend-complexity` 的 gt80 棘轮当场报红）。逻辑本身与行数无关，
+ * 抽成模块级函数而不是内联 computed：逻辑本身与组件状态无关，
  * 独立出来也让「行 → 设备」这一步可以单独测。
  *
  * @param rows 危险源状态行（每行是一个实体）

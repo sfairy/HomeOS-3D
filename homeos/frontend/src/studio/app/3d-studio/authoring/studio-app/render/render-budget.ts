@@ -6,9 +6,6 @@ import {
   assessAdaptiveRenderFrames as assessAdaptiveRenderFrames2,
   clamp as clamp2,
 } from '../../../plan/geometry'
-import { previewIssues } from '../../../loaders/preview-diagnostics'
-
-const previewIssueCount = () => previewIssues().length
 
 export function assessRenderBudget(runtime: StudioAppRuntime) {
   const bf2 = runtime.collectActiveLightEntries(),
@@ -139,11 +136,15 @@ export function requestStudioRender(runtime: StudioAppRuntime) {
   runtime.appCtx.lightPrecompileController?.setEnabled(runtime.isEmbeddedStage || !ht2 || !!at6),
     (runtime.appCtx.orbitControls.enableRotate = runtime.getCameraView() !== 'top'),
     /**
-     * 预览状态徽标：只有**没有加载异常**时才隐藏。旧实现在每次重绘时无条件清空，
-     * 于是刚写进去的「lite 解析失败」下一帧就被抹掉，等于没有诊断。
+     * 预览状态徽标：**每次重绘都强制隐藏并清空**，与上游 0.8.9 的 `qt()` 一致
+     * （那边同样是 `hidden = true; title = ''; textContent = ''`）。
+     *
+     * 曾经这里带一个 `previewIssueCount() === 0` 条件，为了「别把刚写进去的诊断抹掉」；
+     * 但诊断已经改走 `console.error` + `window.__studioPreviewIssues` +
+     * `<html data-preview-issues>`（见 `preview-diagnostics.ts`），这个 span 回到
+     * 上游的预留位语义 —— 不再有内容需要保护，也就没有理由让它在有异常时常显。
      */
     runtime.previewQualityStatusElement &&
-      previewIssueCount() === 0 &&
       ((runtime.previewQualityStatusElement.hidden = true),
       (runtime.previewQualityStatusElement.title = ''),
       (runtime.previewQualityStatusElement.textContent = '')),

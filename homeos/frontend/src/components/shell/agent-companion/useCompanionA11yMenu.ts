@@ -2,7 +2,7 @@
  * 悬浮伴侣的键盘可达菜单（U04）。
  *
  * 指针手势仍走原路径；键盘用 Enter/Space/方向键打开 Tips / Voice / Chat。
- * 抽成 composable：`AgentCompanion.vue` 卡在文件规模棘轮上。
+ * 抽成 composable：`AgentCompanion.vue` 已经很大。
  */
 import { computed, nextTick, ref, toValue, watch, type MaybeRefOrGetter } from 'vue'
 import { onCompanionMenuKeydown, onCompanionTriggerKeydown, type CompanionA11yKeyDeps } from './companion-a11y-keydown'

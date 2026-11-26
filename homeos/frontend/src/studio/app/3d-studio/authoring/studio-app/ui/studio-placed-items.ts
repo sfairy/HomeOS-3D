@@ -73,7 +73,7 @@ type RowEntry = {
   bounds: { min: number; max: number; exact: boolean } | null
 }
 
-/** 面板的可变状态：模块级函数都作用在它上面，避免巨型闭包（复杂度棘轮按行数计）。 */
+/** 面板的可变状态：模块级函数都作用在它上面，避免巨型闭包。 */
 type PanelContext = {
   options: Required<Omit<PlacedItemsPanelOptions, 'scrollHost'>> & { scrollHost: HTMLElement }
   documentNode: Document
@@ -145,13 +145,27 @@ function nameOf(entry: string | { name?: string } | undefined): string {
   return entry?.name ? String(entry.name) : ''
 }
 
+/**
+ * 清单里那一行的基础名（未加灯组后缀）。
+ *
+ * 用户装饰（0.8.9）用**模型名**且**优先于目录名**：目录里这类统一叫「我的装饰」，
+ * 目录名优先会让清单里每一件装饰都同名，用户分不出哪个是哪个。
+ *
+ * 抽成函数是为了不给 `placedItemName` 再加分支。
+ */
+function baseNameOf(item: Record<string, unknown>, type: string, catalog: NameLookup): string {
+  const modelName = String(item.name ?? item.modelName ?? '').trim()
+  if (type === 'user-decoration' && modelName) return modelName
+  return nameOf(catalog[type]) || modelName || type
+}
+
 export function placedItemName(
   item: Record<string, unknown>,
   catalog: NameLookup,
   groups: Array<{ id?: unknown; name?: unknown }> = [],
 ): string {
   const type = String(item.type ?? '')
-  const base = nameOf(catalog[type]) || String(item.name ?? '') || type
+  const base = baseNameOf(item, type, catalog)
   const groupId = item.lightGroupId
   if (groupId === undefined || groupId === null) return base
   const group = groups.find((candidate) => candidate.id === groupId)
@@ -336,7 +350,7 @@ function selectionKeyOf(state: PlacedItemsState): string {
  * 「要不要把列表滚到选中行」的置位（0.8.7 `revealSelected` 的前置）。
  *
  * 三种时机：面板刚变成可见、选中集合变化、调用方明确要求跟随。抽成函数是为了不让
- * `render` 多出两个分支（那个函数已经贴着复杂度棘轮）。
+ * `render` 多出两个分支（那个函数已经很长）。
  */
 function updatePendingReveal(ctx: PanelContext, state: PlacedItemsState, followSelection: boolean | undefined): void {
   if (!ctx.wasVisible) ctx.pendingReveal = state.selectedIds.size > 0

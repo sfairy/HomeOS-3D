@@ -413,7 +413,10 @@ class CoverMemory:
         tilt = number(attributes.get("current_tilt_position"))
         reported = report_time(state)
         entry = self.entries.get(entity_id) or {}
-        last_state = entry.get("lastState")
+        # `previous_state` 是**上一帧**的状态，`previous` 是上一帧的位置。
+        # 注意 `lastState` 过去被赋成「上一次的 lastState」，永远不会前进 —— 用它判跃迁
+        # 会让 `opening` / `closing` 每帧都被当成「刚进入」，行程起点因此每帧重记。
+        previous_state = entry.get("state")
         previous = entry.get("open")
         entry.update(
             {
@@ -421,7 +424,8 @@ class CoverMemory:
                 "identity": axis,
                 "available": state.get("available") is not False,
                 "state": str(state.get("state") or "")[:32],
-                "lastState": last_state,
+                # 保留字段含义：记录**上一帧**的状态（诊断用），不参与跃迁判定。
+                "lastState": previous_state,
                 "reportAt": reported if reported is not None else self.now() * 1000,
                 "nativeTilt": native_tilt(attributes),
                 "attributes": {
@@ -430,6 +434,9 @@ class CoverMemory:
                 },
             }
         )
+        # 0.8.9：带上「这个位置是推测的」标记。红外/射频电机与重启后恢复的状态
+        # 都会被 HA 标 `assumed_state`；前端据此决定能不能拿它做精确判断。
+        entry["assumedState"] = attributes.get("assumed_state") is True
         if current is not None:
             entry["open"] = current
             if current <= 0 or current >= 100:
@@ -437,6 +444,18 @@ class CoverMemory:
                 entry["closedNative"] = True
             else:
                 entry["closedNative"] = False
+        # 0.8.9 行程起点（`known_start`）：只在「刚进入 opening/closing」这一跃迁上记一次。
+        # 起点必须是已知位置 —— 一个错的起点会让补间从错误像素出发，比不补间更难看。
+        state_text = entry["state"]
+        travel_direction = "opening" if state_text == "opening" else "closing" if state_text == "closing" else None
+        if travel_direction is not None and previous_state != state_text:
+            start_position = current if current is not None else previous
+            if start_position is not None:
+                entry["knownStart"] = {
+                    "from": start_position,
+                    "at": entry["reportAt"],
+                    "direction": travel_direction,
+                }
         if previous is not None and current is not None and previous != current:
             estimate = sample(
                 {"position": previous, "target": current, "duration": entry.get("duration")},

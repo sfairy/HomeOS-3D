@@ -61,8 +61,8 @@ export function bindFloorplanAutoDiagramMessages(deps: Record<string, any>): voi
   /*
    * 构图回传（0.8.7）单独一个监听器。
    *
-   * 不并进上面那个按 `type` 串联的大 listener：复杂度棘轮按**函数**计，主 listener 已经
-   * 贴着基线，再加分支就会红。这里只认一种消息，分支极少。
+   * 不并进上面那个按 `type` 串联的大 listener：主 listener 已经很长，
+   * 再加一种消息会让它同时承担两段无关的解析。这里只认一种消息，分支极少。
    */
   window.addEventListener('message', (cameraStateMessageEvent) => {
     if (cameraStateMessageEvent.origin !== window.location.origin) return

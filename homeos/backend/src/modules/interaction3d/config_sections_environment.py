@@ -54,6 +54,8 @@ ENVIRONMENT_FIELDS = frozenset(
         'exhaustFans',
         'airers',
         'waterHeaters',
+        # 0.8.9 取暖壁挂炉（climate 主实体 + 地暖盘管开关）。
+        'heatingBoilers',
         'windowOpeners',
     }
 )
@@ -188,6 +190,12 @@ APPLIANCE_RULES: dict[str, ApplianceRules] = {
     'waterHeaters': ApplianceRules(
         re.compile(r'water_heater\.[a-z0-9_]+'),
         APPLIANCE_FIELDS | frozenset({'deviceId', 'deviceName', 'statusRules', 'workingState'}),
+    ),
+    # 取暖壁挂炉（0.8.9）：主实体**必须**是 climate（壁挂炉在 HA 里是 climate + 水阀组合）。
+    # 它的附加功能里会带「制热时显示本层地暖盘管」的开关，因此额外允许 `underfloorHeating`。
+    'heatingBoilers': ApplianceRules(
+        re.compile(r'climate\.[a-z0-9_]+'),
+        APPLIANCE_FIELDS | frozenset({'deviceId', 'deviceName', 'underfloorHeating', 'heatingPanelStyle', 'panelStyle'}),
     ),
 }
 
@@ -335,6 +343,8 @@ class EnvironmentSectionValidator:
             'exhaustFans': self.validate_exhaust_fan_bindings,
             'airPurifiers': self.validate_air_purifier_bindings,
             'waterHeaters': self.validate_water_heater_bindings,
+            # 0.8.9 壁挂炉：主实体必须是 climate（正则已在 APPLIANCE_RULES 里挡掉其它域）。
+            'heatingBoilers': self.validate_heating_boiler_bindings,
         }
 
     # ── 入口 ────────────────────────────────────────────────────────────
@@ -503,6 +513,25 @@ class EnvironmentSectionValidator:
         if status_rules and not water_heater.get('entityId') and not water_heater.get('deviceId'):
             self.ctx.fail()
         validate_device_status_rules(status_rules, self.ctx.fail)
+
+    def validate_heating_boiler_bindings(self, boiler: Any) -> None:
+        """取暖壁挂炉的主实体与地暖开关（0.8.9）。
+
+        只校验「这一层多要求什么」：
+        - `deviceId` / `deviceName` 必须是文本（与其它家电同口径）；
+        - `underfloorHeating` 出现时必须是布尔 —— 它控制「制热时显示本层盘管」，
+          写字符串会让前端 `=== true` 判定失效（等于悄悄关掉）；
+        - `heatingPanelStyle` 只能是 `thermostat` / `climate`（与 0.8.9 item 字段同名同枚举）；
+          - 旧文档里的 `panelStyle`（`thermostat` / `air-conditioner`）继续放行，避免迁移期保存 422。
+        """
+        if not self.ctx.require_text(boiler, ('deviceId', 'deviceName')):
+            self.ctx.fail()
+        if 'underfloorHeating' in boiler and not isinstance(boiler['underfloorHeating'], bool):
+            self.ctx.fail()
+        if boiler.get('heatingPanelStyle', 'thermostat') not in {'thermostat', 'climate'}:
+            self.ctx.fail()
+        if boiler.get('panelStyle', 'thermostat') not in {'thermostat', 'air-conditioner'}:
+            self.ctx.fail()
 
     def validate_working_state(self, appliance: Any) -> None:
         """热水器工作状态指示（``workingState``）。"""

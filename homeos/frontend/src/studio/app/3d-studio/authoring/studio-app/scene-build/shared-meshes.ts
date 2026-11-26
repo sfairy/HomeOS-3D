@@ -3,6 +3,7 @@ import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
 import { finite as finite2 } from '../../../loaders/studio-normalization'
 import { collectSharedMeshRecords } from '../../items/studio-shared-mesh-records'
 import { mergeStaticItemMeshesCore } from '../../items/studio-static-item-meshes'
+import { finishWallFurniture } from './studio-wall-preview'
 import {
   BATCH_FALLBACK,
   reportDegradation,
@@ -120,6 +121,9 @@ function batchSignatureGroup(
 
 export function batchSharedMeshes(runtime: StudioAppRuntime, batchSceneRoot: any, batchItemEntries: any) {
   const signatureGroupsByKey = new Map()
+  // 本次**声明参与合批**的物品 id：用来校验「批次没有漏件」。被跳过的类型
+  // （需要交互/嵌入舞台独占的类型）不算在内，否则任何场景都会因它们而放弃收尾。
+  const declaredIds: string[] = []
   for (const { item: batchItem, group: batchItemGroup } of batchItemEntries) {
     if (
       runtime.instanceTestTypeSet.has(batchItem.type) ||
@@ -162,6 +166,7 @@ export function batchSharedMeshes(runtime: StudioAppRuntime, batchSceneRoot: any
         group: batchItemGroup,
         descriptors: kv2,
       })
+    declaredIds.push(String(batchItem.id))
   }
   batchSceneRoot.updateMatrixWorld(true)
   const invert3 = batchSceneRoot.matrixWorld.clone().invert(),
@@ -172,6 +177,9 @@ export function batchSharedMeshes(runtime: StudioAppRuntime, batchSceneRoot: any
     // 失败时返回 null：原件保持不动（由原对象继续绘制），继续处理下一组。
     groupStats && instanceBatchStats.push(groupStats)
   }
+  // 合批后的收尾：给透明/透射件写稳定排序键（0.8.9 `finishWallFurniture`）。
+  // 覆盖不完整时返回 0，宁可不优化也不会让家具消失。
+  finishWallFurniture(batchSceneRoot, declaredIds)
   return (
     (batchSceneRoot.userData.instanceBatchStats = instanceBatchStats),
     runtime.appCtx.threeRenderer?.domElement &&

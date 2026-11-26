@@ -1,3 +1,22 @@
+import { BOILER_COPY, heatingPanelStyleOf, isBoilerHeating, isHeatingBoiler } from './boiler-copy'
+
+/** 温控卡形态下不显示的选项组：风速与摆风是空调专属，壁挂炉露出来只会误操作。 */
+const THERMOSTAT_HIDDEN_FIELDS: ReadonlyArray<string> = ['fanMode', 'swingMode', 'horizontalSwingMode']
+
+/**
+ * 把面板形态落到 DOM 属性上（0.8.9 `dataset.heatingPanelStyle`）。
+ *
+ * 单独成函数有两个原因：`render` 的圈复杂度贴着棘轮上限（只能加一次调用），
+ * 以及"非壁挂炉必须清掉属性"这条容易忘 —— 面板 DOM 会在不同设备间复用。
+ */
+function syncHeatingPanelStyle(
+  rootElement: HTMLElement,
+  item: Parameters<typeof isHeatingBoiler>[0] & { heatingPanelStyle?: unknown },
+): void {
+  const style = isHeatingBoiler(item) ? heatingPanelStyleOf(item) : ''
+  if (style) rootElement.dataset.heatingPanelStyle = style
+  else delete rootElement.dataset.heatingPanelStyle
+}
 import { bathHeaterState as bathHeaterState2 } from '../bath-heater/bath-heater'
 import {
   climateState as climateState2,
@@ -514,6 +533,11 @@ export function createClimatePanel({
     )
   function buildChoiceGroups() {
     je2.close(), replaceChildren(mainGroupsElement), (choiceButtons = [])
+    // 0.8.9 温控卡形态：壁挂炉只保留「运行模式 / 预设 / 方向」，风速与摆风交给空调卡。
+    // 判据与上游一致 —— 只有显式 `climate` 才是空调卡，其余（含未设置）都按温控卡。
+    // 注意这里在 `render()` 之外，不能用 `activeItem`，只能直接读 `viewModel.item`。
+    const boilerItem = viewModel.item || null
+    const thermostatOnly = isHeatingBoiler(boilerItem) && heatingPanelStyleOf(boilerItem) === 'thermostat'
     const primaryGroupsElement = createElement('div', 'i3d-climate-primary-groups')
     ;(primaryGroupsElement.hidden = true), mainGroupsElement.append(primaryGroupsElement)
     for (const [groupLabel, optionValues, field, service, optionLabels] of [
@@ -579,6 +603,7 @@ export function createClimatePanel({
       ],
     ]) {
       if (!optionValues.length) continue
+      if (thermostatOnly && THERMOSTAT_HIDDEN_FIELDS.includes(field)) continue
       const groupElement = createElement('section', 'i3d-climate-option-group'),
         groupHeadingElement = createElement('h4', '', groupLabel)
       groupElement.append(groupHeadingElement)
@@ -704,7 +729,13 @@ export function createClimatePanel({
         (statusElement.textContent = '各功能独立控制'),
       activeItem.climateType === 'bath-heater' &&
         !viewModel.editing &&
-        (statusElement.textContent = bathHeaterState2(activeItem, viewModel.states).label)
+        (statusElement.textContent = bathHeaterState2(activeItem, viewModel.states).label),
+      // 0.8.9 取暖壁挂炉：制热时明确写「正在制热」—— 壁挂炉的主实体是 climate，
+      // 只显示「制热」会和空调混在一起看不出是地暖在烧。
+      isHeatingBoiler(activeItem) &&
+        !viewModel.editing &&
+        isBoilerHeating(deviceState) &&
+        (statusElement.textContent = BOILER_COPY.heating)
     const fanStatus = activeItem.pedestalFan
       ? resolveFanBindingState(activeItem, {
           ...(viewModel.states || {}),
@@ -727,6 +758,9 @@ export function createClimatePanel({
               : '已停止'),
       rootElement.classList.toggle('is-air-conditioner-panel', !deviceState.purifier && !deviceState.waterHeater),
       rootElement.classList.toggle('is-fan-panel', !!activeItem.pedestalFan),
+      // 面板形态落成 DOM 属性（与上游 `dataset.heatingPanelStyle` 同名）。
+      // 抽成函数是必须的：`render` 的圈复杂度已贴着棘轮上限，这里只能加"一次调用"。
+      syncHeatingPanelStyle(rootElement, activeItem),
       (fanSpeedRangeElement.className = 'i3d-control-range'),
       fanSpeedRangeElement.setAttribute(
         'aria-label',

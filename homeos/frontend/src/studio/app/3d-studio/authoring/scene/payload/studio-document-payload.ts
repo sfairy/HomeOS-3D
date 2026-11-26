@@ -18,6 +18,8 @@ import {
   normalizeLabelText as normalizeLabelText2,
 } from '../../../loaders/studio-normalization'
 import { floorDisplayName, generateId } from '../../ui/studio-app-helpers'
+import { normalizeFloorRegions, normalizeFloorTones } from '../../../plan/studio-floor-regions'
+import { normalizeLightRangeArchive, normalizeLightRegionOverrides } from '../../../plan/studio-light-ranges'
 import {
   normalizeActiveExportPresetSlot as normalizeActiveExportPresetSlot2,
   normalizeExportPresetSlots as normalizeExportPresetSlots2,
@@ -48,6 +50,10 @@ export function createFloorRecord(
     originInitialized: !!jd2.background,
     aligned: floorElevationIndex === 0,
     alignmentPending: floorElevationIndex > 0,
+    // 0.8.9：新建楼层默认不显示地暖盘管（和「有分区」一样，是用户显式开启的东西）。
+    floorRegions: [],
+    floorFinishTones: { wood: 0, tile: 0 },
+    underfloorHeating: false,
     scene: jd2,
   }
 }
@@ -85,6 +91,12 @@ export function normalizeStudioDocument(rawDocument: any, deps: StudioDocumentDe
               Math.abs(finite2(rawFloor?.offsetX, 0)) > 0.000001 ||
               Math.abs(finite2(rawFloor?.offsetZ, 0)) > 0.000001,
             alignmentPending: rawFloor?.alignmentPending === true,
+            // 0.8.9 地面分区：铺面与几何按层存；色档与分区解耦（同层同 toneKind 共用一档）。
+            floorRegions: normalizeFloorRegions(rawFloor?.floorRegions),
+            floorFinishTones: normalizeFloorTones(rawFloor?.floorFinishTones),
+            // 0.8.9 地暖盘管显示开关：跟着楼层走（编辑器预览 / 运行态按锅炉状态改写）。
+            // 不写这一行的话，保存再打开会静默变回 false —— 用户会以为开关没生效。
+            underfloorHeating: rawFloor?.underfloorHeating === true,
             scene: jd3,
           }
         })
@@ -112,6 +124,9 @@ export function normalizeStudioDocument(rawDocument: any, deps: StudioDocumentDe
       rawDocument?.activeExportPresetSlot,
       exportPresetSlots.length,
     ),
+    // 0.8.9 柔光范围：绘制页与 3D 交互控件按 sceneId 共享；撤销记录单独一张表。
+    lightRegionOverrides: normalizeLightRegionOverrides(rawDocument?.lightRegionOverrides),
+    lightRangeArchive: normalizeLightRangeArchive(rawDocument?.lightRangeArchive),
     floors: parsedFloors,
   }
 }

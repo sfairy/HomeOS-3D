@@ -78,7 +78,7 @@ export function disposeStudioFonts() {
 /**
  * 兼容模式是**自动**触发的（近期反复出现 GPU 故障），必须让用户知道画质为什么变低、
  * 以及怎么退出 —— 否则「怎么突然糊了」会被当成又一个 bug。
- * 抽出成函数是为了不给 `startupStudio` 增加复杂度（前端复杂度是棘轮门禁）。
+ * 抽出成函数是为了不让 `startupStudio` 继续堆叠阶段细节。
  */
 function announceStudioCompatMode(deps: StudioBootDeps): void {
   const source = studioCompatModeSource()

@@ -147,7 +147,7 @@ function editableOf(runtime: StudioAppRuntime, item: Record<string, unknown>): b
 
 /**
  * 吸附相关的读口，单独成函数是为了不让 `createToolbarOptions` 的字面量超过 80 行
- * （复杂度棘轮按函数长度计数）。
+ * 也便于单独检查这些默认值。
  */
 function createSnapOptions(
   runtime: StudioAppRuntime,

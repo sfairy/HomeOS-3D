@@ -43,6 +43,16 @@ export function addLightModel(
     resolveLightGroup,
   } = deps
 
+  /**
+   * 0.8.9：当前是否走「轻量柔光」（区域）管线。
+   *
+   * 嵌入舞台恒为真；绘制页由光影开关决定。**不能**把 `isEmbedStageMode` 直接改成
+   * 「绘制页也算」——那个值还管着阴影图尺寸、接触阴影预算等资源策略，
+   * 把它在绘制页置真会连带把舞台那套预算带进来。也不新开一个 deps 键：
+   * `boot` 的 deps 键已经很多，从 `appCtx` 现取更省。
+   */
+  const usesRegionLighting = () => isEmbedStageMode || appCtx.previewLightingMode === 'region'
+
   // 建灯与渲染循环的淡入淡出用同一个取色函数，否则开灯第一帧颜色会跳一下。
   const lightColorHex = lightEffectColorHex2(lightModelItem.lightTemperature, lightModelItem.lightColorRgb),
     eu3 = isLampEnabled(lightModelItem) && finite2(lightModelItem.lightBrightness, 0) > 0,
@@ -64,7 +74,7 @@ export function addLightModel(
       floorId: appCtx.activeFloorId,
       groupId: zl6?.id || '',
     })
-    isEmbedStageMode && appCtx.regionLightController?.register(rectAreaLight, lightModelItem)
+    usesRegionLighting() && appCtx.regionLightController?.register(rectAreaLight, lightModelItem)
     lightModelParent.add(rectAreaLight)
     return
   }
@@ -130,7 +140,7 @@ export function addLightModel(
       (spotLight.userData.shadowCandidate = true),
       (spotLight.userData.prewarmShadow = isEmbeddedStage),
       (spotLight.userData.lightOnIntensity = spotLightIntensity / spotLightCount),
-      isEmbedStageMode &&
+      usesRegionLighting() &&
         ((spotLight.userData.regionFullIntensity = spotLightCandela * lightTypeIntensityFactor),
         appCtx.regionLightController?.register(spotLight, lightModelItem))
     const spotLightTarget = new ns2.Object3D()

@@ -6,7 +6,7 @@
 - **重放**：HA 重连后按持久化模式补一次联动，只能重放可逆项 —— 否则脚本 / 通知 /
   ``shell_command`` 会在每次重连时被再执行一遍。
 
-拆出来的动机：``panel_helpers.py`` 已被文件规模棘轮锁住，而这张表是纯数据 + 纯函数。
+拆出来的动机：``panel_helpers.py`` 已经很大，而这张表是纯数据 + 纯函数。
 """
 
 from __future__ import annotations

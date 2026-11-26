@@ -71,6 +71,10 @@ def validate_core_sections(ctx: ValidationContext, properties: dict) -> None:
         'uniformOverviewStack',
         'focusVignetteStrength',
         'hideIconsWhileRotating',
+        # 0.8.9 单层浏览手势开关：默认关闭（缺省视为旧行为），只接受布尔。
+        'viewGesturesEnabled',
+        # 0.8.9 取暖壁挂炉面板样式：温控卡 / 空调卡。
+        'heatingPanelStyle',
         'navigationDefaults'}:
         ctx.fail()
     # 天气实体绑定：空表示不绑定（现场天气仍可用），只接受 weather.* 实体。
@@ -88,6 +92,12 @@ def validate_core_sections(ctx: ValidationContext, properties: dict) -> None:
         'warmBackgroundTheme', 'warm-sunlight'
     ) not in {'warm-dusk', 'warm-sunlight'}:
         ctx.fail()
+    # 0.8.9：手势开关只接受布尔（`"true"` 字符串会让前端的 `=== true` 判定失效）。
+    if 'viewGesturesEnabled' in properties and not isinstance(properties['viewGesturesEnabled'], bool):
+        ctx.fail('手势开关需要是布尔值。')
+    # 0.8.9：壁挂炉面板只有两种形态，写错会让面板渲染成空白。
+    if properties.get('heatingPanelStyle', 'thermostat') not in {'thermostat', 'air-conditioner'}:
+        ctx.fail('请选择温控卡或空调卡。')
 
 def validate_navigation_defaults(ctx: ValidationContext, properties: dict) -> None:
     """``navigationDefaults``：记住用户上次停留的楼层 / 分类。

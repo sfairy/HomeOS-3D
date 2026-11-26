@@ -1,5 +1,6 @@
 @import "./percentage-bar.css";
 @import "./scene-popup.css";
+@import "../range-control.css";
 @import "../dashboard-fonts.css";
 @import "../ui-icons.css";
 .hb-renderer-viewport {
@@ -3474,54 +3475,7 @@
   text-align: center;
 }
 .hb-light-details-panel .hb-light-details-slider input {
-  grid-column: 2;
-  grid-row: 1;
-  height: 14px;
-  align-self: end;
-  border: 4px solid #252322;
-  box-shadow:
-    0 0 0 2px #7e6f6640,
-    inset 0 2px 7px #000c;
-}
-.hb-light-details-panel .hb-light-details-slider input::-webkit-slider-runnable-track {
-  height: 14px;
-}
-.hb-light-details-panel .hb-light-details-slider input::-webkit-slider-thumb,
-.hb-light-details-panel .hb-light-details-slider input.hb-range::-webkit-slider-thumb {
-  width: 43px;
-  height: 43px;
-  margin-top: -14.5px;
-  border: 5px solid transparent;
-  background: linear-gradient(145deg, #8a7865, #4e4339) padding-box;
-  filter: drop-shadow(0 5px 7px rgba(0, 0, 0, 0.55));
-  box-shadow: inset 0 1px #ffffff2e;
-  transition:
-    width 0.12s ease,
-    height 0.12s ease,
-    margin-top 0.12s ease;
-}
-.hb-light-details-panel .hb-light-details-slider input:active::-webkit-slider-thumb {
-  width: 49px;
-  height: 49px;
-  margin-top: -17.5px;
-}
-.hb-light-details-panel .hb-light-details-slider input::-moz-range-track {
-  height: 14px;
-}
-.hb-light-details-panel .hb-light-details-slider input::-moz-range-thumb {
-  width: 41px;
-  height: 41px;
-  border: 5px solid transparent;
-  background: linear-gradient(145deg, #8a7865, #4e4339) padding-box;
-  filter: drop-shadow(0 5px 7px rgba(0, 0, 0, 0.55));
-  box-shadow: inset 0 1px #ffffff2e;
-  transition:
-    width 0.12s ease,
-    height 0.12s ease;
-}
-.hb-light-details-panel .hb-light-details-slider input:active::-moz-range-thumb {
-  width: 47px;
-  height: 47px;
+  grid-column: 2;grid-row: 1;align-self: end
 }
 .hb-light-details-panel .hb-light-details-slider-legend {
   grid-column: 2;
@@ -4138,76 +4092,14 @@
 .hb-cover-details-position input,
 .hb-cover-details-panel .hb-cover-details-position input,
 .hb-custom-popup-module--cover .hb-cover-details-position input {
-  grid-column: 2;
-  grid-row: 1;
-  width: 100%;
-  height: 14px;
-  margin: 0;
-  align-self: end;
-  border: 4px solid #252a2d;
-  border-radius: 99px;
-  outline: 0;
-  appearance: none;
-  -webkit-appearance: none;
-  cursor: pointer;
-  /* !important：压过全局 range 的 background:transparent（窗帘未加 hb-range 时曾被抹成灰槽） */
+  grid-column: 2;grid-row: 1;width: 100%;margin: 0;align-self: end;/* !important：压过全局 range 的 background:transparent（窗帘未加 hb-range 时曾被抹成灰槽） */
   background: linear-gradient(
     90deg,
     #8cb7ca 0%,
     #8cb7ca var(--hb-cover-position-progress, var(--progress-pct, 0%)),
     #3a444b var(--hb-cover-position-progress, var(--progress-pct, 0%)),
     #3a444b 100%
-  ) !important;
-  box-shadow:
-    0 0 0 2px #6f849240,
-    inset 0 2px 7px #000c;
-}
-.hb-cover-details-position input::-webkit-slider-runnable-track,
-.hb-cover-details-panel .hb-cover-details-position input::-webkit-slider-runnable-track,
-.hb-custom-popup-module--cover .hb-cover-details-position input::-webkit-slider-runnable-track {
-  height: 14px;
-  border-radius: 99px;
-  background: transparent !important;
-}
-.hb-cover-details-position input::-webkit-slider-thumb {
-  width: 43px;
-  height: 43px;
-  margin-top: -14.5px;
-  border: 5px solid transparent;
-  border-radius: 50%;
-  appearance: none;
-  -webkit-appearance: none;
-  background: linear-gradient(145deg, #8ea8b4, #4a5a62) padding-box;
-  filter: drop-shadow(0 5px 7px rgba(0, 0, 0, 0.55));
-  box-shadow: inset 0 1px #ffffff2e;
-  transition:
-    width 0.12s ease,
-    height 0.12s ease,
-    margin-top 0.12s ease;
-}
-.hb-cover-details-position input:active::-webkit-slider-thumb {
-  width: 49px;
-  height: 49px;
-  margin-top: -17.5px;
-}
-.hb-cover-details-position input::-moz-range-track {
-  height: 14px;
-}
-.hb-cover-details-position input::-moz-range-thumb {
-  width: 41px;
-  height: 41px;
-  border: 5px solid transparent;
-  border-radius: 50%;
-  background: linear-gradient(145deg, #8ea8b4, #4a5a62) padding-box;
-  filter: drop-shadow(0 5px 7px rgba(0, 0, 0, 0.55));
-  box-shadow: inset 0 1px #ffffff2e;
-  transition:
-    width 0.12s ease,
-    height 0.12s ease;
-}
-.hb-cover-details-position input:active::-moz-range-thumb {
-  width: 47px;
-  height: 47px;
+  ) !important
 }
 .hb-cover-details-position-legend {
   display: flex;
@@ -6113,51 +6005,7 @@
     sans-serif;
 }
 .hb-light-details-slider input {
-  width: 100%;
-  height: 9px;
-  margin: 2px 0 0;
-  border: 0;
-  border-radius: 99px;
-  outline: 0;
-  appearance: none;
-  -webkit-appearance: none;
-  cursor: pointer;
-}
-.hb-light-details-slider input::-webkit-slider-runnable-track {
-  height: 9px;
-  border-radius: 99px;
-  background: transparent;
-}
-.hb-light-details-slider input::-webkit-slider-thumb {
-  width: 25px;
-  height: 25px;
-  margin-top: -8px;
-  border: 2px solid rgba(255, 255, 255, 0.82);
-  border-radius: 50%;
-  background: #edf0f2;
-  box-shadow: 0 3px 10px #0000006b;
-  appearance: none;
-  -webkit-appearance: none;
-}
-.hb-light-details-slider input::-moz-range-track {
-  height: 9px;
-  border: 0;
-  border-radius: 99px;
-  background: transparent;
-}
-.hb-light-details-slider input::-moz-range-thumb {
-  width: 23px;
-  height: 23px;
-  border: 2px solid rgba(255, 255, 255, 0.82);
-  border-radius: 50%;
-  background: #edf0f2;
-  box-shadow: 0 3px 10px #0000006b;
-}
-.hb-light-details-slider input:focus-visible::-webkit-slider-thumb {
-  box-shadow: 0 3px 10px #0000006b;
-}
-.hb-light-details-panel .hb-light-details-slider input:focus-visible::-webkit-slider-thumb {
-  box-shadow: inset 0 1px #ffffff2e;
+  width: 100%;margin: 2px 0 0
 }
 .hb-light-details-slider:has(input:focus-visible) strong,
 .hb-light-details-slider:has(input:focus-visible) output {
@@ -6178,41 +6026,10 @@
  */
 .hb-light-details-temperature input,
 .hb-light-details-panel .hb-light-details-temperature input,
-.hb-custom-popup-module--light .hb-light-details-temperature input {
-  background:
-    linear-gradient(
-      90deg,
-      transparent 0%,
-      transparent var(--hb-light-slider-progress, var(--progress-pct, 0%)),
-      #343d44 var(--hb-light-slider-progress, var(--progress-pct, 0%)),
-      #343d44 100%
-    ),
-    linear-gradient(90deg, #f4a816, #f6c76d 35%, #e5dfcf 57%, #72b9ed) !important;
-}
+.hb-custom-popup-module--light .hb-light-details-temperature input {}
 .hb-light-details-brightness input,
 .hb-light-details-panel .hb-light-details-brightness input,
-.hb-custom-popup-module--light .hb-light-details-brightness input {
-  background: linear-gradient(
-    90deg,
-    #f4a816 0%,
-    #f4a816 var(--hb-light-slider-progress, var(--progress-pct, 0%)),
-    #343d44 var(--hb-light-slider-progress, var(--progress-pct, 0%)),
-    #343d44 100%
-  ) !important;
-}
-.hb-light-details-temperature input::-webkit-slider-runnable-track,
-.hb-light-details-brightness input::-webkit-slider-runnable-track,
-.hb-light-details-panel .hb-light-details-temperature input::-webkit-slider-runnable-track,
-.hb-light-details-panel .hb-light-details-brightness input::-webkit-slider-runnable-track,
-.hb-custom-popup-module--light .hb-light-details-temperature input::-webkit-slider-runnable-track,
-.hb-custom-popup-module--light .hb-light-details-brightness input::-webkit-slider-runnable-track {
-  background: transparent !important;
-}
-.hb-light-details-temperature input::-moz-range-track,
-.hb-light-details-panel .hb-light-details-temperature input::-moz-range-track,
-.hb-custom-popup-module--light .hb-light-details-temperature input::-moz-range-track {
-  background: linear-gradient(90deg, #f4a816, #f6c76d 35%, #e5dfcf 57%, #72b9ed);
-}
+.hb-custom-popup-module--light .hb-light-details-brightness input {}
 .hb-light-details-brightness input::-moz-range-track,
 .hb-light-details-panel .hb-light-details-brightness input::-moz-range-track,
 .hb-custom-popup-module--light .hb-light-details-brightness input::-moz-range-track {
@@ -6887,53 +6704,7 @@
   cursor: wait;
 }
 .hb-climate-fan-slider input {
-  width: 100%;
-  height: 8px;
-  margin: 2px 0 0;
-  border: 0;
-  border-radius: 99px;
-  outline: 0;
-  background: linear-gradient(
-    90deg,
-    var(--hb-climate-accent) 0%,
-    var(--hb-climate-accent) var(--hb-climate-fan-progress),
-    #343d44 var(--hb-climate-fan-progress),
-    #343d44 100%
-  );
-  transition: background 0.28s ease;
-  appearance: none;
-  -webkit-appearance: none;
-  cursor: pointer;
-}
-.hb-climate-fan-slider input::-webkit-slider-runnable-track {
-  height: 8px;
-  border-radius: 99px;
-  background: transparent;
-}
-.hb-climate-fan-slider input::-webkit-slider-thumb {
-  width: 22px;
-  height: 22px;
-  margin-top: -7px;
-  border: 2px solid rgba(255, 255, 255, 0.82);
-  border-radius: 50%;
-  background: #edf0f2;
-  box-shadow: 0 3px 10px #0000006b;
-  appearance: none;
-  -webkit-appearance: none;
-}
-.hb-climate-fan-slider input::-moz-range-track {
-  height: 8px;
-  border: 0;
-  border-radius: 99px;
-  background: transparent;
-}
-.hb-climate-fan-slider input::-moz-range-thumb {
-  width: 20px;
-  height: 20px;
-  border: 2px solid rgba(255, 255, 255, 0.82);
-  border-radius: 50%;
-  background: #edf0f2;
-  box-shadow: 0 3px 10px #0000006b;
+  width: 100%;margin: 2px 0 0;transition: background 0.28s ease
 }
 .hb-climate-fan-slider input:disabled {
   opacity: 0.55;
@@ -7833,35 +7604,7 @@
   text-align: center;
 }
 .hb-custom-popup-module--light .hb-light-details-slider input {
-  grid-column: 2;
-  grid-row: 1;
-  width: 100%;
-  min-width: 0;
-  height: 12px;
-  align-self: end;
-  border: 3px solid #252322;
-  box-shadow:
-    0 0 0 2px #7e6f6640,
-    inset 0 2px 7px #000c;
-}
-.hb-custom-popup-module--light .hb-light-details-slider input::-webkit-slider-runnable-track {
-  height: 12px;
-}
-.hb-custom-popup-module--light .hb-light-details-slider input::-webkit-slider-thumb {
-  width: 34px;
-  height: 34px;
-  margin-top: -11px;
-  border: 4px solid transparent;
-  background: linear-gradient(145deg, #8a7865, #4e4339) padding-box;
-}
-.hb-custom-popup-module--light .hb-light-details-slider input::-moz-range-track {
-  height: 12px;
-}
-.hb-custom-popup-module--light .hb-light-details-slider input::-moz-range-thumb {
-  width: 32px;
-  height: 32px;
-  border: 4px solid transparent;
-  background: linear-gradient(145deg, #8a7865, #4e4339) padding-box;
+  grid-column: 2;grid-row: 1;width: 100%;min-width: 0;align-self: end
 }
 .hb-custom-popup-module--light .hb-light-details-slider-legend {
   grid-column: 2;
@@ -7877,18 +7620,7 @@
 .hb-custom-popup-module--light .hb-light-details-temperature output {
   font-size: 14px;
 }
-.hb-custom-popup-module--light .hb-light-details-temperature input {
-  height: 16px;
-}
-.hb-custom-popup-module--light .hb-light-details-temperature input::-webkit-slider-runnable-track {
-  height: 16px;
-}
-.hb-custom-popup-module--light .hb-light-details-temperature input::-webkit-slider-thumb {
-  margin-top: -9px;
-}
-.hb-custom-popup-module--light .hb-light-details-temperature input::-moz-range-track {
-  height: 16px;
-}
+.hb-custom-popup-module--light .hb-light-details-temperature input {}
 .hb-custom-popup-module--light .hb-light-details-temperature .hb-light-details-slider-legend small {
   font-size: 12px;
 }
@@ -13083,4 +12815,57 @@
 /* 0.8.7：非 3D 详情弹窗里不显示设备缩略图（占位会顶掉标题行）。 */
 .hb-camera-preview-dialog:not(.i3d-camera-details) .hb-camera-device-visual {
   display: none;
+}
+
+/* ---- 0.8.9 滑条按组件几何 ----
+   本项目沿用「类挂在 input 自身」的结构（理由见 `range-control.css` 头注释），
+   所以这里只补组件级的 `--hb-rail-*` 值：0.8.9 把拇指从 16px 到 43px 分了 7 档，
+   统一成 16px 会让窗帘/灯光在深色面板里显得又细又难按。 */
+:is(.hb-light-details-slider, .hb-climate-fan-slider) { --hb-rail-align: center }
+.hb-light-details-slider {
+  --hb-rail-grid: 2 / 1;
+  --hb-rail-margin-start: 2px;
+  --hb-rail-border-width: 0px;
+  --hb-rail-shadow: none;
+  --hb-rail-thumb-size: 25px;
+  --hb-rail-thumb-border: 3px;
+  --hb-rail-thumb-border-color: rgba(255, 255, 255, 0.82);
+  --hb-rail-thumb-background: #edf0f2;
+  --hb-rail-thumb-filter: none;
+  --hb-rail-thumb-shadow: 0 3px 10px rgba(0, 0, 0, 0.42);
+  --hb-rail-track-height: 9px;
+  --hb-rail-input-height: 9px;
+}
+:is(.hb-light-details-panel, .hb-custom-popup-module--light) .hb-light-details-slider { --hb-rail-grid: 2 / 1 }
+.hb-custom-popup-module--light .hb-light-details-temperature { --hb-rail-track-height: 16px }
+.hb-light-details-slider > input[type="range"] { width: 100%; min-width: 0 }
+.hb-light-details-brightness { display: grid; gap: 6px; min-width: 0 }
+.hb-light-details-temperature { --hb-rail-track-height: 16px }
+/* 组合弹窗里的灯光滑条比面板矮一档，但拇指要更大（触控优先）。 */
+.hb-custom-popup-module--light .hb-light-details-slider {
+  --hb-rail-track-height: var(--hb-light-combo-rail-height, 12px);
+  --hb-rail-input-height: var(--hb-rail-track-height);
+  --hb-rail-border-width: 3px;
+  --hb-rail-thumb-size: var(--hb-light-combo-thumb-size, 34px);
+}
+.hb-climate-fan-slider {
+  --hb-rail-border-width: 0px;
+  --hb-rail-shadow: none;
+  --hb-rail-thumb-size: 22px;
+  --hb-rail-track-height: 8px;
+  --hb-rail-input-height: 8px;
+}
+/* 窗帘位置：拇指最大（43px），轨道最厚 —— 这是唯一「凭手感拖到任意开合度」的控件。 */
+.hb-cover-details-position {
+  --hb-rail-align: end;
+  --hb-rail-border-width: 4px;
+  --hb-rail-border-color: #252322;
+  --hb-rail-shadow: 0 0 0 2px rgba(126, 111, 102, 0.25), inset 0 2px 7px rgba(0, 0, 0, 0.8);
+  --hb-rail-thumb-size: 43px;
+  --hb-rail-thumb-border: 5px;
+  --hb-rail-thumb-background: linear-gradient(145deg, #8a7865, #4e4339) padding-box;
+  --hb-rail-thumb-filter: drop-shadow(0 5px 7px rgba(0, 0, 0, 0.55));
+  --hb-rail-thumb-shadow: inset 0 1px rgba(255, 255, 255, 0.18);
+  --hb-rail-track-height: 14px;
+  --hb-rail-input-height: 14px;
 }

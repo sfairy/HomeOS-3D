@@ -274,7 +274,7 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps) {
    * 建渲染器之前的 WebGL 预检；不可用直接抛错（文案面向用户）。
    *
    * 抽成独立函数是为了不给 `createRendererWithFallback` 增加分支：那个函数的三级降级
-   * 已经在复杂度棘轮基线上，再加两个 `if` 就会让门禁失败（且它本身已经够长了）。
+   * 已经够长了，再加两个 `if` 会读不出降级顺序。
    */
   function ensureWebglAvailable() {
     const availability = probeWebglAvailability()
@@ -456,6 +456,104 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps) {
       previousOverviewGap: any,
       overviewStackCenter = [0, 0, 0],
       floorBoundsById = new Map()
+
+    /**
+     * 建 / 换光影管线（0.8.9）。
+     *
+     * 两条管线互斥，**不能并存**：轻量柔光会在 `scene.onBeforeRender` 里换掉受光面材质，
+     * 标准光影的聚光灯阴影图集则按逐灯投影另算一套；同时存在会得到「双倍亮度 + 两套阴影」。
+     * 所以切换时先把旧的 `dispose()`（它会还原换掉的材质），再建新的。
+     *
+     * `useRegion` 由**调用时刻**决定，不是创建时的闭包值：绘制页切换会再次调进来。
+     */
+    function setupLightingPipeline(useRegion: boolean) {
+      appCtx.lightPrecompileController?.dispose?.()
+      appCtx.regionLightController?.dispose?.()
+      appCtx.contactShadowController?.dispose?.()
+      ;(appCtx.lightPrecompileController = null),
+        (appCtx.regionLightController = null),
+        (appCtx.contactShadowController = null)
+      if (!useRegion) {
+        appCtx.lightPrecompileController = createSpotShadowAtlasController2({
+          THREE: ns2,
+          renderer: appCtx.threeRenderer,
+          scene: appCtx.threeScene,
+          camera: appCtx.threeCamera,
+          syncBeforeRender: isEmbeddedStage,
+          // 嵌入舞台切层时旧楼层还在淡出，保留它的阴影层，避免切层那几帧阴影闪一下。
+          retainDetachedFloors: isEmbeddedStage,
+          // 图集彻底失败时把原生逐灯阴影重排一遍；否则这些灯会一直停在
+          // `castShadow = false`，用户看到的是一整片没有阴影的场景。
+          onFallback: (failedRoot: unknown) =>
+            setupSceneShadows(failedRoot, {
+              rebuildAtlas: false,
+            }),
+          requestFrame: renderStudioFrame,
+          canBuild: () =>
+            !document.hidden &&
+            !appCtx.pendingRuntimeSettings &&
+            !appCtx.isRenderSuppressed &&
+            !appCtx.isPrewarming &&
+            !appCtx.isCurtainMoving &&
+            !appCtx.isVacuumMoving &&
+            !appCtx.isBackgroundMoving &&
+            !appCtx.isWindowHidden &&
+            !appCtx.isCapturingLights &&
+            !hasPendingSceneWork(),
+        })
+        return
+      }
+      appCtx.contactShadowController = createContactShadowController2({
+        THREE: ns2,
+        renderer: appCtx.threeRenderer,
+        ...(isEmbeddedStage ? interactionResourcePolicy.contactShadows : {}),
+        persistentCache: isEmbeddedStage ? stageStartup2?.shadowCache : null,
+        getRoot: () => appCtx.sceneRootNode,
+        requestFrame: renderStudioFrame,
+        followMotion: true,
+        maxCapturesPerSync: resolveContactShadowCaptureCap(isEmbeddedStage),
+        deferSurfaceBake: isEmbeddedStage,
+        deferInitialBake: isEmbeddedStage,
+        surfaceBatchSize: isEmbeddedStage ? 4 : 2,
+        canBuild: canBuildScene,
+      })
+      appCtx.regionLightController = createRegionLightController2({
+        THREE: ns2,
+        renderer: appCtx.threeRenderer,
+        reuseRendererMatrices: isEmbeddedStage && interactionResourcePolicy.reuseLightMatrices,
+        scene: appCtx.threeScene,
+        getRoot: () => appCtx.sceneRootNode,
+        contactShadows: appCtx.contactShadowController,
+        requestFrame: renderStudioFrame,
+      })
+      // 控制器建好就先把当前的太阳方向 / 阴影浓度灌进去：`refreshBaseLighting` 可能
+      // 在它之前就跑过一次（那时还没有 controller），不补这一下，首帧墙面会按
+      // uniform 的缺省方向算朝向，切层后也不会自己纠正。
+      if (appCtx.mainDirectionalLight) {
+        appCtx.regionLightController.setSunDirection(
+          appCtx.mainDirectionalLight.position.x,
+          appCtx.mainDirectionalLight.position.y,
+          appCtx.mainDirectionalLight.position.z,
+        )
+        appCtx.regionLightController.setSunShadowScale(appCtx.mainDirectionalLight.shadow?.intensity ?? 0.18)
+      }
+    }
+
+    /**
+     * 供绘制页切换光影模式：换管线 + 让调用方重建灯光层（灯光要重新注册）。
+     *
+     * `options.render === false` 给「换完管线马上要整场景重建」的调用方用：换管线时旧控制器
+     * 已 `dispose()`、新控制器还没有任何灯注册，此刻画一帧就是**一盏灯都没有**的中转画面
+     * （区域模式下是整片只剩环境项的灰面）。上游 `wh()` 在同一个任务里紧接着 `Jn(A0())`
+     * 重建，中间不渲染；这里用这个开关表达同一件事。
+     */
+    appCtx.applyLightingPipeline = (mode: 'standard' | 'region', options?: { render?: boolean }) => {
+      appCtx.previewLightingMode = mode
+      setupLightingPipeline(isEmbedStageMode || mode === 'region')
+      refreshBaseLighting()
+      options?.render === false || renderStudioFrame()
+    }
+
     ;(appCtx.overviewStackController = createOverviewStack2({
       THREE: ns2,
       renderer: appCtx.threeRenderer,
@@ -503,67 +601,9 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps) {
       },
     })),
       registerPageHide(() => appCtx.overviewStackController?.dispose()),
-      isEmbedStageMode
-        ? ((appCtx.contactShadowController = createContactShadowController2({
-            THREE: ns2,
-            renderer: appCtx.threeRenderer,
-            ...(isEmbeddedStage ? interactionResourcePolicy.contactShadows : {}),
-            persistentCache: isEmbeddedStage ? stageStartup2?.shadowCache : null,
-            getRoot: () => appCtx.sceneRootNode,
-            requestFrame: renderStudioFrame,
-            followMotion: true,
-            maxCapturesPerSync: resolveContactShadowCaptureCap(isEmbeddedStage),
-            deferSurfaceBake: isEmbeddedStage,
-            deferInitialBake: isEmbeddedStage,
-            surfaceBatchSize: isEmbeddedStage ? 4 : 2,
-            canBuild: canBuildScene,
-          })),
-          (appCtx.regionLightController = createRegionLightController2({
-            THREE: ns2,
-            renderer: appCtx.threeRenderer,
-            reuseRendererMatrices: isEmbeddedStage && interactionResourcePolicy.reuseLightMatrices,
-            scene: appCtx.threeScene,
-            getRoot: () => appCtx.sceneRootNode,
-            contactShadows: appCtx.contactShadowController,
-            requestFrame: renderStudioFrame,
-          })),
-          // 控制器建好就先把当前的太阳方向 / 阴影浓度灌进去：`refreshBaseLighting` 可能
-          // 在它之前就跑过一次（那时还没有 controller），不补这一下，首帧墙面会按
-          // uniform 的缺省方向算朝向，切层后也不会自己纠正。
-          appCtx.mainDirectionalLight &&
-            (appCtx.regionLightController.setSunDirection(
-              appCtx.mainDirectionalLight.position.x,
-              appCtx.mainDirectionalLight.position.y,
-              appCtx.mainDirectionalLight.position.z,
-            ),
-            appCtx.regionLightController.setSunShadowScale(appCtx.mainDirectionalLight.shadow?.intensity ?? 0.18)))
-        : (appCtx.lightPrecompileController = createSpotShadowAtlasController2({
-            THREE: ns2,
-            renderer: appCtx.threeRenderer,
-            scene: appCtx.threeScene,
-            camera: appCtx.threeCamera,
-            syncBeforeRender: isEmbeddedStage,
-            // 嵌入舞台切层时旧楼层还在淡出，保留它的阴影层，避免切层那几帧阴影闪一下。
-            retainDetachedFloors: isEmbeddedStage,
-            // 图集彻底失败时把原生逐灯阴影重排一遍；否则这些灯会一直停在
-            // `castShadow = false`，用户看到的是一整片没有阴影的场景。
-            onFallback: (failedRoot: unknown) =>
-              setupSceneShadows(failedRoot, {
-                rebuildAtlas: false,
-              }),
-            requestFrame: renderStudioFrame,
-            canBuild: () =>
-              !document.hidden &&
-              !appCtx.pendingRuntimeSettings &&
-              !appCtx.isRenderSuppressed &&
-              !appCtx.isPrewarming &&
-              !appCtx.isCurtainMoving &&
-              !appCtx.isVacuumMoving &&
-              !appCtx.isBackgroundMoving &&
-              !appCtx.isWindowHidden &&
-              !appCtx.isCapturingLights &&
-              !hasPendingSceneWork(),
-          })),
+      // 0.8.9：光影管线可切换（绘制页的「标准光影 / 轻量柔光」）。
+      // 嵌入舞台仍由 `isEmbedStageMode` 固定；绘制页初值取户型草稿里的 `lightingMode`。
+      setupLightingPipeline(isEmbedStageMode || appCtx.previewLightingMode === 'region'),
       refreshBaseLighting(),
       (appCtx.resizeObserverInstance = new ResizeObserver(() => resizeStudioRenderer())),
       appCtx.resizeObserverInstance.observe(previewViewportElement),

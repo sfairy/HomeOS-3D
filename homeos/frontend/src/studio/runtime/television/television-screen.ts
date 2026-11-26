@@ -1,4 +1,5 @@
 import { isWarmSceneStyle } from '@app/shared/scene-styles'
+import { drawCoveredScreenImage, screenUploadSource } from '@app/shared/display-image-source'
 import { drawTelevisionGlass as drawGlass } from '@app/shared/scene/studio-television-glass'
 import { drawTelevisionPoster as drawPosterArt } from '@app/shared/scene/studio-television-poster'
 import { televisionState } from './television-state'
@@ -71,16 +72,7 @@ export function createTelevisionScreens({
     ) {
       // 铺满（cover）而不是等比内嵌（contain）：电视上留黑边就是「画面没有全屏」。
       // 内容超出画布的部分交给画布裁剪，宁可裁掉一点也不能露边。
-      const fitScale = Math.max(canvas.width / image.naturalWidth, canvas.height / image.naturalHeight),
-        drawWidth = image.naturalWidth * fitScale,
-        drawHeight = image.naturalHeight * fitScale
-      screenPainter.drawImage(
-        image,
-        (canvas.width - drawWidth) / 2,
-        (canvas.height - drawHeight) / 2,
-        drawWidth,
-        drawHeight,
-      )
+      drawCoveredScreenImage(screenPainter, image, canvas.width, canvas.height)
     } else state.on && drawPoster(canvas, screenPainter, state)
     ;(entry.texture.needsUpdate = true), requestFrame([entry.floorId])
   }
@@ -216,9 +208,10 @@ export function createTelevisionScreens({
             ((screenEntry.signature = signature),
             screenEntry.artwork !== deviceState.artwork || screenEntry.customPoster !== deviceState.customPosterUrl)
           ) {
-            ;(screenEntry.artwork = deviceState.artwork),
-              (screenEntry.customPoster = deviceState.customPosterUrl),
-              (screenEntry.image = null)
+            screenEntry.artwork = deviceState.artwork
+            screenEntry.customPoster = deviceState.customPosterUrl
+            const previousImage = screenEntry.image
+            screenEntry.image = null
             const generation = ++screenEntry.generation
             if (nextScreenImageUrl) {
               let retryCount = 0
@@ -245,13 +238,22 @@ export function createTelevisionScreens({
                     return
                   if (retryCount < 2 && (typeof navigator == 'undefined' || navigator.onLine !== false)) {
                     retryCount += 1
-                    setTimeout(loadScreenImage, 400 * retryCount)
+                    // 指数退避（1s → 2s），对齐 0.8.9 的 `1000 * 2 ** n`：
+                    // 小米电视封面每次都要现截屏，连着重试只会把上游 5xx 放大。
+                    setTimeout(loadScreenImage, Math.min(30_000, 1000 * 2 ** (retryCount - 1)))
                     return
                   }
-                  ;(screenEntry.image = null), renderScreen(screenEntry)
+                  // 重试用尽：保留上一帧（后端也可能已回落旧帧），别把屏幕切成待机宣传画。
+                  ;(screenEntry.image = previousImage), renderScreen(screenEntry)
                 }
                 loadedImage.src =
-                  nextScreenImageUrl + (nextScreenImageUrl.includes('?') ? '&' : '?') + 'hb_retry=' + retryCount
+                  screenUploadSource(nextScreenImageUrl, screenEntry.canvas.width, screenEntry.canvas.height, {
+                    fit: 'cover',
+                    still: true,
+                  }) +
+                  (nextScreenImageUrl.includes('?') ? '&' : '?') +
+                  'hb_retry=' +
+                  retryCount
               }
               loadScreenImage()
             } else renderScreen(screenEntry)

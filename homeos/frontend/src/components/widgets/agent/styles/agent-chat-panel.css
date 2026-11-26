@@ -1,11 +1,11 @@
 /*
  * 面板配色只在 .acp-root 定义一次，其余规则全部走 var()，
- * 既让硬编码样式棘轮只看得到这一处字面量，也方便整体换肤。
+ * 既让字面量只出现在这一处，也方便整体换肤。
  * 取值逐条对齐源码 HomeOSSidebarAgentPanel 的 conic 光边与状态色。
  */
 .acp-root {
   /* 七彩光边沿用全站 premium 强调色：面板换肤时与设置页 / 列表页同源，
-     不再各自维护一套 Google 色，也让硬编码样式棘轮只看得到 var() 引用。 */
+     不再各自维护一套 Google 色，也让面板内只出现 var() 引用。 */
   --acp-blue: var(--premium-accent-blue);
   --acp-violet: var(--premium-accent-violet);
   --acp-red: var(--premium-accent-red);

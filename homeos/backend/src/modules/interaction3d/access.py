@@ -16,6 +16,7 @@ from fastapi import HTTPException, Request
 from .config import validate_config
 from ...domains.license import features as feature_codes
 from ...domains.license.crypto import LicenseCryptoError
+from ...platform.core.http.errors import BusinessException, ErrorCode, api_error
 
 FEATURE = feature_codes.FEATURE_INTERACTION_3D
 COMPONENT_TYPE = 'interaction3d'
@@ -66,6 +67,25 @@ def access_grant(request: Request) -> dict:
         'feature': FEATURE,
         'phase': 'authorization-shell',
         'validForSeconds': lifetime,
+        # 0.8.9：HA 连接身份。前端把它写进后续写请求的 `X-HABridge-HA-Source`，
+        # 换 HA 后旧页面里的操作会被 409（而不是打到新机器的同名实体上）。
+        **ha_connection_facts(request),
+    }
+
+
+def ha_connection_facts(request: Request) -> dict:
+    """当前 HA 连接的可公开事实（身份 / epoch / 在线）。
+
+    `haSource` 是派生哈希（不含 base_url 与凭据原文），可以安全地出现在响应与日志里；
+    `haEpoch` 每次换连接自增，前端据此整体丢弃缓存。
+    """
+    hub = getattr(request.app.state, 'state_hub', None)
+    if hub is None:
+        return {'haSource': '', 'haEpoch': 0, 'haOnline': False}
+    return {
+        'haSource': hub.runtime_source_identity,
+        'haEpoch': hub.runtime_epoch,
+        'haOnline': hub.runtime_online,
     }
 
 
@@ -119,3 +139,57 @@ def protected_config(component):
         **component,
         'position': {key: value for key, value in component.get('position', {}).items() if key != 'zIndex'},
     }
+
+#: 浏览器回传的 HA 连接身份（0.8.9）。与 `access_grant` 响应里的 `haSource` 同源。
+HA_SOURCE_HEADER = 'x-habridge-ha-source'
+
+#: 请求体/查询串里的同义字段（0.8.9 的 `expectedHaSource`，另兼容 snake_case）。
+HA_SOURCE_FIELDS = ('expectedHaSource', 'expected_ha_source')
+
+
+def declared_ha_source(request: Request, expected: str | None = None) -> str:
+    """取出「调用方以为自己连的是哪台 HA」。
+
+    三处来源，优先级从高到低：显式参数（已解析的请求体字段）→ 请求头 → 查询串。
+    为什么不能只读请求头：0.8.9 的保存类接口把身份放在 JSON 体里
+    （`expectedHaSource`），只读头会把这类请求当成「未声明」而永远放行。
+    """
+    if expected is not None and str(expected).strip():
+        return str(expected).strip()
+    header = request.headers.get(HA_SOURCE_HEADER, '')
+    if header:
+        return header
+    for name in HA_SOURCE_FIELDS:
+        value = request.query_params.get(name)
+        if value:
+            return value
+    return ''
+
+
+def require_ha_source(request: Request, expected: str | None = None) -> None:
+    """写操作前核对「我以为连的那台 HA」是否仍是当前连接（0.8.9）。
+
+    不匹配就 409 —— 换 HA 之后旧页面里的按钮不该继续控制新机器的同名实体。
+    旧客户端不声明身份（空串）时一律放行：`StateHub.source_changed` 把空值视为
+    「未声明」。
+    """
+    hub = getattr(request.app.state, 'state_hub', None)
+    if hub is None:
+        return
+    if hub.source_changed(declared_ha_source(request, expected)):
+        raise BusinessException(ErrorCode.CONFLICT, api_error('HA_SOURCE_CHANGED'), 409)
+
+def require_scene_viewer(request, database, viewer, scene_id, project_id):
+    """场景查看权：登录 + 授权即可。
+
+    配对码机制移除后编辑器与展示页共用同一登录会话；管理员视角本就允许预览尚未挂到
+    仪表盘的户型快照，因此这里不做「场景 ↔ 仪表盘」归属收敛。保留参数便于将来按项目隔离。
+    """
+    require_access(request)
+
+
+def require_scene_transfer(request, viewer, scene_id, project_id):
+    """场景传输权（读取快照 / 背景 / 装饰模型）：与查看权同一口径，但自开会话。"""
+    database = request.app.state.database.session_factory()
+    with database:
+        require_scene_viewer(request, database, viewer, scene_id, project_id)

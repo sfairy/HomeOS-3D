@@ -3,7 +3,23 @@ import { courtyardToolAllowed as courtyardToolAllowed2 } from '../../../plan/cou
 import { isCourtyardGate as isCourtyardGate2 } from '../../../plan/courtyard-drawing'
 import { lampItemTypeSet } from '../../items/item-catalog'
 import { libraryCardVisible, normalizeLibraryCategory } from '../../items/studio-model-library'
+import { refreshDecorationLibrary } from './decoration-library'
 import type { StudioControlElement } from '../../types/studio-app-types'
+
+/**
+ * 显示/隐藏「我的装饰」面板，并在进入时刷新列表。
+ *
+ * 面板常驻标记（`#decoration-library`）只切 `hidden`：上传按钮与删除菜单都按固定选择器
+ * 绑定过一次，重建节点会让绑定失效。
+ */
+function syncDecorationPanel(runtime: StudioAppRuntime, selectedCategory: string): void {
+  const panel = document.getElementById('decoration-library')
+  if (!panel) return
+  const isDecoration = selectedCategory === 'decoration'
+  panel.hidden = !isDecoration
+  if (isDecoration) runtime.assetGridElement.hidden = true
+  if (isDecoration) void refreshDecorationLibrary(runtime)
+}
 
 /** 一个分组标题辖下的模型卡：从标题往后数，直到下一个分组标题为止。 */
 function assetGroupCards(assetGroupHeading: StudioControlElement): StudioControlElement[] {
@@ -58,8 +74,31 @@ export function filterAssetList(runtime: StudioAppRuntime) {
       assetGroupHeading.dataset.assetHeadingCategory !== activeLibraryCategory || groupMatchCount === 0
     for (const groupCard of groupCards) groupCard.hidden = groupCard.dataset.assetMatch !== '1'
   }
+  // 「我的装饰」是动态列表（卡片由 JS 建），不走上面的静态卡片循环，
+  // 所以搜索必须在这里额外把装饰也算进「是否有匹配」——否则搜不到时不会提示。
+  const decorationMatchCount = filterDecorationCards(librarySearchText)
   runtime.assetSearchEmptyElement &&
-    (runtime.assetSearchEmptyElement.hidden = !librarySearchText || assetMatchCount > 0)
+    (runtime.assetSearchEmptyElement.hidden = !librarySearchText || assetMatchCount + decorationMatchCount > 0)
+}
+
+/**
+ * 按搜索词过滤装饰卡片，返回命中数。
+ *
+ * 装饰列表每次刷新重建卡片，所以这里直接对现有 DOM 切片 —— 不重建、不打乱顺序，
+ * 搜索框每敲一个字符都重建一次卡片的代价远高于切 `hidden`。
+ */
+function filterDecorationCards(searchText: string): number {
+  const cards = [...document.querySelectorAll<HTMLElement>('#decoration-library [data-place-decoration]')]
+  if (cards.length === 0) return 0
+  let matches = 0
+  for (const card of cards) {
+    const cardName = (card.dataset.decorationName || card.textContent || '').toLocaleLowerCase().replace(/\s+/g, '')
+    const matched = searchText.length === 0 || cardName.includes(searchText)
+    const wrapper = card.closest<HTMLElement>('.decoration-card')
+    if (wrapper) wrapper.hidden = !matched
+    matched && (matches += 1)
+  }
+  return matches
 }
 
 /**
@@ -96,6 +135,9 @@ export function setAssetCategory(runtime: StudioAppRuntime, assetCategory: any) 
   }
   ;(runtime.assetGridElement.hidden = selectedAssetCategory === 'light'),
     (runtime.lightAssetRowElement.hidden = selectedAssetCategory !== 'light')
+  // 0.8.9「我的装饰」：动态大类。隐藏静态栅格、显示面板，并在进入时刷新列表
+  // （列表走服务端，切分类就是最自然的刷新时机，也让上传/删除后的改动可见）。
+  syncDecorationPanel(runtime, selectedAssetCategory)
   runtime.appCtx.selectedItem && !runtime.isSelectionAllowed(runtime.appCtx.selectedItem) && runtime.refreshSelection(),
     runtime.appCtx.selectedItems.length && runtime.refreshSelection(),
     runtime.selectStudioTool('select'),

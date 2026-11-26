@@ -385,7 +385,7 @@ function requestLicenseFeatures(): Promise<LicenseFeatureResult> {
  * 商业授权可用性探测（公开端点，未登录也要查）。
  *
  * 从守卫里抽出来：它自带重试语义与「不可达不假装已授权」的分支，留在守卫里只会让
- * 守卫的圈复杂度继续上涨（`check:frontend-complexity` 对此有棘轮）。
+ * 守卫的圈复杂度继续上涨，也更难单独测试。
  */
 async function refreshLicenseAvailability(
   forceRefresh: boolean,

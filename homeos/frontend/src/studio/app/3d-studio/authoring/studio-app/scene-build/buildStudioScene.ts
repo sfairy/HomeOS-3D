@@ -10,6 +10,7 @@ import { validGeometryLoops as validGeometryLoops2 } from '../../../cache/geomet
 
 import { compactRuntimeFurniture as compactRuntimeFurniture2 } from '../../items/studio-runtime-furniture'
 import { floorOpeningPolygon as floorOpeningPolygon2 } from '../../../plan/studio-floor-openings'
+import { mountFloorRegionVisualsForScene } from './floor-region-visuals'
 import { mergeWallBands as mergeWallBands2 } from '../../../materials/studio-wall-materials'
 
 import { cacheObjectTransforms as cacheObjectTransforms2 } from '../../../../bridge/scene/scene-matrices'
@@ -303,11 +304,19 @@ export function buildStudioScene(deps: BuildStudioSceneDeps, { preserveLightCach
       toWorld: planPointToWorld,
       floorSurfaceY: groundPlaneY,
     })
+  // 0.8.9 地面分区 / 铺面色档 / 地暖盘管：单层模式下整板刚建好，这里覆盖成按分区的板。
+  // 只是一行调用、不带分支（`buildStudioScene` 的复杂度是 80+，不能加条件）。
+  mountFloorRegionVisualsForScene({
+    appCtx,
+    toWorld: planPointToWorld,
+    floorSurfaceY: groundPlaneY,
+    floorColor: yt7.floor,
+  })
   const $u2 = collectLightSourceSpecs(),
     placedItemRecords: Array<{ item: { id: string }; group: unknown }> = [],
     // 0.8.7 建场景时逐个跳过 `!En(item)`（`if (type==='flooropening' || !En(item)) continue`）：
     // 「已放置」里的隐藏是**本次编辑内真的不画**，不只是 2D 少一笔 —— 灯具因此也不再发光。
-    // 用 filter 而不是循环里的 continue：回调是独立函数，不吃建场景那一段的复杂度棘轮。
+    // 用 filter 而不是循环里的 continue：回调是独立函数，不把过滤判断混进建场景那一段。
     drawableItemRecords = appCtx.studioState.items.filter(
       (sceneItemCandidate: { type?: string; id: string }) =>
         sceneItemCandidate.type !== 'flooropening' && !isPlacedItemHidden(appCtx, sceneItemCandidate.id),

@@ -72,7 +72,7 @@ import { computeDownlightRange } from '../geometry/downlight-range'
  * 渲染循环的依赖边界。
  *
  * 60+ 个成员全是 `any` 是历史债（WebGL / three.js 对象与运行期注册的钩子混在一起）：
- * 逐字段类型化按 `ops/checks/check_any_baseline.mjs` 的棘轮推进，基线只降不升。
+ * 逐字段类型化按需推进（不再有 any 计数门禁，改到哪个字段就补哪个字段的类型）。
  * 名字固定为 `StudioRenderDeps`，便于在「谁需要渲染循环能力」时被检索到。
  */
 export interface StudioRenderDeps {

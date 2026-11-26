@@ -3,7 +3,7 @@
    这里只放本页独有的状态头、路由卡片、节流条、试听波形。
 
    约定：不设 max-width、不居中 —— 宽度交给 SettingsCard 与页签对齐。
-   颜色只用令牌或 rgba()，动画时长只用 --hos-dur-*（硬编码样式棘轮只降不升）。 */
+   颜色只用令牌或 rgba()，动画时长只用 --hos-dur-*（便于整体换肤）。 */
 
 .vox-hub {
   --vox-accent-rgb: var(--module-accent-voice-rgb, 167, 139, 250);

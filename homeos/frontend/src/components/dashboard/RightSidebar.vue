@@ -25,6 +25,10 @@
     </button>
 
     <aside v-if="!collapsed" class="info-panel" :class="{ 'info-panel--agent': agentOpen }">
+      <!-- 0.8.9 侧边栏页面背景：与主页面共用同一份渲染实现（`page-background-layer`）。
+           背景层是绝对定位 + pointer-events:none，不改变 `.info-panel` 的盒模型，
+           所以不影响原有部件布局。 -->
+      <div ref="backgroundHostRef" class="info-panel__background" aria-hidden="true" />
       <!-- 智能管家面板：与参考实现一致，直接替换信息栏内容（滑入 20px + 渐显），
            槽位由主布局注入，面板自己负责内部滚动。 -->
       <Transition name="slide-fade">
@@ -91,7 +95,9 @@ import { readLocalStorageFlag, writeLocalStorage } from '@/shared/utils/core/loc
  * 卡片高度：有自定义 cardHeight 用自定义，否则用类型预设像素。
  * 「恢复预设」与保存同一数值时主页高度一致。时钟无自定义时按内容自适应。
  */
-import { ref, computed, watch } from 'vue'
+import { onBeforeUnmount, ref, computed, watch } from 'vue'
+import { mountPageBackgroundLayer } from '@/studio/app/renderer/controls/page-background-layer'
+import { staticAssetImageSource } from '@/studio/app/renderer/registry/asset-state'
 import { ChevronLeft, ChevronRight } from '@lucide/vue'
 import ErrorBoundary from '@/components/common/ErrorBoundary.vue'
 import WidgetPanelSlot from '@/components/dashboard/WidgetPanelSlot.vue'
@@ -106,6 +112,55 @@ import { getSidebarWidgetClass } from '@/shared/utils/registry/widget-registry-m
 import { resolveSidebarWidgetHeightPx } from '@/shared/widget/utils/panel-widget-height.util'
 
 const layoutStore = useLayoutStore()
+
+/**
+ * 侧边栏页面背景（0.8.9）。
+ *
+ * 与主页面共用 `mountPageBackgroundLayer`：预设 / 图片 / 铺满 / 自由 / 透明度全部同口径。
+ * 配置缺失（`sidebarBackground` 为 undefined）时不插节点 —— 保持旧观感，而不是画一块空白。
+ */
+const backgroundHostRef = ref<HTMLElement | null>(null)
+
+function renderSidebarBackground() {
+  const host = backgroundHostRef.value
+  if (!host) return
+  host.replaceChildren()
+  const background = layoutStore.layoutConfig.sidebarBackground
+  if (!background) return
+  const layer = mountPageBackgroundLayer({
+    background,
+    resolveAssetUrl: staticAssetImageSource,
+    className: 'hb-page-background--sidebar',
+  })
+  if (layer) host.append(layer)
+}
+
+/**
+ * 监听**指纹**而不是整对象：递归监听会在任意属性写入时触发全量比对，
+ * 而这里真正消费的只有 9 个标量（来源 / 预设 / 素材 / 透明度 / 布局 / 四个位置）。
+ * 指纹相同就不重绘，重绘也只发生在背景真的变了的时候。
+ */
+const sidebarBackgroundFingerprint = computed(() => {
+  const background = layoutStore.layoutConfig.sidebarBackground
+  if (!background) return ''
+  const position = background.position
+  return [
+    background.source,
+    background.preset,
+    background.assetId,
+    background.opacity,
+    background.layoutMode,
+    position?.x,
+    position?.y,
+    position?.width,
+    position?.height,
+  ].join('|')
+})
+watch(sidebarBackgroundFingerprint, () => renderSidebarBackground())
+watch(backgroundHostRef, () => renderSidebarBackground())
+onBeforeUnmount(() => {
+  backgroundHostRef.value?.replaceChildren()
+})
 
 /** 折叠状态持久化键：刷新后保持用户偏好 */
 const COLLAPSE_STORAGE_KEY = 'homeos.right-sidebar.collapsed'

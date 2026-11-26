@@ -157,6 +157,25 @@ function syncStripInspectorFields(item: { type?: string }, selectElement: (selec
   }
 }
 
+/**
+ * 选中物件的属性面板标题。
+ *
+ * 用户装饰（0.8.9）用**模型名**而不是目录名：目录里这类只叫「我的装饰」，
+ * 显示通用名会让用户看不出选的是哪一件（上游同样显示模型名）。
+ *
+ * 拆成函数是为了不给 `refreshStudioUiInner` 那个超长函数再加分支。
+ */
+export function itemSelectionTitle(
+  item: { type?: string; name?: unknown; modelName?: unknown },
+  typeDefinition: { name?: string } | undefined,
+): string {
+  const isUserDecoration = item?.type === 'user-decoration'
+  // 双键：本仓 `name`、0.8.9 上游 `modelName`。
+  const rawName = isUserDecoration ? (item?.name ?? item?.modelName) : ''
+  const modelName = typeof rawName === 'string' ? rawName.trim() : ''
+  return modelName || typeDefinition?.name || '物件'
+}
+
 export function refreshStudioUiInner(deps: RefreshStudioUiInnerDeps, shouldClearActiveElement = false) {
   const {
     appCtx,
@@ -354,7 +373,7 @@ export function refreshStudioUiInner(deps: RefreshStudioUiInnerDeps, shouldClear
               isPlanLabel = at4.type === 'planlabel',
               isLightItem = lampItemTypeSet.has(at4.type)
             if (
-              ((selectElement('#selection-title').textContent = itemTypeDefinition?.name || '物件'),
+              ((selectElement('#selection-title').textContent = itemSelectionTitle(at4, itemTypeDefinition)),
               (lightPreviewNoteElement.hidden = !isLightItem),
               selectionHeadingElement.classList.toggle('light-selected', isLightItem),
               (labelTextFieldsElement.hidden = !isPlanLabel),

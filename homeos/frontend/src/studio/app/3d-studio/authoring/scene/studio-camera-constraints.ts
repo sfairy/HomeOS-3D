@@ -38,3 +38,33 @@ export function constrainCameraPose(pose: any) {
       }
     : pose
 }
+
+/**
+ * 透视视锥限制（0.8.9 `createPerspectiveViewLimit`）：返回一个可复用的「限位器」。
+ *
+ * 与 `constrainCameraPose` 的区别只是形状：那个是纯函数（输入位姿 → 输出位姿），
+ * 这个是闭包（记住上一次合法位姿），供相机连续拖动时逐帧调用。
+ */
+export function createPerspectiveViewLimit(initial: Record<string, unknown> = {}) {
+  let last = { ...initial }
+  return {
+    apply(pose: Record<string, unknown>) {
+      last = constrainCameraPose({ ...last, ...pose })
+      return last
+    },
+    get current() {
+      return last
+    },
+  }
+}
+
+/** 可见视图面（0.8.9 `visibleViewSurface`）：相机在该位姿下能看到的地面覆盖率（0..1）。 */
+export function visibleViewSurface(pose: {
+  position?: { x?: number; y?: number; z?: number }
+  target?: { x?: number; y?: number; z?: number }
+}): number {
+  const cameraHeight = Math.abs(Number(pose?.position?.y ?? 0) - Number(pose?.target?.y ?? 0))
+  if (!Number.isFinite(cameraHeight) || cameraHeight <= 0) return 0
+  // 视角越斜、越贴近地面，可见面越大；用 1 - 1/(1+h) 做饱和曲线，h 以米计。
+  return Math.min(1, cameraHeight / (cameraHeight + 1))
+}

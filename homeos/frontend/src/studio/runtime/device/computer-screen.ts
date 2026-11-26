@@ -5,6 +5,7 @@
  * 关机时铺纯黑；图片加载失败按指数退避重试，离线/页面隐藏时暂停。
  */
 
+import { drawContainedScreenImage, screenUploadSource } from '@app/shared/display-image-source'
 import { computerPower, computerScreenImage } from '../device/computer-state'
 
 const SCREEN_CANVAS_WIDTH = 1024,
@@ -92,7 +93,13 @@ export function createComputerScreens({
     ;(loadingImage.onerror = handleFailure),
       (screenRecord.timeout = setTimeout(handleFailure, LOAD_TIMEOUT_MS)),
       screenRecord.timeout?.['unref']?.(),
-      (loadingImage.src = screenRecord.source)
+      // 桌面截图不能裁（留边由画布底色承担），所以 `fit: 'contain'`；纹理只要静帧。
+      (loadingImage.src = screenUploadSource(
+        screenRecord.source,
+        screenRecord.canvas.width,
+        screenRecord.canvas.height,
+        { fit: 'contain', still: true },
+      ))
   }
 
   /** 在线/可见性变化后重新调度所有屏幕的加载队列。 */
@@ -119,19 +126,7 @@ export function createComputerScreens({
     const { canvas, context } = screenRecord
     paintOffScreen(canvas, context)
     if (screenRecord.on && screenRecord.image) {
-      const imageScale = Math.min(
-          canvas.width / screenRecord.image.naturalWidth,
-          canvas.height / screenRecord.image.naturalHeight,
-        ),
-        drawnWidth = screenRecord.image.naturalWidth * imageScale,
-        drawnHeight = screenRecord.image.naturalHeight * imageScale
-      context.drawImage(
-        screenRecord.image,
-        (canvas.width - drawnWidth) / 2,
-        (canvas.height - drawnHeight) / 2,
-        drawnWidth,
-        drawnHeight,
-      )
+      drawContainedScreenImage(context, screenRecord.image, canvas.width, canvas.height)
     }
     ;(screenRecord.texture.needsUpdate = true), requestFrame([screenRecord.floorId])
   }

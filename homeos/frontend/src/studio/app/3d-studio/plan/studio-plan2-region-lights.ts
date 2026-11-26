@@ -358,7 +358,8 @@ export function createRegionLightController({
             (stats.shaderCompiles += 1)
           return
         }
-        const LIGHTS_FRAGMENT_END_INCLUDE = '#include <lights_fragment_end>'
+        const LIGHTS_FRAGMENT_END_INCLUDE = '#include <lights_fragment_end>',
+          LIGHTS_FRAGMENT_BEGIN_INCLUDE = '#include <lights_fragment_begin>'
         if (!shader.fragmentShader.includes(LIGHTS_FRAGMENT_END_INCLUDE))
           throw new Error('区域灯材质缺少 lights_fragment_end')
         // `plan2ViewToWorld` 在片元里只被「墙面朝向补偿」与烘焙基底用到；详细材质也要，
@@ -379,9 +380,31 @@ export function createRegionLightController({
           bakedSurfaceTerms = usesBakedBase
             ? '\n          float plan2SunShadow = 1.0;' +
               sunShadowSnippet +
+              // `plan2Simple*` 的声明放在 `lights_fragment_end` 这里，而不是原来
+              // `lights_fragment_begin` 的替换里：`#include <lights_fragment_begin>` 可能
+              // 已被上游的 `onBeforeCompile`（分层阴影图集会把它整块展开成
+              // `patchedLightsFragment`）消费掉，那个 replace 会静默落空 —— 声明没注入，
+              // 而这里的烘焙项还在引用它们，整条 program 就因 `undeclared identifier`
+              // 编译失败，灯光整体退回原生逐灯。收在这一处后，replace 落空只会让原生
+              // 灯光块保留下来，不再影响能否编译。
+              '\n          vec3 plan2SimpleNormal = normalize(mat3(plan2MotionToLayout) * mat3(plan2ViewToWorld) * normal);' +
+              '\n          float plan2SimpleUp = plan2SimpleNormal.y * 0.5 + 0.5;' +
+              '\n          float plan2SimpleKey = max(dot(plan2SimpleNormal, plan2SunDirection), 0.0);' +
+              '\n          vec3 plan2SimpleTint = mix(vec3(0.88, 0.90, 0.94), vec3(1.0, 1.0, 1.0), plan2SimpleUp);' +
+              '\n          float plan2SimpleWallSun = ' +
+              (materialKind === 'wall'
+                ? 'plan2SimpleKey * (1.0 - clamp(abs(plan2SimpleNormal.y), 0.0, 1.0));'
+                : '0.0;') +
               '\n          vec3 plan2BakedSun = diffuseColor.rgb * plan2SimpleTint * ' +
               PLAIN_WALL_SUN_GAIN +
               ' * plan2SimpleWallSun;' +
+              // 原生灯光块万一还在（上面的 replace 落空），它的直接光已经写进
+              // `reflectedLight` 了：不清零的话太阳会被算两遍（原生 PBR + 这里的烘焙
+              // 太阳），亮度直接翻倍。正常路径里这两个字段本来就是 0，清零是空操作。
+              '\n          reflectedLight.directDiffuse = vec3(0.0);\n          reflectedLight.directSpecular = vec3(0.0);' +
+              '\n          reflectedLight.indirectDiffuse = diffuseColor.rgb * plan2SimpleTint * ' +
+              PLAIN_BASE_LEVEL +
+              ' * (0.42 + 0.34 * plan2SimpleUp + 0.14 * plan2SimpleKey);' +
               '\n          reflectedLight.indirectDiffuse = reflectedLight.indirectDiffuse * mix(1.0, plan2SunShadow, ' +
               PLAIN_BASE_SHADOW_WEIGHT +
               ') + plan2BakedSun * plan2SunShadow;'
@@ -434,25 +457,17 @@ export function createRegionLightController({
           // 不能改成「立面走完整 PBR」：那会让墙面把原生半球光再吃一遍，白墙直接过曝。
           usesBakedBase &&
             (shader.fragmentShader = shader.fragmentShader
-              .replace(
-                '#include <lights_fragment_begin>',
-                PLAN2_GEOMETRY_SCOPE_DECLARATIONS +
-                  '\n              vec3 plan2SimpleNormal = normalize(mat3(plan2MotionToLayout) * mat3(plan2ViewToWorld) * normal);\n              float plan2SimpleUp = plan2SimpleNormal.y * 0.5 + 0.5;\n              float plan2SimpleKey = max(dot(plan2SimpleNormal, plan2SunDirection), 0.0);\n              vec3 plan2SimpleTint = mix(vec3(0.88, 0.90, 0.94), vec3(1.0, 1.0, 1.0), plan2SimpleUp);\n              float plan2SimpleWallSun = ' +
-                  (materialKind === 'wall'
-                    ? 'plan2SimpleKey * (1.0 - clamp(abs(plan2SimpleNormal.y), 0.0, 1.0));'
-                    : '0.0;') +
-                  '\n              reflectedLight.indirectDiffuse = diffuseColor.rgb * plan2SimpleTint * ' +
-                  PLAIN_BASE_LEVEL +
-                  ' * (0.42 + 0.34 * plan2SimpleUp + 0.14 * plan2SimpleKey);\n',
-              )
+              // token 已被上游补丁展开时这里落空，交给上面的 `bakedSurfaceTerms`
+              // 在 `lights_fragment_end` 处收尾（原生灯光块原样保留）。
+              .replace(LIGHTS_FRAGMENT_BEGIN_INCLUDE, PLAN2_GEOMETRY_SCOPE_DECLARATIONS)
               .replace('#include <lights_fragment_maps>', '')
-              .replace('#include <lights_fragment_end>', '')),
+              .replace(LIGHTS_FRAGMENT_END_INCLUDE, '')),
           (stats.shaderCompiles += 1)
       }
       const baseProgramCacheKey = sourceMaterial.customProgramCacheKey?.call(sourceMaterial) || ''
       ;(cloneMaterial.customProgramCacheKey = () =>
         baseProgramCacheKey +
-        '|plan2-baked-surface-v24-shadow-split|' +
+        '|plan2-baked-surface-v25-begin-token-fallback|' +
         +(sourceMaterial.userData?.plan2SurfaceContact !== false) +
         '|' +
         +(sourceMaterial.userData?.plan2SurfaceSlope === true) +

@@ -41,6 +41,13 @@
   --hos-bg-elev-3: #18222e; /* 三级：控件 / chip / hover 实底 */
   --hos-bg-well: #04070a; /* 内凹井：输入框 / 列表容器 */
   --hos-bg-scrim: rgba(4, 7, 10, 0.72); /* 遮罩层 */
+  /* 3D 图形中断恢复层（0.8.9 `.i3d-graphics-recovery`）：值取自上游字面量，
+     放进令牌是为了让 `runtime.css` 不出现重复的硬编码颜色，
+     同时保证与上游像素一致。 */
+  --hos-bg-recovery: #171c22e8;
+  --hos-fg-recovery: #f2f2f2;
+  --hos-border-recovery: #79828b;
+  --hos-btn-recovery: #303841;
 
   /* 半透明抬升（叠在任意背景上的玻璃层，不依赖底色） */
   --hos-bg-tint-1: rgba(255, 255, 255, 0.045);
@@ -239,6 +246,25 @@
   --hos-z-modal: 80;
   --hos-z-toast: 100;
   --hos-z-max: 2147483000;
+}
+
+/* 暖色场景（暖阳原木 / 自然木语）的滑轨配色档案（0.8.9）。
+   为什么是令牌而不是直接写进 `stage.css`：主题色属于设计令牌，集中在 `packages/shared`
+   才能被所有消费方复用。放这里既能保留上游的精确色值，也避免同一组颜色在场景样式里再抄一份。 */
+:root {
+  --hos-color-wood-rail-border: #ece2d2;
+  --hos-color-wood-rail-shadow: 0 0 0 1px #b6a78f, inset 0 1px 3px #6a513322;
+  --hos-color-wood-thumb-grad: linear-gradient(145deg, #fdf8ed, #d5be98);
+  --hos-color-wood-thumb-filter: drop-shadow(0 2px 3px #6e542444);
+  --hos-color-wood-thumb-shadow: inset 0 1px #fff;
+  --hos-color-wood-rail-fill: linear-gradient(90deg, #d9cbb5, #b88c4c);
+  --hos-color-wood-temperature: linear-gradient(90deg, #e4ad6b, #f3ead9, #a8c7dd);
+  --hos-color-wood-accent: #ae8c59;
+  --hos-color-wood-track: #ded4c3;
+  --hos-color-cover-rail-border: #3b4a52;
+  --hos-color-cover-thumb-grad: linear-gradient(145deg, #8ea8b4, #4a5a62);
+  --hos-color-cover-accent: #b99264;
+  --hos-color-temperature-grad: linear-gradient(90deg, #eaa95b, #f1e1bf, #b8d6f4);
 }
 
 /* 文字选中：暖铜半透明底 + 近白字（旧规则用 --accent-rgb，桥接后同色） */

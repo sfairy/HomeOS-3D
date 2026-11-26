@@ -363,6 +363,33 @@ class Settings:
         return self.data_dir / "exports"
 
     @property
+    def interaction3d_modules_dir(self) -> Path:
+        """3D 交互运行期数据根（``data/modules/interaction3d``）。
+
+        与后端**代码**模块无关：这里是「按需下发 / 缓存 / 场景快照」的数据目录，
+        备份口径按子目录分别登记（见 ``domains/backup/scope.py``）。
+        """
+        return self.data_dir / "modules" / "interaction3d"
+
+    @property
+    def studio3d_models_dir(self) -> Path:
+        """用户上传的静态 GLB 装饰（「我的装饰」）。
+
+        与 ``studio3d_dir``（草稿 JSON）分开：模型是二进制资产，体积与生命周期都不同；
+        删除走墓碑（``.deleted-<id>``）而不是直接 unlink，避免「场景还引用着被删的模型」。
+        """
+        return self.interaction3d_modules_dir / "models"
+
+    @property
+    def display_images_cache_dir(self) -> Path:
+        """按显示尺寸派生的图片缓存（``displaySize`` / ``displayCrop``）。
+
+        位于 ``modules/interaction3d/`` 下但**不进备份**（``EXCLUDED_REL_PREFIXES``）：
+        可按需重算，进包只会让备份凭空多出上百 MB。
+        """
+        return self.interaction3d_modules_dir / "display-images"
+
+    @property
     def effect_variants_dir(self) -> Path:
         return self.data_dir / "cache" / "effect-variants"
 

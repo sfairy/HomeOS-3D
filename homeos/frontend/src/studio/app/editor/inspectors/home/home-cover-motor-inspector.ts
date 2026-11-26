@@ -14,6 +14,7 @@ import {
   iconButtonEffectInspectorLayer as iconButtonEffectInspectorLayer2,
 } from '../basic'
 import { renderPercentageBarInspector as renderPercentageBarInspector2 } from '../percentage-bar-inspector'
+import { syncPageBackgroundInspector as syncPageBackgroundInspectorTo } from './home-page-background-inspector'
 
 import { domElement } from '@app/shared/util/dom-factory'
 export interface CoverMotorInspectorContext {
@@ -23,6 +24,58 @@ export interface CoverMotorInspectorContext {
 const coverMotorDirectionValueById = new Map<any, any>()
 export function clearCoverMotorDirectionValueById() {
   coverMotorDirectionValueById.clear()
+}
+
+/**
+ * 把宿主上下文适配成页面背景检查器需要的「改属性 / 取素材名」两个能力。
+ *
+ * 单独一层的原因：`syncCoverSettingsInspector` 已经很长，
+ * 再内联 `if` / `?:` 会让「读宿主」和「写属性」混在一起；适配逻辑放在模块级，主函数只留一次调用。
+ *
+ * 改属性走 `mutateDocument`（与摄像头检查器同一口径）：它会打 undo 快照并标脏，
+ * 直接改 `component.properties` 会绕过这两件事。
+ */
+function applyPageBackgroundInspector(
+  createdInstanceConfig: { id?: string; type?: string; properties?: Record<string, unknown> } | null | undefined,
+  ctx: CoverMotorInspectorContext,
+): void {
+  syncPageBackgroundInspectorTo({
+    component: createdInstanceConfig,
+    changeProperties: (componentId: string, properties: Record<string, unknown>) => {
+      ctx.mutateDocument((draftDocument: { components?: unknown }) => {
+        const targetComponent = ctx.findComponent(draftDocument, componentId)?.component
+        !targetComponent ||
+          (targetComponent.properties = {
+            ...(targetComponent.properties || {}),
+            ...properties,
+          })
+      })
+    },
+    assetName: (assetId: string) => ctx.assetDisplayName?.(assetId) || '',
+    pickAsset: () => ctx.openAssetPicker?.(),
+  })
+}
+
+/**
+ * 清理「已经不再被选中的预览态」，并把对应控件的预览切回 auto。
+ *
+ * 原来是 4 段逐字重复的 `for + ||` 循环（导航 / 特效 / 图标按钮 / 空调），
+ * 抽出来后主调度函数的复杂度不再被这些循环占满，也让「漏清一个」变成不可能。
+ *
+ * `entries` 是 `[状态表, 是否仍应保留该 id]` 的配对：保留时跳过，否则删除并通知渲染器。
+ */
+function sweepStalePreviewStates(
+  ctx: CoverMotorInspectorContext,
+  keepComponentId: string | undefined,
+  entries: Array<[Map<unknown, unknown>, boolean]>,
+): void {
+  for (const [previewStateById, keepActive] of entries) {
+    for (const stalePreviewId of [...previewStateById.keys()]) {
+      if (keepActive && stalePreviewId === keepComponentId) continue
+      previewStateById.delete(stalePreviewId)
+      ctx.editorRenderer?.setComponentPreviewState(stalePreviewId, 'auto')
+    }
+  }
 }
 
 function syncCoverSettingsInspector(ctx: CoverMotorInspectorContext, coverComponent: any) {
@@ -279,23 +332,15 @@ export function coverMotorButtonElement(ctx: CoverMotorInspectorContext) {
   )
   const isNavigationButton = createdInstanceConfig?.type === 'panel-frame',
     re2 = ctx.navigationLabelTextInputElement(createdInstanceConfig),
-    isGroup = createdInstanceConfig?.type === 'group'
-  for (const staleNavigationPreviewId of [...ctx.navigationPreviewStateByComponentId.keys()])
-    (re2 && staleNavigationPreviewId === createdInstanceConfig.id) ||
-      (ctx.navigationPreviewStateByComponentId.delete(staleNavigationPreviewId),
-      ctx.editorRenderer?.setComponentPreviewState(staleNavigationPreviewId, 'auto'))
-  for (const staleEffectPreviewId of [...ctx.iconButtonEffectPreviewStateByComponentId.keys()])
-    (isIconButtonEffect && staleEffectPreviewId === createdInstanceConfig.id) ||
-      (ctx.iconButtonEffectPreviewStateByComponentId.delete(staleEffectPreviewId),
-      ctx.editorRenderer?.setComponentPreviewState(staleEffectPreviewId, 'auto'))
-  for (const staleIconPreviewId of [...ctx.iconButtonPreviewStateByComponentId.keys()])
-    (isIconButtonLike && staleIconPreviewId === createdInstanceConfig.id) ||
-      (ctx.iconButtonPreviewStateByComponentId.delete(staleIconPreviewId),
-      ctx.editorRenderer?.setComponentPreviewState(staleIconPreviewId, 'auto'))
-  for (const staleAirConditionerPreviewId of [...ctx.airConditionerPreviewStateByComponentId.keys()])
-    (isAirConditioner && staleAirConditionerPreviewId === createdInstanceConfig.id) ||
-      (ctx.airConditionerPreviewStateByComponentId.delete(staleAirConditionerPreviewId),
-      ctx.editorRenderer?.setComponentPreviewState(staleAirConditionerPreviewId, 'auto'))
+    isGroup = createdInstanceConfig?.type === 'group',
+    // 页面背景（0.8.9）：仪表盘文档组件，检查器与其它 inspector 同级。
+    isPageBackground = createdInstanceConfig?.type === 'page-background'
+  sweepStalePreviewStates(ctx, createdInstanceConfig?.id, [
+    [ctx.navigationPreviewStateByComponentId, Boolean(re2)],
+    [ctx.iconButtonEffectPreviewStateByComponentId, isIconButtonEffect],
+    [ctx.iconButtonPreviewStateByComponentId, isIconButtonLike],
+    [ctx.airConditionerPreviewStateByComponentId, isAirConditioner],
+  ])
   const hasInspector =
     isPanelFrame ||
     isCoverMotorActive ||
@@ -316,6 +361,7 @@ export function coverMotorButtonElement(ctx: CoverMotorInspectorContext) {
     isLineChart ||
     isEventLogWall ||
     isNavigationButton ||
+    isPageBackground ||
     re2
   ;(ctx.inspectorEmptyElement.hidden = hasInspector),
     isGroup &&
@@ -337,6 +383,9 @@ export function coverMotorButtonElement(ctx: CoverMotorInspectorContext) {
     (ctx.eventLogWallInspectorElement.hidden = !isEventLogWall),
     (ctx.panelFrameInspectorFormElement.hidden = !isNavigationButton),
     (ctx.navigationInspectorFormElement.hidden = !re2)
+  // 页面背景：显隐与字段填充都在模块里（`page-background-inspector` 节点常驻）。
+  // 这里只转发两个宿主能力，避免再给本函数加分支。
+  applyPageBackgroundInspector(createdInstanceConfig, ctx)
   const startsWith = String(createdInstanceConfig?.bindings?.entity?.entityId || '').startsWith('cover.')
   if (((ctx.coverSettingsInspectorElement.hidden = !hasInspector || !startsWith), !hasInspector)) {
     ctx.runShadow(),

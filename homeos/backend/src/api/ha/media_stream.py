@@ -80,6 +80,56 @@ class CameraSnapshotCacheEntry:
 camera_snapshot_cache: dict[str, CameraSnapshotCacheEntry] = {}
 camera_snapshot_refreshes: dict[str, asyncio.Task[None]] = {}
 
+#: 媒体封面（``media_player_proxy``）的「最后一帧」缓存。
+#:
+#: 小米电视这类实体的封面其实是设备实时截屏：HA 每次取图都要再向设备要一张，设备或云端
+#: 偶发失败时 HA 会直接回 500。这份缓存只在**上游失败**时兜底（成功路径不读），让屏幕
+#: 保留最后一张好图，而不是闪回待机宣传画、并在日志里制造一次 5xx。
+MEDIA_ARTWORK_CACHE_TTL_SECONDS = 300
+MEDIA_ARTWORK_CACHE_MAX_ENTRIES = 16
+
+
+@dataclass
+class MediaArtworkCacheEntry:
+    """一张已缓存的媒体封面：字节内容、媒体类型与写入时刻（monotonic）。"""
+
+    content: bytes
+    content_type: str
+    created_at: float
+
+
+media_artwork_cache: dict[str, MediaArtworkCacheEntry] = {}
+
+
+def media_artwork_cache_key(base_url: str, path: str) -> str:
+    """封面缓存键：按「连接 + 实体路径」，不含 token / cache 等易变查询参数。"""
+    return f"{base_url.rstrip('/')}{path}"
+
+
+def remember_media_artwork(key: str, content: bytes, content_type: str) -> None:
+    """记录一张成功取回的封面；超限按写入时间淘汰最旧一条。"""
+    if not content:
+        return
+    if key not in media_artwork_cache and len(media_artwork_cache) >= MEDIA_ARTWORK_CACHE_MAX_ENTRIES:
+        oldest_key = min(media_artwork_cache, key=lambda item: media_artwork_cache[item].created_at)
+        media_artwork_cache.pop(oldest_key, None)
+    media_artwork_cache[key] = MediaArtworkCacheEntry(
+        content=content,
+        content_type=content_type or "image/jpeg",
+        created_at=monotonic(),
+    )
+
+
+def cached_media_artwork(key: str) -> MediaArtworkCacheEntry | None:
+    """取未过期的封面；过期条目顺手清掉，避免长期占内存。"""
+    entry = media_artwork_cache.get(key)
+    if entry is None:
+        return None
+    if monotonic() - entry.created_at >= MEDIA_ARTWORK_CACHE_TTL_SECONDS:
+        media_artwork_cache.pop(key, None)
+        return None
+    return entry
+
 #: 快照 / 短请求共享的连接池。
 #:
 #: ``hb_live=1`` 时墙屏每秒拉一帧，原来「每请求新建 ``AsyncClient``」等于每秒一次
@@ -94,12 +144,17 @@ _SHARED_CLIENT_LIMITS = httpx.Limits(
 _shared_clients: dict[Any, httpx.AsyncClient] = {}
 
 
-def _shared_media_client(verify_tls: Any) -> httpx.AsyncClient:
-    """取（或惰性创建）按 TLS 参数分组的共享 client。
+def _shared_media_client(verify_tls: Any, bypass_proxy: bool = False) -> httpx.AsyncClient:
+    """取（或惰性创建）按 TLS 参数 + 代理策略分组的共享 client。
 
     单事件循环模型：本模块的创建点在协程里，没有跨线程竞争。
+
+    0.8.9：``bypass_proxy`` 与 ``verify_tls`` 一起进缓存键 —— 同一进程里可能既有
+    内网 HA（必须直连）又有经反代的公网地址（应当走代理），共用一份 client 会把
+    两者的 ``trust_env`` 混在一起。
     """
-    client = _shared_clients.get(verify_tls)
+    key = (verify_tls, bypass_proxy)
+    client = _shared_clients.get(key)
     if client is None or client.is_closed:
         client = httpx.AsyncClient(
             verify=verify_tls,
@@ -107,8 +162,10 @@ def _shared_media_client(verify_tls: Any) -> httpx.AsyncClient:
             timeout=None,  # noqa: S113 - 逐请求超时，client 级必须为空
             follow_redirects=False,
             limits=_SHARED_CLIENT_LIMITS,
+            # 内网目标绕过环境代理：容器里常见的 socks5 代理到不了 192.168.x。
+            trust_env=not bypass_proxy,
         )
-        _shared_clients[verify_tls] = client
+        _shared_clients[key] = client
     return client
 
 

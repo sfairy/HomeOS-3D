@@ -95,6 +95,9 @@ export interface PanelSectionsDeps {
 
 export function ensureItemCollections(deps: PanelSectionsDeps) {
   const { editorHost } = deps
+  // 壁挂炉的绑定是「每层一条主实体 + 两个开关」，不是卡片集合：
+  // 走通用规整会补上 icon/visible/clickAction 等无关字段，还会把绑定当成模型条目。
+  if (editorHost.deviceKind === 'heating-boiler') return
   if (
     (editorHost.usesStatusPanel &&
       (editorHost.structuredClone2.devices = {
@@ -1203,7 +1206,9 @@ export function renderVacuumShortcutPanel(deps: PanelSectionsDeps) {
     return
   const vacuumModels = editorHost.structuredClone2.devices?.vacuums || []
   if (!vacuumModels.length) {
-    editorHost.panelElement.append(editorHost.createElement('p', 'i3d-note', '请先在扫地机配置中添加并绑定扫地机。'))
+    editorHost.panelElement.append(
+      editorHost.createElement('p', 'i3d-note', '当前楼层尚未配置扫地机，请先在设备与地图中添加并绑定。'),
+    )
     return
   }
   createSelectRow(

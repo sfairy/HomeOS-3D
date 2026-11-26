@@ -74,6 +74,7 @@ import {
   applianceItemTypes,
 } from './external-models/_shared'
 import { ALL_ITEM_MODELS } from './external-models/all-item-models'
+import { modelKeyForDecorationItem, userDecorationModelDefinition } from './external-models/user-decoration-models'
 import { applyModelAnchors } from './external-models/model-anchors'
 export { ALL_ITEM_MODELS } from './external-models/all-item-models'
 /** 外模型加载状态； */
@@ -286,8 +287,41 @@ export function createExternalModelManager({
       ? assetLoadError.errors.every(isPermanentAssetFailure)
       : [404, 410].includes(Number(assetLoadError?.response?.status ?? assetLoadError?.status))
   }
+  /**
+   * 上报一次外部模型加载失败。
+   *
+   * 404/410 = 模型已被删除，属于**预期**状态（库里没有这件资产）：按 warn 报，
+   * 且同一件资产只报一次。否则用户看到的是一串红字，却没有任何可操作的信息 ——
+   * 而且每轮场景重建都会再刷一遍。
+   */
+  function reportLoadFailureOnce(
+    failedItemTypeName: string,
+    failureCause: unknown,
+    state: { permanent: boolean; alreadyReported: boolean },
+  ): void {
+    if (state.alreadyReported) return
+    const causeMessage =
+      typeof (failureCause as { message?: unknown } | null)?.message === 'string'
+        ? String((failureCause as { message: string }).message)
+        : String(failureCause)
+    const message = '无法载入外部模型 ' + failedItemTypeName + '：' + causeMessage
+    const failureFields = { phase: 'studio-model-load' }
+    // 用可选调用 `?.()`（与全站一致）：`HomeOSLog` 是外部注入的桥接对象，
+    // 任一方法缺失都不该让**加载失败**升级成**未捕获异常**。
+    // 写 `HomeOSLog?.[key]!()` 时那个非空断言是纯 TS 装饰，运行时仍然调用 undefined。
+    if (state.permanent) {
+      globalThis.window?.HomeOSLog?.warn?.(message, failureFields)
+      console.warn('外部模型已不存在，跳过：' + failedItemTypeName)
+      return
+    }
+    globalThis.window?.HomeOSLog?.error?.(failureCause, failureFields, message)
+    console.error('无法载入外部模型 ' + failedItemTypeName, failureCause)
+  }
   function recordLoadFailure(failedItemTypeName: any, failureCause: any) {
-    const attemptCount = (retryStateByItemType.get(failedItemTypeName)?.attempts || 0) + 1,
+    const previousRetryState = retryStateByItemType.get(failedItemTypeName),
+      // 同一件资产反复 404 时只上报一次：模型不会自己回来，重复上报只是噪声。
+      alreadyReportedPermanent = previousRetryState?.permanent === true,
+      attemptCount = (previousRetryState?.attempts || 0) + 1,
       isPermanentFailure = isPermanentAssetFailure(failureCause),
       retryDelayForAttemptMs = isPermanentFailure
         ? 300000
@@ -310,14 +344,10 @@ export function createExternalModelManager({
               loadExternalItemModel(failedItemTypeName)
         }, retryDelayForAttemptMs)),
         retryStateEntry.timer.unref?.()),
-      globalThis.window?.HomeOSLog?.error!(
-        failureCause,
-        {
-          phase: 'studio-model-load',
-        },
-        '无法载入外部模型 ' + failedItemTypeName + '：' + (failureCause?.message || failureCause),
-      )!,
-      console.error('无法载入外部模型 ' + failedItemTypeName, failureCause)
+      reportLoadFailureOnce(failedItemTypeName, failureCause, {
+        permanent: isPermanentFailure,
+        alreadyReported: alreadyReportedPermanent,
+      })
   }
   function retryPendingModels() {
     if (!isDisposed) {
@@ -359,6 +389,10 @@ export function createExternalModelManager({
       once: true,
     })
   function resolveModelTypeForItem(item: any): string {
+    // 用户装饰（0.8.9）不查静态清单：按 assetId 现注册一条 `model:<hex>` 描述符。
+    // 放在最前是因为它的 `type` 是 `user-decoration`，掉进下面的静态分支只会拿到空模型。
+    const decorationModelKey = modelKeyForDecorationItem(item)
+    if (decorationModelKey) return decorationModelKey
     return item.type === 'sofa-l'
       ? item.sofaChaiseSide === 'left'
         ? 'sofa-l-left'
@@ -382,13 +416,17 @@ export function createExternalModelManager({
   function preloadPersistentModels(itemTypeList: any[] = []) {
     if (isDisposed) return Promise.resolve([])
     const restoredTemplatePromises = [...new Set(itemTypeList)]
-      .filter((requestedItemType) => (ALL_ITEM_MODELS as any)[requestedItemType])
+      .filter(
+        (requestedItemType) =>
+          (ALL_ITEM_MODELS as any)[requestedItemType] || userDecorationModelDefinition(requestedItemType),
+      )
       .map((resolvedItemType) => {
         if (preparedTemplatesByItemType.has(resolvedItemType))
           return Promise.resolve(preparedTemplatesByItemType.get(resolvedItemType))
         if (inflightLoadsByItemType.has(resolvedItemType)) return inflightLoadsByItemType.get(resolvedItemType)
         if (restorePromisesByItemType.has(resolvedItemType)) return restorePromisesByItemType.get(resolvedItemType)
-        const cachedModelDefinition = (ALL_ITEM_MODELS as any)[resolvedItemType]
+        const cachedModelDefinition =
+          (ALL_ITEM_MODELS as any)[resolvedItemType] ?? userDecorationModelDefinition(resolvedItemType)
         restoreEligibleByItemType.set(resolvedItemType, true)
         const pendingRestorePromise = Promise.resolve()
           .then(() =>
@@ -526,9 +564,17 @@ export function createExternalModelManager({
     if (preparedTemplatesByItemType.has(modelItemType))
       return Promise.resolve(preparedTemplatesByItemType.get(modelItemType))
     if (inflightLoadsByItemType.has(modelItemType)) return inflightLoadsByItemType.get(modelItemType)
-    const targetModelDefinition = (ALL_ITEM_MODELS as any)[modelItemType]
+    // 静态清单先查，再落到用户装饰的动态登记表（`model:<assetId>`）。
+    const targetModelDefinition =
+      (ALL_ITEM_MODELS as any)[modelItemType] ?? userDecorationModelDefinition(modelItemType)
     if (!targetModelDefinition) return Promise.resolve(null)
     const retryState = retryStateByItemType.get(modelItemType)
+    // 已确认是永久失败（404/410 = 模型被删除）：连请求都不再发。
+    //
+    // 为什么不必留重试：重新上传会分配**新的** assetId（旧记录不会复活），
+    // 从备份恢复则要重启进程。留着只会让控制台每轮重建再刷一次 404 ——
+    // 用户既看不懂，也没有任何可操作的东西。
+    if (retryState?.permanent) return Promise.resolve(null)
     if (retryState && Date.now() < retryState.retryAt) return Promise.resolve(null)
     retryState && cancelScheduledTimeout(retryState.timer)
     restoreEligibleByItemType.has(modelItemType) || restoreEligibleByItemType.set(modelItemType, true)

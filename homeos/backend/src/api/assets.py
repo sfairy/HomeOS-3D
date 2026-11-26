@@ -64,6 +64,7 @@ from ..platform.core.http.asset_paths import (
     UPLOAD_IMAGE_SUFFIXES,
     user_asset_file,
 )
+from ..platform.core.http.display_images import parse_display_request, supports_display_derivative
 from ..platform.core.runtime.async_work import durable_work
 from ..platform.core.runtime.atomic_write import (
     PRIVATE_DIR_MODE,
@@ -824,7 +825,7 @@ async def upload_user_asset(request: Request, _user: LicensedUser) -> dict:
     return request.app.state.asset_catalog.register_user(asset_id, path, dimensions)
 
 @router.get('/user/{asset_id}')
-def read_user_asset(asset_id: str, request: Request, viewer: LicensedViewer) -> FileResponse:
+def read_user_asset(asset_id: str, request: Request, viewer: LicensedViewer) -> Response:
     require_license_feature(request, feature_codes.FEATURE_ASSETS)
     with request.app.state.database.session_factory() as database:
         require_viewer_user_asset(database, viewer, asset_id)
@@ -832,9 +833,7 @@ def read_user_asset(asset_id: str, request: Request, viewer: LicensedViewer) -> 
     path = user_asset_file(root, asset_id)
     if path is None:
         raise HTTPException(status_code = 404, detail = '图片不存在。')
-    response = FileResponse(path, media_type = UPLOAD_CONTENT_TYPES[path.suffix.lower()])
-    response.headers['Cache-Control'] = 'private, no-cache'
-    return response
+    return _served_image(path, request)
 
 @router.get('/effect-variant')
 def read_effect_variant(request: Request, asset_id: str = Query(alias = 'assetId')) -> FileResponse:
@@ -862,7 +861,7 @@ def read_effect_variant(request: Request, asset_id: str = Query(alias = 'assetId
     return response
 
 @router.get('/studio3d-export/{folder_name}/{filename}')
-def read_studio3d_export(folder_name: str, filename: str, request: Request, viewer: LicensedViewer) -> FileResponse:
+def read_studio3d_export(folder_name: str, filename: str, request: Request, viewer: LicensedViewer) -> Response:
     require_license_feature(request, feature_codes.FEATURE_ASSETS)
     root = request.app.state.settings.studio3d_exports_dir.resolve()
     folder = unquote(folder_name)
@@ -873,10 +872,7 @@ def read_studio3d_export(folder_name: str, filename: str, request: Request, view
     with request.app.state.database.session_factory() as database:
         # 导图素材的读取侧校验与「删除 / 覆盖」共用同一份白名单（0.8.1 收敛）。
         require_viewer_asset(database, viewer, f'studio3d:{folder}/{name}')
-    media_type = 'image/webp' if path.suffix.lower() == '.webp' else 'image/png'
-    response = FileResponse(path, media_type = media_type)
-    response.headers['Cache-Control'] = 'private, no-cache'
-    return response
+    return _served_image(path, request)
 
 @router.delete('/user/{asset_id}', status_code = status.HTTP_204_NO_CONTENT)
 def delete_user_asset(asset_id: str, request: Request, database: DatabaseSession, _user: LicensedUser) -> Response:
@@ -917,6 +913,24 @@ def read_builtin_asset(relative_path: str, request: Request) -> FileResponse:
     path = request.app.state.asset_catalog.builtin_path(relative_path)
     if path is None:
         raise HTTPException(status_code = 404, detail = '素材不存在。')
-    response = FileResponse(path)
+    return _served_image(path, request)
+
+
+def _served_image(path: Path, request: Request) -> Response:
+    """按显示尺寸返回派生副本；不需要 / 做不到时原样返回原图。
+
+    ``displaySize`` 是纯优化参数（见 ``platform/core/http/display_images.py``）：
+    解析失败、SVG、派生失败都静默回落原图 —— 换个窗口尺寸不该变成一次页面故障。
+    """
+    display = parse_display_request(dict(request.query_params))
+    if display is not None and supports_display_derivative(path):
+        cache = getattr(request.app.state, 'display_images', None)
+        derived = cache.get_or_create(path, display) if cache is not None else None
+        if derived is not None:
+            response = FileResponse(derived, media_type = 'image/webp')
+            # 缓存键含源文件指纹（大小 + mtime），覆盖上传会换键，因此可以是 immutable。
+            response.headers['Cache-Control'] = 'private, max-age=31536000, immutable'
+            return response
+    response = FileResponse(path, media_type = UPLOAD_CONTENT_TYPES.get(path.suffix.lower()))
     response.headers['Cache-Control'] = 'private, no-cache'
     return response

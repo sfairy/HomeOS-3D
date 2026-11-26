@@ -114,8 +114,8 @@ export function sceneUpdatePlan(previousScene: any, nextScene: any) {
  * 只读响应体里**已有**的字段（后端统一错误信封），不做推断：读不出 JSON 时退回纯状态码
  * 文案，诊断代码本身不会因抛错而掩盖原始失败。
  *
- * 放在本模块而不是 render loop：那个文件已超 3000 行，file-size 与类型棘轮都不允许它
- * 继续变长；这里用 unknown + 显式收窄，不引入新的隐式类型。
+ * 放在本模块而不是 render loop：那个文件已经很大，继续变长只会让职责更混杂；
+ * 这里用 unknown + 显式收窄，不引入新的隐式类型。
  */
 export async function sceneSyncFailureMessage(response: Response): Promise<string> {
   const statusText = `户型同步暂时不可用（HTTP ${response.status}）`

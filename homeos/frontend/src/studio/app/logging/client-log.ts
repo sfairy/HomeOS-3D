@@ -324,6 +324,40 @@
       thrownValue?.stack || '',
     )
   }
+  /**
+   * 分级上报（`warn` / `info` / `debug`）。
+   *
+   * 为什么必须有：`HomeOSLog` 的类型声明里一直写着 `warn/info/debug`，全站十余处
+   * `HomeOSLog?.warn?.(...)` 都在调用它们 —— 但运行时对象里只挂了 `report/error/...`。
+   * 可选调用 `?.()` 于是静默成败：**警告一条都到不了服务端**，类型检查也查不出来。
+   * 要么补实现、要么删声明，这里选补实现（调用点是对的，丢的是数据）。
+   *
+   * 第一个参数允许是字符串或 Error，与既有调用点的两种写法都兼容。
+   */
+  function reportLeveled(level: 'warning' | 'info' | 'debug', value: unknown, fields: unknown = {}) {
+    // `debug` 落到 info：后端的级别集合是 info / success / warning / error，没有 debug。
+    const normalizedLevel = level === 'debug' ? 'info' : level
+    const errorValue = toErrorLike(value)
+    reportEvent(
+      normalizedLevel,
+      '界面',
+      errorValue ? errorValue.message : String(value || ''),
+      fields,
+      errorValue?.stack || '',
+    )
+  }
+  /** 把「字符串 / Error / {message}」统一成可取 `message` / `stack` 的形状。 */
+  function toErrorLike(value: unknown): { message: string; stack: string } | null {
+    if (value instanceof Error) return { message: value.message, stack: value.stack || '' }
+    if (value && typeof value == 'object' && 'message' in value) {
+      const messageLike = value as { message?: unknown; stack?: unknown }
+      return {
+        message: String(messageLike.message ?? ''),
+        stack: typeof messageLike.stack == 'string' ? messageLike.stack : '',
+      }
+    }
+    return null
+  }
   function linkErrorToResponse(errorObject: any, response: any) {
     return (
       errorObject &&
@@ -531,6 +565,10 @@
     (bridgeWindow.HomeOSLog = {
       report: reportEvent,
       error: reportError,
+      // 与 `vite-env.d.ts` 的声明对齐：缺了这三个，`HomeOSLog?.warn?.()` 会静默丢弃。
+      warn: (value: unknown, fields?: unknown) => reportLeveled('warning', value, fields),
+      info: (value: unknown, fields?: unknown) => reportLeveled('info', value, fields),
+      debug: (value: unknown, fields?: unknown) => reportLeveled('debug', value, fields),
       linkError: linkErrorToResponse,
       flush: flushQueue,
       setContext: (payloadInput) => {

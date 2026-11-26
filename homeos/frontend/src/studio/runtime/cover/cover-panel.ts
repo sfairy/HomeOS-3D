@@ -1,10 +1,69 @@
 import { createPurifierExtras } from '../climate/purifier-extras'
 import { coverState, coverControl, coverStateLabel, coverCanAdjustBlades, airerState } from './cover-state'
+import { beginCoverOperation, observeCoverOperation, operationProgress } from './cover-operation'
 import { airerMapControlPosition, airerMapControlService } from '../airer/airer-direction'
 import { domElement } from '@app/shared/util/dom-factory'
 import { applyRangeProgressCss } from '@app/shared/util/range-progress'
 import { createStageDeviceVisual } from '../core/stage-device-visual'
 import { createPopupFeedback } from '@app/shared/util/popup-feedback'
+/**
+ * 从面板的 `pendingIntent` 还原一次指令 → 状态行文案。
+ *
+ * 面板持有的是「意图」（service/target/initial），`CoverOperation` 是它的**可判定
+ * 投影**：受理窗口、过期、仅开、停止都由纯函数算，面板只负责把结果写进 DOM。
+ *
+ * 返回空串 = 不额外提示（沿用普通状态文案）。
+ */
+function coverOperationLabel(
+  pendingIntent: {
+    ticket: number
+    target?: number | null
+    initialPosition: number | null
+    initialState: string
+    confirmed: boolean
+    blade?: boolean
+  } | null,
+  deviceState: {
+    position: number | null
+    state: string
+    assumed?: boolean
+    overallFeedbackAvailable?: boolean
+  },
+  presentation: { estimated?: boolean; moving?: boolean; position?: number | null },
+  view: { airer?: boolean; editing?: boolean } = {},
+): string {
+  // 晾衣架：报了「在动」但没有任何位置回报 —— 不能说「升降状态未知」（那是没数据），
+  // 也不能说「正在上升」（那是猜）。它优先于指令受理状态（位置都不知道，谈不上到位）。
+  if (view.airer && !view.editing && deviceState.position === null && presentation.position === null) {
+    return '升降位置未知'
+  }
+  if (!pendingIntent || pendingIntent.blade || pendingIntent.confirmed) return ''
+  const now = Date.now()
+  const operation = beginCoverOperation({
+    token: pendingIntent.ticket,
+    target: pendingIntent.target ?? null,
+    initial: pendingIntent.initialPosition,
+    now,
+    travelTime: 15000,
+  })
+  const observed = observeCoverOperation(
+    operation,
+    {
+      position: deviceState.position,
+      state: deviceState.state,
+      assumed: deviceState.assumed,
+      overallFeedbackAvailable: deviceState.overallFeedbackAvailable,
+    },
+    { position: pendingIntent.initialPosition, state: pendingIntent.initialState },
+    now,
+  )
+  return operationProgress(deviceState.position, {
+    estimated: presentation.estimated,
+    moving: presentation.moving,
+    operation: observed,
+  }).label
+}
+
 /** cover 面板的宿主元素与回调； */
 type CoverPanelOptions = {
   element?: any
@@ -489,6 +548,12 @@ export function createCoverPanel({
           closing: '整体正在关闭',
         } as any
       )[presentation.state]
+    // 0.8.9 指令受理状态：这里先算出来（纯函数，只读 `pendingIntent` + `presentation`），
+    // 下面的链式赋值里才有东西可用 —— 链内不能再声明变量。
+    const operationStatusLabel = coverOperationLabel(pendingIntent, deviceState, presentation, {
+      airer: !!isAirerItem,
+      editing: !!viewModel.editing,
+    })
     rootElement.classList.toggle('is-dream', isDreamCover),
       (bladeHintElement.hidden = !isDreamCover),
       isDreamCover &&
@@ -535,6 +600,13 @@ export function createCoverPanel({
         deviceState.available &&
         (statusElement.textContent =
           deviceState.state === 'unknown' ? '开窗状态未知' : coverStateLabel(deviceState.state)),
+      // 0.8.9：把「升降位置未知 / 指令受理状态」合成一处覆盖 —— 两条都是**覆盖普通状态**
+      // 的高优先级文案，拆成两条 `&&` 链会把 render 的圈复杂度推过门禁阈值。
+      !viewModel.editing &&
+        deviceState.available &&
+        !errorText &&
+        (operationStatusLabel || '') !== '' &&
+        (statusElement.textContent = operationStatusLabel),
       positionSliderElement.setAttribute(
         'aria-label',
         isAirerItem ? '目标升降位置' : isDreamCover ? '目标叶片角度' : '目标开合位置',
@@ -596,6 +668,8 @@ export function createCoverPanel({
               presentation.state === 'opening' ||
               (visualRailPosition ?? 0) > 0))
     )
+    // 0.8.9：指令受理状态已在链式赋值里用 `operationStatusLabel` 写过（见上）；
+    // 这里不再重复计算 —— 保留注释说明为什么没有第二个入口。
     // 开窗器：舞台在载荷里带 `windowNotice`（关联窗扇缺失 / 行程不可知）；没有就整行收起。
     ;(windowNoticeElement.textContent = (viewModel.item?.windowOpener && viewModel.windowNotice) || ''),
       (windowNoticeElement.hidden = !windowNoticeElement.textContent),
@@ -611,13 +685,15 @@ export function createCoverPanel({
             : Math.round(displayPosition) + '%'),
       (positionOutputElement.title = isAirerItem
         ? '晾杆升降位置，100%为最高'
-        : draftPosition !== null
-          ? isDreamCover
-            ? '目标叶片角度预览'
-            : '目标开合位置预览'
-          : isDreamCover
-            ? '叶片角度：50% 为 90°打开'
-            : '整体开合位置'),
+        : isWindowOpenerItem
+          ? '开窗器控制'
+          : draftPosition !== null
+            ? isDreamCover
+              ? '目标叶片角度预览'
+              : '目标开合位置预览'
+            : isDreamCover
+              ? '叶片角度：50% 为 90°打开'
+              : '整体开合位置'),
       positionOutputElement.setAttribute(
         'aria-label',
         isAirerItem ? '当前升降位置' : isDreamCover ? '当前叶片角度' : '当前开合位置',

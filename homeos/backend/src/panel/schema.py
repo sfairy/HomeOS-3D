@@ -7,6 +7,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from .page_background import validate_page_backgrounds
 from ..domains.fonts import valid_font_selection
 from ..platform.core.entity.entity_ids import valid_entity_id, valid_ha_entity_id
 
@@ -20,35 +21,24 @@ MAX_SCENE_POPUP_ITEMS = 80
 
 
 class ExtensibleModel(BaseModel):
-
     model_config = ConfigDict(extra="allow", populate_by_name=True)
 
 
 class CanvasBackground(ExtensibleModel):
-
-    type: Literal['color', 'asset', 'none'] = "color"
+    type: Literal["color", "asset", "none"] = "color"
     color: str | None = "#10151a"
     asset_id: str | None = Field(default=None, alias="assetId")
 
 
 class Canvas(ExtensibleModel):
-
     width: int = Field(default=2778, ge=320, le=7680)
     height: int = Field(default=1940, ge=240, le=4320)
-    scale_mode: Literal['contain', 'cover', 'stretch'] = Field(
-        default="contain", alias="scaleMode"
-    )
+    scale_mode: Literal["contain", "cover", "stretch"] = Field(default="contain", alias="scaleMode")
     component_scale: float = Field(default=1, alias="componentScale", gt=0, le=256)
     popup_scale: float = Field(default=1, alias="popupScale", gt=0, le=256)
-    resize_base_width: float | None = Field(
-        default=None, alias="resizeBaseWidth", ge=320, le=7680
-    )
-    resize_base_height: float | None = Field(
-        default=None, alias="resizeBaseHeight", ge=240, le=4320
-    )
-    resize_content_scale: float | None = Field(
-        default=None, alias="resizeContentScale", gt=0, le=256
-    )
+    resize_base_width: float | None = Field(default=None, alias="resizeBaseWidth", ge=320, le=7680)
+    resize_base_height: float | None = Field(default=None, alias="resizeBaseHeight", ge=240, le=4320)
+    resize_content_scale: float | None = Field(default=None, alias="resizeContentScale", gt=0, le=256)
     background: CanvasBackground = Field(default_factory=CanvasBackground)
 
 
@@ -62,22 +52,18 @@ class DashboardFonts(BaseModel):
 
     @model_validator(mode="after")
     def validate_choices(self) -> DashboardFonts:
-        if not valid_font_selection(self.chinese, latin=False) or not valid_font_selection(
-            self.latin, latin=True
-        ):
+        if not valid_font_selection(self.chinese, latin=False) or not valid_font_selection(self.latin, latin=True):
             raise ValueError("字体选择无效。")
         return self
 
 
 class Theme(ExtensibleModel):
-
     fonts: DashboardFonts | None = None
     name: str = Field(default="dashboard-v1-dark", min_length=1, max_length=128)
     variables: dict[str, str | int | float] = Field(default_factory=dict)
 
 
 class TemplateReference(ExtensibleModel):
-
     template_id: str = Field(alias="templateId", min_length=1, max_length=128)
     version: int = Field(default=1, ge=1)
 
@@ -89,7 +75,6 @@ class TemplateReference(ExtensibleModel):
 
 
 class Position(ExtensibleModel):
-
     x: float = 0
     y: float = 0
     width: float = Field(default=100, gt=0)
@@ -99,7 +84,6 @@ class Position(ExtensibleModel):
 
 
 class EntityBinding(ExtensibleModel):
-
     entity_id: str | None = Field(default=None, alias="entityId", max_length=255)
     attribute: str | None = Field(default=None, max_length=128)
     required: bool = False
@@ -124,7 +108,7 @@ class ScenePopupItem(ExtensibleModel):
     id: str = Field(min_length=1, max_length=128)
     entity_id: str = Field(alias="entityId", min_length=1, max_length=255)
     label: str | None = Field(default=None, max_length=128)
-    mode: Literal['toggle', 'switch', 'number', 'select', 'button'] = "toggle"
+    mode: Literal["toggle", "switch", "number", "select", "button"] = "toggle"
     icon: str | None = Field(default=None, max_length=128)
 
     @model_validator(mode="after")
@@ -137,14 +121,13 @@ class ScenePopupItem(ExtensibleModel):
 
 
 class ComponentAction(ExtensibleModel):
-
-    type: Literal['none', 'toggle', 'more-info', 'navigate'] = "none"
+    type: Literal["none", "toggle", "more-info", "navigate"] = "none"
     target: str | None = Field(default=None, max_length=255)
     domain: str | None = Field(default=None, max_length=64)
     service: str | None = Field(default=None, max_length=64)
     data: dict[str, Any] = Field(default_factory=dict)
     # 控件模式：``scene`` 表示这是一组情景按钮，点开走情景弹窗而不是单实体详情。
-    control_mode: Literal['scene-mode'] | None = Field(default=None, alias="controlMode")
+    control_mode: Literal["scene-mode"] | None = Field(default=None, alias="controlMode")
     popup_enabled: bool = Field(default=False, alias="popupEnabled")
     popup_items: list[ScenePopupItem] = Field(default_factory=list, alias="popupItems")
 
@@ -163,7 +146,6 @@ class ComponentAction(ExtensibleModel):
 
 
 class CustomPopupLayout(ExtensibleModel):
-
     rows: Literal[2, 3] = 3
     columns: int = Field(default=3, ge=1, le=24)
     width: int = Field(default=840, ge=360, le=1920)
@@ -171,11 +153,20 @@ class CustomPopupLayout(ExtensibleModel):
 
 
 class CustomPopupModule(ExtensibleModel):
-
     id: str = Field(min_length=1, max_length=128)
-    type: Literal['light', 'climate', 'air-purifier', 'water-heater', 'media-player', 'electric-bed', 'switch', 'cover', 'camera', 'line-chart', 'generic'] = (
-        "generic"
-    )
+    type: Literal[
+        "light",
+        "climate",
+        "air-purifier",
+        "water-heater",
+        "media-player",
+        "electric-bed",
+        "switch",
+        "cover",
+        "camera",
+        "line-chart",
+        "generic",
+    ] = "generic"
     entity_id: str = Field(alias="entityId", min_length=3, max_length=255)
     title: str | None = Field(default=None, max_length=128)
     x: int = Field(default=0, ge=0, le=23)
@@ -193,14 +184,11 @@ class CustomPopupModule(ExtensibleModel):
 
 
 class CustomPopup(ExtensibleModel):
-
     id: str = Field(min_length=1, max_length=128)
     name: str = Field(min_length=1, max_length=128)
     layout: CustomPopupLayout = Field(default_factory=CustomPopupLayout)
     modules: list[CustomPopupModule] = Field(default_factory=list)
-    template_ref: TemplateReference | None = Field(
-        default=None, alias="templateRef"
-    )
+    template_ref: TemplateReference | None = Field(default=None, alias="templateRef")
 
     @model_validator(mode="after")
     def validate_popup(self) -> CustomPopup:
@@ -213,13 +201,10 @@ class CustomPopup(ExtensibleModel):
 
 
 class PanelComponent(ExtensibleModel):
-
     id: str = Field(min_length=1, max_length=128)
     type: str = Field(min_length=1, max_length=128)
     component_version: int = Field(default=1, alias="componentVersion", ge=1)
-    template_ref: TemplateReference | None = Field(
-        default=None, alias="templateRef"
-    )
+    template_ref: TemplateReference | None = Field(default=None, alias="templateRef")
     position: Position = Field(default_factory=Position)
     bindings: dict[str, EntityBinding] = Field(default_factory=dict)
     properties: dict[str, Any] = Field(default_factory=dict)
@@ -235,13 +220,10 @@ class PanelComponent(ExtensibleModel):
 
 
 class PanelPage(ExtensibleModel):
-
     id: str = Field(min_length=1, max_length=128)
     name: str = Field(min_length=1, max_length=128)
     path: str = Field(min_length=1, max_length=128)
-    shared_component_ids: list[str] = Field(
-        default_factory=list, alias="sharedComponentIds"
-    )
+    shared_component_ids: list[str] = Field(default_factory=list, alias="sharedComponentIds")
     components: list[PanelComponent] = Field(default_factory=list)
 
     @model_validator(mode="after")
@@ -252,22 +234,15 @@ class PanelPage(ExtensibleModel):
 
 
 class PanelDocument(ExtensibleModel):
-
     schema_version: Literal[1] = Field(default=1, alias="schemaVersion")
     project_id: str = Field(alias="projectId", min_length=1, max_length=128)
     name: str = Field(min_length=1, max_length=128)
     sound_enabled: bool = Field(default=True, alias="soundEnabled")
-    default_page_path: str | None = Field(
-        default=None, alias="defaultPagePath", max_length=128
-    )
+    default_page_path: str | None = Field(default=None, alias="defaultPagePath", max_length=128)
     canvas: Canvas = Field(default_factory=Canvas)
     theme: Theme = Field(default_factory=Theme)
-    shared_components: list[PanelComponent] = Field(
-        default_factory=list, alias="sharedComponents"
-    )
-    custom_popups: list[CustomPopup] = Field(
-        default_factory=list, alias="customPopups"
-    )
+    shared_components: list[PanelComponent] = Field(default_factory=list, alias="sharedComponents")
+    custom_popups: list[CustomPopup] = Field(default_factory=list, alias="customPopups")
     pages: list[PanelPage] = Field(default_factory=list)
 
     @model_validator(mode="after")
@@ -291,9 +266,7 @@ class PanelDocument(ExtensibleModel):
             all_components.extend(walk(page.components))
             if len(page.shared_component_ids) != len(set(page.shared_component_ids)):
                 raise ValueError(f"页面 {page.path} 的共享组件引用不能重复。")
-            missing_shared = set(page.shared_component_ids) - {
-                item.id for item in self.shared_components
-            }
+            missing_shared = set(page.shared_component_ids) - {item.id for item in self.shared_components}
             if missing_shared:
                 raise ValueError(f"页面 {page.path} 引用了不存在的共享组件。")
         component_ids = [item.id for item in all_components]
@@ -309,13 +282,13 @@ class PanelDocument(ExtensibleModel):
                         raise ValueError(f"组件 {component.id} 使用了无效的弹窗来源。")
                     if popup_source == "entity":
                         entity_id = action.data.get("entityId")
-                        if not isinstance(entity_id, str) or not valid_ha_entity_id(
-                            entity_id
-                        ):
+                        if not isinstance(entity_id, str) or not valid_ha_entity_id(entity_id):
                             raise ValueError(f"组件 {component.id} 的弹窗目标实体无效。")
                     if popup_source == "custom":
                         if action.data.get("popupId") not in popup_ids:
                             raise ValueError(f"组件 {component.id} 打开了不存在的组合弹窗。")
+        # 0.8.9 页面背景：位置只能在页面顶层，取值只认四类枚举（见 panel/page_background.py）。
+        validate_page_backgrounds(pages=self.pages, shared_components=self.shared_components, walk=walk)
         return self
 
 

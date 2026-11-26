@@ -10,6 +10,7 @@ import { DEFAULT_BUTTON_SIZE, buttonIconSize } from '@app/bridge/presets/button-
 import { GENERIC_DEVICE_KINDS as GENERIC_DEVICE_KINDS2 } from '../../../device/generic-device-catalog'
 import { MEDIA_DEVICE_KINDS } from '@app/bridge/presets/media-device-profiles'
 import { readNestedPath } from '../_shared'
+import { ENVIRONMENT_CATEGORY_LABELS } from './picker-row'
 
 /**
  * 编辑会话域需要的外部句柄。
@@ -106,6 +107,23 @@ export function listChangedFields(deps: PanelSessionDeps, changedItem: any) {
   )
 }
 
+/**
+ * 可切换的「设备」类编辑会话（与 `device-category-choices.ts` 的可选类别一一对应）。
+ *
+ * 0.8.9 取暖壁挂炉只做配置 session 切换，没有卡片集合（见 `boiler-section.ts`）。
+ * 提成常量而不是内联数组：`switchEditorKind` 的函数长度在棘轮基线上，
+ * 内联的 8 行数组会把它顶过 80 行阈值。
+ */
+const DEVICE_EDITOR_KINDS: readonly string[] = [
+  'nas',
+  ...MEDIA_DEVICE_KINDS,
+  'speaker',
+  'water-heater',
+  'heating-boiler',
+  'airer',
+  ...GENERIC_DEVICE_KINDS2,
+]
+
 export async function switchEditorKind(
   deps: PanelSessionDeps,
   nextDeviceKind: any,
@@ -135,9 +153,9 @@ export async function switchEditorKind(
     nextDeviceKind === editorHost.deviceKind ||
     !(
       editorHost.includes
-        ? ['climate', 'fan', 'exhaust-fan', 'purifier', 'cover', 'temperature-humidity']
+        ? ENVIRONMENT_CATEGORY_LABELS.map(([environmentKind]) => environmentKind)
         : editorHost.isDeviceKind
-          ? ['nas', ...MEDIA_DEVICE_KINDS, 'speaker', 'water-heater', 'airer', ...GENERIC_DEVICE_KINDS2]
+          ? DEVICE_EDITOR_KINDS
           : ['vacuum', 'vacuum-shortcut']
     ).includes(nextDeviceKind)
   )

@@ -2,7 +2,7 @@
  * 智能代理的对话结果归一与 SSE 流式通道。
  *
  * 从 `agent.ts` 拆出：流式实现要自己解析 SSE 帧、处理 CSRF 与中止信号，和其余 REST
- * 封装的关注点不同（且合在一起会把 `agent.ts` 推到 800 行以上）。
+ * 封装的关注点不同（合在一起也会让 `agent.ts` 继续变长）。
  *
  * 依赖方向是单向的：本模块只从 `agent.ts` 取**类型**（编译后消失），`agent.ts` 从本模块
  * 取 `agentChatStream` / `normalizeResult` 两个值 —— 不构成值循环。

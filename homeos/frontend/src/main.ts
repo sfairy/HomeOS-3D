@@ -79,6 +79,7 @@ import VPanelSkeleton from './components/common/base/VPanelSkeleton.vue'
 import { swipeClose } from './directives/swipe-close'
 import { scrollRegion } from './directives/scroll-region'
 import { studioStartupReady } from '@/shared/utils/ui/studio-startup'
+import { ensureStudioLoadingStyle } from '@/shared/utils/ui/studio-loading-style'
 import { forgetLicenseAvailability } from '@/shared/utils/auth/license-probe.util'
 import { adoptPreloadedStylesheets } from '@/studio'
 
@@ -161,7 +162,10 @@ router.afterEach((to, _from, failure) => {
   // 3D 编辑器首屏遮罩（/static/3d-studio/studio-loading.js）只服务创作页：
   // 导航到别的路由（含「未登录被守卫送回 /login」）必须立刻收起，否则它会整屏盖住目标页，
   // 直到 60s 超时才露出一句「准备时间较长」。
-  if (to.name !== 'studio') studioStartupReady()
+  // 反过来（0.8.9 公告 9）：遮罩样式表按需注入 —— 普通页面不再为它付一次请求与解析。
+  // `#studio-loading` 的标记仍留在 index.html 的 body 里（必须在挂载前就存在）。
+  if (to.name === 'studio') ensureStudioLoadingStyle()
+  else studioStartupReady()
 })
 
 // 注册跨层桥接处理器（将非 Vue 模块的回调桥接到 Pinia store）

@@ -62,6 +62,16 @@ export interface StudioAppContext {
   activeFloorId: string
   overriddenFloorIds: any
   backgroundImageSource: any
+  /**
+   * 绘制页 3D 预览的光影管线（0.8.9）：`standard` 逐灯投光 / `region` 按柔光范围照亮。
+   * 与户型草稿的 `settings.lightingMode` 同源，创建渲染器时读一次作为初值。
+   */
+  previewLightingMode: 'standard' | 'region'
+  /**
+   * 切换光影管线（换控制器 + 重建灯光层）。由 `createStudioRenderer` 装配，
+   * 未装配时为 `null`（嵌入舞台固定管线，不需要切换）。
+   */
+  applyLightingPipeline: ((mode: 'standard' | 'region', options?: { render?: boolean }) => void) | null
   activeToolName: string
   activeLibraryCategory: string
   activeLightGroupId: string
@@ -294,6 +304,8 @@ export function createStudioAppContext(): StudioAppContext {
     overriddenFloorIds: null,
     backgroundImageSource: null,
     activeToolName: 'select',
+    previewLightingMode: 'standard',
+    applyLightingPipeline: null,
     activeLibraryCategory: 'home',
     activeLightGroupId: '',
     pendingLightGroupId: '',

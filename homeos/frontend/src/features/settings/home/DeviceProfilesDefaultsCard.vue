@@ -2,7 +2,7 @@
   房间默认播放设备：点歌选音箱、开电视选 Apple TV / 电视。
 
   从 SettingsDeviceProfilesPanel 拆出：默认设备的增删改与那份表单互不依赖画像列表，
-  合在一起会把面板文件推到 800 行以上。房间 / 播放器 / 电视候选由父组件传入。
+  合在一起会让面板文件明显变长。房间 / 播放器 / 电视候选由父组件传入。
 -->
 <template>
   <SettingsCard full static extra-class="dp-card">

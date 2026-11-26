@@ -10,6 +10,7 @@ import {
 import type { Interaction3dEditorView } from './bridge'
 import { createInteraction3dCover, updateInteraction3dCoverMessage } from './cover'
 import { withRequestTimeout } from '../shared/util/request-timeout'
+import { REPAIR_INSPECT_INTRO, repairResultMessage } from '@/studio/platform/navigation/binding-repair'
 import { isWarmSceneStyle, normalizeSceneStyle, SCENE_STYLES, warmBackgroundChoices } from '../shared/scene-styles'
 import {
   FLOOR_CATEGORY_CHOICES,
@@ -102,6 +103,68 @@ function changesInteraction3d(previousProject: any, nextProject: any) {
 export async function guardInteraction3dChanges(currentProject: any, incomingProject: any) {
   changesInteraction3d(currentProject, incomingProject) && (await requestInteraction3dAccess())
 }
+/**
+ * 是否显示「背景动态」开关（0.8.9 上游条件：`isWarmWood && sceneStyle !== 'natural-wood'`）。
+ *
+ * 为什么排除自然木语：它的背景是「纸上林庭 / 暮林静影」两张**静态插画**，
+ * 没有飘叶/风动那套动画 —— 给它一个开关会让人以为能控制什么，实际毫无效果。
+ * 暖阳原木（warm-wood）的背景是动态光斑，开关才有意义。
+ *
+ * 抽成函数而不是内联 `&&`：`editor.ts` 的装配函数已在复杂度上限（112），
+ * 一个 `&&` 就会把它顶到 113。
+ */
+function supportsBackgroundMotion(sceneStyle: string): boolean {
+  return isWarmSceneStyle(sceneStyle) && sceneStyle !== 'natural-wood'
+}
+
+/** `createElement` 的最小签名的别名，避免把整个装配函数的闭包类型摊到这。 */
+type CreateElement = (tagName: string, className?: string, textContent?: string) => DomControl
+
+/**
+ * 「缩放与拖移」开关 + 说明（0.8.9 `viewGesturesEnabled`，位于「交互行为」组）。
+ *
+ * 两个判定都不能松：
+ *
+ * - **`=== true` 且默认关闭**：这是新增能力，老组件没有这个键时必须保持旧行为，
+ *   否则升级后所有人的画布突然可拖动。runtime 侧同口径。
+ * - **`isViewEditing` 时禁用**：嵌入舞台改的是宿主文档，画面上不会立刻反映。
+ *
+ * 抽成模块级函数：装配函数已在复杂度上限，内联会把门禁顶超。
+ */
+function appendViewGesturesControl(
+  behaviorSection: DomControl,
+  createElement: CreateElement,
+  properties: Record<string, unknown>,
+  isViewEditing: boolean,
+  commitChange: (patch: Record<string, unknown>) => void,
+): void {
+  const toggleLabel = createElement('label', 'i3d-setting-toggle i3d-view-toggle'),
+    toggleInput = createElement('input')
+  Object.assign(toggleInput, {
+    name: 'i3d-view-gestures-enabled',
+    type: 'checkbox',
+    checked: properties.viewGesturesEnabled === true,
+    disabled: isViewEditing,
+  }),
+    toggleLabel.append(createElement('span', '', '缩放与拖移'), toggleInput),
+    toggleInput.addEventListener('change', () => {
+      if (isViewEditing) return
+      commitChange({
+        properties: {
+          viewGesturesEnabled: toggleInput.checked,
+        },
+      })
+    }),
+    behaviorSection.append(
+      toggleLabel,
+      createElement(
+        'p',
+        'inspector-section-note',
+        '单层支持双指拖移。双指捏合或滚轮可推进透视镜头，正交视角可调整取景大小。',
+      ),
+    )
+}
+
 export function renderInteraction3dThumbnail(thumbnailButton: any) {
   thumbnailButton.classList.add('interaction3d-thumbnail'), thumbnailButton.append(createInteraction3dCover())
 }
@@ -858,11 +921,12 @@ export function renderInteraction3dInspector(hostElement: any, targetComponent: 
             createElement(
               'p',
               'inspector-section-note',
+              // 三句与上游逐字一致：remember / same+resetFromAll / same。
               switchMode === 'remember'
-                ? '每次切到该层都显示这里设置的分类。'
+                ? '每次切换到该楼层时使用。'
                 : currentDefaults.resetCategoryFromAll === true
-                  ? '新楼层没有当前分类时使用；从 ALL 进入单层时也使用。'
-                  : '新楼层没有当前分类时使用。',
+                  ? '首次进入单层，或从 ALL 进入时使用。'
+                  : '首次进入单层时使用，之后保持当前分类。',
             ),
           )
       }
@@ -1523,6 +1587,7 @@ export function renderInteraction3dInspector(hostElement: any, targetComponent: 
   }
   rotationControlElement.append(createElement('span', '', '旋转方式'), rotationOptionsElement),
     behaviorSection.append(rotationControlElement)
+  appendViewGesturesControl(behaviorSection, createElement, properties, isViewEditing, commitChange)
   const autoRotateSection = createSection('自动旋转'),
     autoRotateSettings = {
       ...resolveCurrentBehavior().autoRotate,
@@ -1834,7 +1899,11 @@ export function renderInteraction3dInspector(hostElement: any, targetComponent: 
       backgroundVisibilityOptionsElement.append(visibilityButton)
   }
   backgroundVisibilityControlElement.append(createElement('span', '', '户型底图'), backgroundVisibilityOptionsElement),
-    displaySection.append(backgroundVisibilityControlElement)
+    displaySection.append(backgroundVisibilityControlElement),
+    // 叶影与底图的联动不是一眼能看出来的，说明必须写在开关下面（上游同口径）。
+    displaySection.append(
+      createElement('p', 'inspector-section-note', '户型底图控制显示或隐藏；ALL 时叶影退向边缘，单层时叶影靠近。'),
+    )
   const sceneStyleSelect = createElement('select')
   ;(sceneStyleSelect.name = 'i3d-scene-style'), sceneStyleSelect.setAttribute('aria-label', '材质风格')
   for (const [styleValue, styleLabel] of SCENE_STYLES) {
@@ -1881,7 +1950,8 @@ export function renderInteraction3dInspector(hostElement: any, targetComponent: 
         })
     }),
     createLabeledField(displaySection, '背景主题', backgroundThemeSelect),
-    isWarmWood)
+    // 「背景动态」的显示条件见 `supportsBackgroundMotion`。
+    supportsBackgroundMotion(currentSceneStyle))
   ) {
     const backgroundMotionToggle = createElement('input')
     ;(backgroundMotionToggle.type = 'checkbox'),
@@ -2710,10 +2780,16 @@ export function renderInteraction3dInspector(hostElement: any, targetComponent: 
     if (!editorOptions.onRepairBindings) return
     const repairBindingsButton = createElement('button', '', '检查失效配置')
     repairBindingsButton.type = 'button'
-    const repairBindingsResultElement = createElement('p', 'inspector-section-note')
-    repairBindingsResultElement.setAttribute('role', 'status'),
-      (repairBindingsResultElement.hidden = true),
-      (repairBindingsResultElement.dataset.bindingRepairResult = '')
+    // 0.8.9：按钮旁说明「检查会列出什么」，避免用户以为它会自动修好一切。
+    repairBindingsButton.title = REPAIR_INSPECT_INTRO
+    // 0.8.9：结果不是一行裸文本，而是 `.binding-repair-results` 容器（可放列表）。
+    const repairBindingsResultsElement = createElement('div', 'binding-repair-results')
+    repairBindingsResultsElement.setAttribute('role', 'status')
+    repairBindingsResultsElement.dataset.bindingRepairResult = ''
+    const repairBindingsResultElement = createElement('p', 'binding-repair-status')
+    repairBindingsResultElement.hidden = true
+    repairBindingsResultsElement.append(repairBindingsResultElement)
+    repairBindingsResultsElement.hidden = true
     const setRepairBindingsResult = (resultMessage: string) => {
       if (
         interaction3dInspectorElement!.hidden ||
@@ -2723,8 +2799,11 @@ export function renderInteraction3dInspector(hostElement: any, targetComponent: 
         return
       const liveResultElement = interaction3dInspectorElement!.querySelector('[data-binding-repair-result]')
       if (!liveResultElement) return
-      liveResultElement.textContent = resultMessage
-      ;(liveResultElement as DomControl).hidden = !resultMessage
+      const liveStatusElement = liveResultElement.querySelector('.binding-repair-status') as HTMLElement | null
+      const statusTarget = liveStatusElement ?? (liveResultElement as HTMLElement)
+      statusTarget.textContent = resultMessage
+      statusTarget.hidden = !resultMessage
+      ;(liveResultElement as HTMLElement).hidden = !resultMessage
     }
     repairBindingsButton.addEventListener('click', async () => {
       repairBindingsButton.disabled = true
@@ -2735,7 +2814,7 @@ export function renderInteraction3dInspector(hostElement: any, targetComponent: 
           removedBindingCount === null
             ? '已取消，配置保持不变。'
             : removedBindingCount
-              ? `已移除 ${removedBindingCount} 项失效配置，请点击顶部“保存”。`
+              ? repairResultMessage(removedBindingCount)
               : '没有发现失效配置。',
         )
       } catch (repairBindingsError: any) {
@@ -2744,10 +2823,13 @@ export function renderInteraction3dInspector(hostElement: any, targetComponent: 
         repairBindingsButton.disabled = false
       }
     })
+    // 0.8.9：检查完的下一步是「应用列出的修复 → 修复并重新保存」两步动作。
+    // 本项目把「应用」并入确认对话框（主按钮文案即「应用列出的修复」），所以这里
+    // 不再放第二个按钮 —— 少一个入口比放一个没有处理器的按钮更诚实。
     interaction3dInspectorElement!.dataset.projectId = editorOptions.document?.projectId || ''
     // 0.8.5 上游把入口放在「户型」段里：与「重新载入户型」同一行并排，结果提示另起整行。
     // 挂到检查器根节点会落在所有分组之外，看起来像一条没归属的裸按钮。
-    houseSection.append(repairBindingsButton, repairBindingsResultElement)
+    houseSection.append(repairBindingsButton, repairBindingsResultsElement)
   }
   appendInspectorGroup('layout', '户型与布局', [houseSection, layoutSection, displaySection]),
     appendInspectorGroup('devices', '设备配置', [

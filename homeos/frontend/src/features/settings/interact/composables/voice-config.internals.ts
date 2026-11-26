@@ -103,8 +103,8 @@ function clampInt(raw: unknown, min: number, max: number, fallback: number): num
 /**
  * 读出服务端 TTS 配置并补齐缺省值。
  *
- * 单独成函数是为了把「一串 `||` 兜底」的复杂度收在这里：调用点的对象字面量
- * 本来已经是这个文件里最复杂的函数，再挂 8 个兜底会把前端复杂度棘轮顶穿。
+ * 单独成函数是为了把「一串 `||` 兜底」收在这里：调用点的对象字面量本来已经很难读，
+ * 再挂 8 个兜底会让「读配置」和「补默认值」糊在一起。
  */
 function readServerTts(
   source: ServerTtsSource,

@@ -95,7 +95,7 @@ function ensureLayer(runtime: StudioAppRuntime): RulerLayer | null {
  * 该物件是否不参与测距（0.8.7 `cw()` 的排除集合）。
  *
  * 单独成函数而不是摊在 `rulerTarget` 里：排除项会继续增加（每次加一条都会把
- * `rulerTarget` 顶过复杂度棘轮），而它们的语义是同一件事 —— 「这个类型没有间距语义」。
+ * `rulerTarget` 更长），而它们的语义是同一件事 —— 「这个类型没有间距语义」。
  */
 function isRulerExcluded(item: Record<string, unknown>): boolean {
   if (RULER_EXCLUDED_ITEM_TYPES.has(String(item.type))) return true
