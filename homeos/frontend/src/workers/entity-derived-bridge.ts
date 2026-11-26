@@ -7,8 +7,8 @@ import type {
   DerivedWorkerApi,
   EntitiesMap,
   EntityPatch,
-} from '@/shared/types/entity-store'
-import { logger } from '@/shared/utils/core/logger'
+} from '@/kernel/types/entity-store'
+import { logger } from '@/kernel/utils/core/logger'
 
 /**
  * 将 Worker 重建快照全量写回主线程 derived 索引：

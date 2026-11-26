@@ -20,15 +20,15 @@ export {
   updateBaseLightingFromInput,
   collectActiveLightEntries,
   areLightsEnabled,
-} from './base-lighting'
-export { beginLightingPreview } from './beginLightingPreview'
-export type { BeginLightingPreviewDeps } from './beginLightingPreview'
-export { sameBaseLighting, saveAutoDiagramLighting, saveEmbeddedBaseLighting } from './save-auto-diagram-lighting'
+} from './lighting'
+export { beginLightingPreview } from './lighting'
+export type { BeginLightingPreviewDeps } from './lighting'
+export { sameBaseLighting, saveAutoDiagramLighting, saveEmbeddedBaseLighting } from './lighting'
 export type {
   EmbeddedBaseLightingTarget,
   StudioApiFetch,
   StudioDraftResponse,
-} from './save-auto-diagram-lighting'
+} from './lighting'
 export {
   moveAreaRow,
   moveLightGroupToArea,
@@ -74,8 +74,8 @@ export {
   syncScreenLayers,
   syncChargingLayers,
   pushUndoEntry,
-} from './light-group-rows'
-export { collectLightTargetInputs, syncLightTargetGroups, buildLightGroupList } from './light-group-targets'
+} from './light-groups'
+export { collectLightTargetInputs, syncLightTargetGroups, buildLightGroupList } from './light-groups'
 export {
   getLightGroups,
   syncLightGroupSelect,
@@ -88,22 +88,22 @@ export {
   syncLightGroupList,
   setAllLightGroupsEnabled,
 } from './light-groups'
-export { syncLightShapeAndRepaint } from './light-shape-sync'
-export { installLightingShaderFailsafe, restoreLightingShaderChecksIfReady } from './lighting-shader-failsafe'
-export type { LightingShaderFailsafe } from './lighting-shader-failsafe'
+export { syncLightShapeAndRepaint } from './light-areas'
+export { installLightingShaderFailsafe, restoreLightingShaderChecksIfReady } from './lighting'
+export type { LightingShaderFailsafe } from './lighting'
 export {
   planLightPrecompileBatches,
   shouldSuspendSceneWork,
   shouldDeferSceneWork,
   scheduleLightPrecompile,
   scheduleExternalPrecompile,
-} from './precompile'
+} from './lighting'
 export {
   addStripLightPreview,
   applyAccentEmissive,
   planLabelAccentColor,
   createPlanLabel,
   collectLightSourceSpecs,
-} from './preview-meshes'
-export { setShadowFreeze, updateShadowState } from './scene-shadows-control'
-export { collectShadowCandidates, setupSceneShadows } from './scene-shadows'
+} from './lighting'
+export { setShadowFreeze, updateShadowState } from './shadows'
+export { collectShadowCandidates, setupSceneShadows } from './shadows'

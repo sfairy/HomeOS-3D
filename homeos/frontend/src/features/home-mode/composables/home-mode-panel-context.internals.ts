@@ -8,19 +8,19 @@ import {
   fetchHomeModePresets,
   fetchHomeModeTemplates,
   installHomeModePreset,
-} from '@/services/api/home-modes'
-import { collectHaSceneScriptRecords } from '@/shared/utils/ha/scene-script.util'
-import { useEntitiesStore } from '@/stores/entities.store'
-import { fetchPresenceHome } from '@/services/api/security'
-import { downloadBlob } from '@/shared/utils/core/misc.util'
-import { getApiErrorMessage } from '@/shared/utils/core/error-message'
-import { logger } from '@/shared/utils/core/logger'
-import { formatPresenceBadgeSummary } from '@/shared/presence/utils/display.util'
+} from '@/domain/api/home-modes'
+import { collectHaSceneScriptRecords } from '@/kernel/utils/ha/scene-script.util'
+import { useEntitiesStore } from '@/domain/entity/store/entities.store'
+import { fetchPresenceHome } from '@/domain/api/security'
+import { downloadBlob } from '@/kernel/utils/core/misc.util'
+import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
+import { logger } from '@/kernel/utils/core/logger'
+import { formatPresenceBadgeSummary } from '@/features/presence/model/utils/display.util'
 import type { Ref } from 'vue'
 import { computed, ref } from 'vue'
 import type { ActionTemplate } from './draft.internals'
 import type { useHomeModes } from './useHomeModes'
-import type { useChromeStore } from '@/stores/chrome.store'
+import type { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 
 type HomeModesApi = Pick<ReturnType<typeof useHomeModes>, 'modes' | 'fetchModes' | 'createMode'>
 

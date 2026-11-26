@@ -9,7 +9,7 @@
  * 面板只管照着渲染，不再关心底层差异。
  */
 
-import { televisionArtwork } from '../../runtime/television/television-state'
+import { televisionArtwork } from '../television/television-state'
 
 /** 支持主机控制面板的设备类型。 */
 export const GAME_CONSOLE_KINDS = Object.freeze(['switch-console', 'playstation'])

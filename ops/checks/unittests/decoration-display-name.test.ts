@@ -13,9 +13,9 @@
  */
 import { describe, expect, test } from 'bun:test'
 
-import { itemSelectionTitle } from '../../../homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/refreshStudioUiInner'
+import { itemSelectionTitle } from '../../../homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/refresh-view'
 import { placedItemName } from '../../../homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/studio-placed-items'
-import { overlapCandidateLabel } from '../../../homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/overlap-and-preview-wiring'
+import { overlapCandidateLabel } from '../../../homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/wiring'
 
 /** 目录项：装饰统一叫「我的装饰」。 */
 const CATALOG = { 'user-decoration': { name: '我的装饰' }, sofa: { name: '沙发' } }

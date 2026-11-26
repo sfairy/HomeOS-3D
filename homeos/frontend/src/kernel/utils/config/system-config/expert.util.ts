@@ -1,0 +1,64 @@
+/** 系统配置专家模式工具 */
+
+/** 专家模式关闭时隐藏的分区（连接层 + 运维采样） */
+const EXPERT_ONLY_SECTIONS = new Set(['haConnector', 'stateStore', 'wsPush', 'commandProxy', 'webrtc', 'ops'])
+
+/** 专家模式关闭时隐藏的单字段（屏保像素级 / 前端性能细调 / 内部缓存与 TTL） */
+const EXPERT_ONLY_FIELD_KEYS = new Set([
+  'brandSizePx',
+  'brandTopVh',
+  'contentShiftVh',
+  'metaSizeVw',
+  'secSizeVw',
+  'sepSizeVw',
+  'subMetaSizeVw',
+  'timeSizeVw',
+  'weatherIconSizeVw',
+  'weatherStatsSizePx',
+  'weatherTempSizeVw',
+  'rebuildChunkSize',
+  'rebuildDebounceMs',
+  'entityCacheMaxAgeMs',
+  'entityCacheSaveDebounceMs',
+  'entityCacheEnabled',
+  'initStatesBatchSize',
+  'largeEntityThreshold',
+  'workerDerivedThreshold',
+  'callDedupWindowMs',
+  'maxListeners',
+  'optimisticTtlMs',
+  'widgetPollIntervals',
+  'apiRetryDelayMs',
+  // 内部缓存 / 轮询节奏 / 引擎 TTL：没有可感知的用户收益，只在排障时调
+  'configCacheTtlMs',
+  'haHistoryCacheMin',
+  'calendarSyncShortMin',
+  'calendarIncrementalEnabled',
+  'weatherAlertRefreshMs',
+  'manualLockTtlMin',
+  'linkageClaimTtlMin',
+  'maxTriggerLogs',
+  'maxExecHistory',
+])
+
+import type { EditableConfigSection } from '@/kernel/types/system-config-editor'
+
+/**
+ * 按专家模式过滤可编辑分节视图
+ *
+ * 专家模式开启时原样返回；关闭时剔除专家专属分区与字段，并丢弃变空的分节。
+ *
+ * @param sectionList - 编辑器分节视图。
+ * @param expertMode - 是否启用专家模式。
+ * @returns 过滤后的分节数组。
+ */
+export function filterSectionsForExpert(sectionList: EditableConfigSection[], expertMode: boolean) {
+  if (expertMode) return sectionList
+  return sectionList
+    .filter((s) => !EXPERT_ONLY_SECTIONS.has(s.key))
+    .map((s) => ({
+      ...s,
+      fields: s.fields.filter((f) => !EXPERT_ONLY_FIELD_KEYS.has(f.key)),
+    }))
+    .filter((s) => s.fields.length > 0)
+}

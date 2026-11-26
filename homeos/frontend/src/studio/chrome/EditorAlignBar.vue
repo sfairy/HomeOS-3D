@@ -9,7 +9,7 @@ import {
   AlignVerticalJustifyStart,
   AlignVerticalSpaceBetween,
 } from '@lucide/vue'
-import { useStudioEditorStore } from '@/stores/studio-editor.store'
+import { useStudioEditorStore } from '@app/state/studio-editor.store'
 
 const editorStore = useStudioEditorStore()
 

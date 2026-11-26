@@ -170,10 +170,10 @@
 <script setup lang="ts">
 import { nextTick } from 'vue'
 import { ChevronLeft, Cpu } from '@lucide/vue'
-import ListPageHero from '@/components/list-page-shell/ListPageHero.vue'
-import ListPageMetrics from '@/components/list-page-shell/ListPageMetrics.vue'
-import ApiQueryState from '@/components/common/ApiQueryState.vue'
-import VEmptyState from '@/components/common/base/VEmptyState.vue'
+import ListPageHero from '@/kernel/ui/list-page/ListPageHero.vue'
+import ListPageMetrics from '@/kernel/ui/list-page/ListPageMetrics.vue'
+import ApiQueryState from '@/kernel/ui/ApiQueryState.vue'
+import VEmptyState from '@/kernel/ui/primitives/VEmptyState.vue'
 // 域内子件用相对导入：域根 barrel 只服务跨域消费者，域内文件引用自己的 barrel
 // 会被 check-frontend-deps 的 feature-self-barrel 规则判违规。
 import DeviceAnalyticsPanel from './components/DeviceAnalyticsPanel.vue'

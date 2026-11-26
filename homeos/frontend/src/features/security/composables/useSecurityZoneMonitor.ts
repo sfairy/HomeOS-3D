@@ -8,7 +8,7 @@
  * @dependencies vue, @/stores/entities.store, @/features/security/composables/useSecurityZoneRooms, @/features/security/utils/zone-mode.util, @/features/security/utils/zone-room.util, @/shared/entity/utils/derived.util
  */
 import { computed, type Ref } from 'vue'
-import { useEntitiesStore } from '@/stores/entities.store'
+import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useSecurityZoneRooms } from '@/features/security/composables/useSecurityZoneRooms'
 import {
   shouldZoneAlarmInMode,
@@ -22,8 +22,8 @@ import {
   zoneTypeLabel,
   type SecurityZoneDraft,
 } from '@/features/security/utils/zone-room.util'
-import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
-import { countOfflineDevices } from '@/shared/device/utils/group-offline.util'
+import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
+import { countOfflineDevices } from '@/features/device/model/utils/group-offline.util'
 
 /**
  * 安防区域监控 composable

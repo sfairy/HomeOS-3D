@@ -4,9 +4,9 @@
  * @description 安防总览 composable，聚合面板状态、传感器、审计事件、危险联动等核心逻辑。
  */
 import { computed } from 'vue'
-import { useChromeStore } from '@/stores/chrome.store'
-import { useLayoutStore } from '@/stores/layout.store'
-import { useSecurityPanelStatus } from '@/composables/security/useSecurityPanelStatus'
+import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
+import { useSecurityPanelStatus } from '@/features/security/composables/useSecurityPanelStatus'
 import { useReduceSecuritySensitivity } from '@/features/security/composables/useReduceSecuritySensitivity'
 import { useSecuritySensors } from '@/features/security/composables/useSecuritySensors'
 import { useSecurityAuditEvents } from '@/features/security/composables/useSecurityAuditEvents'

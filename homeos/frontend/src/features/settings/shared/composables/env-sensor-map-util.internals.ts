@@ -3,9 +3,9 @@
  * @module frontend/src/views
  */
 /** 环境传感器映射：推断与 CSV 工具 */
-import type { EntitiesMap } from '@/shared/types/entity-store'
-import type { RoomListItem } from '@/shared/types/env-room'
-import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
+import type { EntitiesMap } from '@/kernel/types/entity-store'
+import type { RoomListItem } from '@/kernel/types/env-room'
+import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
 import type { EnvSensorMap, EnvSensorMapEntry, HaAreaRef } from '@homeos/shared'
 import { buildRoomInferKeywordsMap, buildRoomListFromHaAreas } from '@homeos/shared'
 

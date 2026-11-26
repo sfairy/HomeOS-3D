@@ -19,7 +19,7 @@ import {
   climatePresentationMode,
   normalizeClimateModeKey,
   WATER_HEATER_HEATING_TOLERANCE_C,
-} from '../../../homeos/frontend/src/shared/device/climate-power'
+} from '../../../homeos/frontend/src/features/device/model/climate-power'
 
 describe('normalizeClimateModeKey', () => {
   test('大小写 / 空格 / 连字符 / 加号归一', () => {

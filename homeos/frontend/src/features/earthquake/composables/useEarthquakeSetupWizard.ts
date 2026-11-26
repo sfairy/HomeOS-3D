@@ -1,16 +1,16 @@
 /** 地震预警配置向导组合式函数 */
-import { writeLocalStorage } from '@/shared/utils/core/local-storage.util'
+import { writeLocalStorage } from '@/kernel/utils/core/local-storage.util'
 
 import { ref, watch, computed } from 'vue'
-import { testHaConnection } from '@/services/api/ha'
-import { useChromeStore } from '@/stores/chrome.store'
-import { useLayoutStore } from '@/stores/layout.store'
-import { useHaConnectionStore } from '@/stores/ha-connection.store'
-import { useAuthStore } from '@/stores/auth.store'
-import { useEntitiesStore } from '@/stores/entities.store'
-import { EEW_CITY_PRESETS, createDefaultEarthquakeConfig } from '@/shared/types/earthquake'
-import { syncEarthquakeHomeCoordsFromHa } from '@/composables/earthquake/ha-coords.util'
-import { getApiErrorMessage } from '@/shared/utils/core/error-message'
+import { testHaConnection } from '@/domain/api/ha'
+import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
+import { useHaConnectionStore } from '@/domain/ha/ha-connection.store'
+import { useAuthStore } from '@/features/auth/store/auth.store'
+import { useEntitiesStore } from '@/domain/entity/store/entities.store'
+import { EEW_CITY_PRESETS, createDefaultEarthquakeConfig } from '@/kernel/types/earthquake'
+import { syncEarthquakeHomeCoordsFromHa } from '@/features/earthquake/composables/ha-coords.util'
+import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
 
 /**
  * 地震预警配置向导 composable

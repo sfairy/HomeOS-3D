@@ -12,7 +12,7 @@ import {
   unref,
 } from 'vue'
 import type { ECharts, ECElementEvent, EChartsCoreOption } from 'echarts'
-import { observeChartResize } from '@/shared/utils/ui/chart-resize.util'
+import { observeChartResize } from '@/kernel/utils/ui/chart-resize.util'
 import {
   buildLevelBuckets,
   buildLevelBucketsFromStats,
@@ -22,7 +22,7 @@ import {
   formatPercent,
   type NotificationAnalyticsSummary,
   type NotificationStatsPayload,
-} from '@/shared/notifications/utils/analytics.util'
+} from '@/features/notifications/model/utils/analytics.util'
 import {
   buildNotificationsLevelOption,
   buildNotificationsRankOption,
@@ -205,7 +205,7 @@ export function useNotificationsViewAnalytics(
     if (!el) return
     // getOrInitChart：data watch 深监听会紧邻首帧再次触发 renderCharts，
     // 两次调用都可能在 await 前通过 ``if (!charts[key])``，直接 init 会触发重复初始化告警
-    if (!charts[key]) charts[key] = (await import('@/shared/utils/chart/echarts')).getOrInitChart(el)
+    if (!charts[key]) charts[key] = (await import('@/kernel/utils/chart/echarts')).getOrInitChart(el)
     charts[key]!.setOption(builder(), true)
     charts[key]!.resize()
   }

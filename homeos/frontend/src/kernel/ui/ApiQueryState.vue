@@ -1,0 +1,103 @@
+<template>
+  <!-- 加载态：仅当 loading 为真且无错误时展示骨架屏，避免与错误态叠加。
+       skeleton="list" 时使用列表型骨架（贴合通知/告警等列表排版），默认面板型。 -->
+  <VListSkeleton v-if="isLoading && !errorMessage && skeleton === 'list'" />
+  <VPanelSkeleton v-else-if="isLoading && !errorMessage" />
+  <VEmptyState
+    v-else-if="errorMessage"
+    compact
+    :tone="tone"
+    :title="errorTitle"
+    :description="errorMessage"
+  >
+    <template #action>
+      <button type="button" class="api-query-state__retry" @click="$emit('retry')">
+        {{ retryLabel }}
+      </button>
+    </template>
+  </VEmptyState>
+  <template v-else>
+    <div v-if="isDegraded && showDegradedBanner" class="api-query-state__degraded" role="status">
+      <p>{{ degradedMessage }}</p>
+      <button v-if="showRetry" type="button" class="api-query-state__retry" @click="$emit('retry')">
+        {{ retryLabel }}
+      </button>
+    </div>
+    <slot />
+  </template>
+</template>
+
+<script setup lang="ts">
+/** - 加载中渲染骨架屏（VPanelSkeleton）； */
+import { computed, type PropType, type Ref, unref } from 'vue'
+import VEmptyState from '@/kernel/ui/primitives/VEmptyState.vue'
+import VListSkeleton from '@/kernel/ui/primitives/VListSkeleton.vue'
+import VPanelSkeleton from '@/kernel/ui/primitives/VPanelSkeleton.vue'
+
+const props = defineProps({
+  /** 加载中骨架形态：panel 面板型（默认）/ list 列表型（通知、告警等逐行列表） */
+  skeleton: { type: String, default: 'panel' },
+  /** 是否处于加载中，支持 Boolean 或 Ref<Boolean>（内部会 unref） */
+  loading: { type: [Boolean, Object], default: false },
+  /** 错误信息，可为字符串或 Ref；为 false/null/空串视为无错误 */
+  error: { type: [String, Object] as PropType<string | false | null | Ref<string | false | null>>, default: '' },
+  /** 是否处于降级态（数据可用但不完整） */
+  degraded: { type: [Boolean, Object], default: false },
+  /** 是否展示降级提示条 */
+  showDegradedBanner: { type: Boolean, default: true },
+  /** 降级提示文案 */
+  degradedMessage: { type: String, default: '部分数据可能不完整' },
+  /** 错误态标题 */
+  errorTitle: { type: String, default: '加载失败' },
+  /** 错误态视觉色调（VEmptyState tone） */
+  tone: { type: String, default: 'amber' },
+  /** 重试按钮文案 */
+  retryLabel: { type: String, default: '重试' },
+  /** 是否展示重试按钮 */
+  showRetry: { type: Boolean, default: true },
+})
+
+defineEmits(['retry'])
+
+/** 是否加载中：unref 后转 Boolean，兼容 Ref 入参 */
+const isLoading = computed(() => Boolean(unref(props.loading)))
+
+/** 错误信息字符串：false/null 视为无错误，其余强制 String 化以便模板渲染 */
+const errorMessage = computed(() => {
+  const raw = unref(props.error)
+  if (raw == null || raw === false) return ''
+  return String(raw)
+})
+
+/** 是否降级：unref 后转 Boolean */
+const isDegraded = computed(() => Boolean(unref(props.degraded)))
+</script>
+
+<style scoped>
+.api-query-state__degraded {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  border: var(--hos-hairline) solid rgba(251, 191, 36, 0.25);
+  background: rgba(251, 191, 36, 0.08);
+  font-size: var(--hos-fs-3);
+  color: rgba(251, 191, 36, 0.9);
+}
+.api-query-state__retry {
+  font-size: var(--hos-fs-3);
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--hos-r-pill);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  cursor: pointer;
+}
+.api-query-state__retry:hover {
+  background: var(--hos-bg-tint-2);
+}
+</style>

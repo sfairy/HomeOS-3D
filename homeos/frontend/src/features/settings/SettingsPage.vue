@@ -134,8 +134,8 @@
 </template>
 
 <script setup>
-import { readLocalStorageFlag, writeLocalStorage } from '@/shared/utils/core/local-storage.util'
-import { useCanvasMetrics } from '@/composables/ui/useCanvasMetrics'
+import { readLocalStorageFlag, writeLocalStorage } from '@/kernel/utils/core/local-storage.util'
+import { useCanvasMetrics } from '@/kernel/ui/hooks/use-canvas-metrics'
 /**
  * 系统设置页面 — 薄壳入口
  * 侧边栏分组导航 + 动态面板加载，样式见 settings/shared/settings-theme.css
@@ -143,16 +143,16 @@ import { useCanvasMetrics } from '@/composables/ui/useCanvasMetrics'
 import { computed, nextTick, ref, watch, defineAsyncComponent, onMounted, onBeforeUnmount, onScopeDispose } from 'vue'
 import { PanelLeft, ChevronRight, Link2, KeyRound, LogOut } from '@lucide/vue'
 import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router'
-import { useEntitiesStore } from '@/stores/entities.store'
-import { useAuthStore } from '@/stores/auth.store'
-import { useChromeStore } from '@/stores/chrome.store'
-import { useLayoutStore } from '@/stores/layout.store'
-import { useSettingsSave } from '@/composables/settings-kernel/save.internals'
+import { useEntitiesStore } from '@/domain/entity/store/entities.store'
+import { useAuthStore } from '@/features/auth/store/auth.store'
+import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
+import { useSettingsSave } from '@/features/settings/kernel/save.internals'
 import {
   resetAllSettingsTabDrafts,
   resetSettingsTabDraft,
   useSettingsPendingChanges,
-} from '@/composables/settings-kernel/pending.internals'
+} from '@/features/settings/kernel/pending.internals'
 import SettingsSidebar from './shared/layout/SettingsSidebar.vue'
 import SettingsOverviewStrip from './shared/layout/SettingsOverviewStrip.vue'
 import {
@@ -164,34 +164,34 @@ import {
   INDEPENDENT_SAVE_TABS,
   LEGACY_TAB_SECTIONS,
 } from './nav'
-import { isTabFeatureGranted } from '@/shared/utils/registry/settings-nav.util'
-import { useLicenseFeatureAccess } from '@/router/license-gate'
+import { isTabFeatureGranted } from '@/kernel/utils/registry/settings-nav.util'
+import { useLicenseFeatureAccess } from '@/app/router/license-gate'
 import {
   hasIndependentSettingsPending,
   getIndependentPendingTabIds,
   isSettingsTabPending,
   globalLayoutPendingCount,
-} from '@/composables/settings-kernel/pending.internals'
+} from '@/features/settings/kernel/pending.internals'
 import {
   registerGlobalLayoutPendingSnapshot,
   registerGlobalPendingPause,
-} from '@/composables/settings-kernel/pending.internals'
-import { tabLabel } from '@/shared/utils/registry/settings-nav.util'
+} from '@/features/settings/kernel/pending.internals'
+import { tabLabel } from '@/kernel/utils/registry/settings-nav.util'
 import { countNavTabs, resolveNavTabContext } from './utils/nav-search.util'
 import { SETTINGS_KEEP_ALIVE_MAX, SETTINGS_KEEP_ALIVE_INCLUDE } from './utils/keep-alive.util'
-import { settingsPageShareUrl } from '@/shared/utils/registry/settings-route.util'
-import { recordSettingsTabVisit } from '@/shared/utils/registry/settings-recent-tabs.util'
-import { copyTextWithNotify } from '@/services/notify'
+import { settingsPageShareUrl } from '@/kernel/utils/registry/settings-route.util'
+import { recordSettingsTabVisit } from '@/kernel/utils/registry/settings-recent-tabs.util'
+import { copyTextWithNotify } from '@/kernel/ui/notify'
 import pkg from '../../../package.json'
 import './shared/settings-theme.css'
 
 const appVersion = pkg.version
 
-const ExitEditConfirmDialog = defineAsyncComponent(() => import('@/components/common/ExitEditConfirmDialog.vue'))
+const ExitEditConfirmDialog = defineAsyncComponent(() => import('@/domain/layout/components/ExitEditConfirmDialog.vue'))
 
 // 同步引入而不是 defineAsyncComponent：侧栏账号条是一进来就可见的，
 // 异步组件的模板 ref 要等解析完成才拿得到 open()，会让第一次点击落空。
-import ChangePasswordDialog from './display/ChangePasswordDialog.vue'
+import ChangePasswordDialog from './groups/appearance/ChangePasswordDialog.vue'
 
 /** 修改密码弹窗句柄：`ref="changePasswordDialog"` 需要同名变量才拿得到实例。 */
 const changePasswordDialog = ref(null)

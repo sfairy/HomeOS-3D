@@ -4,7 +4,7 @@
  */
 /** /devices 列表：开关类设备服务名解析（纯函数） */
 
-import { coverToggleService } from '@/shared/entity/utils/control/cover-control-core'
+import { coverToggleService } from '@/domain/entity/model/utils/control/cover-control-core'
 
 type DeviceToggleCommand = { ok: true; domain: string; service: string } | { ok: false; reason: 'unknown-state' }
 

@@ -1,0 +1,50 @@
+/** 与活跃投影 ID，批量调用 ensureEntity 补全缓存，保证用户可见区域的数据可用。 */
+import { collectPinnedEntityIds } from '@/domain/entity/model/utils/ws-subscription'
+import { getActiveProjectionIds } from '@/domain/entity/store/entity-projection'
+import { getWsPushPublicConfig } from '@/kernel/utils/config/frontend-config'
+import { logger } from '@/kernel/utils/core/logger'
+
+const MAX_ENSURE = 120
+
+/** 实体存储接口约束：需提供批量补全方法。 */
+interface EntitiesEnsureStore {
+  /**
+   * 批量冷补全（POST /entities/batch/get）。
+   *
+   * 这里必须是**批量**而不是逐条 `ensureEntity`：断线重连后 pinned + 活跃投影最多
+   * 120 个 ID，逐条发就是 120 个并行 GET，其中已被 HA 删除的还会各打一条 404。
+   */
+  ensureEntities: (ids: string[]) => Promise<unknown>
+}
+
+type LayoutSubscriptionConfig = Parameters<typeof collectPinnedEntityIds>[0]
+
+/**
+ * 在 WS 断线 / entities_stale 后批量补全 pinned 热点实体。
+ *
+ * 流程：
+ * 1. 读取冷实体按需拉取开关，未开启则直接返回。
+ * 2. 合并 pinned 实体 ID 与活跃投影 ID，去重。
+ * 3. 截取前 MAX_ENSURE 条，并发调用 ensureEntity 补全。
+ * 4. 单条失败仅记录警告，不阻断其他实体补全。
+ *
+ * @param entitiesStore 实体存储对象，需提供 ensureEntity 方法。
+ * @param layoutConfig 布局订阅配置。
+ */
+export async function refreshPinnedEntitiesAfterStale(
+  entitiesStore: EntitiesEnsureStore,
+  layoutConfig: LayoutSubscriptionConfig,
+): Promise<void> {
+  const wsPush = getWsPushPublicConfig()
+  if (!wsPush?.coldEntityOnDemand) return
+
+  const ids = new Set([...collectPinnedEntityIds(layoutConfig), ...getActiveProjectionIds()])
+  if (!ids.size) return
+
+  const batch = [...ids].slice(0, MAX_ENSURE)
+  try {
+    await entitiesStore.ensureEntities(batch)
+  } catch (err) {
+    logger.warn('[实体冷刷新] ensureEntities 失败', err)
+  }
+}

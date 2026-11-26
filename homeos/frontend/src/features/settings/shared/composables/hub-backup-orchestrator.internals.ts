@@ -3,16 +3,16 @@
  * @module frontend/src/views
  */
 /** composables：配置与档案备份 */
-import { exportSystemConfig, importSystemConfig } from '@/services/api/system'
-import { useAuthStore } from '@/stores/auth.store'
-import { useChromeStore } from '@/stores/chrome.store'
-import { useLayoutStore } from '@/stores/layout.store'
-import { reloadFrontendConfig } from '@/shared/utils/config/frontend-config'
-import { downloadBlob } from '@/shared/utils/core/misc.util'
-import { getApiErrorMessage } from '@/shared/utils/core/error-message'
-import type { NotifyType } from '@/shared/types/notify'
-import { getIndependentPendingTabIds, globalLayoutPendingCount } from '@/composables/settings-kernel/pending.internals'
-import { tabLabel } from '@/shared/utils/registry/settings-nav.util'
+import { exportSystemConfig, importSystemConfig } from '@/domain/api/system'
+import { useAuthStore } from '@/features/auth/store/auth.store'
+import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
+import { reloadFrontendConfig } from '@/kernel/utils/config/frontend-config'
+import { downloadBlob } from '@/kernel/utils/core/misc.util'
+import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
+import type { NotifyType } from '@/kernel/types/notify'
+import { getIndependentPendingTabIds, globalLayoutPendingCount } from '@/features/settings/kernel/pending.internals'
+import { tabLabel } from '@/kernel/utils/registry/settings-nav.util'
 import { ref } from 'vue'
 
 // ── useAppConfigBackup ──

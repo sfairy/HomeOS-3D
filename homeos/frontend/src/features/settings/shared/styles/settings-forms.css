@@ -1,7 +1,7 @@
 /* 按钮、表单、Builder 工具栏 */
 /* 状态提示样式（.settings-inline-hint--* / .settings-deploy-note--*）已抽离至
    components/common/styles/status-hint.css，此处通过 @import 复用。 */
-@import "@/components/common/styles/status-hint.css";
+@import "@/kernel/ui/styles/status-hint.css";
 /* ── 按钮 ── */
 .settings-btn-primary {
   display: inline-flex;

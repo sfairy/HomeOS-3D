@@ -8,13 +8,13 @@
  *   - 暴露 addSecEvent 供外部推送即时事件，fetchSecAuditEvents 拉取后端日志
  * @dependencies vue, @/services/api/security, @/shared/utils/core/logger, @/shared/utils/config/frontend-config, @/features/security/utils/event-display.util, @/shared/utils/format/locale-format.util, @lucide/vue
  */
-import { formatSecurityTime } from '@/shared/utils/format/locale-format.util'
+import { formatSecurityTime } from '@/kernel/utils/format/locale-format.util'
 import { ref, computed, type Ref } from 'vue'
-import { fetchSecurityPanelEvents } from '@/services/api/security'
-import { logger } from '@/shared/utils/core/logger'
-import { getApiErrorMessage } from '@/shared/utils/core/error-message'
-import { useChromeStore } from '@/stores/chrome.store'
-import { getMaxRemoteNotifications } from '@/shared/utils/config/frontend-config'
+import { fetchSecurityPanelEvents } from '@/domain/api/security'
+import { logger } from '@/kernel/utils/core/logger'
+import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
+import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
+import { getMaxRemoteNotifications } from '@/kernel/utils/config/frontend-config'
 import {
   mapSecurityEventRow,
   filterSecurityEvents,

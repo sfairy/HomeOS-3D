@@ -1,0 +1,95 @@
+<template>
+  <div v-if="widget.type === 'temp'" class="afh-content">
+    <div class="flex items-center gap-2">
+      <span class="afh-emoji">🌡️</span>
+      <div class="flex items-baseline gap-1">
+        <span class="afh-value">{{
+          hub.sensorValue(String(widget.config.entityId || ''), ['temperature'])
+        }}</span>
+        <span class="afh-unit">°C</span>
+      </div>
+    </div>
+  </div>
+
+  <div v-else-if="widget.type === 'humidity'" class="afh-content">
+    <div class="flex items-center gap-2">
+      <span class="afh-emoji">💧</span>
+      <div class="flex items-baseline gap-1">
+        <span class="afh-value">{{
+          hub.sensorValue(String(widget.config.entityId || ''), ['humidity'])
+        }}</span>
+        <span class="afh-unit">%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 空气质量指数 AQI：约定实体 sensor.{城市名}_aqi -->
+  <div v-else-if="widget.type === 'aqi'" class="afh-content">
+    <div class="flex items-center gap-2">
+      <span class="afh-emoji">🍃</span>
+      <div class="flex items-baseline gap-1">
+        <span
+          :class="['afh-value', hub.aqiLevel(hub.aqiValue(String(widget.config.entityId || '')))]"
+        >
+          {{ hub.aqiValue(String(widget.config.entityId || '')) || '--' }}
+        </span>
+        <span class="afh-unit">AQI</span>
+      </div>
+    </div>
+  </div>
+
+  <div v-else-if="widget.type === 'battery'" class="afh-content">
+    <div class="flex items-center gap-2">
+      <span class="afh-emoji">🔋</span>
+      <div class="flex items-baseline gap-1">
+        <span
+          :class="[
+            'afh-value',
+            hub.batteryColor(
+              hub.sensorValue(String(widget.config.entityId || ''), ['battery', 'battery_level']),
+            ),
+          ]"
+        >
+          {{
+            hub.sensorValue(String(widget.config.entityId || ''), ['battery', 'battery_level']) ||
+            '--'
+          }}
+        </span>
+        <span class="afh-unit">%</span>
+      </div>
+    </div>
+  </div>
+
+  <div v-else-if="widget.type === 'power'" class="afh-content">
+    <div class="flex items-center gap-2">
+      <span class="afh-emoji">⚡</span>
+      <div class="flex items-baseline gap-1">
+        <span class="afh-value">
+          {{
+            hub.sensorValue(String(widget.config.entityId || ''), [
+              'power',
+              'energy',
+              'consumption',
+            ])
+          }}
+        </span>
+        <span class="afh-unit">W</span>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+/** 浮动控制中心 - 指标型部件渲染器 */
+import { inject } from 'vue'
+import { FloatingHubContextKey } from '@/kernel/types/floating-hub'
+import type { FloatingWidget } from '@/domain/layout/types'
+
+// 部件实例（type 决定渲染分支，config.entityId 指向传感器实体）
+defineProps<{
+  widget: FloatingWidget
+}>()
+
+// 注入父组件上下文（非空断言：FloatingHub 父组件必定 provide）
+const hub = inject(FloatingHubContextKey)!
+</script>

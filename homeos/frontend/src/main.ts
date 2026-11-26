@@ -32,25 +32,25 @@ import {
 } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'
-import router from './router/index'
+import router from './app/router/index'
 // 设计令牌唯一真源：必须在所有既有样式表之前加载（canonical 定义在 packages/shared）
 import '../../../packages/shared/src/styles/design-tokens.css'
-import './assets/styles/main.css'
-import './assets/styles/app-premium-tokens.css'
-import './assets/styles/hos-design-system.css'
-import './assets/styles/hos-panel.css'
-import './assets/styles/app-typography.css'
-import './assets/styles/scaled-viewport.css'
-import './assets/styles/modal-theme.css'
-import './assets/styles/widget-glass.css'
-import './assets/styles/widget-hub-theme.css'
-import './assets/styles/motion.css'
+import './app/styles/main.css'
+import './app/styles/app-premium-tokens.css'
+import './app/styles/hos-design-system.css'
+import './app/styles/hos-panel.css'
+import './app/styles/app-typography.css'
+import './app/styles/scaled-viewport.css'
+import './app/styles/modal-theme.css'
+import './app/styles/widget-glass.css'
+import './app/styles/widget-hub-theme.css'
+import './app/styles/motion.css'
 // 列表页样式（list-page / list-page-views ~39 KB）改为随路由懒加载：
 // 见 assets/styles/lazy/list-page-shell.ts。入口只保留首屏消费者（通知抽屉 / 全局空态）
 // 真正用到的那几条 `.list-page__btn*` / `.list-page__muted`。
-import './assets/styles/list-page-eager.css'
-import './assets/styles/degrade-banner.css'
-import './assets/styles/multi-color.css'
+import './app/styles/list-page-eager.css'
+import './app/styles/degrade-banner.css'
+import './app/styles/multi-color.css'
 // 主题覆盖层：必须排在所有既有样式之后 —— 它与 design-tokens 同为 :root 特异度，靠加载顺序生效
 import '../../../packages/shared/src/styles/theme-overrides.css'
 // 触控 / 可访问性基线：最后加载，覆盖旧样式里的 outline:none 与触控几何
@@ -59,29 +59,29 @@ import {
   loadFrontendConfig,
   primeFrontendConfigFromCache,
   setupFrontendConfigVisibilitySync,
-} from '@/shared/utils/config/frontend-config'
-import { primeGlassEffectDocument, setupGlassEffectSync } from '@/shared/utils/ui/glass-effect.util'
-import { applyHomeOsTheme } from '@/shared/utils/ui/theme.util'
-import { setupSmartPerformanceMode } from '@/shared/utils/perf/smart-performance.util'
+} from '@/kernel/utils/config/frontend-config'
+import { primeGlassEffectDocument, setupGlassEffectSync } from '@/kernel/utils/ui/glass-effect.util'
+import { applyHomeOsTheme } from '@/kernel/utils/ui/theme.util'
+import { setupSmartPerformanceMode } from '@/kernel/utils/perf/smart-performance.util'
 import {
   registerAuthChangeHandler,
   registerUnauthorizedHandler,
   registerNavigateToLoginHandler,
   registerSessionRefreshHandler,
   registerUiNotifyHandler,
-} from '@/shared/utils/bridge/store-bridge'
-import { useAuthStore } from './stores/auth.store'
-import { useLayoutStore } from './stores/layout.store'
-import { useChromeStore } from './stores/chrome.store'
-import VSkeleton from './components/common/base/VSkeleton.vue'
-import VEmptyState from './components/common/base/VEmptyState.vue'
-import VPanelSkeleton from './components/common/base/VPanelSkeleton.vue'
-import { swipeClose } from './directives/swipe-close'
-import { scrollRegion } from './directives/scroll-region'
-import { studioStartupReady } from '@/shared/utils/ui/studio-startup'
-import { ensureStudioLoadingStyle } from '@/shared/utils/ui/studio-loading-style'
-import { forgetLicenseAvailability } from '@/shared/utils/auth/license-probe.util'
-import { adoptPreloadedStylesheets } from '@/studio'
+} from '@/kernel/utils/bridge/store-bridge'
+import { useAuthStore } from './features/auth/store/auth.store'
+import { useLayoutStore } from './domain/layout/store/layout.store'
+import { useChromeStore } from './kernel/ui/chrome/chrome-store'
+import VSkeleton from './kernel/ui/primitives/VSkeleton.vue'
+import VEmptyState from './kernel/ui/primitives/VEmptyState.vue'
+import VPanelSkeleton from './kernel/ui/primitives/VPanelSkeleton.vue'
+import { swipeClose } from './app/directives/swipe-close'
+import { scrollRegion } from './app/directives/scroll-region'
+import { studioStartupReady } from '@/kernel/utils/ui/studio-startup'
+import { ensureStudioLoadingStyle } from '@/kernel/utils/ui/studio-loading-style'
+import { forgetLicenseAvailability } from '@/kernel/utils/auth/license-probe.util'
+import { adoptPreloadedStylesheets } from '@/studio/index'
 
 // CSRF 兜底注入已收敛到单 HTTP 栈：`services/api/client` 在模块求值时调用
 // `services/api/csrf.ts#installFetchCsrf()`，覆盖 studio 遗留的裸 fetch 写请求。
@@ -196,27 +196,27 @@ registerNavigateToLoginHandler(() => {
 })
 // 认证状态变化时重连 entities 实时通道
 registerAuthChangeHandler(() => {
-  void import('./stores/entities.store').then(({ useEntitiesStore }) => {
+  void import('./domain/entity/store/entities.store').then(({ useEntitiesStore }) => {
     useEntitiesStore().reconnectForAuthChange()
   })
   // 3D 面板的设备类型来自后端画像（人工确认优先）：登录后重新投影，登出时清空。
   // 投影失败静默退回空调兜底，不阻断任何主流程。
-  void import('@/services/device-profile-kinds').then(({ hydrateDeviceProfileKinds, forgetDeviceProfileKinds }) => {
+  void import('@/features/device/model/device-profile-kinds').then(({ hydrateDeviceProfileKinds, forgetDeviceProfileKinds }) => {
     if (useAuthStore().isAuthenticated) void hydrateDeviceProfileKinds(true)
     else forgetDeviceProfileKinds()
   })
   // 登出 / 401 时（isAuthenticated=false）额外清理用户态 store，避免下一个会话残留上一个用户的数据
-  void import('./stores/auth.store').then(({ useAuthStore }) => {
+  void import('./features/auth/store/auth.store').then(({ useAuthStore }) => {
     if (useAuthStore().isAuthenticated) return
-    void import('./stores/layout.store').then(({ useLayoutStore }) => {
+    void import('./domain/layout/store/layout.store').then(({ useLayoutStore }) => {
       useLayoutStore().resetForAuthChange()
     })
-    void import('./stores/earthquake.store').then(({ useEarthquakeStore }) => {
+    void import('./features/earthquake/store/earthquake.store').then(({ useEarthquakeStore }) => {
       useEarthquakeStore().reset()
     })
     // HA 连接快照里带着 ``baseUrl``：摄像头快照 / HLS 用它拼绝对 URL。不清的话，
     // 下一个登录者首帧会请求到上一个账号的 HA 主机（可能是内网另一台设备）。
-    void import('./stores/ha-connection.store').then(({ useHaConnectionStore }) => {
+    void import('./domain/ha/ha-connection.store').then(({ useHaConnectionStore }) => {
       useHaConnectionStore().reset()
     })
     // 授权可用性快照同样按会话失效：它是路由守卫写进模块级单例的，激活页在 setup 顶层
@@ -250,7 +250,7 @@ function mountApp(): void {
   // B22 + RUM：全局 WebGL 上下文丢失兜底与轻量性能采集，idle 时懒加载启动。
   // 入口只多一次动态 import，不为采集付首屏字节；?webgl-guard=0 / ?client-metrics=0 可回退。
   const startPerf = (): void => {
-    void import('@/shared/utils/perf/perf-instrumentation').then(({ startPerfInstrumentation }) =>
+    void import('@/kernel/utils/perf/perf-instrumentation').then(({ startPerfInstrumentation }) =>
       startPerfInstrumentation(),
     )
   }
@@ -261,24 +261,24 @@ function mountApp(): void {
   // 挂载后启动 FPS 自适应监控，低帧率时自动降级。3D 舞台 iframe 不起：舞台有自己的自适应
   // DPR，这里的档位只影响 iframe 内用不到的外壳样式，却要在每次指针事件后多跑 5s rAF。
   if (!document.body.classList.contains('interaction3d-stage')) {
-    import('@/shared/utils/perf/adaptive-perf.util').then(({ startFpsAdaptiveMonitor }) => {
+    import('@/kernel/utils/perf/adaptive-perf.util').then(({ startFpsAdaptiveMonitor }) => {
       startFpsAdaptiveMonitor()
     })
   }
   // 空闲时段预加载大体积模态/高频控制弹窗，减少首次打开/首点设备的延迟
   if (typeof requestIdleCallback === 'function') {
     requestIdleCallback(() => {
-      import('@/components/modals/MediaPlayerModal.vue')
-      import('@/components/modals/DoorbellAlertModal.vue')
+      import('@/features/media/components/MediaPlayerModal.vue')
+      import('@/features/device/components/DoorbellAlertModal.vue')
       // 首点设备控制是墙屏核心交互，预取 popups 组 chunk，避免首点 150–600ms 现场加载
-      import('@/components/entities/popups/LightControlPopup.vue')
-      import('@/components/entities/popups/ClimateControlPopup.vue')
-      import('@/components/entities/popups/CoverControlPopup.vue')
+      import('@/features/entity/components/popups/LightControlPopup.vue')
+      import('@/features/entity/components/popups/ClimateControlPopup.vue')
+      import('@/features/entity/components/popups/CoverControlPopup.vue')
     })
   }
   // 生产环境注册 PWA 更新提示（用户确认式：确认后激活新 SW 并刷新）
   if (import.meta.env.PROD) {
-    import('@/shared/utils/core/pwa-update').then(({ setupPwaUpdatePrompt }) => {
+    import('@/kernel/utils/core/pwa-update').then(({ setupPwaUpdatePrompt }) => {
       setupPwaUpdatePrompt(async (applyUpdate) => {
         const ok = await useChromeStore().confirm(
           '检测到新版本已就绪。立即更新将刷新页面，未保存的编辑可能丢失。',
@@ -296,7 +296,7 @@ function applyPostConfigHooks(): void {
   setupFrontendConfigVisibilitySync()
   // 3D 面板的设备类型（空调 / 浴霸 / 热水器）来自后端画像结论：已在登录态的冷启动
   // 在这里补一次投影；未登录会静默失败，登录成功后再由 registerAuthChangeHandler 触发。
-  void import('@/services/device-profile-kinds').then(({ hydrateDeviceProfileKinds }) => hydrateDeviceProfileKinds())
+  void import('@/features/device/model/device-profile-kinds').then(({ hydrateDeviceProfileKinds }) => hydrateDeviceProfileKinds())
   // 玻璃拟态效果同步（根据布局配置开/关毛玻璃）
   setupGlassEffectSync(() => useLayoutStore().layoutConfig)
   // 智能性能模式（根据设备能力动态调整渲染策略）

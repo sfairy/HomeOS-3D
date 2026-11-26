@@ -118,9 +118,9 @@
 import { computed, watch } from 'vue'
 import { Bell, RefreshCw } from '@lucide/vue'
 import { securityEventCssKey } from '@/features/security/utils/event-display.util'
-import VEmptyState from '@/components/common/base/VEmptyState.vue'
-import ApiQueryState from '@/components/common/ApiQueryState.vue'
-import { useFixedPagePagination } from '@/composables/ui/hub-viewport.internals'
+import VEmptyState from '@/kernel/ui/primitives/VEmptyState.vue'
+import ApiQueryState from '@/kernel/ui/ApiQueryState.vue'
+import { useFixedPagePagination } from '@/kernel/ui/hooks/hub-viewport'
 
 // 单页固定展示的事件条数；同时用于 CSS 网格行高均分
 const AUDIT_PAGE_SIZE = 8

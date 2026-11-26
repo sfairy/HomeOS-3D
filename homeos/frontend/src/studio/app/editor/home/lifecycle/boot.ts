@@ -40,7 +40,7 @@ import { dashboardFontChoices } from "../../../shared/dashboard-fonts";
 import { createDashboardFontSettings } from "../../dashboard-font-settings";
 import { createUserImageUploader } from "../../../shared/user-image-upload";
 import type { UserImageUploadState } from "../../../shared/user-image-upload";
-import { ensureRegistryComponents as ensureRegistryComponents2 } from "../../../renderer/registry";
+import { ensureRegistryComponents as ensureRegistryComponents2 } from "../../../renderer/registry/index";
 import {
   deferHiddenEditorDialogs as deferHiddenEditorDialogs2,
   installSettingsDialogBackdropGuard as installSettingsDialogBackdropGuard2,
@@ -91,12 +91,12 @@ import { floorplanAutoDiagramExportResolution as floorplanAutoDiagramExportResol
 
 import { createLegacyScope } from '@/studio/platform/legacy-scope';
 import { navigateInShell } from '@/studio/platform/shell-navigation';
-import { schedulePoll } from '@/shared/utils/core/poll-scheduler';
+import { schedulePoll } from '@/kernel/utils/core/poll-scheduler';
 import {
   patchEditorFacadeState,
   registerEditorCommandHandler,
   resetEditorFacade,
-} from '../../../../engine';
+} from '../../../../engine/index';
 import { setupEventLogWallInspector } from "../../home-event-log-wall";
 import { setupPanelFrameInspector } from "../../home-panel-frame";
 

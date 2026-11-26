@@ -4,10 +4,10 @@
  */
 /** composables：useHomeModePanel / useHomeModeRecommend */
 import { useHomeModes } from './useHomeModes'
-import { useChromeStore } from '@/stores/chrome.store'
-import { buildHomeModeRecommendations } from '@/shared/recommend/utils/home-mode-recommend.util'
-import { useSettingsSave } from '@/composables/settings-kernel/save.internals'
-import { useRegisterSettingsTabPending } from '@/composables/settings-kernel/pending.internals'
+import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
+import { buildHomeModeRecommendations } from '@/domain/recommend/utils/home-mode-recommend.util'
+import { useSettingsSave } from '@/features/settings/kernel/save.internals'
+import { useRegisterSettingsTabPending } from '@/features/settings/kernel/pending.internals'
 import { computed } from 'vue'
 import { useHomeModeEditor } from './editor.internals'
 import { useHomeModePanelContext } from './home-mode-panel-context.internals'

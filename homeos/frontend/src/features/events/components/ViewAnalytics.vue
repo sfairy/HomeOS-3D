@@ -55,7 +55,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, type PropType } from 'vue'
-import { useEchartsHost } from '@/composables/ui/useEchartsHost'
+import { useEchartsHost } from '@/kernel/ui/hooks/use-echarts-host'
 import {
   barGradient,
   chartLinearGradient,
@@ -65,13 +65,13 @@ import {
   pieEmptyData,
   pieSeries,
   rankCategoryAxis,
-} from '@/shared/utils/chart/chart-primitives'
+} from '@/kernel/utils/chart/chart-primitives'
 import {
   buildDomainBuckets,
   buildEntityBuckets,
   buildTimeBuckets,
   computeEventAnalyticsSummary,
-} from '@/shared/events/utils/analytics.util'
+} from '@/features/events/model/utils/analytics.util'
 
 const props = defineProps({
   stats: { type: [Object, null], default: null },
@@ -273,5 +273,5 @@ watch(
 )
 </script>
 
-<style src="@/assets/styles/list-page-analytics.css"></style>
+<style src="@/app/styles/list-page-analytics.css"></style>
 <style scoped src="../styles/view-analytics.css"></style>

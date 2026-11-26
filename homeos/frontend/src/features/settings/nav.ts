@@ -48,7 +48,7 @@ import {
   LEGACY_TAB_SECTIONS,
   INDEPENDENT_SAVE_TABS,
   isTabFeatureGranted,
-} from '@/shared/utils/registry/settings-nav.util'
+} from '@/kernel/utils/registry/settings-nav.util'
 import { PANEL_MAP } from '@/features/settings/panel-chunks'
 
 export { DEFAULT_TAB, resolveTab, isValidSettingsTab, LEGACY_TAB_SECTIONS, INDEPENDENT_SAVE_TABS }

@@ -5,11 +5,11 @@
 /** /devices：实体行 → DeviceListItem 映射（纯函数） */
 
 import { getEntityDomain, resolveEntityArea } from '@homeos/shared'
-import type { HaEntityState, HaEntityView } from '@/shared/types/entity-store'
-import type { DeviceListItem } from '@/shared/types/device'
-import { resolveListRowEntity } from '@/composables/entity/projection-row.util'
-import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
-import { getDomainLabel } from '@/shared/device/utils/domain-labels.util'
+import type { HaEntityState, HaEntityView } from '@/kernel/types/entity-store'
+import type { DeviceListItem } from '@/kernel/types/device'
+import { resolveListRowEntity } from '@/domain/entity/composables/projection-row.util'
+import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
+import { getDomainLabel } from '@/features/device/model/utils/domain-labels.util'
 
 const DEVICES_TOGGLE_DOMAINS = new Set(['light', 'switch', 'fan', 'cover', 'lock', 'input_boolean'])
 

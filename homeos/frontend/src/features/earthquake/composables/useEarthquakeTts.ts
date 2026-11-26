@@ -1,11 +1,11 @@
 /** 地震预警语音播报（TTS）模块 */
 import { watch, onUnmounted } from 'vue'
 import type { Ref } from 'vue'
-import type { EarthquakeAlertPayload } from '@/shared/types/earthquake'
-import { speakVoiceMultiple } from '@/services/api/system'
-import { useEntitiesStore } from '@/stores/entities.store'
-import { resolveTtsMediaPlayerIds } from '@/shared/voice/utils/resolve-tts-media-players.util'
-import { logger } from '@/shared/utils/core/logger'
+import type { EarthquakeAlertPayload } from '@/kernel/types/earthquake'
+import { speakVoiceMultiple } from '@/domain/api/system'
+import { useEntitiesStore } from '@/domain/entity/store/entities.store'
+import { resolveTtsMediaPlayerIds } from '@/features/voice/model/utils/resolve-tts-media-players.util'
+import { logger } from '@/kernel/utils/core/logger'
 import {
   cancelLocalSpeech,
   getLoadedVoices,
@@ -13,7 +13,7 @@ import {
   resetLocalSpeechVoice,
   speakViaLocalRaw,
   waitForVoices,
-} from '@/shared/voice/utils/local-speech.util'
+} from '@/features/voice/model/utils/local-speech.util'
 
 /**
  * 地震预警 TTS（文本转语音）模块

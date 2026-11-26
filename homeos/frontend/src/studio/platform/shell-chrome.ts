@@ -6,7 +6,7 @@
  * 和设备页等 shell 路由同一套原语。
  */
 
-import { useChromeStore } from '@/stores/chrome.store'
+import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 
 type NotifyType = 'info' | 'success' | 'warning' | 'error'
 

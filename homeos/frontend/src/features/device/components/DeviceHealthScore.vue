@@ -109,11 +109,11 @@
 </template>
 
 <script setup lang="ts">
-import { formatRelativeFromNow } from '@/shared/utils/format/locale-format.util'
+import { formatRelativeFromNow } from '@/kernel/utils/format/locale-format.util'
 import { ref, computed, onMounted, type Component } from 'vue'
 import { getEntityDomain } from '@homeos/shared'
 import { Heart, RefreshCw, Lightbulb, Wifi, Battery, Clock, Activity, AlertTriangle } from '@lucide/vue'
-import { useEntitiesStore } from '@/stores/entities.store'
+import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 
 const PASSIVE_DOMAINS = new Set([
   'sensor',

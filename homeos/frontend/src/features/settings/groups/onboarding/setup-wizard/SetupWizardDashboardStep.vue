@@ -1,0 +1,154 @@
+<!--
+  SetupWizardDashboardStep：3D 户型图绘制 / 仪表盘编辑 / 常用设备（可跳过）
+-->
+<script setup lang="ts">
+import { computed } from 'vue'
+import { RouterLink } from 'vue-router'
+import { Boxes, LayoutTemplate, Star, ArrowRight, CheckCircle2, Circle } from '@lucide/vue'
+import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
+
+const props = defineProps({
+  status: { type: Object, default: null },
+})
+
+const done = computed(() => Boolean(props.status?.steps?.dashboard?.done))
+const hint = computed(() => props.status?.steps?.dashboard?.hint || '')
+
+const links = [
+  {
+    id: 'studio-3d',
+    icon: Boxes,
+    title: '绘制 3D 户型图',
+    desc: '在 3D 编辑器中绘制墙体、房间与设备模型',
+    to: '/3d-studio',
+  },
+  {
+    id: 'layout',
+    icon: LayoutTemplate,
+    title: '配置仪表盘布局',
+    desc: '在仪表盘编辑器中摆放面板部件与浮动组件',
+    to: '/studio/editor',
+  },
+  {
+    id: 'favorites',
+    icon: Star,
+    title: '配置常用设备',
+    desc: '至少收藏若干设备，供总览快捷入口',
+    to: SETTINGS_ROUTES.favorites(),
+  },
+]
+</script>
+
+<template>
+  <div class="sw-step sw-dashboard-step">
+    <p class="sw-dashboard-step__lead">
+      {{ '墙屏体验依赖户型与常用入口。本步可选，稍后也可在设置里补齐；完成后清单会提示剩余项。' }}
+    </p>
+
+    <div class="sw-dashboard-step__status" :class="done ? 'is-done' : 'is-pending'">
+      <component :is="done ? CheckCircle2 : Circle" class="w-4 h-4 shrink-0" />
+      <span>{{ done ? '仪表板基础已就绪' : hint || '建议绘制 3D 户型或收藏至少 1 个常用设备' }}</span>
+    </div>
+
+    <ul class="sw-dashboard-step__links">
+      <li v-for="item in links" :key="item.id">
+        <RouterLink :to="item.to" class="sw-dashboard-step__link">
+          <span class="sw-dashboard-step__orb">
+            <component :is="item.icon" class="w-4 h-4" />
+          </span>
+          <span class="min-w-0 flex-1">
+            <span class="sw-dashboard-step__title">{{ item.title }}</span>
+            <span class="sw-dashboard-step__desc">{{ item.desc }}</span>
+          </span>
+          <ArrowRight class="w-4 h-4 shrink-0 opacity-50" />
+        </RouterLink>
+      </li>
+    </ul>
+  </div>
+</template>
+
+<style scoped>
+.sw-dashboard-step__lead {
+  margin: 0 0 14px;
+  font-size: var(--premium-fs-caption);
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.sw-dashboard-step__status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border-radius: var(--hos-radius-card);
+  font-size: var(--set-fs-micro, 12px);
+  font-weight: 600;
+}
+
+.sw-dashboard-step__status.is-done {
+  background: rgba(52, 211, 153, 0.1);
+  color: #6ee7b7;
+  border: 1px solid rgba(52, 211, 153, 0.25);
+}
+
+.sw-dashboard-step__status.is-pending {
+  background: rgba(251, 191, 36, 0.08);
+  color: #fcd34d;
+  border: 1px solid rgba(251, 191, 36, 0.22);
+}
+
+.sw-dashboard-step__links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sw-dashboard-step__link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 12px 14px;
+  border-radius: var(--hos-radius-card);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: inherit;
+  text-decoration: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.sw-dashboard-step__link:hover {
+  background: rgba(10, 132, 255, 0.1);
+  border-color: rgba(10, 132, 255, 0.28);
+}
+
+.sw-dashboard-step__orb {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--hos-radius-card);
+  background: rgba(10, 132, 255, 0.14);
+  color: #7dd3fc;
+}
+
+.sw-dashboard-step__title {
+  display: block;
+  font-size: var(--premium-fs-caption);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.sw-dashboard-step__desc {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--set-fs-micro, 12px);
+  color: var(--hos-text-secondary);
+  line-height: 1.4;
+}
+</style>

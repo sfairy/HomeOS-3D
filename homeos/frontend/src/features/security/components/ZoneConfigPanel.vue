@@ -63,14 +63,14 @@
 import { ref, watch, onMounted } from 'vue'
 import { Plus, RefreshCw, Sparkles } from '@lucide/vue'
 import SecurityZoneEditorList from '@/features/security/components/ZoneEditorList.vue'
-import { useChromeStore } from '@/stores/chrome.store'
-import { useLayoutStore } from '@/stores/layout.store'
-import { getApiErrorMessage } from '@/shared/utils/core/error-message'
-import { postSecurityZones, prepareZonesForSave } from '@/shared/security/utils/zones-api.util'
+import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
+import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
+import { postSecurityZones, prepareZonesForSave } from '@/features/security/model/utils/zones-api.util'
 import {
   getSecurityPanelZonesFromLayout,
   mirrorSecurityPanelZonesToLayout,
-} from '@/shared/security/utils/panel-layout.util'
+} from '@/features/security/model/utils/panel-layout.util'
 import { useSecurityZoneRooms } from '@/features/security/composables/useSecurityZoneRooms'
 
 const props = defineProps({

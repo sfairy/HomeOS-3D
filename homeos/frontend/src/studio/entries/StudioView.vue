@@ -22,17 +22,17 @@ function scheduleStudioTeardown(teardown: (() => Promise<void> | void) | null | 
 /** Vue 壳层（顶栏 / 工作流 / 平面聚焦 / 撤销）+ DOM 契约供 bootStudio 操作。 */
 import { computed, onBeforeUnmount, onMounted, watch } from "vue";
 import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
-import { useStudioFloorplanStore } from "@/stores/studio-floorplan.store";
-import { useChromeStore } from "@/stores/chrome.store";
+import { useStudioFloorplanStore } from "@app/state/studio-floorplan.store";
+import { useChromeStore } from "@/kernel/ui/chrome/chrome-store";
 import {
   STUDIO_SHORTCUT_ROWS,
   StudioShortcutsOverlay,
   StudioTopBar,
-} from "@/studio/chrome";
+} from "@/studio/chrome/index";
 import "@/studio/chrome/studio-chrome.css";
 import "@/studio/chrome/studio-native-dialogs.css";
 import { Undo2, Redo2, Focus, PanelsTopLeft } from "@lucide/vue";
-import { studioStartupFail, studioStartupPhase } from "@/shared/utils/ui/studio-startup";
+import { studioStartupFail, studioStartupPhase } from "@/kernel/utils/ui/studio-startup";
 // bootStudio 在 onMounted 同步读 #plan-canvas / 对话框等节点：这些壳必须同步挂载，不能 defineAsyncComponent。
 import StudioPlanPanel from "@/studio/chrome/creator/StudioPlanPanel.vue";
 import StudioPlacedPanel from "@/studio/chrome/creator/StudioPlacedPanel.vue";
@@ -40,7 +40,7 @@ import StudioDialogs from "@/studio/chrome/creator/StudioDialogs.vue";
 import StudioOverlays from "@/studio/chrome/creator/StudioOverlays.vue";
 import { WORKFLOW_STEPS } from "./studio-creator-async";
 import { shellNotify } from "@/studio/platform/shell-chrome";
-import { LEAVE_PLAN_FOCUS_EVENT } from "@app/3d-studio/authoring/studio-app/ui/workspace-events";
+import { LEAVE_PLAN_FOCUS_EVENT } from "@app/3d-studio/authoring/studio-app/ui/workspace";
 
 const route = useRoute();
 const router = useRouter();
@@ -150,7 +150,7 @@ function syncFloorRegionInspector(selection: { label: string; regionCount: numbe
  */
 async function startFloorRegionSplit() {
   const { beginFloorRegionSplit } = await import(
-    "@app/3d-studio/authoring/studio-app/interaction/floor-region-tool"
+    "@app/3d-studio/authoring/studio-app/interaction/tools"
   );
   if (!beginFloorRegionSplit()) {
     shellNotify("请先在平面上点选一块地面（地面分区工具）。", "warning");
@@ -163,7 +163,7 @@ async function startFloorRegionSplit() {
  */
 async function cancelFloorRegionSplit() {
   const { cancelFloorRegionSplit: cancel } = await import(
-    "@app/3d-studio/authoring/studio-app/interaction/floor-region-tool"
+    "@app/3d-studio/authoring/studio-app/interaction/tools"
   );
   cancel();
 }

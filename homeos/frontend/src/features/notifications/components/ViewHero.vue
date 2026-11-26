@@ -5,11 +5,11 @@
 <script setup lang="ts">
 import { Bell } from '@lucide/vue'
 
-import ListPageHero from '@/components/list-page-shell/ListPageHero.vue'
+import ListPageHero from '@/kernel/ui/list-page/ListPageHero.vue'
 
-import ListPageMetrics from '@/components/list-page-shell/ListPageMetrics.vue'
+import ListPageMetrics from '@/kernel/ui/list-page/ListPageMetrics.vue'
 
-import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
+import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
 
 defineProps({
   pageHint: { type: String, required: true },

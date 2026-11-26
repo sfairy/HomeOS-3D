@@ -4,10 +4,10 @@
  */
 /** 家庭模式面板动作处理器 */
 import { onActivated, onMounted } from 'vue'
-import { duplicateHomeMode, reorderHomeModes } from '@/services/api/home-modes'
-import { getApiErrorMessage } from '@/shared/utils/core/error-message'
-import { logger } from '@/shared/utils/core/logger'
-import type { useSettingsSave } from '@/composables/settings-kernel/save.internals'
+import { duplicateHomeMode, reorderHomeModes } from '@/domain/api/home-modes'
+import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
+import { logger } from '@/kernel/utils/core/logger'
+import type { useSettingsSave } from '@/features/settings/kernel/save.internals'
 import type { ModeActionDraft } from './draft.internals'
 import type {
   ChromeStore,

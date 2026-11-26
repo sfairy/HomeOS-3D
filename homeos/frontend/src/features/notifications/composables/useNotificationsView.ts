@@ -3,11 +3,11 @@
  * @module frontend/src/composables
  */
 import { computed, inject, onMounted, ref, watch } from 'vue'
-import { fetchNotificationStats } from '@/services/api/notifications'
-import { useNotificationCenter } from '@/composables/widget/useNotificationCenter'
-import { NOTIFICATION_CENTER_KEY } from '@/composables/widget/notification-center.context'
-import { getApiErrorMessage } from '@/shared/utils/core/error-message'
-import { logger } from '@/shared/utils/core/logger'
+import { fetchNotificationStats } from '@/domain/api/notifications'
+import { useNotificationCenter } from '@/domain/widget/composables/useNotificationCenter'
+import { NOTIFICATION_CENTER_KEY } from '@/domain/widget/composables/notification-center.context'
+import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
+import { logger } from '@/kernel/utils/core/logger'
 import {
   computeNotificationAnalyticsSummary,
   formatNotificationHourOption,
@@ -16,7 +16,7 @@ import {
   levelFilterLabel,
   NOTIFICATION_HOUR_OPTIONS,
   type NotificationStatsPayload,
-} from '@/shared/notifications/utils/analytics.util'
+} from '@/features/notifications/model/utils/analytics.util'
 import { notificationSourceLabel } from '@homeos/shared'
 
 export function useNotificationsView() {

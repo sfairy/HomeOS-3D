@@ -337,7 +337,7 @@
  * @emits control    - 打开设备控制面板
  * @emits copy-id    - 复制实体 ID
  */
-import { formatRelativeFromNow } from '@/shared/utils/format/locale-format.util'
+import { formatRelativeFromNow } from '@/kernel/utils/format/locale-format.util'
 import { computed } from 'vue'
 import {
   Wifi,
@@ -363,16 +363,16 @@ import {
 } from '@lucide/vue'
 import type { Component } from 'vue'
 import { getEntityDomain, resolveEntityArea } from '@homeos/shared'
-import { useEntitiesStore } from '@/stores/entities.store'
-import { getDomainLabel } from '@/shared/device/utils/domain-labels.util'
-import { formatEntityAttrValue } from '@/shared/device/utils/attr-format.util'
-import { formatEntityAttrLabel } from '@/shared/device/utils/entity-attr-labels.util'
-import { displayClimateOperatingLabel, displayEntityStateLabel } from '@/shared/constants/entity-state-labels'
-import { displayEventState } from '@/shared/events/utils/events-display.util'
-import { formatAuditTimestamp, formatLocaleTime } from '@/shared/utils/format/locale-format.util'
-import { useDeviceOverview } from '@/composables/device/useDeviceOverview'
+import { useEntitiesStore } from '@/domain/entity/store/entities.store'
+import { getDomainLabel } from '@/features/device/model/utils/domain-labels.util'
+import { formatEntityAttrValue } from '@/features/device/model/utils/attr-format.util'
+import { formatEntityAttrLabel } from '@/features/device/model/utils/entity-attr-labels.util'
+import { displayClimateOperatingLabel, displayEntityStateLabel } from '@/kernel/constants/entity-state-labels'
+import { displayEventState } from '@/features/events/model/utils/events-display.util'
+import { formatAuditTimestamp, formatLocaleTime } from '@/kernel/utils/format/locale-format.util'
+import { useDeviceOverview } from '@/features/device/composables/useDeviceOverview'
 import DeviceHealthScore from './DeviceHealthScore.vue'
-import { HVAC_ACTION_LABELS, HVAC_MODE_LABELS } from '@/shared/device/utils/attr-format.util'
+import { HVAC_ACTION_LABELS, HVAC_MODE_LABELS } from '@/features/device/model/utils/attr-format.util'
 
 const props = withDefaults(
   defineProps<{

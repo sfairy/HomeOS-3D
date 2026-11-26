@@ -14,7 +14,7 @@ import {
   normalizePageBackground,
   pageBackgroundPreset,
   PAGE_BACKGROUND_PRESETS,
-} from '../../../homeos/frontend/src/shared/utils/widget/page-background.util'
+} from '../../../homeos/frontend/src/kernel/utils/widget/page-background.util'
 import {
   applyPageBackgroundEdit,
   pageBackgroundFieldVisible,

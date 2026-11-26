@@ -7,7 +7,7 @@
  * （否则用户手动打开的「仅可控」会被自己的域切换动作关掉）。
  * 放进纯函数后可以用单测钉住，而不是靠点几下看看。
  */
-import type { DeviceFilterState } from '@/shared/types/device'
+import type { DeviceFilterState } from '@/kernel/types/device'
 
 /** query 里允许出现的筛选键。 */
 export const DEVICE_QUERY_DOMAIN = 'domain'

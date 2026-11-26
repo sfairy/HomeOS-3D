@@ -23,11 +23,11 @@ import {
   createHomeMode,
   updateHomeMode,
   deleteHomeMode,
-} from '@/services/api/home-modes'
-import { useEntitiesStore } from '@/stores/entities.store'
-import { useChromeStore } from '@/stores/chrome.store'
-import { getApiErrorMessage } from '@/shared/utils/core/error-message'
-import { normalizeCrudListResponse } from '@/shared/utils/core/crud-list.util'
+} from '@/domain/api/home-modes'
+import { useEntitiesStore } from '@/domain/entity/store/entities.store'
+import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
+import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
+import { normalizeCrudListResponse } from '@/kernel/utils/core/crud-list.util'
 
 interface HomeModeRow {
   id: string

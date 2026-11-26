@@ -5,7 +5,7 @@
  * 门禁自己长重复是最没说服力的形态。这里只做最薄的一层：不引库、不改语义。
  *
  * 用法：
- *   import { parseArgs } from '../lib/args.mjs'
+ *   import { parseArgs } from './args.mjs'
  *   const { has, value, repoRoot } = parseArgs()
  *   value('top', '10')      // --top 15  → '15'
  *   has('update')           // --update  → true

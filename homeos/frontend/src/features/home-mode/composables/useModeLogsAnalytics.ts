@@ -8,8 +8,8 @@ import {
   hubPieTooltip,
   HUB_CHART_COLORS,
   hubAccentColor,
-} from '@/shared/utils/chart/hub-chart-theme'
-import { getKioskAnimationOptions } from '@/composables/ui/kiosk-animation'
+} from '@/kernel/utils/chart/hub-chart-theme'
+import { getKioskAnimationOptions } from '@/domain/layout/composables/kiosk-animation'
 import { HOME_MODE_LOG_SOURCE_LABELS, type HomeModeTriggerLogAnalytics } from '@homeos/shared'
 
 /** 与后端 / shared aggregateHomeModeTriggerLogs 返回结构对齐 */

@@ -133,14 +133,14 @@
 import { getEntityDomain } from '@homeos/shared'
 import { ref, computed } from 'vue'
 import { CheckSquare, X, Power, Move, Copy, Home } from '@lucide/vue'
-import { useEntitiesStore } from '@/stores/entities.store'
-import { useAuthStore } from '@/stores/auth.store'
-import { useChromeStore } from '@/stores/chrome.store'
-import { useAreaOptions } from '@/composables/entity/useAreaOptions'
-import { copyTextWithNotify } from '@/services/notify'
-import { batchAssignEntityArea } from '@/services/api/entities'
-import { useShellTeleportTarget } from '@/composables/ui/shell/useShellTeleportTarget'
-import { useFocusTrap } from '@/composables/ui/useFocusTrap'
+import { useEntitiesStore } from '@/domain/entity/store/entities.store'
+import { useAuthStore } from '@/features/auth/store/auth.store'
+import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
+import { useAreaOptions } from '@/domain/entity/composables/useAreaOptions'
+import { copyTextWithNotify } from '@/kernel/ui/notify'
+import { batchAssignEntityArea } from '@/domain/api/entities'
+import { useShellTeleportTarget } from '@/app/shell/composables/useShellTeleportTarget'
+import { useFocusTrap } from '@/kernel/ui/hooks/use-focus-trap'
 
 // 当前选中的实体 ID 数组；为空时整个工具栏不渲染。
 const props = defineProps<{

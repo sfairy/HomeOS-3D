@@ -121,7 +121,7 @@ export function useDraftObjectField<T extends Record<string, unknown>>(
 // ── useSettingsSave ──
 // 已下沉至 @/composables/settings-kernel/save.internals（绑 useLayoutStore，无法进 shared，
 // 且需被 features/home-mode 等「内嵌编辑面板」域平等共用，故落跨层池）。
-// 请从新路径导入：import { useSettingsSave } from '@/composables/settings-kernel/save.internals'
+// 请从新路径导入：import { useSettingsSave } from '@/features/settings/kernel/save.internals'
 
 export { useSettingsEnvHub } from '@/features/settings/shared/composables/hub-env.internals'
 export { useFavoritesHub } from '@/features/settings/shared/composables/hub-favorites.internals'

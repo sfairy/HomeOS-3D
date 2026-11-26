@@ -25,7 +25,7 @@ export {
   drawRailing,
   rotateLocalPoint,
   buildHandleGeometry,
-} from './plan-coords'
+} from './plan'
 export {
   planToWorldPoint,
   worldToPlanPoint,
@@ -38,4 +38,4 @@ export {
   updateUniformOverviewStack,
   updateExportFloorGap,
   floorElevationFor,
-} from './world-points'
+} from './plan'

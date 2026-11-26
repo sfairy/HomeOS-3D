@@ -167,13 +167,13 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { AlertCircle, ChevronRight, Layers, Link2, Loader2, RefreshCw, Trash2, Workflow } from '@lucide/vue'
-import { useDeviceEntityReferences } from '@/composables/device/useDeviceEntityReferences'
+import { useDeviceEntityReferences } from '@/features/device/composables/useDeviceEntityReferences'
 import {
   ENTITY_REFERENCE_KIND_LABELS,
   ENTITY_REFERENCE_KIND_ORDER,
   ENTITY_REFERENCE_ROLE_LABELS,
   type EntityReferenceKind,
-} from '@/shared/types/entity-references'
+} from '@/kernel/types/entity-references'
 
 // 组件属性：entityId 必填，visible 控制是否加载引用数据。
 const props = withDefaults(

@@ -4,11 +4,11 @@
  */
 import { ref, watch, type Ref } from 'vue'
 import { getEntityDomain } from '@homeos/shared'
-import { fetchEntities } from '@/services/api/entities'
-import { logger } from '@/shared/utils/core/logger'
-import { formatEntitySelectOption } from '@/shared/entity/utils/select.util'
-import type { HaEntityState } from '@/shared/types/entity-store'
-import type { useEntitiesStore } from '@/stores/entities.store'
+import { fetchEntities } from '@/domain/api/entities'
+import { logger } from '@/kernel/utils/core/logger'
+import { formatEntitySelectOption } from '@/domain/entity/model/utils/select.util'
+import type { HaEntityState } from '@/kernel/types/entity-store'
+import type { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
 
 type EntitiesStore = ReturnType<typeof useEntitiesStore>

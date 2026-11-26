@@ -6,16 +6,16 @@
  * 「这个域提供什么」在调用点一眼可见，同时把导入行数压回可控范围。
  * 域内文件之间仍直接相对 import，不经 barrel（避免环与无谓的间接层）。
  */
-export { applyToolSetting } from './applyToolSetting'
-export type { ApplyToolSettingDeps } from './applyToolSetting'
+export { applyToolSetting } from './tools'
+export type { ApplyToolSettingDeps } from './tools'
 export { createSceneItem } from './createSceneItem'
 export type { CreateSceneItemDeps } from './createSceneItem'
-export { handlePointerDown } from './handlePointerDown'
-export type { HandlePointerDownDeps } from './handlePointerDown'
-export { handlePointerUp } from './handlePointerUp'
-export type { HandlePointerUpDeps } from './handlePointerUp'
-export { hitTestPlanItem } from './hitTestPlanItem'
-export type { HitTestPlanItemDeps } from './hitTestPlanItem'
+export { handlePointerDown } from './pointer-input'
+export type { HandlePointerDownDeps } from './pointer-input'
+export { handlePointerUp } from './pointer-input'
+export type { HandlePointerUpDeps } from './pointer-input'
+export { hitTestPlanItem } from './picking'
+export type { HitTestPlanItemDeps } from './picking'
 export {
   clearLightGroupDropIndicator,
   collectListDragDropTargets,
@@ -27,7 +27,7 @@ export {
   handleListDragTouchMove,
   finishListDrag,
   beginListRowDrag,
-} from './list-drag'
+} from './drag-and-drop'
 export {
   hitTestHandle,
   boundsFromCorners,
@@ -36,8 +36,8 @@ export {
   drawMarqueeOverlay,
   renderPlanScene,
   getSelectedObject,
-} from './marquee'
-export { bindModelDragDrop } from './model-drag-drop'
+} from './gesture'
+export { bindModelDragDrop } from './drag-and-drop'
 export {
   updateSnapIndicator,
   toggleSnapSetting,
@@ -64,7 +64,7 @@ export {
   getCurrentPreviewScope,
   getPreviewScopeSelection,
   setPreviewScope,
-} from './preview-scope'
+} from './picking'
 export {
   setDrawingToolGroupOpen,
   closeDrawingToolGroups,
@@ -77,4 +77,4 @@ export {
   collectSelectedPlanItems,
   mirrorSelection,
   rotateSelection,
-} from './tool-selection'
+} from './tools'

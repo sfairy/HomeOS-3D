@@ -25,7 +25,7 @@ import { isCourtyardDrawing as isCourtyardDrawing2 } from "../../loaders/studio-
 import { mergeGeometries as mergeGeometries2 } from "/static/vendor/three/0.187.0/BufferGeometryUtils.js";
 import * as ns2 from "/static/vendor/three/0.187.0/three.module.min.js";
 import type { ItemModelScope, StudioItemModelDeps } from "./item-model/types";
-import { ITEM_MODEL_FAMILIES } from "./item-model";
+import { ITEM_MODEL_FAMILIES } from "./item-model/index";
 
 /**
  * 物品模型总装需要的外部句柄（**全部只读**：体量最大的那 25 个残留依赖，实测在切片区间内

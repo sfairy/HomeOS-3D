@@ -6,8 +6,8 @@
  * 「这个域提供什么」在调用点一眼可见，同时把导入行数压回可控范围。
  * 域内文件之间仍直接相对 import，不经 barrel（避免环与无谓的间接层）。
  */
-export { applyLoadedDraft } from './applyLoadedDraft'
-export type { ApplyLoadedDraftDeps } from './applyLoadedDraft'
+export { applyLoadedDraft } from './draft'
+export type { ApplyLoadedDraftDeps } from './draft'
 export {
   markWallsChanged,
   rebuildWallIndex,
@@ -17,7 +17,7 @@ export {
   isStudioDraftReadonly,
   downloadStudioLocalCopy,
   renderStudioReadonlyBanner,
-} from './draft-state'
+} from './draft'
 export {
   syncStudioHistoryFacade,
   syncStudioClipboardFacade,
@@ -58,7 +58,7 @@ export {
   closeExitDialog,
   leaveStudio,
   flushAutosave,
-} from './save'
+} from './draft'
 export {
   sceneSyncFlushIsDirty,
   flushSceneSyncRuntime,
@@ -66,4 +66,4 @@ export {
   rememberSceneSyncKey,
   refreshAfterSceneSyncOutcome,
   fetchStudioApi,
-} from './scene-sync'
+} from './draft'

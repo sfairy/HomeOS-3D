@@ -11,7 +11,7 @@
  */
 import { describe, expect, test } from 'bun:test'
 
-import { USER_DECORATION_DRAG_TYPE } from '../../../homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/interaction/model-drag-drop'
+import { USER_DECORATION_DRAG_TYPE } from '../../../homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/interaction/drag-and-drop'
 
 describe('卡片上的可发现性标记', () => {
   test('放置按钮同时是卡片本体（右键与拖拽都挂在它上面）', () => {

@@ -167,12 +167,12 @@
 <script setup lang="ts">
 import { toRef } from 'vue'
 import { BarChart3, RefreshCw, AlertCircle, Layers, Wifi, WifiOff, BatteryWarning } from '@lucide/vue'
-import VSkeleton from '@/components/common/base/VSkeleton.vue'
+import VSkeleton from '@/kernel/ui/primitives/VSkeleton.vue'
 import DeviceAnalyticsOverviewTab from '../analytics/DeviceAnalyticsOverviewTab.vue'
 import DeviceAnalyticsActivityTab from '../analytics/DeviceAnalyticsActivityTab.vue'
 import DeviceAnalyticsHealthTab from '../analytics/DeviceAnalyticsHealthTab.vue'
 import DeviceAnalyticsAlertsTab from '../analytics/DeviceAnalyticsAlertsTab.vue'
-import { useDeviceAnalyticsDashboardShell } from '@/composables/device/useDeviceAnalyticsDashboardShell'
+import { useDeviceAnalyticsDashboardShell } from '@/features/device/composables/useDeviceAnalyticsDashboardShell'
 
 // 组件属性：visible 控制是否加载数据与初始化图表。
 const props = withDefaults(

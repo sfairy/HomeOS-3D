@@ -1,0 +1,116 @@
+/** - 从后端 area_registry 拉取区域列表，并提供给筛选/批量操作下拉使用。 */
+import { resolveEntityArea } from '@homeos/shared'
+import { ref, computed, onMounted } from 'vue'
+import { fetchAreasList } from '@/domain/api/entities'
+import { useEntitiesStore } from '@/domain/entity/store/entities.store'
+import { appNotify } from '@/kernel/utils/bridge/store-bridge'
+import { collectIndexedEntityIds } from '@/domain/entity/model/utils/derived.util'
+
+/** 区域下拉选项结构：id 为 HA area_id，name 为展示名。 */
+type AreaOption = { id: string; name: string }
+
+/**
+ * 把后端可能缺失的降级原因规范成 `string | null`。
+ *
+ * 单独抽成函数而不是写在 ``refresh`` 里：``refresh`` 已经很长，
+ * 再挂上类型收窄与默认值兜底会把两件事混在一起。转换逻辑放在这里，``refresh`` 只留一次调用。
+ */
+function normalizeRegistryError(value: unknown): string | null {
+  const text = String(value ?? '').trim()
+  return text.length ? text : null
+}
+
+/**
+ * HA area_registry 区域列表；失败时回退到实体 attributes 中的 area_id。
+ *
+ * 组件挂载时自动触发 refresh；对外暴露 resolvedAreas（注册表优先，否则回退）、
+ * filterRoomOptions（带"全部房间"项）、batchRoomOptions（仅区域集合）等。
+ *
+ * @returns 区域选项、加载状态、降级标记与手动刷新方法。
+ */
+export function useAreaOptions() {
+  const entitiesStore = useEntitiesStore()
+  /** 注册表区域列表，刷新成功后填充。 */
+  const registryAreas = ref<AreaOption[]>([])
+  /** 是否完成首次加载。 */
+  const loaded = ref(false)
+  /** 注册表是否处于降级模式（接口失败或后端标记 registryDegraded）。 */
+  const registryDegraded = ref(false)
+  /** 后端给出的降级原因（HA 断连 / 反代 WebSocket 失败 / 用了本机缓存）。 */
+  const registryError = ref<string | null>(null)
+
+  /**
+   * 拉取区域注册表并刷新 registryAreas。
+   * 失败时清空列表并标记降级，最终将 loaded 置为 true。
+   */
+  async function refresh() {
+    try {
+      const { data } = await fetchAreasList<{
+        areas?: AreaOption[]
+        registryDegraded?: boolean
+        registryError?: string | null
+      }>()
+      const rows = Array.isArray(data?.areas) ? data.areas : []
+      // 规范化：补全缺失字段、过滤掉无 id 的脏数据
+      registryAreas.value = rows
+        .map((row) => ({
+          id: String(row.id || '').trim(),
+          name: String(row.name || row.id || '').trim(),
+        }))
+        .filter((row) => row.id)
+      registryDegraded.value = Boolean(data?.registryDegraded)
+      registryError.value = normalizeRegistryError(data?.registryError)
+      if (registryDegraded.value) {
+        appNotify('HA 区域注册表暂不可用，已使用本机缓存的房间目录', 'warning', 6000)
+      }
+    } catch {
+      // 接口异常：清空注册表并进入降级模式
+      registryAreas.value = []
+      registryDegraded.value = true
+      registryError.value = '读取区域列表接口失败'
+    } finally {
+      loaded.value = true
+    }
+  }
+
+  // 组件挂载时自动拉取一次区域列表
+  onMounted(refresh)
+
+  /**
+   * 回退区域集合：遍历全量实体（优先走 domain 索引），从 attributes 中提取 area_id。
+   * 按中文 locale 排序，保证展示稳定。
+   */
+  const fallbackFromEntities = computed(() => {
+    const byId = new Map<string, string>()
+    const ids =
+      collectIndexedEntityIds(entitiesStore.domainEntityIndex, { domain: 'all' }) || Object.keys(entitiesStore.entities)
+    for (const key of ids) {
+      const area = resolveEntityArea(entitiesStore.entities[key]?.attributes)
+      if (!area) continue
+      byId.set(area.id, area.name)
+    }
+    return [...byId.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, 'zh'))
+  })
+
+  /** 最终生效的区域集合：注册表非空时优先，否则使用回退集合。 */
+  const resolvedAreas = computed(() => {
+    if (registryAreas.value.length) return registryAreas.value
+    return fallbackFromEntities.value
+  })
+
+  /** 筛选用房间选项：在区域集合前追加"全部房间"占位项。 */
+  const filterRoomOptions = computed(() => [{ id: '', name: '全部房间' }, ...resolvedAreas.value])
+
+  /** 批量操作用房间选项：直接暴露区域集合，不含占位项。 */
+  const batchRoomOptions = computed(() => resolvedAreas.value)
+
+  return {
+    resolvedAreas,
+    filterRoomOptions,
+    batchRoomOptions,
+    loaded,
+    registryDegraded,
+    registryError,
+    refresh,
+  }
+}

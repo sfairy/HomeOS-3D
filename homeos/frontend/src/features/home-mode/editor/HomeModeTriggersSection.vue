@@ -210,11 +210,11 @@
 
 <script setup>
 import { ref, computed, nextTick } from 'vue'
-import HosSelect from '@/components/common/base/HosSelect.vue'
+import HosSelect from '@/kernel/ui/primitives/HosSelect.vue'
 import { Clock, Plus, Trash2 } from '@lucide/vue'
-import EntityInput from '@/components/common/entity-input/EntityInput.vue'
-import RecommendInsightCard from '@/components/common/RecommendInsightCard.vue'
-import HomeModeItemNav from '@/components/common/HomeModeItemNav.vue'
+import EntityInput from '@/domain/entity/components/entity-input/EntityInput.vue'
+import RecommendInsightCard from '@/domain/recommend/components/RecommendInsightCard.vue'
+import HomeModeItemNav from '@/features/home-mode/components/HomeModeItemNav.vue'
 import { useHomeModeItemExpansion, useHomeModeItemFocus } from '../composables/editor.internals'
 import { useHomeModeRecommend } from '../composables/home-mode-panel.internals'
 import { normalizeHomeModeTimeAt } from '@homeos/shared'

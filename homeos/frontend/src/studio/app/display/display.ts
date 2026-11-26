@@ -10,7 +10,7 @@
  * （否则 `removeEventListener` 无法命中）。
  */
 import { PanelRenderer } from '../renderer/panel-renderer'
-import { componentFamiliesForDocument, ensureRegistryComponents } from '../renderer/registry'
+import { componentFamiliesForDocument, ensureRegistryComponents } from '../renderer/registry/index'
 import type { DomControl } from '@app/shared/util/dom-control'
 import { navigateInShell } from '@/studio/platform/shell-navigation'
 

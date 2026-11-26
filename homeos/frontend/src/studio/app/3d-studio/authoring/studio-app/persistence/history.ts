@@ -1,13 +1,12 @@
-import type { StudioAppRuntime } from '../runtime/studio-app-runtime'
+import { type StudioAppRuntime } from '../runtime/studio-app-runtime'
 import { validatePlacementChange as validatePlacementChange2 } from '../../items/studio-placement'
 import { getStudioFacadeState, patchStudioFacadeState } from '../../../../../engine/index'
 import { buildStudioHistoryPatch } from '../../ui/studio-history'
-import { applyDocumentPatch, canApplyDocumentPatch } from '../../store/document-store'
-import type { DocumentPatch } from '../../store/document-store'
+import { applyDocumentPatch, canApplyDocumentPatch, type DocumentPatch } from '../../store/document-store'
 import { diffDocumentPatches, describeDocumentPatch } from '../../store/document-diff'
-import { historyChangePreviewScope, itemPreviewScope } from '../../scene/studio-preview-scope'
-import type { PreviewScope } from '../../scene/studio-preview-scope'
-import { previewScopeOptions } from '../interaction/preview-scope'
+import { historyChangePreviewScope, itemPreviewScope, type PreviewScope } from '../../scene/studio-preview-scope'
+import { previewScopeOptions } from '../interaction/picking'
+
 
 export function syncStudioHistoryFacade(runtime: StudioAppRuntime) {
   patchStudioFacadeState({

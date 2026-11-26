@@ -16,13 +16,13 @@
  */
 import { describe, expect, test } from 'bun:test'
 
-import { preferServerList } from '../../../homeos/frontend/src/composables/energy/utility-meter-popup.lists.internals'
+import { preferServerList } from '../../../homeos/frontend/src/features/energy/composables/utility-meter-popup.lists.internals'
 import {
   parseGasDayItem,
   parseGasMonthItem,
   parseGridDayItem,
   parseGridMonthItem,
-} from '../../../homeos/frontend/src/shared/energy/composables/utility-meter-parse-helpers'
+} from '../../../homeos/frontend/src/domain/energy/model/composables/utility-meter-parse-helpers'
 
 type Row = Record<string, unknown>
 

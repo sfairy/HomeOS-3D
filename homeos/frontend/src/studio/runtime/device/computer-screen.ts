@@ -6,7 +6,7 @@
  */
 
 import { drawContainedScreenImage, screenUploadSource } from '@app/shared/display-image-source'
-import { computerPower, computerScreenImage } from '../device/computer-state'
+import { computerPower, computerScreenImage } from './computer-state'
 
 const SCREEN_CANVAS_WIDTH = 1024,
   SCREEN_CANVAS_HEIGHT = 576,

@@ -5,12 +5,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import { fetchConfigHealth } from '@/services/api/system'
-import { useSetupChecklist } from '@/shared/status'
-import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
-import { getRecentSettingsTabs } from '@/shared/utils/registry/settings-recent-tabs.util'
-import { tabLabel } from '@/shared/utils/registry/settings-nav.util'
-import { logger } from '@/shared/utils/core/logger'
+import { fetchConfigHealth } from '@/domain/api/system'
+import { useSetupChecklist } from '@/domain/status/index'
+import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
+import { getRecentSettingsTabs } from '@/kernel/utils/registry/settings-recent-tabs.util'
+import { tabLabel } from '@/kernel/utils/registry/settings-nav.util'
+import { logger } from '@/kernel/utils/core/logger'
 
 type ConfigHealth = {
   score?: number

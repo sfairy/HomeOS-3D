@@ -1,0 +1,276 @@
+/** - 按设备域（light/climate/switch/battery/offline 等）批量展示和控制设备组 */
+<template>
+  <Teleport :to="teleportTarget" :disabled="teleportDisabled">
+    <Transition name="hos-modal" appear>
+      <div v-if="isOpen" ref="rootRef" class="hos-modal-root" @click.self="$emit('close')">
+        <div class="hos-modal-backdrop" @click="$emit('close')" />
+        <div
+          ref="panelRef"
+          :class="[
+            'hos-modal-panel hos-modal-panel--xl flex flex-col pointer-events-auto',
+            domain === 'offline' && showAudit && 'hos-modal-panel--offline-audit-open',
+          ]"
+          role="dialog"
+          aria-modal="true"
+          :aria-label="domainInfo.label"
+        >
+          <div class="hos-modal-head dgm-modal-head" :class="`dgm-modal-head--${domain}`">
+            <div class="hos-modal-head-left">
+              <div class="hos-modal-head-icon">
+                <component :is="domainInfo.icon" class="w-5 h-5" :style="{ color: domainInfo.color }" />
+              </div>
+              <div>
+                <h2 class="hos-modal-title">{{ domainInfo.label }}</h2>
+                <p class="hos-modal-subtitle">{{ deviceCountLabel }}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              class="hos-modal-close"
+              :aria-label="'关闭'"
+              @click="$emit('close')"
+            >
+              <X class="w-5 h-5" />
+            </button>
+          </div>
+
+          <div
+            v-if="domain === 'offline' && offlineStats?.others?.length > 0"
+            class="dgm-section-head dgm-section-head--audit-bar"
+          >
+            <div class="dgm-audit-bar-left">
+              <h3 class="dgm-section-title">{{ '系统审计' }}</h3>
+              <span v-if="!showAudit" class="dgm-audit-inline">{{
+                `发现 ${offlineStats.others.length} 个次要连接问题`
+              }}</span>
+            </div>
+            <button type="button" class="dgm-section-toggle" @click="showAudit = !showAudit">
+              {{ showAudit ? '收起' : `展开 (${offlineStats.others.length})` }}
+            </button>
+          </div>
+
+          <div class="flex-1 overflow-y-auto p-5 sm:p-6 scrollbar-hide">
+            <div v-if="entityIds.length === 0" class="dgm-empty">
+              <template v-if="domain === 'offline'">
+                <AlertTriangle class="dgm-empty-icon dgm-empty-ok-icon" />
+                <p class="dgm-empty-title dgm-empty-ok-title">{{ '全网通讯正常' }}</p>
+                <p class="dgm-empty-desc">
+                  {{
+                    '当前关注的常用设备均在线。如需监控更多掉线设备，请前往设置「其它实体追踪」添加。'
+                  }}
+                </p>
+              </template>
+              <template v-else-if="domain === 'battery'">
+                <BatteryWarning class="dgm-empty-icon" />
+                <p class="dgm-empty-title">{{ '暂无电量设备' }}</p>
+                <p class="dgm-empty-desc">{{ '网关内没有扫描到含电量属性的实体。' }}</p>
+              </template>
+              <template v-else>
+                <component :is="domainInfo.icon" class="dgm-empty-icon" :style="{ color: domainInfo.color }" />
+                <p class="dgm-empty-title">{{ '暂无常用设备' }}</p>
+                <p class="dgm-empty-desc">{{ '请前往设置页添加常用设备' }}</p>
+                <RouterLink
+                  :to="SETTINGS_ROUTES.favorites()"
+                  class="dgm-empty-link"
+                  @click="$emit('close')"
+                  >{{ '前往设置添加' }}</RouterLink
+                >
+              </template>
+            </div>
+
+            <DeviceGroupOfflinePanel
+              v-if="domain === 'offline'"
+              :stats="offlineStats"
+              v-model:show-audit="showAudit"
+              :get-entity="getEntity"
+              :offline-icon="offlineIcon"
+              :offline-reason="offlineReason"
+              :offline-state="offlineState"
+              :integration="integration"
+              :time-ago="timeAgo"
+            />
+
+            <DeviceGroupBatteryPanel
+              v-if="domain === 'battery'"
+              :stats="batteryStats"
+              :battery-color="batteryColor"
+            />
+
+            <DeviceGroupMemberList
+              v-if="domain !== 'battery' && domain !== 'offline'"
+              :domain="domain"
+              :entity-ids="entityIds"
+              :domain-info="domainInfo"
+              :batch-executing="batchExecuting"
+              :batch-exec-result="batchExecResult"
+              @batch-toggle="handleBatchToggle"
+              @retry="retryFailed"
+            />
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
+</template>
+
+<script setup>
+import { computed, watch, ref } from 'vue'
+import { useFocusTrap } from '@/kernel/ui/hooks/use-focus-trap'
+import { useEscLayer } from '@/kernel/ui/hooks/use-esc-stack'
+import { useBackgroundInert } from '@/kernel/ui/hooks/use-background-inert'
+import { useBodyScrollLock } from '@/kernel/ui/hooks/use-body-scroll-lock'
+import { RouterLink } from 'vue-router'
+import {
+  X,
+  Sun,
+  Thermometer,
+  Bell,
+  AlertTriangle,
+  Lock,
+  Camera,
+  Fan,
+  Music,
+  Rabbit,
+  Plug,
+  BatteryWarning,
+  Blinds,
+} from '@lucide/vue'
+import { useEntitiesStore } from '@/domain/entity/store/entities.store'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
+import { getDomainMap, getEntityFromStore } from '@/domain/entity/composables/device-group/useDeviceGroupMembers'
+import { useDeviceGroupBatch } from '@/domain/entity/composables/device-group/useDeviceGroupBatch'
+import { useDeviceGroupEntityIds } from '@/domain/entity/composables/device-group/useDeviceGroupEntityIds'
+import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
+import { useDeviceGroupOffline } from '@/domain/entity/composables/device-group/useDeviceGroupOffline'
+import { useKeepAliveGate } from '@/kernel/ui/hooks/use-keep-alive-gate'
+import { useShellTeleportTarget } from '@/app/shell/composables/useShellTeleportTarget'
+import DeviceGroupBatteryPanel from '@/features/device/components/device-group/DeviceGroupBatteryPanel.vue'
+import DeviceGroupMemberList from '@/features/device/components/device-group/DeviceGroupMemberList.vue'
+import DeviceGroupOfflinePanel from '@/features/device/components/device-group/DeviceGroupOfflinePanel.vue'
+// 设备组模态框专属样式，随组件按需加载
+import '@/features/entity/components/styles/device-group-modal.css'
+
+const props = defineProps({
+  domain: { type: String, default: '' },
+  isOpen: { type: Boolean },
+  statsSensors: {},
+})
+
+const emit = defineEmits(['close'])
+const { teleportDisabled: keepAliveTeleportDisabled } = useKeepAliveGate()
+const { teleportTarget, shellTeleportPending } = useShellTeleportTarget()
+const teleportDisabled = computed(() => keepAliveTeleportDisabled.value || shellTeleportPending.value)
+
+watch(keepAliveTeleportDisabled, (disabled) => {
+  if (disabled && props.isOpen) emit('close')
+})
+
+const entitiesStore = useEntitiesStore()
+const layoutStore = useLayoutStore()
+const panelRef = ref(null)
+/** 浮层最外层节点：焦点陷阱管面板，背景隔离要的是整层（含背板）。 */
+const rootRef = ref(null)
+/** 浮层可见性：焦点陷阱 / Esc 层级 / 背景隔离 / 滚动锁共用同一判据。 */
+const isActive = computed(() => !!props.isOpen)
+
+useFocusTrap(panelRef, isActive)
+// Esc 走全局层级栈：设备组会叠在抽屉之上，各自监听 window 会让一次 Esc 关掉多层。
+useEscLayer(isActive, () => emit('close'))
+useBackgroundInert(rootRef, isActive)
+useBodyScrollLock(isActive, '设备组弹窗')
+
+const domainMap = computed(() => {
+  const base = getDomainMap()
+  return {
+    light: { ...base.light, icon: Sun },
+    climate: { ...base.climate, icon: Thermometer },
+    sensor: { ...base.sensor, icon: Bell },
+    switch: { ...base.switch, icon: Plug },
+    battery: { ...base.battery, icon: BatteryWarning },
+    offline: { ...base.offline, icon: AlertTriangle },
+    lock: { ...base.lock, icon: Lock },
+    cover: { ...base.cover, icon: Blinds },
+    camera: { ...base.camera, icon: Camera },
+    media_player: { ...base.media_player, icon: Music },
+    fan: { ...base.fan, icon: Fan },
+    vacuum: { ...base.vacuum, icon: Rabbit },
+  }
+})
+
+const domainInfo = computed(
+  () => domainMap.value[props.domain] || { label: '常用设备', icon: Sun, color: 'dgm-domain-default' },
+)
+
+const { entityIds, showAudit, computeEntityIds } = useDeviceGroupEntityIds()
+
+function getEntity(eid) {
+  return getEntityFromStore(entitiesStore.entities, eid)
+}
+
+const { offlineStats, batteryStats, offlineIcon, offlineReason, offlineState, integration, timeAgo, batteryColor } =
+  useDeviceGroupOffline(props, entityIds, entitiesStore, layoutStore, getEntity)
+
+/**
+ * 标题下方的计数。
+ *
+ * 离线按**设备**数（`offlineStats.deviceCount`），其余域仍按实体数 —— 「灯 12」指的是
+ * 12 个灯实体，而「离线 9」指 9 台设备，两者本来就是不同量纲。离线若用实体数，
+ * 一台多传感器设备会贡献 5~10 个，标题会写着「共 131 个设备」却只列出十几条。
+ */
+const deviceCountLabel = computed(() => {
+  if (props.domain === 'offline' && offlineStats.value) {
+    const devices = offlineStats.value.deviceCount
+    const entities = entityIds.value.length
+    return devices === entities ? `共 ${devices} 台离线` : `共 ${devices} 台离线（${entities} 个实体）`
+  }
+  return `共 ${entityIds.value.length} 个设备`
+})
+
+const { batchExecuting, batchExecResult, lastBatchPayload, batchToggle, retryFailed } = useDeviceGroupBatch(
+  entityIds,
+  entitiesStore,
+)
+
+function inferBatchDomain() {
+  return props.domain
+}
+
+function handleBatchToggle(turnOn) {
+  batchToggle(turnOn, inferBatchDomain)
+}
+
+watch(
+  () => props.isOpen,
+  (open, wasOpen) => {
+    if (open && !wasOpen) {
+      // 系统审计默认展开：次要连接问题直接可见，不必再点一次「展开」。
+      showAudit.value = true
+      batchExecResult.value = null
+      lastBatchPayload.value = null
+    }
+    if (open) {
+      void computeEntityIds(props, entitiesStore, layoutStore)
+    }
+  },
+  { immediate: true },
+)
+
+watch([() => props.domain, () => layoutStore.layoutConfig.floatingWidgets], () => {
+  if (!props.isOpen) return
+  showAudit.value = true
+  batchExecResult.value = null
+  lastBatchPayload.value = null
+  void computeEntityIds(props, entitiesStore, layoutStore)
+})
+
+watch(
+  () => entitiesStore.derivedEpoch,
+  () => {
+    if (props.isOpen) {
+      void computeEntityIds(props, entitiesStore, layoutStore)
+    }
+  },
+)
+</script>
+
+<style scoped src="./styles/device-group.css"></style>

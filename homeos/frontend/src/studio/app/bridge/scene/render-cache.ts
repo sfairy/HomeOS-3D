@@ -1,4 +1,4 @@
-import { withCsrf } from '@/services/api/csrf'
+import { withCsrf } from '@/kernel/http/csrf'
 import { sha256 } from './sha256'
 
 // 0.8.4 起 SHA-256 由独立模块提供，渲染缓存只做再导出（保持既有 import 路径可用）。

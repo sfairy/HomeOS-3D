@@ -17,7 +17,7 @@
  * 由 save-store 的 classifySaveError 判成可重试；绝不吞掉 409/428 的结构化 detail。
  */
 
-import { withCsrf } from '@/services/api/csrf'
+import { withCsrf } from '@/kernel/http/csrf'
 import type { SaveRequestError, SaveTransport, SaveTransportPutRequest, SaveTransportResult } from './save-store'
 import type { StudioDraftPayload } from './document-store'
 

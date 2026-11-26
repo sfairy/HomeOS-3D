@@ -7,7 +7,7 @@
  * 域内文件之间仍直接相对 import，不经 barrel（避免环与无谓的间接层）。
  */
 export { filterAssetList, toggleAssetGroup, setAssetCategory } from './asset-library'
-export { bindExportDialogWiring } from './export-dialog-wiring'
+export { bindExportDialogWiring } from './dialogs'
 export {
   readInspectorGroupCollapseState,
   writeInspectorGroupCollapseState,
@@ -16,21 +16,21 @@ export {
   syncInspectorGroups,
   toggleInspectorGroup,
 } from './inspector-groups'
-export { lightSignatureOf } from './light-signature'
-export { classifyLightingScope } from './lighting-scope'
-export { getPanelRatioLimits, applyPanelRatios, applyDetailsRatio } from './panel-layout'
-export { closeOpenPopovers, applyLightGroupRename, createLightGroup } from './popover-dismiss'
-export { refreshStudioUiInner } from './refreshStudioUiInner'
-export type { RefreshStudioUiInnerDeps } from './refreshStudioUiInner'
-export { refreshStudioView } from './refreshStudioView'
-export type { RefreshStudioViewDeps } from './refreshStudioView'
-export { prepareSaveConflictDialog, openSaveConflictDialog, recordSaveConflict } from './save-conflict-dialog'
-export { installScrollbarReveal } from './scrollbar-reveal'
-export { materialSlotGroupView } from './slot-group-view'
-export { isSnapEnabled, setSnapSettingsOpen, syncSnapControls, applySnapTolerance } from './snap-controls'
-export { refreshStepChecklist } from './step-checklist'
-export { confirmFloorDeletion, showDrawingLightNotice } from './studio-confirm-dialogs'
-export { bindToolOptionWiring } from './tool-option-wiring'
+export { lightSignatureOf } from './lighting'
+export { classifyLightingScope } from './lighting'
+export { getPanelRatioLimits, applyPanelRatios, applyDetailsRatio } from './workspace'
+export { closeOpenPopovers, applyLightGroupRename, createLightGroup } from './workspace'
+export { refreshStudioUiInner } from './refresh-view'
+export type { RefreshStudioUiInnerDeps } from './refresh-view'
+export { refreshStudioView } from './refresh-view'
+export type { RefreshStudioViewDeps } from './refresh-view'
+export { prepareSaveConflictDialog, openSaveConflictDialog, recordSaveConflict } from './dialogs'
+export { installScrollbarReveal } from './workspace'
+export { materialSlotGroupView } from './asset-library'
+export { isSnapEnabled, setSnapSettingsOpen, syncSnapControls, applySnapTolerance } from './placement'
+export { refreshStepChecklist } from './onboarding'
+export { confirmFloorDeletion, showDrawingLightNotice } from './dialogs'
+export { bindToolOptionWiring } from './wiring'
 export {
   applyWallHeightInput,
   applyWallThicknessInput,
@@ -39,12 +39,12 @@ export {
   commitWallHeight,
   commitWallThickness,
   commitWallOpacity,
-} from './wall-inputs'
-export { bindWindowDesignerWiring } from './window-designer-wiring'
+} from './placement'
+export { bindWindowDesignerWiring } from './wiring'
 
 // 0.8.9：从 boot.ts 切出的四块（boot 在 studio split 预算上，且它的 imports 扇出也受棘轮约束，
 // 所以这些入口统一从本桶转出，boot 只加 4 个名字而不是 4 条 import）。
-export { toolHelpMessages } from './studio-tool-help'
-export { placeUserDecorationAtViewCenter, DECORATION_DEFAULT_SIZE } from './user-decoration-placement'
-export { applyUserDecorationStageContext } from './user-decoration-stage-context'
-export { planCanvasContext } from './plan-canvas-context'
+export { toolHelpMessages } from './onboarding'
+export { placeUserDecorationAtViewCenter, DECORATION_DEFAULT_SIZE } from './placement'
+export { applyUserDecorationStageContext } from './placement'
+export { planCanvasContext } from './placement'

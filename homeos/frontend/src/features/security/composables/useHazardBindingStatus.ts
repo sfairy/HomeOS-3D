@@ -14,9 +14,9 @@ import {
   type HazardSensorKind,
   getEntityLeaf,
 } from '@homeos/shared'
-import { useEntitiesStore } from '@/stores/entities.store'
-import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
-import { countOfflineDevices } from '@/shared/device/utils/group-offline.util'
+import { useEntitiesStore } from '@/domain/entity/store/entities.store'
+import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
+import { countOfflineDevices } from '@/features/device/model/utils/group-offline.util'
 
 /** 危险绑定行类型：传感器种类扩展阀门与排风 */
 type HazardBindingRowKind = HazardSensorKind | 'gas_valve' | 'water_valve' | 'exhaust'

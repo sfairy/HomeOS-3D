@@ -6,7 +6,7 @@ import {
   accFromDerivedSnapshot,
   snapshotFromDerivedAcc,
   type EntityDerivedAccumulator,
-} from '@/shared/entity/utils/derived.util'
+} from '@/domain/entity/model/utils/derived.util'
 import { getEntityDomain } from '@homeos/shared'
 import type {
   DerivedBatteryEntry,
@@ -15,7 +15,7 @@ import type {
   DerivedSnapshotPatch,
   EntityPatch,
   HaEntityState,
-} from '@/shared/types/entity-store'
+} from '@/kernel/types/entity-store'
 
 type DerivedOpts = { deferSecondary?: boolean }
 

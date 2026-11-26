@@ -19,10 +19,10 @@ export { useEarthquakeStatusQuery } from './composables/useEarthquakeStatusQuery
 // `useEarthquake*` 其余成员消费者在域内，不外借。
 
 // 纯函数（域根只留真的被跨域取用的）
-export { earthquakeMagnitudeTone, formatEarthquakeMagnitude } from '@/stores/earthquake/earthquake-layout.util'
-export { syncEarthquakeHomeCoordsFromHa } from '@/composables/earthquake/ha-coords.util'
+export { earthquakeMagnitudeTone, formatEarthquakeMagnitude } from '@/features/earthquake/store/earthquake-layout.util'
+export { syncEarthquakeHomeCoordsFromHa } from '@/features/earthquake/composables/ha-coords.util'
 export {
   buildFixedPageSlots,
   computeAnalyticsSummary,
   shortenPlace,
-} from '@/shared/earthquake/utils/history-analytics.util'
+} from '@/features/earthquake/model/utils/history-analytics.util'

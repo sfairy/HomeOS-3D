@@ -11,7 +11,7 @@ import { describe, expect, test } from 'bun:test'
 import {
   missingDecorationNames,
   exportFolderNameError,
-} from '../../../homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/export/decoration-model-guard'
+} from '../../../homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/export/export'
 
 const ASSET = 'a576b34cf6f04eb9a855401574ad10e8'
 const OTHER = 'ff9ef1fe8eed4e3b9b712d424df235b4'

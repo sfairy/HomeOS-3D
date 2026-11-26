@@ -1,6 +1,6 @@
 /** 设置侧栏搜索工具 */
 
-import { pageDescription, tabLabel, groupLabel } from '@/shared/utils/registry/settings-nav.util'
+import { pageDescription, tabLabel, groupLabel } from '@/kernel/utils/registry/settings-nav.util'
 
 // 设置导航中的单个 Tab 项结构（id / 标签 / 图标 / 是否独立保存）
 type SettingsNavTabItem = {

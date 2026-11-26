@@ -183,32 +183,7 @@
     },
 
     {
-      "includes": [
-        "homeos/frontend/src/components/**",
-        "homeos/frontend/src/stores/**",
-        "homeos/frontend/src/composables/**"
-      ],
-      "linter": {
-        "rules": {
-          "style": {
-            "useImportType": "warn",
-            "noRestrictedImports": {
-              "level": "error",
-              "options": {
-                "patterns": [
-                  {
-                    "group": ["@/views/**", "@/views/*", "@/features/**", "@/features/*"],
-                    "message": "components/stores/composables 禁止 import @/views/** 与 @/features/**；跨页常量请放 @/shared/utils/registry 或 composables"
-                  }
-                ]
-              }
-            }
-          }
-        }
-      }
-    },
-    {
-      "includes": ["homeos/frontend/src/shared/**"],
+      "includes": ["homeos/frontend/src/kernel/**"],
       "linter": {
         "rules": {
           "style": {
@@ -219,14 +194,71 @@
                 "patterns": [
                   {
                     "group": [
+                      "@/domain/**",
+                      "@/features/**",
+                      "@/studio/**",
+                      "@/app/**",
+                      "@/views/**",
+                      "@/components/**",
                       "@/stores/**",
                       "@/composables/**",
-                      "@/components/**",
-                      "@/views/**",
-                      "@/features/**",
-                      "@/layouts/**"
+                      "@/layouts/**",
+                      "@/services/**",
+                      "@/shared/**"
                     ],
-                    "message": "shared 禁止反向依赖 stores/composables/components/views/features/layouts（会被下层反向依赖，倒置即失效）"
+                    "message": "kernel 是 L0 设施层：只能依赖 kernel 自身，不得 import 任何上层模块"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["homeos/frontend/src/domain/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useImportType": "warn",
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@/features/**",
+                      "@/studio/**",
+                      "@/app/**",
+                      "@/views/**",
+                      "@/layouts/**",
+                      "@/components/**",
+                      "@/composables/**",
+                      "@/stores/**",
+                      "@/services/**"
+                    ],
+                    "message": "domain 是 L1 共享领域层：只能依赖 kernel 与 domain 自身，不得 import features/studio/app"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["homeos/frontend/src/features/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useImportType": "warn",
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@/app/**", "@/views/**", "@/layouts/**", "@/components/**", "@/composables/**", "@/stores/**"],
+                    "message": "features 是 L2 业务模块：不得 import app/ 装配层或已废弃的旧分层目录"
                   }
                 ]
               }

@@ -5,7 +5,7 @@ import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
 import { clamp as clamp2 } from '../../../plan/geometry'
 import { finite as finite2 } from '../../../loaders/studio-normalization'
 import { composeItemKey } from '../../ui/studio-app-helpers'
-import { applyItemOrientation } from '../geometry/item-orientation'
+import { applyItemOrientation } from '../geometry/geometry'
 import { applyLightOnState } from '../../lights/strip-light/strip-light-model'
 
 export function restoreLightVisibility(runtime: StudioAppRuntime) {

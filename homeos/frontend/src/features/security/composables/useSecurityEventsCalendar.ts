@@ -5,10 +5,10 @@
 /** 安防页门禁事件日历：按月网格、按日筛选、视频预览、缩略图滚动 */
 
 import { ref, computed, watch, type Ref, type ComputedRef } from 'vue'
-import { logger } from '@/shared/utils/core/logger'
-import { fetchSecurityEvents, validateSecurityEvents } from '@/services/api/security'
+import { logger } from '@/kernel/utils/core/logger'
+import { fetchSecurityEvents, validateSecurityEvents } from '@/domain/api/security'
 import { useYamlValidation } from '@/features/security/composables/useYamlValidation'
-import { formatLocaleDate } from '@/shared/utils/format/locale-format.util'
+import { formatLocaleDate } from '@/kernel/utils/format/locale-format.util'
 import {
   buildSecurityCalendarDays,
   isSameCalendarDay,

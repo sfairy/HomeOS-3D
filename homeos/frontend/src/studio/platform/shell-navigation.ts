@@ -6,7 +6,7 @@
  * 嵌入式外壳、单页面调试页）退回整页跳转。
  */
 
-import { isNavigationLockedAfterRestore } from '@/shared/utils/core/post-restore-lock'
+import { isNavigationLockedAfterRestore } from '@/kernel/utils/core/post-restore-lock'
 
 type ShellNavigate = (path: string) => void | Promise<unknown>
 

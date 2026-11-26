@@ -38,8 +38,8 @@ import {
   showExportResult as showExportResultImpl, renderExportLayers as renderExportLayersImpl,
   closePresetRenameDialog as closePresetRenameDialogImpl, openPresetRenameDialog as openPresetRenameDialogImpl,
   openPresetDeleteDialog as openPresetDeleteDialogImpl,
-} from "./export";
-import { addCylinderMesh } from "./geometry";
+} from "./export/index";
+import { addCylinderMesh } from "./geometry/index";
 import {
   handlePointerUp as handlePointerUpImpl, type HandlePointerUpDeps, handlePointerDown as handlePointerDownImpl,
   type HandlePointerDownDeps, applyToolSetting as applyToolSettingImpl, type ApplyToolSettingDeps,
@@ -70,7 +70,7 @@ import {
   getDefaultSelectionScope as getDefaultSelectionScopeImpl, resolvePreviewScope as resolvePreviewScopeImpl,
   classifySelectionScope as classifySelectionScopeImpl, getCurrentPreviewScope as getCurrentPreviewScopeImpl,
   getPreviewScopeSelection as getPreviewScopeSelectionImpl, setPreviewScope as setPreviewScopeImpl, bindModelDragDrop,
-} from "./interaction";
+} from "./interaction/index";
 import {
   beginLightingPreview as beginLightingPreviewImpl, type BeginLightingPreviewDeps, addLightModel as addLightModelImpl,
   type AddLightModelDeps, captureUndoSnapshot as captureUndoSnapshotImpl, resolveLightGroup as resolveLightGroupImpl,
@@ -113,7 +113,7 @@ import {
   buildLightGroupList as buildLightGroupListImpl, setShadowFreeze as setShadowFreezeImpl,
   updateShadowState as updateShadowStateImpl, collectShadowCandidates as collectShadowCandidatesImpl,
   setupSceneShadows as setupSceneShadowsImpl,
-} from "./lights";
+} from "./lights/index";
 import {
   resolveDoorPartMaterials, materialSameModelPeerCount as materialSameModelPeerCountImpl,
   materialEditModelType as materialEditModelTypeImpl, selectedMaterialEditTarget as selectedMaterialEditTargetImpl,
@@ -137,7 +137,7 @@ import {
   deleteCustomMaterialStyle as deleteCustomMaterialStyleImpl,
   applyMaterialToSameModelItems as applyMaterialToSameModelItemsImpl, refreshScopeItems as refreshScopeItemsImpl,
   doorPartThemeColor,
-} from "./materials";
+} from "./materials/index";
 import {
   applyLoadedDraft as applyLoadedDraftImpl, type ApplyLoadedDraftDeps, markWallsChanged as markWallsChangedImpl,
   rebuildWallIndex as rebuildWallIndexImpl, getPixelsPerMeter as getPixelsPerMeterImpl,
@@ -166,7 +166,7 @@ import {
   sceneSyncFlushIsDirty as sceneSyncFlushIsDirtyImpl, flushSceneSyncRuntime as flushSceneSyncRuntimeImpl,
   currentSceneSyncSinceKey as currentSceneSyncSinceKeyImpl, rememberSceneSyncKey as rememberSceneSyncKeyImpl,
   refreshAfterSceneSyncOutcome as refreshAfterSceneSyncOutcomeImpl, fetchStudioApi as fetchStudioApiImpl,
-} from "./persistence";
+} from "./persistence/index";
 import {
   planToWorldPoint as planToWorldPointImpl, worldToPlanPoint as worldToPlanPointImpl,
   worldPointForFloor as worldPointForFloorImpl, getActiveWalls as getActiveWallsImpl,
@@ -182,7 +182,7 @@ import {
   computeWallPolygons as computeWallPolygonsImpl, wallWindowSpan as wallWindowSpanImpl,
   drawRailing as drawRailingImpl, rotateLocalPoint as rotateLocalPointImpl,
   buildHandleGeometry as buildHandleGeometryImpl,
-} from "./plan";
+} from "./plan/index";
 import {
   runStudioRenderLoop as runStudioRenderLoopImpl, type StudioRenderDeps,
   createStudioRenderer as createStudioRendererImpl, type CreateStudioRendererDeps,
@@ -231,11 +231,11 @@ import {
   resizeRenderCanvas as resizeRenderCanvasImpl, syncCanvasSizeInputs as syncCanvasSizeInputsImpl,
   handleCanvasSizeInput as handleCanvasSizeInputImpl, clearStudioDocumentResidue, releaseStudioRenderer,
   releaseStudioOwnedResources,
-} from "./render";
+} from "./render/index";
 import {
   waitForStageReady as waitForStageReadyImpl, jumpWorkflowStep as jumpWorkflowStepImpl, bindAutoDiagramMessages,
   bindGlobalShortcuts,
-} from "./runtime";
+} from "./runtime/index";
 import {
   buildStudioScene as buildStudioSceneImpl, type BuildStudioSceneDeps, uniqueFloorName as uniqueFloorNameImpl,
   hideFloorActionMenu as hideFloorActionMenuImpl, showFloorActionMenu as showFloorActionMenuImpl,
@@ -283,7 +283,7 @@ import {
   getMaxTextureUnits as getMaxTextureUnitsImpl, batchSharedMeshes as batchSharedMeshesImpl,
   mergeStaticItemMeshes as mergeStaticItemMeshesImpl, collectSharedMaterials as collectSharedMaterialsImpl,
   updateExternalModelDataset as updateExternalModelDatasetImpl,
-} from "./scene-build";
+} from "./scene-build/index";
 import {
   refreshStudioUiInner as refreshStudioUiInnerImpl, type RefreshStudioUiInnerDeps,
   refreshStudioView as refreshStudioViewImpl, type RefreshStudioViewDeps,
@@ -308,20 +308,20 @@ import {
   placeUserDecorationAtViewCenter,
   planCanvasContext,
   toolHelpMessages,
-} from "./ui";
-import { installPlacedItemsPanel } from "./ui/placed-items-wiring";
-import { installScrollbarReveal } from "./ui/scrollbar-reveal";
+} from "./ui/index";
+import { installPlacedItemsPanel } from "./ui/wiring";
+import { installScrollbarReveal } from "./ui/workspace";
 import { refreshDistanceRulers } from "./ui/studio-distance-rulers-wiring";
 import {
   bindStudioChrome,
   syncCameraFocalAvailability,
-} from "./ui/studio-chrome-bindings";
-import { refreshWorkspaceViewFor } from "./ui/studio-workspace-view";
-import { naturalWoodRuntimeFor } from "./ui/studio-natural-wood-runtime";
-import { placeSelectedItemOnSurface } from "./ui/place-surface-action";
-import { installOverlapAndPreview, overlapDragTarget } from "./ui/overlap-and-preview-wiring";
-import { exactHeightBoundsOf } from "./ui/editor-3d-geometry";
-import { refreshEditor3D } from "./ui/editor-3d-wiring";
+} from "./ui/wiring";
+import { refreshWorkspaceViewFor } from "./ui/workspace";
+import { naturalWoodRuntimeFor } from "./ui/preview-style";
+import { placeSelectedItemOnSurface } from "./ui/placement";
+import { installOverlapAndPreview, overlapDragTarget } from "./ui/wiring";
+import { exactHeightBoundsOf } from "./ui/editor-3d";
+import { refreshEditor3D } from "./ui/editor-3d";
 import { positionLightFromAngles as positionLightFromAnglesImpl } from "../lights/studio-light-placement";
 import type { StudioAppRuntime } from "./runtime/studio-app-runtime";
 let planPainter: any = null,
@@ -421,7 +421,7 @@ import {
   patchStudioFacadeState,
   registerStudioCommandHandler,
   resetStudioFacade,
-} from '../../../../engine';
+} from '../../../../engine/index';
 import type {
   StudioControlElement,
 } from '../types/studio-app-types';

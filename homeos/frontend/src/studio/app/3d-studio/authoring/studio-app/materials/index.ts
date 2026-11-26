@@ -7,13 +7,13 @@
  * 域内文件之间仍直接相对 import，不经 barrel（避免环与无谓的间接层）。
  */
 export { resolveDoorPartMaterials, describeDoorMaterials } from './door-materials'
-export { doorPartThemeColor } from './door-theme'
+export { doorPartThemeColor } from './door-materials'
 export {
   saveCurrentItemMaterialStyle,
   deleteCustomMaterialStyle,
   applyMaterialToSameModelItems,
   refreshScopeItems,
-} from './item-materials'
+} from './materials'
 export {
   materialSameModelPeerCount,
   materialEditModelType,
@@ -28,7 +28,7 @@ export {
   loadCustomMaterialStyles,
   ensureCustomMaterialStylesLoaded,
   writeStoredCustomMaterialStyles,
-} from './material-edit'
+} from './materials'
 export {
   materialSlotPanelSignatureFor,
   materialStyleSwatchColors,
@@ -44,6 +44,6 @@ export {
   materialCoverageSummary,
   createMaterialSlotRow,
   createMaterialSlotVariantList,
-} from './material-slot-ui'
-export { createMaterialStyleChip } from './style-chip'
-export { createMaterialSlotSurfacePanel } from './surface-panel'
+} from './materials'
+export { createMaterialStyleChip } from './materials'
+export { createMaterialSlotSurfacePanel } from './materials'

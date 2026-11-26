@@ -3,7 +3,7 @@
  * @module frontend/src/composables
  */
 import { ref, computed, watch, type ToRefs, unref } from 'vue'
-import { useEchartsHost } from '@/composables/ui/useEchartsHost'
+import { useEchartsHost } from '@/kernel/ui/hooks/use-echarts-host'
 import {
   barGradient,
   CHART_LABEL_MUTED,
@@ -12,7 +12,7 @@ import {
   createChartTooltip,
   pieSeries,
   rankCategoryAxis,
-} from '@/shared/utils/chart/chart-primitives'
+} from '@/kernel/utils/chart/chart-primitives'
 import {
   buildDepthBuckets,
   buildDistanceBuckets,
@@ -21,8 +21,8 @@ import {
   buildTopPlaces,
   computeAnalyticsSummary,
   shortenPlace,
-} from '@/shared/earthquake/utils/history-analytics.util'
-import { formatEarthquakeMagnitude } from '@/stores/earthquake/earthquake-layout.util'
+} from '@/features/earthquake/model/utils/history-analytics.util'
+import { formatEarthquakeMagnitude } from '@/features/earthquake/store/earthquake-layout.util'
 
 /**
  * 地震预警历史分析 composable

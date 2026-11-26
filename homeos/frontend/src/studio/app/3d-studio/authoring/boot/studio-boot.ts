@@ -7,7 +7,7 @@
  * 只有一个调用点（宿主闭包末尾的 `startupStudio();`），所以不需要源侧薄绑定。
  */
 
-import { ensureRegistryComponents } from '../../../renderer/registry'
+import { ensureRegistryComponents } from '../../../renderer/registry/index'
 import {
   createDashboardFonts,
   reportDashboardFontError,
@@ -23,7 +23,7 @@ import {
   studioStartupPhase,
   studioStartupReady,
   studioStartupWait,
-} from '@/shared/utils/ui/studio-startup'
+} from '@/kernel/utils/ui/studio-startup'
 
 /** 引导序列需要的外部状态：入口判定 / 取数 / 渲染器与舞台挂载 / 状态提示 / 嵌入契约。 */
 interface StudioBootDeps {

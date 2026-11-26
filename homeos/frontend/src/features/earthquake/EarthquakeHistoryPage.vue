@@ -328,22 +328,22 @@ import {
   deleteEarthquakeSimulationHistory,
   fetchEarthquakeHistory,
   fetchGlobalEarthquakes,
-} from '@/services/api/earthquake'
-import HosSelect from '@/components/common/base/HosSelect.vue'
-import ApiQueryState from '@/components/common/ApiQueryState.vue'
-import ListPageHero from '@/components/list-page-shell/ListPageHero.vue'
-import ListPageMetrics from '@/components/list-page-shell/ListPageMetrics.vue'
+} from '@/domain/api/earthquake'
+import HosSelect from '@/kernel/ui/primitives/HosSelect.vue'
+import ApiQueryState from '@/kernel/ui/ApiQueryState.vue'
+import ListPageHero from '@/kernel/ui/list-page/ListPageHero.vue'
+import ListPageMetrics from '@/kernel/ui/list-page/ListPageMetrics.vue'
 import EarthquakeHistoryAnalytics from './components/HistoryAnalytics.vue'
-import { getApiErrorMessage } from '@/shared/utils/core/error-message'
-import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
-import { useChromeStore } from '@/stores/chrome.store'
+import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
+import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
+import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import {
   buildFixedPageSlots,
   computeAnalyticsSummary,
   shortenPlace,
-} from '@/shared/earthquake/utils/history-analytics.util'
-import { formatEarthquakeMagnitude, earthquakeMagnitudeTone } from '@/stores/earthquake/earthquake-layout.util'
-import { formatLocaleString } from '@/shared/utils/format/locale-format.util'
+} from '@/features/earthquake/model/utils/history-analytics.util'
+import { formatEarthquakeMagnitude, earthquakeMagnitudeTone } from '@/features/earthquake/store/earthquake-layout.util'
+import { formatLocaleString } from '@/kernel/utils/format/locale-format.util'
 import {
   EEW_MAGNITUDE_OPTIONS,
   GLOBAL_EARTHQUAKE_PERIODS,
@@ -352,7 +352,7 @@ import {
   LOCAL_EEW_SOURCE_FILTERS,
   eewAlertKindLabel,
   eewSourceLabel,
-} from '@/shared/types/earthquake'
+} from '@/kernel/types/earthquake'
 import './styles/earthquake-history.css'
 
 const PAGE_SIZE = 8

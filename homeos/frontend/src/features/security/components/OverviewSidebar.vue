@@ -199,9 +199,9 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { Activity, Bell, ChevronLeft, ChevronRight, Search } from '@lucide/vue'
-import VEmptyState from '@/components/common/base/VEmptyState.vue'
+import VEmptyState from '@/kernel/ui/primitives/VEmptyState.vue'
 import SecurityAuditLogPanel from '@/features/security/components/AuditLogPanel.vue'
-import { useAdaptiveViewportPagination } from '@/composables/ui/hub-viewport.internals'
+import { useAdaptiveViewportPagination } from '@/kernel/ui/hooks/hub-viewport'
 
 const props = defineProps({
   listSensors: { type: Array, default: () => [] },

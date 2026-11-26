@@ -13,7 +13,7 @@
  * 按钮禁用态必须跟历史栈同步，命令式改 `disabled` 会在 facade patch 与 DOM 之间留一份影子状态。
  * 命令仍走 `floorplanStore.command({ type: "undo" | "redo" })`，与顶栏按钮同一条链路。
  */
-import { useStudioFloorplanStore } from '@/stores/studio-floorplan.store'
+import { useStudioFloorplanStore } from '@app/state/studio-floorplan.store'
 
 const floorplanStore = useStudioFloorplanStore()
 </script>

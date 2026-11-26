@@ -1,7 +1,7 @@
 /** Settings 面板 lazy import（按 NAV_STRUCTURE 六组组织） */
 import { defineComponent, h, shallowRef, type Component } from 'vue'
-import { lazyComponent } from '@/shared/utils/core/lazy-component'
-import ErrorBoundary from '@/components/common/ErrorBoundary.vue'
+import { lazyComponent } from '@/kernel/utils/core/lazy-component'
+import ErrorBoundary from '@/kernel/ui/ErrorBoundary.vue'
 import { isPinnedSettingsTab, settingsKeepAliveName } from '@/features/settings/utils/keep-alive.util'
 
 /**
@@ -82,64 +82,64 @@ function lazyPanel(tabId: string, loader: () => Promise<{ default?: Component }>
 
 /** 入门与连接 */
 const connectPanels = {
-  'setup-wizard': lazyPanel('setup-wizard', () => import('@/features/settings/connect/SetupWizardPanel.vue')),
-  connection: lazyPanel('connection', () => import('@/features/settings/connect/SettingsConnectionPanel.vue')),
-  bindings: lazyPanel('bindings', () => import('@/features/settings/connect/SettingsBindingsPanel.vue')),
-  devices: lazyPanel('devices', () => import('@/features/settings/connect/SettingsDeviceManagementPanel.vue')),
+  'setup-wizard': lazyPanel('setup-wizard', () => import('@/features/settings/groups/onboarding/SetupWizardPanel.vue')),
+  connection: lazyPanel('connection', () => import('@/features/settings/groups/onboarding/SettingsConnectionPanel.vue')),
+  bindings: lazyPanel('bindings', () => import('@/features/settings/groups/onboarding/SettingsBindingsPanel.vue')),
+  devices: lazyPanel('devices', () => import('@/features/settings/groups/onboarding/SettingsDeviceManagementPanel.vue')),
 }
 
 /** 家居配置（空间 + 能源 + 快捷设备） */
 const homePanels = {
-  rooms: lazyPanel('rooms', () => import('@/features/settings/home/SettingsRoomsPanel.vue')),
+  rooms: lazyPanel('rooms', () => import('@/features/settings/groups/household/SettingsRoomsPanel.vue')),
   'device-profiles': lazyPanel(
     'device-profiles',
-    () => import('@/features/settings/home/SettingsDeviceProfilesPanel.vue'),
+    () => import('@/features/settings/groups/household/SettingsDeviceProfilesPanel.vue'),
   ),
-  'life-accounts': lazyPanel('life-accounts', () => import('@/features/settings/home/SettingsLifeAccountsPanel.vue')),
-  'smart-charge': lazyPanel('smart-charge', () => import('@/features/settings/home/SettingsClientPowerPanel.vue')),
-  favorites: lazyPanel('favorites', () => import('@/features/settings/home/SettingsFavorites.vue')),
+  'life-accounts': lazyPanel('life-accounts', () => import('@/features/settings/groups/household/SettingsLifeAccountsPanel.vue')),
+  'smart-charge': lazyPanel('smart-charge', () => import('@/features/settings/groups/household/SettingsClientPowerPanel.vue')),
+  favorites: lazyPanel('favorites', () => import('@/features/settings/groups/household/SettingsFavorites.vue')),
 }
 
 /** 界面与体验 */
 const displayPanels = {
-  general: lazyPanel('general', () => import('@/features/settings/display/SettingsGeneralPanel.vue')),
-  layout: lazyPanel('layout', () => import('@/features/settings/display/SettingsLayoutPanel.vue')),
-  widgets: lazyPanel('widgets', () => import('@/features/settings/display/SettingsWidgetsPanel.vue')),
-  floating: lazyPanel('floating', () => import('@/features/settings/display/SettingsFloatingPanel.vue')),
-  embeds: lazyPanel('embeds', () => import('@/features/settings/display/SettingsEmbeds.vue')),
+  general: lazyPanel('general', () => import('@/features/settings/groups/appearance/SettingsGeneralPanel.vue')),
+  layout: lazyPanel('layout', () => import('@/features/settings/groups/appearance/SettingsLayoutPanel.vue')),
+  widgets: lazyPanel('widgets', () => import('@/features/settings/groups/appearance/SettingsWidgetsPanel.vue')),
+  floating: lazyPanel('floating', () => import('@/features/settings/groups/appearance/SettingsFloatingPanel.vue')),
+  embeds: lazyPanel('embeds', () => import('@/features/settings/groups/appearance/SettingsEmbeds.vue')),
 }
 
 /** 自动化与安防 */
 const automatePanels = {
-  'home-mode': lazyPanel('home-mode', () => import('@/features/settings/automate/SettingsHomeModePanel.vue')),
+  'home-mode': lazyPanel('home-mode', () => import('@/features/settings/groups/automation/SettingsHomeModePanel.vue')),
   'security-modes': lazyPanel(
     'security-modes',
-    () => import('@/features/settings/automate/SettingsSecurityModesPanel.vue'),
+    () => import('@/features/settings/groups/automation/SettingsSecurityModesPanel.vue'),
   ),
   'automation-drafts': lazyPanel(
     'automation-drafts',
-    () => import('@/features/settings/automate/SettingsAutomationDraftsPanel.vue'),
+    () => import('@/features/settings/groups/automation/SettingsAutomationDraftsPanel.vue'),
   ),
 }
 
 /** 感知交互 */
 const interactPanels = {
-  alerts: lazyPanel('alerts', () => import('@/features/settings/interact/AlertRulesPanel.vue')),
-  voice: lazyPanel('voice', () => import('@/features/settings/interact/SettingsVoicePanel.vue')),
-  agent: lazyPanel('agent', () => import('@/features/settings/interact/SettingsAgentPanel.vue')),
-  media: lazyPanel('media', () => import('@/features/settings/interact/SettingsMediaPanel.vue')),
+  alerts: lazyPanel('alerts', () => import('@/features/settings/groups/perception/AlertRulesPanel.vue')),
+  voice: lazyPanel('voice', () => import('@/features/settings/groups/perception/SettingsVoicePanel.vue')),
+  agent: lazyPanel('agent', () => import('@/features/settings/groups/perception/SettingsAgentPanel.vue')),
+  media: lazyPanel('media', () => import('@/features/settings/groups/perception/SettingsMediaPanel.vue')),
 }
 
 /** 系统与账户 */
 const systemPanels = {
-  profiles: lazyPanel('profiles', () => import('@/features/settings/system/SettingsProfilesPanel.vue')),
-  family: lazyPanel('family', () => import('@/features/settings/system/SettingsFamilyPanel.vue')),
-  access: lazyPanel('access', () => import('@/features/settings/system/SettingsAccessPanel.vue')),
-  diagnostics: lazyPanel('diagnostics', () => import('@/features/settings/system/SettingsDiagnosticsPanel.vue')),
-  network: lazyPanel('network', () => import('@/features/settings/system/SettingsNetworkPanel.vue')),
-  params: lazyPanel('params', () => import('@/features/settings/system/ConfigPanel.vue')),
-  retention: lazyPanel('retention', () => import('@/features/settings/system/SettingsRetentionPanel.vue')),
-  license: lazyPanel('license', () => import('@/features/settings/system/SettingsLicensePanel.vue')),
+  profiles: lazyPanel('profiles', () => import('@/features/settings/groups/system/SettingsProfilesPanel.vue')),
+  family: lazyPanel('family', () => import('@/features/settings/groups/system/SettingsFamilyPanel.vue')),
+  access: lazyPanel('access', () => import('@/features/settings/groups/system/SettingsAccessPanel.vue')),
+  diagnostics: lazyPanel('diagnostics', () => import('@/features/settings/groups/system/SettingsDiagnosticsPanel.vue')),
+  network: lazyPanel('network', () => import('@/features/settings/groups/system/SettingsNetworkPanel.vue')),
+  params: lazyPanel('params', () => import('@/features/settings/groups/system/ConfigPanel.vue')),
+  retention: lazyPanel('retention', () => import('@/features/settings/groups/system/SettingsRetentionPanel.vue')),
+  license: lazyPanel('license', () => import('@/features/settings/groups/system/SettingsLicensePanel.vue')),
 }
 
 /** PANEL_MAP：对象常量，字段 / 方法语义见定义处。 */

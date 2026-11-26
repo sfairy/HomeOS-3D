@@ -24,19 +24,19 @@ function scheduleEditorTeardown(teardown: (() => Promise<void> | void) | null | 
 import { computed, onBeforeUnmount, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import pkg from "../../../package.json";
-import { useStudioEditorStore } from "@/stores/studio-editor.store";
+import { useStudioEditorStore } from "@app/state/studio-editor.store";
 import {
   EDITOR_SHORTCUT_ROWS,
   StudioShortcutsOverlay,
   StudioTopBar,
   StudioZoomBar,
-} from "@/studio/chrome";
+} from "@/studio/chrome/index";
 import EditorAlignBar from "@/studio/chrome/EditorAlignBar.vue";
 import "@/studio/chrome/studio-chrome.css";
 import "@/studio/chrome/studio-native-dialogs.css";
 import "@/studio/chrome/studio-canvas-welcome.css";
 import { Undo2, Redo2, Shapes } from "@lucide/vue";
-import { SETTINGS_ROUTES } from "@/shared/utils/registry/settings-route.util";
+import { SETTINGS_ROUTES } from "@/kernel/utils/registry/settings-route.util";
 import EditorMediaInspectors from "@/studio/chrome/editor/EditorMediaInspectors.vue";
 import EditorChartInspectors from "@/studio/chrome/editor/EditorChartInspectors.vue";
 import EditorDeviceInspectors from "@/studio/chrome/editor/EditorDeviceInspectors.vue";

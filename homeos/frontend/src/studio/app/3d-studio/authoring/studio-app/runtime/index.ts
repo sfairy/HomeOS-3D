@@ -6,7 +6,7 @@
  * 「这个域提供什么」在调用点一眼可见，同时把导入行数压回可控范围。
  * 域内文件之间仍直接相对 import，不经 barrel（避免环与无谓的间接层）。
  */
-export { bindAutoDiagramMessages } from './auto-diagram-messages'
-export { bindGlobalShortcuts } from './global-shortcuts'
+export { bindAutoDiagramMessages } from './messages'
+export { bindGlobalShortcuts } from './shortcuts'
 export type { BackgroundViewSettings, StudioAppRuntime } from './studio-app-runtime'
-export { waitForStageReady, jumpWorkflowStep } from './workflow'
+export { waitForStageReady, jumpWorkflowStep } from './studio-app-runtime'

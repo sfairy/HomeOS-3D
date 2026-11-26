@@ -25,7 +25,7 @@ import { itemTypeCatalog, lampItemTypeSet } from '../../items/item-catalog'
 import { isPlacedItemHidden, isPlacedItemLocked } from '../../items/placed-item-state'
 import { isCourtyardDrawing } from '../../../plan/courtyard-drawing'
 import { POINT_MARKER_FILL } from '../../../plan/studio-handle-drawing'
-import { isEditor3DGestureActive } from './editor-3d-wiring'
+import { isEditor3DGestureActive } from './editor-3d'
 
 /** 标尺线的颜色与线宽（与画布其它标注区分开）。 */
 const RULER_LINE_COLOR = '#91b7cb'

@@ -7,7 +7,7 @@ import HomeModeEmptyState from './HomeModeEmptyState.vue'
 import HomeModeTabsToolbar from './HomeModeTabsToolbar.vue'
 import HomeModeContextBar from './HomeModeContextBar.vue'
 import HomeModeEditorWorkspace from './HomeModeEditorWorkspace.vue'
-import ApiQueryState from '@/components/common/ApiQueryState.vue'
+import ApiQueryState from '@/kernel/ui/ApiQueryState.vue'
 
 const props = defineProps({
   embedded: { type: Boolean, default: false },

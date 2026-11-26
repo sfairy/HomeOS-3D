@@ -63,7 +63,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useEarthquakeStore } from '@/stores/earthquake.store'
+import { useEarthquakeStore } from '@/features/earthquake/store/earthquake.store'
 
 const earthquakeStore = useEarthquakeStore()
 const { showCencBulletin, cencEvent } = storeToRefs(earthquakeStore)

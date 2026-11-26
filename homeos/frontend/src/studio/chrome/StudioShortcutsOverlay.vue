@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { toRef } from 'vue'
-import { useEscLayer } from '@/composables/ui/useEscStack'
+import { useEscLayer } from '@/kernel/ui/hooks/use-esc-stack'
 
 const props = defineProps<{
   open: boolean

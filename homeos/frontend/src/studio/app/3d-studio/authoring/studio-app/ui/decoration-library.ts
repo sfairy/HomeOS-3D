@@ -25,14 +25,14 @@ import {
   type DecorationLibraryState,
   type DecorationModel,
 } from '../../items/studio-user-decorations'
-import { deleteStudioModel, listStudioModels, uploadStudioModel } from '@/services/api/studio-models'
-import { USER_DECORATION_DRAG_TYPE } from '../interaction/model-drag-drop'
+import { deleteStudioModel, listStudioModels, uploadStudioModel } from '@/domain/api/studio-models'
+import { USER_DECORATION_DRAG_TYPE } from '../interaction/drag-and-drop'
 import { shellConfirm } from '@/studio/platform/shell-chrome'
-import { installAssetNameScroll } from './asset-name-scroll'
+import { installAssetNameScroll } from './asset-library'
 import {
   forgetDecorationModelName,
   registerDecorationModelNames,
-} from '@/studio/app/3d-studio/loaders/external-models/user-decoration-models'
+} from '@app/3d-studio/loaders/external-models/user-decoration-models'
 
 /** 面板元素 id（与 `StudioView.vue` 标记一致）。 */
 const PANEL_ID = 'decoration-library'

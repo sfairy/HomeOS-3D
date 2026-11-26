@@ -1,13 +1,13 @@
 /** 地震预警应用启动引导模块 */
-import { readLocalStorageFlag, removeLocalStorage } from '@/shared/utils/core/local-storage.util'
+import { readLocalStorageFlag, removeLocalStorage } from '@/kernel/utils/core/local-storage.util'
 
 import { onMounted, onUnmounted, ref, watch } from 'vue'
-import { fetchEarthquakeLatest } from '@/services/api/earthquake'
-import { useEarthquakeStore } from '@/stores/earthquake.store'
-import { isEarthquakeAlertEnabled } from '@/stores/earthquake/earthquake-layout.util'
-import { useLayoutStore } from '@/stores/layout.store'
-import { useHaConnectionStore } from '@/stores/ha-connection.store'
-import { logger } from '@/shared/utils/core/logger'
+import { fetchEarthquakeLatest } from '@/domain/api/earthquake'
+import { useEarthquakeStore } from '@/features/earthquake/store/earthquake.store'
+import { isEarthquakeAlertEnabled } from '@/features/earthquake/store/earthquake-layout.util'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
+import { useHaConnectionStore } from '@/domain/ha/ha-connection.store'
+import { logger } from '@/kernel/utils/core/logger'
 
 /**
  * 地震预警应用启动引导模块

@@ -124,7 +124,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useEscLayer } from '@/composables/ui/useEscStack'
+import { useEscLayer } from '@/kernel/ui/hooks/use-esc-stack'
 import {
   Power,
   CheckSquare,
@@ -139,15 +139,15 @@ import {
   CircleCheck,
   TriangleAlert,
 } from '@lucide/vue'
-import { useExclusiveDropdown } from '@/composables/ui/popup/useExclusiveDropdown'
-import { viewportPointToPopupAnchor } from '@/composables/ui/popup/usePopupPosition'
-import { useShellTeleportTarget } from '@/composables/ui/shell/useShellTeleportTarget'
-import { getTeleportContainerSize } from '@/composables/ui/popup/popup-position-shared.util'
-import type { DeviceListItem } from '@/shared/types/device'
-import { copyTextWithNotify } from '@/services/notify'
-import { getDomainLabel } from '@/shared/device/utils/domain-labels.util'
-import { displayEntityStateLabel } from '@/shared/constants/entity-state-labels'
-import { entityPopupOpensOnClick } from '@/shared/entity/utils/popup-registry.util'
+import { useExclusiveDropdown } from '@/kernel/ui/popup/useExclusiveDropdown'
+import { viewportPointToPopupAnchor } from '@/kernel/ui/popup/usePopupPosition'
+import { useShellTeleportTarget } from '@/app/shell/composables/useShellTeleportTarget'
+import { getTeleportContainerSize } from '@/kernel/ui/popup/popup-position-shared.util'
+import type { DeviceListItem } from '@/kernel/types/device'
+import { copyTextWithNotify } from '@/kernel/ui/notify'
+import { getDomainLabel } from '@/features/device/model/utils/domain-labels.util'
+import { displayEntityStateLabel } from '@/kernel/constants/entity-state-labels'
+import { entityPopupOpensOnClick } from '@/domain/entity/model/utils/popup-registry.util'
 
 // 当前设备项与是否被选中。
 const props = defineProps<{

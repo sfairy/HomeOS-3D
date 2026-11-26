@@ -4,13 +4,13 @@
  */
 /** rooms / env-health Hub */
 import { getEnvSensorFields, useEnvSensorMap } from '@/features/settings/shared/composables/env-sensor-map.internals'
-import { useRegisterSettingsTabPending, useSettingsHubPending } from '@/composables/settings-kernel/pending.internals'
-import { useSettingsSidebarReentryReset } from '@/composables/ui/hub-viewport.internals'
-import { useEntitiesStore } from '@/stores/entities.store'
-import { useChromeStore } from '@/stores/chrome.store'
-import { downloadBlob } from '@/shared/utils/core/misc.util'
-import { envRoomTabEmoji } from '@/shared/utils/settings/tab-emoji.util'
-import { clonePlain } from '@/shared/utils/core/clone-plain.util'
+import { useRegisterSettingsTabPending, useSettingsHubPending } from '@/features/settings/kernel/pending.internals'
+import { useSettingsSidebarReentryReset } from '@/kernel/ui/hooks/hub-viewport'
+import { useEntitiesStore } from '@/domain/entity/store/entities.store'
+import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
+import { downloadBlob } from '@/kernel/utils/core/misc.util'
+import { envRoomTabEmoji } from '@/kernel/utils/settings/tab-emoji.util'
+import { clonePlain } from '@/kernel/utils/core/clone-plain.util'
 import { computed, nextTick, ref, watch } from 'vue'
 
 // ── useSettingsEnvHub ──

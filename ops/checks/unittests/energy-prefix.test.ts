@@ -19,7 +19,7 @@ import { describe, expect, test } from 'bun:test'
 import {
   resolveEntityPrefix,
   resolvePopupBalanceId,
-} from '../../../homeos/frontend/src/shared/energy/utils/source.util'
+} from '../../../homeos/frontend/src/domain/energy/model/utils/source.util'
 
 /** 与 homeos.db 里真实的 gas 配置同形（含 accountEntries，缺它无法推导前缀）。 */
 const gasConfig = {

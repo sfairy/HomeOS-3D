@@ -10,7 +10,7 @@
 export * from './page-assets'
 
 // facade 引擎（根 store ↔ studio 三类 facade 的命令/状态通道）
-export * from './engine'
+export * from './engine/index'
 
 // shell 导航（根 router 把跳转能力注册给 studio）
 export * from './platform/shell-navigation'

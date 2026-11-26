@@ -5,7 +5,7 @@
 /** 通知分析页：echarts option 构建（纯函数，无 Vue 依赖以外的状态） */
 
 import type { EChartsCoreOption } from 'echarts'
-import { getKioskAnimationOptions } from '@/composables/ui/kiosk-animation'
+import { getKioskAnimationOptions } from '@/domain/layout/composables/kiosk-animation'
 import {
   barGradient,
   CHART_EMPTY_COLOR,
@@ -16,7 +16,7 @@ import {
   pieEmptyData,
   pieSeries,
   rankCategoryAxis,
-} from '@/shared/utils/chart/chart-primitives'
+} from '@/kernel/utils/chart/chart-primitives'
 
 type AnalyticsSourceBucket = {
   key: string

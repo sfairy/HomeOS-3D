@@ -81,7 +81,7 @@ export function isEventLogWallDomain(entityRef: unknown): boolean {
 import {
   ATTR_CHANGE_TRIGGERS,
   describeAttrChange as describeAttrChangeCore,
-} from '@/shared/entity/utils/control-attr-change.util'
+} from '@/domain/entity/model/utils/control-attr-change.util'
 
 /** 该域是否有属性白名单（无 → 共享实现必返回 null，可提前跳过 JSON 深比较）。 */
 function hasEventLogAttrTriggers(domain: string): boolean {

@@ -72,11 +72,11 @@
 <script setup lang="ts">
 import { toRefs } from 'vue'
 import { useNotificationsViewAnalytics } from '../composables/useNotificationsViewAnalytics'
-import { formatPercent } from '@/shared/notifications/utils/analytics.util'
+import { formatPercent } from '@/features/notifications/model/utils/analytics.util'
 import type {
   NotificationAnalyticsSummary,
   NotificationStatsPayload,
-} from '@/shared/notifications/utils/analytics.util'
+} from '@/features/notifications/model/utils/analytics.util'
 
 // 单条通知在分析视图所需的最小字段集合（来源 / 级别 / 创建时间）
 type NotificationRow = {
@@ -110,5 +110,5 @@ const { bindSourceChart, bindLevelChart, bindRankChart, bindTimeChart, bindReadC
   })
 </script>
 
-<style src="@/assets/styles/list-page-analytics.css"></style>
+<style src="@/app/styles/list-page-analytics.css"></style>
 <style scoped src="../styles/view-analytics.css"></style>

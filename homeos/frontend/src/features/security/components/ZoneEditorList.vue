@@ -226,10 +226,10 @@
 
 <script setup>
 import { computed, onMounted, nextTick } from 'vue'
-import HosSelect from '@/components/common/base/HosSelect.vue'
+import HosSelect from '@/kernel/ui/primitives/HosSelect.vue'
 import { X, Map, Sparkles, Plus } from '@lucide/vue'
-import EntityMultiSelect from '@/components/common/entity-multi-select/EntityMultiSelect.vue'
-import HomeModeItemNav from '@/components/common/HomeModeItemNav.vue'
+import EntityMultiSelect from '@/domain/entity/components/entity-multi-select/EntityMultiSelect.vue'
+import HomeModeItemNav from '@/features/home-mode/components/HomeModeItemNav.vue'
 import { useSecurityZoneRooms } from '@/features/security/composables/useSecurityZoneRooms'
 import { useSecurityZoneEditorList } from '@/features/security/composables/useSecurityZoneEditorList'
 import '../styles/security.css'

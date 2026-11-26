@@ -18,7 +18,7 @@
 import type { StudioAppContext } from '../studio-app/studio-app-context'
 import { isPlacedItemHidden, isPlacedItemLocked } from './placed-item-state'
 import { lampItemTypeSet } from './item-catalog'
-import { libraryModeOf } from '../studio-app/ui/library-mode'
+import { libraryModeOf } from '../studio-app/ui/asset-library'
 import { isCourtyardDrawing, isCourtyardGate } from '../../plan/courtyard-drawing'
 import { isCourtyardPlanItem } from '../../plan/courtyard-plan'
 

@@ -183,21 +183,21 @@
 </template>
 
 <script setup>
-import HosSelect from '@/components/common/base/HosSelect.vue'
+import HosSelect from '@/kernel/ui/primitives/HosSelect.vue'
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Shield, AlertTriangle, Settings as SettingsIcon } from '@lucide/vue'
-import { useEntitiesStore } from '@/stores/entities.store'
-import { useHaConnectionStore } from '@/stores/ha-connection.store'
-import { useLayoutStore } from '@/stores/layout.store'
-import { useChromeStore } from '@/stores/chrome.store'
-import { useEntityDisplayEpoch } from '@/composables/entity/useEntityDisplayEpoch'
+import { useEntitiesStore } from '@/domain/entity/store/entities.store'
+import { useHaConnectionStore } from '@/domain/ha/ha-connection.store'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
+import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
+import { useEntityDisplayEpoch } from '@/domain/entity/composables/useEntityDisplayEpoch'
 import SecurityCameraTile from '@/features/security/components/CameraTile.vue'
-import HaCameraStream from '@/components/HaCameraStream.vue'
-import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
-import { primaryDoorbellCameraId } from '@/shared/utils/layout/doorbell.util'
-import { normalizeSecurityCameras } from '@/shared/utils/layout/security-cameras.util'
-import { schedulePoll } from '@/shared/utils/core/poll-scheduler'
+import HaCameraStream from '@/features/device/components/HaCameraStream.vue'
+import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
+import { primaryDoorbellCameraId } from '@/kernel/utils/layout/doorbell.util'
+import { normalizeSecurityCameras } from '@/kernel/utils/layout/security-cameras.util'
+import { schedulePoll } from '@/kernel/utils/core/poll-scheduler'
 import { GRID_MAX_ACTIVE_STREAMS } from '../constants'
 
 defineProps({

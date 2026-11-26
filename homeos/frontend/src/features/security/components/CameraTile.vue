@@ -73,9 +73,9 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useEntitiesStore } from '@/stores/entities.store'
-import HaCameraStream from '@/components/HaCameraStream.vue'
-import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
+import { useEntitiesStore } from '@/domain/entity/store/entities.store'
+import HaCameraStream from '@/features/device/components/HaCameraStream.vue'
+import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
 import { GRID_MAX_ACTIVE_STREAMS } from '../constants'
 
 // 多路网格默认最多 GRID_MAX_ACTIVE_STREAMS 路实时流（WebRTC/HLS），超出部分仅快照占位，

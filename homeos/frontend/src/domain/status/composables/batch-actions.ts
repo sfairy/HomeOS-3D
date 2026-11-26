@@ -1,0 +1,180 @@
+/** 全屋批量操作工具。 */
+import { useEntitiesStore } from '@/domain/entity/store/entities.store'
+import { getEntityDomain } from '@homeos/shared'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
+import { getWholeHomeOffConfig } from '@/kernel/constants/whole-home-off'
+import type { HaEntityState } from '@/kernel/types/entity-store'
+import type { WholeHomeOffConfig } from '@/kernel/types/whole-home-off'
+
+/** 全屋关闭可覆盖的配置项子集 */
+type WholeHomeOffOptions = Partial<
+  Pick<WholeHomeOffConfig, 'lights' | 'covers' | 'climate' | 'switches' | 'excludeEntities' | 'entityIds'>
+>
+
+/**
+ * 判断实体是否应被纳入批量操作（未被排除且在白名单内）。
+ * @param id 实体 id
+ * @param excludeSet 排除集合
+ * @param whitelist 白名单（空表示不限）
+ */
+function shouldIncludeEntity(id: string, excludeSet: Set<string>, whitelist: string[]) {
+  if (excludeSet.has(id)) return false
+  if (whitelist.length > 0 && !whitelist.includes(id)) return false
+  return true
+}
+
+/**
+ * 遍历实体 store，收集满足 filterFn 条件的实体 id。
+ * 自动跳过 unavailable / unknown 实体，并应用排除与白名单。
+ * @param filterFn 过滤函数
+ * @param excludeEntities 排除实体列表
+ * @param entityIds 白名单（空表示不限）
+ * @returns 符合条件的实体 id 列表
+ */
+function collectOnEntities(
+  filterFn: (key: string, e: HaEntityState) => boolean,
+  { excludeEntities = [], entityIds = [] }: { excludeEntities?: string[]; entityIds?: string[] } = {},
+) {
+  const store = useEntitiesStore()
+  const excludeSet = new Set(excludeEntities)
+  const whitelist = entityIds
+  const list: string[] = []
+  for (const key in store.entities) {
+    const e = store.entities[key]
+    if (e?.state === 'unavailable' || e?.state === 'unknown') continue
+    if (!shouldIncludeEntity(key, excludeSet, whitelist)) continue
+    if (filterFn(key, e)) list.push(key)
+  }
+  return list
+}
+
+/**
+ * 解析全屋关闭配置：合并 layout 配置与传入覆盖项。
+ * @param overrides 覆盖项
+ * @returns 合并后的配置
+ */
+function resolveWholeHomeOffOptions(overrides: WholeHomeOffOptions = {}) {
+  let cfg = getWholeHomeOffConfig({})
+  try {
+    cfg = getWholeHomeOffConfig(useLayoutStore().layoutConfig)
+  } catch {
+    /* store 尚未就绪 */
+  }
+  return {
+    lights: overrides.lights ?? cfg.lights,
+    covers: overrides.covers ?? cfg.covers,
+    climate: overrides.climate ?? cfg.climate,
+    switches: overrides.switches ?? cfg.switches,
+    excludeEntities: overrides.excludeEntities ?? cfg.excludeEntities,
+    entityIds: overrides.entityIds ?? cfg.entityIds,
+  }
+}
+
+/**
+ * 获取所有处于开启状态的灯实体 id。
+ * @param options 配置覆盖项
+ */
+function getAllLightsOn(options: WholeHomeOffOptions = {}) {
+  const resolvedLightsOptions = resolveWholeHomeOffOptions(options)
+  return collectOnEntities((key, e) => key.startsWith('light.') && e.state === 'on', resolvedLightsOptions)
+}
+
+/**
+ * 获取所有处于打开状态的窗帘实体 id。
+ * @param options 配置覆盖项
+ */
+function getAllCoversOpen(options: WholeHomeOffOptions = {}) {
+  const resolvedCoversOptions = resolveWholeHomeOffOptions(options)
+  return collectOnEntities((key, e) => key.startsWith('cover.') && e.state === 'open', resolvedCoversOptions)
+}
+
+/**
+ * 获取所有非关闭状态的空调/风扇实体 id。
+ * @param options 配置覆盖项
+ */
+function getAllClimateOn(options: WholeHomeOffOptions = {}) {
+  const resolvedClimateOptions = resolveWholeHomeOffOptions(options)
+  return collectOnEntities(
+    (key, e) => (key.startsWith('climate.') || key.startsWith('fan.')) && e.state !== 'off',
+    resolvedClimateOptions,
+  )
+}
+
+/**
+ * 获取所有处于开启状态的开关实体 id。
+ * @param options 配置覆盖项
+ */
+function getAllSwitchesOn(options: WholeHomeOffOptions = {}) {
+  const resolvedSwitchesOptions = resolveWholeHomeOffOptions(options)
+  return collectOnEntities((key, e) => key.startsWith('switch.') && e.state === 'on', resolvedSwitchesOptions)
+}
+
+/**
+ * 全屋批量关闭：灯 / 窗帘 / 空调风扇 / 开关（读取 layout.wholeHomeOff，可传参覆盖）。
+ *
+ * 走服务端批量接口（限并发 + 逐项结果），而不是 `Promise.allSettled` 无上限并发：
+ * 大户型一次关掉上百个设备会把 HA 与连接池同时打满，失败时也只得到一个「有几条失败」
+ * 的计数，无法定位是哪台设备。
+ *
+ * @param overrides 配置覆盖项
+ * @returns { total, ok, failed } 总数、成功数、失败数
+ */
+/** 批量条目（与 store.callServiceBatch 的入参一致）。 */
+interface BatchItem {
+  domain: string
+  service: string
+  entityId: string
+  serviceData?: Record<string, unknown>
+}
+
+/**
+ * 按配置收集「需要关闭」的条目。
+ *
+ * 抽成独立函数是为了把四段同构的 `if (开关) for (实体) push(...)` 收敛到一处：
+ * 堆在 turnOffWholeHome 里会让它迅速变长，而这段本身没有分支逻辑可言。
+ */
+function collectWholeHomeOffItems(overrides: WholeHomeOffOptions): BatchItem[] {
+  const items: BatchItem[] = []
+  if (overrides.lights) {
+    for (const id of getAllLightsOn(overrides)) {
+      items.push({ domain: 'light', service: 'turn_off', entityId: id })
+    }
+  }
+  if (overrides.covers) {
+    for (const id of getAllCoversOpen(overrides)) {
+      items.push({ domain: 'cover', service: 'close_cover', entityId: id })
+    }
+  }
+  if (overrides.climate) {
+    for (const id of getAllClimateOn(overrides)) {
+      const domain = getEntityDomain(id)
+      // climate 设为 off 模式；fan 直接关闭
+      const service = domain === 'climate' ? 'set_hvac_mode' : 'turn_off'
+      const serviceData = domain === 'climate' ? { hvac_mode: 'off' } : undefined
+      items.push({ domain, service, entityId: id, serviceData })
+    }
+  }
+  if (overrides.switches) {
+    for (const id of getAllSwitchesOn(overrides)) {
+      items.push({ domain: 'switch', service: 'turn_off', entityId: id })
+    }
+  }
+  return items
+}
+
+/**
+ * 全屋批量关闭：灯 / 窗帘 / 空调风扇 / 开关（读取 layout.wholeHomeOff，可传参覆盖）。
+ *
+ * 走服务端批量接口（限并发 + 逐项结果），而不是 `Promise.allSettled` 无上限并发：
+ * 大户型一次关掉上百个设备会把 HA 与连接池同时打满，失败时也只得到一个「有几条失败」
+ * 的计数，无法定位是哪台设备。
+ *
+ * @param overrides 配置覆盖项
+ * @returns { total, ok, failed } 总数、成功数、失败数
+ */
+export async function turnOffWholeHome(overrides: WholeHomeOffOptions = {}) {
+  const items = collectWholeHomeOffItems(resolveWholeHomeOffOptions(overrides))
+  if (!items.length) return { total: 0, ok: 0, failed: 0 }
+  const summary = await useEntitiesStore().callServiceBatch(items, { quiet: true })
+  return { total: summary.total, ok: summary.ok, failed: summary.failed }
+}

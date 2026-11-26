@@ -3,15 +3,15 @@
  * @module frontend/src/features/events/composables
  */
 import { ref, computed, watch, type Ref } from 'vue'
-import { fetchEventStats, fetchEvents, fetchEventMeta, clearEvents } from '@/services/api/entities'
-import type { useChromeStore } from '@/stores/chrome.store'
-import { logger } from '@/shared/utils/core/logger'
-import { getApiErrorMessage } from '@/shared/utils/core/error-message'
-import { notifyError } from '@/services/notify'
-import { configEpoch, getEventLogConfig } from '@/shared/utils/config/frontend-config'
-import { formatCount, hoursLabel, normalizeByDomain } from '@/shared/events/utils/events-display.util'
-import { getEntityDisplayName, hasEntityFriendlyName } from '@/shared/entity/utils/derived.util'
-import type { useEntitiesStore } from '@/stores/entities.store'
+import { fetchEventStats, fetchEvents, fetchEventMeta, clearEvents } from '@/domain/api/entities'
+import type { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
+import { logger } from '@/kernel/utils/core/logger'
+import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
+import { notifyError } from '@/kernel/ui/notify'
+import { configEpoch, getEventLogConfig } from '@/kernel/utils/config/frontend-config'
+import { formatCount, hoursLabel, normalizeByDomain } from '@/features/events/model/utils/events-display.util'
+import { getEntityDisplayName, hasEntityFriendlyName } from '@/domain/entity/model/utils/derived.util'
+import type { useEntitiesStore } from '@/domain/entity/store/entities.store'
 
 type EntitiesStore = ReturnType<typeof useEntitiesStore>
 type ChromeStore = ReturnType<typeof useChromeStore>

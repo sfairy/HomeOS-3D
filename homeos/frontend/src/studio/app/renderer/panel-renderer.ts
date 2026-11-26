@@ -8,8 +8,8 @@ import {
   renderRegisteredComponent as renderRegisteredComponent2,
   setBuiltinAssetVersions as setBuiltinAssetVersions2,
   staticAssetImageSource as staticAssetImageSource2,
-} from './registry'
-import { onPageCacheResume, onPageCacheSuspend } from '../../../shared/utils/page-cache-lifecycle'
+} from './registry/index'
+import { onPageCacheResume, onPageCacheSuspend } from '../../../kernel/utils/page-cache-lifecycle'
 import { createDashboardFonts, reportDashboardFontError } from '../shared/dashboard-fonts'
 import { randomUuid as randomUuid2 } from '../shared/util/random-id'
 

@@ -5,16 +5,16 @@
 -->
 <script setup>
 import { computed } from 'vue'
-import ApiQueryState from '@/components/common/ApiQueryState.vue'
-import HaDegradeBanner from '@/components/common/HaDegradeBanner.vue'
-import VEmptyState from '@/components/common/base/VEmptyState.vue'
-import VirtualList from '@/components/common/base/VirtualList.vue'
-import { formatDetailedDateTimeOrDash } from '@/shared/utils/format/locale-format.util'
-import { getDomainLabel } from '@/shared/device/utils/domain-labels.util'
-import { displayEventState, entityDomain, entityObjectId } from '@/shared/events/utils/events-display.util'
-import { displayEntityStateLabel } from '@/shared/constants/entity-state-labels'
-import { useEntitiesStore } from '@/stores/entities.store'
-import { useHaDegrade } from '@/composables/ui/useHaDegrade'
+import ApiQueryState from '@/kernel/ui/ApiQueryState.vue'
+import HaDegradeBanner from '@/domain/entity/components/HaDegradeBanner.vue'
+import VEmptyState from '@/kernel/ui/primitives/VEmptyState.vue'
+import VirtualList from '@/kernel/ui/primitives/VirtualList.vue'
+import { formatDetailedDateTimeOrDash } from '@/kernel/utils/format/locale-format.util'
+import { getDomainLabel } from '@/features/device/model/utils/domain-labels.util'
+import { displayEventState, entityDomain, entityObjectId } from '@/features/events/model/utils/events-display.util'
+import { displayEntityStateLabel } from '@/kernel/constants/entity-state-labels'
+import { useEntitiesStore } from '@/domain/entity/store/entities.store'
+import { useHaDegrade } from '@/domain/entity/composables/use-ha-degrade'
 
 defineProps({
   loading: { type: Boolean, default: false },

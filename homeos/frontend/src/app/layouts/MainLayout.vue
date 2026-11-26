@@ -1,0 +1,767 @@
+<!--
+  横屏大屏主布局外壳。顶部 Tab 导航栏（品牌 Logo、连接状态点、家庭模式切换 HomeModeSwitcher、
+  导航 Tab、门铃/管家/通知按钮），中部 router-view + keep-alive(max=8) 缓存页面视图，
+  全屏装配全局浮层：门铃 DoorbellAlertModal、地震预警
+  EarthquakeAlertOverlay/SetupWizard、设置锁 SettingsLockModal、Entity 控制 EntityControlHost、
+  （媒体全屏 MediaPlayerModal 挂在 App.vue 根，供画布 more-info / 展示页共用）
+  屏保 Screensaver、引导 GuidedTourOverlay、智能管家 AgentChatPalette、
+  通知抽屉 NotificationDrawer，以及 HA 实时降级横幅 HaStatusDegradeBanner +
+  SetupChecklistBanner + ColdEntityPerfBanner。
+  注意事项：壳层浮层（MediaPlayer/Doorbell/Earthquake 等 8 项）统一懒加载 shell-overlays 合并 chunk，
+  减少首屏请求；横屏 ≥1280px 桌面断点启用；地震/设置锁/儿童模式优先级高于普通浮层。
+-->
+<script setup>
+import { computed, defineAsyncComponent, watch, onMounted, onUnmounted, ref, provide, nextTick } from 'vue'
+import { Bell, Ellipsis, ChevronDown, MessageCircle } from '@lucide/vue'
+import { useAuthStore } from '@/features/auth/store/auth.store'
+import { useNotificationCenter } from '@/domain/widget/composables/useNotificationCenter'
+import { NOTIFICATION_CENTER_KEY } from '@/domain/widget/composables/notification-center.context'
+import { useTeleportTargetGuard } from '@/app/shell/composables/useTeleportTargetGuard'
+import EntityControlHost from '@/features/entity/components/EntityControlHost.vue'
+import ScaledViewport from '@/app/layouts/ScaledViewport.vue'
+import { AlertOverlay as EarthquakeAlertOverlay, CencBulletinCard } from '@/features/earthquake/index'
+import AgentChatPalette from '@/features/agent/components/widgets/AgentChatPalette.vue'
+import AgentCompanion from '@/features/agent/components/AgentCompanion.vue'
+/** 壳层浮层合并为同一动态 chunk，避免 8+ 次独立小请求（媒体全屏已挂 App 根） */
+const loadShellOverlays = () => import('@/app/layouts/shell-overlays')
+const DoorbellAlertModal = defineAsyncComponent(() => loadShellOverlays().then((m) => m.DoorbellAlertModal))
+const EarthquakeSetupWizard = defineAsyncComponent(() => loadShellOverlays().then((m) => m.EarthquakeSetupWizard))
+const SetupChecklistBanner = defineAsyncComponent(() => loadShellOverlays().then((m) => m.SetupChecklistBanner))
+const ColdEntityPerfBanner = defineAsyncComponent(() => loadShellOverlays().then((m) => m.ColdEntityPerfBanner))
+const SettingsLockModal = defineAsyncComponent(() => loadShellOverlays().then((m) => m.SettingsLockModal))
+import { HomeModeSwitcher } from '@/features/home-mode/index'
+import HaStatusDegradeBanner from '@/domain/entity/components/HaStatusDegradeBanner.vue'
+const NotificationDrawer = defineAsyncComponent(() => loadShellOverlays().then((m) => m.NotificationDrawer))
+import { useMainLayoutChrome } from '@/app/shell/composables/useMainLayoutChrome'
+import { useDailyAdvisorGreeting } from '@/features/voice/composables/useDailyAdvisorGreeting'
+import { useEntityWsSubscriptionSync } from '@/domain/entity/composables/useEntityWsSubscriptionSync'
+import { useEarthquakeBootstrap } from '@/features/earthquake/index'
+import { useDisplayLightBackdropState } from '@/features/dashboard/composables/display-light-backdrop'
+import { setDerivedRoutePath } from '@/domain/entity/model/utils/derived-route.util'
+import { resolvePerfShellClass } from '@/kernel/utils/perf/adaptive-perf.util'
+import { autoPerformanceModeRef, resolveEffectivePerformanceMode } from '@/kernel/utils/perf/runtime-perf-mode.util'
+import { applyGlassEffectDocument } from '@/kernel/utils/ui/glass-effect.util'
+import { isNavTabRouteActive } from '@/kernel/utils/layout/nav-tabs.util'
+import { useViewportTier } from '@/kernel/utils/layout/viewport-tier.util'
+import { useCanvasMetrics } from '@/kernel/ui/hooks/use-canvas-metrics'
+import {
+  buildDropdownFixedStyle,
+  rectToDropdownPosition,
+  viewportPointToPopupAnchor,
+  measureDropdownFitWidth,
+} from '@/kernel/ui/popup/popup-position-dropdown.util'
+import { useShellTeleportTarget } from '@/app/shell/composables/useShellTeleportTarget'
+import { useEscLayer } from '@/kernel/ui/hooks/use-esc-stack'
+import { isLicenseFeatureGranted } from '@/app/router/license-gate'
+import { getTeleportContainerSize } from '@/kernel/ui/popup/popup-position-shared.util'
+import Screensaver from '@/features/dashboard/components/screensaver/Screensaver.vue'
+// 仪表盘外壳：浮动组件 / 右侧栏 / 页脚。
+const FloatingHub = defineAsyncComponent(() => import('@/app/shell/FloatingHub.vue'))
+const RightSidebar = defineAsyncComponent(() => import('@/features/dashboard/components/RightSidebar.vue'))
+const DashboardFooter = defineAsyncComponent(() => import('@/features/dashboard/components/Footer.vue'))
+// 设备分组批量弹窗：右栏 quickActions 点击设备组时打开，
+// 状态源在 chrome store（isGroupModalOpen / groupModalDomain / groupModalSensors）。
+// 与其它壳层浮层合并进 shell-overlays chunk，避免额外小请求。
+const DeviceGroupModal = defineAsyncComponent(() => loadShellOverlays().then((m) => m.DeviceGroupModal))
+
+const {
+  route,
+  layoutStore,
+  chrome,
+  navFrameStyle,
+  siteTitle,
+  brandLogoUrl,
+  handleTripleClick,
+  menuItems,
+  dropdownMenuItems,
+  navMoreOpen,
+  navMoreActive,
+  showWholeHomeOff,
+  haControlBlocked,
+  onWholeHomeOff,
+  showSettingsTab,
+  isSettingsLocked,
+  onSettingsClick,
+  toggleFullscreen,
+  statusRail,
+  doorbellCameraId,
+  doorbellTriggerEntityId,
+  doorbellLockEntityId,
+  doorbellLabel,
+  isSettingsLockOpen,
+  onUnlockSuccess,
+  agentDocked,
+  Settings,
+  Maximize2,
+  Loader2,
+  PowerOff,
+} = useMainLayoutChrome()
+
+const authStore = useAuthStore()
+// 三类全屏/抽屉浮层互斥开关：同一时刻只能打开一个，打开新面板时主动关闭其余两个
+const showNotificationDrawer = ref(false)
+const notificationCenterState = useNotificationCenter()
+// 注入通知中心上下文，供 NotificationDrawer 与下游组件通过 inject 消费
+provide(NOTIFICATION_CENTER_KEY, notificationCenterState)
+
+/** 壳层入口：未授权模块收起入口（后端仍是权威 403）。明细未加载时 fail-closed，避免闪现。 */
+const showAgentChrome = computed(() => authStore.isAuthenticated && isLicenseFeatureGranted('module.agent'))
+const showHomeModeChrome = computed(() => isLicenseFeatureGranted('module.home_mode'))
+const showNotificationChrome = computed(
+  () => authStore.isAuthenticated && isLicenseFeatureGranted('module.notifications'),
+)
+
+// 智能管家弹层开关提升到 chrome store：与仪表板入口共享同一状态源（首页卡片 / 悬浮按钮 / 顶栏按钮互通）
+const showAgentChat = computed({
+  get: () => chrome.isAgentChatOpen,
+  set: (v) => (v ? chrome.openAgentChat() : chrome.closeAgentChat()),
+})
+
+const notificationUnread = computed(() => notificationCenterState?.unreadCount?.value ?? 0)
+
+// 授权收回时关掉已打开的壳层浮层，避免无入口却仍挂着面板。
+watch(showAgentChrome, (ok) => {
+  if (!ok) showAgentChat.value = false
+})
+watch(showNotificationChrome, (ok) => {
+  if (!ok) closeNotificationDrawer()
+})
+// 从通知中心「让管家处理」直接进对话：抽屉让位，保持浮层互斥
+watch(showAgentChat, (open) => {
+  if (open && showNotificationDrawer.value) showNotificationDrawer.value = false
+})
+
+/** 打开通知抽屉：关闭智能管家，确保浮层互斥 */
+function openNotificationDrawer() {
+  showAgentChat.value = false
+  showNotificationDrawer.value = true
+}
+
+function closeNotificationDrawer() {
+  showNotificationDrawer.value = false
+}
+
+/** 切换智能管家面板：关闭通知，确保浮层互斥 */
+function toggleAgentChat() {
+  showNotificationDrawer.value = false
+  showAgentChat.value = !showAgentChat.value
+}
+
+/**
+ * 主布局自身浮层（智能管家面板 / 通知抽屉 / “更多”菜单）是否有任一层在场上。
+ * 任一在场上时主布局才参与 Esc 层级栈，否则不占层。
+ */
+const mainLayoutEscLayerOpen = computed(() => showAgentChat.value || showNotificationDrawer.value || navMoreOpen.value)
+
+/**
+ * 主布局浮层的 Esc 处理：只关自己这三层里最上面那一个。
+ *
+ * 这三层由主布局统一持有状态（子组件只 emit），所以合并成一层入栈；
+ * 主布局 setup 早于子组件，压栈位置天然在更晚打开的浮层之下，优先级正确。
+ */
+function onEscLayer() {
+  if (showAgentChat.value) {
+    showAgentChat.value = false
+    return
+  }
+  if (showNotificationDrawer.value) {
+    closeNotificationDrawer()
+    return
+  }
+  navMoreOpen.value = false
+}
+
+useEscLayer(mainLayoutEscLayerOpen, onEscLayer)
+
+const navMoreAnchorRef = ref(null)
+const navMoreMenuRef = ref(null)
+// “更多”菜单的定位样式：未打开时隐藏（visibility:hidden），避免空白占用导致布局抖动
+const navMoreMenuStyle = ref({ visibility: 'hidden' })
+const { teleportTarget: navMoreTeleportTo, shellTeleportPending, refreshShellTeleport } = useShellTeleportTarget()
+// “更多”下拉菜单的宽度上下限：项目估算高度 44px/行 + 16px padding
+const NAV_MORE_MIN_WIDTH = 120
+const NAV_MORE_MAX_WIDTH = 280
+
+/**
+ * 重新计算“更多”下拉菜单的固定定位。
+ *
+ * 流程：读取锚点 rect → 估算高度 → 测量容器宽度 → 测量菜单内容适配宽度 →
+ *      转换为 fixed 坐标（兼容 transform/scale 缩放）→ 边界对齐到视口内。
+ *
+ * @remarks 由于 app-shell 在 ScaledViewport 中可能被 transform 缩放，必须用
+ * viewportPointToPopupAnchor 把视口坐标转换为 Teleport 容器坐标，否则会出现偏移。
+ */
+function updateNavMorePosition() {
+  const anchor = navMoreAnchorRef.value
+  if (!navMoreOpen.value || !anchor) {
+    navMoreMenuStyle.value = { visibility: 'hidden' }
+    return
+  }
+  const rect = anchor.getBoundingClientRect()
+  const estimatedHeight = dropdownMenuItems.value.length * 44 + 16
+  const { cw } = getTeleportContainerSize()
+  const maxW = Math.min(NAV_MORE_MAX_WIDTH, Math.max(NAV_MORE_MIN_WIDTH, cw - 16))
+  const menuWidth = measureDropdownFitWidth(navMoreMenuRef.value, {
+    minWidth: NAV_MORE_MIN_WIDTH,
+    maxWidth: maxW,
+  })
+  const pos = rectToDropdownPosition(rect, 8, menuWidth, {
+    estimatedHeight,
+    margin: 8,
+  })
+  const { anchorX: anchorRight } = viewportPointToPopupAnchor(rect.right, rect.top)
+  let left = Math.max(8, anchorRight - menuWidth)
+  if (left + menuWidth > cw - 8) left = Math.max(8, cw - 8 - menuWidth)
+  const baseStyle = buildDropdownFixedStyle({ ...pos, left, width: menuWidth })
+  navMoreMenuStyle.value = {
+    ...baseStyle,
+    left: `${left}px`,
+    width: `${menuWidth}px`,
+  }
+}
+
+/**
+ * 排队重算“更多”菜单位置：Teleport 容器刷新 + 同步/下一帧/RAF 三次重算。
+ *
+ * @remarks 多次重算是因为 Teleport 目标挂载、菜单 DOM 渲染、字体测量都存在延迟；
+ * 下一帧 + RAF 双保险确保菜单最终位置准确，避免首次打开时闪位。
+ */
+function scheduleNavMorePosition() {
+  refreshShellTeleport()
+  updateNavMorePosition()
+  nextTick(() => {
+    updateNavMorePosition()
+    if (typeof requestAnimationFrame !== 'undefined') {
+      requestAnimationFrame(updateNavMorePosition)
+    }
+  })
+}
+
+/** 视口变化（resize/scroll/visualViewport）回调：仅在菜单打开时重算位置 */
+function onNavMoreViewportChange() {
+  if (navMoreOpen.value) scheduleNavMorePosition()
+}
+
+watch(navMoreOpen, (open) => {
+  if (open) {
+    scheduleNavMorePosition()
+    // 打开后把焦点送进菜单（键盘用户不必再 Tab 逐个跳）；关闭时还给触发按钮
+    nextTick(() => focusMenuItem(0))
+  } else if (navMoreAnchorRef.value) {
+    const active = document.activeElement
+    const inMenu = !!active && !!navMoreMenuRef.value?.contains(active)
+    if (inMenu) navMoreAnchorRef.value.querySelector('button')?.focus()
+  }
+})
+
+/**
+ * 「更多」菜单的键盘导航（WAI-ARIA menu 模式）。
+ *
+ * 为什么必须有：顶栏 Tab 在窄视口/平板档会被收纳进「更多」（见 capBarItemsForViewport），
+ * 一旦收纳，鼠标/触控以外的用户只能靠 Tab 逐项跳，且没有视觉焦点顺序保障。
+ * 这里实现 roving focus：↑/↓ 循环、Home/End 跳首尾、Esc 关闭并归还焦点。
+ */
+function menuItemEls() {
+  const menuRoot = navMoreMenuRef.value
+  if (!menuRoot) return []
+  return Array.from(menuRoot.querySelectorAll('[role="menuitem"]'))
+}
+
+/**
+ * 把焦点移到第 index 项，并把其余项设为 tabindex=-1（roving tabindex）。
+ * @param index 目标项序号（越界会取模循环）
+ */
+function focusMenuItem(index) {
+  const items = menuItemEls()
+  if (!items.length) return
+  const next = ((index % items.length) + items.length) % items.length
+  items.forEach((el, i) => {
+    el.tabIndex = i === next ? 0 : -1
+  })
+  items[next].focus()
+}
+
+/**
+ * 菜单内按键处理。
+ * @param event 键盘事件
+ */
+function onNavMoreKeydown(event) {
+  const items = menuItemEls()
+  if (!items.length) return
+  const current = items.indexOf(document.activeElement)
+  switch (event.key) {
+    case 'ArrowDown':
+      event.preventDefault()
+      focusMenuItem(current + 1)
+      break
+    case 'ArrowUp':
+      event.preventDefault()
+      focusMenuItem(current - 1)
+      break
+    case 'Home':
+      event.preventDefault()
+      focusMenuItem(0)
+      break
+    case 'End':
+      event.preventDefault()
+      focusMenuItem(items.length - 1)
+      break
+    case 'Escape':
+      event.preventDefault()
+      navMoreOpen.value = false
+      break
+    case 'Tab':
+      // 让 Tab 正常离开菜单并关闭，避免焦点停在被遮罩的菜单项上
+      navMoreOpen.value = false
+      break
+    default:
+      break
+  }
+}
+
+watch(dropdownMenuItems, () => {
+  if (navMoreOpen.value) scheduleNavMorePosition()
+})
+
+// 注册视口/滚动变化监听（用于重算“更多”菜单位置）
+// 注：resize/scroll 使用 passive:true，因为这里不需要 preventDefault
+// Esc 不在这里注册：已改走全局 Esc 层级栈（useEscLayer），避免与其它浮层抢同一次按键
+onMounted(() => {
+  window.addEventListener('resize', onNavMoreViewportChange, { passive: true })
+  window.addEventListener('scroll', onNavMoreViewportChange, { passive: true, capture: true })
+  window.visualViewport?.addEventListener('resize', onNavMoreViewportChange)
+  window.visualViewport?.addEventListener('scroll', onNavMoreViewportChange)
+})
+// 卸载时同步移除监听，参数需与 add 完全一致（含 capture）
+onUnmounted(() => {
+  window.removeEventListener('resize', onNavMoreViewportChange)
+  window.removeEventListener('scroll', onNavMoreViewportChange, { capture: true })
+  window.visualViewport?.removeEventListener('resize', onNavMoreViewportChange)
+  window.visualViewport?.removeEventListener('scroll', onNavMoreViewportChange)
+})
+
+// 路由切换时清理所有全屏浮层与残留遮罩
+watch(
+  () => route.path,
+  () => {
+    closeNotificationDrawer()
+    showAgentChat.value = false
+  },
+)
+
+// 校验 teleport-target 容器是否被外部代码误清空，必要时重建（防御性 HA 集成处理）
+useTeleportTargetGuard()
+
+// 性能自适应：根据「保存的档位 + 本终端自动降档」解析需要附加到 app-shell 的 class
+// （如降低 backdrop-filter、关闭装饰性动画与模糊层等）
+const perfShellClass = computed(() => resolvePerfShellClass(layoutStore.layoutConfig.performanceMode))
+
+/**
+ * 开关灯背景图（复刻原 homeos `DashboardView` 的 `absolute inset-0` 背景层）：
+ * 只在总览首页（`dashboard`）启用。
+ *
+ * 关键：本层渲染在 `.app-shell__content` 内（`position: absolute`），因此覆盖范围恰好是
+ * **页面布局区域** —— 导航（tab-bar）+ 户型图（main-content）+ 侧边栏（shell-right-sidebar）
+ * + 底部信息栏（shell-footer），并随缩放壳层等比缩放。
+ *
+ * 不能用 `position: fixed`：那会铺满整个浏览器页面，在缩放留白处溢出到布局区域之外。
+ * 独立整屏大屏（`display` / `homeos`，无 `.app-shell`）仍由 App.vue 的固定层负责。
+ */
+const showLightBackdrop = computed(() => route.name === 'dashboard')
+const lightBackdrop = useDisplayLightBackdropState()
+const lightBackdropStyle = computed(() =>
+  showLightBackdrop.value ? { backgroundImage: `url('${lightBackdrop.value.url}')` } : {},
+)
+
+// 实体 WebSocket 订阅同步：根据当前可见实体范围订阅 HA 实体状态推送
+useEntityWsSubscriptionSync()
+// 地震功能引导向导：首次使用或缺少地震传感器时弹出引导
+const { showSetupWizard } = useEarthquakeBootstrap()
+// 将当前路由同步给派生路由工具，供实体详情等派生页面回退使用
+watch(
+  () => route.path,
+  (path) => setDerivedRoutePath(path),
+  { immediate: true },
+)
+// 视口档位：写 <html data-viewport-tier>，供壳层 / 大屏适配的 CSS 统一消费。
+// 基准必须传画布宽度：档位语义是「这块画布有多宽」，窗口宽度在缩放态下会错档。
+const { canvasWidth: canvasTierWidth } = useCanvasMetrics()
+useViewportTier(canvasTierWidth)
+
+// 每日顾问问候：必须等 isConfigLoaded，否则读到的是前端默认值（dailyAdvisorSpeak=false 永不触发）。
+const { maybeGreet: maybeDailyGreet } = useDailyAdvisorGreeting()
+watch(
+  () => layoutStore.isConfigLoaded,
+  (loaded) => loaded && maybeDailyGreet(),
+  { immediate: true },
+)
+
+// 玻璃拟态开关随配置变化：性能模式降级时强制关闭毛玻璃，避免低端设备掉帧。
+// 自动降档（设备能力 / 帧率回落）只在运行时生效，这里同样要跟着它走。
+watch(
+  () => [layoutStore.layoutConfig.glassEffect, layoutStore.layoutConfig.performanceMode, autoPerformanceModeRef.value],
+  () =>
+    applyGlassEffectDocument(
+      layoutStore.layoutConfig.glassEffect,
+      resolveEffectivePerformanceMode(layoutStore.layoutConfig.performanceMode),
+    ),
+  { immediate: true },
+)
+</script>
+
+<template>
+  <div>
+    <!-- 无障碍跳转链接：键盘用户跳过顶栏直达主内容 -->
+    <a href="#main-content" class="skip-link">{{ '跳到主内容' }}</a>
+    <ScaledViewport
+      notification-placement="below-topbar"
+      :frame-style="navFrameStyle"
+      :shell-class="[perfShellClass, { 'app-shell--light-backdrop': showLightBackdrop }]"
+    >
+      <!--
+        开关灯背景图层（原 homeos DashboardView 效果）：定位基准是 `.app-shell__content`，
+        即「导航 + 户型图 + 侧边栏 + 底部信息栏」这一页面布局区域；3D 场景与各区域叠于其上。
+        必须是 ScaledViewport 默认插槽的第一个子节点，才能随缩放壳层一起等比缩放。
+      -->
+      <div
+        v-if="showLightBackdrop"
+        class="homeos-light-backdrop homeos-light-backdrop--layout"
+        :style="lightBackdropStyle"
+        aria-hidden="true"
+      />
+      <!-- 整个顶栏是隐藏功能的触发面（三连击），所以点击监听挂在 header 而不是某个按钮上 -->
+      <header class="tab-bar" role="banner" :style="navFrameStyle" @click="handleTripleClick">
+        <div class="tab-bar__brand">
+          <div class="logo-wrapper">
+            <img :src="brandLogoUrl" class="logo-img" :alt="'标志'" />
+          </div>
+          <div class="tab-bar__brand-text">
+            <span class="tab-bar__title">{{ siteTitle }}</span>
+          </div>
+        </div>
+        <HomeModeSwitcher v-if="showHomeModeChrome" class="tab-bar__mode-switcher" />
+        <div class="tab-bar__nav-wrap" :class="{ 'tab-bar__nav-wrap--menu-open': navMoreOpen }">
+          <nav class="tab-bar__tabs" role="navigation" :aria-label="'主导航'">
+            <router-link
+              v-for="item in menuItems"
+              :key="item.id"
+              :to="item.path"
+              custom
+              v-slot="{ navigate, href }"
+            >
+              <a
+                :href="href"
+                class="tab-bar__tab"
+                :class="{ 'tab-bar__tab--active': isNavTabRouteActive(item.path, route.path) }"
+                :style="{
+                  '--tab-accent': item.accent,
+                  '--tab-icon-accent': item.accent,
+                }"
+                :aria-label="item.label"
+                :aria-current="isNavTabRouteActive(item.path, route.path) ? 'page' : undefined"
+                :title="item.label"
+                @click="navigate"
+              >
+                <span class="tab-bar__tab-icon">
+                  <img
+                    v-if="item.type === 'svg'"
+                    :src="item.icon"
+                    class="tab-bar__tab-svg"
+                    alt=""
+                  />
+                  <component v-else :is="item.icon" class="tab-bar__tab-svg" />
+                </span>
+                <span class="tab-bar__tab-label">{{ item.label }}</span>
+              </a>
+            </router-link>
+            <div
+              v-if="dropdownMenuItems.length"
+              ref="navMoreAnchorRef"
+              class="tab-bar__more-wrap"
+              :class="{ 'tab-bar__more-wrap--open': navMoreOpen }"
+            >
+              <button
+                type="button"
+                class="tab-bar__tab tab-bar__tab--more"
+                :class="{ 'tab-bar__tab--active': navMoreActive || navMoreOpen }"
+                :style="{ '--tab-accent': '#94a3b8', '--tab-icon-accent': '#94a3b8' }"
+                :aria-label="'更多导航'"
+                :aria-expanded="navMoreOpen"
+                aria-haspopup="menu"
+                @click.stop="navMoreOpen = !navMoreOpen"
+              >
+                <span class="tab-bar__tab-icon">
+                  <Ellipsis class="tab-bar__tab-svg" />
+                </span>
+                <span class="tab-bar__tab-label">{{ '更多' }}</span>
+                <ChevronDown class="tab-bar__more-chevron" aria-hidden="true" />
+              </button>
+            </div>
+          </nav>
+        </div>
+        <Teleport
+          v-if="navMoreOpen"
+          :to="navMoreTeleportTo"
+          :disabled="shellTeleportPending"
+        >
+          <div class="tab-bar__more-portal">
+            <div class="tab-bar__more-backdrop" aria-hidden="true" @click="navMoreOpen = false" />
+            <div
+              ref="navMoreMenuRef"
+              class="tab-bar__more-menu"
+              role="menu"
+              :aria-label="'更多导航'"
+              :style="navMoreMenuStyle"
+              @click.stop
+              @keydown="onNavMoreKeydown"
+            >
+              <router-link
+                v-for="item in dropdownMenuItems"
+                :key="item.id"
+                :to="item.path"
+                custom
+                v-slot="{ navigate, href }"
+              >
+                <a
+                  :href="href"
+                  role="menuitem"
+                  class="tab-bar__more-item"
+                  :class="{
+                    'tab-bar__more-item--active': isNavTabRouteActive(item.path, route.path),
+                  }"
+                  :style="{ '--tab-accent': item.accent, '--tab-icon-accent': item.accent }"
+                  :aria-current="isNavTabRouteActive(item.path, route.path) ? 'page' : undefined"
+                  @click="
+                    () => {
+                      navigate()
+                      navMoreOpen = false
+                    }
+                  "
+                >
+                  <span class="tab-bar__more-item-icon">
+                    <img
+                      v-if="item.type === 'svg'"
+                      :src="item.icon"
+                      class="tab-bar__tab-svg"
+                      alt=""
+                    />
+                    <component v-else :is="item.icon" class="tab-bar__tab-svg" />
+                  </span>
+                  <span>{{ item.label }}</span>
+                </a>
+              </router-link>
+            </div>
+          </div>
+        </Teleport>
+        <div class="tab-bar__actions">
+          <button
+            v-if="showAgentChrome"
+            type="button"
+            class="icon-btn"
+            :class="{ 'icon-btn--active': showAgentChat }"
+            :title="'智能管家'"
+            :aria-label="'智能管家'"
+            :aria-expanded="showAgentChat"
+            @click="toggleAgentChat"
+          >
+            <MessageCircle class="w-4 h-4" />
+          </button>
+          <div v-if="showNotificationChrome" class="notify-anchor">
+            <button
+              type="button"
+              class="icon-btn icon-btn--notify icon-btn--keep"
+              :class="{ 'icon-btn--active': showNotificationDrawer }"
+              :title="
+                notificationUnread > 0 ? `通知中心（${notificationUnread} 条未读）` : '通知中心'
+              "
+              :aria-label="
+                notificationUnread > 0 ? `通知中心，${notificationUnread} 条未读` : '通知中心'
+              "
+              :aria-expanded="showNotificationDrawer"
+              aria-controls="global-notification-panel"
+              @click.stop="openNotificationDrawer"
+            >
+              <Bell class="w-4 h-4" />
+              <span v-if="notificationUnread > 0" class="notify-badge" aria-hidden="true">
+                {{ notificationUnread > 99 ? '99+' : notificationUnread }}
+              </span>
+            </button>
+          </div>
+          <button
+            v-if="showWholeHomeOff"
+            type="button"
+            class="icon-btn icon-btn--keep"
+            :disabled="haControlBlocked"
+            :title="haControlBlocked ? 'HA 未就绪，暂不可全屋关闭' : '全屋关闭'"
+            :aria-label="haControlBlocked ? 'HA 未就绪，暂不可全屋关闭' : '全屋关闭'"
+            @click="onWholeHomeOff"
+          >
+            <PowerOff class="w-4 h-4" />
+          </button>
+          <template v-if="showSettingsTab">
+            <button
+              v-if="isSettingsLocked"
+              type="button"
+              class="icon-btn icon-btn--keep"
+              :title="'设置'"
+              :aria-label="'设置'"
+              @click="onSettingsClick"
+            >
+              <Settings class="w-4 h-4" />
+            </button>
+            <router-link
+              v-else
+              to="/settings"
+              custom
+              v-slot="{ navigate, href }"
+            >
+              <a
+                :href="href"
+                class="icon-btn icon-btn--keep"
+                :title="'设置'"
+                :aria-label="'设置'"
+                @click="navigate"
+              >
+                <Settings class="w-4 h-4" />
+              </a>
+            </router-link>
+          </template>
+          <button @click="toggleFullscreen" class="icon-btn" :title="'全屏'" :aria-label="'全屏'">
+            <Maximize2 class="w-4 h-4" />
+          </button>
+        </div>
+      </header>
+
+      <SetupChecklistBanner />
+      <ColdEntityPerfBanner />
+      <div
+        v-if="statusRail"
+        class="ha-status-bar"
+        :class="{
+          'ha-status-bar--danger': statusRail.severity === 'danger',
+          'ha-status-bar--info': statusRail.severity === 'info',
+        }"
+        role="status"
+      >
+        <Loader2 class="w-4 h-4 shrink-0 animate-spin" />
+        <span class="ha-status-bar__text">{{ statusRail.text }}</span>
+      </div>
+
+      <!-- HA 断连 / 重连 / 实体过期 / 丢弃指令统一走 HaStatusDegradeBanner。
+           右上紧凑 toast；横幅可见时锚点预留高度，避免盖住内容（LAY-05）。
+           连接恢复（connected 且非 stale）后组件内部 v-if 自动移除。 -->
+      <div class="main-layout__ha-anchor">
+        <HaStatusDegradeBanner class="main-layout__ha-banner" title="实时状态" />
+      </div>
+
+      <!-- 内容行：仪表盘路由下与右侧栏并排，
+           其余路由只渲染内容区，不改变原有几何。 -->
+      <div
+        class="dashboard-shell"
+        :class="{ 'dashboard-shell--dashboard': route.name === 'dashboard' }"
+      >
+        <main id="main-content" class="main-content" tabindex="-1">
+          <router-view v-slot="{ Component, route: childRoute }">
+            <!-- keep-alive 缓存最多 8 个路由组件实例。
+                 key 用 fullPath + projectId 而不用 path：同一路由下切换 query/项目（3D 编辑器按
+                 projectId 换户型）时，path 不变会让旧实例被复用 —— 表现为「换了项目但画面还是上一个」。
+                 带上 fullPath 后不同项目/查询各自成实例，:max=8 仍会淘汰最久未用的。 -->
+            <keep-alive :max="8">
+              <component
+                :is="Component"
+                v-if="Component"
+                :key="childRoute.fullPath + '|' + (childRoute.params.projectId ?? '')"
+              />
+            </keep-alive>
+          </router-view>
+
+          <!-- 浮动控制中心：锚定在内容区。
+               部件按 xPct/yPct 相对内容区定位；若挂到外壳层，坐标基准会变成整屏，
+               yPct:100 的部件（如全屋安防）就会正好压到底部页脚上。 -->
+          <FloatingHub v-if="route.name === 'dashboard'" class="shell-floating-hub" />
+        </main>
+
+        <!-- 右侧栏（信息面板，时钟/天气/快捷操作）：仅仪表盘路由显示，位于内容行末尾。
+             智能管家打开时用面板替换栏内部件（参考实现同形态），因此走 agent 插槽。 -->
+        <RightSidebar
+          v-if="route.name === 'dashboard'"
+          class="shell-right-sidebar"
+          :panel-position="layoutStore.layoutConfig.panelPosition || 'right'"
+          :agent-open="showAgentChat && agentDocked"
+          @open-group="chrome.openGroupModal"
+        >
+          <template #agent>
+            <AgentChatPalette
+              v-if="agentDocked"
+              :open="showAgentChat"
+              docked
+              @close="showAgentChat = false"
+            />
+          </template>
+        </RightSidebar>
+      </div>
+
+      <!-- 仪表盘外壳（仅仪表盘路由显示）：
+           底部能耗页脚，横跨内容区 + 右栏下方。 -->
+      <DashboardFooter v-if="route.name === 'dashboard'" class="shell-footer" />
+
+      <!-- teleport-target：所有需要脱离正常文档流的全屏浮层/弹窗挂载容器 -->
+      <div class="teleport-target">
+        <!-- 确认 / 输入 / 媒体全屏已提升到 App.vue 根（编辑器 / 展示页 / more-info 也要用） -->
+        <DoorbellAlertModal
+          :is-open="chrome.isDoorbellModalOpen"
+          :camera-id="doorbellCameraId"
+          :trigger-id="doorbellTriggerEntityId"
+          :lock-entity-id="doorbellLockEntityId"
+          :label="doorbellLabel"
+          @close="chrome.closeDoorbellModal()"
+        />
+        <EarthquakeAlertOverlay />
+        <CencBulletinCard />
+        <!-- 地震功能配置向导（首次启用引导） -->
+        <EarthquakeSetupWizard v-model="showSetupWizard" />
+        <SettingsLockModal
+          :is-open="isSettingsLockOpen"
+          @close="isSettingsLockOpen = false"
+          @success="onUnlockSuccess"
+        />
+        <!-- 实体快捷控制浮层宿主（灯/开关/空调等设备弹窗） -->
+        <EntityControlHost
+          :entity-id="chrome.entityControlEntityId"
+          :open="chrome.isEntityControlOpen"
+          @close="chrome.closeEntityControl()"
+        />
+        <Screensaver />
+        <!-- AI 悬浮伴侣：贴边停靠的小管家入口（点开对话 / 长按说话）。
+             放在 teleport-target 之前，让对话面板与抽屉天然盖过它。 -->
+        <AgentCompanion v-if="showAgentChrome" />
+        <!-- 智能管家对话面板：仪表盘且整页缩放未触底时停靠进右侧信息栏（见上面 RightSidebar
+             的 agent 插槽）；其它情况（非仪表盘 / 窄窗缩放触底）仍以整屏浮层挂在 teleport-target。 -->
+        <AgentChatPalette
+          v-if="showAgentChrome && !agentDocked"
+          :open="showAgentChat"
+          @close="showAgentChat = false"
+        />
+        <!-- 通知抽屉（认证 + module.notifications） -->
+        <NotificationDrawer
+          v-if="showNotificationChrome"
+          :is-open="showNotificationDrawer"
+          @close="closeNotificationDrawer"
+        />
+        <!-- 设备分组批量控制弹窗（右栏 / 部件卡片点击设备组时打开） -->
+        <DeviceGroupModal
+          :is-open="chrome.isGroupModalOpen"
+          :domain="chrome.groupModalDomain"
+          :stats-sensors="chrome.groupModalSensors"
+          @close="chrome.closeGroupModal()"
+        />
+      </div>
+    </ScaledViewport>
+  </div>
+</template>
+
+<style scoped>
+@import './styles/main-layout.css';
+</style>
+<!-- 非 scoped：覆盖子组件 HomeModeSwitcher 芯片，仅限 .tab-bar -->
+<style src="./styles/tab-bar-mode-switcher.css"></style>

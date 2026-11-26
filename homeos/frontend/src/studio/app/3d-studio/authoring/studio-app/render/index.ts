@@ -6,8 +6,8 @@
  * 「这个域提供什么」在调用点一眼可见，同时把导入行数压回可控范围。
  * 域内文件之间仍直接相对 import，不经 barrel（避免环与无谓的间接层）。
  */
-export { acquireRenderSurface } from './acquireRenderSurface'
-export type { AcquireRenderSurfaceDeps } from './acquireRenderSurface'
+export { acquireRenderSurface } from './renderer'
+export type { AcquireRenderSurfaceDeps } from './renderer'
 export {
   captureCameraView,
   storeFixedCameraView,
@@ -24,7 +24,7 @@ export {
   applyOrthoFrame,
   captureOverviewCamera,
   applyCameraState,
-} from './camera-frames'
+} from './camera'
 export {
   cameraSettings,
   getCameraMode,
@@ -37,8 +37,8 @@ export {
   syncCameraFocalLengthControl,
   applyCameraFocalLength,
 } from './camera'
-export { createStudioRenderer } from './createStudioRenderer'
-export type { CreateStudioRendererDeps } from './createStudioRenderer'
+export { createStudioRenderer } from './renderer'
+export type { CreateStudioRendererDeps } from './renderer'
 export {
   renderStudioFrame,
   bindFrameDriver,
@@ -56,17 +56,17 @@ export {
   resetPlanInteraction,
   endStudioGesture,
   isEffectCacheReady,
-} from './frame-driver'
-export { fadeLightsIn, fadeLightsOut } from './lights-fade'
+} from './render-loop'
+export { fadeLightsIn, fadeLightsOut } from './render-loop'
 export {
   beginMotionMeasurement,
   endMotionMeasurement,
   updateMotionStats,
   needsMotionPresentation,
 } from './motion-measurement'
-export { handleOrbitStart, handleOrbitChange, handleOrbitEnd, createOrbitControls } from './orbit-controls'
-export { publishRenderStats } from './publishRenderStats'
-export type { PublishRenderStatsDeps } from './publishRenderStats'
+export { handleOrbitStart, handleOrbitChange, handleOrbitEnd, createOrbitControls } from './camera'
+export { publishRenderStats } from './render-loop'
+export type { PublishRenderStatsDeps } from './render-loop'
 export {
   assessRenderBudget,
   canRenderScene,
@@ -77,17 +77,17 @@ export {
   refreshPreviewSync,
   requestStudioRender,
   computeRenderPixelRatio,
-} from './render-budget'
+} from './render-metrics'
 export {
   configureCappedGroundReflection,
   createMotionIdleQualityApplier,
   createSceneTextureAnisotropySync,
   createShadowCasterMuter,
   bindNamedPageHideOnce,
-} from './render-loop-idle-quality'
-export type { PageHideBinding } from './render-loop-idle-quality'
-export { applyOrbitControlSettingsTo, syncViewOffsetFor, createRenderLoopTeardown } from './render-loop-lifecycle'
-export { attachReflectionProbeMesh } from './render-loop-reflection-probe'
+} from './render-loop'
+export type { PageHideBinding } from './render-loop'
+export { applyOrbitControlSettingsTo, syncViewOffsetFor, createRenderLoopTeardown } from './render-loop'
+export { attachReflectionProbeMesh } from './render-loop'
 export {
   refreshFloorControls,
   resizeStudioRenderer,
@@ -97,7 +97,7 @@ export {
   resizeRenderCanvas,
   syncCanvasSizeInputs,
   handleCanvasSizeInput,
-} from './renderer-resize'
+} from './renderer'
 export { refreshSceneRender, disposeShadowAtlas, prepareShadowAtlas } from './scene-refresh'
 export {
   updateRenderStatsHud,
@@ -111,8 +111,8 @@ export {
   recordFloorSwitchTick,
   recordRenderTiming,
   snapshotRenderStats,
-} from './stats'
-export { runStudioRenderLoop } from './studio-render-loop'
-export type { StudioRenderDeps } from './studio-render-loop'
-export { releaseStudioRenderer, releaseStudioOwnedResources, clearStudioDocumentResidue } from './studio-render-release'
+} from './render-metrics'
+export { runStudioRenderLoop } from './render-loop'
+export type { StudioRenderDeps } from './render-loop'
+export { releaseStudioRenderer, releaseStudioOwnedResources, clearStudioDocumentResidue } from './renderer'
 export { scheduleShaderWarmup } from './studio-shader-compile-warmup'

@@ -89,15 +89,15 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { Activity, RefreshCw, Layers, Wifi, WifiOff, BatteryWarning, CircleDot, Grid3x3 } from '@lucide/vue'
-import { useEntitiesStore } from '@/stores/entities.store'
+import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import type { EChartsCoreOption } from 'echarts/core'
-import type * as EchartsModuleNS from '@/shared/utils/chart/echarts'
+import type * as EchartsModuleNS from '@/kernel/utils/chart/echarts'
 
-import { DEVICE_CHART_COLORS, deviceSidebarPieTooltip, deviceChartBase } from '@/shared/utils/chart/device-chart-theme'
-import { getDomainLabel } from '@/shared/device/utils/domain-labels.util'
-import { countOfflineDevices } from '@/shared/device/utils/group-offline.util'
-import { entityDomainColor } from '@/shared/constants/entity-domain-meta'
-import { ensureDeviceChartOnElement } from '@/shared/utils/chart/device-chart-boot.util'
+import { DEVICE_CHART_COLORS, deviceSidebarPieTooltip, deviceChartBase } from '@/kernel/utils/chart/device-chart-theme'
+import { getDomainLabel } from '@/features/device/model/utils/domain-labels.util'
+import { countOfflineDevices } from '@/features/device/model/utils/group-offline.util'
+import { entityDomainColor } from '@/kernel/constants/entity-domain-meta'
+import { ensureDeviceChartOnElement } from '@/kernel/utils/chart/device-chart-boot.util'
 
 /** 图表实例类型：来自按需加载 echarts 入口模块的 init 返回值 */
 type EchartsModule = typeof EchartsModuleNS

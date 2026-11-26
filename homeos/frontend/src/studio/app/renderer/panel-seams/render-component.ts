@@ -18,7 +18,7 @@ import {
   renderAirConditionerAirflowLayer as renderAirConditionerAirflowLayer2,
   renderIconButtonEffectLayer as renderIconButtonEffectLayer2,
   renderRegisteredComponent as renderRegisteredComponent2,
-} from '../registry'
+} from '../registry/index'
 import { weatherActionComponent } from '../weather-forecast'
 import { createSceneActionRequests } from '../scene-mode'
 

@@ -5,7 +5,7 @@
 /** /devices 内存列表：按域/关键词/状态/房间/排序过滤（纯函数） */
 
 import { entityMatchesAreaFilter } from '@homeos/shared'
-import type { DeviceListItem, DeviceFilterState } from '@/shared/types/device'
+import type { DeviceListItem, DeviceFilterState } from '@/kernel/types/device'
 
 type DevicesMemoryFilterInput = {
   items: DeviceListItem[]

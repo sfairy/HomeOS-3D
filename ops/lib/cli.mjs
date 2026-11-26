@@ -12,7 +12,7 @@
  *
  * 用法：
  * ```js
- * import { isMain } from '../lib/cli.mjs'
+ * import { isMain } from './cli.mjs'
  *
  * export function audit(ctx) { … return problems.length === 0 }
  *

@@ -3,7 +3,7 @@
   操作入口，列表主体由 NotificationCenter 组件负责渲染。
 -->
 <script setup lang="ts">
-import NotificationCenter from '@/components/widgets/system/NotificationCenter.vue'
+import NotificationCenter from '@/features/notifications/components/widgets/NotificationCenter.vue'
 
 defineProps({
   resultSummary: { type: String, required: true },

@@ -34,12 +34,12 @@ import {
   rectToDropdownPosition,
   buildDropdownFixedStyle,
   viewportPointToPopupAnchor,
-} from '@/composables/ui/popup/usePopupPosition'
-import { useKeepAliveGate } from '@/composables/ui/useKeepAliveGate'
-import { useExclusiveDropdown } from '@/composables/ui/popup/useExclusiveDropdown'
-import { useShellTeleportTarget } from '@/composables/ui/shell/useShellTeleportTarget'
-import { getTeleportContainerSize } from '@/composables/ui/popup/popup-position-shared.util'
-import { clampNum as clamp } from '@/shared/utils/core/misc.util'
+} from '@/kernel/ui/popup/usePopupPosition'
+import { useKeepAliveGate } from '@/kernel/ui/hooks/use-keep-alive-gate'
+import { useExclusiveDropdown } from '@/kernel/ui/popup/useExclusiveDropdown'
+import { useShellTeleportTarget } from '@/app/shell/composables/useShellTeleportTarget'
+import { getTeleportContainerSize } from '@/kernel/ui/popup/popup-position-shared.util'
+import { clampNum as clamp } from '@/kernel/utils/core/misc.util'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },

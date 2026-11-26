@@ -9,17 +9,17 @@ import {
   countQuickActionDomainActive,
   countQuickActionLightsOn,
   countQuickActionOffline,
-} from '@/composables/device/group-counts.util'
-import { useEntitiesStore } from '@/stores/entities.store'
-import { useLayoutStore } from '@/stores/layout.store'
-import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
-import { buildFavoritesRecommendations } from '@/shared/recommend/utils/favorites-recommend.util'
-import type { FavoriteCategoryMeta } from '@/shared/utils/registry/favorites-categories.config'
+} from '@/features/device/composables/group-counts.util'
+import { useEntitiesStore } from '@/domain/entity/store/entities.store'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
+import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
+import { buildFavoritesRecommendations } from '@/domain/recommend/utils/favorites-recommend.util'
+import type { FavoriteCategoryMeta } from '@/kernel/utils/registry/favorites-categories.config'
 import {
   FAVORITE_CATEGORIES,
   FAVORITE_CATEGORY_GROUPS,
   FAVORITE_CATEGORY_MAP,
-} from '@/shared/utils/registry/favorites-categories.config'
+} from '@/kernel/utils/registry/favorites-categories.config'
 import { computed, ref } from 'vue'
 
 type QuickActionEntities = Parameters<typeof countQuickActionLightsOn>[0]

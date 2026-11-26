@@ -131,20 +131,20 @@
 </template>
 
 <script setup>
-import HosSelect from '@/components/common/base/HosSelect.vue'
+import HosSelect from '@/kernel/ui/primitives/HosSelect.vue'
 import { computed, ref, watch } from 'vue'
-import EntityInput from '@/components/common/entity-input/EntityInput.vue'
-import EntityMultiSelect from '@/components/common/entity-multi-select/EntityMultiSelect.vue'
+import EntityInput from '@/domain/entity/components/entity-input/EntityInput.vue'
+import EntityMultiSelect from '@/domain/entity/components/entity-multi-select/EntityMultiSelect.vue'
 import SystemConfigNestedObjectEditor from '@/features/settings/shared/config-fields/SystemConfigNestedObjectEditor.vue'
 import {
   haEntityDomainFilter,
   systemConfigCellClass,
   systemConfigMultiOptions,
   systemConfigSelectOptions,
-} from '@/shared/utils/config/system-config/field.util'
+} from '@/kernel/utils/config/system-config/field.util'
 import { getNestedObjectEditorKind } from '@/features/settings/shared/config-fields/nested-editor.util'
-import { joinCommaEntityIds, parseCommaEntityIds } from '@/shared/entity/utils/comma-entity-ids.util'
-import { parseOptionalNumber } from '@/shared/utils/core/misc.util'
+import { joinCommaEntityIds, parseCommaEntityIds } from '@/domain/entity/model/utils/comma-entity-ids.util'
+import { parseOptionalNumber } from '@/kernel/utils/core/misc.util'
 const props = defineProps({
   field: { type: Object, required: true },
   inputId: { type: String, required: true },

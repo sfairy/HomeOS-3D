@@ -2,15 +2,15 @@
  * WS 批次规范化 Worker 主线程桥：大批次 delta 合并 + old_state 拷贝移入 Worker，减轻主线程阻塞。
  * 只有 delta 进 Worker；非 delta（断线补发的整包实体状态）原样透传，不白付结构化克隆。
  */
-import type { EntitiesMap } from '@/shared/types/entity-store'
+import type { EntitiesMap } from '@/kernel/types/entity-store'
 import {
   mergeNormalizedDeltas,
   normalizeWsBatchChangesSync,
   splitDeltaChanges,
   type NormalizedWsBatchItem,
   type WsDeltaChange,
-} from '@/shared/entity/utils/state-delta.util'
-import { logger } from '@/shared/utils/core/logger'
+} from '@/domain/entity/model/utils/state-delta.util'
+import { logger } from '@/kernel/utils/core/logger'
 
 /** 达到该条数才走 Worker；更小批次主线程同步更快（避免 postMessage 开销） */
 const WORKER_THRESHOLD = 24

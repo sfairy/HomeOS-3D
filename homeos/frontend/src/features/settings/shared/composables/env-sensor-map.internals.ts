@@ -3,21 +3,23 @@
  * @module frontend/src/views
  */
 /** 环境传感器映射组合式函数 */
-import { useSettingsSave } from '@/composables/settings-kernel/save.internals'
+import { useSettingsSave } from '@/features/settings/kernel/save.internals'
 import {
   fetchSystemConfigFresh,
   isSystemConfigConflictError,
   patchSystemConfig,
   useSystemConfig,
-} from '@/composables/config/system-config-core.internals'
-import { fetchAreasList } from '@/services/api/entities'
-import { useChromeStore } from '@/stores/chrome.store'
-import type { EntitiesMap } from '@/shared/types/entity-store'
-import { reloadFrontendConfig } from '@/shared/utils/config/frontend-config'
-import { getApiErrorMessage } from '@/shared/utils/core/error-message'
-import { logger } from '@/shared/utils/core/logger'
-import { invalidateSharedFetchPrefix } from '@/shared/utils/core/poll-scheduler'
-import { ENV_IAQ_CACHE_PREFIX } from '@/features/settings/shared/composables/env-iaq.constants'
+} from '@/domain/layout/composables/system-config-core.internals'
+import { fetchAreasList } from '@/domain/api/entities'
+import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
+import type { EntitiesMap } from '@/kernel/types/entity-store'
+import { reloadFrontendConfig } from '@/kernel/utils/config/frontend-config'
+import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
+import { logger } from '@/kernel/utils/core/logger'
+import { invalidateSharedFetchPrefix } from '@/kernel/utils/core/poll-scheduler'
+
+/** 环境 IAQ 共享 fetch 缓存前缀（后端 POST /environment/iaq 的 rest 缓存键）。 */
+const ENV_IAQ_CACHE_PREFIX = 'rest:POST:/environment/iaq:'
 import type { HaAreaRef } from '@homeos/shared'
 import { buildRoomListFromHaAreas, filterEnvSensorMapToKnownAreas } from '@homeos/shared'
 import { computed, ref } from 'vue'

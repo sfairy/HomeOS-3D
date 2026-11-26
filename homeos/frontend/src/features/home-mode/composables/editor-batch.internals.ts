@@ -5,8 +5,8 @@
 /** 家居模式编辑器：批量添加设备动作 */
 
 import { ref, type Ref } from 'vue'
-import { useEntitiesStore } from '@/stores/entities.store'
-import { domainIndexToArray, getEntityDisplayName } from '@/shared/entity/utils/derived.util'
+import { useEntitiesStore } from '@/domain/entity/store/entities.store'
+import { domainIndexToArray, getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
 import type { ModeDraft } from './draft.internals'
 
 /** 家居模式编辑器：批量添加设备动作 */

@@ -64,22 +64,22 @@
 /** HomeOS 应用根组件 */
 import { computed, defineAsyncComponent, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth.store'
-import { useLayoutStore } from '@/stores/layout.store'
-import { useAppTheme } from '@/composables/ui/useAppTheme'
-import { logger } from '@/shared/utils/core/logger'
-import { useClientPowerReporter } from '@/composables/energy/useClientPowerReporter'
-import { useDisplayLightBackdropState } from '@/composables/display/display-light-backdrop'
-import ErrorBoundary from '@/components/common/ErrorBoundary.vue'
-import VConfirmModal from '@/components/common/base/VConfirmModal.vue'
-import VPromptModal from '@/components/common/base/VPromptModal.vue'
-import VNotification from '@/components/common/base/VNotification.vue'
-import LandscapePrompt from '@/components/common/landscape-prompt/LandscapePrompt.vue'
-import { useChromeStore } from '@/stores/chrome.store'
-import { applyPageAssets, listManagedStylesheets, PAGE_ASSETS } from '@/studio'
+import { useAuthStore } from '@/features/auth/store/auth.store'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
+import { useAppTheme } from '@/kernel/ui/hooks/use-app-theme'
+import { logger } from '@/kernel/utils/core/logger'
+import { useClientPowerReporter } from '@/features/energy/composables/useClientPowerReporter'
+import { useDisplayLightBackdropState } from '@/features/dashboard/composables/display-light-backdrop'
+import ErrorBoundary from '@/kernel/ui/ErrorBoundary.vue'
+import VConfirmModal from '@/kernel/ui/primitives/VConfirmModal.vue'
+import VPromptModal from '@/kernel/ui/primitives/VPromptModal.vue'
+import VNotification from '@/kernel/ui/primitives/VNotification.vue'
+import LandscapePrompt from '@/app/shell/LandscapePrompt.vue'
+import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
+import { applyPageAssets, listManagedStylesheets, PAGE_ASSETS } from '@/studio/index'
 
-const LicenseRecoveryView = defineAsyncComponent(() => import('@/views/auth/LicenseRecoveryView.vue'))
-const MediaPlayerModal = defineAsyncComponent(() => import('@/layouts/shell-overlays').then((m) => m.MediaPlayerModal))
+const LicenseRecoveryView = defineAsyncComponent(() => import('@/features/auth/views/LicenseRecoveryView.vue'))
+const MediaPlayerModal = defineAsyncComponent(() => import('@/app/layouts/shell-overlays').then((m) => m.MediaPlayerModal))
 
 // 初始化应用主题（监听并应用用户偏好的亮/暗主题）
 useAppTheme()
@@ -265,7 +265,7 @@ watch(
 )
 
 async function disconnectEntities() {
-  const { useEntitiesStore } = await import('@/stores/entities.store')
+  const { useEntitiesStore } = await import('@/domain/entity/store/entities.store')
   useEntitiesStore().disconnect()
 }
 
@@ -302,7 +302,7 @@ watch(
       try {
         const queryProfile = typeof route.query.profile === 'string' ? route.query.profile : undefined
         await layoutStore.ensureActiveProfileResolved(queryProfile)
-        const { useEntitiesStore } = await import('@/stores/entities.store')
+        const { useEntitiesStore } = await import('@/domain/entity/store/entities.store')
         const entitiesStore = useEntitiesStore()
         // ensure：已在握手/升级中则不拆掉现有 socket（避免二次 connect 打断 websocket）
         entitiesStore.ensureWsConnected()
@@ -320,7 +320,7 @@ watch(
 )
 </script>
 
-<style src="./assets/styles/route-transitions.css"></style>
+<style src="./app/styles/route-transitions.css"></style>
 
 <style scoped>
 /* 非主壳路由的 toast 宿主：VNotification 默认 position:absolute，这里改成 fixed 铺满视口。 */

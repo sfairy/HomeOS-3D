@@ -1,6 +1,6 @@
 /** 安防事件展示工具模块。 */
 /** 安防 SecurityEvent 类型 → 展示元数据（图标 key 由视图层映射为组件） */
-import { formatSecurityTime } from '@/shared/utils/format/locale-format.util'
+import { formatSecurityTime } from '@/kernel/utils/format/locale-format.util'
 
 /**
  * 已知的联动失败事件类型集合。

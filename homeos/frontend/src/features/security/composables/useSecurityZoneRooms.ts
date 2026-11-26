@@ -8,10 +8,10 @@
  * @dependencies vue, @/stores/entities.store, @/stores/chrome.store, @/features/settings, @/shared/entity/utils/derived.util, @/features/security/utils/zone-room.util
  */
 import { computed, onMounted, type Ref } from 'vue'
-import { useEntitiesStore } from '@/stores/entities.store'
-import { useChromeStore } from '@/stores/chrome.store'
-import { useEnvSensorMap } from '@/features/settings'
-import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
+import { useEntitiesStore } from '@/domain/entity/store/entities.store'
+import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
+import { useEnvSensorMap } from '@/features/settings/index'
+import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
 import {
   buildZonesFromRoomGroups,
   groupSecuritySensorsByRoom,

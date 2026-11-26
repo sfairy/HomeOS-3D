@@ -6,10 +6,10 @@
  * 「这个域提供什么」在调用点一眼可见，同时把导入行数压回可控范围。
  * 域内文件之间仍直接相对 import，不经 barrel（避免环与无谓的间接层）。
  */
-export { loadBackgroundImage, importBackgroundFile, backgroundSettings } from './background-image'
-export { refreshBackground, refreshStudioUi } from './background-refresh'
-export { buildStudioScene } from './buildStudioScene'
-export type { BuildStudioSceneDeps } from './buildStudioScene'
+export { loadBackgroundImage, importBackgroundFile, backgroundSettings } from './background'
+export { refreshBackground, refreshStudioUi } from './background'
+export { buildStudioScene } from './build-scene'
+export type { BuildStudioSceneDeps } from './build-scene'
 export {
   isDescendantOfRoot,
   computeSceneBounds,
@@ -30,7 +30,7 @@ export {
   selectFloor,
   copyFloor,
   addNewFloor,
-} from './floor-actions'
+} from './floor'
 export {
   buildCourtyardFoundation,
   buildGroundShadow,
@@ -43,7 +43,7 @@ export {
   createFloorWorldMapper,
   buildFloorAtIndex,
   buildLayerForFloor,
-} from './floor-build'
+} from './floor'
 export { syncGlobalControls } from './global-controls'
 export {
   disposeObjectTree,
@@ -64,7 +64,7 @@ export {
   addRugMeshes,
   mergeMeshesByType,
   configureLightSourcePreview,
-} from './mesh-builders'
+} from './build-scene'
 export {
   previewTransformContext,
   capturePreviewTransforms,
@@ -74,7 +74,7 @@ export {
   buildArchitectureLayer,
   buildItemsLayer,
   buildLightsLayer,
-} from './scene-layers'
+} from './build-scene'
 export {
   sceneCacheDescriptor,
   checkModelInUse,
@@ -93,15 +93,15 @@ export {
   getActiveFloor,
   captureStudioSnapshot,
   getLocalSaveRevision,
-} from './scene-payload-build'
-export { completeSceneReadyWarmup } from './scene-ready-warmup'
+} from './build-scene'
+export { completeSceneReadyWarmup } from './scene-lifecycle'
 export {
   requestSceneRebuild,
   getSceneContentBounds,
   computeCourtyardBounds,
   createFloorMaterial,
-} from './scene-rebuild'
-export { waitForSceneRevision, waitForSceneReady } from './scene-wait'
+} from './scene-lifecycle'
+export { waitForSceneRevision, waitForSceneReady } from './scene-lifecycle'
 export {
   countMaterialTextures,
   findMaxMaterialTextures,
@@ -110,5 +110,5 @@ export {
   mergeStaticItemMeshes,
   collectSharedMaterials,
   updateExternalModelDataset,
-} from './shared-meshes'
-export { postBridgeState, postBridgeFloors } from './stage-bridge'
+} from './build-scene'
+export { postBridgeState, postBridgeFloors } from './scene-lifecycle'

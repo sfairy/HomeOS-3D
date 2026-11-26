@@ -89,11 +89,11 @@
 </template>
 
 <script setup lang="ts">
-import HosSelect from '@/components/common/base/HosSelect.vue'
+import HosSelect from '@/kernel/ui/primitives/HosSelect.vue'
 import { computed, watch } from 'vue'
 import { SlidersHorizontal, RotateCcw, Settings2 } from '@lucide/vue'
-import { useAreaOptions } from '@/composables/entity/useAreaOptions'
-import type { DeviceFilterState } from '@/shared/types/device'
+import { useAreaOptions } from '@/domain/entity/composables/useAreaOptions'
+import type { DeviceFilterState } from '@/kernel/types/device'
 
 // 默认筛选状态：全状态、无房间、名称升序、默认开启「仅显示可控设备」。
 // 重置按钮将恢复到此状态。

@@ -17,8 +17,8 @@
 import { computed } from 'vue'
 import { Home, Power, Check } from '@lucide/vue'
 import { RouterLink } from 'vue-router'
-import { resolveHomeModeIcon } from '@/shared/home-mode'
-import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
+import { resolveHomeModeIcon } from '@/features/home-mode/model/index'
+import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
 
 const props = defineProps({
   open: { type: Boolean, required: true },

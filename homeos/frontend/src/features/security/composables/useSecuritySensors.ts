@@ -11,9 +11,9 @@
 import { getEntityDomain, buildHazardBindingMap, type HazardSensorKind, getEntityLeaf } from '@homeos/shared'
 import { ref, computed, toRaw, watch } from 'vue'
 import { Activity, Flame, Droplets, Wind, DoorOpen } from '@lucide/vue'
-import { useEntitiesStore } from '@/stores/entities.store'
-import { useLayoutStore } from '@/stores/layout.store'
-import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
+import { useEntitiesStore } from '@/domain/entity/store/entities.store'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
+import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
 import { isSecurityUtilityNoise } from '@/features/security/utils/sensor-filter.util'
 import { isSensorAlertState } from '@/features/security/utils/zone-mode.util'
 

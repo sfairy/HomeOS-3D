@@ -4,13 +4,13 @@
  */
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { callService } from '@/services/api/entities'
-import { sceneEntityIdFromRecord } from '@/shared/utils/ha/scene-script.util'
-import { runHazardDrill as runHazardDrillApi } from '@/services/api/security'
-import { getApiErrorMessage } from '@/shared/utils/core/error-message'
+import { callService } from '@/domain/api/entities'
+import { sceneEntityIdFromRecord } from '@/kernel/utils/ha/scene-script.util'
+import { runHazardDrill as runHazardDrillApi } from '@/domain/api/security'
+import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
 import { hasAnyHazardSensorBinding, formatHazardBindingSummaryText } from '@homeos/shared'
-import type { useLayoutStore } from '@/stores/layout.store'
-import type { useChromeStore } from '@/stores/chrome.store'
+import type { useLayoutStore } from '@/domain/layout/store/layout.store'
+import type { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 
 type LayoutStore = ReturnType<typeof useLayoutStore>
 type ChromeStore = ReturnType<typeof useChromeStore>

@@ -9,7 +9,7 @@ import type { ActionTemplate, ModeActionDraft } from './draft.internals'
 import type { useHomeModeEditor } from './editor.internals'
 import type { useHomeModePanelContext } from './home-mode-panel-context.internals'
 import type { useHomeModes } from './useHomeModes'
-import type { useChromeStore } from '@/stores/chrome.store'
+import type { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 
 export type HomeModeTabs = ReturnType<typeof useHomeModeEditor>['modeTabs']
 export type HomeModeEditor = ReturnType<typeof useHomeModeEditor>

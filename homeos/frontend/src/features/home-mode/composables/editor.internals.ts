@@ -4,10 +4,10 @@
  */
 /** composables：自 home-mode.internals.ts 拆出 — 合并自 home-mode-panel.context / useHomeModeActionsSection / useHomeModeEditor 等 */
 import { getEntityLeaf } from '@homeos/shared'
-import { useEntitiesStore } from '@/stores/entities.store'
-import { domainIndexToArray } from '@/shared/entity/utils/derived.util'
-import { resolveHomeModeTabEmoji } from '@/shared/utils/settings/tab-emoji.util'
-import { DOMAIN_SERVICES, servicesForDomain } from '@/shared/utils/registry/widget-catalog'
+import { useEntitiesStore } from '@/domain/entity/store/entities.store'
+import { domainIndexToArray } from '@/domain/entity/model/utils/derived.util'
+import { resolveHomeModeTabEmoji } from '@/kernel/utils/settings/tab-emoji.util'
+import { DOMAIN_SERVICES, servicesForDomain } from '@/kernel/utils/registry/widget-catalog'
 import type { ComputedRef, Ref } from 'vue'
 import { computed, ref, shallowRef, watch } from 'vue'
 import {

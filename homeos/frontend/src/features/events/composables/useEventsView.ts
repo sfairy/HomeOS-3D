@@ -4,11 +4,11 @@
  */
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { useEntitiesStore } from '@/stores/entities.store'
-import { useChromeStore } from '@/stores/chrome.store'
-import { useEnsureVisibleEntities } from '@/composables/entity/useEnsureVisibleEntities'
-import { getEventLogConfig, loadFrontendConfig, onConfigChange } from '@/shared/utils/config/frontend-config'
-import { formatCount, formatHourOption } from '@/shared/events/utils/events-display.util'
+import { useEntitiesStore } from '@/domain/entity/store/entities.store'
+import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
+import { useEnsureVisibleEntities } from '@/domain/entity/composables/useEnsureVisibleEntities'
+import { getEventLogConfig, loadFrontendConfig, onConfigChange } from '@/kernel/utils/config/frontend-config'
+import { formatCount, formatHourOption } from '@/features/events/model/utils/events-display.util'
 import {
   createEventsViewMetaState,
   createEventsViewLoaders,

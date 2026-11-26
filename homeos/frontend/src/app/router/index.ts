@@ -1,0 +1,637 @@
+/** Vue Router 路由配置 */
+import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
+import { useAuthStore } from '@/features/auth/store/auth.store'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
+import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
+import { logger } from '@/kernel/utils/core/logger'
+import { isNavigationLockedAfterRestore } from '@/kernel/utils/core/post-restore-lock'
+import { getBackendUnreachableHint, isBackendUnreachableError } from '@/kernel/utils/core/error-message'
+import { withBackendBootRetry } from '@/kernel/utils/core/api-boot-retry.util'
+import { isDynamicImportFailure, lazyView, reloadOnceForStaleChunk } from '@/kernel/utils/core/lazy-component'
+import { resolveNavigationTarget, resolveZeroUserTarget } from './auth.util'
+import { loadDisplayView, loadEditorView, loadStudioView, registerShellNavigation } from '@/studio/index'
+import {
+  getLicenseActivated,
+  hasLicenseFeatureAccess,
+  isLicenseFeatureGranted,
+  setLicenseActivated,
+  setLicenseFeatureAccess,
+  shouldRefreshLicenseFeatures,
+  shouldRefreshLicenseStatus,
+} from './license-gate'
+import { getLicenseAvailability, getLicenseStatus } from '@/domain/api/license'
+import { ensurePageAssets, PAGE_ASSETS as STUDIO_ASSETS, type PageAssets } from '@/studio/index'
+/**
+ * 认证页按需加载。
+ *
+ * 五个视图都只在未登录路径出现，静态 import 会让 Vite 把整个认证子图
+ * （实测 128,337B raw / 40,450B gzip）挂进入口依赖图，`index.html` 的
+ * modulepreload 随即在**每一页**首屏下载它 —— 总览、3D 展示、工作室都在下载
+ * 自己永远用不到的表单代码。改成动态 import 后，该 chunk 只在导航到认证页时拉取，
+ * 首帧观感由外壳内联的认证场景骨架 + 品牌字保证（见 views/auth/entry.ts 的说明）。
+ *
+ * 五条路由共用同一个 `entry` 模块，因此登录 → 注册 → 找回密码之间不会重复下载依赖。
+ */
+const loadAuthEntry = () => import('@/features/auth/views/entry')
+import { prefetchStoreLinks } from '@/kernel/utils/store-links.util'
+import { rememberLicenseAvailability } from '@/kernel/utils/auth/license-probe.util'
+import { getSystemInitialized, setSystemInitialized } from './system-init.state'
+
+/** 离线通知去重标记，避免每次导航都弹 toast */
+let offlineNotified = false
+
+/**
+ * 带后端启动重试地获取系统初始化状态。
+ *
+ * @param auth 认证 store 实例
+ * @returns 系统是否已完成初始化（true/false）
+ *
+ * 调用场景：首次导航时后端可能仍在启动中，withBackendBootRetry 会轮询重试直到后端就绪。
+ */
+async function fetchSetupStatusWithBootRetry(auth: ReturnType<typeof useAuthStore>) {
+  return withBackendBootRetry(() => auth.getSetupStatus())
+}
+
+/**
+ * 首次导航：公开的授权可用性与初始化 / 登录探测**并行发出**，省两轮串行往返。
+ * 只是提前发请求，判定顺序不变（仍在守卫第 3 步、登录判定之后消费）。
+ */
+function startEarlyLicenseAvailability(force: boolean) {
+  if (getSystemInitialized() !== null || !shouldRefreshLicenseStatus(force)) return null
+  return getLicenseAvailability().catch(() => null)
+}
+
+/** 提前那发失败（后端尚在启动等）时照旧带重试再取一次。 */
+async function fetchLicenseAvailability(early: ReturnType<typeof startEarlyLicenseAvailability>) {
+  const prefetched = early && (await early)
+  if (prefetched) return prefetched
+  return getLicenseActivated() === null
+    ? await withBackendBootRetry(() => getLicenseAvailability())
+    : await getLicenseAvailability()
+}
+
+const routes: RouteRecordRaw[] = [
+  {
+    // 登录页：认证子图整体按需加载（见上方 loadAuthEntry 说明）。
+    // 首帧底色/字形由外壳内联的认证场景保证，不依赖本 chunk 到达。
+    path: '/login',
+    name: 'login',
+    component: lazyView(async () => (await loadAuthEntry()).LoginView),
+    meta: { assets: STUDIO_ASSETS.login },
+  },
+  {
+    // 注册页（首次部署零用户时的唯一入口：账号 + 密码 + 邮箱 + 验证码）
+    path: '/register',
+    name: 'register',
+    component: lazyView(async () => (await loadAuthEntry()).RegisterView),
+    meta: { assets: STUDIO_ASSETS.register },
+  },
+  {
+    // 找回本机密码：未登录 / 未激活时都要能进（邮箱验证码由商店代发）
+    path: '/reset-password',
+    name: 'reset-password',
+    component: lazyView(async () => (await loadAuthEntry()).ResetPasswordView),
+    meta: { assets: STUDIO_ASSETS.login },
+  },
+  {
+    // 商业授权激活
+    path: '/activate',
+    name: 'activation',
+    component: lazyView(async () => (await loadAuthEntry()).LicenseView),
+    meta: { assets: STUDIO_ASSETS.license },
+  },
+  {
+    // 授权恢复页（独立路由；授权门禁也会在任意地址就地渲染同一视图）
+    path: '/license-recovery',
+    name: 'license-recovery',
+    component: lazyView(async () => (await loadAuthEntry()).LicenseRecoveryView),
+    meta: { assets: STUDIO_ASSETS.licenseRecovery },
+  },
+  // ── 3D Studio 视图 ──
+  // 展示页（渲染 3D 仪表盘）
+  {
+    path: '/display/:projectId',
+    name: 'display',
+    component: lazyView(loadDisplayView),
+    meta: { assets: STUDIO_ASSETS.display },
+  },
+  {
+    // 后端是 `/homeos/{project_name:path}`，display.ts 按 `pathname.slice("/homeos/".length)`
+    // 整体取用，因此参数必须吃下斜杠。
+    path: '/homeos/:name(.*)',
+    name: 'homeos',
+    component: lazyView(loadDisplayView),
+    meta: { assets: STUDIO_ASSETS.display },
+  },
+  // 户型图绘制工具（仅从「设置 → 布局」进入）
+  {
+    path: '/3d-studio',
+    name: 'studio',
+    component: lazyView(loadStudioView),
+    meta: { assets: STUDIO_ASSETS.studio, requiresAuth: true },
+  },
+  // 仪表盘编辑器（仅从「设置 → 布局」进入）。
+  // 总览首页已经改为只读展示，创作能力集中在这里。
+  {
+    path: '/studio/editor',
+    name: 'studio-editor',
+    component: lazyView(loadEditorView),
+    meta: { assets: STUDIO_ASSETS.editor, requiresAuth: true },
+  },
+  {
+    // 后端 get_stage() 直接把 SPA 入口作为 stage 页下发；同一 StudioView 在此路径下以
+    // `interaction3d-stage` 模式渲染。
+    //
+    // `bodyClass` 必须声明：`body.interaction3d-stage` 是 stage.css 的开关，用于把舞台裁成
+    // 「只剩 #preview-3d」的只读 3D 视图（隐藏绘制工具、属性面板、模型库）。后端已按该
+    // 路径把 class 写进 HTML body，但 main.ts 的 afterEach 会按 meta 回收未声明的 body class
+    // ——漏声明时 class 会在首次导航后被摘掉，总览里的 3D 部件就会退化成整套户型图绘制页。
+    path: '/api/v1/modules/interaction3d/stage.html',
+    name: 'stage',
+    component: lazyView(loadStudioView),
+    meta: { assets: STUDIO_ASSETS.studio, bodyClass: 'interaction3d-stage' },
+  },
+  {
+    // 主布局壳：包含侧边栏/顶栏，子路由在内部 <router-view> 渲染
+    path: '/',
+    component: lazyView(() => import('@/app/layouts/MainLayout.vue')),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        // 总览首页 = 3D 仪表盘「只读展示」（display）。
+        // 编辑 / 户型图绘制等创作能力不再出现在总览，只能从「设置 → 布局」进入。
+        path: '',
+        name: 'dashboard',
+        component: lazyView(loadDisplayView),
+        meta: { assets: STUDIO_ASSETS.display },
+      },
+      {
+        // 设备列表页
+        path: 'devices',
+        name: 'devices',
+        component: lazyView(() => import('@/features/device/DevicesPage.vue')),
+      },
+      {
+        // 设备详情页
+        path: 'device',
+        name: 'device-detail',
+        component: lazyView(() => import('@/features/device/DeviceDetailPage.vue')),
+      },
+      {
+        // 通知中心（功能码 module.notifications 门禁）
+        path: 'notifications',
+        name: 'notifications',
+        component: lazyView(() => import('@/features/notifications/NotificationsPage.vue')),
+        meta: { requiresFeature: 'module.notifications' },
+      },
+      {
+        // 地震历史记录页（功能码 module.earthquake 门禁）
+        path: 'earthquake-history',
+        name: 'earthquake-history',
+        component: lazyView(() => import('@/features/earthquake/EarthquakeHistoryPage.vue')),
+        meta: { requiresFeature: 'module.earthquake' },
+      },
+      {
+        // 事件日志页
+        path: 'events',
+        name: 'events',
+        component: lazyView(() => import('@/features/events/EventsPage.vue')),
+      },
+      {
+        // 模式触发日志页
+        path: 'mode-logs',
+        name: 'mode-logs',
+        component: lazyView(() => import('@/features/home-mode/ModeTriggerLogsPage.vue')),
+      },
+      {
+        // 安防中心（监控/告警等；功能码 module.security 门禁）
+        path: 'security',
+        name: 'security',
+        component: lazyView(() => import('@/features/security/SecurityPage.vue')),
+        meta: { requiresFeature: 'module.security' },
+      },
+      {
+        path: 'settings',
+        name: 'settings',
+        component: lazyView(() => import('@/features/settings/SettingsPage.vue')),
+      },
+      {
+        // MoviePilot 影视库：需 module.media；须写在通用 embed/:id 之前以免被吞掉
+        path: 'embed/movie-pilot',
+        name: 'embed-movie-pilot',
+        component: lazyView(() => import('@/features/embed/EmbedPage.vue')),
+        meta: { requiresFeature: 'module.media' },
+      },
+      {
+        // 嵌入式视图（供 iframe 或外部页面嵌入单个部件）
+        path: 'embed/:id',
+        name: 'embed',
+        component: lazyView(() => import('@/features/embed/EmbedPage.vue')),
+      },
+      // 未匹配路径兜底重定向到仪表盘。
+      // 用函数形式，避免把 catch-all 的 pathMatch 参数带到无该 param 的目标路由上
+      // （Vue Router R0100：Discarded invalid param(s) "pathMatch"）。
+      { path: ':pathMatch(.*)*', redirect: () => ({ name: 'dashboard' }) },
+    ],
+  },
+]
+
+// ── keep-alive 页面滚动位置记忆 ──
+// 浏览器后退/前进（popstate）标记：仅此类导航恢复记忆的滚动位置
+let isPopNavigation = false
+// 路由是应用级单例（且这里只为标记「这次导航来自前进/后退」），不配对移除。
+window.addEventListener('popstate', () => {
+  isPopNavigation = true
+})
+
+// 页面级可滚动容器选择器：html/body 滚动被禁用，列表/面板的实际滚动发生这些容器上
+const SCROLL_CONTAINER_SELECTORS = [
+  '.list-page',
+  '.list-page__panel-body',
+  '.settings-page',
+  '.settings-page-inset--scroll',
+  '.events-page',
+  '.settings-main',
+]
+
+interface ScrollContainerRecord {
+  /** 匹配选择器 */
+  selector: string
+  /** 各匹配容器的 scrollTop（同选择器可能有多个实例） */
+  tops: number[]
+}
+
+interface RememberedScroll {
+  windowTop: number
+  containers: ScrollContainerRecord[]
+}
+
+// 记录每个路由离开时的滚动位置（fullPath 为键），供 keep-alive 返回时恢复
+const rememberedScrollPositions = new Map<string, RememberedScroll>()
+// 待恢复记录：scrollBehavior 命中记忆后交由 afterEach 在渲染完成后应用
+let pendingScrollRestore: RememberedScroll | null = null
+
+/** 读取当前页面滚动位置：window + 主要内层可滚动容器 */
+function readScrollPositions(): RememberedScroll {
+  const containers: ScrollContainerRecord[] = []
+  for (const selector of SCROLL_CONTAINER_SELECTORS) {
+    const tops: number[] = []
+    document.querySelectorAll<HTMLElement>(selector).forEach((el) => {
+      // 仅记录实际可滚动（有溢出）或已滚动的容器，避免空记录
+      if (el.scrollHeight > el.clientHeight + 8 || el.scrollTop > 0) tops.push(el.scrollTop)
+    })
+    if (tops.length) containers.push({ selector, tops })
+  }
+  return { windowTop: window.scrollY || window.pageYOffset || 0, containers }
+}
+
+/** 恢复页面滚动位置：等渲染帧后应用，确保 keep-alive 恢复的容器已挂载 */
+function restoreScrollPositions(remembered: RememberedScroll) {
+  requestAnimationFrame(() => {
+    window.scrollTo(0, remembered.windowTop)
+    for (const { selector, tops } of remembered.containers) {
+      document.querySelectorAll<HTMLElement>(selector).forEach((el, i) => {
+        if (tops[i] !== undefined) el.scrollTop = tops[i]
+      })
+    }
+  })
+}
+
+const router = createRouter({
+  // 使用真实路径历史路由：studio 运行时经 ``navigateInShell`` 走本 router；
+  // hash 路由会把 ``/3d-studio`` / ``/display/*`` 等路径解析错。
+  // 后端已注册 SPA fallback（非 /api/* 的未命中路径返回 index.html），无需额外配置。
+  history: createWebHistory('/'),
+  routes,
+  // keep-alive 页面返回（后退/前进）时恢复滚动位置；新进入页面保持回到顶部
+  scrollBehavior(to, from, savedPosition) {
+    // 离开页面时记录其滚动位置（window + 内层容器），供 keep-alive 返回时恢复
+    if (from.name) {
+      rememberedScrollPositions.set(from.fullPath, readScrollPositions())
+      // 限制记忆条目数量，防止设备详情等大量不同 fullPath 累积
+      if (rememberedScrollPositions.size > 40) {
+        const oldest = rememberedScrollPositions.keys().next().value
+        if (oldest !== undefined) rememberedScrollPositions.delete(oldest)
+      }
+    }
+    const popNavigation = isPopNavigation
+    isPopNavigation = false
+    if (popNavigation) {
+      // 后退/前进：命中记忆时暂存，由 afterEach 在渲染完成后恢复内层容器滚动
+      pendingScrollRestore = rememberedScrollPositions.get(to.fullPath) || null
+      return savedPosition || { top: pendingScrollRestore?.windowTop ?? 0 }
+    }
+    // 部分浏览器在 hash 路由下仍会提供 savedPosition，兼容处理
+    if (savedPosition) return savedPosition
+    // 新进入页面回到顶部
+    return { top: 0 }
+  },
+})
+
+// 把外壳导航入口交给 studio 运行时：编辑器 / 户型图绘制 / 展示页之间走同文档内路由；
+// 未注册时 `navigateInShell` 退回整页跳转，保证嵌入式 stage 壳等场景行为不变。
+registerShellNavigation((path) => router.push(path))
+
+// 导航渲染完成后恢复内层可滚动容器的滚动位置（window 滚动由 scrollBehavior 返回值处理）
+router.afterEach(() => {
+  if (!pendingScrollRestore) return
+  const record = pendingScrollRestore
+  pendingScrollRestore = null
+  restoreScrollPositions(record)
+})
+/**
+ * 哪些路由算「入户页」：坞脚有商店入口、并且首帧就该把链接画出来。
+ *
+ * 只用于「要不要提前预取 `/public/config`」这一件事，不参与任何门禁判定 ——
+ * 多预取一次没有副作用，漏掉也只是回到「先空后满」的旧行为。
+ */
+function isEntryRouteName(name: string | undefined): boolean {
+  return (
+    name === 'login' ||
+    name === 'register' ||
+    name === 'activation' ||
+    name === 'reset-password' ||
+    name === 'license-recovery'
+  )
+}
+
+/**
+ * 全局前置守卫：
+ * 1. 首次导航时检查系统初始化状态（带后端启动重试）
+ * 2. 后端不可达时进入 offline 模式并提示用户
+ * 3. 调用 resolveNavigationTarget 决策目标路由
+ * 4. 已认证用户解析 URL 中的 profile 参数并清理
+ *
+ * @param to 目标路由
+ * @param from 来源路由
+ * @returns 重定向目标或 undefined（放行）
+ */
+/** `/license/status` 的一次请求结果；失败也被收敛成值，避免裸 promise 变成 unhandledrejection。 */
+interface LicenseFeatureResult {
+  ok: boolean
+  featureAccess?: Record<string, boolean>
+  error?: unknown
+}
+
+/** 发起功能码明细请求（成功/失败都落成值）。 */
+function requestLicenseFeatures(): Promise<LicenseFeatureResult> {
+  return getLicenseStatus().then(
+    (response) => ({ ok: true, featureAccess: response.data.featureAccess }),
+    (error: unknown) => ({ ok: false, error }),
+  )
+}
+
+/**
+ * 商业授权可用性探测（公开端点，未登录也要查）。
+ *
+ * 从守卫里抽出来：它自带重试语义与「不可达不假装已授权」的分支，留在守卫里只会让
+ * 守卫的圈复杂度继续上涨，也更难单独测试。
+ */
+async function refreshLicenseAvailability(
+  forceRefresh: boolean,
+  early: ReturnType<typeof startEarlyLicenseAvailability>,
+): Promise<void> {
+  if (!shouldRefreshLicenseStatus(forceRefresh)) return
+  try {
+    const status = await fetchLicenseAvailability(early)
+    setLicenseActivated(!status.data.required || status.data.allowed)
+    // 同一份可用性快照留给激活页：它首帧就用这份数据画状态句 / 表单可见性。
+    rememberLicenseAvailability(status.data)
+  } catch (licenseError) {
+    logger.error('商业授权状态检查失败:', licenseError)
+    if (getLicenseActivated() === null && !isBackendUnreachableError(licenseError)) {
+      // 不可达时保持 null（随后由 offline 分支兜底），其余错误按未授权处理。
+      setLicenseActivated(false)
+    }
+  }
+}
+
+/**
+ * 功能码门禁明细（供导航栏与模块入口显隐）。
+ *
+ * `prefetched` 是与可用性探测并行发起的那一次请求；为 null 时（例如刷新判定刚刚变为真）
+ * 在这里补一次。拉取失败不标记 loaded，保持 fail-closed。
+ */
+async function refreshLicenseFeatureAccess(
+  auth: ReturnType<typeof useAuthStore>,
+  prefetched: Promise<LicenseFeatureResult> | null,
+): Promise<void> {
+  if (!auth.isAuthenticated || !getLicenseActivated() || !shouldRefreshLicenseFeatures()) return
+  const settled = prefetched ? await prefetched : await requestLicenseFeatures()
+  if (settled.ok) {
+    setLicenseFeatureAccess(settled.featureAccess)
+    return
+  }
+  logger.warn('功能码门禁明细读取失败，保持未加载（入口 fail-closed）', settled.error)
+  setLicenseFeatureAccess(null)
+}
+
+router.beforeEach(async (to, from) => {
+  // 全量恢复后只认恢复流程的整页跳转（登录页）；401 / 授权失效触发的站内跳转一律中止。
+  if (isNavigationLockedAfterRestore()) return false
+  const auth = useAuthStore()
+  const layout = useLayoutStore()
+  const chrome = useChromeStore()
+
+  // 入户页的商店入口（坞脚那两三格）在这里就开始预取：链接是 `/public/config` 的派生值，
+  // 视图首帧读缓存即可拿到真地址。不 await —— 拿不到就按「没有入口」渲染（旧行为），
+  // 但不该为了它把首屏导航卡住。
+  if (isEntryRouteName(typeof to.name === 'string' ? to.name : undefined)) {
+    void prefetchStoreLinks()
+  }
+
+  /**
+   * 冷开入户页：**先把样式表安顿好再放行**。
+   *
+   * `App.vue` 的 route watcher 才是样式表的常规安装点，但它必须等首个路由落地才拿到
+   * `meta.assets`（此前是 START_LOCATION，一律不动）——于是入户页存在一个窗口：
+   * RouterView 已经在画表单，而 `<link>` 尚在解析中。真机上看到的就是「先裸样式、
+   * 再整页重排一次」。
+   *
+   * 只在**首次导航**（`from` 还没有 name）里做这件事：之后的入户页之间切换，样式四片
+   * 完全一致，由 watcher 幂等处理即可；而在跨壳过渡（display → login 的 route-fade）里
+   * 抢先换表，会把正在淡出的旧页面变成无样式 DOM。
+   */
+  if (!from.name) {
+    const entryAssets = to.meta?.assets as PageAssets | undefined
+    if (entryAssets && isEntryRouteName(typeof to.name === 'string' ? to.name : undefined)) {
+      await ensurePageAssets(entryAssets)
+    }
+  }
+
+  const forceLicenseRefresh = to.name === 'activation'
+  const earlyLicenseAvailability = startEarlyLicenseAvailability(forceLicenseRefresh)
+
+  // ── 1. 系统初始化 + 登录会话探测（首装流程的第一、二段）──
+  //
+  // 必须先于授权探测：全新部署时本机零用户、也没有授权，若先跑授权门禁会把用户直接
+  // 送进激活页，永远到不了注册页。`GET /setup/status` 兼任 CSRF 引导，故无需再叠一次
+  // refreshCsrfToken；首屏后端可能仍在启动，用 withBackendBootRetry 轮询重试。
+  //
+  // 结论写进 `system-init.state` 而不是本模块的局部变量：登录页要**同步**读它
+  // （零用户首装时换一套抬头与步轨），见那个模块的注释。
+  if (getSystemInitialized() === null || getSystemInitialized() === 'offline') {
+    try {
+      const initialized =
+        getSystemInitialized() === 'offline' ? await auth.getSetupStatus() : await fetchSetupStatusWithBootRetry(auth)
+      setSystemInitialized(initialized ?? false)
+      offlineNotified = false
+      if (auth.isAuthenticated) {
+        // getSetupStatus 内已探测过一次 /auth/me（即续期端点），不必再补一发 refreshSession；
+        // 轮询跳过首跑，避免紧随其后的双发与 CSRF 竞态。
+        auth.startSessionRefresh({ runImmediately: false })
+      }
+    } catch (setupError) {
+      logger.error('系统初始化状态检查失败:', setupError)
+      if (isBackendUnreachableError(setupError)) {
+        // 后端不可达：进入 offline 模式，允许重试但不阻塞入户页
+        setSystemInitialized('offline')
+        if (!offlineNotified) {
+          offlineNotified = true
+          chrome.notify(getBackendUnreachableHint(), 'error')
+        }
+      } else {
+        // 其他错误按未初始化处理：本机零用户 → 登录页（页内给注册入口）
+        setSystemInitialized(false)
+      }
+    }
+  }
+
+  // 初始化状态仍未确定时暂不放行（等待下次探测完成）
+  if (getSystemInitialized() === null) return
+
+  // ── 2. 登录 → 注册（授权检测之前）──
+  // 未初始化：本机零用户。登录页与注册页都放行，其余地址一律先去登录页。
+  //
+  // 为什么不直接送 `/register`：零用户时确实只能注册，但「先把人扔到注册表单」等于替他决定
+  // 了「你没有账号」，而真实场景里用户常常是先打开 8801 想登录（甚至误入），看到登录框才
+  // 知道自己该先建号。登录页会按 `/setup/status` 显示「创建本机唯一账号」主入口，
+  // 两条路都在同一屏上。
+  //
+  // 放行哪两页由 `resolveZeroUserTarget` 单点决定：这里和 `resolveNavigationTarget` 必须
+  // 同口径，手抄条件迟早会漂。
+  if (getSystemInitialized() === false) {
+    const blocked = resolveZeroUserTarget(typeof to.name === 'string' ? to.name : undefined)
+    if (blocked) return blocked
+    return
+  }
+
+  // 后端不可达：放行入户页，其余阻断（不假装已授权）
+  if (getSystemInitialized() === 'offline') {
+    if (to.name === 'register' || to.name === 'login' || to.name === 'activation' || to.name === 'reset-password')
+      return
+    return false
+  }
+
+  // 已初始化仍在注册页：注册入口已关闭，按登录态分流
+  if (to.name === 'register') return auth.isAuthenticated ? '/' : '/login'
+
+  // 需认证但未登录：先登录，登录后再谈授权
+  if (!auth.isAuthenticated && to.meta?.requiresAuth) return '/login'
+
+  // ── 3. 商业授权检测（登录之后）──
+  //
+  // 走 `/license/availability` 而不是 `/license/status`：后者要求登录会话，而这里可能
+  // 还没建立会话（公开展示页）；`/availability` 公开脱敏，同样返回 `required` / `allowed`。
+  //
+  // 功能码明细与可用性快照互不依赖：登录态已知时并行发起，省掉一个串行 RTT。
+  // 两者的失败语义与重试都在 helper 内收敛（含「提前 return 时不留 unhandledrejection」）。
+  const featureAccessPromise = auth.isAuthenticated && shouldRefreshLicenseFeatures() ? requestLicenseFeatures() : null
+  await refreshLicenseAvailability(forceLicenseRefresh, earlyLicenseAvailability)
+  await refreshLicenseFeatureAccess(auth, featureAccessPromise)
+
+  // 未激活：激活需本机会话，故放行 login / activation；其余按登录态分流，
+  // 避免「未登录 → 激活页 401 → 想去登录又被踢回激活」的死锁。
+  if (getLicenseActivated() === false) {
+    // `reset-password` 与登录页同属「未激活也要能进的修复入口」：授权过期时用户仍可能
+    // 忘记本机密码，把找回页挡掉等于把唯一的门也锁了。
+    if (to.name === 'activation' || to.name === 'login' || to.name === 'reset-password') return
+    return auth.isAuthenticated ? '/activate' : '/login'
+  }
+
+  // 授权状态仍未知（多半后端不可达）：跳过登录探测副作用，交给 offline 分支
+  if (getLicenseActivated() === null) {
+    if (getSystemInitialized() === null) {
+      setSystemInitialized('offline')
+      if (!offlineNotified) {
+        offlineNotified = true
+        chrome.notify(getBackendUnreachableHint(), 'error')
+      }
+    }
+    if (to.name === 'login' || to.name === 'activation' || to.name === 'reset-password') return
+    return false
+  }
+
+  // 委托纯函数决策导航目标
+  const target = resolveNavigationTarget(to, {
+    systemInitialized: getSystemInitialized(),
+    isAuthenticated: auth.isAuthenticated,
+    licenseActivated: getLicenseActivated(),
+    settingsLockEnabled: layout.layoutConfig.settingsLock?.enabled,
+    isSettingsUnlocked: layout.isSettingsUnlocked,
+  })
+
+  // undefined 表示需要中止导航（等待异步状态确定）
+  if (target === undefined) return
+
+  // 访客模式拦截设置类页面
+  if (target === '/') {
+    // 激活页完成或设置锁回退都会到 '/'；仅设置锁场景弹访客提示易误导，保留原逻辑需区分
+    if (to.path?.startsWith('/settings') && layout.layoutConfig.settingsLock?.enabled && !layout.isSettingsUnlocked) {
+      chrome.notify('系统已进入访客模式，访问设置需先进行身份验证', 'warning')
+    }
+    return '/'
+  }
+
+  // 非 null 的 target 表示需要重定向
+  if (target !== null) return target
+
+  // 功能码门禁：未授权模块直链一律回总览并提示，避免点进去才发现接口 403。
+  // 明细未加载时 fail-closed（上面已尽量拉取；仍未加载则先挡直链，避免闪现）。
+  const requiredFeature = typeof to.meta?.requiresFeature === 'string' ? to.meta.requiresFeature : ''
+  if (requiredFeature && !isLicenseFeatureGranted(requiredFeature)) {
+    if (!hasLicenseFeatureAccess()) {
+      chrome.notify('正在确认授权模块…', 'info')
+      return { name: 'dashboard' }
+    }
+    chrome.notify('当前授权未包含该模块，请联系授权管理员。', 'warning')
+    return { name: 'dashboard' }
+  }
+
+  // 已认证用户（非 login/activation 路由）解析 profile 参数
+  if (auth.isAuthenticated && to.name !== 'login' && to.name !== 'activation') {
+    const queryProfile = typeof to.query.profile === 'string' ? to.query.profile : undefined
+    // 同 path 仅改 query（Hub Tab 等）时跳过 profile 解析，避免 await 拖慢并造成 replace 竞态
+    const samePathQueryOnly =
+      from.matched.length > 0 &&
+      to.path === from.path &&
+      to.name === from.name &&
+      !queryProfile &&
+      layout.isConfigLoaded
+    if (!samePathQueryOnly) {
+      try {
+        await layout.ensureActiveProfileResolved(queryProfile)
+      } catch (profileError) {
+        logger.warn('解析 display profile 失败', profileError)
+      }
+    }
+    // profile 参数消费后从 URL 中移除，保持地址栏整洁
+    if (queryProfile) {
+      const nextQuery = { ...to.query }
+      delete nextQuery.profile
+      return { path: to.path, query: nextQuery, hash: to.hash, replace: true }
+    }
+  }
+})
+
+/** HMR / 部署后 chunk 失效时，导航错误走一次整页刷新恢复 */
+router.onError((error) => {
+  if (reloadOnceForStaleChunk(error)) return
+  if (isDynamicImportFailure(error)) {
+    logger.warn('路由懒加载失败', error)
+    return
+  }
+  logger.error('路由导航错误', error)
+})
+
+export default router

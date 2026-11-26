@@ -8,7 +8,7 @@
  * @dependencies vue, @/features/home-mode（useHomeModeItemExpansion）, @/features/security/utils/zone-room.util
  */
 import { computed, type Ref } from 'vue'
-import { useHomeModeItemExpansion } from '@/features/home-mode'
+import { useHomeModeItemExpansion } from '@/features/home-mode/index'
 import { zoneTypeLabel, type SecurityZoneDraft } from '@/features/security/utils/zone-room.util'
 
 /** 房间可选项 */
