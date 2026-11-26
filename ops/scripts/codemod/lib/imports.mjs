@@ -348,7 +348,9 @@ export function rewritePythonImports(text, resolveFrom, emitFrom, moveMap, { src
     const relative = line.match(/^(\s*)from (\.+)([\w.]*) import (.*)$/)
     if (relative) {
       const [, indent, dots, mod, tail] = relative
-      const base = newModule.slice(0, -1)
+      // 解析必须用**旧**模块位置（相对点号是相对旧文件所在包写的），生成才用新位置。
+      // 用新位置解析会把 `from ...platform` 错算成 `domains.platform`。
+      const base = oldModule.slice(0, -1)
       const climb = dots.length - 1
       const anchor = base.slice(0, Math.max(0, base.length - climb))
       const resolvedParts = mod ? [...anchor, ...mod.split('.')] : anchor
