@@ -296,7 +296,7 @@ export const BACKEND_SRC = 'homeos/backend/src'
 const BACKEND_TOP = ['api', 'domains', 'platform', 'modules', 'bootstrap', 'realtime', 'panel', 'ops']
 
 /**
- * 文件 → 模块路径（点分）。`__init__.py` 视为其所在包本身。
+ * 文件 → 模块路径（点分）。`__init__.py` 对应包本身。
  * @param {string} repoRelFile
  * @param {string} [srcRoot]
  * @returns {string[] | null}
@@ -309,19 +309,32 @@ export function pythonModuleParts(repoRelFile, srcRoot = BACKEND_SRC) {
   return parts
 }
 
-/** 生成从 `fromModule` 到 `targetParts` 的相对导入前缀（如 `..environment.weather`）。 */
-function relativeModulePrefix(fromModule, targetParts) {
-  const fromPkg = fromModule.slice(0, -1)
+/**
+ * 相对导入的解析基准「包」。
+ *
+ * 关键区别：`a/b/__init__.py` 的模块就是包 `a.b`，它的 `from .x` 指向 `a.b.x`；
+ * 而普通模块 `a/b/c.py` 的包是 `a.b`。混为一谈会让 `__init__.py` 里的每个相对导入
+ * 都少算一层（`from ..schema` 被解析成 `a.schema` 而不是顶层 `schema`）。
+ */
+function pythonPackageParts(repoRelFile, srcRoot = BACKEND_SRC) {
+  const parts = pythonModuleParts(repoRelFile, srcRoot)
+  if (!parts) return null
+  return repoRelFile.endsWith('__init__.py') ? parts : parts.slice(0, -1)
+}
+
+/** 从包 `pkgParts` 导入 `targetParts` 的相对前缀（点号个数 + 模块名）。 */
+function relativeModulePrefix(pkgParts, targetParts) {
   let common = 0
-  while (common < fromPkg.length && common < targetParts.length && fromPkg[common] === targetParts[common]) common += 1
-  const up = fromPkg.length - common
+  while (common < pkgParts.length && common < targetParts.length && pkgParts[common] === targetParts[common]) common += 1
+  const up = pkgParts.length - common
   const rest = targetParts.slice(common)
-  return `.${'.'.repeat(up)}${rest.join('.')}`
+  return `${'.'.repeat(up + 1)}${rest.join('.')}`
 }
 
 /**
- * 重写一个 Python 文件里的导入语句（`from ...` / `import ...`）。
- * 只在解析成功且命中搬迁映射时改写；解析不了的原样保留。
+ * 重写一个 Python 文件里的导入语句。
+ *
+ * 只要**相对深度**或目标模块发生了变化就重写；解析失败的一律原样保留。
  *
  * @param {string} text
  * @param {string} resolveFrom 旧路径（仓库相对）
@@ -331,9 +344,9 @@ function relativeModulePrefix(fromModule, targetParts) {
  * @returns {{ text: string, changed: number }}
  */
 export function rewritePythonImports(text, resolveFrom, emitFrom, moveMap, { srcRoot = BACKEND_SRC } = {}) {
-  const oldModule = pythonModuleParts(resolveFrom, srcRoot)
-  const newModule = pythonModuleParts(emitFrom, srcRoot)
-  if (!oldModule || !newModule) return { text, changed: 0 }
+  const oldPkg = pythonPackageParts(resolveFrom, srcRoot)
+  const newPkg = pythonPackageParts(emitFrom, srcRoot)
+  if (!oldPkg || !newPkg) return { text, changed: 0 }
 
   const moduleMap = new Map()
   for (const [fromFile, toFile] of moveMap) {
@@ -348,29 +361,26 @@ export function rewritePythonImports(text, resolveFrom, emitFrom, moveMap, { src
     const relative = line.match(/^(\s*)from (\.+)([\w.]*) import (.*)$/)
     if (relative) {
       const [, indent, dots, mod, tail] = relative
-      // 解析必须用**旧**模块位置（相对点号是相对旧文件所在包写的），生成才用新位置。
-      // 且即使目标没搬家也要重算：文件本身的层级深度变了，`from ...platform` 会指向别处。
-      const base = oldModule.slice(0, -1)
       const climb = dots.length - 1
-      if (climb > base.length) return line
-      const anchor = base.slice(0, Math.max(0, base.length - climb))
-      const resolvedParts = mod ? [...anchor, ...mod.split('.')] : anchor
-      const mapped = moduleMap.get(resolvedParts.join('.')) ?? resolvedParts
+      if (climb > oldPkg.length) return line
+      const anchor = oldPkg.slice(0, oldPkg.length - climb)
+      const resolved = mod ? [...anchor, ...mod.split('.')] : anchor
+      const mapped = moduleMap.get(resolved.join('.')) ?? resolved
       if (!mapped.length) return line
-      const nextPrefix = relativeModulePrefix(newModule, mapped)
-      if (nextPrefix === `${dots}${mod}`) return line
+      const prefix = relativeModulePrefix(newPkg, mapped)
+      if (prefix === `${dots}${mod}`) return line
       changed += 1
-      return `${indent}from ${nextPrefix} import ${tail}`
+      return `${indent}from ${prefix} import ${tail}`
     }
 
     const absolute = line.match(/^(\s*)from ([\w.]+) import (.*)$/)
     if (absolute) {
       const [, indent, mod, tail] = absolute
       if (!BACKEND_TOP.includes(mod.split('.')[0])) return line
-      const mapped = moduleMap.get(mod)
-      if (!mapped) return line
+      const mapped = moduleMap.get(mod) ?? mod.split('.')
+      const prefix = relativeModulePrefix(newPkg, mapped)
       changed += 1
-      return `${indent}from ${relativeModulePrefix(newModule, mapped)} import ${tail}`
+      return `${indent}from ${prefix} import ${tail}`
     }
 
     return line
