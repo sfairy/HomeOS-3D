@@ -1,6 +1,6 @@
 {
   "totals": {
-    "alias2": 1344,
+    "alias2": 1289,
     "impl": 1731,
     "moduleLet": 334
   },
@@ -10,205 +10,175 @@
       "impl": 0,
       "moduleLet": 3
     },
-    "homeos/frontend/src/components/HaCameraStream.vue": {
+    "homeos/frontend/src/app/layouts/ScaledViewport.vue": {
       "alias2": 0,
       "impl": 0,
-      "moduleLet": 2
+      "moduleLet": 1
     },
-    "homeos/frontend/src/components/common/AssetGridItem.vue": {
+    "homeos/frontend/src/app/router/index.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 3
+    },
+    "homeos/frontend/src/app/router/system-init.state.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/app/shell/composables/use-main-layout-chrome.ts": {
+      "alias2": 2,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/domain/api/auth.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/domain/client/utils/system.util.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 4
+    },
+    "homeos/frontend/src/domain/energy/model/utils/source.util.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/domain/entity/components/HaDegradeBanner.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/components/common/AssetPickerModal.vue": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/components/common/HaDegradeBanner.vue": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/components/common/HaStatusDegradeBanner.vue": {
+    "homeos/frontend/src/domain/entity/components/HaStatusDegradeBanner.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/components/common/PresencePersonListInput.vue": {
+    "homeos/frontend/src/domain/entity/model/utils/derived-route.util.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/domain/entity/model/utils/idb-cache.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/domain/entity/model/utils/state-listener.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 5
+    },
+    "homeos/frontend/src/domain/entity/model/utils/sync-failure.util.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/domain/entity/model/utils/ws-subscription.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 2
+    },
+    "homeos/frontend/src/domain/entity/store/entity-projection.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/domain/layout/composables/system-config-core.internals.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 3
+    },
+    "homeos/frontend/src/domain/layout/composables/use-echarts-host.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 2
+    },
+    "homeos/frontend/src/domain/layout/store/defaults.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/domain/license/license-gate.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/domain/license/license-probe.util.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/domain/recommend/components/RecommendInsightCard.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/components/common/RecommendInsightCard.vue": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/components/common/SettingsOrchTabs.vue": {
+    "homeos/frontend/src/domain/status/composables/use-system-diagnostics.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 6
     },
-    "homeos/frontend/src/components/common/asset-manager/AssetManager.vue": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/components/common/asset-manager/AssetManagerBody.vue": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/components/common/base/VConfirmModal.vue": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/components/common/base/VirtualList.vue": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/components/entities/EntityPickModal.vue": {
+    "homeos/frontend/src/domain/voice/local-speech.util.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 2
     },
-    "homeos/frontend/src/components/entities/popups/AnchoredPopupShell.vue": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 2
-    },
-    "homeos/frontend/src/components/entities/popups/DeviceCountdownChip.vue": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/components/entities/popups/MediaPlayerPopup.vue": {
-      "alias2": 2,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/components/modals/DoorbellAlertModal.vue": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 3
-    },
-    "homeos/frontend/src/components/modals/SettingsLockModal.vue": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/components/modals/media-player/MediaPlayerModalHeader.vue": {
+    "homeos/frontend/src/domain/widget/composables/use-notification-center.ts": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/components/modals/media-player/MediaPlayerModalTransport.vue": {
-      "alias2": 1,
+    "homeos/frontend/src/domain/widget/composables/use-scheduled-poll.ts": {
+      "alias2": 0,
       "impl": 0,
-      "moduleLet": 0
+      "moduleLet": 1
     },
-    "homeos/frontend/src/components/shell/AgentCompanion.vue": {
+    "homeos/frontend/src/features/agent/components/AgentCompanion.vue": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 6
     },
-    "homeos/frontend/src/components/shell/agent-companion/useCompanionSpeech.ts": {
+    "homeos/frontend/src/features/agent/components/agent-companion/use-companion-speech.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/components/widgets/agent/AgentChatPalette.vue": {
+    "homeos/frontend/src/features/agent/components/widgets/AgentChatPalette.vue": {
       "alias2": 2,
       "impl": 0,
       "moduleLet": 3
     },
-    "homeos/frontend/src/components/widgets/climate/home-climate-chart/echarts.util.ts": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/components/widgets/security/PanelWidget.vue": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/components/widgets/system/ClockWidget.vue": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/components/widgets/weather/LifeIndices.vue": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/composables/config/system-config-core.internals.ts": {
+    "homeos/frontend/src/features/auth/views/LicenseRecoveryView.vue": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 3
     },
-    "homeos/frontend/src/composables/energy/useClientPowerReporter.ts": {
+    "homeos/frontend/src/features/auth/views/LicenseView.vue": {
       "alias2": 0,
       "impl": 0,
-      "moduleLet": 10
+      "moduleLet": 4
     },
-    "homeos/frontend/src/composables/security/useSecurityPanelStatus.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 3
-    },
-    "homeos/frontend/src/composables/settings-kernel/pending.internals.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 3
-    },
-    "homeos/frontend/src/composables/ui/popup/useExclusiveDropdown.ts": {
+    "homeos/frontend/src/features/auth/views/RegisterView.vue": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 2
     },
-    "homeos/frontend/src/composables/ui/shell/useMainLayoutChrome.ts": {
-      "alias2": 2,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/composables/ui/useBodyScrollLock.ts": {
+    "homeos/frontend/src/features/auth/views/ResetPasswordView.vue": {
       "alias2": 0,
       "impl": 0,
-      "moduleLet": 3
+      "moduleLet": 1
     },
-    "homeos/frontend/src/composables/ui/useEchartsHost.ts": {
+    "homeos/frontend/src/features/device/camera/composables/use-ha-web-rtc-player.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 2
     },
-    "homeos/frontend/src/composables/ui/useEscStack.ts": {
+    "homeos/frontend/src/features/device/camera/hls-loader.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 2
-    },
-    "homeos/frontend/src/composables/ui/usePopupHistoryGuard.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/composables/ui/useScaling.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/composables/voice/useEarcon.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/composables/widget/useNotificationCenter.ts": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
     },
     "homeos/frontend/src/features/device/components/DeviceAnalyticsPanel.vue": {
       "alias2": 0,
@@ -250,10 +220,30 @@
       "impl": 0,
       "moduleLet": 2
     },
-    "homeos/frontend/src/features/device/composables/useDeviceDetailView.ts": {
+    "homeos/frontend/src/features/device/components/DoorbellAlertModal.vue": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 3
+    },
+    "homeos/frontend/src/features/device/components/HaCameraStream.vue": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 2
+    },
+    "homeos/frontend/src/features/device/composables/use-device-detail-view.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 2
+    },
+    "homeos/frontend/src/features/device/model/device-profile-kinds.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 2
+    },
+    "homeos/frontend/src/features/device/model/utils/domain-labels.util.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
     },
     "homeos/frontend/src/features/earthquake/EarthquakeHistoryPage.vue": {
       "alias2": 1,
@@ -270,7 +260,7 @@
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/earthquake/composables/useEarthquakeTts.ts": {
+    "homeos/frontend/src/features/earthquake/composables/use-earthquake-tts.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 10
@@ -279,6 +269,36 @@
       "alias2": 0,
       "impl": 0,
       "moduleLet": 1
+    },
+    "homeos/frontend/src/features/energy/components/climate/home-climate-chart/echarts.util.ts": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/features/energy/composables/use-client-power-reporter.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 10
+    },
+    "homeos/frontend/src/features/entity/components/EntityPickModal.vue": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 2
+    },
+    "homeos/frontend/src/features/entity/components/popups/AnchoredPopupShell.vue": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 2
+    },
+    "homeos/frontend/src/features/entity/components/popups/DeviceCountdownChip.vue": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/features/entity/components/popups/MediaPlayerPopup.vue": {
+      "alias2": 2,
+      "impl": 0,
+      "moduleLet": 0
     },
     "homeos/frontend/src/features/home-mode/components/HomeModeSwitcherTrigger.vue": {
       "alias2": 1,
@@ -290,7 +310,7 @@
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/home-mode/composables/useHomeModes.ts": {
+    "homeos/frontend/src/features/home-mode/composables/use-home-modes.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 3
@@ -314,6 +334,31 @@
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
+    },
+    "homeos/frontend/src/features/media/components/player/MediaPlayerModalHeader.vue": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/features/media/components/player/MediaPlayerModalTransport.vue": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/features/notifications/components/widgets/ClockWidget.vue": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/features/presence/components/PresencePersonListInput.vue": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/features/presence/model/utils/entity-filter.util.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 2
     },
     "homeos/frontend/src/features/security/SecurityPage.vue": {
       "alias2": 1,
@@ -340,255 +385,335 @@
       "impl": 0,
       "moduleLet": 0
     },
+    "homeos/frontend/src/features/security/components/widgets/PanelWidget.vue": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/features/security/composables/use-security-panel-status.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 3
+    },
+    "homeos/frontend/src/features/security/model/utils/panel-zones-bootstrap.util.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 2
+    },
     "homeos/frontend/src/features/settings/SettingsPage.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/features/settings/automate/SecurityActionRow.vue": {
+    "homeos/frontend/src/features/settings/components/SettingsLockModal.vue": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/features/settings/components/SettingsOrchTabs.vue": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 6
+    },
+    "homeos/frontend/src/features/settings/components/asset-picker/AssetManager.vue": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/features/settings/components/asset-picker/AssetManagerBody.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/settings/automate/SettingsAutomationDraftsPanel.vue": {
+    "homeos/frontend/src/features/settings/components/asset-picker/AssetPickerModal.vue": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/features/settings/groups/appearance/SettingsScreensaverSection.vue": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/features/settings/groups/appearance/floating/EditorHubTabsSection.vue": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/features/settings/groups/appearance/floating/WidgetEditor.vue": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/features/settings/groups/appearance/floating/WidgetRow.vue": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/features/settings/groups/appearance/layout/SettingsLayoutDisplaySection.vue": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/features/settings/groups/appearance/layout/SettingsLayoutFooterSection.vue": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/features/settings/groups/appearance/widgets/WidgetConfigForms.vue": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/features/settings/groups/appearance/widgets/WidgetPanelRow.vue": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/features/settings/groups/automation/SecurityActionRow.vue": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/features/settings/groups/automation/SettingsAutomationDraftsPanel.vue": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 3
     },
-    "homeos/frontend/src/features/settings/automate/SettingsPresenceEntitiesSection.vue": {
+    "homeos/frontend/src/features/settings/groups/automation/SettingsPresenceEntitiesSection.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/settings/automate/SettingsSecurityModesLinkageSection.vue": {
+    "homeos/frontend/src/features/settings/groups/automation/SettingsSecurityModesLinkageSection.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/settings/automate/SettingsSecurityModesModeCard.vue": {
+    "homeos/frontend/src/features/settings/groups/automation/SettingsSecurityModesModeCard.vue": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/features/settings/automate/SettingsSecurityModesPanel.vue": {
+    "homeos/frontend/src/features/settings/groups/automation/SettingsSecurityModesPanel.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/settings/automate/composables/security-modes-linkage.internals.ts": {
+    "homeos/frontend/src/features/settings/groups/automation/composables/security-modes-linkage.internals.ts": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/settings/automate/linkage/AutomationSection.vue": {
+    "homeos/frontend/src/features/settings/groups/automation/linkage/AutomationSection.vue": {
       "alias2": 2,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/settings/automate/linkage/HomeModeMatrixSection.vue": {
+    "homeos/frontend/src/features/settings/groups/automation/linkage/HomeModeMatrixSection.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/settings/connect/SettingsDeviceManagementPanel.vue": {
+    "homeos/frontend/src/features/settings/groups/household/SettingsDeviceProfilesPanel.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/settings/connect/bindings/SettingsBindingsCamerasSection.vue": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/features/settings/connect/bindings/SettingsBindingsEnvironmentSection.vue": {
+    "homeos/frontend/src/features/settings/groups/household/client-power/ClientPowerDevicesSection.vue": {
       "alias2": 2,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/settings/connect/bindings/SettingsBindingsSecuritySection.vue": {
+    "homeos/frontend/src/features/settings/groups/household/client-power/ClientPowerPendingSection.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/settings/connect/connection/CredentialsSection.vue": {
+    "homeos/frontend/src/features/settings/groups/onboarding/SettingsDeviceManagementPanel.vue": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/features/settings/groups/onboarding/bindings/SettingsBindingsCamerasSection.vue": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/features/settings/groups/onboarding/bindings/SettingsBindingsEnvironmentSection.vue": {
       "alias2": 2,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/settings/connect/connection/EntitiesSection.vue": {
+    "homeos/frontend/src/features/settings/groups/onboarding/bindings/SettingsBindingsSecuritySection.vue": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/features/settings/groups/onboarding/connection/CredentialsSection.vue": {
       "alias2": 2,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/settings/connect/connection/EventLogRecordFilterSection.vue": {
+    "homeos/frontend/src/features/settings/groups/onboarding/connection/EntitiesSection.vue": {
       "alias2": 2,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/settings/connect/connection/OverviewSection.vue": {
+    "homeos/frontend/src/features/settings/groups/onboarding/connection/EventLogRecordFilterSection.vue": {
+      "alias2": 2,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/features/settings/groups/onboarding/connection/OverviewSection.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/settings/connect/setup-wizard/SetupWizardCompleteStep.vue": {
+    "homeos/frontend/src/features/settings/groups/onboarding/setup-wizard/SetupWizardCompleteStep.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/settings/connect/setup-wizard/SetupWizardDashboardStep.vue": {
+    "homeos/frontend/src/features/settings/groups/onboarding/setup-wizard/SetupWizardDashboardStep.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/settings/connect/setup-wizard/SetupWizardEnvironmentStep.vue": {
+    "homeos/frontend/src/features/settings/groups/onboarding/setup-wizard/SetupWizardEnvironmentStep.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/settings/connect/setup-wizard/SetupWizardPresencePanel.vue": {
+    "homeos/frontend/src/features/settings/groups/onboarding/setup-wizard/SetupWizardPresencePanel.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/settings/connect/setup-wizard/SetupWizardSecurityStep.vue": {
+    "homeos/frontend/src/features/settings/groups/onboarding/setup-wizard/SetupWizardSecurityStep.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/settings/display/SettingsScreensaverSection.vue": {
+    "homeos/frontend/src/features/settings/groups/perception/AlertRulesPanel.vue": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/features/settings/display/floating/EditorHubTabsSection.vue": {
+    "homeos/frontend/src/features/settings/groups/perception/SettingsAgentQuickPromptsSection.vue": {
       "alias2": 1,
       "impl": 0,
-      "moduleLet": 0
+      "moduleLet": 1
     },
-    "homeos/frontend/src/features/settings/display/floating/WidgetEditor.vue": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/features/settings/display/floating/WidgetRow.vue": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/features/settings/display/layout/SettingsLayoutDisplaySection.vue": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/features/settings/display/layout/SettingsLayoutFooterSection.vue": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/features/settings/display/widgets/WidgetConfigForms.vue": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/features/settings/display/widgets/WidgetPanelRow.vue": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/features/settings/home/SettingsDeviceProfilesPanel.vue": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/features/settings/home/client-power/ClientPowerDevicesSection.vue": {
-      "alias2": 2,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/features/settings/home/client-power/ClientPowerPendingSection.vue": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/features/settings/interact/AlertRulesPanel.vue": {
+    "homeos/frontend/src/features/settings/groups/perception/SettingsMediaPanel.vue": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/features/settings/interact/SettingsAgentQuickPromptsSection.vue": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/features/settings/interact/SettingsMediaPanel.vue": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/features/settings/interact/SettingsVoicePanel.vue": {
+    "homeos/frontend/src/features/settings/groups/perception/SettingsVoicePanel.vue": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 2
     },
-    "homeos/frontend/src/features/settings/interact/alert-rules/AlertRulesEarthquakeConnPanel.vue": {
+    "homeos/frontend/src/features/settings/groups/perception/alert-rules/AlertRulesEarthquakeConnPanel.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/settings/interact/alert-rules/AlertRulesEarthquakeHero.vue": {
+    "homeos/frontend/src/features/settings/groups/perception/alert-rules/AlertRulesEarthquakeHero.vue": {
       "alias2": 2,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/settings/interact/alert-rules/AlertRulesEarthquakeSection.vue": {
+    "homeos/frontend/src/features/settings/groups/perception/alert-rules/AlertRulesEarthquakeSection.vue": {
       "alias2": 3,
       "impl": 0,
       "moduleLet": 3
     },
-    "homeos/frontend/src/features/settings/interact/alert-rules/AlertRulesEntityTtsSection.vue": {
+    "homeos/frontend/src/features/settings/groups/perception/alert-rules/AlertRulesEntityTtsSection.vue": {
       "alias2": 2,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/settings/interact/alert-rules/AlertRulesInboxSection.vue": {
+    "homeos/frontend/src/features/settings/groups/perception/alert-rules/AlertRulesInboxSection.vue": {
       "alias2": 2,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/settings/interact/alert-rules/AlertRulesNotifyTtsSection.vue": {
+    "homeos/frontend/src/features/settings/groups/perception/alert-rules/AlertRulesNotifyTtsSection.vue": {
       "alias2": 2,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/settings/interact/alert-rules/AlertRulesVoiceSection.vue": {
+    "homeos/frontend/src/features/settings/groups/perception/alert-rules/AlertRulesVoiceSection.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/settings/interact/composables/alert-rules.internals.ts": {
+    "homeos/frontend/src/features/settings/groups/perception/composables/alert-rules.internals.ts": {
       "alias2": 3,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/settings/interact/voice/SettingsVoiceCommandsSection.vue": {
+    "homeos/frontend/src/features/settings/groups/perception/voice/SettingsVoiceCommandsSection.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/settings/interact/voice/SettingsVoiceOverviewSection.vue": {
+    "homeos/frontend/src/features/settings/groups/perception/voice/SettingsVoiceOverviewSection.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/settings/interact/voice/SettingsVoiceTtsSection.vue": {
+    "homeos/frontend/src/features/settings/groups/perception/voice/SettingsVoiceTtsSection.vue": {
       "alias2": 2,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/settings/interact/voice/SpeechComposer.vue": {
+    "homeos/frontend/src/features/settings/groups/perception/voice/SpeechComposer.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
+    },
+    "homeos/frontend/src/features/settings/groups/system/SettingsFamilyPanel.vue": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 2
+    },
+    "homeos/frontend/src/features/settings/groups/system/diagnostics/LogSection.vue": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/features/settings/groups/system/diagnostics/RuntimeLogsSection.vue": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/features/settings/groups/system/diagnostics/use-diagnostics-summary.ts": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/features/settings/groups/system/profiles/BackupRestoreDialog.vue": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/features/settings/groups/system/profiles/BackupSection.vue": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/features/settings/groups/system/profiles/DisplaySection.vue": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/features/settings/kernel/pending.internals.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 3
     },
     "homeos/frontend/src/features/settings/nav.ts": {
       "alias2": 2,
@@ -620,270 +745,165 @@
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/settings/system/SettingsFamilyPanel.vue": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 2
-    },
-    "homeos/frontend/src/features/settings/system/diagnostics/LogSection.vue": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/features/settings/system/diagnostics/RuntimeLogsSection.vue": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/features/settings/system/diagnostics/useDiagnosticsSummary.ts": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/features/settings/system/profiles/BackupRestoreDialog.vue": {
+    "homeos/frontend/src/features/voice/composables/use-earcon.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/features/settings/system/profiles/BackupSection.vue": {
+    "homeos/frontend/src/features/weather/components/LifeIndices.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/settings/system/profiles/DisplaySection.vue": {
-      "alias2": 1,
+    "homeos/frontend/src/kernel/config/frontend-config.ts": {
+      "alias2": 0,
       "impl": 0,
-      "moduleLet": 0
+      "moduleLet": 4
     },
-    "homeos/frontend/src/layouts/ScaledViewport.vue": {
+    "homeos/frontend/src/kernel/constants/voice-command-presets.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/router/index.ts": {
+    "homeos/frontend/src/kernel/http/client.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 6
+    },
+    "homeos/frontend/src/kernel/http/csrf.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/kernel/ui/AssetGridItem.vue": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/kernel/ui/StatePanel.vue": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/kernel/ui/hooks/use-body-scroll-lock.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 3
     },
-    "homeos/frontend/src/router/license-gate.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/router/system-init.state.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/services/api/auth.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/services/api/client.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 6
-    },
-    "homeos/frontend/src/services/api/csrf.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/services/device-profile-kinds.ts": {
+    "homeos/frontend/src/kernel/ui/hooks/use-esc-stack.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 2
     },
-    "homeos/frontend/src/shared/camera/composables/useHaWebRtcPlayer.ts": {
+    "homeos/frontend/src/kernel/ui/hooks/use-popup-history-guard.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/kernel/ui/hooks/use-scaling.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/kernel/ui/popup/use-exclusive-dropdown.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 2
     },
-    "homeos/frontend/src/shared/camera/hls-loader.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 2
-    },
-    "homeos/frontend/src/shared/client/utils/system.util.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 4
-    },
-    "homeos/frontend/src/shared/components/feedback/StatePanel.vue": {
+    "homeos/frontend/src/kernel/ui/primitives/VConfirmModal.vue": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/shared/constants/voice-command-presets.ts": {
+    "homeos/frontend/src/kernel/ui/primitives/VirtualList.vue": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/shared/device/utils/domain-labels.util.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/shared/energy/utils/source.util.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/shared/entity/utils/derived-route.util.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/shared/entity/utils/idb-cache.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/shared/entity/utils/state-listener.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 5
-    },
-    "homeos/frontend/src/shared/entity/utils/sync-failure.util.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/shared/entity/utils/ws-subscription.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 2
-    },
-    "homeos/frontend/src/shared/presence/utils/entity-filter.util.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 2
-    },
-    "homeos/frontend/src/shared/security/utils/panel-zones-bootstrap.util.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 2
-    },
-    "homeos/frontend/src/shared/status/composables/useSystemDiagnostics.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 6
-    },
-    "homeos/frontend/src/shared/utils/auth/license-probe.util.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/shared/utils/bridge/store-bridge.ts": {
+    "homeos/frontend/src/kernel/utils/bridge/store-bridge.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 8
     },
-    "homeos/frontend/src/shared/utils/config/frontend-config.ts": {
+    "homeos/frontend/src/kernel/utils/core/poll-scheduler.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 4
     },
-    "homeos/frontend/src/shared/utils/core/poll-scheduler.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 4
-    },
-    "homeos/frontend/src/shared/utils/core/post-restore-lock.ts": {
+    "homeos/frontend/src/kernel/utils/core/post-restore-lock.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/shared/utils/page-cache-lifecycle.ts": {
+    "homeos/frontend/src/kernel/utils/page-cache-lifecycle.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 2
     },
-    "homeos/frontend/src/shared/utils/perf/adaptive-perf.util.ts": {
+    "homeos/frontend/src/kernel/utils/perf/adaptive-perf.util.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 8
     },
-    "homeos/frontend/src/shared/utils/perf/baseline.util.ts": {
+    "homeos/frontend/src/kernel/utils/perf/baseline.util.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 4
     },
-    "homeos/frontend/src/shared/utils/perf/client-metrics.util.ts": {
+    "homeos/frontend/src/kernel/utils/perf/client-metrics.util.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 5
     },
-    "homeos/frontend/src/shared/utils/perf/fps-scheduler.util.ts": {
+    "homeos/frontend/src/kernel/utils/perf/fps-scheduler.util.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 9
     },
-    "homeos/frontend/src/shared/utils/perf/frontend-perf-monitor.util.ts": {
+    "homeos/frontend/src/kernel/utils/perf/frontend-perf-monitor.util.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 3
     },
-    "homeos/frontend/src/shared/utils/perf/smart-performance.util.ts": {
+    "homeos/frontend/src/kernel/utils/perf/smart-performance.util.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 3
     },
-    "homeos/frontend/src/shared/utils/perf/webgl-availability.util.ts": {
+    "homeos/frontend/src/kernel/utils/perf/webgl-availability.util.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 2
     },
-    "homeos/frontend/src/shared/utils/perf/webgl-context-loss-guard.util.ts": {
+    "homeos/frontend/src/kernel/utils/perf/webgl-context-loss-guard.util.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/shared/utils/registry/settings-header-icons.ts": {
+    "homeos/frontend/src/kernel/utils/registry/settings-header-icons.ts": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/shared/utils/store-links.util.ts": {
+    "homeos/frontend/src/kernel/utils/store-links.util.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 2
     },
-    "homeos/frontend/src/shared/utils/telemetry/trace.util.ts": {
+    "homeos/frontend/src/kernel/utils/telemetry/trace.util.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/shared/utils/ui/glass-effect.util.ts": {
+    "homeos/frontend/src/kernel/utils/ui/glass-effect.util.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/shared/utils/ui/screensaver-background-idle.util.ts": {
+    "homeos/frontend/src/kernel/utils/ui/screensaver-background-idle.util.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 2
-    },
-    "homeos/frontend/src/shared/voice/utils/local-speech.util.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 2
-    },
-    "homeos/frontend/src/shared/widget/composables/useScheduledPoll.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/stores/defaults.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/stores/entities/entity-projection.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/boot/studio-boot.ts": {
       "alias2": 2,
@@ -980,153 +1000,73 @@
       "impl": 994,
       "moduleLet": 14
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/export/export-flow.ts": {
-      "alias2": 12,
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/export/export.ts": {
+      "alias2": 19,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/export/export-preset-dialogs.ts": {
-      "alias2": 2,
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/geometry/floor-geometry.ts": {
+      "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/export/export-presets.ts": {
-      "alias2": 8,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/export/generateExportBundle.ts": {
-      "alias2": 7,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/export/openExportPanel.ts": {
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/geometry/geometry.ts": {
       "alias2": 3,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/geometry/bounds.ts": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/geometry/downlight-range.ts": {
-      "alias2": 2,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/geometry/floor-edge.ts": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/geometry/item-orientation.ts": {
-      "alias2": 2,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/interaction/applyToolSetting.ts": {
-      "alias2": 16,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/interaction/createSceneItem.ts": {
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/interaction/create-scene-item.ts": {
       "alias2": 5,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/interaction/handlePointerDown.ts": {
-      "alias2": 8,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/interaction/handlePointerUp.ts": {
-      "alias2": 17,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/interaction/hitTestPlanItem.ts": {
-      "alias2": 7,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/interaction/marquee.ts": {
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/interaction/gesture.ts": {
       "alias2": 6,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/interaction/picking.ts": {
+      "alias2": 9,
       "impl": 0,
       "moduleLet": 0
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/interaction/pointer-input.ts": {
-      "alias2": 5,
+      "alias2": 23,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/interaction/preview-scope.ts": {
-      "alias2": 3,
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/interaction/tools.ts": {
+      "alias2": 21,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/interaction/tool-selection.ts": {
-      "alias2": 6,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/addLightModel.ts": {
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/add-light-model.ts": {
       "alias2": 4,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/base-lighting.ts": {
-      "alias2": 6,
-      "impl": 0,
-      "moduleLet": 2
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/beginLightingPreview.ts": {
-      "alias2": 2,
-      "impl": 0,
-      "moduleLet": 0
-    },
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/light-areas.ts": {
-      "alias2": 2,
+      "alias2": 3,
       "impl": 0,
-      "moduleLet": 0
+      "moduleLet": 1
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/light-cache.ts": {
       "alias2": 4,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/light-group-rows.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 3
-    },
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/light-groups.ts": {
       "alias2": 1,
       "impl": 0,
-      "moduleLet": 0
+      "moduleLet": 3
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/light-shape-sync.ts": {
-      "alias2": 2,
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/lighting.ts": {
+      "alias2": 10,
       "impl": 0,
-      "moduleLet": 1
+      "moduleLet": 2
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/precompile.ts": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/preview-meshes.ts": {
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/shadows.ts": {
       "alias2": 5,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/scene-shadows-control.ts": {
-      "alias2": 2,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/scene-shadows.ts": {
-      "alias2": 3,
       "impl": 0,
       "moduleLet": 0
     },
@@ -1135,18 +1075,13 @@
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/materials/surface-panel.ts": {
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/materials/materials.ts": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/persistence/applyLoadedDraft.ts": {
-      "alias2": 2,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/persistence/draft-state.ts": {
-      "alias2": 4,
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/persistence/draft.ts": {
+      "alias2": 7,
       "impl": 0,
       "moduleLet": 0
     },
@@ -1155,58 +1090,28 @@
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/persistence/save.ts": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/plan/plan-coords.ts": {
-      "alias2": 9,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/plan/world-points.ts": {
-      "alias2": 3,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/acquireRenderSurface.ts": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/camera-frames.ts": {
-      "alias2": 2,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/camera.ts": {
-      "alias2": 3,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/createStudioRenderer.ts": {
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/plan/plan.ts": {
       "alias2": 11,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/lights-fade.ts": {
-      "alias2": 2,
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/camera.ts": {
+      "alias2": 7,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/orbit-controls.ts": {
-      "alias2": 4,
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/render-loop.ts": {
+      "alias2": 29,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/render-budget.ts": {
-      "alias2": 4,
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/render-metrics.ts": {
+      "alias2": 6,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/renderer-resize.ts": {
-      "alias2": 3,
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/renderer.ts": {
+      "alias2": 14,
       "impl": 0,
       "moduleLet": 0
     },
@@ -1215,33 +1120,18 @@
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/stats.ts": {
-      "alias2": 2,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/studio-render-loop.ts": {
-      "alias2": 29,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/runtime/auto-diagram-messages.ts": {
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/runtime/messages.ts": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/scene-build/background-image.ts": {
-      "alias2": 5,
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/scene-build/background.ts": {
+      "alias2": 7,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/scene-build/background-refresh.ts": {
-      "alias2": 2,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/scene-build/buildStudioScene.ts": {
-      "alias2": 12,
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/scene-build/build-scene.ts": {
+      "alias2": 21,
       "impl": 0,
       "moduleLet": 0
     },
@@ -1250,43 +1140,13 @@
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/scene-build/floor-actions.ts": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/scene-build/floor-build.ts": {
-      "alias2": 6,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/scene-build/mesh-builders.ts": {
-      "alias2": 2,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/scene-build/scene-layers.ts": {
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/scene-build/floor.ts": {
       "alias2": 7,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/scene-build/scene-payload-build.ts": {
-      "alias2": 6,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/scene-build/scene-rebuild.ts": {
-      "alias2": 6,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/scene-build/shared-meshes.ts": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/scene-build/stage-bridge.ts": {
-      "alias2": 2,
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/scene-build/scene-lifecycle.ts": {
+      "alias2": 8,
       "impl": 0,
       "moduleLet": 0
     },
@@ -1300,65 +1160,35 @@
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/editor-3d-overlay-options.ts": {
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/editor-3d.ts": {
       "alias2": 0,
       "impl": 0,
-      "moduleLet": 1
+      "moduleLet": 2
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/editor-3d-wiring.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/overlap-and-preview-wiring.ts": {
-      "alias2": 2,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/panel-layout.ts": {
-      "alias2": 2,
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/onboarding.ts": {
+      "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/placed-items-wiring.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/refreshStudioUiInner.ts": {
-      "alias2": 19,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/refreshStudioView.ts": {
-      "alias2": 2,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/scrollbar-reveal.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/snap-controls.ts": {
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/placement.ts": {
       "alias2": 4,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/step-checklist.ts": {
-      "alias2": 1,
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/refresh-view.ts": {
+      "alias2": 20,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/wall-inputs.ts": {
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/wiring.ts": {
       "alias2": 3,
       "impl": 0,
-      "moduleLet": 0
+      "moduleLet": 2
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/window-designer-wiring.ts": {
-      "alias2": 1,
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/workspace.ts": {
+      "alias2": 2,
       "impl": 0,
-      "moduleLet": 0
+      "moduleLet": 1
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-context-resources.ts": {
       "alias2": 0,
@@ -1476,7 +1306,7 @@
       "moduleLet": 0
     },
     "homeos/frontend/src/studio/app/editor/component-templates.ts": {
-      "alias2": 4,
+      "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
@@ -1891,7 +1721,7 @@
       "moduleLet": 0
     },
     "homeos/frontend/src/studio/runtime/config-ui/config-editor/rendering/panel-assembly.ts": {
-      "alias2": 28,
+      "alias2": 22,
       "impl": 2,
       "moduleLet": 0
     },
@@ -1974,26 +1804,6 @@
       "alias2": 4,
       "impl": 0,
       "moduleLet": 0
-    },
-    "homeos/frontend/src/views/auth/LicenseRecoveryView.vue": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 3
-    },
-    "homeos/frontend/src/views/auth/LicenseView.vue": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 4
-    },
-    "homeos/frontend/src/views/auth/RegisterView.vue": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 2
-    },
-    "homeos/frontend/src/views/auth/ResetPasswordView.vue": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
     },
     "homeos/frontend/src/workers/entity-derived-bridge.ts": {
       "alias2": 0,
