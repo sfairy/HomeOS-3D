@@ -34,7 +34,7 @@ import { dirname, join, resolve } from 'node:path'
 import process from 'node:process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-import { isSourceFile, rewriteImports } from './lib/imports.mjs'
+import { isSourceFile, rewriteImports, rewritePythonImports } from './lib/imports.mjs'
 import { walkFiles } from '../../lib/walk.mjs'
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
@@ -243,6 +243,28 @@ function normalizeImports(statements) {
  * @returns {string}
  */
 function mergeTexts(sources, { header, into } = {}) {
+  // Python 不能用 JS 的 import 归一化：`from x import y` 不是 JS 语法，会被当成无来源丢掉。
+  // 且 Python 允许重复 import，因此只做「整行去重」的朴素拼接。
+  if (into && into.endsWith('.py')) {
+    const seen = new Set()
+    const body = []
+    for (const { text } of sources) {
+      for (const line of text.split('\n')) {
+        const key = line.trim()
+        if (/^(import|from)\s/.test(key)) {
+          if (seen.has(key)) continue
+          seen.add(key)
+        }
+        body.push(line)
+      }
+      body.push('')
+    }
+    const sections = []
+    if (header) sections.push(header.trimEnd())
+    sections.push(body.join('\n').trimEnd())
+    return `${sections.join('\n\n')}\n`
+  }
+
   const statements = []
   const seen = new Set()
   const localOwner = new Map()
@@ -306,7 +328,7 @@ function main() {
       const fromDir = toRepoRel(dirMove.from)
       const toDir = toRepoRel(dirMove.to)
       if (!existsSync(fromDir)) throw new Error(`dirMoves.from 不存在: ${fromDir}`)
-      for (const file of walkFiles(fromDir, { extensions: null })) {
+      for (const file of walkFiles(fromDir, { extensions: null, skipDirs: new Set(['__pycache__']) })) {
         const repoRel = file.split('\\').join('/')
         moves.push({ from: repoRel, to: `${toDir}/${repoRel.slice(fromDir.length + 1)}` })
       }
@@ -361,7 +383,9 @@ function main() {
         const text = readFileSync(oldPath, 'utf8')
         // 合并来源：最终落到 into，因此输出基准用 into；其余用自身新位置。
         const emitFrom = mergeInto.get(oldPath) ?? moveMap.get(oldPath) ?? oldPath
-        const next = rewriteImports(text, oldPath, emitFrom, moveMap)
+        const next = oldPath.endsWith('.py')
+          ? rewritePythonImports(text, oldPath, emitFrom, moveMap).text
+          : rewriteImports(text, oldPath, emitFrom, moveMap)
         if (next !== text) changed += 1
         rewritten.set(oldPath, next)
       }

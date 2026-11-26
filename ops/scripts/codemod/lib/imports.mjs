@@ -60,7 +60,7 @@ export const ALIASES = [
 const ALIAS_ENTRIES = [...ALIASES].sort((a, b) => b[0].length - a[0].length)
 
 /** 可被重写的源码扩展名（其它文件原样跳过）。 */
-const SOURCE_EXTS = new Set(['.ts', '.tsx', '.mts', '.vue', '.css', '.js', '.mjs'])
+const SOURCE_EXTS = new Set(['.ts', '.tsx', '.mts', '.vue', '.css', '.js', '.mjs', '.py'])
 
 /**
  * 判断一个仓库相对路径是否是可分析的源码文件。
@@ -283,4 +283,93 @@ export function rewriteImports(text, resolveFrom, emitFrom, moveMap, options = {
 export function rewriteFile(repoRel, newRepoRel, moveMap, options = {}) {
   const text = readFileSync(repoRel, 'utf8')
   return rewriteImports(text, repoRel, newRepoRel, moveMap, options)
+}
+
+// =============================================================================
+// Python 导入重写
+// =============================================================================
+
+/** 后端源码根：Python 模块以它为锚点。 */
+export const BACKEND_SRC = 'homeos/backend/src'
+
+/** 后端顶层包（与 check_backend_deps.py 的 BACKEND_TOP 同源）。 */
+const BACKEND_TOP = ['api', 'domains', 'platform', 'modules', 'bootstrap', 'realtime', 'panel', 'ops']
+
+/**
+ * 文件 → 模块路径（点分）。`__init__.py` 视为其所在包本身。
+ * @param {string} repoRelFile
+ * @param {string} [srcRoot]
+ * @returns {string[] | null}
+ */
+export function pythonModuleParts(repoRelFile, srcRoot = BACKEND_SRC) {
+  if (!repoRelFile.startsWith(`${srcRoot}/`) || !repoRelFile.endsWith('.py')) return null
+  const rel = repoRelFile.slice(srcRoot.length + 1).replace(/\.py$/, '')
+  const parts = rel.split('/')
+  if (parts[parts.length - 1] === '__init__') parts.pop()
+  return parts
+}
+
+/** 生成从 `fromModule` 到 `targetParts` 的相对导入前缀（如 `..environment.weather`）。 */
+function relativeModulePrefix(fromModule, targetParts) {
+  const fromPkg = fromModule.slice(0, -1)
+  let common = 0
+  while (common < fromPkg.length && common < targetParts.length && fromPkg[common] === targetParts[common]) common += 1
+  const up = fromPkg.length - common
+  const rest = targetParts.slice(common)
+  return `.${'.'.repeat(up)}${rest.join('.')}`
+}
+
+/**
+ * 重写一个 Python 文件里的导入语句（`from ...` / `import ...`）。
+ * 只在解析成功且命中搬迁映射时改写；解析不了的原样保留。
+ *
+ * @param {string} text
+ * @param {string} resolveFrom 旧路径（仓库相对）
+ * @param {string} emitFrom 新路径（仓库相对）
+ * @param {Map<string,string>} moveMap 文件级映射
+ * @param {{srcRoot?: string}} [options]
+ * @returns {{ text: string, changed: number }}
+ */
+export function rewritePythonImports(text, resolveFrom, emitFrom, moveMap, { srcRoot = BACKEND_SRC } = {}) {
+  const oldModule = pythonModuleParts(resolveFrom, srcRoot)
+  const newModule = pythonModuleParts(emitFrom, srcRoot)
+  if (!oldModule || !newModule) return { text, changed: 0 }
+
+  const moduleMap = new Map()
+  for (const [fromFile, toFile] of moveMap) {
+    const fromParts = pythonModuleParts(fromFile, srcRoot)
+    const toParts = pythonModuleParts(toFile, srcRoot)
+    if (!fromParts || !toParts) continue
+    moduleMap.set(fromParts.join('.'), toParts)
+  }
+
+  let changed = 0
+  const out = text.split('\n').map((line) => {
+    const relative = line.match(/^(\s*)from (\.+)([\w.]*) import (.*)$/)
+    if (relative) {
+      const [, indent, dots, mod, tail] = relative
+      const base = newModule.slice(0, -1)
+      const climb = dots.length - 1
+      const anchor = base.slice(0, Math.max(0, base.length - climb))
+      const resolvedParts = mod ? [...anchor, ...mod.split('.')] : anchor
+      const mapped = moduleMap.get(resolvedParts.join('.'))
+      if (!mapped) return line
+      changed += 1
+      return `${indent}from ${relativeModulePrefix(newModule, mapped)} import ${tail}`
+    }
+
+    const absolute = line.match(/^(\s*)from ([\w.]+) import (.*)$/)
+    if (absolute) {
+      const [, indent, mod, tail] = absolute
+      if (!BACKEND_TOP.includes(mod.split('.')[0])) return line
+      const mapped = moduleMap.get(mod)
+      if (!mapped) return line
+      changed += 1
+      return `${indent}from ${relativeModulePrefix(newModule, mapped)} import ${tail}`
+    }
+
+    return line
+  })
+
+  return { text: out.join('\n'), changed }
 }
