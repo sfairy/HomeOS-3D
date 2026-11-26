@@ -18,7 +18,7 @@ import re
 from typing import TYPE_CHECKING, Any
 
 from .access import is_scene_id, scene_snapshot_file
-from ...domains.projects.schema import ProjectDraft
+from ...domains.studio3d.projects.schema import ProjectDraft
 from ...platform.core.http.errors import BusinessException, ErrorCode, api_error
 
 if TYPE_CHECKING:  # pragma: no cover - 仅类型

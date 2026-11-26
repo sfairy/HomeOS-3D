@@ -23,8 +23,8 @@ from datetime import datetime
 from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from ...platform.core.db.database import Base
-from ...platform.core.db.models import new_uuid, utc_now
+from ....platform.core.db.database import Base
+from ....platform.core.db.models import new_uuid, utc_now
 
 
 # 3D Studio 数据面（项目 / HA 目录 / 全局弹窗）

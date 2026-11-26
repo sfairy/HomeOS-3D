@@ -33,9 +33,9 @@ from ..ha.routes import websocket_origin_allowed, websocket_viewer
 from ..router import NestRouter
 from ...dependencies import require_viewer_project
 from ...domains.license import features as feature_codes
-from ...domains.projects.schema import ProjectDraft
 from ...domains.proxy.go2rtc_target import normalize_go2rtc_target
 from ...domains.proxy.ws_proxy import ssl_context_for
+from ...domains.studio3d.projects.schema import ProjectDraft
 
 # websockets 只在真正中转摄像流 / 翻译上游错误码时需要（源码态导入链约 20 ms）。
 # 模块级 import 会把它算进每次冷启动，所以本模块只在使用点局部导入，不要加回顶部。

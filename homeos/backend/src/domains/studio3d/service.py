@@ -38,9 +38,9 @@ from .lighting import (
     valid_light_range_archive,
     valid_light_region_overrides,
 )
+from .projects.schema import Project, ProjectDraft
 from .schemas import Studio3DDraftUpdate
 from .windows import validate_window_designs
-from ...domains.projects.schema import Project, ProjectDraft
 from ...panel.asset_refs import validate_assets
 from ...platform.core.http.errors import BusinessException, ErrorCode, api_error
 

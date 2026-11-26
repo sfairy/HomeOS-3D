@@ -16,8 +16,8 @@ from fastapi.staticfiles import StaticFiles
 
 from ..api.assets import read_builtin_asset
 from ..config import Settings
-from ..domains.fonts import FONT_TYPES
 from ..domains.license import features as feature_codes
+from ..platform.core.fonts import FONT_TYPES
 from ..platform.core.http.frontend_resources import frontend_resource_url
 from ..platform.core.http.frontend_static import (
     APPLE_TOUCH_ICON_PATHS,

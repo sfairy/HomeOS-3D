@@ -16,7 +16,7 @@ from uuid import uuid4
 
 from .constants import FONT_ID, FONT_ID_PREFIX, FONT_TYPES, MAX_FONTS
 from .validation import validate_font_file
-from ...platform.core.runtime.atomic_write import ensure_private_dir, restrict_private_file
+from ..runtime.atomic_write import ensure_private_dir, restrict_private_file
 
 _INFO_FILE = "info.json"
 

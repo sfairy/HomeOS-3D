@@ -28,7 +28,7 @@ from .service_support import (
 )
 from ..display_precision import apply_sensor_display_precision
 from ...logs.global_log import _safe_text
-from ...projects.schema import ProjectDraftEntityRef
+from ...studio3d.projects.schema import ProjectDraftEntityRef
 from ...ui_config.global_popups import global_popups
 from ....platform.core.db.models import (
     HAArea,

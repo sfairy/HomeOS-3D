@@ -8,8 +8,8 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .page_background import validate_page_backgrounds
-from ..domains.fonts import valid_font_selection
 from ..platform.core.entity.entity_ids import valid_entity_id, valid_ha_entity_id
+from ..platform.core.fonts import valid_font_selection
 
 IDENTIFIER = re.compile("^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$")
 

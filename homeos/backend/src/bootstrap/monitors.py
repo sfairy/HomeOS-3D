@@ -18,10 +18,10 @@ logger = logging.getLogger("homeos.bootstrap.monitors")
 
 def build_monitors(app: Any, startup: Any) -> dict[str, Any]:
     """构造（不启动）四个监测器与三个按需服务，挂到 ``app.state``。"""
-    from ..domains.circadian.engine import CircadianEngine
     from ..domains.device_timer.service import DeviceTimerService
     from ..domains.energy.monitor import EnergyMonitor
-    from ..domains.iaq.monitor import IaqMonitor
+    from ..domains.environment.circadian.engine import CircadianEngine
+    from ..domains.environment.iaq.monitor import IaqMonitor
     from ..domains.water.monitor import WaterMonitor
     from ..domains.water.usage import WaterUsageStore
     from ..domains.water.valve import WaterValveService

@@ -32,7 +32,7 @@ from .schemas.auth import (
     VerificationRequest,
 )
 from ..dependencies import CurrentUser, DatabaseSession, authenticated_user
-from ..domains.store import (
+from ..domains.license.store import (
     StoreVerificationError,
     VerificationPurpose,
     verification_client_from_settings,

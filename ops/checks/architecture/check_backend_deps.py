@@ -66,10 +66,28 @@ BACKEND_TOP = frozenset({"api", "domains", "platform", "modules", "bootstrap", "
 HOMEOS_PACKAGE_WHITELIST: frozenset[frozenset[str]] = frozenset(
     {
         frozenset({"platform.core", "platform.security"}),
-        frozenset({"domains.client_power", "domains.ha", "domains.logs", "domains.proxy", "domains.security"}),
-        frozenset({"domains.earthquake", "domains.notification"}),
-        frozenset({"domains.agent", "domains.channels"}),
-        frozenset({"domains.studio3d", "modules.interaction3d"}),
+        # 0.9.0 模块化重组后：`store → license.store`、`projects → studio3d.projects`、
+        # `fonts → platform.core.fonts`、`weather/iaq/circadian → environment` 等并组，
+        # 把原本 5 个独立分量并成一个 14 包环。并组带来的是「同能力同目录」的收益，
+        # 但包级互依确实变多 —— 这里显式记录，任何**新增成员**仍会让门禁失败。
+        frozenset(
+            {
+                "domains.agent",
+                "domains.channels",
+                "domains.client_power",
+                "domains.earthquake",
+                "domains.ha",
+                "domains.logs",
+                "domains.notification",
+                "domains.proxy",
+                "domains.security",
+                "domains.studio3d",
+                "domains.system",
+                "domains.ui_config",
+                "modules.interaction3d",
+                "panel",
+            }
+        ),
     }
 )
 

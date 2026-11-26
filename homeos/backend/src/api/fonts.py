@@ -25,9 +25,9 @@ from ..dependencies import (
     require_license_feature,
     viewer_asset_ids,
 )
-from ..domains.fonts import FONT_TYPES, MAX_FONT_BYTES
 from ..domains.license import features as feature_codes
 from ..panel.asset_refs import document_asset_ids, saved_project_documents
+from ..platform.core.fonts import FONT_TYPES, MAX_FONT_BYTES
 from ..platform.core.http.asset_paths import get_fonts_dir
 from ..platform.core.http.frontend_static import FONTS_MOUNT_PREFIX
 from ..platform.core.runtime.async_work import durable_work

@@ -26,7 +26,7 @@ from ..client_power.energy_meter import (
     normalize_meter_scope,
     suggest_meter_scope,
 )
-from ...domains.projects.schema import Project
+from ..studio3d.projects.schema import Project
 from ...platform.core.db.db_exec import run_db
 from ...platform.core.db.json_field import object_field, read_json_object
 from ...platform.core.db.models import ProjectConfig, SecurityEvent

@@ -331,7 +331,7 @@ def studio_model_usages(request: Request, asset_id: str) -> list[str]:
     try:
         from sqlalchemy import select
 
-        from ..domains.projects.schema import Project
+        from ..domains.studio3d.projects.schema import Project
 
         project_names = {project.id: project.name for project in database.scalars(select(Project)).all()}
         for project_id, document in saved_project_documents(database):

@@ -41,7 +41,7 @@ from .restore import (
 from .security_actions import run_security_actions
 from .snapshot import collect_device_snapshot
 from .validation import is_action_permitted
-from ..home_exec.execute_action_sequence import execute_action_sequence
+from ..automation.exec.execute_action_sequence import execute_action_sequence
 from ..proxy.verification import describe_service_verification
 from ..security.entity_execute_acl import assert_entity_targets_execute_authorized
 from ...platform.core.http.errors import api_error, bad_request, not_found

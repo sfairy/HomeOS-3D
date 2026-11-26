@@ -24,8 +24,8 @@ import logging
 import time
 from typing import Any
 
-from ...platform.core.runtime.monitor_emit import MonitorEmitMixin
-from ...platform.core.runtime.periodic_monitor import PeriodicMonitor
+from ....platform.core.runtime.monitor_emit import MonitorEmitMixin
+from ....platform.core.runtime.periodic_monitor import PeriodicMonitor
 
 logger = logging.getLogger("homeos.iaq.monitor")
 

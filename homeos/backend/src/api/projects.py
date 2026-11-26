@@ -22,16 +22,16 @@ from ..dependencies import (
     require_viewer_project,
 )
 from ..domains.license import features as feature_codes
-from ..domains.projects.schema import (
-    GlobalCustomPopupState,
-    Project,
-    ProjectDraft,
-    ProjectDraftEntityRef,
-)
 from ..domains.studio3d.cleanup import (
     new_binding_references,
     repair_binding_document,
     require_current_binding_references,
+)
+from ..domains.studio3d.projects.schema import (
+    GlobalCustomPopupState,
+    Project,
+    ProjectDraft,
+    ProjectDraftEntityRef,
 )
 from ..domains.ui_config.global_popups import (
     clear_popup_references,

@@ -6,7 +6,7 @@ from copy import deepcopy
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from ...domains.projects.schema import GlobalCustomPopupState
+from ..studio3d.projects.schema import GlobalCustomPopupState
 
 
 def global_popup_state(database: Session) -> GlobalCustomPopupState:

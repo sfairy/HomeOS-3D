@@ -31,7 +31,7 @@ from typing import Any, NotRequired, TypedDict
 
 from .presets import collect_home_mode_target_actions, resolve_action_kind
 from .snapshot import HA_ENTITY_FETCH_CONCURRENCY
-from ..home_exec.snapshot_restore import build_snapshot_restore_calls, describe_restore_support
+from ..automation.exec.snapshot_restore import build_snapshot_restore_calls, describe_restore_support
 from ...platform.core.entity.entity_domain import get_entity_domain
 
 logger = logging.getLogger("homeos.home_mode")

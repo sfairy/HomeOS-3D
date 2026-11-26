@@ -27,7 +27,7 @@ from urllib.parse import urlsplit
 from fastapi import HTTPException, status
 from sqlalchemy import select, text
 
-from ....domains.projects.schema import GlobalCustomPopupState, ProjectDraft
+from ...studio3d.projects.schema import GlobalCustomPopupState, ProjectDraft
 from ....platform.core.db.models import HAConnection
 from ....platform.security.viewer_scope import (
     ViewerPrincipal,

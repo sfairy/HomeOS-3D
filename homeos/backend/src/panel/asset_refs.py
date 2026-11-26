@@ -23,7 +23,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..domains.projects.schema import ProjectDraft
+from ..domains.studio3d.projects.schema import ProjectDraft
 
 #: 文档里允许出现在 ``*assetId`` 字段上的前缀。
 ASSET_PREFIXES = ('builtin:', 'user:', 'studio3d:')

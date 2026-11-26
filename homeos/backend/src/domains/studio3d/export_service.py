@@ -30,8 +30,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from . import draft_repository
+from .projects.schema import Project
 from ..ui_config.global_popups import global_popups
-from ...domains.projects.schema import Project
 from ...panel.asset_refs import saved_project_documents
 from ...platform.core.http.resource_publication import (
     recover_export_replacements,

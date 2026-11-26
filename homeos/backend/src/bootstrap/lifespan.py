@@ -54,6 +54,10 @@ from ..domains.earthquake import (
     EewLeaderService,
     EewPollService,
 )
+from ..domains.entity_state.entity_area import EntityAreaEnrichmentService, warm_area_index
+from ..domains.entity_state.entity_references import EntityReferencesService
+from ..domains.entity_state.entity_sync_filter import HaEntitySyncFilterService
+from ..domains.environment.weather import WeatherAutoLinkageService, WeatherWatchService
 from ..domains.ha.config.ha_config import load_active_ha_endpoints, load_ha_endpoints
 from ..domains.ha.config.ha_filters import AlertRuleWatchIndex, HaStateChangeRouter
 from ..domains.ha.config.state_ingress_coalesce import StateIngressCoalesceService
@@ -62,8 +66,9 @@ from ..domains.home_mode.service import HomeModeService
 from ..domains.license import LicenseService
 from ..domains.license import features as feature_codes
 from ..domains.license.process_lock import LicenseProcessLock
-from ..domains.lifestyle import MediaSceneService
+from ..domains.license.store.discovery import StoreBaseUrlResolver
 from ..domains.logs.event_log import EventLogService
+from ..domains.media.lifestyle import MediaSceneService
 from ..domains.notification.service import NotificationService
 from ..domains.proxy.command_proxy import CommandProxyService
 from ..domains.retention.service import DatabaseRetentionService
@@ -78,16 +83,11 @@ from ..domains.security.panel import SecurityConfigProvider, SecurityPanelServic
 from ..domains.security.presence import PresenceService
 from ..domains.security.service import SecurityService
 from ..domains.setup import SetupWizardService
-from ..domains.state_store.entity_area import EntityAreaEnrichmentService, warm_area_index
-from ..domains.state_store.entity_references import EntityReferencesService
-from ..domains.state_store.entity_sync_filter import HaEntitySyncFilterService
-from ..domains.store.discovery import StoreBaseUrlResolver
 from ..domains.system import DeviceHealthService, DeviceManagementService, SystemService
 from ..domains.system.embed_proxy import EmbedProxyService
 from ..domains.system.jobs import JobRegistryService
 from ..domains.system.ops import ExternalApiService, MoviePilotProxyService
 from ..domains.ui_config import UiConfigService
-from ..domains.weather import WeatherAutoLinkageService, WeatherWatchService
 from ..platform.core.db import schema
 from ..platform.core.db.database import Database
 from ..platform.core.db.log_database import LogDatabase

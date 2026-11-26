@@ -23,7 +23,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from ...platform.core.runtime.periodic_monitor import PeriodicMonitor
+from ....platform.core.runtime.periodic_monitor import PeriodicMonitor
 
 logger = logging.getLogger("homeos.circadian.engine")
 
