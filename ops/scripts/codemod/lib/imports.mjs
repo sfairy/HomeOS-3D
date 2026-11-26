@@ -349,15 +349,18 @@ export function rewritePythonImports(text, resolveFrom, emitFrom, moveMap, { src
     if (relative) {
       const [, indent, dots, mod, tail] = relative
       // 解析必须用**旧**模块位置（相对点号是相对旧文件所在包写的），生成才用新位置。
-      // 用新位置解析会把 `from ...platform` 错算成 `domains.platform`。
+      // 且即使目标没搬家也要重算：文件本身的层级深度变了，`from ...platform` 会指向别处。
       const base = oldModule.slice(0, -1)
       const climb = dots.length - 1
+      if (climb > base.length) return line
       const anchor = base.slice(0, Math.max(0, base.length - climb))
       const resolvedParts = mod ? [...anchor, ...mod.split('.')] : anchor
-      const mapped = moduleMap.get(resolvedParts.join('.'))
-      if (!mapped) return line
+      const mapped = moduleMap.get(resolvedParts.join('.')) ?? resolvedParts
+      if (!mapped.length) return line
+      const nextPrefix = relativeModulePrefix(newModule, mapped)
+      if (nextPrefix === `${dots}${mod}`) return line
       changed += 1
-      return `${indent}from ${relativeModulePrefix(newModule, mapped)} import ${tail}`
+      return `${indent}from ${nextPrefix} import ${tail}`
     }
 
     const absolute = line.match(/^(\s*)from ([\w.]+) import (.*)$/)
