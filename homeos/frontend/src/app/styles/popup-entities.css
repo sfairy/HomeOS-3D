@@ -5,7 +5,7 @@
    组件层无需覆写选择器，只需在 .popup-shell 上设置变量。
 
    使用方式：
-     @import '@/app/styles/popup-base.css';
+     @import '@/kernel/ui/styles/popup-base.css';
      @import '@/app/styles/popup-entities.css';
      .popup-shell { --accent: #38bdf8; --accent-rgb: 56,189,248; }
    ========================================================================== */

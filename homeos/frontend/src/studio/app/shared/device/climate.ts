@@ -28,7 +28,7 @@ import {
   VERTICAL_SWING_LABELS,
   WATER_HEATER_MODE_LABELS,
 } from '@/kernel/constants/climate-labels'
-import { deviceProfileKind } from '@/features/device/model/device-profile-kind-cache'
+import { deviceProfileKind } from '@/domain/device/device-profile-kind-cache'
 // 开关态 / 运行态判据与 Vue 侧、舞台侧共用同一份实现（`shared/device/climate-power`）：
 // 这三条是最容易分叉、又最难测的逻辑（浴霸 off 态仍可能换气、热水器 0.4 度容差、
 // unknown 不算开机）。此处 re-export 保持既有 `@app/shared/device/climate` 导入不变。

@@ -41,7 +41,7 @@ import { SETTINGS_HEADER_ICONS, SETTINGS_TAB_HEADER_ICONS } from '@/kernel/utils
 // 设置页页头样式（premium-head）：随设置壳懒加载，不计入首屏 CSS。
 import '@/kernel/ui/list-page/styles/premium-head.css'
 // `.settings-shell` 折叠面板样式：只有设置壳会用到。
-import '@/app/styles/premium-accordion.css'
+import '@/kernel/ui/styles/premium-accordion.css'
 
 const props = defineProps({
   /** 标题文案 */

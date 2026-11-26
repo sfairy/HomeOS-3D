@@ -32,10 +32,10 @@ import { ensurePageAssets, PAGE_ASSETS as STUDIO_ASSETS, type PageAssets } from 
  *
  * 五条路由共用同一个 `entry` 模块，因此登录 → 注册 → 找回密码之间不会重复下载依赖。
  */
-const loadAuthEntry = () => import('@/features/auth/views')
+const loadAuthEntry = () => import('@/features/auth/views/index')
 import { prefetchStoreLinks } from '@/kernel/utils/store-links.util'
 import { rememberLicenseAvailability } from '@/domain/license/license-probe.util'
-import { getSystemInitialized, setSystemInitialized } from './system-init.state'
+import { getSystemInitialized, setSystemInitialized } from '../../domain/system/system-init.state'
 
 /** 离线通知去重标记，避免每次导航都弹 toast */
 let offlineNotified = false

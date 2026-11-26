@@ -75,7 +75,7 @@ import './clock.css'
 import './weather.css'
 import './responsive.css'
 // 屏保后台 idle 样式（html[data-screensaver-idle] 暂停被遮挡层动画），随组件按需加载
-import '@/app/styles/screensaver-idle.css'
+import '@/kernel/ui/styles/screensaver-idle.css'
 
 const {
   visible,

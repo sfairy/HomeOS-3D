@@ -19,7 +19,7 @@
  */
 import { onUnmounted, ref, watch, type Ref } from 'vue'
 import { logger } from '@/kernel/utils/core/logger'
-import { supportedMseCodecType } from '@/features/device/camera/mse-codec'
+import { supportedMseCodecType } from '@/domain/camera/mse-codec'
 
 /** 同源中继路径（后端 `api/go2rtc.py` 挂在 API 前缀 `/api/v1` 下）。 */
 const GO2RTC_WS_PATH = '/api/v1/go2rtc/ws'

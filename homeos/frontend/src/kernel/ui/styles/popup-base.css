@@ -5,15 +5,15 @@
    无需覆写选择器。
 
    使用方式（在 Vue SFC 的 <style scoped> 块顶部）：
-     @import '@/app/styles/popup-base.css';
+     @import '@/kernel/ui/styles/popup-base.css';
      .popup-shell {
        --accent: #0A84FF;
        --accent-rgb: 10, 132, 255;
      }
    ========================================================================== */
 
-@import "./hos-glass-shell.css";
-@import "./popup-pointer.css";
+@import "../../../app/styles/hos-glass-shell.css";
+@import "../../../app/styles/popup-pointer.css";
 
 /* ---- 弹窗锚点定位 ---- */
 .popup-anchor {

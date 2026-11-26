@@ -11,7 +11,7 @@
  */
 
 import { listDeviceProfiles } from '@/domain/api/device-profiles'
-import { replaceDeviceProfileKinds, resetDeviceProfileKinds } from '@/features/device/model/device-profile-kind-cache'
+import { replaceDeviceProfileKinds, resetDeviceProfileKinds } from '@/domain/device/device-profile-kind-cache'
 
 let loaded = false
 let inFlight: Promise<number> | null = null

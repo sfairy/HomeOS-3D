@@ -8,7 +8,7 @@
  */
 import { resolveCameraHlsPlayUrl } from '@/kernel/utils/ha/camera-stream.util'
 import { logger } from '@/kernel/utils/core/logger'
-import { ensureHls, isExpiredStreamAddressError, type HlsCtor } from '@/features/device/camera/hls-loader'
+import { ensureHls, isExpiredStreamAddressError, type HlsCtor } from '@/domain/camera/hls-loader'
 
 type HlsInstance = InstanceType<HlsCtor>
 type TransportMode = 'idle' | 'hls' | 'legacy' | 'snapshot'

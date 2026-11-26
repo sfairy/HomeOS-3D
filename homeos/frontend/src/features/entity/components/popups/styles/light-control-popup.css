@@ -1,4 +1,4 @@
-@import "@/app/styles/popup-base.css";
+@import "@/kernel/ui/styles/popup-base.css";
 
 .slider-range {
   width: 100%;

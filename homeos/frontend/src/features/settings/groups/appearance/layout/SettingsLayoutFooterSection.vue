@@ -364,7 +364,7 @@ import FooterIconPicker from '@/features/settings/components/FooterIconPicker.vu
 import FooterColorPicker from './FooterColorPicker.vue'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { resolveFooterItemValue } from '@/app/shell/composables/use-dashboard-footer'
+import { resolveFooterItemValue } from '@/domain/layout/composables/use-dashboard-footer'
 import {
   normalizeDashboardFooter,
   resolveFooterItemLabel,

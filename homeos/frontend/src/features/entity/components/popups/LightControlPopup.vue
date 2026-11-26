@@ -173,7 +173,7 @@ import PopupHead from '@/features/entity/components/popups/PopupHead.vue'
 import DeviceCountdownChip from '@/features/entity/components/popups/DeviceCountdownChip.vue'
 import { defineEntityPopupProps } from '@/domain/entity/composables/popup/use-entity-popup-base'
 import { useLightControlPopup } from '@/domain/entity/composables/popup/use-light-control-popup'
-import '@/app/styles/popup-base.css'
+import '@/kernel/ui/styles/popup-base.css'
 import './styles/light-control-popup.css'
 
 const props = defineProps(defineEntityPopupProps())

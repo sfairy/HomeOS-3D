@@ -21,7 +21,7 @@
 @import "tailwindcss";
 @config "../../../tailwind.config.js";
 @import "./hos-dropdown-theme.css";
-@import "./hos-hscroll.css";
+@import "../../kernel/ui/styles/hos-hscroll.css";
 
 /* 覆盖 Tailwind / 全局 reset 对 <dialog> 的 margin:0，避免 showModal 贴左上角 */
 dialog:modal {

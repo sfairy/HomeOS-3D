@@ -23,9 +23,7 @@
     "homeos/frontend/src/app/layouts/styles/main-layout.css": 2,
     "homeos/frontend/src/app/styles/main.css": 1,
     "homeos/frontend/src/app/styles/modal-theme.css": 6,
-    "homeos/frontend/src/app/styles/popup-base.css": 1,
     "homeos/frontend/src/app/styles/popup-entities.css": 5,
-    "homeos/frontend/src/app/styles/utility-meter-popup.css": 1,
     "homeos/frontend/src/domain/entity/components/entity-input/index.css": 5,
     "homeos/frontend/src/domain/entity/components/entity-multi-select/styles/entity-multi-select-dropdown.css": 3,
     "homeos/frontend/src/domain/entity/components/entity-multi-select/styles/entity-multi-select.css": 1,
@@ -69,6 +67,8 @@
     "homeos/frontend/src/kernel/ui/primitives/styles/hos-select.css": 2,
     "homeos/frontend/src/kernel/ui/primitives/styles/searchable-select.css": 2,
     "homeos/frontend/src/kernel/ui/primitives/styles/v-notification.css": 2,
+    "homeos/frontend/src/kernel/ui/styles/popup-base.css": 1,
+    "homeos/frontend/src/kernel/ui/styles/utility-meter-popup.css": 1,
     "homeos/frontend/src/studio/chrome/studio-native-dialogs.css": 2
   },
   "anonPagehide": {

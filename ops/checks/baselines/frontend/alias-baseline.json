@@ -20,11 +20,6 @@
       "impl": 0,
       "moduleLet": 3
     },
-    "homeos/frontend/src/app/router/system-init.state.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
     "homeos/frontend/src/app/shell/composables/use-main-layout-chrome.ts": {
       "alias2": 2,
       "impl": 0,
@@ -34,6 +29,11 @@
       "alias2": 0,
       "impl": 0,
       "moduleLet": 1
+    },
+    "homeos/frontend/src/domain/camera/hls-loader.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 2
     },
     "homeos/frontend/src/domain/client/utils/system.util.ts": {
       "alias2": 0,
@@ -120,6 +120,11 @@
       "impl": 0,
       "moduleLet": 6
     },
+    "homeos/frontend/src/domain/system/system-init.state.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
     "homeos/frontend/src/domain/voice/local-speech.util.ts": {
       "alias2": 0,
       "impl": 0,
@@ -171,11 +176,6 @@
       "moduleLet": 1
     },
     "homeos/frontend/src/features/device/camera/composables/use-ha-web-rtc-player.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 2
-    },
-    "homeos/frontend/src/features/device/camera/hls-loader.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 2
