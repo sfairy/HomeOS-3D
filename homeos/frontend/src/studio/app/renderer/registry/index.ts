@@ -1,7 +1,10 @@
 import { renderFlowLine } from './flow-line'
 import { renderInteraction3d } from '../../bridge/bridge'
-import type { PageBackgroundPosition } from '@app/shared/page-background'
-import { PAGE_BACKGROUND_COMPONENT_TYPE, mountPageBackgroundLayer } from '../controls/page-background-layer'
+import type {
+  PageBackgroundPosition,
+  PAGE_BACKGROUND_TYPE as PageBackgroundTypeName,
+} from '@app/shared/page-background'
+import { mountPageBackgroundLayer } from '../controls/page-background-layer'
 import { staticAssetImageSource } from './asset-state'
 import {
   prewarmCameraMedia,
@@ -62,6 +65,14 @@ registerComponent('flow-line', {
 })
 // 页面背景（0.9.0）：主页面宿主。侧边栏走 `RightSidebar.vue` 的同一份渲染实现。
 // 它是纯装饰层，不参与命中，因此不需要进「组件族」——不会拖慢展示端首屏。
+//
+// ⚠ 类型名在这里写**字面量**，不从 `../controls/page-background-layer` 导入常量：
+// 那个模块与 `registry/index.ts` 落在同一个 shared 环里（`entriesAware` 兜底组），
+// 模块顶层读它导出的 `const` 在环内求值顺序不利时是 `undefined` —— 注册表会拿到
+// `undefined` 作为 key（组件静默消失，或直接抛 TypeError）。
+// 用 `typeof` 做编译期等价断言：真源仍然是 `@app/shared/page-background` 的
+// `PAGE_BACKGROUND_TYPE`，谁改了两边不一致，typecheck 立刻报错。
+const PAGE_BACKGROUND_COMPONENT_TYPE: typeof PageBackgroundTypeName = 'page-background'
 registerComponent(PAGE_BACKGROUND_COMPONENT_TYPE, {
   render(
     pageBackgroundComponent: { properties?: unknown; position?: PageBackgroundPosition } | undefined,

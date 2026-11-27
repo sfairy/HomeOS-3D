@@ -215,8 +215,8 @@ function drawPageBackgroundImage(
 /** 背景层的稳定类名（CSS 与测试都依赖它）。 */
 export const LAYER_CLASS = 'hb-page-background'
 
-/** 文档组件类型别名（注册表使用同一个常量，避免两处写字符串）。 */
-export const PAGE_BACKGROUND_COMPONENT_TYPE = 'page-background'
+/** 文档组件类型别名（真源在 `@app/shared/page-background`，这里只做转出，不再写第二份字符串）。 */
+export { PAGE_BACKGROUND_TYPE as PAGE_BACKGROUND_COMPONENT_TYPE } from '@app/shared/page-background'
 
 /** 默认透明度（导出给宿主做兜底）。 */
 export const PAGE_BACKGROUND_DEFAULT_OPACITY = DEFAULT_PAGE_BACKGROUND_OPACITY
