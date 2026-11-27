@@ -123,8 +123,6 @@ type SecTabMeta = {
   tone: string
   /** 图标组件 */
   icon: Component
-  /** 设置页跳转路径 */
-  settingsTo: string
   /** 设置入口按钮文案 */
   settingsLabel: string
 }
@@ -132,7 +130,15 @@ type SecTabMeta = {
 // Tab ID 集合，用于快速校验
 const SEC_TAB_SET = new Set<string>(SEC_TAB_IDS)
 
-/** Tab 元信息映射 */
+/**
+ * Tab 元信息映射。
+ *
+ * 不要在模块顶层调用 `SETTINGS_ROUTES.*`：本模块与设置路由模块在当前 chunk 图里
+ * 处于同一个 ESM 环上（settings-route → … → security-view），模块求值时
+ * `SETTINGS_ROUTES` 的绑定尚未初始化（`undefined`），会抛
+ * `Cannot read properties of undefined (reading 'securityModes')` 并让路由懒加载失败。
+ * 跳转路径改由 `useSecurityView` 的 `tabMeta` 惰性生成。
+ */
 const SEC_TAB_META: Record<SecTabId, SecTabMeta> = {
   overview: {
     id: 'overview',
@@ -140,7 +146,6 @@ const SEC_TAB_META: Record<SecTabId, SecTabMeta> = {
     hint: '布防状态、区域传感器与告警一览',
     tone: 'pink',
     icon: Shield,
-    settingsTo: SETTINGS_ROUTES.securityModes(),
     settingsLabel: '场景配置',
   },
   monitor: {
@@ -149,7 +154,6 @@ const SEC_TAB_META: Record<SecTabId, SecTabMeta> = {
     hint: '摄像头画面与监控回放',
     tone: 'pink',
     icon: Video,
-    settingsTo: SETTINGS_ROUTES.securityModes(),
     settingsLabel: '场景配置',
   },
   events: {
@@ -158,7 +162,6 @@ const SEC_TAB_META: Record<SecTabId, SecTabMeta> = {
     hint: '门铃抓拍与门禁活动时间轴',
     tone: 'pink',
     icon: Clock,
-    settingsTo: SETTINGS_ROUTES.securityModes(),
     settingsLabel: '场景配置',
   },
 }
@@ -209,8 +212,11 @@ export function useSecurityView() {
     }),
   )
 
-  // 当前 Tab 的元信息
-  const tabMeta = computed(() => SEC_TAB_META[secTab.value])
+  // 当前 Tab 的元信息；settingsTo 惰性生成，避免模块顶层触发设置路由模块求值（见 SEC_TAB_META 注释）
+  const tabMeta = computed(() => ({
+    ...SEC_TAB_META[secTab.value],
+    settingsTo: SETTINGS_ROUTES.securityModes(),
+  }))
 
   const configLinks = computed(() => [
     { label: '场景配置', to: SETTINGS_ROUTES.securityModes() },
