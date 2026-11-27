@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-27T03:53:26.035Z",
+  "generatedAt": "2026-11-27T03:57:16.047Z",
   "roots": [
     "homeos/frontend/src",
     "homeos/backend/src",
@@ -11,11 +11,11 @@
   ],
   "byRoot": {
     "homeos/frontend/src": {
-      "code": 448169,
-      "comment": 46777,
+      "code": 448189,
+      "comment": 46785,
       "blank": 30792,
-      "chars": 13434647,
-      "files": 1718,
+      "chars": 13434929,
+      "files": 1721,
       "byExt": {
         ".vue": {
           "code": 67704,
@@ -23,9 +23,9 @@
           "files": 374
         },
         ".ts": {
-          "code": 308247,
-          "chars": 9906698,
-          "files": 1126
+          "code": 308267,
+          "chars": 9906980,
+          "files": 1129
         },
         ".css": {
           "code": 72218,
@@ -128,7 +128,7 @@
       "code": 33553,
       "comment": 5648,
       "blank": 5754,
-      "chars": 1128513,
+      "chars": 1128527,
       "files": 248,
       "byExt": {
         ".py": {
@@ -143,17 +143,17 @@
         },
         ".ts": {
           "code": 4085,
-          "chars": 132739,
+          "chars": 132753,
           "files": 47
         }
       }
     }
   },
   "total": {
-    "code": 635616,
-    "comment": 62956,
+    "code": 635636,
+    "comment": 62964,
     "blank": 61549,
-    "chars": 19297032,
-    "files": 2860
+    "chars": 19297328,
+    "files": 2863
   }
 }

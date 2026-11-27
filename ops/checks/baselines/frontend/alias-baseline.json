@@ -750,10 +750,15 @@
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/kernel/http.ts": {
+    "homeos/frontend/src/kernel/http/client.ts": {
       "alias2": 0,
       "impl": 0,
-      "moduleLet": 7
+      "moduleLet": 6
+    },
+    "homeos/frontend/src/kernel/http/csrf.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
     },
     "homeos/frontend/src/kernel/ui/AssetGridItem.vue": {
       "alias2": 1,

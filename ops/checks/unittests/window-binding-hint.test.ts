@@ -10,7 +10,7 @@ import { describe, expect, test } from 'bun:test'
 import {
   windowBindingHint,
   windowModelIdSet,
-} from '../../../homeos/frontend/src/studio/app/shared/scene/window'
+} from '../../../homeos/frontend/src/studio/app/shared/scene/window/window-models'
 
 const slidingGroup = {
   modelId: 'window:w1:group',
