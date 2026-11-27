@@ -1,6 +1,6 @@
 {
   "deepWatch": {
-    "homeos-store/frontend/src/features/admin/components/DataTable.vue": 1,
+    "homeos-store/frontend/src/features/admin/DataTable.vue": 1,
     "homeos/frontend/src/app/shell/floating-hub/use-floating-hub.ts": 1,
     "homeos/frontend/src/app/shell/use-main-layout-nav-menu.ts": 1,
     "homeos/frontend/src/domain/entity/use-device-search-options.ts": 1,
@@ -15,7 +15,7 @@
     "homeos/frontend/src/features/events/ViewAnalytics.vue": 1,
     "homeos/frontend/src/features/notifications/use-notifications-view-analytics.ts": 1,
     "homeos/frontend/src/features/security/ZoneConfigPanel.vue": 1,
-    "homeos/frontend/src/features/settings/groups/system/diagnostics/use-diagnostics-perf.ts": 1,
+    "homeos/frontend/src/features/settings/groups/system/diagnostics.ts": 1,
     "homeos/frontend/src/features/settings/kernel/pending.internals.ts": 1,
     "homeos/frontend/src/features/settings/life/use-life-chart-host.ts": 1
   },

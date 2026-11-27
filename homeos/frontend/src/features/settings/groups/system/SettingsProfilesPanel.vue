@@ -39,8 +39,8 @@ import SettingsPageShell from '@/features/settings/shell/SettingsPageShell.vue'
 import SettingsHubSubnav from '@/features/settings/shared/layout/SettingsHubSubnav.vue'
 import ProfilesDisplaySection from './profiles/DisplaySection.vue'
 import ProfilesBackupSection from './profiles/BackupSection.vue'
-import { useProfilesPanel } from './profiles/internals'
-import { PROFILES_KEY } from './profiles/use-profiles-section'
+import { useProfilesPanel } from './profiles'
+import { PROFILES_KEY } from './profiles'
 
 const props = defineProps({ activeTab: { type: String, default: 'profiles' } })
 

@@ -675,17 +675,17 @@
       "impl": 0,
       "moduleLet": 2
     },
+    "homeos/frontend/src/features/settings/groups/system/diagnostics.ts": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
     "homeos/frontend/src/features/settings/groups/system/diagnostics/LogSection.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
     "homeos/frontend/src/features/settings/groups/system/diagnostics/RuntimeLogsSection.vue": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/features/settings/groups/system/diagnostics/use-diagnostics-summary.ts": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0

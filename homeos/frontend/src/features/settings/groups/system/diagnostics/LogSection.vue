@@ -129,7 +129,7 @@ import { RefreshCw, Copy, FileText, AlertTriangle, Download, Link2 } from '@luci
 import { RouterLink } from 'vue-router'
 import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
 import SettingsCardIntro from '@/features/settings/shell/SettingsCardIntro.vue'
-import { useDiagnosticsSection } from './use-diagnostics-section'
+import { useDiagnosticsSection } from '../diagnostics'
 import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
 
 const {

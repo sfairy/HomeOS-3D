@@ -170,6 +170,9 @@ export function toSpecifier(
 
   let rel = relative(dirname(importerRepoRel), target)
   rel = rel.split(sep).join('/')
+  // 目标与引用方同目录时 relative 为空。此时必须回填 basename：
+  // `diagnostics.ts` 与 `diagnostics/` 同名，空相对路径会退化成 `./`（解析失败）。
+  if (!rel) rel = target.slice(target.lastIndexOf('/') + 1)
   if (!rel.startsWith('.')) rel = `./${rel}`
   return rel
 }

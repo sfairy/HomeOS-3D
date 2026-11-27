@@ -63,8 +63,8 @@ import DeviceHealthSection from './diagnostics/DeviceHealthSection.vue'
 import DiagnosticsRuntimeLogsSection from './diagnostics/RuntimeLogsSection.vue'
 import DiagnosticsJobsSection from './diagnostics/JobsSection.vue'
 import DiagnosticsLogSection from './diagnostics/LogSection.vue'
-import { useDiagnosticsPanel } from './diagnostics/internals'
-import { DIAGNOSTICS_KEY } from './diagnostics/use-diagnostics-section'
+import { useDiagnosticsPanel } from './diagnostics'
+import { DIAGNOSTICS_KEY } from './diagnostics'
 
 defineProps({
   activeTab: { type: String, default: 'diagnostics' },

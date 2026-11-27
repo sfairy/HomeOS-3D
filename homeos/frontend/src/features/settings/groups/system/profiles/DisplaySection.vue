@@ -282,7 +282,7 @@ import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
 import ApiQueryState from '@/kernel/ui/ApiQueryState.vue'
-import { useProfilesSection } from './use-profiles-section'
+import { useProfilesSection } from '../profiles'
 
 const profileFlowSteps = [
   { label: 'UI 布局', meta: '布局配置', icon: Monitor, tone: 'in' },

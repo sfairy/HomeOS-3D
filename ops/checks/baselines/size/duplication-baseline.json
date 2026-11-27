@@ -23,13 +23,13 @@
     "ops"
   ],
   "totals": {
-    "sources": 3444,
-    "lines": 748836,
-    "clones": 161,
-    "duplicatedLines": 3081,
-    "percentage": 0.4114,
-    "tokens": 4347962,
-    "duplicatedTokens": 14450
+    "sources": 3435,
+    "lines": 748852,
+    "clones": 162,
+    "duplicatedLines": 3093,
+    "percentage": 0.413,
+    "tokens": 4348217,
+    "duplicatedTokens": 14521
   },
   "byFormat": {
     "css": {
@@ -47,10 +47,10 @@
       "clones": 20
     },
     "javascript": {
-      "sources": 353,
-      "lines": 53557,
+      "sources": 356,
+      "lines": 53652,
       "duplicatedLines": 591,
-      "percentage": 1.1035,
+      "percentage": 1.1015,
       "clones": 21
     },
     "python": {
@@ -61,11 +61,11 @@
       "clones": 37
     },
     "typescript": {
-      "sources": 1449,
-      "lines": 392598,
-      "duplicatedLines": 1724,
-      "percentage": 0.4391,
-      "clones": 83
+      "sources": 1437,
+      "lines": 392519,
+      "duplicatedLines": 1736,
+      "percentage": 0.4423,
+      "clones": 84
     },
     "vue": {
       "sources": 424,
@@ -167,16 +167,16 @@
       "lines": 13
     },
     {
-      "fingerprint": "1e15cdce9a29bb5705799e1afb0186c9789bb28a",
-      "first": "homeos-store/frontend/src/features/admin/views/catalog/EntitlementsView.vue",
-      "second": "homeos-store/frontend/src/features/admin/views/catalog/ProductsView.vue",
-      "lines": 13
-    },
-    {
       "fingerprint": "225ee9193cf9152fde5546530edba55e391262e4",
       "first": "homeos/frontend/src/studio/app/editor/copy-backup/run-copy-backup.ts",
       "second": "homeos/frontend/src/studio/app/editor/home/style.ts",
       "lines": 25
+    },
+    {
+      "fingerprint": "22f0f46c4af8f7826a7e7725af1e0271991c6838",
+      "first": "homeos-store/frontend/src/features/admin/views/accounts/AccountsView.vue",
+      "second": "homeos-store/frontend/src/features/admin/views/catalog/CouponsView.vue",
+      "lines": 13
     },
     {
       "fingerprint": "239a263a4ff718a4896c7b44e6871bcef10a67e6",
@@ -443,12 +443,6 @@
       "lines": 11
     },
     {
-      "fingerprint": "557d4f45078c70318a77dcb6e69b660d11e4208e",
-      "first": "homeos-store/frontend/src/features/admin/views/accounts/AccountsView.vue",
-      "second": "homeos-store/frontend/src/features/admin/views/catalog/CouponsView.vue",
-      "lines": 13
-    },
-    {
       "fingerprint": "567d580b5da4a3c0485809098e751feeba87d65a",
       "first": "homeos/frontend/src/features/auth/views/RegisterView.vue",
       "second": "homeos/frontend/src/features/auth/views/ResetPasswordView.vue",
@@ -689,6 +683,12 @@
       "lines": 19
     },
     {
+      "fingerprint": "aaa3c630ad27a758f91362360466cff2b630eefe",
+      "first": "homeos-store/frontend/src/features/admin/views/catalog/EntitlementsView.vue",
+      "second": "homeos-store/frontend/src/features/admin/views/catalog/ProductsView.vue",
+      "lines": 13
+    },
+    {
       "fingerprint": "b16bd44075afd0dd30926b415b632dc2510fb64c",
       "first": "homeos/frontend/src/features/settings/groups/onboarding/connection/EventLogRecordFilterSection.vue",
       "second": "homeos/frontend/src/features/settings/groups/onboarding/connection/EventLogRecordFilterSection.vue",
@@ -705,6 +705,12 @@
       "first": "homeos/frontend/src/studio/app/editor/home/lifecycle/asset-dialog-wiring.ts",
       "second": "homeos/frontend/src/studio/app/editor/home/lifecycle/boot.ts",
       "lines": 45
+    },
+    {
+      "fingerprint": "b34840eb71474363c90411a84c65b7b8480a0972",
+      "first": "homeos/frontend/src/features/settings/groups/system/diagnostics.ts",
+      "second": "homeos/frontend/src/features/settings/groups/system/diagnostics.ts",
+      "lines": 17
     },
     {
       "fingerprint": "b78ecec06469332a25335ce684ea4925290cab23",
@@ -827,12 +833,6 @@
       "lines": 23
     },
     {
-      "fingerprint": "d09b55b54d026aad9fce6c54b6fb67d2733e33b9",
-      "first": "homeos/frontend/src/features/settings/groups/system/diagnostics/use-diagnostics-summary.ts",
-      "second": "homeos/frontend/src/features/settings/groups/system/diagnostics/use-diagnostics-summary.ts",
-      "lines": 17
-    },
-    {
       "fingerprint": "d3ef294525677ad4a9c15b2ebd49a23064398ae4",
       "first": "homeos/frontend/src/studio/app/editor/component-templates.ts",
       "second": "homeos/frontend/src/studio/app/editor/metadata/editor-navigation-style-metadata.ts",
@@ -939,6 +939,12 @@
       "first": "homeos/backend/src/api/entities.py",
       "second": "homeos/backend/src/api/voice.py",
       "lines": 23
+    },
+    {
+      "fingerprint": "e5694777fe9bd40963ad787250bb8530760563c9",
+      "first": "homeos/frontend/src/features/settings/groups/system/diagnostics.ts",
+      "second": "homeos/frontend/src/features/settings/groups/system/profiles.ts",
+      "lines": 12
     },
     {
       "fingerprint": "e76e297eed4f07ba1b35d8e4cd2582bac734c4a4",

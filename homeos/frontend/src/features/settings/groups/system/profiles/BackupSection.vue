@@ -196,7 +196,7 @@ import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import HosSelect from '@/domain/entity/entity-select/HosSelect.vue'
 import BackupRestoreDialog from './BackupRestoreDialog.vue'
-import { useProfilesSection } from './use-profiles-section'
+import { useProfilesSection } from '../profiles'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 
 const chrome = useChromeStore()

@@ -1,32 +1,19 @@
-import { ref, computed, watch, onMounted, type Ref } from 'vue'
+import { ref, computed, watch, onMounted, type Ref, inject, isRef, toRef } from 'vue'
 import { useAuthStore } from '@/domain/auth/auth.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
-import { useProfileManagement } from '@/features/settings/shared/hub'
-import { useSettingsHubRouteSection } from '@/features/settings/shared/hub'
+import { useProfileManagement, useSettingsHubRouteSection } from '@/features/settings/shared/hub'
 import { getApiErrorMessage } from '@/kernel/core/error-message'
 import { downloadBlob } from '@/kernel/core/misc'
 import { navigateAfterRestore, resolvePostRestoreDestination } from '@/domain/license'
-import {
-  fetchServerBackupFiles,
-  downloadServerBackupFile,
-  deleteServerBackupFile,
-  restoreServerBackupFile,
-  createServerBackup,
-  fetchAutoBackupStatus,
-} from '@/kernel/http/index'
+import { fetchServerBackupFiles, downloadServerBackupFile, deleteServerBackupFile, restoreServerBackupFile, createServerBackup, fetchAutoBackupStatus } from '@/kernel/http/index'
 import { handleSystemConfigPatchError, patchSystemConfig } from '@/domain/layout/system-config-core.internals'
 import { formatAuditTime, formatFullDateTime } from '@/kernel/format'
-import {
-  deleteTerminalBinding,
-  fetchActiveProject,
-  fetchTerminalBindings as fetchTerminalBindingsApi,
-  updateProjectDefaults,
-  upsertTerminalBinding,
-} from '@/domain/api/config'
+import { deleteTerminalBinding, fetchActiveProject, fetchTerminalBindings as fetchTerminalBindingsApi, updateProjectDefaults, upsertTerminalBinding } from '@/domain/api/config'
 import { getClientDeviceId } from '@/domain/client/system'
 import { inferTerminalLabel } from '@/domain/client/infer-terminal-label'
 import { bindSelfTerminalProfile } from '@/domain/layout/store/resolve-active-profile'
+
 
 function profileLabel(projectId: string) {
   return projectId === 'default' ? '默认系统方案' : projectId
@@ -456,4 +443,20 @@ export function useProfilesPanel(activeTab: Ref<string>) {
     ...terminal,
     switchToProfile,
   }
+}
+
+
+/** 档案面板的 provide/inject 契约键：由注入方（useProfilesSection）持有。 */
+export const PROFILES_KEY = Symbol('profiles')
+
+/** @param {string[]} keys */
+export function useProfilesSection(keys: string[]) {
+  const ctx = inject(PROFILES_KEY)
+  if (!ctx) throw new Error('缺少配置文件上下文')
+  const out: Record<string, unknown> = {}
+  for (const key of keys) {
+    const v = (ctx as Record<string, unknown>)[key]
+    out[key] = isRef(v) || typeof v === 'function' ? v : toRef(ctx as Record<string, unknown>, key)
+  }
+  return out
 }
