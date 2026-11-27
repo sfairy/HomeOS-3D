@@ -8,23 +8,23 @@
  * `StudioItemModelDeps` 显式传入，在本文件顶部解构成本地名，正文与迁出前逐字一致。
  */
 
-import { addTelevisionModel } from './studio-television-model'
+import { addTelevisionModel } from './model/television-model'
 import { addTrackCurtain as addTrackCurtain2 } from '@app/shared/scene/studio-curtain-track'
 import { squareEdgeItemTypeSet } from './item-catalog'
-import { exhaustFanInstallation } from './studio-exhaust-fan'
+import { exhaustFanInstallation } from './model/exhaust-fan'
 import { applyItemPosture as applyItemPosture2 } from './studio-item-posture'
-import { batchFurnitureMeshes } from './studio-furniture-batching'
+import { batchFurnitureMeshes } from './batch/furniture-batching'
 import {
   buildingFootprints as buildingFootprints2,
   fenceOpenings as fenceOpenings2,
   surfaceExclusions as surfaceExclusions2,
 } from '../plan/courtyard-drawing'
-import { createAirerModel as createAirerModel2 } from './studio-airer'
+import { createAirerModel as createAirerModel2 } from './model/airer'
 import { createCourtyardDrawingModel as createCourtyardDrawingModel2 } from '../plan/courtyard-drawing-model'
-import { createFanModel as createFanModel2 } from './studio-fan'
+import { createFanModel as createFanModel2 } from './model/fan'
 import { createFeaturewallModel } from '../materials/studio-feature-wall'
 import { createMuralModel } from '../materials/studio-mural'
-import { createSpeakerModel as createSpeakerModel2 } from './studio-speaker'
+import { createSpeakerModel as createSpeakerModel2 } from './model/speaker'
 import { isCourtyardDrawing as isCourtyardDrawing2 } from '../loaders/studio-normalization'
 import { mergeGeometries as mergeGeometries2 } from '/static/vendor/three/0.187.0/BufferGeometryUtils.js'
 import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'

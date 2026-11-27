@@ -5,7 +5,7 @@
  * 且材质签名一致；任一条件被打破即整组放弃（返回 null）。纯函数，无闭包捕获。
  */
 
-import { finite as finite2 } from '../loaders/studio-normalization'
+import { finite as finite2 } from '../../loaders/studio-normalization'
 import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
 
 export function buildMaterialSignature(signatureMesh: any) {

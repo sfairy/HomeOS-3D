@@ -22,7 +22,7 @@
 
 import type { BoxMeshOptions, CylinderMeshOptions } from '../studio-app-types'
 import { addCylinderMesh } from '../geometry'
-import { addBoxMesh } from './studio-mesh-primitives'
+import { addBoxMesh } from './batch/mesh-primitives'
 
 /** 三维尺寸 / 坐标：`[宽, 高, 深]`、`[x, y, z]`；圆柱为 `[上半径, 下半径, 高]`。 */
 export type MeshTriple = readonly [number, number, number]

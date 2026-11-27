@@ -33,7 +33,7 @@ import { applyDocumentPatch, canApplyDocumentPatch, type DocumentPatch } from '@
 import { diffDocumentPatches, describeDocumentPatch } from '@/studio/authoring/store/document-diff'
 import { refreshStepChecklist } from './ui/onboarding'
 import { type StudioApiRequestOptions } from './studio-app-types'
-import { validatePlacementChange as validatePlacementChange2 } from './items/studio-placement'
+import { validatePlacementChange as validatePlacementChange2 } from './items/placement/placement'
 import { buildStudioHistoryPatch } from './ui/studio-history'
 import { historyChangePreviewScope, itemPreviewScope, type PreviewScope } from './scene/studio-preview-scope'
 import { previewScopeOptions } from './interaction/picking'

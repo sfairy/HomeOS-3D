@@ -21,7 +21,7 @@ import {
   snapEditorRotation,
 } from '../interaction/gesture'
 import { sceneModelOrigin as sceneModelOriginOf, isCourtyardDrawing } from '../plan/courtyard-drawing'
-import { isPlacedItemHidden, isPlacedItemLocked } from '../items/placed-item-state'
+import { isPlacedItemHidden, isPlacedItemLocked } from '../items/placement/placed-item-state'
 import { applyItemOrientation } from '../geometry'
 import { adoptSceneItemTags, createSurfaceIndex } from '../interaction/scene-tags'
 import { itemMinimumElevation, itemElevationMeaning } from '../loaders/studio-normalization'
@@ -38,7 +38,7 @@ import {
 import { collectOverlayObstacles } from './overlay-obstacles'
 import { editNumberText } from '../studio-edit-metrics'
 import { itemTypeCatalog, lampItemTypeSet } from '../items/item-catalog'
-import { isItemEditable, isItemInLibraryScope, isItemShown } from '../items/placed-item-visibility'
+import { isItemEditable, isItemInLibraryScope, isItemShown } from '../items/placement/placed-item-visibility'
 import { layoutEditorLabels, type EditorLabelAnchor, type EditorLabelPlacement } from './editor-labels'
 import { createLightToolbar, createToolbarOptions } from './light-toolbar'
 

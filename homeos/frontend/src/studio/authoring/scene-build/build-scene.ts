@@ -12,8 +12,8 @@ import {
   subtractPolygonLoops as subtractPolygonLoops2,
 } from '../plan/geometry'
 import { type ArchitectureMeshOptions, type PlanEditPreviewFlags } from '../studio-app-types'
-import { collectChildMeshes } from '../items/studio-furniture-batching'
-import { buildMaterialSignature, collectSharedMeshRecords } from '../items/studio-shared-mesh-records'
+import { collectChildMeshes } from '../items/batch/furniture-batching'
+import { buildMaterialSignature, collectSharedMeshRecords } from '../items/batch/shared-mesh-records'
 import {
   addArchitectureMesh as addArchitectureMeshCore,
   addWindowFrames as addWindowFramesCore,
@@ -30,10 +30,10 @@ import {
 } from '../scene/walls'
 import { wallUnionFallbackCount } from '../plan/studio-wall'
 import { finite as finite2, isCourtyardDrawing as isCourtyardDrawing2 } from '../loaders/studio-normalization'
-import { mergeStaticItemMeshesCore } from '../items/studio-static-item-meshes'
+import { mergeStaticItemMeshesCore } from '../items/batch/static-item-meshes'
 import { finishWallFurniture, mountFloorRegionVisualsForScene } from './floor'
 import { BATCH_FALLBACK, reportDegradation, reportDegradationRecovered } from '../../app/shared/diagnostics/degradation'
-import { compactStaticDeviceParts as compactStaticDeviceParts2 } from '../items/studio-device-batching'
+import { compactStaticDeviceParts as compactStaticDeviceParts2 } from '../items/batch/device-batching'
 import { isCourtyardPlanItem as isCourtyardPlanItem2 } from '../plan/courtyard'
 import { sceneModelOrigin as sceneModelOrigin2 } from '../plan/courtyard-drawing'
 import { applyShadowReceiverTrial as applyShadowReceiverTrial2 } from '../studio-shadow-receiver-trial'
@@ -42,7 +42,7 @@ import { compactRuntimeFurniture as compactRuntimeFurniture2 } from '../items/st
 import { cacheObjectTransforms as cacheObjectTransforms2 } from '@app/bridge/scene/scene-matrices'
 import { mergeGeometries as mergeGeometries2 } from '/static/vendor/three/0.187.0/BufferGeometryUtils.js'
 import { lampItemTypeSet, tvMountStyleSet } from '../items/item-catalog'
-import { isPlacedItemHidden, placedVisibilityKey, placedVisibilityKeyFor } from '../items/placed-item-state'
+import { isPlacedItemHidden, placedVisibilityKey, placedVisibilityKeyFor } from '../items/placement/placed-item-state'
 import { applyItemOrientation } from '../geometry'
 import { isWarmSceneStyle } from '../../app/shared/scene-styles'
 import { MATERIAL_STYLE_AUTO, materialStylePaletteColors, normalizeMaterialStyle } from '../materials/studio-material'
@@ -521,7 +521,7 @@ export function batchSharedMeshes(runtime: StudioAppRuntime, batchSceneRoot: any
   )
 }
 
-/** 静态物品网格合批（原 studio-app 直系声明，P4 搬进 `items/studio-static-item-meshes`，此处只转发句柄）。 */
+/** 静态物品网格合批（原 studio-app 直系声明，P4 搬进 `items/batch/static-item-meshes`，此处只转发句柄）。 */
 export function mergeStaticItemMeshes(runtime: StudioAppRuntime, mergeSceneRoot: any, mergeItemEntries: any) {
   return mergeStaticItemMeshesCore(runtime.studioStaticItemMeshesDeps(), mergeSceneRoot, mergeItemEntries)
 }

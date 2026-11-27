@@ -1,6 +1,6 @@
-import { drawingPlanPoints, isCourtyardGate, syncCourtyardGates } from '../plan/courtyard-drawing'
-import { windowTopologyError } from '../plan/window/window-scene-guard'
-import { exhaustFanInstallation } from './studio-exhaust-fan'
+import { drawingPlanPoints, isCourtyardGate, syncCourtyardGates } from '../../plan/courtyard-drawing'
+import { windowTopologyError } from '../../plan/window/window-scene-guard'
+import { exhaustFanInstallation } from '../model/exhaust-fan'
 const overlapEpsilon = 0.001,
   overlapLength = (startA: any, endA: any, startB: any, endB: any) => Math.min(endA, endB) - Math.max(startA, startB)
 function createOrientedBox(

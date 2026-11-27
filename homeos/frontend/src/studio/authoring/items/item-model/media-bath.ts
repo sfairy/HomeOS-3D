@@ -11,7 +11,7 @@ import {
   tvScreenLayout,
   tvFloorStandLegs,
   TV_FLOOR_STAND,
-} from '../studio-television-model'
+} from '../model/television-model'
 import type { ItemModelScope } from './types'
 
 export function buildMediaBath(scope: ItemModelScope): boolean {

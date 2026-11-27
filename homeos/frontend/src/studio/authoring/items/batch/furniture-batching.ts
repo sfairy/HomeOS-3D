@@ -1,6 +1,6 @@
 import { mergeGeometries } from '/static/vendor/three/0.187.0/BufferGeometryUtils.js'
-import { buildStaticMaterialKey } from '../materials/studio-static-material-key'
-import { nextBatchItemTypeSet } from './item-catalog'
+import { buildStaticMaterialKey } from '../../materials/studio-static-material-key'
+import { nextBatchItemTypeSet } from '../item-catalog'
 import * as threeModuleMin from '/static/vendor/three/0.187.0/three.module.min.js'
 const indexCompactionTypeSet = new Set([
     'rectangular-pipeline-dispenser',

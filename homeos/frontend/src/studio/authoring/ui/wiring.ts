@@ -14,7 +14,11 @@ import {
 import { isCustomWindow, windowWallLimits } from '@app/shared/scene/window/layout'
 import { windowSceneError } from '../plan/window/window-scene-guard'
 import { itemWithPlanFootprint as itemWithPlanFootprint2 } from '../items/studio-item-posture'
-import { isPlacedItemHidden, isPlacedItemLocked, registerPlacedVisibilitySource } from '../items/placed-item-state'
+import {
+  isPlacedItemHidden,
+  isPlacedItemLocked,
+  registerPlacedVisibilitySource,
+} from '../items/placement/placed-item-state'
 import { itemTypeCatalog, lampItemTypeSet } from '../items/item-catalog'
 import { itemElevationMeaning } from '../loaders/studio-normalization'
 import { editNumberText } from '../studio-edit-metrics'

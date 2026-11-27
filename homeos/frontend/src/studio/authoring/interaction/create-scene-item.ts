@@ -7,7 +7,7 @@ import { normalizeCurtainTrack as normalizeCurtainTrack2 } from '@app/shared/sce
 import { DEFAULT_STRIP_AXIS as DEFAULT_STRIP_AXIS2 } from '../items/studio-item-posture'
 import { DEFAULT_STRIP_MOUNT, defaultStripElevation } from '../lights/strip-light'
 import { itemTypeCatalog, lampItemTypeSet, openStairTypeSet, roundTableTypeSet } from '../items/item-catalog'
-import { snapExhaustFan } from '../items/studio-exhaust-fan'
+import { snapExhaustFan } from '../items/model/exhaust-fan'
 
 import type { SceneItemSizeOverrides } from '../studio-app-types'
 import { generateId } from '../ui/studio-app-helpers'

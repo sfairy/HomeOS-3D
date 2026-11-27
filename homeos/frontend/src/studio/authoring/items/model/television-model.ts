@@ -1,4 +1,4 @@
-import { applyTextureQuality } from '../render-kit/texture-quality'
+import { applyTextureQuality } from '../../render-kit/texture-quality'
 /**
  * 电视模型构件：屏幕本体 / 发光层 / 贴图（`createTelevisionPoster`）与挂装比例的换算
  * （`computeTelevisionProportions`，桌面 / 移动 / 壁挂三档）。
@@ -10,8 +10,8 @@ import { applyTextureQuality } from '../render-kit/texture-quality'
 
 import { createWarmTelevisionGlass as createWarmTelevisionGlass2 } from '@app/shared/scene/studio-television-glass'
 import { drawTelevisionPoster as drawTelevisionPoster2 } from '@app/shared/scene/studio-television-poster'
-import { computeTelevisionProportions } from './studio-television-proportions'
-import { box } from './mesh-shorthand'
+import { computeTelevisionProportions } from './television-proportions'
+import { box } from '../mesh-shorthand'
 import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
 
 // 比例换算已切到 `studio-television-proportions.ts`（纯函数），这里只做转出以保持旧引用可用。
@@ -23,7 +23,7 @@ export {
   normalizeTvMountStyle,
   setTvMountStyle,
   tvExternalModelType,
-} from './studio-television-proportions'
+} from './television-proportions'
 
 /** 电视模型构件需要的外部状态（均为只读）。 */
 interface StudioTelevisionDeps {

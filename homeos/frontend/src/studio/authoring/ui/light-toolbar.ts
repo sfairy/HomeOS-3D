@@ -36,7 +36,12 @@ import {
   type TransactionState,
 } from './editor-3d'
 import { applyPlacementSnap } from '../interaction/drag-and-drop'
-import { isGizmoEligibleItem, isItemEditable, isItemInLibraryScope, isItemShown } from '../items/placed-item-visibility'
+import {
+  isGizmoEligibleItem,
+  isItemEditable,
+  isItemInLibraryScope,
+  isItemShown,
+} from '../items/placement/placed-item-visibility'
 import { libraryModeOf } from './asset-library'
 import { itemElevationMeaning } from '../loaders/studio-normalization'
 

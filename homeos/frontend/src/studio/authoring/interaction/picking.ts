@@ -10,7 +10,7 @@ import {
 } from '../plan/geometry'
 import { isCourtyardDrawing as isCourtyardDrawing2 } from '../loaders/studio-normalization'
 import { itemWithPlanFootprint as itemWithPlanFootprint2 } from '../items/studio-item-posture'
-import { isPlacedItemHidden } from '../items/placed-item-state'
+import { isPlacedItemHidden } from '../items/placement/placed-item-state'
 import { type StudioAppContext } from '../app-context'
 import { type StudioAppRuntime } from '../runtime/studio-app-runtime'
 import { isCourtyardPlanItem as isCourtyardPlanItem2 } from '../plan/courtyard'

@@ -10,8 +10,8 @@
  * 除函数名加了 `Core` 后缀、正文首行解构 deps 之外，函数体与迁出前**逐字一致**。
  */
 
-import { buildGeometryKey } from './studio-furniture-batching'
-import { buildStaticMaterialKey } from '../materials/studio-static-material-key'
+import { buildGeometryKey } from './furniture-batching'
+import { buildStaticMaterialKey } from '../../materials/studio-static-material-key'
 import { mergeGeometries as mergeGeometries2 } from '/static/vendor/three/0.187.0/BufferGeometryUtils.js'
 import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
 

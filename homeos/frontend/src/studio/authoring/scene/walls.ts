@@ -37,7 +37,7 @@ import { openingFrameDepth, windowGeometryParts as windowGeometryParts2 } from '
 import { addCustomWindow } from '../plan/window/model'
 import { isCustomWindow } from '@app/shared/scene/window/layout'
 import { windowModelId } from '@app/shared/scene/window/window-models'
-import { collectExhaustFanOpenings } from '../items/studio-exhaust-fan'
+import { collectExhaustFanOpenings } from '../items/model/exhaust-fan'
 
 /**
  * 墙体分层 solo（仅开发期）。

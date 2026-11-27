@@ -7,16 +7,16 @@
  * `externalModelRegistry`（外部模型注册表），按参数显式传入 —— 其余依赖都是 import。
  */
 
-import { isVehicleModelType } from '../../items/studio-vehicle-models'
+import { isVehicleModelType } from '../../items/model/vehicle-models'
 import { MATERIAL_STYLE_AUTO, normalizeMaterialStyle } from '../../materials/studio-material'
-import { airerDimensions as airerDimensions2 } from '../../items/studio-airer'
+import { airerDimensions as airerDimensions2 } from '../../items/model/airer'
 import { clamp as clamp2, distance as distance2 } from '../../plan/geometry'
 import {
   curtainFootprintDepth as curtainFootprintDepth2,
   normalizeCurtainTrack as normalizeCurtainTrack2,
 } from '@app/shared/scene/studio-curtain-track'
 import { defaultViewSettings } from './studio-view-settings'
-import { fanDimensions as fanDimensions2 } from '../../items/studio-fan'
+import { fanDimensions as fanDimensions2 } from '../../items/model/fan'
 import {
   finite as finite2,
   isCourtyardDrawing as isCourtyardDrawing2,

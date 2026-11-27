@@ -17,14 +17,14 @@ import {
   resizeRotatedItemFromEdge as resizeRotatedItemFromEdge2,
 } from '../plan/geometry'
 import { itemTypeCatalog } from '../items/item-catalog'
-import { isPlacedItemLocked, isPlacedItemHidden } from '../items/placed-item-state'
+import { isPlacedItemLocked, isPlacedItemHidden } from '../items/placement/placed-item-state'
 import { floorOpeningPolygon } from '../plan/studio-floor'
 import { generateId } from '../ui/studio-app-helpers'
 import { doorTypeCatalog } from '../scene/payload/studio-scene-payload'
 import { handleFloorRegionPointer } from './tools'
 import { patchStudioFacadeState } from '../../engine/studio-facade'
 import { type StudioAppContext } from '../app-context'
-import { fanDimensions as fanDimensions2 } from '../items/studio-fan'
+import { fanDimensions as fanDimensions2 } from '../items/model/fan'
 import {
   normalizeCurtainTrack as normalizeCurtainTrack2,
   curtainFootprintDepth as curtainFootprintDepth2,
@@ -42,7 +42,7 @@ import { applyPlacementSnap, applyPointSnap, quantizePlanDelta } from './drag-an
 import { type PlacementGuide } from '../plan/studio-placement'
 import { type StudioAppRuntime } from '../runtime/studio-app-runtime'
 import { offerOverlapPickerFor } from '../ui/wiring'
-import { restorePlacementScene as restorePlacementScene2 } from '../items/studio-placement'
+import { restorePlacementScene as restorePlacementScene2 } from '../items/placement/placement'
 
 export interface HandlePointerDownDeps {
   activeDoorType: keyof typeof doorTypeCatalog

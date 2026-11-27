@@ -3,7 +3,7 @@ import { syncStudioSelect as syncStudioSelect2 } from '../ui/studio-widgets'
 import { lampItemTypeSet, itemTypeCatalog } from '../items/item-catalog'
 import { type ListDragRowSession } from '../studio-app-types'
 import { generateId, composeKey, composeItemKey } from '../ui/studio-app-helpers'
-import { isPlacedItemLocked } from '../items/placed-item-state'
+import { isPlacedItemLocked } from '../items/placement/placed-item-state'
 import { normalizeLightPropertyValue, formatLightPropertyValue } from './studio-app-light-data'
 import { domElement } from '@app/shared/util/dom-factory'
 

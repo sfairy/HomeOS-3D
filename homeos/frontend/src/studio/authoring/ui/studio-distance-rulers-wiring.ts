@@ -22,7 +22,7 @@ import {
   type LabelObstacles,
 } from '../plan/studio'
 import { itemTypeCatalog, lampItemTypeSet } from '../items/item-catalog'
-import { isPlacedItemHidden, isPlacedItemLocked } from '../items/placed-item-state'
+import { isPlacedItemHidden, isPlacedItemLocked } from '../items/placement/placed-item-state'
 import { isCourtyardDrawing } from '../plan/courtyard-drawing'
 import { POINT_MARKER_FILL } from '../plan/studio'
 import { isEditor3DGestureActive } from './editor-3d'

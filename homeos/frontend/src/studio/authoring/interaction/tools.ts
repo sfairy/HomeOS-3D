@@ -3,9 +3,9 @@ import {
   syncCourtyardGates as syncCourtyardGates2,
   remapCourtyardAttachments as remapCourtyardAttachments2,
 } from '../plan/courtyard-drawing'
-import { airerDimensions as airerDimensions2 } from '../items/studio-airer'
+import { airerDimensions as airerDimensions2 } from '../items/model/airer'
 import { setPipelineDispenserStyle } from '../items/pipeline-dispenser'
-import { fanDimensions as fanDimensions2 } from '../items/studio-fan'
+import { fanDimensions as fanDimensions2 } from '../items/model/fan'
 import { normalizeMuralArtStyle, normalizeFeatureWallStyle } from '../materials/studio-surface'
 import {
   normalizeCurtainTrack as normalizeCurtainTrack2,
@@ -42,14 +42,14 @@ import {
 } from '../items/item-catalog'
 import { syncLightShapeAndRepaint } from '../lights/light-areas'
 import { STORAGE_SECTION_TYPES, storageSectionStyle } from '../items/studio-storage-sections'
-import { setTvMountStyle } from '../items/studio-television-proportions'
+import { setTvMountStyle } from '../items/model/television-proportions'
 import { type StudioControlElement } from '../studio-app-types'
 import { lightPresetCatalog, lightAngleLimitForType } from '../lights/studio-app-light-data'
 import { doorTypeCatalog, normalizePlanLabelColor } from '../scene/payload/studio-scene-payload'
 import { type StudioAppContext } from '../app-context'
 import { type StudioAppRuntime } from '../runtime/studio-app-runtime'
-import { snapItemToSurface as snapItemToSurface2 } from '../items/studio-surface-snap'
-import { snapExhaustFan } from '../items/studio-exhaust-fan'
+import { snapItemToSurface as snapItemToSurface2 } from '../items/placement/surface-snap'
+import { snapExhaustFan } from '../items/model/exhaust-fan'
 import {
   isCourtyardPlanItem as isCourtyardPlanItem2,
   courtyardToolAllowed as courtyardToolAllowed2,

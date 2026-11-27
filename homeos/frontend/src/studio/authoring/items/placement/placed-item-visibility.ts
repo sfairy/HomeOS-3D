@@ -15,12 +15,12 @@
  * 只该依赖 `StudioAppContext`；分类目录、庭院判定属于更上层的知识，混进去会把整棵目录树
  * 拖进每个命中测试。
  */
-import type { StudioAppContext } from '../app-context'
+import type { StudioAppContext } from '../../app-context'
 import { isPlacedItemHidden, isPlacedItemLocked } from './placed-item-state'
-import { lampItemTypeSet } from './item-catalog'
-import { libraryModeOf } from '../ui/asset-library'
-import { isCourtyardDrawing, isCourtyardGate } from '../plan/courtyard-drawing'
-import { isCourtyardPlanItem } from '../plan/courtyard'
+import { lampItemTypeSet } from '../item-catalog'
+import { libraryModeOf } from '../../ui/asset-library'
+import { isCourtyardDrawing, isCourtyardGate } from '../../plan/courtyard-drawing'
+import { isCourtyardPlanItem } from '../../plan/courtyard'
 
 type ItemLike = Record<string, unknown> | null | undefined
 

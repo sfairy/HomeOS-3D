@@ -4,7 +4,7 @@ import { clamp as clamp2 } from '../plan/geometry'
 import { syncControlValue as syncControlValue2 } from './ui-controls'
 import { finite as finite2 } from '../loaders/studio-normalization'
 import { setUserDecorationStageContext, decorationPlacementFields, registerUserDecorationModel } from './wiring'
-import { isPlacedItemHidden, isPlacedItemLocked } from '../items/placed-item-state'
+import { isPlacedItemHidden, isPlacedItemLocked } from '../items/placement/placed-item-state'
 
 /**
  * 平面画布的 2D 上下文（0.8.9 起从 `boot.ts` 切出）。

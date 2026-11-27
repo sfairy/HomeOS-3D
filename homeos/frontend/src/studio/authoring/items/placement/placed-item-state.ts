@@ -11,7 +11,7 @@
  *
  * 未注册时一律返回「不隐藏、不锁定」——引擎可以在面板挂载之前就正常工作。
  */
-import type { StudioAppContext } from '../app-context'
+import type { StudioAppContext } from '../../app-context'
 
 /** 只声明读取需要的那几个方法，避免把面板实现拖进引擎依赖图。 */
 export type PlacedVisibilitySource = {

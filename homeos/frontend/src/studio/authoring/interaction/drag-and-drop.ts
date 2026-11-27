@@ -18,7 +18,7 @@ import {
   registerUserDecorationModel,
 } from '../loaders/external-models/user-decoration-models'
 import { type StudioAppContext } from '../app-context'
-import { isPlacedItemHidden, isPlacedItemLocked } from '../items/placed-item-state'
+import { isPlacedItemHidden, isPlacedItemLocked } from '../items/placement/placed-item-state'
 import { itemPlanCorners, placementTolerance, type Point, type PlanRectLike } from '../plan/studio-placement'
 import { snapPlacement, type PlacementGuide } from '../plan/studio-placement'
 

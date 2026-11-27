@@ -6,7 +6,7 @@
  */
 import { box, cyl } from '../mesh-shorthand'
 
-import { addFurnitureAssembly } from '../studio-mesh-primitives'
+import { addFurnitureAssembly } from '../batch/mesh-primitives'
 import { roundTableTypeSet } from '../item-catalog'
 import { isTurntableRoundTable } from '../../ui/studio-app-helpers'
 import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'

@@ -698,7 +698,7 @@ import { StudioSaveStore } from '@/studio/authoring/store/save-store'
 import { createStudioDraftRepository } from '@/studio/authoring/store/studio-draft-repository'
 
 import { createStudioAppContext } from './app-context'
-import { type StudioStaticItemMeshesDeps } from './items/studio-static-item-meshes'
+import { type StudioStaticItemMeshesDeps } from './items/batch/static-item-meshes'
 import {
   clearStudioInstance,
   hasActiveStudio,
@@ -4156,7 +4156,7 @@ export function bootStudio(): void {
       }
       /** 盒子网格构件的外部状态（见 `scene/studio-box-mesh`）：两个缓存 + 主题视图设置。 */
       const studioBoxMeshDeps = () => ({ geometryCacheByKey, textureCacheByKey, backgroundSettings })
-      /** 电视模型构件的外部状态（见 `items/studio-television-model`）：嵌入舞台标记 + 渲染器（只读）+ 主题视图设置。 */
+      /** 电视模型构件的外部状态（见 `items/model/television-model`）：嵌入舞台标记 + 渲染器（只读）+ 主题视图设置。 */
       const studioTelevisionDeps = () => ({ isEmbeddedStage, threeRenderer: appCtx.threeRenderer, backgroundSettings })
       /**
        * 物品模型总装的外部句柄（见 `items/studio-item-model`）：13 个宿主兄弟构件
@@ -4293,7 +4293,7 @@ export function bootStudio(): void {
         }
       }
       /**
-       * 静态合批句柄（同族转发见 `items/studio-static-item-meshes`）：`appCtx` 按引用传（本族只读它的
+       * 静态合批句柄（同族转发见 `items/batch/static-item-meshes`）：`appCtx` 按引用传（本族只读它的
        * `threeRenderer`），其余三项是宿主闭包里的常量与判定句柄。工厂每次调用现取，快照不外溢。
        */
       const studioStaticItemMeshesDeps = (): StudioStaticItemMeshesDeps => ({

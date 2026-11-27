@@ -1,4 +1,4 @@
-import { validatePlacementChange } from '../items/studio-placement'
+import { validatePlacementChange } from '../items/placement/placement'
 import { enhanceStudioSelect, initializeNumberInputs, disposeStudioSelects } from '../ui/studio-widgets'
 import {
   snapCourtyardPoint,

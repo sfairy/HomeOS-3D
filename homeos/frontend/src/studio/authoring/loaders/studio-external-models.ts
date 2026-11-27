@@ -5,11 +5,11 @@ import {
   applyVehicleFinish,
   carOpeningsModelType,
   mountCarOpeningParts,
-} from '../items/studio-vehicle-models'
+} from '../items/model/vehicle-models'
 import { decorateWarmFloor } from '../scene/studio-scene-style'
 import { pipelineDispenserModelType } from '../items/pipeline-dispenser'
 import { storageSectionModelType } from '../items/studio-storage-sections'
-import { tvExternalModelType } from '../items/studio-television-proportions'
+import { tvExternalModelType } from '../items/model/television-proportions'
 import { enlargeWarmLeaves } from '../materials/studio-warm-foliage'
 import {
   applyNaturalWoodCurtainCloth,
@@ -59,7 +59,7 @@ import {
 import { applyMetalEnvironmentFinish } from '../materials/studio-metal-environment'
 import { resolvePillarMaterialSpec } from '../materials/studio-pillar-material'
 import { materialStyleRecipeFor, materialStyleRoleColorFor } from '../materials/studio-material'
-import { createFurnitureBatchCache, compactFurnitureIndices } from '../items/studio-furniture-batching'
+import { createFurnitureBatchCache, compactFurnitureIndices } from '../items/batch/furniture-batching'
 import {
   sofaFamilyItemTypes,
   preparedRestoreTimeoutMs,

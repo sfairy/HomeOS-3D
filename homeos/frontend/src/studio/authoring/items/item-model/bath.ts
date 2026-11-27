@@ -6,7 +6,7 @@
  */
 import { box, cyl } from '../mesh-shorthand'
 
-import { buildPressProfile } from '../studio-sanitary-models'
+import { buildPressProfile } from '../model/sanitary-models'
 import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
 import type { ItemModelScope } from './types'
 

@@ -8,7 +8,7 @@ import { box, cyl } from '../mesh-shorthand'
 
 import { ALL_ITEM_MODELS as ALL_ITEM_MODELS2 } from '../../loaders/studio-external-models'
 import { needsExternalModelAsset } from '../../loaders/external-models/all-item-models'
-import { addChargingPadModel } from '../studio-charging-pad'
+import { addChargingPadModel } from '../model/charging-pad'
 import { applianceItemTypeSet, lampItemTypeSet, stairItemTypeSet } from '../item-catalog'
 import type { ItemModelScope } from './types'
 
