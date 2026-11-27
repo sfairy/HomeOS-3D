@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { useFeatureCatalogStore } from '@store/features/admin/feature-catalog'
+import { useFeatureCatalogStore } from "@store/features/admin/feature-catalog";
 import { hidePopoverIfOpen, placePopover, showPopoverIfPossible } from "@store/features/admin/popover";
 import { logAndIgnore } from "@store/shared/best-effort";
 

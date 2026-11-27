@@ -8,12 +8,7 @@ import { fromResponse } from "@store/shared/api/error";
 import { isPasswordPolicyCompliant, PASSWORD_POLICY_MESSAGE } from "@homeos/shared/security/password-policy";
 import { sessionPersisted } from "@store/shared/session";
 import { reportBestEffort, runBestEffort } from "@store/shared/best-effort";
-import {
-  peekSetupStatus,
-  probeSetupStatus,
-  setupTokenFromHash,
-  type SetupState,
-} from "@store/shared/setup-status";
+import { peekSetupStatus, probeSetupStatus, setupTokenFromHash, type SetupState } from "@store/shared/setup-status";
 
 const username = ref("");
 const email = ref("");

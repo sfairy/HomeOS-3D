@@ -39,7 +39,6 @@ const DEFAULT_ROOT = path.resolve(SCRIPT_DIR, '..', '..', '..', 'homeos', 'front
 const ROOT_INDEX = process.argv.indexOf('--root')
 const ROOT = ROOT_INDEX > -1 ? path.resolve(process.argv[ROOT_INDEX + 1]) : DEFAULT_ROOT
 const SOURCE_EXTS = new Set(['.ts', '.tsx', '.mts', '.vue', '.js', '.mjs'])
-const UPPER_LAYERS = ['stores', 'composables', 'components', 'views', 'features', 'layouts']
 
 /**
  * 路径别名表：前缀 → 源码根下的相对目录。改这个表等于改「什么样的说明符算内部引用」，
@@ -222,46 +221,6 @@ function normalizeTarget(target) {
   value = value.replace(/\.(ts|tsx|mts|js|mjs|vue)$/, '')
   value = value.replace(/\/index$/, '')
   return value
-}
-
-function featureHasBarrel(domain) {
-  // barrel 只在「确有跨域消费者」时才存在。检查文件真实存在，否则 `@/features/x`
-  // 这种解析不到裸路径会被当成合法跨域引用（构建期才炸，且报错指向无关的 chunk）。
-  return (
-    fs.existsSync(path.join(ROOT, 'features', domain, 'index.ts')) ||
-    fs.existsSync(path.join(ROOT, 'features', domain, 'index.tsx'))
-  )
-}
-
-function isFeatureBarrel(target) {
-  const match = /^features\/([^/]+)$/.exec(target)
-  return Boolean(match) && featureHasBarrel(match[1])
-}
-
-/** 引用的是「域根」但这个域没有 barrel —— 与深引用区分开，报错更准确。 */
-function isFeatureRootWithoutBarrel(target) {
-  const match = /^features\/([^/]+)$/.exec(target)
-  return Boolean(match) && !featureHasBarrel(match[1])
-}
-
-/**
- * `views/` 允许引用的域入口。
- *
- * - `features/<域>/entry`：单页域（绝大多数）。
- * - `features/<域>/entry-<page>`：**多页域按页分流**。两条路由若共用一个 entry 模块，
- *   Rollup 会把这个模块（连同两个页面）合并进同一个 shared chunk —— `/devices` 就会
- *   把详情页一起下载下来，懒加载失效。按页拆 entry 能保住动态导入边界。
- *   例：`features/device/entry-devices` 与 `features/device/entry-device-detail`。
- */
-function isFeatureEntry(target) {
-  return /^features\/[^/]+\/entry(-[a-z0-9]+)*$/.test(target)
-}
-
-function isDefaultImport(clause) {
-  const value = clause.trim()
-  if (!value) return false
-  if (value.startsWith('{') || value.startsWith('*')) return false
-  return /^(type\s+)?[A-Za-z_$][\w$]*\s*(,|$)/.test(value)
 }
 
 function checkFile(filePath) {

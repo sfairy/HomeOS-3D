@@ -1,11 +1,15 @@
 import { domElement } from '@app/shared/util/dom-factory'
 import { createPopupFeedback } from '@app/shared/util/popup-feedback'
 import { createStageDeviceVisual } from '../core/stage-device-visual'
-import { GAS_ENUM_STATES, SMOKE_ENUM_STATES, SMOKE_EVENT_TYPE, securityAlarmEntityMode } from '@/studio/platform/security-alarm-profile'
+import {
+  GAS_ENUM_STATES,
+  SMOKE_ENUM_STATES,
+  SMOKE_EVENT_TYPE,
+  securityAlarmEntityMode,
+} from '@/studio/platform/security-alarm-profile'
 import { isWarmSceneStyle } from '@app/shared/scene-styles'
 import { openConfigurationPicker, type ConfigurationChoice } from '../config-ui/configuration-picker'
 import { lockState } from '@app/bridge/lock-state-runtime'
-
 
 /** 铰链枢轴的最小结构：本文件只碰 `rotation.y` / `position.x` / `scale.x`。 */
 interface HingePivotLike {
@@ -690,7 +694,6 @@ export {
   LOCK_ENTITY_FIELDS,
 } from '@app/bridge/lock-state-runtime'
 
-
 const MDI_SVG = '/static/vendor/mdi/7.4.47/svg/'
 
 export const SECURITY_ALARM_KINDS = ['moisture', 'smoke', 'gas'] as const
@@ -1331,7 +1334,6 @@ export function mergeSecurityAlarmPresentations(presentations: any[] = []) {
  * 只有当这条窗扇模型的 `legacyModels` 非空、**且**本层确实存在 >1 条解析到同一组的配置时
  * 才弹。数据干净时它不会出现，所以这是纯迁移路径。
  */
-
 
 /** 一条窗户安防配置（只声明本段读到的字段）。 */
 export type WindowSecurityConfig = {

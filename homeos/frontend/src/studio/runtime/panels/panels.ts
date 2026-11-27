@@ -1,4 +1,11 @@
-import { attributesOf, extraContextChanged, featureFlags, haNumber, stringOptions, brightnessModes } from '../device/device'
+import {
+  attributesOf,
+  extraContextChanged,
+  featureFlags,
+  haNumber,
+  stringOptions,
+  brightnessModes,
+} from '../device/device'
 import { createCameraAudio, mountCameraAudioButton, type CameraAudioHandle } from '@app/shared/camera'
 import { createRangeFeedback } from '@app/shared/util/control-timeout'
 import { enhancePopupSelects } from '@app/shared/util/select-picker'

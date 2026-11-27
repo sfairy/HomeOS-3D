@@ -10,7 +10,7 @@ import { adminApi } from "@store/shared/api/http";
 import { asListItems, errorMessage } from "@store/shared/store";
 import { useToastStore } from "@store/shared/toast";
 import { useConfirmStore } from "@store/shared/confirm";
-import { useAdminRefreshStore } from '@store/features/admin/admin-refresh'
+import { useAdminRefreshStore } from "@store/features/admin/admin-refresh";
 import { dt } from "@store/features/admin/format";
 
 interface Withdrawal {

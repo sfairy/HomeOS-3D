@@ -3,7 +3,6 @@ import { formatHANumber } from '@app/shared/util/ha-number'
 import { createPurifierExtras } from '../climate/climate'
 import { createStageDeviceVisual } from '../core/stage-device-visual'
 
-
 /**
  * NAS 状态面板（0.8.1 `nas-panel.js`）。
  *

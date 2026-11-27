@@ -303,7 +303,6 @@ export function disposeWalker(walkerToDispose: any) {
     walkerToDispose.removeFromParent()
 }
 
-
 /**
  * 「本层还没有人体传感器」时的提示文案。
  *

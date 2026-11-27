@@ -65,10 +65,7 @@ import { createCoverFeedback as createCoverFeedback2 } from '../cover/cover'
 import { createCoverPanel as createCoverPanel2 } from '../cover/cover'
 import { createCoverGroupPanel as createCoverGroupPanel2 } from '../cover/cover'
 import type { CurtainGroupLike } from '../cover/cover'
-import {
-  validCurtainGroups as validCurtainGroups2,
-  curtainGroupEntryId as curtainGroupEntryId2,
-} from '../cover/cover'
+import { validCurtainGroups as validCurtainGroups2, curtainGroupEntryId as curtainGroupEntryId2 } from '../cover/cover'
 import { createCurtainMotion as createCurtainMotion2 } from '../cover/cover'
 import { createEnvironmentAirflow as createEnvironmentAirflow2 } from '../environment/environment-airflow'
 import { createDeviceMist as createDeviceMist2 } from '../environment/device-mist'

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useOrderStore, orderCountdownText } from "@store/features/storefront/checkout/store";
-import { useCancelOrder, useOrderDialog } from '@store/features/storefront/checkout/use-order-dialog'
+import { useCancelOrder, useOrderDialog } from "@store/features/storefront/checkout/use-order-dialog";
 import { formatCentsPlain as moneyAmount } from "@store/shared/money";
 
 const order = useOrderStore();

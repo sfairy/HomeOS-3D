@@ -2,12 +2,7 @@
 import { computed } from 'vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
-import {
-  ENERGY_FIELD_DEFS,
-  getFieldDef,
-  type EnergyCategory,
-  type EnergyFieldDef,
-} from '@/domain/energy/energy-fields'
+import { ENERGY_FIELD_DEFS, getFieldDef, type EnergyCategory, type EnergyFieldDef } from '@/domain/energy/energy-fields'
 import { hasEnergyConfig, getEntityLeaf } from '@homeos/shared'
 import { resolveFieldRaw, resolveFieldRawAggregated, formatNum } from '@/domain/energy/source'
 import { readEntityAttr } from '@/domain/energy/entity-read'

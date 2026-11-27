@@ -163,7 +163,7 @@
       }
     },
     {
-      "includes": ["homeos/frontend/src/shared/utils/core/logger.ts"],
+      "includes": ["homeos/frontend/src/kernel/core/logger.ts"],
       "linter": {
         "rules": {
           "suspicious": {

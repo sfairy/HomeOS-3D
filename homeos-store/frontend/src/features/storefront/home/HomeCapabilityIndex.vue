@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { useHomeView } from '@store/features/storefront/home/use-home-view'
+import { useHomeView } from "@store/features/storefront/home/use-home-view";
 
 const { capabilityDomains, capabilityCount } = useHomeView();
 

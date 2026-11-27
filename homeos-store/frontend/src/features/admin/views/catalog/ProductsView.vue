@@ -2,8 +2,8 @@
 /** 商品面板：列表 + 新增 / 编辑表单（含商品图上传与功能码选择）。 */
 
 import { computed, reactive, ref } from "vue";
-import { AdminTabItem } from '@store/features/admin/use-admin-tabs'
-import { useAdminTabs } from '@store/features/admin/use-admin-tabs'
+import { AdminTabItem } from "@store/features/admin/use-admin-tabs";
+import { useAdminTabs } from "@store/features/admin/use-admin-tabs";
 import PanelHead from "@store/features/admin/PanelHead.vue";
 import AdminTabs from "@store/features/admin/AdminTabs.vue";
 import DataTable from "@store/features/admin/DataTable.vue";
@@ -13,8 +13,8 @@ import { adminApi } from "@store/shared/api/http";
 import { asListItems, errorMessage } from "@store/shared/store";
 import { useToastStore } from "@store/shared/toast";
 import { useConfirmStore } from "@store/shared/confirm";
-import { useAdminRefreshStore } from '@store/features/admin/admin-refresh'
-import { useFeatureCatalogStore } from '@store/features/admin/feature-catalog'
+import { useAdminRefreshStore } from "@store/features/admin/admin-refresh";
+import { useFeatureCatalogStore } from "@store/features/admin/feature-catalog";
 import { money, num } from "@store/features/admin/format";
 import { PRODUCT_TYPE } from "@store/features/admin/vocab";
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { useHomeView } from '@store/features/storefront/home/use-home-view'
+import { useHomeView } from "@store/features/storefront/home/use-home-view";
 
 const { assurances, faq, supportEmail } = useHomeView();
 

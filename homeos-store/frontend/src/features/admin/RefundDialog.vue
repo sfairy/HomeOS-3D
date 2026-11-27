@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { useAdminDialogsStore } from '@store/features/admin/admin-dialogs'
+import { useAdminDialogsStore } from "@store/features/admin/admin-dialogs";
 import { useToastStore } from "@store/shared/toast";
 import { formatCents } from "@store/shared/money";
 

@@ -440,7 +440,6 @@ export function automaticVehicleCamera(
   }
 }
 
-
 // 判定本体在 platform（app 侧也要用），这里再导出一次，runtime 内部沿用同一入口。
 export { cameraSourceConfigured }
 

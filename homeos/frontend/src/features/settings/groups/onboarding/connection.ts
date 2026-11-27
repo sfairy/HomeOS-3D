@@ -12,11 +12,7 @@ import { useSystemDiagnostics } from '@/domain/status/composables'
 import { logger } from '@/kernel/core/logger'
 import { formatShortDateTime } from '@/kernel/format'
 import { buildEntitySyncRecommendations } from '@/domain/recommend/entity-sync-recommend'
-import {
-  handleSystemConfigPatchError,
-  patchSystemConfig,
-  useSystemConfig,
-} from '@/domain/layout/system-config-core'
+import { handleSystemConfigPatchError, patchSystemConfig, useSystemConfig } from '@/domain/layout/system-config-core'
 import { useSettingsHubRouteSection } from '@/features/settings/shared/hub'
 import { useSettingsSidebarReentryReset } from '@/kernel/ui/hub-viewport'
 

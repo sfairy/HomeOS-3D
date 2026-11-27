@@ -33,11 +33,7 @@ import type { UILayoutConfig, SecurityCameraBinding } from '@/kernel/layout-conf
 import { clearDoorbellCamera, toggleDoorbellCamera } from '@/kernel/layout'
 import { normalizeSecurityCameras } from '@/kernel/layout'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import {
-  systemConfigRef,
-  handleSystemConfigPatchError,
-  useSystemConfig,
-} from '@/domain/layout/system-config-core'
+import { systemConfigRef, handleSystemConfigPatchError, useSystemConfig } from '@/domain/layout/system-config-core'
 import {
   ACCOUNT_BINDING_SOURCE_LABELS,
   type AccountBindingFieldMeta,

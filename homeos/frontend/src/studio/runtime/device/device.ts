@@ -15,7 +15,6 @@ import { normalizeModelRemark } from '@app/shared/model-remarks'
  * 关机时铺纯黑；图片加载失败按指数退避重试，离线/页面隐藏时暂停。
  */
 
-
 const SCREEN_CANVAS_WIDTH = 1024,
   SCREEN_CANVAS_HEIGHT = 576,
   LOAD_TIMEOUT_MS = 15000,
@@ -1677,7 +1676,6 @@ export function resolveFridgeOpenings(item: any, states: any): FridgeOpenings {
  * 所以这里用 `fetch` + `AbortController`，并用 `version` 计数丢弃迟到的响应。
  */
 
-
 /** 单张封面 / 头像的大小上限（4MB）：超过视为后端代理出了问题。 */
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024
 /** 允许的图片 MIME：只放行位图，避免 SVG 里带脚本。 */
@@ -1984,7 +1982,6 @@ export function createGameConsoleMain({
  * 面板只管照着渲染，不再关心底层差异。
  */
 
-
 /** 支持主机控制面板的设备类型。 */
 export const GAME_CONSOLE_KINDS = Object.freeze(['switch-console', 'playstation'])
 
@@ -2224,7 +2221,6 @@ export function preferredGameMainEntity(deviceKind: any, entityEntries: any[] = 
       ? candidates[0].entityId
       : ''
 }
-
 
 /**
  * 设备档案统一由 `device-profiles` 提供；这里只保留 3D 场景需要的

@@ -3,8 +3,8 @@
 
 import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { AdminTabItem } from '@store/features/admin/use-admin-tabs'
-import { useAdminTabs } from '@store/features/admin/use-admin-tabs'
+import { AdminTabItem } from "@store/features/admin/use-admin-tabs";
+import { useAdminTabs } from "@store/features/admin/use-admin-tabs";
 import PanelHead from "@store/features/admin/PanelHead.vue";
 import AdminTabs from "@store/features/admin/AdminTabs.vue";
 import DataTable from "@store/features/admin/DataTable.vue";
@@ -12,8 +12,8 @@ import { adminApi } from "@store/shared/api/http";
 import { asListItems, errorMessage } from "@store/shared/store";
 import { useToastStore } from "@store/shared/toast";
 import { useConfirmStore } from "@store/shared/confirm";
-import { useAdminDialogsStore } from '@store/features/admin/admin-dialogs'
-import { useAdminRefreshStore } from '@store/features/admin/admin-refresh'
+import { useAdminDialogsStore } from "@store/features/admin/admin-dialogs";
+import { useAdminRefreshStore } from "@store/features/admin/admin-refresh";
 import { dt, money, num } from "@store/features/admin/format";
 
 interface Column {

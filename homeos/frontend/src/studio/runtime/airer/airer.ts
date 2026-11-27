@@ -1,5 +1,11 @@
 import { coverState } from '../cover/cover'
-import { motionPosition, reportInterval, reportedMotion, type MotionCurve, type MotionReports } from '../core/reported-motion'
+import {
+  motionPosition,
+  reportInterval,
+  reportedMotion,
+  type MotionCurve,
+  type MotionReports,
+} from '../core/reported-motion'
 
 /** 晾衣架方向：规范字段 positionReversed / liftReversed / animationReversed。
  * animationReversed 仅反转 3D 动画，不参与位置/指令语义。
@@ -45,7 +51,6 @@ export function airerMapControlPosition(visualPosition: any, binding: any = {}) 
   const { positionReversed } = normalizeAirerDirection(binding)
   return positionReversed ? 100 - clamped : clamped
 }
-
 
 /** 一个已定位的晾衣架骨架在帧间保留的状态（上游 `airerEntries`）。 */
 interface AirerEntry {

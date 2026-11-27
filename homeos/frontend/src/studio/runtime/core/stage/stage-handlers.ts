@@ -51,10 +51,7 @@ import {
   renderSecurityAlarmCard,
 } from '../../security/security'
 import { updateCarCard as updateCarCard2 } from '../../vehicle/vehicle'
-import {
-  cameraOnline as cameraOnline2,
-  cameraSourceConfigured as cameraSourceConfigured2,
-} from '../../camera/camera'
+import { cameraOnline as cameraOnline2, cameraSourceConfigured as cameraSourceConfigured2 } from '../../camera/camera'
 import { backgroundOpacity as labelBackgroundOpacity } from '../label-appearance'
 import {
   ENVIRONMENT_METRICS as environmentMetricNames,

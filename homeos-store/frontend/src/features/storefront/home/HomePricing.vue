@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { useHomeView } from '@store/features/storefront/home/use-home-view'
+import { useHomeView } from "@store/features/storefront/home/use-home-view";
 
 const { tiers, trial, loaded, paymentBadges } = useHomeView();
 const channels = computed(() => paymentBadges.value.join(" / "));

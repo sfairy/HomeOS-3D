@@ -17,7 +17,6 @@ import { lockState } from '../security/security'
  * - 两者都没有绑定：回到 `rest`（几何侧摆好的默认开度）。
  */
 
-
 /** 枢轴上的开合行程描述（`addCustomWindow` 写入）。 */
 interface WindowMotionSpec {
   property: 'rotation' | 'position'
@@ -322,7 +321,6 @@ export function createWindowMotion(options: WindowMotionOptions) {
  * 两路都在且对不上时（开窗器说开着、窗磁说关着），先记 2 秒再报冲突，
  * 避免设备刚上电的瞬时错位也弹「状态不一致」。
  */
-
 
 export interface WindowBindingLike {
   id?: any

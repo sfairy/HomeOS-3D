@@ -3,7 +3,6 @@ import { createExtractorAirflow } from '../environment/exhaust-airflow'
 import { exhaustFanState } from '../climate/climate'
 import { finiteNumberOrCoerced } from '../../app/shared/util/number'
 
-
 const FAN_MODEL_TYPES = new Set(['fan', 'ceiling-fan', 'exhaust-fan']),
   /**
    * 排气扇的扇叶转速**不看 HA 上报**：开关型实体没有百分比，`fan.*` 的百分比也不参与

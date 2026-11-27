@@ -1,4 +1,17 @@
-import { climateState as climateState2, climateControl as climateControl2, climatePowerControl as climatePowerControl2, climateDialogTitle as climateDialogTitle2, climateModeLabel as climateModeLabel2, climateSwingModeLabel as climateSwingModeLabel2, createClimateModeHistory as createClimateModeHistory2, createWaterHeaterFeedback as createWaterHeaterFeedback2, exhaustFanState as exhaustFanState2, exhaustSwitchState as exhaustSwitchState2, waterHeaterCapabilityStatusLabel as waterHeaterStatusLabel2, createPurifierExtras as createPurifierExtras2 } from './climate'
+import {
+  climateState as climateState2,
+  climateControl as climateControl2,
+  climatePowerControl as climatePowerControl2,
+  climateDialogTitle as climateDialogTitle2,
+  climateModeLabel as climateModeLabel2,
+  climateSwingModeLabel as climateSwingModeLabel2,
+  createClimateModeHistory as createClimateModeHistory2,
+  createWaterHeaterFeedback as createWaterHeaterFeedback2,
+  exhaustFanState as exhaustFanState2,
+  exhaustSwitchState as exhaustSwitchState2,
+  waterHeaterCapabilityStatusLabel as waterHeaterStatusLabel2,
+  createPurifierExtras as createPurifierExtras2,
+} from './climate'
 import { bathHeaterState as bathHeaterState2 } from '../bath-heater/bath-heater'
 import { purifierState as purifierState2 } from '../purifier/purifier-state'
 import { fanSpeedColumns, resolveFanBindingState } from '../fan/fan'
@@ -8,7 +21,15 @@ import { createRangeFeedback as createRangeFeedback2 } from '@app/shared/util/co
 import { createPopupPickers } from '@app/shared/util/select-picker'
 import { createPopupFeedback } from '@app/shared/util/popup-feedback'
 import { createStageDeviceVisual, resolveClimateVisualKind } from '../core/stage-device-visual'
-import { haNumber, attributesOf, featureFlags, stringOptions, fanCapabilities, deviceStatusChoices, brightnessModes } from '../device/device'
+import {
+  haNumber,
+  attributesOf,
+  featureFlags,
+  stringOptions,
+  fanCapabilities,
+  deviceStatusChoices,
+  brightnessModes,
+} from '../device/device'
 import * as climateRendererModule from '@app/shared/device'
 import * as waterHeaterRendererModule from '@app/shared/device'
 import { formatEntityNumber } from '@app/shared/util/ha-number'
@@ -95,7 +116,6 @@ export function heatingPanelStyleOf(
 export function isThermostatBoilerPanel(item: Parameters<typeof isHeatingBoiler>[0]): boolean {
   return isHeatingBoiler(item) && heatingPanelStyleOf(item as { heatingPanelStyle?: unknown } | null) === 'thermostat'
 }
-
 
 /** 温控卡形态下不显示的选项组：风速与摆风是空调专属，壁挂炉露出来只会误操作。 */
 const THERMOSTAT_HIDDEN_FIELDS: ReadonlyArray<string> = ['fanMode', 'swingMode', 'horizontalSwingMode']

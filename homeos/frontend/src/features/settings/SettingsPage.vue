@@ -172,10 +172,7 @@ import {
   isSettingsTabPending,
   globalLayoutPendingCount,
 } from '@/features/settings/kernel/pending'
-import {
-  registerGlobalLayoutPendingSnapshot,
-  registerGlobalPendingPause,
-} from '@/features/settings/kernel/pending'
+import { registerGlobalLayoutPendingSnapshot, registerGlobalPendingPause } from '@/features/settings/kernel/pending'
 import { tabLabel } from '@/kernel/registry/settings-nav'
 import { countNavTabs, resolveNavTabContext } from './nav-search'
 import { SETTINGS_KEEP_ALIVE_MAX, SETTINGS_KEEP_ALIVE_INCLUDE } from './keep-alive'

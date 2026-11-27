@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import HomeStageDemo from "@store/features/storefront/home/HomeStageDemo.vue";
-import { useHomeView } from '@store/features/storefront/home/use-home-view'
+import { useHomeView } from "@store/features/storefront/home/use-home-view";
 
 const { hero, startingPrice, authenticated, loaded, showCatalogEmpty, trial } = useHomeView();
 

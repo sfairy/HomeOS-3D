@@ -7,7 +7,12 @@ import {
   type Go2RtcMseTransportHandle,
 } from '@/domain/camera'
 import { ensureHls, isExpiredStreamAddressError, prefetchHlsOnIdle, canPlayNativeHls } from '@/domain/camera'
-import { clampNumberWithFallback, normalizeCssColor, appendSvgElement, createCameraVisualState } from './registry-shared'
+import {
+  clampNumberWithFallback,
+  normalizeCssColor,
+  appendSvgElement,
+  createCameraVisualState,
+} from './registry-shared'
 import { cameraStreamBudget, withCameraHttpSlot } from '@/studio/platform/camera/camera-budget'
 import { createCameraMjpegStream } from '@/studio/platform/camera/camera-mjpeg'
 import { cameraPlaybackDiagnostic } from '@app/shared/camera'

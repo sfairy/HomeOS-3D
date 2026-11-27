@@ -6,12 +6,37 @@
  */
 
 import { readLocalStorageFlag, writeLocalStorage } from '@/kernel/core/local-storage'
-import { type EditableConfigField, type EditableConfigSection, type SystemConfig, type SystemConfigLoadOptions } from '@/kernel/system-config'
-import { resolveSystemConfigFieldLabel, systemConfigFieldHint, systemConfigFieldMatchesQuery, filterSectionsForExpert } from '@/kernel/config/system-config'
-import { getSectionLabels, categoryForSection, fetchSystemConfigFresh, handleSystemConfigPatchError, useSystemConfig } from '@/domain/layout/system-config-core'
+import type {
+  EditableConfigField,
+  EditableConfigSection,
+  SystemConfig,
+  SystemConfigLoadOptions,
+} from '@/kernel/system-config'
+import {
+  resolveSystemConfigFieldLabel,
+  systemConfigFieldHint,
+  systemConfigFieldMatchesQuery,
+  filterSectionsForExpert,
+} from '@/kernel/config/system-config'
+import {
+  getSectionLabels,
+  categoryForSection,
+  fetchSystemConfigFresh,
+  handleSystemConfigPatchError,
+  useSystemConfig,
+} from '@/domain/layout/system-config-core'
 import { nextTick, type Ref, computed, ref, watch } from 'vue'
-import { type RouteLocationNormalizedLoaded } from 'vue-router'
-import { filterPricingSectionFields, applyEditableSnapshotToSections, fromEditableSectionsPending, countSystemConfigPendingChanges, fromEditableSections, getSystemConfigPendingFieldKeys, getSystemConfigSectionPendingMap, toEditableSections } from '@/domain/layout/system-config-edit'
+import type { RouteLocationNormalizedLoaded } from 'vue-router'
+import {
+  filterPricingSectionFields,
+  applyEditableSnapshotToSections,
+  fromEditableSectionsPending,
+  countSystemConfigPendingChanges,
+  fromEditableSections,
+  getSystemConfigPendingFieldKeys,
+  getSystemConfigSectionPendingMap,
+  toEditableSections,
+} from '@/domain/layout/system-config-edit'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { resetSystemConfig, fetchConfigAudit } from '@/kernel/http/index'
 import { reloadFrontendConfig } from '@/kernel/config/frontend-config'
@@ -433,7 +458,6 @@ type ConfigAuditEntry = {
   sections?: string[]
   [key: string]: unknown
 }
-
 
 type SystemConfigPanelParams = {
   route: RouteLocationNormalizedLoaded

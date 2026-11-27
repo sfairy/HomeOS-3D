@@ -368,7 +368,6 @@ export function carClickAction(
  * - `pending` 用来告诉调用方“模型或包围盒还没算出来”，下一帧需要重算。
  */
 
-
 /** 轮位轴：`side` 为车宽方向（左右轮），`front` 为车长方向（前后轮），
  *  `labelSide` 仅双轮车型使用 —— 前后轮都在中线上，靠这一侧把标签推到车身外侧。 */
 export type CarTireWheel = {

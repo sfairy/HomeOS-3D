@@ -16,11 +16,7 @@
  * - @/composables/config/system-config-core.internals：系统配置读写
  */
 import { computed, ref, toValue, type MaybeRefOrGetter } from 'vue'
-import {
-  handleSystemConfigPatchError,
-  patchSystemConfig,
-  useSystemConfig,
-} from '@/domain/layout/system-config-core'
+import { handleSystemConfigPatchError, patchSystemConfig, useSystemConfig } from '@/domain/layout/system-config-core'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { loadPresenceHome } from '@/features/presence/load-presence-home'

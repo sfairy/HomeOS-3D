@@ -6,14 +6,26 @@ import { useProfileManagement, useSettingsHubRouteSection } from '@/features/set
 import { getApiErrorMessage } from '@/kernel/core/error-message'
 import { downloadBlob } from '@/kernel/core/misc'
 import { navigateAfterRestore, resolvePostRestoreDestination } from '@/domain/license'
-import { fetchServerBackupFiles, downloadServerBackupFile, deleteServerBackupFile, restoreServerBackupFile, createServerBackup, fetchAutoBackupStatus } from '@/kernel/http/index'
+import {
+  fetchServerBackupFiles,
+  downloadServerBackupFile,
+  deleteServerBackupFile,
+  restoreServerBackupFile,
+  createServerBackup,
+  fetchAutoBackupStatus,
+} from '@/kernel/http/index'
 import { handleSystemConfigPatchError, patchSystemConfig } from '@/domain/layout/system-config-core'
 import { formatAuditTime, formatFullDateTime } from '@/kernel/format'
-import { deleteTerminalBinding, fetchActiveProject, fetchTerminalBindings as fetchTerminalBindingsApi, updateProjectDefaults, upsertTerminalBinding } from '@/domain/api/config'
+import {
+  deleteTerminalBinding,
+  fetchActiveProject,
+  fetchTerminalBindings as fetchTerminalBindingsApi,
+  updateProjectDefaults,
+  upsertTerminalBinding,
+} from '@/domain/api/config'
 import { getClientDeviceId } from '@/domain/client/system'
 import { inferTerminalLabel } from '@/domain/client/infer-terminal-label'
 import { bindSelfTerminalProfile } from '@/domain/layout/store/resolve-active-profile'
-
 
 function profileLabel(projectId: string) {
   return projectId === 'default' ? '默认系统方案' : projectId
@@ -444,7 +456,6 @@ export function useProfilesPanel(activeTab: Ref<string>) {
     switchToProfile,
   }
 }
-
 
 /** 档案面板的 provide/inject 契约键：由注入方（useProfilesSection）持有。 */
 export const PROFILES_KEY = Symbol('profiles')

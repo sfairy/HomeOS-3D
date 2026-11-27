@@ -21,7 +21,12 @@ import { logger } from '@/kernel/core/logger'
 import { getApiErrorMessage } from '@/kernel/core/error-message'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { getMaxRemoteNotifications } from '@/kernel/config/frontend-config'
-import { mapSecurityEventRow, filterSecurityEvents, recentLinkageFailures, type SecurityEventDisplayItem } from '@/features/security/event-display'
+import {
+  mapSecurityEventRow,
+  filterSecurityEvents,
+  recentLinkageFailures,
+  type SecurityEventDisplayItem,
+} from '@/features/security/event-display'
 import {
   Shield,
   ShieldOff,

@@ -7,13 +7,37 @@
 
 import { inject, isRef, toRef, ref, computed, onMounted, onUnmounted, type Ref, watch, type ComputedRef } from 'vue'
 import { formatFullDateTime, formatAuditTimestamp } from '@/kernel/format'
-import { fetchConfigHealth, fetchSystemDiagnostics, fetchSystemHealth, clearRuntimeLogs, fetchRuntimeLogs, openRuntimeLogsStream, type RuntimeLogEntry, type RuntimeLogLevel, type RuntimeLogsResponse } from '@/kernel/http/index'
+import {
+  fetchConfigHealth,
+  fetchSystemDiagnostics,
+  fetchSystemHealth,
+  clearRuntimeLogs,
+  fetchRuntimeLogs,
+  openRuntimeLogsStream,
+  type RuntimeLogEntry,
+  type RuntimeLogLevel,
+  type RuntimeLogsResponse,
+} from '@/kernel/http/index'
 import { agentPing } from '@/domain/api/agent'
 import { extractErrorMessage } from '@/kernel/core/error-message'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useApiQuery } from '@/features/settings/use-api-query'
 import { useSettingsHubRouteSection } from '@/features/settings/shared/hub'
-import { Activity, CheckCircle2, AlertTriangle, ShieldAlert, PlugZap, Cpu, Radio, Layers, Timer, HardDrive, RefreshCw, HeartPulse, Archive } from '@lucide/vue'
+import {
+  Activity,
+  CheckCircle2,
+  AlertTriangle,
+  ShieldAlert,
+  PlugZap,
+  Cpu,
+  Radio,
+  Layers,
+  Timer,
+  HardDrive,
+  RefreshCw,
+  HeartPulse,
+  Archive,
+} from '@lucide/vue'
 import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
 import { getPageTraceId } from '@/kernel/telemetry/trace'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
@@ -24,7 +48,15 @@ import { isFpsSchedulerRunning, isDiagnosticsFpsSamplingActive } from '@/kernel/
 import { getActiveSubscribeDomains } from '@/domain/entity/ws-subscription'
 import { getMaxStateListeners } from '@/kernel/config/frontend-config'
 import { copyTextWithNotify } from '@/kernel/ui/notify'
-import { startPerfBaselineSampling, stopPerfBaselineSampling, isPerfBaselineSampling, getPerfBaselineSnapshot, exportPerfBaselineJson, tickPerfBaselineCounters, recordFpsSample } from '@/kernel/perf/baseline'
+import {
+  startPerfBaselineSampling,
+  stopPerfBaselineSampling,
+  isPerfBaselineSampling,
+  getPerfBaselineSnapshot,
+  exportPerfBaselineJson,
+  tickPerfBaselineCounters,
+  recordFpsSample,
+} from '@/kernel/perf/baseline'
 import { downloadBlob } from '@/kernel/core/misc'
 import { schedulePoll } from '@/kernel/core/poll-scheduler'
 
@@ -151,7 +183,6 @@ export interface DiagnosticsConfigHealth {
   [key: string]: unknown
 }
 
-
 /** 诊断面板的 provide/inject 契约键：由注入方（useDiagnosticsSection）持有。 */
 export const DIAGNOSTICS_KEY = Symbol('diagnostics')
 
@@ -167,7 +198,6 @@ export function useDiagnosticsSection(keys: string[]) {
   }
   return out
 }
-
 
 function useDiagnosticsFetch() {
   const lastFetched = ref<string>('')
@@ -353,7 +383,6 @@ export function useDiagnosticsPanel() {
     ...perf,
   }
 }
-
 
 export function useDiagnosticsSummary(deps: {
   loadError: Ref<string | null>
@@ -742,7 +771,6 @@ export function useDiagnosticsSummary(deps: {
   }
 }
 
-
 const PERF_MODE_LABELS: Record<string, string> = {
   high: '华丽',
   medium: '均衡',
@@ -915,7 +943,6 @@ export function useDiagnosticsPerf() {
   }
 }
 
-
 export function useDiagnosticsExport(deps: {
   diag: Ref<DiagnosticsDiag | null>
   health: Ref<DiagnosticsHealth | null>
@@ -1052,7 +1079,6 @@ export function useDiagnosticsExport(deps: {
     diagExportGuides,
   }
 }
-
 
 const POLL_MS = 4000
 const MAX_CLIENT_LINES = 1500

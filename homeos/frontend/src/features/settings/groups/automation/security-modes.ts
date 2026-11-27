@@ -56,11 +56,7 @@ import {
   singleEntityToIds,
 } from '@/domain/entity/comma-entity-ids'
 import { collectHazardBindingSummary, detectHazardBindingConflicts } from '@homeos/shared'
-import {
-  handleSystemConfigPatchError,
-  patchSystemConfig,
-  useSystemConfig,
-} from '@/domain/layout/system-config-core'
+import { handleSystemConfigPatchError, patchSystemConfig, useSystemConfig } from '@/domain/layout/system-config-core'
 import { withBackendBootRetry } from '@/kernel/core/api-boot-retry'
 import { isBackendUnreachableError } from '@/kernel/core/error-message'
 import { logger } from '@/kernel/core/logger'

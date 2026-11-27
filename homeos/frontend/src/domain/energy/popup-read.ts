@@ -1,9 +1,5 @@
 /** 兼容用户点击非主实体（如分账户实体、图表实体）的场景。 */
-import {
-  getFieldDef,
-  balanceAttrCandidatesForField,
-  type EnergyCategory,
-} from '@/domain/energy/energy-fields'
+import { getFieldDef, balanceAttrCandidatesForField, type EnergyCategory } from '@/domain/energy/energy-fields'
 import { readEntityAttr } from '@/domain/energy/entity-read'
 import { resolveAccountIndexForEntityId } from '@/domain/energy/account'
 import type { HaEntityState } from '@/kernel/entity'

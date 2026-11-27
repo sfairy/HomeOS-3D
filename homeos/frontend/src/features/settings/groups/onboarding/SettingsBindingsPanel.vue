@@ -164,11 +164,7 @@ import { useSettingsSidebarReentryReset } from '@/kernel/ui/hub-viewport'
 import { useSettingsHubRouteSection } from '@/features/settings/shared/hub'
 import SettingsPendingSaveAction from '@/features/settings/shared/SettingsPendingSaveAction.vue'
 import { useBindingsRecommend } from '@/features/settings/groups/onboarding/bindings'
-import {
-  handleSystemConfigPatchError,
-  patchSystemConfig,
-  useSystemConfig,
-} from '@/domain/layout/system-config-core'
+import { handleSystemConfigPatchError, patchSystemConfig, useSystemConfig } from '@/domain/layout/system-config-core'
 import { applyWeatherEntityIdToLayout, resolveWeatherEntityId } from '@/domain/layout/store/resolve-active-profile'
 
 const { load: loadSystemConfig } = useSystemConfig()

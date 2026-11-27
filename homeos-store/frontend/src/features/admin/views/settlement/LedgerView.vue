@@ -7,7 +7,7 @@ import PanelHead from "@store/features/admin/PanelHead.vue";
 import DataTable from "@store/features/admin/DataTable.vue";
 import { asListItems } from "@store/shared/store";
 import { useToastStore } from "@store/shared/toast";
-import { useAdminDialogsStore } from '@store/features/admin/admin-dialogs'
+import { useAdminDialogsStore } from "@store/features/admin/admin-dialogs";
 import { dt } from "@store/features/admin/format";
 
 interface LedgerKind {

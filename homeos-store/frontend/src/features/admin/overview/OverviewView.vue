@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import PanelHead from "@store/features/admin/PanelHead.vue";
 import AdminTabs from "@store/features/admin/AdminTabs.vue";
-import { useAdminTabs, type AdminTabItem } from '@store/features/admin/use-admin-tabs'
+import { useAdminTabs, type AdminTabItem } from "@store/features/admin/use-admin-tabs";
 import { adminApi } from "@store/shared/api/http";
 import { errorMessage } from "@store/shared/store";
 import { useToastStore } from "@store/shared/toast";

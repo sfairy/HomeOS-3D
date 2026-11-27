@@ -586,7 +586,6 @@ export function createTelevisionScreens({
   }
 }
 
-
 const readEntityState = (stateSource: any, entityId: any) =>
   stateSource instanceof Map ? stateSource.get(entityId) : stateSource?.[entityId]
 
