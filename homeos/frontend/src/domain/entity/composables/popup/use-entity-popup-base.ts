@@ -3,7 +3,7 @@ import { computed, type ComputedRef, type Ref, type PropType } from 'vue'
 import { popupDomainStateLabel } from '@/kernel/constants/entity-state'
 import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
 import { useLiveEntity } from '@/domain/entity/composables/use-live-entity'
-import { useHaEntityService } from '@/domain/entity/composables/use-ha-entity-service'
+import { useHaEntityService } from '@/domain/entity/composables/ha'
 import type { HaEntityState } from '@/kernel/types/entity'
 
 /** 实体引用类型：可为 Ref 或 ComputedRef，统一为只读快照。 */

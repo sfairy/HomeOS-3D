@@ -115,7 +115,7 @@ import { readEnergyPopupAttr } from '@/domain/energy/model/utils/popup-read.util
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { resolveUtilityMeterPreset } from '@/domain/energy/constants/utility-meter-presets'
-import { isElectricityEntity, isGasEntity, isWaterEntity } from '@/domain/entity/model/utils/entity-type.util'
+import { isElectricityEntity, isGasEntity, isWaterEntity } from '@/domain/entity/model/utils/entity'
 
 function resolveUtilityKind(kind, entityId) {
   if (kind === 'gas' || kind === 'grid' || kind === 'water') return kind

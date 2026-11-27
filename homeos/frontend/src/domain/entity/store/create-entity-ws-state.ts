@@ -10,9 +10,9 @@ import { useAuthStore } from '@/domain/auth/auth.store'
 import { refreshPinnedEntitiesAfterStale } from './cold-refresh.util'
 import { applyEntityStatesBatch } from './ws/state-update'
 import type { EntityStateUpdateDeps } from './ws/state-update'
-import type { WsDeltaChange } from '@/domain/entity/model/utils/entity-state'
+import type { WsDeltaChange } from '@/domain/entity/model/utils/entity'
 import { normalizeWsBatchChanges } from '@/workers/entity-ws-ingest-bridge'
-import { normalizeWsBatchChangesSync } from '@/domain/entity/model/utils/entity-state'
+import { normalizeWsBatchChangesSync } from '@/domain/entity/model/utils/entity'
 import {
   appNotify,
   refreshSecurityPanelFromSocket,

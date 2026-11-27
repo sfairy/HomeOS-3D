@@ -25,14 +25,14 @@ import type {
 import { buildEntityCacheKey } from '@/domain/entity/model/utils/idb-cache'
 import { createEntityOptimisticState } from '@/domain/entity/store/entity-store-optimistic.util'
 import { clearColdFetchMissing, fetchEntitiesByIds, fetchEntityById } from '@/domain/entity/model/utils/cold-fetch.util'
-import { getPendingListenerCount, getStateListenerStats } from '@/domain/entity/model/utils/entity-state'
+import { getPendingListenerCount, getStateListenerStats } from '@/domain/entity/model/utils/entity'
 import { applyEntityStateUpdate } from './ws/state-update'
-import type { WsDeltaChange } from '@/domain/entity/model/utils/entity-state'
+import type { WsDeltaChange } from '@/domain/entity/model/utils/entity'
 import {
   shouldNotifyStateChange,
   resolveListenerOldState,
   haStateChanged,
-} from '@/domain/entity/model/utils/entity-state'
+} from '@/domain/entity/model/utils/entity'
 import { createEntityCacheHelpers } from '@/domain/entity/store/entity-store-cache'
 import { createStoreDerivedState } from '@/domain/entity/store/entity-store-derived'
 import { createEntityActions } from '@/domain/entity/store/entity-store-actions'

@@ -9,7 +9,7 @@ import type {
 import { getWorkerDerivedThreshold } from '@/kernel/config/frontend-config'
 import { setPollTickMs } from '@/kernel/utils/core/poll-scheduler'
 import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
-import { isStaleState, mergeChunkIntoNewerEntity } from '@/domain/entity/model/utils/entity-state'
+import { isStaleState, mergeChunkIntoNewerEntity } from '@/domain/entity/model/utils/entity'
 import { applyAdaptiveFrontendPerf } from '@/kernel/utils/perf/adaptive-perf.util'
 import { applyTabletDefaultPerformanceMode } from '@/kernel/utils/perf/tablet-default-perf.util'
 import { sortEntitiesBySyncPriority } from '@homeos/shared'

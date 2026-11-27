@@ -1,6 +1,6 @@
 /** 实时实体快照组合式函数模块。 */
 import { computed, unref, type MaybeRefOrGetter } from 'vue'
-import { useEntity } from '@/domain/entity/composables/use-entity'
+import { useEntity } from '@/domain/entity/composables/entity'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import type { HaEntityState } from '@/kernel/types/entity'
 

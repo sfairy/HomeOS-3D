@@ -14,7 +14,7 @@ import { getDomainLabel } from '@/features/device/model/utils/domain-labels.util
 import { displayEventState, entityDomain, entityObjectId } from '@/features/events/model/utils/events-display.util'
 import { displayEntityStateLabel } from '@/kernel/constants/entity-state'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { useHaDegrade } from '@/domain/entity/composables/use-ha-degrade'
+import { useHaDegrade } from '@/domain/entity/composables/ha'
 
 defineProps({
   loading: { type: Boolean, default: false },

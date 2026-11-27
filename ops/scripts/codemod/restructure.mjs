@@ -451,6 +451,51 @@ function declaredNames(body) {
   return names
 }
 
+/**
+ * 去掉合并后正文里「同名且函数体逐字相同」的**非导出**私有函数。
+ *
+ * 同一功能族的两个文件常各自写一份 `function resolveId(x) { ... }`（工具函数）。
+ * 合并后 TS 报 `Duplicate function implementation`（TS2393）。
+ * 只在函数体归一化后**完全相同**时删第二份；内容不同则保留（真实冲突，留给人工）。
+ *
+ * @param {string} text
+ * @returns {string}
+ */
+function dedupePrivateFunctions(text) {
+  const lines = text.split('\n')
+  /** 函数签名行 → 首次出现的起始行号 */
+  const seen = new Map()
+  const drop = new Set()
+  for (let index = 0; index < lines.length; index += 1) {
+    const match = lines[index].match(/^(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(/)
+    if (!match) continue
+    if (/^export\s/.test(lines[index])) continue // 导出函数不该重复出现，交给 TS 报错
+    // 收集到匹配的闭合花括号
+    let depth = 0
+    let end = index
+    for (let cursor = index; cursor < lines.length; cursor += 1) {
+      for (const char of lines[cursor]) {
+        if (char === '{') depth += 1
+        else if (char === '}') depth -= 1
+      }
+      if (depth === 0 && cursor > index) {
+        end = cursor
+        break
+      }
+    }
+    const body = lines.slice(index, end + 1).join('\n').replace(/\s+/g, ' ').trim()
+    const key = `${match[1]}|${body}`
+    if (seen.has(key)) {
+      for (let cursor = index; cursor <= end; cursor += 1) drop.add(cursor)
+    } else {
+      seen.set(key, index)
+    }
+    index = end
+  }
+  if (!drop.size) return text
+  return lines.filter((_, index) => !drop.has(index)).join('\n')
+}
+
 function mergeTexts(sources, { header, into } = {}) {
   // CSS 合并：纯拼接，`@import` 必须全部提到文件头（CSS 规定它只能在最前），并去重。
   if (into && into.endsWith('.css')) {
@@ -552,7 +597,7 @@ function mergeTexts(sources, { header, into } = {}) {
 
   const sections = []
   if (header) sections.push(header.trimEnd())
-  const mergedBody = dropRedundantExportLists(bodies.join('\n\n'))
+  const mergedBody = dedupePrivateFunctions(dropRedundantExportLists(bodies.join('\n\n')))
   // 合并后哪些名字有本地定义 —— 决定「从被合并模块导入的绑定」还剩哪些有意义。
   const localNames = declaredNames(mergedBody)
   const reExports = mergedInto ? collectReExports(sources) : new Map()

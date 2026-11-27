@@ -34,7 +34,7 @@ import HaStatusDegradeBanner from '@/domain/entity/components/HaStatusDegradeBan
 const NotificationDrawer = defineAsyncComponent(() => loadShellOverlays().then((m) => m.NotificationDrawer))
 import { useMainLayoutChrome } from '@/app/shell/composables/use-main-layout-chrome'
 import { useDailyAdvisorGreeting } from '@/features/voice/composables/use-daily-advisor-greeting'
-import { useEntityWsSubscriptionSync } from '@/domain/entity/composables/use-entity-ws-subscription-sync'
+import { useEntityWsSubscriptionSync } from '@/domain/entity/composables/entity'
 import { useEarthquakeBootstrap } from '@/features/earthquake/index'
 import { useDisplayLightBackdropState } from '@/features/dashboard/composables/display-light-backdrop'
 import { setDerivedRoutePath } from '@/domain/entity/model/utils/derived-route.util'

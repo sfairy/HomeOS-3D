@@ -23,13 +23,13 @@
     "ops"
   ],
   "totals": {
-    "sources": 3601,
-    "lines": 740928,
+    "sources": 3595,
+    "lines": 740991,
     "clones": 153,
-    "duplicatedLines": 2578,
-    "percentage": 0.3479,
-    "tokens": 4331045,
-    "duplicatedTokens": 12386
+    "duplicatedLines": 2590,
+    "percentage": 0.3495,
+    "tokens": 4331258,
+    "duplicatedTokens": 12414
   },
   "byFormat": {
     "css": {
@@ -47,11 +47,11 @@
       "clones": 20
     },
     "javascript": {
-      "sources": 325,
-      "lines": 46583,
-      "duplicatedLines": 161,
-      "percentage": 0.3456,
-      "clones": 11
+      "sources": 326,
+      "lines": 46665,
+      "duplicatedLines": 196,
+      "percentage": 0.42,
+      "clones": 12
     },
     "python": {
       "sources": 766,
@@ -61,11 +61,11 @@
       "clones": 37
     },
     "typescript": {
-      "sources": 1633,
-      "lines": 391458,
-      "duplicatedLines": 1651,
-      "percentage": 0.4218,
-      "clones": 85
+      "sources": 1626,
+      "lines": 391439,
+      "duplicatedLines": 1628,
+      "percentage": 0.4159,
+      "clones": 84
     },
     "vue": {
       "sources": 424,
@@ -497,6 +497,12 @@
       "lines": 14
     },
     {
+      "fingerprint": "7f7ba864f22b0f0bdf1b8d610cceaeb4d2f8662a",
+      "first": "ops/scripts/codemod/plans/batch4-domain.mjs",
+      "second": "ops/scripts/codemod/plans/families.mjs",
+      "lines": 35
+    },
+    {
       "fingerprint": "82d6dc42ff82c072508a9bd21e47f2ff5ee97018",
       "first": "homeos/frontend/src/features/home-mode/composables/use-mode-logs-analytics.ts",
       "second": "homeos/frontend/src/features/home-mode/composables/use-mode-logs-analytics.ts",
@@ -675,12 +681,6 @@
       "first": "homeos/frontend/src/features/events/components/ViewAnalytics.vue",
       "second": "homeos/frontend/src/features/notifications/composables/notifications-analytics-charts.internals.ts",
       "lines": 11
-    },
-    {
-      "fingerprint": "a0ae9dd362bb0f001da81a0f3d5d1d18573de74b",
-      "first": "homeos/frontend/src/domain/entity/composables/use-entity-projection.ts",
-      "second": "homeos/frontend/src/domain/entity/composables/use-entity.ts",
-      "lines": 23
     },
     {
       "fingerprint": "a170ecb39e0de1bba2b203d65ecbf340ea7afd7a",

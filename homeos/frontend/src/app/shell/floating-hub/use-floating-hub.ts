@@ -15,14 +15,14 @@ import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { viewportPointToPopupAnchor } from '@/kernel/ui/popup/use-popup-position'
 import { usePerfClock } from '@/domain/layout/composables/use-perf-clock'
-import { useEntityDisplayEpoch } from '@/domain/entity/composables/use-entity-display-epoch'
+import { useEntityDisplayEpoch } from '@/domain/entity/composables/entity'
 import {
   isElectricityEntity,
   isGasEntity,
   isWaterEntity,
   isCommEntity,
   isUtilityEntity,
-} from '@/domain/entity/model/utils/entity-type.util'
+} from '@/domain/entity/model/utils/entity'
 import { isFloatingPanelType, FLOATING_HUB_WIDTH_MAP } from '@/kernel/utils/registry/widget-registry-meta'
 import type { FloatingWidget } from '@/kernel/types/layout'
 import type { FloatingHubContext } from '@/kernel/types/floating-hub'

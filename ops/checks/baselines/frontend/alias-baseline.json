@@ -60,7 +60,7 @@
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/domain/entity/model/utils/entity-state.ts": {
+    "homeos/frontend/src/domain/entity/model/utils/entity.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 5

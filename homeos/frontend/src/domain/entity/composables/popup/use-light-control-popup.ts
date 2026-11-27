@@ -2,7 +2,7 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useLiveEntity } from '@/domain/entity/composables/use-live-entity'
 import { useEntityPopupHeader } from '@/domain/entity/composables/popup/use-entity-popup-base'
-import { useHaEntityService } from '@/domain/entity/composables/use-ha-entity-service'
+import { useHaEntityService } from '@/domain/entity/composables/ha'
 import { useSliderCommit } from '@/domain/entity/composables/use-slider-commit'
 import { fetchEntityById } from '@/domain/entity/model/utils/cold-fetch.util'
 import {

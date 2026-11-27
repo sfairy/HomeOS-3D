@@ -1,7 +1,7 @@
 import { MONITORED_ENTITY_IDS, DOMAIN_LIST } from '@/kernel/constants/device-group'
 import { domainIndexToArray } from '@/domain/entity/model/utils/derived.util'
 import { type HaEntityState } from '@/kernel/types/entity'
-import { touchEntityStoreDisplayDeps } from '@/domain/entity/composables/use-entity-display-epoch'
+import { touchEntityStoreDisplayDeps } from '@/domain/entity/composables/entity'
 import { getEntityDomain, isControllableEntityId } from '@homeos/shared'
 
 /**

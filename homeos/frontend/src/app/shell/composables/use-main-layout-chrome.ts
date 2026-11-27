@@ -16,7 +16,7 @@ import {
   getWholeHomeOffConfig,
 } from '@/kernel/constants/whole-home-off'
 import { useSystemDiagnostics } from '@/domain/status/index'
-import { useHaDegrade } from '@/domain/entity/composables/use-ha-degrade'
+import { useHaDegrade } from '@/domain/entity/composables/ha'
 import { logger } from '@/kernel/utils/core/logger'
 import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
 import { DEFAULT_BRAND_LOGO_URL } from '@/kernel/utils/layout/nav-tabs.util'
