@@ -13,7 +13,7 @@ import { buildMaterialSignature, collectSharedMeshRecords } from '../items/studi
 import { addArchitectureMesh as addArchitectureMeshCore, addWindowFrames as addWindowFramesCore } from '../scene/studio-box-mesh'
 import { buildItemModel as buildItemModelCore } from '../items/studio-item-model'
 import { drawDoor as drawDoorCore, drawCourtyardArea as drawCourtyardAreaCore } from '../plan/studio-plan-item-drawing'
-import { createOutlinePath as createOutlinePathCore, buildShapesWithHoles as buildShapesWithHolesCore, createSceneWallSideMaterial as createWallSideMaterialCore, createWallTopMaterial as createWallTopMaterialCore, expandPolygonOutward as expandPolygonOutwardCore, buildInteriorScene as buildInteriorSceneCore } from '../scene/walls/studio-walls'
+import { createOutlinePath as createOutlinePathCore, buildShapesWithHoles as buildShapesWithHolesCore, createSceneWallSideMaterial as createWallSideMaterialCore, createWallTopMaterial as createWallTopMaterialCore, expandPolygonOutward as expandPolygonOutwardCore, buildInteriorScene as buildInteriorSceneCore } from '../scene/walls'
 import { wallUnionFallbackCount } from '../plan/studio-wall'
 import { finite as finite2, isCourtyardDrawing as isCourtyardDrawing2 } from '../loaders/studio-normalization'
 import { mergeStaticItemMeshesCore } from '../items/studio-static-item-meshes'

@@ -203,7 +203,7 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { Activity, RefreshCw, AlertCircle, BarChart3, TrendingUp, List, Clock } from '@lucide/vue'
 import type { EChartsCoreOption } from 'echarts/core'
-import type * as EchartsModuleNS from '@/kernel/utils/chart/echarts'
+import type * as EchartsModuleNS from '@/kernel/utils/chart'
 import {
   useDeviceStateHistory,
   availableDeviceHistoryRanges,
@@ -213,16 +213,16 @@ import {
   type DeviceStateHistoryEvent,
 } from '@/features/device/composables/device'
 import { displayEventState } from '@/features/events/model/utils/events-display.util'
-import { displayEntityStateLabel } from '@/kernel/constants/entity-state'
-import { formatDetailedDateTimeOrDash } from '@/kernel/utils/format/locale-format.util'
+import { displayEntityStateLabel } from '@/kernel/constants'
+import { formatDetailedDateTimeOrDash } from '@/kernel/utils/format'
 import DeviceChartHeader from './DeviceChartHeader.vue'
-import { DEVICE_CHART_COPY } from '@/kernel/utils/chart/device-chart-copy.util'
+import { DEVICE_CHART_COPY } from '@/kernel/utils/chart'
 import {
   deviceChartBase,
   deviceChartTooltip,
   DEVICE_CHART_COLORS,
   chartVerticalGradient,
-} from '@/kernel/utils/chart/device-chart-theme'
+} from '@/kernel/utils/chart'
 import { configEpoch, getEventLogConfig } from '@/kernel/config/frontend-config'
 
 /** 图表实例类型：来自按需加载 echarts 入口模块的 init 返回值 */
@@ -382,7 +382,7 @@ async function renderChart() {
   if (!props.visible || !chartEventsAsc.value.length || !chartDomReady()) return
 
   if (!chartInstance) {
-    const echarts = (await import('@/kernel/utils/chart/echarts')).default
+    const echarts = (await import('@/kernel/utils/chart')).default
     if (!props.visible || !chartEventsAsc.value.length || !chartDomReady()) return
     // 并发调用可能已在 await 期间完成初始化
     if (!chartInstance) chartInstance = echarts.init(chartRef.value)

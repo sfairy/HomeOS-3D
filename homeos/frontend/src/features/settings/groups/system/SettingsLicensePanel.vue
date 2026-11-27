@@ -278,9 +278,9 @@ import {
   reactivateLicense,
   retryLicense,
 } from '@/domain/api/license'
-import { setLicenseFeatureAccess } from '@/domain/license/license-gate'
+import { setLicenseFeatureAccess } from '@/domain/license'
 import { featureLabel } from '@/kernel/utils/registry/feature-labels.util'
-import { isUnauthorizedError } from '@/kernel/utils/core/error-message'
+import { isUnauthorizedError } from '@/kernel/utils/core'
 
 defineProps({ activeTab: { type: String, default: 'license' } })
 

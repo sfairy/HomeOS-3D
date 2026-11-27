@@ -9,7 +9,7 @@
  */
 import { ref, onMounted, onUnmounted } from 'vue'
 import { loadPresenceHome } from '@/features/presence/model/composables/load-presence-home'
-import { schedulePoll } from '@/kernel/utils/core/poll-scheduler'
+import { schedulePoll } from '@/kernel/utils/core'
 
 /**
  * 在家状态成员信息

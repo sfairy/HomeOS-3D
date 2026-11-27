@@ -1,4 +1,4 @@
-import type { queryEditorElements } from '../home/elements/editor-elements'
+import type { queryEditorElements } from '../home/elements'
 
 /**
  * 导航检查器的「表单输入 → 属性」元数据表 —— 从 home.ts 单体切出。

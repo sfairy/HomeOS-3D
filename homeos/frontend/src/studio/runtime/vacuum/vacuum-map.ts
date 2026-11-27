@@ -1,10 +1,10 @@
-import { vacuumStatus as resolveVacuumStatus } from '@app/shared/device/vacuum-runtime'
+import { vacuumStatus as resolveVacuumStatus } from '@app/shared/device'
 import {
   vacuumMapAvailable as N,
   vacuumMapRequestable as R,
   vacuumMapSource as resolveVacuumMapSource,
   createVacuumMapImageLoader as $,
-} from '@app/shared/device/vacuum-map-state'
+} from '@app/shared/device'
 export { N as vacuumMapAvailable, R as vacuumMapRequestable, $ as createVacuumMapImageLoader }
 export function vacuumMapIdentity(mapEntityEntry: any, vacuumEntityEntry: any) {
   const mapIdentityAttributes = (mapEntityEntry?.newState || mapEntityEntry)?.attributes || {},

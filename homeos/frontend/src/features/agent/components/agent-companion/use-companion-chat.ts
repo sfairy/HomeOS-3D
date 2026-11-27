@@ -6,8 +6,8 @@
  */
 import { agentChat } from '@/domain/api/agent'
 import type { AgentEarcon } from '@/domain/api/agent'
-import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
-import { logger } from '@/kernel/utils/core/logger'
+import { getApiErrorMessage } from '@/kernel/utils/core'
+import { logger } from '@/kernel/utils/core'
 
 /** 后端已执行但没给文案时的兜底，按 outcome 区分「做完了」与「被拦下」 */
 const OUTCOME_FALLBACK: Record<string, string> = {

@@ -165,7 +165,7 @@ import RecommendInsightCard from '@/domain/recommend/components/RecommendInsight
 import { useFavoritesHub } from '@/features/settings/shared/composables/hub'
 import { ChevronRight, Layers, Monitor, Star, Zap } from '@lucide/vue'
 import { defineAsyncComponent } from 'vue'
-import { DEVICES_ROUTES } from '@/features/device/model/utils/devices-route.util'
+import { DEVICES_ROUTES } from '@/features/device/model/utils'
 
 // 设备列表「收藏」入口链接
 const devicesFavoritesLink = DEVICES_ROUTES.favorites()

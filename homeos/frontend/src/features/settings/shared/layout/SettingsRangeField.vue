@@ -82,9 +82,9 @@ import { computed, ref } from 'vue'
 import { ChevronUp, ChevronDown } from '@lucide/vue'
 
 import { sliderTrackStyle } from '@/kernel/utils/ui/progress-bar.util'
-import { parseOptionalNumber } from '@/kernel/utils/core/misc.util'
+import { parseOptionalNumber } from '@/kernel/utils/core'
 
-import { formatRangeDisplayValue, snapToRangeStep } from '@/kernel/utils/settings/range-steps.util'
+import { formatRangeDisplayValue, snapToRangeStep } from '@/kernel/utils/settings'
 
 const props = defineProps({
   modelValue: { type: Number, default: 0 },

@@ -1,7 +1,7 @@
 /** API 服务统一入口 */
-export { default as apiClient, apiGet, apiPost } from '../../kernel/http/client'
+export { default as apiClient, apiGet, apiPost } from '../../kernel/http'
 
-export type { ApiRequestConfig } from '../../kernel/http/client'
+export type { ApiRequestConfig } from '../../kernel/http'
 
 export * from './earthquake'
 
@@ -9,7 +9,7 @@ export * from './home-modes'
 
 export * from './notifications'
 
-export * from '../../kernel/http/system-api'
+export * from '../../kernel/http'
 
 export * from './config'
 

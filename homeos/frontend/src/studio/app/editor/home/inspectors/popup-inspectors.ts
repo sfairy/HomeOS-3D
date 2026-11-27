@@ -21,7 +21,7 @@ import {
 } from '../../home-custom-popup-editor'
 import { syncTimeInspector as syncTimeInspectorExternal } from '../../inspectors/home/home-time-inspector'
 import { syncWeatherInspector as syncWeatherInspectorExternal } from '../../inspectors/home/home-weather-inspector'
-import { renderEntityOptionButtons } from '../entity/entity-option-list'
+import { renderEntityOptionButtons } from '../entity'
 import { positionFloatingMenu } from '../../../shared/util/editor-floating-layout'
 
 import { domElement } from '@app/shared/util/dom-factory'

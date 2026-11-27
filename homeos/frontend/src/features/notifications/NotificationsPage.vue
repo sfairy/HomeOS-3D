@@ -4,7 +4,7 @@ import NotificationsViewAnalytics from './components/ViewAnalytics.vue'
 import NotificationsViewHero from './components/ViewHero.vue'
 import NotificationsViewStream from './components/ViewStream.vue'
 import NotificationsViewToolbar from './components/ViewToolbar.vue'
-import { useNotificationsView } from './composables/use-notifications-view'
+import { useNotificationsView } from './composables'
 import '@/kernel/ui/list-page/styles/list-page-dual-pane.css'
 import './premium.css'
 

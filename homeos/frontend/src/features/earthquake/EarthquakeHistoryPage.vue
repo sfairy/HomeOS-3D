@@ -334,7 +334,7 @@ import ApiQueryState from '@/kernel/ui/ApiQueryState.vue'
 import ListPageHero from '@/kernel/ui/list-page/ListPageHero.vue'
 import ListPageMetrics from '@/kernel/ui/list-page/ListPageMetrics.vue'
 import EarthquakeHistoryAnalytics from './components/HistoryAnalytics.vue'
-import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
+import { getApiErrorMessage } from '@/kernel/utils/core'
 import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import {
@@ -343,7 +343,7 @@ import {
   shortenPlace,
 } from '@/features/earthquake/model/utils/history-analytics.util'
 import { formatEarthquakeMagnitude, earthquakeMagnitudeTone } from '@/domain/earthquake/earthquake-layout.util'
-import { formatLocaleString } from '@/kernel/utils/format/locale-format.util'
+import { formatLocaleString } from '@/kernel/utils/format'
 import {
   EEW_MAGNITUDE_OPTIONS,
   GLOBAL_EARTHQUAKE_PERIODS,

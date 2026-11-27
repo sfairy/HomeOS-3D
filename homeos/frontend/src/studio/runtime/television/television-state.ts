@@ -1,4 +1,4 @@
-import { mediaDeviceProfile } from '@app/bridge/presets/media-device-profiles'
+import { mediaDeviceProfile } from '@app/bridge/presets'
 import { DEVICE_STATUS_NORMAL_COLOR } from '../device/device-status'
 
 const readEntityState = (stateSource: any, entityId: any) =>

@@ -6,7 +6,7 @@
 import { getEntityLeaf } from '@homeos/shared'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { domainIndexToArray } from '@/domain/entity/model/utils/derived.util'
-import { resolveHomeModeTabEmoji } from '@/kernel/utils/settings/tab-emoji.util'
+import { resolveHomeModeTabEmoji } from '@/kernel/utils/settings'
 import { DOMAIN_SERVICES, servicesForDomain } from '@/kernel/utils/registry/widget-catalog'
 import type { ComputedRef, Ref } from 'vue'
 import { computed, ref, shallowRef, watch } from 'vue'

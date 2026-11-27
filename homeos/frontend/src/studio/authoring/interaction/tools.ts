@@ -8,7 +8,7 @@ import { clamp as clamp2, clampWindowT as clampWindowT2, defaultDoorOpening, clo
 import { finite as finite2, itemMinimumHeight as itemMinimumHeight2, itemMinimumElevation, itemMinimumFootprint as itemMinimumFootprint2, normalizeFullRotation as normalizeFullRotation2, normalizeLabelText as normalizeLabelText2, isCourtyardDrawing as isCourtyardDrawing2 } from '../loaders/studio-normalization'
 import { normalizeModelRemark as normalizeModelRemark2 } from '../../app/shared/model-remarks'
 import { normalizePillarAxis as normalizePillarAxis2, normalizePillarShape as normalizePillarShape2 } from '../items/studio-item-posture'
-import { applyStripInspectorPose, applyStripMountSelection } from '../lights/strip-light/strip-light-spec'
+import { applyStripInspectorPose, applyStripMountSelection } from '../lights/strip-light'
 import { itemTypeCatalog, lampItemTypeSet, openStairTypeSet, roundTableTypeSet, sofaMinDimensions, tvMountStyleSet } from '../items/item-catalog'
 import { syncLightShapeAndRepaint } from '../lights/light-areas'
 import { STORAGE_SECTION_TYPES, storageSectionStyle } from '../items/studio-storage-sections'

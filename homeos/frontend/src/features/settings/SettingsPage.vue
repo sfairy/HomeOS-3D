@@ -134,7 +134,7 @@
 </template>
 
 <script setup>
-import { readLocalStorageFlag, writeLocalStorage } from '@/kernel/utils/core/local-storage.util'
+import { readLocalStorageFlag, writeLocalStorage } from '@/kernel/utils/core'
 import { useCanvasMetrics } from '@/kernel/ui/hooks/use-canvas-metrics'
 /**
  * 系统设置页面 — 薄壳入口
@@ -146,7 +146,7 @@ import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useAuthStore } from '@/domain/auth/auth.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { useLayoutStore } from '@/domain/layout/store/layout.store'
+import { useLayoutStore } from '@/domain/layout/store'
 import { useSettingsSave } from '@/features/settings/kernel/save.internals'
 import {
   resetAllSettingsTabDrafts,
@@ -165,7 +165,7 @@ import {
   LEGACY_TAB_SECTIONS,
 } from './nav'
 import { isTabFeatureGranted } from '@/kernel/utils/registry/settings-nav.util'
-import { useLicenseFeatureAccess } from '@/domain/license/license-gate'
+import { useLicenseFeatureAccess } from '@/domain/license'
 import {
   hasIndependentSettingsPending,
   getIndependentPendingTabIds,

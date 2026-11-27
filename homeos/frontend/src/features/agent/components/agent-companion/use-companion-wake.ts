@@ -14,7 +14,7 @@
  */
 import { computed, watch } from 'vue'
 import type { Ref } from 'vue'
-import { useWakeWord } from '@/features/voice/composables/use-wake-word'
+import { useWakeWord } from '@/features/voice/composables'
 import { configEpoch, getConfigSection } from '@/kernel/config/frontend-config'
 
 interface CompanionWakeOptions {

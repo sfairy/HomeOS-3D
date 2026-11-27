@@ -28,8 +28,8 @@ import {
   patchLightsPhysicalPars,
   patchLightsFragmentBegin,
 } from './studio-lighting-shader-chunks'
-import { createStripWallVisibility } from '../../lights/strip-light/strip-wall-visibility'
-import { stripLightLtcTextures } from '../../lights/strip-light/strip-light-ltc'
+import { createStripWallVisibility } from '../../lights/strip-light'
+import { stripLightLtcTextures } from '../../lights/strip-light'
 import { nextPowerOfTwo, packSpotShadowAtlasTiles, toPositiveInt } from './studio-shadow-atlas-packing'
 import { captureRendererTargetState, restoreRendererTargetState } from '../../render-kit/renderer-state'
 

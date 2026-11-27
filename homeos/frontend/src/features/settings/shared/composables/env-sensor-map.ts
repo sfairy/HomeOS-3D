@@ -7,9 +7,9 @@ import { fetchSystemConfigFresh, isSystemConfigConflictError, patchSystemConfig,
 import { fetchAreasList } from '@/domain/api/entities'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { reloadFrontendConfig } from '@/kernel/config/frontend-config'
-import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
-import { logger } from '@/kernel/utils/core/logger'
-import { invalidateSharedFetchPrefix } from '@/kernel/utils/core/poll-scheduler'
+import { getApiErrorMessage } from '@/kernel/utils/core'
+import { logger } from '@/kernel/utils/core'
+import { invalidateSharedFetchPrefix } from '@/kernel/utils/core'
 import { computed, ref } from 'vue'
 
 /**

@@ -6,7 +6,7 @@ import { clamp as clamp2 } from '../plan/geometry'
 import { finite as finite2 } from '../loaders/studio-normalization'
 import { composeItemKey } from '../ui/studio-app-helpers'
 import { applyItemOrientation } from '../geometry/geometry'
-import { applyLightOnState } from './strip-light/strip-light-model'
+import { applyLightOnState } from './strip-light'
 
 export function restoreLightVisibility(runtime: StudioAppRuntime) {
   if (!runtime.appCtx.isCacheReady || runtime.previewLightCacheCanvasElement.hidden) return

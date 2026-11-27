@@ -4,7 +4,7 @@
  */
 import { ref, watch, onMounted, type Ref, type ComputedRef } from 'vue'
 import { useRouter } from 'vue-router'
-import { logger } from '@/kernel/utils/core/logger'
+import { logger } from '@/kernel/utils/core'
 import { Shield, ShieldCheck, AlertTriangle } from '@lucide/vue'
 import { getMaxRemoteNotifications, configEpoch, getConfigSection } from '@/kernel/config/frontend-config'
 import { hapticAlert } from '@/kernel/utils/ui/haptics.util'
@@ -15,7 +15,7 @@ import { normalizeSecurityEmergency } from '@/domain/layout/constants/security-e
 import { executeSecurityPanelArm, interpretSecurityArmResult } from '@/features/security/model/utils/panel-arm.util'
 import type { SecurityMode } from '@/kernel/types/layout'
 import type { SecurityOverviewSensor } from './security-overview-sensors.internals'
-import type { useLayoutStore } from '@/domain/layout/store/layout.store'
+import type { useLayoutStore } from '@/domain/layout/store'
 import type { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import type { useSecurityPanelStatus } from '@/features/security/composables/security'
 import type { useReduceSecuritySensitivity } from './use-reduce-security-sensitivity'

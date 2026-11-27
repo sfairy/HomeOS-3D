@@ -1,15 +1,15 @@
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { useLayoutStore } from '@/domain/layout/store/layout.store'
+import { useLayoutStore } from '@/domain/layout/store'
 import {
   fps,
   memoryMb,
   startFrontendPerfMonitor,
   stopFrontendPerfMonitor,
-} from '@/kernel/utils/perf/frontend-perf-monitor.util'
-import { adaptiveTier } from '@/kernel/utils/perf/adaptive-perf.util'
-import { isFpsSchedulerRunning, isDiagnosticsFpsSamplingActive } from '@/kernel/utils/perf/fps-scheduler.util'
+} from '@/kernel/utils/perf'
+import { adaptiveTier } from '@/kernel/utils/perf'
+import { isFpsSchedulerRunning, isDiagnosticsFpsSamplingActive } from '@/kernel/utils/perf'
 import { getActiveSubscribeDomains } from '@/domain/entity/model/utils/ws-subscription'
 import { getMaxStateListeners } from '@/kernel/config/frontend-config'
 import { copyTextWithNotify } from '@/kernel/ui/notify'
@@ -21,7 +21,7 @@ import {
   exportPerfBaselineJson,
   tickPerfBaselineCounters,
   recordFpsSample,
-} from '@/kernel/utils/perf/baseline.util'
+} from '@/kernel/utils/perf'
 
 const PERF_MODE_LABELS: Record<string, string> = {
   high: '华丽',

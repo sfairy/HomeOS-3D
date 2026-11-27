@@ -8,7 +8,7 @@
 import { attributesOf, extraContextChanged, featureFlags } from '../device/entity-capabilities'
 import { attachFeedback, createVisibilityGate } from './panel-utils'
 import type { ExtraPanelViewModel, FeedbackSlot } from './panel-utils'
-import { createCameraAudio, mountCameraAudioButton, type CameraAudioHandle } from '@app/shared/camera/camera-audio'
+import { createCameraAudio, mountCameraAudioButton, type CameraAudioHandle } from '@app/shared/camera'
 
 /** 摄像头能力位：1=支持开关；2=支持实时流。 */
 const CAMERA_TURN_ON = 0x1

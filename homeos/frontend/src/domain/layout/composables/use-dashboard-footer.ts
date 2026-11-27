@@ -1,7 +1,7 @@
 /** 仪表板底部信息栏组合式函数。 */
 import { computed } from 'vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { useLayoutStore } from '@/domain/layout/store/layout.store'
+import { useLayoutStore } from '@/domain/layout/store'
 import {
   ENERGY_FIELD_DEFS,
   getFieldDef,

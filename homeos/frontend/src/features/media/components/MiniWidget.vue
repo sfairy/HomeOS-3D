@@ -146,11 +146,11 @@ import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useHaConnectionStore } from '@/domain/ha/ha-connection.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useEntityDisplayEpoch } from '@/domain/entity/composables/entity'
-import { resolveHaEntityPicture } from '@/kernel/utils/ha/media-url.util'
+import { resolveHaEntityPicture } from '@/kernel/utils/ha'
 import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
 import { useSwiperDraggable } from '@/kernel/ui/hooks/use-swiper-draggable'
 import WidgetHubHeader from '@/domain/widget/components/WidgetHubHeader.vue'
-import { useHubTabs } from '@/domain/widget/composables/use-hub-tabs'
+import { useHubTabs } from '@/domain/widget/composables'
 
 const MediaPlaylistWidget = defineAsyncComponent(() => import('./PlaylistWidget.vue'))
 

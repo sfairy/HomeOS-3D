@@ -2,8 +2,8 @@ import { computed, ref, toValue, type MaybeRefOrGetter } from 'vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { getEntityDomain } from '@homeos/shared'
-import { logger } from '@/kernel/utils/core/logger'
-import { blockDangerousHaServiceWhenOffline, HA_OFFLINE_DANGEROUS_CONTROL_MSG } from '@/kernel/utils/ha/url'
+import { logger } from '@/kernel/utils/core'
+import { blockDangerousHaServiceWhenOffline, HA_OFFLINE_DANGEROUS_CONTROL_MSG } from '@/kernel/utils/ha'
 
 /**
  * @file useHaDegrade.ts

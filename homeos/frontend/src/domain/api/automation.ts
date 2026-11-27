@@ -1,6 +1,6 @@
 /** 自动化草案 API（默认只预览；用户显式确认后可由 apply 落成本机计划任务）。 */
 import type { AxiosRequestConfig } from 'axios'
-import { apiDelete, apiGet, apiPost } from '../../kernel/http/client'
+import { apiDelete, apiGet, apiPost } from '../../kernel/http'
 
 export interface AutomationDraftTarget {
   entityId?: string

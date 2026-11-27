@@ -15,7 +15,7 @@ import {
   normalizePresencePersons as normalizePresencePersonsShared,
   type PresencePerson as SharedPresencePerson,
 } from '@homeos/shared'
-import { randomUUID } from '@/kernel/utils/core/random-uuid.util'
+import { randomUUID } from '@/kernel/utils/core'
 
 /** 前端人员配置类型：在共享类型基础上补充 userId 字段 */
 type PresencePerson = SharedPresencePerson & { userId: string }

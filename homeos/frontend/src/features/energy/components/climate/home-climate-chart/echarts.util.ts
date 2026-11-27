@@ -1,9 +1,9 @@
 /** home-climate-chart-echarts.util - 家庭气候图表 ECharts 工具函数 */
 import { getEntityLeaf } from '@homeos/shared'
-import { pad2 } from '@/kernel/utils/format/locale-format.util'
+import { pad2 } from '@/kernel/utils/format'
 import { getKioskAnimationOptions } from '@/domain/layout/composables/kiosk-animation'
-import { chartLinearGradient } from '@/kernel/utils/chart/chart-primitives'
-import { formatAuditTimestamp } from '@/kernel/utils/format/locale-format.util'
+import { chartLinearGradient } from '@/kernel/utils/chart'
+import { formatAuditTimestamp } from '@/kernel/utils/format'
 import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
 import { TEMP_COLORS, HUM_COLORS } from './constants'
 import { adaptiveAxisBound } from './axis.util'

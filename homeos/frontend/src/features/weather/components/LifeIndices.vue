@@ -238,7 +238,7 @@ import {
 } from '@lucide/vue'
 import VEmptyState from '@/kernel/ui/primitives/VEmptyState.vue'
 import { useLifeIndices } from '@/features/settings/composables/life/use-life-indices'
-import { lifeIndexGroupLabel, type LifeIndexDef, type LifeIndexItem } from '@/features/weather/model/utils/life-indices.util'
+import { lifeIndexGroupLabel, type LifeIndexDef, type LifeIndexItem } from '@/features/weather/model/utils'
 import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
 
 const props = defineProps({

@@ -11,7 +11,7 @@ import { lockState as lockState2 } from '../../security/lock-state'
 import { vacuumQuip as vacuumQuip2, vacuumBirdCamera as vacuumBirdCamera2 } from '../../vacuum/vacuum-motion'
 import { vacuumStatusPresentation as vacuumStatusPresentation2 } from '../../vacuum/vacuum-map'
 import { televisionState as televisionState2 } from '../../television/television-state'
-import { MEDIA_DEVICE_KINDS, isMediaDeviceKind, mediaDeviceProfile } from '@app/bridge/presets/media-device-profiles'
+import { MEDIA_DEVICE_KINDS, isMediaDeviceKind, mediaDeviceProfile } from '@app/bridge/presets'
 import { deviceStatus as deviceStatus2 } from '../../device/device-status'
 import {
   GENERIC_DEVICE_KINDS as GENERIC_DEVICE_KINDS2,
@@ -41,9 +41,9 @@ import {
 } from '@app/bridge/temperature-humidity'
 import { createMarkerTouch, nearestMarkerTarget } from '../marker-input'
 import { bindMarkerLongPress, type MarkerLongPressHost } from './marker-long-press'
-import { buttonIconSize as resolveButtonIconSize } from '@app/bridge/presets/button-icon-size'
-import { CARD_TEXT_SIZE_PX as cardTextSizePx } from '@app/bridge/presets/card-text-size'
-import { withRegionLightingPreset as applyRegionLightingPreset } from '@app/bridge/presets/region-lighting-presets'
+import { buttonIconSize as resolveButtonIconSize } from '@app/bridge/presets'
+import { CARD_TEXT_SIZE_PX as cardTextSizePx } from '@app/bridge/presets'
+import { withRegionLightingPreset as applyRegionLightingPreset } from '@app/bridge/presets'
 import {
   securityAlarmReadings,
   overlayEligibleAlarms,
@@ -60,7 +60,7 @@ import {
   ENVIRONMENT_METRICS as environmentMetricNames,
   layoutEnvironmentReadings,
 } from '@app/bridge/temperature-humidity'
-import { DEFAULT_BUTTON_SIZE as defaultButtonSize } from '@app/bridge/presets/button-icon-size'
+import { DEFAULT_BUTTON_SIZE as defaultButtonSize } from '@app/bridge/presets'
 import { applyLabelConfigPatch, labelPatchAffects } from '../state-update-plan'
 import { isWarmSceneStyle, normalizeSceneStyle } from '@app/shared/scene-styles'
 

@@ -1,4 +1,4 @@
-import { climateIsPoweredOn, climatePowerCommand, resolveClimateDeviceType } from '@app/shared/device/climate'
+import { climateIsPoweredOn, climatePowerCommand, resolveClimateDeviceType } from '@app/shared/device'
 function readEntityState(state: any) {
   return (
     state?.newState ||

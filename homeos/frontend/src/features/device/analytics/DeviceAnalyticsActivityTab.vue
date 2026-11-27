@@ -119,7 +119,7 @@
 import type { ComponentPublicInstance } from 'vue'
 import { Flame, BarChart3, TrendingUp } from '@lucide/vue'
 import DeviceChartHeader from '../components/DeviceChartHeader.vue'
-import { DEVICE_CHART_COPY } from '@/kernel/utils/chart/device-chart-copy.util'
+import { DEVICE_CHART_COPY } from '@/kernel/utils/chart'
 
 // 父组件透传的展示数据与回调：summary 含 Top 设备列表，heatmapDevices 用于热力图渲染，
 // bindHeatmapChart 为 ECharts 实例绑定的 ref 回调，entityName/formatRuntime 为格式化辅助函数。

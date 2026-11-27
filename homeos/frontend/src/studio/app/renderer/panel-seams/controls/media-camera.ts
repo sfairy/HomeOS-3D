@@ -3,14 +3,14 @@ import type { ComponentDialogElement } from '../../renderer-types'
 import {
   cameraPopupLayout as cameraPopupLayout2,
   cameraPreviewRatio as cameraPreviewRatio2,
-} from '../../../bridge/presets/camera-popup-layout'
+} from '../../../bridge/presets'
 import { componentDialogTitle } from '../../renderer-helpers'
 import { mountCameraMedia as mountCameraMedia2 } from '../../registry/index'
-import { popupPlacement as popupPlacement2 } from '../../../bridge/presets/popup-placement'
+import { popupPlacement as popupPlacement2 } from '../../../bridge/presets'
 import type { PanelRenderer } from '../../panel-renderer'
 
 import { domElement } from '@app/shared/util/dom-factory'
-import { createCameraAudio, mountCameraAudioButton, type CameraAudioHandle } from '@app/shared/camera/camera-audio'
+import { createCameraAudio, mountCameraAudioButton, type CameraAudioHandle } from '@app/shared/camera'
 export async function browseMedia(
   _self: PanelRenderer,
   mediaEntityId: any,

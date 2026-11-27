@@ -8,9 +8,9 @@
  * @dependencies vue, @/services/api/system, @/stores/chrome.store, @/shared/utils/core/logger
  */
 import { ref } from 'vue'
-import { reduceSetupSecuritySensitivity } from '@/kernel/http/system-api'
+import { reduceSetupSecuritySensitivity } from '@/kernel/http'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { logger } from '@/kernel/utils/core/logger'
+import { logger } from '@/kernel/utils/core'
 
 /**
  * 降低安防传感器告警灵敏度（延长冷却），向导与安防页共用

@@ -69,10 +69,10 @@ const WEEKDAY_LABELS = {
 import { computed, onMounted, onUnmounted } from 'vue'
 import { usePerfClock } from '@/domain/layout/composables/use-perf-clock'
 import { onScreensaverBackgroundIdle } from '@/kernel/utils/ui/screensaver-background-idle.util'
-import { solarToLunar } from '@/kernel/utils/format/lunar-calendar'
-import { formatLunarMonthDayLine, formatLunarYearLine } from '@/kernel/utils/format/lunar-display.util'
-import { pad2 } from '@/kernel/utils/format/locale-format.util'
-import { getZonedParts } from '@/kernel/utils/format/locale-time'
+import { solarToLunar } from '@/kernel/utils/format'
+import { formatLunarMonthDayLine, formatLunarYearLine } from '@/kernel/utils/format'
+import { pad2 } from '@/kernel/utils/format'
+import { getZonedParts } from '@/kernel/utils/format'
 
 const { now, start, stop } = usePerfClock({ autoStart: false, forceIntervalMs: 1000 })
 /** 屏保空闲订阅取消函数 */

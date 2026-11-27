@@ -140,11 +140,11 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { BarChart3, RefreshCw, AlertCircle, Calendar, Zap, Clock, TrendingUp, List } from '@lucide/vue'
 import type { EChartsCoreOption } from 'echarts/core'
-import type * as EchartsModuleNS from '@/kernel/utils/chart/echarts'
+import type * as EchartsModuleNS from '@/kernel/utils/chart'
 import { useDeviceUsageStats } from '@/features/device/composables/device'
 import DeviceChartHeader from './DeviceChartHeader.vue'
-import { formatLocaleDate, formatDurationMs } from '@/kernel/utils/format/locale-format.util'
-import { DEVICE_CHART_COPY, formatDualMetricTooltip } from '@/kernel/utils/chart/device-chart-copy.util'
+import { formatLocaleDate, formatDurationMs } from '@/kernel/utils/format'
+import { DEVICE_CHART_COPY, formatDualMetricTooltip } from '@/kernel/utils/chart'
 import {
   deviceChartBase,
   deviceChartGrid,
@@ -154,7 +154,7 @@ import {
   deviceChartLegend,
   DEVICE_CHART_COLORS,
   chartVerticalGradient,
-} from '@/kernel/utils/chart/device-chart-theme'
+} from '@/kernel/utils/chart'
 
 /** 图表实例类型：来自按需加载 echarts 入口模块的 init 返回值 */
 type EchartsModule = typeof EchartsModuleNS
@@ -295,7 +295,7 @@ async function renderChart() {
   if (!chartDomReady()) return
 
   if (!chartInstance) {
-    const echarts = (await import('@/kernel/utils/chart/echarts')).default
+    const echarts = (await import('@/kernel/utils/chart')).default
     // 导入是异步的：期间组件可能隐藏/卸载或容器变化，重新校验避免僵尸实例
     if (!props.visible || !chartRef.value || !chartDomReady()) return
     // 并发调用可能已在 await 期间完成初始化

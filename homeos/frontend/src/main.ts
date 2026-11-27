@@ -62,7 +62,7 @@ import {
 } from '@/kernel/config/frontend-config'
 import { primeGlassEffectDocument, setupGlassEffectSync } from '@/kernel/utils/ui/glass-effect.util'
 import { applyHomeOsTheme } from '@/kernel/utils/ui/theme.util'
-import { setupSmartPerformanceMode } from '@/kernel/utils/perf/smart-performance.util'
+import { setupSmartPerformanceMode } from '@/kernel/utils/perf'
 import {
   registerAuthChangeHandler,
   registerUnauthorizedHandler,
@@ -71,7 +71,7 @@ import {
   registerUiNotifyHandler,
 } from '@/kernel/utils/bridge/store-bridge'
 import { useAuthStore } from './domain/auth/auth.store'
-import { useLayoutStore } from './domain/layout/store/layout.store'
+import { useLayoutStore } from './domain/layout/store'
 import { useChromeStore } from './kernel/ui/chrome/chrome-store'
 import VSkeleton from './kernel/ui/primitives/VSkeleton.vue'
 import VEmptyState from './kernel/ui/primitives/VEmptyState.vue'
@@ -80,7 +80,7 @@ import { swipeClose } from './app/directives/swipe-close'
 import { scrollRegion } from './app/directives/scroll-region'
 import { studioStartupReady } from '@/kernel/utils/ui/studio-startup'
 import { ensureStudioLoadingStyle } from '@/kernel/utils/ui/studio-loading-style'
-import { forgetLicenseAvailability } from '@/domain/license/license-probe.util'
+import { forgetLicenseAvailability } from '@/domain/license'
 import { adoptPreloadedStylesheets } from '@/studio/index'
 
 // CSRF 兜底注入已收敛到单 HTTP 栈：`services/api/client` 在模块求值时调用
@@ -208,7 +208,7 @@ registerAuthChangeHandler(() => {
   // 登出 / 401 时（isAuthenticated=false）额外清理用户态 store，避免下一个会话残留上一个用户的数据
   void import('./domain/auth/auth.store').then(({ useAuthStore }) => {
     if (useAuthStore().isAuthenticated) return
-    void import('./domain/layout/store/layout.store').then(({ useLayoutStore }) => {
+    void import('./domain/layout/store').then(({ useLayoutStore }) => {
       useLayoutStore().resetForAuthChange()
     })
     void import('./domain/earthquake/earthquake.store').then(({ useEarthquakeStore }) => {
@@ -250,7 +250,7 @@ function mountApp(): void {
   // B22 + RUM：全局 WebGL 上下文丢失兜底与轻量性能采集，idle 时懒加载启动。
   // 入口只多一次动态 import，不为采集付首屏字节；?webgl-guard=0 / ?client-metrics=0 可回退。
   const startPerf = (): void => {
-    void import('@/kernel/utils/perf/perf-instrumentation').then(({ startPerfInstrumentation }) =>
+    void import('@/kernel/utils/perf').then(({ startPerfInstrumentation }) =>
       startPerfInstrumentation(),
     )
   }
@@ -261,7 +261,7 @@ function mountApp(): void {
   // 挂载后启动 FPS 自适应监控，低帧率时自动降级。3D 舞台 iframe 不起：舞台有自己的自适应
   // DPR，这里的档位只影响 iframe 内用不到的外壳样式，却要在每次指针事件后多跑 5s rAF。
   if (!document.body.classList.contains('interaction3d-stage')) {
-    import('@/kernel/utils/perf/adaptive-perf.util').then(({ startFpsAdaptiveMonitor }) => {
+    import('@/kernel/utils/perf').then(({ startFpsAdaptiveMonitor }) => {
       startFpsAdaptiveMonitor()
     })
   }
@@ -278,7 +278,7 @@ function mountApp(): void {
   }
   // 生产环境注册 PWA 更新提示（用户确认式：确认后激活新 SW 并刷新）
   if (import.meta.env.PROD) {
-    import('@/kernel/utils/core/pwa-update').then(({ setupPwaUpdatePrompt }) => {
+    import('@/kernel/utils/core').then(({ setupPwaUpdatePrompt }) => {
       setupPwaUpdatePrompt(async (applyUpdate) => {
         const ok = await useChromeStore().confirm(
           '检测到新版本已就绪。立即更新将刷新页面，未保存的编辑可能丢失。',

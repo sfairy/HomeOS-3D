@@ -1,8 +1,8 @@
 /** 前端公共配置（AppPublicConfig）状态管理 */
 import { ref } from 'vue'
-import { logger } from '@/kernel/utils/core/logger'
-import { AGENT_QUICK_PROMPTS } from '@/kernel/constants/agent-quick-prompts'
-import { SS_DEFAULTS } from '@/kernel/constants/screensaver-defaults'
+import { logger } from '@/kernel/utils/core'
+import { AGENT_QUICK_PROMPTS } from '@/kernel/constants'
+import { SS_DEFAULTS } from '@/kernel/constants'
 import type { ClientPowerWakePublic } from '@homeos/shared'
 // 语音告警默认矩阵单点在 ``@homeos/shared``：这里只是「公开配置还没拉到时」的一份兜底，
 // 再抄一遍 14 个布尔键就等于让「后端默认值」和「前端兜底值」各走各的（见 voice-alert.ts）。
@@ -319,7 +319,7 @@ export function clearFrontendConfigCache(): void {
 
 async function fetchAndApplyPublicConfig(): Promise<FrontendSection> {
   // API 客户端同步读本模块的重试配置：静态引用 system 会形成 client → config → system → client 的值循环。
-  const { fetchPublicSystemConfig } = await import('@/kernel/http/system-api')
+  const { fetchPublicSystemConfig } = await import('@/kernel/http')
   const { data } = await fetchPublicSystemConfig<Partial<AppPublicConfig>>()
   applyConfig(data)
   writeCachedConfig(data)

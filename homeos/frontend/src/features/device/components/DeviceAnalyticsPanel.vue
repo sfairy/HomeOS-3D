@@ -140,8 +140,8 @@ import { ref, watch, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { getEntityDomain } from '@homeos/shared'
 import { Sparkles, RefreshCw, BarChart3, Clock, Radar, Zap, Activity } from '@lucide/vue'
 import type { EChartsCoreOption } from 'echarts/core'
-import type * as EchartsModuleNS from '@/kernel/utils/chart/echarts'
-import { fetchAdvisorUsageSummary } from '@/kernel/http/system-api'
+import type * as EchartsModuleNS from '@/kernel/utils/chart'
+import { fetchAdvisorUsageSummary } from '@/kernel/http'
 import { fetchEventStats } from '@/domain/api/entities'
 import { useDeviceUsageStats } from '@/features/device/composables/device'
 import { useDeviceEventStats } from '@/features/device/composables/device'
@@ -150,7 +150,7 @@ import {
   DEVICE_CHART_COPY,
   formatDualMetricTooltip,
   formatHourlyBucketTooltip,
-} from '@/kernel/utils/chart/device-chart-copy.util'
+} from '@/kernel/utils/chart'
 import {
   deviceChartBase,
   deviceChartGrid,
@@ -160,9 +160,9 @@ import {
   deviceChartLegend,
   DEVICE_CHART_COLORS,
   chartVerticalGradient,
-} from '@/kernel/utils/chart/device-chart-theme'
-import { ensureDeviceChartOnElement } from '@/kernel/utils/chart/device-chart-boot.util'
-import { createFetchSequence } from '@/kernel/utils/core/misc.util'
+} from '@/kernel/utils/chart'
+import { ensureDeviceChartOnElement } from '@/kernel/utils/chart'
+import { createFetchSequence } from '@/kernel/utils/core'
 
 /** 图表实例类型：来自按需加载 echarts 入口模块的 init 返回值 */
 type EchartsModule = typeof EchartsModuleNS

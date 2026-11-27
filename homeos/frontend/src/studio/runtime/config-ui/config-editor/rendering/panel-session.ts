@@ -5,10 +5,10 @@
  * `fieldDefs` / `baselineItemsById` 是 `editorSession.*` 上的可变单元（见接口注释）。
  */
 
-import { CARD_TEXT_SIZE_PX } from '@app/bridge/presets/card-text-size'
-import { DEFAULT_BUTTON_SIZE, buttonIconSize } from '@app/bridge/presets/button-icon-size'
+import { CARD_TEXT_SIZE_PX } from '@app/bridge/presets'
+import { DEFAULT_BUTTON_SIZE, buttonIconSize } from '@app/bridge/presets'
 import { GENERIC_DEVICE_KINDS as GENERIC_DEVICE_KINDS2 } from '../../../device/generic-device-catalog'
-import { MEDIA_DEVICE_KINDS } from '@app/bridge/presets/media-device-profiles'
+import { MEDIA_DEVICE_KINDS } from '@app/bridge/presets'
 import { readNestedPath } from '../_shared'
 import { ENVIRONMENT_CATEGORY_LABELS } from './picker-row'
 

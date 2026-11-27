@@ -1,5 +1,5 @@
 /** 毛玻璃渲染策略：native（实时 blur）| static（伪毛玻璃）| auto（触屏/static） */
-import { resolveEffectivePerformanceMode } from '@/kernel/utils/perf/runtime-perf-mode.util'
+import { resolveEffectivePerformanceMode } from '@/kernel/utils/perf'
 
 /**
  * 检测当前环境是否为粗指针（触屏设备）。触屏通常不具备实时 blur 性能。

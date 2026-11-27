@@ -138,11 +138,11 @@ import SettingsBindingsSecuritySection from '@/features/settings/groups/onboardi
 import SettingsBindingsCamerasSection from '@/features/settings/groups/onboarding/bindings/SettingsBindingsCamerasSection.vue'
 import BindingsSectionInsights from '@/features/settings/groups/onboarding/bindings/SectionInsights.vue'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { useLayoutStore } from '@/domain/layout/store/layout.store'
+import { useLayoutStore } from '@/domain/layout/store'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useHaBindings } from '@/features/settings/groups/onboarding/composables/bindings'
 import SettingsHubSubnav from '@/features/settings/shared/layout/SettingsHubSubnav.vue'
-import { ensureDoorbellList, collectDoorbellCameraIds } from '@/kernel/utils/layout/doorbell.util'
+import { ensureDoorbellList, collectDoorbellCameraIds } from '@/kernel/utils/layout'
 import {
   applyBindingsLayoutSlice,
   liveBindingsLayoutSlice,
@@ -156,8 +156,8 @@ import {
   pauseGlobalPendingChanges,
   resumeGlobalPendingChanges,
 } from '@/features/settings/kernel/pending.internals'
-import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
-import { fetchBindingsGaps } from '@/kernel/http/system-api'
+import { getApiErrorMessage } from '@/kernel/utils/core'
+import { fetchBindingsGaps } from '@/kernel/http'
 import { runHazardDrill as runHazardDrillApi } from '@/domain/api/security'
 import { useYamlValidation } from '@/features/security/index'
 import { useSettingsSidebarReentryReset } from '@/kernel/ui/hooks/hub-viewport'
@@ -169,7 +169,7 @@ import {
   patchSystemConfig,
   useSystemConfig,
 } from '@/domain/layout/composables/system-config-core.internals'
-import { applyWeatherEntityIdToLayout, resolveWeatherEntityId } from '@/domain/layout/store/resolve-active-profile.util'
+import { applyWeatherEntityIdToLayout, resolveWeatherEntityId } from '@/domain/layout/store'
 
 const { load: loadSystemConfig } = useSystemConfig()
 

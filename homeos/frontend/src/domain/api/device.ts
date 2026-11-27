@@ -1,5 +1,5 @@
 import { type AxiosRequestConfig } from 'axios'
-import { apiGet, apiPost, apiDelete, apiPut } from '../../kernel/http/client'
+import { apiGet, apiPost, apiDelete, apiPut } from '../../kernel/http'
 
 /** 设备健康与固件更新 API。 */
 

@@ -14,10 +14,10 @@ import { computed, onBeforeUnmount, ref } from 'vue'
 import SceneStage from '@/kernel/ui/SceneStage.vue'
 import PasswordField from '@homeos/shared/components/PasswordField.vue'
 import AuthShell from '@/features/auth/components/AuthShell.vue'
-import { AUTH_FLOW_ACCESS, renderAuthSteps } from '@/kernel/utils/auth/auth-flow.util'
+import { AUTH_FLOW_ACCESS, renderAuthSteps } from '@/kernel/utils/auth'
 import { useAuthStore } from '@/domain/auth/auth.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
+import { getApiErrorMessage } from '@/kernel/utils/core'
 import { PASSWORD_POLICY_MESSAGE, isPasswordPolicyCompliant } from '@homeos/shared/security/password-policy'
 
 const authStore = useAuthStore()

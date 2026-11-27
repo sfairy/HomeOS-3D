@@ -142,7 +142,7 @@ import {
   listDeviceProfileDefaults,
   setDeviceProfileDefault,
 } from '@/domain/api/device'
-import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
+import { getApiErrorMessage } from '@/kernel/utils/core'
 
 const props = defineProps({
   areas: { type: Array, default: () => [] },

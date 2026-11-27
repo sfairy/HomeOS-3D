@@ -76,8 +76,8 @@ import { Activity } from '@lucide/vue'
 import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
 import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
 import SettingsCardIntro from '@/features/settings/components/shell/SettingsCardIntro.vue'
-import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
-import { formatFullDateTime } from '@/kernel/utils/format/locale-format.util'
+import { getApiErrorMessage } from '@/kernel/utils/core'
+import { formatFullDateTime } from '@/kernel/utils/format'
 import { listAgentDiagnostics, type AgentDiagnosticEvent } from '@/domain/api/agent'
 
 /** 与后端 diagnostics.py 的 KIND_* 常量保持一致 */

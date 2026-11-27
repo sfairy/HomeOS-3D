@@ -8,8 +8,8 @@ import { ref, toRaw, shallowReactive, reactive, watch } from 'vue'
 import { apiClient } from '@/domain/api/index'
 import { resyncEntities } from '@/domain/api/entities'
 import { useAuthStore } from '@/domain/auth/auth.store'
-import { useLayoutStore } from '@/domain/layout/store/layout.store'
-import { logger } from '@/kernel/utils/core/logger'
+import { useLayoutStore } from '@/domain/layout/store'
+import { logger } from '@/kernel/utils/core'
 import {
   getFrontendConfig,
   getLargeEntityThreshold,
@@ -26,7 +26,7 @@ import { buildEntityCacheKey } from '@/domain/entity/model/utils/idb-cache'
 import { createEntityOptimisticState } from '@/domain/entity/store/entity-store-optimistic.util'
 import { clearColdFetchMissing, fetchEntitiesByIds, fetchEntityById } from '@/domain/entity/model/utils/cold-fetch.util'
 import { getPendingListenerCount, getStateListenerStats } from '@/domain/entity/model/utils/entity'
-import { applyEntityStateUpdate } from './ws/state-update'
+import { applyEntityStateUpdate } from './ws'
 import type { WsDeltaChange } from '@/domain/entity/model/utils/entity'
 import {
   shouldNotifyStateChange,

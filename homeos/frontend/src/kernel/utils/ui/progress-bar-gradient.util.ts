@@ -78,7 +78,7 @@ export function snapToSliderStep(value: number, min: number, max: number, step: 
   return Math.min(max, Math.max(min, n))
 }
 
-import { clampNum } from '@/kernel/utils/core/misc.util'
+import { clampNum } from '@/kernel/utils/core'
 
 /** 将数值钳制在 [min, max]；无效时返回 fallback */
 export function clampInRange(value: number | null | undefined, min: number, max: number, fallback: number = min) {

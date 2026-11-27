@@ -441,11 +441,11 @@ import { startupStudio } from "./boot/studio-boot";
 import {
   StudioDocumentStore,
   applyDocumentPatch,
-} from "./store/document-store";
-import { StudioHistoryStore } from "./store/history-store";
-import { StudioSceneSyncController } from "./store/scene-sync-controller";
-import { StudioSaveStore } from "./store/save-store";
-import { createStudioDraftRepository } from "./store/studio-draft-repository";
+} from "./store";
+import { StudioHistoryStore } from "./store";
+import { StudioSceneSyncController } from "./store";
+import { StudioSaveStore } from "./store";
+import { createStudioDraftRepository } from "./store";
 
 
 import { createStudioAppContext } from "./app-context";

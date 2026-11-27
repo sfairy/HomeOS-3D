@@ -1,19 +1,19 @@
 {
   "deepWatch": {
     "homeos-store/frontend/src/features/admin/components/DataTable.vue": 1,
-    "homeos/frontend/src/app/shell/composables/use-main-layout-nav-menu.ts": 1,
+    "homeos/frontend/src/app/shell/composables.ts": 1,
     "homeos/frontend/src/app/shell/floating-hub/use-floating-hub.ts": 1,
     "homeos/frontend/src/domain/entity/composables/use-device-search-options.ts": 1,
     "homeos/frontend/src/domain/entity/composables/use-ensure-visible-entities.ts": 1,
-    "homeos/frontend/src/domain/layout/store/create-layout-dirty-tracking.ts": 1,
+    "homeos/frontend/src/domain/layout/store.ts": 1,
     "homeos/frontend/src/features/device/components/DeviceStateHistoryPanel.vue": 1,
     "homeos/frontend/src/features/device/components/DeviceUsageStats.vue": 1,
     "homeos/frontend/src/features/device/composables/device-analytics-dashboard.ts": 1,
     "homeos/frontend/src/features/device/composables/devices-view.ts": 1,
-    "homeos/frontend/src/features/earthquake/composables/use-earthquake-history-analytics.ts": 1,
+    "homeos/frontend/src/features/earthquake/composables.ts": 1,
     "homeos/frontend/src/features/energy/components/climate/home-climate-chart/use-home-climate-chart.ts": 1,
     "homeos/frontend/src/features/events/components/ViewAnalytics.vue": 1,
-    "homeos/frontend/src/features/notifications/composables/use-notifications-view-analytics.ts": 1,
+    "homeos/frontend/src/features/notifications/composables.ts": 1,
     "homeos/frontend/src/features/security/components/ZoneConfigPanel.vue": 1,
     "homeos/frontend/src/features/settings/composables/life/use-life-chart-host.ts": 1,
     "homeos/frontend/src/features/settings/groups/system/diagnostics/use-diagnostics-perf.ts": 1,
@@ -72,14 +72,14 @@
     "homeos/frontend/src/studio/chrome/studio-native-dialogs.css": 2
   },
   "anonPagehide": {
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/boot.ts": 3,
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/runtime/shortcuts.ts": 1,
     "homeos/frontend/src/studio/app/bridge/bridge.ts": 1,
-    "homeos/frontend/src/studio/app/logging/client-log.ts": 1
+    "homeos/frontend/src/studio/app/logging/client-log.ts": 1,
+    "homeos/frontend/src/studio/authoring/app-boot.ts": 3,
+    "homeos/frontend/src/studio/authoring/runtime/shortcuts.ts": 1
   },
   "hotStringify": {
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/renderer.ts": 1,
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/render-loop.ts": 15,
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/shadows.ts": 1
+    "homeos/frontend/src/studio/authoring/render/renderer.ts": 1,
+    "homeos/frontend/src/studio/authoring/render/render-loop.ts": 15,
+    "homeos/frontend/src/studio/authoring/lights/shadows.ts": 1
   }
 }

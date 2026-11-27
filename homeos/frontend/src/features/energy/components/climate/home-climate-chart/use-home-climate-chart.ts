@@ -6,8 +6,8 @@
  * - 通过 scheduleEchartsTask 队列化渲染任务，避免高频更新抢占主线程。
  */
 import { ref, computed, watch, onMounted, onUnmounted, nextTick, type Ref, type ComputedRef } from 'vue'
-import { useScheduledPoll } from '@/domain/widget/composables/use-scheduled-poll'
-import type * as EchartsModuleNS from '@/kernel/utils/chart/echarts'
+import { useScheduledPoll } from '@/domain/widget/composables'
+import type * as EchartsModuleNS from '@/kernel/utils/chart'
 import { useAuthStore } from '@/domain/auth/auth.store'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { fetchHaHistory, type HaHistoryPoint } from '@/domain/api/entities'
@@ -276,7 +276,7 @@ export function useHomeClimateChart(options: UseHomeClimateChartOptions) {
     }
     if (!chartInstance) {
       // 动态 import echarts vendor：保持大依赖独立分包、按需加载
-      const echarts = (await import('@/kernel/utils/chart/echarts')).default
+      const echarts = (await import('@/kernel/utils/chart')).default
       // 导入是异步的：期间面板可能隐藏或容器被替换，重新校验避免僵尸实例
       if (
         !panelVisible.value ||

@@ -345,12 +345,12 @@ import { handleSystemConfigPatchError, useSystemConfig } from '@/domain/layout/c
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
 import NavTabEditor from './NavTabEditor.vue'
-import { markPerformanceModeUserSet } from '@/kernel/utils/perf/tablet-default-perf.util'
+import { markPerformanceModeUserSet } from '@/kernel/utils/perf'
 import {
   autoPerformanceModeRef,
   clearAutoPerformanceMode,
   resolveEffectivePerformanceMode,
-} from '@/kernel/utils/perf/runtime-perf-mode.util'
+} from '@/kernel/utils/perf'
 import { applyGlassEffectDocument } from '@/kernel/utils/ui/glass-effect.util'
 import { useSettingsSidebarReentryReset } from '@/kernel/ui/hooks/hub-viewport'
 import { useSettingsHubRouteSection } from '@/features/settings/shared/composables/hub'

@@ -1,6 +1,6 @@
 /** 家居模式 REST API 封装 */
 import type { AxiosRequestConfig } from 'axios'
-import { apiDelete, apiGet, apiPost, apiPut } from '../../kernel/http/client'
+import { apiDelete, apiGet, apiPost, apiPut } from '../../kernel/http'
 
 /** 获取全部家居模式。 */
 export function fetchHomeModes(config?: AxiosRequestConfig) {

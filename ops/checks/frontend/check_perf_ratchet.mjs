@@ -38,9 +38,9 @@ const STUDIO_ROOT = 'homeos/frontend/src/studio'
  * 只钉这三个文件，避免把「导出 / 调试」路径的正常序列化也算进来。
  */
 const HOT_RENDER_FILES = new Set([
-  'homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/renderer.ts',
-  'homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/render-loop.ts',
-  'homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/shadows.ts',
+  'homeos/frontend/src/studio/authoring/render/renderer.ts',
+  'homeos/frontend/src/studio/authoring/render/render-loop.ts',
+  'homeos/frontend/src/studio/authoring/lights/shadows.ts',
 ])
 
 const DEEP_RE = /\bdeep\s*:\s*true\b/g

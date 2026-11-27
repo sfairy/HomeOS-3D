@@ -12,7 +12,7 @@ import {
   resolveWeatherStationLiveMetrics,
   resolveWeatherWarning,
   type LifeIndexItem,
-} from '@/features/weather/model/utils/life-indices.util'
+} from '@/features/weather/model/utils'
 
 /**
  * 解析天气生活指数与气象站实时指标。

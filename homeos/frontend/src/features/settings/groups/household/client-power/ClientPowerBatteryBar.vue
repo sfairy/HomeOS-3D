@@ -2,7 +2,7 @@
   客户端电量条。展示当前电量百分比、充电进度条与低/高阈值标记。
 -->
 <script setup lang="ts">
-import { batteryBarClass, batteryBarStyle, batteryLabelStyle } from '@/domain/client/utils/power-battery-display.util'
+import { batteryBarClass, batteryBarStyle, batteryLabelStyle } from '@/domain/client/utils'
 
 defineProps({
   percent: { type: Number, default: null },

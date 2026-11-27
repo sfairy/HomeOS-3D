@@ -173,13 +173,13 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { X } from '@lucide/vue'
-import { useLayoutStore } from '@/domain/layout/store/layout.store'
+import { useLayoutStore } from '@/domain/layout/store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useAuthStore } from '@/domain/auth/auth.store'
-import { isLicenseFeatureGranted } from '@/domain/license/license-gate'
-import { useSpeechToText } from '@/features/voice/composables/use-speech-to-text'
+import { isLicenseFeatureGranted } from '@/domain/license'
+import { useSpeechToText } from '@/features/voice/composables'
 import { hapticHold, hapticTap } from '@/kernel/utils/ui/haptics.util'
-import { logger } from '@/kernel/utils/core/logger'
+import { logger } from '@/kernel/utils/core'
 import AgentMechaAvatar from './agent-companion/AgentMechaAvatar.vue'
 import CompanionA11yMenu from './agent-companion/CompanionA11yMenu.vue'
 import { askCompanionSpoken } from './agent-companion/use-companion-speech'
@@ -191,7 +191,7 @@ import {
   normalizeAgentCompanion,
   resolveAgentCompanionPosition,
   resolveAgentCompanionStageSize,
-} from '@/kernel/utils/layout/agent-companion.util'
+} from '@/kernel/utils/layout'
 import {
   centerToPercent,
   clampCompanionCenter,

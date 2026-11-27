@@ -5,13 +5,13 @@ import {
   normalizeGo2rtcTarget,
   GO2RTC_TRANSPORT_NAME,
   type Go2RtcMseTransportHandle,
-} from '@/domain/camera/use-go2-rtc-mse-transport'
-import { ensureHls, isExpiredStreamAddressError, prefetchHlsOnIdle, canPlayNativeHls } from '@/domain/camera/hls-loader'
+} from '@/domain/camera'
+import { ensureHls, isExpiredStreamAddressError, prefetchHlsOnIdle, canPlayNativeHls } from '@/domain/camera'
 import { clampNumberWithFallback, normalizeCssColor, appendSvgElement, createCameraVisualState } from './_shared'
 import { cameraStreamBudget, withCameraHttpSlot } from '@/studio/platform/camera/camera-budget'
 import { createCameraMjpegStream } from '@/studio/platform/camera/camera-mjpeg'
-import { cameraPlaybackDiagnostic } from '@app/shared/camera/camera-diagnostics'
-import { createCameraLiveSync, type CameraLiveSyncHandle } from '@app/shared/camera/camera-live-sync'
+import { cameraPlaybackDiagnostic } from '@app/shared/camera'
+import { createCameraLiveSync, type CameraLiveSyncHandle } from '@app/shared/camera'
 
 import { domElement } from '@app/shared/util/dom-factory'
 /**

@@ -1,12 +1,12 @@
 import { ref, computed, watch, onMounted, type Ref } from 'vue'
 import { useAuthStore } from '@/domain/auth/auth.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { useLayoutStore } from '@/domain/layout/store/layout.store'
+import { useLayoutStore } from '@/domain/layout/store'
 import { useProfileManagement } from '@/features/settings/shared/composables/hub'
 import { useSettingsHubRouteSection } from '@/features/settings/shared/composables/hub'
-import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
-import { downloadBlob } from '@/kernel/utils/core/misc.util'
-import { navigateAfterRestore, resolvePostRestoreDestination } from '@/domain/license/post-restore.util'
+import { getApiErrorMessage } from '@/kernel/utils/core'
+import { downloadBlob } from '@/kernel/utils/core'
+import { navigateAfterRestore, resolvePostRestoreDestination } from '@/domain/license'
 import {
   fetchServerBackupFiles,
   downloadServerBackupFile,
@@ -14,9 +14,9 @@ import {
   restoreServerBackupFile,
   createServerBackup,
   fetchAutoBackupStatus,
-} from '@/kernel/http/system-api'
+} from '@/kernel/http'
 import { handleSystemConfigPatchError, patchSystemConfig } from '@/domain/layout/composables/system-config-core.internals'
-import { formatAuditTime, formatFullDateTime } from '@/kernel/utils/format/locale-format.util'
+import { formatAuditTime, formatFullDateTime } from '@/kernel/utils/format'
 import {
   deleteTerminalBinding,
   fetchActiveProject,
@@ -24,9 +24,9 @@ import {
   updateProjectDefaults,
   upsertTerminalBinding,
 } from '@/domain/api/config'
-import { getClientDeviceId } from '@/domain/client/utils/system.util'
-import { inferTerminalLabel } from '@/domain/client/utils/infer-terminal-label.util'
-import { bindSelfTerminalProfile } from '@/domain/layout/store/resolve-active-profile.util'
+import { getClientDeviceId } from '@/domain/client/utils'
+import { inferTerminalLabel } from '@/domain/client/utils'
+import { bindSelfTerminalProfile } from '@/domain/layout/store'
 
 function profileLabel(projectId: string) {
   return projectId === 'default' ? '默认系统方案' : projectId

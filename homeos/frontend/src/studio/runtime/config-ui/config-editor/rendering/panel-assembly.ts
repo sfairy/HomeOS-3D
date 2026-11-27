@@ -8,8 +8,8 @@
  * 快照解构在这里不等价（本区间有 `await`，且赋值必须回写宿主）。
  */
 
-import { DEFAULT_BUTTON_SIZE } from '@app/bridge/presets/button-icon-size'
-import { mediaDeviceProfile } from '@app/bridge/presets/media-device-profiles'
+import { DEFAULT_BUTTON_SIZE } from '@app/bridge/presets'
+import { mediaDeviceProfile } from '@app/bridge/presets'
 import { resolveDeviceCategoryProfile } from './device-category-choices'
 import {
   appendStatusOrGameMainSection,

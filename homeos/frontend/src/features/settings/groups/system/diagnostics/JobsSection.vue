@@ -110,9 +110,9 @@
 <script setup>
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { RefreshCw, AlertCircle, Clock3 } from '@lucide/vue'
-import { fetchSystemJobs } from '@/kernel/http/system-api'
-import { extractErrorMessage } from '@/kernel/utils/core/error-message'
-import { formatDetailedDateTimeOrDash } from '@/kernel/utils/format/locale-format.util'
+import { fetchSystemJobs } from '@/kernel/http'
+import { extractErrorMessage } from '@/kernel/utils/core'
+import { formatDetailedDateTimeOrDash } from '@/kernel/utils/format'
 import { useDiagnosticsSection } from './use-diagnostics-section'
 
 const props = defineProps({

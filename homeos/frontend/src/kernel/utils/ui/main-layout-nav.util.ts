@@ -22,10 +22,10 @@ import {
   resolveOrderedNavTabIds,
   NAV_TAB_PATHS,
   type NavTabPlacement,
-} from '@/kernel/utils/layout/nav-tabs.util'
-import { EMBED_TAB_ACCENTS, resolveEmbedNavAccent } from '@/kernel/utils/layout/embed-nav-theme.util'
-import { embedIconMap } from '@/kernel/utils/layout/embed-icons.util'
-import { resolveMoviePilotUrl } from '@/kernel/utils/layout/moviepilot-url.util'
+} from '@/kernel/utils/layout'
+import { EMBED_TAB_ACCENTS, resolveEmbedNavAccent } from '@/kernel/utils/layout'
+import { embedIconMap } from '@/kernel/utils/layout'
+import { resolveMoviePilotUrl } from '@/kernel/utils/layout'
 
 /** 主布局各导航 Tab ID → 中文展示名映射 */
 const MAIN_LAYOUT_NAV_LABELS: Record<string, string> = {

@@ -9,7 +9,7 @@
  * 约定：入参与返回值一律是**屏幕像素**（已乘过壳层缩放）或百分比，不做任何 DOM 读取。
  */
 
-import { AGENT_COMPANION_FACE_SIZE, roundCompanionPercent } from '@/kernel/utils/layout/agent-companion.util'
+import { AGENT_COMPANION_FACE_SIZE, roundCompanionPercent } from '@/kernel/utils/layout'
 
 /** 拖动/定位时圆脸离视口边缘的最小间距（px，设计坐标系）。 */
 export const DRAG_EDGE_MARGIN = 8

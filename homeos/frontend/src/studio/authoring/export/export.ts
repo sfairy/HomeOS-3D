@@ -12,7 +12,7 @@ import { MAX_EXPORT_PRESET_COUNT as MAX_EXPORT_PRESET_COUNT2, normalizeExportPre
 import { syncControlValue as syncControlValue2 } from '../ui/ui-controls'
 import { syncStudioSelect as syncStudioSelect2 } from '../ui/studio-widgets'
 import { finite as finite2, normalizeLabelText as normalizeLabelText2 } from '../loaders/studio-normalization'
-import { stripExportFields } from '../lights/strip-light/strip-light-spec'
+import { stripExportFields } from '../lights/strip-light'
 import { type ExportImageOptions, type ExportImageResult, type ExportDialogOptions, type ApplyExportOptions } from '../types/studio-app-types'
 import { shellConfirm } from '@/studio/platform/shell-chrome'
 import { renderExportLayers as renderExportLayersCore, sanitizeExportName } from '../ui/studio-export-layers'

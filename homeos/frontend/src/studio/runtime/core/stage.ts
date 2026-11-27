@@ -9,14 +9,14 @@ import { createSpeakerPanel as createSpeakerPanel2 } from '../speaker/speaker-pa
 import { createSpeakerRings as createSpeakerRings2 } from '../speaker/speaker-ring'
 import { interaction3dControlTimeout } from '@app/shared/util/control-timeout'
 import { createMatrixPoseTracker } from '@app/shared/util/matrix-pose'
-import { withPageAppearancePreset as applyPageAppearancePreset } from '@app/bridge/presets/page-appearance-presets'
-import { withRegionLightingPreset as applyRegionLightingPreset } from '@app/bridge/presets/region-lighting-presets'
-import { withInteractionLightEffects as applyInteractionLightEffects } from '@app/bridge/presets/light-effect-policy'
-import { popupPlacement as computePopupPlacement } from '@app/bridge/presets/popup-placement'
+import { withPageAppearancePreset as applyPageAppearancePreset } from '@app/bridge/presets'
+import { withRegionLightingPreset as applyRegionLightingPreset } from '@app/bridge/presets'
+import { withInteractionLightEffects as applyInteractionLightEffects } from '@app/bridge/presets'
+import { popupPlacement as computePopupPlacement } from '@app/bridge/presets'
 import {
   buttonIconSize as resolveButtonIconSize,
   DEFAULT_BUTTON_SIZE as defaultButtonSize,
-} from '@app/bridge/presets/button-icon-size'
+} from '@app/bridge/presets'
 import {
   createPresenceScene as createPresenceScene2,
   createPresenceWaves as createPresenceWaves2,
@@ -48,7 +48,7 @@ import { createTelevisionScreens as createTelevisionScreens2 } from '../televisi
 import { mediaDeviceIndicator } from '../television/television-state'
 import { speakerIndicator } from '../speaker/speaker-state'
 import { SPEAKER_MODEL_TYPES, speakerModelProfile } from '../speaker/speaker-models'
-import { MEDIA_DEVICE_KINDS, isMediaDeviceKind, mediaDeviceProfile } from '@app/bridge/presets/media-device-profiles'
+import { MEDIA_DEVICE_KINDS, isMediaDeviceKind, mediaDeviceProfile } from '@app/bridge/presets'
 import { createDevicePanel as createDevicePanel2 } from '../device/device-panel'
 import { createDeviceStatusReader } from '../device/device-status'
 import {

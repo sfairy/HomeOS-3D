@@ -1,5 +1,5 @@
 /** 系统配置核心组合式函数 */
-import { fetchSystemConfig, updateSystemConfig } from '@/kernel/http/system-api'
+import { fetchSystemConfig, updateSystemConfig } from '@/kernel/http'
 import type { NotifyType } from '@/kernel/types/notify'
 import type {
   SystemConfig,
@@ -7,7 +7,7 @@ import type {
   SystemConfigPatch,
   SystemConfigSaveOptions,
 } from '@/kernel/types/system-config'
-import { invalidateSharedFetch, sharedFetch } from '@/kernel/utils/core/poll-scheduler'
+import { invalidateSharedFetch, sharedFetch } from '@/kernel/utils/core'
 import {
   Bell,
   Box,

@@ -14,10 +14,10 @@ import { navigateInShell } from '@/studio/platform/shell-navigation'
 import { shellNotify } from '@/studio/platform/shell-chrome'
 import { patchStudioFacadeState } from '../../engine/index'
 import { resolveInteractionCleanup } from '../ui/studio-interaction-cleanup'
-import { StudioSaveStore, type FlushResult, type SaveStoreState } from '../store/save-store'
+import { StudioSaveStore, type FlushResult, type SaveStoreState } from '../store'
 import { refreshStepChecklist } from '../ui/onboarding'
 import { type StudioApiRequestOptions } from '../types/studio-app-types'
-import { type SceneSyncOutcome } from '../store/scene-sync-controller'
+import { type SceneSyncOutcome } from '../store'
 
 
 export interface ApplyLoadedDraftDeps {

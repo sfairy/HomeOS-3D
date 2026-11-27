@@ -1,4 +1,4 @@
-import type { queryEditorElements } from '../home/elements/editor-elements'
+import type { queryEditorElements } from '../home/elements'
 
 /**
  * 「检查器表单 → 提交事件」映射表 —— 从 home.ts 单体切出。

@@ -1,4 +1,4 @@
-import { resolvePageBehavior } from './presets/page-behavior'
+import { resolvePageBehavior } from './presets'
 import { performanceWarnings, confirmPerformanceWarning } from './scene/performance-warning'
 import { normalizeGroundReflection } from './scene/reflection-settings'
 import {

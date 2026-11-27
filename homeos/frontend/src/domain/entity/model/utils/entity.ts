@@ -1,6 +1,6 @@
 import { type EntitiesMap, type HaEntityState, type EntityStateListenerFlushDeps, type EntityStateListenerFn, type EntityStateListenerLogger, type EntityStateListenerPayload, type RegisterStateListenerOptions, type EntityStateNotifyArgs, type ResolveListenerOldStateArgs } from '@/kernel/types/entity'
 import { describeAttrChange } from './control-attr-change.util'
-import { logger } from '@/kernel/utils/core/logger'
+import { logger } from '@/kernel/utils/core'
 import { getEntityDomain } from '@homeos/shared'
 
 

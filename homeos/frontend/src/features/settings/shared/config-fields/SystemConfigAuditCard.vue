@@ -30,7 +30,7 @@
 </template>
 
 <script setup>
-import { formatAuditTimestamp } from '@/kernel/utils/format/locale-format.util'
+import { formatAuditTimestamp } from '@/kernel/utils/format'
 
 const props = defineProps({
   entries: { type: Array, default: () => [] },

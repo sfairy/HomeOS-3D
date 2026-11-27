@@ -8,7 +8,7 @@
  * 组合弹窗的宿主机位与普通弹窗不同：标题行里已经有标题和状态标签，
  * 声音按钮直接并进去，不额外占一行。
  */
-import { createCameraAudio, mountCameraAudioButton, type CameraAudioHandle } from '@app/shared/camera/camera-audio'
+import { createCameraAudio, mountCameraAudioButton, type CameraAudioHandle } from '@app/shared/camera'
 
 export interface PopupCameraAudioOptions {
   /** 视频挂载容器：用来判断弹窗是否还活着。 */

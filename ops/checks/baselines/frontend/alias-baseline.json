@@ -1,6 +1,6 @@
 {
   "totals": {
-    "alias2": 1289,
+    "alias2": 1274,
     "impl": 1731,
     "moduleLet": 334
   },
@@ -20,7 +20,7 @@
       "impl": 0,
       "moduleLet": 3
     },
-    "homeos/frontend/src/app/shell/composables/use-main-layout-chrome.ts": {
+    "homeos/frontend/src/app/shell/composables.ts": {
       "alias2": 2,
       "impl": 0,
       "moduleLet": 0
@@ -30,12 +30,12 @@
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/domain/camera/hls-loader.ts": {
+    "homeos/frontend/src/domain/camera.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 2
     },
-    "homeos/frontend/src/domain/client/utils/system.util.ts": {
+    "homeos/frontend/src/domain/client/utils.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 4
@@ -95,27 +95,22 @@
       "impl": 0,
       "moduleLet": 2
     },
-    "homeos/frontend/src/domain/layout/store/defaults.ts": {
+    "homeos/frontend/src/domain/layout/store.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/domain/license/license-gate.ts": {
+    "homeos/frontend/src/domain/license.ts": {
       "alias2": 0,
       "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/domain/license/license-probe.util.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
+      "moduleLet": 2
     },
     "homeos/frontend/src/domain/recommend/components/RecommendInsightCard.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/domain/status/composables/use-system-diagnostics.ts": {
+    "homeos/frontend/src/domain/status/composables.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 6
@@ -130,13 +125,8 @@
       "impl": 0,
       "moduleLet": 2
     },
-    "homeos/frontend/src/domain/widget/composables/use-notification-center.ts": {
+    "homeos/frontend/src/domain/widget/composables.ts": {
       "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/domain/widget/composables/use-scheduled-poll.ts": {
-      "alias2": 0,
       "impl": 0,
       "moduleLet": 1
     },
@@ -240,7 +230,7 @@
       "impl": 0,
       "moduleLet": 2
     },
-    "homeos/frontend/src/features/device/model/utils/domain-labels.util.ts": {
+    "homeos/frontend/src/features/device/model/utils.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 1
@@ -260,7 +250,7 @@
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/earthquake/composables/use-earthquake-tts.ts": {
+    "homeos/frontend/src/features/earthquake/composables.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 10
@@ -275,7 +265,7 @@
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/energy/composables/use-client-power-reporter.ts": {
+    "homeos/frontend/src/features/energy/composables.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 10
@@ -740,7 +730,7 @@
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/voice/composables/use-earcon.ts": {
+    "homeos/frontend/src/features/voice/composables.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 1
@@ -755,20 +745,15 @@
       "impl": 0,
       "moduleLet": 4
     },
-    "homeos/frontend/src/kernel/constants/voice.ts": {
+    "homeos/frontend/src/kernel/constants.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/kernel/http/client.ts": {
+    "homeos/frontend/src/kernel/http.ts": {
       "alias2": 0,
       "impl": 0,
-      "moduleLet": 6
-    },
-    "homeos/frontend/src/kernel/http/csrf.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
+      "moduleLet": 7
     },
     "homeos/frontend/src/kernel/ui/AssetGridItem.vue": {
       "alias2": 1,
@@ -820,60 +805,20 @@
       "impl": 0,
       "moduleLet": 8
     },
-    "homeos/frontend/src/kernel/utils/core/poll-scheduler.ts": {
+    "homeos/frontend/src/kernel/utils/core.ts": {
       "alias2": 0,
       "impl": 0,
-      "moduleLet": 4
-    },
-    "homeos/frontend/src/kernel/utils/core/post-restore-lock.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
+      "moduleLet": 5
     },
     "homeos/frontend/src/kernel/utils/page-cache-lifecycle.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 2
     },
-    "homeos/frontend/src/kernel/utils/perf/adaptive-perf.util.ts": {
+    "homeos/frontend/src/kernel/utils/perf.ts": {
       "alias2": 0,
       "impl": 0,
-      "moduleLet": 8
-    },
-    "homeos/frontend/src/kernel/utils/perf/baseline.util.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 4
-    },
-    "homeos/frontend/src/kernel/utils/perf/client-metrics.util.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 5
-    },
-    "homeos/frontend/src/kernel/utils/perf/fps-scheduler.util.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 9
-    },
-    "homeos/frontend/src/kernel/utils/perf/frontend-perf-monitor.util.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 3
-    },
-    "homeos/frontend/src/kernel/utils/perf/smart-performance.util.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 3
-    },
-    "homeos/frontend/src/kernel/utils/perf/webgl-availability.util.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 2
-    },
-    "homeos/frontend/src/kernel/utils/perf/webgl-context-loss-guard.util.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
+      "moduleLet": 35
     },
     "homeos/frontend/src/kernel/utils/registry/settings-header-icons.ts": {
       "alias2": 1,
@@ -905,53 +850,13 @@
       "impl": 0,
       "moduleLet": 2
     },
-    "homeos/frontend/src/studio/app/display/apple-install-guide.ts": {
+    "homeos/frontend/src/studio/app/display.ts": {
       "alias2": 0,
       "impl": 0,
-      "moduleLet": 1
+      "moduleLet": 4
     },
-    "homeos/frontend/src/studio/app/display/display-boot.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/studio/app/display/display-startup.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/studio/app/display/display.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/studio/app/editor/bindings/date-inspector-submit.ts": {
-      "alias2": 7,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/editor/bindings/document-entity-picker-dismiss.ts": {
-      "alias2": 3,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/editor/bindings/floorplan-diagram-inspector-input.ts": {
-      "alias2": 2,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/editor/bindings/line-chart-inspector-input.ts": {
-      "alias2": 2,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/editor/bindings/navigation-inspector-input.ts": {
-      "alias2": 2,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/editor/bindings/pageshow-diagram-preview-restore.ts": {
-      "alias2": 2,
+    "homeos/frontend/src/studio/app/editor/bindings.ts": {
+      "alias2": 8,
       "impl": 0,
       "moduleLet": 0
     },
@@ -995,18 +900,8 @@
       "impl": 0,
       "moduleLet": 2
     },
-    "homeos/frontend/src/studio/app/editor/home/assets/asset-management.ts": {
-      "alias2": 6,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/editor/home/assets/asset-picker.ts": {
-      "alias2": 3,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/editor/home/assets/icon-pickers.ts": {
-      "alias2": 1,
+    "homeos/frontend/src/studio/app/editor/home/assets.ts": {
+      "alias2": 8,
       "impl": 0,
       "moduleLet": 0
     },
@@ -1030,7 +925,7 @@
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/studio/app/editor/home/entity/entity-labels.ts": {
+    "homeos/frontend/src/studio/app/editor/home/entity.ts": {
       "alias2": 4,
       "impl": 0,
       "moduleLet": 0
@@ -1060,18 +955,8 @@
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/studio/app/editor/home/style/lighting-panel.ts": {
-      "alias2": 4,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/editor/home/style/style-apply.ts": {
-      "alias2": 3,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/editor/home/style/style-dialogs.ts": {
-      "alias2": 5,
+    "homeos/frontend/src/studio/app/editor/home/style.ts": {
+      "alias2": 9,
       "impl": 0,
       "moduleLet": 0
     },
@@ -1445,15 +1330,10 @@
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/studio/authoring/lights/strip-light/strip-light-ltc.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/studio/authoring/lights/strip-light/strip-light-spec.ts": {
+    "homeos/frontend/src/studio/authoring/lights/strip-light.ts": {
       "alias2": 2,
       "impl": 0,
-      "moduleLet": 0
+      "moduleLet": 1
     },
     "homeos/frontend/src/studio/authoring/lights/studio-app-light-data.ts": {
       "alias2": 2,
@@ -1590,18 +1470,13 @@
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/studio/authoring/scene/walls/studio-walls.ts": {
+    "homeos/frontend/src/studio/authoring/scene/walls.ts": {
       "alias2": 17,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/studio/authoring/store/document-store.ts": {
+    "homeos/frontend/src/studio/authoring/store.ts": {
       "alias2": 3,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/authoring/store/studio-draft-repository.ts": {
-      "alias2": 0,
       "impl": 5,
       "moduleLet": 0
     },

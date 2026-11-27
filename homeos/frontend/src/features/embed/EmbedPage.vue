@@ -89,15 +89,15 @@
 import { ref, computed, watch, onUnmounted, onDeactivated, onActivated } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import { AlertTriangle, MonitorPlay, Globe } from '@lucide/vue'
-import { useLayoutStore } from '@/domain/layout/store/layout.store'
+import { useLayoutStore } from '@/domain/layout/store'
 import {
   getEmbedBlockReason,
   isIframeChromeError,
   resolveEmbedIframeSrc,
   clearAllEmbedCtxCookies,
   setEmbedCtxCookie,
-} from '@/kernel/utils/layout/embed-url.util'
-import { resolveMoviePilotUrl } from '@/kernel/utils/layout/moviepilot-url.util'
+} from '@/kernel/utils/layout'
+import { resolveMoviePilotUrl } from '@/kernel/utils/layout'
 import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
 
 const route = useRoute()

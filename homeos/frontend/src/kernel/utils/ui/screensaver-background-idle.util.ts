@@ -4,7 +4,7 @@
  * leave：同步取消 idle 并 flush 延迟重绘。数据层（WS/轮询/store）不受影响。
  */
 import { ref } from 'vue'
-import { pauseFpsScheduler, resumeFpsScheduler } from '@/kernel/utils/perf/fps-scheduler.util'
+import { pauseFpsScheduler, resumeFpsScheduler } from '@/kernel/utils/perf'
 
 const screensaverVisible = ref(false)
 /** screensaverBackgroundIdle：响应式常量（ref / computed），取值语义见定义。 */

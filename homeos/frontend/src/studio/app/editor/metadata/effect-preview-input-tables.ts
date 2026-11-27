@@ -7,7 +7,7 @@
  */
 
 import { airflowCanvasOffsetBounds as airflowCanvasOffsetBounds2 } from '../../renderer/panel-renderer'
-import type { queryEditorElements } from '../home/elements/editor-elements'
+import type { queryEditorElements } from '../home/elements'
 
 type EffectPreviewInputElementRefs = ReturnType<typeof queryEditorElements>
 

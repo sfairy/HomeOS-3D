@@ -268,7 +268,7 @@ import {
   setAutomationDraftTargets,
   splitAutomationDraft,
 } from '@/domain/api/automation'
-import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
+import { getApiErrorMessage } from '@/kernel/utils/core'
 
 /** 实体选择器按需加载：它只在点「添加设备」时才需要。 */
 const EntityPickModal = defineAsyncComponent(() => import('@/features/entity/components/EntityPickModal.vue'))

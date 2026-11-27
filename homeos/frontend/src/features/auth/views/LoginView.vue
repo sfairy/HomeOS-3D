@@ -13,8 +13,8 @@ import AuthShell from '@/features/auth/components/AuthShell.vue'
 import PasswordField from '@homeos/shared/components/PasswordField.vue'
 import { useAuthStore } from '@/domain/auth/auth.store'
 import { getSystemInitialized } from '@/domain/system/system-init.state'
-import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
-import { AUTH_FLOW_ACCESS, AUTH_FLOW_SETUP, renderAuthSteps } from '@/kernel/utils/auth/auth-flow.util'
+import { getApiErrorMessage } from '@/kernel/utils/core'
+import { AUTH_FLOW_ACCESS, AUTH_FLOW_SETUP, renderAuthSteps } from '@/kernel/utils/auth'
 
 const authStore = useAuthStore()
 /** 商店地址（响应式）：坞脚那两格由它决定「渲染 / 不渲染」。 */

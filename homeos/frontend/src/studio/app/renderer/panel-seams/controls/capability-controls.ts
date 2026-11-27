@@ -4,7 +4,7 @@ import { clickFocusedElement, createSwitchVisual } from '../../renderer-helpers'
 import {
   climateModeLabel as climateModeLabel2,
   resolveClimateDeviceType as resolveClimateDeviceType2,
-} from '@app/shared/device/climate'
+} from '@app/shared/device'
 import { syncHtmlRangeProgress as syncHtmlRangeProgress2 } from '../../../shared/util/range-progress'
 import { positionScaledPopupMenu } from '../../../shared/util/editor-floating-layout'
 

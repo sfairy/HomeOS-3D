@@ -1,5 +1,5 @@
 import { type Ref } from 'vue'
-import { logger } from '@/kernel/utils/core/logger'
+import { logger } from '@/kernel/utils/core'
 import { notifyError } from '@/kernel/ui/notify'
 import { getEntityDomain, DEFAULT_CRITICAL_DOMAINS, sortEntitiesBySyncPriority } from '@homeos/shared'
 import { collectPinnedEntityIds, resolveSubscribeDomains } from '@/domain/entity/model/utils/ws-subscription'

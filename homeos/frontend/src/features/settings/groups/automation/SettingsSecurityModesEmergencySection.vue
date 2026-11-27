@@ -259,9 +259,9 @@ import { RouterLink } from 'vue-router'
 import { Zap, Plus, Layers, AlertTriangle } from '@lucide/vue'
 import SecurityActionRow from './SecurityActionRow.vue'
 import SettingsRangeField from '@/features/settings/shared/layout/SettingsRangeField.vue'
-import { SETTINGS_RANGE_STEP } from '@/kernel/utils/settings/range-steps.util'
+import { SETTINGS_RANGE_STEP } from '@/kernel/utils/settings'
 import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
-import { useLayoutStore } from '@/domain/layout/store/layout.store'
+import { useLayoutStore } from '@/domain/layout/store'
 import { normalizeSecurityEmergency } from '@/domain/layout/constants/security-emergency'
 
 const props = defineProps({

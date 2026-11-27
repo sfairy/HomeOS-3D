@@ -6,7 +6,7 @@ import {
   cancelScheduledEchartsTask,
 } from '@/kernel/utils/ui/chart-resize.util'
 import type { EChartsCoreOption } from 'echarts/core'
-import type * as EchartsModuleNS from '@/kernel/utils/chart/echarts'
+import type * as EchartsModuleNS from '@/kernel/utils/chart'
 import { getKioskAnimationOptions } from '@/domain/layout/composables/kiosk-animation'
 
 type EchartsModule = typeof EchartsModuleNS
@@ -20,7 +20,7 @@ const DEFAULT_MAX_RETRIES = 12
 let echartsPromise: Promise<EchartsModule> | null = null
 
 function loadEchartsModule(): Promise<EchartsModule> {
-  echartsPromise ??= import('@/kernel/utils/chart/echarts')
+  echartsPromise ??= import('@/kernel/utils/chart')
   return echartsPromise
 }
 
@@ -28,10 +28,10 @@ function loadEchartsModule(): Promise<EchartsModule> {
 let kioskAnimationOptions: KioskAnimationOptions | null = null
 
 /** 共享主题常量（统一定义于 chart-primitives，此处 re-export 保持既有调用方引用不变） */
-export { axisLineStyle, splitLineStyle } from '@/kernel/utils/chart/chart-primitives'
+export { axisLineStyle, splitLineStyle } from '@/kernel/utils/chart'
 
 /** Y 轴最大值：至少为 1，避免全 0 时图表塌缩（实现单点化在 chart-primitives） */
-export { countYMax as yMax } from '@/kernel/utils/chart/chart-primitives'
+export { countYMax as yMax } from '@/kernel/utils/chart'
 
 /**
  * 判断图表 DOM 是否已就绪（宽高均大于 0）。

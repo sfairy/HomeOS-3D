@@ -249,9 +249,9 @@ import { fetchActiveHomeMode, fetchHomeModeContext, deactivateHomeMode } from '@
 import { fetchNotificationSettings } from '@/domain/api/notifications'
 import { useAuthStore } from '@/domain/auth/auth.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { logger } from '@/kernel/utils/core/logger'
-import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
-import { formatShortDateTime } from '@/kernel/utils/format/locale-format.util'
+import { logger } from '@/kernel/utils/core'
+import { getApiErrorMessage } from '@/kernel/utils/core'
+import { formatShortDateTime } from '@/kernel/utils/format'
 
 defineProps({ activeTab: { type: String, default: 'family' } })
 

@@ -21,7 +21,7 @@ import {
   lightSupportsColor as lightSupportsColor2,
   lightVisualValueForCapability as lightVisualValueForCapability2,
   relativeLightColorTemperature as relativeLightColorTemperature2,
-} from '@app/shared/device/light-runtime'
+} from '@app/shared/device'
 import type { PanelRenderer } from '../../panel-renderer'
 
 import { domElement } from '@app/shared/util/dom-factory'

@@ -9,7 +9,7 @@
  */
 
 import { genericDeviceProfile } from '../../../device/generic-device-catalog'
-import { mediaDeviceProfile } from '@app/bridge/presets/media-device-profiles'
+import { mediaDeviceProfile } from '@app/bridge/presets'
 import { configurationProgress, type ConfigurationProgress } from '../../configuration-progress'
 import { openConfigurationPicker } from '../../configuration-picker'
 import { deviceCategoryGroups, resolveDeviceCategoryProfile } from './device-category-choices'

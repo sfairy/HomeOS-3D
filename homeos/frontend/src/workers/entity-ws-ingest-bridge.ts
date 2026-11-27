@@ -10,7 +10,7 @@ import {
   type NormalizedWsBatchItem,
   type WsDeltaChange,
 } from '@/domain/entity/model/utils/entity'
-import { logger } from '@/kernel/utils/core/logger'
+import { logger } from '@/kernel/utils/core'
 
 /** 达到该条数才走 Worker；更小批次主线程同步更快（避免 postMessage 开销） */
 const WORKER_THRESHOLD = 24

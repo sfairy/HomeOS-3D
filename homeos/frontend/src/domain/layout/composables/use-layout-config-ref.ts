@@ -1,6 +1,6 @@
 /** - 提供指向 layoutStore.layoutConfig 的 shallowRef。 */
 import { shallowRef, type ShallowRef } from 'vue'
-import { useLayoutStore } from '@/domain/layout/store/layout.store'
+import { useLayoutStore } from '@/domain/layout/store'
 import type { UILayoutConfig } from '@/kernel/types/layout'
 
 /**

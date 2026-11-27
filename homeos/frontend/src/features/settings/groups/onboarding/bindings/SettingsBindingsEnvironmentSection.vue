@@ -327,7 +327,7 @@ import SettingsOrchTabs from '@/features/settings/components/SettingsOrchTabs.vu
 import EntityInput from '@/domain/entity/components/entity-input/EntityInput.vue'
 import RoomReferenceBadges from '@/features/settings/groups/household/RoomReferenceBadges.vue'
 import { getQuickRuleFields } from '@/features/settings/shared/composables/env-sensor-map'
-import { buildRoomReferenceBadges, roomHasEnvSensors } from '@/kernel/utils/settings/room-reference-badges.util'
+import { buildRoomReferenceBadges, roomHasEnvSensors } from '@/kernel/utils/settings'
 
 const props = defineProps({
   envLoading: Boolean,

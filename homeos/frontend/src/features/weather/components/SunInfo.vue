@@ -111,13 +111,13 @@
 import { computed } from 'vue'
 import { Sunrise } from '@lucide/vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { formatLocaleTime } from '@/kernel/utils/format/locale-format.util'
+import { formatLocaleTime } from '@/kernel/utils/format'
 import {
   computeSunProgress,
   formatDaylightDuration,
   formatSunCountdown,
   resolveSunriseSunset,
-} from '@/features/weather/model/utils/sun-times.util'
+} from '@/features/weather/model/utils'
 import { filterPresenceMembers, usePresenceHome } from '@/features/presence/model/composables/use-presence-home'
 import { normalizeWeatherHubConfig } from '@/kernel/utils/registry/weather-hub-options'
 

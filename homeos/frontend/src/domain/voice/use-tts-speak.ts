@@ -14,9 +14,9 @@
 import { ref, computed } from 'vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { getConfigSection } from '@/kernel/config/frontend-config'
-import { speakVoice, speakVoiceMultiple } from '@/kernel/http/system-api'
-import { logger } from '@/kernel/utils/core/logger'
-import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
+import { speakVoice, speakVoiceMultiple } from '@/kernel/http'
+import { logger } from '@/kernel/utils/core'
+import { getApiErrorMessage } from '@/kernel/utils/core'
 import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
 import { speakLocal } from '@/domain/voice/local-speech.util'
 

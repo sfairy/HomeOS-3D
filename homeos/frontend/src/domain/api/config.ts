@@ -1,6 +1,6 @@
 /** 项目配置与布局 REST API 封装 */
 import type { AxiosRequestConfig } from 'axios'
-import { apiDelete, apiGet, apiPost, apiPut } from '../../kernel/http/client'
+import { apiDelete, apiGet, apiPost, apiPut } from '../../kernel/http'
 
 /** 获取全部配置档案列表。 */
 export function fetchConfigProfiles(config?: AxiosRequestConfig) {

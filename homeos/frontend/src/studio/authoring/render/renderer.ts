@@ -10,7 +10,7 @@ import { createBackgroundCache as createBackgroundCache2 } from '../scene/studio
 import { stageStartup as stageStartup2 } from '../stage-startup'
 import { interactionResourcePolicy, resolveSunShadowMapSize, EDITOR_CONTACT_SHADOW_CAPTURES_PER_SYNC } from '../studio-resource-policy'
 import { installLightingShaderFailsafe, restoreLightingShaderChecksIfReady, type LightingShaderFailsafe } from '../lights/lighting'
-import { probeWebglAvailability, webglUnavailableMessage, type WebglAvailability } from '@/kernel/utils/perf/webgl-availability.util'
+import { probeWebglAvailability, webglUnavailableMessage, type WebglAvailability } from '@/kernel/utils/perf'
 import { STUDIO_COMPAT_CAPTURES_PER_SYNC, STUDIO_COMPAT_NOTICE, isStudioCompatMode, recordStudioGpuIncident, studioCompatModeSource } from '../studio-gpu-compat'
 import { scheduleShaderWarmup } from './studio-shader-compile-warmup'
 import { createOverviewStack as createOverviewStack2 } from '../scene/overview/studio-overview-stack'

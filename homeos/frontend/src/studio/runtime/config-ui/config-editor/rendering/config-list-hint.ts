@@ -10,7 +10,7 @@
  * - `{media}`：媒体设备的品牌名（电视 / 投影仪）。
  */
 
-import { mediaDeviceProfile } from '@app/bridge/presets/media-device-profiles'
+import { mediaDeviceProfile } from '@app/bridge/presets'
 
 import type { PickerEditorHost } from './picker-row'
 

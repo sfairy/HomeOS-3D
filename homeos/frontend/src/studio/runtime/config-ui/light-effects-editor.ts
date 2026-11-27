@@ -11,7 +11,7 @@
  * 文本，不阻断编辑。
  */
 
-import { standardLightEffectsDraft } from '@app/bridge/presets/light-effect-policy'
+import { standardLightEffectsDraft } from '@app/bridge/presets'
 
 /** 舞台回报的灯具能力（决定显示范围编辑，还是色温兜底下拉）。 */
 export interface StandardLightEffectsCapability {

@@ -17,7 +17,7 @@ import {
   isGenericDeviceKind as isGenericDeviceKind2,
 } from '../../device/generic-device-catalog'
 import { postHostMessage } from './_shared'
-import { isMediaDeviceKind, mediaDeviceProfile } from '@app/bridge/presets/media-device-profiles'
+import { isMediaDeviceKind, mediaDeviceProfile } from '@app/bridge/presets'
 import { resolvePageBehavior as resolvePageBehavior2 } from '../idle-rotation'
 import { televisionPower as televisionPower2 } from '../../television/television-state'
 import { vacuumStatusPresentation as vacuumStatusPresentation2 } from '../../vacuum/vacuum-map'

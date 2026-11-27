@@ -1,7 +1,7 @@
 /** 触觉反馈（震动）工具。 */
 
 /** localStorage 中震动开关的存储键（'0' / 'false' 视为关闭） */
-import { readLocalStorage } from '@/kernel/utils/core/local-storage.util'
+import { readLocalStorage } from '@/kernel/utils/core'
 
 /** localStorage 中震动开关的存储键（'0' / 'false' 视为关闭） */
 const HAPTICS_STORAGE_KEY = 'homeos_haptics'

@@ -32,12 +32,12 @@ import {
   climateModeLabel as climateModeLabel2,
   climatePowerCommand as climatePowerCommand2,
   resolveClimateDeviceType as resolveClimateDeviceType2,
-} from '@app/shared/device/climate'
+} from '@app/shared/device'
 import {
   formatLineChartValue as formatLineChartValue2,
   renderLineChartDetails as renderLineChartDetails2,
 } from '../../registry/index'
-import { lightColorRgb, lightSupportsColor } from '@app/shared/device/light-runtime'
+import { lightColorRgb, lightSupportsColor } from '@app/shared/device'
 import {
   playFixedDeviceDropEntrance as playFixedDeviceDropEntrance2,
   playMediaSpeakerEntrance as playMediaSpeakerEntrance2,

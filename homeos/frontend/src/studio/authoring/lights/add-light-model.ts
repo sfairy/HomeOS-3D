@@ -12,7 +12,7 @@ import {
   lightFluxLumens,
   renderCandelaFromFlux,
 } from './studio-app-light-data'
-import { createStripRectAreaLight } from './strip-light/strip-light-model'
+import { createStripRectAreaLight } from './strip-light'
 
 import type { StudioAppContext } from '../app-context'
 export interface AddLightModelDeps {

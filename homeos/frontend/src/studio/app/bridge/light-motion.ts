@@ -1,4 +1,4 @@
-import { hsToRgbColor } from '@app/shared/device/light-runtime'
+import { hsToRgbColor } from '@app/shared/device'
 import { clampNumber, finiteNumberOr } from '../shared/util/number'
 const normalizeLightState = (lightState: any) => ({
   intensity: Math.max(0, finiteNumberOr(lightState?.intensity, 0)),

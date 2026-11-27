@@ -26,8 +26,8 @@ import { ref, watch, onUnmounted, computed, nextTick } from 'vue'
 import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
 import { startCameraWebRtc } from '@/features/device/camera/composables/use-ha-web-rtc-player'
 import { startCameraMediaTransport } from '@/features/device/camera/composables/use-camera-media-transport'
-import { useGo2RtcMseTransport } from '@/domain/camera/use-go2-rtc-mse-transport'
-import { logger } from '@/kernel/utils/core/logger'
+import { useGo2RtcMseTransport } from '@/domain/camera'
+import { logger } from '@/kernel/utils/core'
 
 const props = defineProps({
   entity: { type: Object, default: null },

@@ -19,7 +19,7 @@ import {
 import { domElement } from '@app/shared/util/dom-factory'
 import { ENVIRONMENT_CATEGORY_LABELS } from './config-editor/rendering/picker-row'
 import { modelChoiceLabel } from '@app/shared/model-remarks'
-import { isMediaDeviceKind, mediaDeviceProfile } from '@app/bridge/presets/media-device-profiles'
+import { isMediaDeviceKind, mediaDeviceProfile } from '@app/bridge/presets'
 /** 走通用设备目录的 kind（含 nas / 电视 / 投影仪 / 音箱等没有 HA domain 的种类）。 */
 function isCatalogDeviceKind(kind: string): boolean {
   return (

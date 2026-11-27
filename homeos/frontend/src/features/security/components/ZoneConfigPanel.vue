@@ -64,8 +64,8 @@ import { ref, watch, onMounted } from 'vue'
 import { Plus, RefreshCw, Sparkles } from '@lucide/vue'
 import SecurityZoneEditorList from '@/features/security/components/ZoneEditorList.vue'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { useLayoutStore } from '@/domain/layout/store/layout.store'
-import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
+import { useLayoutStore } from '@/domain/layout/store'
+import { getApiErrorMessage } from '@/kernel/utils/core'
 import { postSecurityZones, prepareZonesForSave } from '@/features/security/model/utils/zones-api.util'
 import {
   getSecurityPanelZonesFromLayout,

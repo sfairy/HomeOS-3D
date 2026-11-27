@@ -257,7 +257,7 @@ import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
 import SettingsRangeField from '@/features/settings/shared/layout/SettingsRangeField.vue'
 import SettingsPendingSaveAction from '@/features/settings/shared/SettingsPendingSaveAction.vue'
-import { SETTINGS_RANGE_STEP } from '@/kernel/utils/settings/range-steps.util'
+import { SETTINGS_RANGE_STEP } from '@/kernel/utils/settings'
 import { useAlertRulesSection } from './context'
 
 const {

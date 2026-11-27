@@ -8,8 +8,8 @@
  * 配置兜底（shared/utils/config/frontend-config.ts）与面板草稿必须用同一份数字，
  * 而 `shared/**` 不能反向引用 composables，所以常量放在 shared、这里只做转出。
  */
-export { SS_DEFAULTS } from '@/kernel/constants/screensaver-defaults'
-export type { ScreensaverDefaults } from '@/kernel/constants/screensaver-defaults'
+export { SS_DEFAULTS } from '@/kernel/constants'
+export type { ScreensaverDefaults } from '@/kernel/constants'
 
 /** 天气状态 → emoji 映射（与 WEATHER_LABELS 键对齐） */
 export const WEATHER_ICON_EMOJI = {

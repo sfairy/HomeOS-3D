@@ -1,4 +1,4 @@
-import type { queryEditorElements } from '../home/elements/editor-elements'
+import type { queryEditorElements } from '../home/elements'
 
 /**
  * 「导出面板 → 属性 / 拼接错误」映射表 —— 从 home.ts 单体切出。

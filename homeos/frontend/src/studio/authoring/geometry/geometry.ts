@@ -3,7 +3,7 @@ import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
 import { type CylinderMeshOptions } from '../types/studio-app-types'
 import { finite as finite2 } from '../loaders/studio-normalization'
 import { lightIntensityFactor, lightPresetCatalog, lightFluxLumens, lightAngleLimitForType, renderCandelaFromFlux } from '../lights/studio-app-light-data'
-import { stripLuminance } from '../lights/strip-light/strip-light-spec'
+import { stripLuminance } from '../lights/strip-light'
 import { lampItemTypeSet, openStairTypeSet } from '../items/item-catalog'
 
 

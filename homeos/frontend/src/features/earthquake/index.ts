@@ -14,13 +14,13 @@ export { default as SetupWizard } from './components/SetupWizard.vue'
 // `EewSafetyTips` / `EewSlideUnlock` 是 `AlertOverlay` 的内部子块，不走域根。
 
 // composables
-export { useEarthquakeBootstrap, reopenEarthquakeWizard } from './composables/use-earthquake-bootstrap'
-export { useEarthquakeStatusQuery } from './composables/use-earthquake-status-query'
+export { useEarthquakeBootstrap, reopenEarthquakeWizard } from './composables'
+export { useEarthquakeStatusQuery } from './composables'
 // `useEarthquake*` 其余成员消费者在域内，不外借。
 
 // 纯函数（域根只留真的被跨域取用的）
 export { earthquakeMagnitudeTone, formatEarthquakeMagnitude } from '@/domain/earthquake/earthquake-layout.util'
-export { syncEarthquakeHomeCoordsFromHa } from '@/features/earthquake/composables/ha-coords.util'
+export { syncEarthquakeHomeCoordsFromHa } from '@/features/earthquake/composables'
 export {
   buildFixedPageSlots,
   computeAnalyticsSummary,

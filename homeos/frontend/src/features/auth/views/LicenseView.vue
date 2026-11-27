@@ -27,13 +27,13 @@ import {
   type LicenseMessageState,
 } from '@/domain/api/license'
 import { useAuthStore } from '@/domain/auth/auth.store'
-import { isUnauthorizedError } from '@/kernel/utils/core/error-message'
-import { peekLicenseAvailability } from '@/domain/license/license-probe.util'
+import { isUnauthorizedError } from '@/kernel/utils/core'
+import { peekLicenseAvailability } from '@/domain/license'
 import SceneStage from '@/kernel/ui/SceneStage.vue'
 import AuthShell from '@/features/auth/components/AuthShell.vue'
 import StatePanel from '@/kernel/ui/StatePanel.vue'
-import { AUTH_FLOW_SETUP, renderAuthSteps } from '@/kernel/utils/auth/auth-flow.util'
-import { forgetActivationEmail, readActivationEmail } from '@/kernel/utils/auth/activation-email.util'
+import { AUTH_FLOW_SETUP, renderAuthSteps } from '@/kernel/utils/auth'
+import { forgetActivationEmail, readActivationEmail } from '@/kernel/utils/auth'
 import { useStoreLinks } from '@/features/auth/composables/use-store-links'
 
 /** 状态轮询周期：与后端租约心跳同量级，够快但不至于把授权后台打满。 */

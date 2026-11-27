@@ -1,5 +1,5 @@
 import { GENERIC_DEVICE_KINDS, genericDeviceProfile } from '../../device/generic-device-catalog'
-import { MEDIA_DEVICE_PROFILES } from '@app/bridge/presets/media-device-profiles'
+import { MEDIA_DEVICE_PROFILES } from '@app/bridge/presets'
 
 export function buildFloorCameraConfig(
   rawFloorConfig: any,

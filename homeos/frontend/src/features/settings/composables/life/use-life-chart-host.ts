@@ -1,6 +1,6 @@
 /** 各独立 Hub / 模块页通用的 ECharts 挂载：init / resize / dispose， */
 import { onMounted, onUnmounted, watch, nextTick, type Ref, type WatchSource } from 'vue'
-import type * as EchartsModuleNS from '@/kernel/utils/chart/echarts'
+import type * as EchartsModuleNS from '@/kernel/utils/chart'
 import {
   observeChartResize,
   scheduleEchartsTask,
@@ -49,7 +49,7 @@ export function useHubChart(
     }
     // getOrInitChart：并发渲染（onMounted 与 watch 同帧各调度一次）时
     // 两次调用都可能在 await 前通过 ``if (!chart)``，直接 init 会触发 ECharts 重复初始化告警
-    if (!chart) chart = (await import('@/kernel/utils/chart/echarts')).getOrInitChart(el)
+    if (!chart) chart = (await import('@/kernel/utils/chart')).getOrInitChart(el)
     chart.setOption(buildOption(), true)
     // 尺寸由 ResizeObserver 负责；`init` 时已按容器尺寸建立坐标系。
   }

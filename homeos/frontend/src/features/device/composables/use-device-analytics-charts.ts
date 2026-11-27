@@ -10,11 +10,11 @@
  * - 提供数据导出功能（CSV 格式）
  */
 import { ref, nextTick, type ComputedRef, type Ref } from 'vue'
-import type * as EchartsModuleNS from '@/kernel/utils/chart/echarts'
+import type * as EchartsModuleNS from '@/kernel/utils/chart'
 import type { EChartsCoreOption } from 'echarts/core'
 import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
-import { getDomainLabel, resolveDomainId } from '@/features/device/model/utils/domain-labels.util'
-import { formatDualMetricTooltip, formatHeatmapTooltip } from '@/kernel/utils/chart/device-chart-copy.util'
+import { getDomainLabel, resolveDomainId } from '@/features/device/model/utils'
+import { formatDualMetricTooltip, formatHeatmapTooltip } from '@/kernel/utils/chart'
 import {
   deviceChartBase,
   deviceChartGrid,
@@ -24,11 +24,11 @@ import {
   deviceChartLegend,
   devicePieTooltip,
   DEVICE_CHART_COLORS,
-} from '@/kernel/utils/chart/device-chart-theme'
+} from '@/kernel/utils/chart'
 import type { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import type { useDeviceAnalyticsDashboard } from '@/features/device/composables/device-analytics-dashboard'
 import type { useDeviceHealthTrend } from '@/features/device/composables/device'
-import { ensureDeviceChartOnElement } from '@/kernel/utils/chart/device-chart-boot.util'
+import { ensureDeviceChartOnElement } from '@/kernel/utils/chart'
 
 /** ECharts 模块类型（仅类型引用，运行时经动态 import 懒加载） */
 type EchartsModule = typeof EchartsModuleNS

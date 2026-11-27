@@ -1,13 +1,13 @@
 /** Vue Router 路由配置 */
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '@/domain/auth/auth.store'
-import { useLayoutStore } from '@/domain/layout/store/layout.store'
+import { useLayoutStore } from '@/domain/layout/store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { logger } from '@/kernel/utils/core/logger'
-import { isNavigationLockedAfterRestore } from '@/kernel/utils/core/post-restore-lock'
-import { getBackendUnreachableHint, isBackendUnreachableError } from '@/kernel/utils/core/error-message'
-import { withBackendBootRetry } from '@/kernel/utils/core/api-boot-retry.util'
-import { isDynamicImportFailure, lazyView, reloadOnceForStaleChunk } from '@/kernel/utils/core/lazy-component'
+import { logger } from '@/kernel/utils/core'
+import { isNavigationLockedAfterRestore } from '@/kernel/utils/core'
+import { getBackendUnreachableHint, isBackendUnreachableError } from '@/kernel/utils/core'
+import { withBackendBootRetry } from '@/kernel/utils/core'
+import { isDynamicImportFailure, lazyView, reloadOnceForStaleChunk } from '@/kernel/utils/core'
 import { resolveNavigationTarget, resolveZeroUserTarget } from './auth.util'
 import { loadDisplayView, loadEditorView, loadStudioView, registerShellNavigation } from '@/studio/index'
 import {
@@ -18,7 +18,7 @@ import {
   setLicenseFeatureAccess,
   shouldRefreshLicenseFeatures,
   shouldRefreshLicenseStatus,
-} from '../../domain/license/license-gate'
+} from '../../domain/license'
 import { getLicenseAvailability, getLicenseStatus } from '@/domain/api/license'
 import { ensurePageAssets, PAGE_ASSETS as STUDIO_ASSETS, type PageAssets } from '@/studio/index'
 /**
@@ -34,7 +34,7 @@ import { ensurePageAssets, PAGE_ASSETS as STUDIO_ASSETS, type PageAssets } from 
  */
 const loadAuthEntry = () => import('@/features/auth/views/index')
 import { prefetchStoreLinks } from '@/kernel/utils/store-links.util'
-import { rememberLicenseAvailability } from '@/domain/license/license-probe.util'
+import { rememberLicenseAvailability } from '@/domain/license'
 import { getSystemInitialized, setSystemInitialized } from '../../domain/system/system-init.state'
 
 /** 离线通知去重标记，避免每次导航都弹 toast */

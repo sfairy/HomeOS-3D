@@ -1,6 +1,6 @@
 import { confirmRemoveWidget, useWidgetEditorState } from '@/features/settings/groups/appearance/composables/use-layout'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { useLayoutStore } from '@/domain/layout/store/layout.store'
+import { useLayoutStore } from '@/domain/layout/store'
 import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
 import { Code } from '@lucide/vue'
 import { FLOATING_HUB_TYPE_SET, getWidgetIcon, getFloatingCatalogGroups, getWidgetCategoryLabelForType, FLOATING_HUB_WIDTH_MAP, getWidgetName } from '@/kernel/utils/registry/widget-catalog'
@@ -9,7 +9,7 @@ import { mirrorSecurityPanelZonesToLayout } from '@/features/security/model/util
 import { type FloatingWidget, type UILayoutConfig } from '@/kernel/types/layout'
 import { type Ref, computed, ref, watch, reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import { clampPct } from '@/kernel/utils/core/misc.util'
+import { clampPct } from '@/kernel/utils/core'
 import { getFloatingHubTabOptions, FLOATING_HUB_DEFAULT_TAB } from '@/kernel/utils/registry/floating-hub-tab-options'
 
 /**

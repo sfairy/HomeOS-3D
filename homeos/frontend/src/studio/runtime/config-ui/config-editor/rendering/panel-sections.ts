@@ -12,7 +12,7 @@
  * 跨函数调用要透传 `deps`（`renderAirPurifierBindingSection(deps, ...)`）。
  */
 
-import { DEFAULT_BUTTON_SIZE, buttonIconSize } from '@app/bridge/presets/button-icon-size'
+import { DEFAULT_BUTTON_SIZE, buttonIconSize } from '@app/bridge/presets'
 import {
   defaultDeviceStatusRule as defaultDeviceStatusRule2,
   deviceIndicatorChoices as deviceIndicatorChoices2,
@@ -25,7 +25,7 @@ import {
 } from './indicator-condition-editor'
 import { normalizeInteraction3dLightingMode as normalizeInteraction3dLightingMode2 } from '@app/bridge/definition'
 import { appendConfigListSummary } from '../../config-list-summary'
-import { withInteractionLightEffects as withInteractionLightEffects2 } from '@app/bridge/presets/light-effect-policy'
+import { withInteractionLightEffects as withInteractionLightEffects2 } from '@app/bridge/presets'
 import {
   normalizeTemperatureHumidity as normalizeTemperatureHumidity2,
   DEFAULT_LABEL_ICON_SIZE as DEFAULT_LABEL_ICON_SIZE2,

@@ -1,5 +1,5 @@
-import { apiDelete, apiGet, apiPost, apiPut } from '../../kernel/http/client'
-import { withCsrf } from '../../kernel/http/csrf'
+import { apiDelete, apiGet, apiPost, apiPut } from '../../kernel/http'
+import { withCsrf } from '../../kernel/http'
 
 /** 智能管家「学习与观测」REST 封装：已学配置、习惯候选、意图门影子回放。
  *

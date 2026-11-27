@@ -3,7 +3,7 @@ import type { ComponentDialogElement } from '../../renderer-types'
 import { createUiIcon } from '../../../shared/ui'
 import type { PanelRenderer } from '../../panel-renderer'
 import { componentDialogTitle } from '../../renderer-helpers'
-import { popupPlacement as popupPlacement2 } from '../../../bridge/presets/popup-placement'
+import { popupPlacement as popupPlacement2 } from '../../../bridge/presets'
 import { relatedDeviceEntity as relatedDeviceEntity2 } from '../../controls/cover-runtime'
 import {
   relatedVacuumBatteryEntity as relatedVacuumBatteryEntity2,
@@ -12,7 +12,7 @@ import {
   vacuumBatteryPercent as vacuumBatteryPercent2,
   vacuumStatus as vacuumStatus2,
   vacuumSupportedActions as vacuumSupportedActions2,
-} from '@app/shared/device/vacuum-runtime'
+} from '@app/shared/device'
 import { selectedRelatedEntityIds as selectedRelatedEntityIds2 } from '../../../shared/related-entities'
 
 import { domElement } from '@app/shared/util/dom-factory'

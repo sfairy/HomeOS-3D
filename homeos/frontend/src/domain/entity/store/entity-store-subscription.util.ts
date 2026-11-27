@@ -1,4 +1,4 @@
-import { logger } from '@/kernel/utils/core/logger'
+import { logger } from '@/kernel/utils/core'
 /** 实体 store 状态订阅与远程通知（从 entity-store-support.ts 拆回）。 */
 import { reactive, shallowReactive } from 'vue'
 import type {
@@ -16,7 +16,7 @@ import {
   getStateListenerStats,
   registerStateListener,
 } from '@/domain/entity/model/utils/entity'
-import { formatLocaleTime } from '@/kernel/utils/format/locale-format.util'
+import { formatLocaleTime } from '@/kernel/utils/format'
 
 /** 可选字符串字段：空值收敛成 undefined，避免把空串当成有效载荷 */
 function optionalText(value: unknown): string | undefined {

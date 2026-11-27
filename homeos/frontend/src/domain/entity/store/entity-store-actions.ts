@@ -15,12 +15,12 @@
  * 等一个永远不会来的 `state_changed`；REST 真值与后端 verified=true 同样是确认来源
  */
 import { reactive } from 'vue'
-import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
-import { randomUUID } from '@/kernel/utils/core/random-uuid.util'
+import { getApiErrorMessage } from '@/kernel/utils/core'
+import { randomUUID } from '@/kernel/utils/core'
 import { predictOptimistic } from '@/domain/entity/store/entity-store-optimistic.util'
 import { optimisticExpectationSatisfied } from '@/domain/entity/store/optimistic-expectation.util'
 import { getWsPushPublicConfig } from '@/kernel/config/frontend-config'
-import { blockDangerousHaServiceWhenOffline, HA_OFFLINE_DANGEROUS_CONTROL_MSG } from '@/kernel/utils/ha/url'
+import { blockDangerousHaServiceWhenOffline, HA_OFFLINE_DANGEROUS_CONTROL_MSG } from '@/kernel/utils/ha'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { fetchEntityById } from '@/domain/entity/model/utils/cold-fetch.util'
 import type { EntityActionsDeps, HaEntityState } from '@/kernel/types/entity'

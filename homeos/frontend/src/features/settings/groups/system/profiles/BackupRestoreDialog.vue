@@ -186,9 +186,9 @@ import {
   inspectEncryptedBusinessBackup,
   restoreEncryptedBusinessBackup,
 } from '@/domain/api/backups'
-import { downloadBlob } from '@/kernel/utils/core/misc.util'
-import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
-import { navigateAfterRestore, resolvePostRestoreDestination } from '@/domain/license/post-restore.util'
+import { downloadBlob } from '@/kernel/utils/core'
+import { getApiErrorMessage } from '@/kernel/utils/core'
+import { navigateAfterRestore, resolvePostRestoreDestination } from '@/domain/license'
 import { useShellTeleportTarget } from '@/kernel/ui/shell/use-shell-teleport-target'
 
 const props = defineProps({

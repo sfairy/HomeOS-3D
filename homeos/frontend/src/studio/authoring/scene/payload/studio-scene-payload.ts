@@ -46,7 +46,7 @@ import {
   normalizePillarAxis as normalizePillarAxis2,
   normalizePillarShape as normalizePillarShape2,
 } from '../../items/studio-item-posture'
-import { stripLoadRecord } from '../../lights/strip-light/strip-light-spec'
+import { stripLoadRecord } from '../../lights/strip-light'
 import { remapOpeningsToWalls } from '../../plan/studio-wall'
 
 /**

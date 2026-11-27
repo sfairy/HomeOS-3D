@@ -4,7 +4,7 @@ import { type DeviceListItem, type DeviceFilterState } from '@/kernel/types/devi
 import { type HaEntityState, type HaEntityView } from '@/kernel/types/entity'
 import { resolveListRowEntity } from '@/domain/entity/composables/projection-row.util'
 import { getEntityDisplayName, collectIndexedEntityIds } from '@/domain/entity/model/utils/derived.util'
-import { getDomainLabel } from '@/features/device/model/utils/domain-labels.util'
+import { getDomainLabel } from '@/features/device/model/utils'
 import { ref, computed, onMounted, watch, toRaw } from 'vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useDeviceSearchOptions } from '@/domain/entity/composables/use-device-search-options'
@@ -15,7 +15,7 @@ import { getLargeEntityThreshold, configEpoch } from '@/kernel/config/frontend-c
 import { usePaginatedEntityList } from '@/domain/entity/composables/use-paginated-entity-list'
 import { useRouteEntityProjection } from '@/domain/entity/composables/use-route-entity-projection'
 import { useEnsureVisibleEntities } from '@/domain/entity/composables/use-ensure-visible-entities'
-import { logger } from '@/kernel/utils/core/logger'
+import { logger } from '@/kernel/utils/core'
 import { appNotify } from '@/kernel/utils/bridge/store-bridge'
 import { hasEntityControlPopup } from '@/domain/entity/model/utils/popup-registry.util'
 

@@ -1,20 +1,20 @@
 import { computed, nextTick, ref, watch, type Ref, type ComponentPublicInstance, onMounted, reactive } from 'vue'
-import { useAgentSpeech } from '@/features/voice/composables/use-agent-speech'
-import { useSpeechToText } from '@/features/voice/composables/use-speech-to-text'
-import { clipAgentChatMessage, AGENT_CHAT_MAX_LENGTH } from '@/features/agent/model/utils/chat-limit.util'
+import { useAgentSpeech } from '@/features/voice/composables'
+import { useSpeechToText } from '@/features/voice/composables'
+import { clipAgentChatMessage, AGENT_CHAT_MAX_LENGTH } from '@/features/agent/model/utils'
 import { agentChatStream, clearAgentSession, type AgentChatAttachment, type AgentChatConfirmation, type AgentStreamHandle, type AgentPingResult, agentPing, channelsStatus, type ChannelsStatusResult } from '@/domain/api/agent'
-import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
-import { AGENT_PROVIDER_LABELS, agentProviderLabel } from '@/features/agent/model/utils/model-label.util'
+import { getApiErrorMessage } from '@/kernel/utils/core'
+import { AGENT_PROVIDER_LABELS, agentProviderLabel } from '@/features/agent/model/utils'
 import { Activity, BellRing, Bot, Brain, CalendarClock, CircleCheck, GraduationCap, Languages, MessageCircle, MessageSquare, ScrollText, ShieldAlert, ShieldCheck, Sparkles, Wrench, Zap } from '@lucide/vue'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { useLayoutStore } from '@/domain/layout/store/layout.store'
-import { clonePlain } from '@/kernel/utils/core/clone-plain.util'
+import { useLayoutStore } from '@/domain/layout/store'
+import { clonePlain } from '@/kernel/utils/core'
 import { useRegisterSettingsTabPending } from '@/features/settings/kernel/pending.internals'
-import { getDefaultLayout } from '@/domain/layout/store/defaults'
+import { getDefaultLayout } from '@/domain/layout/store'
 import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
 import { type AgentCompanionConfig, type AgentConfig, type AgentProactiveConfig, type ChannelConfig, type SceneVoiceControl } from '@/kernel/types/layout'
-import { normalizeAgentCompanion, resolveAgentCompanionPosition } from '@/kernel/utils/layout/agent-companion.util'
-import { readAgentQuickPrompts as AGENT_CHAT_QUICK_PROMPTS } from '@/features/agent/model/utils/quick-prompts.util'
+import { normalizeAgentCompanion, resolveAgentCompanionPosition } from '@/kernel/utils/layout'
+import { readAgentQuickPrompts as AGENT_CHAT_QUICK_PROMPTS } from '@/features/agent/model/utils'
 
 /**
  * @file agent-panel-chat.internals.ts
@@ -500,7 +500,7 @@ export const AGENT_PROVIDER_PRESETS = [
  * `readAgentQuickPrompts()`，用户在设置里改完立即两边同时生效。
  * 多轮理解的引导改为面板上的文字提示，不再靠预设凑句子。
  */
-export { readAgentQuickPrompts as AGENT_CHAT_QUICK_PROMPTS } from '@/features/agent/model/utils/quick-prompts.util'
+export { readAgentQuickPrompts as AGENT_CHAT_QUICK_PROMPTS } from '@/features/agent/model/utils'
 
 /**
  * 快捷指令子卡（存在 app config `ui` 分区）的未保存状态与回滚入口。

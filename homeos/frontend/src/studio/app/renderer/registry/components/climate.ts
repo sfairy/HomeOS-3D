@@ -6,7 +6,7 @@ import {
   resolveMdiIconUrl,
   resolveStatePayload,
 } from '../_shared'
-import { climateDefaultIcon, resolveClimateDeviceType } from '@app/shared/device/climate'
+import { climateDefaultIcon, resolveClimateDeviceType } from '@app/shared/device'
 import { formatClimateStateLabel, isClimatePoweredOn } from '../cover-climate-state'
 import { componentContentUnitsPx } from '../content-units'
 

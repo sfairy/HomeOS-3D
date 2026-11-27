@@ -10,10 +10,10 @@ import {
 import { fetchSystemConfigFresh, handleSystemConfigPatchError } from '@/domain/layout/composables/system-config-core.internals'
 import type { useSystemConfig } from '@/domain/layout/composables/system-config-core.internals'
 import type { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { resetSystemConfig } from '@/kernel/http/system-api'
+import { resetSystemConfig } from '@/kernel/http'
 import { reloadFrontendConfig } from '@/kernel/config/frontend-config'
-import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
-import { logger } from '@/kernel/utils/core/logger'
+import { getApiErrorMessage } from '@/kernel/utils/core'
+import { logger } from '@/kernel/utils/core'
 import type { EditableConfigSection } from '@/kernel/types/system-config'
 import { ref, type Ref } from 'vue'
 

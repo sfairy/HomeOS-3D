@@ -1,7 +1,7 @@
 /** 设置编排内核 · 保存编排 */
 import { handleSystemConfigPatchError } from '@/domain/layout/composables/system-config-core.internals'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { useLayoutStore } from '@/domain/layout/store/layout.store'
+import { useLayoutStore } from '@/domain/layout/store'
 import { notifyError } from '@/kernel/ui/notify'
 import { ref } from 'vue'
 

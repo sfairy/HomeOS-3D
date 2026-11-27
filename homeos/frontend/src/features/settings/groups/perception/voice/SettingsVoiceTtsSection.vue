@@ -402,9 +402,9 @@ import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat
 import EntityMultiSelect from '@/domain/entity/components/entity-multi-select/EntityMultiSelect.vue'
 import VoiceSpeechComposer from '@/features/settings/groups/perception/voice/SpeechComposer.vue'
 import SettingsVoiceAgentSpeechSection from '@/features/settings/groups/perception/voice/SettingsVoiceAgentSpeechSection.vue'
-import { previewDailyAdvisor } from '@/features/voice/model/utils/speech.util'
-import { greetedToday } from '@/features/voice/composables/use-daily-advisor-greeting'
-import { useAudioDevices } from '@/features/voice/composables/use-audio-devices'
+import { previewDailyAdvisor } from '@/features/voice/model/utils'
+import { greetedToday } from '@/features/voice/composables'
+import { useAudioDevices } from '@/features/voice/composables'
 
 const props = defineProps({
   voiceOutputTabs: { type: Array, default: () => [] },

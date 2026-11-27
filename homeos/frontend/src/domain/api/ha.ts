@@ -1,6 +1,6 @@
 /** HA 连接 / WebRTC 信令 API */
 import type { AxiosRequestConfig } from 'axios'
-import { apiDelete, apiGet, apiPost, apiPut } from '../../kernel/http/client'
+import { apiDelete, apiGet, apiPost, apiPut } from '../../kernel/http'
 
 /** HA 连接状态（与后端 `connection_payload` 对齐）。 */
 export type HaConnectionStatus = {

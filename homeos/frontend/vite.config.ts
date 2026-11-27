@@ -547,8 +547,9 @@ function updatePublicStaticManifest(): void {
   }
   for (const stable of [
     '/static/logging/client-log.js',
-    '/static/display/display-boot.js',
-    '/static/display/display-startup.js',
+    // 曾经的 `/static/display/display-boot.js` 与 `display-startup.js` 已移除：
+    // 源文件在 0.7 之后就不存在了（`index.html` / `page-assets.ts` 均无引用），
+    // 只剩这份登记。干净构建时它们必然缺失 → 整个构建失败。
     '/static/auth/scene/scene-depth.js',
     // 认证页样式表由 App.vue 在运行时插入 <head>，不在 SPA 入口里，需显式登记。
     '/static/auth/scene/fonts.css',

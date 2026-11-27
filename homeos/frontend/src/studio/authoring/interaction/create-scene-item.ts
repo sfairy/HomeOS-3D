@@ -5,7 +5,7 @@ import { anchorGate as anchorGate2, syncCourtyardGates as syncCourtyardGates2 } 
 import { normalizeCurtainTrack as normalizeCurtainTrack2 } from '@app/shared/scene/studio-curtain-track'
 
 import { DEFAULT_STRIP_AXIS as DEFAULT_STRIP_AXIS2 } from '../items/studio-item-posture'
-import { DEFAULT_STRIP_MOUNT, defaultStripElevation } from '../lights/strip-light/strip-light-spec'
+import { DEFAULT_STRIP_MOUNT, defaultStripElevation } from '../lights/strip-light'
 import { itemTypeCatalog, lampItemTypeSet, openStairTypeSet, roundTableTypeSet } from '../items/item-catalog'
 import { snapExhaustFan } from '../items/studio-exhaust-fan'
 

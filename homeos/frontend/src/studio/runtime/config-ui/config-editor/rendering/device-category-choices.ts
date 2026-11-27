@@ -4,7 +4,7 @@
  */
 
 import { GENERIC_DEVICE_KINDS, genericDeviceProfile } from '../../../device/generic-device-catalog'
-import { MEDIA_DEVICE_KINDS, mediaDeviceProfile } from '@app/bridge/presets/media-device-profiles'
+import { MEDIA_DEVICE_KINDS, mediaDeviceProfile } from '@app/bridge/presets'
 
 export interface DeviceCategoryProfile {
   label: string

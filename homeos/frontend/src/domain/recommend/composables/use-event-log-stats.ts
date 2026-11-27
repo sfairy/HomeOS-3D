@@ -9,7 +9,7 @@
  */
 import { ref } from 'vue'
 import { fetchEventStats } from '@/domain/api/entities'
-import { logger } from '@/kernel/utils/core/logger'
+import { logger } from '@/kernel/utils/core'
 import { getEventLogConfig } from '@/kernel/config/frontend-config'
 import type { EventLogStatsSnapshot } from '@/domain/recommend/types/recommend.types'
 

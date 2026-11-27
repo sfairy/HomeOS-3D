@@ -8,7 +8,7 @@ import {
   GENERIC_DEVICE_KINDS as GENERIC_DEVICE_KINDS2,
   isGenericDeviceKind as isGenericDeviceKind2,
 } from '../../device/generic-device-catalog'
-import { isMediaDeviceKind } from '@app/bridge/presets/media-device-profiles'
+import { isMediaDeviceKind } from '@app/bridge/presets'
 import { postHostMessage } from './_shared'
 import { vacuumStatusPresentation as vacuumStatusPresentation2 } from '../../vacuum/vacuum-map'
 

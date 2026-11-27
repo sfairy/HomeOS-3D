@@ -216,7 +216,7 @@ import {
   Activity,
   LayoutDashboard,
 } from '@lucide/vue'
-import { useLayoutStore } from '@/domain/layout/store/layout.store'
+import { useLayoutStore } from '@/domain/layout/store'
 import {
   embedNavTabId,
   isEmbedNavTabId,
@@ -227,11 +227,11 @@ import {
   resolveOrderedNavTabIds,
   setNavTabPlacement,
   toggleNavTabVisibility,
-} from '@/kernel/utils/layout/nav-tabs.util'
-import { EMBED_TAB_ACCENTS, resolveEmbedNavAccent } from '@/kernel/utils/layout/embed-nav-theme.util'
-import { resolveEmbedIconComponent } from '@/kernel/utils/layout/embed-icons.util'
-import { DEFAULT_BRAND_LOGO_URL } from '@/kernel/utils/layout/nav-tabs.util'
-import { resolveMoviePilotUrl } from '@/kernel/utils/layout/moviepilot-url.util'
+} from '@/kernel/utils/layout'
+import { EMBED_TAB_ACCENTS, resolveEmbedNavAccent } from '@/kernel/utils/layout'
+import { resolveEmbedIconComponent } from '@/kernel/utils/layout'
+import { DEFAULT_BRAND_LOGO_URL } from '@/kernel/utils/layout'
+import { resolveMoviePilotUrl } from '@/kernel/utils/layout'
 
 const layoutStore = useLayoutStore()
 

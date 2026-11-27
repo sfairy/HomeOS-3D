@@ -1,7 +1,7 @@
 import { floorNavigationChoices } from '../floor-navigation'
 import { doorModels } from '../../security/lock-state'
 import { genericDeviceMetadata } from '../../device/generic-device-catalog'
-import { MEDIA_DEVICE_PROFILES } from '@app/bridge/presets/media-device-profiles'
+import { MEDIA_DEVICE_PROFILES } from '@app/bridge/presets'
 import { SPEAKER_MODEL_TYPES, speakerModelProfile } from '../../speaker/speaker-models'
 import { normalizeModelRemark } from '@app/shared/model-remarks'
 import { windowModels } from '@app/shared/scene/window/window-models'

@@ -96,7 +96,7 @@ import { Loader2, Radio } from '@lucide/vue'
 import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
 import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSectionHead.vue'
 import type { EarthquakeStatusPayload } from '@/domain/api/earthquake'
-import { formatLocaleString, formatRelativeSecondsFromNow } from '@/kernel/utils/format/locale-format.util'
+import { formatLocaleString, formatRelativeSecondsFromNow } from '@/kernel/utils/format'
 
 const props = defineProps<{
   loading?: boolean

@@ -14,10 +14,10 @@ import PasswordField from '@homeos/shared/components/PasswordField.vue'
 import { getLicenseAvailability } from '@/domain/api/license'
 import { useAuthStore } from '@/domain/auth/auth.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
+import { getApiErrorMessage } from '@/kernel/utils/core'
 import { PASSWORD_POLICY_MESSAGE, isPasswordPolicyCompliant } from '@homeos/shared/security/password-policy'
-import { AUTH_FLOW_SETUP, renderAuthSteps } from '@/kernel/utils/auth/auth-flow.util'
-import { rememberActivationEmail } from '@/kernel/utils/auth/activation-email.util'
+import { AUTH_FLOW_SETUP, renderAuthSteps } from '@/kernel/utils/auth'
+import { rememberActivationEmail } from '@/kernel/utils/auth'
 import { resolveStoreLinks } from '@/kernel/utils/store-links.util'
 
 const authStore = useAuthStore()

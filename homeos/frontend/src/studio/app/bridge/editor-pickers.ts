@@ -6,7 +6,7 @@ import {
 import { createEditorPickerQueries } from '@app/shared/picker/editor-picker-queries'
 import { vacuumProfiles } from './catalog/vacuum-catalog'
 import { nasProfiles } from './catalog/nas-catalog'
-import { isMediaDeviceKind } from './presets/media-device-profiles'
+import { isMediaDeviceKind } from './presets'
 import { matchesTemperatureHumidityEntity, ENVIRONMENT_SENSORS } from './temperature-humidity'
 import type { HaEntityEntry } from '@app/shared/util/ha-entity'
 import { alarmDeviceProfiles } from '@/studio/platform/security-alarm-profile'

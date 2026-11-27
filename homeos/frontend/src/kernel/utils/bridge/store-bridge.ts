@@ -1,7 +1,7 @@
 /** Store 桥接：打破 api / auth / entities / ui 之间的循环依赖。 */
 import { ref } from 'vue'
 import type { NotifyType } from '@/kernel/types/notify'
-import { logger } from '@/kernel/utils/core/logger'
+import { logger } from '@/kernel/utils/core'
 
 type VoidHandler = () => void
 type NotifyHandler = (message: string, type?: NotifyType, duration?: number) => void

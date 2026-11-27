@@ -3,9 +3,9 @@
  * @module frontend/src/composables/ui
  */
 import { ref, computed, watch, type Ref } from 'vue'
-import { solarToLunar } from '@/kernel/utils/format/lunar-calendar'
-import { formatLunarFullLine, formatLunarMonthDayLine } from '@/kernel/utils/format/lunar-display.util'
-import { formatZonedDate, getZonedParts, getZonedWallDate } from '@/kernel/utils/format/locale-time'
+import { solarToLunar } from '@/kernel/utils/format'
+import { formatLunarFullLine, formatLunarMonthDayLine } from '@/kernel/utils/format'
+import { formatZonedDate, getZonedParts, getZonedWallDate } from '@/kernel/utils/format'
 import { domainIndexToArray } from '@/domain/entity/model/utils/derived.util'
 import { weatherStateLabel } from '@/features/weather/model/constants/weather-labels'
 import {
@@ -14,10 +14,10 @@ import {
   readAqiNumber,
   normalizeWindSpeedMs,
   numOr,
-} from '@/features/weather/model/utils/weather-metric.util'
+} from '@/features/weather/model/utils'
 import { WEATHER_ICON_EMOJI } from './screensaver.defaults'
 import type { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import type { useLayoutStore } from '@/domain/layout/store/layout.store'
+import type { useLayoutStore } from '@/domain/layout/store'
 
 type EntitiesStore = ReturnType<typeof useEntitiesStore>
 type LayoutStore = ReturnType<typeof useLayoutStore>

@@ -11,8 +11,8 @@
  * 已在读它 → 零新增 deps）；`baselineItemsById` 收进 `editorSession` 单元。
  */
 
-import { CARD_TEXT_SIZE_PX } from '@app/bridge/presets/card-text-size'
-import { DEFAULT_BUTTON_SIZE, buttonIconSize } from '@app/bridge/presets/button-icon-size'
+import { CARD_TEXT_SIZE_PX } from '@app/bridge/presets'
+import { DEFAULT_BUTTON_SIZE, buttonIconSize } from '@app/bridge/presets'
 import { openConfigurationPicker } from '../../configuration-picker'
 import { bindPickerRow, openDeviceCategoryPicker } from './picker-row'
 import { resolveDeviceCategoryProfile } from './device-category-choices'
@@ -24,7 +24,7 @@ import {
 } from '../../../cover/cover-groups'
 import { windowBindingHint } from '@app/shared/scene/window/window-models'
 import { randomUuid as randomUuid2 } from '@app/shared/util/random-id'
-import { withFixedLightEffects as withFixedLightEffects2 } from '@app/bridge/presets/light-effect-policy'
+import { withFixedLightEffects as withFixedLightEffects2 } from '@app/bridge/presets'
 import {
   DEFAULT_LABEL_ICON_SIZE as DEFAULT_LABEL_ICON_SIZE2,
   DEFAULT_LABEL_SIZE as DEFAULT_LABEL_SIZE2,

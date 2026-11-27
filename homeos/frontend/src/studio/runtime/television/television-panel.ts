@@ -1,6 +1,6 @@
 import { televisionState, televisionTime, televisionPower, televisionMediaControl } from './television-state'
 import { domElement } from '@app/shared/util/dom-factory'
-import { mediaDeviceProfile } from '@app/bridge/presets/media-device-profiles'
+import { mediaDeviceProfile } from '@app/bridge/presets'
 import { createStageDeviceVisual } from '../core/stage-device-visual'
 export function createTelevisionPanel({
   onControl: onControl = async () => {},

@@ -4,7 +4,7 @@
  * 语义色来自 hos-design-system.css 的 :root / html[data-theme="slate-navy"]。
  * 启动时写入 data-theme，并清掉历史切换偏好（warm-amber / light / system）。
  */
-import { removeLocalStorage } from '@/kernel/utils/core/local-storage.util'
+import { removeLocalStorage } from '@/kernel/utils/core'
 
 type HomeOsResolvedTheme = 'slate-navy'
 

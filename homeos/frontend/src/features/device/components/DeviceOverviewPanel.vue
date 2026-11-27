@@ -337,7 +337,7 @@
  * @emits control    - 打开设备控制面板
  * @emits copy-id    - 复制实体 ID
  */
-import { formatRelativeFromNow } from '@/kernel/utils/format/locale-format.util'
+import { formatRelativeFromNow } from '@/kernel/utils/format'
 import { computed } from 'vue'
 import {
   Wifi,
@@ -364,12 +364,12 @@ import {
 import type { Component } from 'vue'
 import { getEntityDomain, resolveEntityArea } from '@homeos/shared'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { getDomainLabel } from '@/features/device/model/utils/domain-labels.util'
+import { getDomainLabel } from '@/features/device/model/utils'
 import { formatEntityAttrValue } from '@/domain/entity/model/utils/attr-format.util'
-import { formatEntityAttrLabel } from '@/features/device/model/utils/entity-attr-labels.util'
-import { displayClimateOperatingLabel, displayEntityStateLabel } from '@/kernel/constants/entity-state'
+import { formatEntityAttrLabel } from '@/features/device/model/utils'
+import { displayClimateOperatingLabel, displayEntityStateLabel } from '@/kernel/constants'
 import { displayEventState } from '@/features/events/model/utils/events-display.util'
-import { formatAuditTimestamp, formatLocaleTime } from '@/kernel/utils/format/locale-format.util'
+import { formatAuditTimestamp, formatLocaleTime } from '@/kernel/utils/format'
 import { useDeviceOverview } from '@/features/device/composables/device'
 import DeviceHealthScore from './DeviceHealthScore.vue'
 import { HVAC_ACTION_LABELS, HVAC_MODE_LABELS } from '@/domain/entity/model/utils/attr-format.util'

@@ -22,10 +22,10 @@ import {
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { isSystemConfigConflictError, patchSystemConfig } from '@/domain/layout/composables/system-config-core.internals'
 import { reloadFrontendConfig } from '@/kernel/config/frontend-config'
-import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
-import { logger } from '@/kernel/utils/core/logger'
-import { AGENT_QUICK_PROMPTS, AGENT_QUICK_PROMPT_LIMITS } from '@/kernel/constants/agent-quick-prompts'
-import { readAgentQuickPrompts } from '@/features/agent/model/utils/quick-prompts.util'
+import { getApiErrorMessage } from '@/kernel/utils/core'
+import { logger } from '@/kernel/utils/core'
+import { AGENT_QUICK_PROMPTS, AGENT_QUICK_PROMPT_LIMITS } from '@/kernel/constants'
+import { readAgentQuickPrompts } from '@/features/agent/model/utils'
 
 /** 编辑态行：`id` 只用于 v-for 的稳定 key，不写进配置 */
 interface PromptRow {

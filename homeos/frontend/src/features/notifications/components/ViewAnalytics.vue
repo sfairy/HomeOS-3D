@@ -71,7 +71,7 @@
 
 <script setup lang="ts">
 import { toRefs } from 'vue'
-import { useNotificationsViewAnalytics } from '../composables/use-notifications-view-analytics'
+import { useNotificationsViewAnalytics } from '../composables'
 import { formatPercent } from '@/features/notifications/model/utils/analytics.util'
 import type {
   NotificationAnalyticsSummary,

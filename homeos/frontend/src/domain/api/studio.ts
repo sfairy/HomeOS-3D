@@ -1,5 +1,5 @@
 import { type AxiosResponse } from 'axios'
-import { apiPost, apiPut, apiDelete, apiGet } from '../../kernel/http/client'
+import { apiPost, apiPut, apiDelete, apiGet } from '../../kernel/http'
 import { type LightRangeArchiveStore, type LightRegionOverrideStore } from '@/studio/authoring/plan/studio'
 import { DECORATION_MODELS_PATH, type DecorationLibraryState, type DecorationModel } from '@/studio/authoring/items/studio-user-decorations'
 

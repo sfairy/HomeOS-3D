@@ -115,7 +115,7 @@ import EntityInput from '@/domain/entity/components/entity-input/EntityInput.vue
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { isHomeModeEmojiIcon, resolveHomeModeIcon } from '@/features/home-mode/model/index'
 import { collectPresetActionTags } from '@/features/home-mode/model/index'
-import { entityDomainLabel } from '@/kernel/constants/entity-domain-meta'
+import { entityDomainLabel } from '@/kernel/constants'
 
 const props = defineProps({
   presets: { type: Array, default: () => [] },

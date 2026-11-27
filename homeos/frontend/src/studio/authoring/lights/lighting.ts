@@ -15,7 +15,7 @@ import { drawTrackedText as drawTrackedText2 } from '../plan/studio-plan'
 import { lampItemTypeSet } from '../items/item-catalog'
 import { isPlacedItemHidden } from '../items/placed-item-state'
 import { lightPresetCatalog } from './studio-app-light-data'
-import { addStripFixture } from './strip-light/strip-light-model'
+import { addStripFixture } from './strip-light'
 import { lightEffectColorHex } from '../../app/bridge/light-motion'
 import { dashboardCanvasFont } from '../../app/shared/dashboard-fonts'
 

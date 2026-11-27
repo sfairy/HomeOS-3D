@@ -1,6 +1,6 @@
 /** 用水安全 API（主水阀状态与一键关阀）。 */
 import type { AxiosRequestConfig } from 'axios'
-import { apiGet, apiPost } from '../../kernel/http/client'
+import { apiGet, apiPost } from '../../kernel/http'
 
 export interface WaterFlowItem {
   entityId: string

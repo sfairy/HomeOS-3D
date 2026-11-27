@@ -18,7 +18,7 @@ import {
   renderRegisteredComponent as renderRegisteredComponent2,
   vacuumMapImageSource as vacuumMapImageSource2,
 } from '../../registry/index'
-import { vacuumMapAvailable as vacuumMapAvailable2 } from '@app/shared/device/vacuum-map-state'
+import { vacuumMapAvailable as vacuumMapAvailable2 } from '@app/shared/device'
 import type { PanelRenderer } from '../../panel-renderer'
 import { createSceneActionRequests } from '../../scene-mode'
 import {

@@ -9,9 +9,9 @@
  * 会让「Hooks 层不得依赖 UI 层」出现唯一例外（原 README 为它单列了白名单）。
  */
 import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
-import { formatLocaleTime } from '@/kernel/utils/format/locale-format.util'
+import { formatLocaleTime } from '@/kernel/utils/format'
 import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch, type Ref } from 'vue'
-import { useLayoutStore } from '@/domain/layout/store/layout.store'
+import { useLayoutStore } from '@/domain/layout/store'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { viewportPointToPopupAnchor } from '@/kernel/ui/popup/use-popup-position'
 import { usePerfClock } from '@/domain/layout/composables/use-perf-clock'
@@ -36,7 +36,7 @@ import {
   isValidRootRect,
 } from '@/features/settings/model/floorplan/utils/floating-hub-layout.util'
 import { buildAfhAccentStyle, resolveAfhWidgetTheme } from '@/domain/entity/model/utils/floating-entity-colors.util'
-import { resolveAqiSensorId, collectSensorEntityIds } from '@/features/weather/model/utils/weather-metric.util'
+import { resolveAqiSensorId, collectSensorEntityIds } from '@/features/weather/model/utils'
 
 const AsyncUtilityMeterInfoPopup = defineAsyncComponent(
   () => import('@/features/entity/components/popups/UtilityMeterInfoPopup.vue'),

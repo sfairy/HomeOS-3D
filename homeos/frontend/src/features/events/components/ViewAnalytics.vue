@@ -65,7 +65,7 @@ import {
   pieEmptyData,
   pieSeries,
   rankCategoryAxis,
-} from '@/kernel/utils/chart/chart-primitives'
+} from '@/kernel/utils/chart'
 import {
   buildDomainBuckets,
   buildEntityBuckets,

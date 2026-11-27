@@ -29,7 +29,7 @@
  *
  * 默认 `--dry-run`：只打印将要发生的动作与统计，不写盘。
  */
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import process from 'node:process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -335,7 +335,10 @@ function dropRedundantExportLists(text) {
     declared.add(match[1])
   }
   return text
-    .replace(/^[ \t]*export\s+(?:type\s+)?\{([^{}]*)\}[ \t]*;?[ \t]*\r?\n?/gm, (statement, inner) => {
+    // 只匹配「不带 from 的本地导出清单」：`export { A, B }` 或 `export type { A }`。
+    // 必须用 `(?=\r?\n|$)` 锚定行尾 —— 否则 `export { A } from './x'` 会被吃掉前半段，
+    // 留下孤立的 ` from './x'`（TS1434）。带 from 的是 re-export，不属于本函数职责。
+    .replace(/^[ \t]*export\s+(?:type\s+)?\{([^{}]*)\}[ \t]*;?[ \t]*(?=\r?\n|$)\r?\n?/gm, (statement, inner) => {
       // 带 `from` 的重导出不属于本函数处理范围（正则已排除：要求 `}` 后紧跟换行/分号）。
       const names = inner
         .split(',')
@@ -496,6 +499,46 @@ function dedupePrivateFunctions(text) {
   return lines.filter((_, index) => !drop.has(index)).join('\n')
 }
 
+/**
+ * 清理指向「被合并同族」的 re-export。
+ *
+ * 目录合并时 `index.ts` 常有 `export { a, b } from './utils'` —— 合并后 a/b 已在
+ * 同一个文件里定义，这条 re-export 只剩冲突（TS2323 / TS2484）。
+ *
+ * 处理口径：
+ * - 名字在正文已有导出声明 → 从清单里移除；
+ * - 剩下的（`a as b` 这种重命名导出）改写成**本地导出** `export { a as b }`；
+ * - 清单空了就整条删除。
+ *
+ * @param {string} text
+ * @param {Set<string>} mergedInto 被合并模块的路径集合（不含扩展名）
+ * @param {(spec: string, from: string) => string | null} resolve 说明符 → 目标模块路径
+ * @param {string} from 发起文件
+ * @returns {string}
+ */
+function cleanupMergedReExports(text, mergedInto, resolve, from) {
+  if (!mergedInto) return text
+  return text.replace(
+    /^([ \t]*)export\s+(?:type\s+)?\{([^{}]*)\}[ \t]*from[ \t]*['"]([^'"]+)['"];?[ \t]*(?=\r?\n|$)\r?\n?/gm,
+    (statement, indent, inner, spec) => {
+      const target = resolve(spec, from)
+      if (target === null || !mergedInto.has(target)) return statement
+      const declared = declaredNames(text)
+      const kept = []
+      for (const part of inner.split(',')) {
+        const piece = part.trim().replace(/^type\s+/, '')
+        if (!piece) continue
+        const [orig, alias] = piece.split(/\s+as\s+/).map((s) => s.trim())
+        const local = alias ?? orig
+        if (!alias && declared.has(local)) continue // 正文已定义，重复导出
+        kept.push(alias ? `${orig} as ${alias}` : orig)
+      }
+      if (!kept.length) return ''
+      return `${indent}export { ${kept.join(', ')} }\n`
+    },
+  )
+}
+
 function mergeTexts(sources, { header, into } = {}) {
   // CSS 合并：纯拼接，`@import` 必须全部提到文件头（CSS 规定它只能在最前），并去重。
   if (into && into.endsWith('.css')) {
@@ -566,7 +609,7 @@ function mergeTexts(sources, { header, into } = {}) {
     // 正则必须严格限定在**一条语句内**：`\{[^{}]*\}` 不允许跨花括号，`[ \t]+from`
     // 不允许跨行。早期写成 `\{[\s\S]*?\}\s+from` 时，lazy 组会从 `export { clampPct }`
     // 一路吞到几百行后的 `} from '...'`，把整段实现删掉 —— 静默丢代码。
-    const cleanedBody = mergedInto
+    const cleanedBodyRaw = mergedInto
       ? body.replace(
           /^[ \t]*export\s+(?:type\s+)?(?:\{[^{}]*\}|\*)\s+from\s+['"]([^'"]+)['"];?[ \t]*\r?\n?/gm,
           (statement, spec) => {
@@ -578,26 +621,39 @@ function mergeTexts(sources, { header, into } = {}) {
     for (const statement of fileImports) {
       const specifier = importSource(statement)
       const canonical = resolveCanonical(path, specifier)
+      // 指向合并目标自身的 import 合并后会被删除（它只是转手导出），不参与冲突判定。
+      const isSelf = into ? canonical === stripExt(into) : false
       for (const local of importedLocals(statement)) {
         const previous = localOwner.get(local)
-        if (previous !== undefined && previous !== canonical) {
+        if (!isSelf && previous !== undefined && previous !== canonical) {
           throw new Error(
             `merge: 本地名冲突 "${local}" —— ${path} 从 "${specifier}" 导入，但它已从 "${previous}" 导入。请先人工消歧。`,
           )
         }
-        localOwner.set(local, canonical)
+        if (!isSelf) localOwner.set(local, canonical)
       }
       const key = statement.replace(/\s+/g, ' ').trim()
       if (seen.has(key)) continue
       seen.add(key)
       statements.push({ statement, path })
     }
-    bodies.push(dedupeTypeAliases(cleanedBody, typeSeen).trimEnd())
+    // 先按「本文件视角」删掉指向被合并模块的 re-export；剩下的重复导出
+    // （`export { a, b } from './sibling'` 而 a/b 已在别的源文件里定义）
+    // 只能在**合并后的整体**上判断，见下方 cleanupMergedReExports。
+    bodies.push(cleanedBodyRaw.trimEnd())
   }
 
+  // 合并后的整体：此时说明符已按 into 重写，因此可以用 into 作为解析基准。
+  const joined = bodies.join('\n\n')
+  const reExportCleaned = cleanupMergedReExports(
+    joined,
+    mergedInto,
+    (spec) => resolveCanonical(into ?? '', spec),
+    into ?? '',
+  )
   const sections = []
   if (header) sections.push(header.trimEnd())
-  const mergedBody = dedupePrivateFunctions(dropRedundantExportLists(bodies.join('\n\n')))
+  const mergedBody = dedupePrivateFunctions(dropRedundantExportLists(dedupeTypeAliases(reExportCleaned, typeSeen)))
   // 合并后哪些名字有本地定义 —— 决定「从被合并模块导入的绑定」还剩哪些有意义。
   const localNames = declaredNames(mergedBody)
   const reExports = mergedInto ? collectReExports(sources) : new Map()
@@ -658,6 +714,21 @@ function main() {
       }
     }
 
+    // 目录级合并：把一个目录下的全部 .ts 并成一个同名文件。
+    // 展开为一条普通 merge，复用 import 归一 / 类型去重 / 私有函数去重等全部逻辑。
+    const collapsed = []
+    for (const item of plan.dirCollapse ?? []) {
+      const dir = toRepoRel(item.from)
+      const to = toRepoRel(item.to)
+      if (!existsSync(dir)) throw new Error(`dirCollapse.from 不存在: ${dir}`)
+      const members = readdirSync(dir)
+        .filter((name) => name.endsWith('.ts') && !name.endsWith('.d.ts'))
+        .map((name) => `${dir}/${name}`)
+      if (!members.length) throw new Error(`dirCollapse 目录内没有 .ts: ${dir}`)
+      merges.push({ into: to, from: members, header: item.header })
+      collapsed.push({ dir, to, members })
+    }
+
     // ---- 声明校验 ----
     const problems = []
     for (const { from } of moves) if (!existsSync(from)) problems.push(`moves.from 不存在: ${from}`)
@@ -665,6 +736,11 @@ function main() {
       for (const path of from) if (!existsSync(path)) problems.push(`merges.from 不存在: ${path}`)
       if (!from.length) problems.push(`merges 缺少 from: ${into}`)
       if (moves.some((m) => m.from === into)) problems.push(`merges.into 同时被 dirMoves/moves 移动: ${into}`)
+      // 目标已存在且不是本次的某个来源 = 会静默覆盖一个既有文件（真实发生过的 bug：
+      // `component-templates/` 目录合并覆盖了同名的 `component-templates.ts`）。
+      if (existsSync(into) && !from.includes(into)) {
+        problems.push(`merges.into 已存在且不属于本次来源（会覆盖）: ${into}`)
+      }
     }
     for (const path of deletes) if (!existsSync(path)) problems.push(`deletes 不存在: ${path}`)
     const moveTargets = new Set(moves.map((m) => m.to))

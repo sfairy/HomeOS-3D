@@ -41,12 +41,12 @@ import {
   normalizeClimateCapabilities as normalizeClimateCapabilities2,
   resolveClimateDeviceType as resolveClimateDeviceType2,
   waterHeaterStatusLabel as waterHeaterStatusLabel2,
-} from '@app/shared/device/climate'
+} from '@app/shared/device'
 import {
   formatLineChartValue as formatLineChartValue2,
   renderLineChartDetails as renderLineChartDetails2,
 } from '../../registry/index'
-import { lightColorRgb, lightSupportsColor } from '@app/shared/device/light-runtime'
+import { lightColorRgb, lightSupportsColor } from '@app/shared/device'
 import { selectedRelatedEntityIds as selectedRelatedEntityIds2 } from '../../../shared/related-entities'
 
 import { domElement } from '@app/shared/util/dom-factory'

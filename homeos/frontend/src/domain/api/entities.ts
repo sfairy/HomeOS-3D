@@ -1,6 +1,6 @@
 /** 实体、事件与服务调用 REST API 封装 */
 import type { AxiosRequestConfig } from 'axios'
-import { apiGet, apiPost, apiDelete } from '../../kernel/http/client'
+import { apiGet, apiPost, apiDelete } from '../../kernel/http'
 import type {
   EntityReferencesResponse,
   EntityReferenceUnlinkRequest,

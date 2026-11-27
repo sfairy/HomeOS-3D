@@ -7,7 +7,7 @@ import {
   writeAgentChatCurrentId,
   writeAgentChatSessions,
   type AgentChatSession,
-} from '@/features/agent/model/utils/chat-history.util'
+} from '@/features/agent/model/utils'
 import type { ChatMessage } from './agent-chat-model.internals'
 
 /** 会话管理依赖：都是面板自己的 ref 与副作用，集中注入便于测试与复用 */

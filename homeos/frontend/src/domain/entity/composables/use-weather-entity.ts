@@ -1,7 +1,7 @@
 /** 天气实体解析组合式函数 */
 import { computed, unref, type MaybeRef } from 'vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { useLayoutStore } from '@/domain/layout/store/layout.store'
+import { useLayoutStore } from '@/domain/layout/store'
 import { domainIndexToArray } from '@/domain/entity/model/utils/derived.util'
 
 /**

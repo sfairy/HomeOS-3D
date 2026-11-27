@@ -4,7 +4,7 @@ import {
   GENERIC_DEVICE_KINDS as GENERIC_DEVICE_KINDS2,
   genericDeviceProfile as genericDeviceProfile2,
 } from '../device/generic-device-catalog'
-import { MEDIA_DEVICE_KINDS, isMediaDeviceKind, mediaDeviceProfile } from '@app/bridge/presets/media-device-profiles'
+import { MEDIA_DEVICE_KINDS, isMediaDeviceKind, mediaDeviceProfile } from '@app/bridge/presets'
 import { SPEAKER_MODEL_TYPES } from '../speaker/speaker-models'
 export function pageDimming(config: any, activeModule: any, isFocusMode = false) {
   const moduleKey =

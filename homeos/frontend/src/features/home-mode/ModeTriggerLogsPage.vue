@@ -191,8 +191,8 @@ import ListPageMetrics from '@/kernel/ui/list-page/ListPageMetrics.vue'
 import ModeLogsAnalyticsRail from './components/ModeLogsAnalyticsRail.vue'
 // 域内相对导入：引用自己的域根 barrel 会被 feature-self-barrel 门禁判违规。
 import { EMPTY_MODE_LOG_ANALYTICS, type ModeLogAnalytics } from './composables/use-mode-logs-analytics'
-import { formatDetailedDateTimeOrDash } from '@/kernel/utils/format/locale-format.util'
-import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
+import { formatDetailedDateTimeOrDash } from '@/kernel/utils/format'
+import { getApiErrorMessage } from '@/kernel/utils/core'
 import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
 
 import { homeModeLogSourceLabel, homeModeLogReasonLabel, HOME_MODE_LOG_SOURCE_LABELS } from '@homeos/shared'

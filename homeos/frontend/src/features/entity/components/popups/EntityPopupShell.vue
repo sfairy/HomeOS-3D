@@ -24,8 +24,8 @@
 import { computed } from 'vue'
 import { getEntityDomain } from '@homeos/shared'
 import AnchoredPopupShell from '@/features/entity/components/popups/AnchoredPopupShell.vue'
-import { useEntityPopupAnchor } from '@/domain/entity/composables/popup/use-entity-popup-anchor'
-import { entityDomainColor } from '@/kernel/constants/entity-domain-meta'
+import { useEntityPopupAnchor } from '@/domain/entity/composables/popup'
+import { entityDomainColor } from '@/kernel/constants'
 import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
 import { hexToRgbChannels } from '@/kernel/utils/ui/color.util'
 

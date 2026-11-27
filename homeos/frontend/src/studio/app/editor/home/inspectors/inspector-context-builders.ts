@@ -26,7 +26,7 @@ import {
   popupModuleEntityRecommended as popupModuleEntityRecommended2,
   findCustomPopup as findCustomPopup2,
 } from '../../editor'
-import { renderEntityOptionButtons } from '../entity/entity-option-list'
+import { renderEntityOptionButtons } from '../entity'
 
 import { domElement } from '@app/shared/util/dom-factory'
 export interface InspectorContextsDeps {

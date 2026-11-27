@@ -34,27 +34,27 @@ import {
   type AgentPingResult,
   type AgentStreamHandle,
 } from '@/domain/api/agent'
-import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
+import { getApiErrorMessage } from '@/kernel/utils/core'
 import { getConfigSection } from '@/kernel/config/frontend-config'
 import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useFocusTrap } from '@/kernel/ui/hooks/use-focus-trap'
-import { useSpeechToText } from '@/features/voice/composables/use-speech-to-text'
-import { useAgentSpeech } from '@/features/voice/composables/use-agent-speech'
-import { playEarcon } from '@/features/voice/composables/use-earcon'
-import { isEmbeddedBrowser, probeMicrophone } from '@/features/voice/composables/use-audio-devices'
-import { clipAgentChatMessage, AGENT_CHAT_MAX_LENGTH } from '@/features/agent/model/utils/chat-limit.util'
-import { quickPromptAria, quickPromptTitle, readAgentQuickPrompts } from '@/features/agent/model/utils/quick-prompts.util'
-import { agentDurationLabel, agentFootTitle, agentReplyText } from '@/features/agent/model/utils/reply-format.util'
-import { agentModelLabel } from '@/features/agent/model/utils/model-label.util'
+import { useSpeechToText } from '@/features/voice/composables'
+import { useAgentSpeech } from '@/features/voice/composables'
+import { playEarcon } from '@/features/voice/composables'
+import { isEmbeddedBrowser, probeMicrophone } from '@/features/voice/composables'
+import { clipAgentChatMessage, AGENT_CHAT_MAX_LENGTH } from '@/features/agent/model/utils'
+import { quickPromptAria, quickPromptTitle, readAgentQuickPrompts } from '@/features/agent/model/utils'
+import { agentDurationLabel, agentFootTitle, agentReplyText } from '@/features/agent/model/utils'
+import { agentModelLabel } from '@/features/agent/model/utils'
 import {
   newAgentChatSessionId,
   readAgentChatCurrentId,
   readAgentChatSessions,
   writeAgentChatCurrentId,
   type AgentChatSession,
-} from '@/features/agent/model/utils/chat-history.util'
-import { toolLabels } from '@/features/agent/model/utils/tool-label.util'
+} from '@/features/agent/model/utils'
+import { toolLabels } from '@/features/agent/model/utils'
 import AgentMechaAvatar from '@/features/agent/components/agent-companion/AgentMechaAvatar.vue'
 import AgentVoiceHoldBar from './AgentVoiceHoldBar.vue'
 import {

@@ -2,7 +2,7 @@
 import { collectPinnedEntityIds } from '@/domain/entity/model/utils/ws-subscription'
 import { getActiveProjectionIds } from '@/domain/entity/store/entity-projection'
 import { getWsPushPublicConfig } from '@/kernel/config/frontend-config'
-import { logger } from '@/kernel/utils/core/logger'
+import { logger } from '@/kernel/utils/core'
 
 const MAX_ENSURE = 120
 

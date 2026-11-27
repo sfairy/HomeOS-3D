@@ -4,7 +4,7 @@
  */
 /** - 管理屏保显隐、模式（clock/weather）与预览模式（管理端预览）； */
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { useLayoutStore } from '@/domain/layout/store/layout.store'
+import { useLayoutStore } from '@/domain/layout/store'
 import { useEarthquakeStore } from '@/domain/earthquake/earthquake.store'
 import { usePerfClock } from '@/domain/layout/composables/use-perf-clock'
 import { createScreensaverLayoutState } from './screensaver-layout.internals'
