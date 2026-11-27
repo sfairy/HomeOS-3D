@@ -3,9 +3,9 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { api } from "@store/shared/api/http";
-import { useSessionStore } from "@store/shared/stores/session";
-import { reportBestEffort } from "@store/shared/utils/best-effort";
-import type { StoreFeature, StoreFeatureCatalog, StoreFeatureGroup, StoreProduct } from "@store/shared/types/store";
+import { useSessionStore } from "@store/shared/session";
+import { reportBestEffort } from "@store/shared/best-effort";
+import type { StoreFeature, StoreFeatureCatalog, StoreFeatureGroup, StoreProduct } from "@store/shared/store";
 
 /** 主授权：决定基础能力的那一份授权。 */
 const PRIMARY_TYPES: readonly string[] = ["base", "bundle", "edition_full", "package"];

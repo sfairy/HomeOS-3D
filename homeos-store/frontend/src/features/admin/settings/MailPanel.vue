@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { adminApi } from "@store/shared/api/http";
-import { errorMessage } from "@store/shared/types/store";
-import { useToastStore } from "@store/shared/stores/toast";
+import { errorMessage } from "@store/shared/store";
+import { useToastStore } from "@store/shared/toast";
 import DiagnosticList from "./DiagnosticList.vue";
 import {
   asText,

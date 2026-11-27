@@ -4,7 +4,7 @@
  * 归位说明：原 `shared/store-types.ts`（域根散件）→ `shared/types/store.ts`。
  */
 
-import { retryAfterSeconds, withRetryHint } from "../api/error";
+import { retryAfterSeconds, withRetryHint } from "./api/error";
 
 interface DeviceReleasePolicy {
   cooldownSeconds: number;

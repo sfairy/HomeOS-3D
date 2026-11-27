@@ -1,6 +1,6 @@
 /** 顶层浮动层定位：默认在锚点下方展开，下方放不下时翻到锚点上方。 */
 
-import { reportBestEffort } from "@store/shared/utils/best-effort";
+import { reportBestEffort } from "@store/shared/best-effort";
 
 const POPOVER_GAP = 5;
 const POPOVER_MARGIN = 8;

@@ -3,15 +3,15 @@ import { createPinia } from "pinia";
 import { nextTick } from "vue";
 import App from "./App.vue";
 import router from "@store/router/index";
-import { errorMessage } from "@store/shared/types/store";
-import { useToastStore, useStoreToast } from "@store/shared/stores/toast";
+import { errorMessage } from "@store/shared/store";
+import { useToastStore, useStoreToast } from "@store/shared/toast";
 import {
   ensureAdminStylesheet,
   needsAdminStyles,
   nextFrame,
   waitForDeferredStyles,
   waitForEntrySettled,
-} from "@store/shared/utils/styles-ready";
+} from "@store/shared/styles-ready";
 import "@store/shared/scene/scene-depth";
 
 const app = createApp(App);

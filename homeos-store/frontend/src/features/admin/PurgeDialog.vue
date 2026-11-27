@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import { useAdminDialogsStore } from "@store/features/admin/stores/adminDialogs";
-import { useToastStore } from "@store/shared/stores/toast";
+import { useAdminDialogsStore } from "@store/features/admin/adminDialogs";
+import { useToastStore } from "@store/shared/toast";
 
 const dialogs = useAdminDialogsStore();
 const toast = useToastStore();

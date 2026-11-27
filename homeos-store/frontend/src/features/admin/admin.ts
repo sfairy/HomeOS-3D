@@ -3,16 +3,16 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { adminApi, api } from "@store/shared/api/http";
-import { errorMessage } from "@store/shared/types/store";
+import { errorMessage } from "@store/shared/store";
 import {
   serverAuthState,
   sessionNotPersistedMessage,
   sessionPersisted,
   setAuthHint,
   setServerAuthState,
-} from "@store/shared/stores/session";
-import { useSiteStore } from "@store/shared/stores/site";
-import { logAndIgnore } from "@store/shared/utils/best-effort";
+} from "@store/shared/session";
+import { useSiteStore } from "@store/shared/site";
+import { logAndIgnore } from "@store/shared/best-effort";
 
 interface MePayload {
   account?: { email?: string; isAdmin?: boolean };

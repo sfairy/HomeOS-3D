@@ -1,18 +1,18 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useRoute } from "vue-router";
-import PanelHead from "@store/features/admin/components/PanelHead.vue";
-import DataTable from "@store/features/admin/components/DataTable.vue";
-import RowMenu from "@store/features/admin/components/RowMenu.vue";
-import StatusPill from "@store/features/admin/components/StatusPill.vue";
+import PanelHead from "@store/features/admin/PanelHead.vue";
+import DataTable from "@store/features/admin/DataTable.vue";
+import RowMenu from "@store/features/admin/RowMenu.vue";
+import StatusPill from "@store/features/admin/StatusPill.vue";
 import { adminApi } from "@store/shared/api/http";
-import { asListItems, errorMessage } from "@store/shared/types/store";
-import { useToastStore } from "@store/shared/stores/toast";
-import { useConfirmStore } from "@store/shared/stores/confirm";
-import { useAdminDialogsStore } from "@store/features/admin/stores/adminDialogs";
-import { useAdminRefreshStore } from "@store/features/admin/stores/adminRefresh";
-import { dayEndUtc, dayStartUtc, dt, money } from "@store/features/admin/utils/format";
-import { LICENSE_ACTION, ORDER_TYPE } from "@store/features/admin/utils/vocab";
+import { asListItems, errorMessage } from "@store/shared/store";
+import { useToastStore } from "@store/shared/toast";
+import { useConfirmStore } from "@store/shared/confirm";
+import { useAdminDialogsStore } from "@store/features/admin/adminDialogs";
+import { useAdminRefreshStore } from "@store/features/admin/adminRefresh";
+import { dayEndUtc, dayStartUtc, dt, money } from "@store/features/admin/format";
+import { LICENSE_ACTION, ORDER_TYPE } from "@store/features/admin/vocab";
 
 interface OrderStatusMeta {
   choices: string[];

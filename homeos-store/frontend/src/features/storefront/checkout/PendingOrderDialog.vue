@@ -3,9 +3,9 @@ import { computed, ref } from "vue";
 import { useOrderStore, orderCountdownText } from "@store/features/storefront/checkout/store";
 import { useCancelOrder, useOrderDialog } from "@store/features/storefront/checkout/useOrderDialog";
 import { api } from "@store/shared/api/http";
-import { formatCentsPlain as moneyAmount } from "@store/shared/utils/money";
-import { errorMessage, type StoreOrder } from "@store/shared/types/store";
-import { useStoreToast } from "@store/shared/stores/toast";
+import { formatCentsPlain as moneyAmount } from "@store/shared/money";
+import { errorMessage, type StoreOrder } from "@store/shared/store";
+import { useStoreToast } from "@store/shared/toast";
 
 const order = useOrderStore();
 const toast = useStoreToast();

@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { nextTick, watch } from "vue";
 import { useRoute } from "vue-router";
-import HomeCapabilityIndex from "@store/features/storefront/home/components/HomeCapabilityIndex.vue";
-import HomeCta from "@store/features/storefront/home/components/HomeCta.vue";
-import HomeHero from "@store/features/storefront/home/components/HomeHero.vue";
-import HomeModuleBoard from "@store/features/storefront/home/components/HomeModuleBoard.vue";
-import HomePricing from "@store/features/storefront/home/components/HomePricing.vue";
-import HomeSetup from "@store/features/storefront/home/components/HomeSetup.vue";
-import HomeTrust from "@store/features/storefront/home/components/HomeTrust.vue";
+import HomeCapabilityIndex from "@store/features/storefront/home/HomeCapabilityIndex.vue";
+import HomeCta from "@store/features/storefront/home/HomeCta.vue";
+import HomeHero from "@store/features/storefront/home/HomeHero.vue";
+import HomeModuleBoard from "@store/features/storefront/home/HomeModuleBoard.vue";
+import HomePricing from "@store/features/storefront/home/HomePricing.vue";
+import HomeSetup from "@store/features/storefront/home/HomeSetup.vue";
+import HomeTrust from "@store/features/storefront/home/HomeTrust.vue";
 import { useCatalogStore } from "@store/features/storefront/catalog/store";
-import { scrollToHash } from "@store/shared/utils/hash-scroll";
+import { scrollToHash } from "@store/shared/hash-scroll";
 
 const route = useRoute();
 const catalog = useCatalogStore();

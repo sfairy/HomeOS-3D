@@ -1,17 +1,17 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import SceneStage from "@store/shared/components/SceneStage.vue";
-import DeckTiles from "@store/shared/components/DeckTiles.vue";
+import SceneStage from "@store/shared/SceneStage.vue";
+import DeckTiles from "@store/shared/DeckTiles.vue";
 import EntryShell from "@homeos/shared/components/EntryShell.vue";
 import type { EntryStep } from "@homeos/shared/components/entry-step";
 import PasswordField from "@homeos/shared/components/PasswordField.vue";
 import { api } from "@store/shared/api/http";
 import { retryAfterSeconds } from "@store/shared/api/error";
-import { errorMessage } from "@store/shared/types/store";
-import { useSessionStore } from "@store/shared/stores/session";
-import { useSiteStore } from "@store/shared/stores/site";
-import { useStoreToast } from "@store/shared/stores/toast";
+import { errorMessage } from "@store/shared/store";
+import { useSessionStore } from "@store/shared/session";
+import { useSiteStore } from "@store/shared/site";
+import { useStoreToast } from "@store/shared/toast";
 import { useCooldown } from "@store/features/storefront/auth/useCooldown";
 import { clearInvite, readInvite } from "@store/features/storefront/auth/invite";
 import { isPasswordPolicyCompliant, PASSWORD_POLICY_MESSAGE } from "@homeos/shared/security/password-policy";

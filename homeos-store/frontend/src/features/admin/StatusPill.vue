@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { statusTone } from "@store/features/admin/utils/format";
+import { statusTone } from "@store/features/admin/format";
 
 const props = defineProps<{ status?: string | null; label?: string }>();
 const tone = computed(() => statusTone(props.status));

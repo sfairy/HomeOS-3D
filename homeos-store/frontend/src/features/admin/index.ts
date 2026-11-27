@@ -11,4 +11,4 @@
  * 后台的**路由组件**不走这里 —— 懒加载路由组件经 barrel 转出会把 14 个面板并进同一个
  * chunk，直接毁掉后台整片分包（见门禁 R6 的说明）。
  */
-export { useAdminStore } from "./stores/admin";
+export { useAdminStore } from "./admin";

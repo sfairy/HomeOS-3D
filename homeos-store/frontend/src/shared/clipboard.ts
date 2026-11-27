@@ -5,7 +5,7 @@
  */
 
 import { copyTextToClipboard } from "@homeos/shared/utils/clipboard";
-import { useToastStore } from "@store/shared/stores/toast";
+import { useToastStore } from "@store/shared/toast";
 
 export async function copyText(text: string, emptyMessage = "没有可复制的内容"): Promise<boolean> {
   const toast = useToastStore();

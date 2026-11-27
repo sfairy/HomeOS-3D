@@ -2,16 +2,16 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useCatalogStore } from "@store/features/storefront/catalog/store";
-import { useSessionStore } from "@store/shared/stores/session";
+import { useSessionStore } from "@store/shared/session";
 import { useOrderStore } from "@store/features/storefront/checkout/store";
-import { useSiteStore } from "@store/shared/stores/site";
-import { useConfirmStore } from "@store/shared/stores/confirm";
-import { useStoreToast } from "@store/shared/stores/toast";
+import { useSiteStore } from "@store/shared/site";
+import { useConfirmStore } from "@store/shared/confirm";
+import { useStoreToast } from "@store/shared/toast";
 import { api } from "@store/shared/api/http";
-import { formatCents as money } from "@store/shared/utils/money";
-import { reportBestEffort } from "@store/shared/utils/best-effort";
-import { errorMessage, type StoreLicense } from "@store/shared/types/store";
-import { copyText } from "@store/shared/utils/clipboard";
+import { formatCents as money } from "@store/shared/money";
+import { reportBestEffort } from "@store/shared/best-effort";
+import { errorMessage, type StoreLicense } from "@store/shared/store";
+import { copyText } from "@store/shared/clipboard";
 import { createLatestGuard } from "@store/features/storefront/catalog/async-guard";
 
 /** 优惠码试算的防抖窗口：停手之后才发请求，避免每敲一个字符都打一发。 */

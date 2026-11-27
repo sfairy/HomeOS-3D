@@ -4,9 +4,9 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { api } from "@store/shared/api/http";
 import { onStoreUnauthorized } from "@store/shared/api/http";
-import type { StoreLicense, StoreOrder, StoreAccount, StoreProduct } from "@store/shared/types/store";
-import { logAndIgnore } from "@store/shared/utils/best-effort";
-import { useStoreToast } from "@store/shared/stores/toast";
+import type { StoreLicense, StoreOrder, StoreAccount, StoreProduct } from "@store/shared/store";
+import { logAndIgnore } from "@store/shared/best-effort";
+import { useStoreToast } from "@store/shared/toast";
 
 interface AccountPayload {
   account?: StoreAccount;

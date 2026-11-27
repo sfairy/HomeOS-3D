@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { api } from "@store/shared/api/http";
-import { errorMessage } from "@store/shared/types/store";
-import { copyText } from "@store/shared/utils/clipboard";
-import { useStoreToast } from "@store/shared/stores/toast";
-import { formatPoints, formatCentsPlain } from "@store/shared/utils/money";
+import { errorMessage } from "@store/shared/store";
+import { copyText } from "@store/shared/clipboard";
+import { useStoreToast } from "@store/shared/toast";
+import { formatPoints, formatCentsPlain } from "@store/shared/money";
 
 const toast = useStoreToast();
 

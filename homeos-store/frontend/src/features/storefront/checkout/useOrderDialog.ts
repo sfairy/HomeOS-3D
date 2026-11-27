@@ -16,8 +16,8 @@
 
 import { onBeforeUnmount, ref, watch, type Ref } from "vue";
 import { useOrderStore } from "@store/features/storefront/checkout/store";
-import { useConfirmStore } from "@store/shared/stores/confirm";
-import type { StoreOrder } from "@store/shared/types/store";
+import { useConfirmStore } from "@store/shared/confirm";
+import type { StoreOrder } from "@store/shared/store";
 
 export interface OrderDialog {
   /** 绑到 `<dialog ref="dialog">` */

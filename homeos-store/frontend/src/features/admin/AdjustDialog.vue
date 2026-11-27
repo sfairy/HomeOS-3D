@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import { useAdminDialogsStore } from "@store/features/admin/stores/adminDialogs";
-import { useAdminRefreshStore } from "@store/features/admin/stores/adminRefresh";
-import { useToastStore } from "@store/shared/stores/toast";
+import { useAdminDialogsStore } from "@store/features/admin/adminDialogs";
+import { useAdminRefreshStore } from "@store/features/admin/adminRefresh";
+import { useToastStore } from "@store/shared/toast";
 import { adminApi } from "@store/shared/api/http";
-import { errorMessage } from "@store/shared/types/store";
+import { errorMessage } from "@store/shared/store";
 
 const dialogs = useAdminDialogsStore();
 const refresh = useAdminRefreshStore();

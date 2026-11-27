@@ -2,19 +2,19 @@
 /** 功能权益面板：列表 + 手工补权益 + 改期 / 开关。 */
 
 import { computed, reactive, ref } from "vue";
-import type { AdminTabItem } from "@store/features/admin/composables/useAdminTabs";
-import { useAdminTabs } from "@store/features/admin/composables/useAdminTabs";
-import PanelHead from "@store/features/admin/components/PanelHead.vue";
-import AdminTabs from "@store/features/admin/components/AdminTabs.vue";
-import DataTable from "@store/features/admin/components/DataTable.vue";
-import RowMenu from "@store/features/admin/components/RowMenu.vue";
-import FeaturePicker from "@store/features/admin/components/FeaturePicker.vue";
+import type { AdminTabItem } from "@store/features/admin/useAdminTabs";
+import { useAdminTabs } from "@store/features/admin/useAdminTabs";
+import PanelHead from "@store/features/admin/PanelHead.vue";
+import AdminTabs from "@store/features/admin/AdminTabs.vue";
+import DataTable from "@store/features/admin/DataTable.vue";
+import RowMenu from "@store/features/admin/RowMenu.vue";
+import FeaturePicker from "@store/features/admin/FeaturePicker.vue";
 import { adminApi } from "@store/shared/api/http";
-import { asListItems, errorMessage } from "@store/shared/types/store";
-import { useToastStore } from "@store/shared/stores/toast";
-import { useConfirmStore } from "@store/shared/stores/confirm";
-import { useFeatureCatalogStore } from "@store/features/admin/stores/featureCatalog";
-import { d, localInput, utcInput } from "@store/features/admin/utils/format";
+import { asListItems, errorMessage } from "@store/shared/store";
+import { useToastStore } from "@store/shared/toast";
+import { useConfirmStore } from "@store/shared/confirm";
+import { useFeatureCatalogStore } from "@store/features/admin/featureCatalog";
+import { d, localInput, utcInput } from "@store/features/admin/format";
 
 interface Entitlement {
   id: string;

@@ -1,6 +1,6 @@
 /** 邀请码的本地留存。 */
 
-import { reportBestEffort } from "@store/shared/utils/best-effort";
+import { reportBestEffort } from "@store/shared/best-effort";
 
 const STORAGE_KEY = "hb_invite_v1";
 

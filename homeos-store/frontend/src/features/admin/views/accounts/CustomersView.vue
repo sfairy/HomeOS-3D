@@ -2,10 +2,10 @@
 /** 客户档案面板。 */
 
 import { computed, ref } from "vue";
-import PanelHead from "@store/features/admin/components/PanelHead.vue";
-import DataTable from "@store/features/admin/components/DataTable.vue";
-import { asListItems } from "@store/shared/types/store";
-import { d, num } from "@store/features/admin/utils/format";
+import PanelHead from "@store/features/admin/PanelHead.vue";
+import DataTable from "@store/features/admin/DataTable.vue";
+import { asListItems } from "@store/shared/store";
+import { d, num } from "@store/features/admin/format";
 
 interface Customer {
   email?: string;

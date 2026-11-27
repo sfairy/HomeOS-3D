@@ -4,12 +4,12 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 import QRCode from "qrcode";
 import { api } from "@store/shared/api/http";
-import { errorMessage, type StoreOrder } from "@store/shared/types/store";
+import { errorMessage, type StoreOrder } from "@store/shared/store";
 import { retryAfterSeconds, withRetryHint } from "@store/shared/api/error";
 import { createEpochGuard } from "@store/features/storefront/catalog/async-guard";
-import { logAndIgnore } from "@store/shared/utils/best-effort";
-import { useSessionStore } from "@store/shared/stores/session";
-import { useStoreToast } from "@store/shared/stores/toast";
+import { logAndIgnore } from "@store/shared/best-effort";
+import { useSessionStore } from "@store/shared/session";
+import { useStoreToast } from "@store/shared/toast";
 
 const CHANNEL_KICKERS: Record<string, string> = {
   alipay: "Alipay",

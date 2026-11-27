@@ -1,6 +1,6 @@
 /** 展示格式化。 */
 
-import { formatCents } from "@store/shared/utils/money";
+import { formatCents } from "@store/shared/money";
 
 export const money = formatCents;
 

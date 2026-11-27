@@ -2,16 +2,16 @@
 /** 提现审核面板。 */
 
 import { computed, ref } from "vue";
-import PanelHead from "@store/features/admin/components/PanelHead.vue";
-import DataTable from "@store/features/admin/components/DataTable.vue";
-import RowMenu from "@store/features/admin/components/RowMenu.vue";
-import StatusPill from "@store/features/admin/components/StatusPill.vue";
+import PanelHead from "@store/features/admin/PanelHead.vue";
+import DataTable from "@store/features/admin/DataTable.vue";
+import RowMenu from "@store/features/admin/RowMenu.vue";
+import StatusPill from "@store/features/admin/StatusPill.vue";
 import { adminApi } from "@store/shared/api/http";
-import { asListItems, errorMessage } from "@store/shared/types/store";
-import { useToastStore } from "@store/shared/stores/toast";
-import { useConfirmStore } from "@store/shared/stores/confirm";
-import { useAdminRefreshStore } from "@store/features/admin/stores/adminRefresh";
-import { dt } from "@store/features/admin/utils/format";
+import { asListItems, errorMessage } from "@store/shared/store";
+import { useToastStore } from "@store/shared/toast";
+import { useConfirmStore } from "@store/shared/confirm";
+import { useAdminRefreshStore } from "@store/features/admin/adminRefresh";
+import { dt } from "@store/features/admin/format";
 
 interface Withdrawal {
   id: string;

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from "vue";
 import { adminApi } from "@store/shared/api/http";
-import { errorMessage } from "@store/shared/types/store";
+import { errorMessage } from "@store/shared/store";
 
 interface Column {
   key: string;

@@ -2,7 +2,7 @@
 import { computed, ref } from "vue";
 import { useOrderStore, orderCountdownText } from "@store/features/storefront/checkout/store";
 import { useCancelOrder, useOrderDialog } from "@store/features/storefront/checkout/useOrderDialog";
-import { formatCentsPlain as moneyAmount } from "@store/shared/utils/money";
+import { formatCentsPlain as moneyAmount } from "@store/shared/money";
 
 const order = useOrderStore();
 const refreshing = ref(false);

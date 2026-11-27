@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useHomeView } from "@store/features/storefront/home/useHomeView";
-import { useStoreToast } from "@store/shared/stores/toast";
-import { copyText } from "@store/shared/utils/clipboard";
+import { useStoreToast } from "@store/shared/toast";
+import { copyText } from "@store/shared/clipboard";
 
 const { setup, deployCommand, deployLabel, hasDeploy, supportEmail, authenticated, paymentBadges } = useHomeView();
 const toast = useStoreToast();

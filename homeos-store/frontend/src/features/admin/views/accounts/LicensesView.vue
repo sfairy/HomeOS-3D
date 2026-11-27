@@ -2,21 +2,21 @@
 /** 激活码面板：列表 + 手动签发 + 修正授权。 */
 
 import { computed, reactive, ref } from "vue";
-import type { AdminTabItem } from "@store/features/admin/composables/useAdminTabs";
-import { useAdminTabs } from "@store/features/admin/composables/useAdminTabs";
-import { useRefreshOn } from "@store/features/admin/stores/adminRefresh";
-import PanelHead from "@store/features/admin/components/PanelHead.vue";
-import AdminTabs from "@store/features/admin/components/AdminTabs.vue";
-import DataTable from "@store/features/admin/components/DataTable.vue";
-import RowMenu from "@store/features/admin/components/RowMenu.vue";
+import type { AdminTabItem } from "@store/features/admin/useAdminTabs";
+import { useAdminTabs } from "@store/features/admin/useAdminTabs";
+import { useRefreshOn } from "@store/features/admin/adminRefresh";
+import PanelHead from "@store/features/admin/PanelHead.vue";
+import AdminTabs from "@store/features/admin/AdminTabs.vue";
+import DataTable from "@store/features/admin/DataTable.vue";
+import RowMenu from "@store/features/admin/RowMenu.vue";
 import { adminApi } from "@store/shared/api/http";
-import { asListItems, errorMessage } from "@store/shared/types/store";
-import { useToastStore } from "@store/shared/stores/toast";
-import { useConfirmStore } from "@store/shared/stores/confirm";
-import { useAdminRefreshStore } from "@store/features/admin/stores/adminRefresh";
-import { d, dt } from "@store/features/admin/utils/format";
-import { LICENSE_SOURCE } from "@store/features/admin/utils/vocab";
-import { copyText } from "@store/shared/utils/clipboard";
+import { asListItems, errorMessage } from "@store/shared/store";
+import { useToastStore } from "@store/shared/toast";
+import { useConfirmStore } from "@store/shared/confirm";
+import { useAdminRefreshStore } from "@store/features/admin/adminRefresh";
+import { d, dt } from "@store/features/admin/format";
+import { LICENSE_SOURCE } from "@store/features/admin/vocab";
+import { copyText } from "@store/shared/clipboard";
 import { buildLicensePatch, parseDaysInput } from "@store/features/admin/views/accounts/licenses-patch";
 
 interface License {

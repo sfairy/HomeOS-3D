@@ -11,19 +11,19 @@ import {
   type Component,
 } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import SceneStage from "@store/shared/components/SceneStage.vue";
-import DeckTiles from "@store/shared/components/DeckTiles.vue";
+import SceneStage from "@store/shared/SceneStage.vue";
+import DeckTiles from "@store/shared/DeckTiles.vue";
 import EntryShell from "@homeos/shared/components/EntryShell.vue";
 import PasswordField from "@homeos/shared/components/PasswordField.vue";
-import AdjustDialog from "@store/features/admin/components/AdjustDialog.vue";
-import PurgeDialog from "@store/features/admin/components/PurgeDialog.vue";
-import RefundDialog from "@store/features/admin/components/RefundDialog.vue";
-import PanelHead from "@store/features/admin/components/PanelHead.vue";
-import { useAdminStore } from "@store/features/admin/stores/admin";
+import AdjustDialog from "@store/features/admin/AdjustDialog.vue";
+import PurgeDialog from "@store/features/admin/PurgeDialog.vue";
+import RefundDialog from "@store/features/admin/RefundDialog.vue";
+import PanelHead from "@store/features/admin/PanelHead.vue";
+import { useAdminStore } from "@store/features/admin/admin";
 import { api, onAdminUnauthorized } from "@store/shared/api/http";
-import { errorMessage } from "@store/shared/types/store";
-import { localZoneLabel } from "@store/features/admin/utils/format";
-import { useToastStore } from "@store/shared/stores/toast";
+import { errorMessage } from "@store/shared/store";
+import { localZoneLabel } from "@store/features/admin/format";
+import { useToastStore } from "@store/shared/toast";
 import { isPasswordPolicyCompliant, PASSWORD_POLICY_MESSAGE } from "@homeos/shared/security/password-policy";
 
 /**

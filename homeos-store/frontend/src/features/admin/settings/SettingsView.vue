@@ -2,14 +2,14 @@
 /** 站点配置面板：站点信息、支付与维护、渠道凭据、注册邮件、邀请规则与站点配色。 */
 
 import { computed, reactive, ref, watch } from "vue";
-import type { AdminTabItem } from "@store/features/admin/composables/useAdminTabs";
-import { useAdminTabs } from "@store/features/admin/composables/useAdminTabs";
-import PanelHead from "@store/features/admin/components/PanelHead.vue";
-import AdminTabs from "@store/features/admin/components/AdminTabs.vue";
+import type { AdminTabItem } from "@store/features/admin/useAdminTabs";
+import { useAdminTabs } from "@store/features/admin/useAdminTabs";
+import PanelHead from "@store/features/admin/PanelHead.vue";
+import AdminTabs from "@store/features/admin/AdminTabs.vue";
 import { adminApi } from "@store/shared/api/http";
-import { errorMessage } from "@store/shared/types/store";
-import { useToastStore } from "@store/shared/stores/toast";
-import { useAdminRefreshStore } from "@store/features/admin/stores/adminRefresh";
+import { errorMessage } from "@store/shared/store";
+import { useToastStore } from "@store/shared/toast";
+import { useAdminRefreshStore } from "@store/features/admin/adminRefresh";
 import InvitePanel from "@store/features/admin/settings/InvitePanel.vue";
 import MailPanel from "@store/features/admin/settings/MailPanel.vue";
 import PaletteSettings from "@store/features/admin/settings/PaletteSettings.vue";

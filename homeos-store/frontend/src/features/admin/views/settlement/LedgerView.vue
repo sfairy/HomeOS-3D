@@ -3,12 +3,12 @@
 
 import { computed, ref } from "vue";
 import { useRoute } from "vue-router";
-import PanelHead from "@store/features/admin/components/PanelHead.vue";
-import DataTable from "@store/features/admin/components/DataTable.vue";
-import { asListItems } from "@store/shared/types/store";
-import { useToastStore } from "@store/shared/stores/toast";
-import { useAdminDialogsStore } from "@store/features/admin/stores/adminDialogs";
-import { dt } from "@store/features/admin/utils/format";
+import PanelHead from "@store/features/admin/PanelHead.vue";
+import DataTable from "@store/features/admin/DataTable.vue";
+import { asListItems } from "@store/shared/store";
+import { useToastStore } from "@store/shared/toast";
+import { useAdminDialogsStore } from "@store/features/admin/adminDialogs";
+import { dt } from "@store/features/admin/format";
 
 interface LedgerKind {
   value: string;

@@ -11,7 +11,7 @@
  * 数据显示整页错误。
  */
 
-import type { StoreLicense, StoreOrder } from "@store/shared/types/store";
+import type { StoreLicense, StoreOrder } from "@store/shared/store";
 
 export function activationCode(item: StoreLicense): string {
   return String(item.activationCode || item.codeHint || "");

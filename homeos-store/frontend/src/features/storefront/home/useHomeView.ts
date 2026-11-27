@@ -27,10 +27,10 @@ import {
   type Tone,
 } from "@store/features/storefront/home/content";
 import { useCatalogStore } from "@store/features/storefront/catalog/store";
-import { useSessionStore } from "@store/shared/stores/session";
-import { useSiteStore } from "@store/shared/stores/site";
-import { formatCents } from "@store/shared/utils/money";
-import type { StoreProduct } from "@store/shared/types/store";
+import { useSessionStore } from "@store/shared/session";
+import { useSiteStore } from "@store/shared/site";
+import { formatCents } from "@store/shared/money";
+import type { StoreProduct } from "@store/shared/store";
 
 /** 主授权档位的营销提示语。商品名与价格仍然来自接口。 */
 const TIER_HINTS: Record<string, string> = {

@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, watch } from "vue";
 import { useRoute } from "vue-router";
-import AdminToastHost from "@store/shared/components/AdminToastHost.vue";
-import ConfirmDialog from "@store/shared/components/ConfirmDialog.vue";
-import { useStoreToast } from "@store/shared/stores/toast";
-import { ensureAdminStylesheet, releaseAdminStylesheet } from "@store/shared/utils/styles-ready";
+import AdminToastHost from "@store/shared/AdminToastHost.vue";
+import ConfirmDialog from "@store/shared/ConfirmDialog.vue";
+import { useStoreToast } from "@store/shared/toast";
+import { ensureAdminStylesheet, releaseAdminStylesheet } from "@store/shared/styles-ready";
 
 const route = useRoute();
 const storeToast = useStoreToast();

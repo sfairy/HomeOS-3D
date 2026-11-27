@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useCatalogStore } from "@store/features/storefront/catalog/store";
-import { useSessionStore } from "@store/shared/stores/session";
-import { formatCents as money } from "@store/shared/utils/money";
-import type { StoreProduct } from "@store/shared/types/store";
+import { useSessionStore } from "@store/shared/session";
+import { formatCents as money } from "@store/shared/money";
+import type { StoreProduct } from "@store/shared/store";
 
 const catalog = useCatalogStore();
 const session = useSessionStore();

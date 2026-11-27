@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { useSiteStore } from "@store/shared/stores/site";
+import { useSiteStore } from "@store/shared/site";
 import { useCatalogStore } from "@store/features/storefront/catalog/store";
-import { serverAuthState, useSessionStore } from "@store/shared/stores/session";
-import { useStoreToast } from "@store/shared/stores/toast";
-import { errorMessage } from "@store/shared/types/store";
-import { logAndIgnore } from "@store/shared/utils/best-effort";
-import { shouldProbeSession } from "@store/features/storefront/utils/session-probe";
+import { serverAuthState, useSessionStore } from "@store/shared/session";
+import { useStoreToast } from "@store/shared/toast";
+import { errorMessage } from "@store/shared/store";
+import { logAndIgnore } from "@store/shared/best-effort";
+import { shouldProbeSession } from "@store/features/storefront/session-probe";
 import PaymentDialog from "@store/features/storefront/checkout/PaymentDialog.vue";
 import PendingOrderDialog from "@store/features/storefront/checkout/PendingOrderDialog.vue";
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { useConfirmStore } from "@store/shared/stores/confirm";
+import { useConfirmStore } from "@store/shared/confirm";
 
 const props = withDefaults(defineProps<{ variant?: "store" | "admin" }>(), {
   variant: "store",

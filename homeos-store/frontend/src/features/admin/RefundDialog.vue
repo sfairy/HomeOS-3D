@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { useAdminDialogsStore } from "@store/features/admin/stores/adminDialogs";
-import { useToastStore } from "@store/shared/stores/toast";
-import { formatCents } from "@store/shared/utils/money";
+import { useAdminDialogsStore } from "@store/features/admin/adminDialogs";
+import { useToastStore } from "@store/shared/toast";
+import { formatCents } from "@store/shared/money";
 
 /**
  * 订单退款弹窗。

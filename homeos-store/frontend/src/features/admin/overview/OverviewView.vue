@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
-import PanelHead from "@store/features/admin/components/PanelHead.vue";
-import AdminTabs from "@store/features/admin/components/AdminTabs.vue";
-import { useAdminTabs, type AdminTabItem } from "@store/features/admin/composables/useAdminTabs";
+import PanelHead from "@store/features/admin/PanelHead.vue";
+import AdminTabs from "@store/features/admin/AdminTabs.vue";
+import { useAdminTabs, type AdminTabItem } from "@store/features/admin/useAdminTabs";
 import { adminApi } from "@store/shared/api/http";
-import { errorMessage } from "@store/shared/types/store";
-import { useToastStore } from "@store/shared/stores/toast";
-import { useAdminStore } from "@store/features/admin/stores/admin";
-import { useConfirmStore } from "@store/shared/stores/confirm";
-import { d, dt, money, num, valueSize, STATUS_HUES } from "@store/features/admin/utils/format";
+import { errorMessage } from "@store/shared/store";
+import { useToastStore } from "@store/shared/toast";
+import { useAdminStore } from "@store/features/admin/admin";
+import { useConfirmStore } from "@store/shared/confirm";
+import { d, dt, money, num, valueSize, STATUS_HUES } from "@store/features/admin/format";
 
 interface StatCard {
   label: string;

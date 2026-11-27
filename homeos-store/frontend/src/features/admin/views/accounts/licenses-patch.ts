@@ -1,6 +1,6 @@
 /** 授权修正表单 → PATCH body 的纯函数实现（与组件解耦，便于单测与复杂度控制）。 */
 
-import { utcInput } from "@store/features/admin/utils/format";
+import { utcInput } from "@store/features/admin/format";
 
 interface LicensePatchInput {
   userLabel: string;

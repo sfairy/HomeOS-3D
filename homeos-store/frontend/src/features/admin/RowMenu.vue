@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, ref } from "vue";
 import { nextRowMenuId, registerRowMenu } from "./row-menu";
-import { hidePopoverIfOpen, placePopover, showPopoverIfPossible } from "@store/features/admin/utils/popover";
+import { hidePopoverIfOpen, placePopover, showPopoverIfPossible } from "@store/features/admin/popover";
 
 withDefaults(defineProps<{ title?: string }>(), { title: "更多操作" });
 

@@ -1,19 +1,19 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import SceneStage from "@store/shared/components/SceneStage.vue";
-import DeckTiles from "@store/shared/components/DeckTiles.vue";
+import SceneStage from "@store/shared/SceneStage.vue";
+import DeckTiles from "@store/shared/DeckTiles.vue";
 import EntryShell from "@homeos/shared/components/EntryShell.vue";
 import PasswordField from "@homeos/shared/components/PasswordField.vue";
 import { fromResponse } from "@store/shared/api/error";
 import { isPasswordPolicyCompliant, PASSWORD_POLICY_MESSAGE } from "@homeos/shared/security/password-policy";
-import { sessionPersisted } from "@store/shared/stores/session";
-import { reportBestEffort, runBestEffort } from "@store/shared/utils/best-effort";
+import { sessionPersisted } from "@store/shared/session";
+import { reportBestEffort, runBestEffort } from "@store/shared/best-effort";
 import {
   peekSetupStatus,
   probeSetupStatus,
   setupTokenFromHash,
   type SetupState,
-} from "@store/shared/utils/setup-status";
+} from "@store/shared/setup-status";
 
 const username = ref("");
 const email = ref("");

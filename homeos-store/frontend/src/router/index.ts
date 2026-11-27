@@ -1,13 +1,13 @@
 /** 路由表：前台商店、后台工作台与首次初始化。 */
 
 import { createRouter, createWebHistory, type RouteRecordRaw } from "vue-router";
-import { serverAuthState } from "@store/shared/stores/session";
-import { hashScrollOffset } from "@store/shared/utils/hash-scroll";
+import { serverAuthState } from "@store/shared/session";
+import { hashScrollOffset } from "@store/shared/hash-scroll";
 // 跨域只走域根 barrel：admin 的会话态给后台闸门，storefront 的三个首屏页面给路由表。
 import { useAdminStore } from "@store/features/admin";
 import { StoreLayout, HomeView, AuthView } from "@store/features/storefront";
 import { resolveAdminGate } from "./admin-guard";
-import { probeSetupStatus, setupTokenFromHash } from "@store/shared/utils/setup-status";
+import { probeSetupStatus, setupTokenFromHash } from "@store/shared/setup-status";
 
 const ProductsView = () => import("@store/features/storefront/catalog/ProductsView.vue");
 const ItemView = () => import("@store/features/storefront/catalog/ItemView.vue");

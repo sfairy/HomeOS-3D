@@ -3,8 +3,8 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { api } from "@store/shared/api/http";
-import { logAndIgnore, reportBestEffort } from "@store/shared/utils/best-effort";
-import type { PaymentChannel, StoreSiteConfig, StoreConfiguration } from "@store/shared/types/store";
+import { logAndIgnore, reportBestEffort } from "@store/shared/best-effort";
+import type { PaymentChannel, StoreSiteConfig, StoreConfiguration } from "@store/shared/store";
 
 interface HealthPayload {
   version?: string;

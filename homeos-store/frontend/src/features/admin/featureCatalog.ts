@@ -3,7 +3,7 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import { adminApi } from "@store/shared/api/http";
-import { errorMessage } from "@store/shared/types/store";
+import { errorMessage } from "@store/shared/store";
 
 interface FeatureCatalogItem {
   code: string;

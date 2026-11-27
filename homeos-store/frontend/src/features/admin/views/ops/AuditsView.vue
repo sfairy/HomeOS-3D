@@ -2,16 +2,16 @@
 /** 审计日志面板：列表 + 批量清理。 */
 
 import { computed, ref } from "vue";
-import PanelHead from "@store/features/admin/components/PanelHead.vue";
-import AdminTabs from "@store/features/admin/components/AdminTabs.vue";
-import DataTable from "@store/features/admin/components/DataTable.vue";
+import PanelHead from "@store/features/admin/PanelHead.vue";
+import AdminTabs from "@store/features/admin/AdminTabs.vue";
+import DataTable from "@store/features/admin/DataTable.vue";
 import { adminApi } from "@store/shared/api/http";
-import { asListItems, errorMessage } from "@store/shared/types/store";
-import { useToastStore } from "@store/shared/stores/toast";
-import { useConfirmStore } from "@store/shared/stores/confirm";
-import { useAdminRefreshStore } from "@store/features/admin/stores/adminRefresh";
-import { dt } from "@store/features/admin/utils/format";
-import { useAdminTabs, type AdminTabItem } from "@store/features/admin/composables/useAdminTabs";
+import { asListItems, errorMessage } from "@store/shared/store";
+import { useToastStore } from "@store/shared/toast";
+import { useConfirmStore } from "@store/shared/confirm";
+import { useAdminRefreshStore } from "@store/features/admin/adminRefresh";
+import { dt } from "@store/features/admin/format";
+import { useAdminTabs, type AdminTabItem } from "@store/features/admin/useAdminTabs";
 
 interface AuditItem {
   id: string;

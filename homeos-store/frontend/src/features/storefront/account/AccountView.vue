@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { useSessionStore } from "@store/shared/stores/session";
+import { useSessionStore } from "@store/shared/session";
 import { useCatalogStore } from "@store/features/storefront/catalog/store";
 import { useOrderStore, orderCountdownText } from "@store/features/storefront/checkout/store";
-import { useSiteStore } from "@store/shared/stores/site";
-import { useConfirmStore } from "@store/shared/stores/confirm";
-import { useStoreToast } from "@store/shared/stores/toast";
+import { useSiteStore } from "@store/shared/site";
+import { useConfirmStore } from "@store/shared/confirm";
+import { useStoreToast } from "@store/shared/toast";
 import { api } from "@store/shared/api/http";
 import {
   activationCode,
@@ -21,9 +21,9 @@ import {
   stateText,
   stateVariant,
 } from "./license-presentation";
-import { errorMessage, type StoreLicense, type StoreOrder } from "@store/shared/types/store";
-import { formatCents as money } from "@store/shared/utils/money";
-import { copyText } from "@store/shared/utils/clipboard";
+import { errorMessage, type StoreLicense, type StoreOrder } from "@store/shared/store";
+import { formatCents as money } from "@store/shared/money";
+import { copyText } from "@store/shared/clipboard";
 
 const router = useRouter();
 const session = useSessionStore();
