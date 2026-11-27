@@ -30,7 +30,7 @@ import type {
 import { getConfigSection, onConfigChange } from '@/kernel/config/frontend-config'
 import { isEntityAllowed as checkEntityAllowed } from '@homeos/shared'
 import { notifyAuthChanged } from '@/kernel/utils/bridge/store-bridge'
-import { bumpAuthGeneration, getAuthGeneration } from '@/kernel/http'
+import { bumpAuthGeneration, getAuthGeneration } from '@/kernel/http/index'
 import { readServerAuthHint, shouldProbeSession } from '@/kernel/utils/auth'
 import { setLicenseFeatureAccess } from '@/domain/license'
 import { logger } from '@/kernel/utils/core'

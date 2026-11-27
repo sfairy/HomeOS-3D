@@ -1,6 +1,6 @@
 import { resolvePageBehavior } from './presets'
-import { performanceWarnings, confirmPerformanceWarning } from './scene/performance-warning'
-import { normalizeGroundReflection } from './scene/reflection-settings'
+import { performanceWarnings, confirmPerformanceWarning } from './scene'
+import { normalizeGroundReflection } from './scene'
 import {
   requestInteraction3dAccess,
   getInteraction3dEditorView,

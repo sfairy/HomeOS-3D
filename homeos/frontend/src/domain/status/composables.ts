@@ -6,7 +6,7 @@ import { type HaEntityState } from '@/kernel/types/entity'
 import { type WholeHomeOffConfig } from '@/kernel/types/whole-home-off'
 import { readLocalStorage, writeLocalStorage, logger } from '@/kernel/utils/core'
 import { ref, computed, onMounted } from 'vue'
-import { fetchSetupChecklist, fetchSystemHealth, fetchSystemDiagnostics } from '@/kernel/http'
+import { fetchSetupChecklist, fetchSystemHealth, fetchSystemDiagnostics } from '@/kernel/http/index'
 
 /** 全屋批量操作工具。 */
 

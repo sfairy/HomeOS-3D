@@ -43,7 +43,7 @@ export * from './utils'
 export * from './utils'
 
 // ── 共享纯函数（域外也要用，真源在 shared/security/utils）──
-export * from '@/features/security/model/utils/panel-arm.util'
-export * from '@/features/security/model/utils/panel-layout.util'
-export * from '@/features/security/model/utils/panel-zones-bootstrap.util'
-export * from '@/features/security/model/utils/zones-api.util'
+export * from '@/features/security/model/utils'
+export * from '@/features/security/model/utils'
+export * from '@/features/security/model/utils'
+export * from '@/features/security/model/utils'

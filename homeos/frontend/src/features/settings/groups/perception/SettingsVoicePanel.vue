@@ -139,7 +139,7 @@ import SettingsVoiceCommandsSection from '@/features/settings/groups/perception/
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { getEntityDisplayName, domainIndexToArray } from '@/domain/entity/model/utils/derived.util'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { fetchVoiceMeta } from '@/kernel/http'
+import { fetchVoiceMeta } from '@/kernel/http/index'
 import { getVoiceRoomLabels } from '@/kernel/constants'
 import { parseWakeWordsText } from '@/kernel/constants'
 import { DOMAIN_SERVICES } from '@/kernel/utils/registry/widget-catalog'

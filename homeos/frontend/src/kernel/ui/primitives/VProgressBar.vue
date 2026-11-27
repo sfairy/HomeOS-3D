@@ -34,7 +34,7 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import { normalizeProgressPct, progressFillStyle } from '@/kernel/utils/ui/progress-bar.util'
+import { normalizeProgressPct, progressFillStyle } from '@/kernel/utils/ui'
 
 const props = defineProps({
   /** 当前值；默认按 0–100 解释，或通过 min/max 归一化 */

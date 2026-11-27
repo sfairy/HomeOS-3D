@@ -351,7 +351,7 @@ import {
   clearAutoPerformanceMode,
   resolveEffectivePerformanceMode,
 } from '@/kernel/utils/perf'
-import { applyGlassEffectDocument } from '@/kernel/utils/ui/glass-effect.util'
+import { applyGlassEffectDocument } from '@/kernel/utils/ui'
 import { useSettingsSidebarReentryReset } from '@/kernel/ui/hooks/hub-viewport'
 import { useSettingsHubRouteSection } from '@/features/settings/shared/composables/hub'
 import { useSettingsPendingChanges } from '@/features/settings/kernel/pending.internals'

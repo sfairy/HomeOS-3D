@@ -6,7 +6,7 @@ import {
   getTeleportLiveScale,
   shouldUseTeleportCanvasCoords,
 } from '@/kernel/ui/popup/popup-position-dropdown.util'
-import type { PopupPlacementBounds } from '@/kernel/utils/ui/popup-placement.util'
+import type { PopupPlacementBounds } from '@/kernel/utils/ui'
 
 /** 读取 #teleport-target 在定位坐标系中的尺寸（缩放时 shell 大于设计稿 content 区） */
 export function getTeleportContainerSize() {

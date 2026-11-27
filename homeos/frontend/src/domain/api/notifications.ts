@@ -1,6 +1,6 @@
 /** 通知模块 REST API 封装 */
 import type { AxiosRequestConfig } from 'axios'
-import { apiDelete, apiGet, apiPost, apiPut } from '../../kernel/http'
+import { apiDelete, apiGet, apiPost, apiPut } from '../../kernel/http/index'
 
 /** 获取通知列表。 */
 export function fetchNotifications(params?: { limit?: number }, config?: AxiosRequestConfig) {

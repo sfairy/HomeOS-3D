@@ -1,6 +1,6 @@
 /** 安防与安防面板 REST API 封装 */
 import type { AxiosRequestConfig } from 'axios'
-import { apiGet, apiPost } from '../../kernel/http'
+import { apiGet, apiPost } from '../../kernel/http/index'
 
 /** 获取安防事件列表。 */
 export function fetchSecurityEvents(config?: AxiosRequestConfig) {

@@ -16,7 +16,7 @@ import {
   observeChartResize,
   scheduleEchartsTask,
   cancelScheduledEchartsTask,
-} from '@/kernel/utils/ui/chart-resize.util'
+} from '@/kernel/utils/ui'
 import { useFetchGeneration } from '@/kernel/ui/hooks/use-fetch-generation'
 import {
   HOME_CLIMATE_CHART_VIEW_OPTIONS,

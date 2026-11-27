@@ -4,8 +4,8 @@ import { logger, readLocalStorage, removeLocalStorage, writeLocalStorage, getApi
 import { onMounted, onUnmounted, ref, computed, onScopeDispose, getCurrentScope, type Ref } from 'vue'
 import { previewAgentTts } from '@/domain/api/agent'
 import { previewDailyAdvisor } from '@/features/voice/model/utils'
-import { hapticHold, hapticTap } from '@/kernel/utils/ui/haptics.util'
-import { transcribeVoice } from '@/kernel/http'
+import { hapticHold, hapticTap } from '@/kernel/utils/ui'
+import { transcribeVoice } from '@/kernel/http/index'
 import { normalizeWakeWords } from '@/kernel/constants'
 
 /**

@@ -10,11 +10,11 @@ import {
   loadFrontendConfig,
   configEpoch,
 } from '@/kernel/config/frontend-config'
-import { setScreensaverVisible } from '@/kernel/utils/ui/screensaver-background-idle.util'
+import { setScreensaverVisible } from '@/kernel/utils/ui'
 import { schedulePoll } from '@/kernel/utils/core'
 import { useWakeWord } from '@/features/voice/composables'
 import { useTtsSpeak } from '@/domain/voice/use-tts-speak'
-import { executeVoiceCommand } from '@/kernel/http'
+import { executeVoiceCommand } from '@/kernel/http/index'
 import { getClientDeviceId } from '@/domain/client/utils'
 import { resolveChargerSwitchWakeEntityIdForDevice, shouldDismissScreensaverOnChargerSwitch } from '@homeos/shared'
 import type { useEntitiesStore } from '@/domain/entity/store/entities.store'

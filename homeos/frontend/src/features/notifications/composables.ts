@@ -2,7 +2,7 @@ import { type EChartsCoreOption, type ECharts, type ECElementEvent } from 'echar
 import { getKioskAnimationOptions } from '@/domain/layout/composables/kiosk-animation'
 import { barGradient, CHART_EMPTY_COLOR, chartLinearGradient, countCategoryAxis, countValueAxis, createChartTooltip, pieEmptyData, pieSeries, rankCategoryAxis } from '@/kernel/utils/chart'
 import { ref, computed, watch, onMounted, onUnmounted, nextTick, type ToRefs, type Ref, type ComponentPublicInstance, unref, inject } from 'vue'
-import { observeChartResize } from '@/kernel/utils/ui/chart-resize.util'
+import { observeChartResize } from '@/kernel/utils/ui'
 import { buildLevelBuckets, buildLevelBucketsFromStats, buildSourceBuckets, buildSourceBucketsFromStats, buildTimeBucketsFromNotifications, formatPercent, type NotificationAnalyticsSummary, type NotificationStatsPayload, computeNotificationAnalyticsSummary, formatNotificationHourOption, formatNotificationCount, levelFilterLabel, NOTIFICATION_HOUR_OPTIONS } from '@/features/notifications/model/utils/analytics.util'
 import { fetchNotificationStats, fetchWebPushVapidPublicKey, subscribeWebPush, testWebPush } from '@/domain/api/notifications'
 import { useNotificationCenter, NOTIFICATION_CENTER_KEY } from '@/domain/widget/composables'

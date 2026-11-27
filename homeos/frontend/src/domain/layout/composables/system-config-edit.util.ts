@@ -1,8 +1,8 @@
 /** 系统配置可编辑视图构建工具 */
 import { getSectionLabels } from '@/domain/layout/composables/system-config-core.internals'
-import { inferSystemConfigFieldType, NESTED_JSON_FIELDS } from '@/kernel/utils/config/system-config/field.util'
-import { SYSTEM_CONFIG_FIELD_KEYS } from '@/kernel/utils/config/system-config/field.meta'
-import { isNumericMultiField } from '@/kernel/utils/config/system-config/field.util'
+import { inferSystemConfigFieldType, NESTED_JSON_FIELDS } from '@/kernel/utils/config/system-config'
+import { SYSTEM_CONFIG_FIELD_KEYS } from '@/kernel/utils/config/system-config'
+import { isNumericMultiField } from '@/kernel/utils/config/system-config'
 import type { SystemConfig } from '@/kernel/types/system-config'
 import type {
   EditableConfigField,

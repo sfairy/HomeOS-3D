@@ -4,7 +4,7 @@
  */
 
 import { navigateInShell } from '@/studio/platform/shell-navigation'
-import { withCsrf } from '@/kernel/http'
+import { withCsrf } from '@/kernel/http/index'
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 20000
 

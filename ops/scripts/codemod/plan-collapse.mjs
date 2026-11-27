@@ -25,6 +25,24 @@ import process from 'node:process'
 const REPO_ROOT = resolve(import.meta.dirname, '../../..')
 const SRC = 'homeos/frontend/src'
 
+/**
+ * 持久黑名单：实测会导致编译错误 / 环 / 初始化顺序问题的目录。
+ * 每行 `<相对路径>  # 原因`，`#` 后为注释。
+ */
+function loadDenyList() {
+  const path = resolve(REPO_ROOT, 'ops/scripts/codemod/collapse-deny.txt')
+  const deny = new Map()
+  if (!existsSync(path)) return deny
+  for (const raw of readFileSync(path, 'utf8').split('\n')) {
+    const line = raw.split('#')[0].trim()
+    if (!line) continue
+    deny.set(line, raw.includes('#') ? raw.split('#').slice(1).join('#').trim() : '黑名单')
+  }
+  return deny
+}
+
+const DENY = loadDenyList()
+
 const args = process.argv.slice(2)
 const maxIndex = args.indexOf('--max-lines')
 const maxLines = maxIndex > -1 ? Number(args[maxIndex + 1]) : 2400
@@ -60,20 +78,15 @@ function hazard(dirAbs, files) {
   for (const file of files) {
     const path = join(dirAbs, file)
     const text = readFileSync(path, 'utf8')
-    // 目录内 re-export
-    for (const match of text.matchAll(/^[ \t]*export\s+(?:type\s+)?\{[^{}]*\}\s+from\s+['"]([^'"]+)['"]/gm)) {
+    // 目录内 re-export（`export ... from './sibling'`）：合并后 sibling 的内容也在本文件，
+    // `cleanupMergedReExports` 会删掉重复项、保留重命名导出，属于安全情形。
+    // 但**指向外部模块**的 re-export 语义会变模糊（谁提供这个符号），仍然跳过。
+    for (const match of text.matchAll(/^[ \t]*export\s+(?:type\s+)?(?:\{[^{}]*\}|\*)\s+from\s+['"]([^'"]+)['"]/gm)) {
       const spec = match[1]
-      if (!spec.startsWith('.')) continue
-      const target = resolve(dirname(path), spec)
-      if (files.some((other) => resolve(dirAbs, other).replace(/\.ts$/, '') === target.replace(/\.ts$/, ''))) {
-        return `目录内 re-export（${spec}）`
-      }
-    }
-    // 任何形式的 re-export（含指向外部模块的）：合并后「谁提供这个符号」会变模糊，
-    // 自动改写容易丢导出（已实测：`export type { X } from '@homeos/shared'` 与本地
-    // 同名声明并存时会重复）。这类目录交给人工。
-    for (const match of text.matchAll(/^[ \t]*export\s+(?:type\s+)?(?:\{[^{}]*\}|\*)\s+from\s+['"]/gm)) {
-      return '目录内含 re-export（转手导出），合并需人工确认'
+      if (!spec.startsWith('.')) return '目录内含指向外部模块的 re-export，合并需人工确认'
+      const target = resolve(dirname(path), spec).replace(/\.ts$/, '')
+      const inside = files.some((other) => resolve(dirAbs, other).replace(/\.ts$/, '') === target)
+      if (!inside) return '目录内含指向目录外的相对 re-export，合并需人工确认'
     }
     for (const match of text.matchAll(/^(?:export\s+)?(?:type|interface|const|function|class)\s+([A-Za-z_$][\w$]*)/gm)) {
       const body = declarationText(text, match.index).replace(/\s+/g, ' ').trim()
@@ -100,6 +113,10 @@ const skipped = []
 
 for (const dir of targets) {
   const rel = dir.replace(/^\.\//, '')
+  if (DENY.has(rel)) {
+    skipped.push(`${rel}: 黑名单（${DENY.get(rel)}）`)
+    continue
+  }
   if (rel.startsWith('studio/runtime')) {
     skipped.push(`${rel}: runtime 每个 .ts 都是公网 URL 入口`)
     continue

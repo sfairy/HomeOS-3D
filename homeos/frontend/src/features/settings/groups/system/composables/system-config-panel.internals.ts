@@ -12,7 +12,7 @@ import {
 } from '@/features/settings/groups/system/composables/system-config-panel-prefs.internals'
 import { useSettingsHubRouteSection } from '@/features/settings/shared/composables/hub'
 import { useSettingsSave } from '@/features/settings/kernel/save.internals'
-import { fetchConfigAudit } from '@/kernel/http'
+import { fetchConfigAudit } from '@/kernel/http/index'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import type { SystemConfig, SystemConfigLoadOptions } from '@/kernel/types/system-config'
 import type { EditableConfigSection } from '@/kernel/types/system-config'
@@ -26,7 +26,7 @@ import {
   getSystemConfigSectionPendingMap,
   toEditableSections,
 } from '@/domain/layout/composables/system-config-edit.util'
-import { filterSectionsForExpert } from '@/kernel/utils/config/system-config/expert.util'
+import { filterSectionsForExpert } from '@/kernel/utils/config/system-config'
 import type { Ref } from 'vue'
 import { computed, ref, watch } from 'vue'
 import type { RouteLocationNormalizedLoaded } from 'vue-router'

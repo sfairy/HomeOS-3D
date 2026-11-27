@@ -129,7 +129,7 @@ import SettingsPageShell from '@/features/settings/components/shell/SettingsPage
 import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
 import VEmptyState from '@/kernel/ui/primitives/VEmptyState.vue'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { fetchDevicesOverview, unbindZombieBindings } from '@/kernel/http'
+import { fetchDevicesOverview, unbindZombieBindings } from '@/kernel/http/index'
 
 defineProps({ activeTab: { type: String, default: 'devices' } })
 

@@ -1,7 +1,7 @@
 /** 认证与初始化 REST API 封装（单用户注册登录口径） */
 import type { AxiosRequestConfig } from 'axios'
-import { apiGet, apiPost } from '../../kernel/http'
-import type { ApiRequestConfig } from '../../kernel/http'
+import { apiGet, apiPost } from '../../kernel/http/index'
+import type { ApiRequestConfig } from '../../kernel/http/index'
 import type { AuthUserPayload } from '@/kernel/types/auth'
 
 /** 系统初始化状态。对应后端 endpoint：GET /setup/status */

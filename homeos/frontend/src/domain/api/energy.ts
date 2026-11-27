@@ -1,6 +1,6 @@
 /** 能耗历史与报表 API。 */
 import type { AxiosRequestConfig } from 'axios'
-import { apiGet } from '../../kernel/http'
+import { apiGet } from '../../kernel/http/index'
 
 /** 能耗历史窗口：W=近 7 天，M=近 30 天，Y=近 12 个月。 */
 export type EnergyHistoryRange = 'W' | 'M' | 'Y'

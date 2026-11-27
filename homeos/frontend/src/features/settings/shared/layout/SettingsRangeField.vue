@@ -81,7 +81,7 @@ import { computed, ref } from 'vue'
 
 import { ChevronUp, ChevronDown } from '@lucide/vue'
 
-import { sliderTrackStyle } from '@/kernel/utils/ui/progress-bar.util'
+import { sliderTrackStyle } from '@/kernel/utils/ui'
 import { parseOptionalNumber } from '@/kernel/utils/core'
 
 import { formatRangeDisplayValue, snapToRangeStep } from '@/kernel/utils/settings'

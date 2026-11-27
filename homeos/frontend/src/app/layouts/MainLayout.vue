@@ -40,7 +40,7 @@ import { useDisplayLightBackdropState } from '@/features/dashboard/composables/d
 import { setDerivedRoutePath } from '@/domain/entity/model/utils/derived-route.util'
 import { resolvePerfShellClass } from '@/kernel/utils/perf'
 import { autoPerformanceModeRef, resolveEffectivePerformanceMode } from '@/kernel/utils/perf'
-import { applyGlassEffectDocument } from '@/kernel/utils/ui/glass-effect.util'
+import { applyGlassEffectDocument } from '@/kernel/utils/ui'
 import { isNavTabRouteActive } from '@/kernel/utils/layout'
 import { useViewportTier } from '@/kernel/utils/layout'
 import { useCanvasMetrics } from '@/kernel/ui/hooks/use-canvas-metrics'

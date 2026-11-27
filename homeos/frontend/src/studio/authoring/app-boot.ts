@@ -39,7 +39,7 @@ import {
   closePresetRenameDialog as closePresetRenameDialogImpl, openPresetRenameDialog as openPresetRenameDialogImpl,
   openPresetDeleteDialog as openPresetDeleteDialogImpl,
 } from "./export/index";
-import { addCylinderMesh } from "./geometry/index";
+import { addCylinderMesh } from "./geometry";
 import {
   handlePointerUp as handlePointerUpImpl, type HandlePointerUpDeps, handlePointerDown as handlePointerDownImpl,
   type HandlePointerDownDeps, applyToolSetting as applyToolSettingImpl, type ApplyToolSettingDeps,
@@ -166,7 +166,7 @@ import {
   sceneSyncFlushIsDirty as sceneSyncFlushIsDirtyImpl, flushSceneSyncRuntime as flushSceneSyncRuntimeImpl,
   currentSceneSyncSinceKey as currentSceneSyncSinceKeyImpl, rememberSceneSyncKey as rememberSceneSyncKeyImpl,
   refreshAfterSceneSyncOutcome as refreshAfterSceneSyncOutcomeImpl, fetchStudioApi as fetchStudioApiImpl,
-} from "./persistence/index";
+} from "./persistence";
 import {
   planToWorldPoint as planToWorldPointImpl, worldToPlanPoint as worldToPlanPointImpl,
   worldPointForFloor as worldPointForFloorImpl, getActiveWalls as getActiveWallsImpl,
@@ -356,7 +356,7 @@ import {
 } from "./materials/studio-material";
 
 
-import { createLoadTiming as createLoadTiming2 } from "../app/bridge/scene/load-timing";
+import { createLoadTiming as createLoadTiming2 } from "../app/bridge/scene";
 import { stageStartup as stageStartup2 } from "./stage-startup";
 import { createPreviewTransformCache } from "./studio-preview-transforms";
 
@@ -373,7 +373,7 @@ stageLoadTiming("module-ready");
 
 import {
   createRenderCache as createRenderCache2,
-} from "../app/bridge/scene/render-cache";
+} from "../app/bridge/scene";
 import { syncHtmlRangeProgress as syncHtmlRangeProgress2 } from "../app/shared/util/range-progress";
 import * as ns2 from "/static/vendor/three/0.187.0/three.module.min.js";
 import { SameOriginDRACOLoader as SameOriginDRACOLoader2 } from "./export/draco-loader";

@@ -14,7 +14,7 @@
 import { ref, computed } from 'vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { getConfigSection } from '@/kernel/config/frontend-config'
-import { speakVoice, speakVoiceMultiple } from '@/kernel/http'
+import { speakVoice, speakVoiceMultiple } from '@/kernel/http/index'
 import { logger } from '@/kernel/utils/core'
 import { getApiErrorMessage } from '@/kernel/utils/core'
 import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'

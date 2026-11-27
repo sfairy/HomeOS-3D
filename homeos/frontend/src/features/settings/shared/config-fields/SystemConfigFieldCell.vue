@@ -141,7 +141,7 @@ import {
   systemConfigCellClass,
   systemConfigMultiOptions,
   systemConfigSelectOptions,
-} from '@/kernel/utils/config/system-config/field.util'
+} from '@/kernel/utils/config/system-config'
 import { getNestedObjectEditorKind } from '@/features/settings/shared/config-fields/nested-editor.util'
 import { joinCommaEntityIds, parseCommaEntityIds } from '@/domain/entity/model/utils/comma-entity-ids.util'
 import { parseOptionalNumber } from '@/kernel/utils/core'

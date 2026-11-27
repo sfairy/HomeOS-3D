@@ -1,5 +1,5 @@
 import type { StudioAppRuntime } from '../runtime/studio-app-runtime'
-import { cacheObjectTransforms as cacheObjectTransforms2 } from '../../app/bridge/scene/scene-matrices'
+import { cacheObjectTransforms as cacheObjectTransforms2 } from '../../app/bridge/scene'
 import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
 import type { SceneRefreshOptions } from '../types/studio-app-types'
 

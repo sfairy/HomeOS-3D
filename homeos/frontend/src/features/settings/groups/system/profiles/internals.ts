@@ -14,7 +14,7 @@ import {
   restoreServerBackupFile,
   createServerBackup,
   fetchAutoBackupStatus,
-} from '@/kernel/http'
+} from '@/kernel/http/index'
 import { handleSystemConfigPatchError, patchSystemConfig } from '@/domain/layout/composables/system-config-core.internals'
 import { formatAuditTime, formatFullDateTime } from '@/kernel/utils/format'
 import {

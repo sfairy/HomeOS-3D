@@ -14,7 +14,7 @@ import { useAuthStore } from '@/domain/auth/auth.store'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { EEW_CITY_PRESETS, createDefaultEarthquakeConfig, type EarthquakeAlertPayload } from '@/kernel/types/earthquake'
 import { useApiQuery } from '@/features/settings/composables/use-api-query'
-import { speakVoiceMultiple } from '@/kernel/http'
+import { speakVoiceMultiple } from '@/kernel/http/index'
 import { resolveTtsMediaPlayerIds } from '@/features/voice/model/utils'
 import { cancelLocalSpeech, getLoadedVoices, getSpeechSynth, resetLocalSpeechVoice, speakViaLocalRaw, waitForVoices } from '@/domain/voice/local-speech.util'
 

@@ -1,8 +1,8 @@
 import { type WindowRecord } from '@app/shared/scene/window/layout'
 import { restoreWindowDeletion as restoreWindowDeletion2, windowDeletionChange as windowDeletionChange2, windowSashTargets as windowSashTargets2 } from '@app/shared/scene/window/window-deletion'
-import { sceneUpdatePlan } from '../app/bridge/scene/scene-update'
+import { sceneUpdatePlan } from '../app/bridge/scene'
 import { syncModelRemarks } from '../app/shared/model-remarks'
-import { withCsrf } from '@/kernel/http'
+import { withCsrf } from '@/kernel/http/index'
 
 /**
  * C5 支撑——把“两份文档之间的差异”翻译成 DocumentPatch（跨楼层）。

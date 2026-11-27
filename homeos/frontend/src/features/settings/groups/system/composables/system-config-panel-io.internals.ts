@@ -10,7 +10,7 @@ import {
 import { fetchSystemConfigFresh, handleSystemConfigPatchError } from '@/domain/layout/composables/system-config-core.internals'
 import type { useSystemConfig } from '@/domain/layout/composables/system-config-core.internals'
 import type { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { resetSystemConfig } from '@/kernel/http'
+import { resetSystemConfig } from '@/kernel/http/index'
 import { reloadFrontendConfig } from '@/kernel/config/frontend-config'
 import { getApiErrorMessage } from '@/kernel/utils/core'
 import { logger } from '@/kernel/utils/core'

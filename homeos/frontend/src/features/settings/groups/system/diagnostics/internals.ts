@@ -1,6 +1,6 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { formatFullDateTime } from '@/kernel/utils/format'
-import { fetchConfigHealth, fetchSystemDiagnostics, fetchSystemHealth } from '@/kernel/http'
+import { fetchConfigHealth, fetchSystemDiagnostics, fetchSystemHealth } from '@/kernel/http/index'
 import { agentPing } from '@/domain/api/agent'
 import { extractErrorMessage } from '@/kernel/utils/core'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'

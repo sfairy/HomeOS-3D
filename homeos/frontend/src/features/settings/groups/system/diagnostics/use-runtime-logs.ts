@@ -6,7 +6,7 @@ import {
   type RuntimeLogEntry,
   type RuntimeLogLevel,
   type RuntimeLogsResponse,
-} from '@/kernel/http'
+} from '@/kernel/http/index'
 import { extractErrorMessage } from '@/kernel/utils/core'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { schedulePoll } from '@/kernel/utils/core'

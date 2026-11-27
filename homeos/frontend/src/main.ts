@@ -60,8 +60,8 @@ import {
   primeFrontendConfigFromCache,
   setupFrontendConfigVisibilitySync,
 } from '@/kernel/config/frontend-config'
-import { primeGlassEffectDocument, setupGlassEffectSync } from '@/kernel/utils/ui/glass-effect.util'
-import { applyHomeOsTheme } from '@/kernel/utils/ui/theme.util'
+import { primeGlassEffectDocument, setupGlassEffectSync } from '@/kernel/utils/ui'
+import { applyHomeOsTheme } from '@/kernel/utils/ui'
 import { setupSmartPerformanceMode } from '@/kernel/utils/perf'
 import {
   registerAuthChangeHandler,
@@ -78,8 +78,8 @@ import VEmptyState from './kernel/ui/primitives/VEmptyState.vue'
 import VPanelSkeleton from './kernel/ui/primitives/VPanelSkeleton.vue'
 import { swipeClose } from './app/directives/swipe-close'
 import { scrollRegion } from './app/directives/scroll-region'
-import { studioStartupReady } from '@/kernel/utils/ui/studio-startup'
-import { ensureStudioLoadingStyle } from '@/kernel/utils/ui/studio-loading-style'
+import { studioStartupReady } from '@/kernel/utils/ui'
+import { ensureStudioLoadingStyle } from '@/kernel/utils/ui'
 import { forgetLicenseAvailability } from '@/domain/license'
 import { adoptPreloadedStylesheets } from '@/studio/index'
 

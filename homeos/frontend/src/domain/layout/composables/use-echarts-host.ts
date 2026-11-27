@@ -4,7 +4,7 @@ import {
   observeChartResize,
   scheduleEchartsTask,
   cancelScheduledEchartsTask,
-} from '@/kernel/utils/ui/chart-resize.util'
+} from '@/kernel/utils/ui'
 import type { EChartsCoreOption } from 'echarts/core'
 import type * as EchartsModuleNS from '@/kernel/utils/chart'
 import { getKioskAnimationOptions } from '@/domain/layout/composables/kiosk-animation'

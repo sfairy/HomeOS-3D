@@ -12,7 +12,7 @@ import { normalizeWholeHomeOff, createDefaultWholeHomeOff } from '@/kernel/const
 import { type NotifyType } from '@/kernel/types/notify'
 import { WIDGET_REGISTRY_META, FLOATING_HUB_TYPE_SET } from '@/kernel/utils/registry/widget-registry-meta'
 import { pushServerAccessConfig } from '@/kernel/utils/bridge/native-bridge'
-import { fetchSystemNetworkInfo } from '@/kernel/http'
+import { fetchSystemNetworkInfo } from '@/kernel/http/index'
 import { activateHomeMode } from '@/domain/api/home-modes'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { inferTerminalLabel, getClientDeviceId } from '@/domain/client/utils'

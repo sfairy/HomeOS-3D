@@ -32,7 +32,7 @@ import {
 import "@/studio/chrome/studio-chrome.css";
 import "@/studio/chrome/studio-native-dialogs.css";
 import { Undo2, Redo2, Focus, PanelsTopLeft } from "@lucide/vue";
-import { studioStartupFail, studioStartupPhase } from "@/kernel/utils/ui/studio-startup";
+import { studioStartupFail, studioStartupPhase } from "@/kernel/utils/ui";
 // bootStudio 在 onMounted 同步读 #plan-canvas / 对话框等节点：这些壳必须同步挂载，不能 defineAsyncComponent。
 import StudioPlanPanel from "@/studio/chrome/creator/StudioPlanPanel.vue";
 import StudioPlacedPanel from "@/studio/chrome/creator/StudioPlacedPanel.vue";

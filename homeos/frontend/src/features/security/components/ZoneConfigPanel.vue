@@ -66,11 +66,11 @@ import SecurityZoneEditorList from '@/features/security/components/ZoneEditorLis
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useLayoutStore } from '@/domain/layout/store'
 import { getApiErrorMessage } from '@/kernel/utils/core'
-import { postSecurityZones, prepareZonesForSave } from '@/features/security/model/utils/zones-api.util'
+import { postSecurityZones, prepareZonesForSave } from '@/features/security/model/utils'
 import {
   getSecurityPanelZonesFromLayout,
   mirrorSecurityPanelZonesToLayout,
-} from '@/features/security/model/utils/panel-layout.util'
+} from '@/features/security/model/utils'
 import { useSecurityZoneRooms } from '@/features/security/composables/security-zone'
 
 const props = defineProps({

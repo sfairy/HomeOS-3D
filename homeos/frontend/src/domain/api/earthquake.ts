@@ -1,6 +1,6 @@
 /** 地震预警模块 REST API 封装 */
 import type { AxiosRequestConfig } from 'axios'
-import { apiDelete, apiGet, apiPost } from '../../kernel/http'
+import { apiDelete, apiGet, apiPost } from '../../kernel/http/index'
 
 /** 地震预警模块状态载荷 */
 export interface EarthquakeStatusPayload {

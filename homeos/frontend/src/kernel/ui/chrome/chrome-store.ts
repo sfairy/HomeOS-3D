@@ -7,7 +7,7 @@
 
 import { ref } from 'vue'
 import { type NotifyType } from '@/kernel/types/notify'
-import { createNotifyCoalescer } from '@/kernel/utils/ui/notify-coalesce.util'
+import { createNotifyCoalescer } from '@/kernel/utils/ui'
 import { defineStore } from 'pinia'
 
 /**

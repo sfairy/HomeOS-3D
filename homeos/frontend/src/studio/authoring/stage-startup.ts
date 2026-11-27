@@ -4,7 +4,7 @@ import { contactShadowPreparationKey } from './plan/contact-shadow'
 import { createReflectionPersistentCache } from './reflection/reflection-persistent-cache'
 import { createScenePersistentCache, scenePreparationKey } from './cache/scene-persistent-cache'
 import { isLegacyEmbedStageLighting } from './scene/studio-stage-lighting-mode'
-import { createLoadTiming } from '../app/bridge/scene/load-timing'
+import { createLoadTiming } from '../app/bridge/scene'
 import { createDashboardFonts } from '../app/shared/dashboard-fonts'
 
 const STAGE_MODULE_PATH = '/api/v1/modules/interaction3d/core/stage.js'

@@ -1,6 +1,6 @@
 {
   "totals": {
-    "alias2": 1274,
+    "alias2": 1272,
     "impl": 1731,
     "moduleLet": 334
   },
@@ -385,7 +385,7 @@
       "impl": 0,
       "moduleLet": 3
     },
-    "homeos/frontend/src/features/security/model/utils/panel-zones-bootstrap.util.ts": {
+    "homeos/frontend/src/features/security/model/utils.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 2
@@ -840,15 +840,10 @@
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/kernel/utils/ui/glass-effect.util.ts": {
+    "homeos/frontend/src/kernel/utils/ui.ts": {
       "alias2": 0,
       "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/kernel/utils/ui/screensaver-background-idle.util.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 2
+      "moduleLet": 3
     },
     "homeos/frontend/src/studio/app/bridge/bridge.ts": {
       "alias2": 0,
@@ -915,12 +910,7 @@
       "impl": 5,
       "moduleLet": 0
     },
-    "homeos/frontend/src/studio/app/editor/home/components/component-deletion.ts": {
-      "alias2": 2,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/editor/home/components/component-editing.ts": {
+    "homeos/frontend/src/studio/app/editor/home/components.ts": {
       "alias2": 13,
       "impl": 0,
       "moduleLet": 0
@@ -1230,13 +1220,8 @@
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/studio/authoring/geometry/floor-geometry.ts": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/authoring/geometry/geometry.ts": {
-      "alias2": 3,
+    "homeos/frontend/src/studio/authoring/geometry.ts": {
+      "alias2": 4,
       "impl": 0,
       "moduleLet": 0
     },
@@ -1370,13 +1355,8 @@
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/studio/authoring/persistence/draft.ts": {
-      "alias2": 7,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/authoring/persistence/history.ts": {
-      "alias2": 1,
+    "homeos/frontend/src/studio/authoring/persistence.ts": {
+      "alias2": 8,
       "impl": 0,
       "moduleLet": 0
     },

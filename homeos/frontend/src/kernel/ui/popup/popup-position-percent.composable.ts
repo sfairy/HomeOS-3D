@@ -6,7 +6,7 @@ import {
   resolvePopupNumeric,
   type PopupNumericInput,
 } from '@/kernel/ui/popup/popup-position-shared.util'
-import { pickPopupPlacementDirection } from '@/kernel/utils/ui/popup-placement.util'
+import { pickPopupPlacementDirection } from '@/kernel/utils/ui'
 
 /**
  * 弹窗位置自适应 Composable（百分比锚点模式）

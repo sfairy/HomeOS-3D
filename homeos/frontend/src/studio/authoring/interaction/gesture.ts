@@ -2,7 +2,7 @@ import { type StudioAppRuntime } from '../runtime/studio-app-runtime'
 import { distance as distance2, pointInRotatedRectangle as pointInRotatedRectangle2 } from '../plan/geometry'
 import { isCourtyardDrawing as isCourtyardDrawing2 } from '../loaders/studio-normalization'
 import { itemPlanFootprint as itemPlanFootprint2, itemPlanFootprintCenter as itemPlanFootprintCenter2, itemWithPlanFootprint as itemWithPlanFootprint2 } from '../items/studio-item-posture'
-import { isPointInBounds, boundsIntersectSegment } from '../geometry/geometry'
+import { isPointInBounds, boundsIntersectSegment } from '../geometry'
 
 /**
  * 3D 视口编辑的几何计算（0.8.7 `studio-editor-3d.js` 中 `verticalRayParameter` /

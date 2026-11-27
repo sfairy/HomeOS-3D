@@ -4,7 +4,7 @@
  */
 /** 高级参数面板：搜索与字段过滤派生 */
 import { filterPricingSectionFields } from '@/domain/layout/composables/system-config-edit.util'
-import { systemConfigFieldMatchesQuery } from '@/kernel/utils/config/system-config/field.util'
+import { systemConfigFieldMatchesQuery } from '@/kernel/utils/config/system-config'
 import type { EditableConfigSection } from '@/kernel/types/system-config'
 import { computed, type Ref } from 'vue'
 

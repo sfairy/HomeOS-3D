@@ -319,7 +319,7 @@ export function clearFrontendConfigCache(): void {
 
 async function fetchAndApplyPublicConfig(): Promise<FrontendSection> {
   // API 客户端同步读本模块的重试配置：静态引用 system 会形成 client → config → system → client 的值循环。
-  const { fetchPublicSystemConfig } = await import('@/kernel/http')
+  const { fetchPublicSystemConfig } = await import('@/kernel/http/index')
   const { data } = await fetchPublicSystemConfig<Partial<AppPublicConfig>>()
   applyConfig(data)
   writeCachedConfig(data)

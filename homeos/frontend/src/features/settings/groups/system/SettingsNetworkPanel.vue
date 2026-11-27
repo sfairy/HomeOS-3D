@@ -45,8 +45,8 @@ import { RefreshCw } from '@lucide/vue'
 import SettingsPageShell from '@/features/settings/components/shell/SettingsPageShell.vue'
 import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { fetchSystemNetworkInfo } from '@/kernel/http'
-import { apiPost } from '@/kernel/http'
+import { fetchSystemNetworkInfo } from '@/kernel/http/index'
+import { apiPost } from '@/kernel/http/index'
 import { getApiErrorMessage } from '@/kernel/utils/core'
 
 defineProps({ activeTab: { type: String, default: 'network' } })

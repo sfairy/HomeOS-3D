@@ -1,4 +1,4 @@
-import { exportSystemConfig, importSystemConfig } from '@/kernel/http'
+import { exportSystemConfig, importSystemConfig } from '@/kernel/http/index'
 import { useAuthStore } from '@/domain/auth/auth.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useLayoutStore } from '@/domain/layout/store'

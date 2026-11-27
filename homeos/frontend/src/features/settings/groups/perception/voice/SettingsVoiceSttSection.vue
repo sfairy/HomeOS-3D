@@ -245,7 +245,7 @@ import SettingsOrchTabs from '@/features/settings/components/SettingsOrchTabs.vu
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
 import EntityInput from '@/domain/entity/components/entity-input/EntityInput.vue'
-import { fetchVoiceSttStatus, processVoiceConversation } from '@/kernel/http'
+import { fetchVoiceSttStatus, processVoiceConversation } from '@/kernel/http/index'
 import { getApiErrorMessage } from '@/kernel/utils/core'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useAudioDevices } from '@/features/voice/composables'

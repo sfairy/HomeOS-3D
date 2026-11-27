@@ -5,7 +5,7 @@ import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
 import { isCourtyardDrawing as isCourtyardDrawing2, finite as finite2, DEFAULT_BASE_LIGHTING as DEFAULT_BASE_LIGHTING2, normalizeBaseLighting as normalizeBaseLighting2 } from '../loaders/studio-normalization'
 import { type SceneRebuildOptions } from '../types/studio-app-types'
 import { precompileShaderPrograms, scheduleIdleShaderPrecompileFill, visiblePrecompileBudgetMs } from '../scene/studio-shader-precompile'
-import { scheduleNearbyModelUpgradesAfterReady } from '../persistence/nearby-model-upgrades'
+import { scheduleNearbyModelUpgradesAfterReady } from '../persistence'
 
 
 export function requestSceneRebuild(runtime: StudioAppRuntime, rebuildOptions: SceneRebuildOptions = {}) {

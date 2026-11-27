@@ -1,7 +1,7 @@
 import { computed, onMounted, onUnmounted, watch, ref, onBeforeUnmount, type Ref, type ComputedRef, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import axios from 'axios'
-import { fetchSystemConfig, reportClientPower } from '@/kernel/http'
+import { fetchSystemConfig, reportClientPower } from '@/kernel/http/index'
 import { type ApiRequestConfig } from '@/domain/api/index'
 import { useAuthStore } from '@/domain/auth/auth.store'
 import { buildClientSystemReport, ensureBatteryManager, onBatteryChange, readBatterySnapshotSync } from '@/domain/client/utils'

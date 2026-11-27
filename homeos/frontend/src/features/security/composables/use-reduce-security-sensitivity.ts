@@ -8,7 +8,7 @@
  * @dependencies vue, @/services/api/system, @/stores/chrome.store, @/shared/utils/core/logger
  */
 import { ref } from 'vue'
-import { reduceSetupSecuritySensitivity } from '@/kernel/http'
+import { reduceSetupSecuritySensitivity } from '@/kernel/http/index'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { logger } from '@/kernel/utils/core'
 

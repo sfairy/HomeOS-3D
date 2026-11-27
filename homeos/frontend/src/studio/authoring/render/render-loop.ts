@@ -25,10 +25,10 @@ import { overviewFloorId as overviewFloorId2 } from '../scene/overview/studio-ov
 import { createFloorTransition as createFloorTransition2 } from '../scene/floor/studio-floor-transition'
 import { createGroundReflections as createGroundReflections2 } from '../reflection/studio-ground-reflections'
 import { createMotionPresentation as createMotionPresentation2 } from '../scene/studio-motion-presentation'
-import { transformSceneCamera as transformSceneCamera2 } from '../../app/bridge/scene/scene-frame'
-import { normalizeGroundReflection as normalizeGroundReflection2 } from '../../app/bridge/scene/reflection-settings'
-import { sceneUpdatePlan as sceneUpdatePlan2, sceneSyncFailureMessage } from '../../app/bridge/scene/scene-update'
-import { createDemandFrameLoop as createDemandFrameLoop2 } from '../../app/bridge/scene/frame-loop'
+import { transformSceneCamera as transformSceneCamera2 } from '../../app/bridge/scene'
+import { normalizeGroundReflection as normalizeGroundReflection2 } from '../../app/bridge/scene'
+import { sceneUpdatePlan as sceneUpdatePlan2, sceneSyncFailureMessage } from '../../app/bridge/scene'
+import { createDemandFrameLoop as createDemandFrameLoop2 } from '../../app/bridge/scene'
 import { withRequestTimeout as withRequestTimeout2 } from '../../app/shared/util/request-timeout'
 import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
 import { createLightTransition as createLightTransition2, sampleLightTransition as sampleLightTransition2, lightTransitionDurationMs as lightTransitionDurationMs2, mapLightEffectState as mapLightEffectState2, lightEffectColorHex as lightEffectColorHex2 } from '../../app/bridge/light-motion'
@@ -40,7 +40,7 @@ import { composeItemKey } from '../ui/studio-app-helpers'
 import { normalizeStudioDocument } from '../scene/payload/studio-document-payload'
 import { mergeFloors } from '../store'
 import { createStudioRenderContext } from '../render-context'
-import { computeDownlightRange } from '../geometry/geometry'
+import { computeDownlightRange } from '../geometry'
 
 
 /** 上下文丢失后等浏览器自己恢复的窗口；超过它基本可以认定 GPU 进程没能重建（Edge 会退化到 --use-gl=disabled）。 */

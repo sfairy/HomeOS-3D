@@ -1,4 +1,4 @@
-import { snapToSliderStep } from '@/kernel/utils/ui/progress-bar.util'
+import { snapToSliderStep } from '@/kernel/utils/ui'
 import { roomTabEmoji as sharedRoomTabEmoji } from '@homeos/shared'
 
 /** 设置页滑块步长语义（与 SettingsRangeField 配合） */

@@ -2,7 +2,7 @@ import { useSystemConfig, handleSystemConfigPatchError } from '@/domain/layout/c
 import { useEnvSensorMap, getEnvSensorFields } from '@/features/settings/shared/composables/env-sensor-map'
 import { pauseGlobalPendingChanges, resumeGlobalPendingChanges, syncGlobalLayoutPendingSnapshot } from '@/features/settings/kernel/pending.internals'
 import { useReduceSecuritySensitivity } from '@/features/security/index'
-import { completeSetupWizard, fetchSetupWizardStatus, validateSetupWizardEntities } from '@/kernel/http'
+import { completeSetupWizard, fetchSetupWizardStatus, validateSetupWizardEntities } from '@/kernel/http/index'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useLayoutStore } from '@/domain/layout/store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'

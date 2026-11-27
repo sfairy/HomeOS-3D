@@ -6,7 +6,7 @@ import {
   patchSystemConfig,
   useSystemConfig,
 } from '@/domain/layout/composables/system-config-core.internals'
-import { dismissClientPowerOffline, dismissClientPowerPending, fetchClientPowerStatus } from '@/kernel/http'
+import { dismissClientPowerOffline, dismissClientPowerPending, fetchClientPowerStatus } from '@/kernel/http/index'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import type {
   ClientPowerClient,

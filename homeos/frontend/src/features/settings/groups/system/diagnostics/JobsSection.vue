@@ -110,7 +110,7 @@
 <script setup>
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { RefreshCw, AlertCircle, Clock3 } from '@lucide/vue'
-import { fetchSystemJobs } from '@/kernel/http'
+import { fetchSystemJobs } from '@/kernel/http/index'
 import { extractErrorMessage } from '@/kernel/utils/core'
 import { formatDetailedDateTimeOrDash } from '@/kernel/utils/format'
 import { useDiagnosticsSection } from './use-diagnostics-section'

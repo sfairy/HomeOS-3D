@@ -157,7 +157,7 @@ import {
   resumeGlobalPendingChanges,
 } from '@/features/settings/kernel/pending.internals'
 import { getApiErrorMessage } from '@/kernel/utils/core'
-import { fetchBindingsGaps } from '@/kernel/http'
+import { fetchBindingsGaps } from '@/kernel/http/index'
 import { runHazardDrill as runHazardDrillApi } from '@/domain/api/security'
 import { useYamlValidation } from '@/features/security/index'
 import { useSettingsSidebarReentryReset } from '@/kernel/ui/hooks/hub-viewport'

@@ -5,7 +5,7 @@ import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
 import { Code } from '@lucide/vue'
 import { FLOATING_HUB_TYPE_SET, getWidgetIcon, getFloatingCatalogGroups, getWidgetCategoryLabelForType, FLOATING_HUB_WIDTH_MAP, getWidgetName } from '@/kernel/utils/registry/widget-catalog'
 import { hasConfigurableTabs, serializeHubTabsConfig, getHubTabSet, cloneHubTabsDraft } from '@/kernel/utils/registry/hub-tabs-options'
-import { mirrorSecurityPanelZonesToLayout } from '@/features/security/model/utils/panel-layout.util'
+import { mirrorSecurityPanelZonesToLayout } from '@/features/security/model/utils'
 import { type FloatingWidget, type UILayoutConfig } from '@/kernel/types/layout'
 import { type Ref, computed, ref, watch, reactive } from 'vue'
 import { useRouter } from 'vue-router'
@@ -71,7 +71,7 @@ export function useFloatingAfhActions(opts: {
     if (!afhEditId.value) return
     const widget = floatingWidgets.value.find((w) => w.id === afhEditId.value)
     const widgetType = widget?.type || ''
-    const { normalizeZonesForApi } = await import('@/features/security/model/utils/zones-api.util')
+    const { normalizeZonesForApi } = await import('@/features/security/model/utils')
     const zonesForSave = normalizeZonesForApi(
       (afhConfig.zones || []).map((z) => ({
         id: z.id,
@@ -125,7 +125,7 @@ export function useFloatingAfhActions(opts: {
         chrome.notify('浮动组件已更新；未配置区域时不会覆盖后端已有区域，请点击侧边栏「保存全部」持久化', 'info')
         return
       }
-      const { postSecurityZonesSafe } = await import('@/features/security/model/utils/zones-api.util')
+      const { postSecurityZonesSafe } = await import('@/features/security/model/utils')
       const result = await postSecurityZonesSafe(zonesForSave)
       if (result.ok) {
         chrome.notify('浮动组件与安防区域已同步到后端，请点击侧边栏「保存全部」持久化布局', 'success')

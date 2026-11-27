@@ -20,7 +20,7 @@ import { useSystemConfig } from '@/domain/layout/composables/system-config-core.
 import { type EventLogStats, type DeviceUsageReport } from '@/kernel/types/device'
 import { readLocalStorage, writeLocalStorageJson } from '@/kernel/utils/core'
 import { countOfflineDevices } from '@/domain/entity/model/utils/device-group'
-import { fetchAdvisorUsage } from '@/kernel/http'
+import { fetchAdvisorUsage } from '@/kernel/http/index'
 
 /** 设备详情页视图模型 —— `features/device/DeviceDetailPage.vue` 的领域逻辑层。 */
 
