@@ -21,7 +21,7 @@ import type {
   EntitiesMap,
   EntityLoadPhase,
   HaEntityState,
-} from '@/kernel/types/entity-store'
+} from '@/kernel/types/entity'
 import { buildEntityCacheKey } from '@/domain/entity/model/utils/idb-cache'
 import { createEntityOptimisticState } from '@/domain/entity/store/entity-store-optimistic.util'
 import { clearColdFetchMissing, fetchEntitiesByIds, fetchEntityById } from '@/domain/entity/model/utils/cold-fetch.util'

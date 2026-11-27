@@ -23,7 +23,7 @@ import { getWsPushPublicConfig } from '@/kernel/config/frontend-config'
 import { blockDangerousHaServiceWhenOffline, HA_OFFLINE_DANGEROUS_CONTROL_MSG } from '@/kernel/utils/ha/url'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { fetchEntityById } from '@/domain/entity/model/utils/cold-fetch.util'
-import type { EntityActionsDeps, HaEntityState } from '@/kernel/types/entity-store'
+import type { EntityActionsDeps, HaEntityState } from '@/kernel/types/entity'
 import {
   describeControlOutcome,
   resolveControlNotice,

@@ -6,7 +6,7 @@ import { ref, computed, nextTick, watch, type Ref } from 'vue'
 import { useClickOutside } from '@/kernel/ui/hooks/use-click-outside'
 import { useEntityPickerSession } from '@/domain/entity/composables/use-entity-picker-session'
 import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
-import type { HaEntityState } from '@/kernel/types/entity-store'
+import type { HaEntityState } from '@/kernel/types/entity'
 import {
   buildEntityInputGroups,
   inferSuggestDeviceClassFromPlaceholder,

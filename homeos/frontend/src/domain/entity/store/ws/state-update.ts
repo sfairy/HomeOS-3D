@@ -13,7 +13,7 @@ import type {
   HaEntityState,
   OptimisticPrediction,
   ResolveListenerOldStateArgs,
-} from '@/kernel/types/entity-store'
+} from '@/kernel/types/entity'
 import {
   isStaleState,
   mergeWsStateChange,

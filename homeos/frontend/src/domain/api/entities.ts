@@ -5,7 +5,7 @@ import type {
   EntityReferencesResponse,
   EntityReferenceUnlinkRequest,
   EntityReferenceUnlinkResult,
-} from '@/kernel/types/entity-references'
+} from '@/kernel/types/entity'
 
 /** 获取实体列表。 */
 export function fetchEntities(params?: Record<string, unknown>, config?: AxiosRequestConfig) {

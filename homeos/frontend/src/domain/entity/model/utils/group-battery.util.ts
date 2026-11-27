@@ -8,7 +8,7 @@
  */
 import { MONITORED_ENTITY_IDS } from '@/kernel/constants/device-group'
 import { domainIndexToArray } from '@/domain/entity/model/utils/derived.util'
-import type { HaEntityState } from '@/kernel/types/entity-store'
+import type { HaEntityState } from '@/kernel/types/entity'
 
 export type DeviceGroupEntitiesStoreLike = {
   entities: Record<string, HaEntityState | undefined>

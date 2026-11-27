@@ -6,7 +6,7 @@ import type {
   EntitiesMap,
   HaEntityState,
   HaEntityView,
-} from '@/kernel/types/entity-store'
+} from '@/kernel/types/entity'
 import { getEntityDomain } from '@homeos/shared'
 
 /**

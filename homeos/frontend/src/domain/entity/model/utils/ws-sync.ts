@@ -3,7 +3,7 @@
  * @module frontend/src/shared/entity/utils
  * entity WebSocket 同步状态助手：分块 apply 等待 / 同步状态创建 / 定时器清理。
  */
-import type { EntitySocketSyncState } from '@/kernel/types/entity-store'
+import type { EntitySocketSyncState } from '@/kernel/types/entity'
 
 // ── entity-ws-sync.util ──
 const CHUNK_APPLY_WAIT_MS = 8_000

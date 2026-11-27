@@ -3,7 +3,7 @@
  * @module frontend/src/composables/entity
  */
 /** entity WebSocket：HA 状态 / 全量同步 / 增量补发 */
-import type { EntitySocketHandlerContext, EntitySocketSyncState, HaEntityState } from '@/kernel/types/entity-store'
+import type { EntitySocketHandlerContext, EntitySocketSyncState, HaEntityState } from '@/kernel/types/entity'
 import { handleEntityFallbackFailure } from '@/domain/entity/model/utils/sync-failure.util'
 import {
   clearEntitySocketSyncTimers,

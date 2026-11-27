@@ -1,7 +1,7 @@
 /**
  * 合并 WS delta 状态变更到本地实体对象
  */
-import type { EntitiesMap, HaEntityState } from '@/kernel/types/entity-store'
+import type { EntitiesMap, HaEntityState } from '@/kernel/types/entity'
 
 export interface WsDeltaChange {
   _delta?: boolean

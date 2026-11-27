@@ -1,6 +1,6 @@
 /** 公用事业实体辅助函数：从 HA 实体读取并解析弹窗属性值。 */
 import { parseJsonLoose } from '@/kernel/utils/core/misc.util'
-import type { HaEntityState } from '@/kernel/types/entity-store'
+import type { HaEntityState } from '@/kernel/types/entity'
 
 /**
  * 从 HA 实体读取弹窗属性值。

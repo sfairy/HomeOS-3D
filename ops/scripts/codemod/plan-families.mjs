@@ -117,7 +117,7 @@ function declarationText(text, startIndex) {
  * @param {string[]} paths 成员绝对路径
  * @returns {string | null} 风险说明；无风险返回 null
  */
-function familyHazard(paths) {
+function familyHazard(paths, allowReexport = false) {
   const stems = new Set(paths.map((p) => p.replace(/\.(ts|tsx|css)$/, '')))
   /** @type {Map<string, Array<{path: string, body: string}>>} */
   const declarations = new Map()
@@ -133,7 +133,7 @@ function familyHazard(paths) {
       const spec = match[1]
       if (!spec.startsWith('.')) continue
       const target = resolve(dirname(path), spec).replace(/\.(ts|tsx|css)$/, '')
-      if (stems.has(target)) return `族内 re-export（${spec}），合并后导出语义会丢`
+      if (stems.has(target) && !allowReexport) return `族内 re-export（${spec}），合并后导出语义会丢`
     }
     for (const match of text.matchAll(/^(?:export\s+)?(?:type|interface|const|function|class)\s+([A-Za-z_$][\w$]*)/gm)) {
       const name = match[1]
@@ -204,7 +204,7 @@ function buildPlan(dirs, maxLines) {
         continue
       }
       const paths = members.map((name) => join(abs, name))
-      const hazard = family.endsWith('.css') ? null : familyHazard(paths)
+      const hazard = family.endsWith('.css') ? null : familyHazard(paths, allowReexport)
       if (hazard) {
         skipped.push(`${dir} · ${family}: ${hazard}`)
         continue
@@ -234,6 +234,12 @@ for (let i = 0; i < args.length; i += 1) {
   if (args[i] !== '--skip') continue
   for (const name of (args[i + 1] ?? '').split(',')) if (name.trim()) skipFamilies.add(name.trim())
 }
+/**
+ * `--allow-reexport`：允许合并含族内 re-export 的族。
+ * 只对**叶子资源层**（domain/api、kernel/types 这类只被上层单向引用的目录）安全：
+ * 合并器的 `dropRedundantExportLists` 会清掉与本地声明重复的导出清单。
+ */
+const allowReexport = args.includes('--allow-reexport')
 const valueArgs = new Set([String(maxLines), ...[...skipFamilies].join(',')])
 const dirs = args.filter((arg) => !arg.startsWith('--') && !valueArgs.has(arg) && arg !== String(maxLines))
 

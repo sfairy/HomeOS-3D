@@ -3,7 +3,7 @@
  * @module frontend/src/composables/entity
  */
 /** entity WebSocket：家庭模式 / 通知 / 安防 / 在场 / 能源 / 地震等业务域事件 */
-import type { EntitySocketHandlerContext } from '@/kernel/types/entity-store'
+import type { EntitySocketHandlerContext } from '@/kernel/types/entity'
 import { notificationLevelToToastType, shouldSkipNotificationToast } from '@/domain/notifications/utils/ws-sync.util'
 import { refreshEnergyFromSocket } from '@/kernel/utils/bridge/store-bridge'
 import { speakLocal } from '@/domain/voice/local-speech.util'

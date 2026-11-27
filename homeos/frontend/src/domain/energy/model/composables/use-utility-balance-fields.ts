@@ -6,7 +6,7 @@ import {
   parseJsonAttr,
   parseNumAttr,
 } from '@/domain/energy/model/composables/utility-entity-helpers'
-import type { HaEntityState } from '@/kernel/types/entity-store'
+import type { HaEntityState } from '@/kernel/types/entity'
 /**
  * 水/电/气/综合抄表弹窗共用的余额、阶梯、统计 computed
  */

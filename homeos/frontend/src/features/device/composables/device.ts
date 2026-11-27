@@ -15,7 +15,7 @@ import { buildEntityAttrEntries, HVAC_ACTION_LABELS, HVAC_MODE_LABELS } from '@/
 import { displayClimateOperatingLabel, displayEntityStateLabel } from '@/kernel/constants/entity-state'
 import { createFetchSequence } from '@/kernel/utils/core/misc.util'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
-import { ENTITY_REFERENCE_KIND_LABELS, LAYOUT_ENTITY_REFERENCE_KINDS, SYSTEM_CONFIG_ENTITY_REFERENCE_KINDS, UNLINKABLE_ENTITY_REFERENCE_KINDS, type EntityReferenceItem, type EntityReferencesResponse } from '@/kernel/types/entity-references'
+import { ENTITY_REFERENCE_KIND_LABELS, LAYOUT_ENTITY_REFERENCE_KINDS, SYSTEM_CONFIG_ENTITY_REFERENCE_KINDS, UNLINKABLE_ENTITY_REFERENCE_KINDS, type EntityReferenceItem, type EntityReferencesResponse } from '@/kernel/types/entity'
 import { useSystemConfig } from '@/domain/layout/composables/system-config-core.internals'
 import { type EventLogStats, type DeviceUsageReport } from '@/kernel/types/device'
 import { readLocalStorage, writeLocalStorageJson } from '@/kernel/utils/core/local-storage.util'

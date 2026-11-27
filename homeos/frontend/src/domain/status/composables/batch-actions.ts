@@ -3,7 +3,7 @@ import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { getEntityDomain } from '@homeos/shared'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { getWholeHomeOffConfig } from '@/kernel/constants/whole-home-off'
-import type { HaEntityState } from '@/kernel/types/entity-store'
+import type { HaEntityState } from '@/kernel/types/entity'
 import type { WholeHomeOffConfig } from '@/kernel/types/whole-home-off'
 
 /** 全屋关闭可覆盖的配置项子集 */

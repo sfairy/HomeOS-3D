@@ -1,4 +1,4 @@
-import { type EntitiesMap } from '@/kernel/types/entity-store'
+import { type EntitiesMap } from '@/kernel/types/entity'
 import { type RoomListItem } from '@/kernel/types/env-room'
 import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
 import { type EnvSensorMap, type EnvSensorMapEntry, type HaAreaRef, buildRoomInferKeywordsMap, buildRoomListFromHaAreas, filterEnvSensorMapToKnownAreas } from '@homeos/shared'

@@ -15,7 +15,7 @@ import type {
   DerivedSnapshotPatch,
   EntityPatch,
   HaEntityState,
-} from '@/kernel/types/entity-store'
+} from '@/kernel/types/entity'
 
 type DerivedOpts = { deferSecondary?: boolean }
 

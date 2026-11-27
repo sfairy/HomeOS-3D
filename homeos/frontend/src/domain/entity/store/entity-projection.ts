@@ -2,7 +2,7 @@
 import { shallowReactive, markRaw } from 'vue'
 import { getEntityDomain } from '@homeos/shared'
 import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
-import type { EntitiesMap, EntityProjection, EntityProjectionChange, HaEntityState } from '@/kernel/types/entity-store'
+import type { EntitiesMap, EntityProjection, EntityProjectionChange, HaEntityState } from '@/kernel/types/entity'
 
 /** 投影缓存：entity_id → EntityProjection（shallowReactive Map，键级响应） */
 const projections = shallowReactive(new Map<string, EntityProjection>())

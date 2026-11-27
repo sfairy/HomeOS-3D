@@ -1,6 +1,6 @@
 /** 水电燃气抄表相对日期与剩余天数计算工具 */
 import { computed, type ComputedRef, type Ref } from 'vue'
-import type { HaEntityState } from '@/kernel/types/entity-store'
+import type { HaEntityState } from '@/kernel/types/entity'
 /**
  * 计算数据日期的相对标签
  * @param {import('vue').ComputedRef<string>} dataDate - 数据日期字符串

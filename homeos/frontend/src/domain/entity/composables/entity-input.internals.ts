@@ -6,7 +6,7 @@
 
 import { getEntityDomain } from '@homeos/shared'
 import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
-import type { HaEntityState } from '@/kernel/types/entity-store'
+import type { HaEntityState } from '@/kernel/types/entity'
 export interface EntityInputItem {
   entity_id: string
   name: string

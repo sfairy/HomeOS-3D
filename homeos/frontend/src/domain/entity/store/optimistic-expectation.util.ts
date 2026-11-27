@@ -12,7 +12,7 @@
  * 三者共用同一份真相源，避免出现「一处认为可跳过、另一处却认为未确认」的漂移。
  */
 import { attrValueEquals } from '@homeos/shared'
-import type { HaEntityState, OptimisticPrediction } from '@/kernel/types/entity-store'
+import type { HaEntityState, OptimisticPrediction } from '@/kernel/types/entity'
 
 /** TTL 到期但目标态未达成时的提示（与「下发失败」严格区分：这里只代表没等到确认） */
 export const OPTIMISTIC_TIMEOUT_MESSAGE = '未收到设备确认，已恢复显示'

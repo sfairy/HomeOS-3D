@@ -3,7 +3,7 @@ import { shallowRef, watch, unref, type MaybeRefOrGetter } from 'vue'
 import { getProjection } from '@/domain/entity/store/entity-projection'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { usePausableStateListener } from '@/domain/entity/composables/use-pausable-state-listener'
-import type { HaEntityState } from '@/kernel/types/entity-store'
+import type { HaEntityState } from '@/kernel/types/entity'
 
 /**
  * 解析 MaybeRefOrGetter 形式的 entityId 引用为具体值。

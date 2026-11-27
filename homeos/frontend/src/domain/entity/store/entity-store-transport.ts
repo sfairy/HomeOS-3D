@@ -4,7 +4,7 @@ import { buildEntitySocketAuth, buildEntitySocketOptions, buildEntitySocketUrl }
 import { bindEntitySocketHandlers } from '@/domain/entity/store/ws/ws-bind'
 import { createEntitySocketSyncState } from '@/domain/entity/model/utils/ws-sync'
 import { handleEntityFallbackFailure } from '@/domain/entity/model/utils/sync-failure.util'
-import type { EntitySocketSyncState, EntityTransportDeps } from '@/kernel/types/entity-store'
+import type { EntitySocketSyncState, EntityTransportDeps } from '@/kernel/types/entity'
 
 /**
  * 创建 Socket.IO 传输层

@@ -8,7 +8,7 @@ import type {
   RegisterStateListenerOptions,
   RemoteNotificationEntry,
   RemoteNotificationPayload,
-} from '@/kernel/types/entity-store'
+} from '@/kernel/types/entity'
 import { getFrontendConfig, getMaxStateListeners, reloadFrontendConfig } from '@/kernel/config/frontend-config'
 import {
   dispatchStateListener,

@@ -2,36 +2,20 @@
 export default {
   merges: [
     {
-      into: 'homeos/frontend/src/studio/app/shared/ui.ts',
+      into: 'homeos/frontend/src/domain/api/agent.ts',
       from: [
-        'homeos/frontend/src/studio/app/shared/ui-confirm.ts',
-        'homeos/frontend/src/studio/app/shared/ui-icons.ts',
+        'homeos/frontend/src/domain/api/agent-learning.ts',
+        'homeos/frontend/src/domain/api/agent-memory.ts',
+        'homeos/frontend/src/domain/api/agent-stream.ts',
+        'homeos/frontend/src/domain/api/agent.ts',
       ],
     },
     {
-      into: 'homeos/frontend/src/studio/app/editor/dashboard.ts',
+      into: 'homeos/frontend/src/kernel/types/entity.ts',
       from: [
-        'homeos/frontend/src/studio/app/editor/dashboard-font-settings.ts',
-        'homeos/frontend/src/studio/app/editor/dashboard-resize.ts',
-      ],
-    },
-    {
-      into: 'homeos/frontend/src/studio/app/editor/editor.ts',
-      from: [
-        'homeos/frontend/src/studio/app/editor/editor-canvas-navigation.ts',
-        'homeos/frontend/src/studio/app/editor/editor-component-collections.ts',
-        'homeos/frontend/src/studio/app/editor/editor-dialogs.ts',
-        'homeos/frontend/src/studio/app/editor/editor-document-management.ts',
-        'homeos/frontend/src/studio/app/editor/editor-history.ts',
-        'homeos/frontend/src/studio/app/editor/editor-selection-tools.ts',
-        'homeos/frontend/src/studio/app/editor/editor-utils.ts',
-      ],
-    },
-    {
-      into: 'homeos/frontend/src/studio/app/logging/global-log.ts',
-      from: [
-        'homeos/frontend/src/studio/app/logging/global-log-boot.ts',
-        'homeos/frontend/src/studio/app/logging/global-log.ts',
+        'homeos/frontend/src/kernel/types/entity-references.ts',
+        'homeos/frontend/src/kernel/types/entity-store.ts',
+        'homeos/frontend/src/kernel/types/entity.ts',
       ],
     },
   ],

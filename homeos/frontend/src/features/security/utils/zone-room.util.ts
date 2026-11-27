@@ -1,7 +1,7 @@
 /** 安防区域房间分组工具模块。 */
 import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
 import { isSecurityUtilityNoise } from '@/features/security/utils/sensor-filter.util'
-import type { EntitiesMap } from '@/kernel/types/entity-store'
+import type { EntitiesMap } from '@/kernel/types/entity'
 import type { RoomListItem } from '@/kernel/types/env-room'
 
 /** 安防区域类型：外围/室内/全部 */

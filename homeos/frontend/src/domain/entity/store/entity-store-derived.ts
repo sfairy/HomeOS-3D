@@ -13,7 +13,7 @@ import {
   filterDerivedPatchesForRoute,
   getRouteDerivedDebounceMultiplier,
 } from '@/domain/entity/model/utils/derived-route.util'
-import type { DerivedSnapshotTargets, EntityDerivedDeps, EntityPatch } from '@/kernel/types/entity-store'
+import type { DerivedSnapshotTargets, EntityDerivedDeps, EntityPatch } from '@/kernel/types/entity'
 
 /** 文档是否可见（离屏标签页暂停重计算） */
 function isDocumentVisible(): boolean {

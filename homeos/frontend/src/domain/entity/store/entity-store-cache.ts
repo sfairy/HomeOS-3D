@@ -10,7 +10,7 @@ import {
   saveEntityCacheShards,
 } from '@/domain/entity/model/utils/idb-cache'
 import { partitionEntitiesForCacheHydrate } from '@/domain/entity/model/utils/sync-priority.util'
-import type { EntitiesMap, HaEntityState } from '@/kernel/types/entity-store'
+import type { EntitiesMap, HaEntityState } from '@/kernel/types/entity'
 import type { UILayoutConfig } from '@/kernel/types/layout'
 
 /** 懒加载最小实体数：缓存总数 ≥ 此值且 deferred 非空时启用懒加载分流 */

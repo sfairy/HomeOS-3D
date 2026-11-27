@@ -7,7 +7,7 @@ import { getEntityDomain } from '@homeos/shared'
 import { fetchEntities } from '@/domain/api/entities'
 import { logger } from '@/kernel/utils/core/logger'
 import { formatEntitySelectOption } from '@/domain/entity/model/utils/select.util'
-import type { HaEntityState } from '@/kernel/types/entity-store'
+import type { HaEntityState } from '@/kernel/types/entity'
 import type { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
 

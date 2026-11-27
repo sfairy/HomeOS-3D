@@ -13,7 +13,7 @@ import {
 } from '@/domain/entity/store/optimistic-expectation.util'
 import { clonePlain } from '@/kernel/utils/core/clone-plain.util'
 import { lightBrightnessFromPct } from '@/domain/entity/model/utils/control/light-control-core'
-import type { EntityOptimisticDeps, HaEntityState, OptimisticPrediction } from '@/kernel/types/entity-store'
+import type { EntityOptimisticDeps, HaEntityState, OptimisticPrediction } from '@/kernel/types/entity'
 
 /** turn_on 时把 brightness / color_temp / rgb 写入 attrs。 */
 function applyLightTurnOnAttrs(attrs: Record<string, unknown>, sd: Record<string, unknown>): void {

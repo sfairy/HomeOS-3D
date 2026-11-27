@@ -1,7 +1,7 @@
 /** - 对设备分组中的实体集合执行批量开/关、批量温控关机等操作。 */
 import { ref, computed, type Ref } from 'vue'
 import type { DeviceGroupEntitiesStoreLike } from '@/domain/entity/model/utils/group-battery.util'
-import type { HaEntityState } from '@/kernel/types/entity-store'
+import type { HaEntityState } from '@/kernel/types/entity'
 import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
 
 /** 批量执行结果项：success 标识单条是否成功，entity_id 用于重试定位。 */

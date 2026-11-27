@@ -7,7 +7,7 @@ import { resolveHaEntityPicture } from '@/kernel/utils/ha/media-url.util'
 import { useSliderCommit } from '@/domain/entity/composables/use-slider-commit'
 import { progressFillStyle } from '@/kernel/utils/ui/progress-bar.util'
 import { volumeLevelFromPercent, volumeLevelToPercent } from '@/domain/entity/model/utils/control/media-player-control-core'
-import type { HaEntityState } from '@/kernel/types/entity-store'
+import type { HaEntityState } from '@/kernel/types/entity'
 
 /** 媒体播放器数据源：可为 entity_id 字符串、实体对象、null/undefined */
 type MediaPlayerSource =

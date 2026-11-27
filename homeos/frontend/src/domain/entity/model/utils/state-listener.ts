@@ -6,7 +6,7 @@ import type {
   EntityStateListenerLogger,
   EntityStateListenerPayload,
   RegisterStateListenerOptions,
-} from '@/kernel/types/entity-store'
+} from '@/kernel/types/entity'
 import { logger } from '@/kernel/utils/core/logger'
 import { getEntityDomain } from '@homeos/shared'
 

@@ -1,7 +1,7 @@
 import { coverToggleService } from '@/domain/entity/model/utils/control/cover-control-core'
 import { entityMatchesAreaFilter, getEntityDomain, resolveEntityArea } from '@homeos/shared'
 import { type DeviceListItem, type DeviceFilterState } from '@/kernel/types/device'
-import { type HaEntityState, type HaEntityView } from '@/kernel/types/entity-store'
+import { type HaEntityState, type HaEntityView } from '@/kernel/types/entity'
 import { resolveListRowEntity } from '@/domain/entity/composables/projection-row.util'
 import { getEntityDisplayName, collectIndexedEntityIds } from '@/domain/entity/model/utils/derived.util'
 import { getDomainLabel } from '@/features/device/model/utils/domain-labels.util'

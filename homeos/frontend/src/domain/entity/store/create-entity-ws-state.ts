@@ -37,7 +37,7 @@ import type {
   EntityStoreLogger,
   HaEntityState,
   HaLinkStatus,
-} from '@/kernel/types/entity-store'
+} from '@/kernel/types/entity'
 import { fetchHaHealth } from '@/domain/api/entities'
 import type { NotifyType } from '@/kernel/types/notify'
 

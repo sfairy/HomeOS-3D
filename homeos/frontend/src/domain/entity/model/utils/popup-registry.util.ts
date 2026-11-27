@@ -1,6 +1,6 @@
 /** 实体弹窗解析（纯元数据层）——「entity_id → 弹窗种类」的判定与 props 构造。 */
 import { getEntityDomain } from '@homeos/shared'
-import type { HaEntityState } from '@/kernel/types/entity-store'
+import type { HaEntityState } from '@/kernel/types/entity'
 import { isCommEntity, isElectricityEntity, isGasEntity, isWaterEntity } from './entity-type.util'
 
 /**

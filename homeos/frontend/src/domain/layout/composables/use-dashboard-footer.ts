@@ -22,7 +22,7 @@ import {
 import { FOOTER_ACCOUNT_INDEX_ALL } from '@/domain/energy/model/utils/account.util'
 import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
 import type { DashboardFooterItem, FooterFieldOption } from '@/kernel/types/dashboard-footer'
-import type { EntitiesMap } from '@/kernel/types/entity-store'
+import type { EntitiesMap } from '@/kernel/types/entity'
 
 function formatRawValue(raw: unknown, type = 'number') {
   if (raw == null || raw === '' || raw === 'unavailable' || raw === 'unknown') return '--'

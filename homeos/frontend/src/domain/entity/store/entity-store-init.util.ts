@@ -5,7 +5,7 @@ import type {
   EntityInitOptions,
   HaEntityState,
   SnapshotAcceptOptions,
-} from '@/kernel/types/entity-store'
+} from '@/kernel/types/entity'
 import { getWorkerDerivedThreshold } from '@/kernel/config/frontend-config'
 import { setPollTickMs } from '@/kernel/utils/core/poll-scheduler'
 import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'

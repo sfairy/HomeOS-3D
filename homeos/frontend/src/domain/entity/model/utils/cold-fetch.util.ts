@@ -1,7 +1,7 @@
 /** 内部维护 inflight Map 做请求去重；对 404 / batch missing（布局陈旧引用 / 已过滤实体）做负缓存， */
 import axios from 'axios'
 import { fetchEntity, fetchEntitiesBatchGet } from '@/domain/api/entities'
-import type { HaEntityState } from '@/kernel/types/entity-store'
+import type { HaEntityState } from '@/kernel/types/entity'
 
 const inflight = new Map<string, Promise<HaEntityState | null>>()
 const batchInflight = new Map<string, Promise<Map<string, HaEntityState>>>()

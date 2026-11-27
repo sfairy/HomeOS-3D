@@ -7,7 +7,7 @@ import { resolveAccountEntityIds, normalizeEnergySource } from '@/domain/energy/
 import { readPopupField } from '@/domain/energy/model/utils/popup-read.util'
 import { readPopupAttr, parseJsonAttr, parseNumAttr } from '@/domain/energy/model/index'
 import type { UtilityMeterParsedItem } from '@/domain/energy/model/index'
-import type { HaEntityState } from '@/kernel/types/entity-store'
+import type { HaEntityState } from '@/kernel/types/entity'
 import { resolveAccountLabelForEntityId } from '@/domain/energy/model/utils/account.util'
 import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
 import type { EnergyCategory } from '@/domain/energy/model/constants/energy-fields'

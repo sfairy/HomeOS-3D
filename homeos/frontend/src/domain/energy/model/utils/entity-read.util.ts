@@ -1,5 +1,5 @@
 /** 兼容属性位于顶层 `attributes` 或嵌套 `attributes.data` 两种结构。 */
-import type { HaEntityState } from '@/kernel/types/entity-store'
+import type { HaEntityState } from '@/kernel/types/entity'
 
 type EntityAttrMap = Record<string, HaEntityState | undefined> | null | undefined
 

@@ -3,7 +3,7 @@
  * @module frontend/src/composables/entity
  */
 /** entity WebSocket：连接 / 断线 / 重连生命周期 */
-import type { EntitySocketHandlerContext, EntitySocketSyncState } from '@/kernel/types/entity-store'
+import type { EntitySocketHandlerContext, EntitySocketSyncState } from '@/kernel/types/entity'
 import { refreshEntitySocketAuth } from './socket.util'
 import { clearEntitySocketSyncTimers } from '@/domain/entity/model/utils/ws-sync'
 import type { Socket } from 'socket.io-client'

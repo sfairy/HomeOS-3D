@@ -12,7 +12,7 @@ import {
 } from '@/domain/entity/model/utils/group-battery.util'
 import { touchEntityStoreDisplayDeps } from '@/domain/entity/composables/use-entity-display-epoch'
 import { domainIndexToArray } from '@/domain/entity/model/utils/derived.util'
-import type { HaEntityState } from '@/kernel/types/entity-store'
+import type { HaEntityState } from '@/kernel/types/entity'
 import type { DeviceGroupEntitiesStoreLike, DeviceGroupUiStoreLike } from '@/domain/entity/model/utils/group-battery.util'
 
 type EntityStoreSlice = DeviceGroupEntitiesStoreLike & {

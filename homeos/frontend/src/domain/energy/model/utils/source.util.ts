@@ -18,7 +18,7 @@ import {
   resolvePrimaryAccountRowIndex,
   resolveRawAccountRowCount,
 } from '@/domain/energy/model/utils/account.util'
-import type { HaEntityState } from '@/kernel/types/entity-store'
+import type { HaEntityState } from '@/kernel/types/entity'
 import type { EnergyAccountSourceLike } from '@/domain/energy/model/utils/account-types.util'
 import { parseJsonLoose } from '@/kernel/utils/core/misc.util'
 

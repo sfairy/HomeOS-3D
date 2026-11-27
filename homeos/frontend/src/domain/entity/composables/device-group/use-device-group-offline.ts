@@ -6,7 +6,7 @@ import { computeOfflineCriticalSet, groupOfflineByDevice } from '@/domain/entity
 import { BATTERY_LOW_THRESHOLD, resolveBatteryLevel } from '@/domain/entity/model/utils/group-battery.util'
 import { formatRelativeFromNow } from '@/kernel/utils/format/locale-format.util'
 import type { DeviceGroupEntitiesStoreLike, DeviceGroupUiStoreLike } from '@/domain/entity/model/utils/group-battery.util'
-import type { HaEntityState } from '@/kernel/types/entity-store'
+import type { HaEntityState } from '@/kernel/types/entity'
 import type { Component } from 'vue'
 
 /**

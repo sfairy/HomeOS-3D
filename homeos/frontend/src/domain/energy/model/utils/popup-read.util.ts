@@ -6,7 +6,7 @@ import {
 } from '@/domain/energy/model/constants/energy-fields'
 import { readEntityAttr } from '@/domain/energy/model/utils/entity-read.util'
 import { resolveAccountIndexForEntityId } from '@/domain/energy/model/utils/account.util'
-import type { HaEntityState } from '@/kernel/types/entity-store'
+import type { HaEntityState } from '@/kernel/types/entity'
 import {
   normalizeEnergySource,
   resolveFieldRaw,
