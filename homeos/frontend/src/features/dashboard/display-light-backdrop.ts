@@ -14,7 +14,7 @@
  */
 import { computed, type ComputedRef } from 'vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { useLayoutStore } from '@/domain/layout/store/index'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
 
 const DEFAULT_LIGHT_ON_URL = '/backgrounds/light_on.webp'
 const DEFAULT_LIGHT_OFF_URL = '/backgrounds/light_off.webp'

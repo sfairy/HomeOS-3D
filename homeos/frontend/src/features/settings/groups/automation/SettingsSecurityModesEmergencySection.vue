@@ -261,7 +261,7 @@ import SecurityActionRow from './SecurityActionRow.vue'
 import SettingsRangeField from '@/features/settings/shared/layout/SettingsRangeField.vue'
 import { SETTINGS_RANGE_STEP } from '@/kernel/settings'
 import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
-import { useLayoutStore } from '@/domain/layout/store/index'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { normalizeSecurityEmergency } from '@/domain/layout/constants/security-emergency'
 
 const props = defineProps({

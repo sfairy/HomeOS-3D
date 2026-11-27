@@ -1,6 +1,6 @@
 /** 解析优先级：URL ?profile= > localStorage > 服务端终端绑定 > 新终端默认策略 > default。 */
 import { fetchProject, resolveTerminalProfile, updateSelfTerminalBinding } from '@/domain/api/config'
-import { getClientDeviceId } from '@/domain/client/index'
+import { getClientDeviceId } from '@/domain/client/system'
 import {
   readStoredProfileId,
   hasStoredProfileId,

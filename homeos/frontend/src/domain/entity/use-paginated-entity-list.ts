@@ -1,7 +1,7 @@
 /** 支持域过滤、关键字搜索（防抖）、状态过滤、房间过滤、排序； */
 import { onScopeDispose, ref, watch, type Ref } from 'vue'
 import { fetchEntities } from '@/domain/api/entities'
-import { getApiErrorMessage } from '@/kernel/core/index'
+import { getApiErrorMessage } from '@/kernel/core/error-message'
 import type { DeviceFilterState } from '@/kernel/device'
 
 const PAGE_SIZE = 200

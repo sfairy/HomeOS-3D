@@ -70,7 +70,7 @@ import HosSelect from '@/domain/entity/entity-select/HosSelect.vue'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { fetchEntities } from '@/domain/api/entities'
 import { listHaAreas, sortHaAreaEntities } from '@/domain/api/ha'
-import { getApiErrorMessage } from '@/kernel/core/index'
+import { getApiErrorMessage } from '@/kernel/core/error-message'
 import { getEntityDisplayName } from '@/domain/entity/derived'
 
 const chrome = useChromeStore()

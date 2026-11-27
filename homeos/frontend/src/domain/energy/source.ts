@@ -20,7 +20,7 @@ import {
 } from '@/domain/energy/account'
 import type { HaEntityState } from '@/kernel/entity'
 import type { EnergyAccountSourceLike } from '@/domain/energy/account-types'
-import { parseJsonLoose } from '@/kernel/core/index'
+import { parseJsonLoose } from '@/kernel/core/misc'
 
 type StatsSensors = {
   energySources?: Partial<Record<EnergyCategory, Record<string, unknown>>>

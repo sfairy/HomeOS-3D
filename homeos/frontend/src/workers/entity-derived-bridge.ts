@@ -8,7 +8,7 @@ import type {
   EntitiesMap,
   EntityPatch,
 } from '@/kernel/entity'
-import { logger } from '@/kernel/core/index'
+import { logger } from '@/kernel/core/logger'
 
 /**
  * 将 Worker 重建快照全量写回主线程 derived 索引：

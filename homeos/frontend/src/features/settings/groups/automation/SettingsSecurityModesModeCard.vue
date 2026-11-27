@@ -206,14 +206,14 @@ import HosSelect from '@/domain/entity/entity-select/HosSelect.vue'
 import { computed, ref } from 'vue'
 import { Zap, Plus, Layers } from '@lucide/vue'
 import SecurityActionRow from './SecurityActionRow.vue'
-import { useLayoutStore } from '@/domain/layout/store/index'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { getEntityDisplayName, domainIndexToArray } from '@/domain/entity/derived'
 import { fetchHomeModes } from '@/domain/api/home-modes'
-import { normalizeCrudListResponse } from '@/kernel/core/index'
-import { logger } from '@/kernel/core/index'
-import { getApiErrorMessage } from '@/kernel/core/index'
+import { normalizeCrudListResponse } from '@/kernel/core/crud-list'
+import { logger } from '@/kernel/core/logger'
+import { getApiErrorMessage } from '@/kernel/core/error-message'
 
 const layoutStore = useLayoutStore()
 const chrome = useChromeStore()

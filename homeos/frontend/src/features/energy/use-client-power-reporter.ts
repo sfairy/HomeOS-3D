@@ -3,14 +3,14 @@ import { computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import axios from 'axios'
 import { fetchSystemConfig, reportClientPower } from '@/kernel/http/system-api'
-import type { ApiRequestConfig } from '@/domain/api/index'
+import type { ApiRequestConfig } from '@/kernel/http'
 import { useAuthStore } from '@/domain/auth/auth.store'
 import {
   buildClientSystemReport,
   ensureBatteryManager,
   onBatteryChange,
   readBatterySnapshotSync,
-} from '@/domain/client/index'
+} from '@/domain/client/system'
 import { logger } from '@/kernel/core/logger'
 import { isLicenseInactiveError } from '@/kernel/core/error-message'
 import { getLicenseActivated } from '@/domain/license'

@@ -27,11 +27,11 @@ import {
   getDailyAdvisorEveningPresets,
 } from '@/features/voice/utils'
 import { fetchVoiceMeta, fetchVoicePresets } from '@/kernel/http/index'
-import { logger } from '@/kernel/core/index'
+import { logger } from '@/kernel/core/logger'
 import { servicesForDomainBuilder } from '@/kernel/registry/widget-catalog'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { reloadFrontendConfig } from '@/kernel/config/frontend-config'
-import { getApiErrorMessage } from '@/kernel/core/index'
+import { getApiErrorMessage } from '@/kernel/core/error-message'
 import { useSettingsSave } from '@/features/settings/kernel/save.internals'
 import { isSystemConfigConflictError, useSystemConfig } from '@/domain/layout/system-config-core.internals'
 

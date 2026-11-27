@@ -19,7 +19,7 @@ import { getProjection } from '@/domain/entity/store/entity-projection'
 import { usePausableStateListener } from '@/domain/entity/use-pausable-state-listener'
 import type { HaEntityState } from '@/kernel/entity'
 import { useRoute } from 'vue-router'
-import { useLayoutStore } from '@/domain/layout/store/index'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import {
   resolveSubscribeDomains,

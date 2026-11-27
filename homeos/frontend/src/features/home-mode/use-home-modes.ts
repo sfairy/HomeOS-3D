@@ -12,8 +12,8 @@ import {
 } from '@/domain/api/home-modes'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { getApiErrorMessage } from '@/kernel/core/index'
-import { normalizeCrudListResponse } from '@/kernel/core/index'
+import { getApiErrorMessage } from '@/kernel/core/error-message'
+import { normalizeCrudListResponse } from '@/kernel/core/crud-list'
 
 interface HomeModeRow {
   id: string

@@ -1,10 +1,10 @@
 import { exportSystemConfig, importSystemConfig } from '@/kernel/http/index'
 import { useAuthStore } from '@/domain/auth/auth.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { useLayoutStore } from '@/domain/layout/store/index'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { reloadFrontendConfig } from '@/kernel/config/frontend-config'
-import { downloadBlob } from '@/kernel/core/index'
-import { getApiErrorMessage } from '@/kernel/core/index'
+import { downloadBlob } from '@/kernel/core/misc'
+import { getApiErrorMessage } from '@/kernel/core/error-message'
 import type { NotifyType } from '@/kernel/notify'
 import {
   getIndependentPendingTabIds,
@@ -18,7 +18,7 @@ import { getEnvSensorFields, useEnvSensorMap } from '@/features/settings/shared/
 import { useSettingsSidebarReentryReset } from '@/kernel/ui/hub-viewport'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { envRoomTabEmoji } from '@/kernel/settings'
-import { clonePlain } from '@/kernel/core/index'
+import { clonePlain } from '@/kernel/core/clone-plain'
 import {
   countQuickActionBatteryLow,
   countQuickActionClimateActive,
@@ -27,7 +27,7 @@ import {
   countQuickActionOffline,
 } from '@/domain/entity/utils/device-group'
 import { getEntityDisplayName } from '@/domain/entity/derived'
-import { buildFavoritesRecommendations } from '@/domain/recommend/index'
+import { buildFavoritesRecommendations } from '@/domain/recommend/favorites-recommend'
 import {
   type FavoriteCategoryMeta,
   FAVORITE_CATEGORIES,

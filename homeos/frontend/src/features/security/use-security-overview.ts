@@ -1,7 +1,7 @@
 /* ── 原 useSecurityOverview.ts 的实现 ── */
 import { computed } from 'vue'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { useLayoutStore } from '@/domain/layout/store/index'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { useSecurityPanelStatus } from '@/features/security/security'
 import { useReduceSecuritySensitivity } from '@/features/security/use-reduce-security-sensitivity'
 import { useSecuritySensors } from '@/features/security/security'

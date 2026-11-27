@@ -17,7 +17,7 @@ import AuthShell from '@/features/auth/AuthShell.vue'
 import { AUTH_FLOW_ACCESS, renderAuthSteps } from '@/kernel/auth'
 import { useAuthStore } from '@/domain/auth/auth.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { getApiErrorMessage } from '@/kernel/core/index'
+import { getApiErrorMessage } from '@/kernel/core/error-message'
 import { PASSWORD_POLICY_MESSAGE, isPasswordPolicyCompliant } from '@homeos/shared/security/password-policy'
 
 const authStore = useAuthStore()

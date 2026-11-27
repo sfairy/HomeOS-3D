@@ -5,7 +5,7 @@
 import { ref } from 'vue'
 import type { Ref } from 'vue'
 import type { Socket } from 'socket.io-client'
-import { useLayoutStore } from '@/domain/layout/store/index'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { useAuthStore } from '@/domain/auth/auth.store'
 import { refreshPinnedEntitiesAfterStale } from './cold-refresh'
 import { applyEntityStatesBatch } from './ws'

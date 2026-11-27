@@ -7,7 +7,7 @@ import type {
   SystemConfigPatch,
   SystemConfigSaveOptions,
 } from '@/kernel/system-config'
-import { invalidateSharedFetch, sharedFetch } from '@/kernel/core/index'
+import { invalidateSharedFetch, sharedFetch } from '@/kernel/core/poll-scheduler'
 import {
   Bell,
   Box,

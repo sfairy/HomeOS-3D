@@ -13,7 +13,7 @@ import {
   channelsStatus,
   type ChannelsStatusResult,
 } from '@/domain/api/agent'
-import { getApiErrorMessage } from '@/kernel/core/index'
+import { getApiErrorMessage } from '@/kernel/core/error-message'
 import { AGENT_PROVIDER_LABELS, agentProviderLabel } from '@/features/agent/utils'
 import {
   Activity,
@@ -34,10 +34,10 @@ import {
   Zap,
 } from '@lucide/vue'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { useLayoutStore } from '@/domain/layout/store/index'
-import { clonePlain } from '@/kernel/core/index'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
+import { clonePlain } from '@/kernel/core/clone-plain'
 import { useRegisterSettingsTabPending } from '@/features/settings/kernel/pending.internals'
-import { getDefaultLayout } from '@/domain/layout/store/index'
+import { getDefaultLayout } from '@/domain/layout/store/defaults'
 import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
 import type {
   AgentCompanionConfig,

@@ -1,6 +1,6 @@
 /** 独立于 echarts 的轻量模块：仅依据「生效性能档位」返回动画开关。 */
-import { useLayoutStore } from '@/domain/layout/store/index'
-import { resolveEffectivePerformanceMode } from '@/kernel/perf/index'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
+import { resolveEffectivePerformanceMode } from '@/kernel/perf/runtime-perf-mode'
 
 /**
  * 图表动画只在「华丽模式」开启。

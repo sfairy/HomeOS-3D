@@ -6,13 +6,13 @@
  * - 通过 scheduleEchartsTask 队列化渲染任务，避免高频更新抢占主线程。
  */
 import { ref, computed, watch, onMounted, onUnmounted, nextTick, type Ref, type ComputedRef } from 'vue'
-import { useScheduledPoll } from '@/domain/widget/index'
+import { useScheduledPoll } from '@/domain/widget/use-scheduled-poll'
 import type * as EchartsModuleNS from '@/kernel/chart'
 import { useAuthStore } from '@/domain/auth/auth.store'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { fetchHaHistory, type HaHistoryPoint } from '@/domain/api/entities'
 import { notifyError } from '@/kernel/ui/notify'
-import { observeChartResize, scheduleEchartsTask, cancelScheduledEchartsTask } from '@/kernel/ui/index'
+import { observeChartResize, scheduleEchartsTask, cancelScheduledEchartsTask } from '@/kernel/ui/chart-resize'
 import { useFetchGeneration } from '@/kernel/ui/use-fetch-generation'
 import {
   HOME_CLIMATE_CHART_VIEW_OPTIONS,

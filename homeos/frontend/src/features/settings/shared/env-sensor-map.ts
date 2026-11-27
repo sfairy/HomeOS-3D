@@ -19,9 +19,9 @@ import {
 import { fetchAreasList } from '@/domain/api/entities'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { reloadFrontendConfig } from '@/kernel/config/frontend-config'
-import { getApiErrorMessage } from '@/kernel/core/index'
-import { logger } from '@/kernel/core/index'
-import { invalidateSharedFetchPrefix } from '@/kernel/core/index'
+import { getApiErrorMessage } from '@/kernel/core/error-message'
+import { logger } from '@/kernel/core/logger'
+import { invalidateSharedFetchPrefix } from '@/kernel/core/poll-scheduler'
 import { computed, ref } from 'vue'
 
 /* ── 原 env-sensor-map-fields.internals.ts 的实现 ── */

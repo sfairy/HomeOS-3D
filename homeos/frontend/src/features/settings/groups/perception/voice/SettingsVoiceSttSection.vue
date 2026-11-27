@@ -246,7 +246,7 @@ import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
 import EntityInput from '@/domain/entity/entity-input/EntityInput.vue'
 import { fetchVoiceSttStatus, processVoiceConversation } from '@/kernel/http/index'
-import { getApiErrorMessage } from '@/kernel/core/index'
+import { getApiErrorMessage } from '@/kernel/core/error-message'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useAudioDevices } from '@/features/voice/index'
 

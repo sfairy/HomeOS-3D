@@ -7,7 +7,7 @@
  * 因为后面两条降级路对通用摄像头都是死的（MJPEG 空体、快照 500）。
  */
 import { resolveCameraHlsPlayUrl } from '@/kernel/ha'
-import { logger } from '@/kernel/core/index'
+import { logger } from '@/kernel/core/logger'
 import { ensureHls, isExpiredStreamAddressError, type HlsCtor } from '@/domain/camera'
 
 type HlsInstance = InstanceType<HlsCtor>

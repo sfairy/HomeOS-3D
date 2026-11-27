@@ -7,9 +7,9 @@ import {
   type RuntimeLogLevel,
   type RuntimeLogsResponse,
 } from '@/kernel/http/index'
-import { extractErrorMessage } from '@/kernel/core/index'
+import { extractErrorMessage } from '@/kernel/core/error-message'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { schedulePoll } from '@/kernel/core/index'
+import { schedulePoll } from '@/kernel/core/poll-scheduler'
 
 const POLL_MS = 4000
 const MAX_CLIENT_LINES = 1500

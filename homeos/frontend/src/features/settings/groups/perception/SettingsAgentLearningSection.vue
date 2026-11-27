@@ -166,7 +166,7 @@ import { GraduationCap } from '@lucide/vue'
 import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
 import SettingsCardIntro from '@/features/settings/shell/SettingsCardIntro.vue'
 import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSectionHead.vue'
-import { getApiErrorMessage } from '@/kernel/core/index'
+import { getApiErrorMessage } from '@/kernel/core/error-message'
 import { formatFullDateTime } from '@/kernel/format'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import {

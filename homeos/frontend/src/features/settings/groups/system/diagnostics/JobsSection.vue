@@ -111,7 +111,7 @@
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { RefreshCw, AlertCircle, Clock3 } from '@lucide/vue'
 import { fetchSystemJobs } from '@/kernel/http/index'
-import { extractErrorMessage } from '@/kernel/core/index'
+import { extractErrorMessage } from '@/kernel/core/error-message'
 import { formatDetailedDateTimeOrDash } from '@/kernel/format'
 import { useDiagnosticsSection } from './use-diagnostics-section'
 

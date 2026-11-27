@@ -134,7 +134,7 @@
 </template>
 
 <script setup>
-import { readLocalStorageFlag, writeLocalStorage } from '@/kernel/core/index'
+import { readLocalStorageFlag, writeLocalStorage } from '@/kernel/core/local-storage'
 import { useCanvasMetrics } from '@/kernel/ui/use-canvas-metrics'
 /**
  * 系统设置页面 — 薄壳入口
@@ -146,7 +146,7 @@ import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useAuthStore } from '@/domain/auth/auth.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { useLayoutStore } from '@/domain/layout/store/index'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { useSettingsSave } from '@/features/settings/kernel/save.internals'
 import {
   resetAllSettingsTabDrafts,

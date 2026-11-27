@@ -271,8 +271,8 @@ import { Fan, Power, Minus, Plus, Thermometer } from '@lucide/vue'
 import EntityPopupShell from '@/features/entity/popups/EntityPopupShell.vue'
 import PopupHead from '@/features/entity/popups/PopupHead.vue'
 import DeviceCountdownChip from '@/features/entity/popups/DeviceCountdownChip.vue'
-import { defineEntityPopupProps } from '@/domain/entity/popup/index'
-import { useClimateControlPopup } from '@/domain/entity/popup/index'
+import { defineEntityPopupProps } from '@/domain/entity/popup/use-entity-popup-base'
+import { useClimateControlPopup } from '@/domain/entity/popup/use-climate-control-popup'
 
 const props = defineProps(defineEntityPopupProps())
 

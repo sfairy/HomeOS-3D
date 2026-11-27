@@ -192,7 +192,7 @@ import ModeLogsAnalyticsRail from './ModeLogsAnalyticsRail.vue'
 // 域内相对导入：引用自己的域根 barrel 会被 feature-self-barrel 门禁判违规。
 import { EMPTY_MODE_LOG_ANALYTICS, type ModeLogAnalytics } from './use-mode-logs-analytics'
 import { formatDetailedDateTimeOrDash } from '@/kernel/format'
-import { getApiErrorMessage } from '@/kernel/core/index'
+import { getApiErrorMessage } from '@/kernel/core/error-message'
 import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
 
 import { homeModeLogSourceLabel, homeModeLogReasonLabel, HOME_MODE_LOG_SOURCE_LABELS } from '@homeos/shared'

@@ -54,7 +54,7 @@ import {
   courtyardToolAllowed as courtyardToolAllowed2,
 } from '../plan/courtyard'
 import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
-import { patchStudioFacadeState } from '../../engine/index'
+import { patchStudioFacadeState } from '@/studio/engine/studio-facade'
 import { generateId } from '../ui/studio-app-helpers'
 import { FLOOR_REGION_ERROR, FLOOR_REGION_PROMPT } from '../plan/studio-floor-region'
 import {

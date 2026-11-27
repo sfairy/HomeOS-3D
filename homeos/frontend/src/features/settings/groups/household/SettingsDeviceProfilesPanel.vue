@@ -268,7 +268,7 @@ import { listHaAreas } from '@/domain/api/ha'
 import { listMusicPlayers } from '@/domain/api/media'
 import { AUDIT_LABELS, KIND_LABELS, kindTransition, relativeTime } from './device-profiles-display'
 import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
-import { getApiErrorMessage } from '@/kernel/core/index'
+import { getApiErrorMessage } from '@/kernel/core/error-message'
 
 defineProps({ activeTab: { type: String, default: 'device-profiles' } })
 

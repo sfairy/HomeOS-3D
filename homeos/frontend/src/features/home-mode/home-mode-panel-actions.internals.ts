@@ -5,8 +5,8 @@
 /** 家庭模式面板动作处理器 */
 import { onActivated, onMounted } from 'vue'
 import { duplicateHomeMode, reorderHomeModes } from '@/domain/api/home-modes'
-import { getApiErrorMessage } from '@/kernel/core/index'
-import { logger } from '@/kernel/core/index'
+import { getApiErrorMessage } from '@/kernel/core/error-message'
+import { logger } from '@/kernel/core/logger'
 import type { useSettingsSave } from '@/features/settings/kernel/save.internals'
 import type { ModeActionDraft } from './draft.internals'
 import type {

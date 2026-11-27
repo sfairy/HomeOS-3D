@@ -13,7 +13,7 @@ import { useServerTts } from '@/features/voice/index'
 import { playEarcon } from '@/features/voice/index'
 import { useTtsSpeak } from '@/domain/voice/use-tts-speak'
 import { getConfigSection } from '@/kernel/config/frontend-config'
-import { logger } from '@/kernel/core/index'
+import { logger } from '@/kernel/core/logger'
 import { askCompanion } from './use-companion-chat'
 
 type ServerTts = ReturnType<typeof useServerTts>

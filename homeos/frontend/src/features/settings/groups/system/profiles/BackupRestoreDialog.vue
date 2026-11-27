@@ -186,8 +186,8 @@ import {
   inspectEncryptedBusinessBackup,
   restoreEncryptedBusinessBackup,
 } from '@/domain/api/backups'
-import { downloadBlob } from '@/kernel/core/index'
-import { getApiErrorMessage } from '@/kernel/core/index'
+import { downloadBlob } from '@/kernel/core/misc'
+import { getApiErrorMessage } from '@/kernel/core/error-message'
 import { navigateAfterRestore, resolvePostRestoreDestination } from '@/domain/license'
 import { useShellTeleportTarget } from '@/kernel/ui/shell/use-shell-teleport-target'
 

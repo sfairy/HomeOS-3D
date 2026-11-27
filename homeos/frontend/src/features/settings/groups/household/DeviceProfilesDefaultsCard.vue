@@ -138,7 +138,7 @@ import SettingsCardIntro from '@/features/settings/shell/SettingsCardIntro.vue'
 import HosSelect from '@/domain/entity/entity-select/HosSelect.vue'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { deleteDeviceProfileDefault, listDeviceProfileDefaults, setDeviceProfileDefault } from '@/domain/api/device'
-import { getApiErrorMessage } from '@/kernel/core/index'
+import { getApiErrorMessage } from '@/kernel/core/error-message'
 
 const props = defineProps({
   areas: { type: Array, default: () => [] },

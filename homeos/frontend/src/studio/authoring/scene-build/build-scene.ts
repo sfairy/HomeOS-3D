@@ -39,7 +39,7 @@ import { sceneModelOrigin as sceneModelOrigin2 } from '../plan/courtyard-drawing
 import { applyShadowReceiverTrial as applyShadowReceiverTrial2 } from '../studio-shadow-receiver-trial'
 import { buildStaticMaterialKey } from '../materials/studio-static-material-key'
 import { compactRuntimeFurniture as compactRuntimeFurniture2 } from '../items/studio-runtime-furniture'
-import { cacheObjectTransforms as cacheObjectTransforms2 } from '../../app/bridge/scene/index'
+import { cacheObjectTransforms as cacheObjectTransforms2 } from '@app/bridge/scene/scene-matrices'
 import { mergeGeometries as mergeGeometries2 } from '/static/vendor/three/0.187.0/BufferGeometryUtils.js'
 import { lampItemTypeSet, tvMountStyleSet } from '../items/item-catalog'
 import { isPlacedItemHidden, placedVisibilityKey, placedVisibilityKeyFor } from '../items/placed-item-state'
@@ -52,7 +52,7 @@ import {
   cacheSceneDescriptor as cacheSceneDescriptor2,
   sha256 as sha2562,
   stableCacheJSON as stableCacheJSON2,
-} from '../../app/bridge/scene/index'
+} from '@app/bridge/scene/render-cache'
 import { ALL_ITEM_MODELS as ALL_ITEM_MODELS2 } from '../loaders/studio-external-models'
 import { normalizePillarShape as normalizePillarShape2 } from '../items/studio-item-posture'
 import { STORAGE_SECTION_TYPES, storageSectionModelType } from '../items/studio-storage-sections'

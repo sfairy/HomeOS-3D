@@ -17,7 +17,7 @@ import {
 } from '@/features/weather/utils'
 import { WEATHER_ICON_EMOJI } from './screensaver.defaults'
 import type { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import type { useLayoutStore } from '@/domain/layout/store/index'
+import type { useLayoutStore } from '@/domain/layout/store/layout.store'
 
 type EntitiesStore = ReturnType<typeof useEntitiesStore>
 type LayoutStore = ReturnType<typeof useLayoutStore>

@@ -3,8 +3,8 @@
  * @module frontend/src/composables/energy
  */
 import { ref, computed, type ComputedRef } from 'vue'
-import { parseDateParts } from '@/domain/energy/index'
-import type { UtilityMeterParsedItem } from '@/domain/energy/index'
+import { parseDateParts } from '@/domain/energy/composables'
+import type { UtilityMeterParsedItem } from '@/domain/energy/composables'
 
 export function createUtilityMeterCalendar(opts: {
   daylist: ComputedRef<UtilityMeterParsedItem[]>

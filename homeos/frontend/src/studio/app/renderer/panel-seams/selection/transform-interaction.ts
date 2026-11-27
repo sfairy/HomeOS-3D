@@ -5,7 +5,7 @@ import {
   rotateMultiSelectionTransforms as rotateMultiSelectionTransforms2,
 } from '../../geometry/transform-geometry'
 import { assignComponentIdentifiers, isPrimaryModifierPressed } from '../../renderer-helpers'
-import { doorWindowPerspectiveCorners as doorWindowPerspectiveCorners2 } from '../../registry/index'
+import { doorWindowPerspectiveCorners as doorWindowPerspectiveCorners2 } from '@app/renderer/controls/door-window-runtime'
 import type { PanelRenderer } from '../../panel-renderer'
 
 export function startComponentsScale(

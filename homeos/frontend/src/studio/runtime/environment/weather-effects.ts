@@ -16,7 +16,7 @@
  * - **尊重减弱动效**：`prefers-reduced-motion: reduce` 时只画一帧静态画面，不循环。
  * - **真实地面**：舞台发来的地板四边形在这里下发给地面层，水花因此贴地。
  */
-import { createDemandFrameLoop } from '@app/bridge/scene/index'
+import { createDemandFrameLoop } from '@app/bridge/scene/frame-loop'
 
 import { weatherEffectKey, weatherWindSpeed, type WeatherEffectKey } from '@/studio/platform/weather-settings'
 

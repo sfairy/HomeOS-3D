@@ -148,7 +148,7 @@ import { useVoiceCommandEditor } from '@/features/settings/groups/perception/voi
 import { useVoiceDailyAdvisorPanel } from '@/features/settings/groups/perception/voice'
 import { useSpeechPreview } from '@/features/voice/index'
 import { previewDailyAdvisor } from '@/features/voice/utils'
-import { logger } from '@/kernel/core/index'
+import { logger } from '@/kernel/core/logger'
 import { useSettingsPendingChanges } from '@/features/settings/kernel/pending.internals'
 import { useRegisterSettingsTabPending } from '@/features/settings/kernel/pending.internals'
 import { useSettingsSidebarReentryReset } from '@/kernel/ui/hub-viewport'

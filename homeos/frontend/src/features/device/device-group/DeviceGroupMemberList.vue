@@ -266,7 +266,7 @@ import DeviceGroupActions from '@/features/device/device-group/DeviceGroupAction
 import DeviceGroupBatchBar from '@/features/device/device-group/DeviceGroupBatchBar.vue'
 import DeviceGroupLightCard from '@/features/device/device-group/DeviceGroupLightCard.vue'
 import VirtualList from '@/kernel/ui/primitives/VirtualList.vue'
-import { getApiErrorMessage } from '@/kernel/core/index'
+import { getApiErrorMessage } from '@/kernel/core/error-message'
 
 /**
  * 组件 Props 定义

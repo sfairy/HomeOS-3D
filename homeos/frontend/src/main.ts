@@ -60,9 +60,9 @@ import {
   primeFrontendConfigFromCache,
   setupFrontendConfigVisibilitySync,
 } from '@/kernel/config/frontend-config'
-import { primeGlassEffectDocument, setupGlassEffectSync } from '@/kernel/ui/index'
-import { applyHomeOsTheme } from '@/kernel/ui/index'
-import { setupSmartPerformanceMode } from '@/kernel/perf/index'
+import { primeGlassEffectDocument, setupGlassEffectSync } from '@/kernel/ui/glass-effect'
+import { applyHomeOsTheme } from '@/kernel/ui/theme'
+import { setupSmartPerformanceMode } from '@/kernel/perf/smart-performance'
 import {
   registerAuthChangeHandler,
   registerUnauthorizedHandler,
@@ -71,15 +71,15 @@ import {
   registerUiNotifyHandler,
 } from '@/kernel/bridge/store-bridge'
 import { useAuthStore } from './domain/auth/auth.store'
-import { useLayoutStore } from './domain/layout/store/index'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { useChromeStore } from './kernel/ui/chrome/chrome-store'
 import VSkeleton from './kernel/ui/primitives/VSkeleton.vue'
 import VEmptyState from './kernel/ui/primitives/VEmptyState.vue'
 import VPanelSkeleton from './kernel/ui/primitives/VPanelSkeleton.vue'
 import { swipeClose } from './app/directives/swipe-close'
 import { scrollRegion } from './app/directives/scroll-region'
-import { studioStartupReady } from '@/kernel/ui/index'
-import { ensureStudioLoadingStyle } from '@/kernel/ui/index'
+import { studioStartupReady } from '@/kernel/ui/studio-startup'
+import { ensureStudioLoadingStyle } from '@/kernel/ui/studio-loading-style'
 import { forgetLicenseAvailability } from '@/domain/license'
 import { adoptPreloadedStylesheets } from '@/studio/index'
 
@@ -210,7 +210,7 @@ registerAuthChangeHandler(() => {
   // 登出 / 401 时（isAuthenticated=false）额外清理用户态 store，避免下一个会话残留上一个用户的数据
   void import('./domain/auth/auth.store').then(({ useAuthStore }) => {
     if (useAuthStore().isAuthenticated) return
-    void import('./domain/layout/store/index').then(({ useLayoutStore }) => {
+    void import('./domain/layout/store/layout.store').then(({ useLayoutStore }) => {
       useLayoutStore().resetForAuthChange()
     })
     void import('./domain/earthquake/earthquake.store').then(({ useEarthquakeStore }) => {
@@ -252,7 +252,7 @@ function mountApp(): void {
   // B22 + RUM：全局 WebGL 上下文丢失兜底与轻量性能采集，idle 时懒加载启动。
   // 入口只多一次动态 import，不为采集付首屏字节；?webgl-guard=0 / ?client-metrics=0 可回退。
   const startPerf = (): void => {
-    void import('@/kernel/perf/index').then(({ startPerfInstrumentation }) => startPerfInstrumentation())
+    void import('@/kernel/perf/perf-instrumentation').then(({ startPerfInstrumentation }) => startPerfInstrumentation())
   }
   typeof requestIdleCallback === 'function' ? requestIdleCallback(startPerf) : setTimeout(startPerf, 1500)
   // 挂载完成标记：与 data-homeos-ready（首个路由解析完成）区分开。
@@ -261,7 +261,7 @@ function mountApp(): void {
   // 挂载后启动 FPS 自适应监控，低帧率时自动降级。3D 舞台 iframe 不起：舞台有自己的自适应
   // DPR，这里的档位只影响 iframe 内用不到的外壳样式，却要在每次指针事件后多跑 5s rAF。
   if (!document.body.classList.contains('interaction3d-stage')) {
-    import('@/kernel/perf/index').then(({ startFpsAdaptiveMonitor }) => {
+    import('@/kernel/perf/adaptive-perf').then(({ startFpsAdaptiveMonitor }) => {
       startFpsAdaptiveMonitor()
     })
   }
@@ -278,7 +278,7 @@ function mountApp(): void {
   }
   // 生产环境注册 PWA 更新提示（用户确认式：确认后激活新 SW 并刷新）
   if (import.meta.env.PROD) {
-    import('@/kernel/core/index').then(({ setupPwaUpdatePrompt }) => {
+    import('@/kernel/core/pwa-update').then(({ setupPwaUpdatePrompt }) => {
       setupPwaUpdatePrompt(async (applyUpdate) => {
         const ok = await useChromeStore().confirm(
           '检测到新版本已就绪。立即更新将刷新页面，未保存的编辑可能丢失。',

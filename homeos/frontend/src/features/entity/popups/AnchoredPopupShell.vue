@@ -67,7 +67,7 @@
 <script setup>
 import { computed, inject, onBeforeUnmount, onMounted, ref, useAttrs } from 'vue'
 import { X } from '@lucide/vue'
-import { useEntityPopupAnchor } from '@/domain/entity/popup/index'
+import { useEntityPopupAnchor } from '@/domain/entity/popup/use-entity-popup-anchor'
 import { useKeepAliveGate } from '@/kernel/ui/use-keep-alive-gate'
 import { installPopupHistoryGuard } from '@/kernel/ui/use-popup-history-guard'
 import { useShellTeleportTarget } from '@/kernel/ui/shell/use-shell-teleport-target'

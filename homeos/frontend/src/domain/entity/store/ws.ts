@@ -1,6 +1,6 @@
 import type { Socket } from 'socket.io-client'
 import { getActivePinia } from 'pinia'
-import { useLayoutStore } from '@/domain/layout/store/index'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import {
   getActiveSubscribeDomains,
   collectWsPinnedEntityIds,

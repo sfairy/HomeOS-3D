@@ -1,6 +1,6 @@
 /** 前端公共配置（AppPublicConfig）状态管理 */
 import { ref } from 'vue'
-import { logger } from '@/kernel/core/index'
+import { logger } from '@/kernel/core/logger'
 import { AGENT_QUICK_PROMPTS } from '@/kernel/index'
 import { SS_DEFAULTS } from '@/kernel/index'
 import type { ClientPowerWakePublic } from '@homeos/shared'

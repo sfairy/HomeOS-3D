@@ -1,4 +1,4 @@
-import { createRenderLightIndex } from '../../../app/bridge/scene/index'
+import { createRenderLightIndex } from '@app/bridge/scene/render-light-index'
 import { layerLightFailed, layerLightRecovered } from '@app/shared/diagnostics/degradation'
 import {
   createFloorDirectionalShadow,

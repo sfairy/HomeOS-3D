@@ -1,4 +1,4 @@
-import { sha256 as sha2562, stableCacheJSON as stableCacheJSON2 } from '../../app/bridge/scene/index'
+import { sha256 as sha2562, stableCacheJSON as stableCacheJSON2 } from '@app/bridge/scene/render-cache'
 import { type StudioAppContext } from '../app-context'
 import { createEffectCache as createEffectCache2 } from '../studio-effect-cache'
 import { createPreviewResourceHandoff as createPreviewResourceHandoff2 } from '../studio-preview-resources'
@@ -18,7 +18,11 @@ import {
   restoreLightingShaderChecksIfReady,
   type LightingShaderFailsafe,
 } from '../lights/lighting'
-import { probeWebglAvailability, webglUnavailableMessage, type WebglAvailability } from '@/kernel/perf/index'
+import {
+  probeWebglAvailability,
+  webglUnavailableMessage,
+  type WebglAvailability,
+} from '@/kernel/perf/webgl-availability'
 import {
   STUDIO_COMPAT_CAPTURES_PER_SYNC,
   STUDIO_COMPAT_NOTICE,
@@ -29,7 +33,7 @@ import {
 import { scheduleShaderWarmup } from './studio-shader-compile-warmup'
 import { createOverviewStack as createOverviewStack2 } from '../scene/overview/studio-overview-stack'
 import { createWeatherAtmosphereController, installWeatherHostMessages } from '../lights/weather-atmosphere'
-import { createDemandFrameLoop as createDemandFrameLoop2 } from '../../app/bridge/scene/index'
+import { createDemandFrameLoop as createDemandFrameLoop2 } from '@app/bridge/scene/frame-loop'
 import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
 import { createSpotShadowAtlasController as createSpotShadowAtlasController2 } from '../scene/shadow/studio-shadow-atlas'
 import { createRegionLightController as createRegionLightController2 } from '../plan/studio-plan2-region'

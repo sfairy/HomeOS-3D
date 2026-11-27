@@ -32,7 +32,7 @@
 /** ChecklistBanner - 首装任务条组件 */
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
-import { useSetupChecklist } from '@/domain/status/index'
+import { useSetupChecklist } from '@/domain/status/composables'
 
 const { checklist, showBanner, progressText, dismiss } = useSetupChecklist()
 

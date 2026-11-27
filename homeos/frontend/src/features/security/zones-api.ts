@@ -1,7 +1,7 @@
 /** 安防区域后端同步工具模块。 */
 /** 将安防区域配置同步到后端 */
 import { updateSecurityPanelZones } from '@/domain/api/security'
-import { getApiErrorMessage, isUnauthorizedError } from '@/kernel/core/index'
+import { getApiErrorMessage, isUnauthorizedError } from '@/kernel/core/error-message'
 
 /** 安防区域 payload 结构（与后端 API 对齐） */
 export interface SecurityZonePayload {

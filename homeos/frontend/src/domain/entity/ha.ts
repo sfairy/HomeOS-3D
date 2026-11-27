@@ -2,7 +2,7 @@ import { computed, ref, toValue, type MaybeRefOrGetter } from 'vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { getEntityDomain } from '@homeos/shared'
-import { logger } from '@/kernel/core/index'
+import { logger } from '@/kernel/core/logger'
 import { blockDangerousHaServiceWhenOffline, HA_OFFLINE_DANGEROUS_CONTROL_MSG } from '@/kernel/ha'
 
 /* ── 原 useHaDegrade.ts 的实现 ── */

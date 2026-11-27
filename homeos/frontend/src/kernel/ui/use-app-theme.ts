@@ -2,7 +2,7 @@
 import { onMounted, onUnmounted } from 'vue'
 import { getConfigSection, onConfigChange } from '@/kernel/config/frontend-config'
 import type { ConfigChangeListener } from '@/kernel/frontend-config'
-import { hexToRgb, resolveReadableAccent } from '@/kernel/ui/index'
+import { hexToRgb, resolveReadableAccent } from '@/kernel/ui/color'
 
 /** 已提示过的不可读强调色，避免配置变更时刷屏。 */
 const warnedAccents = new Set<string>()

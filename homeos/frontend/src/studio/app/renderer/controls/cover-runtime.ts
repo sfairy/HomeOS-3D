@@ -1,4 +1,4 @@
-import { coverComponentIsDream } from '../registry/index'
+import { coverComponentIsDream } from '@app/renderer/registry/cover-climate-state'
 import { entityMetadataIsAvailable } from '@app/shared/device'
 export function runtimeEntityStateIsActive(runtimeEntity: any) {
   const normalizedStateText = String(runtimeEntity?.newState?.state ?? runtimeEntity?.state ?? '')

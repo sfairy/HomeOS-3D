@@ -150,7 +150,7 @@ import { resolveHaEntityPicture } from '@/kernel/ha'
 import { getEntityDisplayName } from '@/domain/entity/derived'
 import { useSwiperDraggable } from '@/kernel/ui/use-swiper-draggable'
 import WidgetHubHeader from '@/domain/widget/WidgetHubHeader.vue'
-import { useHubTabs } from '@/domain/widget/index'
+import { useHubTabs } from '@/domain/widget/use-hub-tabs'
 
 const MediaPlaylistWidget = defineAsyncComponent(() => import('./PlaylistWidget.vue'))
 

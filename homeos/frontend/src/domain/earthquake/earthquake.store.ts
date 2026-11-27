@@ -4,8 +4,8 @@ import { computed, ref } from 'vue'
 import type { EarthquakeAlertPayload } from '@/kernel/earthquake'
 import { haversineDistanceKm, refineAlertCountdown } from '@homeos/shared'
 import { syncEarthquakeDismiss } from './earthquake-layout'
-import { useLayoutStore } from '@/domain/layout/store/index'
-import { schedulePoll } from '@/kernel/core/index'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
+import { schedulePoll } from '@/kernel/core/poll-scheduler'
 
 /** 自动关闭延迟（毫秒）：预警弹出 60 秒后若用户未操作则自动关闭 */
 const AUTO_DISMISS_MS = 60_000

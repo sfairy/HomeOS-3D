@@ -2,7 +2,7 @@ import {
   componentDirectLocation as componentDirectLocation2,
   findComponentLocation as findComponentLocation2,
 } from './component-tree'
-import { sha256 } from '../bridge/scene/index'
+import { sha256 } from '@app/bridge/scene/render-cache'
 import { randomUuid } from '../shared/util/random-id'
 import { clampNumber } from '../shared/util/number'
 

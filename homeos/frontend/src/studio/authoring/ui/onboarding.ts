@@ -1,4 +1,4 @@
-import { patchStudioFacadeState } from '../../engine/index'
+import { patchStudioFacadeState } from '@/studio/engine/studio-facade'
 import { isCourtyardDrawing as isCourtyardDrawing2 } from '../loaders/studio-normalization'
 import { lampItemTypeSet } from '../items/item-catalog'
 import { type StudioControlElement } from '../studio-app-types'

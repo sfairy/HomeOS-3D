@@ -15,7 +15,7 @@ import { getLargeEntityThreshold, configEpoch } from '@/kernel/config/frontend-c
 import { usePaginatedEntityList } from '@/domain/entity/use-paginated-entity-list'
 import { useRouteEntityProjection } from '@/domain/entity/use-route-entity-projection'
 import { useEnsureVisibleEntities } from '@/domain/entity/use-ensure-visible-entities'
-import { logger } from '@/kernel/core/index'
+import { logger } from '@/kernel/core/logger'
 import { appNotify } from '@/kernel/bridge/store-bridge'
 import { hasEntityControlPopup } from '@/domain/entity/popup-registry'
 

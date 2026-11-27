@@ -70,7 +70,7 @@
 import { weatherStateLabel, weatherVisualKey } from '@/features/weather/constants/weather-labels'
 import { formatLocaleDate } from '@/kernel/format'
 import { computed, onMounted, watch } from 'vue'
-import { useScheduledPoll } from '@/domain/widget/index'
+import { useScheduledPoll } from '@/domain/widget/use-scheduled-poll'
 import { RouterLink } from 'vue-router'
 import { Cloud, Sun, Droplets, Wind, Moon, CloudRain, CloudFog, CloudLightning, CloudSnow } from '@lucide/vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'

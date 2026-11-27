@@ -1,6 +1,7 @@
 /* ── 原 useSliderCommit.ts 的实现 ── */
 import { ref, watch, unref, computed, type MaybeRefOrGetter } from 'vue'
-import { snapToSliderStep, sliderTrackStyle } from '@/kernel/ui/index'
+import { snapToSliderStep } from '@/kernel/ui/progress-bar-gradient'
+import { sliderTrackStyle } from '@/kernel/ui/progress-bar'
 
 type SliderTrackOpts = {
   min?: number

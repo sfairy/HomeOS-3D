@@ -42,10 +42,8 @@ import {
   resolveClimateDeviceType as resolveClimateDeviceType2,
   waterHeaterStatusLabel as waterHeaterStatusLabel2,
 } from '@app/shared/device'
-import {
-  formatLineChartValue as formatLineChartValue2,
-  renderLineChartDetails as renderLineChartDetails2,
-} from '../../registry/index'
+import { formatLineChartValue as formatLineChartValue2 } from '@app/renderer/controls/line-chart-runtime'
+import { renderLineChartDetails as renderLineChartDetails2 } from '@app/renderer/registry/line-chart-details'
 import { lightColorRgb, lightSupportsColor } from '@app/shared/device'
 import { selectedRelatedEntityIds as selectedRelatedEntityIds2 } from '../../../shared/related-entities'
 

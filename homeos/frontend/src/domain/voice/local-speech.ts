@@ -1,5 +1,5 @@
 /** 浏览器本机 SpeechSynthesis TTS 工具 */
-import { logger } from '@/kernel/core/index'
+import { logger } from '@/kernel/core/logger'
 
 /** 偏好的中文女声 voice 关键字（按优先级排序） */
 const PREFERRED_VOICE_KEYS = ['xiaoxiao', 'yaoyao', 'hanhan', 'yating', 'tingting', 'ting-ting', 'mei-jia']

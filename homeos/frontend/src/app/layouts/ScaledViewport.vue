@@ -46,13 +46,13 @@
 <script setup>
 import { computed, toRef, watch, onUnmounted } from 'vue'
 import VNotification from '@/kernel/ui/primitives/VNotification.vue'
-import { useLayoutStore } from '@/domain/layout/store/index'
-import { getDefaultLayout } from '@/domain/layout/store/index'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
+import { getDefaultLayout } from '@/domain/layout/store/defaults'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useScaling, holdScaledCanvasFlag } from '@/kernel/ui/use-scaling'
 import { getConfigSection, configEpoch, getWorkerDerivedThreshold } from '@/kernel/config/frontend-config'
 import { resolveDesignMetrics } from '@/kernel/layout'
-import { adaptiveTier } from '@/kernel/perf/index'
+import { adaptiveTier } from '@/kernel/perf/adaptive-perf'
 
 const props = defineProps({
   // 外层 frame 的附加 class（用于不同布局场景区分样式）

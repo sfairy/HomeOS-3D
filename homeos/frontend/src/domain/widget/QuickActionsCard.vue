@@ -68,7 +68,7 @@ import { RouterLink } from 'vue-router'
 import VEmptyState from '@/kernel/ui/primitives/VEmptyState.vue'
 import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { useLayoutStore } from '@/domain/layout/store/index'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import {
   countQuickActionBatteryLow,
   countQuickActionClimateActive,

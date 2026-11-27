@@ -33,10 +33,8 @@ import {
   climatePowerCommand as climatePowerCommand2,
   resolveClimateDeviceType as resolveClimateDeviceType2,
 } from '@app/shared/device'
-import {
-  formatLineChartValue as formatLineChartValue2,
-  renderLineChartDetails as renderLineChartDetails2,
-} from '../../registry/index'
+import { formatLineChartValue as formatLineChartValue2 } from '@app/renderer/controls/line-chart-runtime'
+import { renderLineChartDetails as renderLineChartDetails2 } from '@app/renderer/registry/line-chart-details'
 import { lightColorRgb, lightSupportsColor } from '@app/shared/device'
 import {
   playFixedDeviceDropEntrance as playFixedDeviceDropEntrance2,

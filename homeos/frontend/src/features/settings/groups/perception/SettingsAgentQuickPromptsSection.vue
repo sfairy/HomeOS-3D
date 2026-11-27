@@ -19,8 +19,8 @@ import { agentQuickPromptsDirty, agentQuickPromptsRevert } from '@/features/sett
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { isSystemConfigConflictError, patchSystemConfig } from '@/domain/layout/system-config-core.internals'
 import { reloadFrontendConfig } from '@/kernel/config/frontend-config'
-import { getApiErrorMessage } from '@/kernel/core/index'
-import { logger } from '@/kernel/core/index'
+import { getApiErrorMessage } from '@/kernel/core/error-message'
+import { logger } from '@/kernel/core/logger'
 import { AGENT_QUICK_PROMPTS, AGENT_QUICK_PROMPT_LIMITS } from '@/kernel/index'
 import { readAgentQuickPrompts } from '@/features/agent/utils'
 

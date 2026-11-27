@@ -5,11 +5,11 @@
 import { isEntityAllowed } from '@homeos/shared'
 import { defineStore } from 'pinia'
 import { ref, toRaw, shallowReactive, reactive, watch } from 'vue'
-import { apiClient } from '@/domain/api/index'
+import apiClient from '@/kernel/http'
 import { resyncEntities } from '@/domain/api/entities'
 import { useAuthStore } from '@/domain/auth/auth.store'
-import { useLayoutStore } from '@/domain/layout/store/index'
-import { logger } from '@/kernel/core/index'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
+import { logger } from '@/kernel/core/logger'
 import { getFrontendConfig, getLargeEntityThreshold, getWorkerDerivedThreshold } from '@/kernel/config/frontend-config'
 import type {
   DerivedBatteryEntry,

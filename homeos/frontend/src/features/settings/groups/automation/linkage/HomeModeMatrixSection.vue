@@ -23,12 +23,12 @@ import { Home, Loader2 } from '@lucide/vue'
 import { HOME_SECURITY_LINK_ROWS } from '@homeos/shared'
 import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSectionHead.vue'
 import HosSelect from '@/domain/entity/entity-select/HosSelect.vue'
-import { useLayoutStore } from '@/domain/layout/store/index'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { fetchHomeModes } from '@/domain/api/home-modes'
-import { normalizeCrudListResponse } from '@/kernel/core/index'
-import { logger } from '@/kernel/core/index'
-import { getApiErrorMessage } from '@/kernel/core/index'
+import { normalizeCrudListResponse } from '@/kernel/core/crud-list'
+import { logger } from '@/kernel/core/logger'
+import { getApiErrorMessage } from '@/kernel/core/error-message'
 
 // 入参：加载态、安防联动配置对象、是否隐藏标题
 const props = defineProps({

@@ -345,9 +345,13 @@ import { handleSystemConfigPatchError, useSystemConfig } from '@/domain/layout/s
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
 import NavTabEditor from './NavTabEditor.vue'
-import { markPerformanceModeUserSet } from '@/kernel/perf/index'
-import { autoPerformanceModeRef, clearAutoPerformanceMode, resolveEffectivePerformanceMode } from '@/kernel/perf/index'
-import { applyGlassEffectDocument } from '@/kernel/ui/index'
+import { markPerformanceModeUserSet } from '@/kernel/perf/tablet-default-perf'
+import {
+  autoPerformanceModeRef,
+  clearAutoPerformanceMode,
+  resolveEffectivePerformanceMode,
+} from '@/kernel/perf/runtime-perf-mode'
+import { applyGlassEffectDocument } from '@/kernel/ui/glass-effect'
 import { useSettingsSidebarReentryReset } from '@/kernel/ui/hub-viewport'
 import { useSettingsHubRouteSection } from '@/features/settings/shared/hub'
 import { useSettingsPendingChanges } from '@/features/settings/kernel/pending.internals'

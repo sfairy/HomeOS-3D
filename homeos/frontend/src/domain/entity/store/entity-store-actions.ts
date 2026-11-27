@@ -12,8 +12,8 @@
  * 等一个永远不会来的 `state_changed`；REST 真值与后端 verified=true 同样是确认来源
  */
 import { reactive } from 'vue'
-import { getApiErrorMessage } from '@/kernel/core/index'
-import { randomUUID } from '@/kernel/core/index'
+import { getApiErrorMessage } from '@/kernel/core/error-message'
+import { randomUUID } from '@/kernel/core/random-uuid'
 import { predictOptimistic } from '@/domain/entity/store/entity-store-optimistic'
 import { optimisticExpectationSatisfied } from '@/domain/entity/store/optimistic-expectation'
 import { getWsPushPublicConfig } from '@/kernel/config/frontend-config'

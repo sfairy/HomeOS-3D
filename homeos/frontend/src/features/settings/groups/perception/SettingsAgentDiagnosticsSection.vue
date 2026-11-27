@@ -76,7 +76,7 @@ import { Activity } from '@lucide/vue'
 import HosSelect from '@/domain/entity/entity-select/HosSelect.vue'
 import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
 import SettingsCardIntro from '@/features/settings/shell/SettingsCardIntro.vue'
-import { getApiErrorMessage } from '@/kernel/core/index'
+import { getApiErrorMessage } from '@/kernel/core/error-message'
 import { formatFullDateTime } from '@/kernel/format'
 import { listAgentDiagnostics, type AgentDiagnosticEvent } from '@/domain/api/agent'
 

@@ -9,7 +9,7 @@ import {
   resolveBatteryLevel,
 } from '@/domain/entity/utils/device-group'
 import type { HaEntityState } from '@/kernel/entity'
-import { getApiErrorMessage } from '@/kernel/core/index'
+import { getApiErrorMessage } from '@/kernel/core/error-message'
 import {
   Settings,
   ThermometerSnowflake,

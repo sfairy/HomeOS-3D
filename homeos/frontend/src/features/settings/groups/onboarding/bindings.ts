@@ -20,7 +20,7 @@ import {
   syncEntityAccounts,
 } from '@/domain/energy/account'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { useLayoutStore } from '@/domain/layout/store/index'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import {
   getEntityLeaf,
   type BindingGapItem,
@@ -50,7 +50,7 @@ import {
   collectBoundHazardIds,
   type BindingsRecommendEntity,
   type BindingsRecommendSection,
-} from '@/domain/recommend/index'
+} from '@/domain/recommend/bindings-recommend'
 import {
   afterLayoutCancelSync,
   syncGlobalLayoutPendingSnapshot,
@@ -58,8 +58,8 @@ import {
   useSettingsHubPending,
 } from '@/features/settings/kernel/pending.internals'
 import { useSettingsSidebarReentryReset } from '@/kernel/ui/hub-viewport'
-import { getApiErrorMessage } from '@/kernel/core/index'
-import { logger } from '@/kernel/core/index'
+import { getApiErrorMessage } from '@/kernel/core/error-message'
+import { logger } from '@/kernel/core/logger'
 import {
   applyLifeAccountsLayoutSlice,
   liveLifeAccountsLayoutSlice,

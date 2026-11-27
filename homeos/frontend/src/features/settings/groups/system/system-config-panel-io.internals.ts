@@ -9,8 +9,8 @@ import type { useSystemConfig } from '@/domain/layout/system-config-core.interna
 import type { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { resetSystemConfig } from '@/kernel/http/index'
 import { reloadFrontendConfig } from '@/kernel/config/frontend-config'
-import { getApiErrorMessage } from '@/kernel/core/index'
-import { logger } from '@/kernel/core/index'
+import { getApiErrorMessage } from '@/kernel/core/error-message'
+import { logger } from '@/kernel/core/logger'
 import type { EditableConfigSection } from '@/kernel/system-config'
 import { ref, type Ref } from 'vue'
 

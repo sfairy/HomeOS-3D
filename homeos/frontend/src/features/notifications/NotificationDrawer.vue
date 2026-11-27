@@ -47,7 +47,7 @@
 import { computed, inject, ref, toRef, watch } from 'vue'
 import { Bell, X } from '@lucide/vue'
 import NotificationCenter from '@/features/notifications/widgets/NotificationCenter.vue'
-import { NOTIFICATION_CENTER_KEY } from '@/domain/widget/index'
+import { NOTIFICATION_CENTER_KEY } from '@/domain/widget/notification-center.context'
 import { useShellTeleportTarget } from '@/kernel/ui/shell/use-shell-teleport-target'
 import { useFocusTrap } from '@/kernel/ui/use-focus-trap'
 

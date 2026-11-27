@@ -18,7 +18,7 @@ import {
   editorEntityPickerInitialPage as editorEntityPickerInitialPage2,
   editorEntityPickerPage as editorEntityPickerPage2,
 } from '@app/shared/picker/editor-picker-pagination'
-import { lightStatisticsEntitySupport as lightStatisticsEntitySupport2 } from '../../../renderer/registry/index'
+import { lightStatisticsEntitySupport as lightStatisticsEntitySupport2 } from '@app/renderer/controls/light-statistics-runtime'
 import { popupModuleEntityRecommended as popupModuleEntityRecommended2 } from '../../editor'
 
 export interface CopyBackupPickersDeps {

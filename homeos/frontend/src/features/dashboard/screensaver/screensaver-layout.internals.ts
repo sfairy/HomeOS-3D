@@ -6,9 +6,9 @@ import { ref, computed, type Ref } from 'vue'
 import { getConfigSection } from '@/kernel/config/frontend-config'
 import { computeScreensaverLayout, readViewportBox } from '@/kernel/ui/use-scaling'
 import { resolveDesignMetrics } from '@/kernel/layout'
-import { screensaverBackgroundIdle } from '@/kernel/ui/index'
+import { screensaverBackgroundIdle } from '@/kernel/ui/screensaver-background-idle'
 import { SS_DEFAULTS } from './screensaver.defaults'
-import type { useLayoutStore } from '@/domain/layout/store/index'
+import type { useLayoutStore } from '@/domain/layout/store/layout.store'
 
 type LayoutStore = ReturnType<typeof useLayoutStore>
 

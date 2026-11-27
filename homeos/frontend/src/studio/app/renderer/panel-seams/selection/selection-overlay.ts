@@ -2,7 +2,7 @@ import { airflowLayerGeometry as airflowLayerGeometry2 } from '../../geometry/tr
 import {
   doorWindowPerspectiveCorners as doorWindowPerspectiveCorners2,
   doorWindowPerspectiveMatrix as doorWindowPerspectiveMatrix2,
-} from '../../registry/index'
+} from '@app/renderer/controls/door-window-runtime'
 import { syncInteraction3dUiScale as syncInteraction3dUiScale2 } from '../../../bridge/bridge'
 import type { PanelRenderer } from '../../panel-renderer'
 

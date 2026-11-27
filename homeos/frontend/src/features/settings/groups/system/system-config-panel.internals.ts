@@ -3,7 +3,7 @@
  * @module frontend/src/views
  */
 /** composables：useSystemConfigPanel */
-import { writeLocalStorage } from '@/kernel/core/index'
+import { writeLocalStorage } from '@/kernel/core/local-storage'
 import {
   DEV_KEYS_STORAGE_KEY,
   readDevKeysPref,
@@ -16,8 +16,8 @@ import { fetchConfigAudit } from '@/kernel/http/index'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import type { SystemConfig, SystemConfigLoadOptions } from '@/kernel/system-config'
 import type { EditableConfigSection } from '@/kernel/system-config'
-import { getApiErrorMessage } from '@/kernel/core/index'
-import { logger } from '@/kernel/core/index'
+import { getApiErrorMessage } from '@/kernel/core/error-message'
+import { logger } from '@/kernel/core/logger'
 import { useAppConfigBackup } from '@/features/settings/shared/hub'
 import {
   countSystemConfigPendingChanges,

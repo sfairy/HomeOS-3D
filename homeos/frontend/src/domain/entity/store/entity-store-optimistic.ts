@@ -11,7 +11,7 @@ import {
   optimisticExpectationSatisfied,
   OPTIMISTIC_TIMEOUT_MESSAGE,
 } from '@/domain/entity/store/optimistic-expectation'
-import { clonePlain } from '@/kernel/core/index'
+import { clonePlain } from '@/kernel/core/clone-plain'
 import { lightBrightnessFromPct } from '@/domain/entity/control/light-control-core'
 import type { EntityOptimisticDeps, HaEntityState, OptimisticPrediction } from '@/kernel/entity'
 

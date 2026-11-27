@@ -32,9 +32,9 @@ import {
   getPresencePersonsFromSecurity,
   sanitizePresencePersonsForSave,
 } from '@/features/presence/person'
-import { withBackendBootRetry } from '@/kernel/core/index'
-import { getApiErrorMessage, isBackendUnreachableError } from '@/kernel/core/index'
-import { logger } from '@/kernel/core/index'
+import { withBackendBootRetry } from '@/kernel/core/api-boot-retry'
+import { getApiErrorMessage, isBackendUnreachableError } from '@/kernel/core/error-message'
+import { logger } from '@/kernel/core/logger'
 
 // ── usePresenceEntitiesDisplay ──
 /** usePresenceEntitiesDisplay：函数，按签名入参返回处理结果。 */

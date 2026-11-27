@@ -7,7 +7,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { copyTextWithNotify, notifyError } from '@/kernel/ui/notify'
-import { getApiErrorMessage } from '@/kernel/core/index'
+import { getApiErrorMessage } from '@/kernel/core/error-message'
 import { deleteConfigAsset, listConfigAssets, uploadConfigAsset } from '@/domain/api/config'
 
 /**

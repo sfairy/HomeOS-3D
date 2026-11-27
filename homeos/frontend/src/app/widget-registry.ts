@@ -1,5 +1,5 @@
 /** 微件注册表：Vue 组件挂载入口 */
-import { lazyComponent } from '@/kernel/core/index'
+import { lazyComponent } from '@/kernel/core/lazy-component'
 import type { Component } from 'vue'
 import { canonicalizeWidgetType, WIDGET_REGISTRY_META } from '@/kernel/registry/widget-registry-meta'
 

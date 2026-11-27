@@ -8,7 +8,7 @@ import { useDeviceAnalyticsCharts } from '@/features/device/use-device-analytics
 import { fetchAdvisorUsageSummary } from '@/kernel/http/index'
 import { fetchEventStats } from '@/domain/api/entities'
 import type { DeviceAnalyticsSummary, EventLogStats } from '@/kernel/device'
-import { createFetchSequence } from '@/kernel/core/index'
+import { createFetchSequence } from '@/kernel/core/misc'
 
 /** 设备分析仪表盘 Shell Composable */
 

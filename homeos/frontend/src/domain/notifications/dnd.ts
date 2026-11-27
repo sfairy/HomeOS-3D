@@ -5,7 +5,7 @@
  * 本文件保留 FE UI 辅助（格式化、预设、滑块样式、设置解析）。
  */
 import { DEFAULT_DND_START, DEFAULT_DND_END, isDndActive, dndDurationHours } from '@homeos/shared'
-import { sliderTrackStyle } from '@/kernel/ui/index'
+import { sliderTrackStyle } from '@/kernel/ui/progress-bar'
 import type { DndPreset, NotificationSettingsParsed } from '@/kernel/alert-rules'
 
 /** 前端 UI 滑块预览语义别名：与 shared isDndActive 行为完全一致，仅命名贴合预览场景 */

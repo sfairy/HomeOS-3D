@@ -8,7 +8,7 @@ import {
   fetchEventStats,
   fetchEvents,
 } from '@/domain/api/entities'
-import { getApiErrorMessage } from '@/kernel/core/index'
+import { getApiErrorMessage } from '@/kernel/core/error-message'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { hasEntityControlPopup } from '@/domain/entity/popup-registry'
@@ -19,8 +19,8 @@ import { copyTextToClipboard } from '@homeos/shared/utils/clipboard'
 import { getDomainLabel } from '@/features/device/utils'
 import { buildEntityAttrEntries, HVAC_ACTION_LABELS, HVAC_MODE_LABELS } from '@/domain/entity/attr-format'
 import { displayClimateOperatingLabel, displayEntityStateLabel } from '@/kernel/index'
-import { createFetchSequence } from '@/kernel/core/index'
-import { useLayoutStore } from '@/domain/layout/store/index'
+import { createFetchSequence } from '@/kernel/core/misc'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import {
   ENTITY_REFERENCE_KIND_LABELS,
   LAYOUT_ENTITY_REFERENCE_KINDS,
@@ -31,7 +31,7 @@ import {
 } from '@/kernel/entity'
 import { useSystemConfig } from '@/domain/layout/system-config-core.internals'
 import type { EventLogStats, DeviceUsageReport } from '@/kernel/device'
-import { readLocalStorage, writeLocalStorageJson } from '@/kernel/core/index'
+import { readLocalStorage, writeLocalStorageJson } from '@/kernel/core/local-storage'
 import { countOfflineDevices } from '@/domain/entity/utils/device-group'
 import { fetchAdvisorUsage } from '@/kernel/http/index'
 

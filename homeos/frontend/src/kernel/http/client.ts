@@ -13,9 +13,9 @@ import axios, {
 import { appNotify, runUnauthorizedHandler, runNavigateToLogin, runSessionRefresh } from '@/kernel/bridge/store-bridge'
 import { getPageTraceId } from '@/kernel/telemetry/trace'
 import { getFrontendConfig } from '@/kernel/config/frontend-config'
-import { logger } from '@/kernel/core/index'
-import { isLicenseInactiveError } from '@/kernel/core/index'
-import { isNavigationLockedAfterRestore } from '@/kernel/core/index'
+import { logger } from '@/kernel/core/logger'
+import { isLicenseInactiveError } from '@/kernel/core/error-message'
+import { isNavigationLockedAfterRestore } from '@/kernel/core/post-restore-lock'
 import { installFetchCsrf } from './csrf'
 
 /**

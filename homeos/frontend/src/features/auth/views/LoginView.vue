@@ -13,7 +13,7 @@ import AuthShell from '@/features/auth/AuthShell.vue'
 import PasswordField from '@homeos/shared/components/PasswordField.vue'
 import { useAuthStore } from '@/domain/auth/auth.store'
 import { getSystemInitialized } from '@/domain/system/system-init.state'
-import { getApiErrorMessage } from '@/kernel/core/index'
+import { getApiErrorMessage } from '@/kernel/core/error-message'
 import { AUTH_FLOW_ACCESS, AUTH_FLOW_SETUP, renderAuthSteps } from '@/kernel/auth'
 
 const authStore = useAuthStore()

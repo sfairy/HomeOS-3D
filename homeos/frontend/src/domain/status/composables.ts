@@ -1,10 +1,11 @@
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { getEntityDomain } from '@homeos/shared'
-import { useLayoutStore } from '@/domain/layout/store/index'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { getWholeHomeOffConfig } from '@/kernel/index'
 import type { HaEntityState } from '@/kernel/entity'
 import type { WholeHomeOffConfig } from '@/kernel/whole-home-off'
-import { readLocalStorage, writeLocalStorage, logger } from '@/kernel/core/index'
+import { readLocalStorage, writeLocalStorage } from '@/kernel/core/local-storage'
+import { logger } from '@/kernel/core/logger'
 import { ref, computed, onMounted } from 'vue'
 import { fetchSetupChecklist, fetchSystemHealth, fetchSystemDiagnostics } from '@/kernel/http/index'
 

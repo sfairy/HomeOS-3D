@@ -192,7 +192,7 @@ import SettingsRangeField from '@/features/settings/shared/layout/SettingsRangeF
 import { MIN_SCALE } from '@/kernel/ui/use-scaling'
 import { computed } from 'vue'
 import { SETTINGS_RANGE_STEP } from '@/kernel/settings'
-import { useLayoutStore } from '@/domain/layout/store/index'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
 
 const layoutStore = useLayoutStore()
 const layoutConfig = layoutStore.layoutConfig

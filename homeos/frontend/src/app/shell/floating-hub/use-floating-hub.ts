@@ -2,7 +2,7 @@
 import { getEntityDisplayName } from '@/domain/entity/derived'
 import { formatLocaleTime } from '@/kernel/format'
 import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch, type Ref } from 'vue'
-import { useLayoutStore } from '@/domain/layout/store/index'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { viewportPointToPopupAnchor } from '@/kernel/ui/popup/use-popup-position'
 import { usePerfClock } from '@/domain/layout/use-perf-clock'

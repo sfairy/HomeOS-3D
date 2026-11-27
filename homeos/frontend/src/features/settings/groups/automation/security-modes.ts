@@ -19,8 +19,8 @@ import {
   getSecurityLinkagePresets,
 } from '@/kernel/index'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { useLayoutStore } from '@/domain/layout/store/index'
-import { downloadBlob } from '@/kernel/core/index'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
+import { downloadBlob } from '@/kernel/core/misc'
 import { securityModeTabEmoji } from '@/kernel/settings'
 import { servicesForDomain } from '@/kernel/registry/widget-catalog'
 import {
@@ -42,11 +42,11 @@ import {
 } from '@lucide/vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { domainIndexToArray, getEntityDisplayName } from '@/domain/entity/derived'
-import { sliderTrackStyle } from '@/kernel/ui/index'
+import { sliderTrackStyle } from '@/kernel/ui/progress-bar'
 import { createDefaultWholeHomeOff } from '@/kernel/index'
 import { fetchAdvisorForgotten } from '@/kernel/http/index'
 import type { RecommendChip } from '@/domain/recommend/recommend.types'
-import { buildWholeHomeOffRecommendations } from '@/domain/recommend/index'
+import { buildWholeHomeOffRecommendations } from '@/domain/recommend/whole-home-off-recommend'
 import { useHomeosSceneOptions } from '@/features/home-mode/index'
 import { useHazardBindingStatus } from '@/features/security/index'
 import {
@@ -61,9 +61,9 @@ import {
   patchSystemConfig,
   useSystemConfig,
 } from '@/domain/layout/system-config-core.internals'
-import { withBackendBootRetry } from '@/kernel/core/index'
-import { isBackendUnreachableError } from '@/kernel/core/index'
-import { logger } from '@/kernel/core/index'
+import { withBackendBootRetry } from '@/kernel/core/api-boot-retry'
+import { isBackendUnreachableError } from '@/kernel/core/error-message'
+import { logger } from '@/kernel/core/logger'
 import { formatPresenceBadgeSummary } from '@/features/presence/display'
 import { sanitizePresencePersonsForSave } from '@/features/presence/person'
 import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'

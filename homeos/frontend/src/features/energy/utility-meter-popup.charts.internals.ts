@@ -4,7 +4,7 @@
  */
 import { ref, watch, onMounted, onUnmounted, nextTick, type Ref, type ComputedRef } from 'vue'
 import type { ECharts } from 'echarts'
-import type { UtilityMeterParsedItem } from '@/domain/energy/index'
+import type { UtilityMeterParsedItem } from '@/domain/energy/composables'
 
 type ChartEl = HTMLElement & { _chart?: ECharts | null }
 

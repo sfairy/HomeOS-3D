@@ -8,7 +8,7 @@ import {
 import { useReduceSecuritySensitivity } from '@/features/security/index'
 import { completeSetupWizard, fetchSetupWizardStatus, validateSetupWizardEntities } from '@/kernel/http/index'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { useLayoutStore } from '@/domain/layout/store/index'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import type {
   EntityValidateResult,
@@ -19,7 +19,7 @@ import type {
   PresenceMember,
 } from '@/kernel/setup-wizard'
 import type { EnergyMeterScope, SharedEnergyConfig } from '@homeos/shared'
-import { logger } from '@/kernel/core/index'
+import { logger } from '@/kernel/core/logger'
 import { seedPanelEnergyMeter } from '@/domain/energy/binding-bridge'
 import { ensureDoorbellList } from '@/kernel/layout'
 import { computed, ref, watch, type Ref, onMounted } from 'vue'

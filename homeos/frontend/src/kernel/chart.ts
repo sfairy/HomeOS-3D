@@ -1,6 +1,6 @@
 import * as echarts from 'echarts/core'
 import type { ECharts, EChartsCoreOption, EChartsInitOpts } from 'echarts/core'
-import { hexWithOpacity } from '@/kernel/ui/index'
+import { hexWithOpacity } from '@/kernel/ui/color'
 import { LineChart, BarChart, HeatmapChart, PieChart, RadarChart, GaugeChart } from 'echarts/charts'
 import {
   GridComponent,

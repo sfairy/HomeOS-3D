@@ -2,7 +2,7 @@ import { type EditorContext } from './editor-context'
 import {
   lightStatisticsEntityStateStatus as lightStatisticsEntityStateStatus2,
   lightStatisticsEntitySupport as lightStatisticsEntitySupport2,
-} from '../../renderer/registry/index'
+} from '@app/renderer/controls/light-statistics-runtime'
 import { findComponent as findComponent2 } from '../component-tree'
 import { createIconVisibilityVirtualEntity as createIconVisibilityVirtualEntity2 } from '../../shared/virtual-entities'
 import { domElement } from '@app/shared/util/dom-factory'

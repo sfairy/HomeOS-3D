@@ -349,13 +349,13 @@ import AlertRulesEarthquakeHero from './AlertRulesEarthquakeHero.vue'
 import AlertRulesEarthquakeConnPanel from './AlertRulesEarthquakeConnPanel.vue'
 import SettingsPendingSaveAction from '@/features/settings/shared/SettingsPendingSaveAction.vue'
 import { useAlertRulesSection } from './context'
-import { useLayoutStore } from '@/domain/layout/store/index'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { triggerEarthquakeTest } from '@/domain/api/earthquake'
 import { useEarthquakeStatusQuery } from '@/features/earthquake/index'
 import { reopenEarthquakeWizard } from '@/features/earthquake/index'
 import { syncEarthquakeHomeCoordsFromHa } from '@/features/earthquake/index'
-import { schedulePoll } from '@/kernel/core/index'
+import { schedulePoll } from '@/kernel/core/poll-scheduler'
 import {
   EEW_CITY_PRESETS,
   EEW_DISTANCE_OPTIONS,

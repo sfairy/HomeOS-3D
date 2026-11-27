@@ -3,7 +3,7 @@ import {
   GROUND_REFLECTION_FADE_HEIGHT,
   groundReflectionQuality,
   normalizeGroundReflection,
-} from '../../app/bridge/scene/index'
+} from '@app/bridge/scene/reflection-settings'
 import { createReflectionCulling } from './studio-reflection-culling'
 import { selectFrameCaptures } from './studio-reflection-capture-budget'
 import { createReflectionSignature } from './studio-reflection-signature'

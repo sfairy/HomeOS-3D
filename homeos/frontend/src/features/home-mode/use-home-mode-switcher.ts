@@ -12,9 +12,9 @@ import { fetchHomeModeActivationPreview, fetchHomeModeContext } from '@/domain/a
 import { loadPresenceHome as fetchPresenceHomeData } from '@/features/presence/load-presence-home'
 import { formatPresenceBadgeSummary, isPresenceConfigured } from '@/features/presence/display'
 import { systemConfigRef } from '@/domain/layout/system-config-core.internals'
-import { hapticAlert } from '@/kernel/ui/index'
-import { schedulePoll } from '@/kernel/core/index'
-import { logger } from '@/kernel/core/index'
+import { hapticAlert } from '@/kernel/ui/haptics'
+import { schedulePoll } from '@/kernel/core/poll-scheduler'
+import { logger } from '@/kernel/core/logger'
 
 const MEMBER_TONES = ['cyan', 'violet', 'emerald', 'amber', 'rose'] as const
 

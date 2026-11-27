@@ -23,7 +23,7 @@ import {
   studioStartupPhase,
   studioStartupReady,
   studioStartupWait,
-} from '@/kernel/ui/index'
+} from '@/kernel/ui/studio-startup'
 
 /** 引导序列需要的外部状态：入口判定 / 取数 / 渲染器与舞台挂载 / 状态提示 / 嵌入契约。 */
 interface StudioBootDeps {

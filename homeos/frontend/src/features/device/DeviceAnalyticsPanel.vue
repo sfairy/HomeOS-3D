@@ -158,7 +158,7 @@ import {
   chartVerticalGradient,
 } from '@/kernel/chart'
 import { ensureDeviceChartOnElement } from '@/kernel/chart'
-import { createFetchSequence } from '@/kernel/core/index'
+import { createFetchSequence } from '@/kernel/core/misc'
 
 /** 图表实例类型：来自按需加载 echarts 入口模块的 init 返回值 */
 type EchartsModule = typeof EchartsModuleNS

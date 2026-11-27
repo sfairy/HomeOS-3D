@@ -68,7 +68,7 @@ const WEEKDAY_LABELS = {
  */
 import { computed, onMounted, onUnmounted } from 'vue'
 import { usePerfClock } from '@/domain/layout/use-perf-clock'
-import { onScreensaverBackgroundIdle } from '@/kernel/ui/index'
+import { onScreensaverBackgroundIdle } from '@/kernel/ui/screensaver-background-idle'
 import { solarToLunar } from '@/kernel/format'
 import { formatLunarMonthDayLine, formatLunarYearLine } from '@/kernel/format'
 import { pad2 } from '@/kernel/format'

@@ -27,7 +27,7 @@ import {
   type LicenseMessageState,
 } from '@/domain/api/license'
 import { useAuthStore } from '@/domain/auth/auth.store'
-import { isUnauthorizedError } from '@/kernel/core/index'
+import { isUnauthorizedError } from '@/kernel/core/error-message'
 import { peekLicenseAvailability } from '@/domain/license'
 import SceneStage from '@/kernel/ui/SceneStage.vue'
 import AuthShell from '@/features/auth/AuthShell.vue'

@@ -5,7 +5,7 @@
 import { ref, watch, type Ref } from 'vue'
 import { getEntityDomain } from '@homeos/shared'
 import { fetchEntities } from '@/domain/api/entities'
-import { logger } from '@/kernel/core/index'
+import { logger } from '@/kernel/core/logger'
 import { formatEntitySelectOption } from '@/domain/entity/select'
 import type { HaEntityState } from '@/kernel/entity'
 import type { useEntitiesStore } from '@/domain/entity/store/entities.store'

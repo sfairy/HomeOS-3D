@@ -1,6 +1,6 @@
 import { confirmRemoveWidget, useWidgetEditorState } from '@/features/settings/groups/appearance/use-layout'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { useLayoutStore } from '@/domain/layout/store/index'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
 import { Code } from '@lucide/vue'
 import {
@@ -21,7 +21,7 @@ import { mirrorSecurityPanelZonesToLayout } from '@/features/security/utils/inde
 import type { FloatingWidget, UILayoutConfig } from '@/kernel/types/layout'
 import { type Ref, computed, ref, watch, reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import { clampPct } from '@/kernel/core/index'
+import { clampPct } from '@/kernel/core/misc'
 import { getFloatingHubTabOptions, FLOATING_HUB_DEFAULT_TAB } from '@/kernel/registry/floating-hub-tab-options'
 
 /* ── 原 layout-floating-afh-actions.internals.ts 的实现 ── */

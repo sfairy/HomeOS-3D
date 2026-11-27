@@ -224,7 +224,7 @@ import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat
 import { Globe, Layout, MonitorPlay, Plus, ChevronDown, Copy } from '@lucide/vue'
 import { useSettingsEmbeds } from '@/features/settings/groups/appearance/use-layout'
 import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
-import { useLayoutStore } from '@/domain/layout/store/index'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
 
 const props = defineProps({ activeTab: { type: String, default: 'embeds' } })
 

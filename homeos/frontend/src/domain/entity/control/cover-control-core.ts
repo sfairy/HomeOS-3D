@@ -3,7 +3,7 @@
  * 栈 A CoverControlPopup 与未来栈 C·D 共用。
  */
 
-import { clampInRange } from '@/kernel/ui/index'
+import { clampInRange } from '@/kernel/ui/progress-bar-gradient'
 
 /** HA cover supported_features：bit 2 = SET_POSITION */
 const COVER_SUPPORT_SET_POSITION = 4

@@ -89,7 +89,7 @@
 
 <script setup>
 import HosSelect from '@/domain/entity/entity-select/HosSelect.vue'
-import { getApiErrorMessage } from '@/kernel/core/index'
+import { getApiErrorMessage } from '@/kernel/core/error-message'
 import ApiQueryState from '@/kernel/ui/ApiQueryState.vue'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'

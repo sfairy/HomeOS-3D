@@ -158,7 +158,7 @@ import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
 import SettingsCardIntro from '@/features/settings/shell/SettingsCardIntro.vue'
 import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSectionHead.vue'
 import { useAreaOptions } from '@/domain/entity/use-area-options'
-import { getApiErrorMessage } from '@/kernel/core/index'
+import { getApiErrorMessage } from '@/kernel/core/error-message'
 import { formatFullDateTime } from '@/kernel/format'
 import {
   createAgentPolicy,

@@ -5,7 +5,7 @@ import { findComponent as findComponent2 } from '../../component-tree'
 import { PanelRenderer as PanelRenderer2 } from '../../../renderer/panel-renderer'
 import { duplicateComponent } from '../../editor'
 import { roundField as roundField2, clone as clone2 } from '../../editor'
-import { patchEditorFacadeState } from '../../../../engine/index'
+import { patchEditorFacadeState } from '@/studio/engine/editor-facade'
 import { applyEditorZoomCss } from '../../editor'
 import {
   recoveryStorageKey as recoveryStorageKey2,

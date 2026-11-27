@@ -34,7 +34,7 @@ import {
   type AgentPingResult,
   type AgentStreamHandle,
 } from '@/domain/api/agent'
-import { getApiErrorMessage } from '@/kernel/core/index'
+import { getApiErrorMessage } from '@/kernel/core/error-message'
 import { getConfigSection } from '@/kernel/config/frontend-config'
 import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'

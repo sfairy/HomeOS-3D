@@ -9,7 +9,7 @@ import { entityMetadataIsAvailable as entityMetadataIsAvailable2 } from '@app/sh
 import { isVirtualEntityId as isVirtualEntityId2 } from '../../../shared/virtual-entities'
 import { maxRuntimeEntitySubscriptions } from '../../renderer-helpers'
 import { navigateInShell } from '@/studio/platform/shell-navigation'
-import { presenceMotionEventConfig as presenceMotionEventConfig2 } from '../../registry/index'
+import { presenceMotionEventConfig as presenceMotionEventConfig2 } from '@app/renderer/controls/presence-runtime'
 import { isOlderFrameTimestamp } from '@/domain/entity/utils/entity'
 import {
   relatedAirerCurrentPositionSensor as relatedAirerCurrentPositionSensor2,

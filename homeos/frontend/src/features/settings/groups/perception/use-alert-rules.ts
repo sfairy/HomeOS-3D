@@ -16,9 +16,9 @@ import {
 import { useAuthStore } from '@/domain/auth/auth.store'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { useLayoutStore } from '@/domain/layout/store/index'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { ALERT_RULE_PRESETS, ALERT_TEMPLATE_VARIABLES, type AlertRulePreset } from '@/kernel/index'
-import { sliderTrackStyle } from '@/kernel/ui/index'
+import { sliderTrackStyle } from '@/kernel/ui/progress-bar'
 import { useSettingsHubRouteSection } from '@/features/settings/shared/hub'
 import { useVoiceAlertsEditor } from '@/features/settings/groups/perception/voice'
 import { defaultAlertClause as defaultClause } from '@/features/settings/groups/perception/use-alert-rules'
@@ -34,8 +34,8 @@ import {
   fetchNotificationSettings,
   updateNotificationSettings,
 } from '@/domain/api/notifications'
-import { getApiErrorMessage } from '@/kernel/core/index'
-import { logger } from '@/kernel/core/index'
+import { getApiErrorMessage } from '@/kernel/core/error-message'
+import { logger } from '@/kernel/core/logger'
 import type { NotifyType } from '@/kernel/notify'
 import { formatLocaleTime } from '@/kernel/format'
 import {
@@ -51,9 +51,9 @@ import {
 } from '@/domain/notifications/dnd'
 import { applyEarthquakeLayoutSlice, type pickEarthquakeLayoutSlice } from '../appearance/use-layout'
 import { createDefaultEarthquakeConfig } from '@/kernel/earthquake'
-import { clonePlain } from '@/kernel/core/index'
+import { clonePlain } from '@/kernel/core/clone-plain'
 import { useEventLogStats } from '@/domain/recommend/use-event-log-stats'
-import { buildAlertRulesRecommendations } from '@/domain/recommend/index'
+import { buildAlertRulesRecommendations } from '@/domain/recommend/alert-rules-recommend'
 import type { RecommendChip } from '@/domain/recommend/recommend.types'
 import { ChevronDown, Inbox, Loader2, Moon, Plus, Save, Sun, Trash2, Volume2 } from '@lucide/vue'
 

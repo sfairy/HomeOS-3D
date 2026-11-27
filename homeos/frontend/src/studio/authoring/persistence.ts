@@ -19,19 +19,12 @@ import {
 import { syncCourtyardGates as syncCourtyardGates2 } from './plan/courtyard-drawing'
 import { navigateInShell } from '@/studio/platform/shell-navigation'
 import { shellNotify } from '@/studio/platform/shell-chrome'
-import { patchStudioFacadeState, getStudioFacadeState } from '../engine/index'
+import { patchStudioFacadeState, getStudioFacadeState } from '@/studio/engine/studio-facade'
 import { resolveInteractionCleanup } from './ui/studio-interaction-cleanup'
-import {
-  StudioSaveStore,
-  type FlushResult,
-  type SaveStoreState,
-  type SceneSyncOutcome,
-  applyDocumentPatch,
-  canApplyDocumentPatch,
-  type DocumentPatch,
-  diffDocumentPatches,
-  describeDocumentPatch,
-} from './store/index'
+import { StudioSaveStore, type FlushResult, type SaveStoreState } from '@/studio/authoring/store/save-store'
+import { type SceneSyncOutcome } from '@/studio/authoring/store/scene-sync-controller'
+import { applyDocumentPatch, canApplyDocumentPatch, type DocumentPatch } from '@/studio/authoring/store/document-store'
+import { diffDocumentPatches, describeDocumentPatch } from '@/studio/authoring/store/document-diff'
 import { refreshStepChecklist } from './ui/onboarding'
 import { type StudioApiRequestOptions } from './studio-app-types'
 import { validatePlacementChange as validatePlacementChange2 } from './items/studio-placement'

@@ -144,7 +144,7 @@ import {
 } from '@/kernel/config/system-config'
 import { getNestedObjectEditorKind } from '@/features/settings/shared/config-fields/nested-editor'
 import { joinCommaEntityIds, parseCommaEntityIds } from '@/domain/entity/comma-entity-ids'
-import { parseOptionalNumber } from '@/kernel/core/index'
+import { parseOptionalNumber } from '@/kernel/core/misc'
 const props = defineProps({
   field: { type: Object, required: true },
   inputId: { type: String, required: true },

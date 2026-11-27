@@ -1,6 +1,6 @@
 import type HlsJs from 'hls.js'
 import { onUnmounted, ref, watch, type Ref } from 'vue'
-import { logger } from '@/kernel/core/index'
+import { logger } from '@/kernel/core/logger'
 
 /**
  * hls.js 经典脚本按需加载器。

@@ -218,7 +218,7 @@ import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
 import SettingsPendingSaveAction from '@/features/settings/shared/SettingsPendingSaveAction.vue'
 import HosSelect from '@/domain/entity/entity-select/HosSelect.vue'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { useLayoutStore } from '@/domain/layout/store/index'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { useRegisterSettingsTabPending } from '@/features/settings/kernel/pending.internals'
 import {
   listMediaArrivals,
@@ -229,7 +229,7 @@ import {
   testMediaConnection,
 } from '@/domain/api/media'
 import { listHaAreas } from '@/domain/api/ha'
-import { getApiErrorMessage } from '@/kernel/core/index'
+import { getApiErrorMessage } from '@/kernel/core/error-message'
 
 defineProps({ activeTab: { type: String, default: 'media' } })
 

@@ -17,8 +17,8 @@ import {
   validateSecurityEvents,
   fetchSecurityPanelStatus,
 } from '@/domain/api/security'
-import { logger } from '@/kernel/core/index'
-import { getApiErrorMessage } from '@/kernel/core/index'
+import { logger } from '@/kernel/core/logger'
+import { getApiErrorMessage } from '@/kernel/core/error-message'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { getMaxRemoteNotifications } from '@/kernel/config/frontend-config'
 import {
@@ -54,10 +54,10 @@ import {
   registerSecurityPanelModeHandler,
   type SecurityModeSocketPayload,
 } from '@/kernel/bridge/store-bridge'
-import { sharedFetch, schedulePoll, invalidateSharedFetch } from '@/kernel/core/index'
+import { sharedFetch, schedulePoll, invalidateSharedFetch } from '@/kernel/core/poll-scheduler'
 import { getEntityDomain, buildHazardBindingMap, type HazardSensorKind, getEntityLeaf } from '@homeos/shared'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { useLayoutStore } from '@/domain/layout/store/index'
+import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { getEntityDisplayName } from '@/domain/entity/derived'
 import { isSecurityUtilityNoise } from '@/features/security/utils/index'
 import { CO_KEYS, DOOR_KEYS, GAS_KEYS, LEAK_KEYS, MOTION_KEYS, SENSOR_TYPE_LABELS, SMOKE_KEYS } from './zone-room'

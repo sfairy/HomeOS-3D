@@ -1,5 +1,5 @@
 /** 链路追踪工具模块。 */
-import { randomUUID } from '@/kernel/core/index'
+import { randomUUID } from '@/kernel/core/random-uuid'
 
 /** 页面级 Trace ID（模块级单例，首次获取时生成） */
 let pageTraceId = ''

@@ -27,7 +27,7 @@ import { getEntityDisplayName } from '@/domain/entity/derived'
 import { startCameraWebRtc } from '@/features/device/camera/use-ha-web-rtc-player'
 import { startCameraMediaTransport } from '@/features/device/camera/use-camera-media-transport'
 import { useGo2RtcMseTransport } from '@/domain/camera'
-import { logger } from '@/kernel/core/index'
+import { logger } from '@/kernel/core/logger'
 
 const props = defineProps({
   entity: { type: Object, default: null },

@@ -1,7 +1,7 @@
 /** 通用远程校验 composable */
 import { ref } from 'vue'
-import { apiGet, apiPost } from '@/domain/api/index'
-import { getApiErrorMessage } from '@/kernel/core/index'
+import { apiGet, apiPost } from '@/kernel/http'
+import { getApiErrorMessage } from '@/kernel/core/error-message'
 
 /**
  * 统一远程校验状态。

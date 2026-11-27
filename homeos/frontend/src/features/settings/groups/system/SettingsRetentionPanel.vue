@@ -189,7 +189,7 @@ import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useRegisterSettingsTabPending } from '@/features/settings/kernel/pending.internals'
 import { fetchRetentionConfig, updateRetentionConfig } from '@/kernel/http/index'
-import { getApiErrorMessage } from '@/kernel/core/index'
+import { getApiErrorMessage } from '@/kernel/core/error-message'
 import { formatFullDateTime } from '@/kernel/format'
 
 defineProps({ activeTab: { type: String, default: 'retention' } })

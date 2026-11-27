@@ -1,6 +1,6 @@
 /** 多图表 ECharts 宿主 composable：收敛各视图手写的 */
 import { onMounted, onUnmounted, nextTick } from 'vue'
-import { observeChartResize, scheduleEchartsTask, cancelScheduledEchartsTask } from '@/kernel/ui/index'
+import { observeChartResize, scheduleEchartsTask, cancelScheduledEchartsTask } from '@/kernel/ui/chart-resize'
 import type { EChartsCoreOption } from 'echarts/core'
 import type * as EchartsModuleNS from '@/kernel/chart'
 import { getKioskAnimationOptions } from '@/domain/layout/kiosk-animation'

@@ -145,7 +145,7 @@
 import { computed, onUnmounted, ref } from 'vue'
 import { ShieldCheck, Shield, Loader2, Siren, AlertTriangle, WifiOff } from '@lucide/vue'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { schedulePoll } from '@/kernel/core/index'
+import { schedulePoll } from '@/kernel/core/poll-scheduler'
 
 const chrome = useChromeStore()
 

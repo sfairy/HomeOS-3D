@@ -24,10 +24,10 @@
 import { computed } from 'vue'
 import { getEntityDomain } from '@homeos/shared'
 import AnchoredPopupShell from '@/features/entity/popups/AnchoredPopupShell.vue'
-import { useEntityPopupAnchor } from '@/domain/entity/popup/index'
+import { useEntityPopupAnchor } from '@/domain/entity/popup/use-entity-popup-anchor'
 import { entityDomainColor } from '@/kernel/index'
 import { getEntityDisplayName } from '@/domain/entity/derived'
-import { hexToRgbChannels } from '@/kernel/ui/index'
+import { hexToRgbChannels } from '@/kernel/ui/color'
 
 const props = defineProps({
   entity: { type: Object, default: null },
