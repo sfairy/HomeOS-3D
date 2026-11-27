@@ -1,6 +1,6 @@
 /** 浮动控制中心（AFH - Always Floating Hub）上下文定义 */
 import type { ComputedRef, InjectionKey, Ref } from 'vue'
-import type { FloatingWidget, UILayoutConfig } from '@/kernel/types/layout'
+import type { FloatingWidget, UILayoutConfig } from '@/kernel/layout-config'
 
 /**
  * 浮动控制中心上下文契约

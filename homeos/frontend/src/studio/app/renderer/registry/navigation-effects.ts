@@ -1,4 +1,4 @@
-import { clampNumberWithFallback, normalizeCssColor } from './_shared'
+import { clampNumberWithFallback, normalizeCssColor } from './registry-shared'
 import { randomUuid } from '../../shared/util/random-id'
 
 export function createNavigationEffectsSvg(

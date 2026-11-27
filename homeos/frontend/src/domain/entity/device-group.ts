@@ -7,7 +7,7 @@ import {
   groupOfflineByDevice,
   BATTERY_LOW_THRESHOLD,
   resolveBatteryLevel,
-} from '@/domain/entity/utils/device-group'
+} from '@/domain/entity/device-group-model'
 import type { HaEntityState } from '@/kernel/entity'
 import { getApiErrorMessage } from '@/kernel/core/error-message'
 import {

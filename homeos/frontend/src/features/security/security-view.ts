@@ -10,7 +10,7 @@ import { useHaDegrade } from '@/domain/entity/ha'
 import { collectHazardWatchedEntityIds } from '@homeos/shared'
 import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
 import { securityCameraEntityIds } from '@/kernel/layout'
-import { countOfflineDevices } from '@/domain/entity/utils/device-group'
+import { countOfflineDevices } from '@/domain/entity/device-group-model'
 
 /* ── 原 security-view-calendar.internals.ts 的实现 ── */
 /** 安防页日历：纯日期网格 / 同一天判定（不依赖 Vue） */

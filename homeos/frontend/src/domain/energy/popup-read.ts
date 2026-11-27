@@ -3,7 +3,7 @@ import {
   getFieldDef,
   balanceAttrCandidatesForField,
   type EnergyCategory,
-} from '@/domain/energy/constants/energy-fields'
+} from '@/domain/energy/energy-fields'
 import { readEntityAttr } from '@/domain/energy/entity-read'
 import { resolveAccountIndexForEntityId } from '@/domain/energy/account'
 import type { HaEntityState } from '@/kernel/entity'

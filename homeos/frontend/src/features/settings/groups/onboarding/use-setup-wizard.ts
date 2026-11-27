@@ -1,10 +1,10 @@
-import { useSystemConfig, handleSystemConfigPatchError } from '@/domain/layout/system-config-core.internals'
+import { useSystemConfig, handleSystemConfigPatchError } from '@/domain/layout/system-config-core'
 import { useEnvSensorMap, getEnvSensorFields } from '@/features/settings/shared/env-sensor-map'
 import {
   pauseGlobalPendingChanges,
   resumeGlobalPendingChanges,
   syncGlobalLayoutPendingSnapshot,
-} from '@/features/settings/kernel/pending.internals'
+} from '@/features/settings/kernel/pending'
 import { useReduceSecuritySensitivity } from '@/features/security/index'
 import { completeSetupWizard, fetchSetupWizardStatus, validateSetupWizardEntities } from '@/kernel/http/index'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'

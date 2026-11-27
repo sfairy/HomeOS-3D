@@ -3,8 +3,8 @@
 
 import { computed, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
-import type { AdminTabItem } from "@store/features/admin/useAdminTabs";
-import { useAdminTabs } from "@store/features/admin/useAdminTabs";
+import { AdminTabItem } from '@store/features/admin/use-admin-tabs'
+import { useAdminTabs } from '@store/features/admin/use-admin-tabs'
 import PanelHead from "@store/features/admin/PanelHead.vue";
 import AdminTabs from "@store/features/admin/AdminTabs.vue";
 import DataTable from "@store/features/admin/DataTable.vue";
@@ -13,7 +13,7 @@ import { adminApi } from "@store/shared/api/http";
 import { asListItems, errorMessage } from "@store/shared/store";
 import { useToastStore } from "@store/shared/toast";
 import { useConfirmStore } from "@store/shared/confirm";
-import { useAdminRefreshStore } from "@store/features/admin/adminRefresh";
+import { useAdminRefreshStore } from '@store/features/admin/admin-refresh'
 import { localInput, money, num, utcInput } from "@store/features/admin/format";
 
 interface Coupon {

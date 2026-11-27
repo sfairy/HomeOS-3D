@@ -1,4 +1,4 @@
-import { clampNumberWithFallback } from './_shared'
+import { clampNumberWithFallback } from './registry-shared'
 import { effectVariantByAssetId, resolveAssetSource } from './asset-state'
 import {
   iconButtonEffectLightVisualAwaiting,

@@ -10,8 +10,8 @@ import {
   resumeGlobalPendingChanges,
   syncGlobalLayoutPendingSnapshot,
   useSettingsPendingChanges,
-} from '@/features/settings/kernel/pending.internals'
-import { getEmergencyPresets, normalizeSecurityEmergency } from '@/domain/layout/constants/security-emergency'
+} from '@/features/settings/kernel/pending'
+import { getEmergencyPresets, normalizeSecurityEmergency } from '@/domain/layout/security-emergency'
 import {
   getSecurityModePresets,
   getSecurityLinkageFlagRows,
@@ -60,7 +60,7 @@ import {
   handleSystemConfigPatchError,
   patchSystemConfig,
   useSystemConfig,
-} from '@/domain/layout/system-config-core.internals'
+} from '@/domain/layout/system-config-core'
 import { withBackendBootRetry } from '@/kernel/core/api-boot-retry'
 import { isBackendUnreachableError } from '@/kernel/core/error-message'
 import { logger } from '@/kernel/core/logger'

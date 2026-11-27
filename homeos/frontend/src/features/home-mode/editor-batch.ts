@@ -7,7 +7,7 @@
 import { ref, type Ref } from 'vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { domainIndexToArray, getEntityDisplayName } from '@/domain/entity/derived'
-import type { ModeDraft } from './draft.internals'
+import type { ModeDraft } from './draft'
 
 /** 家居模式编辑器：批量添加设备动作 */
 export function useHomeModeEditorBatch(options: {

@@ -149,8 +149,8 @@ import { useVoiceDailyAdvisorPanel } from '@/features/settings/groups/perception
 import { useSpeechPreview } from '@/features/voice/index'
 import { previewDailyAdvisor } from '@/features/voice/utils'
 import { logger } from '@/kernel/core/logger'
-import { useSettingsPendingChanges } from '@/features/settings/kernel/pending.internals'
-import { useRegisterSettingsTabPending } from '@/features/settings/kernel/pending.internals'
+import { useSettingsPendingChanges } from '@/features/settings/kernel/pending'
+import { useRegisterSettingsTabPending } from '@/features/settings/kernel/pending'
 import { useSettingsSidebarReentryReset } from '@/kernel/ui/hub-viewport'
 import { useSettingsHubRouteSection } from '@/features/settings/shared/hub'
 const props = defineProps({ activeTab: { type: String, default: 'voice' } })

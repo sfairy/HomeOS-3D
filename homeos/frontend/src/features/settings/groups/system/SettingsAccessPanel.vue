@@ -143,7 +143,7 @@ import { Lock, ShieldCheck } from '@lucide/vue'
 import SettingsPageShell from '@/features/settings/shell/SettingsPageShell.vue'
 import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
 import VProgressBar from '@/kernel/ui/primitives/VProgressBar.vue'
-import { useAccessPanel } from '@/features/settings/groups/system/access-panel.internals'
+import { useAccessPanel } from '@/features/settings/groups/system/access-panel'
 
 defineProps({ activeTab: { type: String, default: 'access' } })
 

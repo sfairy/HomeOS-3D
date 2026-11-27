@@ -10,7 +10,7 @@ import {
   isGenericDeviceKind as isGenericDeviceKind2,
 } from '../../device/device'
 import { isMediaDeviceKind } from '@app/bridge/presets'
-import { createStageElement, expandGroupMembers } from './_shared'
+import { createStageElement, expandGroupMembers } from './stage-shared'
 import { syncHtmlRangeProgress } from '@app/shared/util/range-progress'
 
 /** 依赖袋（宿主 `bootEditor` 作用域）：**每次调用现取**的普通对象，等价于闭包读值。

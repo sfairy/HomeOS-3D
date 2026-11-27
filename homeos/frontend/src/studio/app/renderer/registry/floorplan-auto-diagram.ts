@@ -11,7 +11,7 @@ import {
   applyTextOutline,
   resolveMdiIconUrl,
   appendSvgElement,
-} from './_shared'
+} from './registry-shared'
 import { lightStatisticsSummary } from '../controls/light-statistics-runtime'
 import { resolveAssetSource } from './asset-state'
 import { isCoverAuthoredActive } from './cover-climate-state'

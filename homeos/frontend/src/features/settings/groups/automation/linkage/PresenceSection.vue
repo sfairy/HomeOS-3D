@@ -21,7 +21,7 @@ import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSecti
 import SettingsPresenceEntitiesSection from '@/features/settings/groups/automation/SettingsPresenceEntitiesSection.vue'
 import PresenceStatusMeta from '@/features/settings/groups/automation/linkage/PresenceStatusMeta.vue'
 import PresenceActions from '@/features/settings/groups/automation/linkage/PresenceActions.vue'
-import { usePresenceEntitiesDisplay } from '@/features/settings/groups/automation/presence-linkage.internals'
+import { usePresenceEntitiesDisplay } from '@/features/settings/groups/automation/presence-linkage'
 
 // 入参：加载/保存态、自动模式、人员预览、是否隐藏标题
 const props = defineProps({

@@ -1,5 +1,5 @@
 /** approved furniture/appliance GLB catalog. */
-import { MODEL_ASSET_CACHE_KEYS, withModelAssetCacheKey } from './_shared'
+import { MODEL_ASSET_CACHE_KEYS, withModelAssetCacheKey } from './external-models-shared'
 import { modelAssetUrl } from './model-asset-folders'
 
 type ApprovedItemMeta = {

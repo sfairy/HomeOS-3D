@@ -29,7 +29,7 @@ import {
   filterBySource,
   mergeNotificationLists,
   type NotificationCenterItem,
-} from '@/domain/widget/notification-center.filters.internals'
+} from '@/domain/widget/notification-center.filters'
 
 /** 通知级别过滤选项：UI 显示的「全部/紧急/警告/信息/成功」 */
 const levelFilters = [

@@ -1,6 +1,6 @@
 /* ── 原 悬浮组件增删改行为 的实现 ── */
 import type { Ref } from 'vue'
-import type { FloatingWidget, UILayoutConfig } from '@/kernel/types/layout'
+import type { FloatingWidget, UILayoutConfig } from '@/kernel/layout-config'
 
 /** createFloorWidgetActions 的依赖注入参数 */
 interface FloorWidgetActionsDeps {

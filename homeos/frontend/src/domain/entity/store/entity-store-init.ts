@@ -4,7 +4,7 @@ import type { EntityInitDeps, EntityInitOptions, HaEntityState, SnapshotAcceptOp
 import { getWorkerDerivedThreshold } from '@/kernel/config/frontend-config'
 import { setPollTickMs } from '@/kernel/core/poll-scheduler'
 import { getEntityDisplayName } from '@/domain/entity/derived'
-import { isStaleState, mergeChunkIntoNewerEntity } from '@/domain/entity/utils/entity'
+import { isStaleState, mergeChunkIntoNewerEntity } from '@/domain/entity/entity-state'
 import { applyAdaptiveFrontendPerf } from '@/kernel/perf/adaptive-perf'
 import { applyTabletDefaultPerformanceMode } from '@/kernel/perf/tablet-default-perf'
 import { sortEntitiesBySyncPriority } from '@homeos/shared'

@@ -4,7 +4,7 @@ import {
   getMappableFields,
   inferEnergyMapping,
   type EnergyCategory,
-} from '@/domain/energy/constants/energy-fields'
+} from '@/domain/energy/energy-fields'
 import {
   bootstrapAccountStructForMode,
   hasEntityAccountConfig,
@@ -29,7 +29,7 @@ import {
   getEntityDomain,
 } from '@homeos/shared'
 import { type Ref, computed, ref, watch, toRaw } from 'vue'
-import type { UILayoutConfig, SecurityCameraBinding } from '@/kernel/types/layout'
+import type { UILayoutConfig, SecurityCameraBinding } from '@/kernel/layout-config'
 import { clearDoorbellCamera, toggleDoorbellCamera } from '@/kernel/layout'
 import { normalizeSecurityCameras } from '@/kernel/layout'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
@@ -37,13 +37,13 @@ import {
   systemConfigRef,
   handleSystemConfigPatchError,
   useSystemConfig,
-} from '@/domain/layout/system-config-core.internals'
+} from '@/domain/layout/system-config-core'
 import {
   ACCOUNT_BINDING_SOURCE_LABELS,
   type AccountBindingFieldMeta,
   ACCOUNT_BINDING_FIELD_META,
   ACCOUNT_BINDING_TABS,
-} from '@/domain/energy/constants/account-binding-meta'
+} from '@/domain/energy/account-binding-meta'
 import type { RecommendChip } from '@/domain/recommend/recommend.types'
 import {
   buildBindingsRecommendations,
@@ -56,7 +56,7 @@ import {
   syncGlobalLayoutPendingSnapshot,
   useRegisterSettingsTabPending,
   useSettingsHubPending,
-} from '@/features/settings/kernel/pending.internals'
+} from '@/features/settings/kernel/pending'
 import { useSettingsSidebarReentryReset } from '@/kernel/ui/hub-viewport'
 import { getApiErrorMessage } from '@/kernel/core/error-message'
 import { logger } from '@/kernel/core/logger'

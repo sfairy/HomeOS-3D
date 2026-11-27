@@ -5,7 +5,7 @@
  * （舞台 + 遮罩 + 占位提示 + 媒体挂载 + 状态/就绪切换），只依赖调用方给的几个句柄。
  * 抽出来之后主文件只留一行「建舞台 → append」。
  */
-import { mountCameraMedia } from '../../registry/index'
+import { mountCameraMedia } from '@app/renderer/registry/camera-media'
 import { domElement } from '@app/shared/util/dom-factory'
 import { createPopupCameraAudioHandlers } from './camera-module-audio'
 

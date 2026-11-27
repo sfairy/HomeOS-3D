@@ -134,7 +134,7 @@
 import { toRef } from 'vue'
 import { LayoutGrid, Shield } from '@lucide/vue'
 import { useSecurityZoneMonitor } from '@/features/security/security-zone'
-import { sensorStateLabel } from '@/features/security/utils/index'
+import { sensorStateLabel } from '@/features/security/zone-mode'
 import './security.css'
 
 const props = defineProps({

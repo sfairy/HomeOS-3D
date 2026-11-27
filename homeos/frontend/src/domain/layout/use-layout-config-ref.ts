@@ -1,7 +1,7 @@
 /** - 提供指向 layoutStore.layoutConfig 的 shallowRef。 */
 import { shallowRef, type ShallowRef } from 'vue'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
-import type { UILayoutConfig } from '@/kernel/types/layout'
+import type { UILayoutConfig } from '@/kernel/layout-config'
 
 /**
  * 设置页布局引用：`.value` 就是 store 里那个深 reactive 的 layoutConfig，嵌套读取天然响应。

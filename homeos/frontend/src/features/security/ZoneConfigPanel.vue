@@ -66,8 +66,8 @@ import SecurityZoneEditorList from '@/features/security/ZoneEditorList.vue'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { getApiErrorMessage } from '@/kernel/core/error-message'
-import { postSecurityZones, prepareZonesForSave } from '@/features/security/utils/index'
-import { getSecurityPanelZonesFromLayout, mirrorSecurityPanelZonesToLayout } from '@/features/security/utils/index'
+import { postSecurityZones, prepareZonesForSave } from '@/features/security/zones-api'
+import { getSecurityPanelZonesFromLayout, mirrorSecurityPanelZonesToLayout } from '@/features/security/panel-layout'
 import { useSecurityZoneRooms } from '@/features/security/security-zone'
 
 const props = defineProps({

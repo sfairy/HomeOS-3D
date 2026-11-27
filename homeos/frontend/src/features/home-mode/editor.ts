@@ -16,14 +16,14 @@ import {
   type ActionTemplate,
   type HomeModeRecord,
   type ModeDraft,
-} from './draft.internals'
-import { useHomeModeEditorBatch } from './editor-batch.internals'
-import { useHomeModeActionsSection } from './editor-actions.internals'
+} from './draft'
+import { useHomeModeEditorBatch } from './editor-batch'
+import { useHomeModeActionsSection } from './editor-actions'
 export { useHomeModeActionsSection }
 export {
   useHomeModeItemExpansion,
   useHomeModeItemFocus,
-} from './editor-expansion.internals'
+} from './editor-expansion'
 
 // ── home-mode-panel.context ──
 interface HomeModePanelBridge {

@@ -1,6 +1,6 @@
 /* ── 原 编辑模式行为 的实现 ── */
 import type { Ref } from 'vue'
-import type { UILayoutConfig } from '@/kernel/types/layout'
+import type { UILayoutConfig } from '@/kernel/layout-config'
 
 /** 放置实体载荷：id 为 entity_id，type 为可选 widget 类型提示 */
 interface PlacementEntityPayload {

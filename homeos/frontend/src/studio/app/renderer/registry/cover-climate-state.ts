@@ -9,7 +9,7 @@ import {
 } from '@app/shared/device'
 import { entityPowerIsOn } from '../entity-power'
 import { lightRealtimeCapabilities } from '@app/shared/device'
-import { resolveStatePayload, isActiveStateText } from './_shared'
+import { resolveStatePayload, isActiveStateText } from './registry-shared'
 import { formatNumericValue } from '../controls/line-chart-runtime'
 
 type RenderPropertyBag = any

@@ -1,9 +1,9 @@
 /** UI 布局默认配置数据模块 */
-import { createDefaultEnergySources } from '@/domain/energy/constants/energy-fields'
-import { createDefaultDashboardFooter } from '@/domain/energy/constants/dashboard-footer'
+import { createDefaultEnergySources } from '@/domain/energy/energy-fields'
+import { createDefaultDashboardFooter } from '@/domain/energy/dashboard-footer'
 import { createDefaultWholeHomeOff } from '@/kernel/index'
 import { createDefaultEarthquakeConfig } from '@/kernel/earthquake'
-import type { UILayoutConfig } from '@/kernel/types/layout'
+import type { UILayoutConfig } from '@/kernel/layout-config'
 
 /**
  * 构建默认布局

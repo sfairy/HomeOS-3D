@@ -1,6 +1,6 @@
 /** - 持有 layoutConfig 主状态（reactive，深 watch 触发 dirty） */
 import { ref, reactive } from 'vue'
-import type { UILayoutConfig } from '@/kernel/types/layout'
+import type { UILayoutConfig } from '@/kernel/layout-config'
 import { getDefaultLayout } from '@/domain/layout/store/defaults'
 import { readStoredProfileId } from '@/domain/layout/store/create-layout-state'
 import { createLayoutDirtyTracking } from '@/domain/layout/store/create-layout-dirty-tracking'

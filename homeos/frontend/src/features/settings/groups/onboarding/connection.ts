@@ -5,8 +5,8 @@ import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { getApiErrorMessage } from '@/kernel/core/error-message'
 import { validateHaUrlForDeploy } from '@/kernel/ha'
 import { copyTextWithNotify } from '@/kernel/ui/notify'
-import { useSettingsHubPending, useRegisterSettingsTabPending } from '@/features/settings/kernel/pending.internals'
-import { useSettingsSave } from '@/features/settings/kernel/save.internals'
+import { useSettingsHubPending, useRegisterSettingsTabPending } from '@/features/settings/kernel/pending'
+import { useSettingsSave } from '@/features/settings/kernel/save'
 import { onBeforeUnmount, ref, computed, onMounted } from 'vue'
 import { useSystemDiagnostics } from '@/domain/status/composables'
 import { logger } from '@/kernel/core/logger'
@@ -16,7 +16,7 @@ import {
   handleSystemConfigPatchError,
   patchSystemConfig,
   useSystemConfig,
-} from '@/domain/layout/system-config-core.internals'
+} from '@/domain/layout/system-config-core'
 import { useSettingsHubRouteSection } from '@/features/settings/shared/hub'
 import { useSettingsSidebarReentryReset } from '@/kernel/ui/hub-viewport'
 

@@ -6,7 +6,7 @@
  * 从 `_shared` 取的 `postHostMessage` 本来就是模块级依赖，外移后不变。
  */
 
-import { postHostMessage } from './_shared'
+import { postHostMessage } from './stage-shared'
 
 /** 标记 → 切回配置编辑器所需的模块定位信息（0.7.8 `previewSelection`）。 */
 export function previewSelectionOf(previewMarkerItem: any) {

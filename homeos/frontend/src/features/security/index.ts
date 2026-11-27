@@ -38,12 +38,13 @@ export * from './security-zone'
 export * from './use-yaml-validation'
 
 // ── 域内纯函数（只被 security 自己消费）──
-export * from './utils/index'
-export * from './utils/index'
-export * from './utils/index'
+
+// ── 域内纯函数（原 utils/ 目录压平后的具体文件）──
+export * from './event-display'
+export * from './panel-arm'
+export * from './panel-arm-result'
+export * from './panel-layout'
+export * from './panel-zones-bootstrap'
+export * from './security-zone'
 
 // ── 共享纯函数（域外也要用，真源在 shared/security/utils）──
-export * from '@/features/security/utils/index'
-export * from '@/features/security/utils/index'
-export * from '@/features/security/utils/index'
-export * from '@/features/security/utils/index'

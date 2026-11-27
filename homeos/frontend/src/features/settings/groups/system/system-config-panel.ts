@@ -8,7 +8,7 @@
 import { readLocalStorageFlag, writeLocalStorage } from '@/kernel/core/local-storage'
 import { type EditableConfigField, type EditableConfigSection, type SystemConfig, type SystemConfigLoadOptions } from '@/kernel/system-config'
 import { resolveSystemConfigFieldLabel, systemConfigFieldHint, systemConfigFieldMatchesQuery, filterSectionsForExpert } from '@/kernel/config/system-config'
-import { getSectionLabels, categoryForSection, fetchSystemConfigFresh, handleSystemConfigPatchError, useSystemConfig } from '@/domain/layout/system-config-core.internals'
+import { getSectionLabels, categoryForSection, fetchSystemConfigFresh, handleSystemConfigPatchError, useSystemConfig } from '@/domain/layout/system-config-core'
 import { nextTick, type Ref, computed, ref, watch } from 'vue'
 import { type RouteLocationNormalizedLoaded } from 'vue-router'
 import { filterPricingSectionFields, applyEditableSnapshotToSections, fromEditableSectionsPending, countSystemConfigPendingChanges, fromEditableSections, getSystemConfigPendingFieldKeys, getSystemConfigSectionPendingMap, toEditableSections } from '@/domain/layout/system-config-edit'
@@ -18,7 +18,7 @@ import { reloadFrontendConfig } from '@/kernel/config/frontend-config'
 import { getApiErrorMessage } from '@/kernel/core/error-message'
 import { logger } from '@/kernel/core/logger'
 import { useSettingsHubRouteSection, useAppConfigBackup } from '@/features/settings/shared/hub'
-import { useSettingsSave } from '@/features/settings/kernel/save.internals'
+import { useSettingsSave } from '@/features/settings/kernel/save'
 
 /**
  * @file system-config-panel-prefs.internals.ts

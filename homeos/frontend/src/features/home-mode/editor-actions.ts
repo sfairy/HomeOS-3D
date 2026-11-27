@@ -6,7 +6,7 @@
 
 import { computed, nextTick, reactive, ref, type Ref } from 'vue'
 import { sceneEntityIdFromRecord, scriptEntityIdFromRecord } from '@/domain/entity/scene-script'
-import { useHomeModeItemExpansion, useHomeModeItemFocus } from './editor-expansion.internals'
+import { useHomeModeItemExpansion, useHomeModeItemFocus } from './editor-expansion'
 
 interface HomeModeActionDraft {
   kind?: string

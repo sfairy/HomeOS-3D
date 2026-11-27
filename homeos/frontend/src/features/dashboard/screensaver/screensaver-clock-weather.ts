@@ -7,7 +7,7 @@ import { solarToLunar } from '@/kernel/format'
 import { formatLunarFullLine, formatLunarMonthDayLine } from '@/kernel/format'
 import { formatZonedDate, getZonedParts, getZonedWallDate } from '@/kernel/format'
 import { domainIndexToArray } from '@/domain/entity/derived'
-import { weatherStateLabel } from '@/features/weather/constants/weather-labels'
+import { weatherStateLabel } from '@/features/weather/weather-labels'
 import {
   computeFeelsLike,
   collectSensorEntityIds,

@@ -1,5 +1,5 @@
 /** 时钟 / 日期渲染器（从 register-all 拆出）。 */
-import { applyTextOutline, clampNumberWithFallback, normalizeCssColor } from './_shared'
+import { applyTextOutline, clampNumberWithFallback, normalizeCssColor } from './registry-shared'
 import { formatLocalDate, formatLocalTime, formatLunarDate } from '../controls/date-time-runtime'
 
 export function register(registerComponent: (type: any, def: any) => void) {

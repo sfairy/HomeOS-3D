@@ -2,8 +2,8 @@
 /** 功能权益面板：列表 + 手工补权益 + 改期 / 开关。 */
 
 import { computed, reactive, ref } from "vue";
-import type { AdminTabItem } from "@store/features/admin/useAdminTabs";
-import { useAdminTabs } from "@store/features/admin/useAdminTabs";
+import { AdminTabItem } from '@store/features/admin/use-admin-tabs'
+import { useAdminTabs } from '@store/features/admin/use-admin-tabs'
 import PanelHead from "@store/features/admin/PanelHead.vue";
 import AdminTabs from "@store/features/admin/AdminTabs.vue";
 import DataTable from "@store/features/admin/DataTable.vue";
@@ -13,7 +13,7 @@ import { adminApi } from "@store/shared/api/http";
 import { asListItems, errorMessage } from "@store/shared/store";
 import { useToastStore } from "@store/shared/toast";
 import { useConfirmStore } from "@store/shared/confirm";
-import { useFeatureCatalogStore } from "@store/features/admin/featureCatalog";
+import { useFeatureCatalogStore } from '@store/features/admin/feature-catalog'
 import { d, localInput, utcInput } from "@store/features/admin/format";
 
 interface Entitlement {

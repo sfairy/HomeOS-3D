@@ -58,7 +58,7 @@
 /** - 按「严重告警」「系统审计」两个分组展示离线设备（按设备聚合，一台一条） */
 import { getEntityDomain } from '@homeos/shared'
 import { getEntityDisplayName } from '@/domain/entity/derived'
-import type { OfflineDeviceGroup } from '@/domain/entity/utils/device-group'
+import type { OfflineDeviceGroup } from '@/domain/entity/device-group-model'
 
 /**
  * 组件 Props 定义

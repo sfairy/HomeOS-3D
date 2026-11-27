@@ -53,7 +53,7 @@ import FloatingHubEntityWidget from '@/app/shell/floating-hub/FloatingHubEntityW
 import FloatingHubClockWidget from '@/app/shell/floating-hub/FloatingHubClockWidget.vue'
 import FloatingHubMetricWidget from '@/app/shell/floating-hub/FloatingHubMetricWidget.vue'
 import FloatingHubPanelWidget from '@/app/shell/floating-hub/FloatingHubPanelWidget.vue'
-import type { FloatingWidget } from '@/kernel/types/layout'
+import type { FloatingWidget } from '@/kernel/layout-config'
 import { hasEntityCustomColors, shouldTintAfhWidget } from '@/domain/entity/floating-entity-colors'
 import { canonicalizeWidgetType } from '@/kernel/registry/widget-catalog'
 

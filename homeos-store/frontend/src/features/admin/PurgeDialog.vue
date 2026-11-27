@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import { useAdminDialogsStore } from "@store/features/admin/adminDialogs";
+import { useAdminDialogsStore } from '@store/features/admin/admin-dialogs'
 import { useToastStore } from "@store/shared/toast";
 
 const dialogs = useAdminDialogsStore();

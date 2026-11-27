@@ -373,7 +373,7 @@ import {
   footerAccountIndexToSelectValue,
   footerAccountSelectValueToIndex,
   DASHBOARD_FOOTER_COLOR_ACCENT,
-} from '@/domain/energy/constants/dashboard-footer'
+} from '@/domain/energy/dashboard-footer'
 
 const layoutStore = useLayoutStore()
 const entitiesStore = useEntitiesStore()

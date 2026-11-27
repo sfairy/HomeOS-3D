@@ -10,7 +10,7 @@ import type { UtilityMeterParsedItem } from '@/domain/energy/composables'
 import type { HaEntityState } from '@/kernel/entity'
 import { resolveAccountLabelForEntityId } from '@/domain/energy/account'
 import { getEntityDisplayName } from '@/domain/entity/derived'
-import type { EnergyCategory } from '@/domain/energy/constants/energy-fields'
+import type { EnergyCategory } from '@/domain/energy/energy-fields'
 import type { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import type { useLayoutStore } from '@/domain/layout/store/layout.store'
 

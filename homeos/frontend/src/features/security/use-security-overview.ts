@@ -6,9 +6,9 @@ import { useSecurityPanelStatus } from '@/features/security/security'
 import { useReduceSecuritySensitivity } from '@/features/security/use-reduce-security-sensitivity'
 import { useSecuritySensors } from '@/features/security/security'
 import { useSecurityAuditEvents } from '@/features/security/security'
-import { createSecurityOverviewHazard } from './security-overview-hazard.internals'
-import { createSecurityOverviewSensorView } from './security-overview-sensors.internals'
-import { createSecurityOverviewActions } from './security-overview-actions.internals'
+import { createSecurityOverviewHazard } from './security-overview-hazard'
+import { createSecurityOverviewSensorView } from './security-overview-sensors'
+import { createSecurityOverviewActions } from './security-overview-actions'
 
 /** 安防模式到强调色的映射 */
 const MODE_ACCENTS: Record<string, string> = {

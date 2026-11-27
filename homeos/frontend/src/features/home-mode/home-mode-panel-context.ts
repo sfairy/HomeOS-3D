@@ -18,7 +18,7 @@ import { logger } from '@/kernel/core/logger'
 import { formatPresenceBadgeSummary } from '@/features/presence/display'
 import type { Ref } from 'vue'
 import { computed, ref } from 'vue'
-import type { ActionTemplate } from './draft.internals'
+import type { ActionTemplate } from './draft'
 import type { useHomeModes } from './use-home-modes'
 import type { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 

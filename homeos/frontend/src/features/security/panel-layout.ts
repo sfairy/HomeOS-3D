@@ -1,6 +1,6 @@
 /** 安防面板布局配置工具模块。 */
 /** 从顶层 floatingWidgets 读写 securityPanel 区域配置 */
-import type { FloatingWidget, UILayoutConfig } from '@/kernel/types/layout'
+import type { FloatingWidget, UILayoutConfig } from '@/kernel/layout-config'
 import type { SecurityZonePayload } from './zones-api'
 
 /**

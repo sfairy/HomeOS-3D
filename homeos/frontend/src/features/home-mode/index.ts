@@ -73,9 +73,9 @@ export type { ModeLogAnalytics } from './use-mode-logs-analytics'
 // `useHomeModeEditor` 与类型 `ActionTemplate` / `ModeActionDraft` **不在此导出**：
 // 它们只被域内 `home-mode-panel.internals.ts` / `editor.internals.ts` 相对引用，
 // 不构成跨域契约（跨域用的是下面这几个 bridge / section / item 组合式）。
-export { useHomeModePanelBridge, setHomeModePanelBridge } from './editor.internals'
-export { useHomeModeActionsSection } from './editor.internals'
-export { useHomeModeItemExpansion, useHomeModeItemFocus } from './editor.internals'
+export { useHomeModePanelBridge, setHomeModePanelBridge } from './editor'
+export { useHomeModeActionsSection } from './editor'
+export { useHomeModeItemExpansion, useHomeModeItemFocus } from './editor'
 
 // ── 场景选项（security modes 复用）──
 export { useHomeosSceneOptions } from './use-homeos-scene-options'

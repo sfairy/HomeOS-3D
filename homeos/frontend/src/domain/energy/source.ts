@@ -6,7 +6,7 @@ import {
   balanceAttrCandidatesForField,
   type EnergyCategory,
   type EnergyFieldDef,
-} from '@/domain/energy/constants/energy-fields'
+} from '@/domain/energy/energy-fields'
 import { readEntityAttr } from '@/domain/energy/entity-read'
 import {
   resolveAccountNumbers,

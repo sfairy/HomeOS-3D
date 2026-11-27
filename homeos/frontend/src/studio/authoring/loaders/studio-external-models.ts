@@ -68,7 +68,7 @@ import {
   countertopMaterialIndexByItemType,
   luminancePaletteItemTypes,
   applianceItemTypes,
-} from './external-models/_shared'
+} from './external-models/external-models-shared'
 import { ALL_ITEM_MODELS } from './external-models/all-item-models'
 import { modelKeyForDecorationItem, userDecorationModelDefinition } from './external-models/user-decoration-models'
 import { applyModelAnchors } from './external-models/model-anchors'

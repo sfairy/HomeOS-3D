@@ -11,8 +11,8 @@ import {
   createEventsViewLoaders,
   createEventsViewSummaries,
   clearAllEventRecords,
-} from './events-view-data.internals'
-import { createEventsViewFilters } from './events-view-filters.internals'
+} from './events-view-data'
+import { createEventsViewFilters } from './events-view-filters'
 
 function buildEventsViewApi(parts: {
   hours: ReturnType<typeof ref<number>>

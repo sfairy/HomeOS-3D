@@ -13,9 +13,9 @@ import {
   isWaterEntity,
   isCommEntity,
   isUtilityEntity,
-} from '@/domain/entity/utils/entity'
+} from '@/domain/entity/entity-state'
 import { isFloatingPanelType, FLOATING_HUB_WIDTH_MAP } from '@/kernel/registry/widget-registry-meta'
-import type { FloatingWidget } from '@/kernel/types/layout'
+import type { FloatingWidget } from '@/kernel/layout-config'
 import type { FloatingHubContext } from '@/kernel/floating-hub'
 import {
   getPanelEdgeAnchorFromRect,
@@ -25,7 +25,7 @@ import {
   rectCenterPct,
   sanitizeWidgetPct,
   isValidRootRect,
-} from '@/features/settings/floorplan/utils/floating-hub-layout'
+} from '@/features/settings/floorplan/floating-hub-layout'
 import { buildAfhAccentStyle, resolveAfhWidgetTheme } from '@/domain/entity/floating-entity-colors'
 import { resolveAqiSensorId, collectSensorEntityIds } from '@/features/weather/utils'
 

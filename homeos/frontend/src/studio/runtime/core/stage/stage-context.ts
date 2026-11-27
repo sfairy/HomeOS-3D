@@ -13,7 +13,7 @@
  * `cb` 就退化成隐式 `any`（`TS7006`），精确类型的价值正是在这里。
  */
 import type { resolvePageBehavior as resolvePageBehavior2 } from '../idle-rotation'
-import type { configuredModuleKinds } from './_shared'
+import type { configuredModuleKinds } from './stage-shared'
 
 export interface StageContext {
   value: any

@@ -6,7 +6,7 @@ import HomeModeBasicSection from './HomeModeBasicSection.vue'
 import HomeModeActionsSection from './HomeModeActionsSection.vue'
 import HomeModeTriggersSection from './HomeModeTriggersSection.vue'
 import HomeModeLogsSection from './HomeModeLogsSection.vue'
-import { isHomeModeEmojiIcon, resolveHomeModeIcon } from '@/features/home-mode/utils/index'
+import { isHomeModeEmojiIcon, resolveHomeModeIcon } from '@/features/home-mode/mode-icon'
 
 const activeSection = defineModel('activeSection', { type: String, required: true })
 const batchDomain = defineModel('batchDomain', { type: String, required: true })

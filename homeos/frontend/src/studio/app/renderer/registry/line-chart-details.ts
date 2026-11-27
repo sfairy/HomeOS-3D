@@ -5,7 +5,7 @@ import {
   createHoverLineChart,
   clampNumberWithFallback,
   appendSvgElement,
-} from './_shared'
+} from './registry-shared'
 import { resolvedThresholds, smoothChartPath, thresholdColor } from '../controls/weather-chart-runtime'
 import { formatLineChartValue, lineChartGeometry } from '../controls/line-chart-runtime'
 /** 渲染期直接挂在 DOM 元素上的组件控制器钩子（与 registry.ts 中声明保持一致）。 */

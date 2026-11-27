@@ -60,6 +60,11 @@
       "impl": 0,
       "moduleLet": 1
     },
+    "homeos/frontend/src/domain/entity/entity-state.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 5
+    },
     "homeos/frontend/src/domain/entity/idb-cache.ts": {
       "alias2": 0,
       "impl": 0,
@@ -75,11 +80,6 @@
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/domain/entity/utils/entity.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 5
-    },
     "homeos/frontend/src/domain/entity/ws-subscription.ts": {
       "alias2": 0,
       "impl": 0,
@@ -90,7 +90,7 @@
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/domain/layout/system-config-core.internals.ts": {
+    "homeos/frontend/src/domain/layout/system-config-core.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 3
@@ -320,7 +320,7 @@
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/home-mode/home-mode-panel-derived.internals.ts": {
+    "homeos/frontend/src/features/home-mode/home-mode-panel-derived.ts": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
@@ -705,7 +705,7 @@
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/settings/kernel/pending.internals.ts": {
+    "homeos/frontend/src/features/settings/kernel/pending.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 3

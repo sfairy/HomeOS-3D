@@ -255,7 +255,7 @@ import DeviceProfilesDefaultsCard from './DeviceProfilesDefaultsCard.vue'
 import HosSelect from '@/domain/entity/entity-select/HosSelect.vue'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { countOfflineDevices } from '@/domain/entity/utils/device-group'
+import { countOfflineDevices } from '@/domain/entity/device-group-model'
 import {
   clearDeviceProfileConfirmation,
   confirmDeviceProfile,

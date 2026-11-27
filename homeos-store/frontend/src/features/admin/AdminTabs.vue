@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, useId } from "vue";
-import type { AdminTabItem } from "@store/features/admin/useAdminTabs";
+import { AdminTabItem } from '@store/features/admin/use-admin-tabs'
 
 const props = defineProps<{
   label: string;

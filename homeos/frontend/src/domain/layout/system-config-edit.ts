@@ -1,5 +1,5 @@
 /** 系统配置可编辑视图构建工具 */
-import { getSectionLabels } from '@/domain/layout/system-config-core.internals'
+import { getSectionLabels } from '@/domain/layout/system-config-core'
 import { inferSystemConfigFieldType, NESTED_JSON_FIELDS } from '@/kernel/config/system-config'
 import { SYSTEM_CONFIG_FIELD_KEYS } from '@/kernel/config/system-config'
 import { isNumericMultiField } from '@/kernel/config/system-config'

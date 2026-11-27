@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import { useHomeView } from "@store/features/storefront/home/useHomeView";
+import { useHomeView } from '@store/features/storefront/home/use-home-view'
 
 /**
  * 首屏右侧的中控画面。对照主项目 3D 舞台：一层户型上的设备锚点，

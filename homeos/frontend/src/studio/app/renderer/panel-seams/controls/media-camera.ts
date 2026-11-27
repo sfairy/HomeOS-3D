@@ -5,7 +5,7 @@ import {
   cameraPreviewRatio as cameraPreviewRatio2,
 } from '../../../bridge/presets'
 import { componentDialogTitle } from '../../renderer-helpers'
-import { mountCameraMedia as mountCameraMedia2 } from '../../registry/index'
+import { mountCameraMedia as mountCameraMedia2 } from '@app/renderer/registry/camera-media'
 import { popupPlacement as popupPlacement2 } from '../../../bridge/presets'
 import type { PanelRenderer } from '../../panel-renderer'
 

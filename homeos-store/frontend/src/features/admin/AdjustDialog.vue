@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import { useAdminDialogsStore } from "@store/features/admin/adminDialogs";
-import { useAdminRefreshStore } from "@store/features/admin/adminRefresh";
+import { useAdminDialogsStore } from '@store/features/admin/admin-dialogs'
+import { useAdminRefreshStore } from '@store/features/admin/admin-refresh'
 import { useToastStore } from "@store/shared/toast";
 import { adminApi } from "@store/shared/api/http";
 import { errorMessage } from "@store/shared/store";

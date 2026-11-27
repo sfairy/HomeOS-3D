@@ -1,5 +1,5 @@
 /** 人在传感器渲染器（从 register-all 拆出，按组件族懒加载）。 */
-import { clampNumberWithFallback, normalizeCssColor } from './_shared'
+import { clampNumberWithFallback, normalizeCssColor } from './registry-shared'
 import {
   presenceAnimationPhase,
   presenceMotionEventConfig,

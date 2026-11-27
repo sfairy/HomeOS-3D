@@ -9,13 +9,13 @@ import {
   buildRoomListFromHaAreas,
   filterEnvSensorMapToKnownAreas,
 } from '@homeos/shared'
-import { useSettingsSave } from '@/features/settings/kernel/save.internals'
+import { useSettingsSave } from '@/features/settings/kernel/save'
 import {
   fetchSystemConfigFresh,
   isSystemConfigConflictError,
   patchSystemConfig,
   useSystemConfig,
-} from '@/domain/layout/system-config-core.internals'
+} from '@/domain/layout/system-config-core'
 import { fetchAreasList } from '@/domain/api/entities'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { reloadFrontendConfig } from '@/kernel/config/frontend-config'

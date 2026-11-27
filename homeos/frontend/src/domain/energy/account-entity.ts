@@ -1,6 +1,6 @@
 /** - 解析约定模式下的 balance 实体 ID。 */
 import { getEntityLeaf } from '@homeos/shared'
-import { ENERGY_CONVENTION_PREFIX } from '@/domain/energy/constants/energy-fields'
+import { ENERGY_CONVENTION_PREFIX } from '@/domain/energy/energy-fields'
 import {
   resolvePrimaryAccountRowIndex,
   type EnergyAccountEntityEntry,

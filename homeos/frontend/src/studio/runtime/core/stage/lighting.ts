@@ -5,7 +5,7 @@
  */
 
 import { hsToRgbColor as hsToRgbColor2, lightCommand as lightCommand2 } from '../../light/light'
-import { lightPresetEntries } from './_shared'
+import { lightPresetEntries } from './stage-shared'
 
 /** 依赖袋（宿主 `bootEditor` 作用域）：**每次调用现取**的普通对象，等价于闭包读值。
  * 本族切片只读不写（外层写入 0），所以不需要 getter / state 袋；宿主侧每个函数一个同名

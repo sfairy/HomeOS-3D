@@ -1,7 +1,7 @@
 /** 系统配置参数侧边栏组合式函数。 */
 import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { categoryForSection, getSectionCategories, sectionMeta } from '@/domain/layout/system-config-core.internals'
+import { categoryForSection, getSectionCategories, sectionMeta } from '@/domain/layout/system-config-core'
 
 /** SECTION_LINK_LABELS：对象常量，字段 / 方法语义见定义处。 */
 export const SECTION_LINK_LABELS: Record<string, string> = {

@@ -5,7 +5,7 @@ import {
   resolveMdiIconUrl,
   resolveStatePayload,
   appendSvgElement,
-} from './_shared'
+} from './registry-shared'
 import { formatEntityState, isCoverComponentActive, resolveEntityIcon } from './cover-climate-state'
 import { componentContentUnitsPx } from './content-units'
 

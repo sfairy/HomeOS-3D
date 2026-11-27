@@ -54,7 +54,7 @@
 /** - 触发器展示当前 emoji 与下拉箭头； */
 import { computed, ref } from 'vue'
 import { ChevronDown } from '@lucide/vue'
-import { DASHBOARD_FOOTER_ICONS } from '@/domain/energy/constants/dashboard-footer'
+import { DASHBOARD_FOOTER_ICONS } from '@/domain/energy/dashboard-footer'
 import { useClickOutside } from '@/kernel/ui/use-click-outside'
 import { useDropdownPosition } from '@/kernel/ui/popup/use-dropdown-position'
 

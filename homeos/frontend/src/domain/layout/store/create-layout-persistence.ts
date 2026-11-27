@@ -5,8 +5,8 @@ import { useAuthStore } from '@/domain/auth/auth.store'
 import { getDefaultLayout } from '@/domain/layout/store/defaults'
 import { normalizePageBackground } from '@/kernel/widget/page-background'
 import { NAV_TAB_ORDER_DEFAULT, normalizeEmbedNavTabLayoutFields } from '@/kernel/layout'
-import { normalizeDashboardFooter } from '@/domain/energy/constants/dashboard-footer'
-import { normalizeSecurityEmergency } from '@/domain/layout/constants/security-emergency'
+import { normalizeDashboardFooter } from '@/domain/energy/dashboard-footer'
+import { normalizeSecurityEmergency } from '@/domain/layout/security-emergency'
 import { normalizeWholeHomeOff } from '@/kernel/index'
 import { logger } from '@/kernel/core/logger'
 import {
@@ -24,7 +24,7 @@ import { normalizeSecurityCameras } from '@/kernel/layout'
 import { clonePlain } from '@/kernel/core/clone-plain'
 import { pushServerAccessConfig } from '@/kernel/bridge/native-bridge'
 import { fetchSystemNetworkInfo } from '@/kernel/http/system-api'
-import type { HaConfig, PanelWidget, FloatingWidget } from '@/kernel/types/layout'
+import type { HaConfig, PanelWidget, FloatingWidget } from '@/kernel/layout-config'
 
 /**
  * 把服务端访问配置推送给原生端（fire-and-forget）。

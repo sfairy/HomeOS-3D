@@ -1,6 +1,6 @@
 /** 户型图浮动 Hub / 部件布局工具 */
 import { isFloatingPanelType } from '@/kernel/registry/widget-registry-meta'
-import type { FloatingWidget } from '@/kernel/types/layout'
+import type { FloatingWidget } from '@/kernel/layout-config'
 
 /** 浮动部件居中 transform 常量 */
 const AFH_CENTER_TRANSFORM = 'translate(-50%, -50%)'

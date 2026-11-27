@@ -16,7 +16,7 @@ import {
   resolveRawAccountRowCount,
 } from '@/domain/energy/account'
 
-import { ACCOUNT_BINDING_SOURCE_OPTIONS } from '@/domain/energy/constants/account-binding-meta'
+import { ACCOUNT_BINDING_SOURCE_OPTIONS } from '@/domain/energy/account-binding-meta'
 
 /** 底栏卡片可选图标（emoji） */
 export const DASHBOARD_FOOTER_ICONS = [

@@ -38,7 +38,7 @@ import {
   enqueueStateListenerNotifications,
   notifyStateListener,
   stateListenerPayloadFingerprint,
-} from '@/domain/entity/utils/entity'
+} from '@/domain/entity/entity-state'
 import { EVENT_LOG_OVERLAY_DOMAINS } from '@/domain/entity/event-log-domains'
 import { notificationLevelToToastType, shouldSkipNotificationToast } from '@/domain/notifications/ws-sync'
 import { refreshEnergyFromSocket } from '@/kernel/bridge/store-bridge'

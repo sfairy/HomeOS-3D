@@ -1,4 +1,4 @@
-import { clampNumberWithFallback, normalizeCssColor } from './_shared'
+import { clampNumberWithFallback, normalizeCssColor } from './registry-shared'
 import { isClimatePoweredOn, resolveAirflowMotionKind } from './cover-climate-state'
 
 import { domElement } from '@app/shared/util/dom-factory'

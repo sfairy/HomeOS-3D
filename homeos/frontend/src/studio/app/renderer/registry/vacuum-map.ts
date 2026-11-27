@@ -1,5 +1,5 @@
 /** 扫地机实时地图渲染器（从 register-all 拆出）。 */
-import { clampNumberWithFallback, resolveStatePayload } from './_shared'
+import { clampNumberWithFallback, resolveStatePayload } from './registry-shared'
 import { createVacuumMapImageLoader } from '@app/shared/device'
 import type { ComponentControllerHooks } from './types'
 

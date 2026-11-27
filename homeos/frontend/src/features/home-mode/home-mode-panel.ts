@@ -6,12 +6,12 @@
 import { useHomeModes } from './use-home-modes'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { buildHomeModeRecommendations } from '@/domain/recommend/home-mode-recommend'
-import { useSettingsSave } from '@/features/settings/kernel/save.internals'
-import { useRegisterSettingsTabPending } from '@/features/settings/kernel/pending.internals'
+import { useSettingsSave } from '@/features/settings/kernel/save'
+import { useRegisterSettingsTabPending } from '@/features/settings/kernel/pending'
 import { computed } from 'vue'
-import { useHomeModeEditor } from './editor.internals'
-import { useHomeModePanelContext } from './home-mode-panel-context.internals'
-import { createHomeModePanelDerived, createHomeModePanelHandlers } from './home-mode-panel-actions.internals'
+import { useHomeModeEditor } from './editor'
+import { useHomeModePanelContext } from './home-mode-panel-context'
+import { createHomeModePanelDerived, createHomeModePanelHandlers } from './home-mode-panel-actions'
 
 function buildHomeModePanelApi(parts: {
   loading: unknown

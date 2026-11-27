@@ -17,7 +17,7 @@
 import { computed } from 'vue'
 import { Home, Power, Check } from '@lucide/vue'
 import { RouterLink } from 'vue-router'
-import { resolveHomeModeIcon } from '@/features/home-mode/utils/index'
+import { resolveHomeModeIcon } from '@/features/home-mode/mode-icon'
 import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
 
 const props = defineProps({

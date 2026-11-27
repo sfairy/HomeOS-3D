@@ -7,18 +7,18 @@ import {
   getFieldDef,
   type EnergyCategory,
   type EnergyFieldDef,
-} from '@/domain/energy/constants/energy-fields'
+} from '@/domain/energy/energy-fields'
 import { hasEnergyConfig, getEntityLeaf } from '@homeos/shared'
 import { resolveFieldRaw, resolveFieldRawAggregated, formatNum } from '@/domain/energy/source'
 import { readEntityAttr } from '@/domain/energy/entity-read'
-import { collectFooterAccountSources } from '@/domain/energy/constants/account-binding-meta'
+import { collectFooterAccountSources } from '@/domain/energy/account-binding-meta'
 import {
   hasEnabledFooterItems,
   normalizeDashboardFooter,
   resolveFooterAccountIndex,
   resolveFooterPrimaryLabel,
   resolveFooterSecondaryLabel,
-} from '@/domain/energy/constants/dashboard-footer'
+} from '@/domain/energy/dashboard-footer'
 import { FOOTER_ACCOUNT_INDEX_ALL } from '@/domain/energy/account'
 import { getEntityDisplayName } from '@/domain/entity/derived'
 import type { DashboardFooterItem, FooterFieldOption } from '@/kernel/dashboard-footer'

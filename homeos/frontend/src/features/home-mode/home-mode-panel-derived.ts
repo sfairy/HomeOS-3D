@@ -5,9 +5,9 @@
 /** 家庭模式面板派生状态 */
 import { computed, ref } from 'vue'
 import { CalendarDays, Link2, Radio, Users, Zap } from '@lucide/vue'
-import type { ActionTemplate, ModeActionDraft } from './draft.internals'
-import type { useHomeModeEditor } from './editor.internals'
-import type { useHomeModePanelContext } from './home-mode-panel-context.internals'
+import type { ActionTemplate, ModeActionDraft } from './draft'
+import type { useHomeModeEditor } from './editor'
+import type { useHomeModePanelContext } from './home-mode-panel-context'
 import type { useHomeModes } from './use-home-modes'
 import type { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 

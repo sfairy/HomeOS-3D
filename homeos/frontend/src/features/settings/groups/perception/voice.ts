@@ -32,8 +32,8 @@ import { servicesForDomainBuilder } from '@/kernel/registry/widget-catalog'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { reloadFrontendConfig } from '@/kernel/config/frontend-config'
 import { getApiErrorMessage } from '@/kernel/core/error-message'
-import { useSettingsSave } from '@/features/settings/kernel/save.internals'
-import { isSystemConfigConflictError, useSystemConfig } from '@/domain/layout/system-config-core.internals'
+import { useSettingsSave } from '@/features/settings/kernel/save'
+import { isSystemConfigConflictError, useSystemConfig } from '@/domain/layout/system-config-core'
 
 /* ── 原 voice-alerts.internals.ts 的实现 ── */
 /** 语音告警编辑器 */

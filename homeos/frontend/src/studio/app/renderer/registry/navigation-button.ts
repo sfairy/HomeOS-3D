@@ -1,4 +1,4 @@
-import { clampNumberWithFallback, normalizeCssColor, resolveMdiIconUrl } from './_shared'
+import { clampNumberWithFallback, normalizeCssColor, resolveMdiIconUrl } from './registry-shared'
 import { navigationButtonIsActive, createNavigationEffectsSvg } from './navigation-effects'
 import { navigationContentUnitPx } from './content-units'
 import { isEntityComponentActive } from './cover-climate-state'

@@ -20,7 +20,7 @@ import {
   handleSystemConfigPatchError,
   patchSystemConfig,
   useSystemConfig,
-} from '@/domain/layout/system-config-core.internals'
+} from '@/domain/layout/system-config-core'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { loadPresenceHome } from '@/features/presence/load-presence-home'

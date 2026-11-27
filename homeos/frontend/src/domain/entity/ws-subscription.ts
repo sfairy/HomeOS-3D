@@ -1,4 +1,4 @@
-import type { PanelWidget } from '@/kernel/types/layout'
+import type { PanelWidget } from '@/kernel/layout-config'
 import { getEntityDomain, resolveChargerSwitchWakeEntityIdForDevice } from '@homeos/shared'
 import { getClientDeviceId } from '@/domain/client/system'
 import { getConfigSection } from '@/kernel/config/frontend-config'

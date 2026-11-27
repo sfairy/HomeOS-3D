@@ -38,6 +38,7 @@ import { audit as aliasAudit } from './frontend/check_alias_ratchet.mjs'
 import { audit as offlineCountingAudit } from './frontend/check_offline_counting.mjs'
 import { audit as perfAudit } from './frontend/check_perf_ratchet.mjs'
 import { audit as restrictedAudit } from './frontend/check_restricted_syntax.mjs'
+import { audit as namingAudit } from './frontend/check_naming.mjs'
 
 /**
  * `run(ctx)` 返回 `ratchet.js` 的 RatchetResult。
@@ -54,6 +55,8 @@ const MODULES = [
     run: () => offlineCountingAudit(),
   },
   { name: 'restricted-syntax', covers: ['check:restricted-syntax'], run: (ctx) => restrictedAudit(ctx) },
+  // 命名与目录结构：形态目录段 / 形态后缀 / 命名风格 / barrel 层级。
+  { name: 'naming', covers: ['check:naming'], run: () => namingAudit() },
 ]
 
 /**

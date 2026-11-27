@@ -10,9 +10,9 @@ import { copyTextWithNotify } from '@/kernel/ui/notify'
 import { useSettingsHubRouteSection } from '@/features/settings/shared/hub'
 import { computed, ref, watch, type Ref, reactive } from 'vue'
 import { clonePlain } from '@/kernel/core/clone-plain'
-import type { HaConfig, StatsSensorsConfig, UILayoutConfig, PanelWidget } from '@/kernel/types/layout'
+import type { HaConfig, StatsSensorsConfig, UILayoutConfig, PanelWidget } from '@/kernel/layout-config'
 import { createDefaultEarthquakeConfig } from '@/kernel/earthquake'
-import { ACCOUNT_BINDING_SOURCE_OPTIONS } from '@/domain/energy/constants/account-binding-meta'
+import { ACCOUNT_BINDING_SOURCE_OPTIONS } from '@/domain/energy/account-binding-meta'
 import {
   createDefaultDashboardFooterItems,
   createFooterItem,
@@ -21,8 +21,8 @@ import {
   DASHBOARD_FOOTER_PRESETS,
   normalizeDashboardFooter,
   resolveFooterItemLabel,
-} from '@/domain/energy/constants/dashboard-footer'
-import { ENERGY_FIELD_DEFS, type EnergyFieldDef } from '@/domain/energy/constants/energy-fields'
+} from '@/domain/energy/dashboard-footer'
+import { ENERGY_FIELD_DEFS, type EnergyFieldDef } from '@/domain/energy/energy-fields'
 import type { DashboardFooterItem, FooterFieldOption } from '@/kernel/dashboard-footer'
 import { MAX_QUICK_BUTTONS, QUICK_BUTTON_OPTIONS, normalizeQuickButtons } from '@/domain/widget/quick-actions.config'
 import { FLOATING_HUB_DEFAULT_TAB } from '@/kernel/registry/floating-hub-tab-options'

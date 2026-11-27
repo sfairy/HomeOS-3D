@@ -17,8 +17,8 @@ import {
   getHubTabSet,
   cloneHubTabsDraft,
 } from '@/kernel/registry/hub-tabs-options'
-import { mirrorSecurityPanelZonesToLayout } from '@/features/security/utils/index'
-import type { FloatingWidget, UILayoutConfig } from '@/kernel/types/layout'
+import { mirrorSecurityPanelZonesToLayout } from '@/features/security/panel-layout'
+import type { FloatingWidget, UILayoutConfig } from '@/kernel/layout-config'
 import { type Ref, computed, ref, watch, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { clampPct } from '@/kernel/core/misc'
@@ -80,7 +80,7 @@ export function useFloatingAfhActions(opts: {
     if (!afhEditId.value) return
     const widget = floatingWidgets.value.find((w) => w.id === afhEditId.value)
     const widgetType = widget?.type || ''
-    const { normalizeZonesForApi } = await import('@/features/security/utils/index')
+    const { normalizeZonesForApi } = await import('@/features/security/zones-api')
     const zonesForSave = normalizeZonesForApi(
       (afhConfig.zones || []).map((z) => ({
         id: z.id,
@@ -134,7 +134,7 @@ export function useFloatingAfhActions(opts: {
         chrome.notify('浮动组件已更新；未配置区域时不会覆盖后端已有区域，请点击侧边栏「保存全部」持久化', 'info')
         return
       }
-      const { postSecurityZonesSafe } = await import('@/features/security/utils/index')
+      const { postSecurityZonesSafe } = await import('@/features/security/zones-api')
       const result = await postSecurityZonesSafe(zonesForSave)
       if (result.ok) {
         chrome.notify('浮动组件与安防区域已同步到后端，请点击侧边栏「保存全部」持久化布局', 'success')

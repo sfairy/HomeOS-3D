@@ -12,7 +12,7 @@ import { errorMessage } from "@store/shared/store";
 import { useSessionStore } from "@store/shared/session";
 import { useSiteStore } from "@store/shared/site";
 import { useStoreToast } from "@store/shared/toast";
-import { useCooldown } from "@store/features/storefront/auth/useCooldown";
+import { useCooldown } from '@store/features/storefront/auth/use-cooldown'
 import { clearInvite, readInvite } from "@store/features/storefront/auth/invite";
 import { isPasswordPolicyCompliant, PASSWORD_POLICY_MESSAGE } from "@homeos/shared/security/password-policy";
 

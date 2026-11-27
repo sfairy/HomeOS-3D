@@ -16,7 +16,7 @@
     "homeos/frontend/src/features/notifications/use-notifications-view-analytics.ts": 1,
     "homeos/frontend/src/features/security/ZoneConfigPanel.vue": 1,
     "homeos/frontend/src/features/settings/groups/system/diagnostics.ts": 1,
-    "homeos/frontend/src/features/settings/kernel/pending.internals.ts": 1,
+    "homeos/frontend/src/features/settings/kernel/pending.ts": 1,
     "homeos/frontend/src/features/settings/life/use-life-chart-host.ts": 1
   },
   "transitionAll": {

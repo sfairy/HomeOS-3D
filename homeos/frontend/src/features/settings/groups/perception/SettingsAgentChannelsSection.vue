@@ -564,7 +564,7 @@ import SettingsFlowStat, { type FlowStatTone } from '@/features/settings/shared/
 import SettingsFeatureMaster from '@/features/settings/shared/layout/SettingsFeatureMaster.vue'
 import SettingsOrchTabs from '@/features/settings/SettingsOrchTabs.vue'
 import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
-import type { AgentConfig, ChannelConfig } from '@/kernel/types/layout'
+import type { AgentConfig, ChannelConfig } from '@/kernel/layout-config'
 import type { ChannelsStatusResult } from '@/domain/api/agent'
 import { testMessageChannel } from '@/domain/api/agent'
 import { fetchWebPushSubscriptions, testWebPush, unsubscribeWebPush } from '@/domain/api/notifications'

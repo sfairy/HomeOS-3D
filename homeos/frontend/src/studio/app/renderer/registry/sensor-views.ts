@@ -1,4 +1,4 @@
-import { normalizeCssColor } from './_shared'
+import { normalizeCssColor } from './registry-shared'
 import { doorWindowPerspectiveMatrix } from '../controls/door-window-runtime'
 
 import { domElement } from '@app/shared/util/dom-factory'

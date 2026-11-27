@@ -1,7 +1,7 @@
 /** Camera inspector sync */
 import { clampNumber as clampNumber2, roundField as roundField2 } from '../../editor'
 import { setInspectorToggle as setInspectorToggle2 } from '../basic'
-import { normalizeGo2rtcTarget as normalizeGo2rtcTarget2 } from '../../../renderer/registry/index'
+import { normalizeGo2rtcTarget as normalizeGo2rtcTarget2 } from '@app/renderer/registry/camera-media'
 
 interface CameraInspectorContext {
   /** 字段清单 = 本文件里出现过的袋子取值（`ctx.<key>` / 别名访问 / 解构）。

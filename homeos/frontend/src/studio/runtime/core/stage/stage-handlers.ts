@@ -27,7 +27,7 @@ import {
   createStageElement,
   lampIconSvgMarkup,
   postHostMessage,
-} from './_shared'
+} from './stage-shared'
 import { defaultFloorCategory, defaultOpeningFloor } from '@/studio/platform/navigation/navigation-defaults'
 import {
   temperatureHumidityReading as readTemperatureHumidity,

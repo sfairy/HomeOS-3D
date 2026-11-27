@@ -43,7 +43,7 @@
 /** 浮动控制中心 - 实体部件 */
 import { computed, inject } from 'vue'
 import { FloatingHubContextKey } from '@/kernel/floating-hub'
-import type { FloatingWidget } from '@/kernel/types/layout'
+import type { FloatingWidget } from '@/kernel/layout-config'
 
 // 部件实例（含 config.entityId 实体 ID）
 const props = defineProps<{

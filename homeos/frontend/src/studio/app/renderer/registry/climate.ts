@@ -5,7 +5,7 @@ import {
   normalizeCssColor,
   resolveMdiIconUrl,
   resolveStatePayload,
-} from './_shared'
+} from './registry-shared'
 import { climateDefaultIcon, resolveClimateDeviceType } from '@app/shared/device'
 import { formatClimateStateLabel, isClimatePoweredOn } from './cover-climate-state'
 import { componentContentUnitsPx } from './content-units'

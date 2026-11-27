@@ -69,7 +69,7 @@ import SettingsCardIntro from '@/features/settings/shell/SettingsCardIntro.vue'
 import SettingsFeatureMaster from '@/features/settings/shared/layout/SettingsFeatureMaster.vue'
 import SettingsRangeField from '@/features/settings/shared/layout/SettingsRangeField.vue'
 import SettingsSwitchToggle from '@/features/settings/shared/layout/SettingsSwitchToggle.vue'
-import { handleSystemConfigPatchError, patchSystemConfig } from '@/domain/layout/system-config-core.internals'
+import { handleSystemConfigPatchError, patchSystemConfig } from '@/domain/layout/system-config-core'
 import {
   getConfigSection,
   loadFrontendConfig,

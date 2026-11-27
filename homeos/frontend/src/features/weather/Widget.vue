@@ -144,7 +144,7 @@
  *  - @/shared/weather/constants/weather-labels: 天气状态标签与视觉键
  *  - @/shared/utils/registry/settings-route.util: 设置页路由常量
  */
-import { weatherStateLabel, weatherVisualKey } from '@/features/weather/constants/weather-labels'
+import { weatherStateLabel, weatherVisualKey } from '@/features/weather/weather-labels'
 import { computed, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import {

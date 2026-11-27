@@ -29,7 +29,7 @@ import {
   buildNotificationsReadOption,
   buildNotificationsSourceOption,
   buildNotificationsTimeOption,
-} from '@/features/notifications/notifications-analytics-charts.internals'
+} from '@/features/notifications/notifications-analytics-charts'
 
 /** 5 张图表的 key：来源 / 级别 / 排行 / 时段 / 已读 */
 type ChartKey = 'source' | 'level' | 'rank' | 'time' | 'read'

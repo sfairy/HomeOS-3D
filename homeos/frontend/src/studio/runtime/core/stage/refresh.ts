@@ -9,7 +9,7 @@ import { enteringFloorCategory } from '@/studio/platform/navigation/navigation-d
 import { GENERIC_DEVICE_KINDS as GENERIC_DEVICE_KINDS2 } from '../../device/device'
 import { MEDIA_DEVICE_KINDS } from '@app/bridge/presets'
 import { buildMetadata } from './build-metadata'
-import { expandGroupMembers, postHostMessage } from './_shared'
+import { expandGroupMembers, postHostMessage } from './stage-shared'
 import { mountRegionRangeEditor as mountRegionRangeEditor2 } from '../../config-ui/light-range-editor'
 import {
   pageDimming as pageDimming2,

@@ -10,7 +10,7 @@ import {
   resolveStateSnapshot,
 } from '../controls/event-log-runtime'
 import { navigateInShell } from '@/studio/platform/shell-navigation'
-import { clampNumberWithFallback, normalizeCssColor } from './_shared'
+import { clampNumberWithFallback, normalizeCssColor } from './registry-shared'
 import { componentContentUnitsPx } from './content-units'
 
 import { domElement } from '@app/shared/util/dom-factory'

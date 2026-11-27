@@ -1,5 +1,5 @@
 /** 天气渲染器（从 register-all 拆出）。 */
-import { applyTextOutline, clampNumberWithFallback, normalizeCssColor } from './_shared'
+import { applyTextOutline, clampNumberWithFallback, normalizeCssColor } from './registry-shared'
 import { meteoconUrl, weatherVisual } from '../controls/weather-chart-runtime'
 
 export function register(registerComponent: (type: any, def: any) => void) {

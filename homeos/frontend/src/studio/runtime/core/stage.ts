@@ -110,7 +110,7 @@ import {
   expandGroupMembers,
   isSameCameraPose,
   syncPanelFit,
-} from './stage/_shared'
+} from './stage/stage-shared'
 import {
   clampScreenPercent,
   handleMarkerActivate as handleMarkerActivateImpl,
@@ -120,7 +120,7 @@ import {
   previewSelectionOf,
   screenPointToFixedPercent as screenPointToFixedPercentImpl,
 } from './stage/preview-markers'
-export { createStageModelIndex } from './stage/_shared'
+export { createStageModelIndex } from './stage/stage-shared'
 import { buildMetadata } from './stage/build-metadata'
 import {
   createHandleHostMessage,

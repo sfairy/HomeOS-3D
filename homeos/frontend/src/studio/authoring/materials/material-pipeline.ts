@@ -22,7 +22,7 @@ import {
   paletteOverrideItemTypes,
   roleTableItemTypes,
   warmWoodFurnitureItemTypes,
-} from '../loaders/external-models/_shared'
+} from '../loaders/external-models/external-models-shared'
 
 /**
  * 车辆家族：材质收尾由 `applyCarFinish` / `applyVehicleFinish` 接管，不吃调色板重建。

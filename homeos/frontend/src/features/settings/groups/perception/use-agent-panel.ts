@@ -36,7 +36,7 @@ import {
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { clonePlain } from '@/kernel/core/clone-plain'
-import { useRegisterSettingsTabPending } from '@/features/settings/kernel/pending.internals'
+import { useRegisterSettingsTabPending } from '@/features/settings/kernel/pending'
 import { getDefaultLayout } from '@/domain/layout/store/defaults'
 import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
 import type {
@@ -45,7 +45,7 @@ import type {
   AgentProactiveConfig,
   ChannelConfig,
   SceneVoiceControl,
-} from '@/kernel/types/layout'
+} from '@/kernel/layout-config'
 import { normalizeAgentCompanion, resolveAgentCompanionPosition } from '@/kernel/layout'
 import { readAgentQuickPrompts as AGENT_CHAT_QUICK_PROMPTS } from '@/features/agent/utils'
 

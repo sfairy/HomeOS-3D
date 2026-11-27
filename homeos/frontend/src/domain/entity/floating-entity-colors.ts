@@ -1,8 +1,8 @@
 /** 户型图浮动实体卡片配色工具 */
 import { getEntityDomain } from '@homeos/shared'
-import type { FloatingWidget, FloatingWidgetConfig } from '@/kernel/types/layout'
+import type { FloatingWidget, FloatingWidgetConfig } from '@/kernel/layout-config'
 import { entityDomainColor } from '@/kernel/index'
-import { isCommEntity, isElectricityEntity, isGasEntity, isWaterEntity } from '@/domain/entity/utils/entity'
+import { isCommEntity, isElectricityEntity, isGasEntity, isWaterEntity } from '@/domain/entity/entity-state'
 
 interface EntityFloatingCustomColors {
   enabled: boolean

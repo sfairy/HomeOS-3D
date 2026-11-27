@@ -106,7 +106,7 @@ import { useScaling } from '@/kernel/ui/use-scaling'
 import { useCanvasMetrics } from '@/kernel/ui/use-canvas-metrics'
 import { isTabletCompactViewport } from '@/kernel/config/viewport-breakpoints'
 import { filterWidgetsForProfile } from '@/domain/widget/profile-filter'
-import type { PanelWidget } from '@/kernel/types/layout'
+import type { PanelWidget } from '@/kernel/layout-config'
 import { getSidebarWidgetClass } from '@/kernel/registry/widget-registry-meta'
 import { resolveSidebarWidgetHeightPx } from '@/domain/widget/panel-widget-height'
 

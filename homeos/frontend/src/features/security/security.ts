@@ -21,12 +21,7 @@ import { logger } from '@/kernel/core/logger'
 import { getApiErrorMessage } from '@/kernel/core/error-message'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { getMaxRemoteNotifications } from '@/kernel/config/frontend-config'
-import {
-  mapSecurityEventRow,
-  filterSecurityEvents,
-  recentLinkageFailures,
-  type SecurityEventDisplayItem,
-} from '@/features/security/utils/index'
+import { mapSecurityEventRow, filterSecurityEvents, recentLinkageFailures, type SecurityEventDisplayItem } from '@/features/security/event-display'
 import {
   Shield,
   ShieldOff,
@@ -59,9 +54,9 @@ import { getEntityDomain, buildHazardBindingMap, type HazardSensorKind, getEntit
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { getEntityDisplayName } from '@/domain/entity/derived'
-import { isSecurityUtilityNoise } from '@/features/security/utils/index'
+import { isSecurityUtilityNoise } from '@/features/security/sensor-filter'
 import { CO_KEYS, DOOR_KEYS, GAS_KEYS, LEAK_KEYS, MOTION_KEYS, SENSOR_TYPE_LABELS, SMOKE_KEYS } from './zone-room'
-import { isSensorAlertState } from '@/features/security/utils/index'
+import { isSensorAlertState } from '@/features/security/zone-mode'
 
 /* ── 原 useSecurityAuditEvents.ts 的实现 ── */
 

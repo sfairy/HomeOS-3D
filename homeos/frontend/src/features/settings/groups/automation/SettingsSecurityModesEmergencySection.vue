@@ -262,7 +262,7 @@ import SettingsRangeField from '@/features/settings/shared/layout/SettingsRangeF
 import { SETTINGS_RANGE_STEP } from '@/kernel/settings'
 import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
-import { normalizeSecurityEmergency } from '@/domain/layout/constants/security-emergency'
+import { normalizeSecurityEmergency } from '@/domain/layout/security-emergency'
 
 const props = defineProps({
   embedded: { type: Boolean, default: false },

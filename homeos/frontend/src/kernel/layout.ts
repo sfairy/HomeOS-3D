@@ -1,4 +1,4 @@
-import type { AgentCompanionConfig, HaConfig, SecurityCameraBinding } from '@/kernel/types/layout'
+import type { AgentCompanionConfig, HaConfig, SecurityCameraBinding } from '@/kernel/layout-config'
 import type { DoorbellConfig } from '@/kernel/setup-wizard'
 import {
   Monitor,

@@ -7,7 +7,7 @@ import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { writeStoredProfileId } from './create-layout-state'
 import { bindSelfTerminalProfile } from './resolve-active-profile'
 import { inferTerminalLabel } from '@/domain/client/infer-terminal-label'
-import type { UILayoutConfig } from '@/kernel/types/layout'
+import type { UILayoutConfig } from '@/kernel/layout-config'
 
 /** 方案摘要信息 */
 interface LayoutProfileSummary {

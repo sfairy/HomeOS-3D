@@ -5,7 +5,7 @@ import {
   clampNumberWithFallback,
   createHoverLineChart,
   normalizeCssColor,
-} from './_shared'
+} from './registry-shared'
 import { formatLineChartValue, lineChartGeometry } from '../controls/line-chart-runtime'
 import { resolvedThresholds, smoothChartPath, thresholdColor } from '../controls/weather-chart-runtime'
 import type { ComponentControllerHooks } from './types'

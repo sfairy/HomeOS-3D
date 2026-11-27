@@ -9,7 +9,7 @@ import {
   splitDeltaChanges,
   type NormalizedWsBatchItem,
   type WsDeltaChange,
-} from '@/domain/entity/utils/entity'
+} from '@/domain/entity/entity-state'
 import { logger } from '@/kernel/core/logger'
 
 /** 达到该条数才走 Worker；更小批次主线程同步更快（避免 postMessage 开销） */

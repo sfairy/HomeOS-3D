@@ -5,7 +5,7 @@
  * 每次改一个控件都要在整份文件里定位；按 registry 家族拆开后每个文件只放
  * 自己那一族的 DOM 构建逻辑，装配函数只负责按顺序调用。
  */
-import { clampNumberWithFallback, normalizeCssColor, appendSvgElement } from './_shared'
+import { clampNumberWithFallback, normalizeCssColor, appendSvgElement } from './registry-shared'
 
 export function registerPanelFrameComponent(registerComponent: (type: any, def: any) => void) {
   registerComponent('panel-frame', {

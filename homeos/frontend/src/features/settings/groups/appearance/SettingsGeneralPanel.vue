@@ -341,7 +341,7 @@ import SettingsLayoutFooterSection from '@/features/settings/groups/appearance/l
 import { useDashboardFooterEditor } from '@/features/settings/groups/appearance/use-layout'
 import { useScaling } from '@/kernel/ui/use-scaling'
 import { reloadFrontendConfig } from '@/kernel/config/frontend-config'
-import { handleSystemConfigPatchError, useSystemConfig } from '@/domain/layout/system-config-core.internals'
+import { handleSystemConfigPatchError, useSystemConfig } from '@/domain/layout/system-config-core'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
 import NavTabEditor from './NavTabEditor.vue'
@@ -354,7 +354,7 @@ import {
 import { applyGlassEffectDocument } from '@/kernel/ui/glass-effect'
 import { useSettingsSidebarReentryReset } from '@/kernel/ui/hub-viewport'
 import { useSettingsHubRouteSection } from '@/features/settings/shared/hub'
-import { useSettingsPendingChanges } from '@/features/settings/kernel/pending.internals'
+import { useSettingsPendingChanges } from '@/features/settings/kernel/pending'
 
 const props = defineProps({ activeTab: { type: String, default: 'general' } })
 

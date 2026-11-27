@@ -4,15 +4,15 @@ import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { useEarthquakeStore } from '@/domain/earthquake/earthquake.store'
 import { usePerfClock } from '@/domain/layout/use-perf-clock'
-import { createScreensaverLayoutState } from './screensaver-layout.internals'
-import { createScreensaverClockState, createScreensaverWeatherState } from './screensaver-clock-weather.internals'
+import { createScreensaverLayoutState } from './screensaver-layout'
+import { createScreensaverClockState, createScreensaverWeatherState } from './screensaver-clock-weather'
 import {
   createScreensaverBurnIn,
   createScreensaverWakeLock,
   createScreensaverIdleController,
   createScreensaverWakeTriggers,
   bindScreensaverLifecycle,
-} from './screensaver-lifecycle.internals'
+} from './screensaver-lifecycle'
 
 /**
  * 屏保 composable：聚合屏保显隐、布局样式、时间/农历/天气派生与唤醒词。

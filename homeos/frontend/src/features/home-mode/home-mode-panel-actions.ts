@@ -7,16 +7,16 @@ import { onActivated, onMounted } from 'vue'
 import { duplicateHomeMode, reorderHomeModes } from '@/domain/api/home-modes'
 import { getApiErrorMessage } from '@/kernel/core/error-message'
 import { logger } from '@/kernel/core/logger'
-import type { useSettingsSave } from '@/features/settings/kernel/save.internals'
-import type { ModeActionDraft } from './draft.internals'
+import type { useSettingsSave } from '@/features/settings/kernel/save'
+import type { ModeActionDraft } from './draft'
 import type {
   ChromeStore,
   HomeModeContextApi,
   HomeModeEditor,
   HomeModesApi,
   HomeModeTabs,
-} from './home-mode-panel-derived.internals'
-import type { createHomeModePanelDerived } from './home-mode-panel-derived.internals'
+} from './home-mode-panel-derived'
+import type { createHomeModePanelDerived } from './home-mode-panel-derived'
 
 export function createHomeModePanelHandlers(deps: {
   chrome: ChromeStore
@@ -352,4 +352,4 @@ export function createHomeModePanelHandlers(deps: {
   }
 }
 
-export { createHomeModePanelDerived } from '@/features/home-mode/home-mode-panel-derived.internals'
+export { createHomeModePanelDerived } from '@/features/home-mode/home-mode-panel-derived'

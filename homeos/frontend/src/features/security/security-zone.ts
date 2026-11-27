@@ -1,26 +1,11 @@
 import { computed, type Ref, onMounted } from 'vue'
 import { useHomeModeItemExpansion } from '@/features/home-mode/index'
-import {
-  zoneTypeLabel,
-  type SecurityZoneDraft,
-  classifySecurityBinarySensor,
-  buildZonesFromRoomGroups,
-  groupSecuritySensorsByRoom,
-  inferZoneTypeFromSensorTypes,
-  mergeGeneratedZones,
-  sensorsForRoomSelection,
-  type SecuritySensorRef,
-} from '@/features/security/utils/index'
+import { zoneTypeLabel, type SecurityZoneDraft, classifySecurityBinarySensor, buildZonesFromRoomGroups, groupSecuritySensorsByRoom, inferZoneTypeFromSensorTypes, mergeGeneratedZones, sensorsForRoomSelection, type SecuritySensorRef } from '@/features/security/zone-room'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import {
-  shouldZoneAlarmInMode,
-  zoneModeHint,
-  isSensorAlertState,
-  type ArmingMode,
-  type SecurityZoneType,
-} from '@/features/security/utils/index'
+import { shouldZoneAlarmInMode, zoneModeHint, isSensorAlertState, type ArmingMode } from '@/features/security/zone-mode'
+import { type SecurityZoneType } from '@/features/security/zone-room'
 import { getEntityDisplayName } from '@/domain/entity/derived'
-import { countOfflineDevices } from '@/domain/entity/utils/device-group'
+import { countOfflineDevices } from '@/domain/entity/device-group-model'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useEnvSensorMap } from '@/features/settings/index'
 

@@ -64,8 +64,8 @@ import {
   expireConfirmations,
   mergeToolTrace,
   type ChatMessage,
-} from './agent-chat-model.internals'
-import { useAgentChatSessions } from './agent-chat-sessions.internals'
+} from './agent-chat-model'
+import { useAgentChatSessions } from './agent-chat-sessions'
 
 /** 聊天面板无操作多久自动让位回信息栏 —— 与参考实现 RightSidebar 的 30s 同口径 */
 const IDLE_RETURN_MS = 30_000

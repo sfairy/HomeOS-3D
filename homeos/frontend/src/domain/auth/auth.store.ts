@@ -35,7 +35,7 @@ import { readServerAuthHint, shouldProbeSession } from '@/kernel/auth'
 import { setLicenseFeatureAccess } from '@/domain/license'
 import { logger } from '@/kernel/core/logger'
 import { schedulePoll } from '@/kernel/core/poll-scheduler'
-import type { AuthUserPayload } from '@/kernel/types/auth'
+import type { AuthUserPayload } from '@/kernel/auth-payload'
 
 /**
  * 从 localStorage 读取当前用户的实体访问限制列表

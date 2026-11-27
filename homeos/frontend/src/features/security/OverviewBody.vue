@@ -43,7 +43,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
-import { getSecurityPanelZonesFromLayout } from '@/features/security/utils/index'
+import { getSecurityPanelZonesFromLayout } from '@/features/security/panel-layout'
 import SecurityOverviewSidebar from '@/features/security/OverviewSidebar.vue'
 import SecurityZoneHub from '@/features/security/ZoneHub.vue'
 

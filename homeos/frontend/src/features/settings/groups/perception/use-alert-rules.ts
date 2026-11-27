@@ -12,7 +12,7 @@ import {
   useSettingsHubPending,
   afterLayoutCancelSync,
   syncGlobalLayoutPendingSnapshot,
-} from '@/features/settings/kernel/pending.internals'
+} from '@/features/settings/kernel/pending'
 import { useAuthStore } from '@/domain/auth/auth.store'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'

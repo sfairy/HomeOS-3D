@@ -219,7 +219,7 @@ import SettingsPendingSaveAction from '@/features/settings/shared/SettingsPendin
 import HosSelect from '@/domain/entity/entity-select/HosSelect.vue'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
-import { useRegisterSettingsTabPending } from '@/features/settings/kernel/pending.internals'
+import { useRegisterSettingsTabPending } from '@/features/settings/kernel/pending'
 import {
   listMediaArrivals,
   listMusicPlayers,

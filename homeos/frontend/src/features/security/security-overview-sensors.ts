@@ -4,7 +4,7 @@
  */
 import { ref, computed, watch, type Ref, type ComputedRef } from 'vue'
 import type { Component } from 'vue'
-import type { SecurityMode } from '@/kernel/types/layout'
+import type { SecurityMode } from '@/kernel/layout-config'
 import { Shield, ShieldOff, Home, Moon, ShieldCheck } from '@lucide/vue'
 
 export type SecurityOverviewSensor = {

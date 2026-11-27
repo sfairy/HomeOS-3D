@@ -114,8 +114,8 @@ import { useUtilityBalanceFields, parseJsonAttr } from '@/domain/energy/composab
 import { readEnergyPopupAttr } from '@/domain/energy/popup-read'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
-import { resolveUtilityMeterPreset } from '@/domain/energy/constants/utility-meter-presets'
-import { isElectricityEntity, isGasEntity, isWaterEntity } from '@/domain/entity/utils/entity'
+import { resolveUtilityMeterPreset } from '@/domain/energy/utility-meter-presets'
+import { isElectricityEntity, isGasEntity, isWaterEntity } from '@/domain/entity/entity-state'
 
 function resolveUtilityKind(kind, entityId) {
   if (kind === 'gas' || kind === 'grid' || kind === 'water') return kind

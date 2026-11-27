@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useHomeView } from "@store/features/storefront/home/useHomeView";
+import { useHomeView } from '@store/features/storefront/home/use-home-view'
 
 const { moduleGroups, fullEditionHref } = useHomeView();
 </script>

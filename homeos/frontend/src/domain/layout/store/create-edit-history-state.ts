@@ -1,6 +1,6 @@
 /* ── 原 布局编辑历史（撤销 / 重做） 的实现 ── */
 import { ref, computed, type Ref } from 'vue'
-import type { FloatingWidget, UILayoutConfig } from '@/kernel/types/layout'
+import type { FloatingWidget, UILayoutConfig } from '@/kernel/layout-config'
 
 /** 单步快照：顶层浮动组件。 */
 interface EditSnapshot {

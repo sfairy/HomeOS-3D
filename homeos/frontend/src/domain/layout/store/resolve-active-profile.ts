@@ -7,7 +7,7 @@ import {
   writeStoredProfileId,
 } from '@/domain/layout/store/create-layout-state'
 import { logger } from '@/kernel/core/logger'
-import type { UILayoutConfig } from '@/kernel/types/layout'
+import type { UILayoutConfig } from '@/kernel/layout-config'
 
 /** profile 解析来源标签，用于调试与埋点 */
 type ProfileResolveSource = 'url' | 'local' | 'binding' | 'activeProfile' | 'default'

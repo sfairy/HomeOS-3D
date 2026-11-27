@@ -1,5 +1,5 @@
 /** 紧急求助（SOS）预设与默认配置 */
-import type { SecurityEmergencyConfig } from '@/kernel/types/layout'
+import type { SecurityEmergencyConfig } from '@/kernel/layout-config'
 /** 紧急求助 SOS 默认配置（layout.securityEmergency） */
 const DEFAULT_SECURITY_EMERGENCY: SecurityEmergencyConfig = {
   /** full_home | key_areas | notify_only | custom */

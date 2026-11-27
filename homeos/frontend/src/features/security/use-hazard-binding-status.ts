@@ -8,7 +8,7 @@ import {
 } from '@homeos/shared'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { getEntityDisplayName } from '@/domain/entity/derived'
-import { countOfflineDevices } from '@/domain/entity/utils/device-group'
+import { countOfflineDevices } from '@/domain/entity/device-group-model'
 
 /** 危险绑定行类型：传感器种类扩展阀门与排风 */
 type HazardBindingRowKind = HazardSensorKind | 'gas_valve' | 'water_valve' | 'exhaust'

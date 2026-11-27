@@ -1,6 +1,6 @@
 /** - 只在「干净」时挂深 watch：脏了之后继续整树遍历纯属浪费 */
 import { watch, type Ref } from 'vue'
-import type { UILayoutConfig } from '@/kernel/types/layout'
+import type { UILayoutConfig } from '@/kernel/layout-config'
 
 /**
  * 全局脏标记追踪：任何对 layoutConfig 的修改（含设置页 v-model）都会标记 layoutDirty。

@@ -9,7 +9,7 @@ import type {
   EntityStateNotifyArgs,
   ResolveListenerOldStateArgs,
 } from '@/kernel/entity'
-import { describeAttrChange } from '../control-attr-change'
+import { describeAttrChange } from './control-attr-change'
 import { logger } from '@/kernel/core/logger'
 import { getEntityDomain } from '@homeos/shared'
 

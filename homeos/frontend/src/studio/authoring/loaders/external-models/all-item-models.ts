@@ -11,7 +11,7 @@ import {
   createPillarAssetDescriptor,
   PILLAR_SEMICIRCLE_SCALE_BASIS,
   withModelAssetCacheKey,
-} from './_shared'
+} from './external-models-shared'
 
 /**
  * 收藏模型（98 款新增 + 12 款重绘）的描述符：尺寸、挂载与角色统一取注册表，

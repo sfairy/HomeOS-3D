@@ -16,7 +16,7 @@ import {
   genericDeviceProfile as genericDeviceProfile2,
   isGenericDeviceKind as isGenericDeviceKind2,
 } from '../../device/device'
-import { postHostMessage } from './_shared'
+import { postHostMessage } from './stage-shared'
 import { isMediaDeviceKind, mediaDeviceProfile } from '@app/bridge/presets'
 import { resolvePageBehavior as resolvePageBehavior2 } from '../idle-rotation'
 import { televisionPower as televisionPower2 } from '../../television/television'

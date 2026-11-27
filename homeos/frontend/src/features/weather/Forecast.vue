@@ -67,7 +67,7 @@
  *  - @/shared/weather/constants/weather-labels: 天气状态标签与视觉键
  *  - @/shared/utils/format/locale-format.util: 本地日期格式化
  */
-import { weatherStateLabel, weatherVisualKey } from '@/features/weather/constants/weather-labels'
+import { weatherStateLabel, weatherVisualKey } from '@/features/weather/weather-labels'
 import { formatLocaleDate } from '@/kernel/format'
 import { computed, onMounted, watch } from 'vue'
 import { useScheduledPoll } from '@/domain/widget/use-scheduled-poll'

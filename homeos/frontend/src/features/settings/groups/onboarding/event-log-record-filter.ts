@@ -12,7 +12,7 @@ import {
   fetchSystemConfigFresh,
   handleSystemConfigPatchError,
   patchSystemConfig,
-} from '@/domain/layout/system-config-core.internals'
+} from '@/domain/layout/system-config-core'
 import {
   buildEventLogRecordRecommendations,
   mapEventLogRecordToInsight,

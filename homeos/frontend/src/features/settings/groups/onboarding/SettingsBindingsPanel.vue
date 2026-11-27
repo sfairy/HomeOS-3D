@@ -148,14 +148,14 @@ import {
   liveBindingsLayoutSlice,
   pickBindingsLayoutSlice,
 } from '@/features/settings/groups/appearance/use-layout'
-import { afterLayoutCancelSync } from '@/features/settings/kernel/pending.internals'
-import { useSettingsPendingChanges } from '@/features/settings/kernel/pending.internals'
-import { useRegisterSettingsTabPending } from '@/features/settings/kernel/pending.internals'
+import { afterLayoutCancelSync } from '@/features/settings/kernel/pending'
+import { useSettingsPendingChanges } from '@/features/settings/kernel/pending'
+import { useRegisterSettingsTabPending } from '@/features/settings/kernel/pending'
 import {
   syncGlobalLayoutPendingSnapshot,
   pauseGlobalPendingChanges,
   resumeGlobalPendingChanges,
-} from '@/features/settings/kernel/pending.internals'
+} from '@/features/settings/kernel/pending'
 import { getApiErrorMessage } from '@/kernel/core/error-message'
 import { fetchBindingsGaps } from '@/kernel/http/index'
 import { runHazardDrill as runHazardDrillApi } from '@/domain/api/security'
@@ -168,7 +168,7 @@ import {
   handleSystemConfigPatchError,
   patchSystemConfig,
   useSystemConfig,
-} from '@/domain/layout/system-config-core.internals'
+} from '@/domain/layout/system-config-core'
 import { applyWeatherEntityIdToLayout, resolveWeatherEntityId } from '@/domain/layout/store/resolve-active-profile'
 
 const { load: loadSystemConfig } = useSystemConfig()

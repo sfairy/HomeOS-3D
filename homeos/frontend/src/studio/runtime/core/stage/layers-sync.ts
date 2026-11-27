@@ -9,7 +9,7 @@ import {
   isGenericDeviceKind as isGenericDeviceKind2,
 } from '../../device/device'
 import { isMediaDeviceKind } from '@app/bridge/presets'
-import { postHostMessage } from './_shared'
+import { postHostMessage } from './stage-shared'
 import { vacuumStatusPresentation as vacuumStatusPresentation2 } from '../../vacuum/vacuum'
 
 /** 依赖袋（宿主 `bootEditor` 作用域）：**每次调用现取**的普通对象，等价于闭包读值。

@@ -147,7 +147,7 @@ import {
   DELEGATED_ACTION_ITEMS,
   DELEGATED_COUNT,
   useSystemConfigParamsSidebar,
-} from '@/features/settings/groups/system/system-config-sidebar.internals'
+} from '@/features/settings/groups/system/system-config-sidebar'
 import MediaPlaylistSettingsModal from '@/features/settings/shared/config-fields/MediaPlaylistSettingsModal.vue'
 
 const delegatedPanelLinks = DELEGATED_PANEL_LINKS

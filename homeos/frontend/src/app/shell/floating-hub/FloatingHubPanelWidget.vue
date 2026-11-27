@@ -10,7 +10,7 @@
 <script setup lang="ts">
 /** 浮动控制中心 - 面板型部件渲染器 */
 import { getFloatingPanelComponent, getFloatingPanelProps } from '@/app/widget-registry'
-import type { FloatingWidget } from '@/kernel/types/layout'
+import type { FloatingWidget } from '@/kernel/layout-config'
 
 // 部件实例（含 type 与 config）
 defineProps<{

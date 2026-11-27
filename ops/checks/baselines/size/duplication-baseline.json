@@ -23,13 +23,13 @@
     "ops"
   ],
   "totals": {
-    "sources": 3435,
-    "lines": 748852,
+    "sources": 3439,
+    "lines": 749268,
     "clones": 162,
     "duplicatedLines": 3093,
-    "percentage": 0.413,
-    "tokens": 4348217,
-    "duplicatedTokens": 14521
+    "percentage": 0.4128,
+    "tokens": 4351009,
+    "duplicatedTokens": 14515
   },
   "byFormat": {
     "css": {
@@ -47,10 +47,10 @@
       "clones": 20
     },
     "javascript": {
-      "sources": 356,
-      "lines": 53652,
+      "sources": 360,
+      "lines": 54087,
       "duplicatedLines": 591,
-      "percentage": 1.1015,
+      "percentage": 1.0927,
       "clones": 21
     },
     "python": {
@@ -62,14 +62,14 @@
     },
     "typescript": {
       "sources": 1437,
-      "lines": 392519,
+      "lines": 392499,
       "duplicatedLines": 1736,
       "percentage": 0.4423,
       "clones": 84
     },
     "vue": {
       "sources": 424,
-      "lines": 87499,
+      "lines": 87500,
       "duplicatedLines": 0,
       "percentage": 0,
       "clones": 0
@@ -105,6 +105,12 @@
       "first": "homeos/frontend/src/studio/authoring/app-boot.ts",
       "second": "homeos/frontend/src/studio/authoring/export/export.ts",
       "lines": 40
+    },
+    {
+      "fingerprint": "09a5b9be5e95887b4c870a3fab0f22bc05b7f7d3",
+      "first": "homeos/frontend/src/features/events/ViewAnalytics.vue",
+      "second": "homeos/frontend/src/features/notifications/notifications-analytics-charts.ts",
+      "lines": 11
     },
     {
       "fingerprint": "0d58cac1c93ff811a2f57e423095b8c07a1abc6f",
@@ -155,12 +161,6 @@
       "lines": 14
     },
     {
-      "fingerprint": "1c4d75d6d2af7c59e6e1392504e7f638562a17ec",
-      "first": "homeos/frontend/src/features/events/ViewAnalytics.vue",
-      "second": "homeos/frontend/src/features/notifications/notifications-analytics-charts.internals.ts",
-      "lines": 12
-    },
-    {
       "fingerprint": "1e09de245d6e77bacb2eac3c21b2b9060dfaf238",
       "first": "homeos/frontend/src/features/settings/asset-picker/AssetManagerModal.vue",
       "second": "homeos/frontend/src/features/settings/asset-picker/AssetPickerModal.vue",
@@ -171,12 +171,6 @@
       "first": "homeos/frontend/src/studio/app/editor/copy-backup/run-copy-backup.ts",
       "second": "homeos/frontend/src/studio/app/editor/home/style.ts",
       "lines": 25
-    },
-    {
-      "fingerprint": "22f0f46c4af8f7826a7e7725af1e0271991c6838",
-      "first": "homeos-store/frontend/src/features/admin/views/accounts/AccountsView.vue",
-      "second": "homeos-store/frontend/src/features/admin/views/catalog/CouponsView.vue",
-      "lines": 13
     },
     {
       "fingerprint": "239a263a4ff718a4896c7b44e6871bcef10a67e6",
@@ -213,12 +207,6 @@
       "first": "homeos/frontend/src/studio/app/renderer/panel-seams/details/entity-details.ts",
       "second": "homeos/frontend/src/studio/app/renderer/panel-seams/details/entity-details.ts",
       "lines": 19
-    },
-    {
-      "fingerprint": "2eda25c93b6b0e76fb8b204ef74ccbfd05cd61fe",
-      "first": "homeos/frontend/src/studio/authoring/loaders/external-models/_shared.ts",
-      "second": "homeos/frontend/src/studio/authoring/loaders/external-models/all-item-models.ts",
-      "lines": 18
     },
     {
       "fingerprint": "2fd8b5fbba8ff5c2bc24cae526dc1302312f0a1d",
@@ -335,6 +323,12 @@
       "lines": 22
     },
     {
+      "fingerprint": "3d73291f4c84a7b7bbf59a67223376118511430b",
+      "first": "homeos/frontend/src/features/earthquake/use-earthquake-history-analytics.ts",
+      "second": "homeos/frontend/src/features/notifications/notifications-analytics-charts.ts",
+      "lines": 15
+    },
+    {
       "fingerprint": "3ebe031505270edb0ee66c237a0925b3085366b0",
       "first": "ops/scripts/codemod/extract-deps.mjs",
       "second": "ops/scripts/codemod/hoist-nested-functions.mjs",
@@ -437,12 +431,6 @@
       "lines": 42
     },
     {
-      "fingerprint": "5568a91a712a6cc3cc57623bd0392cb347cf4f4d",
-      "first": "homeos/frontend/src/features/events/ViewAnalytics.vue",
-      "second": "homeos/frontend/src/features/notifications/notifications-analytics-charts.internals.ts",
-      "lines": 11
-    },
-    {
       "fingerprint": "567d580b5da4a3c0485809098e751feeba87d65a",
       "first": "homeos/frontend/src/features/auth/views/RegisterView.vue",
       "second": "homeos/frontend/src/features/auth/views/ResetPasswordView.vue",
@@ -503,6 +491,12 @@
       "lines": 13
     },
     {
+      "fingerprint": "6a40990fedf1d446c4163aef8ae22a9f070dae1a",
+      "first": "homeos/frontend/src/studio/authoring/loaders/external-models/all-item-models.ts",
+      "second": "homeos/frontend/src/studio/authoring/loaders/external-models/external-models-shared.ts",
+      "lines": 18
+    },
+    {
       "fingerprint": "6b11fa48f5fcc601d49b901dacb9d452f3205f14",
       "first": "homeos/frontend/src/studio/app/editor/component-templates.ts",
       "second": "homeos/frontend/src/studio/app/editor/metadata/editor-navigation-style-metadata.ts",
@@ -519,12 +513,6 @@
       "first": "homeos/backend/src/domains/security/frigate.py",
       "second": "homeos/backend/src/domains/security/mmwave.py",
       "lines": 11
-    },
-    {
-      "fingerprint": "700a7f49d40190a4416ef30b6669c135965fd1f7",
-      "first": "homeos/frontend/src/features/earthquake/use-earthquake-history-analytics.ts",
-      "second": "homeos/frontend/src/features/notifications/notifications-analytics-charts.internals.ts",
-      "lines": 15
     },
     {
       "fingerprint": "735fac691a0f6273d1707cacf76000cc1d15cfad",
@@ -677,16 +665,16 @@
       "lines": 48
     },
     {
+      "fingerprint": "a76e4db705c98c75aca05f0db7c2282cd028ab44",
+      "first": "homeos-store/frontend/src/features/admin/views/catalog/EntitlementsView.vue",
+      "second": "homeos-store/frontend/src/features/admin/views/catalog/ProductsView.vue",
+      "lines": 13
+    },
+    {
       "fingerprint": "a93e78b5cc74dbc65eae6c14172d37f27b98aff5",
       "first": "homeos/frontend/src/studio/app/editor/home/inspectors/popup-inspectors.ts",
       "second": "homeos/frontend/src/studio/app/editor/inspectors/home/home-time-inspector.ts",
       "lines": 19
-    },
-    {
-      "fingerprint": "aaa3c630ad27a758f91362360466cff2b630eefe",
-      "first": "homeos-store/frontend/src/features/admin/views/catalog/EntitlementsView.vue",
-      "second": "homeos-store/frontend/src/features/admin/views/catalog/ProductsView.vue",
-      "lines": 13
     },
     {
       "fingerprint": "b16bd44075afd0dd30926b415b632dc2510fb64c",
@@ -717,6 +705,12 @@
       "first": "homeos/backend/src/domains/earthquake/feeds.py",
       "second": "homeos/backend/src/domains/earthquake/feeds.py",
       "lines": 14
+    },
+    {
+      "fingerprint": "b7ba91722446497b4ba75db20b54bbf54ccd5fd7",
+      "first": "homeos-store/frontend/src/features/admin/views/accounts/AccountsView.vue",
+      "second": "homeos-store/frontend/src/features/admin/views/catalog/CouponsView.vue",
+      "lines": 13
     },
     {
       "fingerprint": "b8631078111c4b04fc4452da899a0b2f2e936ba2",
@@ -759,6 +753,12 @@
       "first": "homeos/frontend/src/features/earthquake/use-earthquake-history-analytics.ts",
       "second": "homeos/frontend/src/features/events/ViewAnalytics.vue",
       "lines": 17
+    },
+    {
+      "fingerprint": "c158139be39b7aedb7f19a41d959d43f1757d843",
+      "first": "homeos/frontend/src/features/events/ViewAnalytics.vue",
+      "second": "homeos/frontend/src/features/notifications/notifications-analytics-charts.ts",
+      "lines": 12
     },
     {
       "fingerprint": "c1bc687939367cb4aaf5401ba0509a23b88df09d",

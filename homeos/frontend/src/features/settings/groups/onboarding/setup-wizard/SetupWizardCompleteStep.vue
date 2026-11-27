@@ -21,7 +21,7 @@ import {
 } from '@lucide/vue'
 import { RouterLink } from 'vue-router'
 import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
-import { fetchSystemConfigFresh } from '@/domain/layout/system-config-core.internals'
+import { fetchSystemConfigFresh } from '@/domain/layout/system-config-core'
 import { dismissSetupChecklist, fetchSetupChecklist } from '@/kernel/http/index'
 import { logger } from '@/kernel/core/logger'
 import { getApiErrorMessage } from '@/kernel/core/error-message'

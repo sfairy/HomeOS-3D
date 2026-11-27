@@ -15,7 +15,7 @@ import {
   getStateListenerCount,
   getStateListenerStats,
   registerStateListener,
-} from '@/domain/entity/utils/entity'
+} from '@/domain/entity/entity-state'
 import { formatLocaleTime } from '@/kernel/format'
 
 /** 可选字符串字段：空值收敛成 undefined，避免把空串当成有效载荷 */

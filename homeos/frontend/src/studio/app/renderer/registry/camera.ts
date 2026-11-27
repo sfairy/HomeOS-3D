@@ -1,5 +1,5 @@
 /** 摄像头渲染器（从 register-all 拆出）。 */
-import { resolveStatePayload } from './_shared'
+import { resolveStatePayload } from './registry-shared'
 import { appendCameraFrame, cameraRadiusRatio, mountCameraMedia, mountCameraSnapshot } from './camera-media'
 import { cameraSourceConfigured } from '@/studio/platform/camera-binding-source'
 

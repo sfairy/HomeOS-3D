@@ -29,10 +29,10 @@ import {
   type EntityReferenceItem,
   type EntityReferencesResponse,
 } from '@/kernel/entity'
-import { useSystemConfig } from '@/domain/layout/system-config-core.internals'
+import { useSystemConfig } from '@/domain/layout/system-config-core'
 import type { EventLogStats, DeviceUsageReport } from '@/kernel/device'
 import { readLocalStorage, writeLocalStorageJson } from '@/kernel/core/local-storage'
-import { countOfflineDevices } from '@/domain/entity/utils/device-group'
+import { countOfflineDevices } from '@/domain/entity/device-group-model'
 import { fetchAdvisorUsage } from '@/kernel/http/index'
 
 /** 设备详情页视图模型 —— `features/device/DeviceDetailPage.vue` 的领域逻辑层。 */
