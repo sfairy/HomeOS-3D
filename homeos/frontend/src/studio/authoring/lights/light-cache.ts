@@ -1,6 +1,6 @@
 import type { StudioAppRuntime } from '../runtime/studio-app-runtime'
 import { sceneModelOrigin as sceneModelOrigin2 } from '../plan/courtyard-drawing'
-import { cacheObjectTransforms as cacheObjectTransforms2 } from '../../app/bridge/scene'
+import { cacheObjectTransforms as cacheObjectTransforms2 } from '../../app/bridge/scene/index'
 import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
 import { clamp as clamp2 } from '../plan/geometry'
 import { finite as finite2 } from '../loaders/studio-normalization'

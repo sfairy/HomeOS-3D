@@ -9,11 +9,11 @@
  * 依赖都是懒创建的：`useTtsSpeak` 会访问 pinia store，模块加载期拿不到实例。
  */
 import { getCurrentScope, onScopeDispose } from 'vue'
-import { useServerTts } from '@/features/voice/composables'
-import { playEarcon } from '@/features/voice/composables'
+import { useServerTts } from '@/features/voice/composables/index'
+import { playEarcon } from '@/features/voice/composables/index'
 import { useTtsSpeak } from '@/domain/voice/use-tts-speak'
 import { getConfigSection } from '@/kernel/config/frontend-config'
-import { logger } from '@/kernel/utils/core'
+import { logger } from '@/kernel/utils/core/index'
 import { askCompanion } from './use-companion-chat'
 
 type ServerTts = ReturnType<typeof useServerTts>

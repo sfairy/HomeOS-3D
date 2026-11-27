@@ -10,7 +10,7 @@ import { useSetupChecklist } from '@/domain/status/index'
 import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
 import { getRecentSettingsTabs } from '@/kernel/utils/registry/settings-recent-tabs.util'
 import { tabLabel } from '@/kernel/utils/registry/settings-nav.util'
-import { logger } from '@/kernel/utils/core'
+import { logger } from '@/kernel/utils/core/index'
 
 type ConfigHealth = {
   score?: number

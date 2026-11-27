@@ -334,7 +334,7 @@ import ApiQueryState from '@/kernel/ui/ApiQueryState.vue'
 import ListPageHero from '@/kernel/ui/list-page/ListPageHero.vue'
 import ListPageMetrics from '@/kernel/ui/list-page/ListPageMetrics.vue'
 import EarthquakeHistoryAnalytics from './components/HistoryAnalytics.vue'
-import { getApiErrorMessage } from '@/kernel/utils/core'
+import { getApiErrorMessage } from '@/kernel/utils/core/index'
 import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import {

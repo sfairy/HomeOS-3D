@@ -4,7 +4,7 @@
  * 存储：localStorage（键 homeos_settings_recent_tabs，JSON 数组，最近在前）。
  * 上限 6 个，去重，跳过默认落地页（setup-wizard），避免列表被无意义条目占满。
  */
-import { readLocalStorage, writeLocalStorageJson } from '@/kernel/utils/core'
+import { readLocalStorage, writeLocalStorageJson } from '@/kernel/utils/core/index'
 
 /**
  * 设置中心「最近使用」直达：记录最近访问的设置面板，供首页快捷跳转。

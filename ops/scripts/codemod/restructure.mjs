@@ -613,14 +613,18 @@ function mergeTexts(sources, { header, into } = {}) {
       ? body.replace(
           /^[ \t]*export\s+(?:type\s+)?(?:\{[^{}]*\}|\*)\s+from\s+['"]([^'"]+)['"];?[ \t]*\r?\n?/gm,
           (statement, spec) => {
-            const canonical = resolveCanonical(path, spec)
+            // 同上：文本已按合并目标重写，解析基准用 into。
+            const canonical = resolveCanonical(into ?? path, spec)
             return mergedInto.has(canonical) ? '' : statement
           },
         )
       : body
     for (const statement of fileImports) {
       const specifier = importSource(statement)
-      const canonical = resolveCanonical(path, specifier)
+      // 解析基准必须是**合并目标**而不是源文件：`rewritten` 里的文本已经把说明符
+      // 按新位置重写过（见步骤 2 的 emitFrom），再用旧路径解析会算出错误模块，
+      // 把「本应相同」的两条 import 判成冲突。
+      const canonical = resolveCanonical(into ?? path, specifier)
       // 指向合并目标自身的 import 合并后会被删除（它只是转手导出），不参与冲突判定。
       const isSelf = into ? canonical === stripExt(into) : false
       for (const local of importedLocals(statement)) {
@@ -794,13 +798,21 @@ function main() {
     // ---- 3) 落盘 ----
     if (WRITE) {
       // 3a) 合并：用「已按 into 重写过」的文本拼装
+      //
+      // 先对全部 merge 做一次纯计算（合并是纯函数，不写盘），把「本地名冲突 / 无来源」
+      // 这类错误在**任何落盘之前**全部暴露。否则一旦某个 merge 抛错，前面的 merge
+      // 已经写盘并删了来源文件，而 import 重写还没执行 —— 会留下半成品仓库。
+      const mergeOutputs = new Map()
       for (const { into, from, header } of merges) {
         const sources = from
           .filter((path) => rewritten.has(path))
           .map((path) => ({ path, text: rewritten.get(path) }))
         if (!sources.length) throw new Error(`merges 无可用来源: ${into}`)
+        mergeOutputs.set(into, mergeTexts(sources, { header, into }))
+      }
+      for (const { into, from } of merges) {
         mkdirSync(dirname(into), { recursive: true })
-        writeFileSync(into, mergeTexts(sources, { header, into }), 'utf8')
+        writeFileSync(into, mergeOutputs.get(into), 'utf8')
         // 合并后必须删掉被吸收的来源，否则会留下两份实现（其中一份 import 指向新文件，形成自环）。
         for (const path of from) if (path !== into) rmSync(path, { force: true })
       }

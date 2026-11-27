@@ -12,8 +12,8 @@ import type { useSystemConfig } from '@/domain/layout/composables/system-config-
 import type { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { resetSystemConfig } from '@/kernel/http/index'
 import { reloadFrontendConfig } from '@/kernel/config/frontend-config'
-import { getApiErrorMessage } from '@/kernel/utils/core'
-import { logger } from '@/kernel/utils/core'
+import { getApiErrorMessage } from '@/kernel/utils/core/index'
+import { logger } from '@/kernel/utils/core/index'
 import type { EditableConfigSection } from '@/kernel/types/system-config'
 import { ref, type Ref } from 'vue'
 

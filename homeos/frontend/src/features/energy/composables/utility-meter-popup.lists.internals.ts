@@ -9,7 +9,7 @@ import { readPopupAttr, parseJsonAttr, parseNumAttr } from '@/domain/energy/mode
 import type { UtilityMeterParsedItem } from '@/domain/energy/model/index'
 import type { HaEntityState } from '@/kernel/types/entity'
 import { resolveAccountLabelForEntityId } from '@/domain/energy/model/utils/account.util'
-import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
+import { getEntityDisplayName } from '@/domain/entity/model/utils/derived'
 import type { EnergyCategory } from '@/domain/energy/model/constants/energy-fields'
 import type { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import type { useLayoutStore } from '@/domain/layout/store/layout.store'

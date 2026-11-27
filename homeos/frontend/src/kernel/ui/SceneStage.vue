@@ -8,7 +8,7 @@
 import { computed } from 'vue'
 import SharedSceneStage from '@homeos/shared/components/SceneStage.vue'
 import pkg from '../../../package.json'
-import { sceneValues } from '../constants'
+import { sceneValues } from '../constants/index'
 
 const props = withDefaults(defineProps<{ page?: string }>(), {
   page: 'login',

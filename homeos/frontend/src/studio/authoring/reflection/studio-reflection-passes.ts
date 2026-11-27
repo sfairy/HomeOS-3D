@@ -1,5 +1,5 @@
 import { mergeGeometries } from '/static/vendor/three/0.187.0/BufferGeometryUtils.js'
-import { PLAN2_GEOMETRY_SCOPE_DECLARATIONS as GEOMETRY_SCOPE_DECLARATIONS } from '../plan/studio-plan2-wall-shading'
+import { PLAN2_GEOMETRY_SCOPE_DECLARATIONS as GEOMETRY_SCOPE_DECLARATIONS } from '../plan/studio-plan2-region'
 
 /** 做几何签名 / 合批时读到的最小 Attribute 结构。 */
 type GeometryAttributeLike = {

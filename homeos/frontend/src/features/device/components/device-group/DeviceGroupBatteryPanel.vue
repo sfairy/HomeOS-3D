@@ -48,7 +48,7 @@
 
 <script setup lang="ts">
 /** - 按「低电量告警」「运行良好」两个分组展示电量传感器卡片 */
-import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
+import { getEntityDisplayName } from '@/domain/entity/model/utils/derived'
 
 /**
  * 组件 Props 定义

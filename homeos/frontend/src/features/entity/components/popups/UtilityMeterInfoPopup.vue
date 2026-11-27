@@ -109,11 +109,11 @@ import AnchoredPopupShell from '@/features/entity/components/popups/AnchoredPopu
 import UtilityMeterPopupShell from '@/features/entity/components/popups/UtilityMeterPopupShell.vue'
 import UtilityMeterTierSection from '@/features/entity/components/popups/UtilityMeterTierSection.vue'
 import UtilityMeterExpandPanel from '@/features/entity/components/popups/UtilityMeterExpandPanel.vue'
-import { useUtilityMeterPopup } from '@/features/energy/composables'
+import { useUtilityMeterPopup } from '@/features/energy/composables/index'
 import { useUtilityBalanceFields, parseJsonAttr } from '@/domain/energy/model/index'
 import { readEnergyPopupAttr } from '@/domain/energy/model/utils/popup-read.util'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { useLayoutStore } from '@/domain/layout/store'
+import { useLayoutStore } from '@/domain/layout/store/index'
 import { resolveUtilityMeterPreset } from '@/domain/energy/constants/utility-meter-presets'
 import { isElectricityEntity, isGasEntity, isWaterEntity } from '@/domain/entity/model/utils/entity'
 

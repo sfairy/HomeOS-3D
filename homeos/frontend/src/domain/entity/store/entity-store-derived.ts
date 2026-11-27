@@ -1,6 +1,6 @@
 /** 实体派生索引绑定（从 entities.store 抽离） */
 import { ref, reactive } from 'vue'
-import { createEntityDerivedRebuilder } from '@/domain/entity/model/utils/derived-internals'
+import { createEntityDerivedRebuilder } from '@/domain/entity/model/utils/derived'
 import {
   applyDerivedSnapshot,
   applyDerivedSnapshotPatch,
@@ -12,7 +12,7 @@ import {
   bumpDomainEpochs,
   filterDerivedPatchesForRoute,
   getRouteDerivedDebounceMultiplier,
-} from '@/domain/entity/model/utils/derived-route.util'
+} from '@/domain/entity/model/utils/derived'
 import type { DerivedSnapshotTargets, EntityDerivedDeps, EntityPatch } from '@/kernel/types/entity'
 
 /** 文档是否可见（离屏标签页暂停重计算） */

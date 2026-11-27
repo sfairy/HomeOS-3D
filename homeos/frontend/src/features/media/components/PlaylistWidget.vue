@@ -89,14 +89,14 @@
 
 <script setup>
 import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
-import { getApiErrorMessage } from '@/kernel/utils/core'
+import { getApiErrorMessage } from '@/kernel/utils/core/index'
 import ApiQueryState from '@/kernel/ui/ApiQueryState.vue'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { fetchMediaPlaylist, nextMediaPlaylist, startMediaPlaylist } from '@/domain/api/media'
 import { notifyError } from '@/kernel/ui/notify'
-import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
+import { getEntityDisplayName } from '@/domain/entity/model/utils/derived'
 
 /**
  * 组件 Props。

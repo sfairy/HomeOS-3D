@@ -25,7 +25,7 @@
 </template>
 
 <script setup lang="ts">
-import { readLocalStorage, writeLocalStorage } from '@/kernel/utils/core'
+import { readLocalStorage, writeLocalStorage } from '@/kernel/utils/core/index'
 /** ColdEntityPerfBanner - 冷实体性能提示条组件 */
 import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'

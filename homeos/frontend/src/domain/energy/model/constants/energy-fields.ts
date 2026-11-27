@@ -1,5 +1,5 @@
 /** 能源字段：查询 / 推断逻辑（静态表见 energy-attr-maps） */
-import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
+import { getEntityDisplayName } from '@/domain/entity/model/utils/derived'
 export {
   type EnergyCategory,
   ENERGY_CONVENTION_PREFIX,

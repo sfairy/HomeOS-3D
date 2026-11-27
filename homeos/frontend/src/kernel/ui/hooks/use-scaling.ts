@@ -5,11 +5,11 @@
  * 再通过 `transform: scale()` 呈现。缩放数学见 `shared/utils/layout/canvas-layout.util.ts`，
  * 这里只负责响应式接线、DOM 测量与全局量发布。
  */
-import { readLocalStorage, writeLocalStorage } from '@/kernel/utils/core'
+import { readLocalStorage, writeLocalStorage } from '@/kernel/utils/core/index'
 
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { getConfigSection, configEpoch } from '@/kernel/config/frontend-config'
-import { logger } from '@/kernel/utils/core'
+import { logger } from '@/kernel/utils/core/index'
 import {
   buildCanvasVars,
   computeViewportLayout,

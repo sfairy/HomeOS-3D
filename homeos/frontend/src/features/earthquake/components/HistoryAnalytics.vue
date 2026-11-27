@@ -62,7 +62,7 @@
 
 <script setup>
 import { toRefs } from 'vue'
-import { useEarthquakeHistoryAnalytics } from '../composables'
+import { useEarthquakeHistoryAnalytics } from '../composables/index'
 
 /**
  * Props 定义

@@ -8,7 +8,7 @@ import { useSliderCommit } from '@/domain/entity/composables/use-slider-commit'
 import { clampInRange } from '@/kernel/utils/ui/progress-bar.util'
 import { resolveTemperatureUnit } from '@/domain/entity/model/utils/temperature-unit.util'
 import { notifyError } from '@/kernel/ui/notify'
-import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
+import { getEntityDisplayName } from '@/domain/entity/model/utils/derived'
 import {
   HVAC_MODE_LABELS,
   climateFanModeLabel,

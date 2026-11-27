@@ -213,7 +213,7 @@ import {
   type DeviceStateHistoryEvent,
 } from '@/features/device/composables/device'
 import { displayEventState } from '@/features/events/model/utils/events-display.util'
-import { displayEntityStateLabel } from '@/kernel/constants'
+import { displayEntityStateLabel } from '@/kernel/constants/index'
 import { formatDetailedDateTimeOrDash } from '@/kernel/utils/format'
 import DeviceChartHeader from './DeviceChartHeader.vue'
 import { DEVICE_CHART_COPY } from '@/kernel/utils/chart'

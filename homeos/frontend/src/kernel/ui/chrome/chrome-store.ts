@@ -7,7 +7,7 @@
 
 import { ref } from 'vue'
 import { type NotifyType } from '@/kernel/types/notify'
-import { createNotifyCoalescer } from '@/kernel/utils/ui'
+import { createNotifyCoalescer } from '@/kernel/utils/ui/index'
 import { defineStore } from 'pinia'
 
 /* ── 原 UI Chrome 状态工厂 的实现 ── */

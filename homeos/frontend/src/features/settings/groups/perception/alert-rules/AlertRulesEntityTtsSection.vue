@@ -189,11 +189,11 @@ import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat
 import RecommendInsightCard from '@/domain/recommend/components/RecommendInsightCard.vue'
 import EntityInput from '@/domain/entity/components/entity-input/EntityInput.vue'
 import VoiceSpeechComposer from '@/features/settings/groups/perception/voice/SpeechComposer.vue'
-import { getEntityTtsQuickDomains } from '@/kernel/constants'
+import { getEntityTtsQuickDomains } from '@/kernel/constants/index'
 import { useAlertRulesSection } from './context'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useAlertRulesRecommend } from '@/features/settings/groups/perception/composables/use-alert-rules'
-import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
+import { getEntityDisplayName } from '@/domain/entity/model/utils/derived'
 
 const entitiesStore = useEntitiesStore()
 const pendingEntityId = ref('')

@@ -1,4 +1,4 @@
-import { logger } from '@/kernel/utils/core'
+import { logger } from '@/kernel/utils/core/index'
 /** 实体 store 状态订阅与远程通知（从 entity-store-support.ts 拆回）。 */
 import { reactive, shallowReactive } from 'vue'
 import type {

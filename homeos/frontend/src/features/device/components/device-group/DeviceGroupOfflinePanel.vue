@@ -57,7 +57,7 @@
 <script setup lang="ts">
 /** - 按「严重告警」「系统审计」两个分组展示离线设备（按设备聚合，一台一条） */
 import { getEntityDomain } from '@homeos/shared'
-import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
+import { getEntityDisplayName } from '@/domain/entity/model/utils/derived'
 import type { OfflineDeviceGroup } from '@/domain/entity/model/utils/device-group'
 
 /**

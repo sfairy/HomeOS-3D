@@ -1,8 +1,8 @@
 /** 设置未保存更改管理组合式函数 */
 import type { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { useLayoutStore } from '@/domain/layout/store'
+import { useLayoutStore } from '@/domain/layout/store/index'
 import type { UILayoutConfig } from '@/kernel/types/layout'
-import { countJsonLeafDiff, countObjectFieldDiff } from '@/kernel/utils/core'
+import { countJsonLeafDiff, countObjectFieldDiff } from '@/kernel/utils/core/index'
 import type { MaybeRefOrGetter, Ref } from 'vue'
 import { computed, onMounted, onScopeDispose, reactive, ref, unref, watch } from 'vue'
 

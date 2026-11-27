@@ -86,10 +86,10 @@ let bootedInActiveCycle = false
 async function ensureModules(): Promise<DisplayModules> {
   if (modules) return modules
   const [bootModule, startupModule, displayModule, guideModule] = await Promise.all([
-    import('@app/display'),
-    import('@app/display'),
-    import('@app/display'),
-    import('@app/display'),
+    import('@app/display/index'),
+    import('@app/display/index'),
+    import('@app/display/index'),
+    import('@app/display/index'),
   ])
   modules = {
     bootDisplayBoot: bootModule.bootDisplayBoot,

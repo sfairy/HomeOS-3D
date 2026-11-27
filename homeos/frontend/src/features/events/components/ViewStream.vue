@@ -12,7 +12,7 @@ import VirtualList from '@/kernel/ui/primitives/VirtualList.vue'
 import { formatDetailedDateTimeOrDash } from '@/kernel/utils/format'
 import { getDomainLabel } from '@/features/device/model/utils'
 import { displayEventState, entityDomain, entityObjectId } from '@/features/events/model/utils/events-display.util'
-import { displayEntityStateLabel } from '@/kernel/constants'
+import { displayEntityStateLabel } from '@/kernel/constants/index'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useHaDegrade } from '@/domain/entity/composables/ha'
 

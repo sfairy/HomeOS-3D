@@ -118,7 +118,7 @@ import { Brain } from '@lucide/vue'
 import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
 import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
 import SettingsCardIntro from '@/features/settings/components/shell/SettingsCardIntro.vue'
-import { getApiErrorMessage } from '@/kernel/utils/core'
+import { getApiErrorMessage } from '@/kernel/utils/core/index'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import {
   clearAgentMemories,

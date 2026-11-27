@@ -1,11 +1,11 @@
 import { ref, computed, watch, onMounted, type Ref } from 'vue'
 import { useAuthStore } from '@/domain/auth/auth.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { useLayoutStore } from '@/domain/layout/store'
+import { useLayoutStore } from '@/domain/layout/store/index'
 import { useProfileManagement } from '@/features/settings/shared/composables/hub'
 import { useSettingsHubRouteSection } from '@/features/settings/shared/composables/hub'
-import { getApiErrorMessage } from '@/kernel/utils/core'
-import { downloadBlob } from '@/kernel/utils/core'
+import { getApiErrorMessage } from '@/kernel/utils/core/index'
+import { downloadBlob } from '@/kernel/utils/core/index'
 import { navigateAfterRestore, resolvePostRestoreDestination } from '@/domain/license'
 import {
   fetchServerBackupFiles,
@@ -24,9 +24,9 @@ import {
   updateProjectDefaults,
   upsertTerminalBinding,
 } from '@/domain/api/config'
-import { getClientDeviceId } from '@/domain/client/utils'
-import { inferTerminalLabel } from '@/domain/client/utils'
-import { bindSelfTerminalProfile } from '@/domain/layout/store'
+import { getClientDeviceId } from '@/domain/client/utils/index'
+import { inferTerminalLabel } from '@/domain/client/utils/index'
+import { bindSelfTerminalProfile } from '@/domain/layout/store/index'
 
 function profileLabel(projectId: string) {
   return projectId === 'default' ? '默认系统方案' : projectId

@@ -4,7 +4,7 @@ import { pad2 } from '@/kernel/utils/format'
 import { getKioskAnimationOptions } from '@/domain/layout/composables/kiosk-animation'
 import { chartLinearGradient } from '@/kernel/utils/chart'
 import { formatAuditTimestamp } from '@/kernel/utils/format'
-import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
+import { getEntityDisplayName } from '@/domain/entity/model/utils/derived'
 import { TEMP_COLORS, HUM_COLORS } from './constants'
 import { adaptiveAxisBound } from './axis.util'
 

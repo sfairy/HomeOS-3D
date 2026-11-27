@@ -1,6 +1,6 @@
 import { type Socket } from 'socket.io-client'
 import { getActivePinia } from 'pinia'
-import { useLayoutStore } from '@/domain/layout/store'
+import { useLayoutStore } from '@/domain/layout/store/index'
 import { getActiveSubscribeDomains, collectWsPinnedEntityIds, getActiveSubscriptionScope, clearEntitySocketSyncTimers, incrementalBatchIncomplete, resetChunkBaselineTracking, scheduleIncrementalEnd, waitForPendingChunkApplies } from '@/domain/entity/model/utils/ws-subscription'
 import { resolveActivePopupEntityId } from '@/domain/entity/store/active-popup-entity'
 import { getEntityDomain, isEewSimulationEventId, WS_CLIENT_EVENTS } from '@homeos/shared'

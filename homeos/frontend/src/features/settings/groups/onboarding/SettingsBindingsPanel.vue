@@ -138,7 +138,7 @@ import SettingsBindingsSecuritySection from '@/features/settings/groups/onboardi
 import SettingsBindingsCamerasSection from '@/features/settings/groups/onboarding/bindings/SettingsBindingsCamerasSection.vue'
 import BindingsSectionInsights from '@/features/settings/groups/onboarding/bindings/SectionInsights.vue'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { useLayoutStore } from '@/domain/layout/store'
+import { useLayoutStore } from '@/domain/layout/store/index'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useHaBindings } from '@/features/settings/groups/onboarding/composables/bindings'
 import SettingsHubSubnav from '@/features/settings/shared/layout/SettingsHubSubnav.vue'
@@ -156,7 +156,7 @@ import {
   pauseGlobalPendingChanges,
   resumeGlobalPendingChanges,
 } from '@/features/settings/kernel/pending.internals'
-import { getApiErrorMessage } from '@/kernel/utils/core'
+import { getApiErrorMessage } from '@/kernel/utils/core/index'
 import { fetchBindingsGaps } from '@/kernel/http/index'
 import { runHazardDrill as runHazardDrillApi } from '@/domain/api/security'
 import { useYamlValidation } from '@/features/security/index'
@@ -169,7 +169,7 @@ import {
   patchSystemConfig,
   useSystemConfig,
 } from '@/domain/layout/composables/system-config-core.internals'
-import { applyWeatherEntityIdToLayout, resolveWeatherEntityId } from '@/domain/layout/store'
+import { applyWeatherEntityIdToLayout, resolveWeatherEntityId } from '@/domain/layout/store/index'
 
 const { load: loadSystemConfig } = useSystemConfig()
 

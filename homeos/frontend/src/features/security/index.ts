@@ -38,12 +38,12 @@ export * from './composables/security-zone'
 export * from './composables/use-yaml-validation'
 
 // ── 域内纯函数（只被 security 自己消费）──
-export * from './utils'
-export * from './utils'
-export * from './utils'
+export * from './utils/index'
+export * from './utils/index'
+export * from './utils/index'
 
 // ── 共享纯函数（域外也要用，真源在 shared/security/utils）──
-export * from '@/features/security/model/utils'
-export * from '@/features/security/model/utils'
-export * from '@/features/security/model/utils'
-export * from '@/features/security/model/utils'
+export * from '@/features/security/model/utils/index'
+export * from '@/features/security/model/utils/index'
+export * from '@/features/security/model/utils/index'
+export * from '@/features/security/model/utils/index'

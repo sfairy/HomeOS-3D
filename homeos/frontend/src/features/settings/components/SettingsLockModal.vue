@@ -125,7 +125,7 @@
  * 访客模式下访问受限设置前，要求用户输入 PIN 验证。
  */
 import { ref, watch, computed, onUnmounted } from 'vue'
-import { useLayoutStore } from '@/domain/layout/store'
+import { useLayoutStore } from '@/domain/layout/store/index'
 import { useFocusTrap } from '@/kernel/ui/hooks/use-focus-trap'
 import { useEscLayer } from '@/kernel/ui/hooks/use-esc-stack'
 import { useBackgroundInert } from '@/kernel/ui/hooks/use-background-inert'

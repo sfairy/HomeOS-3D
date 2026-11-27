@@ -202,7 +202,7 @@ import {
   Send,
   TriangleAlert,
 } from '@lucide/vue'
-import { useEarthquakeSetupWizard } from '../composables'
+import { useEarthquakeSetupWizard } from '../composables/index'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },

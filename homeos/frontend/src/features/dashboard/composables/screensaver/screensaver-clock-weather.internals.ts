@@ -6,7 +6,7 @@ import { ref, computed, watch, type Ref } from 'vue'
 import { solarToLunar } from '@/kernel/utils/format'
 import { formatLunarFullLine, formatLunarMonthDayLine } from '@/kernel/utils/format'
 import { formatZonedDate, getZonedParts, getZonedWallDate } from '@/kernel/utils/format'
-import { domainIndexToArray } from '@/domain/entity/model/utils/derived.util'
+import { domainIndexToArray } from '@/domain/entity/model/utils/derived'
 import { weatherStateLabel } from '@/features/weather/model/constants/weather-labels'
 import {
   computeFeelsLike,
@@ -17,7 +17,7 @@ import {
 } from '@/features/weather/model/utils'
 import { WEATHER_ICON_EMOJI } from './screensaver.defaults'
 import type { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import type { useLayoutStore } from '@/domain/layout/store'
+import type { useLayoutStore } from '@/domain/layout/store/index'
 
 type EntitiesStore = ReturnType<typeof useEntitiesStore>
 type LayoutStore = ReturnType<typeof useLayoutStore>

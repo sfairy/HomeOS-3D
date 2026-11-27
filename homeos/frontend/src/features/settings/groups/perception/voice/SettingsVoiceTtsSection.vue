@@ -403,8 +403,8 @@ import EntityMultiSelect from '@/domain/entity/components/entity-multi-select/En
 import VoiceSpeechComposer from '@/features/settings/groups/perception/voice/SpeechComposer.vue'
 import SettingsVoiceAgentSpeechSection from '@/features/settings/groups/perception/voice/SettingsVoiceAgentSpeechSection.vue'
 import { previewDailyAdvisor } from '@/features/voice/model/utils'
-import { greetedToday } from '@/features/voice/composables'
-import { useAudioDevices } from '@/features/voice/composables'
+import { greetedToday } from '@/features/voice/composables/index'
+import { useAudioDevices } from '@/features/voice/composables/index'
 
 const props = defineProps({
   voiceOutputTabs: { type: Array, default: () => [] },

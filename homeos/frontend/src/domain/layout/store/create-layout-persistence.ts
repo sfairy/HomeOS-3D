@@ -7,7 +7,7 @@ import { normalizePageBackground } from '@/kernel/utils/widget/page-background.u
 import { NAV_TAB_ORDER_DEFAULT, normalizeEmbedNavTabLayoutFields } from '@/kernel/utils/layout'
 import { normalizeDashboardFooter } from '@/domain/energy/constants/dashboard-footer'
 import { normalizeSecurityEmergency } from '@/domain/layout/constants/security-emergency'
-import { normalizeWholeHomeOff } from '@/kernel/constants'
+import { normalizeWholeHomeOff } from '@/kernel/constants/index'
 import { logger } from '@/kernel/utils/core/logger'
 import {
   getApiErrorMessage,

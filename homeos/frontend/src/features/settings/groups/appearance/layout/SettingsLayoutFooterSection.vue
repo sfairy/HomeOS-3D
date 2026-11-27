@@ -362,7 +362,7 @@ import SettingsOrchTabs from '@/features/settings/components/SettingsOrchTabs.vu
 import EntityInput from '@/domain/entity/components/entity-input/EntityInput.vue'
 import FooterIconPicker from '@/features/settings/components/FooterIconPicker.vue'
 import FooterColorPicker from './FooterColorPicker.vue'
-import { useLayoutStore } from '@/domain/layout/store'
+import { useLayoutStore } from '@/domain/layout/store/index'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { resolveFooterItemValue } from '@/domain/layout/composables/use-dashboard-footer'
 import {

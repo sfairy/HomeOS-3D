@@ -1,8 +1,8 @@
 /** 天气实体解析组合式函数 */
 import { computed, unref, type MaybeRef } from 'vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { useLayoutStore } from '@/domain/layout/store'
-import { domainIndexToArray } from '@/domain/entity/model/utils/derived.util'
+import { useLayoutStore } from '@/domain/layout/store/index'
+import { domainIndexToArray } from '@/domain/entity/model/utils/derived'
 
 /**
  * 解析天气实体：widget 覆盖 > 集成绑定（与 circadian 双向同步）> 首个 weather.*

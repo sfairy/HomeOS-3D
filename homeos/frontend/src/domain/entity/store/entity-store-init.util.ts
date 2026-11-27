@@ -1,5 +1,5 @@
 /** 实体 store 初始化与全量/分批 hydrate（从 entity-store-support.ts 拆回）。 */
-import { useLayoutStore } from '@/domain/layout/store'
+import { useLayoutStore } from '@/domain/layout/store/index'
 import type {
   EntityInitDeps,
   EntityInitOptions,
@@ -7,11 +7,11 @@ import type {
   SnapshotAcceptOptions,
 } from '@/kernel/types/entity'
 import { getWorkerDerivedThreshold } from '@/kernel/config/frontend-config'
-import { setPollTickMs } from '@/kernel/utils/core'
-import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
+import { setPollTickMs } from '@/kernel/utils/core/index'
+import { getEntityDisplayName } from '@/domain/entity/model/utils/derived'
 import { isStaleState, mergeChunkIntoNewerEntity } from '@/domain/entity/model/utils/entity'
-import { applyAdaptiveFrontendPerf } from '@/kernel/utils/perf'
-import { applyTabletDefaultPerformanceMode } from '@/kernel/utils/perf'
+import { applyAdaptiveFrontendPerf } from '@/kernel/utils/perf/index'
+import { applyTabletDefaultPerformanceMode } from '@/kernel/utils/perf/index'
 import { sortEntitiesBySyncPriority } from '@homeos/shared'
 
 /** 写入一条实体：本地更新则只补属性，否则整条覆盖。 */

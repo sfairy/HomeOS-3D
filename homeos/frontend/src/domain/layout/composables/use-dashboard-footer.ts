@@ -1,7 +1,7 @@
 /** 仪表板底部信息栏组合式函数。 */
 import { computed } from 'vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { useLayoutStore } from '@/domain/layout/store'
+import { useLayoutStore } from '@/domain/layout/store/index'
 import {
   ENERGY_FIELD_DEFS,
   getFieldDef,
@@ -20,7 +20,7 @@ import {
   resolveFooterSecondaryLabel,
 } from '@/domain/energy/constants/dashboard-footer'
 import { FOOTER_ACCOUNT_INDEX_ALL } from '@/domain/energy/model/utils/account.util'
-import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
+import { getEntityDisplayName } from '@/domain/entity/model/utils/derived'
 import type { DashboardFooterItem, FooterFieldOption } from '@/kernel/types/dashboard-footer'
 import type { EntitiesMap } from '@/kernel/types/entity'
 

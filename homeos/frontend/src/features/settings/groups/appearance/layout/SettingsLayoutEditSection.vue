@@ -90,7 +90,7 @@ import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { logger } from '@/kernel/utils/core'
+import { logger } from '@/kernel/utils/core/index'
 
 const router = useRouter()
 const chrome = useChromeStore()

@@ -10,7 +10,7 @@ import {
   ensureBatteryManager,
   onBatteryChange,
   readBatterySnapshotSync,
-} from '@/domain/client/utils'
+} from '@/domain/client/utils/index'
 import { logger } from '@/kernel/utils/core/logger'
 import { isLicenseInactiveError } from '@/kernel/utils/core/error-message'
 import { getLicenseActivated } from '@/domain/license'

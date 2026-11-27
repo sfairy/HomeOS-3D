@@ -1,7 +1,7 @@
 /* ── 原 usePresenceHome.ts 的实现 ── */
 import { ref, onMounted, onUnmounted } from 'vue'
 import { loadPresenceHome } from '@/features/presence/model/composables/load-presence-home'
-import { schedulePoll } from '@/kernel/utils/core'
+import { schedulePoll } from '@/kernel/utils/core/index'
 
 /**
  * 在家状态成员信息

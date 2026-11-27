@@ -55,7 +55,7 @@
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/domain/entity/model/utils/derived-route.util.ts": {
+    "homeos/frontend/src/domain/entity/model/utils/derived.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 1

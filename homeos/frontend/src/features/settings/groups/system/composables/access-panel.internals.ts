@@ -4,7 +4,7 @@
  * （与原 homeos 行为一致），不落任何后端接口。
  */
 import { computed, ref } from 'vue'
-import { useLayoutStore } from '@/domain/layout/store'
+import { useLayoutStore } from '@/domain/layout/store/index'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 
 /** PIN 允许的最小长度（与设置锁弹窗 / 后端口径一致） */

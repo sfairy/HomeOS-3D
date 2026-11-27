@@ -1,7 +1,7 @@
 import { computed, type ComputedRef, type Ref } from 'vue'
 import { readPopupAttr as readPopupAttrUtil } from '@/domain/energy/model/composables'
 import { type HaEntityState } from '@/kernel/types/entity'
-import { parseJsonLoose } from '@/kernel/utils/core'
+import { parseJsonLoose } from '@/kernel/utils/core/index'
 
 /** 抄表弹窗余额与阶梯统计字段组合式函数 */
 /**

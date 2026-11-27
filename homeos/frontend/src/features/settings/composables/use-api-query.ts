@@ -1,6 +1,6 @@
 /** 提供统一的 REST 查询状态管理：loading / error / retry / 降级元数据（degraded）。 */
 import { ref, shallowRef, type Ref } from 'vue'
-import { extractErrorMessage } from '@/kernel/utils/core'
+import { extractErrorMessage } from '@/kernel/utils/core/index'
 
 /**
  * API 查询元数据（由后端返回，用于标识降级状态等）

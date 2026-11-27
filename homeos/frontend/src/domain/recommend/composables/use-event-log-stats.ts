@@ -1,7 +1,7 @@
 /* ── 原 useEventLogStats.ts 的实现 ── */
 import { ref } from 'vue'
 import { fetchEventStats } from '@/domain/api/entities'
-import { logger } from '@/kernel/utils/core'
+import { logger } from '@/kernel/utils/core/index'
 import { getEventLogConfig } from '@/kernel/config/frontend-config'
 import type { EventLogStatsSnapshot } from '@/domain/recommend/types/recommend.types'
 

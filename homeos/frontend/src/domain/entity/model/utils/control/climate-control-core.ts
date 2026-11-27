@@ -3,7 +3,7 @@
  * 栈 A ClimateControlPopup 与未来栈 C·D 共用。
  */
 
-import { HVAC_MODE_LABELS, FAN_MODE_LABELS, PRESET_MODE_LABELS } from '@/kernel/constants'
+import { HVAC_MODE_LABELS, FAN_MODE_LABELS, PRESET_MODE_LABELS } from '@/kernel/constants/index'
 
 export { HVAC_MODE_LABELS, FAN_MODE_LABELS, PRESET_MODE_LABELS }
 

@@ -1,13 +1,14 @@
-/** - 维护实体派生累加器（在线数 / 灯数 / 空调数 / 电池列表 / 离线列表 / 传感器索引 / 域计数）。 */
-import type {
-  DerivedBatteryEntry,
-  DerivedOfflineEntry,
-  DerivedSnapshot,
-  EntitiesMap,
-  HaEntityState,
-  HaEntityView,
-} from '@/kernel/types/entity'
+/**
+ * 实体派生数据：累加器（在线数 / 灯数 / 空调数 / 电池 / 离线 / 传感器索引 / 域计数）、
+ * 路由感知的 debounce 调节、以及按域收集候选 entity_id。
+ *
+ * 曾被切成 internals + route + util 三个文件，其中 util 只有 62 行且 20 行是纯 re-export。
+ */
+
+import { type DerivedBatteryEntry, type DerivedOfflineEntry, type DerivedSnapshot, type EntitiesMap, type HaEntityState, type HaEntityView } from '@/kernel/types/entity'
 import { getEntityDomain } from '@homeos/shared'
+
+/** - 维护实体派生累加器（在线数 / 灯数 / 空调数 / 电池列表 / 离线列表 / 传感器索引 / 域计数）。 */
 
 /**
  * 实体派生累加器。
@@ -686,4 +687,183 @@ export function createEntityDerivedRebuilder(deps: EntityDerivedRebuilderDeps) {
     schedulePatchDerived,
     getRebuildProgress,
   }
+}
+
+/** - 根据当前路由路径动态调整派生 patch 的 debounce 倍率。 */
+
+/** 安全相关域集合：安全页面仅处理这些域的派生变更。 */
+const SECURITY_DOMAINS = new Set(['binary_sensor', 'camera', 'lock', 'alarm_control_panel', 'device_tracker', 'cover'])
+
+/**
+ * Dashboard 路由下跳过派生 patch 的低优先级域。
+ *
+ * 这些域的变更不影响 Dashboard 热点展示，跳过可减少无效重建。
+ */
+const DASHBOARD_SKIP_DERIVED_DOMAINS = new Set([
+  'sensor',
+  'binary_sensor',
+  'update',
+  'device_tracker',
+  'event',
+  'image',
+])
+
+/** 派生 patch 引用：仅包含 entity_id。 */
+interface DerivedPatchRef {
+  entity_id: string
+}
+
+let activeRoutePath = '/'
+
+/**
+ * 设置当前激活的路由路径，供后续 debounce 倍率与 patch 过滤使用。
+ *
+ * @param path 路由路径。
+ */
+export function setDerivedRoutePath(path: string): void {
+  activeRoutePath = path || '/'
+}
+
+/**
+ * 根据路由路径返回派生 patch 的 debounce 倍率。
+ *
+ * - Dashboard（/）与 embed：1.0（默认）。
+ * - 安全页面（/security）：1.2（略增延迟，安全事件优先级高但仍需节流）。
+ * - 设置页面（/settings）：1.5（更高延迟，设置页不依赖实时派生）。
+ * - 其他页面：1.3。
+ *
+ * @param path 路由路径，默认使用 activeRoutePath。
+ * @returns debounce 倍率。
+ */
+export function getRouteDerivedDebounceMultiplier(path: string = activeRoutePath): number {
+  if (!path || path === '/' || path.startsWith('/embed')) return 1
+  if (path.startsWith('/security')) return 1.2
+  if (path.startsWith('/settings')) return 1.5
+  return 1.3
+}
+
+/**
+ * 判断单个实体的派生 patch 在当前路由下是否相关。
+ *
+ * - Dashboard / 设置 / embed：全部相关。
+ * - 安全页面：仅安全相关域相关。
+ * - 其他：全部相关。
+ *
+ * @param entityId 实体 ID。
+ * @param path 路由路径，默认使用 activeRoutePath。
+ * @returns 相关返回 true，否则返回 false。
+ */
+function isDerivedPatchRelevant(entityId: string, path: string = activeRoutePath): boolean {
+  if (!path || path === '/' || path.startsWith('/settings') || path.startsWith('/embed')) {
+    return true
+  }
+  if (path.startsWith('/security')) {
+    const domain = getEntityDomain(entityId)
+    return SECURITY_DOMAINS.has(domain)
+  }
+  return true
+}
+
+/**
+ * 按路由过滤派生 patch 列表。
+ *
+ * - Dashboard / embed：跳过低优先级域。
+ * - 设置：保留全部。
+ * - 安全：仅保留安全相关域。
+ * - 其他：保留全部。
+ *
+ * @param changes 派生 patch 引用数组。
+ * @param path 路由路径，默认使用 activeRoutePath。
+ * @returns 过滤后的数组；输入为空时原样返回。
+ */
+export function filterDerivedPatchesForRoute(
+  changes: DerivedPatchRef[],
+  path: string = activeRoutePath,
+): DerivedPatchRef[] {
+  if (!changes?.length) return changes
+  if (path === '/' || path.startsWith('/embed')) {
+    return changes.filter((c) => {
+      if (!c?.entity_id) return false
+      const domain = getEntityDomain(c.entity_id)
+      return !DASHBOARD_SKIP_DERIVED_DOMAINS.has(domain)
+    })
+  }
+  if (!path || path.startsWith('/settings')) return changes
+  if (path.startsWith('/security')) {
+    return changes.filter((c) => c?.entity_id && isDerivedPatchRelevant(c.entity_id, path))
+  }
+  return changes
+}
+
+/**
+ * 递增变更涉及域的纪元值。
+ *
+ * 用于派生分片的失效判定：纪元变化时说明该域有增量变更，
+ * 依赖该域派生数据的视图需要重新计算。
+ *
+ * @param domainEpochs 域纪元 Map（会被原地修改）。
+ * @param changes 派生 patch 引用数组。
+ */
+export function bumpDomainEpochs(domainEpochs: Map<string, number>, changes: DerivedPatchRef[]): void {
+  if (!changes?.length) return
+  for (let i = 0; i < changes.length; i++) {
+    const id = changes[i]?.entity_id
+    if (!id) continue
+    const domain = getEntityDomain(id)
+    domainEpochs.set(domain, (domainEpochs.get(domain) || 0) + 1)
+  }
+}
+
+/** - 从 `entity-derived-internals` re-export 派生数据核心 API 与类型。 */
+
+/** collectIndexedEntityIds 的选项。 */
+interface CollectIndexedEntityIdsOptions {
+  domain?: string
+  groupDomainSet?: Set<string> | null
+}
+
+/**
+ * 将 domainEntityIndex 中的值（string[] 或 Set<string>）统一转为数组。
+ *
+ * @param value 域索引中的值。
+ * @returns 实体 ID 数组；value 为空时返回空数组。
+ */
+export function domainIndexToArray(value: string[] | Set<string> | null | undefined): string[] {
+  if (!value) return []
+  return Array.isArray(value) ? value : [...value]
+}
+
+/**
+ * 按域 / 分组从 domainEntityIndex 收集候选 entity_id（避免全表扫描）。
+ *
+ * - 指定 domain：返回该域的实体 ID 数组。
+ * - 指定 groupDomainSet：返回集合中所有域的实体 ID 合并数组。
+ * - 未指定：返回全部域的实体 ID 合并数组。
+ *
+ * @param domainEntityIndex 域到实体 ID 集合的映射表。
+ * @param options 收集选项。
+ * @returns 实体 ID 数组；索引为空时返回 null。
+ */
+export function collectIndexedEntityIds(
+  domainEntityIndex: Map<string, string[] | Set<string>> | null | undefined,
+  { domain = 'all', groupDomainSet = null }: CollectIndexedEntityIdsOptions = {},
+): string[] | null {
+  if (!domainEntityIndex?.size) return null
+  if (domain !== 'all') {
+    return domainIndexToArray(domainEntityIndex.get(domain))
+  }
+  if (groupDomainSet?.size) {
+    const ids: string[] = []
+    for (const d of groupDomainSet) {
+      const list = domainIndexToArray(domainEntityIndex.get(d))
+      if (list.length) ids.push(...list)
+    }
+    return ids
+  }
+  const ids: string[] = []
+  for (const list of domainEntityIndex.values()) {
+    const arr = domainIndexToArray(list)
+    if (arr.length) ids.push(...arr)
+  }
+  return ids
 }

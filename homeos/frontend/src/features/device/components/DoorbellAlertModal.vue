@@ -76,12 +76,12 @@ import { useEscLayer } from '@/kernel/ui/hooks/use-esc-stack'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useHaConnectionStore } from '@/domain/ha/ha-connection.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { useLayoutStore } from '@/domain/layout/store'
+import { useLayoutStore } from '@/domain/layout/store/index'
 import { securityCameraGo2rtcUrl } from '@/kernel/utils/layout'
-import { logger } from '@/kernel/utils/core'
-import { getApiErrorMessage } from '@/kernel/utils/core'
+import { logger } from '@/kernel/utils/core/index'
+import { getApiErrorMessage } from '@/kernel/utils/core/index'
 import HaCameraStream from '@/features/device/components/HaCameraStream.vue'
-import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
+import { getEntityDisplayName } from '@/domain/entity/model/utils/derived'
 
 const props = defineProps({
   isOpen: { type: Boolean },

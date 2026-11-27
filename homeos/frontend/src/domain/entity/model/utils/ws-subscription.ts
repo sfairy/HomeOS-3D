@@ -1,6 +1,6 @@
 import { type PanelWidget } from '@/kernel/types/layout'
 import { getEntityDomain, resolveChargerSwitchWakeEntityIdForDevice } from '@homeos/shared'
-import { getClientDeviceId } from '@/domain/client/utils'
+import { getClientDeviceId } from '@/domain/client/utils/index'
 import { getConfigSection } from '@/kernel/config/frontend-config'
 import { type EntitySocketSyncState } from '@/kernel/types/entity'
 

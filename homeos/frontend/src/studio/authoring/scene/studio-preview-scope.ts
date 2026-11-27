@@ -10,7 +10,7 @@
  * 所以这里统一采用**保守口径**：拿不准就返回 `'all'`，只有在能证明「只动了某一类」时
  * 才给更窄的作用域。
  */
-import { sceneContentKey } from '../../app/bridge/scene'
+import { sceneContentKey } from '../../app/bridge/scene/index'
 
 export type PreviewScope = 'all' | 'architecture' | 'lights' | 'items' | 'none'
 

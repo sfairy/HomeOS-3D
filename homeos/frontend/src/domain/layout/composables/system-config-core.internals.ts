@@ -7,7 +7,7 @@ import type {
   SystemConfigPatch,
   SystemConfigSaveOptions,
 } from '@/kernel/types/system-config'
-import { invalidateSharedFetch, sharedFetch } from '@/kernel/utils/core'
+import { invalidateSharedFetch, sharedFetch } from '@/kernel/utils/core/index'
 import {
   Bell,
   Box,

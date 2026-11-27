@@ -89,7 +89,7 @@
 import { ref, computed, watch, onUnmounted, onDeactivated, onActivated } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import { AlertTriangle, MonitorPlay, Globe } from '@lucide/vue'
-import { useLayoutStore } from '@/domain/layout/store'
+import { useLayoutStore } from '@/domain/layout/store/index'
 import {
   getEmbedBlockReason,
   isIframeChromeError,

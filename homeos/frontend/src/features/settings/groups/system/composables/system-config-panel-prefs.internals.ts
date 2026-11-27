@@ -3,7 +3,7 @@
  * @module frontend/src/views
  */
 /** 高级参数面板：专家模式 / 开发键本地偏好 */
-import { readLocalStorageFlag, writeLocalStorage } from '@/kernel/utils/core'
+import { readLocalStorageFlag, writeLocalStorage } from '@/kernel/utils/core/index'
 
 const EXPERT_MODE_STORAGE_KEY = 'homeos_params_expert_mode'
 export const DEV_KEYS_STORAGE_KEY = 'homeos_params_show_dev_keys'

@@ -1,5 +1,5 @@
 /** 实体属性值友好格式化工具 */
-import { HVAC_MODE_LABELS as CLIMATE_HVAC_MODE_LABELS, PRESET_MODE_LABELS } from '@/kernel/constants'
+import { HVAC_MODE_LABELS as CLIMATE_HVAC_MODE_LABELS, PRESET_MODE_LABELS } from '@/kernel/constants/index'
 import { brightnessToPercent } from '@/domain/entity/model/utils/control/light-control-core'
 import { volumeLevelToPercent } from '@/domain/entity/model/utils/control/media-player-control-core'
 import { formatLocaleString } from '@/kernel/utils/format'

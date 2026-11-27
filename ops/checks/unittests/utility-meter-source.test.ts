@@ -16,7 +16,7 @@
  */
 import { describe, expect, test } from 'bun:test'
 
-import { preferServerList } from '../../../homeos/frontend/src/features/energy/composables'
+import { preferServerList } from '../../../homeos/frontend/src/features/energy/composables/index'
 import {
   parseGasDayItem,
   parseGasMonthItem,

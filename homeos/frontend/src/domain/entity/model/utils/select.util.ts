@@ -1,5 +1,5 @@
 /** 实体下拉选项构建工具 */
-import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
+import { getEntityDisplayName } from '@/domain/entity/model/utils/derived'
 import type { HaEntityState } from '@/kernel/types/entity'
 
 /** 是否为 Home Assistant 风格的 entity_id（domain.object_id） */

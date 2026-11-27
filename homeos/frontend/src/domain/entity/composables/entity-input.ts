@@ -1,5 +1,5 @@
 import { getEntityDomain } from '@homeos/shared'
-import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
+import { getEntityDisplayName } from '@/domain/entity/model/utils/derived'
 import { type HaEntityState } from '@/kernel/types/entity'
 import { ref, computed, nextTick, watch, type Ref } from 'vue'
 import { useClickOutside } from '@/kernel/ui/hooks/use-click-outside'

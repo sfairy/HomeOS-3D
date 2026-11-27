@@ -1,6 +1,6 @@
 /** 规整为图表可用的桶（域分布 / 时序 / 实体频次）并产出 KPI 汇总。 */
 import { normalizeByDomain } from '@/features/events/model/utils/events-display.util'
-import { ENTITY_DOMAIN_COLORS, entityDomainColor } from '@/kernel/constants'
+import { ENTITY_DOMAIN_COLORS, entityDomainColor } from '@/kernel/constants/index'
 
 /** 时序桶：事件按小时/天分组的标签、计数与时间戳，供折线图渲染。 */
 interface EventTimeBucket {

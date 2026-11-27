@@ -6,7 +6,7 @@
  * - 通过 scheduleEchartsTask 队列化渲染任务，避免高频更新抢占主线程。
  */
 import { ref, computed, watch, onMounted, onUnmounted, nextTick, type Ref, type ComputedRef } from 'vue'
-import { useScheduledPoll } from '@/domain/widget/composables'
+import { useScheduledPoll } from '@/domain/widget/composables/index'
 import type * as EchartsModuleNS from '@/kernel/utils/chart'
 import { useAuthStore } from '@/domain/auth/auth.store'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
@@ -16,7 +16,7 @@ import {
   observeChartResize,
   scheduleEchartsTask,
   cancelScheduledEchartsTask,
-} from '@/kernel/utils/ui'
+} from '@/kernel/utils/ui/index'
 import { useFetchGeneration } from '@/kernel/ui/hooks/use-fetch-generation'
 import {
   HOME_CLIMATE_CHART_VIEW_OPTIONS,

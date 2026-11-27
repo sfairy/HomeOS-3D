@@ -23,11 +23,11 @@
  * go2rtcUrl 非空时优先走局域网 go2rtc（同源 MSE 中继），只有它宣告终态才落回上述通路。
  */
 import { ref, watch, onUnmounted, computed, nextTick } from 'vue'
-import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
+import { getEntityDisplayName } from '@/domain/entity/model/utils/derived'
 import { startCameraWebRtc } from '@/features/device/camera/composables/use-ha-web-rtc-player'
 import { startCameraMediaTransport } from '@/features/device/camera/composables/use-camera-media-transport'
 import { useGo2RtcMseTransport } from '@/domain/camera'
-import { logger } from '@/kernel/utils/core'
+import { logger } from '@/kernel/utils/core/index'
 
 const props = defineProps({
   entity: { type: Object, default: null },

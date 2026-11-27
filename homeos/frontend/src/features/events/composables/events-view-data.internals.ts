@@ -5,12 +5,12 @@
 import { ref, computed, watch, type Ref } from 'vue'
 import { fetchEventStats, fetchEvents, fetchEventMeta, clearEvents } from '@/domain/api/entities'
 import type { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { logger } from '@/kernel/utils/core'
-import { getApiErrorMessage } from '@/kernel/utils/core'
+import { logger } from '@/kernel/utils/core/index'
+import { getApiErrorMessage } from '@/kernel/utils/core/index'
 import { notifyError } from '@/kernel/ui/notify'
 import { configEpoch, getEventLogConfig } from '@/kernel/config/frontend-config'
 import { formatCount, hoursLabel, normalizeByDomain } from '@/features/events/model/utils/events-display.util'
-import { getEntityDisplayName, hasEntityFriendlyName } from '@/domain/entity/model/utils/derived.util'
+import { getEntityDisplayName, hasEntityFriendlyName } from '@/domain/entity/model/utils/derived'
 import type { useEntitiesStore } from '@/domain/entity/store/entities.store'
 
 type EntitiesStore = ReturnType<typeof useEntitiesStore>

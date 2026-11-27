@@ -1,7 +1,7 @@
 /** 封装通过 Home Assistant WebRTC 信令拉取摄像头实时画面的能力， */
 import { apiGet, apiPost } from '@/domain/api/index'
 import { sendWebRtcCandidate, closeWebRtcSession } from '@/domain/api/ha'
-import { logger } from '@/kernel/utils/core'
+import { logger } from '@/kernel/utils/core/index'
 
 /** WebRTC 停止函数类型：调用后释放连接与资源 */
 type WebRtcStopFn = () => void

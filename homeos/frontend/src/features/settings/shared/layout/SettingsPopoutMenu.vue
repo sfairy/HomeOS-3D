@@ -39,7 +39,7 @@ import { useKeepAliveGate } from '@/kernel/ui/hooks/use-keep-alive-gate'
 import { useExclusiveDropdown } from '@/kernel/ui/popup/use-exclusive-dropdown'
 import { useShellTeleportTarget } from '@/kernel/ui/shell/use-shell-teleport-target'
 import { getTeleportContainerSize } from '@/kernel/ui/popup/popup-position-shared.util'
-import { clampNum as clamp } from '@/kernel/utils/core'
+import { clampNum as clamp } from '@/kernel/utils/core/index'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },

@@ -356,7 +356,7 @@ import {
 } from "./materials/studio-material";
 
 
-import { createLoadTiming as createLoadTiming2 } from "../app/bridge/scene";
+import { createLoadTiming as createLoadTiming2 } from "../app/bridge/scene/index";
 import { stageStartup as stageStartup2 } from "./stage-startup";
 import { createPreviewTransformCache } from "./studio-preview-transforms";
 
@@ -373,7 +373,7 @@ stageLoadTiming("module-ready");
 
 import {
   createRenderCache as createRenderCache2,
-} from "../app/bridge/scene";
+} from "../app/bridge/scene/index";
 import { syncHtmlRangeProgress as syncHtmlRangeProgress2 } from "../app/shared/util/range-progress";
 import * as ns2 from "/static/vendor/three/0.187.0/three.module.min.js";
 import { SameOriginDRACOLoader as SameOriginDRACOLoader2 } from "./export/draco-loader";
@@ -441,11 +441,11 @@ import { startupStudio } from "./boot/studio-boot";
 import {
   StudioDocumentStore,
   applyDocumentPatch,
-} from "./store";
-import { StudioHistoryStore } from "./store";
-import { StudioSceneSyncController } from "./store";
-import { StudioSaveStore } from "./store";
-import { createStudioDraftRepository } from "./store";
+} from "./store/index";
+import { StudioHistoryStore } from "./store/index";
+import { StudioSceneSyncController } from "./store/index";
+import { StudioSaveStore } from "./store/index";
+import { createStudioDraftRepository } from "./store/index";
 
 
 import { createStudioAppContext } from "./app-context";

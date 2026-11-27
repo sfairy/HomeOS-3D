@@ -3,7 +3,7 @@ import { getEntityDomain, resolveEntityArea } from '@homeos/shared'
 import { ref, watch, type Ref, type ComputedRef } from 'vue'
 import { fetchEntities } from '@/domain/api/entities'
 import { formatEntitySelectOption } from '@/domain/entity/model/utils/select.util'
-import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
+import { getEntityDisplayName } from '@/domain/entity/model/utils/derived'
 const MAX_OPTIONS = 500
 
 /** 设备搜索行：来自内存或 REST 响应的最小行形状 */

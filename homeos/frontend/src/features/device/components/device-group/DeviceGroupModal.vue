@@ -136,7 +136,7 @@ import {
   Blinds,
 } from '@lucide/vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { useLayoutStore } from '@/domain/layout/store'
+import { useLayoutStore } from '@/domain/layout/store/index'
 import { getDomainMap, getEntityFromStore } from '@/domain/entity/composables/device-group'
 import { useDeviceGroupBatch } from '@/domain/entity/composables/device-group'
 import { useDeviceGroupEntityIds } from '@/domain/entity/composables/device-group'

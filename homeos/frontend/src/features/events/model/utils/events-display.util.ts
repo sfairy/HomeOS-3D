@@ -1,6 +1,6 @@
 /** 事件中心展示工具 */
 import { getEntityDomain } from '@homeos/shared'
-import { displayEntityStateLabel } from '@/kernel/constants'
+import { displayEntityStateLabel } from '@/kernel/constants/index'
 import { parseAttrStateDiff } from '@/domain/entity/model/utils/control-attr-change.util'
 
 /**

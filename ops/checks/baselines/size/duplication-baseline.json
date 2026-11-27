@@ -23,13 +23,13 @@
     "ops"
   ],
   "totals": {
-    "sources": 3509,
-    "lines": 741859,
-    "clones": 158,
-    "duplicatedLines": 2749,
-    "percentage": 0.3706,
-    "tokens": 4339649,
-    "duplicatedTokens": 14084
+    "sources": 3493,
+    "lines": 742158,
+    "clones": 162,
+    "duplicatedLines": 2823,
+    "percentage": 0.3804,
+    "tokens": 4341134,
+    "duplicatedTokens": 14513
   },
   "byFormat": {
     "css": {
@@ -47,11 +47,11 @@
       "clones": 20
     },
     "javascript": {
-      "sources": 341,
-      "lines": 48424,
-      "duplicatedLines": 364,
-      "percentage": 0.7517,
-      "clones": 17
+      "sources": 343,
+      "lines": 48732,
+      "duplicatedLines": 438,
+      "percentage": 0.8988,
+      "clones": 21
     },
     "python": {
       "sources": 766,
@@ -61,10 +61,10 @@
       "clones": 37
     },
     "typescript": {
-      "sources": 1525,
-      "lines": 390548,
+      "sources": 1507,
+      "lines": 390539,
       "duplicatedLines": 1619,
-      "percentage": 0.4145,
+      "percentage": 0.4146,
       "clones": 84
     },
     "vue": {
@@ -245,6 +245,12 @@
       "lines": 18
     },
     {
+      "fingerprint": "2fd8b5fbba8ff5c2bc24cae526dc1302312f0a1d",
+      "first": "ops/scripts/codemod/extract-deps.mjs",
+      "second": "ops/scripts/codemod/hoist-nested-functions.mjs",
+      "lines": 18
+    },
+    {
       "fingerprint": "306a0db2969fc723dac772d032b2cfc10bdbd027",
       "first": "homeos/frontend/src/studio/authoring/items/studio-static-item-meshes.ts",
       "second": "homeos/frontend/src/studio/authoring/scene-build/build-scene.ts",
@@ -273,6 +279,12 @@
       "first": "ops/scripts/codemod/extract-deps.mjs",
       "second": "ops/scripts/codemod/split-comma-expressions.mjs",
       "lines": 44
+    },
+    {
+      "fingerprint": "35585d4da0354daef98c3193f5d8c50fd36b5a0b",
+      "first": "homeos/frontend/src/studio/app/editor/component-templates.ts",
+      "second": "homeos/frontend/src/studio/app/editor/metadata/editor-navigation-style-metadata.ts",
+      "lines": 15
     },
     {
       "fingerprint": "36505fc8032df11fc5dfe4eef05ea846cdb225c5",
@@ -317,10 +329,10 @@
       "lines": 14
     },
     {
-      "fingerprint": "40f65844ea707b5192e46069c86001468a616571",
-      "first": "homeos/frontend/src/studio/app/editor/component-templates/button.ts",
-      "second": "homeos/frontend/src/studio/app/editor/metadata/editor-navigation-style-metadata.ts",
-      "lines": 23
+      "fingerprint": "3ebe031505270edb0ee66c237a0925b3085366b0",
+      "first": "ops/scripts/codemod/extract-deps.mjs",
+      "second": "ops/scripts/codemod/hoist-nested-functions.mjs",
+      "lines": 11
     },
     {
       "fingerprint": "44422d4bdbae88185ba6d45ca34ec474fd929648",
@@ -503,6 +515,12 @@
       "lines": 13
     },
     {
+      "fingerprint": "6b11fa48f5fcc601d49b901dacb9d452f3205f14",
+      "first": "homeos/frontend/src/studio/app/editor/component-templates.ts",
+      "second": "homeos/frontend/src/studio/app/editor/metadata/editor-navigation-style-metadata.ts",
+      "lines": 15
+    },
+    {
       "fingerprint": "6b20ae1dea551b62fbd3e9ce23377566537ed76c",
       "first": "ops/scripts/codemod/plans/collapse-a.mjs",
       "second": "ops/scripts/codemod/plans/collapse-c.mjs",
@@ -525,12 +543,6 @@
       "first": "homeos/frontend/src/domain/entity/components/entity-multi-select/EntityMultiSelectDropdown.vue",
       "second": "homeos/frontend/src/domain/entity/components/entity-multi-select/EntityMultiSelectItemList.vue",
       "lines": 16
-    },
-    {
-      "fingerprint": "6faaeaaafd02e82f4237f59ccd6ba5021be99842",
-      "first": "homeos/frontend/src/studio/app/editor/component-templates/control.ts",
-      "second": "homeos/frontend/src/studio/app/editor/metadata/editor-navigation-style-metadata.ts",
-      "lines": 15
     },
     {
       "fingerprint": "70aad35264ef9a1b3cb7a4372c03bec5b040ee9f",
@@ -641,12 +653,6 @@
       "lines": 13
     },
     {
-      "fingerprint": "8a756f1588c2e497a08b65c9f8a0d5510ab9d440",
-      "first": "homeos/frontend/src/studio/app/editor/component-templates/control.ts",
-      "second": "homeos/frontend/src/studio/app/editor/metadata/editor-navigation-style-metadata.ts",
-      "lines": 26
-    },
-    {
       "fingerprint": "8be9a4ba837064f102010d1827aaffd740b2e041",
       "first": "homeos/backend/src/domains/agent/tools/home_tools_calendar.py",
       "second": "homeos/backend/src/domains/agent/tools/home_tools_lists.py",
@@ -687,6 +693,12 @@
       "first": "homeos/frontend/src/studio/runtime/device/computer-screen.ts",
       "second": "homeos/frontend/src/studio/runtime/environment/device-mist.ts",
       "lines": 11
+    },
+    {
+      "fingerprint": "97374ac05169b79b4926ad3ce772a7488f55b196",
+      "first": "ops/scripts/codemod/hoist-nested-functions.mjs",
+      "second": "ops/scripts/codemod/prune-destructure-by-tsc.mjs",
+      "lines": 14
     },
     {
       "fingerprint": "9787c3944bf8c76f7f2d2600091cb185cf6d2eee",
@@ -741,12 +753,6 @@
       "first": "homeos/frontend/src/studio/app/editor/home/inspectors/popup-inspectors.ts",
       "second": "homeos/frontend/src/studio/app/editor/inspectors/home/home-time-inspector.ts",
       "lines": 19
-    },
-    {
-      "fingerprint": "aa2d44f8b390cbc319c23f0b427513ceece97249",
-      "first": "homeos/frontend/src/studio/app/editor/component-templates/button.ts",
-      "second": "homeos/frontend/src/studio/app/editor/metadata/editor-navigation-style-metadata.ts",
-      "lines": 15
     },
     {
       "fingerprint": "adcfefb452a73dea536311ba83f3946c1f8c06dd",
@@ -869,6 +875,12 @@
       "lines": 17
     },
     {
+      "fingerprint": "d3ef294525677ad4a9c15b2ebd49a23064398ae4",
+      "first": "homeos/frontend/src/studio/app/editor/component-templates.ts",
+      "second": "homeos/frontend/src/studio/app/editor/metadata/editor-navigation-style-metadata.ts",
+      "lines": 26
+    },
+    {
       "fingerprint": "d428608fedfc232e0c61d586310887417df40558",
       "first": "homeos/frontend/src/features/settings/groups/automation/composables/security-modes.ts",
       "second": "homeos/frontend/src/features/settings/groups/automation/composables/security-modes.ts",
@@ -935,6 +947,12 @@
       "lines": 30
     },
     {
+      "fingerprint": "e18d4d9af040d5d1c4ae6178157fe5b6ee25bf84",
+      "first": "ops/scripts/codemod/extract-deps.mjs",
+      "second": "ops/scripts/codemod/hoist-nested-functions.mjs",
+      "lines": 31
+    },
+    {
       "fingerprint": "e1930b2896e260c86b98764e9847ea8e95f5d87f",
       "first": "homeos/backend/src/domains/notification/dispatch.py",
       "second": "homeos/backend/src/domains/notification/service.py",
@@ -956,6 +974,12 @@
       "fingerprint": "e4891999bd3c5cb5baa39cea9612fdc03d605b7b",
       "first": "homeos/backend/src/api/entities.py",
       "second": "homeos/backend/src/api/voice.py",
+      "lines": 23
+    },
+    {
+      "fingerprint": "e76e297eed4f07ba1b35d8e4cd2582bac734c4a4",
+      "first": "homeos/frontend/src/studio/app/editor/component-templates.ts",
+      "second": "homeos/frontend/src/studio/app/editor/metadata/editor-navigation-style-metadata.ts",
       "lines": 23
     },
     {

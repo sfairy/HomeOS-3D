@@ -19,7 +19,7 @@ import { inferSuggestDeviceClassFromPlaceholder } from '@/domain/entity/model/ut
 import { useClickOutside } from '@/kernel/ui/hooks/use-click-outside'
 import { useEntityPickerSession } from '@/domain/entity/composables/entity'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
+import { getEntityDisplayName } from '@/domain/entity/model/utils/derived'
 import { getLargeEntityThreshold } from '@/kernel/config/frontend-config'
 
 /** 静态选项配置（如 HomeOS 场景） */

@@ -1,5 +1,5 @@
 /** HA 场景 / 脚本实体工具。 */
-import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
+import { getEntityDisplayName } from '@/domain/entity/model/utils/derived'
 import type { EntitySnapshot } from '@/kernel/types/entity'
 
 /** HA 场景 / 脚本记录（最小行形状） */

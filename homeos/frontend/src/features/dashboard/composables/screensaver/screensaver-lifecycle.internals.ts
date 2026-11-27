@@ -10,12 +10,12 @@ import {
   loadFrontendConfig,
   configEpoch,
 } from '@/kernel/config/frontend-config'
-import { setScreensaverVisible } from '@/kernel/utils/ui'
-import { schedulePoll } from '@/kernel/utils/core'
-import { useWakeWord } from '@/features/voice/composables'
+import { setScreensaverVisible } from '@/kernel/utils/ui/index'
+import { schedulePoll } from '@/kernel/utils/core/index'
+import { useWakeWord } from '@/features/voice/composables/index'
 import { useTtsSpeak } from '@/domain/voice/use-tts-speak'
 import { executeVoiceCommand } from '@/kernel/http/index'
-import { getClientDeviceId } from '@/domain/client/utils'
+import { getClientDeviceId } from '@/domain/client/utils/index'
 import { resolveChargerSwitchWakeEntityIdForDevice, shouldDismissScreensaverOnChargerSwitch } from '@homeos/shared'
 import type { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import type { useEarthquakeStore } from '@/domain/earthquake/earthquake.store'

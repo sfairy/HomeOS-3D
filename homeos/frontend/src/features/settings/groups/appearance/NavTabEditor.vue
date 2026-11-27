@@ -216,7 +216,7 @@ import {
   Activity,
   LayoutDashboard,
 } from '@lucide/vue'
-import { useLayoutStore } from '@/domain/layout/store'
+import { useLayoutStore } from '@/domain/layout/store/index'
 import {
   embedNavTabId,
   isEmbedNavTabId,

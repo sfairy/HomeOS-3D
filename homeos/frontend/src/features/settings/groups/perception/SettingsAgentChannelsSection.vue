@@ -570,7 +570,7 @@ import { testMessageChannel } from '@/domain/api/agent'
 import { fetchWebPushSubscriptions, testWebPush, unsubscribeWebPush } from '@/domain/api/notifications'
 import { notifyError } from '@/kernel/ui/notify'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { useWebPushSubscribe } from '@/features/notifications/composables'
+import { useWebPushSubscribe } from '@/features/notifications/composables/index'
 import { formatShortDateTime } from '@/kernel/utils/format'
 
 type ChannelTabId = 'email' | 'webpush' | 'wecom' | 'mcp'

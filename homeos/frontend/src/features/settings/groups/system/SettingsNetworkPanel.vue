@@ -47,7 +47,7 @@ import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { fetchSystemNetworkInfo } from '@/kernel/http/index'
 import { apiPost } from '@/kernel/http/index'
-import { getApiErrorMessage } from '@/kernel/utils/core'
+import { getApiErrorMessage } from '@/kernel/utils/core/index'
 
 defineProps({ activeTab: { type: String, default: 'network' } })
 

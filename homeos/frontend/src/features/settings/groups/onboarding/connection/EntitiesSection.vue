@@ -131,7 +131,7 @@
 import { computed } from 'vue'
 import { RefreshCw, Loader2, CheckCircle2, AlertCircle, ListFilter, Database } from '@lucide/vue'
 import RecommendInsightCard from '@/domain/recommend/components/RecommendInsightCard.vue'
-import { buildEntitySyncRecommendations } from '@/domain/recommend/utils'
+import { buildEntitySyncRecommendations } from '@/domain/recommend/utils/index'
 import { DEVICES_ROUTES } from '@/features/device/model/utils'
 
 const devicesListLink = DEVICES_ROUTES.list({ controllable: 0 })

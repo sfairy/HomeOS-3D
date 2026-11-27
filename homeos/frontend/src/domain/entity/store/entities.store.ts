@@ -8,8 +8,8 @@ import { ref, toRaw, shallowReactive, reactive, watch } from 'vue'
 import { apiClient } from '@/domain/api/index'
 import { resyncEntities } from '@/domain/api/entities'
 import { useAuthStore } from '@/domain/auth/auth.store'
-import { useLayoutStore } from '@/domain/layout/store'
-import { logger } from '@/kernel/utils/core'
+import { useLayoutStore } from '@/domain/layout/store/index'
+import { logger } from '@/kernel/utils/core/index'
 import {
   getFrontendConfig,
   getLargeEntityThreshold,

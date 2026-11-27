@@ -27,7 +27,7 @@
 /** - 通过 onErrorCaptured 捕获子树渲染异常； */
 import { ref, onErrorCaptured } from 'vue'
 import { AlertTriangle } from '@lucide/vue'
-import { logger } from '@/kernel/utils/core'
+import { logger } from '@/kernel/utils/core/index'
 
 type ComponentTypeFields = { name?: string; __name?: string; displayName?: string; __file?: string; __hmrId?: string }
 type ComponentTypeInfo = ComponentTypeFields | (((...args: never[]) => unknown) & ComponentTypeFields)

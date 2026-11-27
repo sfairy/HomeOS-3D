@@ -1,7 +1,7 @@
 /** 按路由/布局维护精简实体投影（组件层只读展示字段） */
 import { shallowReactive, markRaw } from 'vue'
 import { getEntityDomain } from '@homeos/shared'
-import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
+import { getEntityDisplayName } from '@/domain/entity/model/utils/derived'
 import type { EntitiesMap, EntityProjection, EntityProjectionChange, HaEntityState } from '@/kernel/types/entity'
 
 /** 投影缓存：entity_id → EntityProjection（shallowReactive Map，键级响应） */

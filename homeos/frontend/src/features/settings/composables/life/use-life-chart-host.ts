@@ -5,7 +5,7 @@ import {
   observeChartResize,
   scheduleEchartsTask,
   cancelScheduledEchartsTask,
-} from '@/kernel/utils/ui'
+} from '@/kernel/utils/ui/index'
 
 type EchartsModule = typeof EchartsModuleNS
 type ChartInst = ReturnType<EchartsModule['default']['init']>

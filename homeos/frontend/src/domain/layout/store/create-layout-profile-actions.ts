@@ -6,7 +6,7 @@ import { logger } from '@/kernel/utils/core/logger'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { writeStoredProfileId } from './create-layout-state'
 import { bindSelfTerminalProfile } from './resolve-active-profile.util'
-import { inferTerminalLabel } from '@/domain/client/utils'
+import { inferTerminalLabel } from '@/domain/client/utils/index'
 import type { UILayoutConfig } from '@/kernel/types/layout'
 
 /** 方案摘要信息 */

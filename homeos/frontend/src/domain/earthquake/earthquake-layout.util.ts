@@ -1,7 +1,7 @@
 /** - 判断前端是否应接受 EEW（Early Earthquake Warning）告警（须 layout 已启用）； */
-import { useLayoutStore } from '@/domain/layout/store'
+import { useLayoutStore } from '@/domain/layout/store/index'
 import { dismissEarthquakeAlert } from '@/domain/api/earthquake'
-import { logger } from '@/kernel/utils/core'
+import { logger } from '@/kernel/utils/core/index'
 
 /**
  * 前端是否应接受 EEW 告警（须 layout 中已启用）。

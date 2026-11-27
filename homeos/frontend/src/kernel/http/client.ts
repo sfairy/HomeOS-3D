@@ -18,9 +18,9 @@ import {
 } from '@/kernel/utils/bridge/store-bridge'
 import { getPageTraceId } from '@/kernel/utils/telemetry/trace.util'
 import { getFrontendConfig } from '@/kernel/config/frontend-config'
-import { logger } from '@/kernel/utils/core'
-import { isLicenseInactiveError } from '@/kernel/utils/core'
-import { isNavigationLockedAfterRestore } from '@/kernel/utils/core'
+import { logger } from '@/kernel/utils/core/index'
+import { isLicenseInactiveError } from '@/kernel/utils/core/index'
+import { isNavigationLockedAfterRestore } from '@/kernel/utils/core/index'
 import { installFetchCsrf } from './csrf'
 
 /**

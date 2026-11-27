@@ -1,6 +1,6 @@
 /** 商业授权 REST API（单 HTTP 栈） */
 import { apiGet, apiPost } from '../../kernel/http/index'
-import { getApiErrorMessage, isUnauthorizedError } from '@/kernel/utils/core'
+import { getApiErrorMessage, isUnauthorizedError } from '@/kernel/utils/core/index'
 
 /** 授权状态机（与后端 LicenseStatus 对齐）。 */
 type LicenseState =

@@ -86,7 +86,7 @@
 import { ref, useId } from 'vue'
 
 import { useShellTeleportTarget } from '@/kernel/ui/shell/use-shell-teleport-target'
-import { getApiErrorMessage } from '@/kernel/utils/core'
+import { getApiErrorMessage } from '@/kernel/utils/core/index'
 import { PASSWORD_POLICY_MESSAGE, isPasswordPolicyCompliant } from '@homeos/shared/security/password-policy'
 import { useAuthStore } from '@/domain/auth/auth.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'

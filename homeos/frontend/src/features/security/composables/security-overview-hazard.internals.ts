@@ -7,9 +7,9 @@ import { useRouter } from 'vue-router'
 import { callService } from '@/domain/api/entities'
 import { sceneEntityIdFromRecord } from '@/domain/entity/model/utils/scene-script.util'
 import { runHazardDrill as runHazardDrillApi } from '@/domain/api/security'
-import { getApiErrorMessage } from '@/kernel/utils/core'
+import { getApiErrorMessage } from '@/kernel/utils/core/index'
 import { hasAnyHazardSensorBinding, formatHazardBindingSummaryText } from '@homeos/shared'
-import type { useLayoutStore } from '@/domain/layout/store'
+import type { useLayoutStore } from '@/domain/layout/store/index'
 import type { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 
 type LayoutStore = ReturnType<typeof useLayoutStore>

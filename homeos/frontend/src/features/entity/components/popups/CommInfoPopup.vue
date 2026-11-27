@@ -11,7 +11,7 @@ import CommInfoQuotaSection from '@/features/entity/components/popups/comm-info/
 
 import CommInfoFlowBreakdown from '@/features/entity/components/popups/comm-info/CommInfoFlowBreakdown.vue'
 
-import { useCommInfoPopup } from '@/features/energy/composables'
+import { useCommInfoPopup } from '@/features/energy/composables/index'
 
 import '@/features/entity/components/popups/comm-info/popup.css'
 

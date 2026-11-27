@@ -15,7 +15,7 @@ import type {
   ClientPowerStatusSnapshot,
 } from '@/kernel/types/client-power'
 import type { SystemConfig } from '@/kernel/types/system-config'
-import { normalizeBatteryPercent } from '@/domain/client/utils'
+import { normalizeBatteryPercent } from '@/domain/client/utils/index'
 import {
   getClientBatteryState,
   getClientDeviceKind,
@@ -23,12 +23,12 @@ import {
   getClientSystemSpecChips,
   getLocalBatteryUnsupportedHint,
   getSystemInfoFromClientRow,
-} from '@/domain/client/utils'
-import { getClientDeviceId } from '@/domain/client/utils'
+} from '@/domain/client/utils/index'
+import { getClientDeviceId } from '@/domain/client/utils/index'
 import { reloadFrontendConfig } from '@/kernel/config/frontend-config'
 import { copyTextWithNotify } from '@/kernel/ui/notify'
-import { getApiErrorMessage } from '@/kernel/utils/core'
-import { logger } from '@/kernel/utils/core'
+import { getApiErrorMessage } from '@/kernel/utils/core/index'
+import { logger } from '@/kernel/utils/core/index'
 import {
   buildClientCardTitle,
   buildClientStatusMap,
@@ -45,7 +45,7 @@ import {
 } from '@homeos/shared'
 import type { Ref } from 'vue'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { schedulePoll } from '@/kernel/utils/core'
+import { schedulePoll } from '@/kernel/utils/core/index'
 
 // ── useClientPowerConfig ──
 // 滞回充电默认阈值（20% 开充电 / 80% 关充电，关闭峰谷错峰，应急阈值 15%）来自共享契约

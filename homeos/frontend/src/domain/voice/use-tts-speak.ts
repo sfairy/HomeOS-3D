@@ -15,9 +15,9 @@ import { ref, computed } from 'vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { getConfigSection } from '@/kernel/config/frontend-config'
 import { speakVoice, speakVoiceMultiple } from '@/kernel/http/index'
-import { logger } from '@/kernel/utils/core'
-import { getApiErrorMessage } from '@/kernel/utils/core'
-import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
+import { logger } from '@/kernel/utils/core/index'
+import { getApiErrorMessage } from '@/kernel/utils/core/index'
+import { getEntityDisplayName } from '@/domain/entity/model/utils/derived'
 import { speakLocal } from '@/domain/voice/local-speech.util'
 
 /** 一次播报实际走过的链路。 */

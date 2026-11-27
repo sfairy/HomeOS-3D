@@ -76,7 +76,7 @@
 </template>
 
 <script setup lang="ts">
-import { readLocalStorageFlag, writeLocalStorage } from '@/kernel/utils/core'
+import { readLocalStorageFlag, writeLocalStorage } from '@/kernel/utils/core/index'
 /**
  * 右侧信息面板
  * 仪表板右侧区域，以部件（Widget）形式展示天气、时钟、快捷操作等信息。
@@ -101,7 +101,7 @@ import { staticAssetImageSource } from '@app/renderer/registry/asset-state'
 import { ChevronLeft, ChevronRight } from '@lucide/vue'
 import ErrorBoundary from '@/kernel/ui/ErrorBoundary.vue'
 import WidgetPanelSlot from '@/features/dashboard/components/WidgetPanelSlot.vue'
-import { useLayoutStore } from '@/domain/layout/store'
+import { useLayoutStore } from '@/domain/layout/store/index'
 import { useScaling } from '@/kernel/ui/hooks/use-scaling'
 import { useCanvasMetrics } from '@/kernel/ui/hooks/use-canvas-metrics'
 import { isTabletCompactViewport } from '@/kernel/utils/config/viewport-breakpoints.util'

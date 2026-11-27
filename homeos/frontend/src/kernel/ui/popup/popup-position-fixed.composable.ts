@@ -6,8 +6,8 @@ import {
   resolvePopupNumeric,
   type PopupNumericInput,
 } from '@/kernel/ui/popup/popup-position-shared.util'
-import { pickPopupPlacementDirection } from '@/kernel/utils/ui'
-import { clampNum as clamp } from '@/kernel/utils/core'
+import { pickPopupPlacementDirection } from '@/kernel/utils/ui/index'
+import { clampNum as clamp } from '@/kernel/utils/core/index'
 
 /** 箭头填充色（与弹窗背景深色保持一致） */
 const ARROW_FILL = 'rgba(18, 18, 26, 0.9)'

@@ -1,11 +1,11 @@
 import { ref, computed, type Ref, type Component } from 'vue'
 import { type DeviceGroupEntitiesStoreLike, resolveDeviceGroupEntityIds, type DeviceGroupUiStoreLike, computeOfflineCriticalSet, groupOfflineByDevice, BATTERY_LOW_THRESHOLD, resolveBatteryLevel } from '@/domain/entity/model/utils/device-group'
 import { type HaEntityState } from '@/kernel/types/entity'
-import { getApiErrorMessage } from '@/kernel/utils/core'
+import { getApiErrorMessage } from '@/kernel/utils/core/index'
 import { Settings, ThermometerSnowflake, Droplets, Fan, Flame, Power, Sun, Plug, Bell, Camera, Lock, Thermometer, Music, AlertTriangle } from '@lucide/vue'
 import { climateHasDualSetpoint } from '@/domain/entity/model/utils/control/climate-control-core'
 import { resolveTemperatureUnit } from '@/domain/entity/model/utils/temperature-unit.util'
-import { entityDomainColor } from '@/kernel/constants'
+import { entityDomainColor } from '@/kernel/constants/index'
 import { getEntityDomain } from '@homeos/shared'
 import { formatRelativeFromNow } from '@/kernel/utils/format'
 

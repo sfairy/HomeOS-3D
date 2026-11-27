@@ -3,7 +3,7 @@ import { getEntityDomain, filterBindingGapsBySection } from '@homeos/shared'
 import type { BindingGapItem, BindingGapSection } from '@homeos/shared'
 import type { RecommendInsightResult } from '@/domain/recommend/types/recommend.types'
 import { buildRecommendInsight } from '@/domain/recommend/utils/insight.util'
-import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
+import { getEntityDisplayName } from '@/domain/entity/model/utils/derived'
 
 /**
  * HA device_class → 危险类型映射。

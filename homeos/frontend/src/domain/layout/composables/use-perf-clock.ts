@@ -1,6 +1,6 @@
 /** - vue（ref/computed/watch/onMounted/onUnmounted） */
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { useLayoutStore } from '@/domain/layout/store'
+import { useLayoutStore } from '@/domain/layout/store/index'
 
 /**
  * 距下一档墙钟边界的延迟（毫秒）。
@@ -26,7 +26,7 @@ function delayUntilAligned(intervalMs: number): number {
  * @param options.forceIntervalMs 覆盖性能档位间隔（屏保显示秒时强制 1s）
  * @returns now 当前时间 ref；perfMode/refreshInterval/showSeconds 计算属性；start/stop 控制
  */
-import { resolveEffectivePerformanceMode } from '@/kernel/utils/perf'
+import { resolveEffectivePerformanceMode } from '@/kernel/utils/perf/index'
 
 export function usePerfClock({
   autoStart = true,

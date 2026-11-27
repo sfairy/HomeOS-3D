@@ -1,8 +1,8 @@
 /* ── 原 useFloatingHub.ts 的实现 ── */
-import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
+import { getEntityDisplayName } from '@/domain/entity/model/utils/derived'
 import { formatLocaleTime } from '@/kernel/utils/format'
 import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch, type Ref } from 'vue'
-import { useLayoutStore } from '@/domain/layout/store'
+import { useLayoutStore } from '@/domain/layout/store/index'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { viewportPointToPopupAnchor } from '@/kernel/ui/popup/use-popup-position'
 import { usePerfClock } from '@/domain/layout/composables/use-perf-clock'

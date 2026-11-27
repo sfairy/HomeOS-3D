@@ -2,7 +2,7 @@ import { logger } from '@/kernel/utils/core/logger'
 /** - 读取 HA 天气实体状态，映射为天气主题； */
 import { computed, ref, watch } from 'vue'
 import { weatherVisualKey } from '@/features/weather/model/constants/weather-labels'
-import { domainIndexToArray } from '@/domain/entity/model/utils/derived.util'
+import { domainIndexToArray } from '@/domain/entity/model/utils/derived'
 import type { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import type { useLayoutStore } from '@/domain/layout/store/layout.store'
 

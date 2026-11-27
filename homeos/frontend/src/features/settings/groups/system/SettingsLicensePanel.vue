@@ -280,7 +280,7 @@ import {
 } from '@/domain/api/license'
 import { setLicenseFeatureAccess } from '@/domain/license'
 import { featureLabel } from '@/kernel/utils/registry/feature-labels.util'
-import { isUnauthorizedError } from '@/kernel/utils/core'
+import { isUnauthorizedError } from '@/kernel/utils/core/index'
 
 defineProps({ activeTab: { type: String, default: 'license' } })
 

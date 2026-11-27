@@ -259,14 +259,14 @@ import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { usePausableStateListener } from '@/domain/entity/composables/use-pausable-state-listener'
 import { getEntityFromStore } from '@/domain/entity/composables/device-group'
-import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
-import { displayEntityStateLabel } from '@/kernel/constants'
+import { getEntityDisplayName } from '@/domain/entity/model/utils/derived'
+import { displayEntityStateLabel } from '@/kernel/constants/index'
 import { useDeviceGroupClimate } from '@/domain/entity/composables/device-group'
 import DeviceGroupActions from '@/features/device/components/device-group/DeviceGroupActions.vue'
 import DeviceGroupBatchBar from '@/features/device/components/device-group/DeviceGroupBatchBar.vue'
 import DeviceGroupLightCard from '@/features/device/components/device-group/DeviceGroupLightCard.vue'
 import VirtualList from '@/kernel/ui/primitives/VirtualList.vue'
-import { getApiErrorMessage } from '@/kernel/utils/core'
+import { getApiErrorMessage } from '@/kernel/utils/core/index'
 
 /**
  * 组件 Props 定义

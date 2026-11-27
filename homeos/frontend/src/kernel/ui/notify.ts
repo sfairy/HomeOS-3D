@@ -1,6 +1,6 @@
 /** 统一错误反馈：将异常转换为用户可见 toast，并记录日志。 */
-import { logger } from '@/kernel/utils/core'
-import { extractErrorMessage } from '@/kernel/utils/core'
+import { logger } from '@/kernel/utils/core/index'
+import { extractErrorMessage } from '@/kernel/utils/core/index'
 import { extractTraceIdFromError } from '@/kernel/utils/telemetry/trace.util'
 import { appNotify } from '@/kernel/utils/bridge/store-bridge'
 import { copyTextToClipboard } from '@homeos/shared/utils/clipboard'

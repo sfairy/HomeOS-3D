@@ -1,6 +1,6 @@
 import { getConfigSection } from '@/kernel/config/frontend-config'
-import { getDefaultDailyAdvisorTtsDaytime, getDefaultDailyAdvisorTtsEvening } from '@/kernel/constants'
-import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
+import { getDefaultDailyAdvisorTtsDaytime, getDefaultDailyAdvisorTtsEvening } from '@/kernel/constants/index'
+import { getEntityDisplayName } from '@/domain/entity/model/utils/derived'
 
 /**
  * edge-tts 神经音色清单（中文为主，附少量英文）。
