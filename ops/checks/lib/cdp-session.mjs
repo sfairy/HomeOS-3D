@@ -32,7 +32,7 @@ export const BASES = {
   store: process.env.HOMEOS_STORE_BASE_URL || 'http://127.0.0.1:8802',
 }
 
-export class CdpSession {
+class CdpSession {
   #socket
   #nextId = 1
   #pending = new Map()
@@ -128,7 +128,7 @@ export async function closeTab(targetId, { base = CDP } = {}) {
 }
 
 /** 把 `a=1; b=2` 形式的 Cookie 头逐条写进页面（域名取目标 URL 的主机）。 */
-export async function applyCookie(session, url) {
+async function applyCookie(session, url) {
   const cookie = process.env.HOMEOS_VISUAL_COOKIE
   if (!cookie) return
   const host = new URL(url).hostname
@@ -142,7 +142,7 @@ export async function applyCookie(session, url) {
 }
 
 /** 等固定时长后再等两帧：字体/布局/3D 首帧通常在这一步之后稳定。 */
-export async function waitForPaint(session, waitMs) {
+async function waitForPaint(session, waitMs) {
   await new Promise((resolve) => setTimeout(resolve, waitMs))
   // rAF 在无头/后台标签页会被节流到 1fps 甚至完全停摆，裸等两帧会让整条检查挂到超时。
   // 这里用「两帧或 500ms，先到先算」：布局稳定通常在第一帧之后，500ms 足够兜住节流场景。

@@ -11,8 +11,8 @@ import path from 'node:path'
 import { REPO_ROOT } from './repo.mjs'
 import { walkFiles } from './walk.mjs'
 
-/** 取值帮助函数 / 直接环境查询的写法。 */
-export const ENV_READER_PATTERNS = [
+/** 取值帮助函数 / 直接环境查询的写法（本模块内部使用，不对外导出）。 */
+const ENV_READER_PATTERNS = [
   /\bos\.getenv\(\s*['"]([A-Z][A-Z0-9_]{2,})['"]/g,
   /\bos\.environ\.get\(\s*['"]([A-Z][A-Z0-9_]{2,})['"]/g,
   /\bos\.environ\[\s*['"]([A-Z][A-Z0-9_]{2,})['"]/g,
