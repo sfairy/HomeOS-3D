@@ -38,33 +38,33 @@ import {
   carClickAction as carClickAction2,
   carState as carState2,
   standardCarBindings as standardCarBindings2,
-} from '../../../vehicle/car-state'
+} from '../../../vehicle/vehicle'
 import {
   carTireWheels as carTireWheelsFor,
   defaultCarTires,
   retargetCarTires as retargetCarTires2,
   supportsCarTires as supportsCarTires2,
-} from '../../../vehicle/car-tires'
+} from '../../../vehicle/vehicle'
 import {
   curtainGroupCandidates as curtainGroupCandidates2,
   curtainGroupEntryId as curtainGroupEntryId2,
-} from '../../../cover/cover-groups'
+} from '../../../cover/cover'
 import { deviceEntityCatalog as deviceEntityCatalog2 } from '../../device-entity-config'
-import { purifierDeviceChanged as purifierDeviceChanged2 } from '../../../climate/purifier-extras'
-import { fanReverseStateOptions, fanSourceAllowed, resolveFanBindingState } from '../../../fan/fan-state'
+import { purifierDeviceChanged as purifierDeviceChanged2 } from '../../../climate/climate'
+import { fanReverseStateOptions, fanSourceAllowed, resolveFanBindingState } from '../../../fan/fan'
 import { normalizeInteraction3dLightingMode as normalizeInteraction3dLightingMode2 } from '@app/bridge/definition'
 import { createStandardLightEffectsEditor } from '../../light-effects-editor'
 import { openInteraction3dRangeEditor as openInteraction3dRangeEditor2 } from '../../range-dialog'
-import { openVacuumMapEditor as openVacuumMapEditor2 } from '../../../vacuum/vacuum-map-editor'
+import { openVacuumMapEditor as openVacuumMapEditor2 } from '../../../vacuum/vacuum'
 import { purifierState as purifierState2 } from '../../../purifier/purifier-state'
-import { nasGroups as nasGroups2 } from '../../../nas/nas-panel'
-import { lightState as lightState2 } from '../../../light/light-state'
+import { nasGroups as nasGroups2 } from '../../../nas/nas'
+import { lightState as lightState2 } from '../../../light/light'
 import {
   deviceMistState as deviceMistState2,
   isDeviceMistSource as isDeviceMistSource2,
 } from '../../../environment/device-mist'
 import { rangehoodState as rangehoodState2 } from '../../../environment/rangehood-state'
-import { vacuumMapIdentity as vacuumMapIdentity2 } from '../../../vacuum/vacuum-map'
+import { vacuumMapIdentity as vacuumMapIdentity2 } from '../../../vacuum/vacuum'
 import { shellConfirm } from '@/studio/platform/shell-chrome'
 
 /**

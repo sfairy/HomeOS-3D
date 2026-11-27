@@ -16,7 +16,7 @@
  * | `underfloorHeating` | 布尔 | 前端 `=== true` 判定失效，盘管永远不显示（静默） |
  * | `heatingPanelStyle` | `thermostat` / `climate` | 面板渲染成空白（枚举外取值） |
  */
-import { BOILER_COPY } from '../../../climate/boiler-copy'
+import { BOILER_COPY } from '../../../climate/climate'
 
 /**
  * 本段真正用到的宿主句柄（**窄接口**）。

@@ -1,19 +1,19 @@
 import { appendBackgroundOpacityControl } from '../core/label-appearance'
 import { openBatchApply, copyBatchFields } from '../config-ui/batch-apply'
-import { PRESENCE_TRIGGER_MODES, presenceTriggerIsTimed } from '../presence/presence-motion'
+import { PRESENCE_TRIGGER_MODES, presenceTriggerIsTimed } from '../presence/presence'
 import { doorModels, identifyLockEntities, lockEntityRole } from '@app/bridge/lock-state-runtime'
 import { CARD_TEXT_SIZE_PX } from '@app/bridge/presets'
 import { modelChoiceLabel } from '@app/shared/model-remarks'
 import { windowBindingHint, windowModels } from '@app/shared/scene/window/window-models'
 import { DEFAULT_BUTTON_SIZE, buttonIconSize } from '@app/bridge/presets'
 import { temperatureHumidityFloorCenter } from '@app/bridge/temperature-humidity'
-import { validateGo2rtcUrl } from '../camera/go2rtc-url'
+import { validateGo2rtcUrl } from '../camera/camera'
 import {
   SECURITY_ALARM_TYPES,
   createSecurityAlarmOverlay,
   isSecurityAlarmKind,
   securityAlarmKindLabel,
-} from './security-alarm'
+} from './security'
 const LOCK_ENTITY_FIELDS = ['doorEntityId', 'batteryEntityId', 'battery2EntityId'],
   LOCK_BATCH_APPEARANCE_FIELDS = [
     ['icon', '图标'],
@@ -45,8 +45,8 @@ interface SecurityChoiceRecord {
   [key: string]: unknown
 }
 import { mountInteraction3d } from '../core/runtime'
-import { openPresenceEditor } from '../presence/presence-editor'
-import { openWindowConfigMergeDialog, type WindowModelEntry, type WindowSecurityConfig } from './window-config-merge'
+import { openPresenceEditor } from '../presence/presence'
+import { openWindowConfigMergeDialog, type WindowModelEntry, type WindowSecurityConfig } from './security'
 import { randomUuid } from '@app/shared/util/random-id'
 import { requestInteraction3dAccess, subscribeInteraction3dAccess } from '@app/bridge/bridge'
 import { interaction3dPreviewSize, observeInteraction3dPreview } from '@app/bridge/presets'

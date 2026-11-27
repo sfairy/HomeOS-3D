@@ -15,7 +15,7 @@ import {
   readTravelPayload,
   supportedFeatureBits,
   travelDirectionOf,
-} from '../../../homeos/frontend/src/studio/runtime/cover/cover-memory-travel'
+} from '../../../homeos/frontend/src/studio/runtime/cover/cover'
 
 const STATES = ['open', 'closed', 'opening', 'closing']
 

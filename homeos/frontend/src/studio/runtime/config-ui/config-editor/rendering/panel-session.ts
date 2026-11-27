@@ -7,7 +7,7 @@
 
 import { CARD_TEXT_SIZE_PX } from '@app/bridge/presets'
 import { DEFAULT_BUTTON_SIZE, buttonIconSize } from '@app/bridge/presets'
-import { GENERIC_DEVICE_KINDS as GENERIC_DEVICE_KINDS2 } from '../../../device/generic-device-catalog'
+import { GENERIC_DEVICE_KINDS as GENERIC_DEVICE_KINDS2 } from '../../../device/device'
 import { MEDIA_DEVICE_KINDS } from '@app/bridge/presets'
 import { readNestedPath } from '../_shared'
 import { ENVIRONMENT_CATEGORY_LABELS } from './picker-row'

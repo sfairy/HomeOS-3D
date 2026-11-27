@@ -8,19 +8,19 @@ import {
   automaticAirConditionerCamera as automaticAirConditionerCamera2,
   automaticLightCamera as automaticLightCamera2,
   automaticVehicleCamera as automaticVehicleCamera2,
-} from '../../camera/camera-motion'
-import { climateState as climateState2 } from '../../climate/climate-state'
-import { coverControl as coverControl2 } from '../../cover/cover-state'
-import { curtainGroupEntryId as curtainGroupEntryId2 } from '../../cover/cover-groups'
+} from '../../camera/camera'
+import { climateState as climateState2 } from '../../climate/climate'
+import { coverControl as coverControl2 } from '../../cover/cover'
+import { curtainGroupEntryId as curtainGroupEntryId2 } from '../../cover/cover'
 import {
   genericDeviceProfile as genericDeviceProfile2,
   isGenericDeviceKind as isGenericDeviceKind2,
-} from '../../device/generic-device-catalog'
+} from '../../device/device'
 import { postHostMessage } from './_shared'
 import { isMediaDeviceKind, mediaDeviceProfile } from '@app/bridge/presets'
 import { resolvePageBehavior as resolvePageBehavior2 } from '../idle-rotation'
-import { televisionPower as televisionPower2 } from '../../television/television-state'
-import { vacuumStatusPresentation as vacuumStatusPresentation2 } from '../../vacuum/vacuum-map'
+import { televisionPower as televisionPower2 } from '../../television/television'
+import { vacuumStatusPresentation as vacuumStatusPresentation2 } from '../../vacuum/vacuum'
 
 /** 依赖袋（宿主 `bootEditor` 作用域）：**每次调用现取**的普通对象，等价于闭包读值。
  * 本族切片只读不写（外层写入 0），所以不需要 getter / state 袋；宿主侧每个函数一个同名

@@ -8,7 +8,7 @@ import {
   GENERIC_DEVICE_KINDS as GENERIC_DEVICE_KINDS2,
   genericDeviceProfile as genericDeviceProfile2,
   isGenericDeviceKind as isGenericDeviceKind2,
-} from '../../device/generic-device-catalog'
+} from '../../device/device'
 import { isMediaDeviceKind } from '@app/bridge/presets'
 import { createStageElement, expandGroupMembers } from './_shared'
 import { syncHtmlRangeProgress } from '@app/shared/util/range-progress'

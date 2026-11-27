@@ -17,7 +17,7 @@ import {
   deviceIndicatorChoices,
   indicatorNumber,
   numericIndicatorRuleError,
-} from '../../../device/device-status'
+} from '../../../device/device'
 
 type IndicatorFieldFactory = (rowContainer: any, rowLabel: any, rowControl: any) => any
 type IndicatorNodeFactory = (tagName: string, className?: string, text?: string) => any

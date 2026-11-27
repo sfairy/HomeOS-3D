@@ -1,8 +1,8 @@
 import { mountInteraction3d as mountInteraction3d2 } from '../core/runtime'
 import { acquireEditorPreview } from '../core/editor-preview'
-import { extraTypes as extraTypes2 } from '../climate/purifier-extras'
-import { applyNasLayout as applyNasLayout2 } from '../nas/nas-panel'
-import { curtainGroupEntryId as curtainGroupEntryId2 } from '../cover/cover-groups'
+import { extraTypes as extraTypes2 } from '../climate/climate'
+import { applyNasLayout as applyNasLayout2 } from '../nas/nas'
+import { curtainGroupEntryId as curtainGroupEntryId2 } from '../cover/cover'
 import {
   requestInteraction3dAccess as requestInteraction3dAccess2,
   subscribeInteraction3dAccess as subscribeInteraction3dAccess2,
@@ -15,7 +15,7 @@ import {
   GENERIC_DEVICE_KINDS as GENERIC_DEVICE_KINDS2,
   genericDeviceProfile as genericDeviceProfile2,
   isGenericDeviceKind as isGenericDeviceKind2,
-} from '../device/generic-device-catalog'
+} from '../device/device'
 import { domElement } from '@app/shared/util/dom-factory'
 import { ENVIRONMENT_CATEGORY_LABELS } from './config-editor/rendering/picker-row'
 import { modelChoiceLabel } from '@app/shared/model-remarks'

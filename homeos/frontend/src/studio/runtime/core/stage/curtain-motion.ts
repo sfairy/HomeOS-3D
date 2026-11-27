@@ -4,7 +4,7 @@
  * 从 `runtime/core/stage.ts` 的 `mountStage()` 闭包切出，依赖袋 `StageCurtainMotionDeps`。
  */
 
-import { coverState as coverState2 } from '../../cover/cover-state'
+import { coverState as coverState2 } from '../../cover/cover'
 
 /** 依赖袋（宿主 `bootEditor` 作用域）：**每次调用现取**的普通对象，等价于闭包读值。
  * 本族切片只读不写（外层写入 0），所以不需要 getter / state 袋；宿主侧每个函数一个同名

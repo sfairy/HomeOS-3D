@@ -1,11 +1,11 @@
 import { floorNavigationChoices } from '../floor-navigation'
-import { doorModels } from '../../security/lock-state'
-import { genericDeviceMetadata } from '../../device/generic-device-catalog'
+import { doorModels } from '../../security/security'
+import { genericDeviceMetadata } from '../../device/device'
 import { MEDIA_DEVICE_PROFILES } from '@app/bridge/presets'
-import { SPEAKER_MODEL_TYPES, speakerModelProfile } from '../../speaker/speaker-models'
+import { SPEAKER_MODEL_TYPES, speakerModelProfile } from '../../speaker/speaker'
 import { normalizeModelRemark } from '@app/shared/model-remarks'
 import { windowModels } from '@app/shared/scene/window/window-models'
-import { heatingPanelStyleOf } from '../../climate/boiler-copy'
+import { heatingPanelStyleOf } from '../../climate/climate'
 
 /** 本项目的壁挂炉绑定记录长这样（只取归一需要的那三个字段）。 */
 type BoilerBindingLike = { floorId?: unknown; deviceId?: unknown; heatingPanelStyle?: unknown }

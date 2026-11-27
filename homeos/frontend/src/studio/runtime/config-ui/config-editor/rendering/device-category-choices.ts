@@ -3,7 +3,7 @@
  * 这里只剩纯数据，供类别选择器的分组与 `configurationProgress` 复用）。
  */
 
-import { GENERIC_DEVICE_KINDS, genericDeviceProfile } from '../../../device/generic-device-catalog'
+import { GENERIC_DEVICE_KINDS, genericDeviceProfile } from '../../../device/device'
 import { MEDIA_DEVICE_KINDS, mediaDeviceProfile } from '@app/bridge/presets'
 
 export interface DeviceCategoryProfile {

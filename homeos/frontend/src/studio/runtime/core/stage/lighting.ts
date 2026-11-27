@@ -4,7 +4,7 @@
  * 从 `runtime/core/stage.ts` 的 `mountStage()` 闭包切出，依赖袋 `StageLightingDeps`。
  */
 
-import { hsToRgbColor as hsToRgbColor2, lightCommand as lightCommand2 } from '../../light/light-state'
+import { hsToRgbColor as hsToRgbColor2, lightCommand as lightCommand2 } from '../../light/light'
 import { lightPresetEntries } from './_shared'
 
 /** 依赖袋（宿主 `bootEditor` 作用域）：**每次调用现取**的普通对象，等价于闭包读值。

@@ -8,7 +8,7 @@
  * `<label><span>标签</span><button class="i3d-picker-button" aria-haspopup="dialog">当前值</button></label>`。
  */
 
-import { genericDeviceProfile } from '../../../device/generic-device-catalog'
+import { genericDeviceProfile } from '../../../device/device'
 import { mediaDeviceProfile } from '@app/bridge/presets'
 import { configurationProgress, type ConfigurationProgress } from '../../configuration-progress'
 import { openConfigurationPicker } from '../../configuration-picker'

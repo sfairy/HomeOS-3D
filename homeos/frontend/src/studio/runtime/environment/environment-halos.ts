@@ -1,5 +1,5 @@
-import { DEVICE_PROFILE_TABLE } from '../device/device-profiles'
-import { SPEAKER_MODEL_TYPES } from '../speaker/speaker-models'
+import { DEVICE_PROFILE_TABLE } from '../device/device'
+import { SPEAKER_MODEL_TYPES } from '../speaker/speaker'
 
 /**
  * 参与描边的场景模型类型（0.7.8 `environment-halos.js`）。

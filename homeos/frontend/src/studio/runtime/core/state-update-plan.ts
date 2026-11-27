@@ -1,4 +1,4 @@
-import { DEVICE_PROFILE_TABLE } from '../device/device-profiles'
+import { DEVICE_PROFILE_TABLE } from '../device/device'
 import { MEDIA_DEVICE_PROFILES } from '@app/bridge/presets'
 
 /** 标签配置里允许单独打补丁的字段（上游 0.8.1 `state-update-plan.js` 的 `O` 集合）。 */

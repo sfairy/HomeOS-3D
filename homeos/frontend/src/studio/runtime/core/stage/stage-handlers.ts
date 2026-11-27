@@ -5,22 +5,22 @@ import { markerVisibilityHint } from './marker-visibility'
 import { placeMarker } from './marker-placement'
 import { bathHeaterState as bathHeaterState2 } from '../../bath-heater/bath-heater'
 import { purifierState as purifierState2 } from '../../purifier/purifier-state'
-import { carState as carState2 } from '../../vehicle/car-state'
-import { speakerState as speakerState2 } from '../../speaker/speaker-state'
-import { lockState as lockState2 } from '../../security/lock-state'
-import { vacuumQuip as vacuumQuip2, vacuumBirdCamera as vacuumBirdCamera2 } from '../../vacuum/vacuum-motion'
-import { vacuumStatusPresentation as vacuumStatusPresentation2 } from '../../vacuum/vacuum-map'
-import { televisionState as televisionState2 } from '../../television/television-state'
+import { carState as carState2 } from '../../vehicle/vehicle'
+import { speakerState as speakerState2 } from '../../speaker/speaker'
+import { lockState as lockState2 } from '../../security/security'
+import { vacuumQuip as vacuumQuip2, vacuumBirdCamera as vacuumBirdCamera2 } from '../../vacuum/vacuum'
+import { vacuumStatusPresentation as vacuumStatusPresentation2 } from '../../vacuum/vacuum'
+import { televisionState as televisionState2 } from '../../television/television'
 import { MEDIA_DEVICE_KINDS, isMediaDeviceKind, mediaDeviceProfile } from '@app/bridge/presets'
-import { deviceStatus as deviceStatus2 } from '../../device/device-status'
+import { deviceStatus as deviceStatus2 } from '../../device/device'
 import {
   GENERIC_DEVICE_KINDS as GENERIC_DEVICE_KINDS2,
   genericDeviceProfile as genericDeviceProfile2,
   isGenericDeviceKind as isGenericDeviceKind2,
-} from '../../device/generic-device-catalog'
-import { nasDeviceState as nasDeviceState2 } from '../../nas/nas-status'
-import { coverState as coverState2, coverIconIsOn as coverIconIsOn2 } from '../../cover/cover-state'
-import { climateState as climateState2 } from '../../climate/climate-state'
+} from '../../device/device'
+import { nasDeviceState as nasDeviceState2 } from '../../nas/nas'
+import { coverState as coverState2, coverIconIsOn as coverIconIsOn2 } from '../../cover/cover'
+import { climateState as climateState2 } from '../../climate/climate'
 import {
   resolveMarkerIconSize,
   configuredModuleKinds,
@@ -49,12 +49,12 @@ import {
   overlayEligibleAlarms,
   securityAlarmReading,
   renderSecurityAlarmCard,
-} from '../../security/security-alarm'
-import { updateCarCard as updateCarCard2 } from '../../vehicle/car-card'
+} from '../../security/security'
+import { updateCarCard as updateCarCard2 } from '../../vehicle/vehicle'
 import {
   cameraOnline as cameraOnline2,
   cameraSourceConfigured as cameraSourceConfigured2,
-} from '../../camera/camera-status'
+} from '../../camera/camera'
 import { backgroundOpacity as labelBackgroundOpacity } from '../label-appearance'
 import {
   ENVIRONMENT_METRICS as environmentMetricNames,

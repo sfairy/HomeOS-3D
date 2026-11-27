@@ -18,7 +18,7 @@ import {
 import {
   heatingPanelStyleOf,
   isThermostatBoilerPanel,
-} from '../../../homeos/frontend/src/studio/runtime/climate/boiler-copy'
+} from '../../../homeos/frontend/src/studio/runtime/climate/climate'
 
 describe('壁挂炉绑定：只读渲染', () => {
   test('没有记录时返回 null，且不修改 environment', () => {

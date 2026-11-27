@@ -33,8 +33,8 @@
  * 配置面板撑到几千像素高。
  */
 
-import { extraLabels, extraTypes, purifierRelatedEntities } from '../../../climate/purifier-extras'
-import { removeExtraDevice, selectableExtraEntity } from '../../../device/extra-sources'
+import { extraLabels, extraTypes, purifierRelatedEntities } from '../../../climate/climate'
+import { removeExtraDevice, selectableExtraEntity } from '../../../device/device'
 import { deviceEntityCatalog } from '../../device-entity-config'
 
 /** 每页实体数（上游 `0x28`）。 */

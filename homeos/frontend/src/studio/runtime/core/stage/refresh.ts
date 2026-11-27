@@ -6,7 +6,7 @@
 
 import { resolveRuntimeFloor } from './floor-navigation'
 import { enteringFloorCategory } from '@/studio/platform/navigation/navigation-defaults'
-import { GENERIC_DEVICE_KINDS as GENERIC_DEVICE_KINDS2 } from '../../device/generic-device-catalog'
+import { GENERIC_DEVICE_KINDS as GENERIC_DEVICE_KINDS2 } from '../../device/device'
 import { MEDIA_DEVICE_KINDS } from '@app/bridge/presets'
 import { buildMetadata } from './build-metadata'
 import { expandGroupMembers, postHostMessage } from './_shared'

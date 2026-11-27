@@ -12,8 +12,8 @@
  * 让那个长函数更难读。抽出来以后总装只剩一行调用。
  */
 
-import { gameMainEntityAllowed, isGameConsoleKind, preferredGameMainEntity } from '../../../device/game-console-state'
-import { genericDeviceProfile } from '../../../device/generic-device-catalog'
+import { gameMainEntityAllowed, isGameConsoleKind, preferredGameMainEntity } from '../../../device/device'
+import { genericDeviceProfile } from '../../../device/device'
 
 /** 本段真正用到的宿主能力（窄接口）。 */
 type GameConsoleEditorHost = {

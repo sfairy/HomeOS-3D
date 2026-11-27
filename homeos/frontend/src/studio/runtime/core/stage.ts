@@ -1,12 +1,12 @@
 import { createDeviceStateMemo } from './state-update-plan'
-import { createAirerMotion as createAirerMotion2 } from '../airer/airer-motion'
+import { createAirerMotion as createAirerMotion2 } from '../airer/airer'
 import { createAnimationVisibility as createAnimationVisibility2 } from './animation-work'
-import { createCategoryTransitionDiagnostics as createCategoryTransitionDiagnostics2 } from '../navigation/category-transition-diagnostics'
-import { createFanMotion as createFanMotion2 } from '../fan/fan-motion'
-import { createCarCharging as createCarCharging2 } from '../vehicle/car-charging'
-import { createCarTires } from '../vehicle/car-tires'
-import { createSpeakerPanel as createSpeakerPanel2 } from '../speaker/speaker-panel'
-import { createSpeakerRings as createSpeakerRings2 } from '../speaker/speaker-ring'
+import { createCategoryTransitionDiagnostics as createCategoryTransitionDiagnostics2 } from '../navigation/navigation'
+import { createFanMotion as createFanMotion2 } from '../fan/fan'
+import { createCarCharging as createCarCharging2 } from '../vehicle/vehicle'
+import { createCarTires } from '../vehicle/vehicle'
+import { createSpeakerPanel as createSpeakerPanel2 } from '../speaker/speaker'
+import { createSpeakerRings as createSpeakerRings2 } from '../speaker/speaker'
 import { interaction3dControlTimeout } from '@app/shared/util/control-timeout'
 import { createMatrixPoseTracker } from '@app/shared/util/matrix-pose'
 import { withPageAppearancePreset as applyPageAppearancePreset } from '@app/bridge/presets'
@@ -17,16 +17,16 @@ import { buttonIconSize as resolveButtonIconSize, DEFAULT_BUTTON_SIZE as default
 import {
   createPresenceScene as createPresenceScene2,
   createPresenceWaves as createPresenceWaves2,
-} from '../presence/presence-scene'
-import { createLockPanel as createLockPanel2 } from '../security/lock-panel'
-import { createLockMotion as createLockMotion2 } from '../security/lock-motion'
-import { createSecurityAlarmOverlay, isSecurityAlarmKind } from '../security/security-alarm'
-import { doorModels as doorModels2 } from '../security/lock-state'
-import { createWindowMotion as createWindowMotion2 } from '../window/window-motion'
+} from '../presence/presence'
+import { createLockPanel as createLockPanel2 } from '../security/security'
+import { createLockMotion as createLockMotion2 } from '../security/security'
+import { createSecurityAlarmOverlay, isSecurityAlarmKind } from '../security/security'
+import { doorModels as doorModels2 } from '../security/security'
+import { createWindowMotion as createWindowMotion2 } from '../window/window'
 import {
   createWindowOpenerResolver as createWindowOpenerResolver2,
   windowContacts as windowContacts2,
-} from '../window/window-opener'
+} from '../window/window'
 import { createSceneBackground as createSceneBackground2 } from './scene-background'
 import { floorNavigationChoices as floorNavigationChoices2 } from './floor-navigation'
 import {
@@ -34,49 +34,49 @@ import {
   createVacuumFollowCamera as createVacuumFollowCamera2,
   vacuumBirdCamera as vacuumBirdCamera2,
   vacuumFollowPose as vacuumFollowPose2,
-} from '../vacuum/vacuum-motion'
+} from '../vacuum/vacuum'
 import {
   createVacuumMaps as createVacuumMaps2,
   vacuumStatusPresentation as vacuumStatusPresentation2,
   vacuumBindingsForMap as vacuumBindingsForMap2,
-} from '../vacuum/vacuum-map'
-import { createTelevisionPanel as createTelevisionPanel2 } from '../television/television-panel'
-import { createTelevisionScreens as createTelevisionScreens2 } from '../television/television-screen'
-import { mediaDeviceIndicator } from '../television/television-state'
-import { speakerIndicator } from '../speaker/speaker-state'
-import { SPEAKER_MODEL_TYPES, speakerModelProfile } from '../speaker/speaker-models'
+} from '../vacuum/vacuum'
+import { createTelevisionPanel as createTelevisionPanel2 } from '../television/television'
+import { createTelevisionScreens as createTelevisionScreens2 } from '../television/television'
+import { mediaDeviceIndicator } from '../television/television'
+import { speakerIndicator } from '../speaker/speaker'
+import { SPEAKER_MODEL_TYPES, speakerModelProfile } from '../speaker/speaker'
 import { MEDIA_DEVICE_KINDS, isMediaDeviceKind, mediaDeviceProfile } from '@app/bridge/presets'
-import { createDevicePanel as createDevicePanel2 } from '../device/device-panel'
-import { createDeviceStatusReader } from '../device/device-status'
+import { createDevicePanel as createDevicePanel2 } from '../device/device'
+import { createDeviceStatusReader } from '../device/device'
 import {
   GENERIC_DEVICE_KINDS as GENERIC_DEVICE_KINDS2,
   genericDeviceProfile as genericDeviceProfile2,
   isGenericDeviceKind as isGenericDeviceKind2,
-} from '../device/generic-device-catalog'
-import { createNasPanel as createNasPanel2 } from '../nas/nas-panel'
-import { createNasStatus as createNasStatus2 } from '../nas/nas-status'
-import { createCameraStatus as createCameraStatus2 } from '../camera/camera-status'
+} from '../device/device'
+import { createNasPanel as createNasPanel2 } from '../nas/nas'
+import { createNasStatus as createNasStatus2 } from '../nas/nas'
+import { createCameraStatus as createCameraStatus2 } from '../camera/camera'
 import {
   coverState as coverState2,
   coverIconIsOn as coverIconIsOn2,
   coverCanAdjustBlades as coverCanAdjustBlades2,
-} from '../cover/cover-state'
-import { createCoverFeedback as createCoverFeedback2 } from '../cover/cover-feedback'
-import { createCoverPanel as createCoverPanel2 } from '../cover/cover-panel'
-import { createCoverGroupPanel as createCoverGroupPanel2 } from '../cover/cover-group-panel'
-import type { CurtainGroupLike } from '../cover/cover-groups'
+} from '../cover/cover'
+import { createCoverFeedback as createCoverFeedback2 } from '../cover/cover'
+import { createCoverPanel as createCoverPanel2 } from '../cover/cover'
+import { createCoverGroupPanel as createCoverGroupPanel2 } from '../cover/cover'
+import type { CurtainGroupLike } from '../cover/cover'
 import {
   validCurtainGroups as validCurtainGroups2,
   curtainGroupEntryId as curtainGroupEntryId2,
-} from '../cover/cover-groups'
-import { createCurtainMotion as createCurtainMotion2 } from '../cover/curtain-motion'
+} from '../cover/cover'
+import { createCurtainMotion as createCurtainMotion2 } from '../cover/cover'
 import { createEnvironmentAirflow as createEnvironmentAirflow2 } from '../environment/environment-airflow'
 import { createDeviceMist as createDeviceMist2 } from '../environment/device-mist'
 import { createRangehoodAirflow as createRangehoodAirflow2 } from '../environment/rangehood-airflow'
-import { createComputerScreens as createComputerScreens2 } from '../device/computer-screen'
+import { createComputerScreens as createComputerScreens2 } from '../device/device'
 import { createScreenOutlines as createScreenOutlines2 } from '../environment/environment-halos'
-import { createClimateModeHistory as createClimateModeHistory2 } from '../climate/climate-state'
-import { createClimatePanel as createClimatePanel2 } from '../climate/climate-panel'
+import { createClimateModeHistory as createClimateModeHistory2 } from '../climate/climate'
+import { createClimatePanel as createClimatePanel2 } from '../climate/climate'
 import { createEnvironmentScene as createEnvironmentScene2 } from '../environment/environment-scene'
 import { startSceneSync as startSceneSync2 } from './scene-sync'
 import {
@@ -86,14 +86,14 @@ import {
 import {
   createLightColorPicker as createLightColorPicker2,
   createLightModeMenu as createLightModeMenu2,
-} from '../light/light-color-picker'
+} from '../light/light'
 import {
   createLightPreview as createLightPreview2,
   createLightStateCache as createLightStateCache2,
   lightRenderState as lightRenderState2,
-} from '../light/light-state'
-import { createDampedCameraMotion as createDampedCameraMotion2 } from '../camera/camera-motion'
-import { carClickAction as carClickAction2 } from '../vehicle/car-state'
+} from '../light/light'
+import { createDampedCameraMotion as createDampedCameraMotion2 } from '../camera/camera'
+import { carClickAction as carClickAction2 } from '../vehicle/vehicle'
 import {
   resolvePageBehavior as resolvePageBehavior2,
   createIdleRotation as createIdleRotation2,

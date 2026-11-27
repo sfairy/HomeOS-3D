@@ -17,7 +17,7 @@ import {
   normalizeCoverMemoryEntry,
   observeCoverMemoryState,
   type CoverMemoryEntry,
-} from '../../../homeos/frontend/src/studio/runtime/cover/cover-memory-client'
+} from '../../../homeos/frontend/src/studio/runtime/cover/cover'
 
 const ENTITY = 'cover.living_room'
 

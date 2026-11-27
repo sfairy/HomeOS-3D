@@ -185,7 +185,9 @@ const STUDIO_LEAF_LAYERS = new Set(['platform', 'app/bridge', 'app/shared'])
  */
 const STUDIO_LAZY_RENDERER_IMPORTS = new Set([
   'studio/runtime/core/popup-preview.ts',
-  'studio/runtime/panels/camera-extra-panel.ts',
+  // 各设备面板合并进各自的 <设备>/<设备>.ts，懒加载点随之前移。
+  'studio/runtime/panels/panels.ts',
+  'studio/runtime/device/device.ts',
 ])
 
 function studioLayerRule(rel, target, item) {
@@ -416,6 +418,10 @@ const ALLOWED_CYCLES = new Set([
   // 地暖视觉与「地面 / 地面区域」几何：合并 floor 族后三者互依。消除需把地面几何
   // 抽成独立的纯数据层，属设计改动。新增环仍会失败。
   'studio/authoring/scene/studio-underfloor-heating ↔ studio/authoring/plan/studio-floor ↔ studio/authoring/plan/studio-floor-region',
+  // runtime 各设备能力合并后，设备之间复用对方 helper 形成的同层环。
+  // 这些模块本来就互相引用（拆分前经 chunks 间接成环），合并只是把环显式化。
+  'studio/runtime/airer/airer ↔ studio/runtime/cover/cover',
+  'studio/runtime/climate/climate ↔ studio/runtime/device/device ↔ studio/runtime/fan/fan ↔ studio/runtime/panels/panels ↔ studio/runtime/speaker/speaker ↔ studio/runtime/television/television',
 ])
 
 /** 环的成员排序后拼接的规范化键（顺序无关，见 `cycleKey`）。 */

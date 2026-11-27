@@ -18,7 +18,7 @@ import {
   deviceIndicatorChoices as deviceIndicatorChoices2,
   deviceStatusChoices as deviceStatusChoices2,
   NUMERIC_OPERATORS as NUMERIC_OPERATORS2,
-} from '../../../device/device-status'
+} from '../../../device/device'
 import {
   indicatorConditionFields as indicatorConditionFields2,
   indicatorEntitySupport as indicatorEntitySupport2,
@@ -39,7 +39,7 @@ import {
   temperatureHumidityFloorCenter as temperatureHumidityFloorCenter2,
 } from '@app/bridge/temperature-humidity'
 import { appendBackgroundOpacityControl as appendBackgroundOpacityControl2 } from '../../../core/label-appearance'
-import { curtainGroupEntryId as curtainGroupEntryId2 } from '../../../cover/cover-groups'
+import { curtainGroupEntryId as curtainGroupEntryId2 } from '../../../cover/cover'
 import { randomUuid as randomUuid2 } from '@app/shared/util/random-id'
 import { bindPickerRow } from './picker-row'
 import { openConfigurationPicker } from '../../configuration-picker'

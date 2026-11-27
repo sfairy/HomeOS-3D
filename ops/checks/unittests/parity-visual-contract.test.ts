@@ -114,8 +114,8 @@ describe('3D 屏幕贴图按显示尺寸取图（公告 10）', () => {
   })
 
   test('电视 cover / 电脑 contain 都走同一入口', () => {
-    expect(read('src/studio/runtime/television/television-screen.ts')).toContain('screenUploadSource(')
-    expect(read('src/studio/runtime/device/computer-screen.ts')).toContain('screenUploadSource(')
+    expect(read('src/studio/runtime/television/television.ts')).toContain('screenUploadSource(')
+    expect(read('src/studio/runtime/device/device.ts')).toContain('screenUploadSource(')
   })
 })
 

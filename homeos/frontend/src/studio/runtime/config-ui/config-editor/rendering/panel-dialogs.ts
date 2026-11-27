@@ -21,7 +21,7 @@ import {
   createCurtainGroup as createCurtainGroup2,
   curtainGroupCandidates as curtainGroupCandidates2,
   curtainGroupEntryId as curtainGroupEntryId2,
-} from '../../../cover/cover-groups'
+} from '../../../cover/cover'
 import { windowBindingHint } from '@app/shared/scene/window/window-models'
 import { randomUuid as randomUuid2 } from '@app/shared/util/random-id'
 import { withFixedLightEffects as withFixedLightEffects2 } from '@app/bridge/presets'
@@ -30,7 +30,7 @@ import {
   DEFAULT_LABEL_SIZE as DEFAULT_LABEL_SIZE2,
 } from '@app/bridge/temperature-humidity'
 import { copyBatchFields as copyBatchFields2, openBatchApply as openBatchApply2 } from '../../batch-apply'
-import { nasGroups as nasGroups2 } from '../../../nas/nas-panel'
+import { nasGroups as nasGroups2 } from '../../../nas/nas'
 import { requestInteraction3dAccess as requestInteraction3dAccess2 } from '@app/bridge/bridge'
 
 /**

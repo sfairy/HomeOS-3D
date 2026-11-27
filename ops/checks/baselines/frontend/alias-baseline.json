@@ -1630,7 +1630,7 @@
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/studio/runtime/climate/climate-panel.ts": {
+    "homeos/frontend/src/studio/runtime/climate/climate.ts": {
       "alias2": 15,
       "impl": 0,
       "moduleLet": 0
@@ -1720,7 +1720,7 @@
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/studio/runtime/cover/cover-memory-client.ts": {
+    "homeos/frontend/src/studio/runtime/cover/cover.ts": {
       "alias2": 0,
       "impl": 3,
       "moduleLet": 0
