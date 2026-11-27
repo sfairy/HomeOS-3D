@@ -30,7 +30,8 @@
       "!ops/cleanup-reports/**",
       "!**/*.md",
       "!**/*.json",
-      "!homeos/frontend/src/features/settings/shared/config-fields/styles/system-config-field-cell.css"
+      "!homeos/frontend/src/features/settings/shared/config-fields/styles/system-config-field-cell.css",
+      "!homeos/frontend/src/features/settings/shared/config-fields/config-fields.css"
     ]
   },
 
