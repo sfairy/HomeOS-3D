@@ -2,7 +2,7 @@
   "totals": {
     "alias2": 1274,
     "impl": 1731,
-    "moduleLet": 325
+    "moduleLet": 322
   },
   "files": {
     "homeos/frontend/src/App.vue": {
@@ -1268,7 +1268,7 @@
     "homeos/frontend/src/studio/authoring/app-boot.ts": {
       "alias2": 26,
       "impl": 994,
-      "moduleLet": 5
+      "moduleLet": 2
     },
     "homeos/frontend/src/studio/authoring/app-context.ts": {
       "alias2": 1,

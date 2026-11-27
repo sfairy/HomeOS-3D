@@ -675,7 +675,7 @@ import {
 import { itemTypeCatalog, lampItemTypeSet, stairItemTypeSet } from './items/item-catalog'
 import { installLibraryNameScroll } from './items/studio-model-library'
 import { defaultViewSettings } from './scene/payload/studio-view-settings'
-window.__homeosStudioModuleVersion =
+window.__homeosStudioModuleVersion = STUDIO_MODULE_VERSION
   '20260904-local-shadow-edge-v6-depth-precision-v1-model-load-state-v3-floor-scope-v1-ground-grid-v3-depth-fade-v2-local-shadow-depth-v1-export-shadow-quality-v1-base-light-entry-v1-auto-diagram-preview-hd-v1-auto-diagram-floor-v1-20260905-first-light-prewarm-v3-20260905-orbit-architecture-center-v1'
 import { createLegacyScope } from '@/studio/platform/legacy-scope'
 import { navigateInShell } from '@/studio/platform/shell-navigation'
@@ -699,12 +699,17 @@ import { createStudioDraftRepository } from '@/studio/authoring/store/studio-dra
 
 import { createStudioAppContext } from './app-context'
 import { type StudioStaticItemMeshesDeps } from './items/studio-static-item-meshes'
+import {
+  clearStudioInstance,
+  hasActiveStudio,
+  peekStudioRenderLoop,
+  registerStudioInstance,
+  setStudioRenderLoop,
+  STUDIO_MODULE_VERSION,
+  takeStudioDispose,
+  takeStudioFlush,
+} from './boot/studio-session'
 
-let disposeActiveStudio: (() => void) | null = null
-/** teardown 前置落盘钩子（boot 闭包内注册；dispose 在闭包外执行，必须经此暴露）。 */
-let flushActiveStudioSave: (() => Promise<void>) | null = null
-/** 本次引导创建的渲染循环句柄：SPA 路由切换不触发 `pagehide`，只能在这里登记回收。 */
-let activeStudioRenderLoop: { dispose?: () => void } | null = null
 
 /**
  * 引导户型图绘制。
@@ -721,12 +726,13 @@ export function bootStudio(): void {
   // 守卫：上一实例的回收是异步的（要等落盘），无法在本同步函数里等待完成，因此直接
   // 拒绝二次引导。旧实现会覆盖 ``disposeActiveStudio``，导致前一个实例的 WebGL 上下文、
   // requestAnimationFrame 循环、170+ 全局监听永久泄漏，且两套渲染循环同时驱动同一画布。
-  if (disposeActiveStudio) {
+  if (hasActiveStudio()) {
     console.error('[studio] bootStudio 重复调用被拒绝：上一实例尚未 teardownStudio()。')
     return
   }
   const scope = createLegacyScope('studio-app')
   let innerCleanup: (() => void) | null = null
+  let flushBeforeTeardownRef: (() => Promise<void>) | null = null
   try {
     innerCleanup = scope.executeInLegacyScope(() => {
       const studioRuntime: StudioAppRuntime = {
@@ -3542,7 +3548,7 @@ export function bootStudio(): void {
       })
 
       /** SPA teardown 前置：有未保存改动或正在保存时先等待一次保存（不阻塞渲染回收）。 */
-      flushActiveStudioSave = flushStudioSaveBeforeTeardown
+      flushBeforeTeardownRef = flushStudioSaveBeforeTeardown
 
       const studioSceneSyncController = new StudioSceneSyncController({
         getRuntimeScene: () => appCtx.studioProject,
@@ -5569,7 +5575,7 @@ export function bootStudio(): void {
       initializeNumberInputs2(), syncBaseLightingControls()
       function runStudioRenderLoop(): any {
         const studioRenderLoop = runStudioRenderLoopImpl(renderLoopDeps())
-        activeStudioRenderLoop = studioRenderLoop
+        setStudioRenderLoop(studioRenderLoop)
         return studioRenderLoop
       }
       function renderLoopDeps(): StudioRenderDeps {
@@ -5836,7 +5842,7 @@ export function bootStudio(): void {
         try {
           // 入场演示 / 地面反射探针 / 总览细节 / 交互批次 + 渲染循环自管的 RAF 与定时器：
           // 原先只挂在 pagehide 上，SPA 路由切换时会整批漏掉，必须早于 renderer.dispose()。
-          activeStudioRenderLoop?.dispose?.(), (activeStudioRenderLoop = null)
+          peekStudioRenderLoop()?.dispose?.(), setStudioRenderLoop(null)
         } catch {
           /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */
         }
@@ -5860,10 +5866,10 @@ export function bootStudio(): void {
     throw error
   }
 
-  disposeActiveStudio = async () => {
+  const disposeActiveStudio = async () => {
     try {
       // SPA teardown 前置：可等待地落盘一次（不丢未保存改动）；失败不阻塞回收。
-      await flushActiveStudioSave?.()
+      await takeStudioFlush()?.()
     } finally {
       try {
         innerCleanup?.()
@@ -5874,14 +5880,14 @@ export function bootStudio(): void {
       }
     }
   }
+  registerStudioInstance({ dispose: disposeActiveStudio, flush: flushBeforeTeardownRef })
 }
 
 /** 回收户型图绘制（`/3d-studio`、`/stage`）：释放渲染器、观察者与引导期登记的全局副作用。 */
 export async function teardownStudio(): Promise<void> {
-  const dispose = disposeActiveStudio
-  disposeActiveStudio = null
-  const flushBeforeTeardown = flushActiveStudioSave
-  flushActiveStudioSave = null
+  const dispose = takeStudioDispose()
+  const flushBeforeTeardown = takeStudioFlush()
+  clearStudioInstance()
   await flushBeforeTeardown?.()
   await dispose?.()
 }
