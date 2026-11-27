@@ -38,9 +38,10 @@ const { check, near } = assertions
 
 const modules = await loadTsModules(
   [
-    path.join(PLAN_DIR, 'studio-placement-geometry.ts'),
-    path.join(PLAN_DIR, 'studio-placement-snap.ts'),
-    path.join(PLAN_DIR, 'studio-distance-rulers.ts'),
+    // `studio-placement-geometry` / `studio-placement-snap` / `studio-distance-rulers`
+    // 已并入 `studio-placement.ts` 与 `studio.ts`（纯函数族按能力归并）。
+    path.join(PLAN_DIR, 'studio-placement.ts'),
+    path.join(PLAN_DIR, 'studio.ts'),
   ],
   { prefix: 'studio-placement' },
 )

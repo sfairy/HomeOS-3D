@@ -86,6 +86,7 @@ const threeStubPlugin = {
         export const RoundedBoxGeometry = anything, ExtrudeGeometry = anything
         export const Matrix4 = anything, Quaternion = anything, Euler = anything, Color = anything
         export const OrbitControls = anything, GLTFLoader = anything, DRACOLoader = anything
+        export const RectAreaLightUniformsLib = { init: () => undefined }
         export const mergeGeometries = () => anything
         export default namespace
       `,
