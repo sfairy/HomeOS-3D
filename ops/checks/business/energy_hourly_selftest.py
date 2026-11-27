@@ -17,8 +17,8 @@ from _selftest_support import check, ensure_repo_on_path, report
 
 ensure_repo_on_path()
 
-from homeos.backend.src.domains.logs.energy_aggregate import accumulate_energy_totals
-from homeos.backend.src.domains.logs.energy_cost import (
+from homeos.backend.src.domains.energy.aggregate import accumulate_energy_totals
+from homeos.backend.src.domains.energy.cost import (
     cost_from_hourly,
     cost_of,
     hour_period,

@@ -12,7 +12,7 @@ from _selftest_support import check, ensure_repo_on_path, report
 
 ensure_repo_on_path()
 
-from homeos.backend.src.domains.logs.energy_cost import (
+from homeos.backend.src.domains.energy.cost import (
     annotate_series,
     cost_of,
     resolve_prices,
