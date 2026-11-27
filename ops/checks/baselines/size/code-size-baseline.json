@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-27T06:39:20.913Z",
+  "generatedAt": "2026-11-27T06:42:05.852Z",
   "roots": [
     "homeos/frontend/src",
     "homeos/backend/src",
@@ -11,11 +11,11 @@
   ],
   "byRoot": {
     "homeos/frontend/src": {
-      "code": 448651,
-      "comment": 46416,
+      "code": 448680,
+      "comment": 46430,
       "blank": 30799,
-      "chars": 13450597,
-      "files": 1824,
+      "chars": 13451559,
+      "files": 1832,
       "byExt": {
         ".vue": {
           "code": 67704,
@@ -23,9 +23,9 @@
           "files": 374
         },
         ".ts": {
-          "code": 308729,
-          "chars": 9922858,
-          "files": 1232
+          "code": 308758,
+          "chars": 9923820,
+          "files": 1240
         },
         ".css": {
           "code": 72218,
@@ -125,11 +125,11 @@
       }
     },
     "ops": {
-      "code": 33976,
-      "comment": 5757,
-      "blank": 5801,
-      "chars": 1141208,
-      "files": 253,
+      "code": 34065,
+      "comment": 5777,
+      "blank": 5812,
+      "chars": 1143868,
+      "files": 254,
       "byExt": {
         ".py": {
           "code": 14369,
@@ -137,9 +137,9 @@
           "files": 101
         },
         ".mjs": {
-          "code": 15522,
-          "chars": 527145,
-          "files": 105
+          "code": 15611,
+          "chars": 529805,
+          "files": 106
         },
         ".ts": {
           "code": 4085,
@@ -150,10 +150,10 @@
     }
   },
   "total": {
-    "code": 636521,
-    "comment": 62704,
-    "blank": 61603,
-    "chars": 19325677,
-    "files": 2971
+    "code": 636639,
+    "comment": 62738,
+    "blank": 61614,
+    "chars": 19329299,
+    "files": 2980
   }
 }

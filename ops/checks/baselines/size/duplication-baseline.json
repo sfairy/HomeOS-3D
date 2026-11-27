@@ -23,13 +23,13 @@
     "ops"
   ],
   "totals": {
-    "sources": 3499,
-    "lines": 741518,
-    "clones": 156,
-    "duplicatedLines": 2694,
-    "percentage": 0.3633,
-    "tokens": 4338714,
-    "duplicatedTokens": 13754
+    "sources": 3506,
+    "lines": 741650,
+    "clones": 157,
+    "duplicatedLines": 2705,
+    "percentage": 0.3647,
+    "tokens": 4339544,
+    "duplicatedTokens": 13815
   },
   "byFormat": {
     "css": {
@@ -47,11 +47,11 @@
       "clones": 20
     },
     "javascript": {
-      "sources": 337,
-      "lines": 47861,
-      "duplicatedLines": 309,
-      "percentage": 0.6456,
-      "clones": 15
+      "sources": 338,
+      "lines": 47980,
+      "duplicatedLines": 320,
+      "percentage": 0.6669,
+      "clones": 16
     },
     "python": {
       "sources": 766,
@@ -61,8 +61,8 @@
       "clones": 37
     },
     "typescript": {
-      "sources": 1519,
-      "lines": 390770,
+      "sources": 1525,
+      "lines": 390783,
       "duplicatedLines": 1619,
       "percentage": 0.4143,
       "clones": 84
@@ -716,6 +716,12 @@
       "fingerprint": "9e0ab581663b7028c4fb123c20702bd77ecff726",
       "first": "homeos/frontend/src/features/events/components/ViewAnalytics.vue",
       "second": "homeos/frontend/src/features/notifications/composables/notifications-analytics-charts.internals.ts",
+      "lines": 11
+    },
+    {
+      "fingerprint": "a557a9009e771ae2e44edfe553f0a1692181c269",
+      "first": "ops/scripts/codemod/prune-unused-imports.mjs",
+      "second": "ops/scripts/codemod/restructure.mjs",
       "lines": 11
     },
     {

@@ -1,6 +1,6 @@
 {
   "totals": {
-    "alias2": 1272,
+    "alias2": 1274,
     "impl": 1731,
     "moduleLet": 334
   },
@@ -390,7 +390,7 @@
       "impl": 0,
       "moduleLet": 3
     },
-    "homeos/frontend/src/features/security/model/utils.ts": {
+    "homeos/frontend/src/features/security/model/utils/panel-zones-bootstrap.util.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 2
@@ -975,7 +975,12 @@
       "impl": 5,
       "moduleLet": 0
     },
-    "homeos/frontend/src/studio/app/editor/home/components.ts": {
+    "homeos/frontend/src/studio/app/editor/home/components/component-deletion.ts": {
+      "alias2": 2,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/app/editor/home/components/component-editing.ts": {
       "alias2": 13,
       "impl": 0,
       "moduleLet": 0
