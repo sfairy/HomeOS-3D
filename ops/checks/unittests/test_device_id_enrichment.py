@@ -29,7 +29,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from homeos.backend.src.bootstrap.ha_state_effects import _enrich_state_pair
-from homeos.backend.src.domains.state_store.entity_area import build_entity_area_index
+from homeos.backend.src.domains.entity_state.entity_area import build_entity_area_index
 
 
 class _AreaService:
@@ -39,7 +39,7 @@ class _AreaService:
         self._index = index
 
     def enrich_entity_sync(self, entity: dict[str, Any]) -> dict[str, Any]:
-        from homeos.backend.src.domains.state_store.entity_area import enrich_entity_areas
+        from homeos.backend.src.domains.entity_state.entity_area import enrich_entity_areas
 
         if not self._index:
             return entity
@@ -123,7 +123,7 @@ class RepublishComparesDeviceIdTest(unittest.TestCase):
     """注册表晚于快照加载时，「补上 device_id」必须被判定为变化并补发。"""
 
     def test_device_only_change_counts_as_changed(self) -> None:
-        from homeos.backend.src.domains.state_store import entity_area as module
+        from homeos.backend.src.domains.entity_state import entity_area as module
 
         source = Path(module.__file__).read_text(encoding="utf-8")
         # 结构断言（这一处是并发热路径，起真实事件总线做端到端太重）：

@@ -13,7 +13,7 @@ from _selftest_support import FakeSectionConfig, FakeStore, check, ensure_repo_o
 
 ensure_repo_on_path()
 
-from homeos.backend.src.domains.circadian.engine import (
+from homeos.backend.src.domains.environment.circadian.engine import (
     DAY_ELEVATION,
     NIGHT_ELEVATION,
     CircadianEngine,

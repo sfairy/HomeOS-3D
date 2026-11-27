@@ -24,7 +24,7 @@ from _selftest_support import (
 
 ensure_repo_on_path()
 
-from homeos.backend.src.domains.iaq.monitor import (
+from homeos.backend.src.domains.environment.iaq.monitor import (
     IAQ_THRESHOLD_EVENT,
     MOLD_RISK_EVENT,
     IaqMonitor,

@@ -25,7 +25,7 @@ from _selftest_support import check, ensure_repo_on_path, report
 
 ensure_repo_on_path()
 
-from homeos.backend.src.domains.store.discovery import (
+from homeos.backend.src.domains.license.store.discovery import (
     StoreAnswer,
     StoreBaseUrlResolver,
     resolve_browser_store_url,
