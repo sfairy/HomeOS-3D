@@ -185,13 +185,13 @@
 
 <script setup>
 import { Maximize2, Info } from '@lucide/vue'
-import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
-import SettingsCardIntro from '@/features/settings/components/shell/SettingsCardIntro.vue'
+import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
+import SettingsCardIntro from '@/features/settings/shell/SettingsCardIntro.vue'
 import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSectionHead.vue'
 import SettingsRangeField from '@/features/settings/shared/layout/SettingsRangeField.vue'
 import { MIN_SCALE } from '@/kernel/ui/hooks/use-scaling'
 import { computed } from 'vue'
-import { SETTINGS_RANGE_STEP } from '@/kernel/utils/settings'
+import { SETTINGS_RANGE_STEP } from '@/kernel/settings'
 import { useLayoutStore } from '@/domain/layout/store/index'
 
 const layoutStore = useLayoutStore()

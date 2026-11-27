@@ -10,7 +10,7 @@ import {
   parseWaterDayItem,
   parseWaterMonthItem,
   parseWaterYearItem,
-} from '@/domain/energy/model/composables'
+} from '@/domain/energy/composables'
 
 /** 公用事业仪表类别：水 / 燃气 / 电网 */
 type UtilityMeterKind = 'water' | 'gas' | 'grid'

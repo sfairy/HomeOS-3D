@@ -217,13 +217,13 @@
 <script setup>
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
-import SettingsPageShell from '@/features/settings/components/shell/SettingsPageShell.vue'
-import SettingsOrchTabs from '@/features/settings/components/SettingsOrchTabs.vue'
+import SettingsPageShell from '@/features/settings/shell/SettingsPageShell.vue'
+import SettingsOrchTabs from '@/features/settings/SettingsOrchTabs.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
 import { Globe, Layout, MonitorPlay, Plus, ChevronDown, Copy } from '@lucide/vue'
-import { useSettingsEmbeds } from '@/features/settings/groups/appearance/composables/use-layout'
-import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
+import { useSettingsEmbeds } from '@/features/settings/groups/appearance/use-layout'
+import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
 import { useLayoutStore } from '@/domain/layout/store/index'
 
 const props = defineProps({ activeTab: { type: String, default: 'embeds' } })

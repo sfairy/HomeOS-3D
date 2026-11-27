@@ -9,16 +9,16 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
 
 import SceneStage from '@/kernel/ui/SceneStage.vue'
-import AuthShell from '@/features/auth/components/AuthShell.vue'
+import AuthShell from '@/features/auth/AuthShell.vue'
 import PasswordField from '@homeos/shared/components/PasswordField.vue'
 import { getLicenseAvailability } from '@/domain/api/license'
 import { useAuthStore } from '@/domain/auth/auth.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { getApiErrorMessage } from '@/kernel/utils/core/index'
+import { getApiErrorMessage } from '@/kernel/core/index'
 import { PASSWORD_POLICY_MESSAGE, isPasswordPolicyCompliant } from '@homeos/shared/security/password-policy'
-import { AUTH_FLOW_SETUP, renderAuthSteps } from '@/kernel/utils/auth'
-import { rememberActivationEmail } from '@/kernel/utils/auth'
-import { resolveStoreLinks } from '@/kernel/utils/store-links.util'
+import { AUTH_FLOW_SETUP, renderAuthSteps } from '@/kernel/auth'
+import { rememberActivationEmail } from '@/kernel/auth'
+import { resolveStoreLinks } from '@/kernel/store-links'
 
 const authStore = useAuthStore()
 const chrome = useChromeStore()

@@ -152,7 +152,7 @@ import {
   objectFromRecordRows,
   findDuplicateRecordKeys,
   findFixedFormRangeErrors,
-} from './nested-editor.util'
+} from './nested-editor'
 
 const props = defineProps({
   fieldKey: { type: String, required: true },

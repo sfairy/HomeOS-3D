@@ -10,7 +10,7 @@ import { describe, expect, test } from 'bun:test'
 import {
   countOfflineDevices,
   groupOfflineByDevice,
-} from '../../../homeos/frontend/src/domain/entity/model/utils/device-group'
+} from '../../../homeos/frontend/src/domain/entity/utils/device-group'
 
 function entity(deviceId?: string) {
   return { attributes: deviceId ? { device_id: deviceId } : {} }

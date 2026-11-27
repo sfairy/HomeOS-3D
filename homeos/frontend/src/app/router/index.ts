@@ -3,12 +3,12 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '@/domain/auth/auth.store'
 import { useLayoutStore } from '@/domain/layout/store/index'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { logger } from '@/kernel/utils/core/index'
-import { isNavigationLockedAfterRestore } from '@/kernel/utils/core/index'
-import { getBackendUnreachableHint, isBackendUnreachableError } from '@/kernel/utils/core/index'
-import { withBackendBootRetry } from '@/kernel/utils/core/index'
-import { isDynamicImportFailure, lazyView, reloadOnceForStaleChunk } from '@/kernel/utils/core/index'
-import { resolveNavigationTarget, resolveZeroUserTarget } from './auth.util'
+import { logger } from '@/kernel/core/index'
+import { isNavigationLockedAfterRestore } from '@/kernel/core/index'
+import { getBackendUnreachableHint, isBackendUnreachableError } from '@/kernel/core/index'
+import { withBackendBootRetry } from '@/kernel/core/index'
+import { isDynamicImportFailure, lazyView, reloadOnceForStaleChunk } from '@/kernel/core/index'
+import { resolveNavigationTarget, resolveZeroUserTarget } from './auth'
 import { loadDisplayView, loadEditorView, loadStudioView, registerShellNavigation } from '@/studio/index'
 import {
   getLicenseActivated,
@@ -33,7 +33,7 @@ import { ensurePageAssets, PAGE_ASSETS as STUDIO_ASSETS, type PageAssets } from 
  * 五条路由共用同一个 `entry` 模块，因此登录 → 注册 → 找回密码之间不会重复下载依赖。
  */
 const loadAuthEntry = () => import('@/features/auth/views/index')
-import { prefetchStoreLinks } from '@/kernel/utils/store-links.util'
+import { prefetchStoreLinks } from '@/kernel/store-links'
 import { rememberLicenseAvailability } from '@/domain/license'
 import { getSystemInitialized, setSystemInitialized } from '../../domain/system/system-init.state'
 

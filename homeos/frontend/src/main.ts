@@ -60,16 +60,16 @@ import {
   primeFrontendConfigFromCache,
   setupFrontendConfigVisibilitySync,
 } from '@/kernel/config/frontend-config'
-import { primeGlassEffectDocument, setupGlassEffectSync } from '@/kernel/utils/ui/index'
-import { applyHomeOsTheme } from '@/kernel/utils/ui/index'
-import { setupSmartPerformanceMode } from '@/kernel/utils/perf/index'
+import { primeGlassEffectDocument, setupGlassEffectSync } from '@/kernel/ui/index'
+import { applyHomeOsTheme } from '@/kernel/ui/index'
+import { setupSmartPerformanceMode } from '@/kernel/perf/index'
 import {
   registerAuthChangeHandler,
   registerUnauthorizedHandler,
   registerNavigateToLoginHandler,
   registerSessionRefreshHandler,
   registerUiNotifyHandler,
-} from '@/kernel/utils/bridge/store-bridge'
+} from '@/kernel/bridge/store-bridge'
 import { useAuthStore } from './domain/auth/auth.store'
 import { useLayoutStore } from './domain/layout/store/index'
 import { useChromeStore } from './kernel/ui/chrome/chrome-store'
@@ -78,8 +78,8 @@ import VEmptyState from './kernel/ui/primitives/VEmptyState.vue'
 import VPanelSkeleton from './kernel/ui/primitives/VPanelSkeleton.vue'
 import { swipeClose } from './app/directives/swipe-close'
 import { scrollRegion } from './app/directives/scroll-region'
-import { studioStartupReady } from '@/kernel/utils/ui/index'
-import { ensureStudioLoadingStyle } from '@/kernel/utils/ui/index'
+import { studioStartupReady } from '@/kernel/ui/index'
+import { ensureStudioLoadingStyle } from '@/kernel/ui/index'
 import { forgetLicenseAvailability } from '@/domain/license'
 import { adoptPreloadedStylesheets } from '@/studio/index'
 
@@ -201,7 +201,7 @@ registerAuthChangeHandler(() => {
   })
   // 3D 面板的设备类型来自后端画像（人工确认优先）：登录后重新投影，登出时清空。
   // 投影失败静默退回空调兜底，不阻断任何主流程。
-  void import('@/features/device/model/device-profile-kinds').then(({ hydrateDeviceProfileKinds, forgetDeviceProfileKinds }) => {
+  void import('@/features/device/device-profile-kinds').then(({ hydrateDeviceProfileKinds, forgetDeviceProfileKinds }) => {
     if (useAuthStore().isAuthenticated) void hydrateDeviceProfileKinds(true)
     else forgetDeviceProfileKinds()
   })
@@ -250,7 +250,7 @@ function mountApp(): void {
   // B22 + RUM：全局 WebGL 上下文丢失兜底与轻量性能采集，idle 时懒加载启动。
   // 入口只多一次动态 import，不为采集付首屏字节；?webgl-guard=0 / ?client-metrics=0 可回退。
   const startPerf = (): void => {
-    void import('@/kernel/utils/perf/index').then(({ startPerfInstrumentation }) =>
+    void import('@/kernel/perf/index').then(({ startPerfInstrumentation }) =>
       startPerfInstrumentation(),
     )
   }
@@ -261,24 +261,24 @@ function mountApp(): void {
   // 挂载后启动 FPS 自适应监控，低帧率时自动降级。3D 舞台 iframe 不起：舞台有自己的自适应
   // DPR，这里的档位只影响 iframe 内用不到的外壳样式，却要在每次指针事件后多跑 5s rAF。
   if (!document.body.classList.contains('interaction3d-stage')) {
-    import('@/kernel/utils/perf/index').then(({ startFpsAdaptiveMonitor }) => {
+    import('@/kernel/perf/index').then(({ startFpsAdaptiveMonitor }) => {
       startFpsAdaptiveMonitor()
     })
   }
   // 空闲时段预加载大体积模态/高频控制弹窗，减少首次打开/首点设备的延迟
   if (typeof requestIdleCallback === 'function') {
     requestIdleCallback(() => {
-      import('@/features/media/components/MediaPlayerModal.vue')
-      import('@/features/device/components/DoorbellAlertModal.vue')
+      import('@/features/media/MediaPlayerModal.vue')
+      import('@/features/device/DoorbellAlertModal.vue')
       // 首点设备控制是墙屏核心交互，预取 popups 组 chunk，避免首点 150–600ms 现场加载
-      import('@/features/entity/components/popups/LightControlPopup.vue')
-      import('@/features/entity/components/popups/ClimateControlPopup.vue')
-      import('@/features/entity/components/popups/CoverControlPopup.vue')
+      import('@/features/entity/popups/LightControlPopup.vue')
+      import('@/features/entity/popups/ClimateControlPopup.vue')
+      import('@/features/entity/popups/CoverControlPopup.vue')
     })
   }
   // 生产环境注册 PWA 更新提示（用户确认式：确认后激活新 SW 并刷新）
   if (import.meta.env.PROD) {
-    import('@/kernel/utils/core/index').then(({ setupPwaUpdatePrompt }) => {
+    import('@/kernel/core/index').then(({ setupPwaUpdatePrompt }) => {
       setupPwaUpdatePrompt(async (applyUpdate) => {
         const ok = await useChromeStore().confirm(
           '检测到新版本已就绪。立即更新将刷新页面，未保存的编辑可能丢失。',
@@ -296,7 +296,7 @@ function applyPostConfigHooks(): void {
   setupFrontendConfigVisibilitySync()
   // 3D 面板的设备类型（空调 / 浴霸 / 热水器）来自后端画像结论：已在登录态的冷启动
   // 在这里补一次投影；未登录会静默失败，登录成功后再由 registerAuthChangeHandler 触发。
-  void import('@/features/device/model/device-profile-kinds').then(({ hydrateDeviceProfileKinds }) => hydrateDeviceProfileKinds())
+  void import('@/features/device/device-profile-kinds').then(({ hydrateDeviceProfileKinds }) => hydrateDeviceProfileKinds())
   // 玻璃拟态效果同步（根据布局配置开/关毛玻璃）
   setupGlassEffectSync(() => useLayoutStore().layoutConfig)
   // 智能性能模式（根据设备能力动态调整渲染策略）

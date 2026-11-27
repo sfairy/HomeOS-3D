@@ -37,7 +37,7 @@ export {
   pageBackgroundPreset,
   pageBackgroundPresetSource,
   samePageBackground,
-} from '@/kernel/utils/widget/page-background.util'
+} from '@/kernel/widget/page-background'
 
 export type {
   PageBackground,
@@ -45,4 +45,4 @@ export type {
   PageBackgroundLayout,
   PageBackgroundPosition,
   PageBackgroundSource,
-} from '@/kernel/utils/widget/page-background.util'
+} from '@/kernel/widget/page-background'

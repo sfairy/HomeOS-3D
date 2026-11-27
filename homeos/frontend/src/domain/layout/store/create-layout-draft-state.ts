@@ -1,9 +1,9 @@
 /* ── 原 布局未保存草稿持久化 的实现 ── */
-import { readLocalStorage, removeLocalStorage, writeLocalStorage } from '@/kernel/utils/core/local-storage.util'
+import { readLocalStorage, removeLocalStorage, writeLocalStorage } from '@/kernel/core/local-storage'
 
 import type { Ref } from 'vue'
-import { logger } from '@/kernel/utils/core/logger'
-import { clonePlain } from '@/kernel/utils/core/clone-plain.util'
+import { logger } from '@/kernel/core/logger'
+import { clonePlain } from '@/kernel/core/clone-plain'
 import type { UILayoutConfig } from '@/kernel/types/layout'
 
 /** localStorage 中草稿的存储 key */

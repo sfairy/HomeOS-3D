@@ -13,9 +13,9 @@
 <script setup>
 import { computed, watch } from 'vue'
 import { Gauge, GitBranch, Zap, CalendarDays, CalendarRange, AlertTriangle, Info } from '@lucide/vue'
-import EntityInput from '@/domain/entity/components/entity-input/EntityInput.vue'
-import EntityMultiSelect from '@/domain/entity/components/entity-multi-select/EntityMultiSelect.vue'
-import { joinCommaEntityIds, parseCommaEntityIds } from '@/domain/entity/model/utils/comma-entity-ids.util'
+import EntityInput from '@/domain/entity/entity-input/EntityInput.vue'
+import EntityMultiSelect from '@/domain/entity/entity-multi-select/EntityMultiSelect.vue'
+import { joinCommaEntityIds, parseCommaEntityIds } from '@/domain/entity/utils/comma-entity-ids'
 import { ENERGY_GRAIN_LABELS, ENERGY_SCOPE_OPTIONS, resolveEnergyScopeOption } from './energy-scope.options'
 
 const meterEntityId = defineModel('meterEntityId', { type: String, default: '' })

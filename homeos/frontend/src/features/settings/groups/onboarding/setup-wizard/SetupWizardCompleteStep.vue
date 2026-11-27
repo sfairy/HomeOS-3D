@@ -20,11 +20,11 @@ import {
   RefreshCw,
 } from '@lucide/vue'
 import { RouterLink } from 'vue-router'
-import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
-import { fetchSystemConfigFresh } from '@/domain/layout/composables/system-config-core.internals'
+import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
+import { fetchSystemConfigFresh } from '@/domain/layout/system-config-core.internals'
 import { dismissSetupChecklist, fetchSetupChecklist } from '@/kernel/http/index'
-import { logger } from '@/kernel/utils/core/index'
-import { getApiErrorMessage } from '@/kernel/utils/core/index'
+import { logger } from '@/kernel/core/index'
+import { getApiErrorMessage } from '@/kernel/core/index'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 
 const props = defineProps({

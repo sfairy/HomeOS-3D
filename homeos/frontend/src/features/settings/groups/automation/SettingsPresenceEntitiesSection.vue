@@ -18,8 +18,8 @@
   - 与子组件通信走 props/emit，不在视图层内直接写业务逻辑。
  */
 import { Loader2, Home, MapPin, RefreshCw, Save, Sparkles } from '@lucide/vue'
-import PresencePersonListInput from '@/features/presence/components/PresencePersonListInput.vue'
-import { usePresenceEntitiesDisplay } from '@/features/settings/groups/automation/composables/presence-linkage.internals'
+import PresencePersonListInput from '@/features/presence/PresencePersonListInput.vue'
+import { usePresenceEntitiesDisplay } from '@/features/settings/groups/automation/presence-linkage.internals'
 
 // 入参：加载/保存中、自动模式、人员预览、是否隐藏统计、是否嵌入
 const props = defineProps({

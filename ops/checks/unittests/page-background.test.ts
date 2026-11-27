@@ -20,7 +20,7 @@ import {
   pageBackgroundPreset,
   pageBackgroundPresetSource,
   samePageBackground,
-} from '../../../homeos/frontend/src/kernel/utils/widget/page-background.util'
+} from '../../../homeos/frontend/src/kernel/widget/page-background'
 
 describe('pageBackgroundPreset', () => {
   test('未知预设回落到第一个，而不是抛错或空白', () => {

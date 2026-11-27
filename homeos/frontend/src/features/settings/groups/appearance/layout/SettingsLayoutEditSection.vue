@@ -86,11 +86,11 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { PenLine, Shapes, ToggleRight, PencilRuler, CloudUpload } from '@lucide/vue'
-import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
+import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { logger } from '@/kernel/utils/core/index'
+import { logger } from '@/kernel/core/index'
 
 const router = useRouter()
 const chrome = useChromeStore()

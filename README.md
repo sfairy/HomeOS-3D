@@ -175,7 +175,7 @@ HomeOS/
 - 产物只进根 `dist/`，镜像只消费它。
 - 依赖只在仓库根装一份（`bun.lock` 唯一，子包无 `node_modules`）。
 - 磁盘中文文件名、代码英文 id；存档 / 撤销历史 / 导出包按 id 引用。
-- `docs/` 不入库（`.gitignore` 忽略）：可重跑产物（模型审计、`code-size/` 快照）与本地分析笔记都放这里，随时可删。
+- `docs/` 不入库（`.gitignore` 忽略）：可重跑产物（模型审计、重复代码报告）与本地分析笔记都放这里，随时可删。
 - Python 解释器只走 `ops/lib/py.mjs`（`HOMEOS_PYTHON` → `.venv-store` → `python3`），脚本不写死路径。
 - 门禁只登记在 `ops/gates.mjs`，workflow 不另抄命令。
 - 三份「唯一真源」不要各写一份：端口 `ops/ports.mjs`、能力码 `ops/contracts/feature_codes.json`、基础镜像 `ops/docker-pins.json`。
@@ -243,7 +243,7 @@ static 的步骤按**标签**分六类（`--list` 按此打印，`--tag` 可整�
 | `check:frontend` | 4 | 1974 个 ts/vue 只遍历一次；别名 / 性能 / 离线计数 / 受限写法共用同一份 `SourceFile` |
 | `check:backend` | 6 | 694 个 `.py` 只 `ast.parse` 一次（此前每条都重解析）；`guards` / `parity` 各收三条 |
 | `check:contracts` | 6 | 后端应用只导入一次；覆盖率检查复用前两条算出的路由表；`parity` 收两张跨语言表 |
-| `check:size` | 2 | 只剩代码量与重复代码两条棘轮；文件行数 / 巨型文件扇出改手动审计，不设门禁口径 |
+| `check:size` | 1 | 只剩重复代码一条棘轮；行数（总量 / 单文件）已全部删除，不设任何行数口径 |
 | `check:tests` | 3 | 三类断言一个步骤，失败仍按模块定位 |
 | `check:studio-invariants` | 7 | 八条不变量里画布两条合成一条（同一份 `canvas-layout.util.ts`） |
 | `check:model-assets` | 4 | 四条 GLB 只读审计 |
@@ -254,7 +254,7 @@ static 的步骤按**标签**分六类（`--list` 按此打印，`--tag` 可整�
 （`bun run check:parity`、`node ops/checks/python/check_guards.py --module pep758`）。
 
 **脚本按域分目录**：`business/`（19 个自检）/ `python/`（后端 AST 检查）/ `frontend/`（前端扫描与棘轮）/
-`size/`（体量棘轮）/ `contract/`（版本、环境变量、跨语言表）/ `studio/`（3D 与模型）/ `architecture/`、
+`size/`（重复代码棘轮）/ `contract/`（版本、环境变量、跨语言表）/ `studio/`（3D 与模型）/ `architecture/`、
 `security/`（路由与鉴权）/ `baselines/`（全部基线）。`run_*.{mjs,py}` 留在顶层作为唯一执行入口，
 `ops/checks/` 顶层因此只有 9 个文件 + 子目录。
 
@@ -275,18 +275,19 @@ node ops/gates.mjs --list --json          # 机器可读（含 covers）
 默认并行 4（`--jobs` / `HOMEOS_GATE_JOBS` 可改）；`build` / `infra` 有组内先后依赖，恒为串行。
 并行模式下通过的步骤只留一行结果，失败才展开完整输出。缺工具本机 SKIP、CI 失败。
 
-仍保留的棘轮只守**语义**：重复代码、代码量、接口覆盖（路由 / `response_model` / 状态码）。
-`update:<同名>(-baseline)` 是放宽手段，必须在提交说明里写清为什么（拆文件导致的平移要说明
-「总量不变」）。基线统一放在 `ops/checks/baselines/{frontend,backend,contracts,size,model}/`。
+仍保留的棘轮只守**语义**：重复代码、接口覆盖（路由 / `response_model` / 状态码）。
+`update:<同名>(-baseline)` 是放宽手段，必须在提交说明里写清为什么。基线统一放在
+`ops/checks/baselines/{frontend,backend,contracts,size,model}/`。
 
-已删除的门禁（连同脚本、基线、`package.json` 条目）：`any` 计数、前端 / 后端函数复杂度、
+已删除的门禁（连同脚本、基线、`package.json` 条目）：代码量总量（`check:code-size`）、
+单文件行数审计（`audit:file-size`）、`any` 计数、前端 / 后端函数复杂度、
 硬编码样式、UI 溢出、CSS 重复、CSS 令牌、画布断点、Studio 拆分预算、0.8.9 对齐、
 后端热点字节预算、bundle 体积预算。它们共同的问题是把「代码长什么样」固化成数字门槛，
 而数字只能靠不断重录基线维持 —— 与「不设巨型文件定义」是同一条原则。
 
-**不设「巨型文件」定义**：`audit:file-size`（行数）与 `audit:giant-files`（imports / deps 扇出）
-是手动审计入口，只在需要取证或评估拆分时运行；它们都带一个默认筛选门槛，但那是报告参数，
-不是门禁标准，也不参与 CI / `pre-push`。
+**行数不作任何判据**：项目不再统计单文件行数，也不再设「巨型文件」定义。
+`audit:giant-files` 是唯一的体量手动入口，只测 imports / deps 扇出（`--min-lines`
+只是报告筛选参数），不参与 CI / `pre-push`。
 
 `check:toolchain` 守三条「写了两遍以上」的版本线，任何一处漂移都不影响编译、只会在换机或发版时才炸：
 

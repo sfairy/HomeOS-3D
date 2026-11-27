@@ -36,7 +36,7 @@ import "@/studio/chrome/studio-chrome.css";
 import "@/studio/chrome/studio-native-dialogs.css";
 import "@/studio/chrome/studio-canvas-welcome.css";
 import { Undo2, Redo2, Shapes } from "@lucide/vue";
-import { SETTINGS_ROUTES } from "@/kernel/utils/registry/settings-route.util";
+import { SETTINGS_ROUTES } from "@/kernel/registry/settings-route";
 import EditorMediaInspectors from "@/studio/chrome/editor/EditorMediaInspectors.vue";
 import EditorChartInspectors from "@/studio/chrome/editor/EditorChartInspectors.vue";
 import EditorDeviceInspectors from "@/studio/chrome/editor/EditorDeviceInspectors.vue";

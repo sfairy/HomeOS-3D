@@ -64,12 +64,12 @@
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Moon } from '@lucide/vue'
-import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
-import SettingsCardIntro from '@/features/settings/components/shell/SettingsCardIntro.vue'
+import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
+import SettingsCardIntro from '@/features/settings/shell/SettingsCardIntro.vue'
 import SettingsFeatureMaster from '@/features/settings/shared/layout/SettingsFeatureMaster.vue'
 import SettingsRangeField from '@/features/settings/shared/layout/SettingsRangeField.vue'
 import SettingsSwitchToggle from '@/features/settings/shared/layout/SettingsSwitchToggle.vue'
-import { handleSystemConfigPatchError, patchSystemConfig } from '@/domain/layout/composables/system-config-core.internals'
+import { handleSystemConfigPatchError, patchSystemConfig } from '@/domain/layout/system-config-core.internals'
 import {
   getConfigSection,
   loadFrontendConfig,

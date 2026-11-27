@@ -412,7 +412,7 @@ const ALLOWED_CYCLES = new Set([
   'studio/authoring/ui/wiring ↔ studio/authoring/ui/workspace',
   // 安防面板的「状态与动作」与「视图派生」互相需要，合并成一对后形成 2 模块环；
   // 消除需引入第三个派生层，属独立评审。新增环仍会失败。
-  'features/security/composables/security ↔ features/security/composables/security-view',
+  'features/security/security ↔ features/security/security-view',
   // 地暖视觉与「地面 / 地面区域」几何：合并 floor 族后三者互依。消除需把地面几何
   // 抽成独立的纯数据层，属设计改动。新增环仍会失败。
   'studio/authoring/scene/studio-underfloor-heating ↔ studio/authoring/plan/studio-floor ↔ studio/authoring/plan/studio-floor-region',
@@ -440,7 +440,7 @@ function cycleKey(members) {
  */
 const ALLOWED_UPPER = new Set([
   'domain/api/studio.ts',
-  'features/dashboard/components/RightSidebar.vue',
+  'features/dashboard/RightSidebar.vue',
 ])
 
 const violations = []

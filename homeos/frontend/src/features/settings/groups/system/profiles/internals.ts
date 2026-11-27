@@ -2,10 +2,10 @@ import { ref, computed, watch, onMounted, type Ref } from 'vue'
 import { useAuthStore } from '@/domain/auth/auth.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useLayoutStore } from '@/domain/layout/store/index'
-import { useProfileManagement } from '@/features/settings/shared/composables/hub'
-import { useSettingsHubRouteSection } from '@/features/settings/shared/composables/hub'
-import { getApiErrorMessage } from '@/kernel/utils/core/index'
-import { downloadBlob } from '@/kernel/utils/core/index'
+import { useProfileManagement } from '@/features/settings/shared/hub'
+import { useSettingsHubRouteSection } from '@/features/settings/shared/hub'
+import { getApiErrorMessage } from '@/kernel/core/index'
+import { downloadBlob } from '@/kernel/core/index'
 import { navigateAfterRestore, resolvePostRestoreDestination } from '@/domain/license'
 import {
   fetchServerBackupFiles,
@@ -15,8 +15,8 @@ import {
   createServerBackup,
   fetchAutoBackupStatus,
 } from '@/kernel/http/index'
-import { handleSystemConfigPatchError, patchSystemConfig } from '@/domain/layout/composables/system-config-core.internals'
-import { formatAuditTime, formatFullDateTime } from '@/kernel/utils/format'
+import { handleSystemConfigPatchError, patchSystemConfig } from '@/domain/layout/system-config-core.internals'
+import { formatAuditTime, formatFullDateTime } from '@/kernel/format'
 import {
   deleteTerminalBinding,
   fetchActiveProject,

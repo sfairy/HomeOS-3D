@@ -140,10 +140,10 @@
  */
 import { computed, ref } from 'vue'
 import { Lock, ShieldCheck } from '@lucide/vue'
-import SettingsPageShell from '@/features/settings/components/shell/SettingsPageShell.vue'
-import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
+import SettingsPageShell from '@/features/settings/shell/SettingsPageShell.vue'
+import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
 import VProgressBar from '@/kernel/ui/primitives/VProgressBar.vue'
-import { useAccessPanel } from '@/features/settings/groups/system/composables/access-panel.internals'
+import { useAccessPanel } from '@/features/settings/groups/system/access-panel.internals'
 
 defineProps({ activeTab: { type: String, default: 'access' } })
 

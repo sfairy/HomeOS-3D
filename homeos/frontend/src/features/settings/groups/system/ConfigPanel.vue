@@ -157,10 +157,10 @@
 <script setup>
 import { ref, toRef } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
-import SettingsPageShell from '@/features/settings/components/shell/SettingsPageShell.vue'
+import SettingsPageShell from '@/features/settings/shell/SettingsPageShell.vue'
 import { SlidersHorizontal, RotateCcw } from '@lucide/vue'
-import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
-import { useSystemConfigPanel } from '@/features/settings/groups/system/composables/system-config-panel.internals'
+import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
+import { useSystemConfigPanel } from '@/features/settings/groups/system/system-config-panel.internals'
 import { useRegisterSettingsTabPending } from '@/features/settings/kernel/pending.internals'
 import SystemConfigActionsBar from '@/features/settings/shared/config-fields/SystemConfigActionsBar.vue'
 import ApiQueryState from '@/kernel/ui/ApiQueryState.vue'

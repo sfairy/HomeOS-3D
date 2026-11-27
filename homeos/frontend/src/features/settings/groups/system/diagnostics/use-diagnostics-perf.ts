@@ -7,10 +7,10 @@ import {
   memoryMb,
   startFrontendPerfMonitor,
   stopFrontendPerfMonitor,
-} from '@/kernel/utils/perf/index'
-import { adaptiveTier } from '@/kernel/utils/perf/index'
-import { isFpsSchedulerRunning, isDiagnosticsFpsSamplingActive } from '@/kernel/utils/perf/index'
-import { getActiveSubscribeDomains } from '@/domain/entity/model/utils/ws-subscription'
+} from '@/kernel/perf/index'
+import { adaptiveTier } from '@/kernel/perf/index'
+import { isFpsSchedulerRunning, isDiagnosticsFpsSamplingActive } from '@/kernel/perf/index'
+import { getActiveSubscribeDomains } from '@/domain/entity/utils/ws-subscription'
 import { getMaxStateListeners } from '@/kernel/config/frontend-config'
 import { copyTextWithNotify } from '@/kernel/ui/notify'
 import {
@@ -21,7 +21,7 @@ import {
   exportPerfBaselineJson,
   tickPerfBaselineCounters,
   recordFpsSample,
-} from '@/kernel/utils/perf/index'
+} from '@/kernel/perf/index'
 
 const PERF_MODE_LABELS: Record<string, string> = {
   high: '华丽',

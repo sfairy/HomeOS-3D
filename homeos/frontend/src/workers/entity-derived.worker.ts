@@ -6,7 +6,7 @@ import {
   accFromDerivedSnapshot,
   snapshotFromDerivedAcc,
   type EntityDerivedAccumulator,
-} from '@/domain/entity/model/utils/derived'
+} from '@/domain/entity/utils/derived'
 import { getEntityDomain } from '@homeos/shared'
 import type {
   DerivedBatteryEntry,

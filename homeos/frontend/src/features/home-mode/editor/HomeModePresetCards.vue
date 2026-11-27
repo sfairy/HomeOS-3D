@@ -111,10 +111,10 @@
 <script setup>
 import { reactive, ref, watch } from 'vue'
 import { Zap, Clock, Loader2, Sparkles, ChevronDown } from '@lucide/vue'
-import EntityInput from '@/domain/entity/components/entity-input/EntityInput.vue'
+import EntityInput from '@/domain/entity/entity-input/EntityInput.vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { isHomeModeEmojiIcon, resolveHomeModeIcon } from '@/features/home-mode/model/index'
-import { collectPresetActionTags } from '@/features/home-mode/model/index'
+import { isHomeModeEmojiIcon, resolveHomeModeIcon } from '@/features/home-mode/utils/index'
+import { collectPresetActionTags } from '@/features/home-mode/utils/index'
 import { entityDomainLabel } from '@/kernel/constants/index'
 
 const props = defineProps({

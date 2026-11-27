@@ -15,12 +15,12 @@ import {
   runUnauthorizedHandler,
   runNavigateToLogin,
   runSessionRefresh,
-} from '@/kernel/utils/bridge/store-bridge'
-import { getPageTraceId } from '@/kernel/utils/telemetry/trace.util'
+} from '@/kernel/bridge/store-bridge'
+import { getPageTraceId } from '@/kernel/telemetry/trace'
 import { getFrontendConfig } from '@/kernel/config/frontend-config'
-import { logger } from '@/kernel/utils/core/index'
-import { isLicenseInactiveError } from '@/kernel/utils/core/index'
-import { isNavigationLockedAfterRestore } from '@/kernel/utils/core/index'
+import { logger } from '@/kernel/core/index'
+import { isLicenseInactiveError } from '@/kernel/core/index'
+import { isNavigationLockedAfterRestore } from '@/kernel/core/index'
 import { installFetchCsrf } from './csrf'
 
 /**

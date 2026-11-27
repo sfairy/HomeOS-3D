@@ -10,7 +10,7 @@
  *
  * 为什么不能只看行数
  * -----------------
- * `audit:file-size` 还能给出单文件行数，但行数不是拆不动的真正原因。实测三个
+ * 单文件行数不是拆不动的真正原因。实测三个
  * 大编排文件（`studio-app/boot.ts` 4199 / `editor/home/lifecycle/boot.ts` 4917 /
  * `runtime/core/stage.ts` 4866）里，真正的障碍是**扇出**：
  *
@@ -50,8 +50,8 @@ const { has, repoRoot, value } = parseArgs()
 const update = has('update')
 const asJson = has('json')
 const report = has('report')
-// 报告筛选门槛：只统计 ≥ 3000 行的文件。和 `check_file_size.py` 用同一个默认值只是
-// 为了让两份手写报告能对照，**不是**「巨型文件」的项目定义。
+// 报告筛选门槛：只统计 ≥ 3000 行的文件。它只是让报告不淹没在几万个中小文件里的
+// 默认参数，**不是**「巨型文件」的项目定义，也不参与任何判定。
 const minLines = Number(value('min-lines', '3000'))
 const BASELINE = join(repoRoot, 'ops/checks/baselines/size/giant-files-baseline.json')
 const ROOTS = ['homeos/frontend/src', 'homeos-store/frontend/src', 'homeos/backend/src', 'homeos-store/backend/src']
@@ -132,8 +132,7 @@ function main() {
   }
 
   const baselineFiles = baseline.files || {}
-  // 行数不参与判定：`audit:file-size` 已单独给出行数，两处都判会让同一处新增被报两次。
-  // 这里只看**扇出**。
+  // 行数不参与判定：这里只看**扇出**（imports / deps），同一处新增不会被报两次。
   const JUDGED = ['imports', 'depsFns', 'depsEntries']
   const problems = []
   for (const [file, found] of Object.entries(counts).sort()) {
@@ -158,7 +157,7 @@ function main() {
   } else if (problems.length > 0) {
     console.error(`大文件审计：${problems.length} 项变多`)
     for (const line of problems) console.error(`  - ${line}`)
-    console.error('  说明：行数由 audit:file-size 单独报告；这里只看**扇出**（imports / deps）。')
+    console.error('  说明：这里只看**扇出**（imports / deps）；行数只作为报告筛选参数，不参与判定。')
     console.error('  拆分应先收依赖再搬代码，拆完跑 --update 压低基线（只该下降）。')
   } else {
     console.log(

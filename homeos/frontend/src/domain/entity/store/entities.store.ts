@@ -9,7 +9,7 @@ import { apiClient } from '@/domain/api/index'
 import { resyncEntities } from '@/domain/api/entities'
 import { useAuthStore } from '@/domain/auth/auth.store'
 import { useLayoutStore } from '@/domain/layout/store/index'
-import { logger } from '@/kernel/utils/core/index'
+import { logger } from '@/kernel/core/index'
 import {
   getFrontendConfig,
   getLargeEntityThreshold,
@@ -22,17 +22,17 @@ import type {
   EntityLoadPhase,
   HaEntityState,
 } from '@/kernel/types/entity'
-import { buildEntityCacheKey } from '@/domain/entity/model/utils/idb-cache'
-import { createEntityOptimisticState } from '@/domain/entity/store/entity-store-optimistic.util'
-import { clearColdFetchMissing, fetchEntitiesByIds, fetchEntityById } from '@/domain/entity/model/utils/cold-fetch.util'
-import { getPendingListenerCount, getStateListenerStats } from '@/domain/entity/model/utils/entity'
+import { buildEntityCacheKey } from '@/domain/entity/utils/idb-cache'
+import { createEntityOptimisticState } from '@/domain/entity/store/entity-store-optimistic'
+import { clearColdFetchMissing, fetchEntitiesByIds, fetchEntityById } from '@/domain/entity/utils/cold-fetch'
+import { getPendingListenerCount, getStateListenerStats } from '@/domain/entity/utils/entity'
 import { applyEntityStateUpdate } from './ws'
-import type { WsDeltaChange } from '@/domain/entity/model/utils/entity'
+import type { WsDeltaChange } from '@/domain/entity/utils/entity'
 import {
   shouldNotifyStateChange,
   resolveListenerOldState,
   haStateChanged,
-} from '@/domain/entity/model/utils/entity'
+} from '@/domain/entity/utils/entity'
 import { createEntityCacheHelpers } from '@/domain/entity/store/entity-store-cache'
 import { createStoreDerivedState } from '@/domain/entity/store/entity-store-derived'
 import { createEntityActions } from '@/domain/entity/store/entity-store-actions'

@@ -21,13 +21,13 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { Users, Home, Link2 } from '@lucide/vue'
-import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
-import SettingsOrchTabs from '@/features/settings/components/SettingsOrchTabs.vue'
-import { usePresenceEntityConfig } from '@/features/settings/groups/automation/composables/presence-linkage.internals'
+import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
+import SettingsOrchTabs from '@/features/settings/SettingsOrchTabs.vue'
+import { usePresenceEntityConfig } from '@/features/settings/groups/automation/presence-linkage.internals'
 import {
   useSecurityLinkage,
   useSettingsSecurityModesLinkageDisplay,
-} from '@/features/settings/groups/automation/composables/security-modes'
+} from '@/features/settings/groups/automation/security-modes'
 import LinkageLoadErrorBanner from '@/features/settings/groups/automation/linkage/LoadErrorBanner.vue'
 import LinkageHeroSection from '@/features/settings/groups/automation/linkage/HeroSection.vue'
 import LinkagePresenceSection from '@/features/settings/groups/automation/linkage/PresenceSection.vue'

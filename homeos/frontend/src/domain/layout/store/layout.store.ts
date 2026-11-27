@@ -1,19 +1,19 @@
 /** - 持有 UILayoutConfig 主状态（楼层/部件/收藏/事件日志/HA 配置/统计传感器/安防/地震/AI 等） */
 import { defineStore, storeToRefs } from 'pinia'
 import { nextTick } from 'vue'
-import { logger } from '@/kernel/utils/core/logger'
-import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
+import { logger } from '@/kernel/core/logger'
+import { getApiErrorMessage } from '@/kernel/core/error-message'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { createLayoutCoreState } from '@/domain/layout/store/create-layout-core-state'
-import { resolveActiveProfileId } from './resolve-active-profile.util'
+import { resolveActiveProfileId } from './resolve-active-profile'
 import { createEditHistoryState } from '@/domain/layout/store/create-edit-history-state'
 import { createFloorWidgetActions } from '@/domain/layout/store/create-floor-widget-actions'
 import { createLayoutPersistence } from '@/domain/layout/store/create-layout-persistence'
 import { createLayoutProfileActions } from '@/domain/layout/store/create-layout-profile-actions'
 import { createLayoutDraftState } from '@/domain/layout/store/create-layout-draft-state'
 import { createEditModeActions } from '@/domain/layout/store/create-edit-mode-actions'
-import { applyTabletDefaultPerformanceMode } from '@/kernel/utils/perf/tablet-default-perf.util'
-import { clonePlain } from '@/kernel/utils/core/clone-plain.util'
+import { applyTabletDefaultPerformanceMode } from '@/kernel/perf/tablet-default-perf'
+import { clonePlain } from '@/kernel/core/clone-plain'
 
 /** useLayoutStore：Pinia store 工厂，状态与动作见定义。 */
 export const useLayoutStore = defineStore('layout', () => {

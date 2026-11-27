@@ -7,10 +7,10 @@
 <script setup>
 import { Zap } from '@lucide/vue'
 import { inject } from 'vue'
-import EntityInput from '@/domain/entity/components/entity-input/EntityInput.vue'
+import EntityInput from '@/domain/entity/entity-input/EntityInput.vue'
 import WidgetConfigShell from './WidgetConfigShell.vue'
 import WidgetConfigFooter from './WidgetConfigFooter.vue'
-import { WIDGET_PANEL_CONFIG_KEY } from '@/features/settings/groups/appearance/composables/use-layout'
+import { WIDGET_PANEL_CONFIG_KEY } from '@/features/settings/groups/appearance/use-layout'
 
 defineProps({
   quickButtonOptions: { type: Array, required: true },

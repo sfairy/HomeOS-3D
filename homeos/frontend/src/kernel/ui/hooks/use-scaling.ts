@@ -5,21 +5,21 @@
  * 再通过 `transform: scale()` 呈现。缩放数学见 `shared/utils/layout/canvas-layout.util.ts`，
  * 这里只负责响应式接线、DOM 测量与全局量发布。
  */
-import { readLocalStorage, writeLocalStorage } from '@/kernel/utils/core/index'
+import { readLocalStorage, writeLocalStorage } from '@/kernel/core/index'
 
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { getConfigSection, configEpoch } from '@/kernel/config/frontend-config'
-import { logger } from '@/kernel/utils/core/index'
+import { logger } from '@/kernel/core/index'
 import {
   buildCanvasVars,
   computeViewportLayout,
   isPhoneViewport,
   resolveDesignMetrics,
   type CanvasLayout,
-} from '@/kernel/utils/layout'
+} from '@/kernel/layout'
 
 // 可读性警戒线 / 放大上限：设置页提示用，不参与缩放计算
-export { MAX_UPSCALE, MIN_SCALE } from '@/kernel/utils/layout'
+export { MAX_UPSCALE, MIN_SCALE } from '@/kernel/layout'
 
 // localStorage 存储键：是否开启等比缩放
 const STORAGE_KEY = 'homeos_viewport_scaling'

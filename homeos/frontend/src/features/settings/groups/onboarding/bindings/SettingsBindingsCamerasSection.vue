@@ -128,10 +128,10 @@
 <script setup>
 import { computed } from 'vue'
 import { Bell, Monitor, Star, Trash2, Video } from '@lucide/vue'
-import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
+import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
-import EntityInput from '@/domain/entity/components/entity-input/EntityInput.vue'
+import EntityInput from '@/domain/entity/entity-input/EntityInput.vue'
 
 const securityCameras = defineModel('securityCameras', { type: Array, default: () => [] })
 

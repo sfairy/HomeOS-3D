@@ -1,14 +1,14 @@
 /** 微件注册表：Vue 组件挂载入口 */
-import { lazyComponent } from '@/kernel/utils/core/index'
+import { lazyComponent } from '@/kernel/core/index'
 import type { Component } from 'vue'
-import { canonicalizeWidgetType, WIDGET_REGISTRY_META } from '@/kernel/utils/registry/widget-registry-meta'
+import { canonicalizeWidgetType, WIDGET_REGISTRY_META } from '@/kernel/registry/widget-registry-meta'
 
-const ClockWidget = lazyComponent(() => import('@/features/notifications/components/widgets/ClockWidget.vue'))
-const WeatherHubPanel = lazyComponent(() => import('@/features/weather/components/HubPanel.vue'))
-const QuickActionsCard = lazyComponent(() => import('@/domain/widget/components/QuickActionsCard.vue'))
-const MediaMiniWidget = lazyComponent(() => import('@/features/media/components/MiniWidget.vue'))
-const HomeClimateChartWidget = lazyComponent(() => import('@/features/energy/components/climate/HomeClimateChartWidget.vue'))
-const SecurityPanelWidget = lazyComponent(() => import('@/features/security/components/widgets/PanelWidget.vue'))
+const ClockWidget = lazyComponent(() => import('@/features/notifications/widgets/ClockWidget.vue'))
+const WeatherHubPanel = lazyComponent(() => import('@/features/weather/HubPanel.vue'))
+const QuickActionsCard = lazyComponent(() => import('@/domain/widget/QuickActionsCard.vue'))
+const MediaMiniWidget = lazyComponent(() => import('@/features/media/MiniWidget.vue'))
+const HomeClimateChartWidget = lazyComponent(() => import('@/features/energy/climate/HomeClimateChartWidget.vue'))
+const SecurityPanelWidget = lazyComponent(() => import('@/features/security/widgets/PanelWidget.vue'))
 
 const WIDGET_COMPONENTS: Record<string, Component> = {
   clock: ClockWidget,

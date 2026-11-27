@@ -8,13 +8,13 @@ import type {
   FooterFieldOption,
   FooterSourceOption,
 } from '@/kernel/types/dashboard-footer'
-import { normalizeEnergySource } from '@/domain/energy/model/utils/source.util'
+import { normalizeEnergySource } from '@/domain/energy/utils/source'
 import {
   FOOTER_ACCOUNT_INDEX_ALL,
   resolveAccountDisplayRows,
   resolvePrimaryAccountIndex,
   resolveRawAccountRowCount,
-} from '@/domain/energy/model/utils/account.util'
+} from '@/domain/energy/utils/account'
 
 import { ACCOUNT_BINDING_SOURCE_OPTIONS } from '@/domain/energy/constants/account-binding-meta'
 

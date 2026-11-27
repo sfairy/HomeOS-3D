@@ -139,7 +139,7 @@
 import { computed } from 'vue'
 import { Activity, Bell, Filter, Trash2, Volume2 } from '@lucide/vue'
 import ApiQueryState from '@/kernel/ui/ApiQueryState.vue'
-import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
+import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
 import { useAlertRulesSection } from './context'

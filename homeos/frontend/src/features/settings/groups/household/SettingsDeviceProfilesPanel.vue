@@ -246,16 +246,16 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { Filter, Plus, RefreshCw, Search, SlidersHorizontal, Wand2 } from '@lucide/vue'
-import SettingsPageShell from '@/features/settings/components/shell/SettingsPageShell.vue'
-import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
-import SettingsCardIntro from '@/features/settings/components/shell/SettingsCardIntro.vue'
+import SettingsPageShell from '@/features/settings/shell/SettingsPageShell.vue'
+import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
+import SettingsCardIntro from '@/features/settings/shell/SettingsCardIntro.vue'
 import VEmptyState from '@/kernel/ui/primitives/VEmptyState.vue'
 import DeviceProfilesAuditCard from './DeviceProfilesAuditCard.vue'
 import DeviceProfilesDefaultsCard from './DeviceProfilesDefaultsCard.vue'
-import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
+import HosSelect from '@/domain/entity/entity-select/HosSelect.vue'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { countOfflineDevices } from '@/domain/entity/model/utils/device-group'
+import { countOfflineDevices } from '@/domain/entity/utils/device-group'
 import {
   clearDeviceProfileConfirmation,
   confirmDeviceProfile,
@@ -266,9 +266,9 @@ import {
 } from '@/domain/api/device'
 import { listHaAreas } from '@/domain/api/ha'
 import { listMusicPlayers } from '@/domain/api/media'
-import { AUDIT_LABELS, KIND_LABELS, kindTransition, relativeTime } from './device-profiles-display.util'
-import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
-import { getApiErrorMessage } from '@/kernel/utils/core/index'
+import { AUDIT_LABELS, KIND_LABELS, kindTransition, relativeTime } from './device-profiles-display'
+import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
+import { getApiErrorMessage } from '@/kernel/core/index'
 
 defineProps({ activeTab: { type: String, default: 'device-profiles' } })
 

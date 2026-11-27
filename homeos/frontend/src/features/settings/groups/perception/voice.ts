@@ -1,0 +1,836 @@
+import { computed, reactive, ref, type Ref } from 'vue'
+import { useEntitiesStore } from '@/domain/entity/store/entities.store'
+import { getVoiceAlertCatalog, getVoiceAlertGroups, DEFAULT_VOICE_ALERT_RULES, mergeVoiceAlertRules, newCustomTtsAlert, newEntityTtsAlert, normalizeCustomTtsAlerts, normalizeEntityTtsAlerts, normalizeWakeWords } from '@/kernel/constants/index'
+import { builtinStyleTemplate, composeCustomAlertTemplate, detectBuiltinStyle, getAlertPreviewSamples, getBuiltinDefaultSpeech, getEntityTtsVarChips, previewVarsForEntity, stylesForAlertKey, detectCustomSpeechMode, dailyPresetTemplate, detectDailyPreset, getDailyAdvisorDayPresets, getDailyAdvisorEveningPresets } from '@/features/voice/utils'
+import { fetchVoiceMeta, fetchVoicePresets } from '@/kernel/http/index'
+import { logger } from '@/kernel/core/index'
+import { servicesForDomainBuilder } from '@/kernel/registry/widget-catalog'
+import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
+import { reloadFrontendConfig } from '@/kernel/config/frontend-config'
+import { getApiErrorMessage } from '@/kernel/core/index'
+import { useSettingsSave } from '@/features/settings/kernel/save.internals'
+import { isSystemConfigConflictError, useSystemConfig } from '@/domain/layout/system-config-core.internals'
+
+/* ── 原 voice-alerts.internals.ts 的实现 ── */
+/** 语音告警编辑器 */
+
+interface AlertCatalogEntry {
+  key: string
+  label?: string
+  group?: string
+  [key: string]: unknown
+}
+
+interface AlertCatalogGroup {
+  id: string
+  label?: string
+  items: AlertCatalogEntry[]
+}
+
+interface BuiltinStyleState {
+  style: string
+  customText: string
+}
+
+// ── useVoiceAlertsEditor ──
+export function useVoiceAlertsEditor() {
+  const entitiesStore = useEntitiesStore()
+  const {
+    loading: voiceLoading,
+    loadError: voiceLoadError,
+    saving: voiceSaving,
+    voice,
+    ttsMediaPlayerId,
+    speakCooldownMin,
+    load: loadVoice,
+    save: saveVoice,
+    addCustomAlert,
+    removeCustomAlert,
+    addEntityTtsAlert,
+    removeEntityTtsAlert,
+  } = useVoiceConfig()
+
+  const voiceMeta = ref<{ alertCatalog: AlertCatalogEntry[] }>({ alertCatalog: [] })
+  const expandedAlert = ref<string | null>(null)
+  const builtinStyleState = reactive<Record<string, BuiltinStyleState>>({})
+  const voiceSaveTip = ref<string>('')
+  /** 上一次保存是否失败：供模板决定提示颜色，避免解析文案。 */
+  const voiceSaveFailed = ref(false)
+
+  const alertRuleGroups = computed(() => {
+    const catalog = voiceMeta.value.alertCatalog?.length ? voiceMeta.value.alertCatalog : getVoiceAlertCatalog()
+    const groupsMap = getVoiceAlertGroups()
+    const groups: Record<string, AlertCatalogGroup> = {}
+    for (const item of catalog) {
+      const gid = item.group || 'notify'
+      if (!groups[gid])
+        groups[gid] = {
+          id: gid,
+          label: (groupsMap as Record<string, string>)[gid] || gid,
+          items: [],
+        }
+      groups[gid].items.push(item)
+    }
+    return Object.values(groups)
+  })
+
+  const builtinDefaultSpeech = computed(() => getBuiltinDefaultSpeech())
+
+  const alertPreviewSamples = computed(() => getAlertPreviewSamples())
+
+  const enabledVoiceAlertCount = computed(() => {
+    if (!voice.value.ttsAlerts?.enabled) return 0
+    const alerts = voice.value.ttsAlerts as Record<string, unknown>
+    const builtin = Object.keys(alerts).filter((k) => k !== 'enabled' && alerts[k]).length
+    const custom = (voice.value.customTtsAlerts || []).filter((r) => r.enabled).length
+    const entity = (voice.value.entityTtsAlerts || []).filter((r) => r.enabled).length
+    return builtin + custom + entity
+  })
+
+  const entityTtsVarChips = getEntityTtsVarChips()
+
+  function entityPreviewVars(entityId: string) {
+    return previewVarsForEntity(entityId, entitiesStore)
+  }
+
+  function insertEntityTtsVar(rule: { speechText?: string; speechMode?: string }, varKey: string) {
+    const token = `{{${varKey}}}`
+    const cur = rule.speechText || ''
+    rule.speechText = cur ? `${cur} ${token}` : token
+    rule.speechMode = 'fixed'
+  }
+
+  async function loadVoiceMeta() {
+    try {
+      const { data } = await fetchVoiceMeta()
+      voiceMeta.value = data || {}
+    } catch (e) {
+      logger.debug('加载语音元数据失败', e)
+    }
+    if (!voiceMeta.value.alertCatalog?.length) {
+      voiceMeta.value.alertCatalog = getVoiceAlertCatalog()
+    }
+  }
+
+  function syncBuiltinStylesFromVoice() {
+    const catalog = voiceMeta.value.alertCatalog || getVoiceAlertCatalog()
+    for (const item of catalog) {
+      const tpl = voice.value.ttsAlertTemplates?.[item.key] || ''
+      const style = detectBuiltinStyle(item.key, tpl)
+      builtinStyleState[item.key] = { style, customText: style === 'custom' ? tpl : '' }
+    }
+  }
+
+  function applyBuiltinStylesToVoice() {
+    if (!voice.value.ttsAlertTemplates) voice.value.ttsAlertTemplates = {}
+    for (const key of Object.keys(builtinStyleState)) {
+      const { style, customText } = builtinStyleState[key]
+      const tpl = builtinStyleTemplate(style, customText)
+      if (tpl) voice.value.ttsAlertTemplates[key] = tpl
+      else delete voice.value.ttsAlertTemplates[key]
+    }
+  }
+
+  function setBuiltinStyle(key: string, style: string) {
+    if (!builtinStyleState[key]) builtinStyleState[key] = { style: 'default', customText: '' }
+    builtinStyleState[key].style = style
+    applyBuiltinStyle(key)
+  }
+
+  function setBuiltinCustom(key: string, text: string) {
+    if (!builtinStyleState[key]) builtinStyleState[key] = { style: 'custom', customText: '' }
+    builtinStyleState[key].customText = text
+    applyBuiltinStyle(key)
+  }
+
+  function applyBuiltinStyle(key: string) {
+    const { style, customText } = builtinStyleState[key]
+    const tpl = builtinStyleTemplate(style, customText)
+    if (!voice.value.ttsAlertTemplates) voice.value.ttsAlertTemplates = {}
+    if (tpl) voice.value.ttsAlertTemplates[key] = tpl
+    else delete voice.value.ttsAlertTemplates[key]
+  }
+
+  function insertBuiltinVar(key: string, varKey: string) {
+    const token = `{{${varKey}}}`
+    const cur = builtinStyleState[key]?.customText || ''
+    setBuiltinCustom(key, cur ? `${cur} ${token}` : token)
+    setBuiltinStyle(key, 'custom')
+  }
+
+  function builtinPreviewTemplate(key: string) {
+    const s = builtinStyleState[key]
+    if (!s || s.style === 'default') return ''
+    return builtinStyleTemplate(s.style, s.customText)
+  }
+
+  function varChipsForKey(key: string) {
+    const map: Record<string, Array<{ key: string; label: string }>> = {
+      securityZone: [
+        { key: 'name', label: '设备名' },
+        { key: 'zones', label: '区域' },
+      ],
+      securityAnomaly: [{ key: 'message', label: '详情' }],
+      notificationDanger: [{ key: 'message', label: '通知内容' }],
+      notificationWarn: [{ key: 'message', label: '通知内容' }],
+    }
+    return map[key] || [{ key: 'name', label: '设备名' }]
+  }
+
+  function toggleAlertExpand(key: string) {
+    expandedAlert.value = expandedAlert.value === key ? null : key
+  }
+
+  async function initVoiceAlerts() {
+    await loadVoice()
+    await loadVoiceMeta()
+    syncBuiltinStylesFromVoice()
+  }
+
+  async function persistVoiceAlerts() {
+    applyBuiltinStylesToVoice()
+    voiceSaveTip.value = ''
+    const ok = await saveVoice()
+    // 成败用独立标志位表达：模板不再靠文案里是否含「失败」二字决定颜色
+    // （改一句提示语就会改一次样式，且本地化后判断直接失效）。
+    voiceSaveFailed.value = !ok
+    voiceSaveTip.value = ok ? '语音告警已保存' : '保存失败'
+    return ok
+  }
+
+  return {
+    voice,
+    voiceLoading,
+    voiceLoadError,
+    voiceSaving,
+    voiceSaveTip,
+    voiceSaveFailed,
+    ttsMediaPlayerId,
+    speakCooldownMin,
+    voiceMeta,
+    expandedAlert,
+    builtinStyleState,
+    alertRuleGroups,
+    enabledVoiceAlertCount,
+    addCustomAlert,
+    removeCustomAlert,
+    addEntityTtsAlert,
+    removeEntityTtsAlert,
+    entityTtsVarChips,
+    entityPreviewVars,
+    insertEntityTtsVar,
+    initVoiceAlerts,
+    persistVoiceAlerts,
+    setBuiltinStyle,
+    setBuiltinCustom,
+    insertBuiltinVar,
+    builtinPreviewTemplate,
+    varChipsForKey,
+    toggleAlertExpand,
+    stylesForAlertKey,
+    composeCustomAlertTemplate,
+    builtinDefaultSpeech,
+    alertPreviewSamples,
+  }
+}
+
+/* ── 原 voice-commands.internals.ts 的实现 ── */
+/** 语音设置：指令编辑器（域/实体范围/服务） */
+
+
+function domainPrefix(domain: string | undefined) {
+  return `${String(domain || '').trim()}.`
+}
+
+export function useVoiceCommandEditor() {
+  /** 记录用户显式选择「指定实体」但尚未填值的命令，避免 entityMatch 为空时被推回 all */
+  const specificScopeCmds = reactive(new Set<object>())
+
+  function servicesForCmd(cmd: { domain?: string } | null | undefined) {
+    return servicesForDomainBuilder(cmd?.domain || 'light')
+  }
+
+  function entityScope(cmd: { domain?: string; entityMatch?: string }) {
+    if (specificScopeCmds.has(cmd)) return 'specific'
+    const prefix = domainPrefix(cmd.domain || 'light')
+    const match = String(cmd.entityMatch || '').trim()
+    return !match || match === prefix ? 'all' : 'specific'
+  }
+
+  function entityInputValue(cmd: { domain?: string; entityMatch?: string }) {
+    const prefix = domainPrefix(cmd.domain || 'light')
+    const match = String(cmd.entityMatch || '').trim()
+    return match === prefix ? '' : match
+  }
+
+  function onEntityScopeChange(cmd: { domain?: string; entityMatch?: string }, scope: string) {
+    if (scope === 'specific') {
+      specificScopeCmds.add(cmd)
+      cmd.entityMatch = ''
+    } else {
+      specificScopeCmds.delete(cmd)
+      cmd.entityMatch = domainPrefix(cmd.domain)
+    }
+  }
+
+  function onEntityInput(cmd: { domain?: string; entityMatch?: string }, rawValue: unknown) {
+    const value = String(rawValue || '').trim()
+    cmd.entityMatch = value || domainPrefix(cmd.domain)
+    if (value) specificScopeCmds.delete(cmd)
+  }
+
+  function onDomainChange(
+    cmd: {
+      domain?: string
+      service?: string
+      entityMatch?: string
+      serviceData?: unknown
+    },
+    domain: string,
+  ) {
+    cmd.domain = domain
+    const services = servicesForDomainBuilder(domain)
+    if (!services.includes(cmd.service || '')) cmd.service = services[0] || 'turn_on'
+    cmd.entityMatch = domainPrefix(domain)
+    cmd.serviceData = undefined
+    specificScopeCmds.delete(cmd)
+  }
+
+  function needsClimateMode(cmd: { domain?: string; service?: string }) {
+    return cmd.domain === 'climate' && cmd.service === 'set_hvac_mode'
+  }
+
+  function setClimateMode(cmd: { serviceData?: Record<string, unknown> }, mode: string) {
+    cmd.serviceData = { ...(cmd.serviceData || {}), hvac_mode: mode }
+  }
+
+  function onServiceChange(cmd: { domain?: string; service?: string; serviceData?: Record<string, unknown> }) {
+    if (needsClimateMode(cmd) && !cmd.serviceData?.hvac_mode) setClimateMode(cmd, 'cool')
+  }
+
+  return {
+    servicesForCmd,
+    entityScope,
+    entityInputValue,
+    onEntityScopeChange,
+    onEntityInput,
+    onDomainChange,
+    needsClimateMode,
+    setClimateMode,
+    onServiceChange,
+  }
+}
+
+/* ── 原 voice-config.internals.ts 的实现 ── */
+/** 语音系统配置（TTS/STT/告警规则状态） */
+
+interface VoiceCommand {
+  phrases: string[]
+  domain: string
+  service: string
+  entityMatch: string
+  serviceData?: Record<string, unknown>
+}
+
+interface VoiceConfigState {
+  ttsEnabled: boolean
+  /** local=本机；ha=HA 音箱；auto=本机优先回退 HA */
+  ttsOutputMode: 'local' | 'ha' | 'auto'
+  sttMode: string
+  language: string
+  sttEntityId: string
+  useHaConversation: boolean
+  dailyAdvisorSpeak: boolean
+  dailyAdvisorSpeakHour: number
+  dailyAdvisorTtsDaytime: string
+  dailyAdvisorTtsEvening: string
+  interactionMode: string
+  wakeWordEnabled: boolean
+  /** 连续对话（免重复唤醒）开关 */
+  continuousConversation: boolean
+  wakeWords: string[]
+  ttsAlerts: typeof DEFAULT_VOICE_ALERT_RULES
+  ttsAlertTemplates: Record<string, string>
+  customTtsAlerts: Array<ReturnType<typeof newCustomTtsAlert> & { speechMode?: string; speechText?: string }>
+  entityTtsAlerts: Array<ReturnType<typeof newEntityTtsAlert> & { speechMode?: string; speechText?: string }>
+  /** 服务端 TTS 引擎：edge（微软神经音色）| openai（OpenAI 兼容） */
+  ttsEngine: 'edge' | 'openai'
+  /** 神经音色名 */
+  ttsVoice: string
+  /** 语速，形如 +10% */
+  ttsRate: string
+  /** 音调，形如 +2Hz */
+  ttsPitch: string
+  /** OpenAI 兼容接入点 */
+  ttsApiBase: string
+  /** OpenAI 兼容密钥（后端脱敏） */
+  ttsApiKey: string
+  /** OpenAI 兼容模型名 */
+  ttsModel: string
+}
+
+// ── useVoiceConfig ──
+function normalizeTtsOutputMode(raw: unknown): 'local' | 'ha' | 'auto' {
+  if (raw === 'local' || raw === 'auto') return raw
+  return 'ha'
+}
+
+/** 服务端 TTS 字段的原始来源（老版本后端可能没有这些键） */
+interface ServerTtsSource {
+  ttsEngine?: unknown
+  ttsVoice?: unknown
+  ttsRate?: unknown
+  ttsPitch?: unknown
+  ttsApiBase?: unknown
+  ttsApiKey?: unknown
+  ttsModel?: unknown
+}
+
+function pickText(value: unknown, fallback: string): string {
+  const text = typeof value === 'string' ? value.trim() : ''
+  return text || fallback
+}
+
+function pickTtsEngine(value: unknown): 'edge' | 'openai' {
+  return value === 'openai' ? 'openai' : 'edge'
+}
+
+/** 把输入框出来的数字夹到后端校验允许的区间；非数字回落默认值。 */
+function clampInt(raw: unknown, min: number, max: number, fallback: number): number {
+  const value = Number(raw)
+  if (!Number.isFinite(value)) return fallback
+  return Math.min(max, Math.max(min, Math.round(value)))
+}
+
+/**
+ * 读出服务端 TTS 配置并补齐缺省值。
+ *
+ * 单独成函数是为了把「一串 `||` 兜底」收在这里：调用点的对象字面量本来已经很难读，
+ * 再挂 8 个兜底会让「读配置」和「补默认值」糊在一起。
+ */
+function readServerTts(
+  source: ServerTtsSource,
+): Pick<VoiceConfigState, 'ttsEngine' | 'ttsVoice' | 'ttsRate' | 'ttsPitch' | 'ttsApiBase' | 'ttsApiKey' | 'ttsModel'> {
+  return {
+    ttsEngine: pickTtsEngine(source.ttsEngine),
+    ttsVoice: pickText(source.ttsVoice, 'zh-CN-XiaoxiaoNeural'),
+    ttsRate: pickText(source.ttsRate, '+0%'),
+    ttsPitch: pickText(source.ttsPitch, '+0Hz'),
+    ttsApiBase: pickText(source.ttsApiBase, ''),
+    // 后端回传掩码；保持原样回传，服务端靠占位符识别「未修改」
+    ttsApiKey: pickText(source.ttsApiKey, ''),
+    ttsModel: pickText(source.ttsModel, 'tts-1'),
+  }
+}
+
+/**
+ * 语音配置默认值。
+ *
+ * `ttsAlerts` 用**工厂**展开 `DEFAULT_VOICE_ALERT_RULES`，不在模块顶层直接 `{...}`：
+ * 构建产物里本模块与 voice-alert-catalog 可能落进互相 import 的 chunk 环，环内被 import 的
+ * const 在执行前是 `undefined`，对象展开**不报错**、只会让默认告警规则静默变空
+ * （症状：设置页语音告警全部默认项消失，无法从报错链定位）。工厂把求值推迟到调用时。
+ */
+function defaultVoiceConfig(): VoiceConfigState {
+  return {
+    ttsEnabled: true,
+    ttsOutputMode: 'ha',
+    sttMode: 'browser',
+    language: 'zh-CN',
+    sttEntityId: '',
+    useHaConversation: false,
+    dailyAdvisorSpeak: false,
+    dailyAdvisorSpeakHour: 20,
+    dailyAdvisorTtsDaytime: '',
+    dailyAdvisorTtsEvening: '',
+    interactionMode: 'push',
+    wakeWordEnabled: false,
+    continuousConversation: false,
+    wakeWords: ['小智'],
+    ttsAlerts: { ...DEFAULT_VOICE_ALERT_RULES },
+    ttsAlertTemplates: {},
+    customTtsAlerts: [],
+    entityTtsAlerts: [],
+    ttsEngine: 'edge',
+    ttsVoice: 'zh-CN-XiaoxiaoNeural',
+    ttsRate: '+0%',
+    ttsPitch: '+0Hz',
+    ttsApiBase: '',
+    ttsApiKey: '',
+    ttsModel: 'tts-1',
+  }
+}
+
+function domainEntityPrefix(domain: unknown) {
+  return `${String(domain || 'light').trim()}.`
+}
+
+function normalizeEntityMatch(domain: unknown, entityMatch: unknown) {
+  const prefix = domainEntityPrefix(domain)
+  const normalized = String(entityMatch || '').trim()
+  if (!normalized || normalized === prefix) return prefix
+  if (!normalized.startsWith(prefix)) return prefix
+  return normalized
+}
+
+function normalizeCommand(cmd: Partial<VoiceCommand> & Record<string, unknown>) {
+  const domain = cmd?.domain || 'light'
+  return {
+    phrases: Array.isArray(cmd?.phrases) ? [...cmd.phrases] : [],
+    domain,
+    service: cmd?.service || 'turn_on',
+    entityMatch: normalizeEntityMatch(domain, cmd?.entityMatch),
+    serviceData: cmd?.serviceData && typeof cmd.serviceData === 'object' ? { ...cmd.serviceData } : undefined,
+  }
+}
+
+export function useVoiceConfig() {
+  const chrome = useChromeStore()
+  const { load: loadSystemConfig, save: saveSystemConfig } = useSystemConfig()
+  const loading = ref(false)
+  const loadError = ref('')
+  const { saving, runSave } = useSettingsSave()
+  const voice = ref({ ...defaultVoiceConfig() })
+  const ttsMediaPlayerId = ref<string>('')
+  const ttsMediaPlayerIds = ref<string[]>([])
+  const speakCooldownMin = ref(10)
+  const tipCooldownHours = ref(2)
+  const voiceCommands = ref<VoiceCommand[]>([])
+
+  function enrichCustomAlert<T extends { messageTemplate?: string }>(rule: T) {
+    const { mode, fixedText } = detectCustomSpeechMode(rule.messageTemplate)
+    return { ...rule, speechMode: mode, speechText: fixedText }
+  }
+
+  function enrichEntityTtsAlert<T extends { messageTemplate?: string }>(rule: T) {
+    const { mode, fixedText } = detectCustomSpeechMode(rule.messageTemplate)
+    return { ...rule, speechMode: mode, speechText: fixedText }
+  }
+
+  let voiceLoaded = false
+
+  async function load(options: { silent?: boolean } = {}) {
+    const showLoading = !options.silent && !voiceLoaded
+    if (showLoading) {
+      loading.value = true
+      loadError.value = ''
+    }
+    try {
+      const data = await loadSystemConfig()
+      const voiceConfig = data?.voice || {}
+      const rawCustom = normalizeCustomTtsAlerts(voiceConfig.customTtsAlerts).map(enrichCustomAlert)
+      const rawEntity = normalizeEntityTtsAlerts(voiceConfig.entityTtsAlerts).map(enrichEntityTtsAlert)
+      voice.value = {
+        ttsEnabled: voiceConfig.ttsEnabled !== false,
+        ttsOutputMode: normalizeTtsOutputMode(voiceConfig.ttsOutputMode),
+        sttMode: voiceConfig.sttMode === 'ha' ? 'ha' : voiceConfig.sttMode === 'auto' ? 'auto' : 'browser',
+        language: voiceConfig.language || 'zh-CN',
+        sttEntityId: voiceConfig.sttEntityId || '',
+        useHaConversation: !!voiceConfig.useHaConversation,
+        dailyAdvisorSpeak: !!voiceConfig.dailyAdvisorSpeak,
+        dailyAdvisorSpeakHour: Number(voiceConfig.dailyAdvisorSpeakHour ?? 20),
+        dailyAdvisorTtsDaytime: String(voiceConfig.dailyAdvisorTtsDaytime || '').trim(),
+        dailyAdvisorTtsEvening: String(voiceConfig.dailyAdvisorTtsEvening || '').trim(),
+        interactionMode: voiceConfig.interactionMode === 'wake' ? 'wake' : 'push',
+        wakeWordEnabled: !!voiceConfig.wakeWordEnabled,
+        continuousConversation: !!voiceConfig.continuousConversation,
+        wakeWords: normalizeWakeWords(voiceConfig),
+        ttsAlerts: mergeVoiceAlertRules(voiceConfig.ttsAlerts),
+        ttsAlertTemplates: { ...(voiceConfig.ttsAlertTemplates || {}) } as Record<string, string>,
+        customTtsAlerts: rawCustom as VoiceConfigState['customTtsAlerts'],
+        entityTtsAlerts: rawEntity as VoiceConfigState['entityTtsAlerts'],
+        ...readServerTts(voiceConfig),
+      }
+      ttsMediaPlayerId.value = data?.external?.ttsMediaPlayerId || ''
+      const rawIds = data?.external?.ttsMediaPlayerIds
+      if (Array.isArray(rawIds) && rawIds.length > 0) {
+        ttsMediaPlayerIds.value = rawIds.map((id: string) => String(id).trim()).filter(Boolean)
+      } else {
+        ttsMediaPlayerIds.value = []
+      }
+      speakCooldownMin.value = Number(data?.other?.speakCooldownMin ?? 10)
+      tipCooldownHours.value = Number(data?.other?.tipCooldownHours ?? 2)
+      voiceCommands.value = (data?.voiceCommands || []).map(normalizeCommand)
+      voiceLoaded = true
+      return true
+    } catch (error) {
+      logger.error('加载语音配置失败', error)
+      if (!options.silent) {
+        loadError.value = getApiErrorMessage(error, '加载语音配置失败')
+        chrome.notify(loadError.value, 'error')
+      }
+      return false
+    } finally {
+      if (showLoading) loading.value = false
+    }
+  }
+
+  async function save() {
+    return runSave(
+      async () => {
+        const cleanedCommands = voiceCommands.value
+          .map((cmd) => {
+            const phrases = (cmd.phrases || []).map((phrase) => String(phrase).trim()).filter(Boolean)
+            if (!phrases.length) return null
+            const out: Record<string, unknown> = {
+              phrases,
+              domain: String(cmd.domain || '').trim(),
+              service: String(cmd.service || '').trim(),
+            }
+            if (cmd.entityMatch?.trim()) out.entityMatch = cmd.entityMatch.trim()
+            if (cmd.serviceData && Object.keys(cmd.serviceData).length) out.serviceData = cmd.serviceData
+            return out
+          })
+          .filter((cmd): cmd is Record<string, unknown> => Boolean(cmd))
+
+        const templates = Object.fromEntries(
+          Object.entries(voice.value.ttsAlertTemplates || {})
+            .map(([k, val]) => [k, String(val || '').trim()])
+            .filter(([, val]) => val),
+        )
+        const customAlerts = normalizeCustomTtsAlerts(
+          voice.value.customTtsAlerts.map((customAlert) => ({
+            ...customAlert,
+            messageTemplate: composeCustomAlertTemplate(customAlert.speechMode || 'trigger', customAlert.speechText),
+          })),
+        )
+        const entityAlerts = normalizeEntityTtsAlerts(
+          voice.value.entityTtsAlerts.map((entityAlert) => ({
+            ...entityAlert,
+            messageTemplate: composeCustomAlertTemplate(entityAlert.speechMode || 'trigger', entityAlert.speechText),
+          })),
+        )
+        const wakeWords = normalizeWakeWords(voice.value)
+
+        const cleanedPlayerIds = ttsMediaPlayerIds.value.map((id) => String(id).trim()).filter(Boolean)
+        const primaryPlayerId = cleanedPlayerIds[0] || ''
+
+        await saveSystemConfig({
+          voice: {
+            ...voice.value,
+            wakeWords,
+            ttsAlertTemplates: templates,
+            customTtsAlerts: customAlerts,
+            entityTtsAlerts: entityAlerts,
+          },
+          external: {
+            ttsMediaPlayerId: primaryPlayerId,
+            ttsMediaPlayerIds: cleanedPlayerIds,
+          },
+          other: {
+            // 0 是合法值（不限制），不能用 `|| 10` 兜底 —— 那会把「关掉冷却」悄悄改回 10 分钟
+            speakCooldownMin: clampInt(speakCooldownMin.value, 0, 1440, 10),
+            tipCooldownHours: clampInt(tipCooldownHours.value, 0, 72, 2),
+          },
+          voiceCommands: cleanedCommands,
+        })
+        await reloadFrontendConfig()
+        return true
+      },
+      {
+        onError: async (error: unknown) => {
+          if (isSystemConfigConflictError(error)) {
+            await load({ silent: true })
+            return
+          }
+          logger.error('保存语音配置失败', error)
+          chrome.notify(getApiErrorMessage(error, '保存语音配置失败'), 'error')
+        },
+      },
+    )
+  }
+
+  function addCommand() {
+    voiceCommands.value.push({
+      phrases: [''],
+      domain: 'light',
+      service: 'turn_on',
+      entityMatch: 'light.',
+      serviceData: undefined,
+    })
+  }
+
+  function removeCommand(index: number) {
+    voiceCommands.value.splice(index, 1)
+  }
+
+  function phrasesText(cmd: VoiceCommand) {
+    return (cmd.phrases || []).join('，')
+  }
+
+  function setPhrasesText(cmd: VoiceCommand, text: string) {
+    cmd.phrases = String(text || '')
+      .split(/[,，]/)
+      .map((part) => part.trim())
+      .filter(Boolean)
+  }
+
+  async function fetchCommandPresets() {
+    const { data } = await fetchVoicePresets()
+    return (data?.presets || []).map((preset: unknown) =>
+      normalizeCommand(preset as Partial<VoiceCommand> & Record<string, unknown>),
+    )
+  }
+
+  async function importWholeHomePresets(replace = false) {
+    const presets = await fetchCommandPresets()
+    if (replace) {
+      voiceCommands.value = presets
+      return presets.length
+    }
+    const existing = new Set(
+      voiceCommands.value.map((command) => `${command.domain}.${command.service}:${(command.phrases || []).join('|')}`),
+    )
+    let added = 0
+    for (const preset of presets) {
+      const key = `${preset.domain}.${preset.service}:${(preset.phrases || []).join('|')}`
+      if (existing.has(key)) continue
+      voiceCommands.value.push(preset)
+      existing.add(key)
+      added++
+    }
+    return added
+  }
+
+  function addEntityTtsAlert(entityId = '') {
+    const id = String(entityId || '').trim()
+    if (id) {
+      const dup = voice.value.entityTtsAlerts.some((alertRule) => alertRule.entityId === id)
+      if (dup) {
+        chrome.notify(`实体 ${id} 已在播报列表中`, 'info')
+        return false
+      }
+    }
+    voice.value.entityTtsAlerts.push(enrichEntityTtsAlert(newEntityTtsAlert(id)))
+    return true
+  }
+
+  async function removeEntityTtsAlert(index: number) {
+    const item = voice.value.entityTtsAlerts[index]
+    const label = item?.entityId || `#${index + 1}`
+    const ok = await chrome.confirm(`确定移除实体播报「${label}」？`, '删除', {
+      type: 'danger',
+      confirmText: '删除',
+    })
+    if (!ok) return
+    voice.value.entityTtsAlerts.splice(index, 1)
+  }
+
+  function addCustomAlert() {
+    voice.value.customTtsAlerts.push(enrichCustomAlert(newCustomTtsAlert()))
+  }
+
+  async function removeCustomAlert(index: number) {
+    const item = voice.value.customTtsAlerts[index]
+    const label = item?.label || `#${index + 1}`
+    const ok = await chrome.confirm(`确定删除自定义语音提醒「${label}」？`, '删除', {
+      type: 'danger',
+      confirmText: '删除',
+    })
+    if (!ok) return
+    voice.value.customTtsAlerts.splice(index, 1)
+  }
+
+  function ensureAlertTemplate(key: string) {
+    if (!voice.value.ttsAlertTemplates) voice.value.ttsAlertTemplates = {}
+    if (voice.value.ttsAlertTemplates[key] === undefined) {
+      voice.value.ttsAlertTemplates[key] = ''
+    }
+  }
+
+  return {
+    loading,
+    loadError,
+    saving,
+    voice,
+    ttsMediaPlayerId,
+    ttsMediaPlayerIds,
+    speakCooldownMin,
+    tipCooldownHours,
+    voiceCommands,
+    load,
+    save,
+    addCommand,
+    removeCommand,
+    phrasesText,
+    setPhrasesText,
+    importWholeHomePresets,
+    addCustomAlert,
+    removeCustomAlert,
+    addEntityTtsAlert,
+    removeEntityTtsAlert,
+    ensureAlertTemplate,
+  }
+}
+
+/* ── 原 voice-daily.internals.ts 的实现 ── */
+/** 语音设置：每日顾问文案预设面板 */
+
+
+interface VoiceDailyFields {
+  dailyAdvisorTtsDaytime?: string
+  dailyAdvisorTtsEvening?: string
+}
+
+export function useVoiceDailyAdvisorPanel(voice: Ref<VoiceDailyFields>) {
+  const dailyDayPreset = ref('default')
+  const dailyDayCustom = ref('')
+  const dailyEveningPreset = ref('default')
+  const dailyEveningCustom = ref('')
+
+  const dailyAdvisorDayPresets = computed(() => getDailyAdvisorDayPresets())
+  const dailyAdvisorEveningPresets = computed(() => getDailyAdvisorEveningPresets())
+
+  const dailyDayTemplate = computed(() => dailyPresetTemplate(dailyDayPreset.value, 'day', dailyDayCustom.value))
+  const dailyEveningTemplate = computed(() =>
+    dailyPresetTemplate(dailyEveningPreset.value, 'evening', dailyEveningCustom.value),
+  )
+
+  function syncDailyFromVoice() {
+    dailyDayPreset.value = detectDailyPreset('day', voice.value.dailyAdvisorTtsDaytime)
+    dailyDayCustom.value = dailyDayPreset.value === 'custom' ? voice.value.dailyAdvisorTtsDaytime || '' : ''
+    dailyEveningPreset.value = detectDailyPreset('evening', voice.value.dailyAdvisorTtsEvening)
+    dailyEveningCustom.value = dailyEveningPreset.value === 'custom' ? voice.value.dailyAdvisorTtsEvening || '' : ''
+  }
+
+  function syncDailyDay() {
+    voice.value.dailyAdvisorTtsDaytime = dailyPresetTemplate(dailyDayPreset.value, 'day', dailyDayCustom.value)
+  }
+
+  function syncDailyEvening() {
+    voice.value.dailyAdvisorTtsEvening = dailyPresetTemplate(
+      dailyEveningPreset.value,
+      'evening',
+      dailyEveningCustom.value,
+    )
+  }
+
+  function onDailyDayPreset(id: string) {
+    dailyDayPreset.value = id
+    syncDailyDay()
+  }
+
+  function onDailyEveningPreset(id: string) {
+    dailyEveningPreset.value = id
+    syncDailyEvening()
+  }
+
+  return {
+    dailyDayPreset,
+    dailyDayCustom,
+    dailyEveningPreset,
+    dailyEveningCustom,
+    dailyAdvisorDayPresets,
+    dailyAdvisorEveningPresets,
+    dailyDayTemplate,
+    dailyEveningTemplate,
+    syncDailyFromVoice,
+    syncDailyDay,
+    syncDailyEvening,
+    onDailyDayPreset,
+    onDailyEveningPreset,
+  }
+}
+
+/* ── 原 voice.internals.ts 的实现 ── */
+/** composables：语音配置 / 每日顾问 / 指令编辑 / 告警编辑 */

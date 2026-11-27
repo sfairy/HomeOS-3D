@@ -9,11 +9,11 @@
 <script setup>
 import { LayoutGrid, Music2, Ruler, Shield } from '@lucide/vue'
 import { computed, inject } from 'vue'
-import EntityMultiSelect from '@/domain/entity/components/entity-multi-select/EntityMultiSelect.vue'
+import EntityMultiSelect from '@/domain/entity/entity-multi-select/EntityMultiSelect.vue'
 import HubTabsConfigField from './HubTabsConfigField.vue'
 import SettingsRangeField from '@/features/settings/shared/layout/SettingsRangeField.vue'
-import { WIDGET_PANEL_CONFIG_KEY } from '@/features/settings/groups/appearance/composables/use-layout'
-import { joinCommaEntityIds, parseCommaEntityIds } from '@/domain/entity/model/utils/comma-entity-ids.util'
+import { WIDGET_PANEL_CONFIG_KEY } from '@/features/settings/groups/appearance/use-layout'
+import { joinCommaEntityIds, parseCommaEntityIds } from '@/domain/entity/utils/comma-entity-ids'
 import WidgetConfigShell from './WidgetConfigShell.vue'
 import WidgetConfigFooter from './WidgetConfigFooter.vue'
 

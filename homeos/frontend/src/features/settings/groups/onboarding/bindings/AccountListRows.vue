@@ -68,7 +68,7 @@
 </template>
 
 <script setup>
-import EntityInput from '@/domain/entity/components/entity-input/EntityInput.vue'
+import EntityInput from '@/domain/entity/entity-input/EntityInput.vue'
 
 defineProps({
   /** 标题文案（各来源对「账户」的叫法不同）。 */

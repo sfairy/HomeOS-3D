@@ -227,11 +227,11 @@ import {
   resolveOrderedNavTabIds,
   setNavTabPlacement,
   toggleNavTabVisibility,
-} from '@/kernel/utils/layout'
-import { EMBED_TAB_ACCENTS, resolveEmbedNavAccent } from '@/kernel/utils/layout'
-import { resolveEmbedIconComponent } from '@/kernel/utils/layout'
-import { DEFAULT_BRAND_LOGO_URL } from '@/kernel/utils/layout'
-import { resolveMoviePilotUrl } from '@/kernel/utils/layout'
+} from '@/kernel/layout'
+import { EMBED_TAB_ACCENTS, resolveEmbedNavAccent } from '@/kernel/layout'
+import { resolveEmbedIconComponent } from '@/kernel/layout'
+import { DEFAULT_BRAND_LOGO_URL } from '@/kernel/layout'
+import { resolveMoviePilotUrl } from '@/kernel/layout'
 
 const layoutStore = useLayoutStore()
 

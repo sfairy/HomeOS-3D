@@ -10,8 +10,8 @@
 import { computed } from 'vue'
 import { Users, RefreshCw, Loader2, ExternalLink, ChevronRight } from '@lucide/vue'
 import { RouterLink } from 'vue-router'
-import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
-import { formatRelativeFromNow } from '@/kernel/utils/format'
+import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
+import { formatRelativeFromNow } from '@/kernel/format'
 
 const props = defineProps({
   presenceMembers: { type: Array, default: () => [] },

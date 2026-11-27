@@ -69,10 +69,10 @@
 import type { SettingsFlowStep } from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import { computed } from 'vue'
 import { Cloud, CloudSun, CloudOff, Database, LineChart, Sun, Wind } from '@lucide/vue'
-import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
+import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
-import EntityInput from '@/domain/entity/components/entity-input/EntityInput.vue'
+import EntityInput from '@/domain/entity/entity-input/EntityInput.vue'
 
 const weatherEntityId = defineModel('weatherEntityId', { type: String, default: '' })
 

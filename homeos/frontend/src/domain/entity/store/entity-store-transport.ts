@@ -2,8 +2,8 @@
 import type { Socket } from 'socket.io-client'
 import { buildEntitySocketAuth, buildEntitySocketOptions, buildEntitySocketUrl } from '@/domain/entity/store/ws'
 import { bindEntitySocketHandlers } from '@/domain/entity/store/ws'
-import { createEntitySocketSyncState } from '@/domain/entity/model/utils/ws-subscription'
-import { handleEntityFallbackFailure } from '@/domain/entity/model/utils/sync-guards'
+import { createEntitySocketSyncState } from '@/domain/entity/utils/ws-subscription'
+import { handleEntityFallbackFailure } from '@/domain/entity/utils/sync-guards'
 import type { EntitySocketSyncState, EntityTransportDeps } from '@/kernel/types/entity'
 
 /**

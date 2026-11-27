@@ -46,15 +46,15 @@
 
 <script setup lang="ts">
 import { computed, provide } from 'vue'
-import SettingsPageShell from '@/features/settings/components/shell/SettingsPageShell.vue'
+import SettingsPageShell from '@/features/settings/shell/SettingsPageShell.vue'
 import WidgetsHubSection from './widgets/WidgetsHubSection.vue'
-import { useLayoutConfigRef } from '@/domain/layout/composables/use-layout-config-ref'
-import { usePanelWidgets } from '@/features/settings/groups/appearance/composables/use-layout'
+import { useLayoutConfigRef } from '@/domain/layout/use-layout-config-ref'
+import { usePanelWidgets } from '@/features/settings/groups/appearance/use-layout'
 import {
   useQuickButtonConfig,
   toggleWidgetVisible,
   WIDGET_PANEL_CONFIG_KEY,
-} from '@/features/settings/groups/appearance/composables/use-layout'
+} from '@/features/settings/groups/appearance/use-layout'
 
 defineProps({ activeTab: { type: String, default: 'widgets' } })
 

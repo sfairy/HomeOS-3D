@@ -157,14 +157,14 @@
 <script setup>
 import { computed } from 'vue'
 import { Power, Layers, ShieldOff, ListFilter, Mic } from '@lucide/vue'
-import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
+import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
 import SettingsFeatureMaster from '@/features/settings/shared/layout/SettingsFeatureMaster.vue'
-import EntityMultiSelect from '@/domain/entity/components/entity-multi-select/EntityMultiSelect.vue'
-import RecommendInsightCard from '@/domain/recommend/components/RecommendInsightCard.vue'
-import { useWholeHomeOffSection } from '@/features/settings/groups/automation/composables/security-modes'
-import { useWholeHomeOffRecommend } from '@/features/settings/groups/automation/composables/security-modes'
+import EntityMultiSelect from '@/domain/entity/entity-multi-select/EntityMultiSelect.vue'
+import RecommendInsightCard from '@/domain/recommend/RecommendInsightCard.vue'
+import { useWholeHomeOffSection } from '@/features/settings/groups/automation/security-modes'
+import { useWholeHomeOffRecommend } from '@/features/settings/groups/automation/security-modes'
 
 const { wholeHomeOff, entityDomains, domainCards, enabledDomainCount } = useWholeHomeOffSection()
 

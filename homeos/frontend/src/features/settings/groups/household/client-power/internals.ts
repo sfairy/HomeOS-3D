@@ -5,7 +5,7 @@ import {
   handleSystemConfigPatchError,
   patchSystemConfig,
   useSystemConfig,
-} from '@/domain/layout/composables/system-config-core.internals'
+} from '@/domain/layout/system-config-core.internals'
 import { dismissClientPowerOffline, dismissClientPowerPending, fetchClientPowerStatus } from '@/kernel/http/index'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import type {
@@ -27,8 +27,8 @@ import {
 import { getClientDeviceId } from '@/domain/client/utils/index'
 import { reloadFrontendConfig } from '@/kernel/config/frontend-config'
 import { copyTextWithNotify } from '@/kernel/ui/notify'
-import { getApiErrorMessage } from '@/kernel/utils/core/index'
-import { logger } from '@/kernel/utils/core/index'
+import { getApiErrorMessage } from '@/kernel/core/index'
+import { logger } from '@/kernel/core/index'
 import {
   buildClientCardTitle,
   buildClientStatusMap,
@@ -36,7 +36,7 @@ import {
   clientNeedsChargerSwitch,
   clientSelfChargeThresholdInvalid,
   resolveClientLiveRow,
-} from '@/features/settings/groups/household/settings-client-power-display.util'
+} from '@/features/settings/groups/household/settings-client-power-display'
 import {
   buildClientPowerWakePublic,
   DEFAULT_CLIENT_POWER_SELF_CHARGE,
@@ -45,7 +45,7 @@ import {
 } from '@homeos/shared'
 import type { Ref } from 'vue'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { schedulePoll } from '@/kernel/utils/core/index'
+import { schedulePoll } from '@/kernel/core/index'
 
 // ── useClientPowerConfig ──
 // 滞回充电默认阈值（20% 开充电 / 80% 关充电，关闭峰谷错峰，应急阈值 15%）来自共享契约

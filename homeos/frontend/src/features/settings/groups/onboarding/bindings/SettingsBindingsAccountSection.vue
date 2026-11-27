@@ -276,15 +276,15 @@
 <script setup>
 import { computed, toRef } from 'vue'
 import { Anchor, ArrowRight, Gauge, GitBranch, Info, Layers, ListTree, Sparkles, Zap } from '@lucide/vue'
-import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
-import SettingsOrchTabs from '@/features/settings/components/SettingsOrchTabs.vue'
+import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
+import SettingsOrchTabs from '@/features/settings/SettingsOrchTabs.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
-import EntityInput from '@/domain/entity/components/entity-input/EntityInput.vue'
+import EntityInput from '@/domain/entity/entity-input/EntityInput.vue'
 import AccountListEditor from './AccountListEditor.vue'
 import EntityAccountListEditor from './EntityAccountListEditor.vue'
 import MultiAccountListEditor from './MultiAccountListEditor.vue'
-import { useBindingsAccountSection } from '@/features/settings/groups/onboarding/composables/bindings'
+import { useBindingsAccountSection } from '@/features/settings/groups/onboarding/bindings'
 
 const props = defineProps({
   categoryTabs: { type: Array, default: () => [] },

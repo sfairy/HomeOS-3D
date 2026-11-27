@@ -64,7 +64,7 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
 import { Radio, Gauge, Database, Server, ArrowRight } from '@lucide/vue'
-import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
+import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
 
 defineProps({
   haWsModeBadgeMod: { type: String, required: true },

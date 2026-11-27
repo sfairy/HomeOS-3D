@@ -53,10 +53,10 @@
 import { computed } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { AlertTriangle } from '@lucide/vue'
-import RecommendInsightCard from '@/domain/recommend/components/RecommendInsightCard.vue'
-import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
+import RecommendInsightCard from '@/domain/recommend/RecommendInsightCard.vue'
+import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
 import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSectionHead.vue'
-import { isDeepLinkCurrent } from '@/kernel/utils/registry/settings-route.util'
+import { isDeepLinkCurrent } from '@/kernel/registry/settings-route'
 
 const route = useRoute()
 

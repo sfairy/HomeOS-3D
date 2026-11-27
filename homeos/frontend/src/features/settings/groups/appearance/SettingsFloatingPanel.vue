@@ -66,13 +66,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Grip } from '@lucide/vue'
-import SettingsPageShell from '@/features/settings/components/shell/SettingsPageShell.vue'
-import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
+import SettingsPageShell from '@/features/settings/shell/SettingsPageShell.vue'
+import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
 import FloatingPanelHeaderSection from './floating/PanelHeaderSection.vue'
 import FloatingWidgetRow from './floating/WidgetRow.vue'
-import { useLayoutConfigRef } from '@/domain/layout/composables/use-layout-config-ref'
-import { useFloatingWidgets } from '@/features/settings/groups/appearance/composables/use-layout-floating'
-import { useFloatingPanelDisplay } from '@/features/settings/groups/appearance/composables/use-layout-floating'
+import { useLayoutConfigRef } from '@/domain/layout/use-layout-config-ref'
+import { useFloatingWidgets } from '@/features/settings/groups/appearance/use-layout-floating'
+import { useFloatingPanelDisplay } from '@/features/settings/groups/appearance/use-layout-floating'
 import './floating/styles/floating.css'
 
 defineProps({ activeTab: { type: String, default: 'floating' } })

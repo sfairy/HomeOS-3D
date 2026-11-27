@@ -134,7 +134,7 @@
 </template>
 
 <script setup>
-import { readLocalStorageFlag, writeLocalStorage } from '@/kernel/utils/core/index'
+import { readLocalStorageFlag, writeLocalStorage } from '@/kernel/core/index'
 import { useCanvasMetrics } from '@/kernel/ui/hooks/use-canvas-metrics'
 /**
  * 系统设置页面 — 薄壳入口
@@ -164,7 +164,7 @@ import {
   INDEPENDENT_SAVE_TABS,
   LEGACY_TAB_SECTIONS,
 } from './nav'
-import { isTabFeatureGranted } from '@/kernel/utils/registry/settings-nav.util'
+import { isTabFeatureGranted } from '@/kernel/registry/settings-nav'
 import { useLicenseFeatureAccess } from '@/domain/license'
 import {
   hasIndependentSettingsPending,
@@ -176,18 +176,18 @@ import {
   registerGlobalLayoutPendingSnapshot,
   registerGlobalPendingPause,
 } from '@/features/settings/kernel/pending.internals'
-import { tabLabel } from '@/kernel/utils/registry/settings-nav.util'
-import { countNavTabs, resolveNavTabContext } from './utils/nav-search.util'
-import { SETTINGS_KEEP_ALIVE_MAX, SETTINGS_KEEP_ALIVE_INCLUDE } from './utils/keep-alive.util'
-import { settingsPageShareUrl } from '@/kernel/utils/registry/settings-route.util'
-import { recordSettingsTabVisit } from '@/kernel/utils/registry/settings-recent-tabs.util'
+import { tabLabel } from '@/kernel/registry/settings-nav'
+import { countNavTabs, resolveNavTabContext } from './utils/nav-search'
+import { SETTINGS_KEEP_ALIVE_MAX, SETTINGS_KEEP_ALIVE_INCLUDE } from './utils/keep-alive'
+import { settingsPageShareUrl } from '@/kernel/registry/settings-route'
+import { recordSettingsTabVisit } from '@/kernel/registry/settings-recent-tabs'
 import { copyTextWithNotify } from '@/kernel/ui/notify'
 import pkg from '../../../package.json'
 import './shared/settings-theme.css'
 
 const appVersion = pkg.version
 
-const ExitEditConfirmDialog = defineAsyncComponent(() => import('@/domain/layout/components/ExitEditConfirmDialog.vue'))
+const ExitEditConfirmDialog = defineAsyncComponent(() => import('@/domain/layout/ExitEditConfirmDialog.vue'))
 
 // 同步引入而不是 defineAsyncComponent：侧栏账号条是一进来就可见的，
 // 异步组件的模板 ref 要等解析完成才拿得到 open()，会让第一次点击落空。

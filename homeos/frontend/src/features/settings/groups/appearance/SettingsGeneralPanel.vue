@@ -310,9 +310,9 @@
 
 <script setup>
 import { ref, watch, computed, nextTick, defineAsyncComponent } from 'vue'
-import { useLayoutConfigRef } from '@/domain/layout/composables/use-layout-config-ref'
-import SettingsPageShell from '@/features/settings/components/shell/SettingsPageShell.vue'
-import SettingsCardIntro from '@/features/settings/components/shell/SettingsCardIntro.vue'
+import { useLayoutConfigRef } from '@/domain/layout/use-layout-config-ref'
+import SettingsPageShell from '@/features/settings/shell/SettingsPageShell.vue'
+import SettingsCardIntro from '@/features/settings/shell/SettingsCardIntro.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
 import SettingsHubSubnav from '@/features/settings/shared/layout/SettingsHubSubnav.vue'
@@ -338,22 +338,22 @@ import SettingsWholeHomeOffSection from '@/features/settings/groups/appearance/S
 import SettingsScreensaverSection from '@/features/settings/groups/appearance/SettingsScreensaverSection.vue'
 import SettingsLayoutDisplaySection from '@/features/settings/groups/appearance/layout/SettingsLayoutDisplaySection.vue'
 import SettingsLayoutFooterSection from '@/features/settings/groups/appearance/layout/SettingsLayoutFooterSection.vue'
-import { useDashboardFooterEditor } from '@/features/settings/groups/appearance/composables/use-layout'
+import { useDashboardFooterEditor } from '@/features/settings/groups/appearance/use-layout'
 import { useScaling } from '@/kernel/ui/hooks/use-scaling'
 import { reloadFrontendConfig } from '@/kernel/config/frontend-config'
-import { handleSystemConfigPatchError, useSystemConfig } from '@/domain/layout/composables/system-config-core.internals'
+import { handleSystemConfigPatchError, useSystemConfig } from '@/domain/layout/system-config-core.internals'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
+import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
 import NavTabEditor from './NavTabEditor.vue'
-import { markPerformanceModeUserSet } from '@/kernel/utils/perf/index'
+import { markPerformanceModeUserSet } from '@/kernel/perf/index'
 import {
   autoPerformanceModeRef,
   clearAutoPerformanceMode,
   resolveEffectivePerformanceMode,
-} from '@/kernel/utils/perf/index'
-import { applyGlassEffectDocument } from '@/kernel/utils/ui/index'
+} from '@/kernel/perf/index'
+import { applyGlassEffectDocument } from '@/kernel/ui/index'
 import { useSettingsSidebarReentryReset } from '@/kernel/ui/hooks/hub-viewport'
-import { useSettingsHubRouteSection } from '@/features/settings/shared/composables/hub'
+import { useSettingsHubRouteSection } from '@/features/settings/shared/hub'
 import { useSettingsPendingChanges } from '@/features/settings/kernel/pending.internals'
 
 const props = defineProps({ activeTab: { type: String, default: 'general' } })
@@ -374,8 +374,8 @@ const pickingBgSlot = ref(null)
 const bgPreviewBroken = ref(new Set())
 
 // 背景图库组件按需加载：管理 / 拾取弹窗只在打开时才需要
-const AssetManagerModal = defineAsyncComponent(() => import('@/features/settings/components/asset-picker/AssetManagerModal.vue'))
-const AssetPickerModal = defineAsyncComponent(() => import('@/features/settings/components/asset-picker/AssetPickerModal.vue'))
+const AssetManagerModal = defineAsyncComponent(() => import('@/features/settings/asset-picker/AssetManagerModal.vue'))
+const AssetPickerModal = defineAsyncComponent(() => import('@/features/settings/asset-picker/AssetPickerModal.vue'))
 
 const bgSlots = computed(() => {
   const onUrl = String(layoutConfig.value.lightOnBackgroundUrl || '').trim()

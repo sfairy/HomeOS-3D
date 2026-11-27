@@ -16,13 +16,13 @@
  */
 import { describe, expect, test } from 'bun:test'
 
-import { preferServerList } from '../../../homeos/frontend/src/features/energy/composables/index'
+import { preferServerList } from '../../../homeos/frontend/src/features/energy/index'
 import {
   parseGasDayItem,
   parseGasMonthItem,
   parseGridDayItem,
   parseGridMonthItem,
-} from '../../../homeos/frontend/src/domain/energy/model/composables'
+} from '../../../homeos/frontend/src/domain/energy/composables'
 
 type Row = Record<string, unknown>
 

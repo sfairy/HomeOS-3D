@@ -1,6 +1,6 @@
 /** 生活账户绑定元数据 */
 import { ACCOUNT_BINDING_SOURCE_LABELS } from '@homeos/shared'
-import { ENERGY_CONVENTION_PREFIX } from '@/domain/energy/model/constants/energy-fields'
+import { ENERGY_CONVENTION_PREFIX } from '@/domain/energy/constants/energy-fields'
 
 export {
   ACCOUNT_BINDING_SOURCE_LABELS,

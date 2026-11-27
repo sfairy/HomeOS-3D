@@ -27,11 +27,11 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { Download, RefreshCw, WifiOff } from '@lucide/vue'
-import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
+import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
 import { getDeviceHealthSummary, installFirmwareUpdate } from '@/domain/api/device'
 import type { DeviceHealthDomainCount, DeviceHealthSample } from '@/domain/api/device'
-import { getDomainLabel } from '@/features/device/model/utils'
-import { formatLocaleNumber, formatLocaleTime } from '@/kernel/utils/format'
+import { getDomainLabel } from '@/features/device/utils'
+import { formatLocaleNumber, formatLocaleTime } from '@/kernel/format'
 import '@/kernel/ui/styles/hos-icon-btn.css'
 
 interface HealthBucket {

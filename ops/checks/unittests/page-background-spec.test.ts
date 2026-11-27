@@ -15,7 +15,7 @@ import {
   pageBackgroundPresetOptions,
 } from '../../../homeos/frontend/src/studio/app/editor/inspectors/home/page-background-spec'
 
-import { normalizePageBackground } from '../../../homeos/frontend/src/kernel/utils/widget/page-background.util'
+import { normalizePageBackground } from '../../../homeos/frontend/src/kernel/widget/page-background'
 
 describe('字段表', () => {
   test('六个预设都能出现在下拉里', () => {

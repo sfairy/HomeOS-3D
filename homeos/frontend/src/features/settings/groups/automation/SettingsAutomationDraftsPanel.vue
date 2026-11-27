@@ -257,8 +257,8 @@
 <script setup>
 import { defineAsyncComponent, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref } from 'vue'
 import { Info, ListChecks, Play, Plus, RefreshCw, ShieldAlert, Timer, TriangleAlert, Upload, X } from '@lucide/vue'
-import SettingsPageShell from '@/features/settings/components/shell/SettingsPageShell.vue'
-import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
+import SettingsPageShell from '@/features/settings/shell/SettingsPageShell.vue'
+import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import {
   applyAutomationDraft,
@@ -268,10 +268,10 @@ import {
   setAutomationDraftTargets,
   splitAutomationDraft,
 } from '@/domain/api/automation'
-import { getApiErrorMessage } from '@/kernel/utils/core/index'
+import { getApiErrorMessage } from '@/kernel/core/index'
 
 /** 实体选择器按需加载：它只在点「添加设备」时才需要。 */
-const EntityPickModal = defineAsyncComponent(() => import('@/features/entity/components/EntityPickModal.vue'))
+const EntityPickModal = defineAsyncComponent(() => import('@/features/entity/EntityPickModal.vue'))
 
 defineProps({ activeTab: { type: String, default: 'automation-drafts' } })
 

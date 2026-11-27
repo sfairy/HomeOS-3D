@@ -54,10 +54,10 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { RefreshCw, ScrollText } from '@lucide/vue'
-import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
-import SettingsCardIntro from '@/features/settings/components/shell/SettingsCardIntro.vue'
+import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
+import SettingsCardIntro from '@/features/settings/shell/SettingsCardIntro.vue'
 import { listDeviceProfileAudit } from '@/domain/api/device'
-import { AUDIT_LABELS, kindTransition, relativeTime } from './device-profiles-display.util'
+import { AUDIT_LABELS, kindTransition, relativeTime } from './device-profiles-display'
 
 const props = defineProps({
   /** 画像列表：把实体 ID 翻成可读名称 */

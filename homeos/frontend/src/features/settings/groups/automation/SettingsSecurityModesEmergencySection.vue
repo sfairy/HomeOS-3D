@@ -253,14 +253,14 @@
 </template>
 
 <script setup>
-import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
+import HosSelect from '@/domain/entity/entity-select/HosSelect.vue'
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import { Zap, Plus, Layers, AlertTriangle } from '@lucide/vue'
 import SecurityActionRow from './SecurityActionRow.vue'
 import SettingsRangeField from '@/features/settings/shared/layout/SettingsRangeField.vue'
-import { SETTINGS_RANGE_STEP } from '@/kernel/utils/settings'
-import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
+import { SETTINGS_RANGE_STEP } from '@/kernel/settings'
+import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
 import { useLayoutStore } from '@/domain/layout/store/index'
 import { normalizeSecurityEmergency } from '@/domain/layout/constants/security-emergency'
 

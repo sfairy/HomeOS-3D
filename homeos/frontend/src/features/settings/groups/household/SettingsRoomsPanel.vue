@@ -133,8 +133,8 @@
 import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { Layers, MapPin, RefreshCw, Sparkles } from '@lucide/vue'
-import SettingsPageShell from '@/features/settings/components/shell/SettingsPageShell.vue'
-import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
+import SettingsPageShell from '@/features/settings/shell/SettingsPageShell.vue'
+import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
@@ -144,9 +144,9 @@ import SettingsPendingSaveAction from '@/features/settings/shared/SettingsPendin
 import SettingsBindingsEnvironmentSection from '@/features/settings/groups/onboarding/bindings/SettingsBindingsEnvironmentSection.vue'
 import SettingsRoomEntityOrderPanel from '@/features/settings/groups/household/SettingsRoomEntityOrderPanel.vue'
 import RegistryDegradedGuide from '@/features/settings/shared/RegistryDegradedGuide.vue'
-import { useSettingsEnvHub } from '@/features/settings/shared/composables/hub'
-import { useSettingsHubRouteSection } from '@/features/settings/shared/composables/hub'
-import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
+import { useSettingsEnvHub } from '@/features/settings/shared/hub'
+import { useSettingsHubRouteSection } from '@/features/settings/shared/hub'
+import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
 import { sortHaAreas } from '@/domain/api/ha'
 
 const props = defineProps({ activeTab: { type: String, default: 'rooms' } })

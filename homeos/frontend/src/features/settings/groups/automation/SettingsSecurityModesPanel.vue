@@ -148,18 +148,18 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import SettingsPageShell from '@/features/settings/components/shell/SettingsPageShell.vue'
+import SettingsPageShell from '@/features/settings/shell/SettingsPageShell.vue'
 import SettingsSecurityModesEmergencySection from '@/features/settings/groups/automation/SettingsSecurityModesEmergencySection.vue'
 import SettingsSecurityModesModeCard from '@/features/settings/groups/automation/SettingsSecurityModesModeCard.vue'
 import SettingsSecurityModesLinkageSection from '@/features/settings/groups/automation/SettingsSecurityModesLinkageSection.vue'
 import SettingsHubSubnav from '@/features/settings/shared/layout/SettingsHubSubnav.vue'
 import { Download, Upload, Loader2, Shield, ListChecks, Save, Radio } from '@lucide/vue'
-import { useSecurityModes } from '@/features/settings/groups/automation/composables/security-modes'
-import SettingsOrchTabs from '@/features/settings/components/SettingsOrchTabs.vue'
+import { useSecurityModes } from '@/features/settings/groups/automation/security-modes'
+import SettingsOrchTabs from '@/features/settings/SettingsOrchTabs.vue'
 import SettingsPendingSaveAction from '@/features/settings/shared/SettingsPendingSaveAction.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
-import { useSettingsHubRouteSection } from '@/features/settings/shared/composables/hub'
+import { useSettingsHubRouteSection } from '@/features/settings/shared/hub'
 import { useRegisterSettingsTabPending } from '@/features/settings/kernel/pending.internals'
 
 const props = defineProps({ activeTab: { type: String, default: 'security-modes' } })

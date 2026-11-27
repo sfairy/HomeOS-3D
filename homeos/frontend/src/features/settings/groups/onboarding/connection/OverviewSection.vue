@@ -94,7 +94,7 @@
 <script setup>
 import { computed } from 'vue'
 import { PlugZap, AlertCircle, Loader2, KeyRound, Radio, RefreshCw, CheckCircle } from '@lucide/vue'
-import SettingsCardIntro from '@/features/settings/components/shell/SettingsCardIntro.vue'
+import SettingsCardIntro from '@/features/settings/shell/SettingsCardIntro.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
 

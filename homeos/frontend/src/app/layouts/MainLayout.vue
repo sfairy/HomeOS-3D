@@ -14,14 +14,14 @@
 import { computed, defineAsyncComponent, watch, onMounted, onUnmounted, ref, provide, nextTick } from 'vue'
 import { Bell, Ellipsis, ChevronDown, MessageCircle } from '@lucide/vue'
 import { useAuthStore } from '@/domain/auth/auth.store'
-import { useNotificationCenter } from '@/domain/widget/composables/index'
-import { NOTIFICATION_CENTER_KEY } from '@/domain/widget/composables/index'
+import { useNotificationCenter } from '@/domain/widget/index'
+import { NOTIFICATION_CENTER_KEY } from '@/domain/widget/index'
 import { useTeleportTargetGuard } from '@/kernel/ui/shell/use-teleport-target-guard'
-import EntityControlHost from '@/features/entity/components/EntityControlHost.vue'
+import EntityControlHost from '@/features/entity/EntityControlHost.vue'
 import ScaledViewport from '@/app/layouts/ScaledViewport.vue'
 import { AlertOverlay as EarthquakeAlertOverlay, CencBulletinCard } from '@/features/earthquake/index'
-import AgentChatPalette from '@/features/agent/components/widgets/AgentChatPalette.vue'
-import AgentCompanion from '@/features/agent/components/AgentCompanion.vue'
+import AgentChatPalette from '@/features/agent/widgets/AgentChatPalette.vue'
+import AgentCompanion from '@/features/agent/AgentCompanion.vue'
 /** 壳层浮层合并为同一动态 chunk，避免 8+ 次独立小请求（媒体全屏已挂 App 根） */
 const loadShellOverlays = () => import('@/app/layouts/shell-overlays')
 const DoorbellAlertModal = defineAsyncComponent(() => loadShellOverlays().then((m) => m.DoorbellAlertModal))
@@ -30,35 +30,35 @@ const SetupChecklistBanner = defineAsyncComponent(() => loadShellOverlays().then
 const ColdEntityPerfBanner = defineAsyncComponent(() => loadShellOverlays().then((m) => m.ColdEntityPerfBanner))
 const SettingsLockModal = defineAsyncComponent(() => loadShellOverlays().then((m) => m.SettingsLockModal))
 import { HomeModeSwitcher } from '@/features/home-mode/index'
-import HaStatusDegradeBanner from '@/domain/entity/components/HaStatusDegradeBanner.vue'
+import HaStatusDegradeBanner from '@/domain/entity/HaStatusDegradeBanner.vue'
 const NotificationDrawer = defineAsyncComponent(() => loadShellOverlays().then((m) => m.NotificationDrawer))
-import { useMainLayoutChrome } from '@/app/shell/composables/index'
-import { useDailyAdvisorGreeting } from '@/features/voice/composables/index'
-import { useEntityWsSubscriptionSync } from '@/domain/entity/composables/entity'
+import { useMainLayoutChrome } from '@/app/shell/index'
+import { useDailyAdvisorGreeting } from '@/features/voice/index'
+import { useEntityWsSubscriptionSync } from '@/domain/entity/entity'
 import { useEarthquakeBootstrap } from '@/features/earthquake/index'
-import { useDisplayLightBackdropState } from '@/features/dashboard/composables/display-light-backdrop'
-import { setDerivedRoutePath } from '@/domain/entity/model/utils/derived'
-import { resolvePerfShellClass } from '@/kernel/utils/perf/index'
-import { autoPerformanceModeRef, resolveEffectivePerformanceMode } from '@/kernel/utils/perf/index'
-import { applyGlassEffectDocument } from '@/kernel/utils/ui/index'
-import { isNavTabRouteActive } from '@/kernel/utils/layout'
-import { useViewportTier } from '@/kernel/utils/layout'
+import { useDisplayLightBackdropState } from '@/features/dashboard/display-light-backdrop'
+import { setDerivedRoutePath } from '@/domain/entity/utils/derived'
+import { resolvePerfShellClass } from '@/kernel/perf/index'
+import { autoPerformanceModeRef, resolveEffectivePerformanceMode } from '@/kernel/perf/index'
+import { applyGlassEffectDocument } from '@/kernel/ui/index'
+import { isNavTabRouteActive } from '@/kernel/layout'
+import { useViewportTier } from '@/kernel/layout'
 import { useCanvasMetrics } from '@/kernel/ui/hooks/use-canvas-metrics'
 import {
   buildDropdownFixedStyle,
   rectToDropdownPosition,
   viewportPointToPopupAnchor,
   measureDropdownFitWidth,
-} from '@/kernel/ui/popup/popup-position-dropdown.util'
+} from '@/kernel/ui/popup/popup-position-dropdown'
 import { useShellTeleportTarget } from '@/kernel/ui/shell/use-shell-teleport-target'
 import { useEscLayer } from '@/kernel/ui/hooks/use-esc-stack'
 import { isLicenseFeatureGranted } from '@/domain/license'
-import { getTeleportContainerSize } from '@/kernel/ui/popup/popup-position-shared.util'
-import Screensaver from '@/features/dashboard/components/screensaver/Screensaver.vue'
+import { getTeleportContainerSize } from '@/kernel/ui/popup/popup-position-shared'
+import Screensaver from '@/features/dashboard/screensaver/Screensaver.vue'
 // 仪表盘外壳：浮动组件 / 右侧栏 / 页脚。
 const FloatingHub = defineAsyncComponent(() => import('@/app/shell/FloatingHub.vue'))
-const RightSidebar = defineAsyncComponent(() => import('@/features/dashboard/components/RightSidebar.vue'))
-const DashboardFooter = defineAsyncComponent(() => import('@/features/dashboard/components/Footer.vue'))
+const RightSidebar = defineAsyncComponent(() => import('@/features/dashboard/RightSidebar.vue'))
+const DashboardFooter = defineAsyncComponent(() => import('@/features/dashboard/Footer.vue'))
 // 设备分组批量弹窗：右栏 quickActions 点击设备组时打开，
 // 状态源在 chrome store（isGroupModalOpen / groupModalDomain / groupModalSensors）。
 // 与其它壳层浮层合并进 shell-overlays chunk，避免额外小请求。

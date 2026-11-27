@@ -328,7 +328,7 @@
 </template>
 
 <script setup>
-import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
+import HosSelect from '@/domain/entity/entity-select/HosSelect.vue'
 import { computed, ref, onUnmounted, watch } from 'vue'
 import {
   Activity,
@@ -343,7 +343,7 @@ import {
   Wand2,
   Zap,
 } from '@lucide/vue'
-import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
+import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
 import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSectionHead.vue'
 import AlertRulesEarthquakeHero from './AlertRulesEarthquakeHero.vue'
 import AlertRulesEarthquakeConnPanel from './AlertRulesEarthquakeConnPanel.vue'
@@ -355,7 +355,7 @@ import { triggerEarthquakeTest } from '@/domain/api/earthquake'
 import { useEarthquakeStatusQuery } from '@/features/earthquake/index'
 import { reopenEarthquakeWizard } from '@/features/earthquake/index'
 import { syncEarthquakeHomeCoordsFromHa } from '@/features/earthquake/index'
-import { schedulePoll } from '@/kernel/utils/core/index'
+import { schedulePoll } from '@/kernel/core/index'
 import {
   EEW_CITY_PRESETS,
   EEW_DISTANCE_OPTIONS,

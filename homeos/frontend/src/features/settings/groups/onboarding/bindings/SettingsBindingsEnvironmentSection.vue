@@ -321,13 +321,13 @@
 <script setup>
 import { computed } from 'vue'
 import { Sparkles, Trash2, Leaf, Loader2 } from '@lucide/vue'
-import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
+import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
 import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSectionHead.vue'
-import SettingsOrchTabs from '@/features/settings/components/SettingsOrchTabs.vue'
-import EntityInput from '@/domain/entity/components/entity-input/EntityInput.vue'
+import SettingsOrchTabs from '@/features/settings/SettingsOrchTabs.vue'
+import EntityInput from '@/domain/entity/entity-input/EntityInput.vue'
 import RoomReferenceBadges from '@/features/settings/groups/household/RoomReferenceBadges.vue'
-import { getQuickRuleFields } from '@/features/settings/shared/composables/env-sensor-map'
-import { buildRoomReferenceBadges, roomHasEnvSensors } from '@/kernel/utils/settings'
+import { getQuickRuleFields } from '@/features/settings/shared/env-sensor-map'
+import { buildRoomReferenceBadges, roomHasEnvSensors } from '@/kernel/settings'
 
 const props = defineProps({
   envLoading: Boolean,

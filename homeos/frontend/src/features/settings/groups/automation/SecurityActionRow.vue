@@ -57,8 +57,8 @@
 
 <script setup>
 import { Trash2 } from '@lucide/vue'
-import EntityInput from '@/domain/entity/components/entity-input/EntityInput.vue'
-import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
+import EntityInput from '@/domain/entity/entity-input/EntityInput.vue'
+import HosSelect from '@/domain/entity/entity-select/HosSelect.vue'
 
 defineProps({
   /** 动作对象（父级数组里的同一引用，行内编辑直接写回）。 */

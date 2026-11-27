@@ -137,8 +137,8 @@
 
 <script setup>
 import { computed } from 'vue'
-import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
-import { voicesForEngine, withCurrentVoice } from '@/features/voice/model/utils'
+import HosSelect from '@/domain/entity/entity-select/HosSelect.vue'
+import { voicesForEngine, withCurrentVoice } from '@/features/voice/utils'
 
 const voice = defineModel('voice', { type: Object, required: true })
 

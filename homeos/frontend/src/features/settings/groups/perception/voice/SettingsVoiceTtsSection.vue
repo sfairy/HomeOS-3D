@@ -394,17 +394,17 @@
 <script setup>
 import { computed } from 'vue'
 import { Volume2, Loader2, Speaker, Timer, Monitor, Sparkles, Check } from '@lucide/vue'
-import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
-import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
-import SettingsOrchTabs from '@/features/settings/components/SettingsOrchTabs.vue'
+import HosSelect from '@/domain/entity/entity-select/HosSelect.vue'
+import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
+import SettingsOrchTabs from '@/features/settings/SettingsOrchTabs.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
-import EntityMultiSelect from '@/domain/entity/components/entity-multi-select/EntityMultiSelect.vue'
+import EntityMultiSelect from '@/domain/entity/entity-multi-select/EntityMultiSelect.vue'
 import VoiceSpeechComposer from '@/features/settings/groups/perception/voice/SpeechComposer.vue'
 import SettingsVoiceAgentSpeechSection from '@/features/settings/groups/perception/voice/SettingsVoiceAgentSpeechSection.vue'
-import { previewDailyAdvisor } from '@/features/voice/model/utils'
-import { greetedToday } from '@/features/voice/composables/index'
-import { useAudioDevices } from '@/features/voice/composables/index'
+import { previewDailyAdvisor } from '@/features/voice/utils'
+import { greetedToday } from '@/features/voice/index'
+import { useAudioDevices } from '@/features/voice/index'
 
 const props = defineProps({
   voiceOutputTabs: { type: Array, default: () => [] },

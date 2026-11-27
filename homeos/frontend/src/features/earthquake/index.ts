@@ -7,22 +7,22 @@
  */
 
 // 域入口组件
-export { default as AlertOverlay } from './components/AlertOverlay.vue'
-export { default as CencBulletinCard } from './components/CencBulletinCard.vue'
-export { default as HistoryAnalytics } from './components/HistoryAnalytics.vue'
-export { default as SetupWizard } from './components/SetupWizard.vue'
+export { default as AlertOverlay } from './AlertOverlay.vue'
+export { default as CencBulletinCard } from './CencBulletinCard.vue'
+export { default as HistoryAnalytics } from './HistoryAnalytics.vue'
+export { default as SetupWizard } from './SetupWizard.vue'
 // `EewSafetyTips` / `EewSlideUnlock` 是 `AlertOverlay` 的内部子块，不走域根。
 
 // composables
-export { useEarthquakeBootstrap, reopenEarthquakeWizard } from './composables/index'
-export { useEarthquakeStatusQuery } from './composables/index'
+export { useEarthquakeBootstrap, reopenEarthquakeWizard } from './use-earthquake-bootstrap'
+export { useEarthquakeStatusQuery } from './use-earthquake-status-query'
 // `useEarthquake*` 其余成员消费者在域内，不外借。
 
 // 纯函数（域根只留真的被跨域取用的）
-export { earthquakeMagnitudeTone, formatEarthquakeMagnitude } from '@/domain/earthquake/earthquake-layout.util'
-export { syncEarthquakeHomeCoordsFromHa } from '@/features/earthquake/composables/index'
+export { earthquakeMagnitudeTone, formatEarthquakeMagnitude } from '@/domain/earthquake/earthquake-layout'
+export { syncEarthquakeHomeCoordsFromHa } from './ha-coords'
 export {
   buildFixedPageSlots,
   computeAnalyticsSummary,
   shortenPlace,
-} from '@/features/earthquake/model/utils/history-analytics.util'
+} from '@/features/earthquake/utils/history-analytics'

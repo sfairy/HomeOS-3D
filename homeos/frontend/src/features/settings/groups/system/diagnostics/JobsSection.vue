@@ -111,8 +111,8 @@
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { RefreshCw, AlertCircle, Clock3 } from '@lucide/vue'
 import { fetchSystemJobs } from '@/kernel/http/index'
-import { extractErrorMessage } from '@/kernel/utils/core/index'
-import { formatDetailedDateTimeOrDash } from '@/kernel/utils/format'
+import { extractErrorMessage } from '@/kernel/core/index'
+import { formatDetailedDateTimeOrDash } from '@/kernel/format'
 import { useDiagnosticsSection } from './use-diagnostics-section'
 
 const props = defineProps({

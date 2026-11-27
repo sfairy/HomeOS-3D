@@ -1,10 +1,10 @@
 /** * 事件日志视图：数据分析 + 事件流双栏布局，展示 HA 实体状态变化时间线。 */
 <script setup lang="ts">
-import EventsViewAnalytics from './components/ViewAnalytics.vue'
-import EventsViewHero from './components/ViewHero.vue'
-import EventsViewStream from './components/ViewStream.vue'
-import EventsViewToolbar from './components/ViewToolbar.vue'
-import { useEventsView } from './composables/use-events-view'
+import EventsViewAnalytics from './ViewAnalytics.vue'
+import EventsViewHero from './ViewHero.vue'
+import EventsViewStream from './ViewStream.vue'
+import EventsViewToolbar from './ViewToolbar.vue'
+import { useEventsView } from './use-events-view'
 import '@/kernel/ui/list-page/styles/list-page-dual-pane.css'
 import './premium.css'
 

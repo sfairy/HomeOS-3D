@@ -20,7 +20,7 @@
 import { RouterLink } from 'vue-router'
 import { Link2, ChevronRight, Loader2 } from '@lucide/vue'
 import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSectionHead.vue'
-import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
+import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
 
 // 入参：加载态、安防联动配置对象、预设/开关/参数行、图标与路由回调、是否隐藏标题
 defineProps({

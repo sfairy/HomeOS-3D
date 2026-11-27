@@ -7,12 +7,12 @@
 <script setup>
 import { computed, inject } from 'vue'
 import { Trash2, Eye, EyeOff, Ruler, ChevronUp, ChevronDown } from '@lucide/vue'
-import { getWidgetIcon, getWidgetName } from '@/kernel/utils/registry/widget-catalog'
+import { getWidgetIcon, getWidgetName } from '@/kernel/registry/widget-catalog'
 import WeatherHubConfigPanel from './WeatherHubConfigPanel.vue'
 import HomeClimateChartConfigPanel from './HomeClimateChartConfigPanel.vue'
 import WidgetConfigQuickActions from './WidgetConfigQuickActions.vue'
 import WidgetConfigForms from './WidgetConfigForms.vue'
-import { isWeatherHubWidgetType } from '@/kernel/utils/registry/weather-hub-options'
+import { isWeatherHubWidgetType } from '@/kernel/registry/weather-hub-options'
 import {
   widgetHasConfigPanel,
   isHubTabsOnlyConfig,
@@ -20,7 +20,7 @@ import {
   widgetConfigBtnLabel,
   widgetConfigDescription,
   WIDGET_PANEL_CONFIG_KEY,
-} from '@/features/settings/groups/appearance/composables/use-layout'
+} from '@/features/settings/groups/appearance/use-layout'
 
 const widgetConfig = inject(WIDGET_PANEL_CONFIG_KEY)
 

@@ -28,7 +28,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { SETTINGS_HEADER_ICONS } from '@/kernel/utils/registry/settings-header-icons'
+import { SETTINGS_HEADER_ICONS } from '@/kernel/registry/settings-header-icons'
 
 const props = defineProps({
   title: { type: String, required: true },

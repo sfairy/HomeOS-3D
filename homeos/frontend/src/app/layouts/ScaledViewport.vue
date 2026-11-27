@@ -51,8 +51,8 @@ import { getDefaultLayout } from '@/domain/layout/store/index'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useScaling, holdScaledCanvasFlag } from '@/kernel/ui/hooks/use-scaling'
 import { getConfigSection, configEpoch, getWorkerDerivedThreshold } from '@/kernel/config/frontend-config'
-import { resolveDesignMetrics } from '@/kernel/utils/layout'
-import { adaptiveTier } from '@/kernel/utils/perf/index'
+import { resolveDesignMetrics } from '@/kernel/layout'
+import { adaptiveTier } from '@/kernel/perf/index'
 
 const props = defineProps({
   // 外层 frame 的附加 class（用于不同布局场景区分样式）

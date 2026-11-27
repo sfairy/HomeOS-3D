@@ -17,7 +17,9 @@
  * 保护：
  * - `index.ts` 永不参与（它是公开面）。
  * - `.d.ts` 永不参与。
- * - 合并后单文件超过 `--max-lines`（默认 900）的族会被跳过并报告，避免造出新巨型文件。
+ *
+ * 行数不作判据：合并后多少行都照合；行数只在计划里打印，用来决定合并后是否需要在
+ * 同一个文件内分区，而不再因为「超过 N 行」跳过某个功能族。
  */
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
@@ -135,7 +137,9 @@ function familyHazard(paths, allowReexport = false) {
       const target = resolve(dirname(path), spec).replace(/\.(ts|tsx|css)$/, '')
       if (stems.has(target) && !allowReexport) return `族内 re-export（${spec}），合并后导出语义会丢`
     }
-    for (const match of text.matchAll(/^(?:export\s+)?(?:type|interface|const|function|class)\s+([A-Za-z_$][\w$]*)/gm)) {
+    for (const match of text.matchAll(
+      /^(?:export\s+)?(?:type|interface|const|function|class)\s+([A-Za-z_$][\w$]*)/gm,
+    )) {
       const name = match[1]
       const body = declarationText(text, match.index).replace(/\s+/g, ' ').trim()
       if (!declarations.has(name)) declarations.set(name, [])
@@ -159,7 +163,7 @@ function lineCount(path) {
   }
 }
 
-function buildPlan(dirs, maxLines) {
+function buildPlan(dirs) {
   const merges = []
   const skipped = []
   for (const dir of dirs) {
@@ -210,10 +214,6 @@ function buildPlan(dirs, maxLines) {
         continue
       }
       const total = paths.reduce((sum, path) => sum + lineCount(path), 0)
-      if (total > maxLines) {
-        skipped.push(`${dir} · ${family}: 合并后 ${total} 行 > ${maxLines}，跳过（需按职责拆，不按前缀合）`)
-        continue
-      }
       merges.push({
         into: `${dir}/${into}`,
         from: members.map((name) => `${dir}/${name}`),
@@ -226,8 +226,6 @@ function buildPlan(dirs, maxLines) {
 }
 
 const args = process.argv.slice(2)
-const maxIndex = args.indexOf('--max-lines')
-const maxLines = maxIndex > -1 ? Number(args[maxIndex + 1]) : 900
 /** `--skip a,b` 或重复 `--skip a --skip b`：排除指定功能族（它们有跨族 re-export 链）。 */
 const skipFamilies = new Set()
 for (let i = 0; i < args.length; i += 1) {
@@ -240,15 +238,15 @@ for (let i = 0; i < args.length; i += 1) {
  * 合并器的 `dropRedundantExportLists` 会清掉与本地声明重复的导出清单。
  */
 const allowReexport = args.includes('--allow-reexport')
-const valueArgs = new Set([String(maxLines), ...[...skipFamilies].join(',')])
-const dirs = args.filter((arg) => !arg.startsWith('--') && !valueArgs.has(arg) && arg !== String(maxLines))
+const valueArgs = new Set([[...skipFamilies].join(',')])
+const dirs = args.filter((arg) => !arg.startsWith('--') && !valueArgs.has(arg))
 
 if (!dirs.length) {
-  console.error('用法: node ops/scripts/codemod/plan-families.mjs [--write|--apply] [--max-lines N] <dir>...')
+  console.error('用法: node ops/scripts/codemod/plan-families.mjs [--write|--apply] <dir>...')
   process.exit(2)
 }
 
-const { merges, skipped } = buildPlan(dirs, maxLines)
+const { merges, skipped } = buildPlan(dirs)
 const removed = merges.reduce((sum, m) => sum + m.from.length - 1, 0)
 
 console.log(`合并计划：${merges.length} 个功能族，预计减少 ${removed} 个文件\n`)

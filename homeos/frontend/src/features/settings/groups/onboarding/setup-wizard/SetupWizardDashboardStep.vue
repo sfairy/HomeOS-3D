@@ -5,7 +5,7 @@
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import { Boxes, LayoutTemplate, Star, ArrowRight, CheckCircle2, Circle } from '@lucide/vue'
-import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
+import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
 
 const props = defineProps({
   status: { type: Object, default: null },

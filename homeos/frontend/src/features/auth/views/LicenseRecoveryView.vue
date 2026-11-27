@@ -19,7 +19,7 @@ import {
   retryLicense,
 } from '@/domain/api/license'
 import SceneStage from '@/kernel/ui/SceneStage.vue'
-import AuthShell from '@/features/auth/components/AuthShell.vue'
+import AuthShell from '@/features/auth/AuthShell.vue'
 
 /** 与页脚「每 5 秒自检」对齐；改动这里要同步改文案。 */
 const RECHECK_INTERVAL_MS = 5000

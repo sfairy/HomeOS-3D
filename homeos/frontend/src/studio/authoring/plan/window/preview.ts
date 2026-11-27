@@ -15,7 +15,7 @@
 import * as THREE from '/static/vendor/three/0.187.0/three.module.min.js'
 import { OrbitControls } from '/static/vendor/three/0.187.0/OrbitControls.js'
 
-import { installWebglContextLossGuard } from '@/kernel/utils/perf/index'
+import { installWebglContextLossGuard } from '@/kernel/perf/index'
 import { addCustomWindow } from './model'
 
 const VERTICAL_FOV_DEGREES = 38

@@ -1,10 +1,10 @@
 /** * 通知中心视图：数据分析 + 消息流双栏布局。 */
 <script setup lang="ts">
-import NotificationsViewAnalytics from './components/ViewAnalytics.vue'
-import NotificationsViewHero from './components/ViewHero.vue'
-import NotificationsViewStream from './components/ViewStream.vue'
-import NotificationsViewToolbar from './components/ViewToolbar.vue'
-import { useNotificationsView } from './composables/index'
+import NotificationsViewAnalytics from './ViewAnalytics.vue'
+import NotificationsViewHero from './ViewHero.vue'
+import NotificationsViewStream from './ViewStream.vue'
+import NotificationsViewToolbar from './ViewToolbar.vue'
+import { useNotificationsView } from './index'
 import '@/kernel/ui/list-page/styles/list-page-dual-pane.css'
 import './premium.css'
 

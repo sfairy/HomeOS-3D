@@ -5,8 +5,8 @@
 <script setup>
 import { ChevronUp, ChevronDown } from '@lucide/vue'
 import SettingsRangeField from '@/features/settings/shared/layout/SettingsRangeField.vue'
-import { AFH_THEMES, clampPct, formatPct } from '@/features/settings/groups/appearance/composables/use-layout-floating'
-import { useDraftObjectField } from '@/features/settings/shared/composables/hub'
+import { AFH_THEMES, clampPct, formatPct } from '@/features/settings/groups/appearance/use-layout-floating'
+import { useDraftObjectField } from '@/features/settings/shared/hub'
 import './styles/floating.css'
 
 // 尺寸步进值（px）

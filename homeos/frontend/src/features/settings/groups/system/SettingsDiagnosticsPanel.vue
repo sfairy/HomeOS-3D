@@ -56,7 +56,7 @@
 <script setup lang="ts">
 import { provide } from 'vue'
 import { RefreshCw, Copy, AlertCircle } from '@lucide/vue'
-import SettingsPageShell from '@/features/settings/components/shell/SettingsPageShell.vue'
+import SettingsPageShell from '@/features/settings/shell/SettingsPageShell.vue'
 import SettingsHubSubnav from '@/features/settings/shared/layout/SettingsHubSubnav.vue'
 import DiagnosticsOverviewSection from './diagnostics/OverviewSection.vue'
 import DeviceHealthSection from './diagnostics/DeviceHealthSection.vue'

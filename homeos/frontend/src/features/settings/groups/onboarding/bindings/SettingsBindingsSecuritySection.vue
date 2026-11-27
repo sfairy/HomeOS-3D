@@ -243,13 +243,13 @@ import {
   Lock,
   History,
 } from '@lucide/vue'
-import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
-import SettingsOrchTabs from '@/features/settings/components/SettingsOrchTabs.vue'
+import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
+import SettingsOrchTabs from '@/features/settings/SettingsOrchTabs.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
-import EntityInput from '@/domain/entity/components/entity-input/EntityInput.vue'
+import EntityInput from '@/domain/entity/entity-input/EntityInput.vue'
 import HazardBindingsSection from '@/features/settings/groups/onboarding/bindings/HazardBindingsSection.vue'
-import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
+import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
 import type { DoorbellConfig } from '@/kernel/types/setup-wizard'
 
 defineProps({

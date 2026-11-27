@@ -210,15 +210,15 @@
 
 <script setup>
 import { ref, computed, nextTick } from 'vue'
-import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
+import HosSelect from '@/domain/entity/entity-select/HosSelect.vue'
 import { Clock, Plus, Trash2 } from '@lucide/vue'
-import EntityInput from '@/domain/entity/components/entity-input/EntityInput.vue'
-import RecommendInsightCard from '@/domain/recommend/components/RecommendInsightCard.vue'
-import HomeModeItemNav from '@/features/home-mode/components/HomeModeItemNav.vue'
-import { useHomeModeItemExpansion, useHomeModeItemFocus } from '../composables/editor.internals'
-import { useHomeModeRecommend } from '../composables/home-mode-panel.internals'
+import EntityInput from '@/domain/entity/entity-input/EntityInput.vue'
+import RecommendInsightCard from '@/domain/recommend/RecommendInsightCard.vue'
+import HomeModeItemNav from '@/features/home-mode/HomeModeItemNav.vue'
+import { useHomeModeItemExpansion, useHomeModeItemFocus } from '../editor.internals'
+import { useHomeModeRecommend } from '../home-mode-panel.internals'
 import { normalizeHomeModeTimeAt } from '@homeos/shared'
-import { describeTriggerSubtitle, normalizeSunOffset } from '@/features/home-mode/utils/trigger-summary.util'
+import { describeTriggerSubtitle, normalizeSunOffset } from '@/features/home-mode/utils/trigger-summary'
 
 const activeDraft = defineModel('activeDraft', { type: Object, required: true })
 

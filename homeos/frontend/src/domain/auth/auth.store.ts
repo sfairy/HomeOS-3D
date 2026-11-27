@@ -5,7 +5,7 @@ import {
   removeLocalStorage,
   writeLocalStorage,
   writeLocalStorageJson,
-} from '@/kernel/utils/core/index'
+} from '@/kernel/core/index'
 
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
@@ -29,12 +29,12 @@ import type {
 } from '@/domain/api/auth'
 import { getConfigSection, onConfigChange } from '@/kernel/config/frontend-config'
 import { isEntityAllowed as checkEntityAllowed } from '@homeos/shared'
-import { notifyAuthChanged } from '@/kernel/utils/bridge/store-bridge'
+import { notifyAuthChanged } from '@/kernel/bridge/store-bridge'
 import { bumpAuthGeneration, getAuthGeneration } from '@/kernel/http/index'
-import { readServerAuthHint, shouldProbeSession } from '@/kernel/utils/auth'
+import { readServerAuthHint, shouldProbeSession } from '@/kernel/auth'
 import { setLicenseFeatureAccess } from '@/domain/license'
-import { logger } from '@/kernel/utils/core/index'
-import { schedulePoll } from '@/kernel/utils/core/index'
+import { logger } from '@/kernel/core/index'
+import { schedulePoll } from '@/kernel/core/index'
 import type { AuthUserPayload } from '@/kernel/types/auth'
 
 /**

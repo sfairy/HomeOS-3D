@@ -1,19 +1,22 @@
 /**
- * 体量棘轮批量入口：两条「只许降」的度量收成一个门禁步骤。
+ * 体量棘轮批量入口：只剩「重复代码」一条。
  *
- * 只保留与「巨型文件」定义无关的两条，判定口径**不合并**（各自的基线独立、各自可 `--update`）：
+ * | 模块        | 守什么                  |
+ * | ----------- | ----------------------- |
+ * | duplicates  | jscpd 精确克隆          |
  *
- * | 模块        | 守什么                                |
- * | ----------- | ------------------------------------- |
- * | code-size   | 有效代码行 / 有效字符（总体膨胀）      |
- * | duplicates  | jscpd 精确克隆                        |
+ * 行数相关的检查已全部删除（连同脚本、基线与 `package.json` 条目）：
  *
- * `check_file_size.py`（单文件行数）与 `check_giant_files.mjs`（扇出）已移出门禁：
- * 两者都必须先回答「多少行算巨型文件」，而门禁不替项目决定这个定义。
- * 脚本保留为手动审计 `audit:file-size` / `audit:giant-files`，只在需要取证或拆分前评估时跑。
+ * - `check:code-size`（有效代码行 / 字符的总量棘轮）—— 总量变大不等于退化，
+ *   按职责合并文件时行数本来就会有增有减；
+ * - `audit:file-size`（单文件行数审计）—— 「多少行算巨型文件」是项目取舍，
+ *   工具不该替项目给出默认定义。
  *
- * 为什么是子进程：两条各自还有 `--update` / `--json` / `--report` 三种模式与详细提示；
- * 改造成统一函数接口要重写两份输出逻辑，而门禁只需要「一起跑、失败一起报」。
+ * 巨型文件的 imports / deps 扇出仍可用 `audit:giant-files` 手动取证：它不判定
+ * 行数（`--min-lines` 只是报告筛选参数），也不进 `gate:*` / `pre-push`。
+ *
+ * 为什么是子进程：`duplicates` 还有 `--update` / `--json` / `--report` 等模式；
+ * 改造成统一函数接口要重写一份输出逻辑，而门禁只需要「跑起来、失败原样报」。
  *
  * 用法：
  * ```bash
@@ -27,12 +30,7 @@ import process from 'node:process'
 import { runBatch } from '../lib/batch.mjs'
 
 const MODULES = [
-  {
-    name: 'code-size',
-    cmd: ['node', 'ops/checks/size/code-size.mjs', '--check', 'ops/checks/baselines/size/code-size-baseline.json'],
-    covers: ['check:code-size'],
-  },
   { name: 'duplicates', cmd: ['node', 'ops/checks/size/check_duplicates.mjs'], covers: ['check:duplicates'] },
 ]
 
-process.exit(await runBatch({ modules: MODULES, label: '体量棘轮' }))
+process.exit(await runBatch({ modules: MODULES, label: '重复代码棘轮' }))

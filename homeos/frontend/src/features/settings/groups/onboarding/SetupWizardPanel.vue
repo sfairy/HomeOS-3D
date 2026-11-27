@@ -138,7 +138,7 @@
 <script setup>
 import { provide, computed } from 'vue'
 import { PlugZap, Shield, Zap, Thermometer, LayoutTemplate, CheckCircle } from '@lucide/vue'
-import SettingsPageShell from '@/features/settings/components/shell/SettingsPageShell.vue'
+import SettingsPageShell from '@/features/settings/shell/SettingsPageShell.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
 import SetupWizardProgress from '@/features/settings/groups/onboarding/setup-wizard/SetupWizardProgress.vue'
@@ -152,7 +152,7 @@ import SetupWizardCompleteStep from '@/features/settings/groups/onboarding/setup
 import SetupWizardNavigation from '@/features/settings/groups/onboarding/setup-wizard/SetupWizardNavigation.vue'
 import { SETUP_WIZARD_ENV_STEP_KEY } from '@/features/settings/groups/onboarding/setup-wizard/context'
 import { resolveEnergyScopeOption } from '@/features/settings/groups/onboarding/setup-wizard/energy-scope.options'
-import { useSetupWizardPanel } from '@/features/settings/groups/onboarding/composables/use-setup-wizard'
+import { useSetupWizardPanel } from '@/features/settings/groups/onboarding/use-setup-wizard'
 
 const props = defineProps({
   activeTab: { type: String, default: 'setup-wizard' },

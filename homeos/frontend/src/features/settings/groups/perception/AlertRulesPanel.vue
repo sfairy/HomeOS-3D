@@ -517,13 +517,13 @@
 </template>
 
 <script setup>
-import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
+import HosSelect from '@/domain/entity/entity-select/HosSelect.vue'
 import { toRef, ref, watch, computed, provide } from 'vue'
-import SettingsPageShell from '@/features/settings/components/shell/SettingsPageShell.vue'
+import SettingsPageShell from '@/features/settings/shell/SettingsPageShell.vue'
 import SettingsHubSubnav from '@/features/settings/shared/layout/SettingsHubSubnav.vue'
 import SettingsPendingSaveAction from '@/features/settings/shared/SettingsPendingSaveAction.vue'
-import EntityInput from '@/domain/entity/components/entity-input/EntityInput.vue'
-import { useAlertRulesPanel } from '@/features/settings/groups/perception/composables/use-alert-rules'
+import EntityInput from '@/domain/entity/entity-input/EntityInput.vue'
+import { useAlertRulesPanel } from '@/features/settings/groups/perception/use-alert-rules'
 import { useRegisterSettingsTabPending } from '@/features/settings/kernel/pending.internals'
 import { useSettingsSidebarReentryReset } from '@/kernel/ui/hooks/hub-viewport'
 import AlertRulesInboxSection from './alert-rules/AlertRulesInboxSection.vue'

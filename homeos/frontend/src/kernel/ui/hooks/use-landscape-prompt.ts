@@ -10,7 +10,7 @@
  * `getBoundingClientRect`、软键盘定位、原生 dialog 全失真。
  */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { isPhoneViewport } from '@/kernel/utils/layout'
+import { isPhoneViewport } from '@/kernel/layout'
 
 export function useLandscapePrompt() {
   const width = ref(typeof window !== 'undefined' ? window.innerWidth : 1366)

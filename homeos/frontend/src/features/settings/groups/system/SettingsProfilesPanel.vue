@@ -35,7 +35,7 @@
 <script setup lang="ts">
 import { provide, toRef } from 'vue'
 import { Plus } from '@lucide/vue'
-import SettingsPageShell from '@/features/settings/components/shell/SettingsPageShell.vue'
+import SettingsPageShell from '@/features/settings/shell/SettingsPageShell.vue'
 import SettingsHubSubnav from '@/features/settings/shared/layout/SettingsHubSubnav.vue'
 import ProfilesDisplaySection from './profiles/DisplaySection.vue'
 import ProfilesBackupSection from './profiles/BackupSection.vue'

@@ -9,14 +9,14 @@
  *
  * 注意：加载失败的族必须抛出而不是静默跳过 —— 静默会让面板变成占位框且没有任何线索。
  */
-import { registerImageComponent } from './components/image'
-import { registerFloorplanAutoDiagramComponent } from './components/floorplan-auto-diagram'
-import { registerPanelFrameComponent } from './components/panel-frame'
+import { registerImageComponent } from './image'
+import { registerFloorplanAutoDiagramComponent } from './floorplan-auto-diagram'
+import { registerPanelFrameComponent } from './panel-frame'
 import { renderEventLogWall } from './event-log-wall'
 import { buttonComponentRenderers } from './button-renderers'
 import { navigationComponentRenderer } from './navigation-button'
 import { renderPercentageBarControl } from './percentage-bar'
-import type { RenderPropertyBag, ComponentControllerHooks } from './components/types'
+import type { RenderPropertyBag, ComponentControllerHooks } from './types'
 
 export type { RenderPropertyBag, ComponentControllerHooks }
 
@@ -28,14 +28,14 @@ type ComponentFamilyRegister = (registerComponent: (type: any, def: any) => void
  * 每个族一个 chunk：不用的族不会下载、不会执行。
  */
 const componentFamilyLoaders: Record<string, () => Promise<{ default: ComponentFamilyRegister }>> = {
-  'presence-sensor': () => import('./components/presence-sensor'),
-  climate: () => import('./components/climate'),
-  camera: () => import('./components/camera'),
-  'vacuum-map': () => import('./components/vacuum-map'),
-  clock: () => import('./components/clock'),
-  weather: () => import('./components/weather'),
-  'line-chart': () => import('./components/line-chart'),
-  'scene-mode': () => import('./components/scene-mode'),
+  'presence-sensor': () => import('./presence-sensor'),
+  climate: () => import('./climate'),
+  camera: () => import('./camera'),
+  'vacuum-map': () => import('./vacuum-map'),
+  clock: () => import('./clock'),
+  weather: () => import('./weather'),
+  'line-chart': () => import('./line-chart'),
+  'scene-mode': () => import('./scene-mode'),
 }
 
 /** 体积极小、几乎每个场景都用的注册（留在同步路径上，避免为几行代码多一次往返）。 */

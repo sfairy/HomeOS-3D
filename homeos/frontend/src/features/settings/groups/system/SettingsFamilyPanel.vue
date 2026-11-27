@@ -242,16 +242,16 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { Sparkles, Moon, Bell, Check, X, Eye } from '@lucide/vue'
-import SettingsPageShell from '@/features/settings/components/shell/SettingsPageShell.vue'
-import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
+import SettingsPageShell from '@/features/settings/shell/SettingsPageShell.vue'
+import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
 import ApiQueryState from '@/kernel/ui/ApiQueryState.vue'
 import { fetchActiveHomeMode, fetchHomeModeContext, deactivateHomeMode } from '@/domain/api/home-modes'
 import { fetchNotificationSettings } from '@/domain/api/notifications'
 import { useAuthStore } from '@/domain/auth/auth.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { logger } from '@/kernel/utils/core/index'
-import { getApiErrorMessage } from '@/kernel/utils/core/index'
-import { formatShortDateTime } from '@/kernel/utils/format'
+import { logger } from '@/kernel/core/index'
+import { getApiErrorMessage } from '@/kernel/core/index'
+import { formatShortDateTime } from '@/kernel/format'
 
 defineProps({ activeTab: { type: String, default: 'family' } })
 

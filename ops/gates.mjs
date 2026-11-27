@@ -132,13 +132,13 @@ const GATE_GROUPS = {
       ...bun('run', 'check:frontend'),
       covers: ['check:aliases', 'check:perf-ratchet', 'check:offline-counting', 'check:restricted-syntax'],
     },
-    // 体量两条（代码量 / 重复代码）。文件行数与「巨型文件」扇出不进门禁：
-    // 它们都要求先拍一个「多少行算巨型」的口径，而这类口径不该由门禁替人定义。
-    // 对应脚本保留为手动审计 `audit:file-size` / `audit:giant-files`，不再阻断 CI / pre-push。
+    // 体量棘轮只剩重复代码一条。行数不再参与任何门禁：总量变大不等于退化，单文件
+    // 「多少行算巨型」是项目取舍，都不该由门禁替人定义。巨型文件的 imports / deps
+    // 扇出仍可用 `audit:giant-files` 手动取证，不阻断 CI / pre-push。
     {
       name: 'check:size',
       ...bun('run', 'check:size'),
-      covers: ['check:code-size', 'check:duplicates'],
+      covers: ['check:duplicates'],
     },
     // 后端静态检查。合并的意义是共享一份 `ast.parse` 缓存：此前每条都把 694 个 .py
     // 重新解析一遍（合计约 25s），现在一个解释器跑完约 5s。
@@ -474,8 +474,7 @@ const MANUAL_SCRIPTS = [
   'check:plan-geometry-mutations', // 同上
   'audit:item-model', // 分支级哈希基线：items/ 仍在改，手动跑（见 README）
   'audit:materials', // 材质报告：只产出文档，判定在 check:materials
-  'audit:file-size', // 文件行数审计：不再设「巨型文件」阈值，也不再阻断门禁
-  'audit:giant-files', // 巨型文件扇出度量：拆分前取证用，不阻断门禁
+  'audit:giant-files', // 巨型文件 import / deps 扇出度量：拆分前取证用，不判定行数
 ]
 
 /** 把标签挂到步骤上，并校验「每个 static 步骤恰好一类」。 */

@@ -19,8 +19,8 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { useLayoutConfigRef } from '@/domain/layout/composables/use-layout-config-ref'
-import SettingsPageShell from '@/features/settings/components/shell/SettingsPageShell.vue'
+import { useLayoutConfigRef } from '@/domain/layout/use-layout-config-ref'
+import SettingsPageShell from '@/features/settings/shell/SettingsPageShell.vue'
 import { useSettingsPendingChanges } from '@/features/settings/kernel/pending.internals'
 import SettingsLayoutEditSection from '@/features/settings/groups/appearance/layout/SettingsLayoutEditSection.vue'
 

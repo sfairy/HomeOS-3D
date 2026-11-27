@@ -1,7 +1,7 @@
 import { climateRenderTypeFromKind } from '@homeos/shared/entity/device-kind'
 import { BATH_HEATER_MODE_LABELS, CLIMATE_MODE_LABELS, HORIZONTAL_POSITION_LABELS, HORIZONTAL_SWING_LABELS, VERTICAL_SWING_LABELS, WATER_HEATER_MODE_LABELS } from '@/kernel/constants/index'
 import { deviceProfileKind } from '@/domain/device/device-profile-kind-cache'
-import { bathHeaterModeUsesAirflow, climateIsPoweredOn, climateIsRunning, climatePresentationMode, normalizeClimateModeKey } from '@/domain/entity/model/climate-power'
+import { bathHeaterModeUsesAirflow, climateIsPoweredOn, climateIsRunning, climatePresentationMode, normalizeClimateModeKey } from '@/domain/entity/climate-power'
 import { type HaEntityAttributes, type HaEntityState, type HaEntityEntry } from '@app/shared/util/ha-entity'
 
 /**

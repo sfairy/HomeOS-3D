@@ -130,7 +130,7 @@
 
 <script setup>
 import { ref, shallowRef, computed, watch, onMounted } from 'vue'
-import SettingsPageShell from '@/features/settings/components/shell/SettingsPageShell.vue'
+import SettingsPageShell from '@/features/settings/shell/SettingsPageShell.vue'
 import { Video, Plus } from '@lucide/vue'
 import SettingsBindingsOverviewSection from '@/features/settings/groups/onboarding/bindings/SettingsBindingsOverviewSection.vue'
 import SettingsBindingsWeatherSection from '@/features/settings/groups/onboarding/bindings/SettingsBindingsWeatherSection.vue'
@@ -140,14 +140,14 @@ import BindingsSectionInsights from '@/features/settings/groups/onboarding/bindi
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useLayoutStore } from '@/domain/layout/store/index'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { useHaBindings } from '@/features/settings/groups/onboarding/composables/bindings'
+import { useHaBindings } from '@/features/settings/groups/onboarding/bindings'
 import SettingsHubSubnav from '@/features/settings/shared/layout/SettingsHubSubnav.vue'
-import { ensureDoorbellList, collectDoorbellCameraIds } from '@/kernel/utils/layout'
+import { ensureDoorbellList, collectDoorbellCameraIds } from '@/kernel/layout'
 import {
   applyBindingsLayoutSlice,
   liveBindingsLayoutSlice,
   pickBindingsLayoutSlice,
-} from '@/features/settings/groups/appearance/composables/use-layout'
+} from '@/features/settings/groups/appearance/use-layout'
 import { afterLayoutCancelSync } from '@/features/settings/kernel/pending.internals'
 import { useSettingsPendingChanges } from '@/features/settings/kernel/pending.internals'
 import { useRegisterSettingsTabPending } from '@/features/settings/kernel/pending.internals'
@@ -156,19 +156,19 @@ import {
   pauseGlobalPendingChanges,
   resumeGlobalPendingChanges,
 } from '@/features/settings/kernel/pending.internals'
-import { getApiErrorMessage } from '@/kernel/utils/core/index'
+import { getApiErrorMessage } from '@/kernel/core/index'
 import { fetchBindingsGaps } from '@/kernel/http/index'
 import { runHazardDrill as runHazardDrillApi } from '@/domain/api/security'
 import { useYamlValidation } from '@/features/security/index'
 import { useSettingsSidebarReentryReset } from '@/kernel/ui/hooks/hub-viewport'
-import { useSettingsHubRouteSection } from '@/features/settings/shared/composables/hub'
+import { useSettingsHubRouteSection } from '@/features/settings/shared/hub'
 import SettingsPendingSaveAction from '@/features/settings/shared/SettingsPendingSaveAction.vue'
-import { useBindingsRecommend } from '@/features/settings/groups/onboarding/composables/bindings'
+import { useBindingsRecommend } from '@/features/settings/groups/onboarding/bindings'
 import {
   handleSystemConfigPatchError,
   patchSystemConfig,
   useSystemConfig,
-} from '@/domain/layout/composables/system-config-core.internals'
+} from '@/domain/layout/system-config-core.internals'
 import { applyWeatherEntityIdToLayout, resolveWeatherEntityId } from '@/domain/layout/store/index'
 
 const { load: loadSystemConfig } = useSystemConfig()

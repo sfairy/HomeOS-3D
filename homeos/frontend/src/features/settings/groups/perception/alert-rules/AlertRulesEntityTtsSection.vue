@@ -180,20 +180,20 @@
 </template>
 
 <script setup>
-import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
+import HosSelect from '@/domain/entity/entity-select/HosSelect.vue'
 import { ref, computed, unref } from 'vue'
 import { Trash2, MapPin, Activity, Filter, Volume2 } from '@lucide/vue'
-import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
+import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
-import RecommendInsightCard from '@/domain/recommend/components/RecommendInsightCard.vue'
-import EntityInput from '@/domain/entity/components/entity-input/EntityInput.vue'
+import RecommendInsightCard from '@/domain/recommend/RecommendInsightCard.vue'
+import EntityInput from '@/domain/entity/entity-input/EntityInput.vue'
 import VoiceSpeechComposer from '@/features/settings/groups/perception/voice/SpeechComposer.vue'
 import { getEntityTtsQuickDomains } from '@/kernel/constants/index'
 import { useAlertRulesSection } from './context'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { useAlertRulesRecommend } from '@/features/settings/groups/perception/composables/use-alert-rules'
-import { getEntityDisplayName } from '@/domain/entity/model/utils/derived'
+import { useAlertRulesRecommend } from '@/features/settings/groups/perception/use-alert-rules'
+import { getEntityDisplayName } from '@/domain/entity/utils/derived'
 
 const entitiesStore = useEntitiesStore()
 const pendingEntityId = ref('')

@@ -2,10 +2,10 @@
 import { ref, type Ref } from 'vue'
 import { activateHomeMode } from '@/domain/api/home-modes'
 import { fetchConfigProfiles, saveProject, deleteProject, setActiveProject } from '@/domain/api/config'
-import { logger } from '@/kernel/utils/core/logger'
+import { logger } from '@/kernel/core/logger'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { writeStoredProfileId } from './create-layout-state'
-import { bindSelfTerminalProfile } from './resolve-active-profile.util'
+import { bindSelfTerminalProfile } from './resolve-active-profile'
 import { inferTerminalLabel } from '@/domain/client/utils/index'
 import type { UILayoutConfig } from '@/kernel/types/layout'
 

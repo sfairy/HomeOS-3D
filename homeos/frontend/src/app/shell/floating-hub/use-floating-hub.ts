@@ -1,20 +1,20 @@
 /* ── 原 useFloatingHub.ts 的实现 ── */
-import { getEntityDisplayName } from '@/domain/entity/model/utils/derived'
-import { formatLocaleTime } from '@/kernel/utils/format'
+import { getEntityDisplayName } from '@/domain/entity/utils/derived'
+import { formatLocaleTime } from '@/kernel/format'
 import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch, type Ref } from 'vue'
 import { useLayoutStore } from '@/domain/layout/store/index'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { viewportPointToPopupAnchor } from '@/kernel/ui/popup/use-popup-position'
-import { usePerfClock } from '@/domain/layout/composables/use-perf-clock'
-import { useEntityDisplayEpoch } from '@/domain/entity/composables/entity'
+import { usePerfClock } from '@/domain/layout/use-perf-clock'
+import { useEntityDisplayEpoch } from '@/domain/entity/entity'
 import {
   isElectricityEntity,
   isGasEntity,
   isWaterEntity,
   isCommEntity,
   isUtilityEntity,
-} from '@/domain/entity/model/utils/entity'
-import { isFloatingPanelType, FLOATING_HUB_WIDTH_MAP } from '@/kernel/utils/registry/widget-registry-meta'
+} from '@/domain/entity/utils/entity'
+import { isFloatingPanelType, FLOATING_HUB_WIDTH_MAP } from '@/kernel/registry/widget-registry-meta'
 import type { FloatingWidget } from '@/kernel/types/layout'
 import type { FloatingHubContext } from '@/kernel/types/floating-hub'
 import {
@@ -25,14 +25,14 @@ import {
   rectCenterPct,
   sanitizeWidgetPct,
   isValidRootRect,
-} from '@/features/settings/model/floorplan/utils/floating-hub-layout.util'
-import { buildAfhAccentStyle, resolveAfhWidgetTheme } from '@/domain/entity/model/utils/floating-entity-colors.util'
-import { resolveAqiSensorId, collectSensorEntityIds } from '@/features/weather/model/utils'
+} from '@/features/settings/floorplan/utils/floating-hub-layout'
+import { buildAfhAccentStyle, resolveAfhWidgetTheme } from '@/domain/entity/utils/floating-entity-colors'
+import { resolveAqiSensorId, collectSensorEntityIds } from '@/features/weather/utils'
 
 const AsyncUtilityMeterInfoPopup = defineAsyncComponent(
-  () => import('@/features/entity/components/popups/UtilityMeterInfoPopup.vue'),
+  () => import('@/features/entity/popups/UtilityMeterInfoPopup.vue'),
 )
-const AsyncCommInfoPopup = defineAsyncComponent(() => import('@/features/entity/components/popups/CommInfoPopup.vue'))
+const AsyncCommInfoPopup = defineAsyncComponent(() => import('@/features/entity/popups/CommInfoPopup.vue'))
 
 const HUB_CLOCK_TIME_OPTS = {
   hour: '2-digit',

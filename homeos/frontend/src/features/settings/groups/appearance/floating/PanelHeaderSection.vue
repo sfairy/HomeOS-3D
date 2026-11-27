@@ -11,7 +11,7 @@ import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
 import SettingsPopoutMenu from '@/features/settings/shared/layout/SettingsPopoutMenu.vue'
 import FloatingWidgetPickerMenu from './FloatingWidgetPickerMenu.vue'
-import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
+import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
 import './styles/floating.css'
 
 const showAddFloating = defineModel('showAddFloating', { type: Boolean, required: true })

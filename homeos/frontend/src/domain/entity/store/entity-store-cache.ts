@@ -8,8 +8,8 @@ import {
   isEntityCacheEnabled,
   loadEntityCache,
   saveEntityCacheShards,
-} from '@/domain/entity/model/utils/idb-cache'
-import { partitionEntitiesForCacheHydrate } from '@/domain/entity/model/utils/sync-guards'
+} from '@/domain/entity/utils/idb-cache'
+import { partitionEntitiesForCacheHydrate } from '@/domain/entity/utils/sync-guards'
 import type { EntitiesMap, HaEntityState } from '@/kernel/types/entity'
 import type { UILayoutConfig } from '@/kernel/types/layout'
 

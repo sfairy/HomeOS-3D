@@ -17,25 +17,25 @@
  */
 
 // ── 域入口组件 ──
-export { default as MonitorPanel } from './components/MonitorPanel.vue'
-export { default as Overview } from './components/Overview.vue'
-export { default as ZoneEditorList } from './components/ZoneEditorList.vue'
+export { default as MonitorPanel } from './MonitorPanel.vue'
+export { default as Overview } from './Overview.vue'
+export { default as ZoneEditorList } from './ZoneEditorList.vue'
 
 // ── 域内组件 ──
-export { default as MediaPagerControls } from './components/MediaPagerControls.vue'
+export { default as MediaPagerControls } from './MediaPagerControls.vue'
 
 // ── composables ──
-export * from './composables/use-hazard-binding-status'
-export * from './composables/use-reduce-security-sensitivity'
-export * from './composables/security'
-export * from './composables/use-security-overview'
-export * from '@/features/security/composables/security'
-export * from './composables/security'
-export * from './composables/security-view'
-export * from './composables/security-zone'
-export * from './composables/security-zone'
-export * from './composables/security-zone'
-export * from './composables/use-yaml-validation'
+export * from './use-hazard-binding-status'
+export * from './use-reduce-security-sensitivity'
+export * from './security'
+export * from './use-security-overview'
+export * from '@/features/security/security'
+export * from './security'
+export * from './security-view'
+export * from './security-zone'
+export * from './security-zone'
+export * from './security-zone'
+export * from './use-yaml-validation'
 
 // ── 域内纯函数（只被 security 自己消费）──
 export * from './utils/index'
@@ -43,7 +43,7 @@ export * from './utils/index'
 export * from './utils/index'
 
 // ── 共享纯函数（域外也要用，真源在 shared/security/utils）──
-export * from '@/features/security/model/utils/index'
-export * from '@/features/security/model/utils/index'
-export * from '@/features/security/model/utils/index'
-export * from '@/features/security/model/utils/index'
+export * from '@/features/security/utils/index'
+export * from '@/features/security/utils/index'
+export * from '@/features/security/utils/index'
+export * from '@/features/security/utils/index'

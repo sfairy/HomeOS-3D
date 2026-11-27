@@ -7,10 +7,10 @@ import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { fetchConfigHealth } from '@/kernel/http/index'
 import { useSetupChecklist } from '@/domain/status/index'
-import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
-import { getRecentSettingsTabs } from '@/kernel/utils/registry/settings-recent-tabs.util'
-import { tabLabel } from '@/kernel/utils/registry/settings-nav.util'
-import { logger } from '@/kernel/utils/core/index'
+import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
+import { getRecentSettingsTabs } from '@/kernel/registry/settings-recent-tabs'
+import { tabLabel } from '@/kernel/registry/settings-nav'
+import { logger } from '@/kernel/core/index'
 
 type ConfigHealth = {
   score?: number

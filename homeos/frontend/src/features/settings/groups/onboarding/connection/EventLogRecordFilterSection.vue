@@ -9,11 +9,11 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { FileText, Loader2, CheckCircle2, AlertCircle, ShieldOff, Ban, ListFilter, Save } from '@lucide/vue'
-import EntityMultiSelect from '@/domain/entity/components/entity-multi-select/EntityMultiSelect.vue'
-import RecommendInsightCard from '@/domain/recommend/components/RecommendInsightCard.vue'
-import { useRecommendInsight } from '@/domain/recommend/composables/use-recommend-insight'
-import { formatCount, hoursLabel } from '@/features/events/model/utils/events-display.util'
-import { useEventLogRecordFilter } from '@/features/settings/groups/onboarding/composables/event-log-record-filter'
+import EntityMultiSelect from '@/domain/entity/entity-multi-select/EntityMultiSelect.vue'
+import RecommendInsightCard from '@/domain/recommend/RecommendInsightCard.vue'
+import { useRecommendInsight } from '@/domain/recommend/use-recommend-insight'
+import { formatCount, hoursLabel } from '@/features/events/utils/events-display'
+import { useEventLogRecordFilter } from '@/features/settings/groups/onboarding/event-log-record-filter'
 
 const {
   enabled,

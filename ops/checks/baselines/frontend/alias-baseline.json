@@ -20,7 +20,7 @@
       "impl": 0,
       "moduleLet": 3
     },
-    "homeos/frontend/src/app/shell/composables/use-main-layout-chrome.ts": {
+    "homeos/frontend/src/app/shell/use-main-layout-chrome.ts": {
       "alias2": 2,
       "impl": 0,
       "moduleLet": 0
@@ -35,62 +35,52 @@
       "impl": 0,
       "moduleLet": 2
     },
-    "homeos/frontend/src/domain/client/utils/system.util.ts": {
+    "homeos/frontend/src/domain/client/utils/system.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 4
     },
-    "homeos/frontend/src/domain/energy/model/utils/source.util.ts": {
+    "homeos/frontend/src/domain/energy/utils/source.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/domain/entity/components/HaDegradeBanner.vue": {
+    "homeos/frontend/src/domain/entity/HaDegradeBanner.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/domain/entity/components/HaStatusDegradeBanner.vue": {
+    "homeos/frontend/src/domain/entity/HaStatusDegradeBanner.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 1
-    },
-    "homeos/frontend/src/domain/entity/model/utils/derived.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/domain/entity/model/utils/entity.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 5
-    },
-    "homeos/frontend/src/domain/entity/model/utils/idb-cache.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/domain/entity/model/utils/sync-guards.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/domain/entity/model/utils/ws-subscription.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 2
     },
     "homeos/frontend/src/domain/entity/store/entity-projection.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/domain/layout/composables/system-config-core.internals.ts": {
+    "homeos/frontend/src/domain/entity/utils/derived.ts": {
       "alias2": 0,
       "impl": 0,
-      "moduleLet": 3
+      "moduleLet": 1
     },
-    "homeos/frontend/src/domain/layout/composables/use-echarts-host.ts": {
+    "homeos/frontend/src/domain/entity/utils/entity.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 5
+    },
+    "homeos/frontend/src/domain/entity/utils/idb-cache.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/domain/entity/utils/sync-guards.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/domain/entity/utils/ws-subscription.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 2
@@ -100,12 +90,22 @@
       "impl": 0,
       "moduleLet": 1
     },
+    "homeos/frontend/src/domain/layout/system-config-core.internals.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 3
+    },
+    "homeos/frontend/src/domain/layout/use-echarts-host.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 2
+    },
     "homeos/frontend/src/domain/license.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 2
     },
-    "homeos/frontend/src/domain/recommend/components/RecommendInsightCard.vue": {
+    "homeos/frontend/src/domain/recommend/RecommendInsightCard.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
@@ -120,32 +120,32 @@
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/domain/voice/local-speech.util.ts": {
+    "homeos/frontend/src/domain/voice/local-speech.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 2
     },
-    "homeos/frontend/src/domain/widget/composables/use-notification-center.ts": {
+    "homeos/frontend/src/domain/widget/use-notification-center.ts": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/domain/widget/composables/use-scheduled-poll.ts": {
+    "homeos/frontend/src/domain/widget/use-scheduled-poll.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/features/agent/components/AgentCompanion.vue": {
+    "homeos/frontend/src/features/agent/AgentCompanion.vue": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 6
     },
-    "homeos/frontend/src/features/agent/components/agent-companion/use-companion-speech.ts": {
+    "homeos/frontend/src/features/agent/agent-companion/use-companion-speech.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/features/agent/components/widgets/AgentChatPalette.vue": {
+    "homeos/frontend/src/features/agent/widgets/AgentChatPalette.vue": {
       "alias2": 2,
       "impl": 0,
       "moduleLet": 3
@@ -170,92 +170,92 @@
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/features/device/camera/composables/use-ha-web-rtc-player.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 2
-    },
-    "homeos/frontend/src/features/device/components/DeviceAnalyticsPanel.vue": {
+    "homeos/frontend/src/features/device/DeviceAnalyticsPanel.vue": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 5
     },
-    "homeos/frontend/src/features/device/components/DeviceEntityReferencesPanel.vue": {
+    "homeos/frontend/src/features/device/DeviceEntityReferencesPanel.vue": {
       "alias2": 3,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/device/components/DeviceFilterPanel.vue": {
+    "homeos/frontend/src/features/device/DeviceFilterPanel.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/device/components/DeviceOverviewPanel.vue": {
+    "homeos/frontend/src/features/device/DeviceOverviewPanel.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/device/components/DeviceRow.vue": {
+    "homeos/frontend/src/features/device/DeviceRow.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/device/components/DeviceStateHistoryPanel.vue": {
+    "homeos/frontend/src/features/device/DeviceStateHistoryPanel.vue": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 3
     },
-    "homeos/frontend/src/features/device/components/DeviceStatsDashboard.vue": {
+    "homeos/frontend/src/features/device/DeviceStatsDashboard.vue": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 4
     },
-    "homeos/frontend/src/features/device/components/DeviceUsageStats.vue": {
+    "homeos/frontend/src/features/device/DeviceUsageStats.vue": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 2
     },
-    "homeos/frontend/src/features/device/components/DoorbellAlertModal.vue": {
+    "homeos/frontend/src/features/device/DoorbellAlertModal.vue": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 3
     },
-    "homeos/frontend/src/features/device/components/HaCameraStream.vue": {
+    "homeos/frontend/src/features/device/HaCameraStream.vue": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 2
     },
-    "homeos/frontend/src/features/device/composables/device.ts": {
+    "homeos/frontend/src/features/device/camera/use-ha-web-rtc-player.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 2
     },
-    "homeos/frontend/src/features/device/model/device-profile-kinds.ts": {
+    "homeos/frontend/src/features/device/device-profile-kinds.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 2
     },
-    "homeos/frontend/src/features/device/model/utils.ts": {
+    "homeos/frontend/src/features/device/device.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 2
+    },
+    "homeos/frontend/src/features/device/utils.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 1
+    },
+    "homeos/frontend/src/features/earthquake/AlertOverlay.vue": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 2
     },
     "homeos/frontend/src/features/earthquake/EarthquakeHistoryPage.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/earthquake/components/AlertOverlay.vue": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 2
-    },
-    "homeos/frontend/src/features/earthquake/components/SetupWizard.vue": {
+    "homeos/frontend/src/features/earthquake/SetupWizard.vue": {
       "alias2": 2,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/earthquake/composables/use-earthquake-tts.ts": {
+    "homeos/frontend/src/features/earthquake/use-earthquake-tts.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 10
@@ -265,50 +265,40 @@
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/features/energy/components/climate/home-climate-chart/echarts.util.ts": {
+    "homeos/frontend/src/features/energy/climate/home-climate-chart/echarts.ts": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/energy/composables/use-client-power-reporter.ts": {
+    "homeos/frontend/src/features/energy/use-client-power-reporter.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 10
     },
-    "homeos/frontend/src/features/entity/components/EntityPickModal.vue": {
+    "homeos/frontend/src/features/entity/EntityPickModal.vue": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 2
     },
-    "homeos/frontend/src/features/entity/components/popups/AnchoredPopupShell.vue": {
+    "homeos/frontend/src/features/entity/popups/AnchoredPopupShell.vue": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 2
     },
-    "homeos/frontend/src/features/entity/components/popups/DeviceCountdownChip.vue": {
+    "homeos/frontend/src/features/entity/popups/DeviceCountdownChip.vue": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/features/entity/components/popups/MediaPlayerPopup.vue": {
+    "homeos/frontend/src/features/entity/popups/MediaPlayerPopup.vue": {
       "alias2": 2,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/home-mode/components/HomeModeSwitcherTrigger.vue": {
+    "homeos/frontend/src/features/home-mode/HomeModeSwitcherTrigger.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
-    },
-    "homeos/frontend/src/features/home-mode/composables/home-mode-panel-derived.internals.ts": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/features/home-mode/composables/use-home-modes.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 3
     },
     "homeos/frontend/src/features/home-mode/editor/HomeModeActionsSection.vue": {
       "alias2": 1,
@@ -330,97 +320,107 @@
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/media/components/player/MediaPlayerModalHeader.vue": {
+    "homeos/frontend/src/features/home-mode/home-mode-panel-derived.internals.ts": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/media/components/player/MediaPlayerModalTransport.vue": {
+    "homeos/frontend/src/features/home-mode/use-home-modes.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 3
+    },
+    "homeos/frontend/src/features/media/player/MediaPlayerModalHeader.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/notifications/components/widgets/ClockWidget.vue": {
+    "homeos/frontend/src/features/media/player/MediaPlayerModalTransport.vue": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/features/notifications/widgets/ClockWidget.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/features/presence/components/PresencePersonListInput.vue": {
+    "homeos/frontend/src/features/presence/PresencePersonListInput.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/presence/model/utils/entity-filter.util.ts": {
+    "homeos/frontend/src/features/presence/utils/entity-filter.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 2
+    },
+    "homeos/frontend/src/features/security/CameraTile.vue": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/features/security/MonitorPanel.vue": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/features/security/OverviewCommandBar.vue": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 1
     },
     "homeos/frontend/src/features/security/SecurityPage.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/security/components/CameraTile.vue": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/features/security/components/MonitorPanel.vue": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/features/security/components/OverviewCommandBar.vue": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/features/security/components/ZoneHub.vue": {
+    "homeos/frontend/src/features/security/ZoneHub.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/security/components/widgets/PanelWidget.vue": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/features/security/composables/security.ts": {
+    "homeos/frontend/src/features/security/security.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 3
     },
-    "homeos/frontend/src/features/security/model/utils/panel-zones-bootstrap.util.ts": {
+    "homeos/frontend/src/features/security/utils/panel-zones-bootstrap.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 2
+    },
+    "homeos/frontend/src/features/security/widgets/PanelWidget.vue": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/features/settings/SettingsLockModal.vue": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/features/settings/SettingsOrchTabs.vue": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 6
     },
     "homeos/frontend/src/features/settings/SettingsPage.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/features/settings/components/SettingsLockModal.vue": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/features/settings/components/SettingsOrchTabs.vue": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 6
-    },
-    "homeos/frontend/src/features/settings/components/asset-picker/AssetManager.vue": {
+    "homeos/frontend/src/features/settings/asset-picker/AssetManager.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/features/settings/components/asset-picker/AssetManagerBody.vue": {
+    "homeos/frontend/src/features/settings/asset-picker/AssetManagerBody.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/settings/components/asset-picker/AssetPickerModal.vue": {
+    "homeos/frontend/src/features/settings/asset-picker/AssetPickerModal.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
@@ -495,17 +495,17 @@
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/settings/groups/automation/composables/security-modes.ts": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
     "homeos/frontend/src/features/settings/groups/automation/linkage/AutomationSection.vue": {
       "alias2": 2,
       "impl": 0,
       "moduleLet": 0
     },
     "homeos/frontend/src/features/settings/groups/automation/linkage/HomeModeMatrixSection.vue": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/features/settings/groups/automation/security-modes.ts": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
@@ -645,7 +645,7 @@
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/settings/groups/perception/composables/use-alert-rules.ts": {
+    "homeos/frontend/src/features/settings/groups/perception/use-alert-rules.ts": {
       "alias2": 3,
       "impl": 0,
       "moduleLet": 0
@@ -715,11 +715,6 @@
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/settings/shared/composables/env-sensor-map.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 2
-    },
     "homeos/frontend/src/features/settings/shared/config-fields/SystemConfigActionsBar.vue": {
       "alias2": 1,
       "impl": 0,
@@ -730,20 +725,30 @@
       "impl": 0,
       "moduleLet": 0
     },
+    "homeos/frontend/src/features/settings/shared/env-sensor-map.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 2
+    },
     "homeos/frontend/src/features/settings/shared/layout/SettingsSidebar.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/voice/composables/use-earcon.ts": {
+    "homeos/frontend/src/features/voice/use-earcon.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/features/weather/components/LifeIndices.vue": {
+    "homeos/frontend/src/features/weather/LifeIndices.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
+    },
+    "homeos/frontend/src/kernel/bridge/store-bridge.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 8
     },
     "homeos/frontend/src/kernel/config/frontend-config.ts": {
       "alias2": 0,
@@ -751,6 +756,16 @@
       "moduleLet": 4
     },
     "homeos/frontend/src/kernel/constants/voice.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/kernel/core/poll-scheduler.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 4
+    },
+    "homeos/frontend/src/kernel/core/post-restore-lock.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 1
@@ -765,12 +780,77 @@
       "impl": 0,
       "moduleLet": 1
     },
+    "homeos/frontend/src/kernel/page-cache-lifecycle.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 2
+    },
+    "homeos/frontend/src/kernel/perf/adaptive-perf.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 8
+    },
+    "homeos/frontend/src/kernel/perf/baseline.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 4
+    },
+    "homeos/frontend/src/kernel/perf/client-metrics.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 5
+    },
+    "homeos/frontend/src/kernel/perf/fps-scheduler.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 9
+    },
+    "homeos/frontend/src/kernel/perf/frontend-perf-monitor.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 3
+    },
+    "homeos/frontend/src/kernel/perf/smart-performance.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 3
+    },
+    "homeos/frontend/src/kernel/perf/webgl-availability.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 2
+    },
+    "homeos/frontend/src/kernel/perf/webgl-context-loss-guard.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/kernel/registry/settings-header-icons.ts": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/kernel/store-links.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 2
+    },
+    "homeos/frontend/src/kernel/telemetry/trace.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
     "homeos/frontend/src/kernel/ui/AssetGridItem.vue": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
     },
     "homeos/frontend/src/kernel/ui/StatePanel.vue": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/kernel/ui/glass-effect.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 1
@@ -810,87 +890,7 @@
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/kernel/utils/bridge/store-bridge.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 8
-    },
-    "homeos/frontend/src/kernel/utils/core/poll-scheduler.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 4
-    },
-    "homeos/frontend/src/kernel/utils/core/post-restore-lock.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/kernel/utils/page-cache-lifecycle.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 2
-    },
-    "homeos/frontend/src/kernel/utils/perf/adaptive-perf.util.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 8
-    },
-    "homeos/frontend/src/kernel/utils/perf/baseline.util.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 4
-    },
-    "homeos/frontend/src/kernel/utils/perf/client-metrics.util.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 5
-    },
-    "homeos/frontend/src/kernel/utils/perf/fps-scheduler.util.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 9
-    },
-    "homeos/frontend/src/kernel/utils/perf/frontend-perf-monitor.util.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 3
-    },
-    "homeos/frontend/src/kernel/utils/perf/smart-performance.util.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 3
-    },
-    "homeos/frontend/src/kernel/utils/perf/webgl-availability.util.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 2
-    },
-    "homeos/frontend/src/kernel/utils/perf/webgl-context-loss-guard.util.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/kernel/utils/registry/settings-header-icons.ts": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/kernel/utils/store-links.util.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 2
-    },
-    "homeos/frontend/src/kernel/utils/telemetry/trace.util.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/kernel/utils/ui/glass-effect.util.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/kernel/utils/ui/screensaver-background-idle.util.ts": {
+    "homeos/frontend/src/kernel/ui/screensaver-background-idle.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 2
@@ -975,12 +975,12 @@
       "impl": 5,
       "moduleLet": 0
     },
-    "homeos/frontend/src/studio/app/editor/home/components/component-deletion.ts": {
+    "homeos/frontend/src/studio/app/editor/home/component-deletion.ts": {
       "alias2": 2,
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/studio/app/editor/home/components/component-editing.ts": {
+    "homeos/frontend/src/studio/app/editor/home/component-editing.ts": {
       "alias2": 13,
       "impl": 0,
       "moduleLet": 0

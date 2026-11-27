@@ -7,14 +7,14 @@
 <script setup>
 import { computed } from 'vue'
 import { LayoutGrid, Monitor, Puzzle, Sidebar } from '@lucide/vue'
-import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
-import SettingsCardIntro from '@/features/settings/components/shell/SettingsCardIntro.vue'
+import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
+import SettingsCardIntro from '@/features/settings/shell/SettingsCardIntro.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
 import SettingsPopoutMenu from '@/features/settings/shared/layout/SettingsPopoutMenu.vue'
 import WidgetPickerList from './WidgetPickerList.vue'
 import WidgetPanelRow from './WidgetPanelRow.vue'
-import { catalogTierClass } from '@/features/settings/groups/appearance/composables/use-layout'
+import { catalogTierClass } from '@/features/settings/groups/appearance/use-layout'
 
 const showAddWidget = defineModel('showAddWidget', { type: Boolean, required: true })
 

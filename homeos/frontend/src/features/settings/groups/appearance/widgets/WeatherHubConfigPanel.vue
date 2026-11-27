@@ -172,13 +172,13 @@
 import { computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { CloudSun } from '@lucide/vue'
-import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
-import SettingsCardIntro from '@/features/settings/components/shell/SettingsCardIntro.vue'
-import EntityInput from '@/domain/entity/components/entity-input/EntityInput.vue'
+import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
+import SettingsCardIntro from '@/features/settings/shell/SettingsCardIntro.vue'
+import EntityInput from '@/domain/entity/entity-input/EntityInput.vue'
 import WidgetConfigFooter from '@/features/settings/groups/appearance/widgets/WidgetConfigFooter.vue'
-import { WEATHER_HUB_TABS } from '@/kernel/utils/registry/weather-hub-options'
-import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
-import { usePresenceHome } from '@/features/presence/model/composables/use-presence-home'
+import { WEATHER_HUB_TABS } from '@/kernel/registry/weather-hub-options'
+import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
+import { usePresenceHome } from '@/features/presence/use-presence-home'
 
 const draft = defineModel<{
   defaultTab: string

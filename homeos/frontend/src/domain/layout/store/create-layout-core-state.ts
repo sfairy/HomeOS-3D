@@ -4,8 +4,8 @@ import type { UILayoutConfig } from '@/kernel/types/layout'
 import { getDefaultLayout } from '@/domain/layout/store/defaults'
 import { readStoredProfileId } from '@/domain/layout/store/create-layout-state'
 import { createLayoutDirtyTracking } from '@/domain/layout/store/create-layout-dirty-tracking'
-import { applyTabletDefaultPerformanceMode } from '@/kernel/utils/perf/tablet-default-perf.util'
-import { clonePlain } from '@/kernel/utils/core/clone-plain.util'
+import { applyTabletDefaultPerformanceMode } from '@/kernel/perf/tablet-default-perf'
+import { clonePlain } from '@/kernel/core/clone-plain'
 
 /**
  * 创建布局核心响应式状态切片

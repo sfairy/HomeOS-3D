@@ -6,7 +6,7 @@
  * 嵌入式外壳、单页面调试页）退回整页跳转。
  */
 
-import { isNavigationLockedAfterRestore } from '@/kernel/utils/core/index'
+import { isNavigationLockedAfterRestore } from '@/kernel/core/index'
 
 type ShellNavigate = (path: string) => void | Promise<unknown>
 

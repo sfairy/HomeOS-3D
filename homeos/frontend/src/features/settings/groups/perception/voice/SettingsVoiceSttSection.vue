@@ -237,18 +237,18 @@
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
-import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
+import HosSelect from '@/domain/entity/entity-select/HosSelect.vue'
 
 import { Mic, Radio, Ear, Cpu, PanelLeft } from '@lucide/vue'
-import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
-import SettingsOrchTabs from '@/features/settings/components/SettingsOrchTabs.vue'
+import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
+import SettingsOrchTabs from '@/features/settings/SettingsOrchTabs.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
-import EntityInput from '@/domain/entity/components/entity-input/EntityInput.vue'
+import EntityInput from '@/domain/entity/entity-input/EntityInput.vue'
 import { fetchVoiceSttStatus, processVoiceConversation } from '@/kernel/http/index'
-import { getApiErrorMessage } from '@/kernel/utils/core/index'
+import { getApiErrorMessage } from '@/kernel/core/index'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { useAudioDevices } from '@/features/voice/composables/index'
+import { useAudioDevices } from '@/features/voice/index'
 
 defineProps({
   voiceInputTabs: { type: Array, default: () => [] },

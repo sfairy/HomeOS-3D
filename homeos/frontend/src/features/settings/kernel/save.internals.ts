@@ -1,5 +1,5 @@
 /** 设置编排内核 · 保存编排 */
-import { handleSystemConfigPatchError } from '@/domain/layout/composables/system-config-core.internals'
+import { handleSystemConfigPatchError } from '@/domain/layout/system-config-core.internals'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useLayoutStore } from '@/domain/layout/store/index'
 import { notifyError } from '@/kernel/ui/notify'

@@ -264,8 +264,8 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { AlertCircle, Copy, Eye, EyeOff, KeyRound, PlugZap, RefreshCw } from '@lucide/vue'
-import SettingsPageShell from '@/features/settings/components/shell/SettingsPageShell.vue'
-import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
+import SettingsPageShell from '@/features/settings/shell/SettingsPageShell.vue'
+import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
 import SettingsHubSubnav from '@/features/settings/shared/layout/SettingsHubSubnav.vue'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useAuthStore } from '@/domain/auth/auth.store'
@@ -279,8 +279,8 @@ import {
   retryLicense,
 } from '@/domain/api/license'
 import { setLicenseFeatureAccess } from '@/domain/license'
-import { featureLabel } from '@/kernel/utils/registry/feature-labels.util'
-import { isUnauthorizedError } from '@/kernel/utils/core/index'
+import { featureLabel } from '@/kernel/registry/feature-labels'
+import { isUnauthorizedError } from '@/kernel/core/index'
 
 defineProps({ activeTab: { type: String, default: 'license' } })
 

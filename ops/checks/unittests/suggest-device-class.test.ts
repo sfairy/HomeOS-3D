@@ -7,7 +7,7 @@
  */
 import { describe, expect, test } from 'bun:test'
 
-import { inferSuggestDeviceClassFromPlaceholder } from '../../../homeos/frontend/src/domain/entity/model/utils/suggest-device-class.util'
+import { inferSuggestDeviceClassFromPlaceholder } from '../../../homeos/frontend/src/domain/entity/utils/suggest-device-class'
 
 describe('inferSuggestDeviceClassFromPlaceholder', () => {
   test('英文 token 命中', () => {

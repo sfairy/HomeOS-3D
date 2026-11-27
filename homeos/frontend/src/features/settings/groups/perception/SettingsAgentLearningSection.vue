@@ -163,11 +163,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { GraduationCap } from '@lucide/vue'
-import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
-import SettingsCardIntro from '@/features/settings/components/shell/SettingsCardIntro.vue'
+import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
+import SettingsCardIntro from '@/features/settings/shell/SettingsCardIntro.vue'
 import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSectionHead.vue'
-import { getApiErrorMessage } from '@/kernel/utils/core/index'
-import { formatFullDateTime } from '@/kernel/utils/format'
+import { getApiErrorMessage } from '@/kernel/core/index'
+import { formatFullDateTime } from '@/kernel/format'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import {
   actOnAgentHabit,

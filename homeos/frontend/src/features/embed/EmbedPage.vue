@@ -96,9 +96,9 @@ import {
   resolveEmbedIframeSrc,
   clearAllEmbedCtxCookies,
   setEmbedCtxCookie,
-} from '@/kernel/utils/layout'
-import { resolveMoviePilotUrl } from '@/kernel/utils/layout'
-import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
+} from '@/kernel/layout'
+import { resolveMoviePilotUrl } from '@/kernel/layout'
+import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
 
 const route = useRoute()
 const layoutStore = useLayoutStore()

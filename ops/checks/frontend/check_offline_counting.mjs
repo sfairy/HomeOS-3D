@@ -49,7 +49,7 @@ const ALLOWED = new Map([
   // 设备聚合本身的实现：`offlineStateLabel` 要算「该设备 N 个实体里几个不可用」。
   // 这个 N/M 是**刻意**的实体数 —— 它是「部分失效 3/12」的分子分母，不是离线总数。
   [
-    'homeos/frontend/src/domain/entity/composables/device-group.ts',
+    'homeos/frontend/src/domain/entity/device-group.ts',
     '在**单个设备内部**数个数字体（N/M）；离线总数仍由 groupOfflineByDevice 给出',
   ],
 ])

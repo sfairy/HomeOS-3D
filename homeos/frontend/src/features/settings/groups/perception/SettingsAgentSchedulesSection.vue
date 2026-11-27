@@ -188,13 +188,13 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { CalendarClock } from '@lucide/vue'
-import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
-import EntityMultiSelect from '@/domain/entity/components/entity-multi-select/EntityMultiSelect.vue'
-import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
-import SettingsCardIntro from '@/features/settings/components/shell/SettingsCardIntro.vue'
+import HosSelect from '@/domain/entity/entity-select/HosSelect.vue'
+import EntityMultiSelect from '@/domain/entity/entity-multi-select/EntityMultiSelect.vue'
+import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
+import SettingsCardIntro from '@/features/settings/shell/SettingsCardIntro.vue'
 import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSectionHead.vue'
-import { getApiErrorMessage } from '@/kernel/utils/core/index'
-import { formatFullDateTime } from '@/kernel/utils/format'
+import { getApiErrorMessage } from '@/kernel/core/index'
+import { formatFullDateTime } from '@/kernel/format'
 import {
   createAgentSchedule,
   deleteAgentSchedule,

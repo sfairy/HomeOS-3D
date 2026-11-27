@@ -95,8 +95,8 @@ import { Copy, RotateCcw, Sparkles, User } from '@lucide/vue'
 import {
   chatOutcomeLabel,
   chatOutcomeTone,
-} from '@/features/settings/groups/perception/composables/use-agent-panel'
-import type { ChatLogEntry } from '@/features/settings/groups/perception/composables/use-agent-panel'
+} from '@/features/settings/groups/perception/use-agent-panel'
+import type { ChatLogEntry } from '@/features/settings/groups/perception/use-agent-panel'
 
 defineProps<{
   message: ChatLogEntry

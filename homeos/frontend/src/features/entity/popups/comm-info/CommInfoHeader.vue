@@ -1,0 +1,43 @@
+/** - 展示运营商品牌标签（电信/联通）、账户标签 */
+<script setup lang="ts">
+import type { PropType } from 'vue'
+import HosSelect from '@/domain/entity/entity-select/HosSelect.vue'
+import { Signal } from '@lucide/vue'
+
+defineProps({
+  commBrand: { type: String, default: 'ct' },
+  commBrandLabel: { type: String, default: '电信' },
+  commBrandBadge: { type: String, default: 'CT' },
+  accountOptions: { type: Array as PropType<string[]>, default: () => [] },
+  accountLabel: { type: Function as PropType<(accountId: string) => string>, required: true },
+})
+
+const activeEntityId = defineModel('activeEntityId', { type: String, default: '' })
+</script>
+
+<template>
+  <header class="comm-header">
+    <div class="comm-header__main">
+      <div class="comm-header__icon">
+        <Signal class="w-4 h-4" />
+      </div>
+      <div class="comm-header__text">
+        <div class="comm-header__title-row">
+          <span class="comm-header__title">{{ commBrandLabel }}·信息</span>
+          <span class="comm-header__badge">{{ commBrandBadge }}</span>
+        </div>
+        <span v-if="accountOptions.length <= 1" class="comm-header__sub">{{
+          accountLabel(activeEntityId)
+        }}</span>
+      </div>
+    </div>
+    <HosSelect
+      v-if="accountOptions.length > 1"
+      v-model="activeEntityId"
+      block
+      trigger-class="comm-account-select"
+    >
+      <option v-for="aid in accountOptions" :key="aid" :value="aid">{{ accountLabel(aid) }}</option>
+    </HosSelect>
+  </header>
+</template>

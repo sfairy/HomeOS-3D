@@ -2,7 +2,7 @@
 import type { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useLayoutStore } from '@/domain/layout/store/index'
 import type { UILayoutConfig } from '@/kernel/types/layout'
-import { countJsonLeafDiff, countObjectFieldDiff } from '@/kernel/utils/core/index'
+import { countJsonLeafDiff, countObjectFieldDiff } from '@/kernel/core/index'
 import type { MaybeRefOrGetter, Ref } from 'vue'
 import { computed, onMounted, onScopeDispose, reactive, ref, unref, watch } from 'vue'
 

@@ -157,21 +157,21 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import SettingsPageShell from '@/features/settings/components/shell/SettingsPageShell.vue'
-import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
+import SettingsPageShell from '@/features/settings/shell/SettingsPageShell.vue'
+import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
-import RecommendInsightCard from '@/domain/recommend/components/RecommendInsightCard.vue'
-import { useFavoritesHub } from '@/features/settings/shared/composables/hub'
+import RecommendInsightCard from '@/domain/recommend/RecommendInsightCard.vue'
+import { useFavoritesHub } from '@/features/settings/shared/hub'
 import { ChevronRight, Layers, Monitor, Star, Zap } from '@lucide/vue'
 import { defineAsyncComponent } from 'vue'
-import { DEVICES_ROUTES } from '@/features/device/model/utils'
+import { DEVICES_ROUTES } from '@/features/device/utils'
 
 // 设备列表「收藏」入口链接
 const devicesFavoritesLink = DEVICES_ROUTES.favorites()
 
 // 实体选择弹窗（懒加载）
-const EntityPickModal = defineAsyncComponent(() => import('@/features/entity/components/EntityPickModal.vue'))
+const EntityPickModal = defineAsyncComponent(() => import('@/features/entity/EntityPickModal.vue'))
 
 defineProps({ activeTab: { type: String, default: 'favorites' } })
 

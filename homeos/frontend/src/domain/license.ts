@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import { getLicenseAvailability } from '@/domain/api/license'
-import { lockNavigationAfterRestore } from '../kernel/utils/core/index'
+import { lockNavigationAfterRestore } from '../kernel/core/index'
 
 /**
  * 商业授权门禁状态（独立模块，避免 api-client ↔ router 循环依赖）

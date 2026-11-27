@@ -108,8 +108,8 @@
 <script setup lang="ts">
 import type { ComponentPublicInstance } from 'vue'
 import { Zap, Clock, TrendingUp, Cpu, Grid3x3, Layers } from '@lucide/vue'
-import DeviceChartHeader from '../components/DeviceChartHeader.vue'
-import { DEVICE_CHART_COPY } from '@/kernel/utils/chart'
+import DeviceChartHeader from '../DeviceChartHeader.vue'
+import { DEVICE_CHART_COPY } from '@/kernel/chart'
 
 // 父组件透传数据：summary.totalDevices/domainBreakdown 为设备总数与按域聚合明细，
 // usageTotals 为切换次数/运行时长/日均汇总；bindTrendChart/bindDomainChart 为 ECharts ref 回调，

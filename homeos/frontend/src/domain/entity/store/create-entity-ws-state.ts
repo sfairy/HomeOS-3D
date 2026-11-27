@@ -7,26 +7,26 @@ import type { Ref } from 'vue'
 import type { Socket } from 'socket.io-client'
 import { useLayoutStore } from '@/domain/layout/store/index'
 import { useAuthStore } from '@/domain/auth/auth.store'
-import { refreshPinnedEntitiesAfterStale } from './cold-refresh.util'
+import { refreshPinnedEntitiesAfterStale } from './cold-refresh'
 import { applyEntityStatesBatch } from './ws'
 import type { EntityStateUpdateDeps } from './ws'
-import type { WsDeltaChange } from '@/domain/entity/model/utils/entity'
+import type { WsDeltaChange } from '@/domain/entity/utils/entity'
 import { normalizeWsBatchChanges } from '@/workers/entity-ws-ingest-bridge'
-import { normalizeWsBatchChangesSync } from '@/domain/entity/model/utils/entity'
+import { normalizeWsBatchChangesSync } from '@/domain/entity/utils/entity'
 import {
   appNotify,
   refreshSecurityPanelFromSocket,
   applySecurityModeFromSocket,
   refreshNotificationsFromSocket,
   refreshEventLogFromSocket,
-} from '@/kernel/utils/bridge/store-bridge'
+} from '@/kernel/bridge/store-bridge'
 import { getFrontendConfig } from '@/kernel/config/frontend-config'
-import { onPageCacheResume, onPageCacheSuspend } from '@/kernel/utils/page-cache-lifecycle'
+import { onPageCacheResume, onPageCacheSuspend } from '@/kernel/page-cache-lifecycle'
 import { WS_PUSH_CRITICAL_DOMAINS } from '@homeos/shared'
-import { createEntityInitHelpers } from '@/domain/entity/store/entity-store-init.util'
-import { createEntityRestFallbackHelpers } from '@/domain/entity/store/entity-store-rest-fallback.util'
-import { createEntitySubscriptionHelpers } from '@/domain/entity/store/entity-store-subscription.util'
-import { createEntityModeEventRegistry } from '@/domain/entity/store/entity-mode-events.util'
+import { createEntityInitHelpers } from '@/domain/entity/store/entity-store-init'
+import { createEntityRestFallbackHelpers } from '@/domain/entity/store/entity-store-rest-fallback'
+import { createEntitySubscriptionHelpers } from '@/domain/entity/store/entity-store-subscription'
+import { createEntityModeEventRegistry } from '@/domain/entity/store/entity-mode-events'
 import { createEntityTransport } from '@/domain/entity/store/entity-store-transport'
 import type {
   EntitiesMap,

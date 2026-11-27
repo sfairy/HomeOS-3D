@@ -12,21 +12,21 @@
  * 等一个永远不会来的 `state_changed`；REST 真值与后端 verified=true 同样是确认来源
  */
 import { reactive } from 'vue'
-import { getApiErrorMessage } from '@/kernel/utils/core/index'
-import { randomUUID } from '@/kernel/utils/core/index'
-import { predictOptimistic } from '@/domain/entity/store/entity-store-optimistic.util'
-import { optimisticExpectationSatisfied } from '@/domain/entity/store/optimistic-expectation.util'
+import { getApiErrorMessage } from '@/kernel/core/index'
+import { randomUUID } from '@/kernel/core/index'
+import { predictOptimistic } from '@/domain/entity/store/entity-store-optimistic'
+import { optimisticExpectationSatisfied } from '@/domain/entity/store/optimistic-expectation'
 import { getWsPushPublicConfig } from '@/kernel/config/frontend-config'
-import { blockDangerousHaServiceWhenOffline, HA_OFFLINE_DANGEROUS_CONTROL_MSG } from '@/kernel/utils/ha'
+import { blockDangerousHaServiceWhenOffline, HA_OFFLINE_DANGEROUS_CONTROL_MSG } from '@/kernel/ha'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { fetchEntityById } from '@/domain/entity/model/utils/cold-fetch.util'
+import { fetchEntityById } from '@/domain/entity/utils/cold-fetch'
 import type { EntityActionsDeps, HaEntityState } from '@/kernel/types/entity'
 import {
   describeControlOutcome,
   resolveControlNotice,
   type ControlOutcome,
   type ControlPayload,
-} from '@/domain/entity/store/control-outcome.util'
+} from '@/domain/entity/store/control-outcome'
 
 /** 按控制结果给用户一条提示（没有可说的就不提示）。 */
 function notifyControlOutcome(payload: ControlPayload, outcome: ControlOutcome): void {

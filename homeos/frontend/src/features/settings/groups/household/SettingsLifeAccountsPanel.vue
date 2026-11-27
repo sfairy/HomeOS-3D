@@ -69,11 +69,11 @@
 
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
-import SettingsPageShell from '@/features/settings/components/shell/SettingsPageShell.vue'
+import SettingsPageShell from '@/features/settings/shell/SettingsPageShell.vue'
 import SettingsPendingSaveAction from '@/features/settings/shared/SettingsPendingSaveAction.vue'
 import SettingsBindingsAccountSection from '@/features/settings/groups/onboarding/bindings/SettingsBindingsAccountSection.vue'
-import { useSettingsLifeAccountsHub } from '@/features/settings/groups/onboarding/composables/bindings'
-import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
+import { useSettingsLifeAccountsHub } from '@/features/settings/groups/onboarding/bindings'
+import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
 
 const props = defineProps({ activeTab: { type: String, default: 'life-accounts' } })
 

@@ -7,14 +7,14 @@
  */
 import { computed, nextTick, ref } from 'vue'
 
-import { useStoreLinks } from '@/features/auth/composables/use-store-links'
+import { useStoreLinks } from '@/features/auth/use-store-links'
 import SceneStage from '@/kernel/ui/SceneStage.vue'
-import AuthShell from '@/features/auth/components/AuthShell.vue'
+import AuthShell from '@/features/auth/AuthShell.vue'
 import PasswordField from '@homeos/shared/components/PasswordField.vue'
 import { useAuthStore } from '@/domain/auth/auth.store'
 import { getSystemInitialized } from '@/domain/system/system-init.state'
-import { getApiErrorMessage } from '@/kernel/utils/core/index'
-import { AUTH_FLOW_ACCESS, AUTH_FLOW_SETUP, renderAuthSteps } from '@/kernel/utils/auth'
+import { getApiErrorMessage } from '@/kernel/core/index'
+import { AUTH_FLOW_ACCESS, AUTH_FLOW_SETUP, renderAuthSteps } from '@/kernel/auth'
 
 const authStore = useAuthStore()
 /** 商店地址（响应式）：坞脚那两格由它决定「渲染 / 不渲染」。 */

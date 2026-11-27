@@ -251,13 +251,13 @@
 import { computed } from 'vue'
 import ApiQueryState from '@/kernel/ui/ApiQueryState.vue'
 import { BellOff, Clock, Filter, Moon, ShieldAlert, Sun } from '@lucide/vue'
-import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
-import SettingsOrchTabs from '@/features/settings/components/SettingsOrchTabs.vue'
+import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
+import SettingsOrchTabs from '@/features/settings/SettingsOrchTabs.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
 import SettingsRangeField from '@/features/settings/shared/layout/SettingsRangeField.vue'
 import SettingsPendingSaveAction from '@/features/settings/shared/SettingsPendingSaveAction.vue'
-import { SETTINGS_RANGE_STEP } from '@/kernel/utils/settings'
+import { SETTINGS_RANGE_STEP } from '@/kernel/settings'
 import { useAlertRulesSection } from './context'
 
 const {

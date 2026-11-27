@@ -1,0 +1,105 @@
+<template>
+  <footer v-if="showFooter" class="power-panel animate-stagger-3">
+    <div v-if="hasDisplayData" class="power-panel__glow" />
+    <div v-if="!hasEnabledItems" class="power-panel-empty">
+      <VEmptyState
+        :icon-component="LayoutGrid"
+        tone="amber"
+        compact
+        :title="'未配置显示项'"
+        :description="'在基础设置中为底部信息栏添加卡片，可绑定账户用量或任意 HA 实体'"
+      >
+        <template #action>
+          <RouterLink :to="SETTINGS_ROUTES.general('footer')" class="v-empty__link">
+            {{ '前往配置' }}
+          </RouterLink>
+        </template>
+      </VEmptyState>
+    </div>
+    <div
+      v-else-if="needsAccountBinding && !hasAccountBinding && !hasDisplayData"
+      class="power-panel-empty"
+    >
+      <VEmptyState
+        :icon-component="Unlink"
+        tone="amber"
+        compact
+        :title="'账户用量未配置'"
+        :description="missingAccountHint"
+      >
+        <template #action>
+          <RouterLink :to="missingAccountRoute" class="v-empty__link">
+            {{ '前往账户用量' }}
+          </RouterLink>
+        </template>
+      </VEmptyState>
+    </div>
+    <div v-else-if="visibleItems.length === 0" class="power-panel-empty">
+      <VEmptyState
+        :icon-component="CircleSlash"
+        tone="amber"
+        compact
+        :title="'显示项无效'"
+        :description="'已启用的底栏项缺少实体 ID 或绑定字段，请在基础设置中检查配置'"
+      >
+        <template #action>
+          <RouterLink :to="SETTINGS_ROUTES.general('footer')" class="v-empty__link">
+            {{ '前往检查' }}
+          </RouterLink>
+        </template>
+      </VEmptyState>
+    </div>
+    <div v-else class="power-panel__body" v-scroll-region="{ label: '首页状态卡片', axis: 'both' }">
+      <div
+        v-for="item in visibleItems"
+        :key="item.id"
+        :class="['power-card', `power-card--${item.color}`]"
+      >
+        <PowerCardBody :item="item" :format-unit="formatUnit" />
+      </div>
+    </div>
+  </footer>
+</template>
+
+<script setup>
+/** DashboardFooter.vue */
+import { computed } from 'vue'
+import { RouterLink } from 'vue-router'
+import { CircleSlash, LayoutGrid, Unlink } from '@lucide/vue'
+import PowerCardBody from '@/features/dashboard/PowerCardBody.vue'
+import { useDashboardFooter } from '@/domain/layout/use-dashboard-footer'
+import { formatMissingAccountBindingHint } from '@/domain/energy/constants/account-binding-meta'
+import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
+
+// 来自 useDashboardFooter 的核心状态：是否展示底栏、可见项、各类空态判定标志
+const {
+  showFooter,
+  visibleItems,
+  hasEnabledItems,
+  needsAccountBinding,
+  hasAccountBinding,
+  missingAccountSources,
+  hasDisplayData,
+} = useDashboardFooter()
+
+/**
+ * 缺少账户绑定的提示文案
+ * @returns {string} 由 formatMissingAccountBindingHint 根据 missingAccountSources 生成
+ */
+const missingAccountHint = computed(() => formatMissingAccountBindingHint(missingAccountSources.value))
+
+/** 跳转到账户用量设置的路由对象 */
+const missingAccountRoute = computed(() => SETTINGS_ROUTES.lifeAccounts())
+
+/**
+ * 单位格式化：将货币符号 ¥ 渲染为汉字“元”，其他单位原样返回
+ * @param {string} unit - 单位字符串
+ * @returns {string}
+ */
+function formatUnit(unit) {
+  if (unit === '¥') return '元'
+  return unit
+}
+</script>
+
+<style scoped src="./styles/footer.css"></style>

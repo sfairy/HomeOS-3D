@@ -12,9 +12,9 @@ import {
   HardDrive,
   RefreshCw,
 } from '@lucide/vue'
-import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
-import { getPageTraceId } from '@/kernel/utils/telemetry/trace.util'
-import { formatAuditTimestamp } from '@/kernel/utils/format'
+import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
+import { getPageTraceId } from '@/kernel/telemetry/trace'
+import { formatAuditTimestamp } from '@/kernel/format'
 import { BACKEND_MEM_WARN_PCT } from './constants'
 import type { DiagnosticsConfigHealth, DiagnosticsDiag, DiagnosticsHealth } from './types'
 

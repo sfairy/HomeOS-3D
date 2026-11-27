@@ -73,11 +73,11 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { Activity } from '@lucide/vue'
-import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
-import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
-import SettingsCardIntro from '@/features/settings/components/shell/SettingsCardIntro.vue'
-import { getApiErrorMessage } from '@/kernel/utils/core/index'
-import { formatFullDateTime } from '@/kernel/utils/format'
+import HosSelect from '@/domain/entity/entity-select/HosSelect.vue'
+import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
+import SettingsCardIntro from '@/features/settings/shell/SettingsCardIntro.vue'
+import { getApiErrorMessage } from '@/kernel/core/index'
+import { formatFullDateTime } from '@/kernel/format'
 import { listAgentDiagnostics, type AgentDiagnosticEvent } from '@/domain/api/agent'
 
 /** 与后端 diagnostics.py 的 KIND_* 常量保持一致 */

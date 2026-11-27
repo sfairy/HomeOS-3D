@@ -80,16 +80,16 @@
 </template>
 
 <script setup>
-import SettingsPageShell from '@/features/settings/components/shell/SettingsPageShell.vue'
-import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
+import SettingsPageShell from '@/features/settings/shell/SettingsPageShell.vue'
+import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
 import SettingsPendingSaveAction from '@/features/settings/shared/SettingsPendingSaveAction.vue'
-import SettingsOrchTabs from '@/features/settings/components/SettingsOrchTabs.vue'
+import SettingsOrchTabs from '@/features/settings/SettingsOrchTabs.vue'
 import ConnectionOverviewSection from './connection/OverviewSection.vue'
 import ConnectionCredentialsSection from './connection/CredentialsSection.vue'
 import ConnectionEntitiesSection from './connection/EntitiesSection.vue'
 import EventLogRecordFilterSection from './connection/EventLogRecordFilterSection.vue'
 import ConnectionAdvancedSection from './connection/AdvancedSection.vue'
-import { useConnectionPanel } from '@/features/settings/groups/onboarding/composables/connection'
+import { useConnectionPanel } from '@/features/settings/groups/onboarding/connection'
 
 const props = defineProps({ activeTab: { type: String, default: 'connection' } })
 

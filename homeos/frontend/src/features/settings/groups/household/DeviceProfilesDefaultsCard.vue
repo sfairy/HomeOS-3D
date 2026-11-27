@@ -133,16 +133,16 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { Pencil, Speaker, Trash, Tv } from '@lucide/vue'
-import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
-import SettingsCardIntro from '@/features/settings/components/shell/SettingsCardIntro.vue'
-import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
+import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
+import SettingsCardIntro from '@/features/settings/shell/SettingsCardIntro.vue'
+import HosSelect from '@/domain/entity/entity-select/HosSelect.vue'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import {
   deleteDeviceProfileDefault,
   listDeviceProfileDefaults,
   setDeviceProfileDefault,
 } from '@/domain/api/device'
-import { getApiErrorMessage } from '@/kernel/utils/core/index'
+import { getApiErrorMessage } from '@/kernel/core/index'
 
 const props = defineProps({
   areas: { type: Array, default: () => [] },

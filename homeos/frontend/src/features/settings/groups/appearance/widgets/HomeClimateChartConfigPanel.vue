@@ -99,13 +99,13 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import EntityMultiSelect from '@/domain/entity/components/entity-multi-select/EntityMultiSelect.vue'
-import { climateEntityBaseName } from '@/features/energy/components/climate/home-climate-chart/echarts.util'
+import EntityMultiSelect from '@/domain/entity/entity-multi-select/EntityMultiSelect.vue'
+import { climateEntityBaseName } from '@/features/energy/climate/home-climate-chart/echarts'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import {
   HOME_CLIMATE_CHART_VIEW_OPTIONS,
   type HomeClimateChartConfig,
-} from '@/kernel/utils/registry/home-climate-chart-options'
+} from '@/kernel/registry/home-climate-chart-options'
 
 const draft = defineModel<Required<HomeClimateChartConfig>>({ required: true })
 

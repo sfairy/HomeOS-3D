@@ -1,0 +1,129 @@
+<!--
+  家庭模式总装切换器组件。根据 useHomeModeSwitcher 组合式函数产出的状态装配三个子组件：
+  HomeModePresenceBadge（左侧：在场人员徽标 + 在家/离家统计，点击展开在场详情 Tip）；
+  当 modeContext.calendarAway 为真时最左侧额外展示「外出」标签；
+  HomeModeSwitcherTrigger（中部：当前激活模式标签 + 图标 + 加载/动作态指示，
+  点击切换菜单开关）；HomeModeSwitcherMenu（Teleport 渲染的下拉菜单，含模式列表/退出/
+  最近触发日志/设置跳转）。
+  无 props / emits（完全由 composable 管理状态）：
+  - 核心状态由 useHomeModeSwitcher 提供：rootRef/menuRef/open/menuPlacement/menuStyle/
+  menuTeleportTarget/menuTeleportDisabled/modes/activeMode/primaryActiveMode/loading/acting/label/
+  modeIcon/presenceHome/modeContext/presenceMembers/showPresenceBadge/showPresenceEmpty/
+  presenceSummary/presenceAtHomeCount/presenceTipOpen；
+  - 事件方法：selectMode/toggleOff/togglePresenceTip/toggleMenuOpen 直接绑定到子组件。
+-->
+<script setup>
+/** - 通过 useHomeModeSwitcher 组合式函数管理模式列表、当前模式、在场人员等状态； */
+import { useHomeModeSwitcher } from '@/features/home-mode/use-home-mode-switcher'
+import HomeModePresenceBadge from '@/features/home-mode/HomeModePresenceBadge.vue'
+import HomeModeSwitcherTrigger from '@/features/home-mode/HomeModeSwitcherTrigger.vue'
+import HomeModeSwitcherMenu from '@/features/home-mode/HomeModeSwitcherMenu.vue'
+import './switcher-base.css'
+import './presence.css'
+import './trigger.css'
+import './menu.css'
+
+// 模式切换核心状态与方法，由组合式函数统一管理
+const {
+  rootRef,
+  menuRef,
+  open,
+  showAwayButton,
+  showHomeMode,
+  menuPlacement,
+  menuStyle,
+  menuTeleportTarget,
+  menuTeleportDisabled,
+  modes,
+  baseModes,
+  overlayModes,
+  activeMode,
+  primaryActiveMode,
+  activeModeIds,
+  loading,
+  acting,
+  activeLoadError,
+  label,
+  activeLabelTitle,
+  modeIcon,
+  presenceHome,
+  modeContext,
+  presenceMembers,
+  showPresenceBadge,
+  showPresenceEmpty,
+  presenceSummary,
+  presenceAtHomeCount,
+  presenceTipOpen,
+  pendingRestoreModes,
+  selectMode,
+  toggleOff,
+  restorePendingMode,
+  togglePresenceTip,
+  toggleMenuOpen,
+} = useHomeModeSwitcher()
+
+/**
+ * 注册下拉菜单 DOM 引用
+ * 通过函数式 ref 将子组件内部的菜单根节点绑定到 menuRef，供外部点击外部关闭等逻辑使用
+ * @param {HTMLElement|null} el
+ */
+function registerMenuRef(el) {
+  menuRef.value = el
+}
+</script>
+
+<template>
+  <div ref="rootRef" class="home-mode-switcher">
+    <span
+      v-if="modeContext.calendarAway"
+      class="home-mode-switcher__away"
+      :title="'日历标记外出中'"
+    >
+      {{ '外出' }}
+    </span>
+    <HomeModePresenceBadge
+      v-if="showAwayButton"
+      :show-presence-badge="showPresenceBadge"
+      :show-presence-empty="showPresenceEmpty"
+      :presence-home="presenceHome"
+      :presence-summary="presenceSummary"
+      :presence-tip-open="presenceTipOpen"
+      :presence-members="presenceMembers"
+      :presence-at-home-count="presenceAtHomeCount"
+      :mode-menu-open="open"
+      @toggle="togglePresenceTip"
+    />
+    <HomeModeSwitcherTrigger
+      v-if="showHomeMode"
+      :active-mode="primaryActiveMode"
+      :loading="loading"
+      :acting="acting"
+      :label="label"
+      :label-title="activeLabelTitle"
+      :mode-icon="modeIcon"
+      @toggle="toggleMenuOpen"
+    />
+    <HomeModeSwitcherMenu
+      v-if="showHomeMode"
+      :open="open"
+      :menu-placement="menuPlacement"
+      :menu-style="menuStyle"
+      :teleport-target="menuTeleportTarget"
+      :teleport-disabled="menuTeleportDisabled"
+      :loading="loading"
+      :modes="modes"
+      :base-modes="baseModes"
+      :overlay-modes="overlayModes"
+      :active-mode="primaryActiveMode"
+      :active-mode-ids="activeModeIds"
+      :mode-context="modeContext"
+      :acting="acting"
+      :state-error="activeLoadError"
+      :pending-restore="pendingRestoreModes"
+      :register-menu-ref="registerMenuRef"
+      @select-mode="selectMode"
+      @toggle-off="toggleOff"
+      @restore-pending="restorePendingMode"
+    />
+  </div>
+</template>

@@ -1,7 +1,7 @@
 /* ── 原 布局层基础状态与持久化 key 的实现 ── */
-import { readLocalStorage, writeLocalStorage } from '@/kernel/utils/core/local-storage.util'
+import { readLocalStorage, writeLocalStorage } from '@/kernel/core/local-storage'
 
-import { WIDGET_REGISTRY_META } from '@/kernel/utils/registry/widget-registry-meta'
+import { WIDGET_REGISTRY_META } from '@/kernel/registry/widget-registry-meta'
 
 /**
  * 已知的侧栏/仪表盘部件类型集合。

@@ -119,9 +119,9 @@
 <script setup>
 import { computed } from 'vue'
 import { Bell, Bot, Clapperboard, Cloud, Lightbulb, Plus, Sparkles } from '@lucide/vue'
-import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
+import HosSelect from '@/domain/entity/entity-select/HosSelect.vue'
 import { ENTITY_DOMAIN_COLORS } from '@/kernel/constants/index'
-import { isHomeModeEmojiIcon, resolveHomeModeIcon } from '@/features/home-mode/model/index'
+import { isHomeModeEmojiIcon, resolveHomeModeIcon } from '@/features/home-mode/utils/index'
 
 const props = defineProps({
   homeModeIconOptions: { type: Array, default: () => [] },

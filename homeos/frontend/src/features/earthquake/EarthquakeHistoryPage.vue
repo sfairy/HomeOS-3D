@@ -329,21 +329,21 @@ import {
   fetchEarthquakeHistory,
   fetchGlobalEarthquakes,
 } from '@/domain/api/earthquake'
-import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
+import HosSelect from '@/domain/entity/entity-select/HosSelect.vue'
 import ApiQueryState from '@/kernel/ui/ApiQueryState.vue'
 import ListPageHero from '@/kernel/ui/list-page/ListPageHero.vue'
 import ListPageMetrics from '@/kernel/ui/list-page/ListPageMetrics.vue'
-import EarthquakeHistoryAnalytics from './components/HistoryAnalytics.vue'
-import { getApiErrorMessage } from '@/kernel/utils/core/index'
-import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
+import EarthquakeHistoryAnalytics from './HistoryAnalytics.vue'
+import { getApiErrorMessage } from '@/kernel/core/index'
+import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import {
   buildFixedPageSlots,
   computeAnalyticsSummary,
   shortenPlace,
-} from '@/features/earthquake/model/utils/history-analytics.util'
-import { formatEarthquakeMagnitude, earthquakeMagnitudeTone } from '@/domain/earthquake/earthquake-layout.util'
-import { formatLocaleString } from '@/kernel/utils/format'
+} from '@/features/earthquake/utils/history-analytics'
+import { formatEarthquakeMagnitude, earthquakeMagnitudeTone } from '@/domain/earthquake/earthquake-layout'
+import { formatLocaleString } from '@/kernel/format'
 import {
   EEW_MAGNITUDE_OPTIONS,
   GLOBAL_EARTHQUAKE_PERIODS,

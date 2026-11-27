@@ -8,7 +8,7 @@
 <script setup lang="ts">
 import { AlertTriangle, ExternalLink } from '@lucide/vue'
 import { RouterLink } from 'vue-router'
-import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
+import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
 
 defineProps({
   status: { type: Object, default: null },

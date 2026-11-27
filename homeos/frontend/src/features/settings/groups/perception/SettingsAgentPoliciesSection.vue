@@ -153,13 +153,13 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { ScrollText } from '@lucide/vue'
-import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
-import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
-import SettingsCardIntro from '@/features/settings/components/shell/SettingsCardIntro.vue'
+import HosSelect from '@/domain/entity/entity-select/HosSelect.vue'
+import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
+import SettingsCardIntro from '@/features/settings/shell/SettingsCardIntro.vue'
 import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSectionHead.vue'
-import { useAreaOptions } from '@/domain/entity/composables/use-area-options'
-import { getApiErrorMessage } from '@/kernel/utils/core/index'
-import { formatFullDateTime } from '@/kernel/utils/format'
+import { useAreaOptions } from '@/domain/entity/use-area-options'
+import { getApiErrorMessage } from '@/kernel/core/index'
+import { formatFullDateTime } from '@/kernel/format'
 import {
   createAgentPolicy,
   deleteAgentPolicy,

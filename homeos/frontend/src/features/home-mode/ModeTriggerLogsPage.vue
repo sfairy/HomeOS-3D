@@ -181,19 +181,19 @@
 </template>
 
 <script setup lang="ts">
-import HosSelect from '@/domain/entity/components/entity-select/HosSelect.vue'
+import HosSelect from '@/domain/entity/entity-select/HosSelect.vue'
 import { ref, computed, onMounted } from 'vue'
 import { History } from '@lucide/vue'
 import ApiQueryState from '@/kernel/ui/ApiQueryState.vue'
 import { fetchHomeModeTriggerLogs } from '@/domain/api/home-modes'
 import ListPageHero from '@/kernel/ui/list-page/ListPageHero.vue'
 import ListPageMetrics from '@/kernel/ui/list-page/ListPageMetrics.vue'
-import ModeLogsAnalyticsRail from './components/ModeLogsAnalyticsRail.vue'
+import ModeLogsAnalyticsRail from './ModeLogsAnalyticsRail.vue'
 // 域内相对导入：引用自己的域根 barrel 会被 feature-self-barrel 门禁判违规。
-import { EMPTY_MODE_LOG_ANALYTICS, type ModeLogAnalytics } from './composables/use-mode-logs-analytics'
-import { formatDetailedDateTimeOrDash } from '@/kernel/utils/format'
-import { getApiErrorMessage } from '@/kernel/utils/core/index'
-import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
+import { EMPTY_MODE_LOG_ANALYTICS, type ModeLogAnalytics } from './use-mode-logs-analytics'
+import { formatDetailedDateTimeOrDash } from '@/kernel/format'
+import { getApiErrorMessage } from '@/kernel/core/index'
+import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
 
 import { homeModeLogSourceLabel, homeModeLogReasonLabel, HOME_MODE_LOG_SOURCE_LABELS } from '@homeos/shared'
 

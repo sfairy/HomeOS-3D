@@ -5,9 +5,9 @@ import {
   getTeleportContainerSize,
   resolvePopupNumeric,
   type PopupNumericInput,
-} from '@/kernel/ui/popup/popup-position-shared.util'
-import { pickPopupPlacementDirection } from '@/kernel/utils/ui/index'
-import { clampNum as clamp } from '@/kernel/utils/core/index'
+} from '@/kernel/ui/popup/popup-position-shared'
+import { pickPopupPlacementDirection } from '@/kernel/ui/index'
+import { clampNum as clamp } from '@/kernel/core/index'
 
 /** 箭头填充色（与弹窗背景深色保持一致） */
 const ARROW_FILL = 'rgba(18, 18, 26, 0.9)'

@@ -13,19 +13,19 @@
 <script setup lang="ts">
 import { computed, onScopeDispose, ref, watch } from 'vue'
 import { Plus, RotateCcw, Save, Trash2 } from '@lucide/vue'
-import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
+import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
 import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSectionHead.vue'
 import {
   agentQuickPromptsDirty,
   agentQuickPromptsRevert,
-} from '@/features/settings/groups/perception/composables/use-agent-panel'
+} from '@/features/settings/groups/perception/use-agent-panel'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { isSystemConfigConflictError, patchSystemConfig } from '@/domain/layout/composables/system-config-core.internals'
+import { isSystemConfigConflictError, patchSystemConfig } from '@/domain/layout/system-config-core.internals'
 import { reloadFrontendConfig } from '@/kernel/config/frontend-config'
-import { getApiErrorMessage } from '@/kernel/utils/core/index'
-import { logger } from '@/kernel/utils/core/index'
+import { getApiErrorMessage } from '@/kernel/core/index'
+import { logger } from '@/kernel/core/index'
 import { AGENT_QUICK_PROMPTS, AGENT_QUICK_PROMPT_LIMITS } from '@/kernel/constants/index'
-import { readAgentQuickPrompts } from '@/features/agent/model/utils'
+import { readAgentQuickPrompts } from '@/features/agent/utils'
 
 /** 编辑态行：`id` 只用于 v-for 的稳定 key，不写进配置 */
 interface PromptRow {

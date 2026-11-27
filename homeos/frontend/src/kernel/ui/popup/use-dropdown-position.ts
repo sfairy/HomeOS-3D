@@ -9,8 +9,8 @@ import {
 import {
   collectOverflowScrollParents,
   getTeleportContainerSize,
-} from '@/kernel/ui/popup/popup-position-shared.util'
-import type { DropdownPosition } from '@/kernel/ui/popup/popup-position-dropdown.util'
+} from '@/kernel/ui/popup/popup-position-shared'
+import type { DropdownPosition } from '@/kernel/ui/popup/popup-position-dropdown'
 import { useKeepAliveGate } from '@/kernel/ui/hooks/use-keep-alive-gate'
 import { useExclusiveDropdown } from '@/kernel/ui/popup/use-exclusive-dropdown'
 import { useShellTeleportTarget } from '@/kernel/ui/shell/use-shell-teleport-target'

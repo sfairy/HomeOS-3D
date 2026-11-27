@@ -5,7 +5,7 @@
  * 但它们各自职责不同（见各文件头注释），混在一个文件里无法按职责定位。
  * 拆回独立文件后由本桶维持既有 import 说明符不变。
  */
-export * from './infer-terminal-label.util'
-export * from './power-battery-display.util'
-export * from './system-display.util'
-export * from './system.util'
+export * from './infer-terminal-label'
+export * from './power-battery-display'
+export * from './system-display'
+export * from './system'

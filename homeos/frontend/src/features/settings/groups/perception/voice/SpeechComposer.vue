@@ -57,7 +57,7 @@
 <script setup>
 import { computed } from 'vue'
 import { Volume2 } from '@lucide/vue'
-import { applyTemplatePreview } from '@/features/voice/model/utils'
+import { applyTemplatePreview } from '@/features/voice/utils'
 
 const props = defineProps({
   presets: { type: Array, default: () => [] },

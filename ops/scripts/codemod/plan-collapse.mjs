@@ -15,8 +15,10 @@
  *
  * 另外排除 `studio/runtime/**`：那里每个 `.ts` 都是公网 URL 入口。
  *
+ * 行数不作判据：合并后多少行都照合；行数只在计划里打印，供合并后判断是否需要分区。
+ *
  * 用法：
- *   node ops/scripts/codemod/plan-collapse.mjs [--max-lines N] [--write <plan.mjs>] <dir>...
+ *   node ops/scripts/codemod/plan-collapse.mjs [--write <plan.mjs>] <dir>...
  */
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join, resolve } from 'node:path'
@@ -44,11 +46,9 @@ function loadDenyList() {
 const DENY = loadDenyList()
 
 const args = process.argv.slice(2)
-const maxIndex = args.indexOf('--max-lines')
-const maxLines = maxIndex > -1 ? Number(args[maxIndex + 1]) : 2400
 const writeIndex = args.indexOf('--write')
 const outFile = writeIndex > -1 ? args[writeIndex + 1] : null
-const valueArgs = new Set([String(maxLines), outFile].filter(Boolean))
+const valueArgs = new Set([outFile].filter(Boolean))
 const targets = args.filter((a) => !a.startsWith('--') && !valueArgs.has(a))
 
 /** 抽取顶层声明的完整文本（用于判断同名是否等价）。 */
@@ -88,14 +88,18 @@ function hazard(dirAbs, files) {
       const inside = files.some((other) => resolve(dirAbs, other).replace(/\.ts$/, '') === target)
       if (!inside) return '目录内含指向目录外的相对 re-export，合并需人工确认'
     }
-    for (const match of text.matchAll(/^(?:export\s+)?(?:type|interface|const|function|class)\s+([A-Za-z_$][\w$]*)/gm)) {
+    for (const match of text.matchAll(
+      /^(?:export\s+)?(?:type|interface|const|function|class)\s+([A-Za-z_$][\w$]*)/gm,
+    )) {
       const body = declarationText(text, match.index).replace(/\s+/g, ' ').trim()
       if (!decls.has(match[1])) decls.set(match[1], new Set())
       decls.get(match[1]).add(body)
     }
     // 多声明符：`export const A = …, B = …, C = …` 的第二个及之后的名字也要登记，
     // 否则合并后 TS2451「Cannot redeclare block-scoped variable」会漏网。
-    for (const match of text.matchAll(/^(?:export\s+)?(?:const|let|var)\s+[\s\S]*?(?=\n(?:export|const|let|var|function|class|type|interface|\/\*|\/\/|$))/gm)) {
+    for (const match of text.matchAll(
+      /^(?:export\s+)?(?:const|let|var)\s+[\s\S]*?(?=\n(?:export|const|let|var|function|class|type|interface|\/\*|\/\/|$))/gm,
+    )) {
       for (const declarator of match[0].matchAll(/[,]\s*([A-Za-z_$][\w$]*)\s*(?::[^=]*)?=/g)) {
         if (!decls.has(declarator[1])) decls.set(declarator[1], new Set())
         decls.get(declarator[1]).add(`multidecl:${declarator[1]}`)
@@ -129,7 +133,9 @@ for (const dir of targets) {
     skipped.push(`${rel}: 目录不存在`)
     continue
   }
-  const files = entries.filter((e) => e.isFile() && e.name.endsWith('.ts') && !e.name.endsWith('.d.ts')).map((e) => e.name)
+  const files = entries
+    .filter((e) => e.isFile() && e.name.endsWith('.ts') && !e.name.endsWith('.d.ts'))
+    .map((e) => e.name)
   const hasSubdir = entries.some((e) => e.isDirectory())
   const hasVue = entries.some((e) => e.isFile() && e.name.endsWith('.vue'))
   if (files.length < 2) continue
@@ -150,10 +156,6 @@ for (const dir of targets) {
     skipped.push(`${rel}: 同名 .ts 已存在（${parent}${basename(rel)}.ts），合并会覆盖`)
     continue
   }
-  if (total > maxLines) {
-    skipped.push(`${rel}: ${total} 行 > ${maxLines}`)
-    continue
-  }
   const risk = hazard(abs, files)
   if (risk) {
     skipped.push(`${rel}: ${risk}`)
@@ -165,7 +167,8 @@ for (const dir of targets) {
 picked.sort((a, b) => a.total - b.total)
 const removed = picked.reduce((sum, p) => sum + p.files.length - 1, 0)
 console.log(`目录级合并：${picked.length} 个目录，预计减少 ${removed} 个文件`)
-for (const p of picked) console.log(`  ${String(p.files.length).padStart(2)} → 1  ${String(p.total).padStart(5)} 行  ${p.rel}`)
+for (const p of picked)
+  console.log(`  ${String(p.files.length).padStart(2)} → 1  ${String(p.total).padStart(5)} 行  ${p.rel}`)
 if (skipped.length) {
   console.log(`\n跳过 ${skipped.length} 个：`)
   for (const note of skipped) console.log(`  ! ${note}`)

@@ -73,8 +73,8 @@
 
 <script setup>
 import { Search, SlidersHorizontal } from '@lucide/vue'
-import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
-import { sectionMeta } from '@/domain/layout/composables/system-config-core.internals'
+import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
+import { sectionMeta } from '@/domain/layout/system-config-core.internals'
 import SystemConfigFieldCell from '@/features/settings/shared/config-fields/SystemConfigFieldCell.vue'
 import SystemConfigSectionDock from '@/features/settings/shared/config-fields/SystemConfigSectionDock.vue'
 

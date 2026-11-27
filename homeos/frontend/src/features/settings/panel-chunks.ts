@@ -1,8 +1,8 @@
 /** Settings 面板 lazy import（按 NAV_STRUCTURE 六组组织） */
 import { defineComponent, h, shallowRef, type Component } from 'vue'
-import { lazyComponent } from '@/kernel/utils/core/index'
+import { lazyComponent } from '@/kernel/core/index'
 import ErrorBoundary from '@/kernel/ui/ErrorBoundary.vue'
-import { isPinnedSettingsTab, settingsKeepAliveName } from '@/features/settings/utils/keep-alive.util'
+import { isPinnedSettingsTab, settingsKeepAliveName } from '@/features/settings/utils/keep-alive'
 
 /**
  * 创建懒加载面板组件。

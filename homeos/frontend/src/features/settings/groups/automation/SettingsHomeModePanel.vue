@@ -32,7 +32,7 @@
 
 <script setup lang="ts">
 import { computed, unref } from 'vue'
-import SettingsPageShell from '@/features/settings/components/shell/SettingsPageShell.vue'
+import SettingsPageShell from '@/features/settings/shell/SettingsPageShell.vue'
 import SettingsPendingSaveAction from '@/features/settings/shared/SettingsPendingSaveAction.vue'
 import { useHomeModePanelBridge } from '@/features/home-mode/index'
 import { HomeModePanel } from '@/features/home-mode/index'

@@ -1,5 +1,5 @@
 /** UI 布局默认配置数据模块 */
-import { createDefaultEnergySources } from '@/domain/energy/model/constants/energy-fields'
+import { createDefaultEnergySources } from '@/domain/energy/constants/energy-fields'
 import { createDefaultDashboardFooter } from '@/domain/energy/constants/dashboard-footer'
 import { createDefaultWholeHomeOff } from '@/kernel/constants/index'
 import { createDefaultEarthquakeConfig } from '@/kernel/types/earthquake'

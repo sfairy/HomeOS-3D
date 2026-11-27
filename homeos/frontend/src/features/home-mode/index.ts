@@ -46,7 +46,7 @@
  */
 
 // ── 壳层切换器 ──
-export { default as HomeModeSwitcher } from './components/HomeModeSwitcher.vue'
+export { default as HomeModeSwitcher } from './HomeModeSwitcher.vue'
 
 // ── 编辑器（设置页内嵌宿主用）──
 // `editor/` 子目录自持：11 个编辑分区组件 + 4 个样式表 + 状态内核
@@ -64,8 +64,8 @@ export {
   buildModeResultBarOption,
   buildModeSourcePieOption,
   buildModeTimelineOption,
-} from './composables/use-mode-logs-analytics'
-export type { ModeLogAnalytics } from './composables/use-mode-logs-analytics'
+} from './use-mode-logs-analytics'
+export type { ModeLogAnalytics } from './use-mode-logs-analytics'
 
 // ── 编辑器契约 ──
 // 跨域：features/settings 的自动化面板、features/security 的区域编辑器都复用这些。
@@ -73,9 +73,9 @@ export type { ModeLogAnalytics } from './composables/use-mode-logs-analytics'
 // `useHomeModeEditor` 与类型 `ActionTemplate` / `ModeActionDraft` **不在此导出**：
 // 它们只被域内 `home-mode-panel.internals.ts` / `editor.internals.ts` 相对引用，
 // 不构成跨域契约（跨域用的是下面这几个 bridge / section / item 组合式）。
-export { useHomeModePanelBridge, setHomeModePanelBridge } from './composables/editor.internals'
-export { useHomeModeActionsSection } from './composables/editor.internals'
-export { useHomeModeItemExpansion, useHomeModeItemFocus } from './composables/editor.internals'
+export { useHomeModePanelBridge, setHomeModePanelBridge } from './editor.internals'
+export { useHomeModeActionsSection } from './editor.internals'
+export { useHomeModeItemExpansion, useHomeModeItemFocus } from './editor.internals'
 
 // ── 场景选项（security modes 复用）──
-export { useHomeosSceneOptions } from './composables/use-homeos-scene-options'
+export { useHomeosSceneOptions } from './use-homeos-scene-options'
