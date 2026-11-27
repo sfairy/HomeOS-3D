@@ -12,6 +12,9 @@ import {
   RadarComponent,
 } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
+// `chart-tip__*` 类名由本文件产出；样式表必须随之加载，否则 tooltip 内部排版失效
+// （CSP `style-src 'self'` 不允许 formatter 里写行内样式，见该文件头注释）。
+import './chart-tooltip.css'
 
 /** 图表公共原语：共享轴样式常量、空态占位 graphic、深色 tooltip 工厂、线性渐变。 */
 

@@ -5,8 +5,9 @@
  * 表现为样式静默失效 + 控制台刷违规），也不能用组件的 ``<style scoped>``（scoped 选择器
  * 依赖编译期加在元素上的 data 属性，注入的节点上没有）。
  *
- * 所以 tooltip 元素只带类名，由本文件（非 scoped）统一着色，并由
- * ``device-chart-copy.util.ts`` 侧效应引入 —— 用到 formatter 的地方样式必定到位。
+ * 所以 tooltip 元素只带类名，由本文件（非 scoped）统一着色；引入点在 ``kernel/chart.ts``
+ * 顶部（``import './chart-tooltip.css'``）—— 类名 ``chart-tip__*`` 的全部产出者都在那里，
+ * 用到 formatter 的地方样式必定到位。
  * 唯一的动态值（序列颜色）走 SVG 的 ``fill`` 呈现属性，不受 style-src 约束。
  */
 
