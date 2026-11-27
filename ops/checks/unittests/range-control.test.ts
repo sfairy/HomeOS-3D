@@ -17,6 +17,7 @@ import path from 'node:path'
 const ROOT = path.resolve(import.meta.dirname, '../../..')
 const RANGE_CSS = fs.readFileSync(path.join(ROOT, 'homeos/frontend/public/static/range-control.css'), 'utf8')
 const STAGE_CSS = fs.readFileSync(path.join(ROOT, 'homeos/frontend/src/studio/runtime/core/stage.css'), 'utf8')
+const COVER_CSS = fs.readFileSync(path.join(ROOT, 'homeos/frontend/src/studio/runtime/cover/cover-panel.css'), 'utf8')
 
 /** 取某个选择器块内的声明文本（只处理“单层”块，够用且不会误配 @media 嵌套）。 */
 function blockOf(source: string, selector: string): string {
@@ -109,5 +110,20 @@ describe('包裹层形态仍然可用', () => {
   test('.hb-rail-shell 隐藏态与内缩已定义', () => {
     expect(RANGE_CSS).toContain('.hb-rail-shell:has(> input[hidden])')
     expect(RANGE_CSS).toContain('.hb-rail-shell > .hb-aligned-range')
+  })
+})
+
+describe('cover-panel.css · 窗帘滑条同样只能走令牌', () => {
+  test('轨道画在 input 自身，所以 input 高度必须等于轨道高度', () => {
+    // 0.8.9 的 43px 是「给 37px 拇指留的盒高」，那套结构里轨道由包裹层 `::before` 画；
+    // 本项目 input 的背景就是可见轨道，抄 43px 会画成一根 43px 粗的胶囊，
+    // 顺带把开合度控件顶出面板、挤出滚动条（0.8.9 移植后的实际回归）。
+    expect(COVER_CSS).toContain('--hb-rail-input-height: 12px')
+    expect(COVER_CSS).not.toContain('--hb-rail-input-height: 43px')
+  })
+
+  test('拇指几何不在这里二次硬编码（否则会盖住 37px 令牌）', () => {
+    expect(COVER_CSS).not.toContain('::-webkit-slider-thumb')
+    expect(COVER_CSS).not.toContain('::-moz-range-thumb')
   })
 })

@@ -284,7 +284,10 @@ body.interaction3d-stage {
   overflow: hidden;
   background: #141a21;
 }
-.interaction3d-stage > :not(.studio-shell):not(.i3d-climate-picker-menu) {
+/* 舞台根只留外壳与浮层：下拉菜单挂到 body 之后也是根的直接子节点，
+   必须逐类豁免，否则会被 `display:none !important` 一起吞掉。
+   `i3d-extra-select-menu` 是空调面板附加卡片的下拉（无 Popover API 时走 body 兜底）。 */
+.interaction3d-stage > :not(.studio-shell):not(.i3d-climate-picker-menu):not(.i3d-extra-select-menu) {
   display: none !important;
 }
 .interaction3d-stage .studio-shell {
@@ -470,6 +473,28 @@ body.interaction3d-stage.is-background-hidden,
     opacity 0.24s ease,
     height 0.32s cubic-bezier(0.22, 0.61, 0.36, 1),
     visibility 0s;
+}
+/* ── 弹窗玻璃面的降级登记 ─────────────────────────────────────────────────────
+ * 这一层的 `backdrop-filter` 处境是全站最差的：它背后的背景是**持续重绘的 WebGL
+ * 画布**，面板自身又是滚动容器（`overflow: auto`）。合成器每重绘一次（滚轮、
+ * 标记淡入淡出、场景动画）都要重新读一帧画布再模糊，玻璃底就会「闪一下」——
+ * 所有设备弹窗共用这一层，所以表现成「每个交互弹窗都这样」。
+ *
+ * `main.css` 的「毛玻璃禁用组」只登记了 2D 组件，3D 这一层此前是漏的：
+ * 用户把玻璃效果切成「静态」/ 性能档降级（`applyGlassEffectDocument` 会把
+ * medium/low 也写成 static）/ 触屏设备，这里照样跑实时 blur —— 于是「切了静态
+ * 还是闪」，看起来像设置没生效。这里按同一口径补登记：只关 blur，
+ * 半透明底与 `--i3d-panel-opacity`（弹窗透明度）都保持不变。
+ * 原生毛玻璃档仍保留实时模糊（观感优先），抖动问题在那里是设计取舍。 */
+html[data-glass-effect="static"] .interaction3d-stage .i3d-light-panel {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+@media (pointer: coarse), (hover: none) {
+  .interaction3d-stage .i3d-light-panel {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
 }
 .interaction3d-stage .i3d-light-panel header {
   position: relative;

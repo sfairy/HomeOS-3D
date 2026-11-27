@@ -359,21 +359,29 @@ export function createFloatingLayout({
       return false
     }
     if (measureContentWidth) panel.style.width = 'max-content'
+    // 面板尺寸只能读布局像素（`offset*` / `scroll*`）。本函数每帧都会给面板写一个
+    // `transform: scale(scaleX, scaleY)`，再拿 `getBoundingClientRect()` 去量，就把上一帧
+    // 写进去的缩放又量了一遍：`maxHeight` 每帧乘一次 `scaleY`，容器缩到 0.8 倍时几十毫秒
+    // 内就把下拉菜单压成一条十几像素的缝（缩放容器里「点了没反应」的真正原因）。
     const anchorRect = anchor.getBoundingClientRect(),
-      panelRect = panel.getBoundingClientRect(),
       layoutWidth = anchor.offsetWidth || anchorRect.width || 1,
       layoutHeight = anchor.offsetHeight || anchorRect.height || 1,
       scaleX = scaleToAnchor ? anchorRect.width / layoutWidth || 1 : 1,
       scaleY = scaleToAnchor ? anchorRect.height / layoutHeight || 1 : 1,
+      // 内容宽/高按布局像素读，再乘回缩放换成视觉像素给 clampFloatingRect 算位置。
+      // 高度取 `scrollHeight`（自然内容高）而不是 `offsetHeight`：上一帧写进去的
+      // `max-height` 会把 `offsetHeight` 夹住，空间一时不够（翻转/动画中途）就再也长不回来。
+      panelLayoutWidth = panel.scrollWidth || panel.offsetWidth || 0,
+      panelLayoutHeight = panel.scrollHeight || panel.offsetHeight || 0,
       rawWidth = matchAnchorWidth
         ? Math.max(anchorRect.width, minWidth)
         : Math.max(
-            panel.scrollWidth || panelRect.width || panel.offsetWidth || minWidth,
+            panelLayoutWidth ? panelLayoutWidth * scaleX : minWidth,
             minWidthFromAnchor ? anchorRect.width : minWidth,
             minWidth,
           ),
       desiredWidth = Math.min(Math.max(rawWidth, minWidth), maxWidth),
-      panelHeight = Math.min(panelRect.height || panel.offsetHeight || maxHeight, maxHeight) * scaleY,
+      panelHeight = Math.min(panelLayoutHeight || maxHeight, maxHeight) * scaleY,
       placement = clampFloatingRect({
         anchorRect,
         panelWidth: desiredWidth,
@@ -388,7 +396,9 @@ export function createFloatingLayout({
       dismiss()
       return false
     }
-    panel.style.width = `${placement.width}px`
+    // `placement` 是视觉像素（视口坐标），面板自身还挂着 `scale(scaleX)`，所以布局宽度
+    // 要除回去，否则缩放容器里的菜单会比触发按钮窄一圈。
+    panel.style.width = `${placement.width / scaleX}px`
     panel.style.maxHeight = `${placement.maxHeight / scaleY}px`
     panel.style.left = `${placement.left}px`
     panel.style.top = `${placement.top}px`

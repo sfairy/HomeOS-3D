@@ -475,7 +475,7 @@ body.auto-diagram-embedded .studio-chrome-root .studio-shell,
   background: transparent !important;
 }
 
-.studio-chrome-root.sc-embed-stage > :not(.studio-shell):not(.i3d-climate-picker-menu) {
+.studio-chrome-root.sc-embed-stage > :not(.studio-shell):not(.i3d-climate-picker-menu):not(.i3d-extra-select-menu) {
   display: none !important;
 }
 

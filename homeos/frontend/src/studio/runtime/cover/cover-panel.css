@@ -80,51 +80,20 @@
 .i3d-cover-panel .hb-cover-details-position input {
   grid-column: 2;
   grid-row: 1;
-  width: 100%;
-  margin: 0;
+  /* 端点内缩由 `range-control.css` 的 `margin-inline` 提供，所以宽度要扣掉左右内缩：
+     写 `width: 100%` 会连同 margin 一起把轨道撑出面板右缘（同色相滑轨的处理）。 */
+  width: calc(100% - var(--hb-rail-inset) * 2);
   align-self: end;
 }
-.i3d-cover-panel .hb-cover-details-position input::-webkit-slider-thumb {
-  width: 43px;
-  height: 43px;
-  margin-top: -14.5px;
-  border: 5px solid transparent;
-  border-radius: 50%;
-  appearance: none;
-  -webkit-appearance: none;
-  background: linear-gradient(145deg, #8ea8b4, #4a5a62) padding-box;
-  filter: drop-shadow(0 5px 7px rgba(0, 0, 0, 0.55));
-  box-shadow: inset 0 1px #ffffff2e;
-  transition:
-    width 0.12s ease,
-    height 0.12s ease,
-    margin-top 0.12s ease;
-}
-.i3d-cover-panel .hb-cover-details-position input:active::-webkit-slider-thumb {
-  width: 49px;
-  height: 49px;
-  margin-top: -17.5px;
-}
-.i3d-cover-panel .hb-cover-details-position input::-moz-range-thumb {
-  width: 41px;
-  height: 41px;
-  border: 5px solid transparent;
-  border-radius: 50%;
-  background: linear-gradient(145deg, #8ea8b4, #4a5a62) padding-box;
-  filter: drop-shadow(0 5px 7px rgba(0, 0, 0, 0.55));
-  box-shadow: inset 0 1px #ffffff2e;
-  transition:
-    width 0.12s ease,
-    height 0.12s ease;
-}
-.i3d-cover-panel .hb-cover-details-position input:active::-moz-range-thumb {
-  width: 47px;
-  height: 47px;
-}
+/* 拇指几何（尺寸 / 描边 / 渐变 / 纵向位移）**只**由 `range-control.css` 的
+   `--hb-rail-*` 决定。这里原先还留着一份 43px / 5px 描边 / `margin-top: -14.5px`
+   的旧值（按 14px 轨道算的），既盖住了 37px 的新拇指，也和 12px 轨道对不齐。 */
 .i3d-cover-panel .hb-cover-details-position-legend {
   display: flex;
   grid-column: 2;
   grid-row: 2;
+  /* 与轨道同一内缩：端点文字正好落在拇指圆心所在的轨道端点上（0.8.9 同款）。 */
+  margin-inline: var(--hb-rail-inset);
   justify-content: space-between;
 }
 .i3d-cover-panel .hb-cover-details-position-legend small {
@@ -397,8 +366,8 @@
   height: auto;
 }
 
-/* 3D 窗帘位置滑条的组件级几何（0.8.9）：比 2D 详情的 43px 略小 ——
-   舞台上控件整体缩放到 ~0.86，43px 在缩放后仍要占满一整行。
+/* 3D 窗帘位置滑条的组件级几何（0.8.9）：拇指 37px、轨道 12px，
+   比 2D 详情的 43px 拇指略小 —— 舞台上这组控件还要再缩放到 ~0.85。
    配色走令牌（`--hos-color-cover-*`），避免在舞台样式里新增硬编码颜色。 */
 .i3d-cover-panel .hb-cover-details-position {
   --hb-rail-thumb-size: 37px;
@@ -406,9 +375,15 @@
   --hb-rail-thumb-background: var(--hos-color-cover-thumb-grad) padding-box;
   --hb-rail-thumb-filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.55));
   --hb-rail-track-height: 12px;
-  --hb-rail-input-height: 43px;
+  /* 本项目的滑轨形态是「轨道画在 `input` 自身」（见 `range-control.css` 头注释），
+     input 的背景就是可见轨道 —— 所以高度必须等于轨道高度。
+     写 43px（0.8.9 里给拇指留的盒高）会直接画成一根 43px 粗的胶囊，
+     顺带把开合度滑条顶出面板、挤出滚动条。拇指比轨道大，超出部分是正常溢出。 */
+  --hb-rail-input-height: 12px;
   --hb-rail-border-width: 4px;
   --hb-rail-border-color: var(--hos-color-cover-rail-border);
+  /* 覆盖在舞台根节点上算好的 36px 拇指半径，改用本组件的 37px。 */
+  --hb-rail-inset: calc(var(--hb-rail-thumb-size) / 2);
 }
 /* 键盘用户要能看见焦点环：拇指是 canvas 外的原生控件，默认没有焦点样式。 */
 .i3d-cover-panel .hb-cover-details-position input:focus-visible {
