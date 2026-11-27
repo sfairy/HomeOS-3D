@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
  * 产物三份：
- * 1. `src/studio/app/3d-studio/loaders/external-models/model-file-names.generated.ts`
+ * 1. `src/studio/authoring/loaders/external-models/model-file-names.generated.ts`
  *    —— 模型 id → 磁盘文件名主干（中文），运行时 `modelAssetUrl()` 用它拼 URL；
  * 2. `scripts/models/specs/model-file-names.json` —— 同一张表的机读版，给 Python / 其它
  *    非 TS 工具用；
@@ -37,7 +37,7 @@ const overridesFile = path.join(hereDir, 'specs/model-name-overrides.json')
 const fileNameOverridesFile = path.join(hereDir, 'specs/model-file-name-overrides.json')
 const generatedTsFile = path.join(
   frontendDir,
-  'src/studio/app/3d-studio/loaders/external-models/model-file-names.generated.ts',
+  'src/studio/authoring/loaders/external-models/model-file-names.generated.ts',
 )
 /** 同一张表的机读版（无时间戳，`--check` 才可比对）。 */
 const generatedJsonFile = path.join(hereDir, 'specs/model-file-names.json')
@@ -49,11 +49,11 @@ const asJson = args.includes('--json')
 const loadModule = (relativePath) => import(pathToFileURL(path.join(frontendDir, relativePath)).href)
 
 const { MODEL_ASSETS_BY_FOLDER, MODEL_FOLDER_PATHS } = await loadModule(
-  'src/studio/app/3d-studio/loaders/external-models/model-asset-folders.ts',
+  'src/studio/authoring/loaders/external-models/model-asset-folders.ts',
 )
-const { ALL_ITEM_MODELS } = await loadModule('src/studio/app/3d-studio/loaders/external-models/all-item-models.ts')
+const { ALL_ITEM_MODELS } = await loadModule('src/studio/authoring/loaders/external-models/all-item-models.ts')
 const { MODEL_FILE_STEMS } = await loadModule(
-  'src/studio/app/3d-studio/loaders/external-models/model-file-names.generated.ts',
+  'src/studio/authoring/loaders/external-models/model-file-names.generated.ts',
 )
 
 /**

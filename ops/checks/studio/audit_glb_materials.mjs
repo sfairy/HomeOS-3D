@@ -398,12 +398,12 @@ const loadModule = async (relativePath) => import(pathToFileURL(path.join(fronte
 
 const [allItemModelsModule, sharedModule, rolesModule, slotRolesModule, collectionModule, modelAssetFoldersModule] =
   await Promise.all([
-    loadModule('src/studio/app/3d-studio/loaders/external-models/all-item-models.ts'),
-    loadModule('src/studio/app/3d-studio/loaders/external-models/_shared.ts'),
-    loadModule('src/studio/app/3d-studio/materials/studio-model-material-roles.ts'),
-    loadModule('src/studio/app/3d-studio/materials/model-slot-roles.ts'),
-    loadModule('src/studio/app/3d-studio/loaders/external-models/collection-models.ts'),
-    loadModule('src/studio/app/3d-studio/loaders/external-models/model-asset-folders.ts'),
+    loadModule('src/studio/authoring/loaders/external-models/all-item-models.ts'),
+    loadModule('src/studio/authoring/loaders/external-models/external-models-shared.ts'),
+    loadModule('src/studio/authoring/materials/studio-model-material-roles.ts'),
+    loadModule('src/studio/authoring/materials/model-slot-roles.ts'),
+    loadModule('src/studio/authoring/loaders/external-models/collection-models.ts'),
+    loadModule('src/studio/authoring/loaders/external-models/model-asset-folders.ts'),
   ])
 
 const { modelAssetFolderFromPath, modelAssetIdForStem } = modelAssetFoldersModule
@@ -426,8 +426,8 @@ const { modelAssetFolderFromPath, modelAssetIdForStem } = modelAssetFoldersModul
  */
 async function auditSurfaceDetailStrategy() {
   const [detailMaps, boxUv] = await Promise.all([
-    loadModule('src/studio/app/3d-studio/materials/studio-surface-normal-maps.ts'),
-    loadModule('src/studio/app/3d-studio/materials/studio-box-uv.ts'),
+    loadModule('src/studio/authoring/materials/studio-surface.ts'),
+    loadModule('src/studio/authoring/materials/studio-box-uv.ts'),
   ])
   const runtimeScales = detailMaps.SURFACE_DETAIL_SCALE ?? {}
   const runtimeSurfaces = Object.keys(runtimeScales).sort()
@@ -438,7 +438,7 @@ async function auditSurfaceDetailStrategy() {
     .filter((surface) => surface in runtimeScales && runtimeScales[surface] !== DETAIL_SCALE_BY_SURFACE[surface])
     .map((surface) => ({ surface, audit: DETAIL_SCALE_BY_SURFACE[surface], runtime: runtimeScales[surface] }))
   const loaderSource = fs.readFileSync(
-    path.join(frontendDir, 'src/studio/app/3d-studio/loaders/studio-external-models.ts'),
+    path.join(frontendDir, 'src/studio/authoring/loaders/studio-external-models.ts'),
     'utf8',
   )
   const wired = {
@@ -495,13 +495,13 @@ const surfaceDetailStrategy = await auditSurfaceDetailStrategy()
  * 4. 强度常量在 0.3–1.5（过暗等于没修，过亮金属发白）。
  */
 async function auditMetalEnvironmentStrategy() {
-  const metalEnvironment = await loadModule('src/studio/app/3d-studio/materials/studio-metal-environment.ts')
+  const metalEnvironment = await loadModule('src/studio/authoring/materials/studio-metal-environment.ts')
   const loaderSource = fs.readFileSync(
-    path.join(frontendDir, 'src/studio/app/3d-studio/loaders/studio-external-models.ts'),
+    path.join(frontendDir, 'src/studio/authoring/loaders/studio-external-models.ts'),
     'utf8',
   )
   const moduleSource = fs.readFileSync(
-    path.join(frontendDir, 'src/studio/app/3d-studio/materials/studio-metal-environment.ts'),
+    path.join(frontendDir, 'src/studio/authoring/materials/studio-metal-environment.ts'),
     'utf8',
   )
   const intensity = metalEnvironment.METAL_ENVIRONMENT_INTENSITY
@@ -550,7 +550,7 @@ const metalEnvironmentStrategy = await auditMetalEnvironmentStrategy()
  * （例如直接 new 一个 preset、或改了收口词表却漏了档位）都会被抓到。
  */
 async function auditPresetStructuralMetal() {
-  const presetsModule = await loadModule('src/studio/app/3d-studio/materials/studio-material-presets.ts')
+  const presetsModule = await loadModule('src/studio/authoring/materials/studio-material.ts')
   const groups = presetsModule.MATERIAL_STYLE_PRESET_GROUPS ?? {}
   const structuralRoles = presetsModule.STRUCTURAL_OR_SOFT_ROLES ?? new Set()
   const presetCount = Object.values(groups).reduce((sum, presets) => sum + presets.length, 0)
@@ -661,7 +661,7 @@ for (const relativePath of listModelFiles()) {
  * 与运行时同一份判定：`true` 表示该槽位会被 `applyItemDetailMaterial` 整块重建，
  * GLB 内嵌的 `metallicFactor` / `roughnessFactor` 不会被读取，C7 不应报、也不应回填。
  */
-const { materialPbrIsReplaced } = await loadModule('src/studio/app/3d-studio/materials/material-pipeline.ts')
+const { materialPbrIsReplaced } = await loadModule('src/studio/authoring/materials/material-pipeline.ts')
 
 const { resolveModelMaterialRole, materialRoleRecipeForRole, resolveModelFamily } = rolesModule
 const { resolveSemanticSlotRole } = slotRolesModule
@@ -997,7 +997,7 @@ const NAMING_INFIXES = Object.freeze([
 
 /** 从 `model-slot-roles.ts` 里抽全部 token 键，作为「可反查语义 token」的候选集。 */
 const slotRoleSource = fs.readFileSync(
-  path.join(frontendDir, 'src/studio/app/3d-studio/materials/model-slot-roles.ts'),
+  path.join(frontendDir, 'src/studio/authoring/materials/model-slot-roles.ts'),
   'utf8',
 )
 const SLOT_TOKEN_CANDIDATES = [
@@ -3000,7 +3000,9 @@ if (checkMode) {
       const baseline = JSON.parse(fs.readFileSync(jsonPath, 'utf8')).summary
       for (const key of ['fileCount', 'modelCount', 'materialCount', 'materialCountAllFiles']) {
         if (baseline[key] !== summary[key]) {
-          problems.push(`${key} 从 ${baseline[key]} 变为 ${summary[key]}（先跑 \`bun ops/checks/studio/audit_glb_materials.mjs\` 更新报告）`)
+          problems.push(
+            `${key} 从 ${baseline[key]} 变为 ${summary[key]}（先跑 \`bun ops/checks/studio/audit_glb_materials.mjs\` 更新报告）`,
+          )
         }
       }
     } catch (error) {

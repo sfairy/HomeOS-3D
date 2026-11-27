@@ -30,7 +30,7 @@
  *   node ops/checks/studio/check_runtime_contract.mjs --update   # 重写契约（需在评审里说明）
  *   node ops/checks/studio/check_runtime_contract.mjs --json
  */
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { join, resolve } from 'node:path'
 
@@ -106,14 +106,32 @@ function readContract() {
   return JSON.parse(readFileSync(CONTRACT, 'utf8'))
 }
 
+/** 递归收集 `runtime/**` 下的 `.ts`（构建入口就是这些文件，顺序稳定）。 */
+function listRuntimeFiles(dir, prefix = '') {
+  const out = []
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name.startsWith('.') || entry.name === '__pycache__') continue
+    const relative = prefix ? `${prefix}/${entry.name}` : entry.name
+    if (entry.isDirectory()) {
+      out.push(...listRuntimeFiles(join(dir, entry.name), relative))
+      continue
+    }
+    if (!entry.name.endsWith('.ts') || entry.name.endsWith('.d.ts')) continue
+    out.push(relative)
+  }
+  return out
+}
+
 function main() {
   const contract = readContract()
   const modules = contract.modules ?? {}
   const problems = []
 
   if (update) {
+    // 从**磁盘**重建，而不是从旧契约的键重建：目录重构（文件合并 / 改名）之后旧键会指向
+    // 不存在的文件，按旧键 `--update` 只会一路 ENOENT，永远修不回来。
     const nextModules = {}
-    for (const relativePath of Object.keys(modules).sort()) {
+    for (const relativePath of listRuntimeFiles(RUNTIME_DIR).sort()) {
       const file = join(RUNTIME_DIR, relativePath)
       const { names, wildcard } = exportedNames(file)
       if (wildcard.length) problems.push(`${relativePath}: 含 export * from ${wildcard.join(', ')}，无法枚举`)

@@ -185,9 +185,9 @@ const loadFrontendModule = async (relativePath) =>
 const reachableModelFiles = new Set()
 if (!onlyIds.length) {
   const [sharedModule, allItemModelsModule, collectionModule] = await Promise.all([
-    loadFrontendModule('src/studio/app/3d-studio/loaders/external-models/_shared.ts'),
-    loadFrontendModule('src/studio/app/3d-studio/loaders/external-models/all-item-models.ts'),
-    loadFrontendModule('src/studio/app/3d-studio/loaders/external-models/collection-models.ts'),
+    loadFrontendModule('src/studio/authoring/loaders/external-models/external-models-shared.ts'),
+    loadFrontendModule('src/studio/authoring/loaders/external-models/all-item-models.ts'),
+    loadFrontendModule('src/studio/authoring/loaders/external-models/collection-models.ts'),
   ])
   const modelsRootMarker = '/static/3d-studio/models/'
   for (const source of [

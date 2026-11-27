@@ -28,7 +28,7 @@ export const specsDir = path.join(scriptsDir, 'specs')
  * （`model-asset-folders.ts`），这里按需加载，避免各脚本各写一套正则。
  */
 const { modelAssetFolderFromPath, modelAssetIdForStem } = await import(
-  pathToFileURL(path.join(frontendDir, 'src/studio/app/3d-studio/loaders/external-models/model-asset-folders.ts')).href
+  pathToFileURL(path.join(frontendDir, 'src/studio/authoring/loaders/external-models/model-asset-folders.ts')).href
 )
 
 const GLB_MAGIC = 0x46546c67 // "glTF"

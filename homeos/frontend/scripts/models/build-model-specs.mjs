@@ -44,7 +44,7 @@ export function assetIdFromUrl(url) {
 }
 
 async function loadRegistries() {
-  const externalRoot = path.join(repoRoot, 'homeos/frontend/src/studio/app/3d-studio/loaders/external-models')
+  const externalRoot = path.join(repoRoot, 'homeos/frontend/src/studio/authoring/loaders/external-models')
   const itemRoot = path.join(repoRoot, 'homeos/frontend/src/studio/app/3d-studio/authoring/items')
   const [all, collection, catalog, collectionCatalog] = await Promise.all([
     import(path.join(externalRoot, 'all-item-models.ts')),

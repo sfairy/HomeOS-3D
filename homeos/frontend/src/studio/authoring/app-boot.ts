@@ -676,7 +676,6 @@ import { itemTypeCatalog, lampItemTypeSet, stairItemTypeSet } from './items/item
 import { installLibraryNameScroll } from './items/studio-model-library'
 import { defaultViewSettings } from './scene/payload/studio-view-settings'
 window.__homeosStudioModuleVersion = STUDIO_MODULE_VERSION
-  '20260904-local-shadow-edge-v6-depth-precision-v1-model-load-state-v3-floor-scope-v1-ground-grid-v3-depth-fade-v2-local-shadow-depth-v1-export-shadow-quality-v1-base-light-entry-v1-auto-diagram-preview-hd-v1-auto-diagram-floor-v1-20260905-first-light-prewarm-v3-20260905-orbit-architecture-center-v1'
 import { createLegacyScope } from '@/studio/platform/legacy-scope'
 import { navigateInShell } from '@/studio/platform/shell-navigation'
 import { patchStudioFacadeState, registerStudioCommandHandler, resetStudioFacade } from '@/studio/engine/studio-facade'
@@ -709,7 +708,6 @@ import {
   takeStudioDispose,
   takeStudioFlush,
 } from './boot/studio-session'
-
 
 /**
  * 引导户型图绘制。

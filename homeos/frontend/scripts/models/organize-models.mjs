@@ -3,7 +3,7 @@
  * 模型目录中文布局校验 / 迁移。
  *
  * 3D Studio 的模型按模型库类目分两级中文目录（`家居/客厅家具/沙发-lite.glb`），
- * 映射的唯一真值是 `src/studio/app/3d-studio/loaders/external-models/model-asset-folders.ts`：
+ * 映射的唯一真值是 `src/studio/authoring/loaders/external-models/model-asset-folders.ts`：
  * 英文分区 id → 中文目录（`MODEL_FOLDER_PATHS`）、英文模型 id → 中文文件名主干
  * （`model-file-names.generated.ts`）。本脚本用同一张表校验磁盘布局，并（`--write`）
  * 把文件搬进对应目录，避免手工 `mv` 出现「文件搬了、URL 没改」或
@@ -49,10 +49,12 @@ const {
   modelAssetFolderPath,
   modelAssetFileStem,
   modelAssetIdForStem,
-} = await loadModule('src/studio/app/3d-studio/loaders/external-models/model-asset-folders.ts')
-const { ALL_ITEM_MODELS } = await loadModule('src/studio/app/3d-studio/loaders/external-models/all-item-models.ts')
-const { EXTERNAL_ITEM_MODELS } = await loadModule('src/studio/app/3d-studio/loaders/external-models/_shared.ts')
-const { COLLECTION_MODELS } = await loadModule('src/studio/app/3d-studio/loaders/external-models/collection-models.ts')
+} = await loadModule('src/studio/authoring/loaders/external-models/model-asset-folders.ts')
+const { ALL_ITEM_MODELS } = await loadModule('src/studio/authoring/loaders/external-models/all-item-models.ts')
+const { EXTERNAL_ITEM_MODELS } = await loadModule(
+  'src/studio/authoring/loaders/external-models/external-models-shared.ts',
+)
+const { COLLECTION_MODELS } = await loadModule('src/studio/authoring/loaders/external-models/collection-models.ts')
 
 /** 递归列出 `models/` 下所有 GLB 的相对路径（分隔符统一为 `/`）。 */
 function listGlbFiles(dir, relativePrefix = '') {

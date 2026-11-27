@@ -58,10 +58,10 @@ const PBR_TOLERANCE = 0.05
 const AREA_SHARE_TOLERANCE = 0.1
 
 const { resolveModelMaterialRole, materialRoleRecipeForRole } = await import(
-  pathToFileURL(path.join(frontendDir, 'src/studio/app/3d-studio/materials/studio-model-material-roles.ts')).href
+  pathToFileURL(path.join(frontendDir, 'src/studio/authoring/materials/studio-model-material-roles.ts')).href
 )
 const { materialPbrIsReplaced } = await import(
-  pathToFileURL(path.join(frontendDir, 'src/studio/app/3d-studio/materials/material-pipeline.ts')).href
+  pathToFileURL(path.join(frontendDir, 'src/studio/authoring/materials/material-pipeline.ts')).href
 )
 
 const round = (value, digits = 3) => (typeof value === 'number' ? Number(value.toFixed(digits)) : value)

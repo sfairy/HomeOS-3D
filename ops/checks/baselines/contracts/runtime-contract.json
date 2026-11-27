@@ -1,14 +1,12 @@
 {
   "modules": {
-    "airer/airer-direction.ts": [
+    "airer/airer.ts": [
       "airerAnimationPosePosition",
       "airerMapControlPosition",
       "airerMapControlService",
       "airerVisualPosition",
+      "createAirerMotion",
       "normalizeAirerDirection"
-    ],
-    "airer/airer-motion.ts": [
-      "createAirerMotion"
     ],
     "bath-heater/bath-heater-editor.ts": [
       "bathEffectEditor"
@@ -17,53 +15,47 @@
       "bathEffects",
       "bathHeaterState"
     ],
-    "camera/camera-budget.ts": [
-      "cameraRequestBudget",
-      "cameraStreamBudget",
-      "createCameraRequestBudget",
-      "createCameraStreamBudget",
-      "withCameraHttpSlot"
-    ],
-    "camera/camera-mjpeg.ts": [
+    "camera/camera.ts": [
       "CAMERA_MJPEG_ERRORS",
       "CameraMjpegError",
-      "createCameraMjpegStream",
-      "parseMultipartBoundary",
-      "readMjpegFrames"
-    ],
-    "camera/camera-motion.ts": [
       "automaticAirConditionerCamera",
       "automaticLightCamera",
       "automaticVehicleCamera",
-      "createDampedCameraMotion"
-    ],
-    "camera/camera-status.ts": [
       "cameraOnline",
+      "cameraRequestBudget",
       "cameraSourceConfigured",
-      "createCameraStatus"
-    ],
-    "camera/go2rtc-url.ts": [
+      "cameraStreamBudget",
+      "createCameraMjpegStream",
+      "createCameraRequestBudget",
+      "createCameraStatus",
+      "createCameraStreamBudget",
+      "createDampedCameraMotion",
+      "parseMultipartBoundary",
+      "readMjpegFrames",
       "validateGo2rtcDocument",
-      "validateGo2rtcUrl"
+      "validateGo2rtcUrl",
+      "withCameraHttpSlot"
     ],
-    "climate/climate-panel.ts": [
-      "createClimatePanel"
-    ],
-    "climate/climate-state.ts": [
+    "climate/climate.ts": [
+      "BOILER_COPY",
+      "boilerPanelLabel",
       "climateControl",
       "climatePowerControl",
       "climateState",
       "createClimateModeHistory",
+      "createClimatePanel",
+      "createPurifierExtras",
       "exhaustFanState",
       "exhaustSwitchState",
-      "waterHeaterCapabilityStatusLabel"
-    ],
-    "climate/purifier-extras.ts": [
-      "createPurifierExtras",
       "extraLabels",
       "extraTypes",
+      "heatingPanelStyleOf",
+      "isBoilerHeating",
+      "isHeatingBoiler",
+      "isThermostatBoilerPanel",
       "purifierDeviceChanged",
-      "purifierRelatedEntities"
+      "purifierRelatedEntities",
+      "waterHeaterCapabilityStatusLabel"
     ],
     "config-ui/batch-apply.ts": [
       "copyBatchFields",
@@ -73,24 +65,46 @@
       "openInteraction3dAppearanceEditor",
       "openInteraction3dEditor"
     ],
-    "config-ui/config-editor/_shared.ts": [
-      "readNestedPath"
-    ],
     "config-ui/config-editor/appearance-editor.ts": [
       "APPEARANCE_GROUPS",
       "openInteraction3dAppearanceEditor"
     ],
+    "config-ui/config-editor/config-editor-shared.ts": [
+      "readNestedPath"
+    ],
     "config-ui/config-editor/panel-rendering.ts": [
       "attachEditorPanelRendering"
+    ],
+    "config-ui/config-editor/rendering/boiler-section.ts": [
+      "boilerBindingFor",
+      "ensureBoilerBinding",
+      "renderBoilerSection"
+    ],
+    "config-ui/config-editor/rendering/config-list-hint.ts": [
+      "modelListHint"
     ],
     "config-ui/config-editor/rendering/device-category-choices.ts": [
       "MDI_SVG_ROOT",
       "deviceCategoryGroups",
       "resolveDeviceCategoryProfile"
     ],
+    "config-ui/config-editor/rendering/extra-sources-section.ts": [
+      "buildExtraSourceList",
+      "createExtraSourcesSection",
+      "entitiesForDevice"
+    ],
+    "config-ui/config-editor/rendering/game-console-section.ts": [
+      "appendGameConsoleSection",
+      "appendStatusOrGameMainSection",
+      "autoPickGameMainEntity",
+      "openGameMainEntityPicker"
+    ],
     "config-ui/config-editor/rendering/indicator-condition-editor.ts": [
       "indicatorConditionFields",
       "indicatorEntitySupport"
+    ],
+    "config-ui/config-editor/rendering/light-long-press-section.ts": [
+      "appendLightLongPressSettings"
     ],
     "config-ui/config-editor/rendering/panel-assembly.ts": [
       "renderPanelImpl"
@@ -124,6 +138,27 @@
       "kindConfigurationProgress",
       "openDeviceCategoryPicker"
     ],
+    "config-ui/config-editor/rendering/sections.ts": [
+      "appendGameConsoleSection",
+      "appendStatusOrGameMainSection",
+      "autoPickGameMainEntity",
+      "createExtraSourcesSection",
+      "floorWindowContacts",
+      "modelListHint",
+      "openGameMainEntityPicker",
+      "renderWindowOpenerSection",
+      "windowContactNote"
+    ],
+    "config-ui/config-editor/rendering/window-opener-section.ts": [
+      "floorWindowContacts",
+      "renderWindowOpenerSection",
+      "windowContactNote"
+    ],
+    "config-ui/config-list-summary.ts": [
+      "appendConfigListSummary",
+      "appendConfigurationCounts",
+      "configListProgress"
+    ],
     "config-ui/configuration-feedback.ts": [
       "createConfigurationFeedback"
     ],
@@ -141,6 +176,9 @@
     ],
     "config-ui/light-effects-editor.ts": [
       "createStandardLightEffectsEditor"
+    ],
+    "config-ui/light-range-copy.ts": [
+      "LIGHT_RANGE_COPY"
     ],
     "config-ui/light-range-editor.ts": [
       "mountRegionRangeEditor"
@@ -169,6 +207,11 @@
     "core/floor-navigation.ts": [
       "floorNavigationChoices"
     ],
+    "core/graphics-recovery.ts": [
+      "GRAPHICS_RECOVERY_ACTION",
+      "GRAPHICS_RECOVERY_TEXT",
+      "createGraphicsRecovery"
+    ],
     "core/idle-rotation.ts": [
       "createIdleFocusExit",
       "createIdleIconVisibility",
@@ -178,6 +221,10 @@
     "core/label-appearance.ts": [
       "appendBackgroundOpacityControl",
       "backgroundOpacity"
+    ],
+    "core/lifecycle-counts.ts": [
+      "NUMERIC_COUNT_FIELDS",
+      "sanitizeCounts"
     ],
     "core/marker-input.ts": [
       "createMarkerHold",
@@ -196,6 +243,9 @@
       "popupHeightDraft",
       "popupPreviewPlacement"
     ],
+    "core/reload-breadcrumbs.ts": [
+      "createBreadcrumbStore"
+    ],
     "core/reported-motion.ts": [
       "motionPosition",
       "reportInterval",
@@ -206,6 +256,20 @@
     ],
     "core/scene-background.ts": [
       "createSceneBackground"
+    ],
+    "core/scene-styles.ts": [
+      "DEFAULT_SCENE_POPUP_COLORS",
+      "NATURAL_BACKDROP_REVISION",
+      "NATURAL_SCENE_POPUP_COLORS",
+      "SCENE_STYLES",
+      "WARM_SCENE_POPUP_COLORS",
+      "isWarmSceneStyle",
+      "normalizeSceneStyle",
+      "sceneMotionRenderScale",
+      "scenePopupDefaultColors",
+      "sceneStyleHasBackgroundMotion",
+      "sceneStyleLabel",
+      "warmBackgroundChoices"
     ],
     "core/scene-sync.ts": [
       "startSceneSync"
@@ -223,19 +287,6 @@
       "createStageModelIndex",
       "mountStage"
     ],
-    "core/stage/_shared.ts": [
-      "configuredModuleKinds",
-      "coverGeometryOverrides",
-      "createStageElement",
-      "createStageModelIndex",
-      "expandGroupMembers",
-      "isSameCameraPose",
-      "lampIconSvgMarkup",
-      "lightPresetEntries",
-      "postHostMessage",
-      "resolveMarkerIconSize",
-      "syncPanelFit"
-    ],
     "core/stage/build-metadata.ts": [
       "buildMetadata"
     ],
@@ -247,6 +298,10 @@
       "exitFocusModeCore",
       "focusMarkerByIdCore",
       "syncCameraInteractionCore"
+    ],
+    "core/stage/control-requests.ts": [
+      "settleControlRequest",
+      "trackControlRequest"
     ],
     "core/stage/controls.ts": [
       "animateModuleSwitchCore",
@@ -281,12 +336,28 @@
       "sendLightCommandCore",
       "updateLampButtonCore"
     ],
+    "core/stage/marker-long-press.ts": [
+      "bindMarkerLongPress",
+      "resolveLongPressLight"
+    ],
+    "core/stage/marker-placement.ts": [
+      "placeMarker"
+    ],
     "core/stage/marker-visibility.ts": [
       "markerVisibilityHint",
       "resolvedMarkerLabelMode"
     ],
     "core/stage/navigation-drag.ts": [
       "bindNavigationDragCore"
+    ],
+    "core/stage/preview-markers.ts": [
+      "clampScreenPercent",
+      "handleMarkerActivate",
+      "isFixedPositionAlarm",
+      "modelBindingPosition",
+      "previewReferenceKey",
+      "previewSelectionOf",
+      "screenPointToFixedPercent"
     ],
     "core/stage/refresh.ts": [
       "adoptSceneUpdateCore",
@@ -305,6 +376,19 @@
       "createSyncMarkers",
       "createUpdateDevicePanel"
     ],
+    "core/stage/stage-shared.ts": [
+      "configuredModuleKinds",
+      "coverGeometryOverrides",
+      "createStageElement",
+      "createStageModelIndex",
+      "expandGroupMembers",
+      "isSameCameraPose",
+      "lampIconSvgMarkup",
+      "lightPresetEntries",
+      "postHostMessage",
+      "resolveMarkerIconSize",
+      "syncPanelFit"
+    ],
     "core/stage/view-camera.ts": [
       "VIEW_CAMERA_MAX_DISTANCE",
       "VIEW_CAMERA_MAX_POLAR",
@@ -317,8 +401,14 @@
       "rotateCamera",
       "zoomCamera"
     ],
+    "core/stage/view-gestures-wiring.ts": [
+      "installStageViewGestures"
+    ],
     "core/stage/weather-ground.ts": [
       "createWeatherGroundEmitter"
+    ],
+    "core/state-revision.ts": [
+      "createStateRevision"
     ],
     "core/state-update-plan.ts": [
       "applyLabelConfigPatch",
@@ -340,123 +430,106 @@
       "VIEW_GESTURE_WHEEL_ZOOM",
       "installViewGestures"
     ],
-    "cover/cover-feedback.ts": [
+    "core/weather-atmosphere-publish.ts": [
+      "createWeatherAtmospherePublisher"
+    ],
+    "core/weather-preview.ts": [
+      "createWeatherPreview"
+    ],
+    "cover/cover.ts": [
+      "airerState",
+      "attachCoverMemory",
+      "beginCoverOperation",
+      "continueCoverTravel",
+      "coverCanAdjustBlades",
+      "coverControl",
       "coverEaseTangent",
-      "createCoverFeedback"
-    ],
-    "cover/cover-group-panel.ts": [
-      "createCoverGroupPanel"
-    ],
-    "cover/cover-groups.ts": [
+      "coverIconIsOn",
+      "coverOperationDelay",
+      "coverProgress",
+      "coverReportTime",
+      "coverState",
+      "coverStateLabel",
+      "coverTravel",
+      "createCoverFeedback",
+      "createCoverGroupPanel",
+      "createCoverMemoryClient",
+      "createCoverPanel",
       "createCurtainGroup",
+      "createCurtainMotion",
       "curtainGroupCandidates",
       "curtainGroupEntryId",
-      "validCurtainGroups"
-    ],
-    "cover/cover-memory-client.ts": [
-      "attachCoverMemory",
-      "createCoverMemoryClient",
-      "mergeCoverMemoryEntries",
-      "normalizeCoverMemoryEntry",
-      "observeCoverMemoryState"
-    ],
-    "cover/cover-memory-travel.ts": [
       "isAssumedState",
+      "mergeCoverMemoryEntries",
       "mergeTravelState",
       "nextTravelState",
+      "normalizeCoverMemoryEntry",
+      "observeCoverMemoryState",
+      "observeCoverOperation",
       "observedTimestamp",
+      "operationDelay",
+      "operationProgress",
+      "previewCoverTravel",
+      "previousCoverDirection",
       "readLastState",
       "readTravelPayload",
       "supportedFeatureBits",
-      "travelDirectionOf"
+      "travelDirectionOf",
+      "validCurtainGroups"
     ],
-    "cover/cover-panel.ts": [
-      "createCoverPanel"
-    ],
-    "cover/cover-state.ts": [
-      "airerState",
-      "coverCanAdjustBlades",
-      "coverControl",
-      "coverIconIsOn",
-      "coverState",
-      "coverStateLabel"
-    ],
-    "cover/curtain-motion.ts": [
-      "createCurtainMotion"
-    ],
-    "device/computer-screen.ts": [
-      "createComputerScreens"
-    ],
-    "device/computer-state.ts": [
-      "computerPower",
-      "computerScreenImage",
-      "computerState"
-    ],
-    "device/device-panel.ts": [
-      "createDevicePanel"
-    ],
-    "device/device-profiles.ts": [
+    "device/device.ts": [
       "DEVICE_KINDS",
       "DEVICE_PROFILE_TABLE",
+      "DEVICE_STATUS_NORMAL_COLOR",
+      "GAME_CONSOLE_KINDS",
+      "GENERIC_DEVICE_KINDS",
       "INDOOR_BED_MODEL_TYPES",
       "INDOOR_PLANT_MODEL_TYPES",
       "INDOOR_SOFA_MODEL_TYPES",
-      "deviceModelTypes",
-      "deviceProfile",
-      "isDeviceKind"
-    ],
-    "device/device-status.ts": [
-      "DEVICE_STATUS_NORMAL_COLOR",
       "INVERSE_OPERATOR",
       "NUMERIC_OPERATORS",
+      "attributesOf",
+      "brightnessModes",
+      "computerPower",
+      "computerScreenImage",
+      "computerState",
+      "createComputerScreens",
+      "createDevicePanel",
       "createDeviceStatusReader",
+      "createGameConsoleMain",
       "defaultDeviceStatusRule",
       "deviceEntityIds",
       "deviceIndicatorChoices",
+      "deviceModelTypes",
+      "deviceProfile",
       "deviceStatus",
       "deviceStatusChoices",
-      "indicatorNumber",
-      "numericIndicatorRuleError"
-    ],
-    "device/entity-capabilities.ts": [
-      "attributesOf",
-      "brightnessModes",
       "extraContextChanged",
-      "fanCapabilities",
-      "featureFlags",
-      "haNumber",
-      "stringOptions"
-    ],
-    "device/extra-sources.ts": [
       "extraSourceDevices",
       "extraSourceId",
-      "isPrimaryExtra",
-      "primaryDeviceId",
-      "primaryExtraIds",
-      "removeExtraDevice",
-      "replacePrimaryExtras",
-      "selectableExtraEntity"
-    ],
-    "device/fridge-openings.ts": [
-      "resolveFridgeOpenings"
-    ],
-    "device/game-console-panel.ts": [
-      "createGameConsoleMain"
-    ],
-    "device/game-console-state.ts": [
-      "GAME_CONSOLE_KINDS",
+      "fanCapabilities",
+      "featureFlags",
       "gameConsoleCommand",
       "gameConsoleIndicator",
       "gameConsoleState",
       "gameMainEntityAllowed",
-      "isGameConsoleKind",
-      "preferredGameMainEntity"
-    ],
-    "device/generic-device-catalog.ts": [
-      "GENERIC_DEVICE_KINDS",
       "genericDeviceMetadata",
       "genericDeviceProfile",
-      "isGenericDeviceKind"
+      "haNumber",
+      "indicatorNumber",
+      "isDeviceKind",
+      "isGameConsoleKind",
+      "isGenericDeviceKind",
+      "isPrimaryExtra",
+      "numericIndicatorRuleError",
+      "preferredGameMainEntity",
+      "primaryDeviceId",
+      "primaryExtraIds",
+      "removeExtraDevice",
+      "replacePrimaryExtras",
+      "resolveFridgeOpenings",
+      "selectableExtraEntity",
+      "stringOptions"
     ],
     "editor/configuration-floor.ts": [
       "chooseConfigurationFloor",
@@ -519,6 +592,9 @@
     "environment/weather/ground.ts": [
       "createGroundRenderer"
     ],
+    "environment/weather/palette.ts": [
+      "weatherPalette"
+    ],
     "environment/weather/particles.ts": [
       "RAIN_FAR_PARTICLES",
       "RAIN_MID_PARTICLES",
@@ -553,10 +629,8 @@
     "environment/weather/thunder.ts": [
       "createThunderRenderer"
     ],
-    "fan/fan-motion.ts": [
-      "createFanMotion"
-    ],
-    "fan/fan-state.ts": [
+    "fan/fan.ts": [
+      "createFanMotion",
       "fanMotionState",
       "fanReverseStateOptions",
       "fanSourceAllowed",
@@ -565,175 +639,124 @@
       "isFanEntityCandidate",
       "resolveFanBindingState"
     ],
-    "light/light-color-picker.ts": [
+    "light/light.ts": [
       "createLightColorPicker",
-      "createLightModeMenu"
-    ],
-    "light/light-state.ts": [
+      "createLightModeMenu",
       "createLightPreview",
       "createLightStateCache",
+      "createLightStream",
       "hsToRgbColor",
       "lightCommand",
       "lightRenderState",
       "lightState"
     ],
-    "light/light-stream.ts": [
-      "createLightStream"
-    ],
-    "nas/nas-panel.ts": [
+    "nas/nas.ts": [
       "applyNasLayout",
       "createNasPanel",
+      "createNasStatus",
+      "nasDeviceState",
       "nasGroups",
       "nasMetricLayout",
       "nasMetricValue"
     ],
-    "nas/nas-status.ts": [
-      "createNasStatus",
-      "nasDeviceState"
-    ],
-    "navigation/binding-repair.ts": [
-      "confirmBindingRepair",
-      "createBindingRepair",
-      "hasInteractionBindings"
-    ],
-    "navigation/category-transition-diagnostics.ts": [
-      "createCategoryTransitionDiagnostics"
-    ],
-    "navigation/navigation-defaults.ts": [
+    "navigation/navigation.ts": [
       "FLOOR_CATEGORY_CHOICES",
       "configuredModuleKinds",
+      "confirmBindingRepair",
+      "createBindingRepair",
+      "createCategoryTransitionDiagnostics",
       "defaultFloorCategory",
       "defaultOpeningFloor",
       "enteringFloorCategory",
-      "floorSwitchMode"
+      "floorSwitchMode",
+      "hasInteractionBindings"
     ],
-    "panels/camera-extra-panel.ts": [
-      "createCameraExtraPanel"
-    ],
-    "panels/compound-extra-panel.ts": [
-      "createCompoundExtraPanel"
-    ],
-    "panels/display-extra-panel.ts": [
-      "createDisplayExtraPanel"
-    ],
-    "panels/extended-extra-panel.ts": [
-      "createExtendedExtraPanel"
-    ],
-    "panels/image-extra-panel.ts": [
-      "createImageExtraPanel"
-    ],
-    "panels/input-extra-panel.ts": [
-      "createInputExtraPanel",
-      "inputValue"
-    ],
-    "panels/light-extra-panel.ts": [
-      "createLightExtraPanel"
-    ],
-    "panels/list-extra-panel.ts": [
-      "createListExtraPanel",
-      "unwrapExtraResponse"
-    ],
-    "panels/native-extra-panel.ts": [
-      "createNativeExtraPanel",
-      "nativeExtraKind",
-      "nativeExtraMinimumWidth"
-    ],
-    "panels/panel-utils.ts": [
+    "panels/panels.ts": [
       "EXTRA_STATE_LABELS",
       "attachFeedback",
+      "createCameraExtraPanel",
+      "createCompoundExtraPanel",
+      "createDisplayExtraPanel",
+      "createExtendedExtraPanel",
+      "createImageExtraPanel",
+      "createInputExtraPanel",
+      "createLightExtraPanel",
+      "createListExtraPanel",
+      "createNativeExtraPanel",
       "createPanelElement",
+      "createServiceExtraPanel",
       "createVisibilityGate",
       "extraStateText",
+      "inputValue",
       "liveAttributesOf",
       "modelDomain",
-      "panelEntityUsable"
+      "nativeExtraKind",
+      "nativeExtraMinimumWidth",
+      "panelEntityUsable",
+      "unwrapExtraResponse"
     ],
-    "panels/service-extra-panel.ts": [
-      "createServiceExtraPanel"
-    ],
-    "presence/presence-character.ts": [
+    "presence/presence.ts": [
       "DESIGNS",
-      "animateWalker",
-      "createWalker",
-      "disposeWalker"
-    ],
-    "presence/presence-editor.ts": [
-      "openPresenceEditor"
-    ],
-    "presence/presence-focus-editor.ts": [
-      "openPresenceFocusEditor"
-    ],
-    "presence/presence-motion.ts": [
       "PRESENCE_TRIGGER_MODES",
+      "animateWalker",
       "closedPath",
+      "createPresenceScene",
       "createPresenceTriggers",
+      "createPresenceWaves",
+      "createWalker",
+      "disposeWalker",
+      "openPresenceEditor",
+      "openPresenceFocusEditor",
       "presenceTriggerIsTimed",
       "presenceVisibleOnPage",
       "sampleClosedPath",
       "snapsToPresenceStart",
       "validPresenceRoute"
     ],
-    "presence/presence-scene.ts": [
-      "createPresenceScene",
-      "createPresenceWaves"
-    ],
     "purifier/purifier-state.ts": [
       "purifierState"
     ],
-    "security/lock-motion.ts": [
-      "createLockMotion"
+    "security/security-editor.ts": [
+      "openSecurityEditor"
     ],
-    "security/lock-panel.ts": [
-      "createLockPanel"
-    ],
-    "security/lock-state.ts": [
+    "security/security.ts": [
       "LOCK_ENTITY_FIELDS",
-      "doorModels",
-      "doorOpenState",
-      "identifyLockEntities",
-      "lockEntityRole",
-      "lockState"
-    ],
-    "security/security-alarm.ts": [
       "SECURITY_ALARM_KINDS",
       "SECURITY_ALARM_TYPES",
       "activeSecurityAlarms",
+      "createLockMotion",
+      "createLockPanel",
       "createSecurityAlarmOverlay",
+      "doorModels",
+      "doorOpenState",
+      "duplicateWindowConfigs",
+      "identifyLockEntities",
       "isSecurityAlarmKind",
+      "lockEntityRole",
+      "lockState",
       "mergeSecurityAlarmPresentations",
+      "openWindowConfigMergeDialog",
       "overlayEligibleAlarms",
       "renderSecurityAlarmCard",
       "securityAlarmEntities",
       "securityAlarmKindLabel",
       "securityAlarmReading",
-      "securityAlarmReadings"
+      "securityAlarmReadings",
+      "windowModelIdSet"
     ],
-    "security/security-editor.ts": [
-      "openSecurityEditor"
-    ],
-    "speaker/speaker-models.ts": [
+    "speaker/speaker.ts": [
       "SPEAKER_MODELS",
       "SPEAKER_MODEL_TYPES",
-      "speakerModelProfile"
-    ],
-    "speaker/speaker-panel.ts": [
-      "createSpeakerPanel"
-    ],
-    "speaker/speaker-ring.ts": [
-      "createSpeakerRings"
-    ],
-    "speaker/speaker-state.ts": [
+      "createSpeakerPanel",
+      "createSpeakerRings",
       "speakerCommand",
       "speakerIndicator",
+      "speakerModelProfile",
       "speakerState"
     ],
-    "television/television-panel.ts": [
-      "createTelevisionPanel"
-    ],
-    "television/television-screen.ts": [
-      "createTelevisionScreens"
-    ],
-    "television/television-state.ts": [
+    "television/television.ts": [
+      "createTelevisionPanel",
+      "createTelevisionScreens",
       "mediaDeviceIndicator",
       "televisionArtwork",
       "televisionMediaControl",
@@ -742,54 +765,42 @@
       "televisionState",
       "televisionTime"
     ],
-    "vacuum/vacuum-map-editor.ts": [
-      "openVacuumMapEditor"
-    ],
-    "vacuum/vacuum-map.ts": [
+    "vacuum/vacuum.ts": [
+      "createVacuumFollowCamera",
       "createVacuumMapImageLoader",
       "createVacuumMaps",
+      "createVacuumMotion",
       "mapCorners",
       "mapSource",
+      "openVacuumMapEditor",
       "vacuumBindingsForMap",
+      "vacuumBirdCamera",
+      "vacuumFollowPose",
       "vacuumMapAvailable",
       "vacuumMapIdentity",
       "vacuumMapRequestable",
+      "vacuumQuip",
       "vacuumStatusPresentation"
     ],
-    "vacuum/vacuum-motion.ts": [
-      "createVacuumFollowCamera",
-      "createVacuumMotion",
-      "vacuumBirdCamera",
-      "vacuumFollowPose",
-      "vacuumQuip"
-    ],
-    "vehicle/car-card.ts": [
-      "updateCarCard"
-    ],
-    "vehicle/car-charging.ts": [
-      "createCarCharging"
-    ],
-    "vehicle/car-state.ts": [
+    "vehicle/vehicle.ts": [
+      "CAR_TIRE_WHEELS",
+      "SCOOTER_TIRE_WHEELS",
       "carChargingMappingError",
       "carClickAction",
       "carState",
-      "standardCarBindings"
-    ],
-    "vehicle/car-tires.ts": [
-      "CAR_TIRE_WHEELS",
-      "SCOOTER_TIRE_WHEELS",
       "carTireEntities",
       "carTireModelType",
       "carTireWheels",
+      "createCarCharging",
       "createCarTires",
       "defaultCarTires",
       "retargetCarTires",
-      "supportsCarTires"
+      "standardCarBindings",
+      "supportsCarTires",
+      "updateCarCard"
     ],
-    "window/window-motion.ts": [
-      "createWindowMotion"
-    ],
-    "window/window-opener.ts": [
+    "window/window.ts": [
+      "createWindowMotion",
       "createWindowOpenerResolver",
       "windowContacts"
     ]
