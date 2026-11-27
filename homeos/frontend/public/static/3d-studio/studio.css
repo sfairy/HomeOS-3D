@@ -5961,7 +5961,7 @@ body:has(.studio-shell[data-editor-workspace]) .studio-header {
 /*
  * 毫米标尺标签：字号与对比度比 0.8.7 上调一档（10px / 9px）。
  * 上游 9px/8px 在平板尺寸的户型图上几乎读不出四角读数；这一处是有意偏离，
- * `ops/scripts/studio-visual-parity.mjs` 的 fontSize 对照会看到该差异。
+ * 与 0.8.7 参考实现的 fontSize 逐项对照时会看到该差异（属已知偏离）。
  */
 .distance-rulers { position:absolute;inset:0;pointer-events:none;z-index:5;overflow:hidden }
 .distance-rulers[hidden],.distance-ruler-label[hidden] { display:none }

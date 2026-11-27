@@ -3,7 +3,7 @@
 
 ## 为什么合并
 
-此前 19 条业务自检在门禁里是 19 个独立步骤，每条都走一次
+此前 22 条业务自检在门禁里是 22 个独立步骤，每条都走一次
 ``node ops/lib/py.mjs <script>`` —— 也就是重新启动一个 Python、重新导入一遍
 ``homeos.backend``。这些自检共用同一套 ``_selftest_support`` 骨架、彼此不依赖运行时
 状态，为每条断言付一次解释器启动成本没有任何收益，只让门禁清单变长、日志变吵。
@@ -15,8 +15,8 @@
 - 失败模块的 stdout 与 traceback 原样打印，成功模块只留一行
   ``<自检名>：N 项``（名称取自各脚本自己的 ``report()``，不在这里另抄一份）。
 
-单条调试仍走原脚本，例如 ``bun run check:circadian`` —— 本入口只是把它们串起来，
-不取代单项脚本。
+单条调试用 `--module`，例如 ``bun run check:selftests -- --module circadian_selftest`` ——
+模块名就是 ``ops/checks/business/`` 下的文件名（不含 ``.py``）。
 
 用法：
     node ops/lib/py.mjs ops/checks/run_selftests.py

@@ -18,7 +18,7 @@
 - 任一模块失败 = 整体退出 1（门禁仍是「全绿或失败」，不给部分通过）；
 - 单条失败不中断其余模块：跑完再看总账；
 - 失败模块的完整输出与 traceback 原样打印；成功模块只留最后一行结论；
-- 单项调试仍走原脚本（`bun run check:silent-except` 等）。
+- 单项调试仍走本入口的 `--module`（`bun run check:backend -- --module silent-except`）。
 
 ## 用法
 

@@ -14,7 +14,7 @@
  *
  * 这张表是**唯一真值**：运行时 URL 由 `modelAssetUrl()` 拼出来，不再散落硬编码路径；
  * `scripts/models/organize-models.mjs` 用同一张表校验/迁移文件。新增模型先登记在这里，
- * 否则 `bun run check:models-layout` 会失败。
+ * 否则 `bun run check:model-index -- --module models-layout` 会失败。
  */
 import { MODEL_FILE_STEMS } from './model-file-names.generated'
 

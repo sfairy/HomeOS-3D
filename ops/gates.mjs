@@ -28,12 +28,13 @@
  *
  * 批量入口与 `covers`
  * -------------------
- * 同一批文件被多条检查反复扫描时（前端 10 条、后端 10 条、路由 5 条），门禁里只登记一个
- * 批量入口（`check:frontend` 等），被合并的原脚本名写进 `covers`：
+ * 同一批文件被多条检查反复扫描时（前端 / 后端 / 路由各一批），门禁里只登记一个
+ * 批量入口（`check:frontend` 等），各子检查的名字写进 `covers`：
  *
- * - `--step` 仍能按原脚本名子串命中（`--step offline` → `check:frontend`）；
+ * - `--step` 按子检查名子串命中（`--step offline` → `check:frontend`）；
  * - `--list --json` 输出 `covers`，供「合并前后覆盖对照」机器比对；
- * - 单项调试仍走原脚本（`bun run check:offline-counting`），合并只改执行方式，不改判定口径。
+ * - 单项调试用批量入口自己的 `--module`（`bun run check:backend -- --module guards`），
+ *   不再为每条子检查各留一个 `check:*` 别名 —— 别名只会让 package.json 长出第二份清单。
  *
  * 三类跳过都必须**显式打印**，不允许静默成功：
  * - 缺工具（shellcheck / actionlint / docker）：本机给安装提示并 SKIP，CI 里直接 FAIL；
@@ -50,7 +51,7 @@
  * node ops/gates.mjs --list       # 打印清单，不执行
  * node ops/gates.mjs --list --json # 机器可读（含 covers，用于覆盖对照）
  * node ops/gates.mjs --tag ratchet          # 只跑某一类检查
- * node ops/gates.mjs --step duplicates      # 只跑名字匹配的步骤（含批量入口的 covers）
+ * node ops/gates.mjs --step parity          # 只跑名字匹配的步骤（含批量入口的 covers）
  * node ops/gates.mjs --jobs 8               # 并行度（默认 4；build/infra 恒为串行）
  * node ops/gates.mjs --fail-fast
  * HOMEOS_GATE_CONTEXT=ci bun run gate:infra   # CI 上下文：ciOnly 步骤参与、缺工具即失败
@@ -449,7 +450,6 @@ const TAG_GROUPS = {
  * 这份清单是给人看的：这些命令**不阻断 CI**，别误以为门禁已经在跑。
  */
 const MANUAL_SCRIPTS = [
-  'check:studio-parity', // 人工 A/B：要 Chrome + 两个服务，见 ops/scripts/studio-visual-parity.mjs
   'soak', // 长跑泄漏观测：需要浏览器长连接稳定，见 ops/checks/perf/soak.mjs
 ]
 

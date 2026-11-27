@@ -25,7 +25,7 @@
 
 - 任一模块失败 = 整体退出 1；单条失败不中断其余模块；
 - 失败模块完整输出原样打印，成功模块只留最后一行结论；
-- 单项调试仍走原脚本（`bun run check:routes` 等）。
+- 单项调试仍走本入口的 `--module`（`bun run check:contracts -- --module routes`）。
 
 ## 用法
 

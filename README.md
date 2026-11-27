@@ -29,7 +29,7 @@
 | 3D 舞台 | `/api/v1/modules/interaction3d/stage.html` |
 | 认证外 | `/login`、`/register`、`/reset-password`、`/activate`、`/license-recovery` |
 
-后端领域（`homeos/backend/src/domains/`）。路由基线 365 operations / 292 paths（`check:routes` 守）：
+后端领域（`homeos/backend/src/domains/`）。路由基线 365 operations / 292 paths（`check:contracts -- --module route_inventory` 守）：
 
 | 领域 | 内容 |
 | --- | --- |
@@ -94,10 +94,11 @@ HomeOS/
 │   ├── docker-pins.json           # 基础镜像 tag + digest 真源
 │   ├── contracts/                 # feature_codes.json（能力码唯一真源，18 项 / 2 组）
 │   ├── checks/                    # 检查脚本，按域分目录：
-│   │   ├── run_*.{mjs,py}          #   批量入口（一个进程跑完一类检查）
-│   │   ├── business/               #   19 个业务规则自检 + 共享骨架
+│   │   ├── run_*.{mjs,py}          #   批量入口（一个进程跑完一类检查，`--module` 选子项）
+│   │   ├── business/               #   业务规则自检 + 共享骨架
 │   │   ├── python/ frontend/ contract/ studio/   # 各类静态检查
 │   │   ├── architecture/ security/ #   路由契约 / 依赖方向 / WS 鉴权
+│   │   ├── e2e/ perf/              #   浏览器冒烟 / 长跑观测（手动或 ux 组）
 │   │   ├── baselines/              #   全部棘轮基线（按域再分一层）
 │   │   ├── unittests/              #   bun test + stdlib unittest
 │   │   └── lib/ fixtures/          #   断言辅助、夹具
@@ -212,7 +213,7 @@ bun run dev -- --lan     # 局域网
 | `dev:runtime` | 只 watch runtime 构建 |
 | `build` | 前端（Vite + CSS 压缩 + 预压缩）+ 后端（Cython `.so`）→ `dist/` |
 | `build:app` / `build:store` | 单侧前端 |
-| `check:precompress` | 校验 `.br` / `.gz` sidecar |
+| `check:dist-assets` | 校验 `.br` / `.gz` sidecar 与压缩后的 static CSS（`minify-static-css --check` + `precompress-static --check`） |
 | `image:app` / `image:store` | 组装运行镜像 |
 | `set-version <x.y.z>` | 全仓版本槽位对齐 |
 | `typecheck` | shared 构建 + 两个前端 `vue-tsc` |
@@ -249,10 +250,10 @@ static 的步骤按**标签**分六类（`--list` 按此打印，`--tag` 可整�
 | `check:model-index` | 2 | 目录布局 + 中文名索引 |
 
 单项调试不必跑整批：批量入口都收 `--module`（精确名优先、其余按子串），例如
-`bun run check:backend -- --module guards`；原脚本也都能单独执行
-（`bun run check:parity`、`node ops/checks/python/check_guards.py --module pep758`）。
+`bun run check:backend -- --module guards`、`bun run check:contracts -- --module routes`；
+`--module` 就是唯一入口，不再为每条子检查各留一个 `check:*` 别名。
 
-**脚本按域分目录**：`business/`（19 个自检）/ `python/`（后端 AST 检查）/ `frontend/`（前端扫描与棘轮）/
+**脚本按域分目录**：`business/`（业务自检）/ `python/`（后端 AST 检查）/ `frontend/`（前端扫描）/
 `contract/`（版本、环境变量、跨语言表）/ `studio/`（3D 与模型）/ `architecture/`、
 `security/`（路由与鉴权）/ `baselines/`（全部基线）。`run_*.{mjs,py}` 留在顶层作为唯一执行入口，
 `ops/checks/` 顶层因此只有 8 个文件 + 子目录。
@@ -305,9 +306,9 @@ Studio 拆分预算、0.8.9 对齐、后端热点字节预算、bundle 体积预
 超前等于放行跑不了的语法。
 
 业务规则层「跑断言」的门禁是 `ops/checks/business/*_selftest.py`（标准库 + 运行期依赖，不需要 pytest）。
-`check:tests` 串起三类断言（bun test 契约单测 + stdlib unittest + 19 个自检模块，都在
-`ops/checks/business/` 与 `ops/checks/unittests/`），单项调试仍用原脚本
-（`bun run check:device-profile`、`check:backup`、`check:event-log` …）：
+`check:tests` 串起三类断言（bun test 契约单测 + stdlib unittest + 22 个业务自检模块，都在
+`ops/checks/business/` 与 `ops/checks/unittests/`），单项调试用 `--module`
+（`bun run check:selftests -- --module device_profile_selftest`）：
 
 - 设备画像（58 项）：分类规则、别名归一与房间作用域、在线 / 可用二分、确认与审计、
   房间默认设备校验、climate / water_heater 命令校验、快路径不 fail-open；
@@ -420,10 +421,10 @@ bfcache 交接在 `shared/utils/page-cache-lifecycle.ts`：`pagehide(persisted)`
 - **排除项必须覆盖 `data_dir/backups`**。迁移前快照默认落在 `backups/schema/*.db`，每份都是整库的
   `VACUUM INTO` 副本；漏排时备份会把自己装进去（实测 9.9 GB 的库被收成 54 GB 而失败）。
 - **上限是「展开后 4 GB / 50000 文件」**，超限报错必须点名占位最大的几项，否则排查只能靠猜。
-  `check:backup` 钉住这两条。
+  `check:selftests -- --module backup_selftest` 钉住这两条。
 - **历史表要同时有保留策略**。`agent_context_timeline` 曾既进备份又无清理（2 个多月 224 万行 /
   0.94 GB）；现在它已不进包，并在「数据保留」里有一行可调（默认 30 天），
-  `check:event-log` 钉住「键 / 表 / 时间列」对齐。
+  `check:selftests -- --module event_log_selftest` 钉住「键 / 表 / 时间列」对齐。
 
 ## 6. 部署
 
@@ -434,7 +435,7 @@ bfcache 交接在 `shared/utils/page-cache-lifecycle.ts`：`pagehide(persisted)`
 
 前者商店与主应用同机（`http://homeos-store:8802`）；后者商店地址为公网域名。
 
-环境变量、内网 HTTPS 与 SNI、穿透、备份与升级、排错：见 `.env.example`（约 90 个变量，分 A–G 七段）与两个 compose 的注释。模板里不允许出现没有读取方的键（`check:env-inventory` 守）。
+环境变量、内网 HTTPS 与 SNI、穿透、备份与升级、排错：见 `.env.example`（约 90 个变量，分 A–G 七段）与两个 compose 的注释。模板里不允许出现没有读取方的键（`check:env` 守）。
 
 镜像：`bun run build` → `bun run image:app` / `image:store`。基础镜像按多架构 digest 钉死，真源 `ops/docker-pins.json`。
 
