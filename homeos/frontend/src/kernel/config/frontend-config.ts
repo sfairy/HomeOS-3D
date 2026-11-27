@@ -1,8 +1,8 @@
 /** 前端公共配置（AppPublicConfig）状态管理 */
 import { ref } from 'vue'
 import { logger } from '@/kernel/core/index'
-import { AGENT_QUICK_PROMPTS } from '@/kernel/constants/index'
-import { SS_DEFAULTS } from '@/kernel/constants/index'
+import { AGENT_QUICK_PROMPTS } from '@/kernel/index'
+import { SS_DEFAULTS } from '@/kernel/index'
 import type { ClientPowerWakePublic } from '@homeos/shared'
 // 语音告警默认矩阵单点在 ``@homeos/shared``：这里只是「公开配置还没拉到时」的一份兜底，
 // 再抄一遍 14 个布尔键就等于让「后端默认值」和「前端兜底值」各走各的（见 voice-alert.ts）。
@@ -14,7 +14,7 @@ import type {
   EventLogRuntimeConfig,
   FrontendSection,
   WsPushPublicSection,
-} from '@/kernel/types/frontend-config'
+} from '@/kernel/frontend-config'
 
 const defaults: AppPublicConfig = {
   frontend: {

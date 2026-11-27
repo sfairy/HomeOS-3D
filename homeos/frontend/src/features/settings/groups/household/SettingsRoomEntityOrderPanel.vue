@@ -71,7 +71,7 @@ import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { fetchEntities } from '@/domain/api/entities'
 import { listHaAreas, sortHaAreaEntities } from '@/domain/api/ha'
 import { getApiErrorMessage } from '@/kernel/core/index'
-import { getEntityDisplayName } from '@/domain/entity/utils/derived'
+import { getEntityDisplayName } from '@/domain/entity/derived'
 
 const chrome = useChromeStore()
 const rooms = ref([])

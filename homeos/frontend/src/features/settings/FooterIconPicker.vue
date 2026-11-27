@@ -55,7 +55,7 @@
 import { computed, ref } from 'vue'
 import { ChevronDown } from '@lucide/vue'
 import { DASHBOARD_FOOTER_ICONS } from '@/domain/energy/constants/dashboard-footer'
-import { useClickOutside } from '@/kernel/ui/hooks/use-click-outside'
+import { useClickOutside } from '@/kernel/ui/use-click-outside'
 import { useDropdownPosition } from '@/kernel/ui/popup/use-dropdown-position'
 
 const props = defineProps({

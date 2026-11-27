@@ -1,6 +1,6 @@
 /** - 根据锚点百分比坐标（0-100）与弹窗尺寸，计算弹窗的方向 class 与百分比定位样式。 */
 import { computed } from 'vue'
-import { scalingEnabled } from '@/kernel/ui/hooks/use-scaling'
+import { scalingEnabled } from '@/kernel/ui/use-scaling'
 import {
   getPopupPlacementBounds,
   resolvePopupNumeric,

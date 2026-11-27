@@ -1,13 +1,13 @@
 import { ref, computed, watch, onMounted, onUnmounted, type Ref, type ComponentPublicInstance } from 'vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { getEntityDisplayName } from '@/domain/entity/utils/derived'
+import { getEntityDisplayName } from '@/domain/entity/derived'
 import { getDomainLabel } from '@/features/device/utils'
 import { useDeviceAnalyticsMetrics } from '@/features/device/use-device-analytics-metrics'
 import { useDeviceHealthTrend } from '@/features/device/device'
 import { useDeviceAnalyticsCharts } from '@/features/device/use-device-analytics-charts'
 import { fetchAdvisorUsageSummary } from '@/kernel/http/index'
 import { fetchEventStats } from '@/domain/api/entities'
-import { type DeviceAnalyticsSummary, type EventLogStats } from '@/kernel/types/device'
+import type { DeviceAnalyticsSummary, EventLogStats } from '@/kernel/device'
 import { createFetchSequence } from '@/kernel/core/index'
 
 /** 设备分析仪表盘 Shell Composable */

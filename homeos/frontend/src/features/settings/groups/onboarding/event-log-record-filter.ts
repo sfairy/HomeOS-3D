@@ -1,15 +1,19 @@
-import { type SystemConfig } from '@/kernel/types/system-config'
-import { type SharedOpsConfig } from '@homeos/shared'
+import type { SystemConfig } from '@/kernel/system-config'
+import type { SharedOpsConfig } from '@homeos/shared'
 import { fetchEventStats } from '@/domain/api/entities'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { getEventLogConfig } from '@/kernel/config/frontend-config'
 import { getApiErrorMessage } from '@/kernel/core/index'
 import { logger } from '@/kernel/core/index'
-import { buildEventLogPerfRecommendations } from '@/domain/recommend/utils/index'
-import { type EventLogStatsSnapshot } from '@/domain/recommend/types/recommend.types'
-import { fetchSystemConfigFresh, handleSystemConfigPatchError, patchSystemConfig } from '@/domain/layout/system-config-core.internals'
-import { buildEventLogRecordRecommendations, mapEventLogRecordToInsight } from '@/domain/recommend/utils/index'
+import { buildEventLogPerfRecommendations } from '@/domain/recommend/index'
+import type { EventLogStatsSnapshot } from '@/domain/recommend/recommend.types'
+import {
+  fetchSystemConfigFresh,
+  handleSystemConfigPatchError,
+  patchSystemConfig,
+} from '@/domain/layout/system-config-core.internals'
+import { buildEventLogRecordRecommendations, mapEventLogRecordToInsight } from '@/domain/recommend/index'
 import { computed, ref } from 'vue'
 
 /** EventLog 记录筛选状态读取 */

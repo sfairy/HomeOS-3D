@@ -126,10 +126,10 @@
  */
 import { ref, watch, computed, onUnmounted } from 'vue'
 import { useLayoutStore } from '@/domain/layout/store/index'
-import { useFocusTrap } from '@/kernel/ui/hooks/use-focus-trap'
-import { useEscLayer } from '@/kernel/ui/hooks/use-esc-stack'
-import { useBackgroundInert } from '@/kernel/ui/hooks/use-background-inert'
-import { useBodyScrollLock } from '@/kernel/ui/hooks/use-body-scroll-lock'
+import { useFocusTrap } from '@/kernel/ui/use-focus-trap'
+import { useEscLayer } from '@/kernel/ui/use-esc-stack'
+import { useBackgroundInert } from '@/kernel/ui/use-background-inert'
+import { useBodyScrollLock } from '@/kernel/ui/use-body-scroll-lock'
 const props = defineProps({ isOpen: { type: Boolean } })
 const emit = defineEmits(['close', 'success'])
 

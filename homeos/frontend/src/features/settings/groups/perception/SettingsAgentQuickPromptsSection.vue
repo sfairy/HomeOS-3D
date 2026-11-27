@@ -15,16 +15,13 @@ import { computed, onScopeDispose, ref, watch } from 'vue'
 import { Plus, RotateCcw, Save, Trash2 } from '@lucide/vue'
 import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
 import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSectionHead.vue'
-import {
-  agentQuickPromptsDirty,
-  agentQuickPromptsRevert,
-} from '@/features/settings/groups/perception/use-agent-panel'
+import { agentQuickPromptsDirty, agentQuickPromptsRevert } from '@/features/settings/groups/perception/use-agent-panel'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { isSystemConfigConflictError, patchSystemConfig } from '@/domain/layout/system-config-core.internals'
 import { reloadFrontendConfig } from '@/kernel/config/frontend-config'
 import { getApiErrorMessage } from '@/kernel/core/index'
 import { logger } from '@/kernel/core/index'
-import { AGENT_QUICK_PROMPTS, AGENT_QUICK_PROMPT_LIMITS } from '@/kernel/constants/index'
+import { AGENT_QUICK_PROMPTS, AGENT_QUICK_PROMPT_LIMITS } from '@/kernel/index'
 import { readAgentQuickPrompts } from '@/features/agent/utils'
 
 /** 编辑态行：`id` 只用于 v-for 的稳定 key，不写进配置 */

@@ -127,7 +127,8 @@ function main() {
       lines.push('')
     }
   } else {
-    for (const row of rows) console.log(`${String(row.files).padStart(5)} files ${String(row.lines).padStart(7)} lines  ${row.target}`)
+    for (const row of rows)
+      console.log(`${String(row.files).padStart(5)} files ${String(row.lines).padStart(7)} lines  ${row.target}`)
     console.log(`${String(grandFiles).padStart(5)} files ${String(grandLines).padStart(7)} lines  TOTAL`)
   }
 

@@ -115,10 +115,10 @@
 
 <script setup>
 import { computed, watch, ref } from 'vue'
-import { useFocusTrap } from '@/kernel/ui/hooks/use-focus-trap'
-import { useEscLayer } from '@/kernel/ui/hooks/use-esc-stack'
-import { useBackgroundInert } from '@/kernel/ui/hooks/use-background-inert'
-import { useBodyScrollLock } from '@/kernel/ui/hooks/use-body-scroll-lock'
+import { useFocusTrap } from '@/kernel/ui/use-focus-trap'
+import { useEscLayer } from '@/kernel/ui/use-esc-stack'
+import { useBackgroundInert } from '@/kernel/ui/use-background-inert'
+import { useBodyScrollLock } from '@/kernel/ui/use-body-scroll-lock'
 import { RouterLink } from 'vue-router'
 import {
   X,
@@ -142,7 +142,7 @@ import { useDeviceGroupBatch } from '@/domain/entity/device-group'
 import { useDeviceGroupEntityIds } from '@/domain/entity/device-group'
 import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
 import { useDeviceGroupOffline } from '@/domain/entity/device-group'
-import { useKeepAliveGate } from '@/kernel/ui/hooks/use-keep-alive-gate'
+import { useKeepAliveGate } from '@/kernel/ui/use-keep-alive-gate'
 import { useShellTeleportTarget } from '@/kernel/ui/shell/use-shell-teleport-target'
 import DeviceGroupBatteryPanel from '@/features/device/device-group/DeviceGroupBatteryPanel.vue'
 import DeviceGroupMemberList from '@/features/device/device-group/DeviceGroupMemberList.vue'

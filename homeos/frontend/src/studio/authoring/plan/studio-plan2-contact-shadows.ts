@@ -1,5 +1,9 @@
 import { captureRendererTargetState, restoreRendererTargetState } from '../render-kit/renderer-state'
-import { captureContactShadowSnapshot, createContactShadowPersistentCache, restoreContactShadowSnapshot } from './contact-shadow'
+import {
+  captureContactShadowSnapshot,
+  createContactShadowPersistentCache,
+  restoreContactShadowSnapshot,
+} from './contact-shadow'
 import { createContactShadowPoseResolver } from './studio'
 import { stableModelTextureKey } from '../cache/model-texture-cache'
 
@@ -94,7 +98,6 @@ export function computeSurfaceLevels(threeApi: any, meshList: any, floorY: any, 
     }))
     .sort((levelLeft, levelRight) => levelLeft.height - levelRight.height)
 }
-
 
 /** 持久缓存实例（由 stage-startup 注入）。 */
 type ContactShadowPersistentCache = ReturnType<typeof createContactShadowPersistentCache>

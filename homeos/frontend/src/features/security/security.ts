@@ -1,21 +1,64 @@
 import { formatSecurityTime, formatLocaleDate } from '@/kernel/format'
-import { ref, computed, type Ref, type Component, watch, type ComputedRef, shallowRef, onMounted, onUnmounted, toRaw } from 'vue'
-import { fetchSecurityPanelEvents, fetchSecurityEvents, validateSecurityEvents, fetchSecurityPanelStatus } from '@/domain/api/security'
+import {
+  ref,
+  computed,
+  type Ref,
+  type Component,
+  watch,
+  type ComputedRef,
+  shallowRef,
+  onMounted,
+  onUnmounted,
+  toRaw,
+} from 'vue'
+import {
+  fetchSecurityPanelEvents,
+  fetchSecurityEvents,
+  validateSecurityEvents,
+  fetchSecurityPanelStatus,
+} from '@/domain/api/security'
 import { logger } from '@/kernel/core/index'
 import { getApiErrorMessage } from '@/kernel/core/index'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { getMaxRemoteNotifications } from '@/kernel/config/frontend-config'
-import { mapSecurityEventRow, filterSecurityEvents, recentLinkageFailures, type SecurityEventDisplayItem } from '@/features/security/utils/index'
-import { Shield, ShieldOff, ShieldCheck, AlertTriangle, Siren, Bell, WifiOff, Activity, Flame, Droplets, Wind, DoorOpen } from '@lucide/vue'
+import {
+  mapSecurityEventRow,
+  filterSecurityEvents,
+  recentLinkageFailures,
+  type SecurityEventDisplayItem,
+} from '@/features/security/utils/index'
+import {
+  Shield,
+  ShieldOff,
+  ShieldCheck,
+  AlertTriangle,
+  Siren,
+  Bell,
+  WifiOff,
+  Activity,
+  Flame,
+  Droplets,
+  Wind,
+  DoorOpen,
+} from '@lucide/vue'
 import { useYamlValidation } from '@/features/security/use-yaml-validation'
-import { buildSecurityCalendarDays, isSameCalendarDay, resolveSecurityEventVideo, type SecurityDoorEvent } from '@/features/security/security-view'
+import {
+  buildSecurityCalendarDays,
+  isSameCalendarDay,
+  resolveSecurityEventVideo,
+  type SecurityDoorEvent,
+} from '@/features/security/security-view'
 import { useAuthStore } from '@/domain/auth/auth.store'
-import { registerSecurityPanelRefreshHandler, registerSecurityPanelModeHandler, type SecurityModeSocketPayload } from '@/kernel/bridge/store-bridge'
+import {
+  registerSecurityPanelRefreshHandler,
+  registerSecurityPanelModeHandler,
+  type SecurityModeSocketPayload,
+} from '@/kernel/bridge/store-bridge'
 import { sharedFetch, schedulePoll, invalidateSharedFetch } from '@/kernel/core/index'
 import { getEntityDomain, buildHazardBindingMap, type HazardSensorKind, getEntityLeaf } from '@homeos/shared'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useLayoutStore } from '@/domain/layout/store/index'
-import { getEntityDisplayName } from '@/domain/entity/utils/derived'
+import { getEntityDisplayName } from '@/domain/entity/derived'
 import { isSecurityUtilityNoise } from '@/features/security/utils/index'
 import { isSensorAlertState } from '@/features/security/utils/index'
 
@@ -160,7 +203,6 @@ export function useSecurityAuditEvents(liveZones: Ref<Array<{ id: string; name: 
 
 /* ── 原 useSecurityEventsCalendar.ts 的实现 ── */
 /** 安防页门禁事件日历：按月网格、按日筛选、视频预览、缩略图滚动 */
-
 
 export function useSecurityEventsCalendar(eventsPath: Ref<string> | ComputedRef<string>) {
   const weekdayLabels = computed(() => '日,一,二,三,四,五,六'.split(','))

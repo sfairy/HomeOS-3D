@@ -79,7 +79,7 @@ import {
   resolveFocusRowAfterCommaSplit,
   sanitizeAccountNumberInput,
   syncAccountString,
-} from '@/domain/energy/utils/account'
+} from '@/domain/energy/account'
 import { useBindingAccountListEditor } from './use-binding-account-list-editor'
 
 const props = defineProps({

@@ -1,8 +1,4 @@
-import {
-  createFeatureWallTexture,
-  FEATURE_WALL_STYLE_MATERIAL,
-  normalizeFeatureWallStyle,
-} from './studio-surface'
+import { createFeatureWallTexture, FEATURE_WALL_STYLE_MATERIAL, normalizeFeatureWallStyle } from './studio-surface'
 import { addMeshBoxToGroup } from './mesh-box'
 
 const MAX_TEXTURE_ANISOTROPY = 8

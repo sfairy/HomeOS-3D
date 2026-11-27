@@ -123,7 +123,9 @@ for (const match of source.matchAll(LINE_START)) {
   expressions.push({ open, close, members, single: false })
 }
 
-console.log(`找到 ${expressions.length} 处列 0 的括号表达式，其中 ${expressions.filter((e) => !e.single).length} 处是逗号表达式`)
+console.log(
+  `找到 ${expressions.length} 处列 0 的括号表达式，其中 ${expressions.filter((e) => !e.single).length} 处是逗号表达式`,
+)
 console.log(`成员总数：${expressions.reduce((sum, e) => sum + e.members.length, 0)}`)
 
 if (!WRITE) {
@@ -151,7 +153,10 @@ for (const expression of [...expressions].reverse()) {
     const rest = lines.slice(1).map((line) => (line.trim() ? line : ''))
     return [head, ...rest].join('\n')
   })
-  const replacement = statements.filter(Boolean).map((s) => `${s};`).join('\n')
+  const replacement = statements
+    .filter(Boolean)
+    .map((s) => `${s};`)
+    .join('\n')
   output = output.slice(0, expression.open) + replacement + output.slice(expression.close + 1)
 }
 

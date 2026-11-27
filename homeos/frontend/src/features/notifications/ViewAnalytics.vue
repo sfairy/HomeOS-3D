@@ -72,11 +72,8 @@
 <script setup lang="ts">
 import { toRefs } from 'vue'
 import { useNotificationsViewAnalytics } from './index'
-import { formatPercent } from '@/features/notifications/utils/analytics'
-import type {
-  NotificationAnalyticsSummary,
-  NotificationStatsPayload,
-} from '@/features/notifications/utils/analytics'
+import { formatPercent } from '@/features/notifications/analytics'
+import type { NotificationAnalyticsSummary, NotificationStatsPayload } from '@/features/notifications/analytics'
 
 // 单条通知在分析视图所需的最小字段集合（来源 / 级别 / 创建时间）
 type NotificationRow = {

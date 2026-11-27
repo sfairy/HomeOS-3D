@@ -17,7 +17,7 @@ import { getConfigSection } from '@/kernel/config/frontend-config'
 import { speakVoice, speakVoiceMultiple } from '@/kernel/http/index'
 import { logger } from '@/kernel/core/index'
 import { getApiErrorMessage } from '@/kernel/core/index'
-import { getEntityDisplayName } from '@/domain/entity/utils/derived'
+import { getEntityDisplayName } from '@/domain/entity/derived'
 import { speakLocal } from '@/domain/voice/local-speech'
 
 /** 一次播报实际走过的链路。 */

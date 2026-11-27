@@ -38,7 +38,7 @@
 </template>
 
 <script setup lang="ts">
-import { useLandscapePrompt } from '@/kernel/ui/hooks/use-landscape-prompt'
+import { useLandscapePrompt } from '@/kernel/ui/use-landscape-prompt'
 
 const { visible, locking, hint, requestLandscape, dismiss } = useLandscapePrompt()
 </script>

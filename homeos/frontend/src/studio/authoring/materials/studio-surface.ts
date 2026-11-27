@@ -286,7 +286,6 @@ export function createSurfaceDetailTexture(
  */
 export const createSurfaceNormalTexture = createSurfaceDetailTexture
 
-
 const MURAL_ART_STYLES = Object.freeze(['bauhaus', 'colorfield', 'linework', 'blocks', 'ink', 'terrazzo'])
 
 const FEATURE_WALL_STYLES = Object.freeze(['marble', 'wood', 'slat', 'stone', 'concrete', 'fabric', 'metal'])

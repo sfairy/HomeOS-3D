@@ -2,7 +2,7 @@
   "totals": {
     "alias2": 1274,
     "impl": 1731,
-    "moduleLet": 334
+    "moduleLet": 325
   },
   "files": {
     "homeos/frontend/src/App.vue": {
@@ -35,12 +35,12 @@
       "impl": 0,
       "moduleLet": 2
     },
-    "homeos/frontend/src/domain/client/utils/system.ts": {
+    "homeos/frontend/src/domain/client/system.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 4
     },
-    "homeos/frontend/src/domain/energy/utils/source.ts": {
+    "homeos/frontend/src/domain/energy/source.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 1
@@ -55,12 +55,22 @@
       "impl": 0,
       "moduleLet": 1
     },
+    "homeos/frontend/src/domain/entity/derived.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/domain/entity/idb-cache.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
     "homeos/frontend/src/domain/entity/store/entity-projection.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/domain/entity/utils/derived.ts": {
+    "homeos/frontend/src/domain/entity/sync-guards.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 1
@@ -70,17 +80,7 @@
       "impl": 0,
       "moduleLet": 5
     },
-    "homeos/frontend/src/domain/entity/utils/idb-cache.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/domain/entity/utils/sync-guards.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/domain/entity/utils/ws-subscription.ts": {
+    "homeos/frontend/src/domain/entity/ws-subscription.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 2
@@ -350,7 +350,7 @@
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/presence/utils/entity-filter.ts": {
+    "homeos/frontend/src/features/presence/entity-filter.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 2
@@ -380,15 +380,15 @@
       "impl": 0,
       "moduleLet": 0
     },
+    "homeos/frontend/src/features/security/panel-zones-bootstrap.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 2
+    },
     "homeos/frontend/src/features/security/security.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 3
-    },
-    "homeos/frontend/src/features/security/utils/panel-zones-bootstrap.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 2
     },
     "homeos/frontend/src/features/security/widgets/PanelWidget.vue": {
       "alias2": 1,
@@ -755,11 +755,6 @@
       "impl": 0,
       "moduleLet": 4
     },
-    "homeos/frontend/src/kernel/constants/voice.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
     "homeos/frontend/src/kernel/core/poll-scheduler.ts": {
       "alias2": 0,
       "impl": 0,
@@ -855,26 +850,6 @@
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/kernel/ui/hooks/use-body-scroll-lock.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 3
-    },
-    "homeos/frontend/src/kernel/ui/hooks/use-esc-stack.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 2
-    },
-    "homeos/frontend/src/kernel/ui/hooks/use-popup-history-guard.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/kernel/ui/hooks/use-scaling.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
     "homeos/frontend/src/kernel/ui/popup/use-exclusive-dropdown.ts": {
       "alias2": 0,
       "impl": 0,
@@ -894,6 +869,31 @@
       "alias2": 0,
       "impl": 0,
       "moduleLet": 2
+    },
+    "homeos/frontend/src/kernel/ui/use-body-scroll-lock.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 3
+    },
+    "homeos/frontend/src/kernel/ui/use-esc-stack.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 2
+    },
+    "homeos/frontend/src/kernel/ui/use-popup-history-guard.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/kernel/ui/use-scaling.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/kernel/voice.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
     },
     "homeos/frontend/src/studio/app/bridge/bridge.ts": {
       "alias2": 0,
@@ -1268,7 +1268,7 @@
     "homeos/frontend/src/studio/authoring/app-boot.ts": {
       "alias2": 26,
       "impl": 994,
-      "moduleLet": 14
+      "moduleLet": 5
     },
     "homeos/frontend/src/studio/authoring/app-context.ts": {
       "alias2": 1,

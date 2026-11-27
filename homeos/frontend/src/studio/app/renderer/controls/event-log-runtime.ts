@@ -78,10 +78,7 @@ export function isEventLogWallDomain(entityRef: unknown): boolean {
  * 本文件此前抄了同一张 `ATTR_CHANGE_TRIGGERS` / `ATTR_CHANGE_LABELS` 与同一段循环（文件头注释也写着
  * 「与源保持一致」），任一边改动就会分叉。这里改为注入本文件自己的紧凑值格式化口径。
  */
-import {
-  ATTR_CHANGE_TRIGGERS,
-  describeAttrChange as describeAttrChangeCore,
-} from '@/domain/entity/utils/control-attr-change'
+import { ATTR_CHANGE_TRIGGERS, describeAttrChange as describeAttrChangeCore } from '@/domain/entity/control-attr-change'
 
 /** 该域是否有属性白名单（无 → 共享实现必返回 null，可提前跳过 JSON 深比较）。 */
 function hasEventLogAttrTriggers(domain: string): boolean {

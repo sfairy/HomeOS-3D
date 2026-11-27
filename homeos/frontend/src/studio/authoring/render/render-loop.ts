@@ -7,17 +7,29 @@ import { type StudioAppRuntime } from '../runtime/studio-app-runtime'
 import { urlFlag, isPerformanceDiagnostics as hasPerformanceDiagnosticsFlag } from '../render-kit/url-flags'
 import { recordStudioGpuIncident } from '../studio-gpu-compat'
 import { applyTreeTextureAnisotropy, isLegacyTextureQuality, textureAnisotropyFor } from '../render-kit/texture-quality'
-import { resolveReflectionResolution, resolveTextureAnisotropy, interactionResourcePolicy } from '../studio-resource-policy'
+import {
+  resolveReflectionResolution,
+  resolveTextureAnisotropy,
+  interactionResourcePolicy,
+} from '../studio-resource-policy'
 import { type StudioAppContext } from '../app-context'
 import { clamp as clamp2 } from '../plan/geometry'
-import { finite as finite2, DEFAULT_BASE_LIGHTING as DEFAULT_BASE_LIGHTING2, normalizeBaseLighting as normalizeBaseLighting2 } from '../loaders/studio-normalization'
+import {
+  finite as finite2,
+  DEFAULT_BASE_LIGHTING as DEFAULT_BASE_LIGHTING2,
+  normalizeBaseLighting as normalizeBaseLighting2,
+} from '../loaders/studio-normalization'
 import { trimRetainedFloors as trimRetainedFloors2 } from '../scene/floor/studio-floor-cache-budget'
 import { normalizeSceneStyle } from '../../app/shared/scene-styles'
 import { sceneModelOrigin as sceneModelOrigin2 } from '../plan/courtyard-drawing'
 import { createInteractionBatches as createInteractionBatches2 } from '../studio-interaction-batches'
 import { stageStartup as stageStartup2 } from '../stage-startup'
 import { createStartupPresentation as createStartupPresentation2 } from '../scene/studio-startup-presentation'
-import { MAX_CAMERA_POLAR_ANGLE as MAX_CAMERA_POLAR_ANGLE2, constrainCameraPosition as constrainCameraPosition2, constrainCameraPose as constrainCameraPose2 } from '../scene/studio-camera-constraints'
+import {
+  MAX_CAMERA_POLAR_ANGLE as MAX_CAMERA_POLAR_ANGLE2,
+  constrainCameraPosition as constrainCameraPosition2,
+  constrainCameraPose as constrainCameraPose2,
+} from '../scene/studio-camera-constraints'
 import { createReflectionPasses as createReflectionPasses2 } from '../reflection/studio-reflection-passes'
 import { createReflectionDetail as createReflectionDetail2 } from '../reflection/studio-reflection-detail'
 import { createOverviewDetail as createOverviewDetail2 } from '../scene/overview/studio-overview-detail'
@@ -31,17 +43,22 @@ import { sceneUpdatePlan as sceneUpdatePlan2, sceneSyncFailureMessage } from '..
 import { createDemandFrameLoop as createDemandFrameLoop2 } from '../../app/bridge/scene/index'
 import { withRequestTimeout as withRequestTimeout2 } from '../../app/shared/util/request-timeout'
 import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
-import { createLightTransition as createLightTransition2, sampleLightTransition as sampleLightTransition2, lightTransitionDurationMs as lightTransitionDurationMs2, mapLightEffectState as mapLightEffectState2, lightEffectColorHex as lightEffectColorHex2 } from '../../app/bridge/light-motion'
+import {
+  createLightTransition as createLightTransition2,
+  sampleLightTransition as sampleLightTransition2,
+  lightTransitionDurationMs as lightTransitionDurationMs2,
+  mapLightEffectState as mapLightEffectState2,
+  lightEffectColorHex as lightEffectColorHex2,
+} from '../../app/bridge/light-motion'
 import { lightBrightnessResponse } from '../lights/studio-app-light-data'
 import { syncStripFixture } from '../lights/strip-light'
 import { lampItemTypeSet } from '../items/item-catalog'
-import { type LightEffectOptions, type CameraInteractionOptions } from '../types/studio-app-types'
+import { type LightEffectOptions, type CameraInteractionOptions } from '../studio-app-types'
 import { composeItemKey } from '../ui/studio-app-helpers'
 import { normalizeStudioDocument } from '../scene/payload/studio-document-payload'
 import { mergeFloors } from '../store/index'
 import { createStudioRenderContext } from '../render-context'
 import { computeDownlightRange } from '../geometry'
-
 
 /** 上下文丢失后等浏览器自己恢复的窗口；超过它基本可以认定 GPU 进程没能重建（Edge 会退化到 --use-gl=disabled）。 */
 const CONTEXT_LOST_RECOVERY_TIMEOUT_MS = 8000
@@ -828,7 +845,6 @@ export function bindNamedPageHideOnce(
  * 反射探针 mesh + pagehide 回收（从 studio-render-loop 拆出）。
  */
 
-
 type ProbeMesh = {
   name: string
   frustumCulled: boolean
@@ -1067,7 +1083,6 @@ export function publishRenderStats(
 
 /** 灯光组淡入 / 淡出帧步进（原属 `render/render-stats-and-frame-loop`，随之拆出到此）。 */
 
-
 type FadeLightLike = {
   isLight?: boolean
   visible: boolean
@@ -1183,18 +1198,6 @@ export function fadeLightsOut(
     }
   return ((runtime.appCtx.cacheWarmFrameId = requestAnimationFrame(fadeOutFrameStep)), true)
 }
-
-
-
-
-
-
-
-
-
-
-
-
 
 /**
  * 渲染循环的依赖边界。

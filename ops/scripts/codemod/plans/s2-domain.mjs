@@ -15,8 +15,14 @@ export default {
     { from: 'homeos/frontend/src/shared/entity', to: 'homeos/frontend/src/domain/entity/model' },
     { from: 'homeos/frontend/src/stores/entities', to: 'homeos/frontend/src/domain/entity/store' },
     { from: 'homeos/frontend/src/composables/entity', to: 'homeos/frontend/src/domain/entity/composables' },
-    { from: 'homeos/frontend/src/components/common/entity-input', to: 'homeos/frontend/src/domain/entity/components/entity-input' },
-    { from: 'homeos/frontend/src/components/common/entity-multi-select', to: 'homeos/frontend/src/domain/entity/components/entity-multi-select' },
+    {
+      from: 'homeos/frontend/src/components/common/entity-input',
+      to: 'homeos/frontend/src/domain/entity/components/entity-input',
+    },
+    {
+      from: 'homeos/frontend/src/components/common/entity-multi-select',
+      to: 'homeos/frontend/src/domain/entity/components/entity-multi-select',
+    },
 
     // —— layout ——
     { from: 'homeos/frontend/src/stores/ui', to: 'homeos/frontend/src/domain/layout/store' },
@@ -34,22 +40,49 @@ export default {
   ],
   moves: [
     // —— entity store 入口 ——
-    { from: 'homeos/frontend/src/stores/entities.store.ts', to: 'homeos/frontend/src/domain/entity/store/entities.store.ts' },
+    {
+      from: 'homeos/frontend/src/stores/entities.store.ts',
+      to: 'homeos/frontend/src/domain/entity/store/entities.store.ts',
+    },
     // —— layout store 入口与类型 ——
-    { from: 'homeos/frontend/src/stores/layout.store.ts', to: 'homeos/frontend/src/domain/layout/store/layout.store.ts' },
+    {
+      from: 'homeos/frontend/src/stores/layout.store.ts',
+      to: 'homeos/frontend/src/domain/layout/store/layout.store.ts',
+    },
     { from: 'homeos/frontend/src/kernel/types/layout.ts', to: 'homeos/frontend/src/domain/layout/types.ts' },
 
     // —— 依赖 layout store 的 composables ——
-    { from: 'homeos/frontend/src/composables/ui/useLayoutConfigRef.ts', to: 'homeos/frontend/src/domain/layout/composables/use-layout-config-ref.ts' },
-    { from: 'homeos/frontend/src/composables/ui/kiosk-animation.ts', to: 'homeos/frontend/src/domain/layout/composables/kiosk-animation.ts' },
-    { from: 'homeos/frontend/src/kernel/ui/hooks/use-perf-clock.ts', to: 'homeos/frontend/src/domain/layout/composables/use-perf-clock.ts' },
+    {
+      from: 'homeos/frontend/src/composables/ui/useLayoutConfigRef.ts',
+      to: 'homeos/frontend/src/domain/layout/composables/use-layout-config-ref.ts',
+    },
+    {
+      from: 'homeos/frontend/src/composables/ui/kiosk-animation.ts',
+      to: 'homeos/frontend/src/domain/layout/composables/kiosk-animation.ts',
+    },
+    {
+      from: 'homeos/frontend/src/kernel/ui/hooks/use-perf-clock.ts',
+      to: 'homeos/frontend/src/domain/layout/composables/use-perf-clock.ts',
+    },
 
     // —— 依赖 layout store 的对话框 ——
-    { from: 'homeos/frontend/src/kernel/ui/ExitEditConfirmDialog.vue', to: 'homeos/frontend/src/domain/layout/components/ExitEditConfirmDialog.vue' },
+    {
+      from: 'homeos/frontend/src/kernel/ui/ExitEditConfirmDialog.vue',
+      to: 'homeos/frontend/src/domain/layout/components/ExitEditConfirmDialog.vue',
+    },
 
     // —— 依赖 entity store 的横幅与 hook ——
-    { from: 'homeos/frontend/src/kernel/ui/HaDegradeBanner.vue', to: 'homeos/frontend/src/domain/entity/components/HaDegradeBanner.vue' },
-    { from: 'homeos/frontend/src/kernel/ui/HaStatusDegradeBanner.vue', to: 'homeos/frontend/src/domain/entity/components/HaStatusDegradeBanner.vue' },
-    { from: 'homeos/frontend/src/composables/ui/useHaDegrade.ts', to: 'homeos/frontend/src/domain/entity/composables/use-ha-degrade.ts' },
+    {
+      from: 'homeos/frontend/src/kernel/ui/HaDegradeBanner.vue',
+      to: 'homeos/frontend/src/domain/entity/components/HaDegradeBanner.vue',
+    },
+    {
+      from: 'homeos/frontend/src/kernel/ui/HaStatusDegradeBanner.vue',
+      to: 'homeos/frontend/src/domain/entity/components/HaStatusDegradeBanner.vue',
+    },
+    {
+      from: 'homeos/frontend/src/composables/ui/useHaDegrade.ts',
+      to: 'homeos/frontend/src/domain/entity/composables/use-ha-degrade.ts',
+    },
   ],
 }

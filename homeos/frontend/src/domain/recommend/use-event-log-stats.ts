@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { fetchEventStats } from '@/domain/api/entities'
 import { logger } from '@/kernel/core/index'
 import { getEventLogConfig } from '@/kernel/config/frontend-config'
-import type { EventLogStatsSnapshot } from '@/domain/recommend/types/recommend.types'
+import type { EventLogStatsSnapshot } from '@/domain/recommend/recommend.types'
 
 /**
  * 事件日志统计 composable

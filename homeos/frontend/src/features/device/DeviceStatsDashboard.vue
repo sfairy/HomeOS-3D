@@ -96,7 +96,7 @@ import type * as EchartsModuleNS from '@/kernel/chart'
 import { DEVICE_CHART_COLORS, deviceSidebarPieTooltip, deviceChartBase } from '@/kernel/chart'
 import { getDomainLabel } from '@/features/device/utils'
 import { countOfflineDevices } from '@/domain/entity/utils/device-group'
-import { entityDomainColor } from '@/kernel/constants/index'
+import { entityDomainColor } from '@/kernel/index'
 import { ensureDeviceChartOnElement } from '@/kernel/chart'
 
 /** 图表实例类型：来自按需加载 echarts 入口模块的 init 返回值 */

@@ -3,9 +3,21 @@ import { applySunShadowTuning } from '../scene/studio-sun-shadow-tuning'
 import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
 import { clamp as clamp2, selectShadowCastingLightIds as selectShadowCastingLightIds2 } from '../plan/geometry'
 import { syncControlValue as syncControlValue2 } from '../ui/ui-controls'
-import { DEFAULT_BASE_LIGHTING as DEFAULT_BASE_LIGHTING2, finite as finite2, normalizeBaseLighting as normalizeBaseLighting2, normalizeBaseLightingByTheme as normalizeBaseLightingByTheme2, normalizeLabelText as normalizeLabelText2 } from '../loaders/studio-normalization'
+import {
+  DEFAULT_BASE_LIGHTING as DEFAULT_BASE_LIGHTING2,
+  finite as finite2,
+  normalizeBaseLighting as normalizeBaseLighting2,
+  normalizeBaseLightingByTheme as normalizeBaseLightingByTheme2,
+  normalizeLabelText as normalizeLabelText2,
+} from '../loaders/studio-normalization'
 import { normalizeSceneStyle } from '../../app/shared/scene-styles'
-import { minTextureSize, maxTextureUnitLimit, planLabelAccentAlpha, normalizePlanLabelColor, planLabelThemeColors } from '../scene/payload/studio-scene-payload'
+import {
+  minTextureSize,
+  maxTextureUnitLimit,
+  planLabelAccentAlpha,
+  normalizePlanLabelColor,
+  planLabelThemeColors,
+} from '../scene/payload/studio-scene-payload'
 import { buildLightDeltaPixels as buildLightDeltaPixels2 } from '../export/export-utils'
 import { type StudioAppContext } from '../app-context'
 import { precompileShaderPrograms } from '../scene/studio-shader-precompile'
@@ -18,7 +30,6 @@ import { lightPresetCatalog } from './studio-app-light-data'
 import { addStripFixture } from './strip-light'
 import { lightEffectColorHex } from '../../app/bridge/light-motion'
 import { dashboardCanvasFont } from '../../app/shared/dashboard-fonts'
-
 
 export function refreshBaseLighting(runtime: StudioAppRuntime) {
   const yt2 = runtime.backgroundSettings(),
@@ -282,8 +293,6 @@ export function areLightsEnabled(runtime: StudioAppRuntime) {
         !runtime.appCtx.isLockMoving &&
         !runtime.appCtx.isBackgroundMoving)
 }
-
-
 
 export interface BeginLightingPreviewDeps {
   acquireRenderSurface: any
@@ -697,7 +706,6 @@ export function restoreLightingShaderChecksIfReady(appCtx: FailsafeAppCtx, fails
   failsafe?.restoreChecks()
 }
 
-
 export function planLightPrecompileBatches(runtime: StudioAppRuntime) {
   if (!runtime.appCtx.sceneRootNode) return []
   const visibleLights: any = [],
@@ -958,7 +966,6 @@ export function scheduleExternalPrecompile(runtime: StudioAppRuntime, initialDel
         }
       }, initialDelayMs)))
 }
-
 
 /** 灯带的发光本体与朝向箭头：户型总览里不画；选中且「显示光源」开着才显示。 */
 export function addStripLightPreview(runtime: StudioAppRuntime, stripPreviewParent: any, stripLightItem: any) {

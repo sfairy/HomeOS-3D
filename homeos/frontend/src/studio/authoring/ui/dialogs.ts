@@ -115,7 +115,6 @@ export function showDrawingLightNotice(litLightCount: number): Promise<void> {
   }).then(() => undefined)
 }
 
-
 /**
  * Vue HMR / 壳层重挂会重建 StudioDialogs，boot 里缓存的 dialog 引用会变成
  * `isConnected === false`；对游离节点调 showModal 会抛 InvalidStateError，

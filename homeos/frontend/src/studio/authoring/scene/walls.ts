@@ -1,8 +1,34 @@
 import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
-import { type WallBandOptions, type WallTopSurfaceOptions, type WallSurfaceMaterialOptions } from '../types/studio-app-types'
-import { mergeGeometries, mergeGeometries as mergeGeometries2 } from '/static/vendor/three/0.187.0/BufferGeometryUtils.js'
-import { wallEmissiveIntensity, wallFilmOpacity, createWallSideMaterial as createWallSideMaterial2, prepareWallSideOrder as prepareWallSideOrder2, setWallCornerDistances as setWallCornerDistances2, setWallGradientHeight as setWallGradientHeight2, WALL_SURFACE_FINISH as WALL_SURFACE_FINISH2, wallEmissiveIntensity as wallEmissiveIntensity2 } from '../materials/studio-wall'
-import { canonicalPolygonKey as canonicalPolygonKey2, defaultDoorOpening, doorDisplayRotation, clamp as clamp2, clampWindowT as clampWindowT2, closedWallFloorPolygons, doorHingePlacement, doorInteriorSide, doorLeafRotation as doorLeafRotation2, pointInPolygon as pointInPolygon2, polygonArea as polygonArea2, wallLengthMeters as wallLengthMeters2, wallSolidPieces as wallSolidPieces2 } from '../plan/geometry'
+import { type WallBandOptions, type WallTopSurfaceOptions, type WallSurfaceMaterialOptions } from '../studio-app-types'
+import {
+  mergeGeometries,
+  mergeGeometries as mergeGeometries2,
+} from '/static/vendor/three/0.187.0/BufferGeometryUtils.js'
+import {
+  wallEmissiveIntensity,
+  wallFilmOpacity,
+  createWallSideMaterial as createWallSideMaterial2,
+  prepareWallSideOrder as prepareWallSideOrder2,
+  setWallCornerDistances as setWallCornerDistances2,
+  setWallGradientHeight as setWallGradientHeight2,
+  WALL_SURFACE_FINISH as WALL_SURFACE_FINISH2,
+  wallEmissiveIntensity as wallEmissiveIntensity2,
+} from '../materials/studio-wall'
+import {
+  canonicalPolygonKey as canonicalPolygonKey2,
+  defaultDoorOpening,
+  doorDisplayRotation,
+  clamp as clamp2,
+  clampWindowT as clampWindowT2,
+  closedWallFloorPolygons,
+  doorHingePlacement,
+  doorInteriorSide,
+  doorLeafRotation as doorLeafRotation2,
+  pointInPolygon as pointInPolygon2,
+  polygonArea as polygonArea2,
+  wallLengthMeters as wallLengthMeters2,
+  wallSolidPieces as wallSolidPieces2,
+} from '../plan/geometry'
 import * as wallUnion from '../plan/studio-wall'
 import { buildWallSpanFootprint } from '../plan/studio-wall'
 import { doorMaterialPartRoleFor } from '../materials/studio-model-material-roles'
@@ -261,7 +287,6 @@ export function buildWallLevelLayers(context: WallLevelContext, lowerWallLevel: 
  * 着色器」分支都在那边，这里只管把形状变成一层平铺面片。
  */
 
-
 /** 墙体平面环（世界米制）。 */
 export type WallCapLoop = { x: number; y: number }
 
@@ -397,7 +422,6 @@ export function buildWallCapSurface(
  * 每个 `??` / 三元都是一条分支，堆在一起就读不出哪层决定了什么。
  */
 
-
 /**
  * 墙面运行时方案是否走 0.8.2 的专用墙面着色器（`?wall-trial=shader`）。
  *
@@ -489,7 +513,6 @@ export function createWallTopMaterial(
  * 正文其余部分逐字保留。`addArchitectureMesh` / `addWindowFrames` 已是宿主上的薄转发器，
  * 这里按函数值注入，避免重复装配盒子网格缓存。
  */
-
 
 /**
  * 窗玻璃 / 窗框的通用网格选项。

@@ -4,7 +4,7 @@
  * 无对外部状态读写。`addBoxMesh` 在单体里被 270+ 处调用，回引**保持同名**，所以调用点零改写。
  */
 
-import type { BoxMeshOptions } from '../types/studio-app-types'
+import type { BoxMeshOptions } from '../studio-app-types'
 import { RoundedBoxGeometry } from '/static/vendor/three/0.187.0/RoundedBoxGeometry.js'
 import * as threeModuleMin from '/static/vendor/three/0.187.0/three.module.min.js'
 

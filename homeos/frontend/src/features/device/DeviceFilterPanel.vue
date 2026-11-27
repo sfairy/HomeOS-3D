@@ -93,7 +93,7 @@ import HosSelect from '@/domain/entity/entity-select/HosSelect.vue'
 import { computed, watch } from 'vue'
 import { SlidersHorizontal, RotateCcw, Settings2 } from '@lucide/vue'
 import { useAreaOptions } from '@/domain/entity/use-area-options'
-import type { DeviceFilterState } from '@/kernel/types/device'
+import type { DeviceFilterState } from '@/kernel/device'
 
 // 默认筛选状态：全状态、无房间、名称升序、默认开启「仅显示可控设备」。
 // 重置按钮将恢复到此状态。

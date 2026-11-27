@@ -7,22 +7,37 @@ import { type StudioAppContext } from './app-context'
 import { type StudioAppRuntime } from './runtime/studio-app-runtime'
 import { remapOpeningsToWalls } from './plan/studio-wall'
 import { domElement } from '@app/shared/util/dom-factory'
-import { clampWindowT as clampWindowT2, mergeCollinearWallSegments as mergeCollinearWallSegments2, remapWallAttachment as remapWallAttachment2 } from './plan/geometry'
-import { remapWindowOrientation as remapWindowOrientation2, type WindowWallSegment } from '@app/shared/scene/window/window-deletion'
+import {
+  clampWindowT as clampWindowT2,
+  mergeCollinearWallSegments as mergeCollinearWallSegments2,
+  remapWallAttachment as remapWallAttachment2,
+} from './plan/geometry'
+import {
+  remapWindowOrientation as remapWindowOrientation2,
+  type WindowWallSegment,
+} from '@app/shared/scene/window/window-deletion'
 import { syncCourtyardGates as syncCourtyardGates2 } from './plan/courtyard-drawing'
 import { navigateInShell } from '@/studio/platform/shell-navigation'
 import { shellNotify } from '@/studio/platform/shell-chrome'
 import { patchStudioFacadeState, getStudioFacadeState } from '../engine/index'
 import { resolveInteractionCleanup } from './ui/studio-interaction-cleanup'
-import { StudioSaveStore, type FlushResult, type SaveStoreState, type SceneSyncOutcome, applyDocumentPatch, canApplyDocumentPatch, type DocumentPatch, diffDocumentPatches, describeDocumentPatch } from './store/index'
+import {
+  StudioSaveStore,
+  type FlushResult,
+  type SaveStoreState,
+  type SceneSyncOutcome,
+  applyDocumentPatch,
+  canApplyDocumentPatch,
+  type DocumentPatch,
+  diffDocumentPatches,
+  describeDocumentPatch,
+} from './store/index'
 import { refreshStepChecklist } from './ui/onboarding'
-import { type StudioApiRequestOptions } from './types/studio-app-types'
+import { type StudioApiRequestOptions } from './studio-app-types'
 import { validatePlacementChange as validatePlacementChange2 } from './items/studio-placement'
 import { buildStudioHistoryPatch } from './ui/studio-history'
 import { historyChangePreviewScope, itemPreviewScope, type PreviewScope } from './scene/studio-preview-scope'
 import { previewScopeOptions } from './interaction/picking'
-
-
 
 export interface ApplyLoadedDraftDeps {
   appCtx: StudioAppContext
@@ -288,7 +303,6 @@ export async function applyLoadedDraft(deps: ApplyLoadedDraftDeps, draftPayload:
       })
 }
 
-
 export function markWallsChanged(runtime: StudioAppRuntime) {
   const tf3 = remapOpeningsToWalls(
     runtime.appCtx.studioState.walls,
@@ -427,7 +441,6 @@ export function renderStudioReadonlyBanner(runtime: StudioAppRuntime, bannerMess
   bannerMessageElement && (bannerMessageElement.textContent = bannerMessage)
   runtime.studioReadonlyBannerElement.hidden = false
 }
-
 
 export function hideStudioReadonlyBanner(runtime: StudioAppRuntime): void {
   if (runtime.studioReadonlyBannerElement) runtime.studioReadonlyBannerElement.hidden = true
@@ -825,7 +838,6 @@ export async function flushAutosave(runtime: StudioAppRuntime): Promise<void> {
   }
 }
 
-
 /**
  * C4 —— 场景同步接线（task-11）。
  *
@@ -943,8 +955,6 @@ export async function fetchStudioApi(
   }
   return errorBody
 }
-
-
 
 export function syncStudioHistoryFacade(runtime: StudioAppRuntime) {
   patchStudioFacadeState({

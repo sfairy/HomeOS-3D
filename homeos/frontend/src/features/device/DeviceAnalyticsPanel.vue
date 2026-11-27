@@ -146,11 +146,7 @@ import { fetchEventStats } from '@/domain/api/entities'
 import { useDeviceUsageStats } from '@/features/device/device'
 import { useDeviceEventStats } from '@/features/device/device'
 import DeviceChartHeader from './DeviceChartHeader.vue'
-import {
-  DEVICE_CHART_COPY,
-  formatDualMetricTooltip,
-  formatHourlyBucketTooltip,
-} from '@/kernel/chart'
+import { DEVICE_CHART_COPY, formatDualMetricTooltip, formatHourlyBucketTooltip } from '@/kernel/chart'
 import {
   deviceChartBase,
   deviceChartGrid,

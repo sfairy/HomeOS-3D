@@ -9,8 +9,8 @@ import {
   type EnergyFieldDef,
 } from '@/domain/energy/constants/energy-fields'
 import { hasEnergyConfig, getEntityLeaf } from '@homeos/shared'
-import { resolveFieldRaw, resolveFieldRawAggregated, formatNum } from '@/domain/energy/utils/source'
-import { readEntityAttr } from '@/domain/energy/utils/entity-read'
+import { resolveFieldRaw, resolveFieldRawAggregated, formatNum } from '@/domain/energy/source'
+import { readEntityAttr } from '@/domain/energy/entity-read'
 import { collectFooterAccountSources } from '@/domain/energy/constants/account-binding-meta'
 import {
   hasEnabledFooterItems,
@@ -19,10 +19,10 @@ import {
   resolveFooterPrimaryLabel,
   resolveFooterSecondaryLabel,
 } from '@/domain/energy/constants/dashboard-footer'
-import { FOOTER_ACCOUNT_INDEX_ALL } from '@/domain/energy/utils/account'
-import { getEntityDisplayName } from '@/domain/entity/utils/derived'
-import type { DashboardFooterItem, FooterFieldOption } from '@/kernel/types/dashboard-footer'
-import type { EntitiesMap } from '@/kernel/types/entity'
+import { FOOTER_ACCOUNT_INDEX_ALL } from '@/domain/energy/account'
+import { getEntityDisplayName } from '@/domain/entity/derived'
+import type { DashboardFooterItem, FooterFieldOption } from '@/kernel/dashboard-footer'
+import type { EntitiesMap } from '@/kernel/entity'
 
 function formatRawValue(raw: unknown, type = 'number') {
   if (raw == null || raw === '' || raw === 'unavailable' || raw === 'unknown') return '--'

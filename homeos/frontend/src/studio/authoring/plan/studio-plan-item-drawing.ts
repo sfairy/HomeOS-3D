@@ -5,17 +5,14 @@
  * `StudioPlanItemDrawingDeps` 显式传入。
  */
 
-import type { PlanEditPreviewFlags } from '../types/studio-app-types'
+import type { PlanEditPreviewFlags } from '../studio-app-types'
 import {
   clamp as clamp2,
   distance as distance2,
   planLabelProjectionMetrics as planLabelProjectionMetrics2,
   slidingDoorPanelCenters as slidingDoorPanelCenters2,
 } from './geometry'
-import {
-  courtyardPlanColor as courtyardPlanColor2,
-  isCourtyardPlanItem as isCourtyardPlanItem2,
-} from './courtyard'
+import { courtyardPlanColor as courtyardPlanColor2, isCourtyardPlanItem as isCourtyardPlanItem2 } from './courtyard'
 import {
   createCurtainTrack as createCurtainTrack2,
   curtainPanelRanges as curtainPanelRanges2,

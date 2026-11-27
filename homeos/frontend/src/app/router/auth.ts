@@ -1,5 +1,5 @@
 /** 路由鉴权导航决策（纯函数，供 router 与单测复用） */
-import type { NavigationContext, NavigationDecision, RoutableLocation } from '@/kernel/types/router'
+import type { NavigationContext, NavigationDecision, RoutableLocation } from '@/kernel/router'
 
 /** 未登录也允许停留的入户页路由名（后端离线时仅放行这些）。 */
 const GUEST_ROUTES = new Set(['register', 'login', 'activation', 'license-recovery', 'reset-password'])

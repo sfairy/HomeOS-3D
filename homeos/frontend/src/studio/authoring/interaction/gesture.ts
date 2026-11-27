@@ -1,7 +1,11 @@
 import { type StudioAppRuntime } from '../runtime/studio-app-runtime'
 import { distance as distance2, pointInRotatedRectangle as pointInRotatedRectangle2 } from '../plan/geometry'
 import { isCourtyardDrawing as isCourtyardDrawing2 } from '../loaders/studio-normalization'
-import { itemPlanFootprint as itemPlanFootprint2, itemPlanFootprintCenter as itemPlanFootprintCenter2, itemWithPlanFootprint as itemWithPlanFootprint2 } from '../items/studio-item-posture'
+import {
+  itemPlanFootprint as itemPlanFootprint2,
+  itemPlanFootprintCenter as itemPlanFootprintCenter2,
+  itemWithPlanFootprint as itemWithPlanFootprint2,
+} from '../items/studio-item-posture'
 import { isPointInBounds, boundsIntersectSegment } from '../geometry'
 
 /**
@@ -183,7 +187,6 @@ export function projectedPixelsPerMeter(
     y: -((clientY - rect.top) / Math.max(rect.height, 1)) * 2 + 1,
   }
 }
-
 
 /**
  * 旋转控制只认圆点（0.8.7 的 `9/zoom` 命中半径）。

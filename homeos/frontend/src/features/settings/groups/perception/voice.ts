@@ -1,7 +1,31 @@
 import { computed, reactive, ref, type Ref } from 'vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { getVoiceAlertCatalog, getVoiceAlertGroups, DEFAULT_VOICE_ALERT_RULES, mergeVoiceAlertRules, newCustomTtsAlert, newEntityTtsAlert, normalizeCustomTtsAlerts, normalizeEntityTtsAlerts, normalizeWakeWords } from '@/kernel/constants/index'
-import { builtinStyleTemplate, composeCustomAlertTemplate, detectBuiltinStyle, getAlertPreviewSamples, getBuiltinDefaultSpeech, getEntityTtsVarChips, previewVarsForEntity, stylesForAlertKey, detectCustomSpeechMode, dailyPresetTemplate, detectDailyPreset, getDailyAdvisorDayPresets, getDailyAdvisorEveningPresets } from '@/features/voice/utils'
+import {
+  getVoiceAlertCatalog,
+  getVoiceAlertGroups,
+  DEFAULT_VOICE_ALERT_RULES,
+  mergeVoiceAlertRules,
+  newCustomTtsAlert,
+  newEntityTtsAlert,
+  normalizeCustomTtsAlerts,
+  normalizeEntityTtsAlerts,
+  normalizeWakeWords,
+} from '@/kernel/index'
+import {
+  builtinStyleTemplate,
+  composeCustomAlertTemplate,
+  detectBuiltinStyle,
+  getAlertPreviewSamples,
+  getBuiltinDefaultSpeech,
+  getEntityTtsVarChips,
+  previewVarsForEntity,
+  stylesForAlertKey,
+  detectCustomSpeechMode,
+  dailyPresetTemplate,
+  detectDailyPreset,
+  getDailyAdvisorDayPresets,
+  getDailyAdvisorEveningPresets,
+} from '@/features/voice/utils'
 import { fetchVoiceMeta, fetchVoicePresets } from '@/kernel/http/index'
 import { logger } from '@/kernel/core/index'
 import { servicesForDomainBuilder } from '@/kernel/registry/widget-catalog'
@@ -236,7 +260,6 @@ export function useVoiceAlertsEditor() {
 
 /* ── 原 voice-commands.internals.ts 的实现 ── */
 /** 语音设置：指令编辑器（域/实体范围/服务） */
-
 
 function domainPrefix(domain: string | undefined) {
   return `${String(domain || '').trim()}.`
@@ -765,7 +788,6 @@ export function useVoiceConfig() {
 
 /* ── 原 voice-daily.internals.ts 的实现 ── */
 /** 语音设置：每日顾问文案预设面板 */
-
 
 interface VoiceDailyFields {
   dailyAdvisorTtsDaytime?: string

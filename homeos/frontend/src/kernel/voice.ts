@@ -1,0 +1,134 @@
+import {
+  DEFAULT_VOICE_ALERT_RULES,
+  VOICE_ALERT_CATALOG,
+  VOICE_ALERT_GROUP_LABELS,
+  DEFAULT_DAILY_ADVISOR_TTS_DAYTIME,
+  DEFAULT_DAILY_ADVISOR_TTS_EVENING,
+  mergeVoiceAlertRules,
+  normalizeWakeWords,
+  normalizeCustomTtsAlerts,
+  normalizeEntityTtsAlerts,
+  getDefaultVoiceRoomLabels,
+} from '@homeos/shared'
+
+/** 语音播报警报目录与工厂 */
+export {
+  DEFAULT_VOICE_ALERT_RULES,
+  mergeVoiceAlertRules,
+  normalizeWakeWords,
+  normalizeCustomTtsAlerts,
+  normalizeEntityTtsAlerts,
+}
+/**
+ * 获取语音播报警报分组标签表的浅拷贝。
+ *
+ * @returns 分组 key → 中文分组标签的对象（浅拷贝，避免外部修改内部常量）。
+ */
+export function getVoiceAlertGroups() {
+  return { ...VOICE_ALERT_GROUP_LABELS }
+}
+/**
+ * 获取语音播报警报规则目录（引用，只读使用）。
+ *
+ * @returns 语音播报警报目录对象，包含可配置的规则项定义。
+ */
+export function getVoiceAlertCatalog() {
+  return VOICE_ALERT_CATALOG
+}
+/**
+ * 获取默认的「白天每日播报」TTS 模板。
+ *
+ * @returns 默认白天每日播报配置对象（引用）。
+ */
+export function getDefaultDailyAdvisorTtsDaytime() {
+  return DEFAULT_DAILY_ADVISOR_TTS_DAYTIME
+}
+/**
+ * 获取默认的「傍晚每日播报」TTS 模板。
+ *
+ * @returns 默认傍晚每日播报配置对象（引用）。
+ */
+export function getDefaultDailyAdvisorTtsEvening() {
+  return DEFAULT_DAILY_ADVISOR_TTS_EVENING
+}
+/**
+ * 把唤醒词文本解析为去重后的唤醒词数组。
+ *
+ * 按中英文逗号分隔、去除首尾空白、过滤空串，并去重。
+ *
+ * @param text - 用户输入的唤醒词文本，可包含中英文逗号分隔的多个词。
+ * @returns 去重后的唤醒词字符串数组（保持插入顺序）。
+ */
+export function parseWakeWordsText(text: string | null | undefined) {
+  return [
+    ...new Set(
+      String(text || '')
+        .split(/[,，]/)
+        .map((s) => s.trim())
+        .filter(Boolean),
+    ),
+  ]
+}
+/**
+ * 创建一条新的自定义 TTS 警报规则（用于 UI 新增按钮）。
+ *
+ * @returns 默认启用的自定义 TTS 警报规则对象，id 基于时间戳生成。
+ */
+export function newCustomTtsAlert() {
+  return {
+    id: `custom_${Date.now()}`,
+    label: '自定义规则',
+    enabled: true,
+    trigger: 'notification',
+    entityMatch: '',
+    stateTo: '',
+    notificationLevel: '',
+    messageContains: '',
+    sourceContains: '',
+    messageTemplate: '{{message}}',
+  }
+}
+/**
+ * 创建一条新的实体 TTS 警报规则（按实体 state 变化触发播报）。
+ *
+ * @param entityId - 关联的 HA 实体 ID（如 `binary_sensor.door`）；默认空字符串。
+ * @returns 默认启用的实体 TTS 警报规则对象，触发条件为 state 变为 `on`。
+ */
+export function newEntityTtsAlert(entityId: string = '') {
+  return {
+    id: `entity_tts_${Date.now()}`,
+    entityId: String(entityId || '').trim(),
+    enabled: true,
+    stateTo: 'on',
+    messageTemplate: '{{name}} 已触发',
+  }
+}
+/** 实体播报快捷筛选（EntityInput domain 过滤） */
+export function getEntityTtsQuickDomains() {
+  return [
+    { id: 'binary_sensor', label: '门磁/人体', emoji: '🚪' },
+    { id: 'sensor', label: '传感器', emoji: '📡' },
+    { id: 'switch', label: '开关', emoji: '🔌' },
+    { id: 'button', label: '按钮', emoji: '🔘' },
+    { id: 'lock', label: '门锁', emoji: '🔐' },
+    { id: 'cover', label: '窗帘', emoji: '🪟' },
+  ]
+}
+
+/** 语音房间标签常量 */
+
+let cachedVoiceRoomLabels: string[] | null = null
+
+/**
+ * 语音房间标签回退（优先使用配置 voice.rooms / envSensorMap）。
+ *
+ * 不能在模块顶层直接取 `getDefaultVoiceRoomLabels()`：本模块与 `@homeos/shared`
+ * 的房间目录可能被 rolldown 分到互相 import 的 shared-* chunk（跨 chunk 环），
+ * 环内先求值的一侧读到的 `DEFAULT_ROOM_CATALOG` 仍是 `var` 的 undefined 初值，
+ * 于是目录函数在 `.map` 上抛 `TypeError: ... is not iterable / undefined`，
+ * 使整条懒加载路由 chunk 求值失败（Uncaught (in promise)）。
+ * 延迟到首次使用时构建，彻底摆脱 chunk 求值顺序依赖。
+ */
+export function getVoiceRoomLabels(): string[] {
+  return (cachedVoiceRoomLabels ??= getDefaultVoiceRoomLabels())
+}

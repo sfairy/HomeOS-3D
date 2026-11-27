@@ -21,7 +21,8 @@ export default {
         `${S}/render/lights-fade.ts`,
         `${S}/render/studio-render-loop.ts`,
       ],
-      header: '/**\n * 渲染主循环：帧驱动、生命周期、空闲降质、反射探针、统计发布、灯光淡入淡出。\n * 这些环节共享同一份帧状态与同一处 rAF 调度，拆开后每加一个环节都要改 6 个文件。\n */',
+      header:
+        '/**\n * 渲染主循环：帧驱动、生命周期、空闲降质、反射探针、统计发布、灯光淡入淡出。\n * 这些环节共享同一份帧状态与同一处 rAF 调度，拆开后每加一个环节都要改 6 个文件。\n */',
     },
     {
       into: `${S}/render/camera.ts`,
@@ -51,7 +52,8 @@ export default {
         `${S}/scene-build/scene-payload-build.ts`,
         `${S}/scene-build/buildStudioScene.ts`,
       ],
-      header: '/**\n * 场景装配：网格构建器、共享网格池、图层组织、载荷解析与总装。\n * 拆分曾让「加一类物体」需要在 5 个文件里各加一段，装配顺序难以一次看全。\n */',
+      header:
+        '/**\n * 场景装配：网格构建器、共享网格池、图层组织、载荷解析与总装。\n * 拆分曾让「加一类物体」需要在 5 个文件里各加一段，装配顺序难以一次看全。\n */',
     },
     {
       into: `${S}/scene-build/floor.ts`,
@@ -90,11 +92,7 @@ export default {
     },
     {
       into: `${S}/lights/light-groups.ts`,
-      from: [
-        `${S}/lights/light-groups.ts`,
-        `${S}/lights/light-group-rows.ts`,
-        `${S}/lights/light-group-targets.ts`,
-      ],
+      from: [`${S}/lights/light-groups.ts`, `${S}/lights/light-group-rows.ts`, `${S}/lights/light-group-targets.ts`],
     },
     {
       into: `${S}/lights/light-areas.ts`,
@@ -163,7 +161,8 @@ export default {
         `${S}/export/generateExportBundle.ts`,
         `${S}/export/openExportPanel.ts`,
       ],
-      header: '/**\n * 导出：预设、对话框、渲染取图、打包与装饰模型守卫。\n * 导出一条链路的每一步都依赖前一步的产物，分散在 6 个文件里无法一次核对。\n */',
+      header:
+        '/**\n * 导出：预设、对话框、渲染取图、打包与装饰模型守卫。\n * 导出一条链路的每一步都依赖前一步的产物，分散在 6 个文件里无法一次核对。\n */',
     },
 
     // ================= runtime =================

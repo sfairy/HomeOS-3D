@@ -99,18 +99,13 @@ for (const binding of bindings) {
   const equalAt = line.indexOf(' = bindDeps')
   const rhs = line.slice(equalAt + 3).replace(/^=\s*/, '')
   // 只解构「工厂之外仍被引用」的名字；其余由 `...fn` 提供。
-  const needed = binding.names.filter((name) =>
-    new RegExp(`\\b${name.replace(/\$/g, '\\$')}\\b`).test(outsideText),
-  )
+  const needed = binding.names.filter((name) => new RegExp(`\\b${name.replace(/\$/g, '\\$')}\\b`).test(outsideText))
   const destructure =
     needed.length === binding.names.length
       ? `${binding.indent}const { ${needed.join(', ')} } = ${binding.name};`
       : `${binding.indent}// 只解构「工厂之外仍在用」的 ${needed.length} 个；其余由下方 \`fn\` 提供。\n` +
         (needed.length ? `${binding.indent}const { ${needed.join(', ')} } = ${binding.name};` : '')
-  replacements.set(binding.index, [
-    `${binding.indent}const ${binding.name} = ${rhs}`,
-    ...destructure.split('\n'),
-  ])
+  replacements.set(binding.index, [`${binding.indent}const ${binding.name} = ${rhs}`, ...destructure.split('\n')])
 }
 
 for (const block of factoryBlocks) {
@@ -185,12 +180,13 @@ output = output.map((line, lineNo) => {
   const match = line.match(/^(\s*)const \{ ([^}]*) \} = ([A-Za-z_$][\w$]*);$/)
   if (!match) return line
   const [, indent, inner, source] = match
-  const names = inner.split(',').map((n) => n.trim()).filter(Boolean)
+  const names = inner
+    .split(',')
+    .map((n) => n.trim())
+    .filter(Boolean)
   // 排除 `const xxx = bindDeps(…)({ name: nameImpl, … })`：那里的同名只是**对象键**，
   // 不构成「读取」。不排除会造成假阳性，TS6133 清不掉。
-  const others = output
-    .filter((text, index) => index !== lineNo && !text.includes('= bindDeps('))
-    .join('\n')
+  const others = output.filter((text, index) => index !== lineNo && !text.includes('= bindDeps(')).join('\n')
   const keep = names.filter((name) => new RegExp(`\\b${name.replace(/\$/g, '\\$')}\\b`).test(others))
   if (keep.length === names.length) return line
   if (!keep.length) {

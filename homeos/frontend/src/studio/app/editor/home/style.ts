@@ -1,14 +1,42 @@
 import { type EditorContext } from './editor-context'
 import { syncProjectTemplateOptions } from '../bindings'
-import { greatestCommonDivisor as greatestCommonDivisor2, clampNumber as clampNumber2, roundField as roundField2, clone as clone2, componentLabel as componentLabel2 } from '../editor'
+import {
+  greatestCommonDivisor as greatestCommonDivisor2,
+  clampNumber as clampNumber2,
+  roundField as roundField2,
+  clone as clone2,
+  componentLabel as componentLabel2,
+} from '../editor'
 import { navigateInShell } from '@/studio/platform/shell-navigation'
 import { normalizeBaseLighting as normalizeBaseLighting2 } from '../../../authoring/loaders/studio-normalization'
 import { findComponent as findComponent2 } from '../component-tree'
 import { confirmAction } from '../../shared/ui'
-import { navigationPreviewClickComponentIdState, onNavigationStyleApplyConfirmButtonClickState, onNavigationStyleApplyConfirmButtonClickValue, onNavigationStyleApplyDialogCloseValue, styleSourceComponentIdState, styleComponentTypeState, styleComponentTypeValue, styleComponentTypeConfig, navigationIconOptionState, navigationIconOptionLabels, navigationIconDraftDocumentValue, navigationIconDraftDocumentConfig, entryStateRef, entryStateEntry, navigationVisibilityComponentValue } from '../metadata/editor-navigation-style-metadata'
+import {
+  navigationPreviewClickComponentIdState,
+  onNavigationStyleApplyConfirmButtonClickState,
+  onNavigationStyleApplyConfirmButtonClickValue,
+  onNavigationStyleApplyDialogCloseValue,
+  styleSourceComponentIdState,
+  styleComponentTypeState,
+  styleComponentTypeValue,
+  styleComponentTypeConfig,
+  navigationIconOptionState,
+  navigationIconOptionLabels,
+  navigationIconDraftDocumentValue,
+  navigationIconDraftDocumentConfig,
+  entryStateRef,
+  entryStateEntry,
+  navigationVisibilityComponentValue,
+} from '../metadata/editor-navigation-style-metadata'
 import { DEFAULT_PERSPECTIVE_CORNERS } from '../metadata/editor-perspective-constants'
-import { renderNavigationStyleApplyTargets as runVariantLowerCore, createNavigationStyleApplyOption } from '../navigation-style-apply/target-options'
-import { normalizeFlowLine as normalizeFlowLine2, FLOW_LINE_FIELDS as FLOW_LINE_FIELDS2 } from '../../shared/flow-line-model'
+import {
+  renderNavigationStyleApplyTargets as runVariantLowerCore,
+  createNavigationStyleApplyOption,
+} from '../navigation-style-apply/target-options'
+import {
+  normalizeFlowLine as normalizeFlowLine2,
+  FLOW_LINE_FIELDS as FLOW_LINE_FIELDS2,
+} from '../../shared/flow-line-model'
 import { renderPagedPickerDialog } from '../copy-backup/run-copy-backup'
 
 /* 灯光面板（灯光输入、自动灯光、资源删除、弹窗） */

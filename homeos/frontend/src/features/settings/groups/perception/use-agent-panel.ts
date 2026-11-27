@@ -2,17 +2,50 @@ import { computed, nextTick, ref, watch, type Ref, type ComponentPublicInstance,
 import { useAgentSpeech } from '@/features/voice/index'
 import { useSpeechToText } from '@/features/voice/index'
 import { clipAgentChatMessage, AGENT_CHAT_MAX_LENGTH } from '@/features/agent/utils'
-import { agentChatStream, clearAgentSession, type AgentChatAttachment, type AgentChatConfirmation, type AgentStreamHandle, type AgentPingResult, agentPing, channelsStatus, type ChannelsStatusResult } from '@/domain/api/agent'
+import {
+  agentChatStream,
+  clearAgentSession,
+  type AgentChatAttachment,
+  type AgentChatConfirmation,
+  type AgentStreamHandle,
+  type AgentPingResult,
+  agentPing,
+  channelsStatus,
+  type ChannelsStatusResult,
+} from '@/domain/api/agent'
 import { getApiErrorMessage } from '@/kernel/core/index'
 import { AGENT_PROVIDER_LABELS, agentProviderLabel } from '@/features/agent/utils'
-import { Activity, BellRing, Bot, Brain, CalendarClock, CircleCheck, GraduationCap, Languages, MessageCircle, MessageSquare, ScrollText, ShieldAlert, ShieldCheck, Sparkles, Wrench, Zap } from '@lucide/vue'
+import {
+  Activity,
+  BellRing,
+  Bot,
+  Brain,
+  CalendarClock,
+  CircleCheck,
+  GraduationCap,
+  Languages,
+  MessageCircle,
+  MessageSquare,
+  ScrollText,
+  ShieldAlert,
+  ShieldCheck,
+  Sparkles,
+  Wrench,
+  Zap,
+} from '@lucide/vue'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useLayoutStore } from '@/domain/layout/store/index'
 import { clonePlain } from '@/kernel/core/index'
 import { useRegisterSettingsTabPending } from '@/features/settings/kernel/pending.internals'
 import { getDefaultLayout } from '@/domain/layout/store/index'
 import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
-import { type AgentCompanionConfig, type AgentConfig, type AgentProactiveConfig, type ChannelConfig, type SceneVoiceControl } from '@/kernel/types/layout'
+import type {
+  AgentCompanionConfig,
+  AgentConfig,
+  AgentProactiveConfig,
+  ChannelConfig,
+  SceneVoiceControl,
+} from '@/kernel/types/layout'
 import { normalizeAgentCompanion, resolveAgentCompanionPosition } from '@/kernel/layout'
 import { readAgentQuickPrompts as AGENT_CHAT_QUICK_PROMPTS } from '@/features/agent/utils'
 

@@ -4,16 +4,38 @@
  */
 
 import { type StudioAppRuntime } from '../runtime/studio-app-runtime'
-import { courtyardSurfaceRise as courtyardSurfaceRise2, sceneModelOrigin as sceneModelOrigin2 } from '../plan/courtyard-drawing'
+import {
+  courtyardSurfaceRise as courtyardSurfaceRise2,
+  sceneModelOrigin as sceneModelOrigin2,
+} from '../plan/courtyard-drawing'
 import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
 import { clamp as clamp2 } from '../plan/geometry'
-import { buildLightDeltaPixels as buildLightDeltaPixels2, EXPORT_IMAGE_EXTENSION as EXPORT_IMAGE_EXTENSION2, EXPORT_IMAGE_MIME_TYPE as EXPORT_IMAGE_MIME_TYPE2, EXPORT_IMAGE_QUALITY as EXPORT_IMAGE_QUALITY2, buildStoredZip as buildStoredZip2, EXPORT_RENDER_SCALE as EXPORT_RENDER_SCALE2, scaledExportResolution as scaledExportResolution2 } from './export-utils'
-import { MAX_EXPORT_PRESET_COUNT as MAX_EXPORT_PRESET_COUNT2, normalizeExportPresetSlots as normalizeExportPresetSlots2, normalizeActiveExportPresetSlot as normalizeActiveExportPresetSlot2, exportPresetIsEmpty as exportPresetIsEmpty2, normalizeExportPreset as normalizeExportPreset2 } from './export-presets'
+import {
+  buildLightDeltaPixels as buildLightDeltaPixels2,
+  EXPORT_IMAGE_EXTENSION as EXPORT_IMAGE_EXTENSION2,
+  EXPORT_IMAGE_MIME_TYPE as EXPORT_IMAGE_MIME_TYPE2,
+  EXPORT_IMAGE_QUALITY as EXPORT_IMAGE_QUALITY2,
+  buildStoredZip as buildStoredZip2,
+  EXPORT_RENDER_SCALE as EXPORT_RENDER_SCALE2,
+  scaledExportResolution as scaledExportResolution2,
+} from './export-utils'
+import {
+  MAX_EXPORT_PRESET_COUNT as MAX_EXPORT_PRESET_COUNT2,
+  normalizeExportPresetSlots as normalizeExportPresetSlots2,
+  normalizeActiveExportPresetSlot as normalizeActiveExportPresetSlot2,
+  exportPresetIsEmpty as exportPresetIsEmpty2,
+  normalizeExportPreset as normalizeExportPreset2,
+} from './export-presets'
 import { syncControlValue as syncControlValue2 } from '../ui/ui-controls'
 import { syncStudioSelect as syncStudioSelect2 } from '../ui/studio-widgets'
 import { finite as finite2, normalizeLabelText as normalizeLabelText2 } from '../loaders/studio-normalization'
 import { stripExportFields } from '../lights/strip-light'
-import { type ExportImageOptions, type ExportImageResult, type ExportDialogOptions, type ApplyExportOptions } from '../types/studio-app-types'
+import {
+  type ExportImageOptions,
+  type ExportImageResult,
+  type ExportDialogOptions,
+  type ApplyExportOptions,
+} from '../studio-app-types'
 import { shellConfirm } from '@/studio/platform/shell-chrome'
 import { renderExportLayers as renderExportLayersCore, sanitizeExportName } from '../ui/studio-export-layers'
 import { elementsById, openDialogPromise } from '../ui/dialogs'
@@ -96,7 +118,6 @@ export function exportFolderNameError(rawFolderName: string): string | null {
   if (/[. ]$/.test(folderName)) return '请输入有效的文件夹名'
   return null
 }
-
 
 export function saveAsNewPreset(runtime: StudioAppRuntime) {
   if (!runtime.appCtx.pendingRuntimeSettings || runtime.appCtx.isInteractionLocked) return
@@ -841,7 +862,6 @@ export function confirmDeletePreset(runtime: StudioAppRuntime) {
     runtime.showToast('已删除“' + ja2 + '”，楼层和户型未受影响。', 'success')
 }
 
-
 export function openExportDialog(runtime: StudioAppRuntime, exportDialogOptions: ExportDialogOptions = {}) {
   const cs3 = runtime.captureCameraView()
   if (!cs3 || !runtime.appCtx.pendingRuntimeSettings) return
@@ -1134,12 +1154,6 @@ export function makeUniquePresetName(runtime: StudioAppRuntime, basePresetName: 
     ignoredSlotIndexDuplicateNameSuffix += 1
   return (normalizedPresetName + ' ' + ignoredSlotIndexDuplicateNameSuffix).slice(0, 24)
 }
-
-
-
-
-
-
 
 export interface GenerateExportBundleDeps {
   appCtx: StudioAppContext
@@ -1665,9 +1679,6 @@ export async function generateExportBundle(deps: GenerateExportBundleDeps) {
       syncCanvasSizeInputs()
   }
 }
-
-
-
 
 export interface OpenExportPanelDeps {
   appCtx: StudioAppContext

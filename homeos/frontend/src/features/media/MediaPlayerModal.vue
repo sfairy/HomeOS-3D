@@ -120,10 +120,10 @@ import MediaPlayerModalTransport from '@/features/media/player/MediaPlayerModalT
 import { useMediaPlayerControls } from '@/domain/entity/popup/index'
 import { useShellTeleportTarget } from '@/kernel/ui/shell/use-shell-teleport-target'
 import { useMediaPlayerModalDisplay } from '@/domain/entity/popup/index'
-import { useFocusTrap } from '@/kernel/ui/hooks/use-focus-trap'
-import { useEscLayer } from '@/kernel/ui/hooks/use-esc-stack'
-import { useBackgroundInert } from '@/kernel/ui/hooks/use-background-inert'
-import { useBodyScrollLock } from '@/kernel/ui/hooks/use-body-scroll-lock'
+import { useFocusTrap } from '@/kernel/ui/use-focus-trap'
+import { useEscLayer } from '@/kernel/ui/use-esc-stack'
+import { useBackgroundInert } from '@/kernel/ui/use-background-inert'
+import { useBodyScrollLock } from '@/kernel/ui/use-body-scroll-lock'
 import './player/modal.css'
 
 const { teleportTarget, shellTeleportPending } = useShellTeleportTarget()

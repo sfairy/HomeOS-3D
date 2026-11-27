@@ -1,7 +1,7 @@
 /** - 从实体缓存加载 HA 场景列表； */
 import { ref, computed, onMounted, watch } from 'vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { collectHaSceneScriptRecords, type HaSceneScriptRecord } from '@/domain/entity/utils/scene-script'
+import { collectHaSceneScriptRecords, type HaSceneScriptRecord } from '@/domain/entity/scene-script'
 import { buildSceneOptions, sceneEntitiesSignature, type HomeosSceneSelectOption } from './scene-options'
 
 /**

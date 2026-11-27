@@ -59,12 +59,12 @@
 /** - 以模态形式承载 AssetManager（拾取器模式）； */
 import { ref, computed, defineAsyncComponent, watch } from 'vue'
 import { X, Images, MousePointer2 } from '@lucide/vue'
-import { useKeepAliveGate } from '@/kernel/ui/hooks/use-keep-alive-gate'
+import { useKeepAliveGate } from '@/kernel/ui/use-keep-alive-gate'
 import { useShellTeleportTarget } from '@/kernel/ui/shell/use-shell-teleport-target'
-import { useFocusTrap } from '@/kernel/ui/hooks/use-focus-trap'
-import { useEscLayer } from '@/kernel/ui/hooks/use-esc-stack'
-import { useBackgroundInert } from '@/kernel/ui/hooks/use-background-inert'
-import { useBodyScrollLock } from '@/kernel/ui/hooks/use-body-scroll-lock'
+import { useFocusTrap } from '@/kernel/ui/use-focus-trap'
+import { useEscLayer } from '@/kernel/ui/use-esc-stack'
+import { useBackgroundInert } from '@/kernel/ui/use-background-inert'
+import { useBodyScrollLock } from '@/kernel/ui/use-body-scroll-lock'
 
 // 异步加载 AssetManager，避免首屏打包体积过大
 const AssetManager = defineAsyncComponent(() => import('@/features/settings/asset-picker/AssetManager.vue'))

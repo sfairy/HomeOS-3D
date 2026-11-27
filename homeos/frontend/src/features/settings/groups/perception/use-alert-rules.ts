@@ -1,10 +1,23 @@
-import { type AlertRuleEditForm, type ConditionClause, type ConditionMode, type VoiceAlertsSnapshot, type InboxAlertRule, type DndPreset, type NotificationSettingsParsed, type AlertLevel } from '@/kernel/types/alert-rules'
-import { useSettingsHubPending, afterLayoutCancelSync, syncGlobalLayoutPendingSnapshot } from '@/features/settings/kernel/pending.internals'
+import type {
+  AlertRuleEditForm,
+  ConditionClause,
+  ConditionMode,
+  VoiceAlertsSnapshot,
+  InboxAlertRule,
+  DndPreset,
+  NotificationSettingsParsed,
+  AlertLevel,
+} from '@/kernel/alert-rules'
+import {
+  useSettingsHubPending,
+  afterLayoutCancelSync,
+  syncGlobalLayoutPendingSnapshot,
+} from '@/features/settings/kernel/pending.internals'
 import { useAuthStore } from '@/domain/auth/auth.store'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useLayoutStore } from '@/domain/layout/store/index'
-import { ALERT_RULE_PRESETS, ALERT_TEMPLATE_VARIABLES, type AlertRulePreset } from '@/kernel/constants/index'
+import { ALERT_RULE_PRESETS, ALERT_TEMPLATE_VARIABLES, type AlertRulePreset } from '@/kernel/index'
 import { sliderTrackStyle } from '@/kernel/ui/index'
 import { useSettingsHubRouteSection } from '@/features/settings/shared/hub'
 import { useVoiceAlertsEditor } from '@/features/settings/groups/perception/voice'
@@ -12,23 +25,40 @@ import { defaultAlertClause as defaultClause } from '@/features/settings/groups/
 import { getAlertHubSections, getCustomAlertSpeechModes, getEntityStateOptions } from '@/features/voice/utils'
 import { type Ref, computed, onBeforeUnmount, onMounted, ref, unref, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
-import { createNotificationRule, deleteNotificationRule, fetchNotificationRules, testNotificationRule, updateNotificationRule, fetchNotificationSettings, updateNotificationSettings } from '@/domain/api/notifications'
+import {
+  createNotificationRule,
+  deleteNotificationRule,
+  fetchNotificationRules,
+  testNotificationRule,
+  updateNotificationRule,
+  fetchNotificationSettings,
+  updateNotificationSettings,
+} from '@/domain/api/notifications'
 import { getApiErrorMessage } from '@/kernel/core/index'
 import { logger } from '@/kernel/core/index'
-import { type NotifyType } from '@/kernel/types/notify'
+import type { NotifyType } from '@/kernel/notify'
 import { formatLocaleTime } from '@/kernel/format'
-import { DEFAULT_DND_END, DEFAULT_DND_START, DND_PRESETS, dndDurationHours, dndRangeLabel, dndRangeStyle, formatHour, isHourInDnd, parseNotificationSettings } from '@/domain/notifications/utils/dnd'
+import {
+  DEFAULT_DND_END,
+  DEFAULT_DND_START,
+  DND_PRESETS,
+  dndDurationHours,
+  dndRangeLabel,
+  dndRangeStyle,
+  formatHour,
+  isHourInDnd,
+  parseNotificationSettings,
+} from '@/domain/notifications/dnd'
 import { applyEarthquakeLayoutSlice, type pickEarthquakeLayoutSlice } from '../appearance/use-layout'
-import { createDefaultEarthquakeConfig } from '@/kernel/types/earthquake'
+import { createDefaultEarthquakeConfig } from '@/kernel/earthquake'
 import { clonePlain } from '@/kernel/core/index'
 import { useEventLogStats } from '@/domain/recommend/use-event-log-stats'
-import { buildAlertRulesRecommendations } from '@/domain/recommend/utils/index'
-import { type RecommendChip } from '@/domain/recommend/types/recommend.types'
+import { buildAlertRulesRecommendations } from '@/domain/recommend/index'
+import type { RecommendChip } from '@/domain/recommend/recommend.types'
 import { ChevronDown, Inbox, Loader2, Moon, Plus, Save, Sun, Trash2, Volume2 } from '@lucide/vue'
 
 /* ── 原 alert-rules-condition.internals.ts 的实现 ── */
 /** 告警规则：条件表达式 ↔ 可视化子句（纯函数） */
-
 
 export function defaultAlertClause(): ConditionClause {
   return { join: '&&', condType: 'state', condAttr: 'brightness', condOp: '>', condValue: 'on' }
@@ -563,7 +593,6 @@ export function useAlertRulesCrud(initOptions: {
 /* ── 原 alert-rules-dnd.internals.ts 的实现 ── */
 /** 告警规则面板：免打扰时段编辑 */
 
-
 /** 告警规则面板：免打扰时段编辑 */
 export function useAlertRulesPanelDnd(options: { alertSection: Ref<string> }) {
   const chrome = useChromeStore()
@@ -766,7 +795,6 @@ export function useAlertRulesEarthquake() {
 
 /* ── 原 alert-rules-editor.internals.ts 的实现 ── */
 /** 告警规则面板：规则编辑与条件表达式 */
-
 
 /** 告警规则面板：规则编辑与条件表达式 */
 export function useAlertRulesPanelRuleEditor(options: {
@@ -1000,7 +1028,6 @@ export function useAlertRulesPanelRuleEditor(options: {
 
 /* ── 原 alert-rules-recommend.internals.ts 的实现 ── */
 /** 告警规则：基于事件日志的推荐芯片 */
-
 
 export function useAlertRulesRecommend(
   existingEntityIds: () => Set<string>,

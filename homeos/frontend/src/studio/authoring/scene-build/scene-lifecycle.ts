@@ -1,12 +1,24 @@
 import { type StudioAppRuntime } from '../runtime/studio-app-runtime'
-import { courtyardBoundaryPoints as courtyardBoundaryPoints2, sceneContentBounds as sceneContentBounds2, sceneModelOrigin as sceneModelOrigin2 } from '../plan/courtyard-drawing'
+import {
+  courtyardBoundaryPoints as courtyardBoundaryPoints2,
+  sceneContentBounds as sceneContentBounds2,
+  sceneModelOrigin as sceneModelOrigin2,
+} from '../plan/courtyard-drawing'
 import { decorateWarmFloor as decorateWarmFloor2 } from '../scene/studio-scene-style'
 import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
-import { isCourtyardDrawing as isCourtyardDrawing2, finite as finite2, DEFAULT_BASE_LIGHTING as DEFAULT_BASE_LIGHTING2, normalizeBaseLighting as normalizeBaseLighting2 } from '../loaders/studio-normalization'
-import { type SceneRebuildOptions } from '../types/studio-app-types'
-import { precompileShaderPrograms, scheduleIdleShaderPrecompileFill, visiblePrecompileBudgetMs } from '../scene/studio-shader-precompile'
+import {
+  isCourtyardDrawing as isCourtyardDrawing2,
+  finite as finite2,
+  DEFAULT_BASE_LIGHTING as DEFAULT_BASE_LIGHTING2,
+  normalizeBaseLighting as normalizeBaseLighting2,
+} from '../loaders/studio-normalization'
+import { type SceneRebuildOptions } from '../studio-app-types'
+import {
+  precompileShaderPrograms,
+  scheduleIdleShaderPrecompileFill,
+  visiblePrecompileBudgetMs,
+} from '../scene/studio-shader-precompile'
 import { scheduleNearbyModelUpgradesAfterReady } from '../persistence'
-
 
 export function requestSceneRebuild(runtime: StudioAppRuntime, rebuildOptions: SceneRebuildOptions = {}) {
   if (typeof runtime.appCtx.isSceneStillLoading < 'u' && runtime.appCtx.isSceneStillLoading) {
@@ -197,7 +209,6 @@ export async function completeSceneReadyWarmup(params: {
   })
 }
 
-
 export async function waitForSceneRevision(runtime: StudioAppRuntime) {
   const sceneAtStart = runtime.appCtx.studioProject,
     rootAtStart = runtime.appCtx.sceneRootNode,
@@ -262,7 +273,6 @@ export async function waitForSceneReady(runtime: StudioAppRuntime, sceneWaitTime
     isSceneStable,
   })
 }
-
 
 export function postBridgeState(runtime: StudioAppRuntime, bridgeStateName = 'ready', bridgeMessage = '') {
   !runtime.isAutoDiagramEmbed ||

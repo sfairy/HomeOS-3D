@@ -66,7 +66,7 @@ import { computed, defineAsyncComponent, onBeforeUnmount, ref, watch } from 'vue
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/domain/auth/auth.store'
 import { useLayoutStore } from '@/domain/layout/store/index'
-import { useAppTheme } from '@/kernel/ui/hooks/use-app-theme'
+import { useAppTheme } from '@/kernel/ui/use-app-theme'
 import { logger } from '@/kernel/core/index'
 import { useClientPowerReporter } from '@/features/energy/index'
 import { useDisplayLightBackdropState } from '@/features/dashboard/display-light-backdrop'
@@ -79,7 +79,9 @@ import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { applyPageAssets, listManagedStylesheets, PAGE_ASSETS } from '@/studio/index'
 
 const LicenseRecoveryView = defineAsyncComponent(() => import('@/features/auth/views/LicenseRecoveryView.vue'))
-const MediaPlayerModal = defineAsyncComponent(() => import('@/app/layouts/shell-overlays').then((m) => m.MediaPlayerModal))
+const MediaPlayerModal = defineAsyncComponent(() =>
+  import('@/app/layouts/shell-overlays').then((m) => m.MediaPlayerModal),
+)
 
 // 初始化应用主题（监听并应用用户偏好的亮/暗主题）
 useAppTheme()

@@ -9,7 +9,7 @@ import { DEFAULT_STRIP_MOUNT, defaultStripElevation } from '../lights/strip-ligh
 import { itemTypeCatalog, lampItemTypeSet, openStairTypeSet, roundTableTypeSet } from '../items/item-catalog'
 import { snapExhaustFan } from '../items/studio-exhaust-fan'
 
-import type { SceneItemSizeOverrides } from '../types/studio-app-types'
+import type { SceneItemSizeOverrides } from '../studio-app-types'
 import { generateId } from '../ui/studio-app-helpers'
 import { lightPresetCatalog, autoLightKelvin } from '../lights/studio-app-light-data'
 import { planLabelDefaultColor } from '../scene/payload/studio-scene-payload'

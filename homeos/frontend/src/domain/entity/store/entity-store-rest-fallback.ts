@@ -1,7 +1,7 @@
 /** 实体 store REST 回退与增量同步（从 entity-store-support.ts 拆回）。 */
-import type { EntityRestFallbackDeps, HaEntityState } from '@/kernel/types/entity'
+import type { EntityRestFallbackDeps, HaEntityState } from '@/kernel/entity'
 import { setStateListenerVisibilityHandler } from '@/domain/entity/utils/entity'
-import { handleEntityFallbackFailure } from '@/domain/entity/utils/sync-guards'
+import { handleEntityFallbackFailure } from '@/domain/entity/sync-guards'
 import { fetchEntitiesChanged } from '@/domain/api/entities'
 
 // ── entity-store-rest-fallback.util ──

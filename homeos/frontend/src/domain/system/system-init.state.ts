@@ -12,7 +12,7 @@
  * 现在守卫在放行首个路由之前就把结论写进这里，登录页**同步**读即可：首帧即最终形态。
  * 放在独立模块而不是 `router/index.ts` 里，是为了避免 views → router → views 的循环依赖。
  */
-import type { SystemInitState } from '@/kernel/types/router'
+import type { SystemInitState } from '@/kernel/router'
 
 let systemInitialized: SystemInitState = null
 

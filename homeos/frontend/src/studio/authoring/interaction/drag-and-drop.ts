@@ -1,9 +1,22 @@
 import { type EditorPick } from './picking'
-import { type ElevationTarget, type PlanMapper, type Ray, type Vec3, groundPointFromRay, snapEditorElevation, snapEditorRotation, verticalRayParameter, worldToPlan } from './gesture'
+import {
+  type ElevationTarget,
+  type PlanMapper,
+  type Ray,
+  type Vec3,
+  groundPointFromRay,
+  snapEditorElevation,
+  snapEditorRotation,
+  verticalRayParameter,
+  worldToPlan,
+} from './gesture'
 import { type StudioAppRuntime } from '../runtime/studio-app-runtime'
-import { type ListDragRowSession } from '../types/studio-app-types'
+import { type ListDragRowSession } from '../studio-app-types'
 import { resolveListDragDrop } from '../ui/studio-list-drag-drop'
-import { decorationPlacementFields, registerUserDecorationModel } from '../loaders/external-models/user-decoration-models'
+import {
+  decorationPlacementFields,
+  registerUserDecorationModel,
+} from '../loaders/external-models/user-decoration-models'
 import { type StudioAppContext } from '../app-context'
 import { isPlacedItemHidden, isPlacedItemLocked } from '../items/placed-item-state'
 import { itemPlanCorners, placementTolerance, type Point, type PlanRectLike } from '../plan/studio-placement'
@@ -327,7 +340,6 @@ export function createDragController(options: DragControllerOptions): DragContro
   }
 }
 
-
 export function clearLightGroupDropIndicator(runtime: StudioAppRuntime) {
   for (const lightGroupDropIndicatorElement of runtime.lightGroupListElement.querySelectorAll('.light-group-row'))
     lightGroupDropIndicatorElement.classList.remove('drop-before', 'drop-after'),
@@ -512,7 +524,6 @@ export function beginListRowDrag(
 
 /* 模型库拖放到平面画布：dragenter / dragover / drop / dragleave 与落点建物。
  * 从 `studio-app/boot.ts` 整块搬出：读 `appCtx` 与画布句柄，写 `appCtx.*` 与文档。 */
-
 
 /**
  * 「我的装饰」卡片的拖拽 MIME（上游 `MODEL_DRAG_TYPE`）。

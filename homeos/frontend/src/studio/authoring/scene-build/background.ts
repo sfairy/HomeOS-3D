@@ -1,5 +1,10 @@
 import { type BackgroundViewSettings, type StudioAppRuntime } from '../runtime/studio-app-runtime'
-import { prepareBackground as prepareBackground2, loadImportedImage as loadImportedImage2, backgroundFailure as backgroundFailure2, type BackgroundImportDiagnostics } from '../plan/background-import'
+import {
+  prepareBackground as prepareBackground2,
+  loadImportedImage as loadImportedImage2,
+  backgroundFailure as backgroundFailure2,
+  type BackgroundImportDiagnostics,
+} from '../plan/background-import'
 import { WARM_WOOD_STYLE as WARM_WOOD_STYLE2 } from '../scene/studio-scene-style'
 import { NATURAL_WOOD_STYLE } from '../scene/studio-natural-wood-style'
 import { withRequestTimeout as withRequestTimeout2 } from '../../app/shared/util/request-timeout'
@@ -7,7 +12,6 @@ import { defaultViewSettings } from '../scene/payload/studio-view-settings'
 import { syncControlValue as syncControlValue2 } from '../ui/ui-controls'
 import { isCourtyardDrawing as isCourtyardDrawing2 } from '../loaders/studio-normalization'
 import { refreshStepChecklist } from '../ui/onboarding'
-
 
 export async function loadBackgroundImage(runtime: StudioAppRuntime) {
   const backgroundLoadToken = ++runtime.appCtx.backgroundLoadRequestId
@@ -136,7 +140,6 @@ export function backgroundSettings(runtime: StudioAppRuntime): BackgroundViewSet
       }
     : defaultViewSettings
 }
-
 
 export function refreshBackground(runtime: StudioAppRuntime) {
   const planTitleText = runtime.appCtx.studioState.items.some(

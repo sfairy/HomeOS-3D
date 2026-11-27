@@ -1,5 +1,13 @@
 import { domElement } from '@app/shared/util/dom-factory'
-import { createDashboardFonts, type DashboardFontCatalog, type DashboardFontDocument, type DashboardFontEntry, type DashboardFontRole, type DashboardFontsController, dashboardFontChoices } from '../shared/dashboard-fonts'
+import {
+  createDashboardFonts,
+  type DashboardFontCatalog,
+  type DashboardFontDocument,
+  type DashboardFontEntry,
+  type DashboardFontRole,
+  type DashboardFontsController,
+  dashboardFontChoices,
+} from '../shared/dashboard-fonts'
 
 /**
  * 编辑器左上「当前仪表盘全局字体」区块 + 「管理字体」弹窗（0.8.6）。

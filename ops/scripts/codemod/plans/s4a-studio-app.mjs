@@ -21,7 +21,8 @@ export default {
         `${S}/ui/editor-light-gizmo-view.ts`,
         `${S}/ui/editor-light-toolbar.ts`,
       ],
-      header: '/**\n * 灯光定向工具条：DOM 结构、交互状态机、选项装配、几何视图。\n *\n * 为什么是一个文件：这几块共用同一套 `LightToolbar`/`ToolbarDom` 类型与同一份\n * 指针状态机，任何一处改动都要同步其余几处。早期按「便于阅读」拆成 5 个文件，\n * 结果是每次改交互都要跨 5 个文件核对，且拆出的文件头都要写「从 X 拆出」。\n */',
+      header:
+        '/**\n * 灯光定向工具条：DOM 结构、交互状态机、选项装配、几何视图。\n *\n * 为什么是一个文件：这几块共用同一套 `LightToolbar`/`ToolbarDom` 类型与同一份\n * 指针状态机，任何一处改动都要同步其余几处。早期按「便于阅读」拆成 5 个文件，\n * 结果是每次改交互都要跨 5 个文件核对，且拆出的文件头都要写「从 X 拆出」。\n */',
     },
 
     // ---- ui：3D 视口编辑（1 个职责）----
@@ -36,7 +37,8 @@ export default {
         `${S}/ui/editor-3d-overlay.ts`,
         `${S}/ui/editor-3d-wiring.ts`,
       ],
-      header: '/**\n * 3D 视口内的物品编辑：坐标换算、选中桥、叠层选项、状态读取、看门狗与装配。\n *\n * 为什么是一个文件：这些部分共享 `StudioAppRuntime` 与同一套相机/几何快照，\n * 装配顺序（arm → refresh → dispose）不可拆。按体量拆成 7 个文件后，\n * 每个文件头都写着「从 editor-3d-wiring 拆出」，说明拆分依据不是职责。\n */',
+      header:
+        '/**\n * 3D 视口内的物品编辑：坐标换算、选中桥、叠层选项、状态读取、看门狗与装配。\n *\n * 为什么是一个文件：这些部分共享 `StudioAppRuntime` 与同一套相机/几何快照，\n * 装配顺序（arm → refresh → dispose）不可拆。按体量拆成 7 个文件后，\n * 每个文件头都写着「从 editor-3d-wiring 拆出」，说明拆分依据不是职责。\n */',
     },
 
     // ---- ui：资产库浏览 ----

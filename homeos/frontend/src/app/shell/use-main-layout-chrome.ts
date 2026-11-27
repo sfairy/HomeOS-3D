@@ -10,11 +10,7 @@ import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useHaConnectionStore } from '@/domain/ha/ha-connection.store'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { turnOffWholeHome } from '@/domain/status/composables'
-import {
-  canUseWholeHomeOff,
-  buildWholeHomeOffConfirmText,
-  getWholeHomeOffConfig,
-} from '@/kernel/constants/whole-home-off'
+import { canUseWholeHomeOff, buildWholeHomeOffConfirmText, getWholeHomeOffConfig } from '@/kernel/whole-home-off'
 import { useSystemDiagnostics } from '@/domain/status/index'
 import { useHaDegrade } from '@/domain/entity/ha'
 import { logger } from '@/kernel/core/logger'

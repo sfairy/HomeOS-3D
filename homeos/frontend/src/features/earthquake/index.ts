@@ -25,4 +25,4 @@ export {
   buildFixedPageSlots,
   computeAnalyticsSummary,
   shortenPlace,
-} from '@/features/earthquake/utils/history-analytics'
+} from '@/features/earthquake/history-analytics'

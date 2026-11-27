@@ -1,6 +1,6 @@
 /* ── 原 useRecommendInsight.ts 的实现 ── */
 import { computed, type ComputedRef, type Ref } from 'vue'
-import type { RecommendInsightResult } from '@/domain/recommend/types/recommend.types'
+import type { RecommendInsightResult } from '@/domain/recommend/recommend.types'
 
 /**
  * 推荐卡片 composable 的配置项

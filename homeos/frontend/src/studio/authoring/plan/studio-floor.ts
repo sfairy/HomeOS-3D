@@ -16,7 +16,6 @@ import { buildUnderfloorHeatingPaths } from '../scene/studio-underfloor-heating'
  * 「±5 档到底差多少」「哪种铺面支持调深浅」可以直接断言。
  */
 
-
 /** 一档色档对应的明度偏移（相对 1.0 的乘数）。±5 档 → 约 ±30%。 */
 export const FLOOR_TONE_STEP = 0.06
 
@@ -434,7 +433,6 @@ export function savedFloorToneChanges(previous: unknown, next: unknown): string[
  * 它既是编辑时的预览，也能被运行态按锅炉状态改写 —— 语义一致，且不需要在渲染层
  * 猜设备状态。
  */
-
 
 /** 一个分区最终要画的板。 */
 export type FloorRegionPlate = {

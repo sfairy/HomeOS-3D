@@ -2,7 +2,7 @@
 import { defineComponent, h, shallowRef, type Component } from 'vue'
 import { lazyComponent } from '@/kernel/core/index'
 import ErrorBoundary from '@/kernel/ui/ErrorBoundary.vue'
-import { isPinnedSettingsTab, settingsKeepAliveName } from '@/features/settings/utils/keep-alive'
+import { isPinnedSettingsTab, settingsKeepAliveName } from '@/features/settings/keep-alive'
 
 /**
  * 创建懒加载面板组件。
@@ -83,9 +83,15 @@ function lazyPanel(tabId: string, loader: () => Promise<{ default?: Component }>
 /** 入门与连接 */
 const connectPanels = {
   'setup-wizard': lazyPanel('setup-wizard', () => import('@/features/settings/groups/onboarding/SetupWizardPanel.vue')),
-  connection: lazyPanel('connection', () => import('@/features/settings/groups/onboarding/SettingsConnectionPanel.vue')),
+  connection: lazyPanel(
+    'connection',
+    () => import('@/features/settings/groups/onboarding/SettingsConnectionPanel.vue'),
+  ),
   bindings: lazyPanel('bindings', () => import('@/features/settings/groups/onboarding/SettingsBindingsPanel.vue')),
-  devices: lazyPanel('devices', () => import('@/features/settings/groups/onboarding/SettingsDeviceManagementPanel.vue')),
+  devices: lazyPanel(
+    'devices',
+    () => import('@/features/settings/groups/onboarding/SettingsDeviceManagementPanel.vue'),
+  ),
 }
 
 /** 家居配置（空间 + 能源 + 快捷设备） */
@@ -95,8 +101,14 @@ const homePanels = {
     'device-profiles',
     () => import('@/features/settings/groups/household/SettingsDeviceProfilesPanel.vue'),
   ),
-  'life-accounts': lazyPanel('life-accounts', () => import('@/features/settings/groups/household/SettingsLifeAccountsPanel.vue')),
-  'smart-charge': lazyPanel('smart-charge', () => import('@/features/settings/groups/household/SettingsClientPowerPanel.vue')),
+  'life-accounts': lazyPanel(
+    'life-accounts',
+    () => import('@/features/settings/groups/household/SettingsLifeAccountsPanel.vue'),
+  ),
+  'smart-charge': lazyPanel(
+    'smart-charge',
+    () => import('@/features/settings/groups/household/SettingsClientPowerPanel.vue'),
+  ),
   favorites: lazyPanel('favorites', () => import('@/features/settings/groups/household/SettingsFavorites.vue')),
 }
 

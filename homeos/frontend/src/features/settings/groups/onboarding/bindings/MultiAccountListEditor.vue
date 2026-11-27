@@ -22,7 +22,7 @@
 <script setup>
 import { computed } from 'vue'
 import AccountListRows from './AccountListRows.vue'
-import { syncMultiAccounts } from '@/domain/energy/utils/account'
+import { syncMultiAccounts } from '@/domain/energy/account'
 import { useBindingAccountListEditor } from './use-binding-account-list-editor'
 
 const props = defineProps({

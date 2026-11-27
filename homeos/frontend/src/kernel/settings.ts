@@ -3,7 +3,6 @@ import { roomTabEmoji as sharedRoomTabEmoji } from '@homeos/shared'
 
 /** 设置页滑块步长语义（与 SettingsRangeField 配合） */
 
-
 /** SETTINGS_RANGE_STEP：对象常量，字段 / 方法语义见定义处。 */
 export const SETTINGS_RANGE_STEP = {
   /** 像素 · 大屏布局宽度 */
@@ -85,7 +84,6 @@ export function buildRoomReferenceBadges(opts: { hasEnv?: boolean }): RoomRefBad
 }
 
 /** 设置页 Tab emoji 图标工具 */
-
 
 /** 安防模式 Tab emoji：key 为 HA alarm_control_panel state */
 const SECURITY_MODE_TAB_EMOJI: Record<string, string> = {

@@ -173,7 +173,7 @@ import {
   ENTITY_REFERENCE_KIND_ORDER,
   ENTITY_REFERENCE_ROLE_LABELS,
   type EntityReferenceKind,
-} from '@/kernel/types/entity'
+} from '@/kernel/entity'
 
 // 组件属性：entityId 必填，visible 控制是否加载引用数据。
 const props = withDefaults(

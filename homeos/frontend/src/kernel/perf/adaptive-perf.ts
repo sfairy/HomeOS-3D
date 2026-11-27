@@ -2,7 +2,7 @@
  * 按实体规模与设备能力自动调节前端性能参数
  */
 import { ref } from 'vue'
-import type { FrontendSection } from '@/kernel/types/frontend-config'
+import type { FrontendSection } from '@/kernel/frontend-config'
 import {
   getFrontendConfig,
   getLargeEntityThreshold,

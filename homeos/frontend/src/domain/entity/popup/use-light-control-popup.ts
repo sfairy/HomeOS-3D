@@ -4,7 +4,7 @@ import { useLiveEntity } from '@/domain/entity/use-live-entity'
 import { useEntityPopupHeader } from '@/domain/entity/popup/use-entity-popup-base'
 import { useHaEntityService } from '@/domain/entity/ha'
 import { useSliderCommit } from '@/domain/entity/use-slider-commit'
-import { fetchEntityById } from '@/domain/entity/utils/cold-fetch'
+import { fetchEntityById } from '@/domain/entity/cold-fetch'
 import {
   sliderTrackStyle,
   colorTempSliderTrackStyle,
@@ -25,7 +25,7 @@ import {
   hsvToRgb,
   rgbToHs,
   buildLightTurnOnData,
-} from '@/domain/entity/utils/control/light-control-core'
+} from '@/domain/entity/control/light-control-core'
 // `hexToRgb` 的**唯一实现**在 `@/shared/utils/ui/color.util`（3/6 位校验 + 非法回落黑）；
 // `light-control-core` 里那份不校验的副本已删（非法输入会产出 NaN 通道）。
 import { hexToRgbOrBlack as hexToRgb } from '@/kernel/ui/color'

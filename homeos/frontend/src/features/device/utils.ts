@@ -1,5 +1,5 @@
-import { ENTITY_DOMAIN_LABELS } from '@/kernel/constants/index'
-import { ATTR_CHANGE_LABELS } from '@/domain/entity/utils/control-attr-change'
+import { ENTITY_DOMAIN_LABELS } from '@/kernel/index'
+import { ATTR_CHANGE_LABELS } from '@/domain/entity/control-attr-change'
 
 /** 设备页深链 URL 构建工具（与 settingsRoute 对称） */
 type DevicesRouteQuery = Record<string, string | number | boolean | undefined | null>

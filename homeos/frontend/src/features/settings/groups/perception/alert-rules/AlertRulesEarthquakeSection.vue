@@ -364,7 +364,7 @@ import {
   EEW_COUNTDOWN_LEAD_OPTIONS,
   eewCountdownLeadLabel,
   createDefaultEarthquakeConfig,
-} from '@/kernel/types/earthquake'
+} from '@/kernel/earthquake'
 
 const layoutStore = useLayoutStore()
 const chrome = useChromeStore()

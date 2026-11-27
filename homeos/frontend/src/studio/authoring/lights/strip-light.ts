@@ -2,8 +2,21 @@ import { RectAreaLightUniformsLib } from '/static/vendor/three/0.187.0/RectAreaL
 import * as THREE from '/static/vendor/three/0.187.0/three.module.min.js'
 import { clamp as clamp2 } from '../plan/geometry'
 import { finite as finite2, normalizeFullRotation } from '../loaders/studio-number'
-import { lightBrightnessResponse, lightFluxLumens, lightIntensityFactor, lightPresetCatalog, renderLuminanceFromFlux } from './studio-app-light-data'
-import { projectMeshTriangles, segmentsWithin, type OccluderMesh, type Scratch, type VisibilityRenderer, type VisibilityThree } from '../plan/studio-region'
+import {
+  lightBrightnessResponse,
+  lightFluxLumens,
+  lightIntensityFactor,
+  lightPresetCatalog,
+  renderLuminanceFromFlux,
+} from './studio-app-light-data'
+import {
+  projectMeshTriangles,
+  segmentsWithin,
+  type OccluderMesh,
+  type Scratch,
+  type VisibilityRenderer,
+  type VisibilityThree,
+} from '../plan/studio-region'
 
 /**
  * 面光（灯带）的 LTC 查找表。
@@ -226,7 +239,6 @@ function createStripArrow(colorHex: number, emitLength: number, emitWidth: numbe
  * 离地高度处）。灯带的「锚点」就是安装面：吸顶贴天花、灯槽贴槽底、立装是顶端。
  * 这里不依赖 three，便于单测；向量一律用 `[x, y, z]` 元组。
  */
-
 
 const STRIP_MOUNTS = ['ceiling-down', 'cove-up', 'wall-wash', 'under-cabinet', 'vertical', 'custom'] as const
 export type StripMount = (typeof STRIP_MOUNTS)[number]

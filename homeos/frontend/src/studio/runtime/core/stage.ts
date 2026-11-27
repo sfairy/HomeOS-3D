@@ -13,10 +13,7 @@ import { withPageAppearancePreset as applyPageAppearancePreset } from '@app/brid
 import { withRegionLightingPreset as applyRegionLightingPreset } from '@app/bridge/presets'
 import { withInteractionLightEffects as applyInteractionLightEffects } from '@app/bridge/presets'
 import { popupPlacement as computePopupPlacement } from '@app/bridge/presets'
-import {
-  buttonIconSize as resolveButtonIconSize,
-  DEFAULT_BUTTON_SIZE as defaultButtonSize,
-} from '@app/bridge/presets'
+import { buttonIconSize as resolveButtonIconSize, DEFAULT_BUTTON_SIZE as defaultButtonSize } from '@app/bridge/presets'
 import {
   createPresenceScene as createPresenceScene2,
   createPresenceWaves as createPresenceWaves2,

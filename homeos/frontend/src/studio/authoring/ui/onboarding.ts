@@ -1,9 +1,8 @@
 import { patchStudioFacadeState } from '../../engine/index'
 import { isCourtyardDrawing as isCourtyardDrawing2 } from '../loaders/studio-normalization'
 import { lampItemTypeSet } from '../items/item-catalog'
-import { type StudioControlElement } from '../types/studio-app-types'
+import { type StudioControlElement } from '../studio-app-types'
 import { type StudioAppContext } from '../app-context'
-
 
 export function refreshStepChecklist(appCtx: StudioAppContext) {
   const stepCompletionFlags = {

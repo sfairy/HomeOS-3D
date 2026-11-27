@@ -4,7 +4,7 @@ import { ref, computed, onMounted } from 'vue'
 import { fetchAreasList } from '@/domain/api/entities'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { appNotify } from '@/kernel/bridge/store-bridge'
-import { collectIndexedEntityIds } from '@/domain/entity/utils/derived'
+import { collectIndexedEntityIds } from '@/domain/entity/derived'
 
 /** 区域下拉选项结构：id 为 HA area_id，name 为展示名。 */
 type AreaOption = { id: string; name: string }

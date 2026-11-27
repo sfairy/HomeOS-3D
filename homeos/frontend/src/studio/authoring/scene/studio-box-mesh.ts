@@ -7,7 +7,7 @@
  * （当前主题的视图设置，门窗玻璃的透明度 / 金属度要看它的 warmWood 标记）。
  */
 
-import type { ArchitectureMeshOptions, MeshMaterialOptions } from '../types/studio-app-types'
+import type { ArchitectureMeshOptions, MeshMaterialOptions } from '../studio-app-types'
 import { mergeGeometries as mergeGeometries2 } from '/static/vendor/three/0.187.0/BufferGeometryUtils.js'
 import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
 

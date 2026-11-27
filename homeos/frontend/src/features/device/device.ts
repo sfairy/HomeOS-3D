@@ -1,23 +1,36 @@
 import { getEntityDomain, resolveEntityArea } from '@homeos/shared'
 import { computed, ref, toRaw, watch, type Ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { fetchEntity, fetchEntityReferences, unlinkEntityReference, fetchEventStats, fetchEvents } from '@/domain/api/entities'
+import {
+  fetchEntity,
+  fetchEntityReferences,
+  unlinkEntityReference,
+  fetchEventStats,
+  fetchEvents,
+} from '@/domain/api/entities'
 import { getApiErrorMessage } from '@/kernel/core/index'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { hasEntityControlPopup } from '@/domain/entity/utils/popup-registry'
+import { hasEntityControlPopup } from '@/domain/entity/popup-registry'
 import { useRouteEntityProjection } from '@/domain/entity/use-route-entity-projection'
 import { useEntityProjection } from '@/domain/entity/entity'
-import { getEntityDisplayName } from '@/domain/entity/utils/derived'
+import { getEntityDisplayName } from '@/domain/entity/derived'
 import { copyTextToClipboard } from '@homeos/shared/utils/clipboard'
 import { getDomainLabel } from '@/features/device/utils'
-import { buildEntityAttrEntries, HVAC_ACTION_LABELS, HVAC_MODE_LABELS } from '@/domain/entity/utils/attr-format'
-import { displayClimateOperatingLabel, displayEntityStateLabel } from '@/kernel/constants/index'
+import { buildEntityAttrEntries, HVAC_ACTION_LABELS, HVAC_MODE_LABELS } from '@/domain/entity/attr-format'
+import { displayClimateOperatingLabel, displayEntityStateLabel } from '@/kernel/index'
 import { createFetchSequence } from '@/kernel/core/index'
 import { useLayoutStore } from '@/domain/layout/store/index'
-import { ENTITY_REFERENCE_KIND_LABELS, LAYOUT_ENTITY_REFERENCE_KINDS, SYSTEM_CONFIG_ENTITY_REFERENCE_KINDS, UNLINKABLE_ENTITY_REFERENCE_KINDS, type EntityReferenceItem, type EntityReferencesResponse } from '@/kernel/types/entity'
+import {
+  ENTITY_REFERENCE_KIND_LABELS,
+  LAYOUT_ENTITY_REFERENCE_KINDS,
+  SYSTEM_CONFIG_ENTITY_REFERENCE_KINDS,
+  UNLINKABLE_ENTITY_REFERENCE_KINDS,
+  type EntityReferenceItem,
+  type EntityReferencesResponse,
+} from '@/kernel/entity'
 import { useSystemConfig } from '@/domain/layout/system-config-core.internals'
-import { type EventLogStats, type DeviceUsageReport } from '@/kernel/types/device'
+import type { EventLogStats, DeviceUsageReport } from '@/kernel/device'
 import { readLocalStorage, writeLocalStorageJson } from '@/kernel/core/index'
 import { countOfflineDevices } from '@/domain/entity/utils/device-group'
 import { fetchAdvisorUsage } from '@/kernel/http/index'
@@ -582,7 +595,6 @@ export function useDeviceEventStats(entityId: Ref<string>, hours: Ref<number> = 
 }
 
 /** 设备健康趋势 Composable */
-
 
 // localStorage 中的存储 key
 const STORAGE_KEY = 'homeos:device-health-trend'

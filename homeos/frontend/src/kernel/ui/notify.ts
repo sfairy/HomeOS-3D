@@ -4,7 +4,7 @@ import { extractErrorMessage } from '@/kernel/core/index'
 import { extractTraceIdFromError } from '@/kernel/telemetry/trace'
 import { appNotify } from '@/kernel/bridge/store-bridge'
 import { copyTextToClipboard } from '@homeos/shared/utils/clipboard'
-import type { NotifyOptions, NotifyType } from '@/kernel/types/notify'
+import type { NotifyOptions, NotifyType } from '@/kernel/notify'
 
 /**
  * 统一错误反馈：将异常转换为用户可见 toast，并记录日志。

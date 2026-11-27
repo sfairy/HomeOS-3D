@@ -120,7 +120,7 @@ import { Bell, RefreshCw } from '@lucide/vue'
 import { securityEventCssKey } from '@/features/security/utils/index'
 import VEmptyState from '@/kernel/ui/primitives/VEmptyState.vue'
 import ApiQueryState from '@/kernel/ui/ApiQueryState.vue'
-import { useFixedPagePagination } from '@/kernel/ui/hooks/hub-viewport'
+import { useFixedPagePagination } from '@/kernel/ui/hub-viewport'
 
 // 单页固定展示的事件条数；同时用于 CSS 网格行高均分
 const AUDIT_PAGE_SIZE = 8

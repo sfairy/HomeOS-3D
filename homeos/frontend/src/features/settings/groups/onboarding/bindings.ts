@@ -1,23 +1,77 @@
-import { createDefaultEnergySource, ENERGY_FIELD_DEFS, getMappableFields, inferEnergyMapping, type EnergyCategory } from '@/domain/energy/constants/energy-fields'
-import { bootstrapAccountStructForMode, hasEntityAccountConfig, hasMultiAccountConfig, multiAccountEntryLabel, resolveAccountEntityEntries, resolveAccountNumbers, resolveMultiAccountEntries, syncMultiAccounts, ensureAccountEntriesOnSource, ensureEntityAccountsOnSource, ensureMultiAccountsOnSource, syncEntityAccounts } from '@/domain/energy/utils/account'
+import {
+  createDefaultEnergySource,
+  ENERGY_FIELD_DEFS,
+  getMappableFields,
+  inferEnergyMapping,
+  type EnergyCategory,
+} from '@/domain/energy/constants/energy-fields'
+import {
+  bootstrapAccountStructForMode,
+  hasEntityAccountConfig,
+  hasMultiAccountConfig,
+  multiAccountEntryLabel,
+  resolveAccountEntityEntries,
+  resolveAccountNumbers,
+  resolveMultiAccountEntries,
+  syncMultiAccounts,
+  ensureAccountEntriesOnSource,
+  ensureEntityAccountsOnSource,
+  ensureMultiAccountsOnSource,
+  syncEntityAccounts,
+} from '@/domain/energy/account'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useLayoutStore } from '@/domain/layout/store/index'
-import { getEntityLeaf, type BindingGapItem, collectBindingGaps, filterBindingGapsBySection, getEntityDomain } from '@homeos/shared'
+import {
+  getEntityLeaf,
+  type BindingGapItem,
+  collectBindingGaps,
+  filterBindingGapsBySection,
+  getEntityDomain,
+} from '@homeos/shared'
 import { type Ref, computed, ref, watch, toRaw } from 'vue'
-import { type UILayoutConfig, type SecurityCameraBinding } from '@/kernel/types/layout'
+import type { UILayoutConfig, SecurityCameraBinding } from '@/kernel/types/layout'
 import { clearDoorbellCamera, toggleDoorbellCamera } from '@/kernel/layout'
 import { normalizeSecurityCameras } from '@/kernel/layout'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { systemConfigRef, handleSystemConfigPatchError, useSystemConfig } from '@/domain/layout/system-config-core.internals'
-import { ACCOUNT_BINDING_SOURCE_LABELS, type AccountBindingFieldMeta, ACCOUNT_BINDING_FIELD_META, ACCOUNT_BINDING_TABS } from '@/domain/energy/constants/account-binding-meta'
-import { type RecommendChip } from '@/domain/recommend/types/recommend.types'
-import { buildBindingsRecommendations, collectBoundHazardIds, type BindingsRecommendEntity, type BindingsRecommendSection } from '@/domain/recommend/utils/index'
-import { afterLayoutCancelSync, syncGlobalLayoutPendingSnapshot, useRegisterSettingsTabPending, useSettingsHubPending } from '@/features/settings/kernel/pending.internals'
-import { useSettingsSidebarReentryReset } from '@/kernel/ui/hooks/hub-viewport'
+import {
+  systemConfigRef,
+  handleSystemConfigPatchError,
+  useSystemConfig,
+} from '@/domain/layout/system-config-core.internals'
+import {
+  ACCOUNT_BINDING_SOURCE_LABELS,
+  type AccountBindingFieldMeta,
+  ACCOUNT_BINDING_FIELD_META,
+  ACCOUNT_BINDING_TABS,
+} from '@/domain/energy/constants/account-binding-meta'
+import type { RecommendChip } from '@/domain/recommend/recommend.types'
+import {
+  buildBindingsRecommendations,
+  collectBoundHazardIds,
+  type BindingsRecommendEntity,
+  type BindingsRecommendSection,
+} from '@/domain/recommend/index'
+import {
+  afterLayoutCancelSync,
+  syncGlobalLayoutPendingSnapshot,
+  useRegisterSettingsTabPending,
+  useSettingsHubPending,
+} from '@/features/settings/kernel/pending.internals'
+import { useSettingsSidebarReentryReset } from '@/kernel/ui/hub-viewport'
 import { getApiErrorMessage } from '@/kernel/core/index'
 import { logger } from '@/kernel/core/index'
-import { applyLifeAccountsLayoutSlice, liveLifeAccountsLayoutSlice, pickLifeAccountsLayoutSlice } from '../appearance/use-layout'
-import { buildEnergyConfigPatch, isCumulativeEnergyMeter, readConfigEnergyMeter, readPanelEnergyBinding, seedPanelEnergyMeter } from '@/domain/energy/utils/binding-bridge'
+import {
+  applyLifeAccountsLayoutSlice,
+  liveLifeAccountsLayoutSlice,
+  pickLifeAccountsLayoutSlice,
+} from '../appearance/use-layout'
+import {
+  buildEnergyConfigPatch,
+  isCumulativeEnergyMeter,
+  readConfigEnergyMeter,
+  readPanelEnergyBinding,
+  seedPanelEnergyMeter,
+} from '@/domain/energy/binding-bridge'
 
 /* ── 原 bindings-account.internals.ts 的实现 ── */
 /** 绑定：单账户/多账户编辑区 */
@@ -200,7 +254,6 @@ export function useBindingsAccountSection(categoryTab: Ref<string>, props: Bindi
 /* ── 原 bindings-ha.internals.ts 的实现 ── */
 /** HA 绑定：摄像头 / 门铃 */
 
-
 // ── useHaBindings ──
 export function useHaBindings(layoutConfig: Ref<UILayoutConfig>) {
   const layoutStore = useLayoutStore()
@@ -272,7 +325,6 @@ export function useHaBindings(layoutConfig: Ref<UILayoutConfig>) {
 
 /* ── 原 bindings-recommend.internals.ts 的实现 ── */
 /** 绑定设置：缺口推荐 */
-
 
 // ── useBindingsRecommend ──
 export function useBindingsRecommend(serverGaps: () => BindingGapItem[]) {

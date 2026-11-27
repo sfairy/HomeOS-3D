@@ -9,7 +9,7 @@ import HubTabsConfigField from '../widgets/HubTabsConfigField.vue'
 import EntityMultiSelect from '@/domain/entity/entity-multi-select/EntityMultiSelect.vue'
 import { hubTabOptions } from '@/features/settings/groups/appearance/use-layout-floating'
 import { useDraftObjectField } from '@/features/settings/shared/hub'
-import { joinCommaEntityIds, parseCommaEntityIds } from '@/domain/entity/utils/comma-entity-ids'
+import { joinCommaEntityIds, parseCommaEntityIds } from '@/domain/entity/comma-entity-ids'
 
 const afhHubTabs = defineModel('afhHubTabs', { type: Object, required: true })
 

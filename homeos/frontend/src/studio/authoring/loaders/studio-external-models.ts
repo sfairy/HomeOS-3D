@@ -1,9 +1,5 @@
 import { COURTYARD_MODELS, courtyardPalette } from '../plan/courtyard'
-import {
-  prepareVehicleChargeGeometry,
-  prepareSuvRoofGlass,
-  applyVehicleFinish,
-} from '../items/studio-vehicle-models'
+import { prepareVehicleChargeGeometry, prepareSuvRoofGlass, applyVehicleFinish } from '../items/studio-vehicle-models'
 import { decorateWarmFloor } from '../scene/studio-scene-style'
 import { pipelineDispenserModelType } from '../items/pipeline-dispenser'
 import { storageSectionModelType } from '../items/studio-storage-sections'

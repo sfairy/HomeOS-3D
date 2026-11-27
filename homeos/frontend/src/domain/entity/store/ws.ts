@@ -1,22 +1,52 @@
-import { type Socket } from 'socket.io-client'
+import type { Socket } from 'socket.io-client'
 import { getActivePinia } from 'pinia'
 import { useLayoutStore } from '@/domain/layout/store/index'
-import { getActiveSubscribeDomains, collectWsPinnedEntityIds, getActiveSubscriptionScope, clearEntitySocketSyncTimers, incrementalBatchIncomplete, resetChunkBaselineTracking, scheduleIncrementalEnd, waitForPendingChunkApplies } from '@/domain/entity/utils/ws-subscription'
+import {
+  getActiveSubscribeDomains,
+  collectWsPinnedEntityIds,
+  getActiveSubscriptionScope,
+  clearEntitySocketSyncTimers,
+  incrementalBatchIncomplete,
+  resetChunkBaselineTracking,
+  scheduleIncrementalEnd,
+  waitForPendingChunkApplies,
+} from '@/domain/entity/ws-subscription'
 import { resolveActivePopupEntityId } from '@/domain/entity/store/active-popup-entity'
 import { getEntityDomain, isEewSimulationEventId, WS_CLIENT_EVENTS } from '@homeos/shared'
-import { type Ref } from 'vue'
+import type { Ref } from 'vue'
 import { optimisticExpectationSatisfied } from '@/domain/entity/store/optimistic-expectation'
-import { type OptimisticEntry } from '@/domain/entity/store/entity-store-optimistic'
-import { type EntitiesMap, type EntityPatch, type EntityStateListenerFlushDeps, type EntityStateListenerLogger, type EntityStateListenerPayload, type EntityStateNotifyArgs, type HaEntityState, type OptimisticPrediction, type ResolveListenerOldStateArgs, type EntitySocketHandlerContext, type EntitySocketSyncState } from '@/kernel/types/entity'
-import { isStaleState, mergeWsStateChange, normalizeWsBatchChange, type WsDeltaChange, dispatchStateListener, enqueueStateListenerNotifications, notifyStateListener, stateListenerPayloadFingerprint } from '@/domain/entity/utils/entity'
-import { EVENT_LOG_OVERLAY_DOMAINS } from '@/domain/entity/utils/event-log-domains'
-import { notificationLevelToToastType, shouldSkipNotificationToast } from '@/domain/notifications/utils/ws-sync'
+import type { OptimisticEntry } from '@/domain/entity/store/entity-store-optimistic'
+import type {
+  EntitiesMap,
+  EntityPatch,
+  EntityStateListenerFlushDeps,
+  EntityStateListenerLogger,
+  EntityStateListenerPayload,
+  EntityStateNotifyArgs,
+  HaEntityState,
+  OptimisticPrediction,
+  ResolveListenerOldStateArgs,
+  EntitySocketHandlerContext,
+  EntitySocketSyncState,
+} from '@/kernel/entity'
+import {
+  isStaleState,
+  mergeWsStateChange,
+  normalizeWsBatchChange,
+  type WsDeltaChange,
+  dispatchStateListener,
+  enqueueStateListenerNotifications,
+  notifyStateListener,
+  stateListenerPayloadFingerprint,
+} from '@/domain/entity/utils/entity'
+import { EVENT_LOG_OVERLAY_DOMAINS } from '@/domain/entity/event-log-domains'
+import { notificationLevelToToastType, shouldSkipNotificationToast } from '@/domain/notifications/ws-sync'
 import { refreshEnergyFromSocket } from '@/kernel/bridge/store-bridge'
 import { speakLocal } from '@/domain/voice/local-speech'
 import { isEarthquakeAlertEnabled } from '@/domain/earthquake/earthquake-layout'
 import { useEarthquakeStore } from '@/domain/earthquake/earthquake.store'
-import { type EarthquakeAlertPayload } from '@/kernel/types/earthquake'
-import { handleEntityFallbackFailure } from '@/domain/entity/utils/sync-guards'
+import type { EarthquakeAlertPayload } from '@/kernel/earthquake'
+import { handleEntityFallbackFailure } from '@/domain/entity/sync-guards'
 
 /** 实体 WebSocket（Socket.IO）连接构建工具 */
 

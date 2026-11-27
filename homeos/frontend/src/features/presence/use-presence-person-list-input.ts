@@ -1,6 +1,6 @@
 /* ── 原 usePresencePersonListInput.ts 的实现 ── */
 import { computed, ref, watch } from 'vue'
-import { createEmptyPresencePerson, reorderPresencePersons } from '@/features/presence/utils/person'
+import { createEmptyPresencePerson, reorderPresencePersons } from '@/features/presence/person'
 
 /**
  * 单个人员行数据

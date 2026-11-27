@@ -8,10 +8,24 @@ import { urlFlag } from '../render-kit/url-flags'
 import { createMotionBuffer as createMotionBuffer2 } from '../scene/studio-motion-buffer'
 import { createBackgroundCache as createBackgroundCache2 } from '../scene/studio-background-cache'
 import { stageStartup as stageStartup2 } from '../stage-startup'
-import { interactionResourcePolicy, resolveSunShadowMapSize, EDITOR_CONTACT_SHADOW_CAPTURES_PER_SYNC } from '../studio-resource-policy'
-import { installLightingShaderFailsafe, restoreLightingShaderChecksIfReady, type LightingShaderFailsafe } from '../lights/lighting'
+import {
+  interactionResourcePolicy,
+  resolveSunShadowMapSize,
+  EDITOR_CONTACT_SHADOW_CAPTURES_PER_SYNC,
+} from '../studio-resource-policy'
+import {
+  installLightingShaderFailsafe,
+  restoreLightingShaderChecksIfReady,
+  type LightingShaderFailsafe,
+} from '../lights/lighting'
 import { probeWebglAvailability, webglUnavailableMessage, type WebglAvailability } from '@/kernel/perf/index'
-import { STUDIO_COMPAT_CAPTURES_PER_SYNC, STUDIO_COMPAT_NOTICE, isStudioCompatMode, recordStudioGpuIncident, studioCompatModeSource } from '../studio-gpu-compat'
+import {
+  STUDIO_COMPAT_CAPTURES_PER_SYNC,
+  STUDIO_COMPAT_NOTICE,
+  isStudioCompatMode,
+  recordStudioGpuIncident,
+  studioCompatModeSource,
+} from '../studio-gpu-compat'
 import { scheduleShaderWarmup } from './studio-shader-compile-warmup'
 import { createOverviewStack as createOverviewStack2 } from '../scene/overview/studio-overview-stack'
 import { createWeatherAtmosphereController, installWeatherHostMessages } from '../lights/weather-atmosphere'
@@ -29,7 +43,6 @@ import { releaseMetalEnvironmentTextures } from '../materials/studio-metal-envir
 import { releaseSurfaceDetailTextures } from '../materials/studio-surface'
 import { releaseSurfaceStyleTextures } from '../materials/studio-surface'
 import { disposeOverlapAndPreview } from '../ui/wiring'
-
 
 export interface AcquireRenderSurfaceDeps {
   appCtx: StudioAppContext
@@ -184,12 +197,6 @@ export async function acquireRenderSurface(deps: AcquireRenderSurfaceDeps) {
     appCtx.isFrameDirty && (!isSurfaceSuspended || Et2 !== appCtx.modelRevisionCounter) && scheduleStudioRender(420)
   }
 }
-
-
-
-
-
-
 
 export interface CreateStudioRendererDeps {
   appCtx: StudioAppContext
@@ -945,7 +952,6 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps) {
   return disposeRendererEvents
 }
 
-
 export function refreshFloorControls(runtime: StudioAppRuntime) {
   const hasMultipleFloors = (runtime.appCtx.studioProject?.floors.length || 0) > 1,
     isOverviewMode = runtime.getPreviewFloorMode() === 'all'
@@ -1118,7 +1124,6 @@ export function handleCanvasSizeInput(runtime: StudioAppRuntime, dimensionName: 
  * 这里只有「对已经建好的句柄做释放」和「清掉挂在 document / window 上的残留」两类动作，
  * 不持有任何引导期状态 —— 于是可以从那个 4000 行的宿主函数里独立出来。
  */
-
 
 type DisposableLike = { dispose?: () => void }
 type RendererLike = DisposableLike & { forceContextLoss?: () => void }

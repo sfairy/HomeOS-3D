@@ -1,4 +1,8 @@
-import { normalizeHaUrl, isDangerousHaControl, validateHaUrlForDeploy as validateHaUrlForDeployShared } from '@homeos/shared'
+import {
+  normalizeHaUrl,
+  isDangerousHaControl,
+  validateHaUrlForDeploy as validateHaUrlForDeployShared,
+} from '@homeos/shared'
 import { appNotify } from '@/kernel/bridge/store-bridge'
 
 /** 摄像头流地址工具。 */

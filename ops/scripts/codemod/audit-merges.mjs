@@ -32,13 +32,19 @@ function exportedNames(text) {
     for (const part of match[1].split(',')) {
       const piece = part.trim().replace(/^type\s+/, '')
       if (!piece) continue
-      out.add(piece.split(/\s+as\s+/).pop().trim())
+      out.add(
+        piece
+          .split(/\s+as\s+/)
+          .pop()
+          .trim(),
+      )
     }
   }
   return out
 }
 
-const git = (args) => execFileSync('git', args, { cwd: REPO_ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
+const git = (args) =>
+  execFileSync('git', args, { cwd: REPO_ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
 
 /** 展开 `A..B` 形式为提交列表。 */
 function expandSpecs(specs) {
@@ -49,7 +55,10 @@ function expandSpecs(specs) {
       continue
     }
     const [from, to] = spec.split('..')
-    const list = git(['rev-list', `${from}..${to || 'HEAD'}`]).trim().split('\n').filter(Boolean)
+    const list = git(['rev-list', `${from}..${to || 'HEAD'}`])
+      .trim()
+      .split('\n')
+      .filter(Boolean)
     commits.push(...list)
   }
   return commits

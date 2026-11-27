@@ -137,11 +137,7 @@ import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
 import SettingsCardIntro from '@/features/settings/shell/SettingsCardIntro.vue'
 import HosSelect from '@/domain/entity/entity-select/HosSelect.vue'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import {
-  deleteDeviceProfileDefault,
-  listDeviceProfileDefaults,
-  setDeviceProfileDefault,
-} from '@/domain/api/device'
+import { deleteDeviceProfileDefault, listDeviceProfileDefaults, setDeviceProfileDefault } from '@/domain/api/device'
 import { getApiErrorMessage } from '@/kernel/core/index'
 
 const props = defineProps({

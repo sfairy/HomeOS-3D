@@ -19,8 +19,8 @@ import { optimisticExpectationSatisfied } from '@/domain/entity/store/optimistic
 import { getWsPushPublicConfig } from '@/kernel/config/frontend-config'
 import { blockDangerousHaServiceWhenOffline, HA_OFFLINE_DANGEROUS_CONTROL_MSG } from '@/kernel/ha'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { fetchEntityById } from '@/domain/entity/utils/cold-fetch'
-import type { EntityActionsDeps, HaEntityState } from '@/kernel/types/entity'
+import { fetchEntityById } from '@/domain/entity/cold-fetch'
+import type { EntityActionsDeps, HaEntityState } from '@/kernel/entity'
 import {
   describeControlOutcome,
   resolveControlNotice,

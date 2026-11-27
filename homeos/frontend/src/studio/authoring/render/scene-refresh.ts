@@ -1,7 +1,7 @@
 import type { StudioAppRuntime } from '../runtime/studio-app-runtime'
 import { cacheObjectTransforms as cacheObjectTransforms2 } from '../../app/bridge/scene/index'
 import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
-import type { SceneRefreshOptions } from '../types/studio-app-types'
+import type { SceneRefreshOptions } from '../studio-app-types'
 
 export function refreshSceneRender(runtime: StudioAppRuntime, refreshOptions: SceneRefreshOptions = {}) {
   // 场景/材质/阴影有变化时先作废静态帧缓存，下一次渲染会重新捕获。

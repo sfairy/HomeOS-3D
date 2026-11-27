@@ -1,9 +1,9 @@
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { getEntityDomain } from '@homeos/shared'
 import { useLayoutStore } from '@/domain/layout/store/index'
-import { getWholeHomeOffConfig } from '@/kernel/constants/index'
-import { type HaEntityState } from '@/kernel/types/entity'
-import { type WholeHomeOffConfig } from '@/kernel/types/whole-home-off'
+import { getWholeHomeOffConfig } from '@/kernel/index'
+import type { HaEntityState } from '@/kernel/entity'
+import type { WholeHomeOffConfig } from '@/kernel/whole-home-off'
 import { readLocalStorage, writeLocalStorage, logger } from '@/kernel/core/index'
 import { ref, computed, onMounted } from 'vue'
 import { fetchSetupChecklist, fetchSystemHealth, fetchSystemDiagnostics } from '@/kernel/http/index'
@@ -184,7 +184,6 @@ export async function turnOffWholeHome(overrides: WholeHomeOffOptions = {}) {
 }
 
 /** - 拉取后端 SetupChecklist 状态（条目 / 完成数 / 总数 / 是否可见）； */
-
 
 /** 单个清单条目：id / 标签 / 是否完成 / 提示 / 跳转路由 */
 interface SetupChecklistItem {

@@ -6,8 +6,8 @@
  */
 import { box, cyl } from '../mesh-shorthand'
 
-import * as ns2 from "/static/vendor/three/0.187.0/three.module.min.js";
-import type { ItemModelScope } from "./types";
+import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
+import type { ItemModelScope } from './types'
 
 export function buildShowerBasin(scope: ItemModelScope): boolean {
   const {
@@ -21,197 +21,132 @@ export function buildShowerBasin(scope: ItemModelScope): boolean {
     furnitureSoft,
     furnitureLight,
     furnitureDark,
-  } = scope;
+  } = scope
 
-  if (modelItem.type ===
-      "shower") {
-    const showerMetal =
-        yt4.showerMetal ??
-        furnitureLight,
-      showerRailZ =
-        -depth *
-        0.42,
-      showerRailBottomY =
-        height6 *
-        0.13,
-      showerRailTopY =
-        height6 *
-        0.9,
-      showerRailHeight =
-        showerRailTopY -
-        showerRailBottomY,
-      showerMetalOptions =
+  if (modelItem.type === 'shower') {
+    const showerMetal = yt4.showerMetal ?? furnitureLight,
+      showerRailZ = -depth * 0.42,
+      showerRailBottomY = height6 * 0.13,
+      showerRailTopY = height6 * 0.9,
+      showerRailHeight = showerRailTopY - showerRailBottomY,
+      showerMetalOptions = {
+        rounded: false,
+        metalness: 0.68,
+        roughness: 0.22,
+      }
+    box(
+      itemModelNode,
+      [0.045, showerRailHeight, 0.045],
+      [0, (showerRailBottomY + showerRailTopY) * 0.5, showerRailZ],
+      showerMetal,
+      showerMetalOptions,
+    )
+    for (const showerHingeY of [showerRailBottomY, height6 * 0.47, height6 * 0.78, showerRailTopY])
+      box(itemModelNode, [0.085, 0.085, 0.065], [0, showerHingeY, showerRailZ], showerMetal, showerMetalOptions)
+    for (const showerBracketY of [showerRailBottomY, showerRailTopY])
+      cyl(itemModelNode, [width6 * 0.055, width6 * 0.055, 0.04], [0, showerBracketY, -depth * 0.47], showerMetal, {
+        segments: 28,
+        rotationX: Math.PI / 2,
+        metalness: 0.7,
+        roughness: 0.2,
+      })
+    const showerHeadY = height6 * 0.12
+    box(
+      itemModelNode,
+      [width6 * 0.36, 0.065, 0.065],
+      [0, showerHeadY, showerRailZ + depth * 0.08],
+      showerMetal,
+      showerMetalOptions,
+    )
+    for (const showerHeadX of [-width6 * 0.2, width6 * 0.2])
+      cyl(
+        itemModelNode,
+        [width6 * 0.055, width6 * 0.055, 0.045],
+        [showerHeadX, showerHeadY, -depth * 0.45],
+        showerMetal,
         {
-          rounded: false,
-          metalness: 0.68,
-          roughness: 0.22,
-        };
-    box(itemModelNode, [0.045, showerRailHeight, 0.045], [0, (showerRailBottomY +
-        showerRailTopY) *
-        0.5, showerRailZ], showerMetal, showerMetalOptions);
-    for (const showerHingeY of [
-      showerRailBottomY,
-      height6 *
-        0.47,
-      height6 *
-        0.78,
-      showerRailTopY,
-    ])
-      box(itemModelNode, [0.085, 0.085, 0.065], [0, showerHingeY, showerRailZ], showerMetal, showerMetalOptions);
-    for (const showerBracketY of [
-      showerRailBottomY,
-      showerRailTopY,
-    ])
-      cyl(itemModelNode, [width6 *
-          0.055, width6 *
-          0.055, 0.04], [0, showerBracketY, -depth *
-          0.47], showerMetal, {
           segments: 28,
-          rotationX:
-            Math.PI /
-            2,
+          rotationX: Math.PI / 2,
           metalness: 0.7,
           roughness: 0.2,
-        });
-    const showerHeadY =
-      height6 *
-      0.12;
-    box(itemModelNode, [width6 *
-        0.36, 0.065, 0.065], [0, showerHeadY, showerRailZ +
-        depth *
-          0.08], showerMetal, showerMetalOptions);
-    for (const showerHeadX of [
-      -width6 *
-        0.2,
-      width6 *
-        0.2,
-    ])
-      (cyl(itemModelNode, [width6 *
-          0.055, width6 *
-          0.055, 0.045], [showerHeadX, showerHeadY, -depth *
-          0.45], showerMetal, {
-          segments: 28,
-          rotationX:
-            Math.PI /
-            2,
-          metalness: 0.7,
-          roughness: 0.2,
-        }),
-        box(itemModelNode, [0.05, 0.05, depth *
-            0.13], [showerHeadX, showerHeadY, showerRailZ +
-            depth *
-              0.01], showerMetal, showerMetalOptions));
-    box(itemModelNode, [0.045, height6 *
-        0.12, 0.045], [0, showerHeadY -
-        height6 *
-          0.045, showerRailZ +
-        depth *
-          0.13], showerMetal, showerMetalOptions);
-    const showerRailTopPoint =
-        new ns2.Vector3(
-          0,
-          showerRailTopY,
-          showerRailZ,
-        ),
-      showerHeadPoint =
-        new ns2.Vector3(
-          0,
-          height6 *
-            0.76,
-          depth *
-            0.08,
-        ),
-      showerSpoutDeltaY =
-        showerHeadPoint.y -
-        showerRailTopPoint.y,
-      showerSpoutDeltaZ =
-        showerHeadPoint.z -
-        showerRailTopPoint.z,
-      hypot4 =
-        Math.hypot(
-          showerSpoutDeltaY,
-          showerSpoutDeltaZ,
-        ),
-      showerSpoutMesh =
-        box(itemModelNode, [0.055, hypot4, 0.055], [0, (showerRailTopPoint.y +
-            showerHeadPoint.y) *
-            0.5, (showerRailTopPoint.z +
-            showerHeadPoint.z) *
-            0.5], showerMetal, showerMetalOptions);
-    ((showerSpoutMesh.rotation.x =
-      Math.atan2(
-        showerSpoutDeltaZ,
-        showerSpoutDeltaY,
-      )),
-      box(itemModelNode, [0.055, height6 *
-          0.13, 0.055], [0, height6 *
-          0.705, showerHeadPoint.z], showerMetal, showerMetalOptions),
-      box(itemModelNode, [width6 *
-          0.34, 0.035, depth *
-          0.3], [0, height6 *
-          0.64, showerHeadPoint.z +
-          depth *
-            0.03], showerMetal, {
+        },
+      ),
+        box(
+          itemModelNode,
+          [0.05, 0.05, depth * 0.13],
+          [showerHeadX, showerHeadY, showerRailZ + depth * 0.01],
+          showerMetal,
+          showerMetalOptions,
+        )
+    box(
+      itemModelNode,
+      [0.045, height6 * 0.12, 0.045],
+      [0, showerHeadY - height6 * 0.045, showerRailZ + depth * 0.13],
+      showerMetal,
+      showerMetalOptions,
+    )
+    const showerRailTopPoint = new ns2.Vector3(0, showerRailTopY, showerRailZ),
+      showerHeadPoint = new ns2.Vector3(0, height6 * 0.76, depth * 0.08),
+      showerSpoutDeltaY = showerHeadPoint.y - showerRailTopPoint.y,
+      showerSpoutDeltaZ = showerHeadPoint.z - showerRailTopPoint.z,
+      hypot4 = Math.hypot(showerSpoutDeltaY, showerSpoutDeltaZ),
+      showerSpoutMesh = box(
+        itemModelNode,
+        [0.055, hypot4, 0.055],
+        [0, (showerRailTopPoint.y + showerHeadPoint.y) * 0.5, (showerRailTopPoint.z + showerHeadPoint.z) * 0.5],
+        showerMetal,
+        showerMetalOptions,
+      )
+    ;(showerSpoutMesh.rotation.x = Math.atan2(showerSpoutDeltaZ, showerSpoutDeltaY)),
+      box(
+        itemModelNode,
+        [0.055, height6 * 0.13, 0.055],
+        [0, height6 * 0.705, showerHeadPoint.z],
+        showerMetal,
+        showerMetalOptions,
+      ),
+      box(
+        itemModelNode,
+        [width6 * 0.34, 0.035, depth * 0.3],
+        [0, height6 * 0.64, showerHeadPoint.z + depth * 0.03],
+        showerMetal,
+        {
           rounded: false,
           metalness: 0.64,
           roughness: 0.24,
-        }));
-    return true;
-  } else if (modelItem.type ===
-      "basin") {
-    (box(itemModelNode, [width6 *
-        0.92, height6 *
-        0.72, depth *
-        0.9], [0, height6 *
-        0.36, 0], furniture),
-      box(itemModelNode, [width6, 0.065, depth], [0, height6 *
-          0.75, 0], furnitureLight, {
-          roughness: 0.3,
-        }),
-      cyl(itemModelNode, [width6 *
-          0.25, width6 *
-          0.21, 0.08], [0, height6 *
-          0.8, depth *
-          0.02], furnitureSoft, {
-          roughness: 0.28,
-        }),
-      cyl(itemModelNode, [0.018, 0.018, height6 *
-          0.2], [0, height6 *
-          0.9, -depth *
-          0.2], furnitureDark, {
-          metalness: 0.78,
-          roughness: 0.18,
-        }),
-      cyl(itemModelNode, [0.018, 0.018, depth *
-          0.2], [0, height6 *
-          0.99, -depth *
-          0.11], furnitureDark, {
-          rotationX:
-            Math.PI /
-            2,
-          metalness: 0.78,
-          roughness: 0.18,
-        }),
-      box(itemModelNode, [0.012, height6 *
-          0.62, depth *
-          0.02], [0, height6 *
-          0.34, depth *
-          0.46], furnitureDark, {
-          rounded: false,
-        }));
-    const basinMirrorTopY =
-        height6 *
-        1.05,
-      basinMirrorWidth =
-        width6 *
-        0.72,
+        },
+      )
+    return true
+  } else if (modelItem.type === 'basin') {
+    box(itemModelNode, [width6 * 0.92, height6 * 0.72, depth * 0.9], [0, height6 * 0.36, 0], furniture),
+      box(itemModelNode, [width6, 0.065, depth], [0, height6 * 0.75, 0], furnitureLight, {
+        roughness: 0.3,
+      }),
+      cyl(itemModelNode, [width6 * 0.25, width6 * 0.21, 0.08], [0, height6 * 0.8, depth * 0.02], furnitureSoft, {
+        roughness: 0.28,
+      }),
+      cyl(itemModelNode, [0.018, 0.018, height6 * 0.2], [0, height6 * 0.9, -depth * 0.2], furnitureDark, {
+        metalness: 0.78,
+        roughness: 0.18,
+      }),
+      cyl(itemModelNode, [0.018, 0.018, depth * 0.2], [0, height6 * 0.99, -depth * 0.11], furnitureDark, {
+        rotationX: Math.PI / 2,
+        metalness: 0.78,
+        roughness: 0.18,
+      }),
+      box(itemModelNode, [0.012, height6 * 0.62, depth * 0.02], [0, height6 * 0.34, depth * 0.46], furnitureDark, {
+        rounded: false,
+      })
+    const basinMirrorTopY = height6 * 1.05,
+      basinMirrorWidth = width6 * 0.72,
       basinMirrorHeight = 0.72,
-      basinMirrorZ =
-        -depth *
-        0.46;
-    (box(itemModelNode, [basinMirrorWidth, basinMirrorHeight, 0.018], [0, basinMirrorTopY +
-        basinMirrorHeight *
-          0.5, basinMirrorZ], yt4.glass, {
+      basinMirrorZ = -depth * 0.46
+    box(
+      itemModelNode,
+      [basinMirrorWidth, basinMirrorHeight, 0.018],
+      [0, basinMirrorTopY + basinMirrorHeight * 0.5, basinMirrorZ],
+      yt4.glass,
+      {
         rounded: false,
         transparent: true,
         opacity: 0.46,
@@ -220,29 +155,39 @@ export function buildShowerBasin(scope: ItemModelScope): boolean {
         roughness: 0.12,
         castShadow: false,
         renderOrder: 6,
+      },
+    ),
+      box(itemModelNode, [basinMirrorWidth + 0.055, 0.035, 0.045], [0, basinMirrorTopY, basinMirrorZ], furnitureDark, {
+        metalness: 0.35,
       }),
-      box(itemModelNode, [basinMirrorWidth +
-          0.055, 0.035, 0.045], [0, basinMirrorTopY, basinMirrorZ], furnitureDark, {
+      box(
+        itemModelNode,
+        [basinMirrorWidth + 0.055, 0.035, 0.045],
+        [0, basinMirrorTopY + basinMirrorHeight, basinMirrorZ],
+        furnitureDark,
+        {
           metalness: 0.35,
-        }),
-      box(itemModelNode, [basinMirrorWidth +
-          0.055, 0.035, 0.045], [0, basinMirrorTopY +
-          basinMirrorHeight, basinMirrorZ], furnitureDark, {
+        },
+      ),
+      box(
+        itemModelNode,
+        [0.035, basinMirrorHeight, 0.045],
+        [-basinMirrorWidth * 0.5, basinMirrorTopY + basinMirrorHeight * 0.5, basinMirrorZ],
+        furnitureDark,
+        {
           metalness: 0.35,
-        }),
-      box(itemModelNode, [0.035, basinMirrorHeight, 0.045], [-basinMirrorWidth *
-          0.5, basinMirrorTopY +
-          basinMirrorHeight *
-            0.5, basinMirrorZ], furnitureDark, {
+        },
+      ),
+      box(
+        itemModelNode,
+        [0.035, basinMirrorHeight, 0.045],
+        [basinMirrorWidth * 0.5, basinMirrorTopY + basinMirrorHeight * 0.5, basinMirrorZ],
+        furnitureDark,
+        {
           metalness: 0.35,
-        }),
-      box(itemModelNode, [0.035, basinMirrorHeight, 0.045], [basinMirrorWidth *
-          0.5, basinMirrorTopY +
-          basinMirrorHeight *
-            0.5, basinMirrorZ], furnitureDark, {
-          metalness: 0.35,
-        }));
-    return true;
+        },
+      )
+    return true
   }
-  return false;
+  return false
 }

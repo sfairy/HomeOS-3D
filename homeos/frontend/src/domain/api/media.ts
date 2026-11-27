@@ -1,4 +1,4 @@
-import { type AxiosRequestConfig } from 'axios'
+import type { AxiosRequestConfig } from 'axios'
 import { apiGet, apiPost } from '../../kernel/http/index'
 
 /** 媒体库 API：Music Assistant 点歌 + MoviePilot 入库（与既有 media.ts 的播放列表区分）。 */

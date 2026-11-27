@@ -10,7 +10,7 @@
 <script setup lang="ts">
 /** 浮动控制中心 - 时钟部件 */
 import { computed, inject, unref } from 'vue'
-import { FloatingHubContextKey } from '@/kernel/types/floating-hub'
+import { FloatingHubContextKey } from '@/kernel/floating-hub'
 
 // 注入父组件提供的上下文（非空断言：FloatingHub 父组件必定 provide）
 const hub = inject(FloatingHubContextKey)!

@@ -1,9 +1,13 @@
 import { type StudioAppRuntime } from '../runtime/studio-app-runtime'
 import { idleRenderPixelRatio, interactionResourcePolicy } from '../studio-resource-policy'
-import { adaptiveDeviceLightBudget as adaptiveDeviceLightBudget2, adaptiveLightRenderCost as adaptiveLightRenderCost2, assessAdaptiveRenderFrames as assessAdaptiveRenderFrames2, clamp as clamp2 } from '../plan/geometry'
+import {
+  adaptiveDeviceLightBudget as adaptiveDeviceLightBudget2,
+  adaptiveLightRenderCost as adaptiveLightRenderCost2,
+  assessAdaptiveRenderFrames as assessAdaptiveRenderFrames2,
+  clamp as clamp2,
+} from '../plan/geometry'
 import { inspectShadowReceiverTrial as inspectShadowReceiverTrial2 } from '../studio-shadow-receiver-trial'
 import { finite as finite2 } from '../loaders/studio-normalization'
-
 
 export function assessRenderBudget(runtime: StudioAppRuntime) {
   const bf2 = runtime.collectActiveLightEntries(),
@@ -172,7 +176,6 @@ export function computeRenderPixelRatio(runtime: StudioAppRuntime, isMotionQuali
   }
   return ratio
 }
-
 
 export function updateRenderStatsHud(runtime: StudioAppRuntime) {
   if (!runtime.isRenderStatsTest || !runtime.appCtx.threeRenderer) return

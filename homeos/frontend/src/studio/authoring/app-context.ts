@@ -14,7 +14,7 @@
  */
 import type { normalizeBaseLighting as normalizeBaseLighting2 } from './loaders/studio-normalization'
 import type { createStudioDocument } from './scene/payload/studio-scene-payload'
-import type { ListDragRowSession } from './types/studio-app-types'
+import type { ListDragRowSession } from './studio-app-types'
 
 export interface StudioAppContext {
   regionLightController: any

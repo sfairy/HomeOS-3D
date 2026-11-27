@@ -1,12 +1,18 @@
-import { ACTION_TYPES as ACTION_TYPES2, actionPopupData as actionPopupData2, componentActionIsSupported as componentActionIsSupported2 } from '../shared/action-rules'
+import {
+  ACTION_TYPES as ACTION_TYPES2,
+  actionPopupData as actionPopupData2,
+  componentActionIsSupported as componentActionIsSupported2,
+} from '../shared/action-rules'
 import { clone as clone2, clampNumber as clampNumber2 } from './editor'
 import { findComponent as findComponent2 } from './component-tree'
-import { manualRelatedEntityConfig as manualRelatedEntityConfig2, relatedPopupContext as relatedPopupContext2 } from '../shared/related-entities'
+import {
+  manualRelatedEntityConfig as manualRelatedEntityConfig2,
+  relatedPopupContext as relatedPopupContext2,
+} from '../shared/related-entities'
 import { domElement } from '@app/shared/util/dom-factory'
 
 // 从 studio/app/editor/home.ts 迁出（P4 studio 拆分，语句级切片）。
 // 日期/时间检视面板提交按钮的批量注册（.component-action-controls）
-
 
 /** 依赖袋（宿主 `bootEditor` 作用域）：宿主按 getter 传入，模块**惰性读取** ——
  * 与留在宿主里的闭包同语义。搬走的语句只读不写，所以无需 state 袋 / setter。
@@ -310,7 +316,6 @@ export function attachDateInspectorSubmit(deps: DateInspectorSubmitDeps) {
 // 从 studio/app/editor/home.ts 迁出（P4 studio 拆分，语句级切片）。
 // document 级点击兜底：点空白处关闭实体选择弹层与检视面板
 
-
 /** 依赖袋（宿主 `bootEditor` 作用域）：宿主按 getter 传入，模块**惰性读取** ——
  * 与留在宿主里的闭包同语义。搬走的语句只读不写，所以无需 state 袋 / setter。
  *
@@ -611,7 +616,6 @@ export function attachDocumentEntityPickerDismiss(deps: DocumentEntityPickerDism
 // 从 studio/app/editor/home.ts 迁出（P4 studio 拆分，语句级切片）。
 // 平面图检视面板的 input 监听（相机/图层字段写回）
 
-
 /** 依赖袋（宿主 `bootEditor` 作用域）：宿主按 getter 传入，模块**惰性读取** ——
  * 与留在宿主里的闭包同语义。搬走的语句只读不写，所以无需 state 袋 / setter。
  *
@@ -770,7 +774,6 @@ export function attachFloorplanDiagramInspectorInput(deps: FloorplanDiagramInspe
 
 // 从 studio/app/editor/home.ts 迁出（P4 studio 拆分，语句级切片）。
 // 折线图检视面板的 input 监听（写回折线图的系列/坐标轴字段）
-
 
 /** 依赖袋（宿主 `bootEditor` 作用域）：宿主按 getter 传入，模块**惰性读取** ——
  * 与留在宿主里的闭包同语义。搬走的语句只读不写，所以无需 state 袋 / setter。
@@ -1045,7 +1048,6 @@ export function attachLineChartInspectorInput(deps: LineChartInspectorInputDeps)
 // 从 studio/app/editor/home.ts 迁出（P4 studio 拆分，语句级切片）。
 // 导航检视面板的表单 input 监听（写回当前编辑中的导航形状/样式字段）
 
-
 /** 依赖袋（宿主 `bootEditor` 作用域）：宿主按 getter 传入，模块**惰性读取** ——
  * 与留在宿主里的闭包同语义。搬走的语句只读不写，所以无需 state 袋 / setter。
  *
@@ -1297,7 +1299,6 @@ export function attachNavigationInspectorInput(deps: NavigationInspectorInputDep
 
 // 从 studio/app/editor/home.ts 迁出（P4 studio 拆分，语句级切片）。
 // pageshow 回退恢复：从 bfcache 回来时重挂平面图预览帧
-
 
 /** 依赖袋（宿主 `bootEditor` 作用域）：宿主按 getter 传入，模块**惰性读取** ——
  * 与留在宿主里的闭包同语义。搬走的语句只读不写，所以无需 state 袋 / setter。

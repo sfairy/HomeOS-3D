@@ -1,8 +1,16 @@
-import { doorMaterialPartIndex, doorMaterialPartRolesForType, resolveMaterialPaletteColor } from './studio-model-material-roles'
-import { MATERIAL_STYLE_AUTO, materialStylePaletteColors, materialStyleRecipeFor, normalizeMaterialStyle } from './studio-material'
+import {
+  doorMaterialPartIndex,
+  doorMaterialPartRolesForType,
+  resolveMaterialPaletteColor,
+} from './studio-model-material-roles'
+import {
+  MATERIAL_STYLE_AUTO,
+  materialStylePaletteColors,
+  materialStyleRecipeFor,
+  normalizeMaterialStyle,
+} from './studio-material'
 import { normalizeMaterialOverrides, normalizeMaterialSurfaceOverrides } from '../scene/payload/studio-scene-payload'
-import { type DoorPartMaterial } from '../types/studio-app-types'
-
+import { type DoorPartMaterial } from '../studio-app-types'
 
 export function resolveDoorPartMaterials(doorRecord: any, themePalette: any): Record<string, DoorPartMaterial> {
   const doorType = doorRecord?.doorType || 'solid',
@@ -71,7 +79,6 @@ export function describeDoorMaterials(backgroundSettings: () => any, doorRecord:
     }
   })
 }
-
 
 export function doorPartThemeColor(doorType: string, role: string, palette: any) {
   /** 入户门与入户子母门共用一套深色门扇 + 浅色五金。 */

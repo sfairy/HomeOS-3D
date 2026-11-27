@@ -420,7 +420,13 @@ const ALLOWED_CYCLES = new Set([
 
 /** 环的成员排序后拼接的规范化键（顺序无关，见 `cycleKey`）。 */
 const ALLOWED_CYCLE_SETS = new Set(
-  [...ALLOWED_CYCLES].map((entry) => entry.split(' ↔ ').map((name) => name.trim()).sort().join('|')),
+  [...ALLOWED_CYCLES].map((entry) =>
+    entry
+      .split(' ↔ ')
+      .map((name) => name.trim())
+      .sort()
+      .join('|'),
+  ),
 )
 
 /** 把 Tarjan 给出的成员数组规范化为顺序无关的键。 */
@@ -438,10 +444,7 @@ function cycleKey(members) {
  *    页面背景层、资源状态与部件注册表（它是「把 studio 当嵌入表面」的装配点）。
  *    正确做法是给 studio 加一个 `DashboardSurface` 门面，先登记。
  */
-const ALLOWED_UPPER = new Set([
-  'domain/api/studio.ts',
-  'features/dashboard/RightSidebar.vue',
-])
+const ALLOWED_UPPER = new Set(['domain/api/studio.ts', 'features/dashboard/RightSidebar.vue'])
 
 const violations = []
 const valueGraph = new Map()
@@ -457,9 +460,7 @@ for (const cycle of valueCycles(valueGraph)) {
   violations.push({ file: cycle[0], line: 1, rule: 'value-cycle', specifier: key })
 }
 
-const blocking = violations.filter(
-  (item) => !ADVISORY_RULES.has(item.rule) && !ALLOWED_UPPER.has(item.file),
-)
+const blocking = violations.filter((item) => !ADVISORY_RULES.has(item.rule) && !ALLOWED_UPPER.has(item.file))
 const advisory = violations.filter((item) => ADVISORY_RULES.has(item.rule))
 
 if (advisory.length > 0) {

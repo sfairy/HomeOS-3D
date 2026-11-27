@@ -20,7 +20,7 @@
  * 同一引用），因此不存在「绕过注入点」的行为差异。
  */
 
-import type { BoxMeshOptions, CylinderMeshOptions } from '../types/studio-app-types'
+import type { BoxMeshOptions, CylinderMeshOptions } from '../studio-app-types'
 import { addCylinderMesh } from '../geometry'
 import { addBoxMesh } from './studio-mesh-primitives'
 

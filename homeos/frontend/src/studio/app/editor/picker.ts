@@ -26,7 +26,6 @@ export function createEditorAssetMatcher({
   }
 }
 
-
 /** 工具条只关心这几个字段；`user-image-upload` 的完整状态由上传模块持有。 */
 interface AssetUploaderState {
   busy?: boolean

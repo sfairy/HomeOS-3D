@@ -49,7 +49,7 @@ import { Bell, X } from '@lucide/vue'
 import NotificationCenter from '@/features/notifications/widgets/NotificationCenter.vue'
 import { NOTIFICATION_CENTER_KEY } from '@/domain/widget/index'
 import { useShellTeleportTarget } from '@/kernel/ui/shell/use-shell-teleport-target'
-import { useFocusTrap } from '@/kernel/ui/hooks/use-focus-trap'
+import { useFocusTrap } from '@/kernel/ui/use-focus-trap'
 
 const props = defineProps({
   isOpen: { type: Boolean, default: false },

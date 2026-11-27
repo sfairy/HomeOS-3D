@@ -5,7 +5,6 @@ import { cancelEditor3D } from './editor-3d'
 import { dismissOverlapPicker } from './wiring'
 import { registerOverlayObstacles } from './overlay-obstacles'
 
-
 export function getPanelRatioLimits(runtime: StudioAppRuntime) {
   const detailsPanelRect = runtime.detailsPanelElement.getBoundingClientRect(),
     studioShellRect = runtime.studioShellElement.getBoundingClientRect(),
@@ -66,7 +65,6 @@ export function applyDetailsRatio(runtime: StudioAppRuntime) {
  * 所以引擎只能发事件请壳层改，不能自己改 class。
  */
 export const LEAVE_PLAN_FOCUS_EVENT = 'studio:leave-plan-focus'
-
 
 export function closeOpenPopovers(runtime: StudioAppRuntime) {
   ;(runtime.appCtx.pendingFloorMenuId = ''), runtime.floorRenameDialogElement.close()

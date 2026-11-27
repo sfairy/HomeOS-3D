@@ -13,9 +13,9 @@ import type {
   ClientPowerPendingClient,
   ClientPowerSettings,
   ClientPowerStatusSnapshot,
-} from '@/kernel/types/client-power'
-import type { SystemConfig } from '@/kernel/types/system-config'
-import { normalizeBatteryPercent } from '@/domain/client/utils/index'
+} from '@/kernel/client-power'
+import type { SystemConfig } from '@/kernel/system-config'
+import { normalizeBatteryPercent } from '@/domain/client/index'
 import {
   getClientBatteryState,
   getClientDeviceKind,
@@ -23,8 +23,8 @@ import {
   getClientSystemSpecChips,
   getLocalBatteryUnsupportedHint,
   getSystemInfoFromClientRow,
-} from '@/domain/client/utils/index'
-import { getClientDeviceId } from '@/domain/client/utils/index'
+} from '@/domain/client/index'
+import { getClientDeviceId } from '@/domain/client/index'
 import { reloadFrontendConfig } from '@/kernel/config/frontend-config'
 import { copyTextWithNotify } from '@/kernel/ui/notify'
 import { getApiErrorMessage } from '@/kernel/core/index'

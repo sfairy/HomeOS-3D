@@ -1,7 +1,12 @@
 import { finite } from '../loaders/studio-normalization'
 import { generateId } from '../ui/studio-app-helpers'
-import { clamp, clampWindowT, splitWallSegments, validatedUnionPolygonLoops as validatedUnionPolygonLoops2 } from './geometry'
-import { type WallSpanPadding } from '../types/studio-app-types'
+import {
+  clamp,
+  clampWindowT,
+  splitWallSegments,
+  validatedUnionPolygonLoops as validatedUnionPolygonLoops2,
+} from './geometry'
+import { type WallSpanPadding } from '../studio-app-types'
 import { validGeometryLoops as validGeometryLoops2 } from '../cache/geometry-persistent-cache'
 
 /** 把窗 / 门 / 栏杆**重映射到拆段后的墙**：墙先按交点切段，再按 `t` 落到所属段的局部参数。

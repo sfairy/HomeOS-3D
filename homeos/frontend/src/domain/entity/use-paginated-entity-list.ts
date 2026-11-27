@@ -2,7 +2,7 @@
 import { onScopeDispose, ref, watch, type Ref } from 'vue'
 import { fetchEntities } from '@/domain/api/entities'
 import { getApiErrorMessage } from '@/kernel/core/index'
-import type { DeviceFilterState } from '@/kernel/types/device'
+import type { DeviceFilterState } from '@/kernel/device'
 
 const PAGE_SIZE = 200
 const SEARCH_DEBOUNCE_MS = 250

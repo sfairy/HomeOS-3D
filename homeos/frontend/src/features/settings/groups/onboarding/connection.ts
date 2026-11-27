@@ -11,10 +11,14 @@ import { onBeforeUnmount, ref, computed, onMounted } from 'vue'
 import { useSystemDiagnostics } from '@/domain/status/index'
 import { logger } from '@/kernel/core/index'
 import { formatShortDateTime } from '@/kernel/format'
-import { buildEntitySyncRecommendations } from '@/domain/recommend/utils/index'
-import { handleSystemConfigPatchError, patchSystemConfig, useSystemConfig } from '@/domain/layout/system-config-core.internals'
+import { buildEntitySyncRecommendations } from '@/domain/recommend/index'
+import {
+  handleSystemConfigPatchError,
+  patchSystemConfig,
+  useSystemConfig,
+} from '@/domain/layout/system-config-core.internals'
 import { useSettingsHubRouteSection } from '@/features/settings/shared/hub'
-import { useSettingsSidebarReentryReset } from '@/kernel/ui/hooks/hub-viewport'
+import { useSettingsSidebarReentryReset } from '@/kernel/ui/hub-viewport'
 
 /* ── 原 connection-credentials.internals.ts 的实现 ── */
 

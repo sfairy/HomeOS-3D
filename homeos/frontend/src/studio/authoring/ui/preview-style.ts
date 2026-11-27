@@ -3,7 +3,10 @@ import { baseLightingForCurrentStyle } from '../lights/lighting'
 import { normalizeSceneStyle, sceneStyleLabel, type SceneStyleId } from '../../app/shared/scene-styles'
 import * as three from '/static/vendor/three/0.187.0/three.module.min.js'
 import { type StudioAppContext } from '../app-context'
-import { createNaturalWoodMaterials, type NaturalWoodMaterialLibrary } from '../materials/natural-wood/natural-wood-materials'
+import {
+  createNaturalWoodMaterials,
+  type NaturalWoodMaterialLibrary,
+} from '../materials/natural-wood/natural-wood-materials'
 import { createNaturalWoodEnvironment } from '../materials/natural-wood/natural-wood-environment'
 import { reportDegradation } from '../../app/shared/diagnostics/degradation'
 import { setActiveNaturalWoodLibrary } from '../materials/natural-wood/natural-wood-model-theme'

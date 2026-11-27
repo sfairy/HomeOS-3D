@@ -1,11 +1,21 @@
 import { type StudioAppRuntime } from '../runtime/studio-app-runtime'
 import { sceneContentBounds as sceneContentBounds2 } from './courtyard-drawing'
-import { clamp as clamp2, clampWindowT as clampWindowT2, closedWallFloorPolygons as closedWallFloorPolygons2, unclosedWallEndpoints as unclosedWallEndpoints2, wallIntersections as wallIntersections2, wallJoinExtensions as wallJoinExtensions2, nearestWall as nearestWall2 } from './geometry'
-import { itemPlanFootprint as itemPlanFootprint2, itemPlanFootprintOffset as itemPlanFootprintOffset2 } from '../items/studio-item-posture'
-import { type PlanEditPreviewFlags } from '../types/studio-app-types'
+import {
+  clamp as clamp2,
+  clampWindowT as clampWindowT2,
+  closedWallFloorPolygons as closedWallFloorPolygons2,
+  unclosedWallEndpoints as unclosedWallEndpoints2,
+  wallIntersections as wallIntersections2,
+  wallJoinExtensions as wallJoinExtensions2,
+  nearestWall as nearestWall2,
+} from './geometry'
+import {
+  itemPlanFootprint as itemPlanFootprint2,
+  itemPlanFootprintOffset as itemPlanFootprintOffset2,
+} from '../items/studio-item-posture'
+import { type PlanEditPreviewFlags } from '../studio-app-types'
 import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
 import { finite as finite2 } from '../loaders/studio-normalization'
-
 
 export function planToScreen(runtime: StudioAppRuntime, planPointInput: any) {
   return {
@@ -321,7 +331,6 @@ export function buildHandleGeometry(runtime: StudioAppRuntime, geometryItem: any
           ),
   }
 }
-
 
 export function planToWorldPoint(_runtime: StudioAppRuntime, calibrationFloor: any, planPoint: any) {
   const pixelsPerMeter = calibrationFloor?.scene?.calibration?.pixelsPerMeter || 1,

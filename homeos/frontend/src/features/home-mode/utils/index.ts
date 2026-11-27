@@ -11,5 +11,5 @@
  * 下层反向依赖 features 造成分层倒置，故下沉 `shared/`。桶名统一用 `home-mode`，避免与「全屋操作」的 home 同名双义。
  */
 
-export { isHomeModeEmojiIcon, resolveHomeModeIcon } from './mode-icon'
-export { collectPresetActionTags } from './mode-preset-meta'
+export { isHomeModeEmojiIcon, resolveHomeModeIcon } from '../mode-icon'
+export { collectPresetActionTags } from '../mode-preset-meta'

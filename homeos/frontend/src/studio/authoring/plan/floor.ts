@@ -1,6 +1,5 @@
 import { remapCourtyardAttachments } from './courtyard-drawing'
 
-
 type CopyableRecord = { id: string }
 type CopyableItem = CopyableRecord & { lightGroupId?: string }
 type CopyableOpening = CopyableRecord & { wallId?: string }

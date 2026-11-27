@@ -1,13 +1,12 @@
 import { type StudioAppRuntime } from '../runtime/studio-app-runtime'
 import { syncStudioSelect as syncStudioSelect2 } from '../ui/studio-widgets'
 import { finite as finite2 } from '../loaders/studio-normalization'
-import { type ListDragRowSession } from '../types/studio-app-types'
+import { type ListDragRowSession } from '../studio-app-types'
 import { showDrawingLightNotice } from '../ui/dialogs'
 import { clamp as clamp2 } from '../plan/geometry'
 import { lightAngleLimitForType, lightPresetCatalog } from './studio-app-light-data'
 import { lampItemTypeSet } from '../items/item-catalog'
 import { type StudioAppContext } from '../app-context'
-
 
 /** 按区域头的拖放结果重排区域顺序。 */
 export function moveAreaRow(runtime: StudioAppRuntime, draggedAreaId: any, targetAreaId: any, insertAfterFlag: any) {
@@ -290,7 +289,6 @@ export async function maybeShowDrawingLightNotice(runtime: StudioAppRuntime) {
  * `distance` 是照射范围，阴影相机 `near/far` 跟随照射范围。
  * 灯带是 `RectAreaLight`，没有锥角，光束角对它无效（0.8.2 同样如此）。
  */
-
 
 /** 按灯型取预设（未知灯型按筒灯处理，与 `addLightModel` 同口径）。 */
 function lightPresetFor(lightType: string) {

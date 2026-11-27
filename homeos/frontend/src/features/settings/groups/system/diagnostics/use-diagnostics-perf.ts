@@ -2,15 +2,10 @@ import { ref, computed, watch, onUnmounted } from 'vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useLayoutStore } from '@/domain/layout/store/index'
-import {
-  fps,
-  memoryMb,
-  startFrontendPerfMonitor,
-  stopFrontendPerfMonitor,
-} from '@/kernel/perf/index'
+import { fps, memoryMb, startFrontendPerfMonitor, stopFrontendPerfMonitor } from '@/kernel/perf/index'
 import { adaptiveTier } from '@/kernel/perf/index'
 import { isFpsSchedulerRunning, isDiagnosticsFpsSamplingActive } from '@/kernel/perf/index'
-import { getActiveSubscribeDomains } from '@/domain/entity/utils/ws-subscription'
+import { getActiveSubscribeDomains } from '@/domain/entity/ws-subscription'
 import { getMaxStateListeners } from '@/kernel/config/frontend-config'
 import { copyTextWithNotify } from '@/kernel/ui/notify'
 import {

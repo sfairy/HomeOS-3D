@@ -19,7 +19,7 @@
 <script setup>
 import { computed } from 'vue'
 import VirtualList from '@/kernel/ui/primitives/VirtualList.vue'
-import { WIDGET_PICKER_VIRTUAL_THRESHOLD } from '@/domain/widget/utils/profile-filter'
+import { WIDGET_PICKER_VIRTUAL_THRESHOLD } from '@/domain/widget/profile-filter'
 import { getWidgetName } from '@/kernel/registry/widget-catalog'
 const props = defineProps({
   widgets: { type: Array, required: true },

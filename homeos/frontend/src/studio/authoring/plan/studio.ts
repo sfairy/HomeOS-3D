@@ -1,4 +1,22 @@
-import { closestReachPoint, convexHull, crossProduct, itemPlanCorners, normalizeVector, rayPolygonDistance, subtract, vectorLength, type PlanRectLike, type Point } from './studio-placement'
+import {
+  closestReachPoint,
+  convexHull,
+  crossProduct,
+  itemPlanCorners,
+  normalizeVector,
+  rayPolygonDistance,
+  subtract,
+  vectorLength,
+  type PlanRectLike,
+  type Point,
+} from './studio-placement'
+import type {
+  LightRangeArchiveEntry,
+  LightRangeArchiveStore,
+  LightRegionDescriptor,
+  LightRegionOverrides,
+  LightRegionOverrideStore,
+} from '@/domain/api/studio'
 
 /**
  * 接触阴影的位姿解析器：给一根节点返回「阴影烘焙时用的世界矩阵」。
@@ -645,38 +663,17 @@ export function drawItemHandles(deps: HandleDrawingDeps): void {
 /** 绘制页自身的柔光范围所用的保留 scene id。与 0.8.9 `STUDIO_RANGE_SCENE_ID` 同义。 */
 export const STUDIO_RANGE_SCENE_ID = '__studio-floorplan__'
 
-/** 一个区域描述符（编辑器写出的形状；本层只做数值夹取，不重排语义）。 */
-export type LightRegionDescriptor = {
-  shape?: 'circle' | 'square' | 'strip'
-  width?: number
-  depth?: number
-  rotation?: number
-  softness?: number
-  heightMin?: number
-  heightMax?: number
-  offsetX?: number
-  offsetZ?: number
-  moveCenter?: boolean
-}
-
-/** `regionKey → descriptor`。 */
-export type LightRegionOverrides = Record<string, LightRegionDescriptor>
-
-/** `sceneId → regionKey → descriptor`。 */
-export type LightRegionOverrideStore = Record<string, LightRegionOverrides>
-
-/** 撤销记录：保留「改之前的范围」，用于在绘制页撤销柔光调整。 */
-export type LightRangeArchiveEntry = {
-  floorId: string
-  itemId: string
-  /** 改之前的描述符；`null` 表示之前没有自定义（回到模型默认）。 */
-  previous: LightRegionDescriptor | null
-  /** 记录时间（毫秒），仅用于裁剪与展示。 */
-  at: number
-}
-
-/** `sceneId → 撤销记录[]`。 */
-export type LightRangeArchiveStore = Record<string, LightRangeArchiveEntry[]>
+/**
+ * 柔光范围的合约类型真源在 `@/domain/api/studio`（domain 不得反向依赖 studio）。
+ * 这里再导出，既有 `from './studio'` 的相对引用无需改动。
+ */
+export type {
+  LightRangeArchiveEntry,
+  LightRangeArchiveStore,
+  LightRegionDescriptor,
+  LightRegionOverrides,
+  LightRegionOverrideStore,
+} from '@/domain/api/studio'
 
 const MAX_SCENES = 64
 const MAX_REGIONS_PER_SCENE = 512

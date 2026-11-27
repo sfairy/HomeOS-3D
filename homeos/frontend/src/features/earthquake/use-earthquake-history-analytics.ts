@@ -18,7 +18,7 @@ import {
   buildTopPlaces,
   computeAnalyticsSummary,
   shortenPlace,
-} from '@/features/earthquake/utils/history-analytics'
+} from '@/features/earthquake/history-analytics'
 import { formatEarthquakeMagnitude } from '@/domain/earthquake/earthquake-layout'
 
 /**

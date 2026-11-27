@@ -1,4 +1,7 @@
-import { componentDirectLocation as componentDirectLocation2, findComponentLocation as findComponentLocation2 } from './component-tree'
+import {
+  componentDirectLocation as componentDirectLocation2,
+  findComponentLocation as findComponentLocation2,
+} from './component-tree'
 import { sha256 } from '../bridge/scene/index'
 import { randomUuid } from '../shared/util/random-id'
 import { clampNumber } from '../shared/util/number'
@@ -653,7 +656,6 @@ export function resolveUnsavedRecovery(
  * 仪表盘编辑器：框选几何 + 多选对齐/分布（纯函数，供 home.ts 调用）。
  */
 
-
 export type AlignMode = 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom' | 'distribute-x' | 'distribute-y'
 
 interface ComponentBounds {
@@ -792,7 +794,6 @@ export function componentBounds(boundsComponent: any) {
     bottom: boundsCenterY + boundsHalfHeight,
   }
 }
-
 
 export { clampNumber }
 export function clone(sourceValue: any) {

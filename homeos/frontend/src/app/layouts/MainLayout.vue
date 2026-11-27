@@ -14,6 +14,7 @@
 import { computed, defineAsyncComponent, watch, onMounted, onUnmounted, ref, provide, nextTick } from 'vue'
 import { Bell, Ellipsis, ChevronDown, MessageCircle } from '@lucide/vue'
 import { useAuthStore } from '@/domain/auth/auth.store'
+import { getWidgetComponent, getWidgetProps } from '@/app/widget-registry'
 import { useNotificationCenter } from '@/domain/widget/index'
 import { NOTIFICATION_CENTER_KEY } from '@/domain/widget/index'
 import { useTeleportTargetGuard } from '@/kernel/ui/shell/use-teleport-target-guard'
@@ -37,13 +38,13 @@ import { useDailyAdvisorGreeting } from '@/features/voice/index'
 import { useEntityWsSubscriptionSync } from '@/domain/entity/entity'
 import { useEarthquakeBootstrap } from '@/features/earthquake/index'
 import { useDisplayLightBackdropState } from '@/features/dashboard/display-light-backdrop'
-import { setDerivedRoutePath } from '@/domain/entity/utils/derived'
+import { setDerivedRoutePath } from '@/domain/entity/derived'
 import { resolvePerfShellClass } from '@/kernel/perf/index'
 import { autoPerformanceModeRef, resolveEffectivePerformanceMode } from '@/kernel/perf/index'
 import { applyGlassEffectDocument } from '@/kernel/ui/index'
 import { isNavTabRouteActive } from '@/kernel/layout'
 import { useViewportTier } from '@/kernel/layout'
-import { useCanvasMetrics } from '@/kernel/ui/hooks/use-canvas-metrics'
+import { useCanvasMetrics } from '@/kernel/ui/use-canvas-metrics'
 import {
   buildDropdownFixedStyle,
   rectToDropdownPosition,
@@ -51,7 +52,7 @@ import {
   measureDropdownFitWidth,
 } from '@/kernel/ui/popup/popup-position-dropdown'
 import { useShellTeleportTarget } from '@/kernel/ui/shell/use-shell-teleport-target'
-import { useEscLayer } from '@/kernel/ui/hooks/use-esc-stack'
+import { useEscLayer } from '@/kernel/ui/use-esc-stack'
 import { isLicenseFeatureGranted } from '@/domain/license'
 import { getTeleportContainerSize } from '@/kernel/ui/popup/popup-position-shared'
 import Screensaver from '@/features/dashboard/screensaver/Screensaver.vue'
@@ -688,6 +689,8 @@ watch(
           class="shell-right-sidebar"
           :panel-position="layoutStore.layoutConfig.panelPosition || 'right'"
           :agent-open="showAgentChat && agentDocked"
+          :resolve-widget-component="getWidgetComponent"
+          :resolve-widget-props="getWidgetProps"
           @open-group="chrome.openGroupModal"
         >
           <template #agent>

@@ -7,7 +7,7 @@ import { buildMainLayoutNavMenu, capBarItemsForViewport } from '@/kernel/ui/main
 import type { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { useLicenseFeatureAccess } from '@/domain/license'
 import { useExclusiveDropdown } from '@/kernel/ui/popup/use-exclusive-dropdown'
-import { useCanvasMetrics } from '@/kernel/ui/hooks/use-canvas-metrics'
+import { useCanvasMetrics } from '@/kernel/ui/use-canvas-metrics'
 
 /**
  * 主布局导航菜单 composable。

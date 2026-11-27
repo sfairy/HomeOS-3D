@@ -31,7 +31,6 @@ export function clamp(rawValue: unknown, minValue: number, maxValue: number): nu
  * `const` 在初始化前读到 undefined（仓库里 `shared-registry` 分包的注释记录过这类黑屏）。
  */
 
-
 export function distance(firstPoint: any, secondPoint: any) {
   return Math.hypot(secondPoint.x - firstPoint.x, secondPoint.y - firstPoint.y)
 }
@@ -895,8 +894,6 @@ export function localSpotShadowSettings(fixtureType = 'downlight', shadowRangeMe
     angle: clampedAngleDeg,
   }
 }
-
-
 
 /** 玻璃推拉门的**展示开度**（0 = 两扇对齐合拢，1 = 活动扇完全叠到固定扇上）。 */
 export const SLIDING_DOOR_DISPLAY_OPEN_RATIO = 0.8

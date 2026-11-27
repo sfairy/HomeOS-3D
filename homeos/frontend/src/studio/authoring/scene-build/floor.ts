@@ -1,6 +1,10 @@
 import { isWarmSceneStyle } from '../../app/shared/scene-styles'
 import { type StudioAppRuntime } from '../runtime/studio-app-runtime'
-import { courtyardFootprintLoops as courtyardFootprintLoops2, outerPerimeterLine as outerPerimeterLine2, sceneModelOrigin as sceneModelOrigin2 } from '../plan/courtyard-drawing'
+import {
+  courtyardFootprintLoops as courtyardFootprintLoops2,
+  outerPerimeterLine as outerPerimeterLine2,
+  sceneModelOrigin as sceneModelOrigin2,
+} from '../plan/courtyard-drawing'
 import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
 import * as ns from '/static/vendor/three/0.187.0/three.module.min.js'
 import { polygonArea as polygonArea2, subtractPolygonLoops as subtractPolygonLoops2 } from '../plan/geometry'
@@ -11,8 +15,13 @@ import { createFloorCopy } from '../plan/floor'
 import { generateId } from '../ui/studio-app-helpers'
 import { createFloorRecord } from '../scene/payload/studio-document-payload'
 import { confirmFloorDeletion } from '../ui/dialogs'
-import { resolveFloorRegionPlates, resolveHeatingPolylines, shouldRenderHeating, type FloorRenderRecord, type HeatingPolyline } from '../plan/studio-floor'
-
+import {
+  resolveFloorRegionPlates,
+  resolveHeatingPolylines,
+  shouldRenderHeating,
+  type FloorRenderRecord,
+  type HeatingPolyline,
+} from '../plan/studio-floor'
 
 export function buildCourtyardFoundation(
   runtime: StudioAppRuntime,
@@ -480,7 +489,6 @@ export function buildLayerForFloor(
   return (runtime.computeSceneExtent(), true)
 }
 
-
 export function uniqueFloorName(runtime: StudioAppRuntime, baseName: any, currentFloorId = '') {
   const set = new Set(
     (runtime.appCtx.studioProject?.floors || [])
@@ -708,8 +716,6 @@ export async function addNewFloor(runtime: StudioAppRuntime) {
  * 会把「拼错类名」也放过去（运行期才炸），而本仓的宽类型棘轮只降不升。
  * 这里声明一个**只含用到成员**的接口，拼错会当场编译失败。
  */
-
-
 
 /** 盘管离地高度（米）：略高于地面板，避免与板共面闪烁。 */
 const HEATING_LIFT = 0.004

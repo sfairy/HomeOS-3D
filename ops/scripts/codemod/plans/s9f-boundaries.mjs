@@ -20,13 +20,25 @@ export default {
     { from: `${SRC}/app/styles/hos-hscroll.css`, to: `${SRC}/kernel/ui/styles/hos-hscroll.css` },
     { from: `${SRC}/app/styles/hos-panel.css`, to: `${SRC}/kernel/ui/styles/hos-panel.css` },
 
-    { from: `${SRC}/app/shell/composables/use-dashboard-footer.ts`, to: `${SRC}/domain/layout/composables/use-dashboard-footer.ts` },
-    { from: `${SRC}/app/shell/composables/use-widget-panel-visibility.ts`, to: `${SRC}/domain/widget/composables/use-widget-panel-visibility.ts` },
+    {
+      from: `${SRC}/app/shell/composables/use-dashboard-footer.ts`,
+      to: `${SRC}/domain/layout/composables/use-dashboard-footer.ts`,
+    },
+    {
+      from: `${SRC}/app/shell/composables/use-widget-panel-visibility.ts`,
+      to: `${SRC}/domain/widget/composables/use-widget-panel-visibility.ts`,
+    },
     { from: `${SRC}/app/router/system-init.state.ts`, to: `${SRC}/domain/system/system-init.state.ts` },
     { from: `${SRC}/features/auth/model/scene-values.ts`, to: `${SRC}/kernel/constants/scene-values.ts` },
 
-    { from: `${SRC}/features/device/camera/composables/use-go2-rtc-mse-transport.ts`, to: `${SRC}/domain/camera/use-go2-rtc-mse-transport.ts` },
+    {
+      from: `${SRC}/features/device/camera/composables/use-go2-rtc-mse-transport.ts`,
+      to: `${SRC}/domain/camera/use-go2-rtc-mse-transport.ts`,
+    },
     { from: `${SRC}/features/device/camera/hls-loader.ts`, to: `${SRC}/domain/camera/hls-loader.ts` },
-    { from: `${SRC}/features/device/model/device-profile-kind-cache.ts`, to: `${SRC}/domain/device/device-profile-kind-cache.ts` },
+    {
+      from: `${SRC}/features/device/model/device-profile-kind-cache.ts`,
+      to: `${SRC}/domain/device/device-profile-kind-cache.ts`,
+    },
   ],
 }

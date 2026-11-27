@@ -26,7 +26,7 @@ import type {
   PageBackgroundLayout,
   PageBackgroundPosition,
   PageBackgroundSource,
-} from '@/kernel/types/page-background'
+} from '@/kernel/page-background'
 
 /** 文档组件类型（主页面宿主）。 */
 export const PAGE_BACKGROUND_TYPE = 'page-background'
@@ -56,7 +56,7 @@ export type {
   PageBackgroundLayout,
   PageBackgroundPosition,
   PageBackgroundSource,
-} from '@/kernel/types/page-background'
+} from '@/kernel/page-background'
 
 /** 文档组件形态：在纯配置之上多 `id` / `type`（主页面宿主使用）。 */
 export type PageBackground = PageBackgroundConfig & {

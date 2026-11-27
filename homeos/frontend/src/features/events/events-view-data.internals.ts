@@ -9,8 +9,8 @@ import { logger } from '@/kernel/core/index'
 import { getApiErrorMessage } from '@/kernel/core/index'
 import { notifyError } from '@/kernel/ui/notify'
 import { configEpoch, getEventLogConfig } from '@/kernel/config/frontend-config'
-import { formatCount, hoursLabel, normalizeByDomain } from '@/features/events/utils/events-display'
-import { getEntityDisplayName, hasEntityFriendlyName } from '@/domain/entity/utils/derived'
+import { formatCount, hoursLabel, normalizeByDomain } from '@/features/events/events-display'
+import { getEntityDisplayName, hasEntityFriendlyName } from '@/domain/entity/derived'
 import type { useEntitiesStore } from '@/domain/entity/store/entities.store'
 
 type EntitiesStore = ReturnType<typeof useEntitiesStore>

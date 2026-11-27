@@ -4,7 +4,7 @@ import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useWeatherEntity } from '@/domain/entity/use-weather-entity'
 import { useEnsureVisibleEntities } from '@/domain/entity/use-ensure-visible-entities'
 import { getWsPushPublicConfig } from '@/kernel/config/frontend-config'
-import { isColdFetchMissing } from '@/domain/entity/utils/cold-fetch'
+import { isColdFetchMissing } from '@/domain/entity/cold-fetch'
 import {
   collectOptionalLifeIndexEntityIds,
   collectWeatherStationEntityIds,

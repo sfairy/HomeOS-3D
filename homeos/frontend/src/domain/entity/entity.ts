@@ -1,17 +1,33 @@
-import { computed, ref, watch, onUnmounted, type Ref, type ComputedRef, shallowRef, unref, type MaybeRefOrGetter } from 'vue'
+import {
+  computed,
+  ref,
+  watch,
+  onUnmounted,
+  type Ref,
+  type ComputedRef,
+  shallowRef,
+  unref,
+  type MaybeRefOrGetter,
+} from 'vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { getEntityDomain } from '@homeos/shared'
 import { fetchEntities } from '@/domain/api/entities'
 import { useDropdownPosition } from '@/kernel/ui/popup/use-dropdown-position'
-import { collectIndexedEntityIds } from '@/domain/entity/utils/derived'
+import { collectIndexedEntityIds } from '@/domain/entity/derived'
 import { getLargeEntityThreshold, configEpoch } from '@/kernel/config/frontend-config'
 import { getProjection } from '@/domain/entity/store/entity-projection'
 import { usePausableStateListener } from '@/domain/entity/use-pausable-state-listener'
-import { type HaEntityState } from '@/kernel/types/entity'
+import type { HaEntityState } from '@/kernel/entity'
 import { useRoute } from 'vue-router'
 import { useLayoutStore } from '@/domain/layout/store/index'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { resolveSubscribeDomains, setActiveSubscribeDomains, getActiveSubscribeDomains, collectWsPinnedEntityIds, buildLayoutSubscriptionKey } from '@/domain/entity/utils/ws-subscription'
+import {
+  resolveSubscribeDomains,
+  setActiveSubscribeDomains,
+  getActiveSubscribeDomains,
+  collectWsPinnedEntityIds,
+  buildLayoutSubscriptionKey,
+} from '@/domain/entity/ws-subscription'
 import { resolveActivePopupEntityId } from '@/domain/entity/store/active-popup-entity'
 
 /** 实体展示 Epoch 依赖注入工具 */

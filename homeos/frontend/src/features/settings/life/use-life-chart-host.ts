@@ -1,11 +1,7 @@
 /** 各独立 Hub / 模块页通用的 ECharts 挂载：init / resize / dispose， */
 import { onMounted, onUnmounted, watch, nextTick, type Ref, type WatchSource } from 'vue'
 import type * as EchartsModuleNS from '@/kernel/chart'
-import {
-  observeChartResize,
-  scheduleEchartsTask,
-  cancelScheduledEchartsTask,
-} from '@/kernel/ui/index'
+import { observeChartResize, scheduleEchartsTask, cancelScheduledEchartsTask } from '@/kernel/ui/index'
 
 type EchartsModule = typeof EchartsModuleNS
 type ChartInst = ReturnType<EchartsModule['default']['init']>

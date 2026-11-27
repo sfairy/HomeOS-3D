@@ -2,7 +2,7 @@
 /** composables：自 home-mode.internals.ts 拆出 — 合并自 home-mode-panel.context / useHomeModeActionsSection / useHomeModeEditor 等 */
 import { getEntityLeaf } from '@homeos/shared'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { domainIndexToArray } from '@/domain/entity/utils/derived'
+import { domainIndexToArray } from '@/domain/entity/derived'
 import { resolveHomeModeTabEmoji } from '@/kernel/settings'
 import { DOMAIN_SERVICES, servicesForDomain } from '@/kernel/registry/widget-catalog'
 import type { ComputedRef, Ref } from 'vue'

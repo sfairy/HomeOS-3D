@@ -218,7 +218,7 @@ import HomeModeItemNav from '@/features/home-mode/HomeModeItemNav.vue'
 import { useHomeModeItemExpansion, useHomeModeItemFocus } from '../editor.internals'
 import { useHomeModeRecommend } from '../home-mode-panel.internals'
 import { normalizeHomeModeTimeAt } from '@homeos/shared'
-import { describeTriggerSubtitle, normalizeSunOffset } from '@/features/home-mode/utils/trigger-summary'
+import { describeTriggerSubtitle, normalizeSunOffset } from '@/features/home-mode/trigger-summary'
 
 const activeDraft = defineModel('activeDraft', { type: Object, required: true })
 

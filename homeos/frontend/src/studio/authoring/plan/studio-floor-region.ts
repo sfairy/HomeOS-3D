@@ -336,7 +336,6 @@ export function createFloorRegionEditor() {
  * 自交就当作切分失败 —— 宁可让用户重画，也不要产生一个渲染成碎片的分区。
  */
 
-
 /** 面积下限（平方场景单位）。低于它的碎块视为「没切开」。 */
 export const MIN_REGION_AREA = 0.01
 

@@ -3,7 +3,10 @@ import { type UserImageUploader } from '../../shared/user-image-upload'
 import { EDITOR_PICKER_PAGE_SIZES as EDITOR_PICKER_PAGE_SIZES2 } from '@app/shared/picker/editor-picker-pagination'
 import { findCustomPopup as findCustomPopup2, clone as clone2, clampNumber as clampNumber2 } from '../editor'
 import { findComponent as findComponent2 } from '../component-tree'
-import { applyPercentageBarChange as applyPercentageBarChange2, percentageBarDefaults as percentageBarDefaults2 } from '../../shared/percentage-bar-model'
+import {
+  applyPercentageBarChange as applyPercentageBarChange2,
+  percentageBarDefaults as percentageBarDefaults2,
+} from '../../shared/percentage-bar-model'
 import { createNavigationStyleApplyOption } from '../navigation-style-apply/target-options'
 import { confirmAction } from '../../shared/ui'
 import { TOGGLE_ENTITY_DOMAINS as TOGGLE_ENTITY_DOMAINS2 } from '../../shared/action-rules'

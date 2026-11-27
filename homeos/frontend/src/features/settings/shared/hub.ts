@@ -5,19 +5,35 @@ import { useLayoutStore } from '@/domain/layout/store/index'
 import { reloadFrontendConfig } from '@/kernel/config/frontend-config'
 import { downloadBlob } from '@/kernel/core/index'
 import { getApiErrorMessage } from '@/kernel/core/index'
-import { type NotifyType } from '@/kernel/types/notify'
-import { getIndependentPendingTabIds, globalLayoutPendingCount, useRegisterSettingsTabPending, useSettingsHubPending } from '@/features/settings/kernel/pending.internals'
+import type { NotifyType } from '@/kernel/notify'
+import {
+  getIndependentPendingTabIds,
+  globalLayoutPendingCount,
+  useRegisterSettingsTabPending,
+  useSettingsHubPending,
+} from '@/features/settings/kernel/pending.internals'
 import { tabLabel } from '@/kernel/registry/settings-nav'
 import { ref, computed, nextTick, watch, type ComputedRef, type Ref, onMounted, unref } from 'vue'
 import { getEnvSensorFields, useEnvSensorMap } from '@/features/settings/shared/env-sensor-map'
-import { useSettingsSidebarReentryReset } from '@/kernel/ui/hooks/hub-viewport'
+import { useSettingsSidebarReentryReset } from '@/kernel/ui/hub-viewport'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { envRoomTabEmoji } from '@/kernel/settings'
 import { clonePlain } from '@/kernel/core/index'
-import { countQuickActionBatteryLow, countQuickActionClimateActive, countQuickActionDomainActive, countQuickActionLightsOn, countQuickActionOffline } from '@/domain/entity/utils/device-group'
-import { getEntityDisplayName } from '@/domain/entity/utils/derived'
-import { buildFavoritesRecommendations } from '@/domain/recommend/utils/index'
-import { type FavoriteCategoryMeta, FAVORITE_CATEGORIES, FAVORITE_CATEGORY_GROUPS, FAVORITE_CATEGORY_MAP } from '@/kernel/registry/favorites-categories.config'
+import {
+  countQuickActionBatteryLow,
+  countQuickActionClimateActive,
+  countQuickActionDomainActive,
+  countQuickActionLightsOn,
+  countQuickActionOffline,
+} from '@/domain/entity/utils/device-group'
+import { getEntityDisplayName } from '@/domain/entity/derived'
+import { buildFavoritesRecommendations } from '@/domain/recommend/index'
+import {
+  type FavoriteCategoryMeta,
+  FAVORITE_CATEGORIES,
+  FAVORITE_CATEGORY_GROUPS,
+  FAVORITE_CATEGORY_MAP,
+} from '@/kernel/registry/favorites-categories.config'
 import { useRoute, useRouter } from 'vue-router'
 
 /* ── 原 hub-backup-orchestrator.internals.ts 的实现 ── */

@@ -96,7 +96,7 @@ import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { fetchMediaPlaylist, nextMediaPlaylist, startMediaPlaylist } from '@/domain/api/media'
 import { notifyError } from '@/kernel/ui/notify'
-import { getEntityDisplayName } from '@/domain/entity/utils/derived'
+import { getEntityDisplayName } from '@/domain/entity/derived'
 
 /**
  * 组件 Props。

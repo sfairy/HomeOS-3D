@@ -1,4 +1,4 @@
-import { AGENT_QUICK_PROMPTS, normalizeAgentQuickPrompts, type AgentQuickPrompt } from '@/kernel/constants/index'
+import { AGENT_QUICK_PROMPTS, normalizeAgentQuickPrompts, type AgentQuickPrompt } from '@/kernel/index'
 import { configEpoch, getConfigSection } from '@/kernel/config/frontend-config'
 
 /**

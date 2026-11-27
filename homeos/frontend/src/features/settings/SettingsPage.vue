@@ -135,7 +135,7 @@
 
 <script setup>
 import { readLocalStorageFlag, writeLocalStorage } from '@/kernel/core/index'
-import { useCanvasMetrics } from '@/kernel/ui/hooks/use-canvas-metrics'
+import { useCanvasMetrics } from '@/kernel/ui/use-canvas-metrics'
 /**
  * 系统设置页面 — 薄壳入口
  * 侧边栏分组导航 + 动态面板加载，样式见 settings/shared/settings-theme.css
@@ -177,8 +177,8 @@ import {
   registerGlobalPendingPause,
 } from '@/features/settings/kernel/pending.internals'
 import { tabLabel } from '@/kernel/registry/settings-nav'
-import { countNavTabs, resolveNavTabContext } from './utils/nav-search'
-import { SETTINGS_KEEP_ALIVE_MAX, SETTINGS_KEEP_ALIVE_INCLUDE } from './utils/keep-alive'
+import { countNavTabs, resolveNavTabContext } from './nav-search'
+import { SETTINGS_KEEP_ALIVE_MAX, SETTINGS_KEEP_ALIVE_INCLUDE } from './keep-alive'
 import { settingsPageShareUrl } from '@/kernel/registry/settings-route'
 import { recordSettingsTabVisit } from '@/kernel/registry/settings-recent-tabs'
 import { copyTextWithNotify } from '@/kernel/ui/notify'

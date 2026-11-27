@@ -1,4 +1,4 @@
-import HlsJs from 'hls.js'
+import type HlsJs from 'hls.js'
 import { onUnmounted, ref, watch, type Ref } from 'vue'
 import { logger } from '@/kernel/core/index'
 

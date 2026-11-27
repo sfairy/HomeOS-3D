@@ -2,7 +2,7 @@
 import { computed, unref, type MaybeRef } from 'vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useLayoutStore } from '@/domain/layout/store/index'
-import { domainIndexToArray } from '@/domain/entity/utils/derived'
+import { domainIndexToArray } from '@/domain/entity/derived'
 
 /**
  * 解析天气实体：widget 覆盖 > 集成绑定（与 circadian 双向同步）> 首个 weather.*

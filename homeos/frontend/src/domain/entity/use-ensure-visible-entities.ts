@@ -4,7 +4,7 @@
 import { watch, type MaybeRefOrGetter } from 'vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { getWsPushPublicConfig } from '@/kernel/config/frontend-config'
-import { isColdFetchMissing } from '@/domain/entity/utils/cold-fetch'
+import { isColdFetchMissing } from '@/domain/entity/cold-fetch'
 const BATCH = 80
 
 /**

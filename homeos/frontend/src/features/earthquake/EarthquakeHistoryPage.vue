@@ -337,11 +337,7 @@ import EarthquakeHistoryAnalytics from './HistoryAnalytics.vue'
 import { getApiErrorMessage } from '@/kernel/core/index'
 import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import {
-  buildFixedPageSlots,
-  computeAnalyticsSummary,
-  shortenPlace,
-} from '@/features/earthquake/utils/history-analytics'
+import { buildFixedPageSlots, computeAnalyticsSummary, shortenPlace } from '@/features/earthquake/history-analytics'
 import { formatEarthquakeMagnitude, earthquakeMagnitudeTone } from '@/domain/earthquake/earthquake-layout'
 import { formatLocaleString } from '@/kernel/format'
 import {
@@ -352,7 +348,7 @@ import {
   LOCAL_EEW_SOURCE_FILTERS,
   eewAlertKindLabel,
   eewSourceLabel,
-} from '@/kernel/types/earthquake'
+} from '@/kernel/earthquake'
 import './styles/earthquake-history.css'
 
 const PAGE_SIZE = 8

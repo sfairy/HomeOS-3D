@@ -1,11 +1,6 @@
 /** 灯光色温（Kelvin / mireds）换算与 UI 滑块样式工具。 */
 
-import {
-  normalizeProgressPct,
-  resolveSliderValue,
-  snapToSliderStep,
-  formatProgressPct,
-} from './progress-bar-gradient'
+import { normalizeProgressPct, resolveSliderValue, snapToSliderStep, formatProgressPct } from './progress-bar-gradient'
 
 /**
  * Kelvin → mireds 换算（mireds = 1e6 / K，值越大越暖）。

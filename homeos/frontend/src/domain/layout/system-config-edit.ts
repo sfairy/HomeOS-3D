@@ -3,13 +3,13 @@ import { getSectionLabels } from '@/domain/layout/system-config-core.internals'
 import { inferSystemConfigFieldType, NESTED_JSON_FIELDS } from '@/kernel/config/system-config'
 import { SYSTEM_CONFIG_FIELD_KEYS } from '@/kernel/config/system-config'
 import { isNumericMultiField } from '@/kernel/config/system-config'
-import type { SystemConfig } from '@/kernel/types/system-config'
+import type { SystemConfig } from '@/kernel/system-config'
 import type {
   EditableConfigField,
   EditableConfigSection,
   EditableConfigSnapshot,
   SystemConfigPendingFieldKey,
-} from '@/kernel/types/system-config'
+} from '@/kernel/system-config'
 
 const CONFIG_MASK = '••••••••'
 

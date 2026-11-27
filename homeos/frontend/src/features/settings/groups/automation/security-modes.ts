@@ -1,31 +1,71 @@
 import { type Component, computed, onMounted, ref, watch, type Ref } from 'vue'
-import { applySecurityModesLayoutSlice, liveSecurityModesLayoutSlice, pickSecurityModesLayoutSlice } from '@/features/settings/groups/appearance/use-layout'
-import { afterLayoutCancelSync, pauseGlobalPendingChanges, resumeGlobalPendingChanges, syncGlobalLayoutPendingSnapshot, useSettingsPendingChanges } from '@/features/settings/kernel/pending.internals'
+import {
+  applySecurityModesLayoutSlice,
+  liveSecurityModesLayoutSlice,
+  pickSecurityModesLayoutSlice,
+} from '@/features/settings/groups/appearance/use-layout'
+import {
+  afterLayoutCancelSync,
+  pauseGlobalPendingChanges,
+  resumeGlobalPendingChanges,
+  syncGlobalLayoutPendingSnapshot,
+  useSettingsPendingChanges,
+} from '@/features/settings/kernel/pending.internals'
 import { getEmergencyPresets, normalizeSecurityEmergency } from '@/domain/layout/constants/security-emergency'
-import { getSecurityModePresets, getSecurityLinkageFlagRows, getSecurityLinkageParamRows, getSecurityLinkagePresets } from '@/kernel/constants/index'
+import {
+  getSecurityModePresets,
+  getSecurityLinkageFlagRows,
+  getSecurityLinkageParamRows,
+  getSecurityLinkagePresets,
+} from '@/kernel/index'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useLayoutStore } from '@/domain/layout/store/index'
 import { downloadBlob } from '@/kernel/core/index'
 import { securityModeTabEmoji } from '@/kernel/settings'
 import { servicesForDomain } from '@/kernel/registry/widget-catalog'
-import { Home, Moon, Shield, ShieldOff, Blinds, Fan, Lightbulb, ToggleRight, Droplets, Flame, Gauge, Wind, Zap, Lamp, Link2 } from '@lucide/vue'
+import {
+  Home,
+  Moon,
+  Shield,
+  ShieldOff,
+  Blinds,
+  Fan,
+  Lightbulb,
+  ToggleRight,
+  Droplets,
+  Flame,
+  Gauge,
+  Wind,
+  Zap,
+  Lamp,
+  Link2,
+} from '@lucide/vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { domainIndexToArray, getEntityDisplayName } from '@/domain/entity/utils/derived'
+import { domainIndexToArray, getEntityDisplayName } from '@/domain/entity/derived'
 import { sliderTrackStyle } from '@/kernel/ui/index'
-import { createDefaultWholeHomeOff } from '@/kernel/constants/index'
+import { createDefaultWholeHomeOff } from '@/kernel/index'
 import { fetchAdvisorForgotten } from '@/kernel/http/index'
-import { type RecommendChip } from '@/domain/recommend/types/recommend.types'
-import { buildWholeHomeOffRecommendations } from '@/domain/recommend/utils/index'
+import type { RecommendChip } from '@/domain/recommend/recommend.types'
+import { buildWholeHomeOffRecommendations } from '@/domain/recommend/index'
 import { useHomeosSceneOptions } from '@/features/home-mode/index'
 import { useHazardBindingStatus } from '@/features/security/index'
-import { idsToSingleEntity, joinCommaEntityIds, parseCommaEntityIds, singleEntityToIds } from '@/domain/entity/utils/comma-entity-ids'
+import {
+  idsToSingleEntity,
+  joinCommaEntityIds,
+  parseCommaEntityIds,
+  singleEntityToIds,
+} from '@/domain/entity/comma-entity-ids'
 import { collectHazardBindingSummary, detectHazardBindingConflicts } from '@homeos/shared'
-import { handleSystemConfigPatchError, patchSystemConfig, useSystemConfig } from '@/domain/layout/system-config-core.internals'
+import {
+  handleSystemConfigPatchError,
+  patchSystemConfig,
+  useSystemConfig,
+} from '@/domain/layout/system-config-core.internals'
 import { withBackendBootRetry } from '@/kernel/core/index'
 import { isBackendUnreachableError } from '@/kernel/core/index'
 import { logger } from '@/kernel/core/index'
-import { formatPresenceBadgeSummary } from '@/features/presence/utils/display'
-import { sanitizePresencePersonsForSave } from '@/features/presence/utils/person'
+import { formatPresenceBadgeSummary } from '@/features/presence/display'
+import { sanitizePresencePersonsForSave } from '@/features/presence/person'
 import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
 
 /* ── 原 security-modes-core.internals.ts 的实现 ── */

@@ -1,74 +1,249 @@
 /** P4-c · X/model/* 压平到 X/*（去掉 model 形态段）；两个 model 级 barrel 并入同目录 utils barrel。 */
 export default {
   moves: [
-    { from: 'homeos/frontend/src/domain/energy/model/composables.ts', to: 'homeos/frontend/src/domain/energy/composables.ts' },
+    {
+      from: 'homeos/frontend/src/domain/energy/model/composables.ts',
+      to: 'homeos/frontend/src/domain/energy/composables.ts',
+    },
     { from: 'homeos/frontend/src/domain/energy/model/index.ts', to: 'homeos/frontend/src/domain/energy/index.ts' },
-    { from: 'homeos/frontend/src/domain/energy/model/constants/energy-attr-maps.ts', to: 'homeos/frontend/src/domain/energy/constants/energy-attr-maps.ts' },
-    { from: 'homeos/frontend/src/domain/energy/model/constants/energy-fields.ts', to: 'homeos/frontend/src/domain/energy/constants/energy-fields.ts' },
-    { from: 'homeos/frontend/src/domain/energy/model/utils/account.ts', to: 'homeos/frontend/src/domain/energy/utils/account.ts' },
-    { from: 'homeos/frontend/src/domain/energy/model/utils/account-input.ts', to: 'homeos/frontend/src/domain/energy/utils/account-input.ts' },
-    { from: 'homeos/frontend/src/domain/energy/model/utils/account-sync.ts', to: 'homeos/frontend/src/domain/energy/utils/account-sync.ts' },
-    { from: 'homeos/frontend/src/domain/energy/model/utils/source.ts', to: 'homeos/frontend/src/domain/energy/utils/source.ts' },
-    { from: 'homeos/frontend/src/domain/energy/model/utils/account-entity.ts', to: 'homeos/frontend/src/domain/energy/utils/account-entity.ts' },
-    { from: 'homeos/frontend/src/domain/energy/model/utils/popup-read.ts', to: 'homeos/frontend/src/domain/energy/utils/popup-read.ts' },
-    { from: 'homeos/frontend/src/domain/energy/model/utils/binding-bridge.ts', to: 'homeos/frontend/src/domain/energy/utils/binding-bridge.ts' },
-    { from: 'homeos/frontend/src/domain/energy/model/utils/entity-read.ts', to: 'homeos/frontend/src/domain/energy/utils/entity-read.ts' },
-    { from: 'homeos/frontend/src/domain/energy/model/utils/account-resolve.ts', to: 'homeos/frontend/src/domain/energy/utils/account-resolve.ts' },
-    { from: 'homeos/frontend/src/domain/energy/model/utils/account-types.ts', to: 'homeos/frontend/src/domain/energy/utils/account-types.ts' },
-    { from: 'homeos/frontend/src/domain/energy/model/utils/comm-carrier.ts', to: 'homeos/frontend/src/domain/energy/utils/comm-carrier.ts' },
-    { from: 'homeos/frontend/src/domain/energy/model/utils/account-display.ts', to: 'homeos/frontend/src/domain/energy/utils/account-display.ts' },
-    { from: 'homeos/frontend/src/domain/entity/model/climate-power.ts', to: 'homeos/frontend/src/domain/entity/climate-power.ts' },
-    { from: 'homeos/frontend/src/domain/entity/model/utils/scene-script.ts', to: 'homeos/frontend/src/domain/entity/utils/scene-script.ts' },
-    { from: 'homeos/frontend/src/domain/entity/model/utils/idb-cache.ts', to: 'homeos/frontend/src/domain/entity/utils/idb-cache.ts' },
-    { from: 'homeos/frontend/src/domain/entity/model/utils/derived.ts', to: 'homeos/frontend/src/domain/entity/utils/derived.ts' },
-    { from: 'homeos/frontend/src/domain/entity/model/utils/control-attr-change.ts', to: 'homeos/frontend/src/domain/entity/utils/control-attr-change.ts' },
-    { from: 'homeos/frontend/src/domain/entity/model/utils/temperature-unit.ts', to: 'homeos/frontend/src/domain/entity/utils/temperature-unit.ts' },
-    { from: 'homeos/frontend/src/domain/entity/model/utils/select.ts', to: 'homeos/frontend/src/domain/entity/utils/select.ts' },
-    { from: 'homeos/frontend/src/domain/entity/model/utils/entity.ts', to: 'homeos/frontend/src/domain/entity/utils/entity.ts' },
-    { from: 'homeos/frontend/src/domain/entity/model/utils/event-log-domains.ts', to: 'homeos/frontend/src/domain/entity/utils/event-log-domains.ts' },
-    { from: 'homeos/frontend/src/domain/entity/model/utils/sync-guards.ts', to: 'homeos/frontend/src/domain/entity/utils/sync-guards.ts' },
-    { from: 'homeos/frontend/src/domain/entity/model/utils/floating-entity-colors.ts', to: 'homeos/frontend/src/domain/entity/utils/floating-entity-colors.ts' },
-    { from: 'homeos/frontend/src/domain/entity/model/utils/device-group.ts', to: 'homeos/frontend/src/domain/entity/utils/device-group.ts' },
-    { from: 'homeos/frontend/src/domain/entity/model/utils/comma-entity-ids.ts', to: 'homeos/frontend/src/domain/entity/utils/comma-entity-ids.ts' },
-    { from: 'homeos/frontend/src/domain/entity/model/utils/cold-fetch.ts', to: 'homeos/frontend/src/domain/entity/utils/cold-fetch.ts' },
-    { from: 'homeos/frontend/src/domain/entity/model/utils/suggest-device-class.ts', to: 'homeos/frontend/src/domain/entity/utils/suggest-device-class.ts' },
-    { from: 'homeos/frontend/src/domain/entity/model/utils/popup-registry.ts', to: 'homeos/frontend/src/domain/entity/utils/popup-registry.ts' },
-    { from: 'homeos/frontend/src/domain/entity/model/utils/attr-format.ts', to: 'homeos/frontend/src/domain/entity/utils/attr-format.ts' },
-    { from: 'homeos/frontend/src/domain/entity/model/utils/ws-subscription.ts', to: 'homeos/frontend/src/domain/entity/utils/ws-subscription.ts' },
-    { from: 'homeos/frontend/src/domain/entity/model/utils/control/climate-control-core.ts', to: 'homeos/frontend/src/domain/entity/utils/control/climate-control-core.ts' },
-    { from: 'homeos/frontend/src/domain/entity/model/utils/control/media-player-control-core.ts', to: 'homeos/frontend/src/domain/entity/utils/control/media-player-control-core.ts' },
-    { from: 'homeos/frontend/src/domain/entity/model/utils/control/cover-control-core.ts', to: 'homeos/frontend/src/domain/entity/utils/control/cover-control-core.ts' },
-    { from: 'homeos/frontend/src/domain/entity/model/utils/control/light-control-core.ts', to: 'homeos/frontend/src/domain/entity/utils/control/light-control-core.ts' },
+    {
+      from: 'homeos/frontend/src/domain/energy/model/constants/energy-attr-maps.ts',
+      to: 'homeos/frontend/src/domain/energy/constants/energy-attr-maps.ts',
+    },
+    {
+      from: 'homeos/frontend/src/domain/energy/model/constants/energy-fields.ts',
+      to: 'homeos/frontend/src/domain/energy/constants/energy-fields.ts',
+    },
+    {
+      from: 'homeos/frontend/src/domain/energy/model/utils/account.ts',
+      to: 'homeos/frontend/src/domain/energy/utils/account.ts',
+    },
+    {
+      from: 'homeos/frontend/src/domain/energy/model/utils/account-input.ts',
+      to: 'homeos/frontend/src/domain/energy/utils/account-input.ts',
+    },
+    {
+      from: 'homeos/frontend/src/domain/energy/model/utils/account-sync.ts',
+      to: 'homeos/frontend/src/domain/energy/utils/account-sync.ts',
+    },
+    {
+      from: 'homeos/frontend/src/domain/energy/model/utils/source.ts',
+      to: 'homeos/frontend/src/domain/energy/utils/source.ts',
+    },
+    {
+      from: 'homeos/frontend/src/domain/energy/model/utils/account-entity.ts',
+      to: 'homeos/frontend/src/domain/energy/utils/account-entity.ts',
+    },
+    {
+      from: 'homeos/frontend/src/domain/energy/model/utils/popup-read.ts',
+      to: 'homeos/frontend/src/domain/energy/utils/popup-read.ts',
+    },
+    {
+      from: 'homeos/frontend/src/domain/energy/model/utils/binding-bridge.ts',
+      to: 'homeos/frontend/src/domain/energy/utils/binding-bridge.ts',
+    },
+    {
+      from: 'homeos/frontend/src/domain/energy/model/utils/entity-read.ts',
+      to: 'homeos/frontend/src/domain/energy/utils/entity-read.ts',
+    },
+    {
+      from: 'homeos/frontend/src/domain/energy/model/utils/account-resolve.ts',
+      to: 'homeos/frontend/src/domain/energy/utils/account-resolve.ts',
+    },
+    {
+      from: 'homeos/frontend/src/domain/energy/model/utils/account-types.ts',
+      to: 'homeos/frontend/src/domain/energy/utils/account-types.ts',
+    },
+    {
+      from: 'homeos/frontend/src/domain/energy/model/utils/comm-carrier.ts',
+      to: 'homeos/frontend/src/domain/energy/utils/comm-carrier.ts',
+    },
+    {
+      from: 'homeos/frontend/src/domain/energy/model/utils/account-display.ts',
+      to: 'homeos/frontend/src/domain/energy/utils/account-display.ts',
+    },
+    {
+      from: 'homeos/frontend/src/domain/entity/model/climate-power.ts',
+      to: 'homeos/frontend/src/domain/entity/climate-power.ts',
+    },
+    {
+      from: 'homeos/frontend/src/domain/entity/model/utils/scene-script.ts',
+      to: 'homeos/frontend/src/domain/entity/utils/scene-script.ts',
+    },
+    {
+      from: 'homeos/frontend/src/domain/entity/model/utils/idb-cache.ts',
+      to: 'homeos/frontend/src/domain/entity/utils/idb-cache.ts',
+    },
+    {
+      from: 'homeos/frontend/src/domain/entity/model/utils/derived.ts',
+      to: 'homeos/frontend/src/domain/entity/utils/derived.ts',
+    },
+    {
+      from: 'homeos/frontend/src/domain/entity/model/utils/control-attr-change.ts',
+      to: 'homeos/frontend/src/domain/entity/utils/control-attr-change.ts',
+    },
+    {
+      from: 'homeos/frontend/src/domain/entity/model/utils/temperature-unit.ts',
+      to: 'homeos/frontend/src/domain/entity/utils/temperature-unit.ts',
+    },
+    {
+      from: 'homeos/frontend/src/domain/entity/model/utils/select.ts',
+      to: 'homeos/frontend/src/domain/entity/utils/select.ts',
+    },
+    {
+      from: 'homeos/frontend/src/domain/entity/model/utils/entity.ts',
+      to: 'homeos/frontend/src/domain/entity/utils/entity.ts',
+    },
+    {
+      from: 'homeos/frontend/src/domain/entity/model/utils/event-log-domains.ts',
+      to: 'homeos/frontend/src/domain/entity/utils/event-log-domains.ts',
+    },
+    {
+      from: 'homeos/frontend/src/domain/entity/model/utils/sync-guards.ts',
+      to: 'homeos/frontend/src/domain/entity/utils/sync-guards.ts',
+    },
+    {
+      from: 'homeos/frontend/src/domain/entity/model/utils/floating-entity-colors.ts',
+      to: 'homeos/frontend/src/domain/entity/utils/floating-entity-colors.ts',
+    },
+    {
+      from: 'homeos/frontend/src/domain/entity/model/utils/device-group.ts',
+      to: 'homeos/frontend/src/domain/entity/utils/device-group.ts',
+    },
+    {
+      from: 'homeos/frontend/src/domain/entity/model/utils/comma-entity-ids.ts',
+      to: 'homeos/frontend/src/domain/entity/utils/comma-entity-ids.ts',
+    },
+    {
+      from: 'homeos/frontend/src/domain/entity/model/utils/cold-fetch.ts',
+      to: 'homeos/frontend/src/domain/entity/utils/cold-fetch.ts',
+    },
+    {
+      from: 'homeos/frontend/src/domain/entity/model/utils/suggest-device-class.ts',
+      to: 'homeos/frontend/src/domain/entity/utils/suggest-device-class.ts',
+    },
+    {
+      from: 'homeos/frontend/src/domain/entity/model/utils/popup-registry.ts',
+      to: 'homeos/frontend/src/domain/entity/utils/popup-registry.ts',
+    },
+    {
+      from: 'homeos/frontend/src/domain/entity/model/utils/attr-format.ts',
+      to: 'homeos/frontend/src/domain/entity/utils/attr-format.ts',
+    },
+    {
+      from: 'homeos/frontend/src/domain/entity/model/utils/ws-subscription.ts',
+      to: 'homeos/frontend/src/domain/entity/utils/ws-subscription.ts',
+    },
+    {
+      from: 'homeos/frontend/src/domain/entity/model/utils/control/climate-control-core.ts',
+      to: 'homeos/frontend/src/domain/entity/utils/control/climate-control-core.ts',
+    },
+    {
+      from: 'homeos/frontend/src/domain/entity/model/utils/control/media-player-control-core.ts',
+      to: 'homeos/frontend/src/domain/entity/utils/control/media-player-control-core.ts',
+    },
+    {
+      from: 'homeos/frontend/src/domain/entity/model/utils/control/cover-control-core.ts',
+      to: 'homeos/frontend/src/domain/entity/utils/control/cover-control-core.ts',
+    },
+    {
+      from: 'homeos/frontend/src/domain/entity/model/utils/control/light-control-core.ts',
+      to: 'homeos/frontend/src/domain/entity/utils/control/light-control-core.ts',
+    },
     { from: 'homeos/frontend/src/features/agent/model/utils.ts', to: 'homeos/frontend/src/features/agent/utils.ts' },
-    { from: 'homeos/frontend/src/features/device/model/device-profile-kinds.ts', to: 'homeos/frontend/src/features/device/device-profile-kinds.ts' },
+    {
+      from: 'homeos/frontend/src/features/device/model/device-profile-kinds.ts',
+      to: 'homeos/frontend/src/features/device/device-profile-kinds.ts',
+    },
     { from: 'homeos/frontend/src/features/device/model/utils.ts', to: 'homeos/frontend/src/features/device/utils.ts' },
-    { from: 'homeos/frontend/src/features/earthquake/model/utils/history-analytics.ts', to: 'homeos/frontend/src/features/earthquake/utils/history-analytics.ts' },
-    { from: 'homeos/frontend/src/features/events/model/utils/events-display.ts', to: 'homeos/frontend/src/features/events/utils/events-display.ts' },
-    { from: 'homeos/frontend/src/features/events/model/utils/analytics.ts', to: 'homeos/frontend/src/features/events/utils/analytics.ts' },
-    { from: 'homeos/frontend/src/features/home-mode/model/utils/mode-preset-meta.ts', to: 'homeos/frontend/src/features/home-mode/utils/mode-preset-meta.ts' },
-    { from: 'homeos/frontend/src/features/home-mode/model/utils/mode-icon.ts', to: 'homeos/frontend/src/features/home-mode/utils/mode-icon.ts' },
-    { from: 'homeos/frontend/src/features/notifications/model/utils/analytics.ts', to: 'homeos/frontend/src/features/notifications/utils/analytics.ts' },
-    { from: 'homeos/frontend/src/features/presence/model/composables/load-presence-home.ts', to: 'homeos/frontend/src/features/presence/composables/load-presence-home.ts' },
-    { from: 'homeos/frontend/src/features/presence/model/composables/use-presence-home.ts', to: 'homeos/frontend/src/features/presence/composables/use-presence-home.ts' },
-    { from: 'homeos/frontend/src/features/presence/model/composables/use-presence-person-list-input.ts', to: 'homeos/frontend/src/features/presence/composables/use-presence-person-list-input.ts' },
-    { from: 'homeos/frontend/src/features/presence/model/utils/entity-filter.ts', to: 'homeos/frontend/src/features/presence/utils/entity-filter.ts' },
-    { from: 'homeos/frontend/src/features/presence/model/utils/display.ts', to: 'homeos/frontend/src/features/presence/utils/display.ts' },
-    { from: 'homeos/frontend/src/features/presence/model/utils/person.ts', to: 'homeos/frontend/src/features/presence/utils/person.ts' },
-    { from: 'homeos/frontend/src/features/security/model/utils/panel-zones-bootstrap.ts', to: 'homeos/frontend/src/features/security/utils/panel-zones-bootstrap.ts' },
-    { from: 'homeos/frontend/src/features/security/model/utils/zones-api.ts', to: 'homeos/frontend/src/features/security/utils/zones-api.ts' },
-    { from: 'homeos/frontend/src/features/security/model/utils/panel-arm-result.ts', to: 'homeos/frontend/src/features/security/utils/panel-arm-result.ts' },
-    { from: 'homeos/frontend/src/features/security/model/utils/panel-layout.ts', to: 'homeos/frontend/src/features/security/utils/panel-layout.ts' },
-    { from: 'homeos/frontend/src/features/security/model/utils/panel-arm.ts', to: 'homeos/frontend/src/features/security/utils/panel-arm.ts' },
-    { from: 'homeos/frontend/src/features/settings/model/floorplan/utils/floating-hub-layout.ts', to: 'homeos/frontend/src/features/settings/floorplan/utils/floating-hub-layout.ts' },
+    {
+      from: 'homeos/frontend/src/features/earthquake/model/utils/history-analytics.ts',
+      to: 'homeos/frontend/src/features/earthquake/utils/history-analytics.ts',
+    },
+    {
+      from: 'homeos/frontend/src/features/events/model/utils/events-display.ts',
+      to: 'homeos/frontend/src/features/events/utils/events-display.ts',
+    },
+    {
+      from: 'homeos/frontend/src/features/events/model/utils/analytics.ts',
+      to: 'homeos/frontend/src/features/events/utils/analytics.ts',
+    },
+    {
+      from: 'homeos/frontend/src/features/home-mode/model/utils/mode-preset-meta.ts',
+      to: 'homeos/frontend/src/features/home-mode/utils/mode-preset-meta.ts',
+    },
+    {
+      from: 'homeos/frontend/src/features/home-mode/model/utils/mode-icon.ts',
+      to: 'homeos/frontend/src/features/home-mode/utils/mode-icon.ts',
+    },
+    {
+      from: 'homeos/frontend/src/features/notifications/model/utils/analytics.ts',
+      to: 'homeos/frontend/src/features/notifications/utils/analytics.ts',
+    },
+    {
+      from: 'homeos/frontend/src/features/presence/model/composables/load-presence-home.ts',
+      to: 'homeos/frontend/src/features/presence/composables/load-presence-home.ts',
+    },
+    {
+      from: 'homeos/frontend/src/features/presence/model/composables/use-presence-home.ts',
+      to: 'homeos/frontend/src/features/presence/composables/use-presence-home.ts',
+    },
+    {
+      from: 'homeos/frontend/src/features/presence/model/composables/use-presence-person-list-input.ts',
+      to: 'homeos/frontend/src/features/presence/composables/use-presence-person-list-input.ts',
+    },
+    {
+      from: 'homeos/frontend/src/features/presence/model/utils/entity-filter.ts',
+      to: 'homeos/frontend/src/features/presence/utils/entity-filter.ts',
+    },
+    {
+      from: 'homeos/frontend/src/features/presence/model/utils/display.ts',
+      to: 'homeos/frontend/src/features/presence/utils/display.ts',
+    },
+    {
+      from: 'homeos/frontend/src/features/presence/model/utils/person.ts',
+      to: 'homeos/frontend/src/features/presence/utils/person.ts',
+    },
+    {
+      from: 'homeos/frontend/src/features/security/model/utils/panel-zones-bootstrap.ts',
+      to: 'homeos/frontend/src/features/security/utils/panel-zones-bootstrap.ts',
+    },
+    {
+      from: 'homeos/frontend/src/features/security/model/utils/zones-api.ts',
+      to: 'homeos/frontend/src/features/security/utils/zones-api.ts',
+    },
+    {
+      from: 'homeos/frontend/src/features/security/model/utils/panel-arm-result.ts',
+      to: 'homeos/frontend/src/features/security/utils/panel-arm-result.ts',
+    },
+    {
+      from: 'homeos/frontend/src/features/security/model/utils/panel-layout.ts',
+      to: 'homeos/frontend/src/features/security/utils/panel-layout.ts',
+    },
+    {
+      from: 'homeos/frontend/src/features/security/model/utils/panel-arm.ts',
+      to: 'homeos/frontend/src/features/security/utils/panel-arm.ts',
+    },
+    {
+      from: 'homeos/frontend/src/features/settings/model/floorplan/utils/floating-hub-layout.ts',
+      to: 'homeos/frontend/src/features/settings/floorplan/utils/floating-hub-layout.ts',
+    },
     { from: 'homeos/frontend/src/features/voice/model/utils.ts', to: 'homeos/frontend/src/features/voice/utils.ts' },
-    { from: 'homeos/frontend/src/features/weather/model/utils.ts', to: 'homeos/frontend/src/features/weather/utils.ts' },
-    { from: 'homeos/frontend/src/features/weather/model/constants/weather-labels.ts', to: 'homeos/frontend/src/features/weather/constants/weather-labels.ts' },
+    {
+      from: 'homeos/frontend/src/features/weather/model/utils.ts',
+      to: 'homeos/frontend/src/features/weather/utils.ts',
+    },
+    {
+      from: 'homeos/frontend/src/features/weather/model/constants/weather-labels.ts',
+      to: 'homeos/frontend/src/features/weather/constants/weather-labels.ts',
+    },
   ],
   merges: [
     {
       into: 'homeos/frontend/src/features/home-mode/utils/index.ts',
       from: ['homeos/frontend/src/features/home-mode/model/index.ts'],
-      header: '/**\n * `features/home-mode/utils` 公开面：家居模式的纯函数（无 store / 无 Vue 依赖）。\n *\n * 原先挂在 `model/index.ts`，随 model 形态段一起压平。\n */',
+      header:
+        '/**\n * `features/home-mode/utils` 公开面：家居模式的纯函数（无 store / 无 Vue 依赖）。\n *\n * 原先挂在 `model/index.ts`，随 model 形态段一起压平。\n */',
     },
     {
       into: 'homeos/frontend/src/features/security/utils/index.ts',

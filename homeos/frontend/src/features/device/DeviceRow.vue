@@ -124,7 +124,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useEscLayer } from '@/kernel/ui/hooks/use-esc-stack'
+import { useEscLayer } from '@/kernel/ui/use-esc-stack'
 import {
   Power,
   CheckSquare,
@@ -143,11 +143,11 @@ import { useExclusiveDropdown } from '@/kernel/ui/popup/use-exclusive-dropdown'
 import { viewportPointToPopupAnchor } from '@/kernel/ui/popup/use-popup-position'
 import { useShellTeleportTarget } from '@/kernel/ui/shell/use-shell-teleport-target'
 import { getTeleportContainerSize } from '@/kernel/ui/popup/popup-position-shared'
-import type { DeviceListItem } from '@/kernel/types/device'
+import type { DeviceListItem } from '@/kernel/device'
 import { copyTextWithNotify } from '@/kernel/ui/notify'
 import { getDomainLabel } from '@/features/device/utils'
-import { displayEntityStateLabel } from '@/kernel/constants/index'
-import { entityPopupOpensOnClick } from '@/domain/entity/utils/popup-registry'
+import { displayEntityStateLabel } from '@/kernel/index'
+import { entityPopupOpensOnClick } from '@/domain/entity/popup-registry'
 
 // 当前设备项与是否被选中。
 const props = defineProps<{

@@ -18,49 +18,19 @@
  * 3. **失败不静默**：每个错误都带回可展示文案（优先用后端 `message`）。
  */
 
-/** 后端列表里的一条模型记录。 */
-export type DecorationModel = {
-  assetId: string
-  name: string
-  bytes: number
-  createdAt: number
-  builtin: boolean
-}
-
 /**
- * 单模型的六项结构限制（0.8.9 上游 `uploadLimits`）。
- *
- * 字段名与上游一致，改名前先确认前端文案与后端 `model_glb` 的常量仍能对上：
- * 这三处显示的数值必须是**同一个**，否则用户会看到「说好 6 万面，5 万面却被拒」。
- * 任一项为 0 表示服务端未声明（该行文案不显示）。
+ * 装饰模型库的合约类型与路径真源在 `@/domain/api/studio`（domain 不得反向依赖 studio）。
+ * 这里再导出，既有 `from '../items/studio-user-decorations'` 的引用无需改动。
  */
-export type DecorationUploadLimits = {
-  /** 三角面上限。 */
-  triangles: number
-  /** 网格部件（图元）上限。 */
-  meshParts: number
-  /** 节点（含分组）上限。 */
-  nodes: number
-  /** 贴图张数上限。 */
-  images: number
-  /** 单张贴图长边（像素）上限。 */
-  imageSide: number
-  /** 全部贴图的合计像素上限。 */
-  imagePixels: number
-}
+import {
+  DECORATION_MODELS_PATH,
+  type DecorationLibraryState,
+  type DecorationModel,
+  type DecorationUploadLimits,
+} from '@/domain/api/studio'
 
-/** 列表 + 上限。 */
-export type DecorationLibraryState = {
-  models: DecorationModel[]
-  totalBytes: number
-  /** 库总量上限（字节）。 */
-  maxBytes: number
-  /** 库内条目数上限。 */
-  maxModels: number
-  /** 单个文件上限（0.8.9 `maxUploadBytes`；缺省回落 `maxBytes`）。 */
-  maxUploadBytes: number
-  uploadLimits: DecorationUploadLimits
-}
+export type { DecorationLibraryState, DecorationModel, DecorationUploadLimits }
+export { DECORATION_MODELS_PATH }
 
 /** 全零的 `uploadLimits`（服务端未声明时使用）。 */
 export const EMPTY_UPLOAD_LIMITS: DecorationUploadLimits = Object.freeze({
@@ -94,14 +64,6 @@ export function normalizeDecorationAssetId(raw: unknown): string {
 
 /** 展示名上限（与后端 `NAME_LIMIT` 同口径）。 */
 export const DECORATION_NAME_LIMIT = 64
-
-/**
- * 模型接口的基础路径（**相对 `client.ts` 的 `baseURL`**，即不含 `/api/v1`）。
- *
- * 写成绝对路径会让 axios 拼成 `/api/v1/api/v1/...` → 404，症状是面板上出现
- * 「请求的资源不存在」而接口本身是好的。
- */
-export const DECORATION_MODELS_PATH = '/studio3d/models'
 
 /** 字节数的可读表示（上游文案里要带原始大小）。 */
 function formatBytes(value: number): string {

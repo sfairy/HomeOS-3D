@@ -6,14 +6,28 @@
 import { type StudioAppRuntime } from '../runtime/studio-app-runtime'
 import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
 import { RoundedBoxGeometry as RoundedBoxGeometry2 } from '/static/vendor/three/0.187.0/RoundedBoxGeometry.js'
-import { clamp as clamp2, polygonArea as polygonArea2, subtractPolygonLoops as subtractPolygonLoops2 } from '../plan/geometry'
-import { type ArchitectureMeshOptions, type PlanEditPreviewFlags } from '../types/studio-app-types'
+import {
+  clamp as clamp2,
+  polygonArea as polygonArea2,
+  subtractPolygonLoops as subtractPolygonLoops2,
+} from '../plan/geometry'
+import { type ArchitectureMeshOptions, type PlanEditPreviewFlags } from '../studio-app-types'
 import { collectChildMeshes } from '../items/studio-furniture-batching'
 import { buildMaterialSignature, collectSharedMeshRecords } from '../items/studio-shared-mesh-records'
-import { addArchitectureMesh as addArchitectureMeshCore, addWindowFrames as addWindowFramesCore } from '../scene/studio-box-mesh'
+import {
+  addArchitectureMesh as addArchitectureMeshCore,
+  addWindowFrames as addWindowFramesCore,
+} from '../scene/studio-box-mesh'
 import { buildItemModel as buildItemModelCore } from '../items/studio-item-model'
 import { drawDoor as drawDoorCore, drawCourtyardArea as drawCourtyardAreaCore } from '../plan/studio-plan-item-drawing'
-import { createOutlinePath as createOutlinePathCore, buildShapesWithHoles as buildShapesWithHolesCore, createSceneWallSideMaterial as createWallSideMaterialCore, createWallTopMaterial as createWallTopMaterialCore, expandPolygonOutward as expandPolygonOutwardCore, buildInteriorScene as buildInteriorSceneCore } from '../scene/walls'
+import {
+  createOutlinePath as createOutlinePathCore,
+  buildShapesWithHoles as buildShapesWithHolesCore,
+  createSceneWallSideMaterial as createWallSideMaterialCore,
+  createWallTopMaterial as createWallTopMaterialCore,
+  expandPolygonOutward as expandPolygonOutwardCore,
+  buildInteriorScene as buildInteriorSceneCore,
+} from '../scene/walls'
 import { wallUnionFallbackCount } from '../plan/studio-wall'
 import { finite as finite2, isCourtyardDrawing as isCourtyardDrawing2 } from '../loaders/studio-normalization'
 import { mergeStaticItemMeshesCore } from '../items/studio-static-item-meshes'
@@ -33,7 +47,12 @@ import { applyItemOrientation } from '../geometry'
 import { isWarmSceneStyle } from '../../app/shared/scene-styles'
 import { MATERIAL_STYLE_AUTO, materialStylePaletteColors, normalizeMaterialStyle } from '../materials/studio-material'
 import { userDecorationModelDefinition } from '../loaders/external-models/user-decoration-models'
-import { RENDER_CACHE_VERSION as RENDER_CACHE_VERSION2, cacheSceneDescriptor as cacheSceneDescriptor2, sha256 as sha2562, stableCacheJSON as stableCacheJSON2 } from '../../app/bridge/scene/index'
+import {
+  RENDER_CACHE_VERSION as RENDER_CACHE_VERSION2,
+  cacheSceneDescriptor as cacheSceneDescriptor2,
+  sha256 as sha2562,
+  stableCacheJSON as stableCacheJSON2,
+} from '../../app/bridge/scene/index'
 import { ALL_ITEM_MODELS as ALL_ITEM_MODELS2 } from '../loaders/studio-external-models'
 import { normalizePillarShape as normalizePillarShape2 } from '../items/studio-item-posture'
 import { STORAGE_SECTION_TYPES, storageSectionModelType } from '../items/studio-storage-sections'
@@ -44,7 +63,6 @@ import { floorOpeningPolygon as floorOpeningPolygon2 } from '../plan/studio-floo
 import { mergeWallBands as mergeWallBands2 } from '../materials/studio-wall'
 import { createGroundGrid } from '../geometry'
 import { type StudioAppContext } from '../app-context'
-
 
 export function disposeObjectTree(runtime: StudioAppRuntime, disposedRoot: any) {
   const geometrySet = new Set(),
@@ -313,7 +331,6 @@ export function configureLightSourcePreview(_runtime: StudioAppRuntime, previewS
   )
 }
 
-
 export function countMaterialTextures(_runtime: StudioAppRuntime, countedMaterial: any) {
   if (!countedMaterial || countedMaterial.isMeshBasicMaterial || countedMaterial.isShadowMaterial) return 0
   let textureCount = Object.values(countedMaterial).filter(
@@ -540,7 +557,6 @@ export function updateExternalModelDataset(runtime: StudioAppRuntime) {
       runtime.appCtx.lightPrecompilePassCount,
     ))
 }
-
 
 export function previewTransformContext(runtime: StudioAppRuntime) {
   const previewTransformOrigin =
@@ -775,7 +791,6 @@ export function buildItemsLayer(runtime: StudioAppRuntime, itemsLayerOptions: Re
 export function buildLightsLayer(runtime: StudioAppRuntime, lightsLayerOptions: Record<string, any> = {}) {
   runtime.buildLayerGroup('lights', lightsLayerOptions)
 }
-
 
 export function sceneCacheDescriptor(runtime: StudioAppRuntime, descriptorWidth: any, descriptorHeight: any) {
   const floors =
@@ -1231,16 +1246,6 @@ export function getLocalSaveRevision(runtime: StudioAppRuntime) {
     runtimeSnapshot
   )
 }
-
-
-
-
-
-
-
-
-
-
 
 export interface BuildStudioSceneDeps {
   appCtx: StudioAppContext

@@ -6,8 +6,8 @@
  */
 import { box, cyl } from '../mesh-shorthand'
 
-import * as ns2 from "/static/vendor/three/0.187.0/three.module.min.js";
-import type { ItemModelScope } from "./types";
+import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
+import type { ItemModelScope } from './types'
 
 export function buildStorageLower(scope: ItemModelScope): boolean {
   const {
@@ -21,49 +21,69 @@ export function buildStorageLower(scope: ItemModelScope): boolean {
     furnitureSoft,
     furnitureLight,
     furnitureDark,
-  } = scope;
+  } = scope
 
-  if (modelItem.type === "sideboard") {
+  if (modelItem.type === 'sideboard') {
     const sideboardNominalHeight = Math.max(height6, 1.8),
       sideboardLowerBlockHeight = sideboardNominalHeight * 0.39,
       sideboardNicheHeight = sideboardNominalHeight * 0.22,
-      sideboardNicheTop =
-        sideboardLowerBlockHeight + sideboardNicheHeight,
-      sideboardUpperBlockHeight =
-        sideboardNominalHeight - sideboardNicheTop,
+      sideboardNicheTop = sideboardLowerBlockHeight + sideboardNicheHeight,
+      sideboardUpperBlockHeight = sideboardNominalHeight - sideboardNicheTop,
       sideboardDoorFrontColor = furnitureSoft,
       sideboardDoorPanelWidth = width6 * 0.31,
       sideboardLowerDoorHeight = sideboardLowerBlockHeight * 0.88,
       sideboardUpperDoorHeight = sideboardUpperBlockHeight * 0.86,
       sideboardCounterThickness = 0.045,
-      sideboardCounterBottom =
-        sideboardLowerBlockHeight - sideboardCounterThickness * 0.5,
-      sideboardCounterTop =
-        sideboardLowerBlockHeight + sideboardCounterThickness * 0.5;
-    (box(itemModelNode, [width6, sideboardCounterBottom, depth], [0, sideboardCounterBottom * 0.5, 0], furniture, {
-        roughness: 0.58,
-      }),
+      sideboardCounterBottom = sideboardLowerBlockHeight - sideboardCounterThickness * 0.5,
+      sideboardCounterTop = sideboardLowerBlockHeight + sideboardCounterThickness * 0.5
+    box(itemModelNode, [width6, sideboardCounterBottom, depth], [0, sideboardCounterBottom * 0.5, 0], furniture, {
+      roughness: 0.58,
+    }),
       box(itemModelNode, [width6, 0.045, depth], [0, sideboardLowerBlockHeight, 0], furnitureSoft, {
-          roughness: 0.5,
-        }),
-      box(itemModelNode, [width6, sideboardNicheTop - sideboardCounterTop, 0.045], [0, (sideboardCounterTop + sideboardNicheTop) * 0.5, -depth * 0.46], furniture, {
+        roughness: 0.5,
+      }),
+      box(
+        itemModelNode,
+        [width6, sideboardNicheTop - sideboardCounterTop, 0.045],
+        [0, (sideboardCounterTop + sideboardNicheTop) * 0.5, -depth * 0.46],
+        furniture,
+        {
           rounded: false,
           roughness: 0.62,
-        }),
-      box(itemModelNode, [width6, sideboardUpperBlockHeight, depth], [0, sideboardNicheTop + sideboardUpperBlockHeight * 0.5, 0], furniture, {
+        },
+      ),
+      box(
+        itemModelNode,
+        [width6, sideboardUpperBlockHeight, depth],
+        [0, sideboardNicheTop + sideboardUpperBlockHeight * 0.5, 0],
+        furniture,
+        {
           roughness: 0.58,
-        }));
+        },
+      )
     for (const sideboardDoorOffset of [-0.33, 0, 0.33])
-      (box(itemModelNode, [sideboardDoorPanelWidth, sideboardLowerDoorHeight, 0.026], [width6 * sideboardDoorOffset, sideboardLowerBlockHeight * 0.48, depth * 0.515], sideboardDoorFrontColor, {
+      box(
+        itemModelNode,
+        [sideboardDoorPanelWidth, sideboardLowerDoorHeight, 0.026],
+        [width6 * sideboardDoorOffset, sideboardLowerBlockHeight * 0.48, depth * 0.515],
+        sideboardDoorFrontColor,
+        {
           rounded: false,
           roughness: 0.45,
-        }),
-        box(itemModelNode, [sideboardDoorPanelWidth, sideboardUpperDoorHeight, 0.026], [width6 * sideboardDoorOffset, sideboardNicheTop + sideboardUpperBlockHeight * 0.5, depth * 0.515], sideboardDoorFrontColor, {
+        },
+      ),
+        box(
+          itemModelNode,
+          [sideboardDoorPanelWidth, sideboardUpperDoorHeight, 0.026],
+          [width6 * sideboardDoorOffset, sideboardNicheTop + sideboardUpperBlockHeight * 0.5, depth * 0.515],
+          sideboardDoorFrontColor,
+          {
             rounded: false,
             roughness: 0.45,
-          }));
-    return true;
-  } else if (modelItem.type === "shoecabinet") {
+          },
+        )
+    return true
+  } else if (modelItem.type === 'shoecabinet') {
     const shoecabinetNominalHeight = Math.max(height6, 1.9),
       shoecabinetBoardColor = furnitureSoft,
       shoecabinetTopColor = furnitureSoft,
@@ -71,106 +91,140 @@ export function buildStorageLower(scope: ItemModelScope): boolean {
       shoecabinetRightColumnWidth = width6 * 0.5,
       shoecabinetLeftColumnX = -width6 * 0.25,
       shoecabinetRightColumnX = width6 * 0.25,
-      shoecabinetBenchBlockHeight =
-        shoecabinetNominalHeight * 0.22,
-      shoecabinetUpperBlockHeight =
-        shoecabinetNominalHeight * 0.43,
+      shoecabinetBenchBlockHeight = shoecabinetNominalHeight * 0.22,
+      shoecabinetUpperBlockHeight = shoecabinetNominalHeight * 0.43,
       shoecabinetMidBlockHeight = shoecabinetNominalHeight * 0.21,
-      shoecabinetTopBlockHeight = shoecabinetNominalHeight * 0.37;
-    (box(itemModelNode, [width6 * 0.98, shoecabinetNominalHeight * 0.93, 0.045], [0, shoecabinetNominalHeight * 0.48, -depth * 0.47], furniture, {
+      shoecabinetTopBlockHeight = shoecabinetNominalHeight * 0.37
+    box(
+      itemModelNode,
+      [width6 * 0.98, shoecabinetNominalHeight * 0.93, 0.045],
+      [0, shoecabinetNominalHeight * 0.48, -depth * 0.47],
+      furniture,
+      {
         rounded: false,
         roughness: 0.62,
-      }),
-      box(itemModelNode, [shoecabinetLeftColumnWidth, shoecabinetBenchBlockHeight * 0.56, depth * 0.92], [shoecabinetLeftColumnX, shoecabinetBenchBlockHeight * 0.35, 0], furniture, {
+      },
+    ),
+      box(
+        itemModelNode,
+        [shoecabinetLeftColumnWidth, shoecabinetBenchBlockHeight * 0.56, depth * 0.92],
+        [shoecabinetLeftColumnX, shoecabinetBenchBlockHeight * 0.35, 0],
+        furniture,
+        {
           roughness: 0.56,
-        }),
-      box(itemModelNode, [shoecabinetLeftColumnWidth * 1.02, 0.055, depth * 1.04], [shoecabinetLeftColumnX, shoecabinetBenchBlockHeight * 0.67, 0], shoecabinetTopColor, {
+        },
+      ),
+      box(
+        itemModelNode,
+        [shoecabinetLeftColumnWidth * 1.02, 0.055, depth * 1.04],
+        [shoecabinetLeftColumnX, shoecabinetBenchBlockHeight * 0.67, 0],
+        shoecabinetTopColor,
+        {
           roughness: 0.5,
-        }),
-      box(itemModelNode, [shoecabinetRightColumnWidth, shoecabinetUpperBlockHeight, depth], [shoecabinetRightColumnX, shoecabinetUpperBlockHeight * 0.5, 0], furniture, {
+        },
+      ),
+      box(
+        itemModelNode,
+        [shoecabinetRightColumnWidth, shoecabinetUpperBlockHeight, depth],
+        [shoecabinetRightColumnX, shoecabinetUpperBlockHeight * 0.5, 0],
+        furniture,
+        {
           roughness: 0.58,
-        }));
+        },
+      )
     for (const shoecabinetBenchHandleOffset of [-0.245, 0.245])
-      box(itemModelNode, [shoecabinetRightColumnWidth * 0.47, shoecabinetUpperBlockHeight * 0.84, 0.026], [shoecabinetRightColumnX +
-          shoecabinetRightColumnWidth *
-            shoecabinetBenchHandleOffset, shoecabinetUpperBlockHeight * 0.48, depth * 0.515], shoecabinetBoardColor, {
+      box(
+        itemModelNode,
+        [shoecabinetRightColumnWidth * 0.47, shoecabinetUpperBlockHeight * 0.84, 0.026],
+        [
+          shoecabinetRightColumnX + shoecabinetRightColumnWidth * shoecabinetBenchHandleOffset,
+          shoecabinetUpperBlockHeight * 0.48,
+          depth * 0.515,
+        ],
+        shoecabinetBoardColor,
+        {
           rounded: false,
           roughness: 0.45,
-        });
-    const shoecabinetMidBlockY =
-      shoecabinetNominalHeight -
-      shoecabinetMidBlockHeight -
-      0.045;
-    box(itemModelNode, [shoecabinetLeftColumnWidth, shoecabinetMidBlockHeight, depth], [shoecabinetLeftColumnX, shoecabinetMidBlockY + shoecabinetMidBlockHeight * 0.5, 0], furniture, {
+        },
+      )
+    const shoecabinetMidBlockY = shoecabinetNominalHeight - shoecabinetMidBlockHeight - 0.045
+    box(
+      itemModelNode,
+      [shoecabinetLeftColumnWidth, shoecabinetMidBlockHeight, depth],
+      [shoecabinetLeftColumnX, shoecabinetMidBlockY + shoecabinetMidBlockHeight * 0.5, 0],
+      furniture,
+      {
         roughness: 0.58,
-      });
+      },
+    )
     for (const shoecabinetMidHandleOffset of [-0.245, 0.245])
-      box(itemModelNode, [shoecabinetLeftColumnWidth * 0.47, shoecabinetMidBlockHeight * 0.86, 0.026], [shoecabinetLeftColumnX +
-          shoecabinetLeftColumnWidth * shoecabinetMidHandleOffset, shoecabinetMidBlockY + shoecabinetMidBlockHeight * 0.5, depth * 0.515], shoecabinetBoardColor, {
+      box(
+        itemModelNode,
+        [shoecabinetLeftColumnWidth * 0.47, shoecabinetMidBlockHeight * 0.86, 0.026],
+        [
+          shoecabinetLeftColumnX + shoecabinetLeftColumnWidth * shoecabinetMidHandleOffset,
+          shoecabinetMidBlockY + shoecabinetMidBlockHeight * 0.5,
+          depth * 0.515,
+        ],
+        shoecabinetBoardColor,
+        {
           rounded: false,
           roughness: 0.45,
-        });
-    const shoecabinetTopBlockY =
-      shoecabinetNominalHeight -
-      shoecabinetTopBlockHeight -
-      0.045;
-    box(itemModelNode, [shoecabinetRightColumnWidth, shoecabinetTopBlockHeight, depth], [shoecabinetRightColumnX, shoecabinetTopBlockY + shoecabinetTopBlockHeight * 0.5, 0], furniture, {
+        },
+      )
+    const shoecabinetTopBlockY = shoecabinetNominalHeight - shoecabinetTopBlockHeight - 0.045
+    box(
+      itemModelNode,
+      [shoecabinetRightColumnWidth, shoecabinetTopBlockHeight, depth],
+      [shoecabinetRightColumnX, shoecabinetTopBlockY + shoecabinetTopBlockHeight * 0.5, 0],
+      furniture,
+      {
         roughness: 0.58,
-      });
+      },
+    )
     for (const shoecabinetTopHandleOffset of [-0.245, 0.245])
-      box(itemModelNode, [shoecabinetRightColumnWidth * 0.47, shoecabinetTopBlockHeight * 0.9, 0.026], [shoecabinetRightColumnX +
-          shoecabinetRightColumnWidth *
-            shoecabinetTopHandleOffset, shoecabinetTopBlockY + shoecabinetTopBlockHeight * 0.5, depth * 0.515], shoecabinetBoardColor, {
+      box(
+        itemModelNode,
+        [shoecabinetRightColumnWidth * 0.47, shoecabinetTopBlockHeight * 0.9, 0.026],
+        [
+          shoecabinetRightColumnX + shoecabinetRightColumnWidth * shoecabinetTopHandleOffset,
+          shoecabinetTopBlockY + shoecabinetTopBlockHeight * 0.5,
+          depth * 0.515,
+        ],
+        shoecabinetBoardColor,
+        {
           rounded: false,
           roughness: 0.45,
-        });
-    return true;
-  } else if (modelItem.type === "cabinet") {
-    (box(itemModelNode, [width6, height6, depth], [0, height6 / 2, 0], furniture),
+        },
+      )
+    return true
+  } else if (modelItem.type === 'cabinet') {
+    box(itemModelNode, [width6, height6, depth], [0, height6 / 2, 0], furniture),
       box(itemModelNode, [0.018, height6 * 0.9, depth * 1.01], [0, height6 * 0.52, depth * 0.01], furnitureDark),
       box(itemModelNode, [0.025, 0.16, 0.035], [-0.08, height6 * 0.55, depth * 0.515], furnitureLight, {
-          metalness: 0.55,
-        }),
+        metalness: 0.55,
+      }),
       box(itemModelNode, [0.025, 0.16, 0.035], [0.08, height6 * 0.55, depth * 0.515], furnitureLight, {
-          metalness: 0.55,
-        }));
-    return true;
-  } else if (modelItem.type === "glasscabinet") {
-    const glasscabinetFrameThickness = Math.min(
-        Math.max(Math.min(width6, depth) * 0.1, 0.032),
-        0.058,
-      ),
-      glasscabinetBackThickness = Math.min(
-        Math.max(depth * 0.075, 0.018),
-        0.032,
-      ),
-      glasscabinetMullionWidth = Math.min(
-        Math.max(width6 * 0.014, 0.016),
-        0.03,
-      ),
-      glasscabinetInnerWidth = Math.max(
-        width6 - glasscabinetFrameThickness * 2,
-        width6 * 0.7,
-      ),
+        metalness: 0.55,
+      })
+    return true
+  } else if (modelItem.type === 'glasscabinet') {
+    const glasscabinetFrameThickness = Math.min(Math.max(Math.min(width6, depth) * 0.1, 0.032), 0.058),
+      glasscabinetBackThickness = Math.min(Math.max(depth * 0.075, 0.018), 0.032),
+      glasscabinetMullionWidth = Math.min(Math.max(width6 * 0.014, 0.016), 0.03),
+      glasscabinetInnerWidth = Math.max(width6 - glasscabinetFrameThickness * 2, width6 * 0.7),
       glasscabinetLowerRatio = 0.13,
       glasscabinetTowerRatio = 0.3,
       glasscabinetShelfCount = 4,
-      glasscabinetLowerShelfY =
-        height6 * glasscabinetLowerRatio,
-      glasscabinetTowerBaseY =
-        height6 * glasscabinetTowerRatio,
-      glasscabinetTowerHeight =
-        height6 -
-        glasscabinetFrameThickness -
-        glasscabinetTowerBaseY,
-      glasscabinetShelfSpacing =
-        glasscabinetTowerHeight / glasscabinetShelfCount,
+      glasscabinetLowerShelfY = height6 * glasscabinetLowerRatio,
+      glasscabinetTowerBaseY = height6 * glasscabinetTowerRatio,
+      glasscabinetTowerHeight = height6 - glasscabinetFrameThickness - glasscabinetTowerBaseY,
+      glasscabinetShelfSpacing = glasscabinetTowerHeight / glasscabinetShelfCount,
       glasscabinetColumnRatios = [0.56, 0.24, 0.2],
       glasscabinetColumnOffsets = [
         0,
         glasscabinetColumnRatios[0],
-        glasscabinetColumnRatios[0] +
-          glasscabinetColumnRatios[1],
+        glasscabinetColumnRatios[0] + glasscabinetColumnRatios[1],
       ],
       slice = glasscabinetColumnOffsets.slice(1),
       glasscabinetDoorGap = Math.max(width6 * 0.005, 0.005),
@@ -207,119 +261,176 @@ export function buildStorageLower(scope: ItemModelScope): boolean {
         castShadow: false,
         receiveShadow: false,
         renderOrder: 8,
-      };
-    (box(itemModelNode, [glasscabinetFrameThickness, height6, depth], [-width6 * 0.5 + glasscabinetFrameThickness * 0.5, height6 * 0.5, 0], furniture, glasscabinetFrameOptions),
-      box(itemModelNode, [glasscabinetFrameThickness, height6, depth], [width6 * 0.5 - glasscabinetFrameThickness * 0.5, height6 * 0.5, 0], furniture, glasscabinetFrameOptions),
-      box(itemModelNode, [width6, height6, glasscabinetBackThickness + 0.004], [0, height6 * 0.5, -depth * 0.5 +
-          glasscabinetBackThickness * 0.5 -
-          0.002], furniture, glasscabinetFrameOptions),
-      box(itemModelNode, [width6, glasscabinetFrameThickness, depth], [0, height6 - glasscabinetFrameThickness * 0.5, 0], furniture, glasscabinetFrameOptions));
-    for (
-      let glasscabinetShelfIndex = 0;
-      glasscabinetShelfIndex < glasscabinetShelfCount;
-      glasscabinetShelfIndex += 1
+      }
+    box(
+      itemModelNode,
+      [glasscabinetFrameThickness, height6, depth],
+      [-width6 * 0.5 + glasscabinetFrameThickness * 0.5, height6 * 0.5, 0],
+      furniture,
+      glasscabinetFrameOptions,
+    ),
+      box(
+        itemModelNode,
+        [glasscabinetFrameThickness, height6, depth],
+        [width6 * 0.5 - glasscabinetFrameThickness * 0.5, height6 * 0.5, 0],
+        furniture,
+        glasscabinetFrameOptions,
+      ),
+      box(
+        itemModelNode,
+        [width6, height6, glasscabinetBackThickness + 0.004],
+        [0, height6 * 0.5, -depth * 0.5 + glasscabinetBackThickness * 0.5 - 0.002],
+        furniture,
+        glasscabinetFrameOptions,
+      ),
+      box(
+        itemModelNode,
+        [width6, glasscabinetFrameThickness, depth],
+        [0, height6 - glasscabinetFrameThickness * 0.5, 0],
+        furniture,
+        glasscabinetFrameOptions,
+      )
+    for (let glasscabinetShelfIndex = 0; glasscabinetShelfIndex < glasscabinetShelfCount; glasscabinetShelfIndex += 1)
+      box(
+        itemModelNode,
+        [glasscabinetInnerWidth, glasscabinetFrameThickness * 0.72, depth * 0.9],
+        [0, glasscabinetTowerBaseY + glasscabinetShelfSpacing * glasscabinetShelfIndex, -depth * 0.025],
+        furnitureSoft,
+        glasscabinetFrameOptions,
+      )
+    box(
+      itemModelNode,
+      [glasscabinetInnerWidth, glasscabinetFrameThickness * 0.72, depth * 0.9],
+      [0, glasscabinetLowerShelfY, -depth * 0.025],
+      furnitureSoft,
+      glasscabinetFrameOptions,
     )
-      box(itemModelNode, [glasscabinetInnerWidth, glasscabinetFrameThickness * 0.72, depth * 0.9], [0, glasscabinetTowerBaseY +
-          glasscabinetShelfSpacing * glasscabinetShelfIndex, -depth * 0.025], furnitureSoft, glasscabinetFrameOptions);
-    box(itemModelNode, [glasscabinetInnerWidth, glasscabinetFrameThickness * 0.72, depth * 0.9], [0, glasscabinetLowerShelfY, -depth * 0.025], furnitureSoft, glasscabinetFrameOptions);
     for (const glasscabinetDividerRatio of slice) {
-      const glasscabinetDividerX =
-        -glasscabinetInnerWidth * 0.5 +
-        glasscabinetInnerWidth * glasscabinetDividerRatio;
-      box(itemModelNode, [glasscabinetFrameThickness * 0.72, height6 - glasscabinetFrameThickness, depth * 0.9], [glasscabinetDividerX, (height6 - glasscabinetFrameThickness) * 0.5, -depth * 0.025], furniture, glasscabinetFrameOptions);
+      const glasscabinetDividerX = -glasscabinetInnerWidth * 0.5 + glasscabinetInnerWidth * glasscabinetDividerRatio
+      box(
+        itemModelNode,
+        [glasscabinetFrameThickness * 0.72, height6 - glasscabinetFrameThickness, depth * 0.9],
+        [glasscabinetDividerX, (height6 - glasscabinetFrameThickness) * 0.5, -depth * 0.025],
+        furniture,
+        glasscabinetFrameOptions,
+      )
     }
     const glasscabinetTowerGlassHeight =
-        glasscabinetTowerBaseY -
-        glasscabinetLowerShelfY -
-        glasscabinetFrameThickness * 0.9,
+        glasscabinetTowerBaseY - glasscabinetLowerShelfY - glasscabinetFrameThickness * 0.9,
       glasscabinetDoorWidths = [
         glasscabinetInnerWidth * glasscabinetColumnRatios[0],
-        glasscabinetInnerWidth *
-          (1 - glasscabinetColumnRatios[0]),
-      ];
-    let glasscabinetDoorCursor =
-      -glasscabinetInnerWidth * 0.5;
+        glasscabinetInnerWidth * (1 - glasscabinetColumnRatios[0]),
+      ]
+    let glasscabinetDoorCursor = -glasscabinetInnerWidth * 0.5
     for (
       let glasscabinetDoorIndex = 0;
       glasscabinetDoorIndex < glasscabinetDoorWidths.length;
       glasscabinetDoorIndex += 1
     ) {
-      const glasscabinetDoorWidth =
-          glasscabinetDoorWidths[glasscabinetDoorIndex] -
-          glasscabinetDoorGap,
-        glasscabinetDoorX =
-          glasscabinetDoorCursor +
-          glasscabinetDoorWidths[glasscabinetDoorIndex] * 0.5;
-      (box(itemModelNode, [glasscabinetDoorWidth, glasscabinetTowerGlassHeight, 0.03], [glasscabinetDoorX, glasscabinetLowerShelfY +
-          (glasscabinetTowerBaseY - glasscabinetLowerShelfY) *
-            0.5, glasscabinetFrontZ], glasscabinetDoorIndex ? furnitureSoft : furniture, {
+      const glasscabinetDoorWidth = glasscabinetDoorWidths[glasscabinetDoorIndex] - glasscabinetDoorGap,
+        glasscabinetDoorX = glasscabinetDoorCursor + glasscabinetDoorWidths[glasscabinetDoorIndex] * 0.5
+      box(
+        itemModelNode,
+        [glasscabinetDoorWidth, glasscabinetTowerGlassHeight, 0.03],
+        [
+          glasscabinetDoorX,
+          glasscabinetLowerShelfY + (glasscabinetTowerBaseY - glasscabinetLowerShelfY) * 0.5,
+          glasscabinetFrontZ,
+        ],
+        glasscabinetDoorIndex ? furnitureSoft : furniture,
+        {
           ...glasscabinetShelfOptions,
           roughness: 0.56,
-        }),
-        (glasscabinetDoorCursor +=
-          glasscabinetDoorWidths[glasscabinetDoorIndex]));
+        },
+      ),
+        (glasscabinetDoorCursor += glasscabinetDoorWidths[glasscabinetDoorIndex])
     }
     for (
       let glasscabinetColumnIndex = 0;
-      glasscabinetColumnIndex <
-      glasscabinetColumnRatios.length;
+      glasscabinetColumnIndex < glasscabinetColumnRatios.length;
       glasscabinetColumnIndex += 1
     ) {
       const glasscabinetColumnX =
-          -glasscabinetInnerWidth * 0.5 +
-          glasscabinetInnerWidth *
-            glasscabinetColumnOffsets[
-              glasscabinetColumnIndex
-            ],
-        glasscabinetColumnWidth =
-          glasscabinetInnerWidth *
-          glasscabinetColumnRatios[glasscabinetColumnIndex],
-        glasscabinetColumnCenterX =
-          glasscabinetColumnX + glasscabinetColumnWidth * 0.5,
+          -glasscabinetInnerWidth * 0.5 + glasscabinetInnerWidth * glasscabinetColumnOffsets[glasscabinetColumnIndex],
+        glasscabinetColumnWidth = glasscabinetInnerWidth * glasscabinetColumnRatios[glasscabinetColumnIndex],
+        glasscabinetColumnCenterX = glasscabinetColumnX + glasscabinetColumnWidth * 0.5,
         glasscabinetWindowWidth = Math.max(
-          glasscabinetColumnWidth -
-            glasscabinetMullionWidth * 1.65,
+          glasscabinetColumnWidth - glasscabinetMullionWidth * 1.65,
           glasscabinetColumnWidth * 0.76,
         ),
         glasscabinetWindowHeight = Math.max(
-          glasscabinetTowerHeight -
-            glasscabinetMullionWidth * 1.55,
+          glasscabinetTowerHeight - glasscabinetMullionWidth * 1.55,
           glasscabinetTowerHeight * 0.86,
-        );
-      (box(itemModelNode, [glasscabinetWindowWidth, glasscabinetWindowHeight, 0.018], [glasscabinetColumnCenterX, glasscabinetTowerBaseY +
-          glasscabinetTowerHeight * 0.5, glasscabinetFrontZ], yt4.glass, glasscabinetGlassOptions),
-        box(itemModelNode, [glasscabinetMullionWidth, glasscabinetTowerHeight, 0.032], [glasscabinetColumnX +
-            glasscabinetMullionWidth * 0.5, glasscabinetTowerBaseY +
-            glasscabinetTowerHeight * 0.5, glasscabinetFrontZ + 0.009], furniture, glasscabinetShelfOptions),
-        glasscabinetColumnIndex ===
-          glasscabinetColumnRatios.length - 1 &&
-          box(itemModelNode, [glasscabinetMullionWidth, glasscabinetTowerHeight, 0.032], [glasscabinetColumnX +
-              glasscabinetColumnWidth -
-              glasscabinetMullionWidth * 0.5, glasscabinetTowerBaseY +
-              glasscabinetTowerHeight * 0.5, glasscabinetFrontZ + 0.009], furniture, glasscabinetShelfOptions));
-      const glasscabinetHandleWidth = Math.max(
-        glasscabinetWindowWidth * 0.025,
-        0.007,
-      );
-      (box(itemModelNode, [glasscabinetHandleWidth, glasscabinetWindowHeight * 0.88, 0.006], [glasscabinetColumnCenterX -
-          glasscabinetWindowWidth * 0.37, glasscabinetTowerBaseY +
-          glasscabinetTowerHeight * 0.52, glasscabinetFrontZ + 0.014], 14282227, glasscabinetHighlightOptions),
-        box(itemModelNode, [glasscabinetWindowWidth * 0.34, Math.max(glasscabinetMullionWidth * 0.11, 0.004), 0.006], [glasscabinetColumnCenterX -
-            glasscabinetWindowWidth * 0.18, glasscabinetTowerBaseY +
-            glasscabinetTowerHeight * 0.88, glasscabinetFrontZ + 0.014], 15267578, glasscabinetHighlightOptions));
+        )
+      box(
+        itemModelNode,
+        [glasscabinetWindowWidth, glasscabinetWindowHeight, 0.018],
+        [glasscabinetColumnCenterX, glasscabinetTowerBaseY + glasscabinetTowerHeight * 0.5, glasscabinetFrontZ],
+        yt4.glass,
+        glasscabinetGlassOptions,
+      ),
+        box(
+          itemModelNode,
+          [glasscabinetMullionWidth, glasscabinetTowerHeight, 0.032],
+          [
+            glasscabinetColumnX + glasscabinetMullionWidth * 0.5,
+            glasscabinetTowerBaseY + glasscabinetTowerHeight * 0.5,
+            glasscabinetFrontZ + 0.009,
+          ],
+          furniture,
+          glasscabinetShelfOptions,
+        ),
+        glasscabinetColumnIndex === glasscabinetColumnRatios.length - 1 &&
+          box(
+            itemModelNode,
+            [glasscabinetMullionWidth, glasscabinetTowerHeight, 0.032],
+            [
+              glasscabinetColumnX + glasscabinetColumnWidth - glasscabinetMullionWidth * 0.5,
+              glasscabinetTowerBaseY + glasscabinetTowerHeight * 0.5,
+              glasscabinetFrontZ + 0.009,
+            ],
+            furniture,
+            glasscabinetShelfOptions,
+          )
+      const glasscabinetHandleWidth = Math.max(glasscabinetWindowWidth * 0.025, 0.007)
+      box(
+        itemModelNode,
+        [glasscabinetHandleWidth, glasscabinetWindowHeight * 0.88, 0.006],
+        [
+          glasscabinetColumnCenterX - glasscabinetWindowWidth * 0.37,
+          glasscabinetTowerBaseY + glasscabinetTowerHeight * 0.52,
+          glasscabinetFrontZ + 0.014,
+        ],
+        14282227,
+        glasscabinetHighlightOptions,
+      ),
+        box(
+          itemModelNode,
+          [glasscabinetWindowWidth * 0.34, Math.max(glasscabinetMullionWidth * 0.11, 0.004), 0.006],
+          [
+            glasscabinetColumnCenterX - glasscabinetWindowWidth * 0.18,
+            glasscabinetTowerBaseY + glasscabinetTowerHeight * 0.88,
+            glasscabinetFrontZ + 0.014,
+          ],
+          15267578,
+          glasscabinetHighlightOptions,
+        )
     }
-    (box(itemModelNode, [glasscabinetInnerWidth, glasscabinetMullionWidth, 0.032], [0, glasscabinetTowerBaseY + glasscabinetMullionWidth * 0.5, glasscabinetFrontZ + 0.009], furniture, glasscabinetShelfOptions),
-      box(itemModelNode, [glasscabinetInnerWidth, glasscabinetMullionWidth, 0.032], [0, height6 -
-          glasscabinetFrameThickness -
-          glasscabinetMullionWidth * 0.5, glasscabinetFrontZ + 0.009], furniture, glasscabinetShelfOptions));
-    const glasscabinetBottleColors = [
-        14736852,
-        13025203,
-        10327434,
-        7301474,
-        furnitureSoft,
-        furnitureLight,
-      ],
+    box(
+      itemModelNode,
+      [glasscabinetInnerWidth, glasscabinetMullionWidth, 0.032],
+      [0, glasscabinetTowerBaseY + glasscabinetMullionWidth * 0.5, glasscabinetFrontZ + 0.009],
+      furniture,
+      glasscabinetShelfOptions,
+    ),
+      box(
+        itemModelNode,
+        [glasscabinetInnerWidth, glasscabinetMullionWidth, 0.032],
+        [0, height6 - glasscabinetFrameThickness - glasscabinetMullionWidth * 0.5, glasscabinetFrontZ + 0.009],
+        furniture,
+        glasscabinetShelfOptions,
+      )
+    const glasscabinetBottleColors = [14736852, 13025203, 10327434, 7301474, furnitureSoft, furnitureLight],
       glasscabinetBottleRow = (
         glasscabinetBottleColumnIndex: any,
         glasscabinetBottleRowIndex: any,
@@ -327,33 +438,19 @@ export function buildStorageLower(scope: ItemModelScope): boolean {
         glasscabinetBottleSeed = 0,
       ) => {
         const glasscabinetBottleZoneWidth =
-            glasscabinetInnerWidth *
-            glasscabinetColumnRatios[
-              glasscabinetBottleColumnIndex
-            ],
+            glasscabinetInnerWidth * glasscabinetColumnRatios[glasscabinetBottleColumnIndex],
           glasscabinetBottleZoneX =
             -glasscabinetInnerWidth * 0.5 +
-            glasscabinetInnerWidth *
-              glasscabinetColumnOffsets[
-                glasscabinetBottleColumnIndex
-              ],
+            glasscabinetInnerWidth * glasscabinetColumnOffsets[glasscabinetBottleColumnIndex],
           glasscabinetBottleBaseY =
             glasscabinetTowerBaseY +
-            glasscabinetShelfSpacing *
-              glasscabinetBottleRowIndex +
+            glasscabinetShelfSpacing * glasscabinetBottleRowIndex +
             glasscabinetFrameThickness * 0.42,
-          glasscabinetBottleGap = Math.max(
-            glasscabinetBottleZoneWidth * 0.022,
-            0.004,
-          ),
+          glasscabinetBottleGap = Math.max(glasscabinetBottleZoneWidth * 0.022, 0.004),
           glasscabinetBottleWidth =
-            (glasscabinetBottleZoneWidth * 0.72 -
-              glasscabinetBottleGap *
-                (glasscabinetBottleCount - 1)) /
-            glasscabinetBottleCount;
-        let glasscabinetBottleCursor =
-          glasscabinetBottleZoneX +
-          glasscabinetBottleZoneWidth * 0.13;
+            (glasscabinetBottleZoneWidth * 0.72 - glasscabinetBottleGap * (glasscabinetBottleCount - 1)) /
+            glasscabinetBottleCount
+        let glasscabinetBottleCursor = glasscabinetBottleZoneX + glasscabinetBottleZoneWidth * 0.13
         for (
           let glasscabinetBottleIndex = 0;
           glasscabinetBottleIndex < glasscabinetBottleCount;
@@ -361,35 +458,28 @@ export function buildStorageLower(scope: ItemModelScope): boolean {
         ) {
           const glasscabinetBottleEachWidth =
               glasscabinetBottleWidth *
-              [0.8, 1.05, 0.9, 0.72, 0.96][
-                (glasscabinetBottleIndex +
-                  glasscabinetBottleSeed) %
-                  5
-              ],
+              [0.8, 1.05, 0.9, 0.72, 0.96][(glasscabinetBottleIndex + glasscabinetBottleSeed) % 5],
             glasscabinetBottleEachHeight =
               glasscabinetShelfSpacing *
-              [0.48, 0.58, 0.52, 0.64, 0.55][
-                (glasscabinetBottleIndex * 2 +
-                  glasscabinetBottleSeed) %
-                  5
-              ];
-          (box(itemModelNode, [glasscabinetBottleEachWidth, glasscabinetBottleEachHeight, depth * 0.42], [glasscabinetBottleCursor +
-              glasscabinetBottleEachWidth * 0.5, glasscabinetBottleBaseY +
-              glasscabinetBottleEachHeight * 0.5, depth * 0.12], glasscabinetBottleColors[
-              (glasscabinetBottleIndex +
-                glasscabinetBottleSeed) %
-                glasscabinetBottleColors.length
-            ], {
-              radius: Math.min(
-                glasscabinetBottleEachWidth * 0.12,
-                0.009,
-              ),
+              [0.48, 0.58, 0.52, 0.64, 0.55][(glasscabinetBottleIndex * 2 + glasscabinetBottleSeed) % 5]
+          box(
+            itemModelNode,
+            [glasscabinetBottleEachWidth, glasscabinetBottleEachHeight, depth * 0.42],
+            [
+              glasscabinetBottleCursor + glasscabinetBottleEachWidth * 0.5,
+              glasscabinetBottleBaseY + glasscabinetBottleEachHeight * 0.5,
+              depth * 0.12,
+            ],
+            glasscabinetBottleColors[
+              (glasscabinetBottleIndex + glasscabinetBottleSeed) % glasscabinetBottleColors.length
+            ],
+            {
+              radius: Math.min(glasscabinetBottleEachWidth * 0.12, 0.009),
               roughness: 0.78,
               metalness: 0,
-            }),
-            (glasscabinetBottleCursor +=
-              glasscabinetBottleEachWidth +
-              glasscabinetBottleGap));
+            },
+          ),
+            (glasscabinetBottleCursor += glasscabinetBottleEachWidth + glasscabinetBottleGap)
         }
       },
       glasscabinetPlatterRow = (
@@ -399,77 +489,72 @@ export function buildStorageLower(scope: ItemModelScope): boolean {
         glasscabinetPlatterSeed = 0,
       ) => {
         const glasscabinetPlatterZoneWidth =
-            glasscabinetInnerWidth *
-            glasscabinetColumnRatios[
-              glasscabinetPlatterColumnIndex
-            ],
+            glasscabinetInnerWidth * glasscabinetColumnRatios[glasscabinetPlatterColumnIndex],
           glasscabinetPlatterZoneX =
             -glasscabinetInnerWidth * 0.5 +
-            glasscabinetInnerWidth *
-              glasscabinetColumnOffsets[
-                glasscabinetPlatterColumnIndex
-              ] +
+            glasscabinetInnerWidth * glasscabinetColumnOffsets[glasscabinetPlatterColumnIndex] +
             glasscabinetPlatterZoneWidth * 0.5,
           glasscabinetPlatterBaseY =
             glasscabinetTowerBaseY +
-            glasscabinetShelfSpacing *
-              glasscabinetPlatterRowIndex +
-            glasscabinetFrameThickness * 0.42;
+            glasscabinetShelfSpacing * glasscabinetPlatterRowIndex +
+            glasscabinetFrameThickness * 0.42
         for (
           let glasscabinetPlatterIndex = 0;
           glasscabinetPlatterIndex < glasscabinetPlatterCount;
           glasscabinetPlatterIndex += 1
         )
-          box(itemModelNode, [glasscabinetPlatterZoneWidth * 0.56, glasscabinetFrameThickness * 0.48, depth * 0.4], [glasscabinetPlatterZoneX, glasscabinetPlatterBaseY +
-              glasscabinetFrameThickness *
-                (0.3 + glasscabinetPlatterIndex * 0.52), depth * 0.12], glasscabinetBottleColors[
-              (glasscabinetPlatterIndex +
-                glasscabinetPlatterSeed) %
-                glasscabinetBottleColors.length
-            ], {
+          box(
+            itemModelNode,
+            [glasscabinetPlatterZoneWidth * 0.56, glasscabinetFrameThickness * 0.48, depth * 0.4],
+            [
+              glasscabinetPlatterZoneX,
+              glasscabinetPlatterBaseY + glasscabinetFrameThickness * (0.3 + glasscabinetPlatterIndex * 0.52),
+              depth * 0.12,
+            ],
+            glasscabinetBottleColors[
+              (glasscabinetPlatterIndex + glasscabinetPlatterSeed) % glasscabinetBottleColors.length
+            ],
+            {
               radius: 0.006,
               roughness: 0.78,
               metalness: 0,
-            });
-      };
-    (glasscabinetBottleRow(0, 1, 7, 0),
+            },
+          )
+      }
+    glasscabinetBottleRow(0, 1, 7, 0),
       glasscabinetBottleRow(2, 2, 4, 2),
       glasscabinetPlatterRow(0, 0, 3, 2),
-      glasscabinetPlatterRow(1, 2, 3, 4));
-    for (const [
-      glasscabinetJarColumnIndex,
-      glasscabinetJarRowIndex,
-      glasscabinetJarScale,
-      glasscabinetJarColor,
-    ] of [
+      glasscabinetPlatterRow(1, 2, 3, 4)
+    for (const [glasscabinetJarColumnIndex, glasscabinetJarRowIndex, glasscabinetJarScale, glasscabinetJarColor] of [
       [1, 1, 0.16, 12169895],
       [0, 2, 0.075, 9406334],
       [2, 3, 0.14, 13749184],
     ]) {
-      const glasscabinetJarZoneWidth =
-          glasscabinetInnerWidth *
-          glasscabinetColumnRatios[
-            glasscabinetJarColumnIndex
-          ],
+      const glasscabinetJarZoneWidth = glasscabinetInnerWidth * glasscabinetColumnRatios[glasscabinetJarColumnIndex],
         glasscabinetJarX =
           -glasscabinetInnerWidth * 0.5 +
-          glasscabinetInnerWidth *
-            glasscabinetColumnOffsets[
-              glasscabinetJarColumnIndex
-            ] +
+          glasscabinetInnerWidth * glasscabinetColumnOffsets[glasscabinetJarColumnIndex] +
           glasscabinetJarZoneWidth * 0.5,
         glasscabinetJarY =
           glasscabinetTowerBaseY +
           glasscabinetShelfSpacing * glasscabinetJarRowIndex +
-          glasscabinetFrameThickness * 0.42;
-      cyl(itemModelNode, [glasscabinetJarZoneWidth *
-          glasscabinetJarScale *
-          0.72, glasscabinetJarZoneWidth * glasscabinetJarScale, glasscabinetShelfSpacing * 0.46], [glasscabinetJarX, glasscabinetJarY + glasscabinetShelfSpacing * 0.23, depth * 0.12], glasscabinetJarColor, {
+          glasscabinetFrameThickness * 0.42
+      cyl(
+        itemModelNode,
+        [
+          glasscabinetJarZoneWidth * glasscabinetJarScale * 0.72,
+          glasscabinetJarZoneWidth * glasscabinetJarScale,
+          glasscabinetShelfSpacing * 0.46,
+        ],
+        [glasscabinetJarX, glasscabinetJarY + glasscabinetShelfSpacing * 0.23, depth * 0.12],
+        glasscabinetJarColor,
+        {
           segments: 24,
           roughness: 0.68,
-        });
+        },
+      )
     }
-    return true;
+    return true
   }
-  return false;
+  return false
 }

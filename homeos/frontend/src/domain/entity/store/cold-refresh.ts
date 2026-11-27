@@ -1,5 +1,5 @@
 /** 与活跃投影 ID，批量调用 ensureEntity 补全缓存，保证用户可见区域的数据可用。 */
-import { collectPinnedEntityIds } from '@/domain/entity/utils/ws-subscription'
+import { collectPinnedEntityIds } from '@/domain/entity/ws-subscription'
 import { getActiveProjectionIds } from '@/domain/entity/store/entity-projection'
 import { getWsPushPublicConfig } from '@/kernel/config/frontend-config'
 import { logger } from '@/kernel/core/index'

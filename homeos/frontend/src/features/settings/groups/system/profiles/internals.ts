@@ -24,8 +24,8 @@ import {
   updateProjectDefaults,
   upsertTerminalBinding,
 } from '@/domain/api/config'
-import { getClientDeviceId } from '@/domain/client/utils/index'
-import { inferTerminalLabel } from '@/domain/client/utils/index'
+import { getClientDeviceId } from '@/domain/client/index'
+import { inferTerminalLabel } from '@/domain/client/index'
 import { bindSelfTerminalProfile } from '@/domain/layout/store/index'
 
 function profileLabel(projectId: string) {

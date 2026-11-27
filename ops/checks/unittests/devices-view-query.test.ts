@@ -9,10 +9,7 @@
  */
 import { describe, expect, test } from 'bun:test'
 
-import {
-  parseDeviceQueryFilters,
-  toDeviceQueryParams,
-} from '../../../homeos/frontend/src/features/device/devices-view'
+import { parseDeviceQueryFilters, toDeviceQueryParams } from '../../../homeos/frontend/src/features/device/devices-view'
 
 describe('parseDeviceQueryFilters', () => {
   test('两个键都合法时全部解析出来', () => {

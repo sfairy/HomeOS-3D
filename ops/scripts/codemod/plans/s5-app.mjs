@@ -29,24 +29,54 @@ export default {
     // —— 壳组件 ——
     { from: `${SRC}/components/shell/FloatingHub.vue`, to: `${SRC}/app/shell/FloatingHub.vue` },
     { from: `${SRC}/components/shell/AgentCompanion.vue`, to: `${SRC}/features/agent/components/AgentCompanion.vue` },
-    { from: `${SRC}/components/common/landscape-prompt/LandscapePrompt.vue`, to: `${SRC}/app/shell/LandscapePrompt.vue` },
+    {
+      from: `${SRC}/components/common/landscape-prompt/LandscapePrompt.vue`,
+      to: `${SRC}/app/shell/LandscapePrompt.vue`,
+    },
 
     // —— 业务组件 ——
-    { from: `${SRC}/components/common/HomeModeItemNav.vue`, to: `${SRC}/features/home-mode/components/HomeModeItemNav.vue` },
-    { from: `${SRC}/components/common/PresencePersonListInput.vue`, to: `${SRC}/features/presence/components/PresencePersonListInput.vue` },
-    { from: `${SRC}/components/common/SettingsOrchTabs.vue`, to: `${SRC}/features/settings/components/SettingsOrchTabs.vue` },
-    { from: `${SRC}/components/common/RecommendInsightCard.vue`, to: `${SRC}/domain/recommend/components/RecommendInsightCard.vue` },
+    {
+      from: `${SRC}/components/common/HomeModeItemNav.vue`,
+      to: `${SRC}/features/home-mode/components/HomeModeItemNav.vue`,
+    },
+    {
+      from: `${SRC}/components/common/PresencePersonListInput.vue`,
+      to: `${SRC}/features/presence/components/PresencePersonListInput.vue`,
+    },
+    {
+      from: `${SRC}/components/common/SettingsOrchTabs.vue`,
+      to: `${SRC}/features/settings/components/SettingsOrchTabs.vue`,
+    },
+    {
+      from: `${SRC}/components/common/RecommendInsightCard.vue`,
+      to: `${SRC}/domain/recommend/components/RecommendInsightCard.vue`,
+    },
 
     // —— 模态 ——
-    { from: `${SRC}/components/modals/MediaPlayerModal.vue`, to: `${SRC}/features/media/components/MediaPlayerModal.vue` },
-    { from: `${SRC}/components/modals/DoorbellAlertModal.vue`, to: `${SRC}/features/device/components/DoorbellAlertModal.vue` },
-    { from: `${SRC}/components/modals/NotificationDrawer.vue`, to: `${SRC}/features/notifications/components/NotificationDrawer.vue` },
-    { from: `${SRC}/components/modals/SettingsLockModal.vue`, to: `${SRC}/features/settings/components/SettingsLockModal.vue` },
+    {
+      from: `${SRC}/components/modals/MediaPlayerModal.vue`,
+      to: `${SRC}/features/media/components/MediaPlayerModal.vue`,
+    },
+    {
+      from: `${SRC}/components/modals/DoorbellAlertModal.vue`,
+      to: `${SRC}/features/device/components/DoorbellAlertModal.vue`,
+    },
+    {
+      from: `${SRC}/components/modals/NotificationDrawer.vue`,
+      to: `${SRC}/features/notifications/components/NotificationDrawer.vue`,
+    },
+    {
+      from: `${SRC}/components/modals/SettingsLockModal.vue`,
+      to: `${SRC}/features/settings/components/SettingsLockModal.vue`,
+    },
 
     // —— 服务与工具 ——
     { from: `${SRC}/services/notify.ts`, to: `${SRC}/kernel/ui/notify.ts` },
     { from: `${SRC}/services/device-profile-kinds.ts`, to: `${SRC}/features/device/model/device-profile-kinds.ts` },
-    { from: `${SRC}/composables/ui/useWebPushSubscribe.ts`, to: `${SRC}/features/notifications/composables/use-web-push-subscribe.ts` },
+    {
+      from: `${SRC}/composables/ui/useWebPushSubscribe.ts`,
+      to: `${SRC}/features/notifications/composables/use-web-push-subscribe.ts`,
+    },
   ],
   deletes: [
     // 纯转发壳：页面本身在 features/*，views 只是 7 行包装。

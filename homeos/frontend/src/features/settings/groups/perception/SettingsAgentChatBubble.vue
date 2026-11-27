@@ -92,10 +92,7 @@
 
 <script setup lang="ts">
 import { Copy, RotateCcw, Sparkles, User } from '@lucide/vue'
-import {
-  chatOutcomeLabel,
-  chatOutcomeTone,
-} from '@/features/settings/groups/perception/use-agent-panel'
+import { chatOutcomeLabel, chatOutcomeTone } from '@/features/settings/groups/perception/use-agent-panel'
 import type { ChatLogEntry } from '@/features/settings/groups/perception/use-agent-panel'
 
 defineProps<{

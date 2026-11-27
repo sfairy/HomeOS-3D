@@ -4,18 +4,13 @@
  */
 import { ref, computed, watch, onMounted, onUnmounted, type Ref, type ComputedRef } from 'vue'
 import { useRouter } from 'vue-router'
-import {
-  getConfigSection,
-  onConfigChange,
-  loadFrontendConfig,
-  configEpoch,
-} from '@/kernel/config/frontend-config'
+import { getConfigSection, onConfigChange, loadFrontendConfig, configEpoch } from '@/kernel/config/frontend-config'
 import { setScreensaverVisible } from '@/kernel/ui/index'
 import { schedulePoll } from '@/kernel/core/index'
 import { useWakeWord } from '@/features/voice/index'
 import { useTtsSpeak } from '@/domain/voice/use-tts-speak'
 import { executeVoiceCommand } from '@/kernel/http/index'
-import { getClientDeviceId } from '@/domain/client/utils/index'
+import { getClientDeviceId } from '@/domain/client/index'
 import { resolveChargerSwitchWakeEntityIdForDevice, shouldDismissScreensaverOnChargerSwitch } from '@homeos/shared'
 import type { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import type { useEarthquakeStore } from '@/domain/earthquake/earthquake.store'

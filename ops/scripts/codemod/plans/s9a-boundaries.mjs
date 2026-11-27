@@ -28,18 +28,36 @@ export default {
     { from: `${SRC}/domain/widget/widget-registry.ts`, to: `${SRC}/app/widget-registry.ts` },
 
     // 纯 DOM 设施 → kernel
-    { from: `${SRC}/app/shell/composables/useShellTeleportTarget.ts`, to: `${SRC}/kernel/ui/shell/use-shell-teleport-target.ts` },
-    { from: `${SRC}/app/shell/composables/useTeleportTargetGuard.ts`, to: `${SRC}/kernel/ui/shell/use-teleport-target-guard.ts` },
+    {
+      from: `${SRC}/app/shell/composables/useShellTeleportTarget.ts`,
+      to: `${SRC}/kernel/ui/shell/use-shell-teleport-target.ts`,
+    },
+    {
+      from: `${SRC}/app/shell/composables/useTeleportTargetGuard.ts`,
+      to: `${SRC}/kernel/ui/shell/use-teleport-target-guard.ts`,
+    },
 
     // 依赖 config API 的资产选择 → 设置页
-    { from: `${SRC}/kernel/ui/AssetPickerModal.vue`, to: `${SRC}/features/settings/components/asset-picker/AssetPickerModal.vue` },
+    {
+      from: `${SRC}/kernel/ui/AssetPickerModal.vue`,
+      to: `${SRC}/features/settings/components/asset-picker/AssetPickerModal.vue`,
+    },
 
     // 实体选择控件 → 实体域
-    { from: `${SRC}/kernel/ui/primitives/HosSelect.vue`, to: `${SRC}/domain/entity/components/entity-select/HosSelect.vue` },
-    { from: `${SRC}/kernel/ui/primitives/SearchableSelect.vue`, to: `${SRC}/domain/entity/components/entity-select/SearchableSelect.vue` },
+    {
+      from: `${SRC}/kernel/ui/primitives/HosSelect.vue`,
+      to: `${SRC}/domain/entity/components/entity-select/HosSelect.vue`,
+    },
+    {
+      from: `${SRC}/kernel/ui/primitives/SearchableSelect.vue`,
+      to: `${SRC}/domain/entity/components/entity-select/SearchableSelect.vue`,
+    },
 
     // 依赖 layout 类型的常量 → layout 域
-    { from: `${SRC}/kernel/constants/security-emergency.ts`, to: `${SRC}/domain/layout/constants/security-emergency.ts` },
+    {
+      from: `${SRC}/kernel/constants/security-emergency.ts`,
+      to: `${SRC}/domain/layout/constants/security-emergency.ts`,
+    },
     { from: `${SRC}/kernel/types/floating-hub.ts`, to: `${SRC}/domain/layout/types/floating-hub.ts` },
 
     // 依赖 license api 的工具 → license 域
@@ -50,6 +68,9 @@ export default {
     { from: `${SRC}/kernel/utils/config/frontend-config.ts`, to: `${SRC}/domain/config/frontend-config.ts` },
 
     // 依赖实体派生工具 → entity 域
-    { from: `${SRC}/kernel/utils/ha/scene-script.util.ts`, to: `${SRC}/domain/entity/model/utils/scene-script.util.ts` },
+    {
+      from: `${SRC}/kernel/utils/ha/scene-script.util.ts`,
+      to: `${SRC}/domain/entity/model/utils/scene-script.util.ts`,
+    },
   ],
 }

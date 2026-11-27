@@ -217,7 +217,7 @@ import NotificationRowContent from '@/features/notifications/widgets/Notificatio
 import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
 import { useNotificationCenter } from '@/domain/widget/index'
 import { NOTIFICATION_CENTER_KEY } from '@/domain/widget/index'
-import { useFixedPagePagination } from '@/kernel/ui/hooks/hub-viewport'
+import { useFixedPagePagination } from '@/kernel/ui/hub-viewport'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import './styles/notification-center.css'
 

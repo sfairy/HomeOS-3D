@@ -63,21 +63,54 @@ export default {
     // —— 根级文件 ——
     { from: `${S}/stage-startup.ts`, to: 'homeos/frontend/src/studio/authoring/stage-startup.ts' },
     { from: `${S}/studio-gpu-compat.ts`, to: 'homeos/frontend/src/studio/authoring/studio-gpu-compat.ts' },
-    { from: `${S}/studio-preview-transforms.ts`, to: 'homeos/frontend/src/studio/authoring/studio-preview-transforms.ts' },
+    {
+      from: `${S}/studio-preview-transforms.ts`,
+      to: 'homeos/frontend/src/studio/authoring/studio-preview-transforms.ts',
+    },
     { from: `${S}/studio-resource-policy.ts`, to: 'homeos/frontend/src/studio/authoring/studio-resource-policy.ts' },
     { from: `${S}/authoring/lifecycle.ts`, to: 'homeos/frontend/src/studio/authoring/lifecycle.ts' },
-    { from: `${S}/authoring/studio-context-resources.ts`, to: 'homeos/frontend/src/studio/authoring/studio-context-resources.ts' },
-    { from: `${S}/authoring/studio-edit-metrics.ts`, to: 'homeos/frontend/src/studio/authoring/studio-edit-metrics.ts' },
-    { from: `${S}/authoring/studio-effect-cache.ts`, to: 'homeos/frontend/src/studio/authoring/studio-effect-cache.ts' },
-    { from: `${S}/authoring/studio-interaction-batches.ts`, to: 'homeos/frontend/src/studio/authoring/studio-interaction-batches.ts' },
-    { from: `${S}/authoring/studio-orbit-controls.ts`, to: 'homeos/frontend/src/studio/authoring/studio-orbit-controls.ts' },
-    { from: `${S}/authoring/studio-preview-resources.ts`, to: 'homeos/frontend/src/studio/authoring/studio-preview-resources.ts' },
-    { from: `${S}/authoring/studio-shadow-receiver-trial.ts`, to: 'homeos/frontend/src/studio/authoring/studio-shadow-receiver-trial.ts' },
-    { from: `${S}/authoring/studio-shared-geometry-cache.ts`, to: 'homeos/frontend/src/studio/authoring/studio-shared-geometry-cache.ts' },
+    {
+      from: `${S}/authoring/studio-context-resources.ts`,
+      to: 'homeos/frontend/src/studio/authoring/studio-context-resources.ts',
+    },
+    {
+      from: `${S}/authoring/studio-edit-metrics.ts`,
+      to: 'homeos/frontend/src/studio/authoring/studio-edit-metrics.ts',
+    },
+    {
+      from: `${S}/authoring/studio-effect-cache.ts`,
+      to: 'homeos/frontend/src/studio/authoring/studio-effect-cache.ts',
+    },
+    {
+      from: `${S}/authoring/studio-interaction-batches.ts`,
+      to: 'homeos/frontend/src/studio/authoring/studio-interaction-batches.ts',
+    },
+    {
+      from: `${S}/authoring/studio-orbit-controls.ts`,
+      to: 'homeos/frontend/src/studio/authoring/studio-orbit-controls.ts',
+    },
+    {
+      from: `${S}/authoring/studio-preview-resources.ts`,
+      to: 'homeos/frontend/src/studio/authoring/studio-preview-resources.ts',
+    },
+    {
+      from: `${S}/authoring/studio-shadow-receiver-trial.ts`,
+      to: 'homeos/frontend/src/studio/authoring/studio-shadow-receiver-trial.ts',
+    },
+    {
+      from: `${S}/authoring/studio-shared-geometry-cache.ts`,
+      to: 'homeos/frontend/src/studio/authoring/studio-shared-geometry-cache.ts',
+    },
 
     // —— studio-app 自身的入口与上下文 ——
     { from: `${S}/authoring/studio-app/boot.ts`, to: 'homeos/frontend/src/studio/authoring/app-boot.ts' },
-    { from: `${S}/authoring/studio-app/studio-app-context.ts`, to: 'homeos/frontend/src/studio/authoring/app-context.ts' },
-    { from: `${S}/authoring/studio-app/studio-render-context.ts`, to: 'homeos/frontend/src/studio/authoring/render-context.ts' },
+    {
+      from: `${S}/authoring/studio-app/studio-app-context.ts`,
+      to: 'homeos/frontend/src/studio/authoring/app-context.ts',
+    },
+    {
+      from: `${S}/authoring/studio-app/studio-render-context.ts`,
+      to: 'homeos/frontend/src/studio/authoring/render-context.ts',
+    },
   ],
 }

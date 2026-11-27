@@ -50,7 +50,7 @@
 import { computed, ref } from 'vue'
 import { X } from '@lucide/vue'
 import MediaPlaylistWidget from '@/features/media/PlaylistWidget.vue'
-import { useFocusTrap } from '@/kernel/ui/hooks/use-focus-trap'
+import { useFocusTrap } from '@/kernel/ui/use-focus-trap'
 import { useShellTeleportTarget } from '@/kernel/ui/shell/use-shell-teleport-target'
 
 const props = defineProps({

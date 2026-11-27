@@ -52,7 +52,10 @@ const WRITE = process.argv.includes('--write')
 /** 统一成仓库相对 POSIX 路径，拒绝绝对路径与 `..`（防止越界写）。 */
 function toRepoRel(input) {
   const abs = resolve(REPO_ROOT, input)
-  const rel = abs.slice(REPO_ROOT.length + 1).split('\\').join('/')
+  const rel = abs
+    .slice(REPO_ROOT.length + 1)
+    .split('\\')
+    .join('/')
   if (!rel || rel.startsWith('..')) throw new Error(`restructure: 路径越界或为空：${input}`)
   return rel
 }
@@ -331,23 +334,32 @@ function dedupeTypeAliases(body, seen) {
  */
 function dropRedundantExportLists(text) {
   const declared = new Set()
-  for (const match of text.matchAll(/^export\s+(?:async\s+)?(?:function|const|let|var|class|type|interface)\s+([A-Za-z_$][\w$]*)/gm)) {
+  for (const match of text.matchAll(
+    /^export\s+(?:async\s+)?(?:function|const|let|var|class|type|interface)\s+([A-Za-z_$][\w$]*)/gm,
+  )) {
     declared.add(match[1])
   }
-  return text
-    // 只匹配「不带 from 的本地导出清单」：`export { A, B }` 或 `export type { A }`。
-    // 必须用 `(?=\r?\n|$)` 锚定行尾 —— 否则 `export { A } from './x'` 会被吃掉前半段，
-    // 留下孤立的 ` from './x'`（TS1434）。带 from 的是 re-export，不属于本函数职责。
-    .replace(/^[ \t]*export\s+(?:type\s+)?\{([^{}]*)\}[ \t]*;?[ \t]*(?=\r?\n|$)\r?\n?/gm, (statement, inner) => {
-      // 带 `from` 的重导出不属于本函数处理范围（正则已排除：要求 `}` 后紧跟换行/分号）。
-      const names = inner
-        .split(',')
-        .map((part) => part.trim().replace(/^type\s+/, ''))
-        .map((part) => part.split(/\s+as\s+/).pop().trim())
-        .filter(Boolean)
-      if (!names.length) return statement
-      return names.every((name) => declared.has(name)) ? '' : statement
-    })
+  return (
+    text
+      // 只匹配「不带 from 的本地导出清单」：`export { A, B }` 或 `export type { A }`。
+      // 必须用 `(?=\r?\n|$)` 锚定行尾 —— 否则 `export { A } from './x'` 会被吃掉前半段，
+      // 留下孤立的 ` from './x'`（TS1434）。带 from 的是 re-export，不属于本函数职责。
+      .replace(/^[ \t]*export\s+(?:type\s+)?\{([^{}]*)\}[ \t]*;?[ \t]*(?=\r?\n|$)\r?\n?/gm, (statement, inner) => {
+        // 带 `from` 的重导出不属于本函数处理范围（正则已排除：要求 `}` 后紧跟换行/分号）。
+        const names = inner
+          .split(',')
+          .map((part) => part.trim().replace(/^type\s+/, ''))
+          .map((part) =>
+            part
+              .split(/\s+as\s+/)
+              .pop()
+              .trim(),
+          )
+          .filter(Boolean)
+        if (!names.length) return statement
+        return names.every((name) => declared.has(name)) ? '' : statement
+      })
+  )
 }
 
 /**
@@ -385,7 +397,9 @@ function collectReExports(sources) {
  */
 function declaredNames(body) {
   const names = new Set()
-  for (const match of body.matchAll(/^(?:export\s+)?(?:async\s+)?(?:function|class|type|interface|enum)\s+([A-Za-z_$][\w$]*)/gm)) {
+  for (const match of body.matchAll(
+    /^(?:export\s+)?(?:async\s+)?(?:function|class|type|interface|enum)\s+([A-Za-z_$][\w$]*)/gm,
+  )) {
     names.add(match[1])
   }
 
@@ -486,7 +500,11 @@ function dedupePrivateFunctions(text) {
         break
       }
     }
-    const body = lines.slice(index, end + 1).join('\n').replace(/\s+/g, ' ').trim()
+    const body = lines
+      .slice(index, end + 1)
+      .join('\n')
+      .replace(/\s+/g, ' ')
+      .trim()
     const key = `${match[1]}|${body}`
     if (seen.has(key)) {
       for (let cursor = index; cursor <= end; cursor += 1) drop.add(cursor)
@@ -804,9 +822,7 @@ function main() {
       // 已经写盘并删了来源文件，而 import 重写还没执行 —— 会留下半成品仓库。
       const mergeOutputs = new Map()
       for (const { into, from, header } of merges) {
-        const sources = from
-          .filter((path) => rewritten.has(path))
-          .map((path) => ({ path, text: rewritten.get(path) }))
+        const sources = from.filter((path) => rewritten.has(path)).map((path) => ({ path, text: rewritten.get(path) }))
         if (!sources.length) throw new Error(`merges 无可用来源: ${into}`)
         mergeOutputs.set(into, mergeTexts(sources, { header, into }))
       }

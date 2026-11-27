@@ -3,13 +3,13 @@
  * @module frontend/src/composables/energy
  */
 import { ref, computed, watch, type ComputedRef, type Ref } from 'vue'
-import { resolveAccountEntityIds, normalizeEnergySource } from '@/domain/energy/utils/source'
-import { readPopupField } from '@/domain/energy/utils/popup-read'
+import { resolveAccountEntityIds, normalizeEnergySource } from '@/domain/energy/source'
+import { readPopupField } from '@/domain/energy/popup-read'
 import { readPopupAttr, parseJsonAttr, parseNumAttr } from '@/domain/energy/index'
 import type { UtilityMeterParsedItem } from '@/domain/energy/index'
-import type { HaEntityState } from '@/kernel/types/entity'
-import { resolveAccountLabelForEntityId } from '@/domain/energy/utils/account'
-import { getEntityDisplayName } from '@/domain/entity/utils/derived'
+import type { HaEntityState } from '@/kernel/entity'
+import { resolveAccountLabelForEntityId } from '@/domain/energy/account'
+import { getEntityDisplayName } from '@/domain/entity/derived'
 import type { EnergyCategory } from '@/domain/energy/constants/energy-fields'
 import type { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import type { useLayoutStore } from '@/domain/layout/store/layout.store'

@@ -6,11 +6,35 @@
  * 结果是每次改交互都要跨 5 个文件核对，且拆出的文件头都要写「从 X 拆出」。
  */
 
-import { type LightAxis, LIGHT_AXIS_LABELS, LIGHT_AXIS_COLORS, type LightPoseLike, axisRayParameter, lightMovePosition, planeRayPoint, ringRayAngle, unwrapRingRadians, type GizmoHandleSpec, lightFrame, lightGizmoHandles } from '../interaction/light-gizmo'
+import {
+  type LightAxis,
+  LIGHT_AXIS_LABELS,
+  LIGHT_AXIS_COLORS,
+  type LightPoseLike,
+  axisRayParameter,
+  lightMovePosition,
+  planeRayPoint,
+  ringRayAngle,
+  unwrapRingRadians,
+  type GizmoHandleSpec,
+  lightFrame,
+  lightGizmoHandles,
+} from '../interaction/light-gizmo'
 import { editNumberText } from '../studio-edit-metrics'
 import { type Ray, type Vec3 } from '../interaction/gesture'
 import { type StudioAppRuntime } from '../runtime/studio-app-runtime'
-import { findItem, planPointOf, type Geometry, writeItemState, type SelectionBridge, isLightItem, modelPendingOf, screenPixelsPerMeter, elevationLimitsOf, type TransactionState } from './editor-3d'
+import {
+  findItem,
+  planPointOf,
+  type Geometry,
+  writeItemState,
+  type SelectionBridge,
+  isLightItem,
+  modelPendingOf,
+  screenPixelsPerMeter,
+  elevationLimitsOf,
+  type TransactionState,
+} from './editor-3d'
 import { applyPlacementSnap } from '../interaction/drag-and-drop'
 import { isGizmoEligibleItem, isItemEditable, isItemInLibraryScope, isItemShown } from '../items/placed-item-visibility'
 import { libraryModeOf } from './asset-library'

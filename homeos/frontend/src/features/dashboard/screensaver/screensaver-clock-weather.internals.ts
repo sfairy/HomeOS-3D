@@ -6,7 +6,7 @@ import { ref, computed, watch, type Ref } from 'vue'
 import { solarToLunar } from '@/kernel/format'
 import { formatLunarFullLine, formatLunarMonthDayLine } from '@/kernel/format'
 import { formatZonedDate, getZonedParts, getZonedWallDate } from '@/kernel/format'
-import { domainIndexToArray } from '@/domain/entity/utils/derived'
+import { domainIndexToArray } from '@/domain/entity/derived'
 import { weatherStateLabel } from '@/features/weather/constants/weather-labels'
 import {
   computeFeelsLike,

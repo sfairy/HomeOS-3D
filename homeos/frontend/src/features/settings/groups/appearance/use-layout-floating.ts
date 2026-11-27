@@ -3,10 +3,22 @@ import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useLayoutStore } from '@/domain/layout/store/index'
 import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
 import { Code } from '@lucide/vue'
-import { FLOATING_HUB_TYPE_SET, getWidgetIcon, getFloatingCatalogGroups, getWidgetCategoryLabelForType, FLOATING_HUB_WIDTH_MAP, getWidgetName } from '@/kernel/registry/widget-catalog'
-import { hasConfigurableTabs, serializeHubTabsConfig, getHubTabSet, cloneHubTabsDraft } from '@/kernel/registry/hub-tabs-options'
+import {
+  FLOATING_HUB_TYPE_SET,
+  getWidgetIcon,
+  getFloatingCatalogGroups,
+  getWidgetCategoryLabelForType,
+  FLOATING_HUB_WIDTH_MAP,
+  getWidgetName,
+} from '@/kernel/registry/widget-catalog'
+import {
+  hasConfigurableTabs,
+  serializeHubTabsConfig,
+  getHubTabSet,
+  cloneHubTabsDraft,
+} from '@/kernel/registry/hub-tabs-options'
 import { mirrorSecurityPanelZonesToLayout } from '@/features/security/utils/index'
-import { type FloatingWidget, type UILayoutConfig } from '@/kernel/types/layout'
+import type { FloatingWidget, UILayoutConfig } from '@/kernel/types/layout'
 import { type Ref, computed, ref, watch, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { clampPct } from '@/kernel/core/index'
@@ -178,7 +190,7 @@ export function useFloatingAfhActions(opts: {
 /** 浮动组件展示辅助 */
 
 // ── useFloatingPanelDisplay ──
-export { AFH_THEME_DEFS as AFH_THEMES } from '@/domain/entity/utils/floating-entity-colors'
+export { AFH_THEME_DEFS as AFH_THEMES } from '@/domain/entity/floating-entity-colors'
 
 const ENTITY_FLOAT_TYPES = ['entity', 'temp', 'humidity', 'battery', 'power']
 

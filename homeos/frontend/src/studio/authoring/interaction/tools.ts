@@ -1,41 +1,75 @@
-import { anchorGate as anchorGate2, syncCourtyardGates as syncCourtyardGates2, remapCourtyardAttachments as remapCourtyardAttachments2 } from '../plan/courtyard-drawing'
+import {
+  anchorGate as anchorGate2,
+  syncCourtyardGates as syncCourtyardGates2,
+  remapCourtyardAttachments as remapCourtyardAttachments2,
+} from '../plan/courtyard-drawing'
 import { airerDimensions as airerDimensions2 } from '../items/studio-airer'
 import { setPipelineDispenserStyle } from '../items/pipeline-dispenser'
 import { fanDimensions as fanDimensions2 } from '../items/studio-fan'
 import { normalizeMuralArtStyle, normalizeFeatureWallStyle } from '../materials/studio-surface'
-import { normalizeCurtainTrack as normalizeCurtainTrack2, curtainFootprintDepth as curtainFootprintDepth2 } from '@app/shared/scene/studio-curtain-track'
-import { clamp as clamp2, clampWindowT as clampWindowT2, defaultDoorOpening, closedWallPolygons } from '../plan/geometry'
-import { finite as finite2, itemMinimumHeight as itemMinimumHeight2, itemMinimumElevation, itemMinimumFootprint as itemMinimumFootprint2, normalizeFullRotation as normalizeFullRotation2, normalizeLabelText as normalizeLabelText2, isCourtyardDrawing as isCourtyardDrawing2 } from '../loaders/studio-normalization'
+import {
+  normalizeCurtainTrack as normalizeCurtainTrack2,
+  curtainFootprintDepth as curtainFootprintDepth2,
+} from '@app/shared/scene/studio-curtain-track'
+import {
+  clamp as clamp2,
+  clampWindowT as clampWindowT2,
+  defaultDoorOpening,
+  closedWallPolygons,
+} from '../plan/geometry'
+import {
+  finite as finite2,
+  itemMinimumHeight as itemMinimumHeight2,
+  itemMinimumElevation,
+  itemMinimumFootprint as itemMinimumFootprint2,
+  normalizeFullRotation as normalizeFullRotation2,
+  normalizeLabelText as normalizeLabelText2,
+  isCourtyardDrawing as isCourtyardDrawing2,
+} from '../loaders/studio-normalization'
 import { normalizeModelRemark as normalizeModelRemark2 } from '../../app/shared/model-remarks'
-import { normalizePillarAxis as normalizePillarAxis2, normalizePillarShape as normalizePillarShape2 } from '../items/studio-item-posture'
+import {
+  normalizePillarAxis as normalizePillarAxis2,
+  normalizePillarShape as normalizePillarShape2,
+} from '../items/studio-item-posture'
 import { applyStripInspectorPose, applyStripMountSelection } from '../lights/strip-light'
-import { itemTypeCatalog, lampItemTypeSet, openStairTypeSet, roundTableTypeSet, sofaMinDimensions, tvMountStyleSet } from '../items/item-catalog'
+import {
+  itemTypeCatalog,
+  lampItemTypeSet,
+  openStairTypeSet,
+  roundTableTypeSet,
+  sofaMinDimensions,
+  tvMountStyleSet,
+} from '../items/item-catalog'
 import { syncLightShapeAndRepaint } from '../lights/light-areas'
 import { STORAGE_SECTION_TYPES, storageSectionStyle } from '../items/studio-storage-sections'
-import { type StudioControlElement } from '../types/studio-app-types'
+import { type StudioControlElement } from '../studio-app-types'
 import { lightPresetCatalog, lightAngleLimitForType } from '../lights/studio-app-light-data'
 import { doorTypeCatalog, normalizePlanLabelColor } from '../scene/payload/studio-scene-payload'
 import { type StudioAppContext } from '../app-context'
 import { type StudioAppRuntime } from '../runtime/studio-app-runtime'
 import { snapItemToSurface as snapItemToSurface2 } from '../items/studio-surface-snap'
 import { snapExhaustFan } from '../items/studio-exhaust-fan'
-import { isCourtyardPlanItem as isCourtyardPlanItem2, courtyardToolAllowed as courtyardToolAllowed2 } from '../plan/courtyard'
+import {
+  isCourtyardPlanItem as isCourtyardPlanItem2,
+  courtyardToolAllowed as courtyardToolAllowed2,
+} from '../plan/courtyard'
 import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
 import { patchStudioFacadeState } from '../../engine/index'
 import { generateId } from '../ui/studio-app-helpers'
 import { FLOOR_REGION_ERROR, FLOOR_REGION_PROMPT } from '../plan/studio-floor-region'
-import { armSplit, cancelSplit, clickFloorRegion, createFloorRegionInteraction, floorRegionTitle, setSplitStart, type FloorRegionInteraction, type FloorRegionStep, type PlanPoint } from '../plan/studio-floor-region'
+import {
+  armSplit,
+  cancelSplit,
+  clickFloorRegion,
+  createFloorRegionInteraction,
+  floorRegionTitle,
+  setSplitStart,
+  type FloorRegionInteraction,
+  type FloorRegionStep,
+  type PlanPoint,
+} from '../plan/studio-floor-region'
 import { splitFloorRegionByLine, type FloorRegionSplitSide } from '../plan/studio-floor-region'
 import { type FloorPoint, type FloorRegion } from '../plan/studio-floor'
-
-
-
-
-
-
-
-
-
 
 /**
  * 输入框的空值语义是「沿用门型默认」，必须删字段而不是写 0；
@@ -938,7 +972,6 @@ function installFloorRegionToolBindings(runtime: StudioAppRuntime): void {
  * 单例 + 显式 `resetFloorRegionTool()` 比在巨型 `appCtx` 上加字段更容易守住棘轮，
  * 也避免忘了清空时把分割线带到下一个工具里。
  */
-
 
 /**
  * 工具当前的交互状态。

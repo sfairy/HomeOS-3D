@@ -1,19 +1,52 @@
 import { DEVICE_STYLES, KITCHEN_STYLES, STEEL_APPLIANCE_STYLES } from './presets/appliances'
 import { DOOR_STYLES } from './presets/door'
-import { AQUARIUM_STYLES, ORNAMENT_STYLES, PIANO_STYLES, POOL_TABLE_STYLES, SCREEN_STYLES, SHOWER_STYLES, TEA_TABLE_STYLES } from './presets/feature-pieces'
-import { FITNESS_STYLES, GARDEN_STYLES, KIDS_STYLES, MEDIA_STYLES, PET_STYLES, TABLEWARE_STYLES } from './presets/lifestyle'
-import { type MaterialStylePreset, MATERIAL_STYLE_AUTO, completeFurnitureRamp, deriveStyleRoles, styleRoleRecipeFor } from './presets/preset-core'
+import {
+  AQUARIUM_STYLES,
+  ORNAMENT_STYLES,
+  PIANO_STYLES,
+  POOL_TABLE_STYLES,
+  SCREEN_STYLES,
+  SHOWER_STYLES,
+  TEA_TABLE_STYLES,
+} from './presets/feature-pieces'
+import {
+  FITNESS_STYLES,
+  GARDEN_STYLES,
+  KIDS_STYLES,
+  MEDIA_STYLES,
+  PET_STYLES,
+  TABLEWARE_STYLES,
+} from './presets/lifestyle'
+import {
+  type MaterialStylePreset,
+  MATERIAL_STYLE_AUTO,
+  completeFurnitureRamp,
+  deriveStyleRoles,
+  styleRoleRecipeFor,
+} from './presets/preset-core'
 import { presetGroupFor } from './presets/preset-group-lookup'
 import { BASIN_STYLES, CERAMIC_STYLES, GLASS_STYLES } from './presets/sanitary'
 import { CURTAIN_STYLES, DECOR_STYLES, LAMP_STYLES, RUG_STYLES } from './presets/soft-decor'
 import { STONE_FURNITURE_STYLES } from './presets/stone'
 import { UPHOLSTERY_STYLES } from './presets/upholstery'
 import { JOINERY_STYLES, PILLAR_STYLES, WOOD_FURNITURE_STYLES } from './presets/woodwork'
-import { type MaterialSurface, type RoleRecipe, type StoneSlabFlavor, isStoneSlabFlavor, materialRoleRecipeForRole, materialSurfaceFinish, resolveMaterialPaletteColor, resolveModelMaterialRole, scaleMaterialColorChannels, resolveModelFamily, vehicleMaterialSlotFor, VEHICLE_MATERIAL_SLOTS } from './studio-model-material-roles'
+import {
+  type MaterialSurface,
+  type RoleRecipe,
+  type StoneSlabFlavor,
+  isStoneSlabFlavor,
+  materialRoleRecipeForRole,
+  materialSurfaceFinish,
+  resolveMaterialPaletteColor,
+  resolveModelMaterialRole,
+  scaleMaterialColorChannels,
+  resolveModelFamily,
+  vehicleMaterialSlotFor,
+  VEHICLE_MATERIAL_SLOTS,
+} from './studio-model-material-roles'
 import { stoneSlabSwatchHex } from './studio-surface'
 
 /** 逐物件的「材质风格」预设档位（对齐参考实现的 `studio/studio-material-styles.ts`）。档位表按组拆在 `presets/` 下。 */
-
 
 export { MATERIAL_STYLE_AUTO, STRUCTURAL_OR_SOFT_ROLES } from './presets/preset-core'
 

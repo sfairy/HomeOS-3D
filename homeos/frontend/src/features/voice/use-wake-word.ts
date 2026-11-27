@@ -1,7 +1,7 @@
 /** - 使用浏览器 SpeechRecognition 持续监听语音； */
 import { ref, onUnmounted } from 'vue'
 import { getConfigSection } from '@/kernel/config/frontend-config'
-import { normalizeWakeWords } from '@/kernel/constants/index'
+import { normalizeWakeWords } from '@/kernel/index'
 
 /**
  * 轻量唤醒词监听 composable（VoiceCommand / Screensaver 共用）。

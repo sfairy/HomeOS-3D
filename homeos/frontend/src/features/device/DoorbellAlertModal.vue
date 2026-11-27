@@ -71,8 +71,8 @@
  */
 import { getEntityDomain } from '@homeos/shared'
 import { ref, computed, watch, onMounted, onUnmounted, toRef } from 'vue'
-import { useFocusTrap } from '@/kernel/ui/hooks/use-focus-trap'
-import { useEscLayer } from '@/kernel/ui/hooks/use-esc-stack'
+import { useFocusTrap } from '@/kernel/ui/use-focus-trap'
+import { useEscLayer } from '@/kernel/ui/use-esc-stack'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useHaConnectionStore } from '@/domain/ha/ha-connection.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
@@ -81,7 +81,7 @@ import { securityCameraGo2rtcUrl } from '@/kernel/layout'
 import { logger } from '@/kernel/core/index'
 import { getApiErrorMessage } from '@/kernel/core/index'
 import HaCameraStream from '@/features/device/HaCameraStream.vue'
-import { getEntityDisplayName } from '@/domain/entity/utils/derived'
+import { getEntityDisplayName } from '@/domain/entity/derived'
 
 const props = defineProps({
   isOpen: { type: Boolean },

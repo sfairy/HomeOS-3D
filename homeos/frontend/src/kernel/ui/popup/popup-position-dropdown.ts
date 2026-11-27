@@ -1,6 +1,6 @@
 /** 锚点下拉菜单的定位计算工具。 */
 
-import { currentScale, scalingEnabled } from '@/kernel/ui/hooks/use-scaling'
+import { currentScale, scalingEnabled } from '@/kernel/ui/use-scaling'
 
 /** #teleport-target 的定位参考矩形（与 fixed 包含块一致） */
 export function getTeleportShellRect(tel: HTMLElement | null) {

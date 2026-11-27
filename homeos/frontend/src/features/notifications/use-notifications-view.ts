@@ -13,7 +13,7 @@ import {
   levelFilterLabel,
   NOTIFICATION_HOUR_OPTIONS,
   type NotificationStatsPayload,
-} from '@/features/notifications/utils/analytics'
+} from '@/features/notifications/analytics'
 import { notificationSourceLabel } from '@homeos/shared'
 
 export function useNotificationsView() {

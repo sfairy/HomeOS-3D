@@ -212,17 +212,12 @@ import {
   type DeviceHistoryRange,
   type DeviceStateHistoryEvent,
 } from '@/features/device/device'
-import { displayEventState } from '@/features/events/utils/events-display'
-import { displayEntityStateLabel } from '@/kernel/constants/index'
+import { displayEventState } from '@/features/events/events-display'
+import { displayEntityStateLabel } from '@/kernel/index'
 import { formatDetailedDateTimeOrDash } from '@/kernel/format'
 import DeviceChartHeader from './DeviceChartHeader.vue'
 import { DEVICE_CHART_COPY } from '@/kernel/chart'
-import {
-  deviceChartBase,
-  deviceChartTooltip,
-  DEVICE_CHART_COLORS,
-  chartVerticalGradient,
-} from '@/kernel/chart'
+import { deviceChartBase, deviceChartTooltip, DEVICE_CHART_COLORS, chartVerticalGradient } from '@/kernel/chart'
 import { configEpoch, getEventLogConfig } from '@/kernel/config/frontend-config'
 
 /** 图表实例类型：来自按需加载 echarts 入口模块的 init 返回值 */

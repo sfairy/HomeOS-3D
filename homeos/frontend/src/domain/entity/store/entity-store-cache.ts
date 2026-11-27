@@ -8,9 +8,9 @@ import {
   isEntityCacheEnabled,
   loadEntityCache,
   saveEntityCacheShards,
-} from '@/domain/entity/utils/idb-cache'
-import { partitionEntitiesForCacheHydrate } from '@/domain/entity/utils/sync-guards'
-import type { EntitiesMap, HaEntityState } from '@/kernel/types/entity'
+} from '@/domain/entity/idb-cache'
+import { partitionEntitiesForCacheHydrate } from '@/domain/entity/sync-guards'
+import type { EntitiesMap, HaEntityState } from '@/kernel/entity'
 import type { UILayoutConfig } from '@/kernel/types/layout'
 
 /** 懒加载最小实体数：缓存总数 ≥ 此值且 deferred 非空时启用懒加载分流 */

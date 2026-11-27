@@ -84,9 +84,9 @@
 /** SearchableSelect - 可搜索的下拉选择组件 */
 import { ref, computed, nextTick, useId, watch } from 'vue'
 import { X, ChevronDown } from '@lucide/vue'
-import { useClickOutside } from '@/kernel/ui/hooks/use-click-outside'
+import { useClickOutside } from '@/kernel/ui/use-click-outside'
 import { useDropdownPosition } from '@/kernel/ui/popup/use-dropdown-position'
-import { currentScale } from '@/kernel/ui/hooks/use-scaling'
+import { currentScale } from '@/kernel/ui/use-scaling'
 
 /** 组件 Props 定义 */
 const props = defineProps({

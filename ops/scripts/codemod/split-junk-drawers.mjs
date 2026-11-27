@@ -19,9 +19,9 @@
  *   node ops/scripts/codemod/split-junk-drawers.mjs --from 1dbd81482 \
  *     kernel/utils/ui domain/layout/store features/voice/composables
  */
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
-import { basename, dirname, join, resolve } from 'node:path'
+import { basename, join, resolve } from 'node:path'
 import process from 'node:process'
 
 const REPO_ROOT = resolve(import.meta.dirname, '../../..')
@@ -69,9 +69,7 @@ for (const target of targets) {
   }
 
   // 桶文件：导出目录内全部模块（不导出 index 自身）。
-  const modules = listed
-    .map((file) => basename(file).replace(/\.ts$/, ''))
-    .filter((name) => name !== 'index')
+  const modules = listed.map((file) => basename(file).replace(/\.ts$/, '')).filter((name) => name !== 'index')
   const barrel = [
     `/**`,
     ` * \`${relDir}\` 公开面。`,

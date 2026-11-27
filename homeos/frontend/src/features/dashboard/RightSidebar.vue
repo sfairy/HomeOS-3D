@@ -53,18 +53,18 @@
           <div v-if="widget.type === 'clock'" class="info-card info-card--widget">
             <ErrorBoundary compact fill :title="widget.type">
               <component
-                :is="getWidgetComponent(widget.type)"
+                :is="resolveWidgetComponent(widget.type)"
                 :config="widget.config"
-                v-bind="getWidgetProps(widget.type, widget)"
+                v-bind="resolveWidgetProps(widget.type, widget)"
               />
             </ErrorBoundary>
           </div>
           <ErrorBoundary v-else compact fill :title="widget.type">
             <component
-              :is="getWidgetComponent(widget.type)"
+              :is="resolveWidgetComponent(widget.type)"
               :config="widget.config"
               :panel-visible="panelVisible"
-              v-bind="getWidgetProps(widget.type, widget)"
+              v-bind="resolveWidgetProps(widget.type, widget)"
               class="h-full min-h-0"
               @open-group="onOpenGroup"
             />
@@ -95,21 +95,20 @@ import { readLocalStorageFlag, writeLocalStorage } from '@/kernel/core/index'
  * 卡片高度：有自定义 cardHeight 用自定义，否则用类型预设像素。
  * 「恢复预设」与保存同一数值时主页高度一致。时钟无自定义时按内容自适应。
  */
-import { onBeforeUnmount, ref, computed, watch } from 'vue'
+import { onBeforeUnmount, ref, computed, watch, type Component, type PropType } from 'vue'
 import { mountPageBackgroundLayer } from '@app/renderer/controls/page-background-layer'
 import { staticAssetImageSource } from '@app/renderer/registry/asset-state'
 import { ChevronLeft, ChevronRight } from '@lucide/vue'
 import ErrorBoundary from '@/kernel/ui/ErrorBoundary.vue'
 import WidgetPanelSlot from '@/features/dashboard/WidgetPanelSlot.vue'
 import { useLayoutStore } from '@/domain/layout/store/index'
-import { useScaling } from '@/kernel/ui/hooks/use-scaling'
-import { useCanvasMetrics } from '@/kernel/ui/hooks/use-canvas-metrics'
+import { useScaling } from '@/kernel/ui/use-scaling'
+import { useCanvasMetrics } from '@/kernel/ui/use-canvas-metrics'
 import { isTabletCompactViewport } from '@/kernel/config/viewport-breakpoints'
-import { filterWidgetsForProfile } from '@/domain/widget/utils/profile-filter'
+import { filterWidgetsForProfile } from '@/domain/widget/profile-filter'
 import type { PanelWidget } from '@/kernel/types/layout'
-import { getWidgetComponent, getWidgetProps } from '@/app/widget-registry'
 import { getSidebarWidgetClass } from '@/kernel/registry/widget-registry-meta'
-import { resolveSidebarWidgetHeightPx } from '@/domain/widget/utils/panel-widget-height'
+import { resolveSidebarWidgetHeightPx } from '@/domain/widget/panel-widget-height'
 
 const layoutStore = useLayoutStore()
 
@@ -198,17 +197,32 @@ const panelOuterStyle = computed(() => {
   return { width: `${w}px` }
 })
 
-const visiblePanelWidgets = computed(() =>
-  filterWidgetsForProfile(layoutStore.activeProfileId, layoutStore.layoutConfig.rightPanelWidgets || []).filter(
-    (w) => w.visible !== false && getWidgetComponent(w.type),
-  ),
-)
-
 const props = defineProps({
   panelPosition: { type: String, default: 'right' },
   /** 智能管家面板是否占位：为 true 时用面板替换部件内容（参考实现同形态） */
   agentOpen: { type: Boolean, default: false },
+  /**
+   * 微件类型 → 组件 / 默认 props 的解析器，由 app 装配层注入。
+   *
+   * 为什么不直接 import `@/app/widget-registry`：那张表把 features 下的组件聚成注册表，
+   * 属于装配层职责；features 反向依赖 app 会破坏分层 DAG（app → features → domain → kernel）。
+   * 用 props 注入后，解析方向仍然是 app 调 features。
+   */
+  resolveWidgetComponent: {
+    type: Function as PropType<(type: string) => Component | null>,
+    required: true,
+  },
+  resolveWidgetProps: {
+    type: Function as PropType<(type: string, widget: { config?: Record<string, unknown> }) => Record<string, unknown>>,
+    required: true,
+  },
 })
+
+const visiblePanelWidgets = computed(() =>
+  filterWidgetsForProfile(layoutStore.activeProfileId, layoutStore.layoutConfig.rightPanelWidgets || []).filter(
+    (w) => w.visible !== false && props.resolveWidgetComponent(w.type),
+  ),
+)
 
 const emit = defineEmits<{
   (e: 'open-group', domain: string, sensors: unknown): void

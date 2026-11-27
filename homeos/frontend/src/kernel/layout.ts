@@ -1,6 +1,39 @@
-import { type AgentCompanionConfig, type HaConfig, type SecurityCameraBinding } from '@/kernel/types/layout'
-import { type DoorbellConfig } from '@/kernel/types/setup-wizard'
-import { Monitor, Video, Globe, Tv, Film, Music, Headphones, Radio, Camera, Image, Clapperboard, Gamepad, LayoutDashboard, BarChart3, Server, Database, Cloud, HardDrive, Router, Wifi, Home, Heart, Bot, BookOpen, Newspaper, Calendar, MapPin, ShoppingBag, MessageCircle, Shield, Sun, FileText } from '@lucide/vue'
+import type { AgentCompanionConfig, HaConfig, SecurityCameraBinding } from '@/kernel/types/layout'
+import type { DoorbellConfig } from '@/kernel/setup-wizard'
+import {
+  Monitor,
+  Video,
+  Globe,
+  Tv,
+  Film,
+  Music,
+  Headphones,
+  Radio,
+  Camera,
+  Image,
+  Clapperboard,
+  Gamepad,
+  LayoutDashboard,
+  BarChart3,
+  Server,
+  Database,
+  Cloud,
+  HardDrive,
+  Router,
+  Wifi,
+  Home,
+  Heart,
+  Bot,
+  BookOpen,
+  Newspaper,
+  Calendar,
+  MapPin,
+  ShoppingBag,
+  MessageCircle,
+  Shield,
+  Sun,
+  FileText,
+} from '@lucide/vue'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 
 /**

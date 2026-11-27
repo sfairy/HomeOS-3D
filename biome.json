@@ -257,7 +257,14 @@
               "options": {
                 "patterns": [
                   {
-                    "group": ["@/app/**", "@/views/**", "@/layouts/**", "@/components/**", "@/composables/**", "@/stores/**"],
+                    "group": [
+                      "@/app/**",
+                      "@/views/**",
+                      "@/layouts/**",
+                      "@/components/**",
+                      "@/composables/**",
+                      "@/stores/**"
+                    ],
                     "message": "features 是 L2 业务模块：不得 import app/ 装配层或已废弃的旧分层目录"
                   }
                 ]

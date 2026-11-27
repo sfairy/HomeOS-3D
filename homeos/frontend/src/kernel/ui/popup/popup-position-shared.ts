@@ -1,6 +1,6 @@
 /** 弹窗定位共享工具。 */
 
-import { currentScale, activeDesignWidth, activeDesignHeight } from '@/kernel/ui/hooks/use-scaling'
+import { currentScale, activeDesignWidth, activeDesignHeight } from '@/kernel/ui/use-scaling'
 import {
   getTeleportShellRect,
   getTeleportLiveScale,

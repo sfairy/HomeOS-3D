@@ -1,9 +1,21 @@
-import { type EntitiesMap } from '@/kernel/types/entity'
-import { type RoomListItem } from '@/kernel/types/env-room'
-import { getEntityDisplayName } from '@/domain/entity/utils/derived'
-import { type EnvSensorMap, type EnvSensorMapEntry, type HaAreaRef, buildRoomInferKeywordsMap, buildRoomListFromHaAreas, filterEnvSensorMapToKnownAreas } from '@homeos/shared'
+import type { EntitiesMap } from '@/kernel/entity'
+import type { RoomListItem } from '@/kernel/env-room'
+import { getEntityDisplayName } from '@/domain/entity/derived'
+import {
+  type EnvSensorMap,
+  type EnvSensorMapEntry,
+  type HaAreaRef,
+  buildRoomInferKeywordsMap,
+  buildRoomListFromHaAreas,
+  filterEnvSensorMapToKnownAreas,
+} from '@homeos/shared'
 import { useSettingsSave } from '@/features/settings/kernel/save.internals'
-import { fetchSystemConfigFresh, isSystemConfigConflictError, patchSystemConfig, useSystemConfig } from '@/domain/layout/system-config-core.internals'
+import {
+  fetchSystemConfigFresh,
+  isSystemConfigConflictError,
+  patchSystemConfig,
+  useSystemConfig,
+} from '@/domain/layout/system-config-core.internals'
 import { fetchAreasList } from '@/domain/api/entities'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { reloadFrontendConfig } from '@/kernel/config/frontend-config'

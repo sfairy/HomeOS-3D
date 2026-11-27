@@ -3,12 +3,14 @@ import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
 import { clamp as clamp2 } from '../plan/geometry'
 import { syncControlValue as syncControlValue2 } from '../ui/ui-controls'
 import { finite as finite2 } from '../loaders/studio-normalization'
-import { type CameraSnapshotOptions, type CameraModeOptions, type CameraViewChangeOptions } from '../types/studio-app-types'
-import { MAX_CAMERA_POLAR_ANGLE as MAX_CAMERA_POLAR_ANGLE2, constrainCameraPosition as constrainCameraPosition2 } from '../scene/studio-camera-constraints'
+import { type CameraSnapshotOptions, type CameraModeOptions, type CameraViewChangeOptions } from '../studio-app-types'
+import {
+  MAX_CAMERA_POLAR_ANGLE as MAX_CAMERA_POLAR_ANGLE2,
+  constrainCameraPosition as constrainCameraPosition2,
+} from '../scene/studio-camera-constraints'
 import { OrbitControls as OrbitControls2 } from '/static/vendor/three/0.187.0/OrbitControls.js'
 import { createStudioOrbitControls } from '../studio-orbit-controls'
 import { normalizeActiveExportPresetSlot as normalizeActiveExportPresetSlot2 } from '../export/export-presets'
-
 
 export function cameraSettings(runtime: StudioAppRuntime) {
   return runtime.getPreviewFloorMode() === 'all'
@@ -67,7 +69,6 @@ export function applyCameraFocalLength(
 ) {
   targetCamera?.isPerspectiveCamera && targetCamera.setFocalLength(clamp2(finite2(focalLengthValue, 50), 18, 120))
 }
-
 
 export function captureCameraView(runtime: StudioAppRuntime) {
   return runtime.getPreviewFloorMode() === 'all'
@@ -445,7 +446,6 @@ export function applyCameraState(
     runtime.requestStudioRender(),
     runtime.appCtx.orbitControls.update())
 }
-
 
 export function handleOrbitStart(runtime: StudioAppRuntime) {
   const hasShadowPreparePending = runtime.appCtx.rendererRestoreTimeoutId !== null

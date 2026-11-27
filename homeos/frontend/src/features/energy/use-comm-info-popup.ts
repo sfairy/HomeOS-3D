@@ -3,17 +3,17 @@ import { ref, computed, watch } from 'vue'
 import { Wifi, Phone, MessageSquare } from '@lucide/vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
-import { getEntityDisplayName } from '@/domain/entity/utils/derived'
+import { getEntityDisplayName } from '@/domain/entity/derived'
 import { useRelativeDateLabel } from '@/domain/energy/index'
-import { formatNum, resolveAccountEntityIds, normalizeEnergySource } from '@/domain/energy/utils/source'
-import { readPopupField } from '@/domain/energy/utils/popup-read'
-import { resolveAccountLabelForEntityId } from '@/domain/energy/utils/account'
+import { formatNum, resolveAccountEntityIds, normalizeEnergySource } from '@/domain/energy/source'
+import { readPopupField } from '@/domain/energy/popup-read'
+import { resolveAccountLabelForEntityId } from '@/domain/energy/account'
 import {
   COMM_CARRIER_BADGES,
   COMM_CARRIER_LABELS,
   resolveCommCarrierFromEntityId,
   type CommCarrier,
-} from '@/domain/energy/utils/comm-carrier'
+} from '@/domain/energy/comm-carrier'
 
 function parseNumber(inputValue: unknown) {
   const parsedValue = parseFloat(String(inputValue ?? ''))

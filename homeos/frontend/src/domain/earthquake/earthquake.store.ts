@@ -1,7 +1,7 @@
 /** 地震预警状态管理 Store */
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import type { EarthquakeAlertPayload } from '@/kernel/types/earthquake'
+import type { EarthquakeAlertPayload } from '@/kernel/earthquake'
 import { haversineDistanceKm, refineAlertCountdown } from '@homeos/shared'
 import { syncEarthquakeDismiss } from './earthquake-layout'
 import { useLayoutStore } from '@/domain/layout/store/index'

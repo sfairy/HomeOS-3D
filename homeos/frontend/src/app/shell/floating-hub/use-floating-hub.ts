@@ -1,5 +1,5 @@
 /* ── 原 useFloatingHub.ts 的实现 ── */
-import { getEntityDisplayName } from '@/domain/entity/utils/derived'
+import { getEntityDisplayName } from '@/domain/entity/derived'
 import { formatLocaleTime } from '@/kernel/format'
 import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch, type Ref } from 'vue'
 import { useLayoutStore } from '@/domain/layout/store/index'
@@ -16,7 +16,7 @@ import {
 } from '@/domain/entity/utils/entity'
 import { isFloatingPanelType, FLOATING_HUB_WIDTH_MAP } from '@/kernel/registry/widget-registry-meta'
 import type { FloatingWidget } from '@/kernel/types/layout'
-import type { FloatingHubContext } from '@/kernel/types/floating-hub'
+import type { FloatingHubContext } from '@/kernel/floating-hub'
 import {
   getPanelEdgeAnchorFromRect,
   getWidgetAnchorTransform,
@@ -26,7 +26,7 @@ import {
   sanitizeWidgetPct,
   isValidRootRect,
 } from '@/features/settings/floorplan/utils/floating-hub-layout'
-import { buildAfhAccentStyle, resolveAfhWidgetTheme } from '@/domain/entity/utils/floating-entity-colors'
+import { buildAfhAccentStyle, resolveAfhWidgetTheme } from '@/domain/entity/floating-entity-colors'
 import { resolveAqiSensorId, collectSensorEntityIds } from '@/features/weather/utils'
 
 const AsyncUtilityMeterInfoPopup = defineAsyncComponent(

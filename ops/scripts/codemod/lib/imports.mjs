@@ -148,7 +148,12 @@ function stripKnownExt(path) {
  *   剥掉会让 Node ESM 直接 `ERR_MODULE_NOT_FOUND`）。
  * @returns {string}
  */
-export function toSpecifier(targetRepoRel, importerRepoRel, style, { srcRoot = FRONTEND_SRC, keepExtension = false } = {}) {
+export function toSpecifier(
+  targetRepoRel,
+  importerRepoRel,
+  style,
+  { srcRoot = FRONTEND_SRC, keepExtension = false } = {},
+) {
   const keepExt = keepExtension || /\.(vue|css|json)$/.test(targetRepoRel)
   const target = keepExt ? targetRepoRel : stripKnownExt(targetRepoRel)
 
@@ -325,7 +330,8 @@ function pythonPackageParts(repoRelFile, srcRoot = BACKEND_SRC) {
 /** 从包 `pkgParts` 导入 `targetParts` 的相对前缀（点号个数 + 模块名）。 */
 function relativeModulePrefix(pkgParts, targetParts) {
   let common = 0
-  while (common < pkgParts.length && common < targetParts.length && pkgParts[common] === targetParts[common]) common += 1
+  while (common < pkgParts.length && common < targetParts.length && pkgParts[common] === targetParts[common])
+    common += 1
   const up = pkgParts.length - common
   const rest = targetParts.slice(common)
   return `${'.'.repeat(up + 1)}${rest.join('.')}`

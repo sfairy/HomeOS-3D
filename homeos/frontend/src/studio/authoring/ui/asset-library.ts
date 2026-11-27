@@ -6,7 +6,7 @@ import { isCourtyardGate as isCourtyardGate2 } from '../plan/courtyard-drawing'
 import { lampItemTypeSet } from '../items/item-catalog'
 import { libraryCardVisible, normalizeLibraryCategory } from '../items/studio-model-library'
 import { refreshDecorationLibrary } from './decoration-library'
-import { type StudioControlElement } from '../types/studio-app-types'
+import { type StudioControlElement } from '../studio-app-types'
 
 /**
  * 素材库页签模式的只读镜像（0.8.7 的 `vo`）。
@@ -118,7 +118,6 @@ function defaultReducedMotion(): boolean {
   return globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
 }
 
-
 export function materialSlotGroupView(appCtx: StudioAppContext, materialSlotEntries: any) {
   const groupsInOrder: any = []
   for (const slotEntry of materialSlotEntries) {
@@ -140,7 +139,6 @@ export function materialSlotGroupView(appCtx: StudioAppContext, materialSlotEntr
       : materialSlotEntries,
   }
 }
-
 
 /**
  * 显示/隐藏「我的装饰」面板，并在进入时刷新列表。

@@ -16,7 +16,6 @@ export function planCanvasContext(canvas: HTMLCanvasElement | null): CanvasRende
   return (canvas || document.createElement('canvas')).getContext('2d')
 }
 
-
 export function isSnapEnabled(runtime: StudioAppRuntime) {
   return runtime.appCtx.studioState.settings.snapEnabled !== false && !runtime.appCtx.isSnapTemporarilyOff
 }
@@ -71,7 +70,6 @@ export function applySnapTolerance(runtime: StudioAppRuntime, resizeMoveEvent: a
     runtime.applyPanelRatios(),
     runtime.applyDetailsRatio()
 }
-
 
 export function applyWallHeightInput(runtime: StudioAppRuntime, wallHeightValue: any) {
   runtime.appCtx.activePointerId &&

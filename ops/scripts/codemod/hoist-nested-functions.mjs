@@ -160,7 +160,9 @@ if (REVERT) {
     output = `${error.stdout ?? ''}${error.stderr ?? ''}`
   }
   const failingLines = new Set()
-  for (const match of output.matchAll(new RegExp(`${target.split('/').pop()}\\((\\d+),\\d+\\): error TS(2304|2552|2448|1003|1109|1128)`, 'g'))) {
+  for (const match of output.matchAll(
+    new RegExp(`${target.split('/').pop()}\\((\\d+),\\d+\\): error TS(2304|2552|2448|1003|1109|1128)`, 'g'),
+  )) {
     failingLines.add(Number(match[1]))
   }
   console.log(`tsc 报错行号 ${failingLines.size} 个`)
@@ -194,11 +196,7 @@ const hoisted = []
 for (const block of blocks) {
   const body = lines.slice(block.start, block.end + 1)
   for (let index = block.start; index <= block.end; index += 1) removed.add(index)
-  hoisted.push(
-    body
-      .map((line) => (line.startsWith('  ') ? line.slice(2) : line))
-      .join('\n'),
-  )
+  hoisted.push(body.map((line) => (line.startsWith('  ') ? line.slice(2) : line)).join('\n'))
 }
 const kept = lines.filter((_, index) => !removed.has(index))
 const result = `${kept.join('\n').replace(/\n{3,}/g, '\n\n')}\n\n/* ── 从 ${hostName} 提升出来的纯函数（不依赖外层闭包） ── */\n\n${hoisted.join('\n\n')}\n`

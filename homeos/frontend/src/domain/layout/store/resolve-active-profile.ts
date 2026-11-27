@@ -1,7 +1,11 @@
 /** 解析优先级：URL ?profile= > localStorage > 服务端终端绑定 > 新终端默认策略 > default。 */
 import { fetchProject, resolveTerminalProfile, updateSelfTerminalBinding } from '@/domain/api/config'
-import { getClientDeviceId } from '@/domain/client/utils/index'
-import { readStoredProfileId, hasStoredProfileId, writeStoredProfileId } from '@/domain/layout/store/create-layout-state'
+import { getClientDeviceId } from '@/domain/client/index'
+import {
+  readStoredProfileId,
+  hasStoredProfileId,
+  writeStoredProfileId,
+} from '@/domain/layout/store/create-layout-state'
 import { logger } from '@/kernel/core/logger'
 import type { UILayoutConfig } from '@/kernel/types/layout'
 

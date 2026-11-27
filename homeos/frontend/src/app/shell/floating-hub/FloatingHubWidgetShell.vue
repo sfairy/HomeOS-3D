@@ -48,13 +48,13 @@
  */
 import { computed, inject, unref } from 'vue'
 import { Grip } from '@lucide/vue'
-import { FloatingHubContextKey } from '@/kernel/types/floating-hub'
+import { FloatingHubContextKey } from '@/kernel/floating-hub'
 import FloatingHubEntityWidget from '@/app/shell/floating-hub/FloatingHubEntityWidget.vue'
 import FloatingHubClockWidget from '@/app/shell/floating-hub/FloatingHubClockWidget.vue'
 import FloatingHubMetricWidget from '@/app/shell/floating-hub/FloatingHubMetricWidget.vue'
 import FloatingHubPanelWidget from '@/app/shell/floating-hub/FloatingHubPanelWidget.vue'
 import type { FloatingWidget } from '@/kernel/types/layout'
-import { hasEntityCustomColors, shouldTintAfhWidget } from '@/domain/entity/utils/floating-entity-colors'
+import { hasEntityCustomColors, shouldTintAfhWidget } from '@/domain/entity/floating-entity-colors'
 import { canonicalizeWidgetType } from '@/kernel/registry/widget-catalog'
 
 // 部件实例

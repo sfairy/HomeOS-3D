@@ -140,7 +140,7 @@ import { useAreaOptions } from '@/domain/entity/use-area-options'
 import { copyTextWithNotify } from '@/kernel/ui/notify'
 import { batchAssignEntityArea } from '@/domain/api/entities'
 import { useShellTeleportTarget } from '@/kernel/ui/shell/use-shell-teleport-target'
-import { useFocusTrap } from '@/kernel/ui/hooks/use-focus-trap'
+import { useFocusTrap } from '@/kernel/ui/use-focus-trap'
 
 // 当前选中的实体 ID 数组；为空时整个工具栏不渲染。
 const props = defineProps<{

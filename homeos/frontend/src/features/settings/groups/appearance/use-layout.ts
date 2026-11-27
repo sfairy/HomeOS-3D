@@ -1,5 +1,5 @@
 import { useDropdownPosition } from '@/kernel/ui/popup/use-dropdown-position'
-import { useClickOutside } from '@/kernel/ui/hooks/use-click-outside'
+import { useClickOutside } from '@/kernel/ui/use-click-outside'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useLayoutStore } from '@/domain/layout/store/index'
 import { EMBED_ICON_LABELS, embedIconMap, embedLucidIcons, resolveEmbedIconByIndex } from '@/kernel/layout'
@@ -10,21 +10,46 @@ import { copyTextWithNotify } from '@/kernel/ui/notify'
 import { useSettingsHubRouteSection } from '@/features/settings/shared/hub'
 import { computed, ref, watch, type Ref, reactive } from 'vue'
 import { clonePlain } from '@/kernel/core/index'
-import { type HaConfig, type StatsSensorsConfig, type UILayoutConfig, type PanelWidget } from '@/kernel/types/layout'
-import { createDefaultEarthquakeConfig } from '@/kernel/types/earthquake'
+import type { HaConfig, StatsSensorsConfig, UILayoutConfig, PanelWidget } from '@/kernel/types/layout'
+import { createDefaultEarthquakeConfig } from '@/kernel/earthquake'
 import { ACCOUNT_BINDING_SOURCE_OPTIONS } from '@/domain/energy/constants/account-binding-meta'
-import { createDefaultDashboardFooterItems, createFooterItem, DASHBOARD_FOOTER_COLOR_ACCENT, DASHBOARD_FOOTER_COLORS, DASHBOARD_FOOTER_PRESETS, normalizeDashboardFooter, resolveFooterItemLabel } from '@/domain/energy/constants/dashboard-footer'
+import {
+  createDefaultDashboardFooterItems,
+  createFooterItem,
+  DASHBOARD_FOOTER_COLOR_ACCENT,
+  DASHBOARD_FOOTER_COLORS,
+  DASHBOARD_FOOTER_PRESETS,
+  normalizeDashboardFooter,
+  resolveFooterItemLabel,
+} from '@/domain/energy/constants/dashboard-footer'
 import { ENERGY_FIELD_DEFS, type EnergyFieldDef } from '@/domain/energy/constants/energy-fields'
-import { type DashboardFooterItem, type FooterFieldOption } from '@/kernel/types/dashboard-footer'
+import type { DashboardFooterItem, FooterFieldOption } from '@/kernel/dashboard-footer'
 import { MAX_QUICK_BUTTONS, QUICK_BUTTON_OPTIONS, normalizeQuickButtons } from '@/domain/widget/quick-actions.config'
 import { FLOATING_HUB_DEFAULT_TAB } from '@/kernel/registry/floating-hub-tab-options'
-import { cloneHomeClimateChartConfig, normalizeHomeClimateChartConfig, serializeHomeClimateChartConfig } from '@/kernel/registry/home-climate-chart-options'
-import { cloneHubTabsDraft, getHubTabSet, hasConfigurableTabs, serializeHubTabsConfig } from '@/kernel/registry/hub-tabs-options'
-import { cloneWeatherHubConfig, isWeatherHubWidgetType, normalizeWeatherHubConfig, serializeWeatherHubConfig } from '@/kernel/registry/weather-hub-options'
-import { getDashboardWidgetCatalogGroups, getSidebarWidgetCatalogGroups, getWidgetName } from '@/kernel/registry/widget-catalog'
+import {
+  cloneHomeClimateChartConfig,
+  normalizeHomeClimateChartConfig,
+  serializeHomeClimateChartConfig,
+} from '@/kernel/registry/home-climate-chart-options'
+import {
+  cloneHubTabsDraft,
+  getHubTabSet,
+  hasConfigurableTabs,
+  serializeHubTabsConfig,
+} from '@/kernel/registry/hub-tabs-options'
+import {
+  cloneWeatherHubConfig,
+  isWeatherHubWidgetType,
+  normalizeWeatherHubConfig,
+  serializeWeatherHubConfig,
+} from '@/kernel/registry/weather-hub-options'
+import {
+  getDashboardWidgetCatalogGroups,
+  getSidebarWidgetCatalogGroups,
+  getWidgetName,
+} from '@/kernel/registry/widget-catalog'
 import { getSidebarWidgetDefaultHeight } from '@/kernel/registry/widget-registry-meta'
-import { clampPanelCardHeightPx, parsePanelCardHeightPx } from '@/domain/widget/utils/panel-widget-height'
-
+import { clampPanelCardHeightPx, parsePanelCardHeightPx } from '@/domain/widget/panel-widget-height'
 
 /* ── 原 layout-dashboard-embeds.internals.ts 的实现 ── */
 /** 设置：嵌入页 Hub */

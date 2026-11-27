@@ -6,7 +6,7 @@
 
 import { ref, type Ref } from 'vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { domainIndexToArray, getEntityDisplayName } from '@/domain/entity/utils/derived'
+import { domainIndexToArray, getEntityDisplayName } from '@/domain/entity/derived'
 import type { ModeDraft } from './draft.internals'
 
 /** 家居模式编辑器：批量添加设备动作 */

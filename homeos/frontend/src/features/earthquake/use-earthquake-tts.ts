@@ -1,7 +1,7 @@
 /** 地震预警语音播报（TTS）模块 */
 import { watch, onUnmounted } from 'vue'
 import type { Ref } from 'vue'
-import type { EarthquakeAlertPayload } from '@/kernel/types/earthquake'
+import type { EarthquakeAlertPayload } from '@/kernel/earthquake'
 import { speakVoiceMultiple } from '@/kernel/http/system-api'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { resolveTtsMediaPlayerIds } from '@/features/voice/utils'

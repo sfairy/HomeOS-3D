@@ -1,14 +1,9 @@
 /** 实体 store 初始化与全量/分批 hydrate（从 entity-store-support.ts 拆回）。 */
 import { useLayoutStore } from '@/domain/layout/store/index'
-import type {
-  EntityInitDeps,
-  EntityInitOptions,
-  HaEntityState,
-  SnapshotAcceptOptions,
-} from '@/kernel/types/entity'
+import type { EntityInitDeps, EntityInitOptions, HaEntityState, SnapshotAcceptOptions } from '@/kernel/entity'
 import { getWorkerDerivedThreshold } from '@/kernel/config/frontend-config'
 import { setPollTickMs } from '@/kernel/core/index'
-import { getEntityDisplayName } from '@/domain/entity/utils/derived'
+import { getEntityDisplayName } from '@/domain/entity/derived'
 import { isStaleState, mergeChunkIntoNewerEntity } from '@/domain/entity/utils/entity'
 import { applyAdaptiveFrontendPerf } from '@/kernel/perf/index'
 import { applyTabletDefaultPerformanceMode } from '@/kernel/perf/index'

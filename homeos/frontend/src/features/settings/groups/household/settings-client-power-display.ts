@@ -1,5 +1,5 @@
 /** 供 useClientPowerPanel / useClientPowerDisplay 与 Section 组件复用。 */
-import { getClientDeviceKindLabel, getSystemInfoFromClientRow } from '@/domain/client/utils/index'
+import { getClientDeviceKindLabel, getSystemInfoFromClientRow } from '@/domain/client/index'
 
 /** 将实时客户端列表按 clientId 索引为 Map，便于按 id 查找行数据 */
 export function buildClientStatusMap(liveClients: Array<{ clientId: string }>) {

@@ -7,14 +7,14 @@ import type {
   DashboardFooterItemPartial,
   FooterFieldOption,
   FooterSourceOption,
-} from '@/kernel/types/dashboard-footer'
-import { normalizeEnergySource } from '@/domain/energy/utils/source'
+} from '@/kernel/dashboard-footer'
+import { normalizeEnergySource } from '@/domain/energy/source'
 import {
   FOOTER_ACCOUNT_INDEX_ALL,
   resolveAccountDisplayRows,
   resolvePrimaryAccountIndex,
   resolveRawAccountRowCount,
-} from '@/domain/energy/utils/account'
+} from '@/domain/energy/account'
 
 import { ACCOUNT_BINDING_SOURCE_OPTIONS } from '@/domain/energy/constants/account-binding-meta'
 

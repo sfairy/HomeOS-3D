@@ -1,10 +1,7 @@
 import { buttonIconSize } from '@app/bridge/presets'
 import { extraTypes as extraTypes2 } from '../../climate/purifier-extras'
 import { validCurtainGroups as validCurtainGroups2 } from '../../cover/cover-groups'
-import {
-  interaction3dPreviewSize as interaction3dPreviewSize2,
-  observeInteraction3dPreview,
-} from '@app/bridge/presets'
+import { interaction3dPreviewSize as interaction3dPreviewSize2, observeInteraction3dPreview } from '@app/bridge/presets'
 import { requestInteraction3dAccess as requestInteraction3dAccess2 } from '@app/bridge/bridge'
 import { carChargingMappingError as carChargingMappingError2 } from '../../vehicle/car-state'
 import { createConfigurationFeedback } from '../configuration-feedback'

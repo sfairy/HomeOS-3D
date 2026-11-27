@@ -8,7 +8,6 @@ import { domElement } from '@app/shared/util/dom-factory'
  * 编辑器里那一处冲突确认不用改调用点。
  */
 
-
 type ConfirmOptions = {
   kicker?: string
   title?: string

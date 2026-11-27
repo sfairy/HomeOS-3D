@@ -1,8 +1,16 @@
 import * as echarts from 'echarts/core'
-import { type ECharts, type EChartsCoreOption, type EChartsInitOpts } from 'echarts/core'
+import type { ECharts, EChartsCoreOption, EChartsInitOpts } from 'echarts/core'
 import { hexWithOpacity } from '@/kernel/ui/index'
 import { LineChart, BarChart, HeatmapChart, PieChart, RadarChart, GaugeChart } from 'echarts/charts'
-import { GridComponent, TooltipComponent, LegendComponent, VisualMapComponent, DataZoomComponent, GraphicComponent, RadarComponent } from 'echarts/components'
+import {
+  GridComponent,
+  TooltipComponent,
+  LegendComponent,
+  VisualMapComponent,
+  DataZoomComponent,
+  GraphicComponent,
+  RadarComponent,
+} from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 
 /** 图表公共原语：共享轴样式常量、空态占位 graphic、深色 tooltip 工厂、线性渐变。 */

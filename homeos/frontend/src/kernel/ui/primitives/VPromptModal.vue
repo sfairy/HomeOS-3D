@@ -67,10 +67,10 @@
 import { ref, computed, watch, nextTick } from 'vue'
 import { PencilLine } from '@lucide/vue'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { useFocusTrap } from '@/kernel/ui/hooks/use-focus-trap'
-import { useBackgroundInert } from '@/kernel/ui/hooks/use-background-inert'
-import { useBodyScrollLock } from '@/kernel/ui/hooks/use-body-scroll-lock'
-import { useEscLayer } from '@/kernel/ui/hooks/use-esc-stack'
+import { useFocusTrap } from '@/kernel/ui/use-focus-trap'
+import { useBackgroundInert } from '@/kernel/ui/use-background-inert'
+import { useBodyScrollLock } from '@/kernel/ui/use-body-scroll-lock'
+import { useEscLayer } from '@/kernel/ui/use-esc-stack'
 import { useShellTeleportTarget } from '@/kernel/ui/shell/use-shell-teleport-target'
 const chrome = useChromeStore()
 const { teleportTarget, shellTeleportPending } = useShellTeleportTarget()

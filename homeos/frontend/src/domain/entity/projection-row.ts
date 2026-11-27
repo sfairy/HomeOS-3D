@@ -2,7 +2,7 @@
  * 列表行展示：优先 EntityProjection
  */
 import { getProjection } from '@/domain/entity/store/entity-projection'
-import type { HaEntityView } from '@/kernel/types/entity'
+import type { HaEntityView } from '@/kernel/entity'
 
 export function resolveListRowEntity(entityId: string, fallbackEntity?: HaEntityView): HaEntityView | null {
   const proj = getProjection(entityId)

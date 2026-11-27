@@ -12,8 +12,8 @@ import {
   OPTIMISTIC_TIMEOUT_MESSAGE,
 } from '@/domain/entity/store/optimistic-expectation'
 import { clonePlain } from '@/kernel/core/index'
-import { lightBrightnessFromPct } from '@/domain/entity/utils/control/light-control-core'
-import type { EntityOptimisticDeps, HaEntityState, OptimisticPrediction } from '@/kernel/types/entity'
+import { lightBrightnessFromPct } from '@/domain/entity/control/light-control-core'
+import type { EntityOptimisticDeps, HaEntityState, OptimisticPrediction } from '@/kernel/entity'
 
 /** turn_on 时把 brightness / color_temp / rgb 写入 attrs。 */
 function applyLightTurnOnAttrs(attrs: Record<string, unknown>, sd: Record<string, unknown>): void {

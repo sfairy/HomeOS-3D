@@ -1,6 +1,6 @@
-import { MONITORED_ENTITY_IDS, DOMAIN_LIST } from '@/kernel/constants/index'
-import { domainIndexToArray } from '@/domain/entity/utils/derived'
-import { type HaEntityState } from '@/kernel/types/entity'
+import { MONITORED_ENTITY_IDS, DOMAIN_LIST } from '@/kernel/index'
+import { domainIndexToArray } from '@/domain/entity/derived'
+import type { HaEntityState } from '@/kernel/entity'
 import { touchEntityStoreDisplayDeps } from '@/domain/entity/entity'
 import { getEntityDomain, isControllableEntityId } from '@homeos/shared'
 

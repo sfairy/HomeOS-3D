@@ -339,20 +339,16 @@ import SettingsScreensaverSection from '@/features/settings/groups/appearance/Se
 import SettingsLayoutDisplaySection from '@/features/settings/groups/appearance/layout/SettingsLayoutDisplaySection.vue'
 import SettingsLayoutFooterSection from '@/features/settings/groups/appearance/layout/SettingsLayoutFooterSection.vue'
 import { useDashboardFooterEditor } from '@/features/settings/groups/appearance/use-layout'
-import { useScaling } from '@/kernel/ui/hooks/use-scaling'
+import { useScaling } from '@/kernel/ui/use-scaling'
 import { reloadFrontendConfig } from '@/kernel/config/frontend-config'
 import { handleSystemConfigPatchError, useSystemConfig } from '@/domain/layout/system-config-core.internals'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
 import NavTabEditor from './NavTabEditor.vue'
 import { markPerformanceModeUserSet } from '@/kernel/perf/index'
-import {
-  autoPerformanceModeRef,
-  clearAutoPerformanceMode,
-  resolveEffectivePerformanceMode,
-} from '@/kernel/perf/index'
+import { autoPerformanceModeRef, clearAutoPerformanceMode, resolveEffectivePerformanceMode } from '@/kernel/perf/index'
 import { applyGlassEffectDocument } from '@/kernel/ui/index'
-import { useSettingsSidebarReentryReset } from '@/kernel/ui/hooks/hub-viewport'
+import { useSettingsSidebarReentryReset } from '@/kernel/ui/hub-viewport'
 import { useSettingsHubRouteSection } from '@/features/settings/shared/hub'
 import { useSettingsPendingChanges } from '@/features/settings/kernel/pending.internals'
 

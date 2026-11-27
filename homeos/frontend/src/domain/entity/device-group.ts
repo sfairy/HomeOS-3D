@@ -1,11 +1,34 @@
 import { ref, computed, type Ref, type Component } from 'vue'
-import { type DeviceGroupEntitiesStoreLike, resolveDeviceGroupEntityIds, type DeviceGroupUiStoreLike, computeOfflineCriticalSet, groupOfflineByDevice, BATTERY_LOW_THRESHOLD, resolveBatteryLevel } from '@/domain/entity/utils/device-group'
-import { type HaEntityState } from '@/kernel/types/entity'
+import {
+  type DeviceGroupEntitiesStoreLike,
+  resolveDeviceGroupEntityIds,
+  type DeviceGroupUiStoreLike,
+  computeOfflineCriticalSet,
+  groupOfflineByDevice,
+  BATTERY_LOW_THRESHOLD,
+  resolveBatteryLevel,
+} from '@/domain/entity/utils/device-group'
+import type { HaEntityState } from '@/kernel/entity'
 import { getApiErrorMessage } from '@/kernel/core/index'
-import { Settings, ThermometerSnowflake, Droplets, Fan, Flame, Power, Sun, Plug, Bell, Camera, Lock, Thermometer, Music, AlertTriangle } from '@lucide/vue'
-import { climateHasDualSetpoint } from '@/domain/entity/utils/control/climate-control-core'
-import { resolveTemperatureUnit } from '@/domain/entity/utils/temperature-unit'
-import { entityDomainColor } from '@/kernel/constants/index'
+import {
+  Settings,
+  ThermometerSnowflake,
+  Droplets,
+  Fan,
+  Flame,
+  Power,
+  Sun,
+  Plug,
+  Bell,
+  Camera,
+  Lock,
+  Thermometer,
+  Music,
+  AlertTriangle,
+} from '@lucide/vue'
+import { climateHasDualSetpoint } from '@/domain/entity/control/climate-control-core'
+import { resolveTemperatureUnit } from '@/domain/entity/temperature-unit'
+import { entityDomainColor } from '@/kernel/index'
 import { getEntityDomain } from '@homeos/shared'
 import { formatRelativeFromNow } from '@/kernel/format'
 

@@ -24,7 +24,7 @@
 import { computed, provide, watchEffect } from 'vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { resolveEntityPopupComponent } from '@/features/entity/popup-registry'
-import { getEntityPopupProps } from '@/domain/entity/utils/popup-registry'
+import { getEntityPopupProps } from '@/domain/entity/popup-registry'
 import { useShellTeleportTarget } from '@/kernel/ui/shell/use-shell-teleport-target'
 
 /**

@@ -1,7 +1,5 @@
-import { type AxiosResponse } from 'axios'
+import type { AxiosResponse } from 'axios'
 import { apiPost, apiPut, apiDelete, apiGet } from '../../kernel/http/index'
-import { type LightRangeArchiveStore, type LightRegionOverrideStore } from '@/studio/authoring/plan/studio'
-import { DECORATION_MODELS_PATH, type DecorationLibraryState, type DecorationModel } from '@/studio/authoring/items/studio-user-decorations'
 
 /**
  * 3D 户型相关的 0.8.9 增量接口：**柔光范围局部保存** 与 **配置只读诊断**。
@@ -16,6 +14,97 @@ import { DECORATION_MODELS_PATH, type DecorationLibraryState, type DecorationMod
  *
  * 失败一律由 4xx 表达（错误码见 `@/shared/constants/api-error-codes`）。
  */
+
+/* ── 接口合约类型（3D 柔光范围 / 装饰模型库） ───────────────────────────────
+ * 这些 DTO 由 studio 的渲染与归一化逻辑和本文件共同消费。真源放在 domain，是因为
+ * domain 是 L1：studio（L3）依赖 domain 合法，反过来（此前 domain import studio）
+ * 会形成上溯依赖。studio 侧从原模块再导出同名符号，既有调用点无需改动。
+ */
+
+/** 一个柔光区域描述符（编辑器写出的形状；渲染层只做数值夹取，不重排语义）。 */
+export type LightRegionDescriptor = {
+  shape?: 'circle' | 'square' | 'strip'
+  width?: number
+  depth?: number
+  rotation?: number
+  softness?: number
+  heightMin?: number
+  heightMax?: number
+  offsetX?: number
+  offsetZ?: number
+  moveCenter?: boolean
+}
+
+/** `regionKey → descriptor`。 */
+export type LightRegionOverrides = Record<string, LightRegionDescriptor>
+
+/** `sceneId → regionKey → descriptor`。 */
+export type LightRegionOverrideStore = Record<string, LightRegionOverrides>
+
+/** 撤销记录：保留「改之前的范围」，用于在绘制页撤销柔光调整。 */
+export type LightRangeArchiveEntry = {
+  floorId: string
+  itemId: string
+  /** 改之前的描述符；`null` 表示之前没有自定义（回到模型默认）。 */
+  previous: LightRegionDescriptor | null
+  /** 记录时间（毫秒），仅用于裁剪与展示。 */
+  at: number
+}
+
+/** `sceneId → 撤销记录[]`。 */
+export type LightRangeArchiveStore = Record<string, LightRangeArchiveEntry[]>
+
+/** 后端装饰模型列表里的一条记录。 */
+export type DecorationModel = {
+  assetId: string
+  name: string
+  bytes: number
+  createdAt: number
+  builtin: boolean
+}
+
+/**
+ * 单模型的六项结构限制（0.8.9 上游 `uploadLimits`）。
+ *
+ * 字段名与上游一致，改名前先确认前端文案与后端 `model_glb` 的常量仍能对上：
+ * 这三处显示的数值必须是**同一个**，否则用户会看到「说好 6 万面，5 万面却被拒」。
+ * 任一项为 0 表示服务端未声明（该行文案不显示）。
+ */
+export type DecorationUploadLimits = {
+  /** 三角面上限。 */
+  triangles: number
+  /** 网格部件（图元）上限。 */
+  meshParts: number
+  /** 节点（含分组）上限。 */
+  nodes: number
+  /** 贴图张数上限。 */
+  images: number
+  /** 单张贴图长边（像素）上限。 */
+  imageSide: number
+  /** 全部贴图的合计像素上限。 */
+  imagePixels: number
+}
+
+/** 装饰模型库列表 + 上限。 */
+export type DecorationLibraryState = {
+  models: DecorationModel[]
+  totalBytes: number
+  /** 库总量上限（字节）。 */
+  maxBytes: number
+  /** 库内条目数上限。 */
+  maxModels: number
+  /** 单个文件上限（0.8.9 `maxUploadBytes`；缺省回落 `maxBytes`）。 */
+  maxUploadBytes: number
+  uploadLimits: DecorationUploadLimits
+}
+
+/**
+ * 装饰模型接口的基础路径（**相对 `client.ts` 的 `baseURL`**，即不含 `/api/v1`）。
+ *
+ * 写成绝对路径会让 axios 拼成 `/api/v1/api/v1/...` → 404，症状是面板上出现
+ * 「请求的资源不存在」而接口本身是好的。
+ */
+export const DECORATION_MODELS_PATH = '/studio3d/models'
 
 /** 柔光范围局部保存的请求体。 */
 export type StudioLightRangesUpdate = {
@@ -99,8 +188,6 @@ export async function convertExportImageToWebp(png: Blob): Promise<Blob> {
  * 路径**不带** `/api/v1`：`client.ts` 的 `baseURL` 已经是它，再写一遍会变成
  * `/api/v1/api/v1/...`，服务端直接 404（症状是「请求的资源不存在」）。
  */
-
-
 
 /** 列出库里的全部模型（带上限，前端据此禁用上传按钮并提示额度）。 */
 export function listStudioModels(): Promise<AxiosResponse<DecorationLibraryState>> {

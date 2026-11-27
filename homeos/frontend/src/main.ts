@@ -201,10 +201,12 @@ registerAuthChangeHandler(() => {
   })
   // 3D 面板的设备类型来自后端画像（人工确认优先）：登录后重新投影，登出时清空。
   // 投影失败静默退回空调兜底，不阻断任何主流程。
-  void import('@/features/device/device-profile-kinds').then(({ hydrateDeviceProfileKinds, forgetDeviceProfileKinds }) => {
-    if (useAuthStore().isAuthenticated) void hydrateDeviceProfileKinds(true)
-    else forgetDeviceProfileKinds()
-  })
+  void import('@/features/device/device-profile-kinds').then(
+    ({ hydrateDeviceProfileKinds, forgetDeviceProfileKinds }) => {
+      if (useAuthStore().isAuthenticated) void hydrateDeviceProfileKinds(true)
+      else forgetDeviceProfileKinds()
+    },
+  )
   // 登出 / 401 时（isAuthenticated=false）额外清理用户态 store，避免下一个会话残留上一个用户的数据
   void import('./domain/auth/auth.store').then(({ useAuthStore }) => {
     if (useAuthStore().isAuthenticated) return
@@ -250,9 +252,7 @@ function mountApp(): void {
   // B22 + RUM：全局 WebGL 上下文丢失兜底与轻量性能采集，idle 时懒加载启动。
   // 入口只多一次动态 import，不为采集付首屏字节；?webgl-guard=0 / ?client-metrics=0 可回退。
   const startPerf = (): void => {
-    void import('@/kernel/perf/index').then(({ startPerfInstrumentation }) =>
-      startPerfInstrumentation(),
-    )
+    void import('@/kernel/perf/index').then(({ startPerfInstrumentation }) => startPerfInstrumentation())
   }
   typeof requestIdleCallback === 'function' ? requestIdleCallback(startPerf) : setTimeout(startPerf, 1500)
   // 挂载完成标记：与 data-homeos-ready（首个路由解析完成）区分开。
@@ -296,7 +296,9 @@ function applyPostConfigHooks(): void {
   setupFrontendConfigVisibilitySync()
   // 3D 面板的设备类型（空调 / 浴霸 / 热水器）来自后端画像结论：已在登录态的冷启动
   // 在这里补一次投影；未登录会静默失败，登录成功后再由 registerAuthChangeHandler 触发。
-  void import('@/features/device/device-profile-kinds').then(({ hydrateDeviceProfileKinds }) => hydrateDeviceProfileKinds())
+  void import('@/features/device/device-profile-kinds').then(({ hydrateDeviceProfileKinds }) =>
+    hydrateDeviceProfileKinds(),
+  )
   // 玻璃拟态效果同步（根据布局配置开/关毛玻璃）
   setupGlassEffectSync(() => useLayoutStore().layoutConfig)
   // 智能性能模式（根据设备能力动态调整渲染策略）

@@ -23,13 +23,13 @@
     "ops"
   ],
   "totals": {
-    "sources": 3496,
-    "lines": 742360,
-    "clones": 162,
-    "duplicatedLines": 2823,
-    "percentage": 0.3803,
-    "tokens": 4344511,
-    "duplicatedTokens": 14513
+    "sources": 3497,
+    "lines": 747643,
+    "clones": 164,
+    "duplicatedLines": 3125,
+    "percentage": 0.418,
+    "tokens": 4344563,
+    "duplicatedTokens": 14717
   },
   "byFormat": {
     "css": {
@@ -47,10 +47,10 @@
       "clones": 20
     },
     "javascript": {
-      "sources": 347,
-      "lines": 49129,
-      "duplicatedLines": 438,
-      "percentage": 0.8915,
+      "sources": 348,
+      "lines": 52315,
+      "duplicatedLines": 591,
+      "percentage": 1.1297,
       "clones": 21
     },
     "python": {
@@ -62,14 +62,14 @@
     },
     "typescript": {
       "sources": 1507,
-      "lines": 390539,
-      "duplicatedLines": 1619,
-      "percentage": 0.4146,
-      "clones": 84
+      "lines": 392653,
+      "duplicatedLines": 1768,
+      "percentage": 0.4503,
+      "clones": 86
     },
     "vue": {
       "sources": 424,
-      "lines": 87511,
+      "lines": 87494,
       "duplicatedLines": 0,
       "percentage": 0,
       "clones": 0
@@ -81,12 +81,6 @@
       "first": "homeos/backend/src/domains/app_config/defaults.py",
       "second": "homeos/backend/src/platform/core/db/retention.py",
       "lines": 15
-    },
-    {
-      "fingerprint": "043d99bf2c3524c70de82a39d652baf51516915c",
-      "first": "ops/scripts/codemod/plans/collapse-b.mjs",
-      "second": "ops/scripts/codemod/plans/collapse-c.mjs",
-      "lines": 34
     },
     {
       "fingerprint": "044cc780b71569f69bdf35028a06ba44ded277b7",
@@ -111,6 +105,18 @@
       "first": "homeos/backend/src/api/backups.py",
       "second": "homeos/backend/src/api/backups.py",
       "lines": 13
+    },
+    {
+      "fingerprint": "09503e70928521858d28290236ebe49c08c08ba0",
+      "first": "homeos/frontend/src/studio/authoring/app-boot.ts",
+      "second": "homeos/frontend/src/studio/authoring/export/export.ts",
+      "lines": 40
+    },
+    {
+      "fingerprint": "0d58cac1c93ff811a2f57e423095b8c07a1abc6f",
+      "first": "homeos/frontend/src/studio/authoring/app-boot.ts",
+      "second": "homeos/frontend/src/studio/authoring/ui/dialogs.ts",
+      "lines": 37
     },
     {
       "fingerprint": "0ef7a02942fdf5b598d47e3bf2712a8cd66c17ca",
@@ -155,12 +161,6 @@
       "lines": 16
     },
     {
-      "fingerprint": "18fc6e80b5c73c152e7f8f2128bd7d481b981daf",
-      "first": "homeos/frontend/src/kernel/ui/hooks/hub-viewport.ts",
-      "second": "homeos/frontend/src/kernel/ui/hooks/hub-viewport.ts",
-      "lines": 22
-    },
-    {
       "fingerprint": "1a4889d3ed936ba296ade3b1a29533f50178851a",
       "first": "homeos/frontend/src/studio/runtime/panels/list-extra-panel.ts",
       "second": "homeos/frontend/src/studio/runtime/panels/service-extra-panel.ts",
@@ -179,6 +179,12 @@
       "lines": 12
     },
     {
+      "fingerprint": "1e09de245d6e77bacb2eac3c21b2b9060dfaf238",
+      "first": "homeos/frontend/src/features/settings/asset-picker/AssetManagerModal.vue",
+      "second": "homeos/frontend/src/features/settings/asset-picker/AssetPickerModal.vue",
+      "lines": 13
+    },
+    {
       "fingerprint": "1e15cdce9a29bb5705799e1afb0186c9789bb28a",
       "first": "homeos-store/frontend/src/features/admin/views/catalog/EntitlementsView.vue",
       "second": "homeos-store/frontend/src/features/admin/views/catalog/ProductsView.vue",
@@ -195,6 +201,12 @@
       "first": "homeos/frontend/src/features/device/DeviceAnalyticsPanel.vue",
       "second": "homeos/frontend/src/features/device/use-device-analytics-charts.ts",
       "lines": 11
+    },
+    {
+      "fingerprint": "28f04f70fce3bb1a5878ec791320fb7ef10dd343",
+      "first": "homeos/frontend/src/studio/authoring/app-boot.ts",
+      "second": "homeos/frontend/src/studio/authoring/ui/refresh-view.ts",
+      "lines": 42
     },
     {
       "fingerprint": "2cd585137774455fa7ae592f640d31bb8bfd71f5",
@@ -293,6 +305,12 @@
       "lines": 12
     },
     {
+      "fingerprint": "3730f554db8791f40bf7d5c9ca1d629708f1f697",
+      "first": "ops/scripts/codemod/plans/collapse-a.mjs",
+      "second": "ops/scripts/codemod/plans/collapse-b.mjs",
+      "lines": 105
+    },
+    {
       "fingerprint": "391590d6cca778d9fe892593eed527e5a1a562b4",
       "first": "homeos-store/backend/src/__init__.py",
       "second": "homeos/backend/src/version.py",
@@ -315,6 +333,12 @@
       "first": "homeos/frontend/src/studio/authoring/render/studio-shader-compile-warmup.ts",
       "second": "homeos/frontend/src/studio/runtime/core/stage-frame-lazy-mount.ts",
       "lines": 14
+    },
+    {
+      "fingerprint": "3d4300f5e0589096573bae9b8628bc5b6d5929ff",
+      "first": "homeos/frontend/src/kernel/ui/hub-viewport.ts",
+      "second": "homeos/frontend/src/kernel/ui/hub-viewport.ts",
+      "lines": 22
     },
     {
       "fingerprint": "3ebe031505270edb0ee66c237a0925b3085366b0",
@@ -357,12 +381,6 @@
       "first": "homeos/frontend/scripts/models/lib/glb-io.mjs",
       "second": "homeos/frontend/scripts/models/organize-models.mjs",
       "lines": 14
-    },
-    {
-      "fingerprint": "49325331f34d65f7458bd62283a32298a6ebafbe",
-      "first": "homeos/frontend/src/studio/authoring/app-boot.ts",
-      "second": "homeos/frontend/src/studio/authoring/ui/wiring.ts",
-      "lines": 11
     },
     {
       "fingerprint": "495c41977727cdfabb30cf0e1d2afa3ee1e1767a",
@@ -437,12 +455,6 @@
       "lines": 22
     },
     {
-      "fingerprint": "581c23bee28656cb84394bec1b32bb4995d581dc",
-      "first": "homeos/frontend/src/studio/authoring/app-boot.ts",
-      "second": "homeos/frontend/src/studio/authoring/interaction/drag-and-drop.ts",
-      "lines": 12
-    },
-    {
       "fingerprint": "58910063a7706d154490aba4a846ffb0e1a2c73e",
       "first": "homeos/frontend/src/studio/app/renderer/panel-seams/details/entity-details.ts",
       "second": "homeos/frontend/src/studio/app/renderer/panel-seams/popups/custom-popup.ts",
@@ -485,10 +497,10 @@
       "lines": 15
     },
     {
-      "fingerprint": "6775f623e77142b8c99f9e6af68917889224ab24",
+      "fingerprint": "68e608e712260650b174426c620eba7042aed18f",
       "first": "homeos/frontend/src/studio/authoring/app-boot.ts",
-      "second": "homeos/frontend/src/studio/authoring/render/render-loop.ts",
-      "lines": 30
+      "second": "homeos/frontend/src/studio/authoring/scene-build/build-scene.ts",
+      "lines": 26
     },
     {
       "fingerprint": "6900a071eff236e74c4bc00089d8a06f3872f04d",
@@ -503,22 +515,10 @@
       "lines": 15
     },
     {
-      "fingerprint": "6b20ae1dea551b62fbd3e9ce23377566537ed76c",
-      "first": "ops/scripts/codemod/plans/collapse-a.mjs",
-      "second": "ops/scripts/codemod/plans/collapse-c.mjs",
-      "lines": 48
-    },
-    {
       "fingerprint": "6b6f740054559619d1511de605140d095f8b05f3",
       "first": "homeos/frontend/src/studio/authoring/materials/studio-model-material-roles.ts",
       "second": "homeos/frontend/src/studio/authoring/materials/studio-model-material-roles.ts",
       "lines": 16
-    },
-    {
-      "fingerprint": "6b8c325c67cb7e398df8adbf3cbf1b92b05a93a1",
-      "first": "homeos/frontend/src/features/settings/asset-picker/AssetManagerModal.vue",
-      "second": "homeos/frontend/src/features/settings/asset-picker/AssetPickerModal.vue",
-      "lines": 13
     },
     {
       "fingerprint": "6be0a53513dd0c158fc0f947640755f98e0b541a",
@@ -533,22 +533,16 @@
       "lines": 15
     },
     {
-      "fingerprint": "722931aa4f456c990e2994d5a6eaa5a353dfc96c",
-      "first": "homeos/frontend/src/studio/authoring/app-boot.ts",
-      "second": "homeos/frontend/src/studio/authoring/export/export.ts",
-      "lines": 41
+      "fingerprint": "735fac691a0f6273d1707cacf76000cc1d15cfad",
+      "first": "ops/scripts/codemod/plans/collapse-a.mjs",
+      "second": "ops/scripts/codemod/plans/collapse-c.mjs",
+      "lines": 105
     },
     {
       "fingerprint": "73824a60216fbcad34a3d44c0792dbb8e904279e",
       "first": "homeos/frontend/src/features/device/DeviceAnalyticsPanel.vue",
       "second": "homeos/frontend/src/features/device/DeviceUsageStats.vue",
       "lines": 20
-    },
-    {
-      "fingerprint": "75dc9bf5fb61a2e275ddc31d920dbb717358310d",
-      "first": "homeos/frontend/src/studio/authoring/app-boot.ts",
-      "second": "homeos/frontend/src/studio/authoring/scene-build/build-scene.ts",
-      "lines": 27
     },
     {
       "fingerprint": "76a98aa7052df57f04ce1f5646c439ceb5b86433",
@@ -635,12 +629,6 @@
       "lines": 11
     },
     {
-      "fingerprint": "93be5a653144697b1e19645a91bfc7aa6afb7055",
-      "first": "ops/scripts/codemod/plans/collapse-a.mjs",
-      "second": "ops/scripts/codemod/plans/collapse-b.mjs",
-      "lines": 48
-    },
-    {
       "fingerprint": "94410c7d79652541fefc282ab5ac22348d44bddd",
       "first": "homeos/frontend/src/features/settings/asset-picker/AssetManagerModal.vue",
       "second": "homeos/frontend/src/features/settings/asset-picker/AssetPickerModal.vue",
@@ -665,6 +653,12 @@
       "lines": 62
     },
     {
+      "fingerprint": "97ec098cb0ee16dcf7f9336a7a76dbd7b686e047",
+      "first": "homeos/frontend/src/features/security/security.ts",
+      "second": "homeos/frontend/src/features/security/zone-room.ts",
+      "lines": 19
+    },
+    {
       "fingerprint": "983c71adbfd984a22c2331186ddcfabb7e71bc51",
       "first": "homeos/frontend/src/studio/runtime/environment/device-mist.ts",
       "second": "homeos/frontend/src/studio/runtime/environment/rangehood-airflow.ts",
@@ -687,6 +681,12 @@
       "first": "homeos/frontend/src/studio/runtime/panels/compound-extra-panel.ts",
       "second": "homeos/frontend/src/studio/runtime/panels/service-extra-panel.ts",
       "lines": 11
+    },
+    {
+      "fingerprint": "a497962908704337a084d7d7da03d2d842770d5e",
+      "first": "ops/scripts/codemod/plans/collapse-b.mjs",
+      "second": "ops/scripts/codemod/plans/collapse-c.mjs",
+      "lines": 73
     },
     {
       "fingerprint": "a557a9009e771ae2e44edfe553f0a1692181c269",
@@ -725,12 +725,6 @@
       "lines": 45
     },
     {
-      "fingerprint": "b6857a5cfbe7d9e0dc32be1a30763c1243799a76",
-      "first": "homeos/frontend/src/studio/authoring/app-boot.ts",
-      "second": "homeos/frontend/src/studio/authoring/export/export.ts",
-      "lines": 42
-    },
-    {
       "fingerprint": "b78ecec06469332a25335ce684ea4925290cab23",
       "first": "homeos/backend/src/domains/earthquake/feeds.py",
       "second": "homeos/backend/src/domains/earthquake/feeds.py",
@@ -741,12 +735,6 @@
       "first": "ops/checks/architecture/route_inventory.py",
       "second": "ops/checks/architecture/store_route_inventory.py",
       "lines": 12
-    },
-    {
-      "fingerprint": "b876eeedb128f4c4ba0eeefd0773f8cba6ec2f5f",
-      "first": "homeos/frontend/src/studio/authoring/app-boot.ts",
-      "second": "homeos/frontend/src/studio/authoring/ui/refresh-view.ts",
-      "lines": 42
     },
     {
       "fingerprint": "b9a631c8924bf44b999f60ac7f4d9a94ee95b4af",
@@ -815,6 +803,12 @@
       "lines": 17
     },
     {
+      "fingerprint": "c71bcef05c2e47d0d91dda39d27dd00158d4328d",
+      "first": "homeos/frontend/src/studio/authoring/app-boot.ts",
+      "second": "homeos/frontend/src/studio/authoring/interaction/drag-and-drop.ts",
+      "lines": 55
+    },
+    {
       "fingerprint": "c7dbe32256659b4c05210cc4a79610c0edd368ae",
       "first": "homeos/frontend/src/features/notifications/widgets/NotificationCenter.vue",
       "second": "homeos/frontend/src/features/notifications/widgets/NotificationCenter.vue",
@@ -881,6 +875,12 @@
       "lines": 16
     },
     {
+      "fingerprint": "d7174666b5f811bb9b3b8604c274df8134d8b336",
+      "first": "homeos/frontend/src/studio/authoring/app-boot.ts",
+      "second": "homeos/frontend/src/studio/authoring/runtime/shortcuts.ts",
+      "lines": 41
+    },
+    {
       "fingerprint": "d7496e3d0778da4eb3910d7a799ea26bd9233c43",
       "first": "homeos/frontend/src/features/settings/groups/perception/AlertRulesPanel.vue",
       "second": "homeos/frontend/src/features/settings/groups/perception/AlertRulesPanel.vue",
@@ -917,12 +917,6 @@
       "lines": 14
     },
     {
-      "fingerprint": "df39649a0500ae937dd7eb9e37947367d951d842",
-      "first": "homeos/frontend/src/features/security/security.ts",
-      "second": "homeos/frontend/src/features/security/utils/zone-room.ts",
-      "lines": 19
-    },
-    {
       "fingerprint": "dff9a4a335c55eab0e21ad9c673a4540e772b2b5",
       "first": "homeos/backend/src/domains/agent/policy/proactive.py",
       "second": "homeos/backend/src/domains/agent/tools/home_tools_entities.py",
@@ -951,12 +945,6 @@
       "first": "homeos/frontend/src/studio/app/renderer/panel-renderer.ts",
       "second": "homeos/frontend/src/studio/app/renderer/panel-seams/render-component.ts",
       "lines": 13
-    },
-    {
-      "fingerprint": "e3367c2df8f8d7b8c395c09dd177cc9e165fb46a",
-      "first": "homeos/frontend/src/studio/authoring/app-boot.ts",
-      "second": "homeos/frontend/src/studio/authoring/render/render-loop.ts",
-      "lines": 51
     },
     {
       "fingerprint": "e3a102ce52d0c70ba7e8022151b062188fcd4893",
@@ -1007,6 +995,18 @@
       "lines": 13
     },
     {
+      "fingerprint": "eee69ecad2489ae6e7519f15523f601d12ff5e32",
+      "first": "homeos/frontend/src/studio/authoring/app-boot.ts",
+      "second": "homeos/frontend/src/studio/authoring/export/export.ts",
+      "lines": 41
+    },
+    {
+      "fingerprint": "efbc306e81800084b7c966a4d62b60ed89d31e0c",
+      "first": "homeos/frontend/src/studio/authoring/app-boot.ts",
+      "second": "homeos/frontend/src/studio/authoring/render/render-loop.ts",
+      "lines": 30
+    },
+    {
       "fingerprint": "efe36ba4d741a882e67b7a3aea536f549b45b08b",
       "first": "homeos/frontend/scripts/models/items/dryer.mjs",
       "second": "homeos/frontend/scripts/models/items/washer.mjs",
@@ -1019,6 +1019,12 @@
       "lines": 14
     },
     {
+      "fingerprint": "f97d79320b57c3bb48a6b01d5ec951b8fcd1e741",
+      "first": "homeos/frontend/src/studio/authoring/app-boot.ts",
+      "second": "homeos/frontend/src/studio/authoring/ui/wiring.ts",
+      "lines": 42
+    },
+    {
       "fingerprint": "fa6cb43a42786ea8735fdd43a9fac2d707c367d1",
       "first": "homeos/frontend/src/features/device/device-group/DeviceGroupModal.vue",
       "second": "homeos/frontend/src/features/entity/EntityPickModal.vue",
@@ -1029,6 +1035,12 @@
       "first": "homeos/frontend/src/studio/app/renderer/panel-seams/runtime/optimistic-state.ts",
       "second": "homeos/frontend/src/studio/app/renderer/panel-seams/runtime/runtime-refresh.ts",
       "lines": 13
+    },
+    {
+      "fingerprint": "fbce1a96471e47ae8214bbf0b5baab631efcac71",
+      "first": "homeos/frontend/src/studio/authoring/app-boot.ts",
+      "second": "homeos/frontend/src/studio/authoring/render/render-loop.ts",
+      "lines": 51
     },
     {
       "fingerprint": "fcb8e931cd4d972f2f898cd49807d429a284ccf7",

@@ -7,7 +7,7 @@ import {
   snapPoint as snapPoint2,
 } from '../plan/geometry'
 import { finite as finite2 } from '../loaders/studio-normalization'
-import type { UpdateCameraViewOptions } from '../types/studio-app-types'
+import type { UpdateCameraViewOptions } from '../studio-app-types'
 import { minPointDistance } from '../scene/payload/studio-scene-payload'
 
 export function isDescendantOfRoot(runtime: StudioAppRuntime, ancestorStartNode: any, ancestorStopSet: any) {

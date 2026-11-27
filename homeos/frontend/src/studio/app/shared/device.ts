@@ -1,8 +1,21 @@
 import { climateRenderTypeFromKind } from '@homeos/shared/entity/device-kind'
-import { BATH_HEATER_MODE_LABELS, CLIMATE_MODE_LABELS, HORIZONTAL_POSITION_LABELS, HORIZONTAL_SWING_LABELS, VERTICAL_SWING_LABELS, WATER_HEATER_MODE_LABELS } from '@/kernel/constants/index'
+import {
+  BATH_HEATER_MODE_LABELS,
+  CLIMATE_MODE_LABELS,
+  HORIZONTAL_POSITION_LABELS,
+  HORIZONTAL_SWING_LABELS,
+  VERTICAL_SWING_LABELS,
+  WATER_HEATER_MODE_LABELS,
+} from '@/kernel/index'
 import { deviceProfileKind } from '@/domain/device/device-profile-kind-cache'
-import { bathHeaterModeUsesAirflow, climateIsPoweredOn, climateIsRunning, climatePresentationMode, normalizeClimateModeKey } from '@/domain/entity/climate-power'
-import { type HaEntityAttributes, type HaEntityState, type HaEntityEntry } from '@app/shared/util/ha-entity'
+import {
+  bathHeaterModeUsesAirflow,
+  climateIsPoweredOn,
+  climateIsRunning,
+  climatePresentationMode,
+  normalizeClimateModeKey,
+} from '@/domain/entity/climate-power'
+import type { HaEntityAttributes, HaEntityState, HaEntityEntry } from '@app/shared/util/ha-entity'
 
 /**
  * 气候 / 热水器 / 浴霸的**能力归一与判据**（纯函数层，无 DOM、无 Vue、无 3D 依赖）。

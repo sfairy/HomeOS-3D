@@ -16,7 +16,7 @@ import {
 } from '@/domain/api/notifications'
 import { notifyError } from '@/kernel/ui/notify'
 import { useScheduledPoll } from '@/domain/widget/use-scheduled-poll'
-import { parseNotificationSettings } from '@/domain/notifications/utils/dnd'
+import { parseNotificationSettings } from '@/domain/notifications/dnd'
 import { getMaxRemoteNotifications } from '@/kernel/config/frontend-config'
 import { logger } from '@/kernel/core/logger'
 import { getApiErrorMessage } from '@/kernel/core/error-message'

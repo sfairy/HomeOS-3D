@@ -1,12 +1,11 @@
 import { type StudioAppRuntime } from '../runtime/studio-app-runtime'
 import { syncStudioSelect as syncStudioSelect2 } from '../ui/studio-widgets'
 import { lampItemTypeSet, itemTypeCatalog } from '../items/item-catalog'
-import { type ListDragRowSession } from '../types/studio-app-types'
+import { type ListDragRowSession } from '../studio-app-types'
 import { generateId, composeKey, composeItemKey } from '../ui/studio-app-helpers'
 import { isPlacedItemLocked } from '../items/placed-item-state'
 import { normalizeLightPropertyValue, formatLightPropertyValue } from './studio-app-light-data'
 import { domElement } from '@app/shared/util/dom-factory'
-
 
 export function getLightGroups(runtime: StudioAppRuntime) {
   const lightGroups = runtime.appCtx.studioState.lightGroups || (runtime.appCtx.studioState.lightGroups = [])
@@ -335,7 +334,6 @@ export function setAllLightGroupsEnabled(runtime: StudioAppRuntime, enabledFlag:
   }
 }
 
-
 /** 逐槽表面参数的**入库净化**：只接受 `{ "<GLB 材质名>": { roughness?, metalness? } }`，两个值都规整到 0–1 并按两位小数定下来（避免浮点尾数让产物不稳定）。 */
 export function captureUndoSnapshot(runtime: StudioAppRuntime, snapshotSource = runtime.appCtx.studioState) {
   return structuredClone(snapshotSource)
@@ -529,7 +527,6 @@ export function syncChargingLayers(runtime: StudioAppRuntime, floorArgCharging: 
 export function pushUndoEntry(runtime: StudioAppRuntime, undoSnapshotArg: any) {
   runtime.syncScreenLayers(undoSnapshotArg), runtime.syncChargingLayers(undoSnapshotArg)
 }
-
 
 export function collectLightTargetInputs(
   runtime: StudioAppRuntime,

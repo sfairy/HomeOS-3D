@@ -13,7 +13,7 @@ import EntityMultiSelect from '@/domain/entity/entity-multi-select/EntityMultiSe
 import HubTabsConfigField from './HubTabsConfigField.vue'
 import SettingsRangeField from '@/features/settings/shared/layout/SettingsRangeField.vue'
 import { WIDGET_PANEL_CONFIG_KEY } from '@/features/settings/groups/appearance/use-layout'
-import { joinCommaEntityIds, parseCommaEntityIds } from '@/domain/entity/utils/comma-entity-ids'
+import { joinCommaEntityIds, parseCommaEntityIds } from '@/domain/entity/comma-entity-ids'
 import WidgetConfigShell from './WidgetConfigShell.vue'
 import WidgetConfigFooter from './WidgetConfigFooter.vue'
 

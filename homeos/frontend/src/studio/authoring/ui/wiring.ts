@@ -4,8 +4,13 @@ import { bindPreviewStyleSelect } from './preview-style'
 import { bindWorkspaceView } from './workspace'
 import { installPreviewCameraPanel } from './preview-camera-panel'
 import { installLightingRow } from './lighting'
-import { type StudioControlElement } from '../types/studio-app-types'
-import { clampWindowT as clampWindowT2, closedWallFloorPolygons, doorInteriorSide, pointInRotatedRectangle as pointInRotatedRectangle2 } from '../plan/geometry'
+import { type StudioControlElement } from '../studio-app-types'
+import {
+  clampWindowT as clampWindowT2,
+  closedWallFloorPolygons,
+  doorInteriorSide,
+  pointInRotatedRectangle as pointInRotatedRectangle2,
+} from '../plan/geometry'
 import { isCustomWindow, windowWallLimits } from '@app/shared/scene/window/layout'
 import { windowSceneError } from '../plan/window/window-scene-guard'
 import { itemWithPlanFootprint as itemWithPlanFootprint2 } from '../items/studio-item-posture'
@@ -14,9 +19,21 @@ import { itemTypeCatalog, lampItemTypeSet } from '../items/item-catalog'
 import { itemElevationMeaning } from '../loaders/studio-normalization'
 import { editNumberText } from '../studio-edit-metrics'
 import { createOverlapPicker, type OverlapCandidate, type OverlapPicker } from './studio-overlap-picker'
-import { createAssetPreview, type AssetPreview, type AssetPreviewRecord, createAssetThumbnailRenderer, type AssetThumbnailRenderer } from './asset-preview'
+import {
+  createAssetPreview,
+  type AssetPreview,
+  type AssetPreviewRecord,
+  createAssetThumbnailRenderer,
+  type AssetThumbnailRenderer,
+} from './asset-preview'
 import { type StudioAppContext } from '../app-context'
-import { createItemSession, createPlacedItemsPanel, itemIdOf, type PlacedItemsPanel, type PlacedItemsState } from './studio-placed-items'
+import {
+  createItemSession,
+  createPlacedItemsPanel,
+  itemIdOf,
+  type PlacedItemsPanel,
+  type PlacedItemsState,
+} from './studio-placed-items'
 import { rememberLibraryMode } from './asset-library'
 
 /**
@@ -289,7 +306,6 @@ export function bindToolOptionWiring(deps: Record<string, any>): void {
  *
  * 绘制器是动态加载的：窗户是低频功能，没必要把 three 预览 + SVG 编辑器打进首屏。
  */
-
 
 export function bindWindowDesignerWiring(deps: Record<string, any>): void {
   const {

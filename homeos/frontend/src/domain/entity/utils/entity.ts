@@ -1,8 +1,17 @@
-import { type EntitiesMap, type HaEntityState, type EntityStateListenerFlushDeps, type EntityStateListenerFn, type EntityStateListenerLogger, type EntityStateListenerPayload, type RegisterStateListenerOptions, type EntityStateNotifyArgs, type ResolveListenerOldStateArgs } from '@/kernel/types/entity'
-import { describeAttrChange } from './control-attr-change'
+import type {
+  EntitiesMap,
+  HaEntityState,
+  EntityStateListenerFlushDeps,
+  EntityStateListenerFn,
+  EntityStateListenerLogger,
+  EntityStateListenerPayload,
+  RegisterStateListenerOptions,
+  EntityStateNotifyArgs,
+  ResolveListenerOldStateArgs,
+} from '@/kernel/entity'
+import { describeAttrChange } from '../control-attr-change'
 import { logger } from '@/kernel/core/index'
 import { getEntityDomain } from '@homeos/shared'
-
 
 /**
  * 合并 WS delta 状态变更到本地实体对象

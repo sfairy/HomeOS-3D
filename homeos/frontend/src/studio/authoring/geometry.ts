@@ -2,13 +2,17 @@ import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
 import { mergeGeometries as mergeGeometries2 } from '/static/vendor/three/0.187.0/BufferGeometryUtils.js'
 import { type StudioAppContext } from './app-context'
 import { segmentIntersection as segmentIntersection2, clamp as clamp2 } from './plan/geometry'
-import { type CylinderMeshOptions } from './types/studio-app-types'
+import { type CylinderMeshOptions } from './studio-app-types'
 import { finite as finite2 } from './loaders/studio-normalization'
-import { lightIntensityFactor, lightPresetCatalog, lightFluxLumens, lightAngleLimitForType, renderCandelaFromFlux } from './lights/studio-app-light-data'
+import {
+  lightIntensityFactor,
+  lightPresetCatalog,
+  lightFluxLumens,
+  lightAngleLimitForType,
+  renderCandelaFromFlux,
+} from './lights/studio-app-light-data'
 import { stripLuminance } from './lights/strip-light'
 import { lampItemTypeSet, openStairTypeSet } from './items/item-catalog'
-
-
 
 export function buildFloorEdgeOutline(
   appCtx: StudioAppContext,
@@ -80,7 +84,6 @@ export function buildFloorEdgeOutline(
       appCtx.sceneRootNode.add(floorShadowMesh)
   }
 }
-
 
 export function createGroundGrid(
   appCtx: StudioAppContext,
@@ -156,8 +159,6 @@ export function createGroundGrid(
     appCtx.sceneRootNode.add(groundGrid)
 }
 
-
-
 export function isPointInBounds(pointRef: any, boundsRef: any) {
   return (
     pointRef.x >= boundsRef.minX &&
@@ -200,7 +201,6 @@ export function boundsIntersectSegment(segStart: any, segEnd: any, boundsRect: a
   return false
 }
 
-
 export function addCylinderMesh(
   cylinderParent: any,
   cylinderRadiusTop: any,
@@ -235,7 +235,6 @@ export function addCylinderMesh(
   )
 }
 
-
 /**
  * 灯具「全亮」时的强度（cd / 灯带则是 cd·m⁻²）。
  *
@@ -260,7 +259,6 @@ export function computeDownlightRange(runStudioRenderLoopLightItem: any) {
     ) * downlightTypeScale
   )
 }
-
 
 export function applyItemOrientation(orientedItemGroup: any, itemDescriptor: any) {
   if (

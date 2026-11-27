@@ -1,12 +1,22 @@
 import { distance as distance2, wallLengthMeters as wallLengthMeters2, clamp as clamp2 } from '../plan/geometry'
-import { itemTypeCatalog, lampItemTypeSet, openStairTypeSet, roundTableTypeSet, tvMountStyleSet } from '../items/item-catalog'
+import {
+  itemTypeCatalog,
+  lampItemTypeSet,
+  openStairTypeSet,
+  roundTableTypeSet,
+  tvMountStyleSet,
+} from '../items/item-catalog'
 import { doorTypeCatalog, normalizePlanLabelColor } from '../scene/payload/studio-scene-payload'
 import { type StudioAppContext } from '../app-context'
 import { refreshPlacedItemsPanel } from './wiring'
 import { isPlacedItemHidden } from '../items/placed-item-state'
 import { refreshEditor3D } from './editor-3d'
 import { drawItemHandles } from '../plan/studio'
-import { editNumberText, itemDimensionPolicy as itemDimensionPolicy2, rememberNumberValue } from '../studio-edit-metrics'
+import {
+  editNumberText,
+  itemDimensionPolicy as itemDimensionPolicy2,
+  rememberNumberValue,
+} from '../studio-edit-metrics'
 import { isCourtyardGate as isCourtyardGate2 } from '../plan/courtyard-drawing'
 import { normalizeModelRemark as normalizeModelRemark2 } from '../../app/shared/model-remarks'
 import { airerDimensions as airerDimensions2 } from '../items/studio-airer'
@@ -16,17 +26,27 @@ import { normalizeMuralArtStyle, normalizeFeatureWallStyle } from '../materials/
 import { normalizeCurtainTrack as normalizeCurtainTrack2 } from '@app/shared/scene/studio-curtain-track'
 import { syncControlValue as syncControlValue2 } from './ui-controls'
 import { syncStudioSelect as syncStudioSelect2 } from './studio-widgets'
-import { isCourtyardDrawing as isCourtyardDrawing2, finite as finite2, itemMinimumHeight as itemMinimumHeight2, itemMinimumElevation, itemElevationHint, itemElevationMeaning, itemMinimumFootprint as itemMinimumFootprint2, normalizeFullRotation as normalizeFullRotation2 } from '../loaders/studio-normalization'
-import { normalizePillarAxis as normalizePillarAxis2, normalizePillarShape as normalizePillarShape2, pillarIsLying as pillarIsLying2 } from '../items/studio-item-posture'
+import {
+  isCourtyardDrawing as isCourtyardDrawing2,
+  finite as finite2,
+  itemMinimumHeight as itemMinimumHeight2,
+  itemMinimumElevation,
+  itemElevationHint,
+  itemElevationMeaning,
+  itemMinimumFootprint as itemMinimumFootprint2,
+  normalizeFullRotation as normalizeFullRotation2,
+} from '../loaders/studio-normalization'
+import {
+  normalizePillarAxis as normalizePillarAxis2,
+  normalizePillarShape as normalizePillarShape2,
+  pillarIsLying as pillarIsLying2,
+} from '../items/studio-item-posture'
 import { resolveStripMount } from '../lights/strip-light'
 import { STORAGE_SECTION_TYPES, storageSectionStyle } from '../items/studio-storage-sections'
-import { type StudioControlElement } from '../types/studio-app-types'
+import { type StudioControlElement } from '../studio-app-types'
 import { isTurntableRoundTable } from './studio-app-helpers'
 import { lightPresetCatalog, lightAngleLimitForType } from '../lights/studio-app-light-data'
 import { isCustomWindow as isCustomWindow2 } from '@app/shared/scene/window/layout'
-
-
-
 
 /**
  * 对齐引导配色。画布 2D 拿不到 CSS 自定义属性（`getComputedStyle` 每帧一次不值），
@@ -441,16 +461,6 @@ export function refreshStudioView(deps: RefreshStudioViewDeps) {
     // 3D 视口编辑的高度/旋转手柄也跟随选中项与相机变化重新定位。
     refreshEditor3D(appCtx)
 }
-
-
-
-
-
-
-
-
-
-
 
 export interface RefreshStudioUiInnerDeps {
   appCtx: StudioAppContext

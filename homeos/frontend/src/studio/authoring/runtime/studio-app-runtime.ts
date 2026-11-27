@@ -3,7 +3,6 @@ import { type defaultViewSettings } from '../scene/payload/studio-view-settings'
 import { type doorTypeCatalog } from '../scene/payload/studio-scene-payload'
 import { patchStudioFacadeState } from '../../engine/index'
 
-
 export type BackgroundViewSettings = typeof defaultViewSettings & Record<string, any>
 
 export interface StudioAppRuntime {
@@ -574,7 +573,6 @@ export interface StudioAppRuntime {
   readonly writeStoredCustomMaterialStyles: any
   readonly zoomByScale: any
 }
-
 
 export async function waitForStageReady(runtime: StudioAppRuntime) {
   if (!runtime.areLightsEnabled()) return

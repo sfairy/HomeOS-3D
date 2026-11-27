@@ -1,6 +1,20 @@
 import { type StudioAppRuntime } from '../runtime/studio-app-runtime'
 import { describeDoorMaterials } from './door-materials'
-import { buildCustomMaterialStyleRecord, customMaterialStyleId, materialStyleGroupFor, materialStylePresetFor, normalizeMaterialStyle, MATERIAL_STYLE_AUTO, registerCustomMaterialStyles, isMaterialStyleCapable, materialStyleAutoLabel, materialStyleLabel, materialStyleOptionsFor, materialStyleOptionsSignature, materialStylePresetSwatchColors } from './studio-material'
+import {
+  buildCustomMaterialStyleRecord,
+  customMaterialStyleId,
+  materialStyleGroupFor,
+  materialStylePresetFor,
+  normalizeMaterialStyle,
+  MATERIAL_STYLE_AUTO,
+  registerCustomMaterialStyles,
+  isMaterialStyleCapable,
+  materialStyleAutoLabel,
+  materialStyleLabel,
+  materialStyleOptionsFor,
+  materialStyleOptionsSignature,
+  materialStylePresetSwatchColors,
+} from './studio-material'
 import { normalizeMaterialSurfaceOverrides } from '../scene/payload/studio-scene-payload'
 import { doorMaterialPartRolesForType, materialRoleLabel } from './studio-model-material-roles'
 import { materialSlotGroupOf } from './studio-material'
@@ -8,7 +22,6 @@ import { materialSlabLabel } from '../ui/studio-app-helpers'
 import { materialSlotGroupView } from '../ui/asset-library'
 import { domElement } from '@app/shared/util/dom-factory'
 import { syncHtmlRangeProgress as syncHtmlRangeProgress2 } from '../../app/shared/util/range-progress'
-
 
 /** 把当前物件的出图结果存成一档个人预设（同名同组覆盖）。 */
 export function saveCurrentItemMaterialStyle(runtime: StudioAppRuntime, label: any) {
@@ -114,7 +127,6 @@ export function refreshScopeItems(runtime: StudioAppRuntime, scopeFilter = 'all'
         scope: scopeFilter,
       })
 }
-
 
 /** 场景里同款物件的其它数量（「应用到同类」的按钮状态与提示用）：家具按模型比，门按门型比。 */
 export function materialSameModelPeerCount(runtime: StudioAppRuntime, target: any) {
@@ -319,7 +331,6 @@ export function writeStoredCustomMaterialStyles(runtime: StudioAppRuntime, recor
     /* 存储写入是 best-effort：隐私模式 / 配额 / 序列化失败都不应影响本次渲染 */
   }
 }
-
 
 export function materialSlotPanelSignatureFor(runtime: StudioAppRuntime, modelItem: any, materialSlotEntries: any) {
   return [
@@ -772,7 +783,6 @@ export function createMaterialSlotVariantList(runtime: StudioAppRuntime, slotVar
   }
   return variantListElement
 }
-
 
 export function createMaterialSlotSurfacePanel(slotEntry: any, isSurfaceExpanded: any) {
   const surfacePanelElement = domElement(document, 'div', 'material-slot-surface')

@@ -6,9 +6,9 @@ import { useEntityPopupBase, type EntityPopupBaseProps } from '@/domain/entity/p
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useSliderCommit } from '@/domain/entity/use-slider-commit'
 import { clampInRange } from '@/kernel/ui/progress-bar'
-import { resolveTemperatureUnit } from '@/domain/entity/utils/temperature-unit'
+import { resolveTemperatureUnit } from '@/domain/entity/temperature-unit'
 import { notifyError } from '@/kernel/ui/notify'
-import { getEntityDisplayName } from '@/domain/entity/utils/derived'
+import { getEntityDisplayName } from '@/domain/entity/derived'
 import {
   HVAC_MODE_LABELS,
   climateFanModeLabel,
@@ -17,7 +17,7 @@ import {
   climateAttrStringList,
   climateHasDualSetpoint,
   climateHasTargetTemp,
-} from '@/domain/entity/utils/control/climate-control-core'
+} from '@/domain/entity/control/climate-control-core'
 
 /** HVAC 模式展示信息：图标、图标色 class、激活态 class（UI 壳层，标签在 control core）。 */
 const modeMap = {

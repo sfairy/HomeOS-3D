@@ -8,7 +8,7 @@ import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { useHaConnectionStore } from '@/domain/ha/ha-connection.store'
 import { useAuthStore } from '@/domain/auth/auth.store'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { EEW_CITY_PRESETS, createDefaultEarthquakeConfig } from '@/kernel/types/earthquake'
+import { EEW_CITY_PRESETS, createDefaultEarthquakeConfig } from '@/kernel/earthquake'
 import { syncEarthquakeHomeCoordsFromHa } from '@/features/earthquake/ha-coords'
 import { getApiErrorMessage } from '@/kernel/core/error-message'
 

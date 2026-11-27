@@ -17,10 +17,7 @@
 <script setup lang="ts">
 /** WidgetPanelSlot.vue */
 import { ref, watch } from 'vue'
-import {
-  useWidgetPanelVisibility,
-  PANEL_VISIBILITY_WIDGET_TYPES,
-} from '@/domain/widget/index'
+import { useWidgetPanelVisibility, PANEL_VISIBILITY_WIDGET_TYPES } from '@/domain/widget/index'
 
 /**
  * 组件 Props

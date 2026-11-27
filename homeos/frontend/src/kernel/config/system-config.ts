@@ -1,4 +1,4 @@
-import { type EditableConfigSection, type EditableConfigField } from '@/kernel/types/system-config'
+import type { EditableConfigSection, EditableConfigField } from '@/kernel/system-config'
 
 /** 系统配置专家模式工具 */
 
@@ -42,7 +42,6 @@ const EXPERT_ONLY_FIELD_KEYS = new Set([
   'maxTriggerLogs',
   'maxExecHistory',
 ])
-
 
 /**
  * 按专家模式过滤可编辑分节视图
@@ -905,7 +904,6 @@ function isHaEntityConfigField(key = '') {
 export function haEntityDomainFilter(key = '') {
   return HA_ENTITY_DOMAIN_FILTERS[key] || ''
 }
-
 
 export function systemConfigCellClass(field: Pick<EditableConfigField, 'type' | 'key'>) {
   const wide =

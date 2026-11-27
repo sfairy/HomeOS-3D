@@ -120,7 +120,7 @@
 import { computed } from 'vue'
 import { Bell, Bot, Clapperboard, Cloud, Lightbulb, Plus, Sparkles } from '@lucide/vue'
 import HosSelect from '@/domain/entity/entity-select/HosSelect.vue'
-import { ENTITY_DOMAIN_COLORS } from '@/kernel/constants/index'
+import { ENTITY_DOMAIN_COLORS } from '@/kernel/index'
 import { isHomeModeEmojiIcon, resolveHomeModeIcon } from '@/features/home-mode/utils/index'
 
 const props = defineProps({

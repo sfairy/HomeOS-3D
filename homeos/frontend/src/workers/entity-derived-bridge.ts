@@ -7,7 +7,7 @@ import type {
   DerivedWorkerApi,
   EntitiesMap,
   EntityPatch,
-} from '@/kernel/types/entity'
+} from '@/kernel/entity'
 import { logger } from '@/kernel/core/index'
 
 /**

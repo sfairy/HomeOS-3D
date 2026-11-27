@@ -525,16 +525,16 @@ import SettingsPendingSaveAction from '@/features/settings/shared/SettingsPendin
 import EntityInput from '@/domain/entity/entity-input/EntityInput.vue'
 import { useAlertRulesPanel } from '@/features/settings/groups/perception/use-alert-rules'
 import { useRegisterSettingsTabPending } from '@/features/settings/kernel/pending.internals'
-import { useSettingsSidebarReentryReset } from '@/kernel/ui/hooks/hub-viewport'
+import { useSettingsSidebarReentryReset } from '@/kernel/ui/hub-viewport'
 import AlertRulesInboxSection from './alert-rules/AlertRulesInboxSection.vue'
 import AlertRulesVoiceSection from './alert-rules/AlertRulesVoiceSection.vue'
 import AlertRulesDndSection from './alert-rules/AlertRulesDndSection.vue'
 import AlertRulesEarthquakeSection from './alert-rules/AlertRulesEarthquakeSection.vue'
 import { ALERT_RULES_KEY } from './alert-rules/context'
-import { useFocusTrap } from '@/kernel/ui/hooks/use-focus-trap'
-import { useEscLayer } from '@/kernel/ui/hooks/use-esc-stack'
-import { useBackgroundInert } from '@/kernel/ui/hooks/use-background-inert'
-import { useBodyScrollLock } from '@/kernel/ui/hooks/use-body-scroll-lock'
+import { useFocusTrap } from '@/kernel/ui/use-focus-trap'
+import { useEscLayer } from '@/kernel/ui/use-esc-stack'
+import { useBackgroundInert } from '@/kernel/ui/use-background-inert'
+import { useBodyScrollLock } from '@/kernel/ui/use-body-scroll-lock'
 
 const props = defineProps({ activeTab: { type: String, default: '' } })
 

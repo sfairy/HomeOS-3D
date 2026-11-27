@@ -16,7 +16,10 @@ export default {
     { from: `${SRC}/domain/config/frontend-config.ts`, to: `${SRC}/kernel/config/frontend-config.ts` },
     { from: `${SRC}/domain/layout/types.ts`, to: `${SRC}/kernel/types/layout.ts` },
     { from: `${SRC}/domain/layout/types/floating-hub.ts`, to: `${SRC}/kernel/types/floating-hub.ts` },
-    { from: `${SRC}/domain/agent/constants/agent-quick-prompts.ts`, to: `${SRC}/kernel/constants/agent-quick-prompts.ts` },
+    {
+      from: `${SRC}/domain/agent/constants/agent-quick-prompts.ts`,
+      to: `${SRC}/kernel/constants/agent-quick-prompts.ts`,
+    },
     { from: `${SRC}/kernel/ui/hooks/use-echarts-host.ts`, to: `${SRC}/domain/layout/composables/use-echarts-host.ts` },
     { from: `${SRC}/kernel/ui/FooterIconPicker.vue`, to: `${SRC}/features/settings/components/FooterIconPicker.vue` },
     { from: `${SRC}/features/voice/model/utils/local-speech.util.ts`, to: `${SRC}/domain/voice/local-speech.util.ts` },

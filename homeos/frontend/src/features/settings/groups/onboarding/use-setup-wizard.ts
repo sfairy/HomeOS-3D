@@ -1,21 +1,32 @@
 import { useSystemConfig, handleSystemConfigPatchError } from '@/domain/layout/system-config-core.internals'
 import { useEnvSensorMap, getEnvSensorFields } from '@/features/settings/shared/env-sensor-map'
-import { pauseGlobalPendingChanges, resumeGlobalPendingChanges, syncGlobalLayoutPendingSnapshot } from '@/features/settings/kernel/pending.internals'
+import {
+  pauseGlobalPendingChanges,
+  resumeGlobalPendingChanges,
+  syncGlobalLayoutPendingSnapshot,
+} from '@/features/settings/kernel/pending.internals'
 import { useReduceSecuritySensitivity } from '@/features/security/index'
 import { completeSetupWizard, fetchSetupWizardStatus, validateSetupWizardEntities } from '@/kernel/http/index'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useLayoutStore } from '@/domain/layout/store/index'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { type EntityValidateResult, type SetupWizardStatus, type SetupWizardStepId, type DoorbellConfig, type PresenceHomeResponse, type PresenceMember } from '@/kernel/types/setup-wizard'
-import { type EnergyMeterScope, type SharedEnergyConfig } from '@homeos/shared'
+import type {
+  EntityValidateResult,
+  SetupWizardStatus,
+  SetupWizardStepId,
+  DoorbellConfig,
+  PresenceHomeResponse,
+  PresenceMember,
+} from '@/kernel/setup-wizard'
+import type { EnergyMeterScope, SharedEnergyConfig } from '@homeos/shared'
 import { logger } from '@/kernel/core/index'
-import { seedPanelEnergyMeter } from '@/domain/energy/utils/binding-bridge'
+import { seedPanelEnergyMeter } from '@/domain/energy/binding-bridge'
 import { ensureDoorbellList } from '@/kernel/layout'
 import { computed, ref, watch, type Ref, onMounted } from 'vue'
 import { Droplets, Leaf, Thermometer, Wind } from '@lucide/vue'
 import { envRoomTabEmoji } from '@/kernel/settings'
 import { loadPresenceHome } from '@/features/presence/load-presence-home'
-import { formatPresenceDetailSummary } from '@/features/presence/utils/display'
+import { formatPresenceDetailSummary } from '@/features/presence/display'
 import { formatLocaleDate } from '@/kernel/format'
 import { useSettingsHubRouteSection } from '@/features/settings/shared/hub'
 
@@ -577,7 +588,6 @@ export function useSetupWizardDoorbells() {
 
 /* ── 原 setup-wizard-env.internals.ts 的实现 ── */
 /** Setup 向导：环境传感器步骤 */
-
 
 // ── useSetupWizardEnvStep ──
 const ENV_SENSOR_ICONS = {

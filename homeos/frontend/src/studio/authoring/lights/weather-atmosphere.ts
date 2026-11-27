@@ -1,4 +1,10 @@
-import { NEUTRAL_WEATHER_ATMOSPHERE, WEATHER_ATMOSPHERE_LIMITS, WEATHER_LIGHTNING_BOOST, weatherAtmosphereProfile, type WeatherAtmosphereProfile } from '@/studio/platform/weather-atmosphere'
+import {
+  NEUTRAL_WEATHER_ATMOSPHERE,
+  WEATHER_ATMOSPHERE_LIMITS,
+  WEATHER_LIGHTNING_BOOST,
+  weatherAtmosphereProfile,
+  type WeatherAtmosphereProfile,
+} from '@/studio/platform/weather-atmosphere'
 import { weatherFlashEnvelope } from '@/studio/platform/weather-flash'
 import { finite as finite2 } from '../loaders/studio-normalization'
 import { type StudioAppContext } from '../app-context'
@@ -22,7 +28,6 @@ import { type StudioAppContext } from '../app-context'
  * - **可精确回退**：`dispose` 与空天气都回到中性系数（亮度 ×1、色温回原色、无雾），
  *   与没有接入天气时的画面完全一致 —— 反复切换不会把色温越带越偏。
  */
-
 
 /** 天气切换的步数与总时长。 */
 const TRANSITION_STEPS = 4

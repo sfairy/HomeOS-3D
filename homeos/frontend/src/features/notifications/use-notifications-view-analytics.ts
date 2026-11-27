@@ -22,7 +22,7 @@ import {
   formatPercent,
   type NotificationAnalyticsSummary,
   type NotificationStatsPayload,
-} from '@/features/notifications/utils/analytics'
+} from '@/features/notifications/analytics'
 import {
   buildNotificationsLevelOption,
   buildNotificationsRankOption,

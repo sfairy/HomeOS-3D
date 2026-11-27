@@ -15,11 +15,11 @@
  */
 import { getEntityDomain } from '@homeos/shared'
 import { ref, computed, watch, nextTick, type ComponentPublicInstance } from 'vue'
-import { inferSuggestDeviceClassFromPlaceholder } from '@/domain/entity/utils/suggest-device-class'
-import { useClickOutside } from '@/kernel/ui/hooks/use-click-outside'
+import { inferSuggestDeviceClassFromPlaceholder } from '@/domain/entity/suggest-device-class'
+import { useClickOutside } from '@/kernel/ui/use-click-outside'
 import { useEntityPickerSession } from '@/domain/entity/entity'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { getEntityDisplayName } from '@/domain/entity/utils/derived'
+import { getEntityDisplayName } from '@/domain/entity/derived'
 import { getLargeEntityThreshold } from '@/kernel/config/frontend-config'
 
 /** 静态选项配置（如 HomeOS 场景） */

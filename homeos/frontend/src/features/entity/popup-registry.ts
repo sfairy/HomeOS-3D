@@ -1,7 +1,7 @@
 /** 设备弹窗栈约定： */
 import type { Component } from 'vue'
 import { lazyComponent } from '@/kernel/core/index'
-import { resolveEntityPopupKind, type EntityPopupKind } from '@/domain/entity/utils/popup-registry'
+import { resolveEntityPopupKind, type EntityPopupKind } from '@/domain/entity/popup-registry'
 
 const LightControlPopup = lazyComponent(() => import('@/features/entity/popups/LightControlPopup.vue'))
 const ClimateControlPopup = lazyComponent(() => import('@/features/entity/popups/ClimateControlPopup.vue'))

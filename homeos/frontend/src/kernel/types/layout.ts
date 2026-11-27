@@ -1,8 +1,8 @@
 /** 仪表盘 / 侧栏布局配置类型：楼层、热点、悬浮组件、安防、地震、智能管家等。 */
-import type { DashboardFooterConfig } from '@/kernel/types/dashboard-footer'
-import type { WholeHomeOffConfig } from '@/kernel/types/whole-home-off'
-import type { EarthquakeConfig } from '@/kernel/types/earthquake'
-import type { DoorbellConfig } from '@/kernel/types/setup-wizard'
+import type { DashboardFooterConfig } from '@/kernel/dashboard-footer'
+import type { WholeHomeOffConfig } from '@/kernel/whole-home-off'
+import type { EarthquakeConfig } from '@/kernel/earthquake'
+import type { DoorbellConfig } from '@/kernel/setup-wizard'
 
 /** 悬浮组件配置 */
 export interface FloatingWidgetConfig {
@@ -147,7 +147,7 @@ export interface UILayoutConfig {
    * 但作用域是**全局**：侧边栏本身不随页切换，把它做成按页配置会让用户在切页时
    * 看到「背景变了、内容没变」。缺省 undefined 表示「不铺背景」，保持旧观感。
    */
-  sidebarBackground?: import('@/kernel/types/page-background').PageBackgroundConfig
+  sidebarBackground?: import('@/kernel/page-background').PageBackgroundConfig
   /** 悬浮组件（顶层） */
   floatingWidgets: FloatingWidget[]
   pageMaxWidth: number // 页面最大宽度（像素）

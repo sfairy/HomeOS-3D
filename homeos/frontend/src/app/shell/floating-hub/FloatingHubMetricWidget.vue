@@ -82,7 +82,7 @@
 <script setup lang="ts">
 /** 浮动控制中心 - 指标型部件渲染器 */
 import { inject } from 'vue'
-import { FloatingHubContextKey } from '@/kernel/types/floating-hub'
+import { FloatingHubContextKey } from '@/kernel/floating-hub'
 import type { FloatingWidget } from '@/kernel/types/layout'
 
 // 部件实例（type 决定渲染分支，config.entityId 指向传感器实体）

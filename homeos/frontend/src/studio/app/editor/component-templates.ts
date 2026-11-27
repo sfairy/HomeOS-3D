@@ -6,7 +6,11 @@
 
 import { PAGE_BACKGROUND_TYPE, PAGE_BACKGROUND_FILL_POSITION, createPageBackground } from '@app/shared/page-background'
 import { EVENT_LOG_WALL_DOMAINS } from '../renderer/controls/event-log-runtime'
-import { timeComponentDimensions, dateComponentDimensions, weatherComponentDimensions } from './component-template-metrics'
+import {
+  timeComponentDimensions,
+  dateComponentDimensions,
+  weatherComponentDimensions,
+} from './component-template-metrics'
 import { percentageBarDefaults, percentageBarDimensions } from '../shared/percentage-bar-model'
 import { FLOW_LINE_DEFAULTS } from '../shared/flow-line-model'
 import { onNavigationStyleApplyDialogCloseValue } from './metadata/editor-navigation-style-metadata'
@@ -1484,7 +1488,6 @@ export const mediaTemplates = [
     },
   },
 ]
-
 
 export {
   dateComponentDimensions,

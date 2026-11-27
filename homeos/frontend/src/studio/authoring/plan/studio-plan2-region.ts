@@ -81,7 +81,6 @@ export function plan2WallOrientationSnippet(isDetailedSurface: boolean, isWallSu
 export const PLAN2_GEOMETRY_SCOPE_DECLARATIONS =
   '\n          vec3 geometryPosition = - vViewPosition;\n          vec3 geometryNormal = normal;\n          vec3 geometryViewDir = ( isOrthographic ) ? vec3( 0.0, 0.0, 1.0 ) : normalize( vViewPosition );\n          vec3 geometryClearcoatNormal = vec3( 0.0 );\n          #ifdef USE_CLEARCOAT\n            geometryClearcoatNormal = clearcoatNormal;\n          #endif'
 
-
 /**
  * 区域灯（轻量柔光）的纯数据与着色片段。
  *
@@ -395,7 +394,6 @@ export function sampleRegionVolumes(
   }
   return accumulatedColor.map((channelValue) => (totalWeight > 0 ? (channelValue / totalWeight) * coverage * gain : 0))
 }
-
 
 /** 监听子节点增删的场景节点； */
 type EventTargetNodeLike = {

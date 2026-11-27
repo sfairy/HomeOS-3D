@@ -3,7 +3,5 @@
  * 验证通过后可以删除本文件。
  */
 export default {
-  moves: [
-    { from: 'homeos/frontend/src/services/api/csrf.ts', to: 'homeos/frontend/src/kernel/http/csrf.ts' },
-  ],
+  moves: [{ from: 'homeos/frontend/src/services/api/csrf.ts', to: 'homeos/frontend/src/kernel/http/csrf.ts' }],
 }

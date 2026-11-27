@@ -10,12 +10,7 @@ import axios, {
   type AxiosResponse,
   type InternalAxiosRequestConfig,
 } from 'axios'
-import {
-  appNotify,
-  runUnauthorizedHandler,
-  runNavigateToLogin,
-  runSessionRefresh,
-} from '@/kernel/bridge/store-bridge'
+import { appNotify, runUnauthorizedHandler, runNavigateToLogin, runSessionRefresh } from '@/kernel/bridge/store-bridge'
 import { getPageTraceId } from '@/kernel/telemetry/trace'
 import { getFrontendConfig } from '@/kernel/config/frontend-config'
 import { logger } from '@/kernel/core/index'

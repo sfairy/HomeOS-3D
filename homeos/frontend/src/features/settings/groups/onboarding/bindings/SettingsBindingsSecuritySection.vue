@@ -250,7 +250,7 @@ import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat
 import EntityInput from '@/domain/entity/entity-input/EntityInput.vue'
 import HazardBindingsSection from '@/features/settings/groups/onboarding/bindings/HazardBindingsSection.vue'
 import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
-import type { DoorbellConfig } from '@/kernel/types/setup-wizard'
+import type { DoorbellConfig } from '@/kernel/setup-wizard'
 
 defineProps({
   bindingsSecurityTabs: { type: Array, default: () => [] },

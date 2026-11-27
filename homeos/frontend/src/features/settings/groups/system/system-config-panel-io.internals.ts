@@ -3,10 +3,7 @@
  * @module frontend/src/views
  */
 /** 高级参数：重载 / 导入导出 / 保存 / 恢复默认 */
-import {
-  applyEditableSnapshotToSections,
-  fromEditableSectionsPending,
-} from '@/domain/layout/system-config-edit'
+import { applyEditableSnapshotToSections, fromEditableSectionsPending } from '@/domain/layout/system-config-edit'
 import { fetchSystemConfigFresh, handleSystemConfigPatchError } from '@/domain/layout/system-config-core.internals'
 import type { useSystemConfig } from '@/domain/layout/system-config-core.internals'
 import type { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
@@ -14,7 +11,7 @@ import { resetSystemConfig } from '@/kernel/http/index'
 import { reloadFrontendConfig } from '@/kernel/config/frontend-config'
 import { getApiErrorMessage } from '@/kernel/core/index'
 import { logger } from '@/kernel/core/index'
-import type { EditableConfigSection } from '@/kernel/types/system-config'
+import type { EditableConfigSection } from '@/kernel/system-config'
 import { ref, type Ref } from 'vue'
 
 type ConfigValidationError = { section: string; key: string; message?: string }

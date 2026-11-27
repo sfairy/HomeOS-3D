@@ -5,7 +5,7 @@
 /** composables：useHomeModePanel / useHomeModeRecommend */
 import { useHomeModes } from './use-home-modes'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { buildHomeModeRecommendations } from '@/domain/recommend/utils/index'
+import { buildHomeModeRecommendations } from '@/domain/recommend/index'
 import { useSettingsSave } from '@/features/settings/kernel/save.internals'
 import { useRegisterSettingsTabPending } from '@/features/settings/kernel/pending.internals'
 import { computed } from 'vue'

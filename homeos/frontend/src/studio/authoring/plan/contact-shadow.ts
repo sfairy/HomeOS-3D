@@ -2,7 +2,6 @@ import { scenePreparationKey } from '../cache/scene-persistent-cache'
 import { createIdleSnapshotCache } from '../cache/idle-snapshot-cache'
 import { readTexturePixels } from '../render-kit/fullscreen-copy'
 
-
 /** 接触阴影烘焙算法的版本指纹：算法变化时让已有快照整体失效。 */
 const CONTACT_SHADOW_ALGORITHM_REVISION = '5d70477edac6294f0ef28c0e93ee64d724862b0a7aa4399be716e72ec72b6066'
 
@@ -23,7 +22,6 @@ export function contactShadowPreparationKey(
       ? scenePreparationKey(lightHistoryScope, projectId, sceneId, source)
       : JSON.stringify(['contact-shadow-scope-v1', lightHistoryScope, projectId, sceneId, algorithmRevision])
 }
-
 
 /** 接触阴影的持久缓存：把烘焙好的 target/surface 贴图 + 查询纹理 + 参数快照落盘，热启动时直接还原。 */
 const CONTACT_SHADOW_CACHE_VERSION = '20261022-v1'

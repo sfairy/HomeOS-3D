@@ -13,7 +13,7 @@ import {
   coverIsMoving,
   coverPositionFromAttributes,
   coverActionErrorMessage,
-} from '@/domain/entity/utils/control/cover-control-core'
+} from '@/domain/entity/control/cover-control-core'
 
 export function useCoverControlPopup(props: EntityPopupBaseProps) {
   const { liveEntity, entityRef, entityName, callService } = useEntityPopupBase(props)

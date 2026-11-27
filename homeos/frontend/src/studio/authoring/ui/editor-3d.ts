@@ -9,13 +9,32 @@
 import * as three from '/static/vendor/three/0.187.0/three.module.min.js'
 import { type StudioAppRuntime } from '../runtime/studio-app-runtime'
 import { pickEditorItems, type EditorPick } from '../interaction/picking'
-import { screenToNdc, type PlanMapper, type Ray, type Vec3, type ElevationTarget, projectedHeightHandle, projectedPixelsPerMeter, verticalRayParameter, snapEditorRotation } from '../interaction/gesture'
+import {
+  screenToNdc,
+  type PlanMapper,
+  type Ray,
+  type Vec3,
+  type ElevationTarget,
+  projectedHeightHandle,
+  projectedPixelsPerMeter,
+  verticalRayParameter,
+  snapEditorRotation,
+} from '../interaction/gesture'
 import { sceneModelOrigin as sceneModelOriginOf, isCourtyardDrawing } from '../plan/courtyard-drawing'
 import { isPlacedItemHidden, isPlacedItemLocked } from '../items/placed-item-state'
 import { applyItemOrientation } from '../geometry'
 import { adoptSceneItemTags, createSurfaceIndex } from '../interaction/scene-tags'
 import { itemMinimumElevation, itemElevationMeaning } from '../loaders/studio-normalization'
-import { applyPlacementSnap, quantizePlanDelta, createDragController, NUDGE_STEP_METERS, ROTATE_STEP_DEGREES, type DragController, type DragControllerOptions, type GestureKind } from '../interaction/drag-and-drop'
+import {
+  applyPlacementSnap,
+  quantizePlanDelta,
+  createDragController,
+  NUDGE_STEP_METERS,
+  ROTATE_STEP_DEGREES,
+  type DragController,
+  type DragControllerOptions,
+  type GestureKind,
+} from '../interaction/drag-and-drop'
 import { collectOverlayObstacles } from './overlay-obstacles'
 import { editNumberText } from '../studio-edit-metrics'
 import { itemTypeCatalog, lampItemTypeSet } from '../items/item-catalog'

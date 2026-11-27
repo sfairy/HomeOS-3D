@@ -1,4 +1,4 @@
-import { type StudioControlElement } from '../types/studio-app-types'
+import { type StudioControlElement } from '../studio-app-types'
 
 /* 全局键盘/窗口消息短路（撤销重做、相机、导出快捷键等）。
  *

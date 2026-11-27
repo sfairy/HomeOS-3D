@@ -13,7 +13,7 @@
  *   node ops/scripts/codemod/fix-dangling-imports.mjs --write
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
 import process from 'node:process'
 import { walkFiles } from '../../lib/walk.mjs'
 import { isSourceFile } from './lib/imports.mjs'

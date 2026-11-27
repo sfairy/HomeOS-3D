@@ -1,12 +1,12 @@
 /** 系统配置核心组合式函数 */
 import { fetchSystemConfig, updateSystemConfig } from '@/kernel/http/index'
-import type { NotifyType } from '@/kernel/types/notify'
+import type { NotifyType } from '@/kernel/notify'
 import type {
   SystemConfig,
   SystemConfigLoadOptions,
   SystemConfigPatch,
   SystemConfigSaveOptions,
-} from '@/kernel/types/system-config'
+} from '@/kernel/system-config'
 import { invalidateSharedFetch, sharedFetch } from '@/kernel/core/index'
 import {
   Bell,

@@ -1,5 +1,21 @@
-import { anchorGate as anchorGate2, remapCourtyardAttachments as remapCourtyardAttachments2, isCourtyardGate as isCourtyardGate2 } from '../plan/courtyard-drawing'
-import { axisLockedPoint as axisLockedPoint2, clampWindowT as clampWindowT2, closedWallPolygons as closedWallPolygons2, distance as distance2, nearestWall as nearestWall2, uncoveredCollinearWallSegments as uncoveredCollinearWallSegments2, itemRotationFromPointers as itemRotationFromPointers2, planDragDelta as planDragDelta2, projectPointToSegment as projectPointToSegment2, resizeRotatedItemFromCorner as resizeRotatedItemFromCorner2, resizeRotatedItemFromEdge as resizeRotatedItemFromEdge2 } from '../plan/geometry'
+import {
+  anchorGate as anchorGate2,
+  remapCourtyardAttachments as remapCourtyardAttachments2,
+  isCourtyardGate as isCourtyardGate2,
+} from '../plan/courtyard-drawing'
+import {
+  axisLockedPoint as axisLockedPoint2,
+  clampWindowT as clampWindowT2,
+  closedWallPolygons as closedWallPolygons2,
+  distance as distance2,
+  nearestWall as nearestWall2,
+  uncoveredCollinearWallSegments as uncoveredCollinearWallSegments2,
+  itemRotationFromPointers as itemRotationFromPointers2,
+  planDragDelta as planDragDelta2,
+  projectPointToSegment as projectPointToSegment2,
+  resizeRotatedItemFromCorner as resizeRotatedItemFromCorner2,
+  resizeRotatedItemFromEdge as resizeRotatedItemFromEdge2,
+} from '../plan/geometry'
 import { itemTypeCatalog } from '../items/item-catalog'
 import { isPlacedItemLocked } from '../items/placed-item-state'
 import { generateId } from '../ui/studio-app-helpers'
@@ -8,20 +24,24 @@ import { handleFloorRegionPointer } from './tools'
 import { patchStudioFacadeState } from '../../engine/studio-facade'
 import { type StudioAppContext } from '../app-context'
 import { fanDimensions as fanDimensions2 } from '../items/studio-fan'
-import { normalizeCurtainTrack as normalizeCurtainTrack2, curtainFootprintDepth as curtainFootprintDepth2 } from '@app/shared/scene/studio-curtain-track'
-import { finite as finite2, itemMinimumHeight as itemMinimumHeight2, itemMinimumFootprint as itemMinimumFootprint2 } from '../loaders/studio-normalization'
-import { itemFromPlanFootprintResize as itemFromPlanFootprintResize2, itemWithPlanFootprint as itemWithPlanFootprint2 } from '../items/studio-item-posture'
+import {
+  normalizeCurtainTrack as normalizeCurtainTrack2,
+  curtainFootprintDepth as curtainFootprintDepth2,
+} from '@app/shared/scene/studio-curtain-track'
+import {
+  finite as finite2,
+  itemMinimumHeight as itemMinimumHeight2,
+  itemMinimumFootprint as itemMinimumFootprint2,
+} from '../loaders/studio-normalization'
+import {
+  itemFromPlanFootprintResize as itemFromPlanFootprintResize2,
+  itemWithPlanFootprint as itemWithPlanFootprint2,
+} from '../items/studio-item-posture'
 import { applyPlacementSnap, applyPointSnap, quantizePlanDelta } from './drag-and-drop'
 import { type PlacementGuide } from '../plan/studio-placement'
 import { type StudioAppRuntime } from '../runtime/studio-app-runtime'
 import { offerOverlapPickerFor } from '../ui/wiring'
 import { restorePlacementScene as restorePlacementScene2 } from '../items/studio-placement'
-
-
-
-
-
-
 
 export interface HandlePointerDownDeps {
   activeDoorType: keyof typeof doorTypeCatalog
@@ -546,12 +566,6 @@ export function handlePointerDown(deps: HandlePointerDownDeps, handlePointerDown
       : endStudioGesture()
 }
 
-
-
-
-
-
-
 /** 指针事件的只读子集（这里只关心修饰键）。 */
 type PointerLike = { shiftKey: boolean; altKey: boolean; pointerId?: number }
 
@@ -1058,7 +1072,6 @@ function applyPanGesture(deps: HandlePointerUpDeps, appCtx: StudioAppContext, lo
   })
   if (!overlayDrawn) deps.refreshStudioView()
 }
-
 
 export function updateSnapIndicator(runtime: StudioAppRuntime, snapWallTarget = runtime.appCtx.isForceSnapDisabled) {
   if (!runtime.appCtx.activeSnapTarget) return

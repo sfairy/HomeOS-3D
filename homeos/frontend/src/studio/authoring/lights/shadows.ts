@@ -1,9 +1,14 @@
 import { type StudioAppRuntime } from '../runtime/studio-app-runtime'
-import { selectShadowCastingLightIds as selectShadowCastingLightIds2, spotShadowTextureUnitLimit as spotShadowTextureUnitLimit2 } from '../plan/geometry'
+import {
+  selectShadowCastingLightIds as selectShadowCastingLightIds2,
+  spotShadowTextureUnitLimit as spotShadowTextureUnitLimit2,
+} from '../plan/geometry'
 import { finite as finite2 } from '../loaders/studio-normalization'
 import { maxTextureUnitLimit, shadowTextureUnits, reservedTextureUnits } from '../scene/payload/studio-scene-payload'
-import { trimSharedGeometryCache as trimSharedGeometryCache2, trimSharedMaterialCache as trimSharedMaterialCache2 } from '../studio-shared-geometry-cache'
-
+import {
+  trimSharedGeometryCache as trimSharedGeometryCache2,
+  trimSharedMaterialCache as trimSharedMaterialCache2,
+} from '../studio-shared-geometry-cache'
 
 export function collectShadowCandidates(runtime: StudioAppRuntime, shadowSearchRoot = runtime.appCtx.sceneRootNode) {
   const shadowCandidates: any = []
@@ -154,7 +159,6 @@ export function setupSceneShadows(
     appliedSpotShadowCount
   )
 }
-
 
 export function setShadowFreeze(runtime: StudioAppRuntime, isFrozen = true) {
   runtime.appCtx.isShadowFrozen &&

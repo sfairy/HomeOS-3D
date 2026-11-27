@@ -4,7 +4,7 @@
  */
 import { ref, computed, type Ref } from 'vue'
 import { getConfigSection } from '@/kernel/config/frontend-config'
-import { computeScreensaverLayout, readViewportBox } from '@/kernel/ui/hooks/use-scaling'
+import { computeScreensaverLayout, readViewportBox } from '@/kernel/ui/use-scaling'
 import { resolveDesignMetrics } from '@/kernel/layout'
 import { screensaverBackgroundIdle } from '@/kernel/ui/index'
 import { SS_DEFAULTS } from './screensaver.defaults'

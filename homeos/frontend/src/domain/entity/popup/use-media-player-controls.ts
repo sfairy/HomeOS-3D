@@ -6,8 +6,8 @@ import { notifyError } from '@/kernel/ui/notify'
 import { resolveHaEntityPicture } from '@/kernel/ha'
 import { useSliderCommit } from '@/domain/entity/use-slider-commit'
 import { progressFillStyle } from '@/kernel/ui/progress-bar'
-import { volumeLevelFromPercent, volumeLevelToPercent } from '@/domain/entity/utils/control/media-player-control-core'
-import type { HaEntityState } from '@/kernel/types/entity'
+import { volumeLevelFromPercent, volumeLevelToPercent } from '@/domain/entity/control/media-player-control-core'
+import type { HaEntityState } from '@/kernel/entity'
 
 /** 媒体播放器数据源：可为 entity_id 字符串、实体对象、null/undefined */
 type MediaPlayerSource =

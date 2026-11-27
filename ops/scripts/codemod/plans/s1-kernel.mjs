@@ -22,15 +22,45 @@ export default {
     { from: 'homeos/frontend/src/services/api/client.ts', to: 'homeos/frontend/src/kernel/http/client.ts' },
     { from: 'homeos/frontend/src/services/api/csrf.ts', to: 'homeos/frontend/src/kernel/http/csrf.ts' },
     // 通用控件（无业务语义）
-    { from: 'homeos/frontend/src/shared/components/feedback/StatePanel.vue', to: 'homeos/frontend/src/kernel/ui/StatePanel.vue' },
-    { from: 'homeos/frontend/src/components/common/ApiQueryState.vue', to: 'homeos/frontend/src/kernel/ui/ApiQueryState.vue' },
-    { from: 'homeos/frontend/src/components/common/AssetGridItem.vue', to: 'homeos/frontend/src/kernel/ui/AssetGridItem.vue' },
-    { from: 'homeos/frontend/src/components/common/AssetPickerModal.vue', to: 'homeos/frontend/src/kernel/ui/AssetPickerModal.vue' },
-    { from: 'homeos/frontend/src/components/common/ErrorBoundary.vue', to: 'homeos/frontend/src/kernel/ui/ErrorBoundary.vue' },
-    { from: 'homeos/frontend/src/components/common/ExitEditConfirmDialog.vue', to: 'homeos/frontend/src/kernel/ui/ExitEditConfirmDialog.vue' },
-    { from: 'homeos/frontend/src/components/common/FooterIconPicker.vue', to: 'homeos/frontend/src/kernel/ui/FooterIconPicker.vue' },
-    { from: 'homeos/frontend/src/components/common/HaDegradeBanner.vue', to: 'homeos/frontend/src/kernel/ui/HaDegradeBanner.vue' },
-    { from: 'homeos/frontend/src/components/common/HaStatusDegradeBanner.vue', to: 'homeos/frontend/src/kernel/ui/HaStatusDegradeBanner.vue' },
-    { from: 'homeos/frontend/src/components/common/SceneStage.vue', to: 'homeos/frontend/src/kernel/ui/SceneStage.vue' },
+    {
+      from: 'homeos/frontend/src/shared/components/feedback/StatePanel.vue',
+      to: 'homeos/frontend/src/kernel/ui/StatePanel.vue',
+    },
+    {
+      from: 'homeos/frontend/src/components/common/ApiQueryState.vue',
+      to: 'homeos/frontend/src/kernel/ui/ApiQueryState.vue',
+    },
+    {
+      from: 'homeos/frontend/src/components/common/AssetGridItem.vue',
+      to: 'homeos/frontend/src/kernel/ui/AssetGridItem.vue',
+    },
+    {
+      from: 'homeos/frontend/src/components/common/AssetPickerModal.vue',
+      to: 'homeos/frontend/src/kernel/ui/AssetPickerModal.vue',
+    },
+    {
+      from: 'homeos/frontend/src/components/common/ErrorBoundary.vue',
+      to: 'homeos/frontend/src/kernel/ui/ErrorBoundary.vue',
+    },
+    {
+      from: 'homeos/frontend/src/components/common/ExitEditConfirmDialog.vue',
+      to: 'homeos/frontend/src/kernel/ui/ExitEditConfirmDialog.vue',
+    },
+    {
+      from: 'homeos/frontend/src/components/common/FooterIconPicker.vue',
+      to: 'homeos/frontend/src/kernel/ui/FooterIconPicker.vue',
+    },
+    {
+      from: 'homeos/frontend/src/components/common/HaDegradeBanner.vue',
+      to: 'homeos/frontend/src/kernel/ui/HaDegradeBanner.vue',
+    },
+    {
+      from: 'homeos/frontend/src/components/common/HaStatusDegradeBanner.vue',
+      to: 'homeos/frontend/src/kernel/ui/HaStatusDegradeBanner.vue',
+    },
+    {
+      from: 'homeos/frontend/src/components/common/SceneStage.vue',
+      to: 'homeos/frontend/src/kernel/ui/SceneStage.vue',
+    },
   ],
 }

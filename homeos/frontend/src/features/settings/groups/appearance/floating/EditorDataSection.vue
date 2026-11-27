@@ -8,7 +8,7 @@ import { Eye, EyeOff, Palette, Zap } from '@lucide/vue'
 import EntityInput from '@/domain/entity/entity-input/EntityInput.vue'
 import { useDraftObjectField } from '@/features/settings/shared/hub'
 import { AFH_THEMES } from '@/features/settings/groups/appearance/use-layout-floating'
-import { AFH_SEMANTIC_COLOR_PRESETS, normalizeHexColor } from '@/domain/entity/utils/floating-entity-colors'
+import { AFH_SEMANTIC_COLOR_PRESETS, normalizeHexColor } from '@/domain/entity/floating-entity-colors'
 
 defineProps({
   fw: { type: Object, required: true },

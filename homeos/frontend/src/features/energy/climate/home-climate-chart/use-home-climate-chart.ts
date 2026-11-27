@@ -12,12 +12,8 @@ import { useAuthStore } from '@/domain/auth/auth.store'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { fetchHaHistory, type HaHistoryPoint } from '@/domain/api/entities'
 import { notifyError } from '@/kernel/ui/notify'
-import {
-  observeChartResize,
-  scheduleEchartsTask,
-  cancelScheduledEchartsTask,
-} from '@/kernel/ui/index'
-import { useFetchGeneration } from '@/kernel/ui/hooks/use-fetch-generation'
+import { observeChartResize, scheduleEchartsTask, cancelScheduledEchartsTask } from '@/kernel/ui/index'
+import { useFetchGeneration } from '@/kernel/ui/use-fetch-generation'
 import {
   HOME_CLIMATE_CHART_VIEW_OPTIONS,
   HOME_CLIMATE_CHART_HOURS,

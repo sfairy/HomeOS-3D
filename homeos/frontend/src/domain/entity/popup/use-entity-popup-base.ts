@@ -1,10 +1,10 @@
 /** 实体弹窗通用基础组合式函数模块。 */
 import { computed, type ComputedRef, type Ref, type PropType } from 'vue'
-import { popupDomainStateLabel } from '@/kernel/constants/index'
-import { getEntityDisplayName } from '@/domain/entity/utils/derived'
+import { popupDomainStateLabel } from '@/kernel/index'
+import { getEntityDisplayName } from '@/domain/entity/derived'
 import { useLiveEntity } from '@/domain/entity/use-live-entity'
 import { useHaEntityService } from '@/domain/entity/ha'
-import type { HaEntityState } from '@/kernel/types/entity'
+import type { HaEntityState } from '@/kernel/entity'
 
 /** 实体引用类型：可为 Ref 或 ComputedRef，统一为只读快照。 */
 type EntityRefLike =

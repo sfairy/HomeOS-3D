@@ -1,10 +1,10 @@
 import { getEntityDomain } from '@homeos/shared'
-import { getEntityDisplayName } from '@/domain/entity/utils/derived'
-import { type HaEntityState } from '@/kernel/types/entity'
+import { getEntityDisplayName } from '@/domain/entity/derived'
+import type { HaEntityState } from '@/kernel/entity'
 import { ref, computed, nextTick, watch, type Ref } from 'vue'
-import { useClickOutside } from '@/kernel/ui/hooks/use-click-outside'
+import { useClickOutside } from '@/kernel/ui/use-click-outside'
 import { useEntityPickerSession } from '@/domain/entity/entity'
-import { inferSuggestDeviceClassFromPlaceholder } from '@/domain/entity/utils/suggest-device-class'
+import { inferSuggestDeviceClassFromPlaceholder } from '@/domain/entity/suggest-device-class'
 
 /* ── 原 entity-input.internals.ts 的实现 ── */
 /** EntityInput：分组构建 / placeholder 推断 device_class（纯函数） */
@@ -76,10 +76,9 @@ export function buildEntityInputGroups(options: BuildEntityInputGroupsOptions): 
  * 实现已收敛到 `@/shared/entity/utils/suggest-device-class.util`：此前这里与
  * `useEntityMultiSelect` 各写了一份判据，两处不一致时同一个 placeholder 会给出不同的建议。
  */
-export { inferSuggestDeviceClassFromPlaceholder } from '@/domain/entity/utils/suggest-device-class'
+export { inferSuggestDeviceClassFromPlaceholder } from '@/domain/entity/suggest-device-class'
 
 /* ── 原 useEntityInput.ts 的实现 ── */
-
 
 interface UseEntityInputProps {
   modelValue: string

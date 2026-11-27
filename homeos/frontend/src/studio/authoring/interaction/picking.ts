@@ -1,5 +1,13 @@
-import { hitDrawing as hitDrawing2, buildingFootprints as buildingFootprints2, surfaceExclusions as surfaceExclusions2, isCourtyardGate as isCourtyardGate2 } from '../plan/courtyard-drawing'
-import { pointInRotatedRectangle as pointInRotatedRectangle2, projectPointToSegment as projectPointToSegment2 } from '../plan/geometry'
+import {
+  hitDrawing as hitDrawing2,
+  buildingFootprints as buildingFootprints2,
+  surfaceExclusions as surfaceExclusions2,
+  isCourtyardGate as isCourtyardGate2,
+} from '../plan/courtyard-drawing'
+import {
+  pointInRotatedRectangle as pointInRotatedRectangle2,
+  projectPointToSegment as projectPointToSegment2,
+} from '../plan/geometry'
 import { isCourtyardDrawing as isCourtyardDrawing2 } from '../loaders/studio-normalization'
 import { itemWithPlanFootprint as itemWithPlanFootprint2 } from '../items/studio-item-posture'
 import { isPlacedItemHidden } from '../items/placed-item-state'
@@ -275,9 +283,6 @@ function boxPickPoint(
   return { x: hitPoint.x, y: hitPoint.y, z: hitPoint.z }
 }
 
-
-
-
 export interface HitTestPlanItemDeps {
   appCtx: StudioAppContext
   closedWallLoops: any
@@ -398,7 +403,6 @@ export function hitTestPlanItem(deps: HitTestPlanItemDeps, planHitPoint: any) {
       }
   return null
 }
-
 
 export function createSelectionRef(runtime: StudioAppRuntime, selectionKind: any, selectionId: any) {
   return (

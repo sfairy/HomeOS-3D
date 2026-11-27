@@ -10,33 +10,29 @@ import { resyncEntities } from '@/domain/api/entities'
 import { useAuthStore } from '@/domain/auth/auth.store'
 import { useLayoutStore } from '@/domain/layout/store/index'
 import { logger } from '@/kernel/core/index'
-import {
-  getFrontendConfig,
-  getLargeEntityThreshold,
-  getWorkerDerivedThreshold,
-} from '@/kernel/config/frontend-config'
+import { getFrontendConfig, getLargeEntityThreshold, getWorkerDerivedThreshold } from '@/kernel/config/frontend-config'
 import type {
   DerivedBatteryEntry,
   DerivedOfflineEntry,
   EntitiesMap,
   EntityLoadPhase,
   HaEntityState,
-} from '@/kernel/types/entity'
-import { buildEntityCacheKey } from '@/domain/entity/utils/idb-cache'
+} from '@/kernel/entity'
+import { buildEntityCacheKey } from '@/domain/entity/idb-cache'
 import { createEntityOptimisticState } from '@/domain/entity/store/entity-store-optimistic'
-import { clearColdFetchMissing, fetchEntitiesByIds, fetchEntityById } from '@/domain/entity/utils/cold-fetch'
+import { clearColdFetchMissing, fetchEntitiesByIds, fetchEntityById } from '@/domain/entity/cold-fetch'
 import { getPendingListenerCount, getStateListenerStats } from '@/domain/entity/utils/entity'
 import { applyEntityStateUpdate } from './ws'
 import type { WsDeltaChange } from '@/domain/entity/utils/entity'
-import {
-  shouldNotifyStateChange,
-  resolveListenerOldState,
-  haStateChanged,
-} from '@/domain/entity/utils/entity'
+import { shouldNotifyStateChange, resolveListenerOldState, haStateChanged } from '@/domain/entity/utils/entity'
 import { createEntityCacheHelpers } from '@/domain/entity/store/entity-store-cache'
 import { createStoreDerivedState } from '@/domain/entity/store/entity-store-derived'
 import { createEntityActions } from '@/domain/entity/store/entity-store-actions'
-import { setProjectionScope, patchProjectionsFromChanges, clearProjections } from '@/domain/entity/store/entity-projection'
+import {
+  setProjectionScope,
+  patchProjectionsFromChanges,
+  clearProjections,
+} from '@/domain/entity/store/entity-projection'
 import {
   createEntityWsState,
   type EntityCachePersistBridge,

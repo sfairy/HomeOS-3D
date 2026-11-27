@@ -9,13 +9,13 @@ import {
   fetchHomeModeTemplates,
   installHomeModePreset,
 } from '@/domain/api/home-modes'
-import { collectHaSceneScriptRecords } from '@/domain/entity/utils/scene-script'
+import { collectHaSceneScriptRecords } from '@/domain/entity/scene-script'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { fetchPresenceHome } from '@/domain/api/security'
 import { downloadBlob } from '@/kernel/core/index'
 import { getApiErrorMessage } from '@/kernel/core/index'
 import { logger } from '@/kernel/core/index'
-import { formatPresenceBadgeSummary } from '@/features/presence/utils/display'
+import { formatPresenceBadgeSummary } from '@/features/presence/display'
 import type { Ref } from 'vue'
 import { computed, ref } from 'vue'
 import type { ActionTemplate } from './draft.internals'

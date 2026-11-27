@@ -18,7 +18,6 @@ export function lightSignatureOf(lightList: any) {
   return lightListSpotLightCount + ':' + rectAreaLightCount + ':' + pointLightCount + ':' + otherLightCount
 }
 
-
 export function classifyLightingScope(appCtx: StudioAppContext, lightSelectionList: any) {
   if (!lightSelectionList.length) return null
   if (
@@ -204,7 +203,6 @@ function bindOnce(host: FixtureLightingHost): void {
  * 2. 点击时写草稿 + 切管线 + 重建灯光层（灯光要重新注册到新控制器），失败回滚；
  * 3. 嵌入舞台 / 自动导图里整行隐藏（上游 `yl.hidden = B || Me`）。
  */
-
 
 /**
  * 只读草稿模式的宿主。

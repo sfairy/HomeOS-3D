@@ -1,9 +1,9 @@
-import { coverToggleService } from '@/domain/entity/utils/control/cover-control-core'
+import { coverToggleService } from '@/domain/entity/control/cover-control-core'
 import { entityMatchesAreaFilter, getEntityDomain, resolveEntityArea } from '@homeos/shared'
-import { type DeviceListItem, type DeviceFilterState } from '@/kernel/types/device'
-import { type HaEntityState, type HaEntityView } from '@/kernel/types/entity'
+import type { DeviceListItem, DeviceFilterState } from '@/kernel/device'
+import type { HaEntityState, HaEntityView } from '@/kernel/entity'
 import { resolveListRowEntity } from '@/domain/entity/projection-row'
-import { getEntityDisplayName, collectIndexedEntityIds } from '@/domain/entity/utils/derived'
+import { getEntityDisplayName, collectIndexedEntityIds } from '@/domain/entity/derived'
 import { getDomainLabel } from '@/features/device/utils'
 import { ref, computed, onMounted, watch, toRaw } from 'vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
@@ -17,11 +17,10 @@ import { useRouteEntityProjection } from '@/domain/entity/use-route-entity-proje
 import { useEnsureVisibleEntities } from '@/domain/entity/use-ensure-visible-entities'
 import { logger } from '@/kernel/core/index'
 import { appNotify } from '@/kernel/bridge/store-bridge'
-import { hasEntityControlPopup } from '@/domain/entity/utils/popup-registry'
+import { hasEntityControlPopup } from '@/domain/entity/popup-registry'
 
 /* ── 原 devices-view-actions.internals.ts 的实现 ── */
 /** /devices 列表：开关类设备服务名解析（纯函数） */
-
 
 type DeviceToggleCommand = { ok: true; domain: string; service: string } | { ok: false; reason: 'unknown-state' }
 
@@ -52,7 +51,6 @@ export function resolveDeviceToggleCommand(domain: string, state: string): Devic
 
 /* ── 原 devices-view-filter.internals.ts 的实现 ── */
 /** /devices 内存列表：按域/关键词/状态/房间/排序过滤（纯函数） */
-
 
 type DevicesMemoryFilterInput = {
   items: DeviceListItem[]
@@ -119,7 +117,6 @@ export function filterMemoryDeviceItems(input: DevicesMemoryFilterInput): Device
 
 /* ── 原 devices-view-map.internals.ts 的实现 ── */
 /** /devices：实体行 → DeviceListItem 映射（纯函数） */
-
 
 const DEVICES_TOGGLE_DOMAINS = new Set(['light', 'switch', 'fan', 'cover', 'lock', 'input_boolean'])
 

@@ -24,14 +24,14 @@ import {
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { loadPresenceHome } from '@/features/presence/load-presence-home'
-import { invalidateAndReloadPresenceEntityIds } from '@/features/presence/utils/entity-filter'
-import { formatPresenceDetailSummary } from '@/features/presence/utils/display'
+import { invalidateAndReloadPresenceEntityIds } from '@/features/presence/entity-filter'
+import { formatPresenceDetailSummary } from '@/features/presence/display'
 import {
   computePersonAtHome,
   createEmptyPresencePerson,
   getPresencePersonsFromSecurity,
   sanitizePresencePersonsForSave,
-} from '@/features/presence/utils/person'
+} from '@/features/presence/person'
 import { withBackendBootRetry } from '@/kernel/core/index'
 import { getApiErrorMessage, isBackendUnreachableError } from '@/kernel/core/index'
 import { logger } from '@/kernel/core/index'

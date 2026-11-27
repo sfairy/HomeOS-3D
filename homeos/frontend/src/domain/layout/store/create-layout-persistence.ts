@@ -7,7 +7,7 @@ import { normalizePageBackground } from '@/kernel/widget/page-background'
 import { NAV_TAB_ORDER_DEFAULT, normalizeEmbedNavTabLayoutFields } from '@/kernel/layout'
 import { normalizeDashboardFooter } from '@/domain/energy/constants/dashboard-footer'
 import { normalizeSecurityEmergency } from '@/domain/layout/constants/security-emergency'
-import { normalizeWholeHomeOff } from '@/kernel/constants/index'
+import { normalizeWholeHomeOff } from '@/kernel/index'
 import { logger } from '@/kernel/core/logger'
 import {
   getApiErrorMessage,
@@ -16,7 +16,7 @@ import {
   isUnauthorizedError,
 } from '@/kernel/core/error-message'
 import { applyTabletDefaultPerformanceMode } from '@/kernel/perf/tablet-default-perf'
-import type { NotifyType } from '@/kernel/types/notify'
+import type { NotifyType } from '@/kernel/notify'
 import { KNOWN_PANEL_WIDGET_TYPES } from './create-layout-state'
 import { WIDGET_REGISTRY_META, FLOATING_HUB_TYPE_SET } from '@/kernel/registry/widget-registry-meta'
 import { ensureDoorbellList } from '@/kernel/layout'

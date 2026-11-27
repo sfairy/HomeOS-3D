@@ -1,4 +1,4 @@
-import { getEntityDisplayName } from '@/domain/entity/utils/derived'
+import { getEntityDisplayName } from '@/domain/entity/derived'
 
 /**
  * 天启（tianqi）气象站「生活指数」实体约定。

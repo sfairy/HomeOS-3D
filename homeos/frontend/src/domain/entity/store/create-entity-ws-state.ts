@@ -37,9 +37,9 @@ import type {
   EntityStoreLogger,
   HaEntityState,
   HaLinkStatus,
-} from '@/kernel/types/entity'
+} from '@/kernel/entity'
 import { fetchHaHealth } from '@/domain/api/entities'
-import type { NotifyType } from '@/kernel/types/notify'
+import type { NotifyType } from '@/kernel/notify'
 
 /**
  * 实体缓存持久化桥接接口
