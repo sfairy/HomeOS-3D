@@ -7,7 +7,7 @@
  */
 import { describe, expect, test } from 'bun:test'
 
-import { groupOfflineByDevice } from '../../../homeos/frontend/src/domain/entity/model/utils/group-offline.util'
+import { groupOfflineByDevice } from '../../../homeos/frontend/src/domain/entity/model/utils/device-group'
 
 type EntityMap = Record<string, { attributes?: Record<string, unknown> } | undefined>
 

@@ -12,7 +12,7 @@
  * 本模块把这些体系统一解析成角色，再按「家族 → 角色 → 配方」给出颜色与表面参数，让调色板按
  * 角色着色，而不是靠亮度 / 槽位号猜。
  */
-import { courtyardPalette } from '../plan/courtyard-models'
+import { courtyardPalette } from '../plan/courtyard'
 import { DECOR_MODELS, DECOR_THEMES } from '../authoring/items/decor-models'
 import { COLLECTION_MODELS, collectionRoleColorSpec } from '../loaders/external-models/collection-models'
 import { hasSemanticSlotRoles, resolveSemanticSlotRole } from './model-slot-roles'

@@ -1,6 +1,6 @@
 /** - 对设备分组中的实体集合执行批量开/关、批量温控关机等操作。 */
 import { ref, computed, type Ref } from 'vue'
-import type { DeviceGroupEntitiesStoreLike } from '@/domain/entity/model/utils/group-battery.util'
+import type { DeviceGroupEntitiesStoreLike } from '@/domain/entity/model/utils/device-group'
 import type { HaEntityState } from '@/kernel/types/entity'
 import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
 

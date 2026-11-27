@@ -12,7 +12,7 @@ import { normalizeCurtainTrack as normalizeCurtainTrack2, curtainFootprintDepth 
 import { finite as finite2, itemMinimumHeight as itemMinimumHeight2, itemMinimumFootprint as itemMinimumFootprint2 } from '../../../loaders/studio-normalization'
 import { itemFromPlanFootprintResize as itemFromPlanFootprintResize2, itemWithPlanFootprint as itemWithPlanFootprint2 } from '../../items/studio-item-posture'
 import { applyPlacementSnap, applyPointSnap, quantizePlanDelta } from './drag-and-drop'
-import { type PlacementGuide } from '../../../plan/studio-placement-snap'
+import { type PlacementGuide } from '../../../plan/studio-placement'
 import { type StudioAppRuntime } from '../runtime/studio-app-runtime'
 import { offerOverlapPickerFor } from '../ui/wiring'
 import { restorePlacementScene as restorePlacementScene2 } from '../../items/studio-placement'

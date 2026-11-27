@@ -19,13 +19,13 @@ import {
   mergeWsStateChange,
   normalizeWsBatchChange,
   type WsDeltaChange,
-} from '@/domain/entity/model/utils/state-delta.util'
+} from '@/domain/entity/model/utils/entity-state'
 import {
   dispatchStateListener,
   enqueueStateListenerNotifications,
   notifyStateListener,
   stateListenerPayloadFingerprint,
-} from '@/domain/entity/model/utils/state-listener'
+} from '@/domain/entity/model/utils/entity-state'
 import { EVENT_LOG_OVERLAY_DOMAINS } from '@/domain/entity/model/utils/event-log-domains.util'
 
 const IMMEDIATE_DOMAINS = new Set<string>(EVENT_LOG_OVERLAY_DOMAINS)

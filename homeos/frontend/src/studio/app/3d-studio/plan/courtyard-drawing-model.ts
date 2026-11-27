@@ -1,4 +1,4 @@
-import { courtyardPalette } from './courtyard-models'
+import { courtyardPalette } from './courtyard'
 import { decorateWarmFloor } from '../authoring/scene/studio-scene-style'
 import { activeNaturalWoodLibrary } from '../materials/natural-wood/natural-wood-model-theme'
 import {

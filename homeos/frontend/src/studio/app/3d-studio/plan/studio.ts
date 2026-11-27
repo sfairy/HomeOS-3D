@@ -1,3 +1,32 @@
+import { closestReachPoint, convexHull, crossProduct, itemPlanCorners, normalizeVector, rayPolygonDistance, subtract, vectorLength, type PlanRectLike, type Point } from './studio-placement'
+
+/**
+ * 接触阴影的位姿解析器：给一根节点返回「阴影烘焙时用的世界矩阵」。
+ * 节点若带 userData.contactShadowRestMatrix（静止姿态），用它覆盖自身矩阵；
+ * 覆盖会沿父链向上传染，子节点跟着用被覆盖的父世界矩阵相乘。
+ */
+export function createContactShadowPoseResolver() {
+  const poseByObject = new Map()
+  function resolvePose(object: any): any {
+    if (poseByObject.has(object)) return poseByObject.get(object)
+    const parentPose: any = object.parent ? resolvePose(object.parent) : null,
+      restMatrix = object.userData?.contactShadowRestMatrix,
+      hasRestMatrix = Array.isArray(restMatrix) && restMatrix.length === 16 && restMatrix.every(Number.isFinite),
+      overridden: any = hasRestMatrix || !!parentPose?.overridden
+    let worldMatrix = object.matrixWorld
+    if (overridden) {
+      const localMatrix = hasRestMatrix ? object.matrix.clone().fromArray(restMatrix) : object.matrix
+      worldMatrix = parentPose ? parentPose.world.clone().multiply(localMatrix) : localMatrix.clone()
+    }
+    const pose: any = {
+      world: worldMatrix,
+      overridden: overridden,
+    }
+    return (poseByObject.set(object, pose), pose)
+  }
+  return (object: any) => resolvePose(object).world
+}
+
 /**
  * 毫米间距标尺（0.8.7 `studio-distance-rulers.js` 的对应实现）。
  *
@@ -12,18 +41,6 @@
  * 「包围盒到墙」，比真实最近的表面远出十几厘米。0.8.7 用本体局部法线 + Minkowski 凸包，
  * 量的是**真实外表面**，标尺线也正好落在物件边上。
  */
-import {
-  closestReachPoint,
-  convexHull,
-  crossProduct,
-  itemPlanCorners,
-  normalizeVector,
-  rayPolygonDistance,
-  subtract,
-  vectorLength,
-  type PlanRectLike,
-  type Point,
-} from './studio-placement-geometry'
 
 /** 本体的四条局部方向（0.8.7 的 `key` 与中文名）。 */
 export type RulerSideKey = 'width-' | 'width+' | 'depth-' | 'depth+'
@@ -504,4 +521,466 @@ export function bestLabelPlacement(
   if (best) return best
   const rect = rectAt(preferred, metrics)
   return { point: preferred, rect, score: 0, hardCovered: overlapAreaTotal(rect, obstacles.hard) }
+}
+
+/**
+ * 平面画布上的选中手柄（0.8.7 `studio-app.js` 选中态绘制的对应实现）。
+ *
+ * 0.8.7 的形态只有三样：
+ * - 旋转矩形四边的 **虚线框**（`#ffb14f`、1.5px、`[5,3]`）；
+ * - 四角 + 四边中点（风扇只有四角）的 **圆形标记** `drawPoint(point,'#ffb14f',3.5)`
+ *   —— 深底 `#0e151b` + 2px 描边，四角与边中点完全同形；
+ * - 顶边（出风口是右侧）一条 **1px 引线** + 半径 3.5 的圆点，就是旋转控制。
+ *
+ * 上一版在这里画过「一圈旋转环 + 中心十字 + 四角方块 / 四边圆点混用」，
+ * 那是照着截图猜的形态：0.8.7 既没有环、也没有中心十字，且手柄样式只有一种。
+ * 小尺寸物件的门控也按上游：短边不足 18 屏幕像素时只留旋转圆点，其余手柄收起
+ * （否则一个 20px 的插座会被 9 个标记糊死）。
+ */
+
+const HANDLE_COLOR = '#ffb14f'
+/** 标记底色：深底 + 彩色描边（0.8.7 `drawPoint` 的 `#0e151b`）。标尺端点复用同一常量。 */
+export const POINT_MARKER_FILL = '#0e151b'
+/** 标记半径（像素）：0.8.7 `drawPoint(..., 3.5)`。 */
+const HANDLE_RADIUS = 3.5
+/** 手柄线宽（像素）：0.8.7 `drawPoint` 内部固定 2。 */
+const HANDLE_STROKE = 2
+/** 虚线框线宽 / 节奏：0.8.7 `{width:1.5, dash:[5,3]}`。 */
+const FRAME_WIDTH = 1.5
+const FRAME_DASH: number[] = [5, 3]
+/** 短边小于该屏幕像素数时收起缩放手柄（0.8.7 的 0x12）。 */
+const MIN_SIDE_PX = 18
+
+export interface HandleDrawingDeps {
+  context: CanvasRenderingContext2D
+  planToScreen: (point: { x: number; y: number }) => { x: number; y: number }
+  /** `buildHandleGeometry` 的返回（corners / edges / rotationStem / rotationHandle）。 */
+  handles: {
+    corners: Array<{ point: { x: number; y: number } }>
+    edges: Array<{ point: { x: number; y: number } }>
+    rotationStem: { x: number; y: number }
+    rotationHandle: { x: number; y: number }
+  }
+  /** 物件中心（平面像素）。 */
+  center: { x: number; y: number }
+  /** 物件类型：风扇不画四边中点（0.8.7 同）。 */
+  type?: string
+}
+
+/** 0.8.7 `drawPoint`：深底 + 彩色描边的圆点。 */
+function drawMarker(context: CanvasRenderingContext2D, point: { x: number; y: number }, color = HANDLE_COLOR): void {
+  context.beginPath()
+  context.arc(point.x, point.y, HANDLE_RADIUS, 0, Math.PI * 2)
+  context.fillStyle = POINT_MARKER_FILL
+  context.fill()
+  context.lineWidth = HANDLE_STROKE
+  context.strokeStyle = color
+  context.stroke()
+}
+
+function screenDistance(first: { x: number; y: number }, second: { x: number; y: number }): number {
+  return Math.hypot(second.x - first.x, second.y - first.y)
+}
+
+export function drawItemHandles(deps: HandleDrawingDeps): void {
+  const { context, handles } = deps
+  const corners = handles.corners.map((corner) => deps.planToScreen(corner.point))
+  if (corners.length < 4) return
+  context.save()
+
+  // 虚线框：四段独立的虚线（0.8.7 用 `drawLine` 逐段画，转角处不闭合缺口）。
+  context.strokeStyle = HANDLE_COLOR
+  context.lineWidth = FRAME_WIDTH
+  context.setLineDash(FRAME_DASH)
+  context.beginPath()
+  corners.forEach((corner, index) => {
+    const next = corners[(index + 1) % corners.length]
+    context.moveTo(corner.x, corner.y)
+    context.lineTo(next.x, next.y)
+  })
+  context.stroke()
+  context.setLineDash([])
+
+  // 短边不足 18px 时只留旋转圆点：小件被 9 个标记盖住就点不中本体。
+  const shortSide = Math.min(screenDistance(corners[0], corners[1]), screenDistance(corners[1], corners[2]))
+  if (shortSide >= MIN_SIDE_PX) {
+    for (const corner of corners) drawMarker(context, corner)
+    if (deps.type !== 'fan') {
+      for (const edge of handles.edges) drawMarker(context, deps.planToScreen(edge.point))
+    }
+  }
+
+  // 旋转引线 + 圆点：0.8.7 只画这一根，不画整圈。
+  const stem = deps.planToScreen(handles.rotationStem)
+  const knob = deps.planToScreen(handles.rotationHandle)
+  context.strokeStyle = HANDLE_COLOR
+  context.lineWidth = 1
+  context.beginPath()
+  context.moveTo(stem.x, stem.y)
+  context.lineTo(knob.x, knob.y)
+  context.stroke()
+  drawMarker(context, knob)
+
+  context.restore()
+}
+
+/**
+ * 绘制页与 3D 交互控件**共用**的柔光范围存储（0.8.9 `studio-light-ranges.js`）。
+ *
+ * 背景：0.8.9 之前，柔光范围只存在 3D 控件的 `properties.lightRegionOverrides` 里，
+ * 户型绘制页的「轻量柔光」预览看不到它；0.8.9 把它上提成**按场景（sceneId）共享**的
+ * 一份数据，绘制页写入、控件读取并同步，反之亦然。
+ *
+ * 存储位置（studio 草稿 / 文档）：
+ * - `lightRegionOverrides[sceneId][regionKey] = descriptor`
+ * - `lightRangeArchive[sceneId] = [{ floorId, itemId, previous, at }, …]`
+ *
+ * `regionKey` 由运行时范围编辑器生成（不透明字符串），本模块只做**净化**与**按场景解析**，
+ * 不解析键的内部结构 —— 这样编辑器换键格式不会波及存储层。
+ *
+ * 注意：`theme` 之外的场景风格（如自然木语）没有柔光支持，由 `FLOOR`/光照层判断，
+ * 本模块不参与。
+ */
+
+/** 绘制页自身的柔光范围所用的保留 scene id。与 0.8.9 `STUDIO_RANGE_SCENE_ID` 同义。 */
+export const STUDIO_RANGE_SCENE_ID = '__studio-floorplan__'
+
+/** 一个区域描述符（编辑器写出的形状；本层只做数值夹取，不重排语义）。 */
+export type LightRegionDescriptor = {
+  shape?: 'circle' | 'square' | 'strip'
+  width?: number
+  depth?: number
+  rotation?: number
+  softness?: number
+  heightMin?: number
+  heightMax?: number
+  offsetX?: number
+  offsetZ?: number
+  moveCenter?: boolean
+}
+
+/** `regionKey → descriptor`。 */
+export type LightRegionOverrides = Record<string, LightRegionDescriptor>
+
+/** `sceneId → regionKey → descriptor`。 */
+export type LightRegionOverrideStore = Record<string, LightRegionOverrides>
+
+/** 撤销记录：保留「改之前的范围」，用于在绘制页撤销柔光调整。 */
+export type LightRangeArchiveEntry = {
+  floorId: string
+  itemId: string
+  /** 改之前的描述符；`null` 表示之前没有自定义（回到模型默认）。 */
+  previous: LightRegionDescriptor | null
+  /** 记录时间（毫秒），仅用于裁剪与展示。 */
+  at: number
+}
+
+/** `sceneId → 撤销记录[]`。 */
+export type LightRangeArchiveStore = Record<string, LightRangeArchiveEntry[]>
+
+const MAX_SCENES = 64
+const MAX_REGIONS_PER_SCENE = 512
+const MAX_ARCHIVE_ENTRIES = 200
+const MAX_KEY_LENGTH = 96
+const MAX_ROTATION = 180
+
+const PROFILE_KEYS = new Set([
+  'shape',
+  'width',
+  'depth',
+  'rotation',
+  'softness',
+  'heightMin',
+  'heightMax',
+  'offsetX',
+  'offsetZ',
+  'moveCenter',
+])
+
+function toNumber(value: unknown): number | undefined {
+  if (value === null || value === undefined || value === '') return undefined
+  const parsed = typeof value === 'number' ? value : Number(value)
+  return Number.isFinite(parsed) ? parsed : undefined
+}
+
+function clampOptional(value: number | undefined, min: number, max: number): number | undefined {
+  return value === undefined ? undefined : value < min ? min : value > max ? max : value
+}
+
+/** 数值字段名（`NUMERIC_FIELDS` 的键只可能是这几个）。 */
+type NumericProfileKey = 'width' | 'depth' | 'rotation' | 'softness' | 'heightMin' | 'heightMax' | 'offsetX' | 'offsetZ'
+
+/** 数值字段表：顺序即写回顺序。 */
+const NUMERIC_FIELDS: ReadonlyArray<readonly [NumericProfileKey, number, number]> = [
+  ['width', 0.5, 20],
+  ['depth', 0.5, 20],
+  ['rotation', -MAX_ROTATION, MAX_ROTATION],
+  ['softness', 5, 100],
+  ['heightMin', 0, 20],
+  ['heightMax', 0, 20],
+  ['offsetX', -50, 50],
+  ['offsetZ', -50, 50],
+]
+
+function normalizeShape(value: unknown): LightRegionDescriptor['shape'] | undefined {
+  return value === 'circle' || value === 'square' || value === 'strip' ? value : undefined
+}
+
+function applyNumericFields(target: LightRegionDescriptor, source: Record<string, unknown>): void {
+  for (const [key, min, max] of NUMERIC_FIELDS) {
+    const value = clampOptional(toNumber(source[key]), min, max)
+    if (value !== undefined) target[key] = value
+  }
+}
+
+/** 最低照到 ≤ 最高照到：与编辑器一致，冲突时把最高抬到最低之上。 */
+function normalizeHeightOrder(descriptor: LightRegionDescriptor): void {
+  const { heightMin, heightMax } = descriptor
+  if (heightMin === undefined || heightMax === undefined || heightMax >= heightMin) return
+  descriptor.heightMax = heightMin
+}
+
+/**
+ * 单个区域描述符净化。
+ *
+ * 只保留已知字段（`PROFILE_KEYS`），数值按绘制面板的输入范围夹取 —— 与后端
+ * `valid_light_region_overrides` 同一口径，避免「前端能存、后端拒收」。
+ */
+export function normalizeLightRegionDescriptor(raw: unknown): LightRegionDescriptor | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const source = raw as Record<string, unknown>
+  // 全是未知键时视为「没有描述符」：存档里不堆无用对象。
+  if (!Object.keys(source).some((key) => PROFILE_KEYS.has(key))) return null
+  const descriptor: LightRegionDescriptor = {}
+  const shape = normalizeShape(source.shape)
+  if (shape) descriptor.shape = shape
+  applyNumericFields(descriptor, source)
+  normalizeHeightOrder(descriptor)
+  if (typeof source.moveCenter === 'boolean') descriptor.moveCenter = source.moveCenter
+  // 只有 `shape` 的空对象等价于「没有描述符」，直接丢弃，省得存档里堆 `{}`。
+  return Object.keys(descriptor).length ? descriptor : null
+}
+
+/** 单个场景的 `regionKey → descriptor` 净化。 */
+export function normalizeLightRegionOverridesForScene(raw: unknown): LightRegionOverrides {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+  const overrides: LightRegionOverrides = {}
+  let count = 0
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (count >= MAX_REGIONS_PER_SCENE) break
+    if (!key || key.length > MAX_KEY_LENGTH) continue
+    const descriptor = normalizeLightRegionDescriptor(value)
+    if (!descriptor) continue
+    overrides[key] = descriptor
+    count++
+  }
+  return overrides
+}
+
+/** `sceneId → overrides` 的整表净化（丢掉空场景，避免存档膨胀）。 */
+export function normalizeLightRegionOverrides(raw: unknown): LightRegionOverrideStore {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+  const store: LightRegionOverrideStore = {}
+  let scenes = 0
+  for (const [sceneId, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (scenes >= MAX_SCENES) break
+    if (!sceneId || sceneId.length > MAX_KEY_LENGTH) continue
+    const overrides = normalizeLightRegionOverridesForScene(value)
+    if (!Object.keys(overrides).length) continue
+    store[sceneId] = overrides
+    scenes++
+  }
+  return store
+}
+
+/** 键长度受限的字符串：超长视为无效（返回空串）。 */
+function boundedKey(value: unknown): string {
+  const key = String(value || '')
+  return key.length > MAX_KEY_LENGTH ? '' : key
+}
+
+/** 单条撤销记录净化；结构不完整返回 null。 */
+function normalizeArchiveEntry(rawEntry: unknown): LightRangeArchiveEntry | null {
+  if (!rawEntry || typeof rawEntry !== 'object') return null
+  const entry = rawEntry as Record<string, unknown>
+  const floorId = boundedKey(entry.floorId)
+  const itemId = boundedKey(entry.itemId)
+  if (!floorId || !itemId) return null
+  const previous = entry.previous === null ? null : normalizeLightRegionDescriptor(entry.previous)
+  return { floorId, itemId, previous, at: toNumber(entry.at) ?? 0 }
+}
+
+/** 单个场景的撤销记录：结构净化 + 按时间升序 + 截断到上限。 */
+function normalizeArchiveScene(value: unknown): LightRangeArchiveEntry[] {
+  if (!Array.isArray(value)) return []
+  const entries: LightRangeArchiveEntry[] = []
+  for (const rawEntry of value) {
+    const entry = normalizeArchiveEntry(rawEntry)
+    if (entry) entries.push(entry)
+  }
+  entries.sort((left, right) => left.at - right.at)
+  return entries.slice(-MAX_ARCHIVE_ENTRIES)
+}
+
+/** 撤销记录净化：只保留结构完整的条目，按时间升序、超出上限时丢最旧的。 */
+export function normalizeLightRangeArchive(raw: unknown): LightRangeArchiveStore {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+  const store: LightRangeArchiveStore = {}
+  for (const [sceneId, value] of Object.entries(raw as Record<string, unknown>)) {
+    const entries = normalizeArchiveScene(value)
+    if (!boundedKey(sceneId) || !entries.length) continue
+    store[sceneId] = entries
+  }
+  return store
+}
+
+/**
+ * 解析某个场景实际生效的柔光范围。
+ *
+ * 优先级：`sceneId` → `STUDIO_RANGE_SCENE_ID`（绘制页写入的公共范围）。
+ * 内置模板没有自己的场景记录，始终走兜底（与 0.8.9「内置模板沿用控件自己的范围」一致）。
+ */
+export function resolveLightRanges(
+  store: LightRegionOverrideStore | undefined,
+  sceneId: string | null | undefined,
+  { allowDefault = true }: { allowDefault?: boolean } = {},
+): LightRegionOverrides {
+  if (!store) return {}
+  const explicit = sceneId ? store[sceneId] : undefined
+  if (explicit && Object.keys(explicit).length) return explicit
+  if (!allowDefault) return explicit || {}
+  return store[STUDIO_RANGE_SCENE_ID] || explicit || {}
+}
+
+/** 写入某场景的范围（返回新表，不改入参 —— 便于 React/Vue 侧比较引用）。 */
+export function withLightRanges(
+  store: LightRegionOverrideStore | undefined,
+  sceneId: string,
+  overrides: LightRegionOverrides,
+): LightRegionOverrideStore {
+  const next: LightRegionOverrideStore = { ...(store || {}) }
+  const normalized = normalizeLightRegionOverridesForScene(overrides)
+  if (Object.keys(normalized).length) next[sceneId] = normalized
+  else delete next[sceneId]
+  return next
+}
+
+/** 附一条撤销记录（返回新表）。 */
+export function withArchivedLightRange(
+  store: LightRangeArchiveStore | undefined,
+  sceneId: string,
+  entry: Omit<LightRangeArchiveEntry, 'at'> & { at?: number },
+): LightRangeArchiveStore {
+  const next: LightRangeArchiveStore = { ...(store || {}) }
+  const entries = [...(next[sceneId] || [])]
+  entries.push({
+    floorId: entry.floorId,
+    itemId: entry.itemId,
+    previous: entry.previous === null ? null : normalizeLightRegionDescriptor(entry.previous),
+    at: entry.at ?? Date.now(),
+  })
+  next[sceneId] = entries.slice(-MAX_ARCHIVE_ENTRIES)
+  return next
+}
+
+/** 取出并移除最后一条撤销记录；返回 `{ store, entry }`（`entry` 为 null 表示无可撤销）。 */
+export function popArchivedLightRange(
+  store: LightRangeArchiveStore | undefined,
+  sceneId: string,
+): { store: LightRangeArchiveStore; entry: LightRangeArchiveEntry | null } {
+  const next: LightRangeArchiveStore = { ...(store || {}) }
+  const entries = [...(next[sceneId] || [])]
+  const entry = entries.pop() ?? null
+  if (entries.length) next[sceneId] = entries
+  else delete next[sceneId]
+  return { store: next, entry }
+}
+
+/** 只比较柔光相关字段是否变化（保存前跳过无变化写入）。 */
+export function sameLightRegionOverrides(left: unknown, right: unknown): boolean {
+  return JSON.stringify(left ?? {}) === JSON.stringify(right ?? {})
+}
+
+/**
+ * 柔光范围通道（0.8.9 `studioLightRangeChannel`）。
+ *
+ * 上游用「通道」把「场景级共享范围」与「控件级覆盖」分开取；本项目
+ * `resolveLightRanges()` 已经把两者合成一份结果，这里只导出上游名字作为
+ * 语义别名，避免调用方以为有两套数据源。
+ */
+export const studioLightRangeChannel = resolveLightRanges
+
+/**
+ * 保存后「只改了柔光范围」的判定（0.8.9 `savedLightRangesOnlyChanged`）。
+ *
+ * 用途：保存成功后决定要不要重建整层灯光。只为柔光范围而重建全场景是最常见
+ * 的性能浪费（一次保存几百毫秒）。
+ */
+export function savedLightRangesOnlyChanged(previous: unknown, next: unknown): boolean {
+  return sameLightRegionOverrides(previous, next)
+}
+
+/**
+ * 普通窗（矩形框 + 中梃）的盒体拆解。
+ *
+ * 框料深度以前写死 60mm，而默认墙厚 200mm —— 窗框像一张**悬在洞口中间的卡片**，
+ * 两侧各留 70mm 的空腔，斜看时能从缝里看见墙体内部。现在按墙厚收口：两侧各留 5mm
+ * 避免和墙面 z-fighting，薄墙保底 60mm、厚墙最多 200mm（再深就成了窗套）。
+ *
+ * 玻璃不动（25mm），始终居中 —— 玻璃跟着加厚只会让窗更像一块实心板。
+ */
+
+/** 框料向洞口内收一圈，避免和墙面共面闪烁。 */
+function windowFrameBounds(width: number, height: number, sill = 0) {
+  const inset = Math.min(0.001, width / 100, height / 100)
+  return { width: width - 2 * inset, height: height - 2 * inset, sill: sill + inset }
+}
+
+/** 框料深度：按墙厚收口，`wallThickness` 缺省时沿用旧的 60mm。 */
+export function openingFrameDepth(wallThickness?: number) {
+  const thickness = Number(wallThickness)
+  if (!Number.isFinite(thickness) || thickness <= 0) return 0.06
+  return Math.max(0.06, Math.min(thickness - 0.01, 0.2))
+}
+
+export function windowGeometryParts(
+  width: any,
+  height: any,
+  sillHeight: any,
+  hasMullions = true,
+  wallThickness?: number,
+) {
+  if (![width, height, sillHeight].every(Number.isFinite) || width <= 0 || height <= 0) return null
+  const framed = windowFrameBounds(width, height, sillHeight)
+  width = framed.width
+  height = framed.height
+  sillHeight = framed.sill
+  const frameThickness = Math.min(0.045, width / 4, height / 4),
+    frameDepth = openingFrameDepth(wallThickness),
+    centerY = sillHeight + height / 2,
+    glassParts = [[width - frameThickness, height - frameThickness, 0.025, 0, centerY, 0]],
+    frameParts = [
+      [width, frameThickness, frameDepth, 0, sillHeight + frameThickness / 2, 0],
+      [width, frameThickness, frameDepth, 0, sillHeight + height - frameThickness / 2, 0],
+      [frameThickness, height - 2 * frameThickness, frameDepth, -(width - frameThickness) / 2, centerY, 0],
+      [frameThickness, height - 2 * frameThickness, frameDepth, (width - frameThickness) / 2, centerY, 0],
+    ],
+    isDivided = hasMullions && width > 1.2
+  return (
+    isDivided &&
+      frameParts.push([
+        frameThickness * 0.7,
+        height - 2 * frameThickness,
+        Math.max(frameDepth - 0.005, 0.04),
+        0,
+        centerY,
+        0,
+      ]),
+    {
+      glass: glassParts,
+      frames: frameParts,
+      divided: isDivided,
+      frameDepth,
+    }
+  )
 }

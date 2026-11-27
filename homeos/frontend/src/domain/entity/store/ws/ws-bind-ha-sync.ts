@@ -4,14 +4,14 @@
  */
 /** entity WebSocket：HA 状态 / 全量同步 / 增量补发 */
 import type { EntitySocketHandlerContext, EntitySocketSyncState, HaEntityState } from '@/kernel/types/entity'
-import { handleEntityFallbackFailure } from '@/domain/entity/model/utils/sync-failure.util'
+import { handleEntityFallbackFailure } from '@/domain/entity/model/utils/sync-guards'
 import {
   clearEntitySocketSyncTimers,
   incrementalBatchIncomplete,
   resetChunkBaselineTracking,
   scheduleIncrementalEnd,
   waitForPendingChunkApplies,
-} from '@/domain/entity/model/utils/ws-sync'
+} from '@/domain/entity/model/utils/ws-subscription'
 import { WS_CLIENT_EVENTS } from '@homeos/shared'
 import type { Socket } from 'socket.io-client'
 

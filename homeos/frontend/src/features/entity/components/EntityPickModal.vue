@@ -138,7 +138,7 @@ import { useBodyScrollLock } from '@/kernel/ui/hooks/use-body-scroll-lock'
 import { fetchEntities } from '@/domain/api/entities'
 import { collectIndexedEntityIds, getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
 import { getLargeEntityThreshold } from '@/kernel/config/frontend-config'
-import { isBatterySensorEntity } from '@/domain/entity/model/utils/group-battery.util'
+import { isBatterySensorEntity } from '@/domain/entity/model/utils/device-group'
 
 const props = defineProps({
   isOpen: { type: Boolean },

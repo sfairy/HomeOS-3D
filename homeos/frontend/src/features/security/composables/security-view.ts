@@ -10,7 +10,7 @@ import { useHaDegrade } from '@/domain/entity/composables/use-ha-degrade'
 import { collectHazardWatchedEntityIds } from '@homeos/shared'
 import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
 import { securityCameraEntityIds } from '@/kernel/utils/layout/security-cameras.util'
-import { countOfflineDevices } from '@/domain/entity/model/utils/group-offline.util'
+import { countOfflineDevices } from '@/domain/entity/model/utils/device-group'
 
 /**
  * @file security-view-calendar.internals.ts

@@ -18,8 +18,8 @@ import {
   normalizeLabelText as normalizeLabelText2,
 } from '../../../loaders/studio-normalization'
 import { floorDisplayName, generateId } from '../../ui/studio-app-helpers'
-import { normalizeFloorRegions, normalizeFloorTones } from '../../../plan/studio-floor-regions'
-import { normalizeLightRangeArchive, normalizeLightRegionOverrides } from '../../../plan/studio-light-ranges'
+import { normalizeFloorRegions, normalizeFloorTones } from '../../../plan/studio-floor'
+import { normalizeLightRangeArchive, normalizeLightRegionOverrides } from '../../../plan/studio'
 import {
   normalizeActiveExportPresetSlot as normalizeActiveExportPresetSlot2,
   normalizeExportPresetSlots as normalizeExportPresetSlots2,

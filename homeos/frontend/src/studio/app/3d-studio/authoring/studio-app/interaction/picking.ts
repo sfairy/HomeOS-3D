@@ -5,7 +5,7 @@ import { itemWithPlanFootprint as itemWithPlanFootprint2 } from '../../items/stu
 import { isPlacedItemHidden } from '../../items/placed-item-state'
 import { type StudioAppContext } from '../studio-app-context'
 import { type StudioAppRuntime } from '../runtime/studio-app-runtime'
-import { isCourtyardPlanItem as isCourtyardPlanItem2 } from '../../../plan/courtyard-plan'
+import { isCourtyardPlanItem as isCourtyardPlanItem2 } from '../../../plan/courtyard'
 import { lampItemTypeSet } from '../../items/item-catalog'
 import { classifyLightingScope } from '../ui/lighting'
 import { itemPreviewScope, selectionPreviewScope, type PreviewScopeOptions } from '../../scene/studio-preview-scope'

@@ -6,8 +6,8 @@ import { resolveListDragDrop } from '../../ui/studio-list-drag-drop'
 import { decorationPlacementFields, registerUserDecorationModel } from '../../../loaders/external-models/user-decoration-models'
 import { type StudioAppContext } from '../studio-app-context'
 import { isPlacedItemHidden, isPlacedItemLocked } from '../../items/placed-item-state'
-import { itemPlanCorners, placementTolerance, type Point, type PlanRectLike } from '../../../plan/studio-placement-geometry'
-import { snapPlacement, type PlacementGuide } from '../../../plan/studio-placement-snap'
+import { itemPlanCorners, placementTolerance, type Point, type PlanRectLike } from '../../../plan/studio-placement'
+import { snapPlacement, type PlacementGuide } from '../../../plan/studio-placement'
 
 /**
  * 3D 视口编辑的拖动状态机（从 `editor-3d-overlay.ts` 抽出）。

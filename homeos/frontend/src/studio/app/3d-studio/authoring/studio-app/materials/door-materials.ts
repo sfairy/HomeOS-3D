@@ -1,5 +1,5 @@
 import { doorMaterialPartIndex, doorMaterialPartRolesForType, resolveMaterialPaletteColor } from '../../../materials/studio-model-material-roles'
-import { MATERIAL_STYLE_AUTO, materialStylePaletteColors, materialStyleRecipeFor, normalizeMaterialStyle } from '../../../materials/studio-material-presets'
+import { MATERIAL_STYLE_AUTO, materialStylePaletteColors, materialStyleRecipeFor, normalizeMaterialStyle } from '../../../materials/studio-material'
 import { normalizeMaterialOverrides, normalizeMaterialSurfaceOverrides } from '../../scene/payload/studio-scene-payload'
 import { type DoorPartMaterial } from '../../types/studio-app-types'
 

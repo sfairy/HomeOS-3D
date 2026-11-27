@@ -4,7 +4,7 @@ import { zoneTypeLabel, type SecurityZoneDraft, classifySecurityBinarySensor, bu
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { shouldZoneAlarmInMode, zoneModeHint, isSensorAlertState, type ArmingMode, type SecurityZoneType } from '@/features/security/utils/zone-mode.util'
 import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
-import { countOfflineDevices } from '@/domain/entity/model/utils/group-offline.util'
+import { countOfflineDevices } from '@/domain/entity/model/utils/device-group'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useEnvSensorMap } from '@/features/settings/index'
 

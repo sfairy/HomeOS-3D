@@ -19,7 +19,7 @@ import { ENTITY_REFERENCE_KIND_LABELS, LAYOUT_ENTITY_REFERENCE_KINDS, SYSTEM_CON
 import { useSystemConfig } from '@/domain/layout/composables/system-config-core.internals'
 import { type EventLogStats, type DeviceUsageReport } from '@/kernel/types/device'
 import { readLocalStorage, writeLocalStorageJson } from '@/kernel/utils/core/local-storage.util'
-import { countOfflineDevices } from '@/domain/entity/model/utils/group-offline.util'
+import { countOfflineDevices } from '@/domain/entity/model/utils/device-group'
 import { fetchAdvisorUsage } from '@/kernel/http/system-api'
 
 /** 设备详情页视图模型 —— `features/device/DeviceDetailPage.vue` 的领域逻辑层。 */

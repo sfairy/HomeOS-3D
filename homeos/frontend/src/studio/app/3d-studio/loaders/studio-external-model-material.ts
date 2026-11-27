@@ -1,6 +1,6 @@
 /** 模板材质名归一与材质签名值的纯函数（从 `studio-external-models` 拆出）。 */
 
-import { legacyExternalMaterialName } from '../materials/legacy-material-aliases'
+import { legacyExternalMaterialName } from '../materials/legacy-material'
 
 /**
  * 把模板里的材质名换回**旧名**（只在别名表命中时）。

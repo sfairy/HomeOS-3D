@@ -1,4 +1,4 @@
-import { createMuralArtTexture } from './studio-surface-textures'
+import { createMuralArtTexture } from './studio-surface'
 import { addMeshBoxToGroup } from './mesh-box'
 
 const MAX_TEXTURE_ANISOTROPY = 8

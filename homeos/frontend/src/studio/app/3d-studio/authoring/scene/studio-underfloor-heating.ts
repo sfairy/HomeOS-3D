@@ -20,8 +20,8 @@
  * 再合并成若干段。这比逐条横线做多边形裁剪简单，也够用（分区是房间，不是自交图形）。
  */
 
-import { dedupeRing } from '../../plan/studio-floor-region-split'
-import type { FloorPoint, FloorRegion } from '../../plan/studio-floor-regions'
+import { dedupeRing } from '../../plan/studio-floor-region'
+import type { FloorPoint, FloorRegion } from '../../plan/studio-floor'
 
 /** 管间距（米）。 */
 export const UNDERFLOOR_HEATING_SPACING = 0.2

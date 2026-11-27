@@ -6,12 +6,12 @@ import * as ns from '/static/vendor/three/0.187.0/three.module.min.js'
 import { polygonArea as polygonArea2, subtractPolygonLoops as subtractPolygonLoops2 } from '../../../plan/geometry'
 import { finite as finite2 } from '../../../loaders/studio-normalization'
 import { buildFloorEdgeOutline } from '../geometry/floor-geometry'
-import { reorderFloors as reorderFloors2 } from '../../../plan/floor-order'
-import { createFloorCopy } from '../../../plan/floor-copy'
+import { reorderFloors as reorderFloors2 } from '../../../plan/floor'
+import { createFloorCopy } from '../../../plan/floor'
 import { generateId } from '../../ui/studio-app-helpers'
 import { createFloorRecord } from '../../scene/payload/studio-document-payload'
 import { confirmFloorDeletion } from '../ui/dialogs'
-import { resolveFloorRegionPlates, resolveHeatingPolylines, shouldRenderHeating, type FloorRenderRecord, type HeatingPolyline } from '../../../plan/studio-floor-render'
+import { resolveFloorRegionPlates, resolveHeatingPolylines, shouldRenderHeating, type FloorRenderRecord, type HeatingPolyline } from '../../../plan/studio-floor'
 
 
 export function buildCourtyardFoundation(

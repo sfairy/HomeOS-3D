@@ -18,9 +18,9 @@
  *    却仍是实心的柱体，会在墙的灰膜旁边立成一根亮柱子 —— 两种都会被看成
  *    「选了配墙，柱子和墙不是一个色」。
  */
-import { materialStylePresetRoleColorFor } from './studio-material-presets'
+import { materialStylePresetRoleColorFor } from './studio-material'
 import { defaultViewSettings } from '../authoring/scene/payload/studio-view-settings'
-import { WALL_SURFACE_FINISH, wallEmissiveIntensity, wallFilmOpacity } from './studio-wall-finish'
+import { WALL_SURFACE_FINISH, wallEmissiveIntensity, wallFilmOpacity } from './studio-wall'
 
 interface PillarMaterialSpec {
   /** 最终基色（十六进制，sRGB）。 */

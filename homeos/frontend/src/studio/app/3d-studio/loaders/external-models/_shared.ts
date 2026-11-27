@@ -1,4 +1,4 @@
-import { COURTYARD_MODELS } from '../../plan/courtyard-models'
+import { COURTYARD_MODELS } from '../../plan/courtyard'
 import { DECOR_MODELS } from '../../authoring/items/decor-models'
 import {
   MODEL_SLOT_ROLES,
@@ -8,7 +8,7 @@ import {
 import { MODEL_SLOT_ROLES_SEMANTIC, FAMILY_TOKEN_MODEL_IDS } from '../../materials/model-slot-roles'
 import { COLLECTION_MODELS } from './collection-models'
 import { modelAssetUrl } from './model-asset-folders'
-import { materialStyleStoneSlabRoles } from '../../materials/studio-material-presets'
+import { materialStyleStoneSlabRoles } from '../../materials/studio-material'
 
 const sofaFamilyItemTypes = new Set(['sofa', 'sofa-single', 'sofa-l', 'sofa-l-left']),
   preparedRestoreTimeoutMs = 160

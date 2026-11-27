@@ -5,7 +5,7 @@ import { previewStyleOrDefault, syncPreviewStyleSelect, syncNaturalWoodForAppCtx
 import { syncLightingRow } from '../ui/lighting'
 import { type StudioAppContext } from '../studio-app-context'
 import { type StudioAppRuntime } from '../runtime/studio-app-runtime'
-import { remapOpeningsToWalls } from '../../../plan/studio-wall-openings'
+import { remapOpeningsToWalls } from '../../../plan/studio-wall'
 import { domElement } from '@app/shared/util/dom-factory'
 import { clampWindowT as clampWindowT2, mergeCollinearWallSegments as mergeCollinearWallSegments2, remapWallAttachment as remapWallAttachment2 } from '../../../plan/geometry'
 import { remapWindowOrientation as remapWindowOrientation2, type WindowWallSegment } from '@app/shared/scene/window/window-deletion'

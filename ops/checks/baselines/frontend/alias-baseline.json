@@ -60,17 +60,17 @@
       "impl": 0,
       "moduleLet": 1
     },
+    "homeos/frontend/src/domain/entity/model/utils/entity-state.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 5
+    },
     "homeos/frontend/src/domain/entity/model/utils/idb-cache.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/domain/entity/model/utils/state-listener.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 5
-    },
-    "homeos/frontend/src/domain/entity/model/utils/sync-failure.util.ts": {
+    "homeos/frontend/src/domain/entity/model/utils/sync-guards.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 1
@@ -1230,7 +1230,7 @@
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/studio/app/3d-studio/plan/studio-wall-union.ts": {
+    "homeos/frontend/src/studio/app/3d-studio/plan/studio-wall.ts": {
       "alias2": 2,
       "impl": 0,
       "moduleLet": 1

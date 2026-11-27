@@ -20,7 +20,7 @@ import {
   type Scratch,
   type VisibilityRenderer,
   type VisibilityThree,
-} from '../../../plan/studio-region-wall-visibility'
+} from '../../../plan/studio-region'
 
 /** 每行开头存射线起点的像素数：`(o0.xz, o1.xz)`、`(o2.xz, 起点数, 影响半径)`。 */
 export const STRIP_VISIBILITY_HEADER = 2

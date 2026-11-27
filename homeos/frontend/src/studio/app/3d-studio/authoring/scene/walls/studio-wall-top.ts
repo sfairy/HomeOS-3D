@@ -11,7 +11,7 @@ import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
 
 import type { WallSurfaceMaterialOptions } from '../../types/studio-app-types'
 import type { StudioWallsDeps } from './studio-walls'
-import { wallEmissiveIntensity, wallFilmOpacity } from '../../../materials/studio-wall-finish'
+import { wallEmissiveIntensity, wallFilmOpacity } from '../../../materials/studio-wall'
 
 /**
  * 墙面运行时方案是否走 0.8.2 的专用墙面着色器（`?wall-trial=shader`）。

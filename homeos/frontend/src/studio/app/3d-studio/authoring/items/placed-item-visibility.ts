@@ -20,7 +20,7 @@ import { isPlacedItemHidden, isPlacedItemLocked } from './placed-item-state'
 import { lampItemTypeSet } from './item-catalog'
 import { libraryModeOf } from '../studio-app/ui/asset-library'
 import { isCourtyardDrawing, isCourtyardGate } from '../../plan/courtyard-drawing'
-import { isCourtyardPlanItem } from '../../plan/courtyard-plan'
+import { isCourtyardPlanItem } from '../../plan/courtyard'
 
 type ItemLike = Record<string, unknown> | null | undefined
 

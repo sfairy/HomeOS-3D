@@ -1,4 +1,4 @@
-import { isCourtyardPlanItem as isCourtyardPlanItem2 } from '../../../plan/courtyard-plan'
+import { isCourtyardPlanItem as isCourtyardPlanItem2 } from '../../../plan/courtyard'
 
 import { anchorGate as anchorGate2, syncCourtyardGates as syncCourtyardGates2 } from '../../../plan/courtyard-drawing'
 

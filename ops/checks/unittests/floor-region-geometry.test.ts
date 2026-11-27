@@ -17,7 +17,7 @@ import {
   floorMaterialParams,
   floorToneBrightness,
   floorToneForFinish,
-} from '../../../homeos/frontend/src/studio/app/3d-studio/plan/studio-floor-finish'
+} from '../../../homeos/frontend/src/studio/app/3d-studio/plan/studio-floor'
 import {
   MIN_REGION_AREA,
   clipRingByLine,
@@ -27,7 +27,7 @@ import {
   ringAreaAbs,
   snapToFloorRegionEdge,
   splitFloorRegionByLine,
-} from '../../../homeos/frontend/src/studio/app/3d-studio/plan/studio-floor-region-split'
+} from '../../../homeos/frontend/src/studio/app/3d-studio/plan/studio-floor-region'
 import {
   buildRegionHeatingPaths,
   buildUnderfloorHeatingPaths,

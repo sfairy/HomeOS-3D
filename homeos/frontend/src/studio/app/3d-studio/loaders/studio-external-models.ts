@@ -1,4 +1,4 @@
-import { COURTYARD_MODELS, courtyardPalette } from '../plan/courtyard-models'
+import { COURTYARD_MODELS, courtyardPalette } from '../plan/courtyard'
 import {
   prepareVehicleChargeGeometry,
   prepareSuvRoofGlass,
@@ -38,24 +38,24 @@ import {
   stoneSlabSurfaceFinish,
   usesNamedMaterialRole,
 } from '../materials/studio-model-material-roles'
-import { groupVehicleMaterialSlots } from '../materials/studio-material-slot-groups'
+import { groupVehicleMaterialSlots } from '../materials/studio-material'
 import { hasSemanticSlotRoles } from '../materials/model-slot-roles'
-import { canonicalExternalMaterialName } from '../materials/legacy-material-aliases'
+import { canonicalExternalMaterialName } from '../materials/legacy-material'
 import { isPlainRecord, normalizeTemplateSlotNames } from './studio-external-model-material'
 import { createVariantUpgradeApi } from './external-models/model-variant-upgrade'
 import { loadModelLiteOrFull } from './external-models/model-lite-full-load'
 import { usesDetailMaterialPipeline as sharedUsesDetailMaterialPipeline } from '../materials/material-pipeline'
-import { createStoneSlabTexture } from '../materials/studio-surface-textures'
+import { createStoneSlabTexture } from '../materials/studio-surface'
 import { ensureSceneBoxUvs } from '../materials/studio-box-uv'
 import {
   SURFACE_DETAIL_ANISOTROPY,
   SURFACE_DETAIL_BUMP_UNIT,
   SURFACE_DETAIL_SCALE,
   createSurfaceDetailTexture,
-} from '../materials/studio-surface-normal-maps'
+} from '../materials/studio-surface'
 import { applyMetalEnvironmentFinish } from '../materials/studio-metal-environment'
 import { resolvePillarMaterialSpec } from '../materials/studio-pillar-material'
-import { materialStyleRecipeFor, materialStyleRoleColorFor } from '../materials/studio-material-presets'
+import { materialStyleRecipeFor, materialStyleRoleColorFor } from '../materials/studio-material'
 import { createFurnitureBatchCache, compactFurnitureIndices } from '../authoring/items/studio-furniture-batching'
 import {
   sofaFamilyItemTypes,

@@ -4,7 +4,7 @@ import {
 import { resolveStageLightingPipeline } from "../scene/studio-stage-lighting-mode"
 import {
   courtyardPlanColor as courtyardPlanColor2,
-  } from "../../plan/courtyard-plan";
+  } from "../../plan/courtyard";
 
 
 import {
@@ -353,7 +353,7 @@ import {
   materialStyleGroupFor,
   materialStyleLabel,
   normalizeMaterialStyle,
-} from "../../materials/studio-material-presets";
+} from "../../materials/studio-material";
 
 
 import { createLoadTiming as createLoadTiming2 } from "../../../bridge/scene/load-timing";
@@ -400,7 +400,7 @@ import {
 } from "../../loaders/studio-external-models";
 import {
   createPlanDrawingTools as createPlanDrawingTools2,
-} from "../../plan/studio-plan-drawing";
+} from "../../plan/studio-plan";
 import {
   DEFAULT_BASE_LIGHTING as DEFAULT_BASE_LIGHTING2,
   finite as finite2,

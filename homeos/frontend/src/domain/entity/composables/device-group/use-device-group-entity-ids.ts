@@ -1,7 +1,7 @@
 /** 并维护"是否显示审计面板"开关。 */
 import { ref } from 'vue'
-import { resolveDeviceGroupEntityIds } from '@/domain/entity/model/utils/group-counts.util'
-import type { DeviceGroupEntitiesStoreLike, DeviceGroupUiStoreLike } from '@/domain/entity/model/utils/group-battery.util'
+import { resolveDeviceGroupEntityIds } from '@/domain/entity/model/utils/device-group'
+import type { DeviceGroupEntitiesStoreLike, DeviceGroupUiStoreLike } from '@/domain/entity/model/utils/device-group'
 
 /**
  * 计算 DeviceGroupModal 展示的实体 ID 列表。

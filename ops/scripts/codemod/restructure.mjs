@@ -368,11 +368,85 @@ function collectReExports(sources) {
   return map
 }
 
-/** 正文里声明的顶层名字（用于判断导入的绑定是否还需要）。 */
+/**
+ * 正文里声明的顶层名字（用于判断导入的绑定是否还需要）。
+ *
+ * 两个坑：
+ * 1. `export const A = …, B = …, C = …` 是**多声明符**，只匹配行首会漏掉 B / C；
+ * 2. 声明符之间可能夹着箭头函数体、模板串、对象字面量 —— 按「行尾逗号」推断会断链。
+ *
+ * 因此这里做字符级扫描：从 `const|let|var` 起，跟踪括号深度与字符串/注释状态，
+ * 只在深度 0 处收集 `name =`，遇到深度 0 的 `;` 或换行且没有续接逗号即结束。
+ * @param {string} body
+ * @returns {Set<string>}
+ */
 function declaredNames(body) {
   const names = new Set()
-  for (const match of body.matchAll(/^(?:export\s+)?(?:async\s+)?(?:function|const|let|var|class|type|interface|enum)\s+([A-Za-z_$][\w$]*)/gm)) {
+  for (const match of body.matchAll(/^(?:export\s+)?(?:async\s+)?(?:function|class|type|interface|enum)\s+([A-Za-z_$][\w$]*)/gm)) {
     names.add(match[1])
+  }
+
+  const DECL = /(?:^|\n)[ \t]*(?:export\s+)?(?:const|let|var)\s+/gm
+  for (const match of body.matchAll(DECL)) {
+    let index = match.index + match[0].length
+    let depth = 0
+    let expectName = true
+    while (index < body.length) {
+      const char = body[index]
+
+      // 字符串 / 模板串 / 注释：整段跳过，避免其中的 `=` 与括号干扰。
+      if (char === '"' || char === "'" || char === '`') {
+        const quote = char
+        index += 1
+        while (index < body.length && body[index] !== quote) {
+          if (body[index] === '\\') index += 1
+          index += 1
+        }
+        index += 1
+        continue
+      }
+      if (char === '/' && body[index + 1] === '/') {
+        while (index < body.length && body[index] !== '\n') index += 1
+        continue
+      }
+      if (char === '/' && body[index + 1] === '*') {
+        index += 2
+        while (index < body.length && !(body[index] === '*' && body[index + 1] === '/')) index += 1
+        index += 2
+        continue
+      }
+
+      if (char === '(' || char === '[' || char === '{') depth += 1
+      else if (char === ')' || char === ']' || char === '}') {
+        depth -= 1
+        if (depth < 0) break
+      }
+
+      if (depth === 0) {
+        if (char === ';') break
+        if (expectName) {
+          const rest = body.slice(index)
+          const nameMatch = rest.match(/^([A-Za-z_$][\w$]*)\s*(?::[^=]*)?=/)
+          if (nameMatch) {
+            names.add(nameMatch[1])
+            index += nameMatch[0].length
+            expectName = false
+            continue
+          }
+          if (/^\s/.test(char)) {
+            index += 1
+            continue
+          }
+          break
+        }
+        if (char === ',') {
+          expectName = true
+          index += 1
+          continue
+        }
+      }
+      index += 1
+    }
   }
   return names
 }
@@ -490,8 +564,9 @@ function mergeTexts(sources, { header, into } = {}) {
   const imports = normalizeImports(statements, (local, canonical, source) => {
     const used = new RegExp(`\\b${local.replace(/\$/g, '\\$')}\\b`).test(mergedBody)
     if (!used) return false
+    // 合并体里已有同名顶层声明 → 任何来源的 import 都会造成重复声明（TS2440）。
+    if (localNames.has(local)) return false
     if (mergedInto && mergedInto.has(canonical)) {
-      if (localNames.has(local)) return false
       const origin = reExports.get(local)
       if (origin) {
         if (!passthrough.has(origin.src)) passthrough.set(origin.src, [])

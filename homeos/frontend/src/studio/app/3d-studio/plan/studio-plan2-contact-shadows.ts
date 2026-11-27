@@ -3,8 +3,8 @@ import {
   captureContactShadowSnapshot,
   createContactShadowPersistentCache,
   restoreContactShadowSnapshot,
-} from './contact-shadow-persistent-cache'
-import { createContactShadowPoseResolver } from './studio-contact-shadow-pose'
+} from './contact-shadow'
+import { createContactShadowPoseResolver } from './studio'
 import {
   computeSurfaceLevels,
   findUserFieldInAncestors,

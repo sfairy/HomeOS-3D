@@ -1,7 +1,32 @@
-/** 实体同步优先级切分工具 */
+import { type Ref } from 'vue'
+import { logger } from '@/kernel/utils/core/logger'
+import { notifyError } from '@/kernel/ui/notify'
 import { getEntityDomain, DEFAULT_CRITICAL_DOMAINS, sortEntitiesBySyncPriority } from '@homeos/shared'
 import { collectPinnedEntityIds, resolveSubscribeDomains } from '@/domain/entity/model/utils/ws-subscription'
-import type { HaEntityState } from '@/kernel/types/entity'
+import { type HaEntityState } from '@/kernel/types/entity'
+
+/**
+ * 实体 WS/REST 回退失败时的统一日志与节流 toast
+ */
+
+let lastFallbackNotifyAt = 0
+const FALLBACK_NOTIFY_COOLDOWN_MS = 60_000
+
+export function handleEntityFallbackFailure(
+  reason: string,
+  error?: unknown,
+  refs?: { entitiesStale?: Ref<boolean> },
+): void {
+  const detail = error instanceof Error ? error.message : String(error ?? reason)
+  logger.warn(`实体同步回退失败(${reason})`, detail)
+  if (refs?.entitiesStale) refs.entitiesStale.value = true
+  const now = Date.now()
+  if (now - lastFallbackNotifyAt < FALLBACK_NOTIFY_COOLDOWN_MS) return
+  lastFallbackNotifyAt = now
+  notifyError(error ?? new Error(detail), '实体同步')
+}
+
+/** 实体同步优先级切分工具 */
 
 type LayoutSubscriptionConfig = Parameters<typeof collectPinnedEntityIds>[0]
 

@@ -12,7 +12,7 @@
  */
 
 import { DECOR_MODELS } from '../authoring/items/decor-models'
-import { COURTYARD_MODELS } from '../plan/courtyard-models'
+import { COURTYARD_MODELS } from '../plan/courtyard'
 import { COLLECTION_MODELS } from '../loaders/external-models/collection-models'
 import { hasSemanticSlotRoles } from './model-slot-roles'
 import { isStructuralModelFamily, resolveModelFamily } from './studio-model-material-roles'

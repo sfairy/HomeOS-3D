@@ -10,7 +10,7 @@ import { isVirtualEntityId as isVirtualEntityId2 } from '../../../shared/virtual
 import { maxRuntimeEntitySubscriptions } from '../../renderer-helpers'
 import { navigateInShell } from '@/studio/platform/shell-navigation'
 import { presenceMotionEventConfig as presenceMotionEventConfig2 } from '../../registry/index'
-import { isOlderFrameTimestamp } from '@/domain/entity/model/utils/state-delta.util'
+import { isOlderFrameTimestamp } from '@/domain/entity/model/utils/entity-state'
 import {
   relatedAirerCurrentPositionSensor as relatedAirerCurrentPositionSensor2,
   relatedAirerLightEntity as relatedAirerLightEntity2,

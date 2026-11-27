@@ -15,13 +15,13 @@ import {
 import {
   courtyardPlanColor as courtyardPlanColor2,
   isCourtyardPlanItem as isCourtyardPlanItem2,
-} from './courtyard-plan'
+} from './courtyard'
 import {
   createCurtainTrack as createCurtainTrack2,
   curtainPanelRanges as curtainPanelRanges2,
 } from '@app/shared/scene/studio-curtain-track'
 import { doorMaterialPartRolesForType, doorPlanMaterialRoleFor } from '../materials/studio-model-material-roles'
-import { drawTrackedText as drawTrackedText2 } from './studio-plan-drawing'
+import { drawTrackedText as drawTrackedText2 } from './studio-plan'
 import {
   finite as finite2,
   isCourtyardDrawing as isCourtyardDrawing2,

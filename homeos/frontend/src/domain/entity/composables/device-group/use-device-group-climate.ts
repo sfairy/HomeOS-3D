@@ -2,7 +2,7 @@
 import { Settings, ThermometerSnowflake, Droplets, Fan, Flame, Power } from '@lucide/vue'
 import { climateHasDualSetpoint } from '@/domain/entity/model/utils/control/climate-control-core'
 import { resolveTemperatureUnit } from '@/domain/entity/model/utils/temperature-unit.util'
-import type { DeviceGroupEntitiesStoreLike } from '@/domain/entity/model/utils/group-battery.util'
+import type { DeviceGroupEntitiesStoreLike } from '@/domain/entity/model/utils/device-group'
 import type { HaEntityState } from '@/kernel/types/entity'
 
 /** 实体 store 类型，需提供 callService 方法。 */

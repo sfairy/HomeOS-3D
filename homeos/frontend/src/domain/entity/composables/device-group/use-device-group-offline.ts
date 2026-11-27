@@ -2,10 +2,10 @@
 import { getEntityDomain } from '@homeos/shared'
 import { computed, type Ref } from 'vue'
 import { Sun, Plug, Bell, Camera, Lock, Thermometer, Music, AlertTriangle } from '@lucide/vue'
-import { computeOfflineCriticalSet, groupOfflineByDevice } from '@/domain/entity/model/utils/group-offline.util'
-import { BATTERY_LOW_THRESHOLD, resolveBatteryLevel } from '@/domain/entity/model/utils/group-battery.util'
+import { computeOfflineCriticalSet, groupOfflineByDevice } from '@/domain/entity/model/utils/device-group'
+import { BATTERY_LOW_THRESHOLD, resolveBatteryLevel } from '@/domain/entity/model/utils/device-group'
 import { formatRelativeFromNow } from '@/kernel/utils/format/locale-format.util'
-import type { DeviceGroupEntitiesStoreLike, DeviceGroupUiStoreLike } from '@/domain/entity/model/utils/group-battery.util'
+import type { DeviceGroupEntitiesStoreLike, DeviceGroupUiStoreLike } from '@/domain/entity/model/utils/device-group'
 import type { HaEntityState } from '@/kernel/types/entity'
 import type { Component } from 'vue'
 

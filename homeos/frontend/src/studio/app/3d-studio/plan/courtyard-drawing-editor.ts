@@ -19,7 +19,7 @@ import {
   fenceOpenings,
   hedgeSamples,
 } from './courtyard-drawing'
-import { courtyardPalette } from './courtyard-models'
+import { courtyardPalette } from './courtyard'
 import { dashboardCanvasFont } from '../../shared/dashboard-fonts'
 /** 编辑器面板里的控件都是用 innerHTML 运行时拼出来的，选择器又是 data-* / 标签名动态查找，逐个写死具体元素类型不现实。 */
 type PanelControlElement = HTMLElement & {

@@ -1,6 +1,6 @@
 import { type AxiosResponse } from 'axios'
 import { apiPost, apiPut, apiDelete, apiGet } from '../../kernel/http/client'
-import { type LightRangeArchiveStore, type LightRegionOverrideStore } from '@app/3d-studio/plan/studio-light-ranges'
+import { type LightRangeArchiveStore, type LightRegionOverrideStore } from '@app/3d-studio/plan/studio'
 import { DECORATION_MODELS_PATH, type DecorationLibraryState, type DecorationModel } from '@app/3d-studio/authoring/items/studio-user-decorations'
 
 /**

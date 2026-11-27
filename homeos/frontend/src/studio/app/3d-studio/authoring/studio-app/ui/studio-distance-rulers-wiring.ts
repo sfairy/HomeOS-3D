@@ -20,11 +20,11 @@ import {
   type DistanceGap,
   type LabelMetrics,
   type LabelObstacles,
-} from '../../../plan/studio-distance-rulers'
+} from '../../../plan/studio'
 import { itemTypeCatalog, lampItemTypeSet } from '../../items/item-catalog'
 import { isPlacedItemHidden, isPlacedItemLocked } from '../../items/placed-item-state'
 import { isCourtyardDrawing } from '../../../plan/courtyard-drawing'
-import { POINT_MARKER_FILL } from '../../../plan/studio-handle-drawing'
+import { POINT_MARKER_FILL } from '../../../plan/studio'
 import { isEditor3DGestureActive } from './editor-3d'
 
 /** 标尺线的颜色与线宽（与画布其它标注区分开）。 */

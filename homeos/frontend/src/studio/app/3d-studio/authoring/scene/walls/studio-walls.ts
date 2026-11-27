@@ -24,24 +24,24 @@ import {
   wallSolidPieces as wallSolidPieces2,
 } from '../../../plan/geometry'
 import type { WallBandOptions, WallSurfaceMaterialOptions, WallTopSurfaceOptions } from '../../types/studio-app-types'
-import { buildWallSpanFootprint } from '../../../plan/studio-wall-spans'
+import { buildWallSpanFootprint } from '../../../plan/studio-wall'
 import { createWallTopMaterial, isWallTrialShaderEnabled } from './studio-wall-top'
 import { createWallCapContext } from './studio-wall-shell'
 import type { WallCapLoop } from './studio-wall-shell'
 import { buildWallLevelLayers } from './studio-wall-levels'
 import type { WallLevelContext, WallVolumeSlice } from './studio-wall-levels'
-import * as wallUnion from '../../../plan/studio-wall-union'
+import * as wallUnion from '../../../plan/studio-wall'
 import { isWallPartVisible } from './studio-wall-debug'
 import {
   createWallSideMaterial as createWallSideMaterial2,
   prepareWallSideOrder as prepareWallSideOrder2,
   setWallCornerDistances as setWallCornerDistances2,
   setWallGradientHeight as setWallGradientHeight2,
-} from '../../../materials/studio-wall-materials'
+} from '../../../materials/studio-wall'
 import {
   WALL_SURFACE_FINISH as WALL_SURFACE_FINISH2,
   wallEmissiveIntensity as wallEmissiveIntensity2,
-} from '../../../materials/studio-wall-finish'
+} from '../../../materials/studio-wall'
 import { doorMaterialPartRoleFor } from '../../../materials/studio-model-material-roles'
 import { finite as finite2 } from '../../../loaders/studio-normalization'
 import { mergeGeometries as mergeGeometries2 } from '/static/vendor/three/0.187.0/BufferGeometryUtils.js'
@@ -82,7 +82,7 @@ const METAL_PART_MESH_OPTIONS = {
   castShadow: false,
   receiveShadow: false,
 }
-import { openingFrameDepth, windowGeometryParts as windowGeometryParts2 } from '../../../plan/studio-window-geometry'
+import { openingFrameDepth, windowGeometryParts as windowGeometryParts2 } from '../../../plan/studio'
 import { addCustomWindow } from '../../../plan/window/model'
 import { isCustomWindow } from '@app/shared/scene/window/layout'
 import { windowModelId } from '@app/shared/scene/window/window-models'

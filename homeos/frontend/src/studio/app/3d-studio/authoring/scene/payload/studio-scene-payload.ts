@@ -8,7 +8,7 @@
  */
 
 import { isVehicleModelType } from '../../items/studio-vehicle-models'
-import { MATERIAL_STYLE_AUTO, normalizeMaterialStyle } from '../../../materials/studio-material-presets'
+import { MATERIAL_STYLE_AUTO, normalizeMaterialStyle } from '../../../materials/studio-material'
 import { airerDimensions as airerDimensions2 } from '../../items/studio-airer'
 import { clamp as clamp2, distance as distance2 } from '../../../plan/geometry'
 import {
@@ -40,14 +40,14 @@ import {
 import { normalizePipelineDispenserStyle } from '../../items/pipeline-dispenser'
 import { STORAGE_SECTION_TYPES } from '../../items/studio-storage-sections'
 import { lightAngleLimitForType, lightPresetCatalog } from '../../lights/studio-app-light-data'
-import { normalizeFeatureWallStyle, normalizeMuralArtStyle } from '../../../materials/studio-surface-textures'
+import { normalizeFeatureWallStyle, normalizeMuralArtStyle } from '../../../materials/studio-surface'
 import { normalizeModelRemark as normalizeModelRemark2 } from '../../../../shared/model-remarks'
 import {
   normalizePillarAxis as normalizePillarAxis2,
   normalizePillarShape as normalizePillarShape2,
 } from '../../items/studio-item-posture'
 import { stripLoadRecord } from '../../lights/strip-light/strip-light-spec'
-import { remapOpeningsToWalls } from '../../../plan/studio-wall-openings'
+import { remapOpeningsToWalls } from '../../../plan/studio-wall'
 
 /**
  * 智能屏安装方式字段：只有智能屏才有；缺失时按 type 反推（老文档只有 `smart-display-wall`）。
