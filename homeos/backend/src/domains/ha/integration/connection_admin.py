@@ -19,7 +19,7 @@
 ## 行为完全不变
 
 所有函数的签名、异常类型（``HTTPException`` / ``BusinessException``）与文案逐字保留：
-路由层的错误契约由 ``check:error-contract`` 守着，搬动不能顺手改。
+路由层的错误契约靠评审守住（曾经有一条计数型门禁，已按「不设数字门槛」删除），搬动不能顺手改。
 """
 
 from __future__ import annotations

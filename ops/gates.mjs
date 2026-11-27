@@ -109,16 +109,9 @@ const GATE_GROUPS = {
     // ---- contract ----------------------------------------------------
     // 版本三条线（Bun / 基础镜像 / Python）各有两处以上副本，漂移不报错、只在换机或发版时暴露。
     { name: 'check:toolchain', ...bun('run', 'check:toolchain') },
-    // 环境变量契约：模板里不许有没人读的键（inventory）+ `os.getenv` 只许出现在白名单叶子
-    // （access）。同一主题，两条脚本各自守一个方向。
-    { name: 'check:env', ...bun('run', 'check:env'), covers: ['check:env-inventory', 'check:env-access'] },
-    // 路由 / 契约五合一：一次后端导入（routes / store-routes / ws-auth / api-contract /
-    // frontend-coverage）。覆盖检查复用前两条算出的路由表缓存。
-    {
-      name: 'check:contracts',
-      ...bun('run', 'check:contracts'),
-      covers: ['check:routes', 'check:store-routes', 'check:ws-auth', 'check:api-contract', 'check:frontend-coverage'],
-    },
+    // 环境变量契约：模板里不许有没人读的键（inventory）。「`os.getenv` 只许出现在白名单
+    // 叶子」那条已删除：它是 66 条文件级计数的棘轮，基线只能靠重录维持。
+    { name: 'check:env', ...bun('run', 'check:env'), covers: ['check:env-inventory'] },
     // 分层依赖方向：前端 `check_frontend_deps` + 后端 `check_backend_deps`，同一主题两端各一道。
     { name: 'check:deps', ...bun('run', 'check:deps'), covers: ['check:frontend-deps', 'check:backend-deps'] },
     // `studio/runtime/**` 同时被主 bundle 与逐文件产物消费；导出面一改，主 bundle 类型检查
@@ -133,19 +126,16 @@ const GATE_GROUPS = {
       ...bun('run', 'check:frontend'),
       covers: ['check:offline-counting', 'check:restricted-syntax'],
     },
-    // 后端静态检查。合并的意义是共享一份 `ast.parse` 缓存：此前每条都把 694 个 .py
-    // 重新解析一遍（合计约 25s），现在一个解释器跑完约 5s。
+    // 后端静态检查（语义断言）。合并的意义是共享一份 `ast.parse` 缓存：此前每条都把 694 个
+    // `.py` 重新解析一遍（合计约 25s），现在一个解释器跑完约 4s。
     {
       name: 'check:backend',
       ...bun('run', 'check:backend'),
       covers: [
-        'check:silent-except',
-        'check:error-contract',
-        'check:background-tasks',
-        'check:env-access',
-        // 两条合并脚本：guards = async 同步 DB / PEP 758 / 响应模型；parity = 设备 kind 两表 +
-        // 域控制类型表 + 迁移回归。原六条单项脚本已删除，判定逻辑与口径不变。
+        // guards = async 同步 DB / PEP 758 / 响应模型；ws-auth = 每条 WS 路由必须真的鉴权；
+        // parity = 设备 kind 两表 + 域控制类型表 + 迁移回归。原六条计数型棘轮已删除。
         'check:guards',
+        'check:ws-auth',
         'check:parity',
       ],
     },
@@ -436,7 +426,7 @@ function portResponding(port) {
 const TAG_GROUPS = {
   types: ['typecheck', 'typecheck:node'],
   lint: ['lint:biome', 'check:css-syntax', 'check:css-manifests', 'lint:py'],
-  contract: ['check:toolchain', 'check:env', 'check:contracts', 'check:deps', 'check:runtime-contract'],
+  contract: ['check:toolchain', 'check:env', 'check:deps', 'check:runtime-contract'],
   ratchet: ['check:frontend', 'check:backend'],
   invariant: ['check:studio-invariants', 'check:scene', 'check:python-lock', 'check:image-imports'],
   business: ['check:tests'],

@@ -1,6 +1,6 @@
 """Python 侧批量入口的公共调度器。
 
-为什么需要它：`run_backend_checks.py` 与 `run_contract_checks.py` 的控制流完全一样
+为什么需要它：`run_backend_checks.py` / `run_selftests.py` 等入口的控制流完全一样
 （解析 `--module` / 选模块 / 捕获输出跑 `main()` / 汇总退出码）。各写一份的后果不是
 「重复 40 行」，而是**门禁代码自己成了重复检测的举报对象** —— 合并检查本来是为了减少
 重复，入口再长出重复就自相矛盾。

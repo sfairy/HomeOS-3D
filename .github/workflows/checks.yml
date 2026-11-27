@@ -38,7 +38,7 @@ permissions:
 jobs:
   # 静态检查：不需要构建产物，几十秒内就能给出「语义回退」的红灯。
   #
-  # 单个步骤内部是多条检查的批量入口（`check:frontend` / `check:backend` / `check:contracts`
+  # 单个步骤内部是多条检查的批量入口（`check:frontend` / `check:backend`
   # / `check:tests`）：合并只改执行方式（共享一次遍历与 AST 解析），判定
   # 口径与基线不变。`node ops/gates.mjs --list --json` 可看每条入口覆盖了哪些原脚本（`covers`）。
   #
@@ -80,9 +80,9 @@ jobs:
       - name: Install ruff
         run: pip install "ruff==0.17.6"
 
-      # `check:contracts` 导入真实路由注册表（fastapi / sqlalchemy 在导入链上），
-      # 装开区间的 requirements.txt，不碰 requirements.lock（镜像用的才是那份锁）。
-      - name: Install backend deps for route gate
+      # `check:tests`（业务自检 + 后端 unittest）会导入真实后端模块（fastapi / sqlalchemy 在
+      # 导入链上），装开区间的 requirements.txt，不碰 requirements.lock（镜像用的才是那份锁）。
+      - name: Install backend deps for tests
         run: |
           pip install -r homeos/backend/requirements.txt
           pip install -r homeos-store/backend/requirements.txt

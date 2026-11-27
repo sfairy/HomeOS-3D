@@ -527,7 +527,7 @@ def _slow_query_metric_lines(slow: dict[str, Any]) -> list[str]:
 
     只暴露三个标量：SQL 文本本身基数不可控（每张表/每个 where 都不同），
     作为标签会让 /metrics 体积随业务增长。需要看具体语句时读 WARNING 日志
-    （``[slow-sql] <ms> <statement>``），或用 ``ops/scripts/slow_query_report.py``。
+    （``[slow-sql] <ms> <statement>``）。
     """
     return [
         "# HELP homeos_db_slow_queries_total Database statements slower than the configured threshold",

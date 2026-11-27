@@ -29,7 +29,7 @@
 | 3D 舞台 | `/api/v1/modules/interaction3d/stage.html` |
 | 认证外 | `/login`、`/register`、`/reset-password`、`/activate`、`/license-recovery` |
 
-后端领域（`homeos/backend/src/domains/`）。路由基线 365 operations / 292 paths（`check:contracts -- --module route_inventory` 守）：
+后端领域（`homeos/backend/src/domains/`）：
 
 | 领域 | 内容 |
 | --- | --- |
@@ -97,7 +97,7 @@ HomeOS/
 │   │   ├── run_*.{mjs,py}          #   批量入口（一个进程跑完一类检查，`--module` 选子项）
 │   │   ├── business/               #   业务规则自检 + 共享骨架
 │   │   ├── python/ frontend/ contract/ studio/   # 各类静态检查
-│   │   ├── architecture/ security/ #   路由契约 / 依赖方向 / WS 鉴权
+│   │   ├── architecture/ security/ #   依赖方向 / WS 鉴权
 │   │   ├── e2e/ perf/              #   浏览器冒烟 / 长跑观测（手动或 ux 组）
 │   │   ├── baselines/              #   全部棘轮基线（按域再分一层）
 │   │   ├── unittests/              #   bun test + stdlib unittest
@@ -242,20 +242,19 @@ static 的步骤按**标签**分六类（`--list` 按此打印，`--tag` 可整�
 | 入口 | 子检查 | 合并收益 |
 | --- | --- | --- |
 | `check:frontend` | 2 | 1974 个 ts/vue 只遍历一次；离线计数 / 受限写法共用同一份 `SourceFile` |
-| `check:backend` | 6 | 694 个 `.py` 只 `ast.parse` 一次（此前每条都重解析）；`guards` / `parity` 各收三条 |
-| `check:contracts` | 6 | 后端应用只导入一次；覆盖率检查复用前两条算出的路由表；`parity` 收两张跨语言表 |
+| `check:backend` | 3 | 694 个 `.py` 只 `ast.parse` 一次（此前每条都重解析）；guards / ws-auth / parity |
 | `check:tests` | 3 | 三类断言一个步骤，失败仍按模块定位 |
 | `check:studio-invariants` | 7 | 八条不变量里画布两条合成一条（同一份 `canvas-layout.util.ts`） |
 | `check:model-assets` | 4 | 四条 GLB 只读审计 |
 | `check:model-index` | 2 | 目录布局 + 中文名索引 |
 
 单项调试不必跑整批：批量入口都收 `--module`（精确名优先、其余按子串），例如
-`bun run check:backend -- --module guards`、`bun run check:contracts -- --module routes`；
-`--module` 就是唯一入口，不再为每条子检查各留一个 `check:*` 别名。
+`bun run check:backend -- --module guards`；`--module` 就是唯一入口，
+不再为每条子检查各留一个 `check:*` 别名。
 
 **脚本按域分目录**：`business/`（业务自检）/ `python/`（后端 AST 检查）/ `frontend/`（前端扫描）/
-`contract/`（版本、环境变量、跨语言表）/ `studio/`（3D 与模型）/ `architecture/`、
-`security/`（路由与鉴权）/ `baselines/`（全部基线）。`run_*.{mjs,py}` 留在顶层作为唯一执行入口，
+`contract/`（版本、环境变量、跨语言表）/ `studio/`（3D 与模型）、
+`security/`（WS 鉴权）/ `baselines/`（全部基线）。`run_*.{mjs,py}` 留在顶层作为唯一执行入口，
 `ops/checks/` 顶层因此只有 8 个文件 + 子目录。
 
 Python 脚本的 `PYTHONPATH`（仓库根 + 各子目录）由 `ops/lib/py.mjs` 统一注入 —— 脚本里不再各写
@@ -275,9 +274,11 @@ node ops/gates.mjs --list --json          # 机器可读（含 covers）
 默认并行 4（`--jobs` / `HOMEOS_GATE_JOBS` 可改）；`build` / `infra` 有组内先后依赖，恒为串行。
 并行模式下通过的步骤只留一行结果，失败才展开完整输出。缺工具本机 SKIP、CI 失败。
 
-仍保留的棘轮只守**语义**：接口覆盖（路由 / `response_model` / 状态码）、离线计数口径、
-受限写法。`update:<同名>(-baseline)` 是放宽手段，必须在提交说明里写清为什么。基线统一放在
-`ops/checks/baselines/{backend,contracts,model}/`。
+仍保留的检查只守**语义**：分层依赖方向、WS 鉴权、async 同步 DB / PEP 758、跨语言表对齐、
+runtime 导出面、离线计数口径、受限写法、模型资产契约。没有任何「数字只许降」的基线 ——
+`ops/checks/baselines/` 下只剩 `contracts/runtime-contract.json`、`contracts/ws-routes-baseline.json`
+与 `model/{asset,geometry,material-role}-baseline.json`，它们记录的是**接口面与资产契约**，
+不是代码形态计数。
 
 已删除的门禁（连同脚本、基线、`package.json` 条目）：代码量总量（`check:code-size`）、
 单文件行数审计（`audit:file-size`）、巨型文件扇出审计（`audit:giant-files`）、
@@ -285,10 +286,12 @@ node ops/gates.mjs --list --json          # 机器可读（含 covers）
 `check:perf-ratchet`）、命名与目录形态（`check:naming`）、覆盖率棘轮（`check:coverage`）、
 视觉回归（`check:visual`）、可访问性基线（`check:a11y`）、Web Vitals（`check:vitals`）、
 HTTP 微基准（`check:perf-http`）、依赖许可证审计（`check:licenses`）、突变测试套件、
-`any` 计数、前端 / 后端函数复杂度、硬编码样式、UI 溢出、CSS 重复、CSS 令牌、画布断点、
-Studio 拆分预算、0.8.9 对齐、后端热点字节预算、bundle 体积预算。它们共同的问题是把
-「代码长什么样」固化成像素或数字门槛，而门槛只能靠不断重录基线维持 —— 与「不设巨型文件定义」
-是同一条原则。一次性重构工具（`ops/scripts/codemod/`）也随重构收口一并删除。
+四类后端计数棘轮（静默 except / 裸 `create_task` / 中文 `HTTPException` / `os.getenv` 白名单）、
+路由数量与接口覆盖率快照（`check:routes` / `check:store-routes` / `check:api-contract` /
+`check:frontend-coverage`）、`any` 计数、前端 / 后端函数复杂度、硬编码样式、UI 溢出、
+CSS 重复、CSS 令牌、画布断点、Studio 拆分预算、0.8.9 对齐、后端热点字节预算、bundle 体积预算。
+它们共同的问题是把「代码长什么样」固化成像素或数字门槛，而门槛只能靠不断重录基线维持 ——
+与「不设巨型文件定义」是同一条原则。一次性工具（`ops/scripts/codemod/`、`ops/bench/`）也一并删除。
 
 **行数不作任何判据**：项目不再统计单文件行数，也不再设「巨型文件」定义；
 按行数或扇出取证的手动入口已一并删除，不维护任何体量基线。

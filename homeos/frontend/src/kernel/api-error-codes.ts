@@ -5,8 +5,8 @@
  *
  * 为什么要有这张表：后端把「中文文案」本地化后，`apiErrorCode` 是唯一稳定的判定依据
  * （见 `backend/src/platform/core/http/errors.py` 的 `API_ERROR` 码表）。前端若用
- * `message.includes('…')` 判定，改一句文案就换一次接口语义 —— `check:error-contract`
- * 正是为了按住这种写法。这里集中列出本仓库会消费的码，供 `switch`/映射使用。
+ * `message.includes('…')` 判定，改一句文案就换一次接口语义。这里集中列出本仓库会消费的码，
+ * 供 `switch` / 映射使用。
  *
  * 收录范围：只收「前端需要按码分支」的码。仅用于展示的文案仍走后端 `message`。
  */

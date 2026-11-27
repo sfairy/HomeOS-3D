@@ -15,7 +15,7 @@
 
 SQL 文本的基数不可控（每张表 / 每个 where 都不同），做成指标标签会让 /metrics 体积随
 业务增长。这里只记总数 / 最大值 / 阈值，具体语句走 WARNING 日志
-（``[slow-sql] <ms> <statement>``），由 ``ops/scripts/slow_query_report.py`` 解析。
+（``[slow-sql] <ms> <statement>``），需要时直接从日志里 grep。
 """
 
 from __future__ import annotations
