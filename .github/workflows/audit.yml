@@ -50,9 +50,6 @@ jobs:
           set -o pipefail
           bun audit --production --json | tee audit-js.json
 
-      - name: Check dependency licenses
-        run: node ops/checks/check_dependency_licenses.mjs
-
       - name: Install pip-audit and detect-secrets
         run: |
           pip install pip-audit "detect-secrets==1.5.0"

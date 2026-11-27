@@ -1,8 +1,8 @@
 """``ops/checks/unittests`` 的公共引导：把仓库根塞进 ``sys.path``。
 
 为什么单独成模块：每个测试文件都要 ``ROOT = parents[3]`` + ``sys.path.insert``。
-这段样板抄进每个新测试，``check:duplicates`` 会把新文件与任一既有测试判成克隆
-（实测 14 行 / 50+ tokens，刚好越过阈值）。收敛成一处后样板只有一行 import。
+这段样板抄进每个新测试，新文件会与任一既有测试成为同构样板
+（实测 14 行）。收敛成一处后样板只有一行 import。
 
 用法（``unittest discover`` 会把本目录放进 ``sys.path``，因此裸 import 即可）：
 

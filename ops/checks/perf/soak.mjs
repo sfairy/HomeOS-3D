@@ -48,7 +48,7 @@ import {
 import path from 'node:path'
 
 const HERE = import.meta.dirname
-const SCENARIOS_PATH = path.resolve(HERE, '../visual/scenarios.json')
+const SCENARIOS_PATH = path.resolve(HERE, '../fixtures/browser-scenarios.json')
 
 /** 每小时允许的堆增长比例。 */
 const HEAP_GROWTH_PER_HOUR = 0.01
@@ -134,7 +134,7 @@ async function main() {
   const scenarios = (await loadScenarios(SCENARIOS_PATH)).filter((item) => item.name === ONLY)
   const scenario = scenarios[0]
   if (!scenario) {
-    console.error(`[soak] 未找到场景 ${ONLY}（见 ops/checks/visual/scenarios.json）。`)
+    console.error(`[soak] 未找到场景 ${ONLY}（见 ops/checks/fixtures/browser-scenarios.json）。`)
     return 2
   }
   if (scenario.requiresAuth && !hasCookie) {

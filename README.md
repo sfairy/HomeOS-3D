@@ -96,12 +96,12 @@ HomeOS/
 │   ├── checks/                    # 检查脚本，按域分目录：
 │   │   ├── run_*.{mjs,py}          #   批量入口（一个进程跑完一类检查）
 │   │   ├── business/               #   19 个业务规则自检 + 共享骨架
-│   │   ├── python/ frontend/ size/ contract/ studio/   # 各类静态检查
+│   │   ├── python/ frontend/ contract/ studio/   # 各类静态检查
 │   │   ├── architecture/ security/ #   路由契约 / 依赖方向 / WS 鉴权
 │   │   ├── baselines/              #   全部棘轮基线（按域再分一层）
 │   │   ├── unittests/              #   bun test + stdlib unittest
 │   │   └── lib/ fixtures/          #   断言辅助、夹具
-│   ├── scripts/                   # 构建期与离线工具：CSS 压缩、预压缩 sidecar、codemod、时序表瘦身
+│   ├── scripts/                   # 构建期与离线工具：CSS 压缩、预压缩 sidecar、时序表瘦身
 │   ├── lib/                       # 解释器入口（py.mjs）、walk、vue-tsc 与 biome 包装
 │   ├── release/                   # set-version.mjs
 │   ├── dev/                       # clean-local.mjs
@@ -240,10 +240,9 @@ static 的步骤按**标签**分六类（`--list` 按此打印，`--tag` 可整�
 
 | 入口 | 子检查 | 合并收益 |
 | --- | --- | --- |
-| `check:frontend` | 4 | 1974 个 ts/vue 只遍历一次；别名 / 性能 / 离线计数 / 受限写法共用同一份 `SourceFile` |
+| `check:frontend` | 2 | 1974 个 ts/vue 只遍历一次；离线计数 / 受限写法共用同一份 `SourceFile` |
 | `check:backend` | 6 | 694 个 `.py` 只 `ast.parse` 一次（此前每条都重解析）；`guards` / `parity` 各收三条 |
 | `check:contracts` | 6 | 后端应用只导入一次；覆盖率检查复用前两条算出的路由表；`parity` 收两张跨语言表 |
-| `check:size` | 1 | 只剩重复代码一条棘轮；行数（总量 / 单文件）已全部删除，不设任何行数口径 |
 | `check:tests` | 3 | 三类断言一个步骤，失败仍按模块定位 |
 | `check:studio-invariants` | 7 | 八条不变量里画布两条合成一条（同一份 `canvas-layout.util.ts`） |
 | `check:model-assets` | 4 | 四条 GLB 只读审计 |
@@ -254,9 +253,9 @@ static 的步骤按**标签**分六类（`--list` 按此打印，`--tag` 可整�
 （`bun run check:parity`、`node ops/checks/python/check_guards.py --module pep758`）。
 
 **脚本按域分目录**：`business/`（19 个自检）/ `python/`（后端 AST 检查）/ `frontend/`（前端扫描与棘轮）/
-`size/`（重复代码棘轮）/ `contract/`（版本、环境变量、跨语言表）/ `studio/`（3D 与模型）/ `architecture/`、
+`contract/`（版本、环境变量、跨语言表）/ `studio/`（3D 与模型）/ `architecture/`、
 `security/`（路由与鉴权）/ `baselines/`（全部基线）。`run_*.{mjs,py}` 留在顶层作为唯一执行入口，
-`ops/checks/` 顶层因此只有 9 个文件 + 子目录。
+`ops/checks/` 顶层因此只有 8 个文件 + 子目录。
 
 Python 脚本的 `PYTHONPATH`（仓库根 + 各子目录）由 `ops/lib/py.mjs` 统一注入 —— 脚本里不再各写
 `sys.path.insert`，否则那 3 行会变成九份克隆。
@@ -267,7 +266,7 @@ bun run gate:fast            # 日常快检：static 的 types + lint
 bun run check:frontend       # 只跑前端那批
 bun run check:backend -- --module kinds   # 批量入口里的单条（子串匹配）
 node ops/gates.mjs --tag ratchet          # 只跑某一类
-node ops/gates.mjs --step duplicates      # 命中 check:size（批量入口按 covers 匹配）
+node ops/gates.mjs --step offline         # 命中 check:frontend（批量入口按 covers 匹配）
 node ops/gates.mjs --group static --jobs 1  # 串行逐条看
 node ops/gates.mjs --list --json          # 机器可读（含 covers）
 ```
@@ -275,18 +274,23 @@ node ops/gates.mjs --list --json          # 机器可读（含 covers）
 默认并行 4（`--jobs` / `HOMEOS_GATE_JOBS` 可改）；`build` / `infra` 有组内先后依赖，恒为串行。
 并行模式下通过的步骤只留一行结果，失败才展开完整输出。缺工具本机 SKIP、CI 失败。
 
-仍保留的棘轮只守**语义**：重复代码、接口覆盖（路由 / `response_model` / 状态码）。
-`update:<同名>(-baseline)` 是放宽手段，必须在提交说明里写清为什么。基线统一放在
-`ops/checks/baselines/{frontend,backend,contracts,size,model}/`。
+仍保留的棘轮只守**语义**：接口覆盖（路由 / `response_model` / 状态码）、离线计数口径、
+受限写法。`update:<同名>(-baseline)` 是放宽手段，必须在提交说明里写清为什么。基线统一放在
+`ops/checks/baselines/{backend,contracts,model}/`。
 
 已删除的门禁（连同脚本、基线、`package.json` 条目）：代码量总量（`check:code-size`）、
-单文件行数审计（`audit:file-size`）、巨型文件扇出审计（`audit:giant-files`）、`any` 计数、
-前端 / 后端函数复杂度、硬编码样式、UI 溢出、CSS 重复、CSS 令牌、画布断点、Studio 拆分预算、
-0.8.9 对齐、后端热点字节预算、bundle 体积预算。它们共同的问题是把「代码长什么样」固化成数字门槛，
-而数字只能靠不断重录基线维持 —— 与「不设巨型文件定义」是同一条原则。
+单文件行数审计（`audit:file-size`）、巨型文件扇出审计（`audit:giant-files`）、
+重复代码棘轮（`check:duplicates`）、别名 / 性能反模式计数（`check:aliases` /
+`check:perf-ratchet`）、命名与目录形态（`check:naming`）、覆盖率棘轮（`check:coverage`）、
+视觉回归（`check:visual`）、可访问性基线（`check:a11y`）、Web Vitals（`check:vitals`）、
+HTTP 微基准（`check:perf-http`）、依赖许可证审计（`check:licenses`）、突变测试套件、
+`any` 计数、前端 / 后端函数复杂度、硬编码样式、UI 溢出、CSS 重复、CSS 令牌、画布断点、
+Studio 拆分预算、0.8.9 对齐、后端热点字节预算、bundle 体积预算。它们共同的问题是把
+「代码长什么样」固化成像素或数字门槛，而门槛只能靠不断重录基线维持 —— 与「不设巨型文件定义」
+是同一条原则。一次性重构工具（`ops/scripts/codemod/`）也随重构收口一并删除。
 
 **行数不作任何判据**：项目不再统计单文件行数，也不再设「巨型文件」定义；
-按行数取证的手动入口（`audit:giant-files`）已一并删除，不维护任何体量基线。
+按行数或扇出取证的手动入口已一并删除，不维护任何体量基线。
 
 `check:toolchain` 守三条「写了两遍以上」的版本线，任何一处漂移都不影响编译、只会在换机或发版时才炸：
 
@@ -370,9 +374,7 @@ bfcache 交接在 `shared/utils/page-cache-lifecycle.ts`：`pagehide(persisted)`
 - 每 id 两文件：`<中文名>-lite.glb`（首选）、`<中文名>.glb`（兜底）。
 - 磁盘中文名、代码英文 id；映射在 `model-asset-folders.ts` + `model-file-names.generated.ts`。
 - `MODEL-NAMES.md` 由 `bun run index:model-names` 生成。
-- 物品模型 14 族 / 59 类型分支（`item-model/`），族序即命中优先级，重排前先确认没有交叠条件；
-  分支级哈希比对是手动 `audit:item-model`（`items/` 目录仍在持续改动，放进日常门禁只会训练出
-  「红了就重写基线」）。
+- 物品模型 14 族 / 59 类型分支（`item-model/`），族序即命中优先级，重排前先确认没有交叠条件。
 - vendor：three 0.187.0、hls.js 1.7.4、meshoptimizer 0.25、mdi 7.4.47、meteocons。
 
 新增模型：`model-asset-folders.ts` 登记 id → 放两个 GLB → `StudioView.vue` 加 `data-library-name` 卡片 → `index:model-names` → `gate:model`。
@@ -387,7 +389,7 @@ bfcache 交接在 `shared/utils/page-cache-lifecycle.ts`：`pagehide(persisted)`
 | `baselines/model/material-role-baseline.json`（672 文件 / 3136 条） | `audit_glb_materials.mjs --write-role-baseline` |
 | `baselines/model/{asset,geometry}-baseline.json` | 对应 `audit:*` |
 
-顺序：`audit:materials`（写 `docs/model-audit/glb-material-audit.json`）→ `build:slot-contracts` → `generate:slot-tables`。日常构建只需已提交的 `model-slot-contracts.json`。
+顺序：`bun ops/checks/studio/audit_glb_materials.mjs`（写 `docs/model-audit/glb-material-audit.json`）→ `build:slot-contracts` → `generate:slot-tables`。日常构建只需已提交的 `model-slot-contracts.json`。
 
 ### 模型门禁
 
@@ -395,12 +397,10 @@ bfcache 交接在 `shared/utils/page-cache-lifecycle.ts`：`pagehide(persisted)`
 | --- | --- |
 | `check:model-assets` | 资产 / 几何 / 槽位 / 材质四条审计（`--module` 可单跑） |
 | `check:model-index` | 目录布局 + 中文名索引（`--module` 可单跑） |
-| `audit:materials` | 写材质报告（不判定；判定在 `check:model-assets`） |
 | `organize:models` / `index:model-names` | 迁移目录 / 生成索引（生成物，需提交） |
-| `audit:item-model` | 手动：分支级哈希比对（不在门禁里） |
 | `rebuild:items` | 按配方重建精修件 |
 
-无 `repair:*` 层。模型坏了用 `audit:*` 定位后重导出或 `rebuild:items`。
+无 `repair:*` 层。模型坏了用 `audit_glb_*` 定位后重导出或 `rebuild:items`。
 
 ### 备份包含什么
 

@@ -10,14 +10,11 @@
         "@gltf-transform/extensions": "^4.5.1",
         "@gltf-transform/functions": "^4.5.1",
         "@types/node": "^26.6.6",
-        "axe-core": "^4.14.1",
         "draco3dgltf": "^1.5.9",
         "esbuild": "^0.28.2",
-        "jscpd": "5.4.3",
         "lightningcss": "^1.33.0",
         "meshoptimizer": "^1.3.0",
         "pinia": "^4.1.0",
-        "pngjs": "^5.0.0",
         "postcss": "^8.5.33",
         "three": "0.187.0",
         "typescript": "^6.0.3",
@@ -420,8 +417,6 @@
 
     "autoprefixer": ["autoprefixer@10.7.0", "", { "dependencies": { "browserslist": "^4.29.6", "caniuse-lite": "^1.0.30001826", "fraction.js": "^5.3.4", "picocolors": "^1.1.1", "postcss-value-parser": "^4.2.0" }, "peerDependencies": { "postcss": "^8.1.0" }, "bin": { "autoprefixer": "bin/autoprefixer" } }, "sha512-M4rWhYFPp8YSAfqLDT/wRN9trfe/Z/aZLPxrLQJUQRTPrChss2T+hmgaV5770J52bLuGOMzt6Hjl8tEb6YWv5Q=="],
 
-    "axe-core": ["axe-core@4.14.1", "", {}, "sha512-FHfa+lmNjQZfJz1q8wKqIDwC6DExcHt/pkjNQb09a3NPjCKg2rhu5qb2S4r76ASyFNNtuFooJpZe37OgudVGtQ=="],
-
     "axios": ["axios@1.21.1", "", { "dependencies": { "follow-redirects": "^1.16.2", "form-data": "^4.0.6", "https-proxy-agent": "^5.0.1", "proxy-from-env": "^2.1.0" } }, "sha512-6eI5Q/Y4u/Um9dDlsRoq5pY2rxnUTv+L4PpLitnbk/i4jb3MxLZ5CsN5Ih3IysbeRYK4pR+P7qfMsOQl9fwwFQ=="],
 
     "baseline-browser-mapping": ["baseline-browser-mapping@2.11.39", "", { "bin": { "baseline-browser-mapping": "dist/cli.cjs" } }, "sha512-Q9buOYhr2ggrEZpImICecZTJHCCd8yXkRUokFlUEQ8uiD6oP82F4W4jWnhOHZYV+wlvrC51V7Wy0ULyWjil5Wg=="],
@@ -569,24 +564,6 @@
     "is-wsl": ["is-wsl@3.1.1", "", { "dependencies": { "is-inside-container": "^1.0.0" } }, "sha512-e6rvdUCiQCAuumZslxRJWR/Doq4VpPR82kqclvcS0efgt430SlGIk05vdCN58+VrzgtIcfNODjozVielycD4Sw=="],
 
     "jiti": ["jiti@2.7.0", "", { "bin": { "jiti": "lib/jiti-cli.mjs" } }, "sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ=="],
-
-    "jscpd": ["jscpd@5.4.3", "", { "optionalDependencies": { "jscpd-darwin-arm64": "5.4.3", "jscpd-darwin-x64": "5.4.3", "jscpd-linux-arm64-gnu": "5.4.3", "jscpd-linux-arm64-musl": "5.4.3", "jscpd-linux-x64-gnu": "5.4.3", "jscpd-linux-x64-musl": "5.4.3", "jscpd-windows-arm64-msvc": "5.4.3", "jscpd-windows-x64-msvc": "5.4.3" }, "bin": { "jscpd": "run-jscpd.js" } }, "sha512-2Ult/j407sgAx4Z8kW4nOB3wfGwvtyKyPN9XE+tbvNEP/QemBN8pijKtG6zC+8nfMuIiiWjNcez7VZo5ZjJRtA=="],
-
-    "jscpd-darwin-arm64": ["jscpd-darwin-arm64@5.4.3", "", { "os": "darwin", "cpu": "arm64" }, "sha512-2Zu6FrML6exhznj4hryUrnfVRM6dmfH0N7nldeY09cs7fA2TRQD+xzo5wA7SIqzhRDaUo0CBPBNVJz/XFmUEbg=="],
-
-    "jscpd-darwin-x64": ["jscpd-darwin-x64@5.4.3", "", { "os": "darwin", "cpu": "x64" }, "sha512-Y4KykQqxMtVEV3pdjtfYbzONCmLOEgAyX8d2fUbwLW+uH/IZqUVCIwB3LrgCVv4Y+b/7mbOsdrGuIragTGpC/Q=="],
-
-    "jscpd-linux-arm64-gnu": ["jscpd-linux-arm64-gnu@5.4.3", "", { "os": "linux", "cpu": "arm64", "libc": "glibc" }, "sha512-08d2DKt9BELglfZj0ZfhEs7I4gxiAk9Iflgjnsd0z4pB1OjWA4+DGDbfWmGOf6W2sVMDpwkVoa5Q5DWaOMPyoA=="],
-
-    "jscpd-linux-arm64-musl": ["jscpd-linux-arm64-musl@5.4.3", "", { "os": "linux", "cpu": "arm64", "libc": "musl" }, "sha512-YbgJ7tQzztL441UCKX6UVN6n8zXc7eEwuJ4MHCdFtTf5w6EGpfFDi7+lgBi+MtwampG2k1PoltCYYiRZyPg4/g=="],
-
-    "jscpd-linux-x64-gnu": ["jscpd-linux-x64-gnu@5.4.3", "", { "os": "linux", "cpu": "x64", "libc": "glibc" }, "sha512-BbL0HypadbjpxNfK/KY4CfpD4sCd2zf9HpFnGwwOjdryjdTG098isft/95BiS/XvZjVT3p6lwLf5ToI97OoqCg=="],
-
-    "jscpd-linux-x64-musl": ["jscpd-linux-x64-musl@5.4.3", "", { "os": "linux", "cpu": "x64", "libc": "musl" }, "sha512-0DlkzVDuuZ83JRZMOc4Fd2tBFKIrtXDHkHvxdF6d4HK+b954PZxuKhwBMArg76CtVSOQcuiICd/zxU9HtdT+mg=="],
-
-    "jscpd-windows-arm64-msvc": ["jscpd-windows-arm64-msvc@5.4.3", "", { "os": "win32", "cpu": "arm64" }, "sha512-BUD8kCzLyXUomw3vWRDbaBcIPByX6yU3VyqsKSf7/sjzr8y9ZmTRcn0cwmCV2WChrzD5JF4HeQl+hZlb7+s8lg=="],
-
-    "jscpd-windows-x64-msvc": ["jscpd-windows-x64-msvc@5.4.3", "", { "os": "win32", "cpu": "x64" }, "sha512-qYSVGZE2WP0NNdZU1S8DsfcCDpjwKSExvsUd86c4Vx9eWwZdw1i+V7h/9FWazo3PxEa+FzPLsCD5YjVawaarRA=="],
 
     "ktx-parse": ["ktx-parse@1.1.0", "", {}, "sha512-mKp3y+FaYgR7mXWAbyyzpa/r1zDWeaunH+INJO4fou3hb45XuNSwar+7llrRyvpMWafxSIi99RNFJ05MHedaJQ=="],
 

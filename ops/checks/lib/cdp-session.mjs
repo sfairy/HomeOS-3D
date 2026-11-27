@@ -1,9 +1,9 @@
 /**
  * 浏览器自动化检查的公共 CDP 客户端。
  *
- * 为什么抽出来：视觉回归、可访问性扫描、端到端冒烟三条检查都要做同一件事 ——
+ * 为什么抽出来：端到端冒烟、长跑观测、视觉 A/B 都要做同一件事 ——
  * 连一个已经开了 `--remote-debugging-port` 的 Chrome、开标签页、设视口、注入 Cookie、
- * 等两帧、截图。三份各自实现会在 `check:duplicates` 里如实出现，而且行为会漂移
+ * 等两帧、截图。三份各自实现会立刻长出同构样板，而且行为会漂移
  * （一处等一帧、一处等两帧，截图就开始不一致）。
  *
  * 这里只封装「与检查内容无关」的部分；每个检查自己的断言仍留在各自的脚本里。
@@ -199,7 +199,7 @@ export async function withPage(scenario, action) {
   }
 }
 
-/** 读取 `ops/checks/visual/scenarios.json`（三条浏览器检查共用同一批检查点）。 */
+/** 读取 `ops/checks/fixtures/browser-scenarios.json`（长跑观测用的页面检查点）。 */
 export async function loadScenarios(scenariosPath) {
   const { readFileSync } = await import('node:fs')
   return JSON.parse(readFileSync(scenariosPath, 'utf8')).scenarios

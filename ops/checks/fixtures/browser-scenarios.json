@@ -1,5 +1,5 @@
 {
-  "$comment": "视觉回归检查点。base 指向本地开发服务器；requiresAuth=true 的场景需要 HOMEOS_VISUAL_COOKIE（登录 Cookie），未提供时自动跳过而不是判失败。maxDiffRatio 是该场景允许的像素差异比例：静态页给 0，含动画/抗锯齿的给 0.001–0.003。",
+  "$comment": "浏览器页面检查点（长跑观测 soak 使用）：base 指向本地开发服务器，requiresAuth=true 的场景需要 HOMEOS_VISUAL_COOKIE（登录 Cookie），未提供时自动跳过而不是判失败。maxDiffRatio 等字段是旧视觉回归留下的，soak 不读。",
   "scenarios": [
     {
       "name": "auth-login",

@@ -52,7 +52,7 @@ export type LightSpace = 'world' | 'local'
 /**
  * 吸附相关的读取口（工具条选项与拖动状态机共用同一组签名）。
  *
- * 单独抽出来是因为两份接口逐字重复会被 `check:duplicates` 拦下，
+ * 单独抽出来是因为两份接口逐字重复没有必要，
  * 而它们本来就该是同一个契约：状态机只读、装配层负责提供。
  */
 export interface SnapSensingOptions {

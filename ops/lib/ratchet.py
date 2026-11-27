@@ -4,7 +4,7 @@
 ----------------
 `check_error_contract.py`、`check_background_tasks.py` 这类「按文件计数、只许下降」的
 门禁有 40 行左右完全相同的骨架：读基线、逐文件比、总数兜底、两种输出格式、更新基线。
-每加一条新棘轮就抄一遍，结果是**门禁代码自己成了重复代码**（jscpd 会如实报出来）。
+每加一条新棘轮就抄一遍，结果是**门禁代码自己成了重复代码**。
 
 口径约定
 --------
@@ -47,7 +47,7 @@ def resolve_ruff(repo_root: Path) -> str:
     """定位 ruff：`RUFF` 环境变量 → PATH → 共享 venv。
 
     为什么放在共享库：`check_python_format` 与 `check_guards` 都需要它，两处各抄一份
-    10 行只会在 `check:duplicates` 里变成克隆。优先级顺序也是仓内约定（先尊重显式覆盖，
+    10 行就会变成同构样板。优先级顺序也是仓内约定（先尊重显式覆盖，
     再让 CI 用 PATH 里的，最后才回落到本机 venv）。
     """
     override = os.environ.get("RUFF", "").strip()
@@ -113,7 +113,7 @@ def iter_python_files(roots: list[Path], *, skip_dirs: frozenset[str] = SKIP_DIR
     """按路径顺序产出待扫描的 ``*.py``（跳过产物目录）。
 
     两个棘轮（错误契约 / 后台任务）此前各写了一遍同样的 rglob + 目录过滤，
-    jscpd 把它算成跨文件的重复块 —— 门禁代码自己重复是最没说服力的形态。
+    两处实现会变成跨文件的重复块 —— 门禁代码自己重复是最没说服力的形态。
     """
     for root in roots:
         if not root.exists():

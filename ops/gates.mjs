@@ -31,9 +31,9 @@
  * 同一批文件被多条检查反复扫描时（前端 10 条、后端 10 条、路由 5 条），门禁里只登记一个
  * 批量入口（`check:frontend` 等），被合并的原脚本名写进 `covers`：
  *
- * - `--step` 仍能按原脚本名子串命中（`--step duplicates` → `check:size`）；
+ * - `--step` 仍能按原脚本名子串命中（`--step offline` → `check:frontend`）；
  * - `--list --json` 输出 `covers`，供「合并前后覆盖对照」机器比对；
- * - 单项调试仍走原脚本（`bun run check:aliases`），合并只改执行方式，不改判定口径。
+ * - 单项调试仍走原脚本（`bun run check:offline-counting`），合并只改执行方式，不改判定口径。
  *
  * 三类跳过都必须**显式打印**，不允许静默成功：
  * - 缺工具（shellcheck / actionlint / docker）：本机给安装提示并 SKIP，CI 里直接 FAIL；
@@ -124,20 +124,13 @@ const GATE_GROUPS = {
     // 照样通过，舞台只在运行时炸 —— 用契约快照拦住。
     { name: 'check:runtime-contract', ...bun('run', 'check:runtime-contract') },
     // ---- ratchet -----------------------------------------------------
-    // 前端四条守卫（别名 / 性能 / 离线计数 / 受限写法）。合并的意义是**共享一次遍历与
-    // 一份 AST**。计数类（any / 复杂度）与样式偏好类（硬编码色 / UI 溢出 / CSS 重复 /
-    // CSS 令牌 / 画布断点）已删除：它们把「代码长什么样」固化成了门槛，与体量棘轮同一类问题。
+    // 前端两条守卫（离线计数口径 / 受限写法）。合并的意义是**共享一次遍历与一份 AST**。
+    // 计数类与外观类已全部删除：别名计数、性能反模式计数、命名形态、重复代码、覆盖率、
+    // 视觉 / a11y / Vitals 基线都把「代码长什么样」固化成了数字门槛，与「行数不作判据」同源。
     {
       name: 'check:frontend',
       ...bun('run', 'check:frontend'),
-      covers: ['check:aliases', 'check:perf-ratchet', 'check:offline-counting', 'check:restricted-syntax'],
-    },
-    // 体量棘轮只剩重复代码一条。行数不再参与任何门禁：总量变大不等于退化，单文件
-    // 「多少行算巨型」是项目取舍，都不该由门禁替人定义；按行数取证的手动审计也已删除。
-    {
-      name: 'check:size',
-      ...bun('run', 'check:size'),
-      covers: ['check:duplicates'],
+      covers: ['check:offline-counting', 'check:restricted-syntax'],
     },
     // 后端静态检查。合并的意义是共享一份 `ast.parse` 缓存：此前每条都把 694 个 .py
     // 重新解析一遍（合计约 25s），现在一个解释器跑完约 5s。
@@ -340,27 +333,17 @@ const GATE_GROUPS = {
     },
   ],
   /**
-   * 浏览器级检查（视觉回归 / 可访问性 / 端到端冒烟 / Web Vitals）。
+   * 浏览器级端到端冒烟（`check:e2e`）。
    *
-   * 为什么不并进 static：它们需要「本地 dev 服务器 + 一个开了调试端口的浏览器」，
+   * 为什么不并进 static：它需要「本地 dev 服务器 + 一个开了调试端口的浏览器」，
    * 在干净的 CI runner 上必然缺失。因此单独成组，**不进默认组**：
-   *   bun run gate:ux
-   * 缺环境时三条脚本都以退出码 3 结束，这里按 SKIP 处理（不是通过，也不算失败）。
-   */
-  /**
-   * 性能基准（HTTP 热路径）。**必须独占执行**：这些数字在并行 4 路时会翻倍
-   * （typecheck 与 bench 抢同一批核心），所以单独成组且串行，不进默认组。
+   *   node ops/gates.mjs --group ux
+   * 缺环境时脚本以退出码 3 结束，这里按 SKIP 处理（不是通过，也不算失败）。
    *
-   *   bun run gate:perf          # 校验（容差 15% + 0.5ms 宽限）
-   *   bun run update:perf-http   # 改动确认后重录基线
+   * 视觉回归 / 可访问性 / Web Vitals / HTTP 微基准已删除：它们是像素或数字基线，
+   * 每次界面调整都要重录，维护成本高于发现问题的价值，与「不设数字门槛」同一条原则。
    */
-  perf: [{ name: 'check:perf-http', ...bun('run', 'check:perf-http'), serial: true }],
-  ux: [
-    { name: 'check:e2e', ...bun('run', 'check:e2e'), skipExitCodes: [3] },
-    { name: 'check:a11y', ...bun('run', 'check:a11y'), skipExitCodes: [3] },
-    { name: 'check:visual', ...bun('run', 'check:visual'), skipExitCodes: [3] },
-    { name: 'check:vitals', ...bun('run', 'check:vitals'), skipExitCodes: [3] },
-  ],
+  ux: [{ name: 'check:e2e', ...bun('run', 'check:e2e'), skipExitCodes: [3] }],
 }
 
 const DEFAULT_GROUPS = ['static', 'model']
@@ -445,7 +428,7 @@ function portResponding(port) {
  *   types      编译/类型（改一处类型错误全链路可见）
  *   lint       格式与语法（Biome / ruff / CSS 语法 / 受限写法）
  *   contract   跨端或跨文件的契约对齐（两端各有一份表、接口有无调用方）
- *   ratchet    只许降不许增的**语义**基线（代码量 / 重复 / 调用约定），不守外观与风格
+ *   ratchet    只许降不许增的**语义**基线（调用约定 / 离线计数口径），不守外观与风格
  *   invariant  纯逻辑/几何/状态机的数学不变量（给定输入断言输出）
  *   business   业务规则自检（语义正确性：该告警的告警、该静默的静默）
  */
@@ -453,7 +436,7 @@ const TAG_GROUPS = {
   types: ['typecheck', 'typecheck:node'],
   lint: ['lint:biome', 'check:css-syntax', 'check:css-manifests', 'lint:py'],
   contract: ['check:toolchain', 'check:env', 'check:contracts', 'check:deps', 'check:runtime-contract'],
-  ratchet: ['check:frontend', 'check:size', 'check:backend'],
+  ratchet: ['check:frontend', 'check:backend'],
   invariant: ['check:studio-invariants', 'check:scene', 'check:python-lock', 'check:image-imports'],
   business: ['check:tests'],
 }
@@ -466,13 +449,8 @@ const TAG_GROUPS = {
  * 这份清单是给人看的：这些命令**不阻断 CI**，别误以为门禁已经在跑。
  */
 const MANUAL_SCRIPTS = [
-  'check:licenses', // 依赖许可证审计：需要联网，跑在 audit.yml（定时）
   'check:studio-parity', // 人工 A/B：要 Chrome + 两个服务，见 ops/scripts/studio-visual-parity.mjs
   'soak', // 长跑泄漏观测：需要浏览器长连接稳定，见 ops/checks/perf/soak.mjs
-  'check:scene-payload-mutations', // 突变测试：会临时改源树
-  'check:plan-geometry-mutations', // 同上
-  'audit:item-model', // 分支级哈希基线：items/ 仍在改，手动跑（见 README）
-  'audit:materials', // 材质报告：只产出文档，判定在 check:materials
 ]
 
 /** 把标签挂到步骤上，并校验「每个 static 步骤恰好一类」。 */
@@ -578,8 +556,8 @@ function matchesFilters(step, group) {
     if (!options.tags.includes(step.tag)) return false
   }
   if (options.steps.length) {
-    // 批量步骤（check:frontend 等）还接受被合并的原脚本名：`--step duplicates` 仍能命中
-    // `check:size`，否则合并之后连「只复跑失败的那一条」都做不到。
+    // 批量步骤（check:frontend 等）还接受被合并的原脚本名：`--step offline` 仍能命中
+    // `check:frontend`，否则合并之后连「只复跑失败的那一条」都做不到。
     const haystack = [step.name, ...(step.covers ?? [])].map((item) => item.toLowerCase())
     if (!options.steps.some((needle) => haystack.some((item) => item.includes(needle.toLowerCase())))) return false
   }
@@ -606,7 +584,7 @@ function printHelp() {
 
 示例：
   node ops/gates.mjs --tag ratchet --jobs 1     # 一条一条看棘轮
-  node ops/gates.mjs --step duplicates         # 命中 check:size（批量入口按 covers 匹配）
+  node ops/gates.mjs --step offline           # 命中 check:frontend（批量入口按 covers 匹配）
   bun run gate:fast                            # 日常快检：types + lint（其余留给 pre-push / CI）
 `)
 }

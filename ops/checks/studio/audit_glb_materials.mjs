@@ -3000,7 +3000,7 @@ if (checkMode) {
       const baseline = JSON.parse(fs.readFileSync(jsonPath, 'utf8')).summary
       for (const key of ['fileCount', 'modelCount', 'materialCount', 'materialCountAllFiles']) {
         if (baseline[key] !== summary[key]) {
-          problems.push(`${key} 从 ${baseline[key]} 变为 ${summary[key]}（先跑 audit:materials 更新报告）`)
+          problems.push(`${key} 从 ${baseline[key]} 变为 ${summary[key]}（先跑 \`bun ops/checks/studio/audit_glb_materials.mjs\` 更新报告）`)
         }
       }
     } catch (error) {
