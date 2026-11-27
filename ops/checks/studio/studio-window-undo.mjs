@@ -44,7 +44,7 @@ const modules = await loadTsModules(
   [
     path.join(SHARED_DIR, 'layout.ts'),
     path.join(SHARED_DIR, 'window-deletion.ts'),
-    path.join(REPO_ROOT, 'homeos/frontend/src/studio/app/3d-studio/authoring/store/document-store.ts'),
+    path.join(REPO_ROOT, 'homeos/frontend/src/studio/authoring/store/document-store.ts'),
   ],
   {
     alias: { '@app': path.join(REPO_ROOT, 'homeos/frontend/src/studio/app') },

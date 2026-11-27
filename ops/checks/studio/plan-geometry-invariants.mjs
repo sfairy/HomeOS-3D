@@ -55,7 +55,7 @@ const ENTRY_OVERRIDE = entryIndex >= 0 ? args[entryIndex + 1] : null
 const REPO_ROOT = path.resolve(import.meta.dirname, '../../..')
 const ENTRY = ENTRY_OVERRIDE
   ? path.resolve(REPO_ROOT, ENTRY_OVERRIDE)
-  : path.join(REPO_ROOT, 'homeos/frontend/src/studio/app/3d-studio/plan/geometry.ts')
+  : path.join(REPO_ROOT, 'homeos/frontend/src/studio/authoring/plan/geometry.ts')
 /** 面积比较的容差：内核自己的默认 tolerance 是 1e-6，判定放宽到 1e-6 的相对量级。 */
 const AREA_EPSILON = 1e-6
 

@@ -39,7 +39,7 @@ import { formatGenerated } from '../../lib/biome-format.mjs'
 const hereDir = path.dirname(fileURLToPath(import.meta.url))
 void hereDir
 const contractsPath = path.join(specsDir, 'model-slot-contracts.json')
-const materialsDir = path.join(repoRoot, 'homeos/frontend/src/studio/app/3d-studio/materials')
+const materialsDir = path.join(repoRoot, 'homeos/frontend/src/studio/authoring/materials')
 const aliasFile = path.join(materialsDir, 'legacy-material-aliases.generated.ts')
 const roleFile = path.join(materialsDir, 'model-slot-roles.generated.ts')
 

@@ -50,7 +50,7 @@ import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 const ROOT = resolve(import.meta.dirname, '../../..')
-const utilHref = pathToFileURL(join(ROOT, 'homeos/frontend/src/shared/utils/layout/canvas-layout.util.ts')).href
+const utilHref = pathToFileURL(join(ROOT, 'homeos/frontend/src/kernel/layout.ts')).href
 const { computeViewportLayout, isPhoneViewport, pickUltrawideBaseline, resolveDesignMetrics, MAX_UPSCALE } =
   await import(utilHref)
 

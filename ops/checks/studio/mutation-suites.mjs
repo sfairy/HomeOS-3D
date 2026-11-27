@@ -64,7 +64,7 @@ const SUITES = {
   'plan-geometry': [
     {
       note: '多边形布尔内核',
-      source: 'homeos/frontend/src/studio/app/3d-studio/plan/geometry-polygons.ts',
+      source: 'homeos/frontend/src/studio/authoring/plan/geometry.ts',
       mutations: [
         {
           label: '差集忽略洞（subtract 吞掉 holeLoops）',
@@ -86,7 +86,7 @@ const SUITES = {
     },
     {
       note: '墙段拆分',
-      source: 'homeos/frontend/src/studio/app/3d-studio/plan/geometry.ts',
+      source: 'homeos/frontend/src/studio/authoring/plan/geometry.ts',
       mutations: [
         {
           label: '拆分丢掉最后一段（墙段总长变短）',
@@ -98,7 +98,7 @@ const SUITES = {
   ],
   'scene-payload': [
     {
-      source: 'homeos/frontend/src/studio/app/3d-studio/authoring/scene/payload/studio-scene-payload.ts',
+      source: 'homeos/frontend/src/studio/authoring/scene/payload/studio-scene-payload.ts',
       mutations: [
         {
           label: '删掉 windowDesign 搬运（真实事故：窗型全退回普通窗）',
@@ -134,7 +134,7 @@ const SUITES = {
     },
     {
       note: '楼层文档净化（0.8.9 新字段）',
-      source: 'homeos/frontend/src/studio/app/3d-studio/authoring/scene/payload/studio-document-payload.ts',
+      source: 'homeos/frontend/src/studio/authoring/scene/payload/studio-document-payload.ts',
       mutations: [
         {
           label: '删掉 floorRegions 搬运（真实风险：保存一次全部铺面丢失）',

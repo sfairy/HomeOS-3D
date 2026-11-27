@@ -31,7 +31,7 @@ import { loadTsModules } from '../lib/load-ts-modules.mjs'
 
 const AS_JSON = process.argv.includes('--json')
 const REPO_ROOT = path.resolve(import.meta.dirname, '../../..')
-const PLAN_DIR = path.join(REPO_ROOT, 'homeos/frontend/src/studio/app/3d-studio/plan')
+const PLAN_DIR = path.join(REPO_ROOT, 'homeos/frontend/src/studio/authoring/plan')
 
 const assertions = createAssertions()
 const { check, near } = assertions

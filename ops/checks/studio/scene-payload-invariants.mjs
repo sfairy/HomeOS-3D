@@ -49,7 +49,7 @@ const ENTRY_OVERRIDE = entryIndex >= 0 ? args[entryIndex + 1] : null
 const REPO_ROOT = path.resolve(import.meta.dirname, '../../..')
 const ENTRY = ENTRY_OVERRIDE
   ? path.resolve(REPO_ROOT, ENTRY_OVERRIDE)
-  : path.join(REPO_ROOT, 'homeos/frontend/src/studio/app/3d-studio/authoring/scene/payload/studio-scene-payload.ts')
+  : path.join(REPO_ROOT, 'homeos/frontend/src/studio/authoring/scene/payload/studio-scene-payload.ts')
 
 const failures = []
 let assertions = 0
@@ -116,7 +116,7 @@ fs.rmSync(outfile, { force: true })
  */
 const DOCUMENT_ENTRY = path.join(
   REPO_ROOT,
-  'homeos/frontend/src/studio/app/3d-studio/authoring/scene/payload/studio-document-payload.ts',
+  'homeos/frontend/src/studio/authoring/scene/payload/studio-document-payload.ts',
 )
 const documentOutfile = path.join(os.tmpdir(), `homeos-studio-document-${process.pid}.mjs`)
 await build({

@@ -26,26 +26,29 @@ import { loadTsModules } from '../lib/load-ts-modules.mjs'
 
 const AS_JSON = process.argv.includes('--json')
 const REPO_ROOT = path.resolve(import.meta.dirname, '../../..')
-const AUTHORING = path.join(REPO_ROOT, 'homeos/frontend/src/studio/app/3d-studio/authoring/studio-app')
-const PLAN = path.join(REPO_ROOT, 'homeos/frontend/src/studio/app/3d-studio/plan')
+const AUTHORING = path.join(REPO_ROOT, 'homeos/frontend/src/studio/authoring')
 
 const assertions = createAssertions()
 const { check } = assertions
 /** 几何断言用绝对容差（读数差 0.1mm 就该失败）。 */
 const near = (left, right, epsilon = 1e-9) => Math.abs(left - right) <= epsilon
 
+/**
+ * 模块清单按**当前能力文件**给，而不是历史文件名：`editor-3d-gesture` /
+ * `placement-snap-apply` / `plan-coords` / `editor-light-gizmo-paths` / `studio-placement-geometry`
+ * / `studio-distance-rulers` / `studio-plan-view-center` 已分别并入下列能力文件
+ * （断言口径不变，只是实现所在的文件变了）。
+ */
 const modules = await loadTsModules(
   [
-    path.join(AUTHORING, 'interaction/editor-3d-gesture.ts'),
-    path.join(AUTHORING, 'interaction/placement-snap-apply.ts'),
-    path.join(PLAN, 'studio-placement-geometry.ts'),
-    path.join(PLAN, 'studio-distance-rulers.ts'),
-    path.join(PLAN, 'studio-plan-view-center.ts'),
-    path.join(PLAN, 'studio-plan-item-ghosting.ts'),
-    // 标尺的视图旋转必须与这里互为逆变换；直接加载真实实现断言，不复制公式。
-    path.join(AUTHORING, 'plan/plan-coords.ts'),
-    // 灯带 gizmo 的屏幕几何：**不得把投影坐标取整**（否则相机连续旋转时整层灯位一跳一跳）。
-    path.join(AUTHORING, 'interaction/editor-light-gizmo-paths.ts'),
+    path.join(AUTHORING, 'interaction/gesture.ts'),
+    path.join(AUTHORING, 'interaction/drag-and-drop.ts'),
+    path.join(AUTHORING, 'interaction/light-gizmo.ts'),
+    path.join(AUTHORING, 'plan/studio-placement.ts'),
+    path.join(AUTHORING, 'plan/studio-plan.ts'),
+    path.join(AUTHORING, 'plan/studio-plan-item-ghosting.ts'),
+    path.join(AUTHORING, 'plan/plan.ts'),
+    path.join(AUTHORING, 'plan/studio.ts'),
     // 逐灯「长按打开弹窗」的秒数契约：配置面板与运行时必须取同一份（0.8.8）。
     path.join(REPO_ROOT, 'homeos/frontend/src/studio/app/shared/util/light-long-press.ts'),
   ],

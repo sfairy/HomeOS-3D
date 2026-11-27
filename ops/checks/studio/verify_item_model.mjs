@@ -23,8 +23,8 @@ const get = (name, fallback) => {
 }
 const repoRoot = path.resolve(import.meta.dirname, '../../..')
 const root = path.resolve(get('root', repoRoot))
-const entryFile = path.join(root, 'homeos/frontend/src/studio/app/3d-studio/authoring/items/studio-item-model.ts')
-const familyDir = path.join(root, 'homeos/frontend/src/studio/app/3d-studio/authoring/items/item-model')
+const entryFile = path.join(root, 'homeos/frontend/src/studio/authoring/items/studio-item-model.ts')
+const familyDir = path.join(root, 'homeos/frontend/src/studio/authoring/items/item-model')
 const manifestFile = path.join(root, get('manifest', 'ops/checks/baselines/model/item-model-baseline.json'))
 const beforeFile = get('before', '')
 const writeBaseline = args.includes('--write-baseline')
