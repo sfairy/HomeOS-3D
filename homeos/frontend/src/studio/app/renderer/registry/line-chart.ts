@@ -8,7 +8,7 @@ import {
 } from './registry-shared'
 import { formatLineChartValue, lineChartGeometry } from '../controls/line-chart-runtime'
 import { resolvedThresholds, smoothChartPath, thresholdColor } from '../controls/weather-chart-runtime'
-import type { ComponentControllerHooks } from './types'
+import type { ComponentControllerHooks } from './registry-shared'
 
 export function register(registerComponent: (type: any, def: any) => void) {
   registerComponent('line-chart', {

@@ -1,6 +1,6 @@
 import { clampNumberWithFallback, normalizeCssColor, resolveMdiIconUrl } from './registry-shared'
 import { navigationButtonIsActive, createNavigationEffectsSvg } from './navigation-effects'
-import { navigationContentUnitPx } from './content-units'
+import { navigationContentUnitPx } from './registry-shared'
 import { isEntityComponentActive } from './cover-climate-state'
 
 export function navigationComponentRenderer(navigationButtonComponent: any, navigationButtonRenderEnvironment: any) {

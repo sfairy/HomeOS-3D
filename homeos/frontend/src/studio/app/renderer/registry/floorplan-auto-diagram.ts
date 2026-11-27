@@ -15,9 +15,9 @@ import {
 import { lightStatisticsSummary } from '../controls/light-statistics-runtime'
 import { resolveAssetSource } from './asset-state'
 import { isCoverAuthoredActive } from './cover-climate-state'
-import { isEntityStateActive } from './entity-state-active'
-import { componentContentUnitsPx } from './content-units'
-import type { RenderPropertyBag, ComponentControllerHooks } from './types'
+import { isEntityStateActive } from './registry-shared'
+import { componentContentUnitsPx } from './registry-shared'
+import type { RenderPropertyBag, ComponentControllerHooks } from './registry-shared'
 
 import { domElement } from '@app/shared/util/dom-factory'
 export function registerFloorplanAutoDiagramComponent(registerComponent: (type: any, def: any) => void) {

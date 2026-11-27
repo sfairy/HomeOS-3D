@@ -16,7 +16,7 @@ import { renderEventLogWall } from './event-log-wall'
 import { buttonComponentRenderers } from './button-renderers'
 import { navigationComponentRenderer } from './navigation-button'
 import { renderPercentageBarControl } from './percentage-bar'
-import type { RenderPropertyBag, ComponentControllerHooks } from './types'
+import type { RenderPropertyBag, ComponentControllerHooks } from './registry-shared'
 
 export type { RenderPropertyBag, ComponentControllerHooks }
 

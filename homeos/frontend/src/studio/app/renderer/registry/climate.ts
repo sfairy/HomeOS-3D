@@ -8,7 +8,7 @@ import {
 } from './registry-shared'
 import { climateDefaultIcon, resolveClimateDeviceType } from '@app/shared/device'
 import { formatClimateStateLabel, isClimatePoweredOn } from './cover-climate-state'
-import { componentContentUnitsPx } from './content-units'
+import { componentContentUnitsPx } from './registry-shared'
 
 import { domElement } from '@app/shared/util/dom-factory'
 export function register(registerComponent: (type: any, def: any) => void) {

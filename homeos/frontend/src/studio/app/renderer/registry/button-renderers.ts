@@ -7,7 +7,7 @@ import {
   appendSvgElement,
 } from './registry-shared'
 import { formatEntityState, isCoverComponentActive, resolveEntityIcon } from './cover-climate-state'
-import { componentContentUnitsPx } from './content-units'
+import { componentContentUnitsPx } from './registry-shared'
 
 import { domElement } from '@app/shared/util/dom-factory'
 export const buttonComponentRenderers = {

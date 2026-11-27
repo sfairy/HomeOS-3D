@@ -11,7 +11,7 @@ import {
 } from '../controls/event-log-runtime'
 import { navigateInShell } from '@/studio/platform/shell-navigation'
 import { clampNumberWithFallback, normalizeCssColor } from './registry-shared'
-import { componentContentUnitsPx } from './content-units'
+import { componentContentUnitsPx } from './registry-shared'
 
 import { domElement } from '@app/shared/util/dom-factory'
 type ComponentControllerHooks = {

@@ -333,3 +333,44 @@ export function createCameraVisualState(
     },
   }
 }
+
+/* ==========================================================================
+   以下三段原先各自是独立文件（types.ts / content-units.ts / entity-state-active.ts）。
+   它们都只有 6–12 行、且只被 registry 内部的渲染器家族使用，独立成文件的收益为零；
+   合并进本文件后 import 路径少一跳，也避免「一个类型改了三处要同步」。
+   ========================================================================== */
+
+/* ── 原 types.ts：2D 面板渲染器的共享类型（原从 register-all.ts 抽出）── */
+
+export type RenderPropertyBag = any
+export type ComponentControllerHooks = {
+  syncFloorplanAutoDiagramState?: () => void
+  hbSyncVacuumMap?: () => void
+  syncLineChartState?: (...stateArgs: any[]) => any
+  cleanupLineChartHover?: () => void
+  pushEvent?: (...eventArgs: any[]) => any
+}
+
+/* ── 原 content-units.ts：画布单位 → px 的换算 ── */
+export function componentContentUnitsPx(unitsComponent: any, unitsRenderEnvironment: any) {
+  const unitsComponentScale = Math.max(0.01, Number(unitsRenderEnvironment?.document?.canvas?.componentScale || 1))
+  return {
+    width: Math.max(1, Number(unitsComponent?.position?.width || 100)) / unitsComponentScale / 100,
+    height: Math.max(1, Number(unitsComponent?.position?.height || 100)) / unitsComponentScale / 100,
+  }
+}
+export function navigationContentUnitPx(navigationUnitsComponent: any, navigationUnitsRenderEnvironment: any) {
+  return (componentContentUnitsPx(navigationUnitsComponent, navigationUnitsRenderEnvironment).height * 100) / 64.36
+}
+
+/* ── 原 entity-state-active.ts：实体是否处于「活跃」态 ──
+   注意与上面的 isActiveStateText() **不是同一个判定**：
+   isActiveStateText 收「状态载荷」，活跃集合是 on/open/true/home；
+   本函数收「实体 id + 环境」，活跃集合是 on/true/1/open/opening/active/playing。
+   两者口径来自不同调用方，合并成一个会让其中一侧行为改变。 */
+export function isEntityStateActive(stateEntityId: any, stateLookupEnvironment: any) {
+  if (!stateEntityId) return false
+  const entityStateRecord = stateLookupEnvironment?.states?.get?.(String(stateEntityId)),
+    entityStateText = String(entityStateRecord?.newState?.state ?? entityStateRecord?.state ?? '').toLowerCase()
+  return ['on', 'true', '1', 'open', 'opening', 'active', 'playing'].includes(entityStateText)
+}
