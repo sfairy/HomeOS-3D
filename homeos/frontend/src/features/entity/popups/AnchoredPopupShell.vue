@@ -230,5 +230,5 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-@import '@/app/styles/anchored-popup-shells.css';
+@import '@/app/anchored-popup-shells.css';
 </style>

@@ -49,4 +49,4 @@ provide(PROFILES_KEY, panel)
 
 const { profilesSection, profilesSubnavSections, showCreateProfile } = panel
 </script>
-<style src="./profiles/styles/profiles-theme.css"></style>
+<style src="./profiles/profiles-theme.css"></style>

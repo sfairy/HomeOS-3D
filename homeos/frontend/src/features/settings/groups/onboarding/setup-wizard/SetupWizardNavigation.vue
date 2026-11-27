@@ -51,4 +51,4 @@ const nextLabel = computed(() => {
   </div>
 </template>
 
-<style scoped src="./styles/setup-wizard-navigation.css"></style>
+<style scoped src="./setup-wizard-navigation.css"></style>

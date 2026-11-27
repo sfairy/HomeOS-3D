@@ -432,4 +432,4 @@ async function onSave() {
 }
 </script>
 
-<style scoped src="./styles/entity-modals.css"></style>
+<style scoped src="./entity-modals.css"></style>

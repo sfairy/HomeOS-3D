@@ -55,4 +55,4 @@ defineProps({
 })
 </script>
 
-<style scoped src="./styles/utility-meter-tier-section.css"></style>
+<style scoped src="./utility-meter-tier-section.css"></style>

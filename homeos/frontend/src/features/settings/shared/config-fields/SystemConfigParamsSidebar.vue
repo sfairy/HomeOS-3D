@@ -202,4 +202,4 @@ function onSelectSection(sectionKey) {
 
 defineExpose({ selectSection })
 </script>
-<style src="./styles/system-config-params-sidebar.css"></style>
+<style src="./config-fields.css"></style>

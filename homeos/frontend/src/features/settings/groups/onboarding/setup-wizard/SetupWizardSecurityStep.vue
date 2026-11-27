@@ -146,4 +146,4 @@ defineProps({
   </div>
 </template>
 
-<style scoped src="./styles/setup-wizard.css"></style>
+<style scoped src="./setup-wizard.css"></style>

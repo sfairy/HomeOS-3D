@@ -72,4 +72,4 @@ defineProps({
   haWsModeLabel: { type: String, required: true },
 })
 </script>
-<style src="./styles/connection.css"></style>
+<style src="./connection.css"></style>

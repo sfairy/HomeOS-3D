@@ -89,4 +89,4 @@ defineProps({
   removeRow: { type: Function, required: true },
 })
 </script>
-<style src="./styles/account-list-editor.css"></style>
+<style src="./account-list-editor.css"></style>

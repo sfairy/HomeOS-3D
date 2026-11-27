@@ -110,4 +110,4 @@ const stepIndicator = computed(() => {
     </div>
   </div>
 </template>
-<style src="./styles/setup-wizard.css"></style>
+<style src="./setup-wizard.css"></style>

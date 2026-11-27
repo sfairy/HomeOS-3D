@@ -77,4 +77,4 @@ const popupProps = computed(() => {
 })
 </script>
 
-<style scoped src="./styles/entity-modals.css"></style>
+<style scoped src="./entity-modals.css"></style>

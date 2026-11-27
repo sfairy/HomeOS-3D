@@ -329,4 +329,4 @@ async function copyIds() {
 }
 </script>
 
-<style scoped src="./styles/device-batch-actions.css"></style>
+<style scoped src="./device-batch-actions.css"></style>

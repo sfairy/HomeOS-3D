@@ -316,4 +316,4 @@ function goPage(p: number) {
 onMounted(load)
 </script>
 
-<style scoped src="./styles/mode-trigger-logs.css"></style>
+<style scoped src="./mode-trigger-logs.css"></style>

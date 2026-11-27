@@ -335,4 +335,4 @@ async function onStreamClick() {
   color: rgba(255, 255, 255, 0.4);
 }
 </style>
-<style scoped src="../notifications/styles/notification-drawer.css"></style>
+<style scoped src="../notifications/notifications.css"></style>

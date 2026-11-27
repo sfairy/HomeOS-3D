@@ -31,18 +31,18 @@ interface RoomSensorGroup {
   sensors: SecuritySensorRef[]
 }
 
-/** 移动类传感器关键词（中英双语匹配） */
-const MOTION_KEYS = ['motion', 'occupancy', 'presence', '移动', '人体', '存在', '占位']
+/** 移动类传感器关键词（中英双语匹配）。**唯一真源**：`security.ts` 的未绑定传感器分类也用这一份。 */
+export const MOTION_KEYS = ['motion', 'occupancy', 'presence', '移动', '人体', '存在', '占位']
 /** 门窗类传感器关键词 */
-const DOOR_KEYS = ['door', 'window', 'contact', '门磁', '窗磁', '门', '窗']
+export const DOOR_KEYS = ['door', 'window', 'contact', '门磁', '窗磁', '门', '窗']
 /** 烟感类传感器关键词 */
-const SMOKE_KEYS = ['smoke', '烟雾', '烟感']
+export const SMOKE_KEYS = ['smoke', '烟雾', '烟感']
 /** 燃气类传感器关键词 */
-const GAS_KEYS = ['gas', 'methane', '燃气', '甲烷', '天然气']
+export const GAS_KEYS = ['gas', 'methane', '燃气', '甲烷', '天然气']
 /** 水浸类传感器关键词 */
-const LEAK_KEYS = ['leak', 'moisture', '漏水', '水浸']
+export const LEAK_KEYS = ['leak', 'moisture', '漏水', '水浸']
 /** 一氧化碳类传感器关键词 */
-const CO_KEYS = ['co', 'carbon_monoxide', '一氧化碳']
+export const CO_KEYS = ['co', 'carbon_monoxide', '一氧化碳']
 
 /**
  * 载体/家电运行状态词：命中说明这条名字描述的是「某台设备的运行读数」，
@@ -105,8 +105,8 @@ const DEVICE_CLASS_TYPES: Record<string, { type: string; label: string }> = {
   presence: { type: 'motion', label: '移动' },
 }
 
-/** 传感器类型 → 中文标签映射 */
-const SENSOR_TYPE_LABELS: Record<string, string> = {
+/** 传感器类型 → 中文标签映射（**唯一真源**，`security.ts` 复用）。 */
+export const SENSOR_TYPE_LABELS: Record<string, string> = {
   smoke: '烟感',
   gas: '燃气',
   co: 'CO',

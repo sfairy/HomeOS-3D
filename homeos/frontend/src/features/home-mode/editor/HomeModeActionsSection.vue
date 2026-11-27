@@ -416,4 +416,4 @@ const {
   onDragLeave,
 } = useHomeModeActionsSection(activeDraft, props)
 </script>
-<style src="./styles/home-mode.css"></style>
+<style src="./home-mode.css"></style>

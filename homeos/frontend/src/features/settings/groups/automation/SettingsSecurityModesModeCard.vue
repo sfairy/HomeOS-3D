@@ -339,4 +339,4 @@ function applyBatch() {
 }
 </script>
 
-<style src="./styles/security-modes.css"></style>
+<style src="./security-modes.css"></style>

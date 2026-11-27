@@ -151,4 +151,4 @@ defineProps({
   </SettingsCard>
 </template>
 
-<style scoped src="./styles/client-power.css"></style>
+<style scoped src="./client-power.css"></style>

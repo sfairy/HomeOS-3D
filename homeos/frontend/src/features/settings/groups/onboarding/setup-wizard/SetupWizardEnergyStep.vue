@@ -289,4 +289,4 @@ watch(
   </div>
 </template>
 
-<style scoped src="./styles/setup-wizard-energy-step.css"></style>
+<style scoped src="./setup-wizard-energy-step.css"></style>

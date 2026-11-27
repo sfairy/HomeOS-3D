@@ -437,4 +437,4 @@ onBeforeUnmount(() => {
   nowTimer = null
 })
 </script>
-<style src="./styles/admin-hubs.css"></style>
+<style src="./system.css"></style>

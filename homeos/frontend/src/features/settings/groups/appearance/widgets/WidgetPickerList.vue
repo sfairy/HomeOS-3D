@@ -45,4 +45,4 @@ function rowClass() {
 }
 </script>
 
-<style scoped src="../../../shared/styles/settings-cards.css"></style>
+<style scoped src="../../../shared/settings-cards.css"></style>

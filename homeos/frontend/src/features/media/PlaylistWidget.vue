@@ -256,4 +256,4 @@ watch(players, () => {
 })
 </script>
 
-<style scoped src="./styles/playlist-widget.css"></style>
+<style scoped src="./media.css"></style>

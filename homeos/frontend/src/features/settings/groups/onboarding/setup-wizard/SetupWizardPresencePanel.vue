@@ -260,4 +260,4 @@ function memberLastSeen(m) {
     </template>
   </section>
 </template>
-<style src="./styles/setup-wizard.css"></style>
+<style src="./setup-wizard.css"></style>

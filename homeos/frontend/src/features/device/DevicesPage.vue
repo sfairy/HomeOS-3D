@@ -332,8 +332,8 @@ watch(activeDomain, (id) => {
 </script>
 
 <style>
-@import './styles/devices-view.css';
+@import './devices-view.css';
 /* 设备域主题样式：属于本域组件（DeviceOverviewPanel / DeviceAnalyticsPanel / DeviceAttrsPanel …），
    随页面按需加载。放在域内后，列表页与详情页各自引入同一份，不再依赖「先访问过列表页」。 */
-@import './styles/devices-theme.css';
+@import './devices-theme.css';
 </style>

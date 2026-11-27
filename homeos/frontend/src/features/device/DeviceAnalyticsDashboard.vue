@@ -235,5 +235,5 @@ const {
 </script>
 
 <style>
-@import './styles/device-panels.css';
+@import './device-panels.css';
 </style>

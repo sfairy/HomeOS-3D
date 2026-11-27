@@ -263,4 +263,4 @@ function toggleTab(id: string) {
 }
 </script>
 
-<style scoped src="./styles/weather-hub-config-panel.css"></style>
+<style scoped src="./widgets.css"></style>

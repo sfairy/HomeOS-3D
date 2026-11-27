@@ -217,4 +217,4 @@ onDeactivated(leaveEmbedPage)
 onUnmounted(leaveEmbedPage)
 </script>
 
-<style scoped src="./styles/embed-page.css"></style>
+<style scoped src="./embed-page.css"></style>

@@ -322,7 +322,7 @@ watch(
 )
 </script>
 
-<style src="./app/styles/route-transitions.css"></style>
+<style src="./app/route-transitions.css"></style>
 
 <style scoped>
 /* 非主壳路由的 toast 宿主：VNotification 默认 position:absolute，这里改成 fixed 铺满视口。 */

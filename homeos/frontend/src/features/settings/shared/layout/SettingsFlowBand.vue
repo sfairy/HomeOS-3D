@@ -99,4 +99,4 @@ watch(
 const toggleLabel = computed(() => props.toggleLabel || '流程概览')
 </script>
 
-<style src="../styles/settings-flow-band.css"></style>
+<style src="../settings-flow-band.css"></style>

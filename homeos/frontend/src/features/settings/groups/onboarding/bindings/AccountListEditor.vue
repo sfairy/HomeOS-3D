@@ -193,4 +193,4 @@ function addRow() {
   ensureRows().push({ number: '', label: '' })
 }
 </script>
-<style src="./styles/account-list-editor.css"></style>
+<style src="./account-list-editor.css"></style>

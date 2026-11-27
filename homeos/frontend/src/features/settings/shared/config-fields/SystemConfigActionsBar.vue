@@ -110,4 +110,4 @@ function onFileChange(ev: Event) {
 }
 </script>
 
-<style scoped src="./styles/system-config-actions-bar.css"></style>
+<style scoped src="./config-fields.css"></style>

@@ -310,4 +310,4 @@ function applyQuickPreset() {
     </footer>
   </section>
 </template>
-<style src="./styles/connection.css"></style>
+<style src="./connection.css"></style>

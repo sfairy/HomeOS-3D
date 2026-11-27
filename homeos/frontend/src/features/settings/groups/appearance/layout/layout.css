@@ -1,0 +1,429 @@
+.ef-color-picker {
+  position: relative;
+  display: inline-flex;
+}
+
+.ef-color-picker__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px 6px 8px;
+  border-radius: var(--hos-r-2);
+  border: var(--hos-hairline) solid color-mix(in srgb, var(--swatch) 35%, rgba(255, 255, 255, 0.1));
+  background: color-mix(in srgb, var(--swatch) 10%, rgba(255, 255, 255, 0.03));
+  color: rgba(255, 255, 255, 0.78);
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.ef-color-picker__trigger:hover {
+  background: color-mix(in srgb, var(--swatch) 16%, rgba(255, 255, 255, 0.04));
+  border-color: color-mix(in srgb, var(--swatch) 50%, rgba(0, 0, 0, 0));
+  box-shadow: none;
+}
+
+.ef-color-picker__swatch {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--hos-r-pill);
+  background: var(--swatch);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.22);
+}
+
+.ef-color-picker__label {
+  font-size: var(--hos-fs-2);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.ef-color-picker__chev {
+  width: 12px;
+  height: 12px;
+  opacity: 0.45;
+  transition:
+    transform 0.18s ease,
+    opacity 0.18s ease;
+}
+
+.ef-color-picker__chev--open {
+  transform: rotate(180deg);
+  opacity: 0.75;
+}
+
+.ef-color-picker__panel {
+  position: fixed;
+  z-index: var(--z-max);
+  min-width: 228px;
+  padding: 10px;
+  border-radius: var(--hos-dd-panel-radius);
+  background: var(--hos-dd-panel-bg);
+  border: var(--hos-hairline) solid var(--hos-dd-panel-border);
+  box-shadow: var(--hos-dd-panel-shadow);
+  overflow: auto;
+}
+
+.ef-color-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.ef-color-picker__chip {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 4px 6px;
+  border-radius: var(--hos-r-2);
+  border: var(--hos-hairline) solid transparent;
+  background: rgba(255, 255, 255, 0.025);
+  cursor: pointer;
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease,
+    transform 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.ef-color-picker__chip:hover {
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateY(-1px);
+}
+
+.ef-color-picker__chip--active {
+  border-color: color-mix(in srgb, var(--swatch) 45%, rgba(0, 0, 0, 0));
+  background: color-mix(in srgb, var(--swatch) 12%, rgba(0, 0, 0, 0));
+  box-shadow: none;
+}
+
+.ef-color-picker__chip-fill {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--hos-r-2);
+  background: radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.35), transparent 45%), var(--swatch);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.18);
+}
+
+.ef-color-picker__check {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--hos-r-pill);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--set-fs-micro, 12px);
+  font-weight: 800;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.45);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.25);
+  line-height: 1;
+}
+
+.ef-color-picker__chip-name {
+  font-size: var(--hos-fs-2);
+  font-weight: 600;
+  color: var(--hos-fg-2);
+  line-height: 1;
+}
+
+.ef-color-picker__chip--active .ef-color-picker__chip-name {
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.ef-picker-pop-enter-active,
+.ef-picker-pop-leave-active {
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease;
+}
+
+.ef-picker-pop-enter-from,
+.ef-picker-pop-leave-to {
+  opacity: 0;
+  transform: translateY(-4px) scale(0.98);
+}
+
+.ef-picker-pop-enter-from.ef-color-picker__panel--top,
+.ef-picker-pop-leave-to.ef-color-picker__panel--top {
+  transform: translateY(4px) scale(0.98);
+}
+
+/* ── Tailwind 颜色类替换：scoped 引用 CSS 变量 ── */
+.ldp-c-muted {
+  color: var(--set-text-faint);
+}
+.ldp-c-faint {
+  color: var(--set-text-faint, rgba(255, 255, 255, 0.3));
+}
+.ldp-c-text {
+  color: var(--set-text-secondary, rgba(255, 255, 255, 0.65));
+}
+.ldp-c-indigo {
+  color: var(--premium-accent-violet, #818cf8);
+}
+
+/* 缩放开关的「窗口过窄」提示：用令牌而非硬编码，跟随高对比度档 */
+.ldp-c-warn {
+  color: var(--hos-color-warning-text, #ffd07a);
+}
+
+.ldp-scale-badge {
+  border-color: rgba(99, 102, 241, 0.2);
+}
+
+.ldp-pos-btn--active {
+  background: rgba(147, 51, 234, 0.2);
+  color: var(--premium-accent-violet, #c084fc);
+  border-color: rgba(168, 85, 247, 0.5);
+}
+.ldp-pos-btn--idle {
+  background: rgba(0, 0, 0, 0.3);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: var(--set-text-faint, rgba(255, 255, 255, 0.4));
+}
+
+/* SettingsCard extra-class 与 SettingsCardIntro icon/orb 透传（需 :deep 穿透） */
+.ldp-scaling-on {
+  border-color: rgba(99, 102, 241, 0.35) !important;
+  background: rgba(49, 46, 129, 0.2) !important;
+}
+.ldp-ic-on {
+  color: var(--premium-accent-violet, #818cf8);
+}
+.ldp-ic-off {
+  color: var(--set-text-faint);
+}
+.ldp-orb-on {
+  background: rgba(99, 102, 241, 0.2);
+  border: var(--hos-hairline) solid rgba(99, 102, 241, 0.4);
+}
+.ldp-orb-off {
+  background: rgba(255, 255, 255, 0.05);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.1);
+}
+
+/* 从 SettingsLayoutEditSection.vue 抽出 */
+
+.layout-edit-hero {
+  position: relative;
+  overflow: hidden;
+  margin-top: 10px;
+  padding: var(--hos-panel-padding-default, 20px);
+  border-radius: var(--hos-radius-panel, 20px);
+  border: var(--hos-hairline) solid rgba(99, 102, 241, 0.22);
+  background: linear-gradient(135deg, rgba(67, 56, 202, 0.22) 0%, rgba(15, 23, 42, 0.55) 42%, rgba(0, 0, 0, 0.35) 100%);
+  transition:
+    border-color 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+/* 3D 户型图绘制入口：cyan 变体，与仪表盘编辑器（indigo）区分 */
+.layout-edit-hero--studio {
+  border-color: rgba(34, 211, 238, 0.24);
+  background: linear-gradient(135deg, rgba(8, 145, 178, 0.22) 0%, rgba(15, 23, 42, 0.55) 42%, rgba(0, 0, 0, 0.35) 100%);
+}
+
+.layout-edit-hero--studio .layout-edit-hero__mesh {
+  background-image:
+    linear-gradient(rgba(34, 211, 238, 0.14) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34, 211, 238, 0.14) 1px, transparent 1px);
+}
+
+.layout-edit-hero--studio .layout-edit-hero__glow {
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.32) 0%, transparent 68%);
+}
+
+.layout-edit-hero__badge--studio {
+  color: #a5f3fc;
+  background: rgba(34, 211, 238, 0.18);
+  border-color: rgba(34, 211, 238, 0.38);
+}
+
+.layout-edit-hero__badge--studio .layout-edit-hero__badge-dot {
+  background: #67e8f9;
+}
+
+.layout-edit-hero__cta--studio {
+  border-color: rgba(165, 243, 252, 0.45);
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.85) 0%, rgba(14, 116, 144, 0.95) 100%);
+  box-shadow:
+    0 8px 24px rgba(14, 116, 144, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.layout-edit-hero__cta--studio:hover {
+  box-shadow:
+    0 12px 28px rgba(14, 116, 144, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.layout-edit-hero__mesh {
+  position: absolute;
+  inset: 0;
+  opacity: 0.35;
+  background-image:
+    linear-gradient(rgba(129, 140, 248, 0.14) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(129, 140, 248, 0.14) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: linear-gradient(120deg, #000 20%, transparent 85%);
+  pointer-events: none;
+}
+
+.layout-edit-hero__glow {
+  position: absolute;
+  top: -40%;
+  right: -8%;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(129, 140, 248, 0.35) 0%, transparent 68%);
+  pointer-events: none;
+  transition: background 0.3s ease;
+}
+
+.layout-edit-hero--live .layout-edit-hero__glow {
+  background: radial-gradient(circle, rgba(248, 113, 113, 0.42) 0%, transparent 68%);
+  animation: layout-edit-glow-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes layout-edit-glow-pulse {
+  0%,
+  100% {
+    opacity: 0.75;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+.layout-edit-hero__body {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.layout-edit-hero__info {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.layout-edit-hero__badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: var(--hos-chip-pad-y, 6px) var(--hos-chip-pad-x, 12px);
+  border-radius: var(--hos-radius-pill);
+  font-size: var(--set-fs-micro, 12px);
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: #c7d2fe;
+  background: rgba(99, 102, 241, 0.2);
+  border: var(--hos-hairline) solid rgba(129, 140, 248, 0.35);
+  box-shadow: none;
+}
+
+.layout-edit-hero__badge-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #818cf8;
+  box-shadow: none;
+}
+
+@keyframes layout-edit-dot-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.82);
+  }
+}
+
+.layout-edit-hero__title {
+  margin: 0;
+  font-size: var(--set-fs-body);
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.02em;
+}
+
+.layout-edit-hero__hint {
+  margin: 4px 0 0;
+  font-size: var(--set-fs-caption);
+  color: var(--hos-text-secondary);
+  line-height: 1.45;
+}
+
+.layout-edit-hero__cta {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 20px;
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid rgba(165, 180, 252, 0.45);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.85) 0%, rgba(79, 70, 229, 0.95) 100%);
+  color: #fff;
+  font-size: var(--set-fs-body-sm);
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow:
+    0 8px 24px rgba(79, 70, 229, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    filter 0.2s ease;
+}
+
+.layout-edit-hero__cta:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+  box-shadow:
+    0 12px 28px rgba(79, 70, 229, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+/* ≤720 settings-scroll：英雄区改纵排，CTA 拉满（LAY-16） */
+@container settings-scroll (max-width: 720px) {
+  .layout-edit-hero__body {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .layout-edit-hero__cta {
+    justify-content: center;
+    width: 100%;
+  }
+}
+
+.layout-edit-flow-band__shell {
+  --flow-glow-a: rgba(129, 140, 248, var(--flow-glow-alpha-strong));
+  --flow-glow-b: rgba(99, 102, 241, var(--flow-glow-alpha-b));
+}
+
+/* —— SettingsLayoutEventlogSection —— */
+/* 死副本：本组件（SettingsLayoutEditSection.vue / EventlogSection）没有任何
+   <Transition name="fade">，这两条 scoped 规则从未命中。全局唯一来源见 modal-theme.css。 */

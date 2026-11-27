@@ -686,4 +686,4 @@ onUnmounted(() => {
 })
 </script>
 
-<style src="./styles/license-panel.css"></style>
+<style src="./system.css"></style>

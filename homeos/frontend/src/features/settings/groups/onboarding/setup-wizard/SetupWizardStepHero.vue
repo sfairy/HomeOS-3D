@@ -76,4 +76,4 @@ const hero = computed(() => STEP_HERO[props.stepId as keyof typeof STEP_HERO] ||
   </div>
 </template>
 
-<style scoped src="./styles/setup-wizard-step-hero.css"></style>
+<style scoped src="./setup-wizard-step-hero.css"></style>

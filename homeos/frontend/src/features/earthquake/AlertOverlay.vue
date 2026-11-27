@@ -287,4 +287,4 @@ onUnmounted(() => {
 })
 </script>
 
-<style scoped src="./styles/alert-overlay.css"></style>
+<style scoped src="./earthquake.css"></style>

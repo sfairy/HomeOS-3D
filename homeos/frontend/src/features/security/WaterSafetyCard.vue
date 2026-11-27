@@ -22,7 +22,7 @@ import { RouterLink } from 'vue-router'
 import { Droplets, RefreshCw, ShieldAlert, Waves } from '@lucide/vue'
 import { closeWaterValve, getWaterStatus, openWaterValve } from '@/domain/api/water'
 import type { WaterStatus } from '@/domain/api/water'
-import '@/kernel/ui/styles/hos-icon-btn.css'
+import '@/kernel/ui/hos-icon-btn.css'
 
 const loading = ref(true)
 const busy = ref(false)

@@ -15,7 +15,7 @@ import { ZoneEditorList as SecurityZoneEditorList } from '@/features/security/in
 import FloatingEditorLayoutSection from './EditorLayoutSection.vue'
 import FloatingEditorDataSection from './EditorDataSection.vue'
 import FloatingEditorHubTabsSection from './EditorHubTabsSection.vue'
-import './styles/floating.css'
+import './floating.css'
 
 const openSection = defineModel('openSection', { type: [String, null], default: 'layout' })
 const afhConfig = defineModel('afhConfig', { type: Object, required: true })

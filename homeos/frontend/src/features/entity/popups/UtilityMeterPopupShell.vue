@@ -112,7 +112,7 @@
 import HosSelect from '@/domain/entity/entity-select/HosSelect.vue'
 import { computed } from 'vue'
 import { ChevronDown } from '@lucide/vue'
-import '@/kernel/ui/styles/utility-meter-popup.css'
+import '@/kernel/ui/utility-meter-popup.css'
 
 const props = defineProps({
   theme: {
@@ -165,4 +165,4 @@ const themeStyle = computed(() => ({
 }))
 </script>
 
-<style src="./styles/popup-accents.css"></style>
+<style src="./popup-accents.css"></style>

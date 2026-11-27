@@ -513,4 +513,4 @@ onUnmounted(() => {
 })
 </script>
 
-<style src="./styles/device-panels.css"></style>
+<style src="./device-panels.css"></style>

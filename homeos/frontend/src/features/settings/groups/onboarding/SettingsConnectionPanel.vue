@@ -127,4 +127,4 @@ const {
   cancelChanges,
 } = useConnectionPanel(() => props.activeTab)
 </script>
-<style src="./connection/styles/connection.css"></style>
+<style src="./connection/connection.css"></style>

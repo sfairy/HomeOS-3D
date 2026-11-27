@@ -59,7 +59,7 @@
  */
 import { Droplets, Thermometer } from '@lucide/vue'
 import { formatSummaryValue } from './echarts'
-import './styles/home-climate-chart.css'
+import './home-climate-chart.css'
 
 defineProps({
   /** ClimateSummaryRow[]：{ key, name, temperature, humidity, temperatureLevel, humidityLevel } */

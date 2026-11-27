@@ -94,29 +94,48 @@ export function createEntityInitHelpers(deps: EntityInitDeps) {
   }
 
   /**
+   * 应用一批实体到内存（追加合并），返回本次新增的可见实体数。
+   *
+   * `mergeEntityListAppend` 与 `mergeInitialStatesChunk` 共用这条链，唯一差别是
+   * `friendlyNamesMap` 取名的来源：
+   * - `merged`：用**合并后**的实体 —— append 场景下本地可能已有 delta，名字以合并结果为准；
+   * - `incoming`：用 chunk 原实体 —— 启动分片是快照，名字以快照为准。
+   *
+   * 两条链此前各抄了一遍（连 `isStaleState` / `mergeChunkIntoNewerEntity` 的分支都相同），
+   * 改一处漏一处会让「追加」与「分片」对同一批实体算出不同的新增数。
+   *
+   * @param entityList 待应用的实体列表
+   * @param nameSource friendlyNamesMap 取名用合并后的实体还是入参实体
+   * @returns 本次新增的可见实体数（已存在的实体不计入）
+   */
+  function applyEntityBatch(entityList: readonly HaEntityState[], nameSource: 'merged' | 'incoming'): number {
+    let added = 0
+    for (const entity of entityList) {
+      const id = entity.entity_id!
+      if (!deps.entityVisible(id)) continue
+      const previous = deps.entities[id]
+      const had = Boolean(previous)
+      // 与 mergeInitialStatesChunk 同口径：IDB deferred 可能晚于已应用的 WS 增量，
+      // 直接覆盖会把灯/锁闪回小时级旧缓存，且之后没有推送纠正。
+      if (!isStaleState(entity.last_updated ?? entity.last_changed, previous)) {
+        deps.entities[id] = entity
+      } else if (previous) {
+        deps.entities[id] = mergeChunkIntoNewerEntity(previous, entity)
+      }
+      if (!had) added++
+      const name = getEntityDisplayName(id, nameSource === 'merged' ? deps.entities[id]! : entity)
+      if (name) deps.friendlyNamesMap[id] = name
+    }
+    return added
+  }
+
+  /**
    * 追加合并实体列表到内存（不清理已有实体），同步更新 friendlyNamesMap 与 totalCount。
    * @param entityList 待追加的实体列表
    * @returns 本次新增的可见实体数（已存在的实体不计入）
    */
   function mergeEntityListAppend(entityList: HaEntityState[]): number {
-    let added = 0
-    const len = entityList.length
-    for (let i = 0; i < len; i++) {
-      const entity = entityList[i]
-      if (!deps.entityVisible(entity.entity_id!)) continue
-      const previous = deps.entities[entity.entity_id!]
-      const had = Boolean(previous)
-      // 与 mergeInitialStatesChunk 同口径：IDB deferred 可能晚于已应用的 WS 增量，
-      // 直接覆盖会把灯/锁闪回小时级旧缓存，且之后没有推送纠正。
-      if (!isStaleState(entity.last_updated ?? entity.last_changed, previous)) {
-        deps.entities[entity.entity_id!] = entity
-      } else if (previous) {
-        deps.entities[entity.entity_id!] = mergeChunkIntoNewerEntity(previous, entity)
-      }
-      if (!had) added++
-      const name = getEntityDisplayName(entity.entity_id!, deps.entities[entity.entity_id!]!)
-      if (name) deps.friendlyNamesMap[entity.entity_id!] = name
-    }
+    const added = applyEntityBatch(entityList, 'merged')
     if (added) deps.totalCount.value += added
     return added
   }
@@ -315,25 +334,11 @@ export function createEntityInitHelpers(deps: EntityInitDeps) {
   function mergeInitialStatesChunk(chunk: HaEntityState[], token: number, expectedTotal = 0): void {
     if (token !== initStatesBatchToken) return
     const sorted = sortEntitiesBySyncPriority(chunk)
-    let visibleAdded = 0
-    for (let i = 0; i < sorted.length; i++) {
-      const entity = sorted[i]
-      if (!deps.entityVisible(entity.entity_id!)) continue
-      const previous = deps.entities[entity.entity_id!]
-      const had = Boolean(previous)
-      // 启动分片是**快照**：chunk 生成早于 WS 增量时，直接覆盖会把刚到的新状态写回旧值，
-      // 而且之后没有任何推送会来纠正它（HA 只在真正变化时才发）。
-      // 命中「本地更新」时不整条跳过：本地可能只是 delta 合并出的半实体，
-      // 用 chunk 补全缺失属性键（state / 时间戳仍以本地为准）。
-      if (!isStaleState(entity.last_updated ?? entity.last_changed, previous)) {
-        deps.entities[entity.entity_id!] = entity
-      } else if (previous) {
-        deps.entities[entity.entity_id!] = mergeChunkIntoNewerEntity(previous, entity)
-      }
-      if (!had) visibleAdded++
-      const name = getEntityDisplayName(entity.entity_id!, entity)
-      if (name) deps.friendlyNamesMap[entity.entity_id!] = name
-    }
+    // 启动分片是**快照**：chunk 生成早于 WS 增量时，直接覆盖会把刚到的新状态写回旧值，
+    // 而且之后没有任何推送会来纠正它（HA 只在真正变化时才发）。
+    // 命中「本地更新」时不整条跳过：本地可能只是 delta 合并出的半实体，
+    // 用 chunk 补全缺失属性键（state / 时间戳仍以本地为准）。这条判定在 applyEntityBatch 里。
+    const visibleAdded = applyEntityBatch(sorted, 'incoming')
     deps.totalCount.value += visibleAdded
     if (expectedTotal > 0) {
       deps.entityLoadProgress.value = Math.min(65, Math.round((deps.totalCount.value / expectedTotal) * 65))

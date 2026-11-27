@@ -48,4 +48,4 @@ withDefaults(
 )
 </script>
 
-<style src="../styles/settings-feature-master.css"></style>
+<style src="../settings-feature-master.css"></style>

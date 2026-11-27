@@ -17,7 +17,7 @@
  * 仅渲染曲线绘制区与双轴标签，图表实例由父级通过 setChartRef 注入。
  */
 import type { ComponentPublicInstance, PropType } from 'vue'
-import './styles/home-climate-chart.css'
+import './home-climate-chart.css'
 
 defineProps({
   activeView: { type: String, required: true },

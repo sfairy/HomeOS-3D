@@ -458,4 +458,4 @@ onBeforeUnmount(() => {
   if (testTtsTipTimer) clearTimeout(testTtsTipTimer)
 })
 </script>
-<style src="./voice/styles/voice-overview.css"></style>
+<style src="./voice/voice-overview.css"></style>

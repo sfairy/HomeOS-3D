@@ -232,4 +232,4 @@ onMounted(loadChecklist)
   </div>
 </template>
 
-<style scoped src="./styles/setup-wizard-complete-step.css"></style>
+<style scoped src="./setup-wizard-complete-step.css"></style>

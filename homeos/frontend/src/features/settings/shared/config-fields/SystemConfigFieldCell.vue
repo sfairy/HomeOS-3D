@@ -313,4 +313,4 @@ function onLabelClick(event) {
 }
 </script>
 
-<style scoped src="./styles/system-config-field-cell.css"></style>
+<style scoped src="./config-fields.css"></style>

@@ -217,4 +217,4 @@ function focusZone(zoneId) {
 defineExpose({ layoutZones: localZones, focusZone })
 </script>
 
-<style scoped src="./styles/zone-config-panel.css"></style>
+<style scoped src="./zone-config-panel.css"></style>

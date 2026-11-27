@@ -355,4 +355,4 @@ const accountFlowSteps = computed(() => [
   },
 ])
 </script>
-<style src="./styles/settings-bindings-account-section.css"></style>
+<style src="./settings-bindings-account-section.css"></style>

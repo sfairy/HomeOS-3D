@@ -261,4 +261,4 @@ const scopeItems = computed(() => [
 ])
 </script>
 
-<style scoped src="../../shared/styles/bindings-theme.css"></style>
+<style scoped src="../../shared/bindings-theme.css"></style>

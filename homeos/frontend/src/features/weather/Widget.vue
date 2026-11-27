@@ -416,4 +416,4 @@ const weatherData = computed(() => {
 })
 </script>
 
-<style scoped src="./styles/widget.css"></style>
+<style scoped src="./weather.css"></style>

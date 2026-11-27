@@ -91,4 +91,4 @@ const weatherFlowSteps = computed((): SettingsFlowStep[] => [
 ])
 </script>
 
-<style scoped src="./styles/settings-bindings-weather-section.css"></style>
+<style scoped src="./settings-bindings-weather-section.css"></style>

@@ -363,6 +363,6 @@ async function pushZonesToBackend() {
 }
 </script>
 
-<style src="./styles/security-panel-widget.css"></style>
+<style src="./widgets.css"></style>
 
-<style scoped src="./styles/security-panel-widget-scoped.css"></style>
+<style scoped src="./widgets.css"></style>

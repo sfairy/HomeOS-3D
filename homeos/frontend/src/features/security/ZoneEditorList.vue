@@ -232,7 +232,7 @@ import EntityMultiSelect from '@/domain/entity/entity-multi-select/EntityMultiSe
 import HomeModeItemNav from '@/features/home-mode/HomeModeItemNav.vue'
 import { useSecurityZoneRooms } from '@/features/security/security-zone'
 import { useSecurityZoneEditorList } from '@/features/security/security-zone'
-import './styles/security.css'
+import './security.css'
 
 const props = defineProps({
   variant: { type: String, default: 'dash' },

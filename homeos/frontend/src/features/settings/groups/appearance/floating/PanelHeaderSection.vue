@@ -12,7 +12,7 @@ import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat
 import SettingsPopoutMenu from '@/features/settings/shared/layout/SettingsPopoutMenu.vue'
 import FloatingWidgetPickerMenu from './FloatingWidgetPickerMenu.vue'
 import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
-import './styles/floating.css'
+import './floating.css'
 
 const showAddFloating = defineModel('showAddFloating', { type: Boolean, required: true })
 

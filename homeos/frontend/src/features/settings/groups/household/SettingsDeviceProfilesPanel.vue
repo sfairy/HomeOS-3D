@@ -626,4 +626,4 @@ async function removeAlias(item, alias) {
 onMounted(load)
 </script>
 
-<style src="./styles/device-profiles.css"></style>
+<style src="./household.css"></style>

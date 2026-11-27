@@ -92,4 +92,4 @@ function insertVar(key) {
 }
 </script>
 
-<style scoped src="./styles/speech-composer.css"></style>
+<style scoped src="./speech-composer.css"></style>

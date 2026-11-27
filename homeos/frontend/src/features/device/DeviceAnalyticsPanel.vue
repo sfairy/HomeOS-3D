@@ -508,4 +508,4 @@ onUnmounted(() => {
 })
 </script>
 
-<style scoped src="./styles/device-analytics-panel.css"></style>
+<style scoped src="./device-analytics-panel.css"></style>

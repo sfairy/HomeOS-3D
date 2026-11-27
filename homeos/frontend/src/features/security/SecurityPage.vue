@@ -484,8 +484,8 @@ import { useSecurityView } from './security-view'
 import { useFocusTrap } from '@/kernel/ui/use-focus-trap'
 import { useBodyScrollLock } from '@/kernel/ui/use-body-scroll-lock'
 import { useEscLayer } from '@/kernel/ui/use-esc-stack'
-import './styles/security.css'
-import './styles/security-view.css'
+import './security.css'
+import './security-view.css'
 
 const {
   router,

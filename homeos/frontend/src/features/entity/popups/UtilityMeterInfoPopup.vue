@@ -295,5 +295,5 @@ function onActiveEntityIdUpdate(id) {
 </script>
 
 <style scoped>
-@import '@/kernel/ui/styles/utility-meter-popup.css';
+@import '@/kernel/ui/utility-meter-popup.css';
 </style>

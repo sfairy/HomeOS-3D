@@ -153,4 +153,4 @@ const layoutEditFlowSteps = computed(() => [
 const layoutEditFlowSummary = computed(() => '管理员入口 · 编辑与绘制均在此进入')
 </script>
 
-<style scoped src="./styles/settings-layout-edit-section.css"></style>
+<style scoped src="./layout.css"></style>

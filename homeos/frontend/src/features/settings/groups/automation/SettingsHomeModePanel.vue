@@ -46,4 +46,4 @@ const panelBridge = useHomeModePanelBridge()
 const pendingCount = computed(() => unref(panelBridge.value?.pendingCount) ?? 0)
 const saving = computed(() => Boolean(unref(panelBridge.value?.saving)))
 </script>
-<style src="./styles/home-mode-embed.css"></style>
+<style src="./home-mode-embed.css"></style>

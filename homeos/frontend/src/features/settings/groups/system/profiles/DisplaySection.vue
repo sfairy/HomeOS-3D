@@ -348,4 +348,4 @@ const profileFlowSummary = computed(() => {
 })
 </script>
 
-<style src="./styles/display-section.css"></style>
+<style src="./display-section.css"></style>

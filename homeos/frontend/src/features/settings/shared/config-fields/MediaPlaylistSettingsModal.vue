@@ -68,4 +68,4 @@ useFocusTrap(
 )
 </script>
 
-<style scoped src="./styles/media-playlist-settings-modal.css"></style>
+<style scoped src="./config-fields.css"></style>

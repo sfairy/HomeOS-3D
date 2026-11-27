@@ -124,7 +124,7 @@ import { ChevronDown, Check, Search } from '@lucide/vue'
 import { useClickOutside } from '@/kernel/ui/use-click-outside'
 import { useDropdownPosition } from '@/kernel/ui/popup/use-dropdown-position'
 import { entitySelectHint } from '@/domain/entity/select'
-import '../../../kernel/ui/primitives/styles/hos-select.css'
+import '../../../kernel/ui/primitives/hos-select.css'
 
 const props = defineProps({
   modelValue: { type: [String, Number], default: undefined },

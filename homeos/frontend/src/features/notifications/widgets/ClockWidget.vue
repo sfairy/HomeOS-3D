@@ -158,4 +158,4 @@ function getSolarTerm(date) {
 }
 </script>
 
-<style scoped src="./styles/clock-widget.css"></style>
+<style scoped src="./clock-widget.css"></style>

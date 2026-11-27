@@ -107,5 +107,5 @@ const { bindSourceChart, bindLevelChart, bindRankChart, bindTimeChart, bindReadC
   })
 </script>
 
-<style src="@/kernel/ui/list-page/styles/list-page-analytics.css"></style>
-<style scoped src="./styles/view-analytics.css"></style>
+<style src="@/kernel/ui/list-page/list-page-analytics.css"></style>
+<style scoped src="./notifications.css"></style>

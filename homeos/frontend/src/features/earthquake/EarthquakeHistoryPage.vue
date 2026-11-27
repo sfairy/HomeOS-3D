@@ -349,7 +349,7 @@ import {
   eewAlertKindLabel,
   eewSourceLabel,
 } from '@/kernel/earthquake'
-import './styles/earthquake-history.css'
+import './earthquake-history.css'
 
 const PAGE_SIZE = 8
 

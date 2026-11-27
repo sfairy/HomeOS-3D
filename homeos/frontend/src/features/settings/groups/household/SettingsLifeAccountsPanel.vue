@@ -95,4 +95,4 @@ const {
   cancelLayoutChanges,
 } = useSettingsLifeAccountsHub(() => props.activeTab)
 </script>
-<style src="../../shared/styles/bindings-theme.css"></style>
+<style src="../../shared/bindings-theme.css"></style>

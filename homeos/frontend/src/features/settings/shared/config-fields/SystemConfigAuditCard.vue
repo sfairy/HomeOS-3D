@@ -44,4 +44,4 @@ function formatAuditKeys(entry) {
 }
 </script>
 
-<style scoped src="./styles/system-config-audit-card.css"></style>
+<style scoped src="./config-fields.css"></style>

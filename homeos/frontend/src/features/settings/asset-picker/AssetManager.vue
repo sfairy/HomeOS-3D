@@ -63,9 +63,9 @@ import { Loader2, UploadCloud } from '@lucide/vue'
 import AssetManagerHeader from './AssetManagerHeader.vue'
 import AssetManagerBody from './AssetManagerBody.vue'
 import { MAX_UPLOAD_FILES, useAssetManager } from './use-asset-manager'
-import './styles/asset-manager.css'
-import './styles/asset-manager-header.css'
-import './styles/asset-manager-body.css'
+import './asset-picker.css'
+import './asset-manager-header.css'
+import './asset-manager-body.css'
 
 const props = defineProps({
   /** 是否为拾取器模式 */

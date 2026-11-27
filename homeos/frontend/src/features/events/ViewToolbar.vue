@@ -9,7 +9,7 @@ import HosSelect from '@/domain/entity/entity-select/HosSelect.vue'
 import SearchableSelect from '@/domain/entity/entity-select/SearchableSelect.vue'
 import { getDomainLabel } from '@/features/device/utils'
 import ListPageQueryToolbar from '@/kernel/ui/list-page/ListPageQueryToolbar.vue'
-import './styles/events-toolbar.css'
+import './events-toolbar.css'
 
 const props = defineProps({
   hours: { type: Number, required: true },

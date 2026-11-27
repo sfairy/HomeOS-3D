@@ -178,4 +178,4 @@ function filterByMode(list) {
 const filteredTriggerLogs = computed(() => filterByMode(props.triggerLogs || []))
 const filteredExecHistory = computed(() => filterByMode(props.execHistory || []))
 </script>
-<style src="./styles/home-mode.css"></style>
+<style src="./home-mode.css"></style>

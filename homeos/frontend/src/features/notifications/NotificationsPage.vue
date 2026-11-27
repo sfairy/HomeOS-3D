@@ -5,7 +5,7 @@ import NotificationsViewHero from './ViewHero.vue'
 import NotificationsViewStream from './ViewStream.vue'
 import NotificationsViewToolbar from './ViewToolbar.vue'
 import { useNotificationsView } from './index'
-import '@/kernel/ui/list-page/styles/list-page-dual-pane.css'
+import '@/kernel/ui/list-page/list-page-dual-pane.css'
 import './premium.css'
 
 const {

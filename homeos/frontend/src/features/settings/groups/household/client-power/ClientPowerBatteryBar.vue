@@ -41,4 +41,4 @@ defineProps({
     </div>
   </div>
 </template>
-<style src="./styles/client-power.css"></style>
+<style src="./client-power.css"></style>

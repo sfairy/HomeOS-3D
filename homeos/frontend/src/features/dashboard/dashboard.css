@@ -1,0 +1,789 @@
+/* 从 DashboardFooter.vue 抽出 */
+.power-panel {
+  background: rgba(var(--shell-scrim-frame-rgb), 0.82);
+  -webkit-backdrop-filter: blur(80px) saturate(260%);
+  backdrop-filter: blur(80px) saturate(260%);
+  border-top: var(--hos-hairline) solid var(--premium-border-strong);
+  flex-shrink: 0;
+  z-index: 20;
+  position: relative;
+  overflow-x: hidden;
+  overflow-y: visible;
+  isolation: isolate;
+  box-shadow:
+    0 -8px 40px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 var(--glass-bg-md);
+}
+
+.power-panel__glow {
+  position: absolute;
+  top: -60px;
+  left: 20%;
+  right: 20%;
+  height: 80px;
+  background: radial-gradient(
+    ellipse 80% 100% at 50% 100%,
+    rgba(10, 132, 255, 0.06),
+    rgba(191, 90, 242, 0.04),
+    transparent 80%
+  );
+  pointer-events: none;
+  animation: powerGlowShift 6s ease-in-out infinite;
+}
+
+@keyframes powerGlowShift {
+  0%,
+  100% {
+    opacity: 0.6;
+    transform: scaleX(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scaleX(1.3);
+  }
+}
+
+.power-panel::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0),
+    rgba(255, 159, 10, 0.25) 15%,
+    rgba(10, 132, 255, 0.2) 50%,
+    rgba(191, 90, 242, 0.2) 85%,
+    rgba(0, 0, 0, 0)
+  );
+  opacity: 0.6;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.power-panel__body {
+  position: relative;
+  z-index: 2;
+  /* 自适应网格而不是 flex:1 1 0：9 张卡在 1366 宽下 flex 会把每张压到约 100px，
+     数值被迫截断、单位换行。minmax(132px,1fr) 保证「图标 + 数值 + 单位」可读的最小宽度，
+     auto-fit 让卡片数少时自动撑满、卡片多时才换行。 */
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+  padding: 10px 16px;
+  min-height: 44px;
+  gap: var(--hos-space-sm, 8px);
+}
+
+.power-panel-empty {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  min-height: 44px;
+  width: 100%;
+}
+
+.power-panel-empty .v-empty {
+  width: 100%;
+  max-width: 520px;
+}
+
+.power-card {
+  --ef-accent: #fbbf24;
+  position: relative;
+  /* 网格项：宽度由列宽决定，显式 width:100% 避免被内容宽度反向撑开 */
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 8px 10px 8px 14px;
+  border-radius: var(--hos-radius-card);
+  overflow: hidden;
+  isolation: isolate;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  border: 1px solid var(--hos-border-hairline);
+  background: linear-gradient(180deg, var(--glass-bg-sm), var(--glass-bg-xs)), rgba(var(--shell-scrim-card-rgb), 0.35);
+  transition:
+    background 0.28s ease,
+    border-color 0.28s ease,
+    transform 0.4s var(--ease-bounce);
+}
+
+.power-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 18%;
+  bottom: 18%;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--ef-accent);
+  pointer-events: none;
+}
+
+.power-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--hos-border-hairline-strong);
+  background: linear-gradient(180deg, var(--glass-bg-md), var(--glass-bg-xs)), rgba(var(--shell-scrim-card-rgb), 0.4);
+}
+
+.power-card--yellow {
+  --ef-accent: #fbbf24;
+}
+.power-card--purple {
+  --ef-accent: #c084fc;
+}
+.power-card--cyan {
+  --ef-accent: #22d3ee;
+}
+.power-card--green {
+  --ef-accent: #4ade80;
+}
+.power-card--gold {
+  --ef-accent: #f5d76e;
+}
+.power-card--blue {
+  --ef-accent: #60a5fa;
+}
+.power-card--orange {
+  --ef-accent: #fb923c;
+}
+.power-card--rose {
+  --ef-accent: #fb7185;
+}
+.power-card--teal {
+  --ef-accent: #2dd4bf;
+}
+
+@container hos-canvas (max-width: 640px) {
+  .power-panel {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: var(--glass-off-bg-heavy);
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.45);
+  }
+
+  .power-panel__glow {
+    display: none;
+  }
+
+  .power-panel::before {
+    opacity: 0.4;
+  }
+
+  /* 触控/窄屏：单行横向滚动 + 边缘淡出提示还有更多卡（LAY-19） */
+  .power-panel__body {
+    grid-auto-flow: column;
+    grid-template-columns: none;
+    grid-auto-columns: minmax(132px, 1fr);
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x proximity;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-inline: 10px;
+    gap: 4px;
+    mask-image: linear-gradient(90deg, transparent, black 16px, black calc(100% - 16px), transparent);
+    -webkit-mask-image: linear-gradient(90deg, transparent, black 16px, black calc(100% - 16px), transparent);
+  }
+
+  .power-panel__body::-webkit-scrollbar {
+    display: none;
+  }
+
+  .power-card {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    scroll-snap-align: start;
+    padding: 6px 6px 6px 12px;
+    gap: 6px;
+  }
+
+  .power-card:hover {
+    transform: none;
+  }
+}
+@media (pointer: coarse), (hover: none) {
+  .power-panel {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: var(--glass-off-bg-heavy);
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.45);
+  }
+
+  .power-panel__glow {
+    display: none;
+  }
+
+  .power-panel::before {
+    opacity: 0.4;
+  }
+
+  /* 触控：同窄屏横滚 + 边缘淡出（LAY-19） */
+  .power-panel__body {
+    grid-auto-flow: column;
+    grid-template-columns: none;
+    grid-auto-columns: minmax(132px, 1fr);
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x proximity;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-inline: 10px;
+    gap: 4px;
+    mask-image: linear-gradient(90deg, transparent, black 16px, black calc(100% - 16px), transparent);
+    -webkit-mask-image: linear-gradient(90deg, transparent, black 16px, black calc(100% - 16px), transparent);
+  }
+
+  .power-panel__body::-webkit-scrollbar {
+    display: none;
+  }
+
+  .power-card {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    scroll-snap-align: start;
+    padding: 6px 6px 6px 12px;
+    gap: 6px;
+  }
+
+  .power-card:hover {
+    transform: none;
+  }
+}
+
+.power-card__icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--hos-radius-card);
+  background: color-mix(in srgb, var(--ef-accent, #fbbf24) 22%, #12141c);
+  /* 固定 1px 实色边，避免 0.5px 发丝边在移动端圆角处泛白晕 */
+  border: 1px solid color-mix(in srgb, var(--ef-accent, #fbbf24) 40%, #1a1d28);
+  flex-shrink: 0;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+.power-card__icon {
+  font-size: var(--premium-fs-title);
+  line-height: 1;
+}
+
+.power-card__col {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: flex-start;
+}
+
+.power-card__row {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.power-card__row--value {
+  gap: 5px;
+}
+
+.power-card__value {
+  color: color-mix(in srgb, var(--ef-accent, #fbbf24) 72%, #fff);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--premium-fs-title);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.power-card__value--date {
+  font-size: var(--premium-fs-caption);
+  font-weight: 500;
+  color: var(--hos-text-secondary);
+}
+
+.power-card__unit {
+  font-size: var(--premium-fs-micro);
+  font-weight: 600;
+  color: color-mix(in srgb, var(--ef-accent, #fbbf24) 48%, rgba(255, 255, 255, 0.42));
+  letter-spacing: 0.02em;
+  text-transform: lowercase;
+}
+
+.power-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 2px;
+  max-width: 100%;
+}
+
+.power-card__label {
+  flex-shrink: 0;
+  color: var(--hos-text-secondary);
+  font-size: var(--premium-fs-micro);
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.power-card__secondary {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  flex-shrink: 0;
+  padding-left: 8px;
+  margin-left: 0;
+  border-left: 1px solid var(--hos-border-hairline-strong);
+  white-space: nowrap;
+}
+
+.power-card__secondary--solo {
+  padding-left: 0;
+  margin-left: 0;
+  border-left: none;
+}
+
+.power-card__secondary-name {
+  font-size: var(--premium-fs-micro);
+  font-weight: 500;
+  color: var(--hos-text-faint);
+  line-height: 1.3;
+}
+
+.power-card__secondary-value {
+  font-size: var(--premium-fs-micro);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--ef-accent, #fbbf24) 62%, #fff);
+  line-height: 1.3;
+}
+
+.power-card__bar {
+  width: 100%;
+  min-width: 72px;
+  max-width: 140px;
+  margin-top: 1px;
+}
+
+@container hos-canvas (max-width: 640px) {
+  .power-card__icon-wrap {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+  }
+
+  .power-card__meta {
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+
+  .power-card__bar {
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+@media (pointer: coarse), (hover: none) {
+  .power-card__icon-wrap {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+  }
+
+  .power-card__meta {
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+
+  .power-card__bar {
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+
+/* ── 作用域语义色类（替代 Tailwind 颜色工具类） ── */
+.pcb-value-danger {
+  color: var(--set-danger, #fda4af);
+}
+.pcb-value-warn {
+  color: var(--set-warn, #fcd34d);
+}
+
+/* 从 RightSidebar.vue 抽出 */
+/** 外层容器：flex 子元素，自身控制宽度 */
+.info-panel-outer {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  min-width: 0;
+  overflow: visible;
+  z-index: 15;
+}
+
+/** 折叠按钮：在外层容器中绝对定位，位于面板左侧外部 */
+.panel-collapse-btn {
+  position: absolute;
+  left: -22px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 48px;
+  border-radius: 6px 0 0 6px;
+  background: rgba(var(--shell-scrim-dock-rgb), 0.65);
+  /* Q04：单层 token blur（侧栏档 --hos-blur-2），避免嵌套大半径 */
+  -webkit-backdrop-filter: var(--hos-blur-2);
+  backdrop-filter: var(--hos-blur-2);
+  border: var(--hos-hairline) solid var(--surface-border);
+  border-right: none;
+  color: var(--hos-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    color 0.3s,
+    background 0.3s;
+  z-index: 50;
+  padding: 0;
+}
+
+.panel-collapse-btn:hover {
+  color: rgba(255, 255, 255, 0.75);
+  background: rgba(var(--page-accent-rgb), 0.12);
+  border-color: rgba(var(--page-accent-rgb), 0.18);
+}
+
+/** 左停靠：按钮移到面板右侧 */
+.info-panel-outer--left .panel-collapse-btn {
+  left: auto;
+  right: -22px;
+  border-radius: 0 6px 6px 0;
+  border-right: var(--hos-hairline) solid var(--surface-border);
+  border-left: none;
+}
+
+/** 触控（coarse）：折叠按钮热区扩至 44×44，视觉不变 —— 透明伪元素居中延展，避免墙屏误触 */
+@media (pointer: coarse), (hover: none) {
+  .panel-collapse-btn::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+}
+
+/** 右侧面板容器：毛玻璃背景 + 左细线分隔 + 内部滚动 */
+.info-panel {
+  width: 100%;
+  position: relative;
+  background: var(--dashboard-sidebar-bg);
+  /* Q04：侧栏唯一毛玻璃层 + contain，内嵌卡片不再各自 blur */
+  -webkit-backdrop-filter: var(--hos-blur-2);
+  backdrop-filter: var(--hos-blur-2);
+  contain: paint;
+  isolation: isolate;
+  border-left: var(--hos-hairline) solid var(--dashboard-sidebar-border);
+  border-radius: var(--radius-ipad-2xl) 0 0 var(--radius-ipad-2xl);
+  margin: 10px 0 10px 0;
+  z-index: 5;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 12px;
+  padding: 16px;
+  display: flex;
+  overflow: hidden auto;
+  scrollbar-width: none;
+  box-shadow: -4px 0 28px rgba(0, 0, 0, 0.22);
+}
+
+/** 左停靠：反转边框和圆角 */
+.info-panel-outer--left .info-panel {
+  border-left: none;
+  border-right: var(--hos-hairline) solid var(--dashboard-sidebar-border);
+  border-radius: 0 var(--radius-ipad-2xl) var(--radius-ipad-2xl) 0;
+  box-shadow: 4px 0 28px rgba(0, 0, 0, 0.22);
+}
+
+/** 面板左侧渐变装饰线：蓝色→透明→紫色 */
+.info-panel::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: var(--hos-hairline);
+  background: linear-gradient(
+    180deg,
+    rgba(var(--page-accent-rgb), 0.15),
+    transparent 35%,
+    rgba(var(--page-accent-secondary-rgb, var(--page-accent-rgb)), 0.08),
+    transparent 75%
+  );
+  pointer-events: none;
+}
+
+/** 左停靠：渐变线移到右侧 */
+.info-panel-outer--left .info-panel::before {
+  left: auto;
+  right: 0;
+}
+
+/**
+ * 智能管家占位态：面板带 20px 圆角 + 七彩光边，光边有 -3px 外扩与 blur，
+ * 信息栏默认的 overflow:auto 会把它裁掉，这里放开。
+ * 部件此时不渲染（v-if），所以不需要内部滚动。
+ */
+.info-panel--agent {
+  overflow: visible;
+}
+
+/**
+ * 智能管家容器：与参考实现 `.sidebar-agent-container` 同口径 ——
+ * 绝对定位铺满信息栏内容区（内边距沿用信息栏自身，面板因此和部件严丝合缝对齐）。
+ */
+.sidebar-agent-container {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  padding: inherit;
+}
+
+/** 参考实现的 slide-fade：从右滑入 20px + 渐显；时长走面板进出档 */
+.slide-fade-enter-active,
+.slide-fade-leave-active {
+  transition:
+    opacity var(--hos-dur-slow) var(--hos-ease-spring),
+    transform var(--hos-dur-slow) var(--hos-ease-spring);
+}
+
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+  opacity: 0;
+  transform: translateX(20px);
+}
+
+/** 部件包裹器：控制单个部件的宽度与 flex 高度分配 */
+.widget-wrapper {
+  flex-direction: column;
+  width: 100%;
+  min-height: 0;
+  display: flex;
+}
+
+.widget-wrapper .error-boundary-root {
+  min-height: 0;
+}
+
+/** 明确像素高度：解除内层固定卡片（如时钟）的高度上限，让其填满包裹器。
+ *  不设 flex:!important，避免覆盖移动端横向滑动布局。 */
+.widget-wrapper--custom-h {
+  content-visibility: visible !important;
+  contain-intrinsic-size: auto !important;
+}
+
+.widget-wrapper--custom-h .info-card--widget {
+  min-height: 0 !important;
+  max-height: none !important;
+  height: 100% !important;
+}
+
+/** 信息卡片：毛玻璃 + 圆角 + 悬停抬升
+ *
+ *  ⚠ 卡片自身不做 backdrop-filter：磨砂统一由 `.info-panel` 单层承担
+ *  （与 widget-glass.css「侧栏内嵌卡片不再各自 blur」同口径）。
+ *
+ *  卡片只有 16px 内边距，自己再叠一层 blur(30px) 时，模糊半径大于它到面板
+ *  边缘的距离，四角会同时把两个方向「面板圆角外的暗场景 + 面板自身投影」
+ *  吸进来，渲染成四团暗角 —— 也就是「四个角有阴影」。
+ *
+ *  ⚠ 也不投影：卡片是嵌在面板里的内层表面（类似 iOS 分组列表行），
+ *  靠一像素描边与面板区分即可。`0 6px 18px` 的偏移(6px)与模糊(18px)
+ *  都接近卡片 20px 的圆角半径，投影会顺着圆弧铺满整个转角：四条边整体
+ *  压暗约 4/255，角上那段弧形暗带最短也最扎眼，观感就是「四个角各一块
+ *  暗斑」。去掉后，角缺口、平直边、面板三处亮度完全一致。
+ */
+.info-card {
+  background: var(--page-card-tint-soft), var(--hos-surface-1);
+  border: var(--hos-hairline) solid var(--hos-border-subtle);
+  border-radius: var(--hos-radius-panel, var(--radius-ipad-xl));
+  padding: var(--hos-panel-padding-default, 20px);
+  position: relative;
+  overflow: hidden;
+  transition:
+    transform var(--hos-transition-panel, 0.25s cubic-bezier(0.32, 0.72, 0, 1)),
+    box-shadow var(--hos-transition-panel, 0.25s cubic-bezier(0.32, 0.72, 0, 1)),
+    border-color var(--hos-transition-panel, 0.25s cubic-bezier(0.32, 0.72, 0, 1));
+}
+
+.info-card--widget {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 72px;
+  max-height: none;
+  padding: 0;
+}
+
+/** 卡片悬停：背景变亮 + 边框微亮 + 抬升 2px
+ *  投影收紧到 3px：偏移与模糊都小于 20px 圆角，四角不会再叠出暗斑。 */
+.info-card:hover {
+  background: var(--hos-surface-2, var(--hos-bg-tint-1));
+  border-color: var(--hos-border-strong, var(--premium-border-strong));
+  transform: translateY(var(--hos-hover-lift, -1px));
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+}
+
+/** 卡片顶部细线光泽：页面色渐变 */
+.info-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 12%;
+  right: 12%;
+  height: var(--hos-hairline);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--page-accent, #0a84ff) 40%, white),
+    color-mix(in srgb, var(--page-accent, #0a84ff) 20%, white),
+    transparent
+  );
+  z-index: 2;
+  pointer-events: none;
+}
+
+/** 卡片底部微光渐变 */
+.info-card::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(180deg, transparent 88%, var(--glass-bg-xs));
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/** 固定高度部件：不参与 flex 弹性分配。
+ *  高度（含下限与上限）唯一来源为 registry 的 SIDEBAR_WIDGET_DEFAULT_HEIGHT /
+ *  SIDEBAR_WIDGET_CONTENT_MIN_HEIGHT，由 RightSidebar.vue 经内联 style 下发；
+ *  此处不再按类型重复声明 height/min-height，避免双份维护后逐渐漂移。 */
+.widget-fixed,
+.widget-fixed--clock,
+.widget-fixed--weather {
+  flex: none;
+}
+.widget-fixed--quickActions {
+  flex: none;
+  overflow: visible;
+}
+
+/** 类型预设高度（唯一来源：widget-registry-meta SIDEBAR_WIDGET_DEFAULT_HEIGHT，内联 style 下发）。
+ *  恢复预设不再走「弹性区间」，避免与自定义同一数值却撑得更高。 */
+
+/** 紧凑型部件：无预设类型统一回退到 registry 的 fallback 高度（内联 style 下发） */
+.widget-fixed--mediaMini,
+.widget-elastic,
+.widget-elastic--heroSwiper,
+.widget-elastic--homeClimateChart,
+.widget-elastic--homeEnvironment,
+.widget-elastic--switchGroup,
+.widget-elastic--systemTimeline,
+.widget-elastic--customHtml,
+.widget-compact {
+  flex: none;
+}
+
+@container hos-canvas (max-width: 640px) {
+  .info-panel,
+  .panel-collapse-btn {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .info-panel {
+    background: rgba(var(--shell-scrim-card-rgb), 0.96);
+  }
+
+  .panel-collapse-btn {
+    background: rgba(var(--shell-scrim-dock-rgb), 0.92);
+  }
+}
+@media (pointer: coarse), (hover: none) {
+  .info-panel,
+  .panel-collapse-btn {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .info-panel {
+    background: rgba(var(--shell-scrim-card-rgb), 0.96);
+  }
+
+  .panel-collapse-btn {
+    background: rgba(var(--shell-scrim-dock-rgb), 0.92);
+  }
+}
+
+/**
+ * 触控端还原折叠按钮的 22px 视觉宽度。
+ * packages/shared/src/styles/touch-a11y.css 在 `@media (pointer: coarse)` 下给所有
+ * `button` 加了 `min-inline-size: var(--hos-touch-min)`（44px），本按钮因此被撑成
+ * 44×48 的近正方形：右侧压进面板、左边多凸出 22px，移动端观感与桌面端不一致。
+ * 热区已由上面的 `.panel-collapse-btn::before`（44×44 透明伪元素）保证，
+ * 这里只把视觉尺寸还原，点击面积不受影响。
+ */
+@media (pointer: coarse) {
+  .panel-collapse-btn {
+    min-inline-size: 0;
+  }
+}
+
+/**
+ * 侧边栏页面背景宿主（0.8.9）。
+ *
+ * `z-index: -1` 配合 `.info-panel` 的 `isolation: isolate` + `contain: paint`，
+ * 让背景层**画在面板自身背景之上、全部部件之下**：既不会被部件盖住，也不会盖住部件。
+ * 若改成 `z-index: 0`，绝对定位元素会压过在流的部件（定位元素默认在普通流之上）。
+ *
+ * 不设 `inset` 也不改 padding：背景层自己按百分比定位，宿主只负责裁剪范围，
+ * 因此不会改变宿主的盒模型。
+ */
+.info-panel__background {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  border-radius: inherit;
+}

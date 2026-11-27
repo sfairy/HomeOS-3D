@@ -86,4 +86,4 @@ function onStart(e: PointerEvent) {
 }
 </script>
 
-<style scoped src="./styles/eew-slide-unlock.css"></style>
+<style scoped src="./earthquake.css"></style>

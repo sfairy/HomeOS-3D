@@ -331,4 +331,4 @@ function toggleTriggerEnabled(idx, triggerIndex) {
 }
 </script>
 
-<style scoped src="./styles/home-mode-triggers-section.css"></style>
+<style scoped src="./home-mode-triggers-section.css"></style>

@@ -140,4 +140,4 @@ function refresh() {
   </div>
 </template>
 
-<style scoped src="./styles/settings-presence-entities-section.css"></style>
+<style scoped src="./settings-presence-entities-section.css"></style>

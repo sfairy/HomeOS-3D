@@ -50,7 +50,7 @@
  * 渲染图表标题栏、视图切换标签与加载/无实体/无数据三种空态。
  */
 import { Thermometer, Droplets } from '@lucide/vue'
-import './styles/home-climate-chart.css'
+import './home-climate-chart.css'
 
 defineProps({
   viewOptions: { type: Array, required: true },

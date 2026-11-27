@@ -38,4 +38,4 @@ defineProps({
 const emit = defineEmits(['install'])
 </script>
 
-<style scoped src="./styles/home-mode-preset-sidebar.css"></style>
+<style scoped src="./home-mode-preset-sidebar.css"></style>

@@ -745,4 +745,4 @@ function resetAlertsHubTabs() {
 useSettingsSidebarReentryReset(() => props.activeTab, 'alerts', resetAlertsHubTabs)
 </script>
 
-<style scoped src="./alert-rules/styles/alert-rules.css"></style>
+<style scoped src="./alert-rules/alert-rules.css"></style>

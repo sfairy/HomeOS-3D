@@ -183,7 +183,7 @@
  *    shared/presence/composables/usePresencePersonListInput。
  */
 import { Radio, Trash2, UserPlus, UserRound, ChevronLeft, ChevronRight } from '@lucide/vue'
-import './styles/presence-person-list-input.css'
+import './presence-person-list-input.css'
 import EntityMultiSelect from '@/domain/entity/entity-multi-select/EntityMultiSelect.vue'
 import { usePresencePersonListInput } from '@/features/presence/use-presence-person-list-input'
 

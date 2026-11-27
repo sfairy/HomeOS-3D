@@ -107,4 +107,4 @@ const { hubTabs, activeTab } = useHubTabs({
 const hubBodyScroll = computed(() => activeTab.value !== 'current' && activeTab.value !== 'sun')
 </script>
 
-<style scoped src="../../domain/widget/styles/widget-hub-embeds.css"></style>
+<style scoped src="../../domain/widget/widget.css"></style>

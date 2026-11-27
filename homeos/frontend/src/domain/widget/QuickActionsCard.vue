@@ -133,4 +133,4 @@ const stats = computed(() =>
 defineExpose({ stats })
 </script>
 
-<style scoped src="./styles/quick-actions-card.css"></style>
+<style scoped src="./widget.css"></style>

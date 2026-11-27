@@ -764,7 +764,7 @@ watch(
 </template>
 
 <style scoped>
-@import './styles/main-layout.css';
+@import './main-layout.css';
 </style>
 <!-- 非 scoped：覆盖子组件 HomeModeSwitcher 芯片，仅限 .tab-bar -->
-<style src="./styles/tab-bar-mode-switcher.css"></style>
+<style src="./tab-bar-mode-switcher.css"></style>

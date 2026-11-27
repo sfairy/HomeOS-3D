@@ -583,5 +583,5 @@ function onPreview() {
 }
 </script>
 
-<style src="./styles/voice-form.css"></style>
-<style scoped src="./styles/settings-voice-tts-section.css"></style>
+<style src="./voice-form.css"></style>
+<style scoped src="./settings-voice-tts-section.css"></style>

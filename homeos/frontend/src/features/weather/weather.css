@@ -1,0 +1,1308 @@
+/* 从 WeatherForecast.vue 抽出 */
+/** 部件根容器：毛玻璃卡片 + 圆角 + 阴影 */
+.weather-forecast {
+  background: rgba(255, 255, 255, 0.02);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--hos-radius-panel);
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  padding: 10px;
+  display: flex;
+  overflow: hidden;
+  overflow-x: hidden;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+}
+
+/** 头部：图标 + 标题 + 天数标签 */
+.wf-header {
+  border-bottom: var(--hos-hairline) solid var(--premium-border);
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  display: flex;
+}
+
+/** 头部图标容器：蓝色发光圆角 */
+.wf-header-icon {
+  background: rgba(10, 132, 255, 0.12);
+  border: var(--hos-hairline) solid rgba(10, 132, 255, 0.15);
+  border-radius: var(--hos-radius-card);
+  padding: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(10, 132, 255, 0.15);
+}
+
+/** 标题文字 */
+.wf-title {
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  font-size: var(--premium-fs-body-sm);
+  font-weight: 700;
+}
+
+/** 天数标签：圆角胶囊 */
+.wf-badge {
+  color: var(--text-tertiary);
+  background: rgba(255, 255, 255, 0.04);
+  border: var(--hos-hairline) solid var(--premium-border);
+  border-radius: var(--hos-radius-pill);
+  padding: 3px 12px;
+  font-size: var(--premium-fs-micro);
+  font-weight: 600;
+  margin-left: auto;
+}
+
+/** 预报列表：可滚动 + 可溢出 */
+.wf-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+}
+
+/* 滚动条样式已迁至 main.css 的 .custom-scrollbar */
+/** 单行预报条目 */
+.wf-row {
+  flex-shrink: 0;
+  min-height: 36px;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-bottom: var(--hos-hairline) solid rgba(255, 255, 255, 0.02);
+  display: flex;
+  transition: all 0.4s var(--ease-bounce);
+  border-radius: var(--hos-radius-card);
+}
+
+.wf-row:last-child {
+  border-bottom: none;
+}
+
+.wf-row:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/** 日期列：星期 + 月/日 */
+.wf-date {
+  flex-direction: column;
+  width: 44px;
+  display: flex;
+  flex-shrink: 0;
+}
+
+/** 星期文字 */
+.wf-day {
+  color: var(--text-primary);
+  font-size: var(--premium-fs-caption);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+/** 月/日数字 */
+.wf-date-num {
+  color: var(--text-tertiary);
+  font-size: var(--premium-fs-micro);
+  line-height: 1.2;
+}
+
+/** 天气图标容器 */
+.wf-icon {
+  width: 40px;
+  display: flex;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/** 天气描述文字 */
+.wf-label {
+  color: var(--text-secondary);
+  flex: 1;
+  /* 长描述（如「局部雷阵雨伴冰雹」）不能把整行撑宽：列表 overflow-x:hidden
+     只会硬裁，必须在这里省略号收尾。min-width:0 是 flex 子项可收缩的前提。 */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--premium-fs-caption);
+  font-weight: 500;
+}
+
+/** 温度列：高温 + 低温 */
+.wf-temps {
+  justify-content: flex-end;
+  gap: 12px;
+  width: 70px;
+  display: flex;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/** 最高温度：白色加粗 */
+.wf-high {
+  color: var(--text-primary);
+  font-size: var(--premium-fs-caption);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/** 最低温度：天蓝色 */
+.wf-low {
+  color: #64d2ff;
+  font-size: var(--premium-fs-caption);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Tailwind 颜色类替换：scoped 引用 CSS 变量 ── */
+
+.wf-ic-blue {
+  color: var(--premium-accent-blue, #0a84ff);
+}
+
+.wf-c-lbl {
+  color: var(--set-text-secondary, rgba(255, 255, 255, 0.55));
+}
+.wf-c-lbl-faint {
+  color: var(--set-text-tertiary);
+}
+.wf-c-muted {
+  color: var(--hos-text-secondary);
+}
+.wf-c-white {
+  color: #ffffff;
+}
+.wf-c-success {
+  color: var(--set-success, #6ee7b7);
+}
+.wf-c-danger {
+  color: var(--set-danger, #fda4af);
+}
+.wf-c-warn {
+  color: var(--set-warn, #fcd34d);
+}
+.wf-c-warn-deep {
+  color: var(--premium-accent-amber, #ff9500);
+}
+.wf-c-info {
+  color: var(--set-info, #7dd3fc);
+}
+.wf-c-blue {
+  color: var(--premium-accent-blue, #0a84ff);
+}
+.wf-c-blue-soft {
+  color: var(--set-info, #7dd3fc);
+}
+.wf-c-violet {
+  color: var(--premium-accent-violet, #c084fc);
+}
+.wf-c-cyan {
+  color: var(--premium-accent-cyan, #22d3ee);
+}
+
+/**
+ * 生活指数面板样式（天气 Hub / 居家环境「生活」子页共用）
+ */
+
+.life-indices {
+  --li-ok: #6ee7b7;
+  --li-caution: #fbbf24;
+  --li-warn: #fda4af;
+  --li-info: #7dd3fc;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+  height: 100%;
+  overflow: auto;
+  padding: 14px 16px 18px;
+  color: rgba(255, 255, 255, 0.9);
+  animation: li-enter 0.38s ease-out;
+}
+
+@keyframes li-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.life-indices--embedded {
+  padding: 8px 4px 12px;
+  gap: 12px;
+}
+
+.life-indices__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.life-indices__head--embedded .life-indices__title {
+  font-size: 14px;
+}
+
+.life-indices__title {
+  margin: 0;
+  font-size: var(--premium-fs-body);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.life-indices__sub {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--hos-text-secondary);
+}
+
+.life-indices__link {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #7dd3fc;
+  text-decoration: none;
+}
+
+.life-indices__link:hover {
+  color: #bae6fd;
+}
+
+.life-indices__tone-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.life-indices__pill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 5px 9px;
+  border-radius: var(--hos-radius-pill);
+  border: 1px solid var(--hos-glass-border);
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 12px;
+}
+
+.life-indices__pill em {
+  font-style: normal;
+  color: var(--hos-text-secondary);
+}
+
+.life-indices__pill strong {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.life-indices__pill.is-ok strong {
+  color: var(--li-ok);
+}
+.life-indices__pill.is-caution strong {
+  color: var(--li-caution);
+}
+.life-indices__pill.is-warn strong {
+  color: var(--li-warn);
+}
+
+/* 预警 */
+.life-indices__alert {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: var(--hos-radius-card);
+  border: 1px solid rgba(251, 113, 133, 0.35);
+  background:
+    radial-gradient(ellipse 80% 120% at 0% 0%, rgba(251, 113, 133, 0.18), transparent 55%),
+    linear-gradient(155deg, rgba(251, 113, 133, 0.1), rgba(0, 0, 0, 0.28));
+  animation: li-pulse-border 2.8s ease-in-out infinite;
+}
+
+@keyframes li-pulse-border {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(251, 113, 133, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(251, 113, 133, 0.08);
+  }
+}
+
+.life-indices__alert-icon {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--hos-radius-control);
+  color: var(--li-warn);
+  background: rgba(251, 113, 133, 0.16);
+}
+
+.life-indices__alert-body {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.life-indices__alert-body strong {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fecdd3;
+}
+
+.life-indices__alert-body p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* 实况条 */
+.life-indices__live {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 7px;
+}
+
+.life-indices__live-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 11px;
+  border-radius: var(--hos-radius-card);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: linear-gradient(160deg, var(--hos-bg-tint-1), rgba(0, 0, 0, 0.22));
+}
+
+.life-indices__live-chip span {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--hos-text-secondary);
+}
+
+.life-indices__live-chip strong {
+  font-size: 14px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+  font-variant-numeric: tabular-nums;
+}
+
+.life-indices__live-chip em {
+  margin-left: 2px;
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--hos-text-secondary);
+}
+
+.life-indices__live-chip.is-tone-0 {
+  border-color: rgba(56, 189, 248, 0.22);
+}
+.life-indices__live-chip.is-tone-1 {
+  border-color: rgba(52, 211, 153, 0.2);
+}
+.life-indices__live-chip.is-tone-2 {
+  border-color: rgba(251, 191, 36, 0.2);
+}
+.life-indices__live-chip.is-tone-3 {
+  border-color: rgba(167, 139, 250, 0.22);
+}
+
+/* Spotlight 拼贴宫格布局 */
+.life-indices__spotlight {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+}
+
+.life-indices__spot {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 96px;
+  padding: 14px 14px 12px;
+  border-radius: var(--hos-radius-panel);
+  border: 1px solid var(--hos-glass-border);
+  background:
+    radial-gradient(ellipse 90% 70% at 0% 0%, rgba(56, 189, 248, 0.12), transparent 55%),
+    linear-gradient(155deg, rgba(255, 255, 255, 0.05), rgba(0, 0, 0, 0.28));
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.life-indices__spot--hero {
+  min-height: 118px;
+  border-color: rgba(56, 189, 248, 0.28);
+  background:
+    radial-gradient(ellipse 100% 90% at 10% 0%, rgba(56, 189, 248, 0.2), transparent 58%),
+    linear-gradient(155deg, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.3));
+}
+
+.life-indices__spot-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.life-indices__spot-icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--hos-radius-control);
+  color: var(--li-info);
+  background: rgba(125, 211, 252, 0.12);
+}
+
+.life-indices__spot-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(125, 211, 252, 0.78);
+}
+
+.life-indices__spot-state {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #e0f2fe;
+  line-height: 1.2;
+}
+
+.life-indices__spot--hero .life-indices__spot-state {
+  font-size: 24px;
+}
+
+.life-indices__spot-desc {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--hos-text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.life-indices__spot.is-ok .life-indices__spot-icon {
+  color: var(--li-ok);
+  background: rgba(52, 211, 153, 0.14);
+}
+.life-indices__spot.is-ok .life-indices__spot-state {
+  color: var(--li-ok);
+}
+.life-indices__spot.is-ok .life-indices__spot-label {
+  color: rgba(110, 231, 183, 0.8);
+}
+
+.life-indices__spot.is-caution .life-indices__spot-icon {
+  color: var(--li-caution);
+  background: rgba(251, 191, 36, 0.14);
+}
+.life-indices__spot.is-caution .life-indices__spot-state {
+  color: var(--li-caution);
+}
+.life-indices__spot.is-caution .life-indices__spot-label {
+  color: rgba(251, 191, 36, 0.82);
+}
+
+.life-indices__spot.is-warn .life-indices__spot-icon {
+  color: var(--li-warn);
+  background: rgba(251, 113, 133, 0.14);
+}
+.life-indices__spot.is-warn .life-indices__spot-state {
+  color: var(--li-warn);
+}
+.life-indices__spot.is-warn .life-indices__spot-label {
+  color: rgba(253, 164, 175, 0.85);
+}
+
+/* 今日关注 */
+.life-indices__attention {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.life-indices__attention-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+}
+
+.life-indices__attention-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+  row-gap: 4px;
+  padding: 11px 12px;
+  border-radius: var(--hos-radius-card);
+  border: 1px solid var(--hos-glass-border);
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.26));
+}
+
+.life-indices__attention-icon {
+  grid-row: 1 / span 2;
+  align-self: center;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--hos-radius-card);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.life-indices__attention-copy {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.life-indices__attention-copy strong {
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.life-indices__attention-copy span {
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.life-indices__attention-desc {
+  grid-column: 2;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--hos-text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.life-indices__attention-item.is-caution {
+  border-color: rgba(251, 191, 36, 0.28);
+}
+.life-indices__attention-item.is-caution .life-indices__attention-icon {
+  color: var(--li-caution);
+  background: rgba(251, 191, 36, 0.12);
+}
+.life-indices__attention-item.is-caution .life-indices__attention-copy span {
+  color: var(--li-caution);
+}
+
+.life-indices__attention-item.is-warn {
+  border-color: rgba(251, 113, 133, 0.3);
+}
+.life-indices__attention-item.is-warn .life-indices__attention-icon {
+  color: var(--li-warn);
+  background: rgba(251, 113, 133, 0.12);
+}
+.life-indices__attention-item.is-warn .life-indices__attention-copy span {
+  color: var(--li-warn);
+}
+
+.life-indices__groups {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.life-indices__group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.life-indices__group-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.life-indices__group-head em {
+  font-style: normal;
+  font-size: 12px;
+  color: var(--hos-text-secondary);
+}
+
+.life-indices__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 8px;
+}
+
+.life-indices__grid--compact {
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+}
+
+.life-indices__card {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-height: 78px;
+  padding: 12px 12px 10px;
+  border-radius: var(--hos-radius-card);
+  border: 1px solid var(--hos-glass-border);
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.28));
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.life-indices__spot:hover,
+.life-indices__card:hover {
+  transform: translateY(-1px);
+}
+
+.life-indices__card--compact {
+  min-height: 58px;
+  padding: 10px;
+}
+
+.life-indices__card-top {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.life-indices__card-icon {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.05);
+  flex-shrink: 0;
+}
+
+.life-indices__card-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--hos-text-secondary);
+}
+
+.life-indices__card-state {
+  font-size: var(--premium-fs-body);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.life-indices__card-desc {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--hos-text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.life-indices__card.is-ok {
+  border-color: rgba(52, 211, 153, 0.28);
+  background: linear-gradient(155deg, rgba(52, 211, 153, 0.1), rgba(0, 0, 0, 0.26));
+}
+.life-indices__card.is-ok .life-indices__card-state {
+  color: var(--li-ok);
+}
+.life-indices__card.is-ok .life-indices__card-icon {
+  color: var(--li-ok);
+  background: rgba(52, 211, 153, 0.14);
+}
+
+.life-indices__card.is-caution {
+  border-color: rgba(251, 191, 36, 0.3);
+  background: linear-gradient(155deg, rgba(251, 191, 36, 0.1), rgba(0, 0, 0, 0.26));
+}
+.life-indices__card.is-caution .life-indices__card-state {
+  color: var(--li-caution);
+}
+.life-indices__card.is-caution .life-indices__card-icon {
+  color: var(--li-caution);
+  background: rgba(251, 191, 36, 0.14);
+}
+
+.life-indices__card.is-warn {
+  border-color: rgba(251, 113, 133, 0.32);
+  background: linear-gradient(155deg, rgba(251, 113, 133, 0.12), rgba(0, 0, 0, 0.26));
+}
+.life-indices__card.is-warn .life-indices__card-state {
+  color: var(--li-warn);
+}
+.life-indices__card.is-warn .life-indices__card-icon {
+  color: var(--li-warn);
+  background: rgba(251, 113, 133, 0.14);
+}
+
+.life-indices__card.is-neutral .life-indices__card-state {
+  color: #bae6fd;
+}
+
+@container hos-canvas (max-width: 720px) {
+  .life-indices__spotlight {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .life-indices__spot--hero {
+    grid-column: 1 / -1;
+  }
+}
+
+@container hos-canvas (max-width: 480px) {
+  .life-indices__spotlight {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .life-indices__tone-pills {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .life-indices__head {
+    flex-direction: column;
+  }
+}
+
+/* 从 SunInfo.vue 抽出 */
+.sun-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--hos-radius-panel);
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.sun-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.sun-icon-wrap {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--hos-radius-card);
+  background: rgba(255, 149, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sun-info {
+  display: flex;
+  flex-direction: column;
+}
+.sun-label {
+  font-size: var(--premium-fs-caption);
+  font-weight: 700;
+  color: var(--hos-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.sun-duration {
+  font-size: var(--premium-fs-micro);
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.sun-bar-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.sun-embedded-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 4px;
+}
+
+.sun-embedded-meta__right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  min-width: 0;
+}
+
+.sun-countdown {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--hos-text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.sun-bar {
+  position: relative;
+  height: 4px;
+  margin: 0 8px;
+}
+.sun-track {
+  position: absolute;
+  inset: 0;
+  border-radius: 2px;
+  background: linear-gradient(to right, #1e3a5f, #f59e0b, #fbbf24, #f59e0b, #1e3a5f);
+}
+.sun-marker {
+  position: absolute;
+  top: -10px;
+  transform: translateX(-50%);
+  font-size: 16px;
+  transition: left 60s linear;
+  filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.5));
+}
+.sun-marker--night {
+  filter: drop-shadow(0 0 4px rgba(129, 140, 248, 0.4));
+  opacity: 0.6;
+}
+
+.sun-times {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.sun-time-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.sun-time-col--end {
+  align-items: flex-end;
+  text-align: right;
+}
+.sun-time-col--center {
+  align-items: center;
+  text-align: center;
+  flex: 1;
+}
+.sun-time--now {
+  color: rgba(255, 255, 255, 0.92);
+}
+.sun-time {
+  font-size: var(--premium-fs-caption);
+  color: rgba(255, 255, 255, 0.72);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.sun-time-label {
+  font-size: var(--premium-fs-micro);
+  color: rgba(255, 255, 255, 0.55);
+  font-weight: 600;
+}
+
+.sun-presence {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+  padding-top: 4px;
+  border-top: var(--hos-hairline) solid rgba(255, 255, 255, 0.05);
+}
+
+.sun-presence-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.sun-presence-head__main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.sun-presence-title {
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--hos-text-secondary);
+}
+
+.sun-presence-summary {
+  font-size: var(--premium-fs-micro);
+  font-weight: 600;
+  color: rgba(148, 163, 184, 0.72);
+  line-height: 1.35;
+}
+
+.sun-presence-summary--home {
+  color: rgba(134, 239, 172, 0.92);
+}
+
+.sun-presence-mode {
+  font-size: var(--premium-fs-micro);
+  color: rgba(148, 163, 184, 0.55);
+  flex-shrink: 0;
+  padding-top: 1px;
+}
+
+.sun-presence-empty {
+  margin: 0;
+  font-size: var(--premium-fs-micro);
+  line-height: 1.45;
+  color: rgba(148, 163, 184, 0.5);
+  flex-shrink: 0;
+}
+
+.sun-persons {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-height: 0;
+  max-height: min(200px, calc(var(--hos-screen-h, 100vh) * 0.34));
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 2px;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sun-person {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  min-height: 32px;
+  border-radius: var(--hos-radius-card);
+  background: rgba(255, 255, 255, 0.025);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.05);
+  flex-shrink: 0;
+}
+
+.sun-person--home {
+  background: rgba(52, 199, 89, 0.06);
+  border-color: rgba(52, 199, 89, 0.14);
+}
+
+.sun-person-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--hos-radius-pill);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--premium-fs-micro);
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.88);
+  background: var(--premium-glass-bg-hover);
+  flex-shrink: 0;
+}
+
+.sun-person-avatar--tone-0 {
+  background: rgba(56, 189, 248, 0.18);
+  color: #bae6fd;
+}
+.sun-person-avatar--tone-1 {
+  background: rgba(167, 139, 250, 0.18);
+  color: #ddd6fe;
+}
+.sun-person-avatar--tone-2 {
+  background: rgba(52, 211, 153, 0.16);
+  color: #a7f3d0;
+}
+.sun-person-avatar--tone-3 {
+  background: rgba(251, 191, 36, 0.16);
+  color: #fde68a;
+}
+.sun-person-avatar--tone-4 {
+  background: rgba(244, 114, 182, 0.16);
+  color: #fbcfe8;
+}
+
+.sun-person-body {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.sun-person-name {
+  font-size: var(--premium-fs-caption);
+  color: rgba(255, 255, 255, 0.82);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
+}
+
+.sun-person-status {
+  font-size: var(--premium-fs-micro);
+  font-weight: 600;
+  color: rgba(148, 163, 184, 0.72);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.sun-person-status--home {
+  color: #86efac;
+}
+
+.sun-icon {
+  color: var(--set-warn, #fb923c);
+}
+
+/* —— Hub 嵌入（天气中心卡片内，随 280px 总高弹性撑满） —— */
+.sun-card--embedded {
+  padding: 4px 8px 6px;
+  gap: 6px;
+  border-radius: 0;
+  height: 100%;
+  min-height: 100%;
+}
+
+.sun-card--embedded .sun-bar-wrap {
+  gap: 3px;
+}
+
+.sun-card--embedded .sun-embedded-meta {
+  padding: 0 2px;
+}
+
+.sun-phase-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--hos-radius-pill);
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+}
+
+.sun-phase-pill--day {
+  color: #fde68a;
+  background: rgba(251, 191, 36, 0.14);
+  border: var(--hos-hairline) solid rgba(251, 191, 36, 0.22);
+}
+
+.sun-phase-pill--night {
+  color: #c7d2fe;
+  background: rgba(129, 140, 248, 0.12);
+  border: var(--hos-hairline) solid rgba(129, 140, 248, 0.2);
+}
+
+.sun-duration--embedded {
+  font-size: var(--premium-fs-micro);
+  font-weight: 600;
+  color: var(--hos-text-secondary, rgba(255, 255, 255, 0.58));
+}
+
+.sun-card--embedded .sun-bar {
+  height: 3px;
+  margin: 6px 6px 2px;
+}
+
+.sun-card--embedded .sun-marker {
+  top: -8px;
+  font-size: 14px;
+}
+
+.sun-card--embedded .sun-times {
+  padding: 0 2px;
+}
+
+.sun-card--embedded .sun-time {
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+}
+
+.sun-card--embedded .sun-time-label {
+  font-size: 12px;
+  letter-spacing: 0.06em;
+}
+
+.sun-card--embedded .sun-embedded-meta__right {
+  gap: 0;
+}
+
+.sun-card--embedded .sun-countdown {
+  font-size: 12px;
+}
+
+.sun-card--embedded .sun-time-col--center {
+  flex: 0 1 auto;
+}
+
+.sun-card--embedded .sun-presence {
+  gap: 4px;
+  padding-top: 2px;
+  flex: 1;
+  min-height: 0;
+  border-top: none;
+}
+
+.sun-card--embedded .sun-presence-head {
+  align-items: center;
+}
+
+.sun-card--embedded .sun-presence-head__main {
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sun-card--embedded .sun-presence-title {
+  letter-spacing: 0.04em;
+}
+
+.sun-card--embedded .sun-presence-empty {
+  line-height: 1.35;
+}
+
+.sun-card--embedded .sun-persons {
+  gap: 3px;
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.sun-card--embedded .sun-person {
+  min-height: 26px;
+  padding: 2px 6px;
+  border-radius: 8px;
+}
+
+.sun-card--embedded .sun-person-avatar {
+  width: 20px;
+  height: 20px;
+  font-size: 12px;
+}
+
+.sun-card--embedded .sun-person-name {
+  font-size: var(--premium-fs-micro);
+}
+
+.sun-card--embedded .sun-person-status {
+  font-size: 12px;
+}
+
+.weather-inner--compact {
+  padding: 4px 12px 10px;
+}
+
+/* ── 文本颜色（标签 / 中性） ── */
+.weather-lbl {
+  color: var(--set-text-secondary, rgba(255, 255, 255, 0.55));
+}
+.weather-lbl-faint {
+  color: var(--set-text-tertiary);
+}
+
+/* ── 图标颜色 ── */
+.weather-ic-blue {
+  color: var(--premium-accent-blue, #0a84ff);
+}
+.weather-ic-cyan {
+  color: var(--premium-accent-cyan, #22d3ee);
+}
+.weather-ic-amber {
+  color: var(--set-warn, #fcd34d);
+}
+.weather-ic-violet {
+  color: var(--premium-accent-violet, #c084fc);
+}
+
+/* ── 数值颜色（语义映射） ── */
+.weather-ic-success,
+.weather-c-success {
+  color: var(--set-success, #6ee7b7);
+}
+.weather-c-danger {
+  color: var(--set-danger, #fda4af);
+}
+.weather-c-warn {
+  color: var(--set-warn, #fcd34d);
+}
+.weather-c-warn-deep {
+  color: var(--premium-accent-amber, #ff9500);
+}
+.weather-c-warn-soft {
+  color: var(--set-warn, #fcd34d);
+  opacity: 0.7;
+}
+.weather-c-info {
+  color: var(--set-info, #7dd3fc);
+}
+.weather-c-blue {
+  color: var(--premium-accent-blue, #0a84ff);
+}
+.weather-c-blue-soft {
+  color: var(--set-info, #7dd3fc);
+}
+.weather-c-violet {
+  color: var(--premium-accent-violet, #c084fc);
+}
+.weather-c-cyan {
+  color: var(--premium-accent-cyan, #22d3ee);
+}
+.weather-c-white {
+  color: #ffffff;
+}
+
+/* ── AQI 徽章 ── */
+.weather-badge-success {
+  background: var(--set-success-bg, rgba(16, 185, 129, 0.12));
+  color: var(--set-success, #6ee7b7);
+}
+.weather-badge-warn {
+  background: var(--set-warn-bg, rgba(251, 191, 36, 0.12));
+  color: var(--set-warn, #fcd34d);
+}
+.weather-badge-warn-deep {
+  background: rgba(255, 149, 0, 0.18);
+  color: var(--premium-accent-amber, #ff9500);
+}
+.weather-badge-danger {
+  background: var(--set-danger-bg, rgba(251, 113, 133, 0.12));
+  color: var(--set-danger, #fda4af);
+}

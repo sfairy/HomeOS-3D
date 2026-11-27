@@ -267,6 +267,6 @@ function focusDetailTab(tabId: string, frames = 8) {
 <style>
 /* 与 DevicesPage 共用：卡片/指标栅格/概览布局。样式本体在 device 域内，
    列表页与详情页各自引入同一份，跳转/刷新任一页都能拿到完整样式。 */
-@import './styles/devices-theme.css';
+@import './devices-theme.css';
 </style>
-<style scoped src="./styles/device-detail-page.css"></style>
+<style scoped src="./device-detail-page.css"></style>

@@ -234,4 +234,4 @@ const {
   hazardExhaustFanEntityIds,
 })
 </script>
-<style src="./styles/hazard-bindings-section.css"></style>
+<style src="./hazard-bindings-section.css"></style>

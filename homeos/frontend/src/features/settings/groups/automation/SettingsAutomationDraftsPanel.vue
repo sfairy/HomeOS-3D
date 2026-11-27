@@ -725,4 +725,4 @@ onBeforeUnmount(() => {
 })
 </script>
 
-<style scoped src="./styles/automation-drafts.css"></style>
+<style scoped src="./automation-drafts.css"></style>

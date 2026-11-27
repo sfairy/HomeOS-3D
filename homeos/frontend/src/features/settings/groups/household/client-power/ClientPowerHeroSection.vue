@@ -162,4 +162,4 @@ function onReportIntervalInput(e: Event) {
   </div>
 </template>
 
-<style scoped src="./styles/client-power.css"></style>
+<style scoped src="./client-power.css"></style>

@@ -197,4 +197,4 @@ defineProps({
 defineEmits(['update:showTokenInput'])
 </script>
 
-<style scoped src="./styles/connection-credentials.css"></style>
+<style scoped src="./connection-credentials.css"></style>

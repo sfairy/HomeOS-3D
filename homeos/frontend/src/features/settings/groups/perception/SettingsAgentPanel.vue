@@ -1265,4 +1265,4 @@ function goConfigureApiKey() {
   })
 }
 </script>
-<style src="./styles/settings-agent-panel.css"></style>
+<style src="./settings-agent-panel.css"></style>

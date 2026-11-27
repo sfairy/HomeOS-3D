@@ -219,7 +219,7 @@ import { useNotificationCenter } from '@/domain/widget/index'
 import { NOTIFICATION_CENTER_KEY } from '@/domain/widget/index'
 import { useFixedPagePagination } from '@/kernel/ui/hub-viewport'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import './styles/notification-center.css'
+import './notification-center.css'
 
 const PAGE_SIZE = 7
 

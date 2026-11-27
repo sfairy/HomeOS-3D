@@ -360,4 +360,4 @@ function openPlayer(eid) {
 }
 </script>
 
-<style scoped src="./styles/mini-widget.css"></style>
+<style scoped src="./media.css"></style>

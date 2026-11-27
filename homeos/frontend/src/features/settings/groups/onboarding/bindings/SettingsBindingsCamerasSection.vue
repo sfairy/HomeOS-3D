@@ -187,4 +187,4 @@ const cameraFlowSteps = computed(() => [
 ])
 </script>
 
-<style scoped src="./styles/settings-bindings-cameras-section.css"></style>
+<style scoped src="./settings-bindings-cameras-section.css"></style>

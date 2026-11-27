@@ -111,4 +111,4 @@ const voiceFlowSteps = computed(() => [
   { label: '语音播报', meta: props.ttsSpeakerLabel, icon: Volume2, tone: 'out' },
 ])
 </script>
-<style src="./styles/voice-overview.css"></style>
+<style src="./voice-overview.css"></style>

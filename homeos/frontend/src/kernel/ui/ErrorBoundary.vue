@@ -129,4 +129,4 @@ function reset() {
 defineExpose({ reset, hasError })
 </script>
 
-<style scoped src="./styles/error-boundary.css"></style>
+<style scoped src="./ui.css"></style>

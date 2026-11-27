@@ -32,7 +32,7 @@ import { getDeviceHealthSummary, installFirmwareUpdate } from '@/domain/api/devi
 import type { DeviceHealthDomainCount, DeviceHealthSample } from '@/domain/api/device'
 import { getDomainLabel } from '@/features/device/utils'
 import { formatLocaleNumber, formatLocaleTime } from '@/kernel/format'
-import '@/kernel/ui/styles/hos-icon-btn.css'
+import '@/kernel/ui/hos-icon-btn.css'
 
 interface HealthBucket {
   count: number

@@ -154,6 +154,28 @@ export function inferEnergyMapping(
   const siblings = collectSiblingEntities(entityId, entities)
   const prefix = extractEntityPrefix(entityId)
   const allCandidates = [{ id: entityId, ent: mainEnt, isMain: true }, ...siblings].filter((c) => c.ent)
+
+  /**
+   * 兄弟实体匹配链：`conventionSuffix` 精确后缀 → 字段别名（按 suffix）→ 显示名别名（label）。
+   *
+   * `entity` 与 `multi` 两种模式用的是同一条链。此前两处各写了一遍完整循环，
+   * 后果是改一处漏一处：`multi` 曾经缺少 label 别名匹配，同一份配置换成多表结构就少认一个实体。
+   */
+  const matchSiblingEntityId = (field: EnergyFieldDef): string | null => {
+    const conv = (field.conventionSuffix || '').toLowerCase()
+    for (const { id, ent } of allCandidates) {
+      const suffix = id.slice(prefix.length).toLowerCase()
+      if (
+        (conv && suffix === conv) ||
+        matchEnergyFieldAlias(field.key, suffix) ||
+        matchEnergyFieldAlias(field.key, getEntityDisplayName(id, ent), 'label')
+      ) {
+        return id
+      }
+    }
+    return null
+  }
+
   for (const field of fields) {
     if (field.type === 'list' || field.type === 'object') {
       if (mode !== 'entity') continue
@@ -197,34 +219,18 @@ export function inferEnergyMapping(
         }
       }
       if (found) continue
-      for (const { id, ent } of allCandidates) {
-        const suffix = id.slice(prefix.length).toLowerCase()
-        const conv = (field.conventionSuffix || '').toLowerCase()
-        if (
-          (conv && suffix === conv) ||
-          matchEnergyFieldAlias(field.key, suffix) ||
-          matchEnergyFieldAlias(field.key, getEntityDisplayName(id, ent), 'label')
-        ) {
-          entityMap[field.key] = id
-          matched++
-          break
-        }
+      const siblingId = matchSiblingEntityId(field)
+      if (siblingId) {
+        entityMap[field.key] = siblingId
+        matched++
       }
       continue
     }
     if (mode === 'multi') {
-      for (const { id, ent } of allCandidates) {
-        const suffix = id.slice(prefix.length).toLowerCase()
-        const conv = (field.conventionSuffix || '').toLowerCase()
-        if (
-          (conv && suffix === conv) ||
-          matchEnergyFieldAlias(field.key, suffix) ||
-          matchEnergyFieldAlias(field.key, getEntityDisplayName(id, ent), 'label')
-        ) {
-          entityMap[field.key] = id
-          matched++
-          break
-        }
+      const siblingId = matchSiblingEntityId(field)
+      if (siblingId) {
+        entityMap[field.key] = siblingId
+        matched++
       }
     }
   }

@@ -23,13 +23,13 @@
     "ops"
   ],
   "totals": {
-    "sources": 3497,
-    "lines": 747643,
-    "clones": 164,
-    "duplicatedLines": 3125,
-    "percentage": 0.418,
-    "tokens": 4344563,
-    "duplicatedTokens": 14717
+    "sources": 3500,
+    "lines": 748227,
+    "clones": 161,
+    "duplicatedLines": 3081,
+    "percentage": 0.4118,
+    "tokens": 4348095,
+    "duplicatedTokens": 14450
   },
   "byFormat": {
     "css": {
@@ -47,10 +47,10 @@
       "clones": 20
     },
     "javascript": {
-      "sources": 348,
-      "lines": 52315,
+      "sources": 351,
+      "lines": 52907,
       "duplicatedLines": 591,
-      "percentage": 1.1297,
+      "percentage": 1.1171,
       "clones": 21
     },
     "python": {
@@ -62,10 +62,10 @@
     },
     "typescript": {
       "sources": 1507,
-      "lines": 392653,
-      "duplicatedLines": 1768,
-      "percentage": 0.4503,
-      "clones": 86
+      "lines": 392645,
+      "duplicatedLines": 1724,
+      "percentage": 0.4391,
+      "clones": 83
     },
     "vue": {
       "sources": 424,
@@ -87,12 +87,6 @@
       "first": "homeos/frontend/src/studio/runtime/core/editor-preview.ts",
       "second": "homeos/frontend/src/studio/runtime/core/editor-preview.ts",
       "lines": 16
-    },
-    {
-      "fingerprint": "045c4cc9c73df6650b4cc82cdb8cc4fc5682c7e3",
-      "first": "homeos/frontend/src/domain/energy/constants/energy-fields.ts",
-      "second": "homeos/frontend/src/domain/energy/constants/energy-fields.ts",
-      "lines": 13
     },
     {
       "fingerprint": "065a5b7a5b79689472b11ee556db5137d68d459b",
@@ -653,12 +647,6 @@
       "lines": 62
     },
     {
-      "fingerprint": "97ec098cb0ee16dcf7f9336a7a76dbd7b686e047",
-      "first": "homeos/frontend/src/features/security/security.ts",
-      "second": "homeos/frontend/src/features/security/zone-room.ts",
-      "lines": 19
-    },
-    {
       "fingerprint": "983c71adbfd984a22c2331186ddcfabb7e71bc51",
       "first": "homeos/frontend/src/studio/runtime/environment/device-mist.ts",
       "second": "homeos/frontend/src/studio/runtime/environment/rangehood-airflow.ts",
@@ -945,12 +933,6 @@
       "first": "homeos/frontend/src/studio/app/renderer/panel-renderer.ts",
       "second": "homeos/frontend/src/studio/app/renderer/panel-seams/render-component.ts",
       "lines": 13
-    },
-    {
-      "fingerprint": "e3a102ce52d0c70ba7e8022151b062188fcd4893",
-      "first": "homeos/frontend/src/domain/entity/store/entity-store-init.ts",
-      "second": "homeos/frontend/src/domain/entity/store/entity-store-init.ts",
-      "lines": 12
     },
     {
       "fingerprint": "e4891999bd3c5cb5baa39cea9612fdc03d605b7b",

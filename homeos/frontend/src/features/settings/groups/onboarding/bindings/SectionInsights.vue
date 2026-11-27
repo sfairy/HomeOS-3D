@@ -95,4 +95,4 @@ const gapsDescription = computed(() =>
 )
 </script>
 
-<style scoped src="./styles/section-insights.css"></style>
+<style scoped src="./section-insights.css"></style>

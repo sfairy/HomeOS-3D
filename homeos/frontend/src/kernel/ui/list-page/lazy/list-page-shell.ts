@@ -12,6 +12,6 @@
  * 注意：首屏仍需的 `.list-page__btn*` / `.list-page__muted` 留在
  * `list-page-eager.css`，不要从入口移除。
  */
-import '@/kernel/ui/list-page/styles/list-page.css'
-import '@/kernel/ui/list-page/styles/list-page-views.css'
-import '@/kernel/ui/list-page/styles/premium-head.css'
+import '@/kernel/ui/list-page/list-page.css'
+import '@/kernel/ui/list-page/list-page-views.css'
+import '@/kernel/ui/list-page/premium-head.css'

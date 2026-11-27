@@ -236,4 +236,4 @@ onScopeDispose(() => setHomeModePanelBridge(null))
   </div>
 </template>
 
-<style scoped src="./styles/home-mode.css"></style>
+<style scoped src="./home-mode.css"></style>

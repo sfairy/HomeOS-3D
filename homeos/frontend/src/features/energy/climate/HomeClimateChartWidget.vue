@@ -37,7 +37,7 @@ import HomeClimateChartChrome from './home-climate-chart/HomeClimateChartChrome.
 import HomeClimateChartBody from './home-climate-chart/HomeClimateChartBody.vue'
 import HomeClimateChartSummary from './home-climate-chart/HomeClimateChartSummary.vue'
 import { useHomeClimateChart } from './home-climate-chart/use-home-climate-chart'
-import './home-climate-chart/styles/home-climate-chart.css'
+import './home-climate-chart/home-climate-chart.css'
 
 const props = defineProps({
   config: { type: Object, default: () => ({}) },

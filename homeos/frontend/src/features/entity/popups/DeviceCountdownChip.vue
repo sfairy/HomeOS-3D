@@ -10,7 +10,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Timer, X } from '@lucide/vue'
 import { cancelDeviceTimer, listDeviceTimers, setDeviceTimer } from '@/domain/api/device'
-import '@/kernel/ui/styles/hos-icon-btn.css'
+import '@/kernel/ui/hos-icon-btn.css'
 
 const props = defineProps({
   /** 目标实体（如 light.ke_ting） */

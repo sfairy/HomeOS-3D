@@ -238,4 +238,4 @@ const voiceAlertFlowSummary = computed(() => {
   return `${speaker} · ${enabledVoiceAlertCount.value} 播报项`
 })
 </script>
-<style src="./styles/alert-rules.css"></style>
+<style src="./alert-rules.css"></style>

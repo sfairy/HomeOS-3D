@@ -160,4 +160,4 @@ defineEmits(['toggle-preset', 'toggle-flag'])
     -->
   </section>
 </template>
-<style src="./styles/linkage.css"></style>
+<style src="./linkage.css"></style>

@@ -437,4 +437,4 @@ function promoteStream(cameraKey) {
 }
 </script>
 
-<style scoped src="./styles/monitor-panel.css"></style>
+<style scoped src="./monitor-panel.css"></style>

@@ -83,5 +83,5 @@ const unreadCount = computed(() => nc?.unreadCount?.value ?? 0)
 </script>
 
 <style scoped>
-@import './styles/notification-drawer.css';
+@import './notifications.css';
 </style>

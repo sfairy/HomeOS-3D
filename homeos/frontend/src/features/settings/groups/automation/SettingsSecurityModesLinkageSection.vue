@@ -182,4 +182,4 @@ onMounted(() => {
     </div>
   </SettingsCard>
 </template>
-<style src="./linkage/styles/linkage.css"></style>
+<style src="./linkage/linkage.css"></style>

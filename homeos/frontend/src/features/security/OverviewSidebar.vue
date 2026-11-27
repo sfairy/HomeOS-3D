@@ -359,4 +359,4 @@ function sensorStateLabel(sensor) {
 }
 </script>
 
-<style scoped src="./styles/overview-sidebar.css"></style>
+<style scoped src="./overview-sidebar.css"></style>

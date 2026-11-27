@@ -176,4 +176,4 @@ function openPinEditor() {
 }
 </script>
 
-<style scoped src="./styles/access-panel.css"></style>
+<style scoped src="./system.css"></style>

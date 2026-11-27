@@ -275,4 +275,4 @@ const embedFlowSummary = computed(() => {
 })
 </script>
 
-<style src="./styles/layout-panels.css"></style>
+<style src="./layout-panels.css"></style>

@@ -467,7 +467,7 @@ function toggleLightSwitch(eid) {
 }
 </script>
 
-<style scoped src="./styles/device-group.css"></style>
+<style scoped src="./device-group.css"></style>
 <style scoped>
 /* 虚拟滚动容器：限高以建立独立滚动区（外层面板已 overflow-y-auto，内层需自限高） */
 .dgm-virtual-wrap {

@@ -46,4 +46,4 @@ const resolvedTone = computed(() => {
 })
 </script>
 
-<style scoped src="./styles/v-empty-state.css"></style>
+<style scoped src="./primitives.css"></style>

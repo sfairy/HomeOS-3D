@@ -55,7 +55,7 @@ import {
   useEntityMultiSelect,
 } from '@/domain/entity/entity-multi-select/use-entity-multi-select'
 import type { PropType } from 'vue'
-import './styles/entity-multi-select-dropdown.css'
+import './entity-multi-select-dropdown.css'
 
 const props = defineProps({
   /** 绑定的 entity_id 数组（v-model） */
@@ -123,5 +123,5 @@ const {
 </script>
 
 <style>
-@import './styles/entity-multi-select.css';
+@import './entity-multi-select.css';
 </style>

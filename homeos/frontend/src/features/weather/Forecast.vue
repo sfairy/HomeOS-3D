@@ -185,4 +185,4 @@ function dayNum(dateValue) {
 }
 </script>
 
-<style scoped src="./styles/forecast.css"></style>
+<style scoped src="./weather.css"></style>

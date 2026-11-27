@@ -187,4 +187,4 @@ watch(
 )
 </script>
 
-<style scoped src="./styles/diagnostics-theme.css"></style>
+<style scoped src="./diagnostics-theme.css"></style>

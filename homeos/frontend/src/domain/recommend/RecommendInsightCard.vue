@@ -225,5 +225,5 @@ function resolveChipName(chip) {
 </template>
 
 <style scoped>
-@import './styles/recommend-insight-card.css';
+@import './recommend-insight-card.css';
 </style>

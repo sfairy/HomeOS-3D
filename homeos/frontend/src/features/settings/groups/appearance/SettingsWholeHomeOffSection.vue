@@ -204,4 +204,4 @@ const whOffFlowSummary = computed(() => {
   return `${on} · ${enabledDomainCount.value}/4 域 · 排除 ${wholeHomeOff.value.excludeEntities?.length || 0}`
 })
 </script>
-<style src="./styles/settings-whole-home-off.css"></style>
+<style src="./settings-whole-home-off.css"></style>

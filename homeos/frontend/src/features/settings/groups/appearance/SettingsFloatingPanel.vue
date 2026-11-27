@@ -73,7 +73,7 @@ import FloatingWidgetRow from './floating/WidgetRow.vue'
 import { useLayoutConfigRef } from '@/domain/layout/use-layout-config-ref'
 import { useFloatingWidgets } from '@/features/settings/groups/appearance/use-layout-floating'
 import { useFloatingPanelDisplay } from '@/features/settings/groups/appearance/use-layout-floating'
-import './floating/styles/floating.css'
+import './floating/floating.css'
 
 defineProps({ activeTab: { type: String, default: 'floating' } })
 

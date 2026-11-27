@@ -148,7 +148,7 @@ import DeviceGroupBatteryPanel from '@/features/device/device-group/DeviceGroupB
 import DeviceGroupMemberList from '@/features/device/device-group/DeviceGroupMemberList.vue'
 import DeviceGroupOfflinePanel from '@/features/device/device-group/DeviceGroupOfflinePanel.vue'
 // 设备组模态框专属样式，随组件按需加载
-import '@/features/entity/styles/device-group-modal.css'
+import '@/features/entity/device-group-modal.css'
 
 const props = defineProps({
   domain: { type: String, default: '' },
@@ -273,4 +273,4 @@ watch(
 )
 </script>
 
-<style scoped src="./styles/device-group.css"></style>
+<style scoped src="./device-group.css"></style>

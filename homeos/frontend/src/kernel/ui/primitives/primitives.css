@@ -1,0 +1,689 @@
+.ss-wrap {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.ss-input-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  /* 行高由 height 钉死（只写 min-height 时内部输入框的内边距会把整行撑到 40px）。
+     描边用 inset 阴影而非 border：真 border 会让内容盒只有 35px，
+     把行内的输入框/清除键压到比行矮 1px（35 vs 36）。 */
+  height: var(--hos-control-h-md);
+  min-height: var(--hos-control-h-md);
+  background: rgba(255, 255, 255, 0.05);
+  border: none;
+  box-shadow: inset 0 0 0 var(--hos-hairline) rgba(255, 255, 255, 0.1);
+  border-radius: var(--hos-r-2);
+  overflow: hidden;
+}
+
+.ss-input-row:focus-within {
+  background: var(--hos-bg-tint-2);
+  box-shadow: inset 0 0 0 var(--hos-hairline) var(--hos-dd-accent-mid);
+}
+
+.ss-input-row .settings-field,
+.ss-input-row .ss-input--list-page {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  padding-right: 8px;
+}
+
+.ss-input--list-page {
+  width: 100%;
+  padding: 0 14px;
+  color: inherit;
+  font-size: var(--hos-fs-3);
+  outline: none;
+  background: transparent;
+}
+
+.ss-clear,
+.ss-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 32px;
+  width: 32px;
+  min-height: var(--hos-control-h-md);
+  height: var(--hos-control-h-md);
+  padding: 0 6px;
+  color: var(--hos-fg-2);
+  background: transparent;
+  border: none;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+.ss-clear:hover,
+.ss-toggle:hover {
+  color: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* 触控下把两个尾部按钮抬到 44×44：它们是输入框右侧的独立可点控件，
+   32px 宽在手指下容易把「清除」敲成「展开」。鼠标端仍是 32px，不改密度。 */
+@media (pointer: coarse) {
+  .ss-clear,
+  .ss-toggle {
+    min-width: var(--hos-touch-min);
+    width: var(--hos-touch-min);
+  }
+}
+
+.ss-toggle--open {
+  transform: rotate(180deg);
+}
+
+.ss-dropdown {
+  position: fixed;
+  z-index: var(--z-max);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: var(--hos-dd-panel-radius);
+  background: var(--hos-dd-panel-bg);
+  border: var(--hos-hairline) solid var(--hos-dd-panel-border);
+  box-shadow: var(--hos-dd-panel-shadow);
+  isolation: isolate;
+}
+
+.ss-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--hos-line-3) transparent;
+}
+
+.ss-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  border-radius: 0;
+  text-align: left;
+  color: rgba(255, 255, 255, 0.8);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition:
+    background 0.1s,
+    color 0.1s;
+}
+
+.ss-item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.ss-item:hover,
+.ss-item--active {
+  background: var(--hos-dd-accent-soft);
+  color: var(--hos-dd-accent);
+}
+
+.ss-item-label {
+  /* list-page 触发器 caption(13) → micro；settings-field(15) 见下方覆盖 */
+  font-size: var(--hos-dd-fs-item);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  line-height: 1.35;
+}
+
+/* settings 场景：触发器 --set-fs-input(15) → 选项 body-sm(14) */
+.ss-wrap:has(.settings-field) .ss-item-label {
+  font-size: var(--hos-dd-fs-item-from-body);
+}
+
+.ss-item-hint {
+  font-size: var(--hos-fs-2);
+  font-family: ui-monospace, monospace;
+  color: var(--hos-fg-2);
+  line-height: 1.35;
+  white-space: normal;
+  word-break: break-all;
+}
+
+.ss-item:hover .ss-item-hint,
+.ss-item--active .ss-item-hint {
+  color: var(--hos-dd-accent-text-bright);
+}
+
+.ss-empty {
+  flex-shrink: 0;
+  padding: 12px;
+  text-align: center;
+  font-size: var(--hos-fs-2);
+  color: var(--hos-dd-empty-color);
+}
+
+.ss-loading {
+  flex-shrink: 0;
+  padding: 14px 12px;
+  text-align: center;
+  font-size: var(--hos-fs-2);
+  color: var(--hos-fg-2);
+}
+
+.ss-drop-enter-active {
+  transition: all 0.12s ease-out;
+}
+
+.ss-drop-leave-active {
+  transition: all 0.08s ease-in;
+}
+
+.ss-drop-enter-from,
+.ss-drop-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+.ss-drop-enter-from.ss-dropdown--top,
+.ss-drop-leave-to.ss-dropdown--top {
+  transform: translateY(4px);
+}
+
+.v-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 36px 24px;
+  text-align: center;
+  border-radius: var(--hos-radius-panel);
+  border: var(--hos-hairline) dashed rgba(255, 255, 255, 0.1);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.03) 0%, rgba(0, 0, 0, 0.12) 100%);
+}
+
+.v-empty--sky {
+  border-color: rgba(56, 189, 248, 0.2);
+  background: linear-gradient(160deg, rgba(56, 189, 248, 0.04) 0%, rgba(0, 0, 0, 0.12) 100%);
+}
+
+.v-empty--violet {
+  border-color: rgba(167, 139, 250, 0.2);
+  background: linear-gradient(160deg, rgba(167, 139, 250, 0.04) 0%, rgba(0, 0, 0, 0.12) 100%);
+}
+
+.v-empty--emerald {
+  border-color: rgba(52, 211, 153, 0.2);
+  background: linear-gradient(160deg, rgba(52, 211, 153, 0.04) 0%, rgba(0, 0, 0, 0.12) 100%);
+}
+
+.v-empty--amber {
+  border-color: rgba(251, 191, 36, 0.2);
+  background: linear-gradient(160deg, rgba(251, 191, 36, 0.04) 0%, rgba(0, 0, 0, 0.12) 100%);
+}
+
+.v-empty--rose {
+  border-color: rgba(248, 113, 113, 0.2);
+  background: linear-gradient(160deg, rgba(248, 113, 113, 0.04) 0%, rgba(0, 0, 0, 0.12) 100%);
+}
+
+.v-empty--pink {
+  border-color: rgba(244, 114, 182, 0.22);
+  background: linear-gradient(160deg, rgba(244, 114, 182, 0.05) 0%, rgba(0, 0, 0, 0.12) 100%);
+}
+
+.v-empty--cyan,
+.v-empty--indigo {
+  border-color: rgba(var(--premium-accent-cyan-rgb, 95, 212, 255), 0.22);
+  background: linear-gradient(
+    160deg,
+    rgba(var(--premium-accent-cyan-rgb, 95, 212, 255), 0.05) 0%,
+    rgba(0, 0, 0, 0.12) 100%
+  );
+}
+
+.v-empty--neutral {
+  border-color: var(--premium-border-strong);
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.v-empty__icon {
+  font-size: 32px;
+  line-height: 1;
+  opacity: 0.45;
+  filter: drop-shadow(0 0 12px var(--premium-border-strong));
+}
+
+/* Lucide 图标：与 emoji 图标同尺寸同透明度，颜色跟随 tone 的 drop-shadow 语义 */
+.v-empty__icon-svg {
+  width: 32px;
+  height: 32px;
+  stroke-width: 1.4;
+}
+
+.v-empty--sky .v-empty__icon {
+  filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.25));
+}
+.v-empty--violet .v-empty__icon {
+  filter: drop-shadow(0 0 10px rgba(167, 139, 250, 0.25));
+}
+.v-empty--emerald .v-empty__icon {
+  filter: drop-shadow(0 0 10px rgba(52, 211, 153, 0.25));
+}
+.v-empty--amber .v-empty__icon {
+  filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.25));
+}
+.v-empty--rose .v-empty__icon {
+  filter: drop-shadow(0 0 10px rgba(248, 113, 113, 0.2));
+}
+.v-empty--pink .v-empty__icon {
+  filter: drop-shadow(0 0 10px rgba(244, 114, 182, 0.28));
+}
+.v-empty--cyan .v-empty__icon,
+.v-empty--indigo .v-empty__icon {
+  filter: drop-shadow(0 0 10px rgba(var(--premium-accent-cyan-rgb, 95, 212, 255), 0.28));
+}
+
+.v-empty__title {
+  margin: 0;
+  font-size: var(--premium-fs-body-sm, 14px);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.58);
+}
+
+.v-empty__desc {
+  margin: 0;
+  font-size: var(--premium-fs-caption);
+  color: var(--hos-text-secondary);
+  max-width: 320px;
+  line-height: 1.5;
+}
+
+.v-empty__action {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+  margin-top: 6px;
+}
+
+.v-empty__action a.v-empty__link,
+.v-empty__action .v-empty__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--premium-fs-caption);
+  font-weight: 600;
+  color: rgba(125, 211, 252, 0.95);
+  padding: 8px 14px;
+  border-radius: var(--hos-radius-card);
+  background: rgba(56, 189, 248, 0.1);
+  border: var(--hos-hairline) solid rgba(56, 189, 248, 0.22);
+  text-decoration: none;
+  transition:
+    color 0.15s,
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.v-empty__action a.v-empty__link:hover,
+.v-empty__action .v-empty__link:hover {
+  color: #e0f2fe;
+  background: rgba(56, 189, 248, 0.16);
+  border-color: rgba(56, 189, 248, 0.35);
+}
+
+.v-empty__action .list-page__btn {
+  font-size: var(--premium-fs-caption);
+}
+
+.v-empty__action button {
+  cursor: pointer;
+}
+
+.v-empty--compact {
+  padding: 20px 14px;
+  gap: 6px;
+  border-radius: var(--hos-radius-card);
+}
+
+.v-empty--compact .v-empty__icon {
+  font-size: 24px;
+}
+
+.v-empty--compact .v-empty__title {
+  font-size: var(--premium-fs-caption);
+}
+
+.v-empty--compact .v-empty__desc {
+  font-size: var(--premium-fs-micro);
+  max-width: 260px;
+}
+
+/** 通知容器：置于缩放画布顶部居中（坐标系随 app-shell transform 缩放） */
+.notification-container {
+  z-index: var(--z-notification);
+  pointer-events: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  display: flex;
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translate(-50%);
+  width: max-content;
+  max-width: calc(100% - 32px);
+}
+
+/* 主壳：顶栏高度（52px min-height + 上下 padding）+ 安全区 + 12px 呼吸位。
+   顶栏 z-index 200，通知容器保持更高层级但不再压住导航与右侧操作按钮。 */
+.notification-container--below-topbar {
+  top: calc(76px + env(safe-area-inset-top, 0px));
+}
+
+@container hos-canvas (max-width: 640px) {
+  /* 窄屏顶栏仍为 52px 高，保持同一安全距离；横向留白收紧，避免卡片贴边。 */
+  .notification-container--below-topbar {
+    top: calc(72px + env(safe-area-inset-top, 0px));
+    max-width: calc(100% - 24px);
+  }
+}
+
+/** 两个常驻 live region（assertive / polite）。
+    常驻是硬要求：内容变化只在**已存在**的 live region 内才会被播报，
+    因此某档为空时也保留元素（空档零高度，不产生布局跳动）。
+    分组只改变播报礼貌级别，视觉上仍是同一条居中纵列：外层列 + 内层列，间距一致。 */
+.notification-live {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+}
+
+/** 单条通知：毛玻璃卡片 + 可点击关闭 */
+.notification-item {
+  pointer-events: auto;
+  -webkit-backdrop-filter: blur(36px) saturate(180%);
+  backdrop-filter: blur(36px) saturate(180%);
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.92);
+  background: rgba(16, 16, 22, 0.72);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--hos-radius-panel);
+  align-items: center;
+  gap: 12px;
+  min-width: 300px;
+  max-width: 500px;
+  padding: 14px 22px;
+  font-size: var(--premium-fs-body-sm);
+  transition: all 0.35s var(--ease-spring);
+  display: flex;
+  box-shadow:
+    0 8px 40px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/** 悬停抬升 3px + 阴影加深 */
+.notification-item:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+}
+
+/** 图标区：固定 20x20 */
+.icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+
+.icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+/** 消息文字：自动撑满剩余空间 */
+.message {
+  flex-grow: 1;
+}
+
+/** 合并次数徽标：说明这条提示代表 N 次相同事件（批量操作 / 批量失败）。
+    纯视觉信息 —— 文案已完整表达语义，读屏不必重复计数（模板里 aria-hidden）。 */
+.notification-item__count {
+  flex-shrink: 0;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.86);
+  font-size: var(--premium-fs-caption, 12px);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.5;
+}
+
+/** 关闭按钮 ×：默认低透明度，hover / 键盘聚焦时增强。
+    从原来的 <span class="close-hint"> 换成真按钮：可聚焦、有 aria-label，
+    键盘与读屏都能命中，且点击区域不再依赖整卡点击。 */
+.notification-item__close {
+  flex-shrink: 0;
+  /* 归到 xs 档：原 24×24 不在尺度上，且低于触控最小命中区。 */
+  width: var(--control-height-xs);
+  height: var(--control-height-xs);
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: inherit;
+  background: transparent;
+  opacity: 0.4;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    opacity 0.2s,
+    background-color 0.2s;
+}
+
+.notification-item:hover .notification-item__close,
+.notification-item__close:focus-visible {
+  opacity: 0.85;
+}
+
+.notification-item__close:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/** 成功通知：绿色主题 */
+.notification-item.success {
+  background: rgba(52, 199, 89, 0.1);
+  border-color: rgba(52, 199, 89, 0.2);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    0 0 20px rgba(52, 199, 89, 0.1);
+}
+
+/** 错误通知：红色主题 */
+.notification-item.error {
+  background: rgba(255, 59, 48, 0.1);
+  border-color: rgba(255, 59, 48, 0.2);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    0 0 20px rgba(255, 59, 48, 0.1);
+}
+
+/** 警告通知：黄色主题 */
+.notification-item.warning {
+  background: rgba(255, 214, 10, 0.08);
+  border-color: rgba(255, 214, 10, 0.2);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    0 0 20px rgba(255, 214, 10, 0.08);
+}
+
+/** 信息通知：蓝色主题 */
+.notification-item.info {
+  background: rgba(10, 132, 255, 0.08);
+  border-color: rgba(10, 132, 255, 0.2);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    0 0 20px rgba(10, 132, 255, 0.08);
+}
+
+/** 通知入场/离场过渡动画 */
+.toast-enter-active,
+.toast-leave-active {
+  transition: all 0.4s var(--ease-spring);
+}
+
+.toast-enter-from {
+  opacity: 0;
+  transform: translateY(-40px) scale(0.9);
+}
+
+.toast-leave-to {
+  opacity: 0;
+  transform: translateY(-20px) scale(0.95);
+}
+
+.v-progress {
+  position: relative;
+  width: 100%;
+  border-radius: var(--hos-radius-pill);
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.v-progress--xs {
+  height: 3px;
+  border-radius: 1.5px;
+}
+.v-progress--sm {
+  height: 4px;
+  border-radius: 2px;
+}
+.v-progress--md {
+  height: 6px;
+  border-radius: 3px;
+}
+.v-progress--lg {
+  height: 8px;
+  border-radius: 4px;
+}
+
+.v-progress--interactive {
+  cursor: pointer;
+  touch-action: none;
+  /* 扩大可点击区域，避免细条难以拖拽 */
+  padding: 8px 0;
+  margin: -8px 0;
+  background-clip: content-box;
+}
+
+.v-progress--interactive:focus-visible {
+  outline: 2px solid rgba(10, 132, 255, 0.55);
+  outline-offset: 2px;
+}
+
+.v-progress__fill {
+  height: 100%;
+  width: 100% !important;
+  border-radius: inherit;
+  transform: scaleX(var(--progress-scale, 0));
+  transform-origin: left center;
+  transition: transform 0.4s ease;
+  will-change: transform;
+}
+
+.v-progress--dragging .v-progress__fill,
+.v-progress--interactive.v-progress--dragging .v-progress__fill {
+  transition: none;
+}
+
+.v-progress--interactive .v-progress__fill {
+  pointer-events: none;
+}
+
+.v-progress__fill--glow {
+  transition:
+    width 0.4s ease,
+    box-shadow 0.3s ease;
+}
+
+.v-progress--dragging .v-progress__fill--glow {
+  transition: box-shadow 0.3s ease;
+}
+
+@media (pointer: coarse), (hover: none) {
+  .v-progress__fill--glow {
+    box-shadow: none !important;
+  }
+}
+
+.v-skeleton {
+  display: block;
+  border-radius: var(--hos-r-2, 10px);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(255, 255, 255, 0.09) 50%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  background-size: 200% 100%;
+}
+
+.v-skeleton--text {
+  height: 14px;
+  width: 100%;
+  border-radius: 6px;
+}
+
+.v-skeleton--title {
+  height: 20px;
+  width: 60%;
+  border-radius: 8px;
+}
+
+.v-skeleton--card {
+  height: 88px;
+  width: 100%;
+  border-radius: var(--hos-r-4);
+}
+
+.v-skeleton--circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+
+.v-skeleton--pulse {
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .v-skeleton--pulse {
+    animation: none;
+  }
+}

@@ -62,4 +62,4 @@ defineProps({
 })
 </script>
 
-<style scoped src="./styles/power-card-body.css"></style>
+<style scoped src="./dashboard.css"></style>

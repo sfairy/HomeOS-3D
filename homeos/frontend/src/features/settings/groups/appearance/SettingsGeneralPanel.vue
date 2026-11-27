@@ -681,4 +681,4 @@ function goParamsTab(section) {
 }
 </script>
 
-<style src="./styles/settings-general-panel.css"></style>
+<style src="./settings-general-panel.css"></style>

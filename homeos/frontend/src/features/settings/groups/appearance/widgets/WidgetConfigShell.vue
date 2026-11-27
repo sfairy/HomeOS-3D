@@ -48,4 +48,4 @@ defineProps({
     <slot name="footer" />
   </div>
 </template>
-<style src="../styles/layout-panels.css"></style>
+<style src="../layout-panels.css"></style>

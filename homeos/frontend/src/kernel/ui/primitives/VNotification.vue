@@ -108,4 +108,4 @@ function getIcon(type: string) {
 }
 </script>
 
-<style scoped src="./styles/v-notification.css"></style>
+<style scoped src="./primitives.css"></style>

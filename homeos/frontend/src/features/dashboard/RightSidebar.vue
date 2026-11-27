@@ -277,4 +277,4 @@ function getWidgetStyle(widget: PanelWidget) {
 }
 </script>
 
-<style scoped src="./styles/right-sidebar.css"></style>
+<style scoped src="./dashboard.css"></style>

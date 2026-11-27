@@ -60,6 +60,7 @@ import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useLayoutStore } from '@/domain/layout/store/index'
 import { getEntityDisplayName } from '@/domain/entity/derived'
 import { isSecurityUtilityNoise } from '@/features/security/utils/index'
+import { CO_KEYS, DOOR_KEYS, GAS_KEYS, LEAK_KEYS, MOTION_KEYS, SENSOR_TYPE_LABELS, SMOKE_KEYS } from './zone-room'
 import { isSensorAlertState } from '@/features/security/utils/index'
 
 /* ── 原 useSecurityAuditEvents.ts 的实现 ── */
@@ -554,28 +555,8 @@ export function useSecurityPanelStatus() {
 
 /* ── 原 useSecuritySensors.ts 的实现 ── */
 
-// 移动传感器关键字（中英文）
-const MOTION_KEYS = ['motion', 'occupancy', 'presence', '移动', '人体', '存在', '占位']
-// 门窗传感器关键字
-const DOOR_KEYS = ['door', 'window', 'contact', '门磁', '窗磁', '门', '窗']
-// 烟感传感器关键字
-const SMOKE_KEYS = ['smoke', '烟雾', '烟感']
-// 燃气传感器关键字
-const GAS_KEYS = ['gas', 'methane', '燃气', '甲烷', '天然气']
-// 水浸传感器关键字
-const LEAK_KEYS = ['leak', 'moisture', '漏水', '水浸']
-// 一氧化碳传感器关键字
-const CO_KEYS = ['co', 'carbon_monoxide', '一氧化碳']
-
-/** 传感器类型到中文标签的映射 */
-const SENSOR_TYPE_LABELS: Record<string, string> = {
-  smoke: '烟感',
-  gas: '燃气',
-  co: 'CO',
-  leak: '水浸',
-  door: '门窗',
-  motion: '移动',
-}
+// 传感器关键词表与类型标签的**唯一真源**在 `zone-room.ts`（见文件顶部的 import）：
+// 此前本文件抄了一份同样的数组，两处各自维护会让「哪些名字算烟感」在不同面板里不一致。
 
 /** 危险传感器种类到内部类型字符串的映射 */
 const HAZARD_KIND_TO_TYPE: Record<HazardSensorKind, string> = {

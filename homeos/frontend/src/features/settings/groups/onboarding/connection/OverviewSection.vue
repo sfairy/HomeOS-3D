@@ -135,4 +135,4 @@ function mapStatTone(tone) {
 }
 </script>
 
-<style scoped src="./styles/connection.css"></style>
+<style scoped src="./connection.css"></style>

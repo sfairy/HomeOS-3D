@@ -12,7 +12,7 @@ import {
   getFloatingCategoryLabel,
 } from '@/features/settings/groups/appearance/use-layout-floating'
 import FloatingWidgetEditor from './WidgetEditor.vue'
-import './styles/floating.css'
+import './floating.css'
 
 const openSection = defineModel('openSection', { type: [String, null], default: 'layout' })
 const afhConfig = defineModel('afhConfig', { type: Object, required: true })

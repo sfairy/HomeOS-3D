@@ -76,4 +76,4 @@ provide(DIAGNOSTICS_KEY, panel)
 const { section, subnavSections, loadError, loading, diag, refreshCurrentSection, copyDiag } = panel
 </script>
 
-<style src="./diagnostics/styles/diagnostics-theme.css"></style>
+<style src="./diagnostics/diagnostics-theme.css"></style>

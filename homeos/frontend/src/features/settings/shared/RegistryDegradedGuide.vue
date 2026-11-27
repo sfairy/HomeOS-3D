@@ -47,4 +47,4 @@ defineProps({
 defineEmits(['retry'])
 </script>
 
-<style scoped src="./styles/registry-degraded-guide.css"></style>
+<style scoped src="./registry-degraded-guide.css"></style>

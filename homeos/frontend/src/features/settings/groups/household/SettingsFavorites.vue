@@ -223,4 +223,4 @@ function openFavoriteEditor(domain, label) {
   favModalOpen.value = true
 }
 </script>
-<style src="./styles/favorites-hub.css"></style>
+<style src="./household.css"></style>

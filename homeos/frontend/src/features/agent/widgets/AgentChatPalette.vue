@@ -795,4 +795,4 @@ async function send(raw?: string) {
 </template>
 
 <!-- scoped 外置样式：令牌块与规则都在 styles/agent-chat-panel.css -->
-<style scoped src="./styles/agent-chat-panel.css"></style>
+<style scoped src="./agent-chat-panel.css"></style>

@@ -60,4 +60,4 @@ function dismiss() {
 }
 </script>
 
-<style scoped src="./styles/setup-banners.css"></style>
+<style scoped src="./setup-banners.css"></style>

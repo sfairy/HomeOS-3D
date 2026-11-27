@@ -5,7 +5,7 @@ import EventsViewHero from './ViewHero.vue'
 import EventsViewStream from './ViewStream.vue'
 import EventsViewToolbar from './ViewToolbar.vue'
 import { useEventsView } from './use-events-view'
-import '@/kernel/ui/list-page/styles/list-page-dual-pane.css'
+import '@/kernel/ui/list-page/list-page-dual-pane.css'
 import './premium.css'
 
 const {

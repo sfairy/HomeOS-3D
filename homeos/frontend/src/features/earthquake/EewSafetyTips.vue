@@ -63,4 +63,4 @@ const tips = [
 ]
 </script>
 
-<style scoped src="./styles/eew-safety-tips.css"></style>
+<style scoped src="./earthquake.css"></style>

@@ -203,4 +203,4 @@ function onInstall(preset) {
 }
 </script>
 
-<style scoped src="./styles/home-mode-preset-cards.css"></style>
+<style scoped src="./home-mode-preset-cards.css"></style>

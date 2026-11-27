@@ -212,5 +212,5 @@ function setEngine(next) {
 }
 </script>
 
-<style src="./styles/voice-form.css"></style>
-<style scoped src="./styles/settings-voice-agent-speech-section.css"></style>
+<style src="./voice-form.css"></style>
+<style scoped src="./settings-voice-agent-speech-section.css"></style>

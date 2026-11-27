@@ -107,4 +107,4 @@ function onSelect(value: unknown) {
 }
 </script>
 
-<style scoped src="./styles/asset-picker-modal.css"></style>
+<style scoped src="./asset-picker.css"></style>

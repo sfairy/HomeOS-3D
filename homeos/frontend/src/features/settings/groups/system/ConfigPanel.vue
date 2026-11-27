@@ -251,4 +251,4 @@ function onOpenSectionFromSearch(sectionKey) {
   paramsDockRef.value?.selectSection?.(sectionKey)
 }
 </script>
-<style src="./system-config/styles/system-config-panel.css"></style>
+<style src="./system-config/system-config-panel.css"></style>

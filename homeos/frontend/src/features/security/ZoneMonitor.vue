@@ -135,7 +135,7 @@ import { toRef } from 'vue'
 import { LayoutGrid, Shield } from '@lucide/vue'
 import { useSecurityZoneMonitor } from '@/features/security/security-zone'
 import { sensorStateLabel } from '@/features/security/utils/index'
-import './styles/security.css'
+import './security.css'
 
 const props = defineProps({
   liveZones: { type: Array, default: () => [] },
