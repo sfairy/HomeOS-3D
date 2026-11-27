@@ -1,6 +1,6 @@
 /* 图标与工具提示（图标按钮/菜单、提示、剪贴板） */
 import type { EditorContext } from '../editor-context'
-import { clampNumber as clampNumber2 } from '../../editor-utils'
+import { clampNumber as clampNumber2 } from '../../editor'
 
 import { domElement } from '@app/shared/util/dom-factory'
 export interface IconPickersDeps {

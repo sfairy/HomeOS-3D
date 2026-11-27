@@ -8,7 +8,7 @@ import {
   componentActionIsSupported as componentActionIsSupported2,
   entityIdSupportsToggle as entityIdSupportsToggle2,
 } from '../../shared/action-rules'
-import { clampNumber as clampNumber2, roundField as roundField2 } from '../editor-utils'
+import { clampNumber as clampNumber2, roundField as roundField2 } from '../editor'
 import { findComponent as findComponent2 } from '../component-tree'
 import {
   manualRelatedEntityConfig as manualRelatedEntityConfig2,

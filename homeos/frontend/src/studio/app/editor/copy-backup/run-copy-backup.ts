@@ -1,7 +1,7 @@
 // 从 studio/app/editor/home.ts 迁出（P4 studio 拆分，声明级切片）。
 // 备份/复制对话框装配与执行。
 
-import { clampNumber as clampNumber2 } from '../editor-utils'
+import { clampNumber as clampNumber2 } from '../editor'
 
 import { domElement } from '@app/shared/util/dom-factory'
 /** 依赖袋（宿主 `bootEditor` 作用域）：**每次调用现取**的普通对象，等价于闭包读值。

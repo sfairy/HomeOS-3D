@@ -19,7 +19,7 @@ import {
   editorEntityPickerPage as editorEntityPickerPage2,
 } from '@app/shared/picker/editor-picker-pagination'
 import { lightStatisticsEntitySupport as lightStatisticsEntitySupport2 } from '../../../renderer/registry/index'
-import { popupModuleEntityRecommended as popupModuleEntityRecommended2 } from '../../editor-document-management'
+import { popupModuleEntityRecommended as popupModuleEntityRecommended2 } from '../../editor'
 
 export interface CopyBackupPickersDeps {
   editorCtx: EditorContext

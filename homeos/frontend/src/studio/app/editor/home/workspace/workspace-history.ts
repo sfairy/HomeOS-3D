@@ -1,18 +1,18 @@
 /* 工作区与历史（渲染器、画布缩放、撤销历史、恢复快照、草稿） */
 import type { EditorContext } from '../editor-context'
-import { type AlignMode, computeAlignedPositions } from '../../editor-selection-tools'
+import { type AlignMode, computeAlignedPositions } from '../../editor'
 import { findComponent as findComponent2 } from '../../component-tree'
 import { PanelRenderer as PanelRenderer2 } from '../../../renderer/panel-renderer'
-import { duplicateComponent } from '../../editor-component-collections'
-import { roundField as roundField2, clone as clone2 } from '../../editor-utils'
+import { duplicateComponent } from '../../editor'
+import { roundField as roundField2, clone as clone2 } from '../../editor'
 import { patchEditorFacadeState } from '../../../../engine/index'
-import { applyEditorZoomCss } from '../../editor-canvas-navigation'
+import { applyEditorZoomCss } from '../../editor'
 import {
   recoveryStorageKey as recoveryStorageKey2,
   documentSignature as documentSignature2,
   recordRecoverySaveAttempt as recordRecoverySaveAttempt2,
   resolveUnsavedRecovery as resolveUnsavedRecovery2,
-} from '../../editor-history'
+} from '../../editor'
 import { clearCoverMotorDirectionValueById } from '../../inspectors/home/home-cover-motor-inspector'
 import {
   nasProfiles as nasProfiles2,
@@ -21,9 +21,9 @@ import {
 import {
   rememberEditorProject as rememberEditorProject2,
   restoredEditorProject as restoredEditorProject2,
-} from '../../editor-document-management'
+} from '../../editor'
 import { guardInteraction3dChanges as guardInteraction3dChanges2 } from '../../../bridge/editor'
-import { confirmAction } from '../../../shared/ui-confirm'
+import { confirmAction } from '../../../shared/ui'
 import { validateGo2rtcDocument } from '@/studio/platform/go2rtc-url'
 import { beginEditorCanvasWelcome } from '../welcome/editor-canvas-welcome'
 

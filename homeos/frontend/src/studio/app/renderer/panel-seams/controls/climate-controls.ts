@@ -1,5 +1,5 @@
 import type { ComponentControllerElement } from '../../renderer-types'
-import { createUiIcon, createUiIconSlot } from '../../../shared/ui-icons'
+import { createUiIcon, createUiIconSlot } from '../../../shared/ui'
 import type { PanelRenderer } from '../../panel-renderer'
 import { clickFocusedElement, mixHexColor } from '../../renderer-helpers'
 import {

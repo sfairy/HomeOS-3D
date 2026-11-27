@@ -1,12 +1,12 @@
 /* 灯光面板（灯光输入、自动灯光、资源删除、弹窗） */
 import type { EditorContext } from '../editor-context'
 import { syncProjectTemplateOptions } from '../../bindings/project-template-options-render'
-import { greatestCommonDivisor as greatestCommonDivisor2 } from '../../editor-document-management'
+import { greatestCommonDivisor as greatestCommonDivisor2 } from '../../editor'
 import { navigateInShell } from '@/studio/platform/shell-navigation'
 import { normalizeBaseLighting as normalizeBaseLighting2 } from '../../../3d-studio/loaders/studio-normalization'
 import { findComponent as findComponent2 } from '../../component-tree'
-import { clampNumber as clampNumber2 } from '../../editor-utils'
-import { confirmAction } from '../../../shared/ui-confirm'
+import { clampNumber as clampNumber2 } from '../../editor'
+import { confirmAction } from '../../../shared/ui'
 
 export interface LightingPanelDeps {
   editorCtx: EditorContext

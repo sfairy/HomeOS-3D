@@ -1,8 +1,8 @@
 /* 导航与预览（导航预览、自动图表、空调/窗帘/日期/天气） */
 import type { EditorContext } from './editor-context'
-import { removeComponent } from '../editor-component-collections'
-import { componentLabel as componentLabel2 } from '../editor-component-collections'
-import { roundField as roundField2, clone as clone2 } from '../editor-utils'
+import { removeComponent } from '../editor'
+import { componentLabel as componentLabel2 } from '../editor'
+import { roundField as roundField2, clone as clone2 } from '../editor'
 import {
   timeComponentDimensions as timeComponentDimensions2,
   dateComponentDimensions as dateComponentDimensions2,

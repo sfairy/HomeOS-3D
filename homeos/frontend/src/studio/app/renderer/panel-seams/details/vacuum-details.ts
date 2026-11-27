@@ -1,6 +1,6 @@
 import { showRuntimeDialog } from '../popups/runtime-dialogs'
 import type { ComponentDialogElement } from '../../renderer-types'
-import { createUiIcon } from '../../../shared/ui-icons'
+import { createUiIcon } from '../../../shared/ui'
 import type { PanelRenderer } from '../../panel-renderer'
 import { componentDialogTitle } from '../../renderer-helpers'
 import { popupPlacement as popupPlacement2 } from '../../../bridge/presets/popup-placement'

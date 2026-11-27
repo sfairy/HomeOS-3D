@@ -3,7 +3,7 @@ import {
   clampNumber as clampNumber2,
   normalizedFontWeight as normalizedFontWeight2,
   roundField as roundField2,
-} from '../../editor-utils'
+} from '../../editor'
 import { setInspectorToggle as setInspectorToggle2 } from '../basic'
 import { airflowCanvasOffsetBounds as airflowCanvasOffsetBounds2 } from '../../../renderer/panel-renderer'
 

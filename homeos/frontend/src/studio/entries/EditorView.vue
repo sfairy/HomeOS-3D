@@ -87,7 +87,7 @@ onMounted(async () => {
   document.documentElement.style.setProperty("--sc-canvas-zoom", String(editorStore.canvasZoom));
   // hls.min.js 不再在编辑器引导阶段阻塞加载：相机预览创建播放器前由
   // @/shared/camera/hls-loader 按需加载，无摄像头页面完全不下发该脚本。
-  await import("@app/logging/global-log-boot");
+  await import("@app/logging/global-log");
   // 编辑器的坞脚没有商店入口（那里只有一个购买提示文案），因此不再在引导路径上
   // 打一次 /public/config：登录/注册/激活三页各自用 useStoreLinks 拿地址。
   const editor = await import("@app/editor/boot");

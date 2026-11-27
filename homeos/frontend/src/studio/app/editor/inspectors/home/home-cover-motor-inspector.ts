@@ -6,9 +6,9 @@ import {
 } from '../../../shared/flow-line-model'
 import { renderInteraction3dInspector as renderInteraction3dInspector2 } from '../../../bridge/editor'
 import { findComponent as findComponent2 } from '../../component-tree'
-import { documentSignature as documentSignature2 } from '../../editor-history'
-import { componentLabel as componentLabel2 } from '../../editor-component-collections'
-import { clampNumber as clampNumber2, roundField as roundField2 } from '../../editor-utils'
+import { documentSignature as documentSignature2 } from '../../editor'
+import { componentLabel as componentLabel2 } from '../../editor'
+import { clampNumber as clampNumber2, roundField as roundField2 } from '../../editor'
 import {
   setInspectorToggle as setInspectorToggle2,
   iconButtonEffectInspectorLayer as iconButtonEffectInspectorLayer2,

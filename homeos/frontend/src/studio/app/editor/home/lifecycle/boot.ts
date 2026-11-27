@@ -19,7 +19,7 @@ import {
   normalizedHexColor as normalizedHexColor2,
   rgbToHex as rgbToHex2,
   clampNumber as clampNumber2,
-} from "../../editor-utils";
+} from "../../editor";
 // 3/6 位校验 + 非法回落黑（原 studio 副本不校验输入，非法值产 NaN 通道，已删）
 import {
   packPopupModules as packPopupModules2,
@@ -27,7 +27,7 @@ import {
 import {
   countComponentsOutsideCanvas as countComponentsOutsideCanvas2,
   resizeDashboardDocument as resizeDashboardDocument2,
-} from "../../dashboard-resize";
+} from "../../dashboard";
 import {
   copyComponentsAcrossDocuments as copyComponentsAcrossDocuments2,
   copyComponentsToTarget as copyComponentsToTarget2,
@@ -37,14 +37,14 @@ import {
   relatedPopupContext as relatedPopupContext2,
 } from "../../../shared/related-entities";
 import { dashboardFontChoices } from "../../../shared/dashboard-fonts";
-import { createDashboardFontSettings } from "../../dashboard-font-settings";
+import { createDashboardFontSettings } from "../../dashboard";
 import { createUserImageUploader } from "../../../shared/user-image-upload";
 import type { UserImageUploadState } from "../../../shared/user-image-upload";
 import { ensureRegistryComponents as ensureRegistryComponents2 } from "../../../renderer/registry/index";
 import {
   deferHiddenEditorDialogs as deferHiddenEditorDialogs2,
   installSettingsDialogBackdropGuard as installSettingsDialogBackdropGuard2,
-} from "../../editor-dialogs";
+} from "../../editor";
 import { createEditorPickerElements as createEditorPickerElements2 } from "../../picker/editor-picker-elements";
 
 
@@ -68,7 +68,7 @@ import {
   componentLabel as componentLabel2,
   nextTemplateInstanceName as nextTemplateInstanceName2,
   syncSharedComponentReferenceOrder as syncSharedComponentReferenceOrder2,
-} from "../../editor-component-collections";
+} from "../../editor";
 
 
 import {
@@ -76,11 +76,11 @@ import {
   findCustomPopup as findCustomPopup2,
   normalizedPopupClimateDeviceType as normalizedPopupClimateDeviceType2,
   uniquePagePath as uniquePagePath2,
-} from "../../editor-document-management";
+} from "../../editor";
 import {
   createRecoveryWriter as createRecoveryWriter2,
   documentSignature as documentSignature2,
-} from "../../editor-history";
+} from "../../editor";
 import { hasInteractionBindings as hasInteractionBindings2 } from "@/studio/platform/navigation/binding-repair";
 import {
   DEFAULT_BASE_LIGHTING as DEFAULT_BASE_LIGHTING2,
@@ -108,8 +108,8 @@ import {
   clientPointToCanvas,
   normalizeMarquee,
   pickComponentsInMarquee,
-} from '../../editor-selection-tools';
-import { removeComponent } from "../../editor-component-collections";
+} from '../../editor';
+import { removeComponent } from "../../editor";
 import { createDateTimeWeatherLineChartInputTables } from "../../metadata/date-weather-linechart-input-tables";
 import { createNavigationInputTables } from "../../metadata/navigation-input-tables";
 
@@ -152,7 +152,7 @@ import { createBindingRepair } from "@/studio/platform/navigation/binding-repair
 import { weatherSceneStyle as weatherSceneStyle2 } from "../../../renderer/weather-forecast";
 import { bindScenePopupEditorBoot } from "./scene-popup-editor-boot";
 import { bindWeatherInspectorToggles } from "./weather-inspector-wiring";
-import { confirmAction } from "../../../shared/ui-confirm";
+import { confirmAction } from "../../../shared/ui";
 let disposeActiveEditor: (() => void) | null = null;
 /**
  * 0.8.4：未保存副本恢复用的「保存尝试」记录（revision + 文档指纹）。

@@ -1,4 +1,4 @@
-import { createUiIcon } from '../../shared/ui-icons'
+import { createUiIcon } from '../../shared/ui'
 
 import { domElement } from '@app/shared/util/dom-factory'
 /** 依赖袋（宿主 `bootEditor` 作用域）：**每次调用现取**的普通对象，等价于闭包读值。

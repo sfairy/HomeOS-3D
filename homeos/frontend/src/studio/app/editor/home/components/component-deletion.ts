@@ -1,8 +1,8 @@
 /* 控件删除：确认后从文档移除，并把被删控件剔出当前选择。 */
 import type { ComponentEditingDeps } from './component-editing'
 import { findComponent as findComponent2 } from '../../component-tree'
-import { componentLabel as componentLabel2, removeComponent } from '../../editor-component-collections'
-import { confirmAction } from '../../../shared/ui-confirm'
+import { componentLabel as componentLabel2, removeComponent } from '../../editor'
+import { confirmAction } from '../../../shared/ui'
 
 export async function deleteComponentIds(deps: ComponentEditingDeps, deleteComponentId: unknown) {
   const nl5 = deps.removalPageEntry(deleteComponentId)

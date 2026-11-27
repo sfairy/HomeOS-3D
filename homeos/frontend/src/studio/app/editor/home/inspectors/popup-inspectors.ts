@@ -4,7 +4,7 @@ import {
   clampNumber as clampNumber2,
   roundField as roundField2,
   normalizedFontWeight as normalizedFontWeight2,
-} from '../../editor-utils'
+} from '../../editor'
 import {
   fitInspectorComponentToDimensions as fitInspectorComponentToDimensions2,
   inspectorComponentMetrics as inspectorComponentMetrics2,

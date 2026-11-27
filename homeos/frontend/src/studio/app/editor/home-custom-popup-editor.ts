@@ -1,13 +1,13 @@
 /** Custom combined popup editor. */
-import { createUiIcon } from '../shared/ui-icons'
-import { clone as clone2, newId as newId2, roundField as roundField2 } from './editor-utils'
+import { createUiIcon } from '../shared/ui'
+import { clone as clone2, newId as newId2, roundField as roundField2 } from './editor'
 import {
   findCustomPopup as findCustomPopup2,
   normalizedPopupClimateDeviceType as normalizedPopupClimateDeviceType2,
   popupModuleDropPosition as popupModuleDropPosition2,
   popupModuleTypeLabel as popupModuleTypeLabel2,
   reorderedPopupModules as reorderedPopupModules2,
-} from './editor-document-management'
+} from './editor'
 import {
   packPopupModules as packPopupModules2,
   popupLayoutColumns as popupLayoutColumns2,

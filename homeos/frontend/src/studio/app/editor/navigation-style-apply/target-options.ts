@@ -6,7 +6,7 @@
  * 调用点零改写（同名回引 + 宿主侧薄绑定）。
  */
 
-import { componentLabel as componentLabel2 } from '../editor-component-collections'
+import { componentLabel as componentLabel2 } from '../editor'
 
 import { domElement } from '@app/shared/util/dom-factory'
 export function createNavigationStyleApplyOption({

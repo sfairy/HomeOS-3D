@@ -2,57 +2,36 @@
 export default {
   merges: [
     {
-      into: 'homeos/frontend/src/features/security/composables/security-view.ts',
+      into: 'homeos/frontend/src/studio/app/shared/ui.ts',
       from: [
-        'homeos/frontend/src/features/security/composables/security-view-calendar.internals.ts',
-        'homeos/frontend/src/features/security/composables/security-view-events.internals.ts',
-        'homeos/frontend/src/features/security/composables/use-security-view.ts',
+        'homeos/frontend/src/studio/app/shared/ui-confirm.ts',
+        'homeos/frontend/src/studio/app/shared/ui-icons.ts',
       ],
     },
     {
-      into: 'homeos/frontend/src/features/security/composables/security.ts',
+      into: 'homeos/frontend/src/studio/app/editor/dashboard.ts',
       from: [
-        'homeos/frontend/src/features/security/composables/use-security-audit-events.ts',
-        'homeos/frontend/src/features/security/composables/use-security-events-calendar.ts',
-        'homeos/frontend/src/features/security/composables/use-security-panel-status.ts',
-        'homeos/frontend/src/features/security/composables/use-security-sensors.ts',
+        'homeos/frontend/src/studio/app/editor/dashboard-font-settings.ts',
+        'homeos/frontend/src/studio/app/editor/dashboard-resize.ts',
       ],
     },
     {
-      into: 'homeos/frontend/src/features/security/composables/security-zone.ts',
+      into: 'homeos/frontend/src/studio/app/editor/editor.ts',
       from: [
-        'homeos/frontend/src/features/security/composables/use-security-zone-editor-list.ts',
-        'homeos/frontend/src/features/security/composables/use-security-zone-monitor.ts',
-        'homeos/frontend/src/features/security/composables/use-security-zone-rooms.ts',
+        'homeos/frontend/src/studio/app/editor/editor-canvas-navigation.ts',
+        'homeos/frontend/src/studio/app/editor/editor-component-collections.ts',
+        'homeos/frontend/src/studio/app/editor/editor-dialogs.ts',
+        'homeos/frontend/src/studio/app/editor/editor-document-management.ts',
+        'homeos/frontend/src/studio/app/editor/editor-history.ts',
+        'homeos/frontend/src/studio/app/editor/editor-selection-tools.ts',
+        'homeos/frontend/src/studio/app/editor/editor-utils.ts',
       ],
     },
     {
-      into: 'homeos/frontend/src/features/device/composables/devices-view.ts',
+      into: 'homeos/frontend/src/studio/app/logging/global-log.ts',
       from: [
-        'homeos/frontend/src/features/device/composables/devices-view-actions.internals.ts',
-        'homeos/frontend/src/features/device/composables/devices-view-filter.internals.ts',
-        'homeos/frontend/src/features/device/composables/devices-view-map.internals.ts',
-        'homeos/frontend/src/features/device/composables/devices-view-query.internals.ts',
-        'homeos/frontend/src/features/device/composables/use-devices-view.ts',
-      ],
-    },
-    {
-      into: 'homeos/frontend/src/features/device/composables/device-analytics-dashboard.ts',
-      from: [
-        'homeos/frontend/src/features/device/composables/use-device-analytics-dashboard-shell.ts',
-        'homeos/frontend/src/features/device/composables/use-device-analytics-dashboard.ts',
-      ],
-    },
-    {
-      into: 'homeos/frontend/src/features/device/composables/device.ts',
-      from: [
-        'homeos/frontend/src/features/device/composables/use-device-detail-view.ts',
-        'homeos/frontend/src/features/device/composables/use-device-entity-references.ts',
-        'homeos/frontend/src/features/device/composables/use-device-event-stats.ts',
-        'homeos/frontend/src/features/device/composables/use-device-health-trend.ts',
-        'homeos/frontend/src/features/device/composables/use-device-overview.ts',
-        'homeos/frontend/src/features/device/composables/use-device-state-history.ts',
-        'homeos/frontend/src/features/device/composables/use-device-usage-stats.ts',
+        'homeos/frontend/src/studio/app/logging/global-log-boot.ts',
+        'homeos/frontend/src/studio/app/logging/global-log.ts',
       ],
     },
   ],

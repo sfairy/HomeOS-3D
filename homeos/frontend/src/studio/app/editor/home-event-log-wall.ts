@@ -1,7 +1,7 @@
 /**
  * 即时消息墙（event-log-wall）控件检查器子域。
  */
-import { clampNumber as clampNumber2 } from './editor-utils'
+import { clampNumber as clampNumber2 } from './editor'
 import { findComponent as findComponent2 } from './component-tree'
 import { setInspectorToggle as setInspectorToggle2 } from './inspectors/basic'
 

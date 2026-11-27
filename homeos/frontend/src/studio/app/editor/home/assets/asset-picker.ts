@@ -1,6 +1,6 @@
 /* 资源选择与预览（资源 URL/尺寸/菜单/大图预览、实体选择器配置） */
 import type { EditorContext } from '../editor-context'
-import { clampNumber as clampNumber2 } from '../../editor-utils'
+import { clampNumber as clampNumber2 } from '../../editor'
 import { TOGGLE_ENTITY_DOMAINS as TOGGLE_ENTITY_DOMAINS2 } from '../../../shared/action-rules'
 import { updateRelatedPopup } from '../../home-related-popup'
 import { findComponent as findComponent2 } from '../../component-tree'

@@ -8,15 +8,15 @@ import {
   syncSharedComponentReferenceOrder as syncSharedComponentReferenceOrder2,
   componentLabel as componentLabel2,
   ensureSharedComponentReference as ensureSharedComponentReference2,
-} from '../../editor-component-collections'
-import { newId as newId2, clone as clone2 } from '../../editor-utils'
+} from '../../editor'
+import { newId as newId2, clone as clone2 } from '../../editor'
 import {
   componentDirectLocation as componentDirectLocation2,
   findComponentLocation as findComponentLocation2,
   findComponent as findComponent2,
 } from '../../component-tree'
-import { componentBounds as componentBounds2 } from '../../editor-selection-tools'
-import { documentSignature as documentSignature2 } from '../../editor-history'
+import { componentBounds as componentBounds2 } from '../../editor'
+import { documentSignature as documentSignature2 } from '../../editor'
 
 export interface WorkspaceDocumentDeps {
   editorCtx: EditorContext

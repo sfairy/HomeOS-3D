@@ -3,7 +3,7 @@ import {
   clampNumber as clampNumber2,
   normalizedFontWeight as normalizedFontWeight2,
   roundField as roundField2,
-} from '../../editor-utils'
+} from '../../editor'
 import { inspectorComponentMetrics as inspectorComponentMetrics2 } from '../basic'
 
 interface TimeInspectorContext {

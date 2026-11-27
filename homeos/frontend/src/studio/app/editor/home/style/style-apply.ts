@@ -17,7 +17,7 @@ import {
   entryStateRef,
   entryStateEntry,
 } from '../../metadata/editor-navigation-style-metadata'
-import { roundField as roundField2, clone as clone2 } from '../../editor-utils'
+import { roundField as roundField2, clone as clone2 } from '../../editor'
 import { DEFAULT_PERSPECTIVE_CORNERS } from '../../metadata/editor-perspective-constants'
 
 export interface StyleApplyDeps {

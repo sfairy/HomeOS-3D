@@ -1315,7 +1315,7 @@
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/studio/app/editor/editor-component-collections.ts": {
+    "homeos/frontend/src/studio/app/editor/editor.ts": {
       "alias2": 2,
       "impl": 0,
       "moduleLet": 0

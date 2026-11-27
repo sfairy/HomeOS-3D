@@ -1,16 +1,16 @@
 /* 组件编辑（选择、复制/删除、列表与模板、组件菜单） */
 import type { EditorContext } from '../editor-context'
 import { findComponent as findComponent2, findComponentLocation as findComponentLocation2 } from '../../component-tree'
-import { clampNumber as clampNumber2, visibilityIconSvg as visibilityIconSvg2 } from '../../editor-utils'
-import { componentBounds as componentBounds2 } from '../../editor-selection-tools'
+import { clampNumber as clampNumber2, visibilityIconSvg as visibilityIconSvg2 } from '../../editor'
+import { componentBounds as componentBounds2 } from '../../editor'
 import {
   canGroupComponents as canGroupComponents2,
   componentLabel as componentLabel2,
   applyCollectionLayerOrder as applyCollectionLayerOrder2,
   syncSharedComponentReferenceOrder as syncSharedComponentReferenceOrder2,
-} from '../../editor-component-collections'
+} from '../../editor'
 import { copyComponentTargets as copyComponentTargets2 } from '../../component-page-copy'
-import { duplicateComponent } from '../../editor-component-collections'
+import { duplicateComponent } from '../../editor'
 import { listComponentTemplates as listComponentTemplates2 } from '../../component-templates'
 import { appendTemplatePreview } from './template-preview'
 import { domElement } from '@app/shared/util/dom-factory'

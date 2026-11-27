@@ -6,7 +6,7 @@ import {
   actionPopupData as actionPopupData2,
   componentActionIsSupported as componentActionIsSupported2,
 } from '../../shared/action-rules'
-import { clone as clone2 } from '../editor-utils'
+import { clone as clone2 } from '../editor'
 import { findComponent as findComponent2 } from '../component-tree'
 import {
   manualRelatedEntityConfig as manualRelatedEntityConfig2,

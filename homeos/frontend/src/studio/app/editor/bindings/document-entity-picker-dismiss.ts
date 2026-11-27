@@ -1,7 +1,7 @@
 // 从 studio/app/editor/home.ts 迁出（P4 studio 拆分，语句级切片）。
 // document 级点击兜底：点空白处关闭实体选择弹层与检视面板
 
-import { clampNumber as clampNumber2, clone as clone2 } from '../editor-utils'
+import { clampNumber as clampNumber2, clone as clone2 } from '../editor'
 import { findComponent as findComponent2 } from '../component-tree'
 
 /** 依赖袋（宿主 `bootEditor` 作用域）：宿主按 getter 传入，模块**惰性读取** ——

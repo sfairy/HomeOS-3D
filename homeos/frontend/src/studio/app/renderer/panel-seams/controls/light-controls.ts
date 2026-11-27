@@ -1,5 +1,5 @@
 import type { ComponentControllerElement, ComponentPayload } from '../../renderer-types'
-import { createUiIcon } from '../../../shared/ui-icons'
+import { createUiIcon } from '../../../shared/ui'
 import {
   LIGHT_DETAIL_PRESET_DEFINITIONS as LIGHT_DETAIL_PRESET_DEFINITIONS2,
   LIGHT_PRESET_MAXIMUM_HOLD_MS as LIGHT_PRESET_MAXIMUM_HOLD_MS2,

@@ -1,7 +1,7 @@
 // 从 studio/app/editor/home.ts 迁出（P4 studio 拆分，语句级切片）。
 // 折线图检视面板的 input 监听（写回折线图的系列/坐标轴字段）
 
-import { clampNumber as clampNumber2 } from '../editor-utils'
+import { clampNumber as clampNumber2 } from '../editor'
 import { findComponent as findComponent2 } from '../component-tree'
 
 /** 依赖袋（宿主 `bootEditor` 作用域）：宿主按 getter 传入，模块**惰性读取** ——

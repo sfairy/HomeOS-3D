@@ -2,7 +2,7 @@
 // 选中组件的方向键微调（nudge）。
 
 import { airflowCanvasOffsetBounds as airflowCanvasOffsetBounds2 } from '../../renderer/panel-renderer'
-import { clampNumber as clampNumber2 } from '../editor-utils'
+import { clampNumber as clampNumber2 } from '../editor'
 import { findComponent as findComponent2 } from '../component-tree'
 
 /** 依赖袋（宿主 `bootEditor` 作用域）：**每次调用现取**的普通对象，等价于闭包读值。

@@ -1,11 +1,11 @@
 /* 样式对话框（样式应用弹窗、资源删除、复制备份） */
 import type { EditorContext } from '../editor-context'
-import { roundField as roundField2, clone as clone2 } from '../../editor-utils'
+import { roundField as roundField2, clone as clone2 } from '../../editor'
 import {
   renderNavigationStyleApplyTargets as runVariantLowerCore,
   createNavigationStyleApplyOption,
 } from '../../navigation-style-apply/target-options'
-import { componentLabel as componentLabel2 } from '../../editor-component-collections'
+import { componentLabel as componentLabel2 } from '../../editor'
 import {
   entryStateEntry,
   navigationIconDraftDocumentConfig,

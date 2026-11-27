@@ -6,7 +6,7 @@
  * 去重 WeakSet，宿主按引用注入（切片只 `.has()` / `.add()`，不重新绑定）。
  */
 
-import { clampNumber as clampNumber2 } from '../editor-utils'
+import { clampNumber as clampNumber2 } from '../editor'
 
 import { domElement } from '@app/shared/util/dom-factory'
 function stepNumberInput(changedPagePathElement: any, stepDelta: any) {

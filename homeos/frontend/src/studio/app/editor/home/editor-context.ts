@@ -13,7 +13,7 @@
  * `cb` 就退化成隐式 `any`（`TS7006`），精确类型的价值正是在这里。
  */
 import type { normalizeBaseLighting as normalizeBaseLighting2 } from '../../3d-studio/loaders/studio-normalization'
-import type { DashboardFontSettings } from '../dashboard-font-settings'
+import type { DashboardFontSettings } from '../dashboard'
 
 export interface EditorContext {
   baseLightingComponentId: string

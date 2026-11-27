@@ -20,12 +20,12 @@ import {
   editorDocumentFrameSignature as editorDocumentFrameSignature2,
   editorComponentEntries as editorComponentEntries2,
   editorComponentStructure as editorComponentStructure2,
-} from '../../editor-history'
+} from '../../editor'
 import {
   normalizedPopupClimateDeviceType as normalizedPopupClimateDeviceType2,
   popupModuleEntityRecommended as popupModuleEntityRecommended2,
   findCustomPopup as findCustomPopup2,
-} from '../../editor-document-management'
+} from '../../editor'
 import { renderEntityOptionButtons } from '../entity/entity-option-list'
 
 import { domElement } from '@app/shared/util/dom-factory'

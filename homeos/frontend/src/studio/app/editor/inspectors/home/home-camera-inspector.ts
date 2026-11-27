@@ -1,5 +1,5 @@
 /** Camera inspector sync */
-import { clampNumber as clampNumber2, roundField as roundField2 } from '../../editor-utils'
+import { clampNumber as clampNumber2, roundField as roundField2 } from '../../editor'
 import { setInspectorToggle as setInspectorToggle2 } from '../basic'
 import { normalizeGo2rtcTarget as normalizeGo2rtcTarget2 } from '../../../renderer/registry/index'
 

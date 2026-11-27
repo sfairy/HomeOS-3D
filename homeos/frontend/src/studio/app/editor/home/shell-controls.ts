@@ -12,7 +12,7 @@ import {
   hsvToRgb255 as hsvToRgb2,
   rgbToHex as rgbToHex2,
   clampNumber as clampNumber2,
-} from '../editor-utils'
+} from '../editor'
 import { hexToRgbOrBlack as hexToRgb2 } from '@/kernel/utils/ui/color.util'
 import { clearEditorCanvasWelcome as clearEditorCanvasWelcome2 } from './welcome/editor-canvas-welcome'
 

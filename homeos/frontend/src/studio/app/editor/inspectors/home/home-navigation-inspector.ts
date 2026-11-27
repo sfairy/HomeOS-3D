@@ -1,5 +1,5 @@
 /** NavigationInspector — context 注入 */
-import { clampNumber as clampNumber2, roundField as roundField2 } from '../../editor-utils'
+import { clampNumber as clampNumber2, roundField as roundField2 } from '../../editor'
 import { setInspectorToggle as setInspectorToggle2 } from '../basic'
 import { resolveSceneControlMode as resolveSceneControlMode2 } from '../../../renderer/scene-mode'
 import { scenePopupEnabled as scenePopupEnabled2 } from '../../../renderer/scene-popup-model'

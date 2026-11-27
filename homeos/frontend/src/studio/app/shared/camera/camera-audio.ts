@@ -8,7 +8,7 @@
  * 摄像头在多个弹窗里同时出声会叠成回音。跨 iframe 用一个挂在顶层 window 上的 Symbol
  * 记录当前 owner，任一时刻只有一路出声。
  */
-import { createUiIcon } from '../ui-icons'
+import { createUiIcon } from '../ui'
 
 const AUDIO_OWNER_KEY = Symbol.for('homeos.camera-audio-owner')
 /** 「有声」/「静音」两枚图标的 MDI 名（`createUiIcon` 会解析成遮罩）。 */
