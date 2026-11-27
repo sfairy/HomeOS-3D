@@ -457,10 +457,7 @@ export function applyEntityStatesBatch(deps: EntityStateUpdateDeps, changes: WsD
   }
 }
 
-/**
- * @file ws-bind-domain.ts
- * @module frontend/src/composables/entity
- */
+/* ── 原 ws-bind-domain.ts 的实现 ── */
 /** entity WebSocket：家庭模式 / 通知 / 安防 / 在场 / 能源 / 地震等业务域事件 */
 
 export function bindEntitySocketDomainEvents(socket: Socket, ctx: EntitySocketHandlerContext): void {
@@ -725,10 +722,7 @@ export function bindEntitySocketDomainEvents(socket: Socket, ctx: EntitySocketHa
   )
 }
 
-/**
- * @file ws-bind-ha-sync.ts
- * @module frontend/src/composables/entity
- */
+/* ── 原 ws-bind-ha-sync.ts 的实现 ── */
 /** entity WebSocket：HA 状态 / 全量同步 / 增量补发 */
 
 /** 暂存 delta 的上限：异常流量下宁可丢掉一部分（下次全量兜底），也不让内存无界增长。 */
@@ -1193,10 +1187,7 @@ export function bindEntitySocketHaSync(
   )
 }
 
-/**
- * @file ws-bind-lifecycle.ts
- * @module frontend/src/composables/entity
- */
+/* ── 原 ws-bind-lifecycle.ts 的实现 ── */
 /** entity WebSocket：连接 / 断线 / 重连生命周期 */
 
 export function bindEntitySocketLifecycle(
@@ -1362,10 +1353,7 @@ export function bindEntitySocketLifecycle(
   socket.io.on('reconnect', onManagerReconnect)
 }
 
-/**
- * @file entity-ws-bind.ts
- * @module frontend/src/composables/entity
- */
+/* ── 原 entity-ws-bind.ts 的实现 ── */
 /** entity WebSocket: 将 Socket.IO 生命周期 / HA 状态 / 实体分块 / 领域事件绑定到 entities store */
 
 export function bindEntitySocketHandlers(

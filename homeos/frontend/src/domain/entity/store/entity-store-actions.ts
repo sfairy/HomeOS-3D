@@ -1,7 +1,4 @@
-/**
- * @file frontend\src\stores\entities\entity-store-actions.ts
- * @module src
- */
+/* ── 原 frontend\src\stores\entities\entity-store-actions.ts 的实现 ── */
 /**
  * HA 服务调用与预报（从 entities.store 抽离）
  * - callService：调用 Home Assistant 服务（domain + service + entityId + serviceData）

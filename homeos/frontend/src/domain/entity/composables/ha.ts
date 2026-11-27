@@ -5,16 +5,7 @@ import { getEntityDomain } from '@homeos/shared'
 import { logger } from '@/kernel/utils/core'
 import { blockDangerousHaServiceWhenOffline, HA_OFFLINE_DANGEROUS_CONTROL_MSG } from '@/kernel/utils/ha'
 
-/**
- * @file useHaDegrade.ts
- * @module composables/ui/useHaDegrade
- * @description HA 连接降级 composable，统一封装降级判定与重连流程。
- *   - connectionDegraded：默认按「断连 / 重连中 / 实体数据过期」判定，支持传入自定义降级状态（ref/computed/getter）
- *   - retryHaConnection：先断开再重连，成功/失败 Toast 通知（成功文案可参数化，失败前可回调记录日志）
- *   - retrying：本地重连请求进行中标记（从发起重连到连接建立/失败）
- *   - 降级文案各视图差异较大，由调用方自行计算后传入 HaDegradeBanner 展示
- * @dependencies vue, @/stores/entities.store, @/stores/chrome.store
- */
+/* ── 原 useHaDegrade.ts 的实现 ── */
 
 /** useHaDegrade 配置项 */
 interface UseHaDegradeOptions {

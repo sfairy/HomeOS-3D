@@ -19,10 +19,7 @@ import { formatPresenceDetailSummary } from '@/features/presence/model/utils/dis
 import { formatLocaleDate } from '@/kernel/utils/format'
 import { useSettingsHubRouteSection } from '@/features/settings/shared/composables/hub'
 
-/**
- * @file setup-wizard-core.internals.ts
- * @module frontend/src/views
- */
+/* ── 原 setup-wizard-core.internals.ts 的实现 ── */
 /** 首装向导核心状态机 */
 
 // ── useSetupWizard ──
@@ -545,10 +542,7 @@ export function useSetupWizard(envMap = useEnvSensorMap(), envStep = useSetupWiz
   }
 }
 
-/**
- * @file setup-wizard-doorbell.internals.ts
- * @module frontend/src/views
- */
+/* ── 原 setup-wizard-doorbell.internals.ts 的实现 ── */
 /** 首装向导：门铃绑定 */
 
 export function useSetupWizardDoorbells() {
@@ -581,10 +575,7 @@ export function useSetupWizardDoorbells() {
   return { doorbellList, addDoorbell, removeDoorbell }
 }
 
-/**
- * @file setup-wizard-env.internals.ts
- * @module frontend/src/features/settings/connect/composables
- */
+/* ── 原 setup-wizard-env.internals.ts 的实现 ── */
 /** Setup 向导：环境传感器步骤 */
 
 
@@ -704,10 +695,7 @@ export function useSetupWizardEnvStep(envMap: ReturnType<typeof useEnvSensorMap>
   }
 }
 
-/**
- * @file setup-wizard-presence.internals.ts
- * @module frontend/src/views
- */
+/* ── 原 setup-wizard-presence.internals.ts 的实现 ── */
 /** 首装向导：在场 / 安防联动开关 */
 
 export function useSetupWizardPresence(opts: {
@@ -826,10 +814,7 @@ export function useSetupWizardPresence(opts: {
   }
 }
 
-/**
- * @file setup-wizard.internals.ts
- * @module frontend/src/views
- */
+/* ── 原 setup-wizard.internals.ts 的实现 ── */
 /** 首装向导面板 */
 
 // ── useSetupWizardPanel ──

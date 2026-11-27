@@ -23,13 +23,13 @@
     "ops"
   ],
   "totals": {
-    "sources": 3406,
-    "lines": 741198,
+    "sources": 3499,
+    "lines": 741518,
     "clones": 156,
-    "duplicatedLines": 2720,
-    "percentage": 0.367,
-    "tokens": 4333799,
-    "duplicatedTokens": 13748
+    "duplicatedLines": 2694,
+    "percentage": 0.3633,
+    "tokens": 4338714,
+    "duplicatedTokens": 13754
   },
   "byFormat": {
     "css": {
@@ -47,10 +47,10 @@
       "clones": 20
     },
     "javascript": {
-      "sources": 332,
-      "lines": 47287,
+      "sources": 337,
+      "lines": 47861,
       "duplicatedLines": 309,
-      "percentage": 0.6535,
+      "percentage": 0.6456,
       "clones": 15
     },
     "python": {
@@ -61,10 +61,10 @@
       "clones": 37
     },
     "typescript": {
-      "sources": 1431,
-      "lines": 391024,
-      "duplicatedLines": 1645,
-      "percentage": 0.4207,
+      "sources": 1519,
+      "lines": 390770,
+      "duplicatedLines": 1619,
+      "percentage": 0.4143,
       "clones": 84
     },
     "vue": {
@@ -155,6 +155,12 @@
       "lines": 22
     },
     {
+      "fingerprint": "1a1e8175a3295dc5fdd7f773ac6854d19e6c81c9",
+      "first": "homeos/frontend/src/features/earthquake/composables/use-earthquake-history-analytics.ts",
+      "second": "homeos/frontend/src/features/events/components/ViewAnalytics.vue",
+      "lines": 17
+    },
+    {
       "fingerprint": "1a4889d3ed936ba296ade3b1a29533f50178851a",
       "first": "homeos/frontend/src/studio/runtime/panels/list-extra-panel.ts",
       "second": "homeos/frontend/src/studio/runtime/panels/service-extra-panel.ts",
@@ -189,12 +195,6 @@
       "first": "homeos/frontend/src/features/device/components/device-group/DeviceGroupModal.vue",
       "second": "homeos/frontend/src/features/entity/components/EntityPickModal.vue",
       "lines": 14
-    },
-    {
-      "fingerprint": "21c3644c42cb1bdb63812e98cee0bc21371fb481",
-      "first": "homeos/frontend/src/features/events/components/ViewAnalytics.vue",
-      "second": "homeos/frontend/src/features/notifications/composables.ts",
-      "lines": 11
     },
     {
       "fingerprint": "225ee9193cf9152fde5546530edba55e391262e4",
@@ -303,12 +303,6 @@
       "first": "homeos/frontend/src/studio/authoring/export/export.ts",
       "second": "homeos/frontend/src/studio/authoring/render/camera.ts",
       "lines": 11
-    },
-    {
-      "fingerprint": "3ac4ba41aa3636376b72c6fbcb3f1cec465d6103",
-      "first": "homeos/frontend/src/features/events/components/ViewAnalytics.vue",
-      "second": "homeos/frontend/src/features/notifications/composables.ts",
-      "lines": 12
     },
     {
       "fingerprint": "3bdf2593d882504cde69c9044e42f86cc1b203c3",
@@ -485,6 +479,12 @@
       "lines": 11
     },
     {
+      "fingerprint": "66a0cfa79ede298f228440216dddb1399f8285f6",
+      "first": "homeos/frontend/src/features/security/composables/security.ts",
+      "second": "homeos/frontend/src/features/security/utils/zone-room.util.ts",
+      "lines": 19
+    },
+    {
       "fingerprint": "6775f623e77142b8c99f9e6af68917889224ab24",
       "first": "homeos/frontend/src/studio/authoring/app-boot.ts",
       "second": "homeos/frontend/src/studio/authoring/render/render-loop.ts",
@@ -563,6 +563,12 @@
       "lines": 13
     },
     {
+      "fingerprint": "7a2ea29693627665bcfc0ea2687b6469a3b438b5",
+      "first": "homeos/frontend/src/features/earthquake/composables/use-earthquake-history-analytics.ts",
+      "second": "homeos/frontend/src/features/notifications/composables/notifications-analytics-charts.internals.ts",
+      "lines": 15
+    },
+    {
       "fingerprint": "7ceffdc4b9030315988dcae32b5799668200de4c",
       "first": "homeos/backend/src/domains/environment/weather/watch.py",
       "second": "homeos/backend/src/domains/retention/service.py",
@@ -575,10 +581,10 @@
       "lines": 14
     },
     {
-      "fingerprint": "81fdcb63c6948559384db84f4cfa938284f360b3",
-      "first": "homeos/frontend/src/kernel/constants.ts",
-      "second": "homeos/frontend/src/studio/authoring/items/studio-user-decorations.ts",
-      "lines": 28
+      "fingerprint": "820b0fbd5be519e9e1ceab89f64d561a748548b1",
+      "first": "homeos/frontend/src/studio/authoring/store/save-store.ts",
+      "second": "homeos/frontend/src/studio/authoring/store/save-store.ts",
+      "lines": 14
     },
     {
       "fingerprint": "82d6dc42ff82c072508a9bd21e47f2ff5ee97018",
@@ -603,6 +609,12 @@
       "first": "homeos/frontend/src/studio/runtime/panels/compound-extra-panel.ts",
       "second": "homeos/frontend/src/studio/runtime/panels/list-extra-panel.ts",
       "lines": 11
+    },
+    {
+      "fingerprint": "8751f898db38df6017ddfe75112deaaabab0633a",
+      "first": "homeos/frontend/src/features/events/components/ViewAnalytics.vue",
+      "second": "homeos/frontend/src/features/notifications/composables/notifications-analytics-charts.internals.ts",
+      "lines": 12
     },
     {
       "fingerprint": "879536f846bd67c825f284e56a483aae4d9b749a",
@@ -683,12 +695,6 @@
       "lines": 17
     },
     {
-      "fingerprint": "98d3d0a944564af0224a63ee665e1306546b1720",
-      "first": "homeos/frontend/src/features/earthquake/composables.ts",
-      "second": "homeos/frontend/src/features/events/components/ViewAnalytics.vue",
-      "lines": 17
-    },
-    {
       "fingerprint": "996b545f922a3f0e99538d02027057bd98611eb2",
       "first": "homeos/frontend/src/features/auth/views/RegisterView.vue",
       "second": "homeos/frontend/src/features/auth/views/ResetPasswordView.vue",
@@ -704,6 +710,12 @@
       "fingerprint": "9d9221ca2d4a77e09eb795b18b25042c44d487a0",
       "first": "homeos/frontend/src/studio/runtime/panels/compound-extra-panel.ts",
       "second": "homeos/frontend/src/studio/runtime/panels/service-extra-panel.ts",
+      "lines": 11
+    },
+    {
+      "fingerprint": "9e0ab581663b7028c4fb123c20702bd77ecff726",
+      "first": "homeos/frontend/src/features/events/components/ViewAnalytics.vue",
+      "second": "homeos/frontend/src/features/notifications/composables/notifications-analytics-charts.internals.ts",
       "lines": 11
     },
     {
@@ -741,12 +753,6 @@
       "first": "homeos/frontend/src/studio/app/editor/home/lifecycle/asset-dialog-wiring.ts",
       "second": "homeos/frontend/src/studio/app/editor/home/lifecycle/boot.ts",
       "lines": 45
-    },
-    {
-      "fingerprint": "b28fc9debd4dc49e7bef978ba6c7d4fdac593b37",
-      "first": "homeos/frontend/src/features/security/composables/security.ts",
-      "second": "homeos/frontend/src/features/security/utils.ts",
-      "lines": 28
     },
     {
       "fingerprint": "b6857a5cfbe7d9e0dc32be1a30763c1243799a76",
@@ -797,6 +803,12 @@
       "lines": 13
     },
     {
+      "fingerprint": "c17efd92e54d8c9d01ea6c2806aa38f4e1786573",
+      "first": "homeos/frontend/src/features/voice/composables/use-daily-advisor-greeting.ts",
+      "second": "homeos/frontend/src/features/voice/composables/use-speech-preview.ts",
+      "lines": 11
+    },
+    {
       "fingerprint": "c1bc687939367cb4aaf5401ba0509a23b88df09d",
       "first": "homeos/frontend/src/studio/app/editor/home/elements.ts",
       "second": "homeos/frontend/src/studio/app/editor/home/lifecycle/boot.ts",
@@ -843,12 +855,6 @@
       "first": "homeos/frontend/src/features/settings/groups/system/diagnostics/use-diagnostics-summary.ts",
       "second": "homeos/frontend/src/features/settings/groups/system/diagnostics/use-diagnostics-summary.ts",
       "lines": 17
-    },
-    {
-      "fingerprint": "d2eb3a548dd0bb9a9d768806f322f430f942a4e3",
-      "first": "homeos/frontend/src/studio/authoring/store.ts",
-      "second": "homeos/frontend/src/studio/authoring/store.ts",
-      "lines": 14
     },
     {
       "fingerprint": "d428608fedfc232e0c61d586310887417df40558",
@@ -939,12 +945,6 @@
       "first": "homeos/backend/src/api/entities.py",
       "second": "homeos/backend/src/api/voice.py",
       "lines": 23
-    },
-    {
-      "fingerprint": "e79043560bfac0bef52c34042683aa35c6bddb6a",
-      "first": "homeos/frontend/src/features/earthquake/composables.ts",
-      "second": "homeos/frontend/src/features/notifications/composables.ts",
-      "lines": 15
     },
     {
       "fingerprint": "eb53445a3c7bae2796f92647e9a9e412d86ecf8b",

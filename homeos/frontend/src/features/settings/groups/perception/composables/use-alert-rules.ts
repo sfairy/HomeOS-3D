@@ -26,10 +26,7 @@ import { buildAlertRulesRecommendations } from '@/domain/recommend/utils'
 import { type RecommendChip } from '@/domain/recommend/types/recommend.types'
 import { ChevronDown, Inbox, Loader2, Moon, Plus, Save, Sun, Trash2, Volume2 } from '@lucide/vue'
 
-/**
- * @file alert-rules-condition.internals.ts
- * @module frontend/src/features/settings/interact/composables
- */
+/* ── 原 alert-rules-condition.internals.ts 的实现 ── */
 /** 告警规则：条件表达式 ↔ 可视化子句（纯函数） */
 
 
@@ -159,10 +156,7 @@ export function serializeEditingForm(form: AlertRuleEditForm | null) {
   })
 }
 
-/**
- * @file alert-rules-context.internals.ts
- * @module frontend/src/views
- */
+/* ── 原 alert-rules-context.internals.ts 的实现 ── */
 /** 告警规则面板上下文 */
 
 // ── useAlertRulesPanelContext ──
@@ -400,10 +394,7 @@ export function useAlertRulesPanelContext(activeTabSource: Ref<string | undefine
   }
 }
 
-/**
- * @file alert-rules-crud.internals.ts
- * @module frontend/src/views
- */
+/* ── 原 alert-rules-crud.internals.ts 的实现 ── */
 /** 告警规则：列表 CRUD */
 
 export function useAlertRulesCrud(initOptions: {
@@ -569,10 +560,7 @@ export function useAlertRulesCrud(initOptions: {
   }
 }
 
-/**
- * @file alert-rules-dnd.internals.ts
- * @module frontend/src/features/settings/interact/composables
- */
+/* ── 原 alert-rules-dnd.internals.ts 的实现 ── */
 /** 告警规则面板：免打扰时段编辑 */
 
 
@@ -702,10 +690,7 @@ export function useAlertRulesPanelDnd(options: { alertSection: Ref<string> }) {
   }
 }
 
-/**
- * @file alert-rules-earthquake.internals.ts
- * @module frontend/src/views
- */
+/* ── 原 alert-rules-earthquake.internals.ts 的实现 ── */
 /** 告警规则：地震预警布局切片 */
 
 export function useAlertRulesEarthquake() {
@@ -779,10 +764,7 @@ export function useAlertRulesEarthquake() {
   }
 }
 
-/**
- * @file alert-rules-editor.internals.ts
- * @module frontend/src/features/settings/interact/composables
- */
+/* ── 原 alert-rules-editor.internals.ts 的实现 ── */
 /** 告警规则面板：规则编辑与条件表达式 */
 
 
@@ -1016,10 +998,7 @@ export function useAlertRulesPanelRuleEditor(options: {
   }
 }
 
-/**
- * @file alert-rules-recommend.internals.ts
- * @module frontend/src/features/settings/interact/composables
- */
+/* ── 原 alert-rules-recommend.internals.ts 的实现 ── */
 /** 告警规则：基于事件日志的推荐芯片 */
 
 
@@ -1060,10 +1039,7 @@ export function useAlertRulesRecommend(
   }
 }
 
-/**
- * @file alert-rules.internals.ts
- * @module frontend/src/views
- */
+/* ── 原 alert-rules.internals.ts 的实现 ── */
 /** 告警规则面板 */
 
 // ── useAlertRulesPanel ──

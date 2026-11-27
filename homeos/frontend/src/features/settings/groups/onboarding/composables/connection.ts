@@ -16,10 +16,7 @@ import { handleSystemConfigPatchError, patchSystemConfig, useSystemConfig } from
 import { useSettingsHubRouteSection } from '@/features/settings/shared/composables/hub'
 import { useSettingsSidebarReentryReset } from '@/kernel/ui/hooks/hub-viewport'
 
-/**
- * @file connection-credentials.internals.ts
- * @module frontend/src/features/settings/connect/composables
- */
+/* ── 原 connection-credentials.internals.ts 的实现 ── */
 
 export function useConnectionCredentials(onReconnectSuccess?: () => void | Promise<void>) {
   const haStore = useHaConnectionStore()
@@ -251,10 +248,7 @@ export function useConnectionCredentials(onReconnectSuccess?: () => void | Promi
   }
 }
 
-/**
- * @file connection-display.internals.ts
- * @module frontend/src/features/settings/connect/composables
- */
+/* ── 原 connection-display.internals.ts 的实现 ── */
 
 export function useConnectionDisplay() {
   const entitiesStore = useEntitiesStore()
@@ -373,10 +367,7 @@ export function useConnectionDisplay() {
   }
 }
 
-/**
- * @file connection-entities.internals.ts
- * @module frontend/src/features/settings/connect/composables
- */
+/* ── 原 connection-entities.internals.ts 的实现 ── */
 
 export function useConnectionEntities(onRefreshSuccess?: () => void | Promise<void>) {
   const entitiesStore = useEntitiesStore()
@@ -501,10 +492,7 @@ export function useConnectionEntities(onRefreshSuccess?: () => void | Promise<vo
   }
 }
 
-/**
- * @file connection.internals.ts
- * @module frontend/src/views
- */
+/* ── 原 connection.internals.ts 的实现 ── */
 /** composables：连接面板 / 凭证 / 展示 / 实体逻辑 */
 
 // ── useConnectionPanel ──

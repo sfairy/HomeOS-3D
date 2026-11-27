@@ -4,12 +4,7 @@ import { getClientDeviceId } from '@/domain/client/utils'
 import { getConfigSection } from '@/kernel/config/frontend-config'
 import { type EntitySocketSyncState } from '@/kernel/types/entity'
 
-/**
- * @file entity-ws-subscription.ts
- * @module frontend/src/shared/entity/utils
- * entity WebSocket domain 订阅解析：按路由与布局计算订阅白名单 / pinned 实体收集
- * （含本机人来亮屏充电器开关，避免冷实体漏推）。
- */
+/* ── 原 entity-ws-subscription.ts 的实现 ── */
 
 // ── entity-ws-subscription.util ──
 /**
@@ -287,11 +282,7 @@ export function collectWsPinnedEntityIds(
   return ids
 }
 
-/**
- * @file entity-ws-sync.ts
- * @module frontend/src/shared/entity/utils
- * entity WebSocket 同步状态助手：分块 apply 等待 / 同步状态创建 / 定时器清理。
- */
+/* ── 原 entity-ws-sync.ts 的实现 ── */
 
 // ── entity-ws-sync.util ──
 const CHUNK_APPLY_WAIT_MS = 8_000

@@ -11,10 +11,7 @@ import { getApiErrorMessage } from '@/kernel/utils/core'
 import { useSettingsSave } from '@/features/settings/kernel/save.internals'
 import { isSystemConfigConflictError, useSystemConfig } from '@/domain/layout/composables/system-config-core.internals'
 
-/**
- * @file voice-alerts.internals.ts
- * @module frontend/src/views
- */
+/* ── 原 voice-alerts.internals.ts 的实现 ── */
 /** 语音告警编辑器 */
 
 interface AlertCatalogEntry {
@@ -237,10 +234,7 @@ export function useVoiceAlertsEditor() {
   }
 }
 
-/**
- * @file voice-commands.internals.ts
- * @module frontend/src/features/settings/interact/composables
- */
+/* ── 原 voice-commands.internals.ts 的实现 ── */
 /** 语音设置：指令编辑器（域/实体范围/服务） */
 
 
@@ -327,10 +321,7 @@ export function useVoiceCommandEditor() {
   }
 }
 
-/**
- * @file voice-config.internals.ts
- * @module frontend/src/views
- */
+/* ── 原 voice-config.internals.ts 的实现 ── */
 /** 语音系统配置（TTS/STT/告警规则状态） */
 
 interface VoiceCommand {
@@ -772,10 +763,7 @@ export function useVoiceConfig() {
   }
 }
 
-/**
- * @file voice-daily.internals.ts
- * @module frontend/src/features/settings/interact/composables
- */
+/* ── 原 voice-daily.internals.ts 的实现 ── */
 /** 语音设置：每日顾问文案预设面板 */
 
 
@@ -844,8 +832,5 @@ export function useVoiceDailyAdvisorPanel(voice: Ref<VoiceDailyFields>) {
   }
 }
 
-/**
- * @file voice.internals.ts
- * @module frontend/src/views
- */
+/* ── 原 voice.internals.ts 的实现 ── */
 /** composables：语音配置 / 每日顾问 / 指令编辑 / 告警编辑 */

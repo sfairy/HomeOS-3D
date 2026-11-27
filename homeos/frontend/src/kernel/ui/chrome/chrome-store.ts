@@ -10,17 +10,7 @@ import { type NotifyType } from '@/kernel/types/notify'
 import { createNotifyCoalescer } from '@/kernel/utils/ui'
 import { defineStore } from 'pinia'
 
-/**
- * @file UI Chrome 状态工厂
- * @module stores/ui/create-chrome-state
- * @description
- *  UI chrome 层状态切片：负责一切"非业务数据"的 UI 表层状态，包括
- *  - Toast 通知队列（notifications / notify / removeNotification）
- *  - 确认对话框（confirm / resolveConfirm）与输入对话框（prompt / resolvePrompt）
- *  - 各类全局弹窗开关（媒体播放器、实体控制、分组、门铃、升级等）
- *  - 编辑模式顶层开关与放置实体指针
- *  该工厂由 chrome.store 持有；layout.store 经 useChromeStore() 读取同一套状态。
- */
+/* ── 原 UI Chrome 状态工厂 的实现 ── */
 
 /** 单条 Toast 通知的数据结构 */
 interface UiNotification {

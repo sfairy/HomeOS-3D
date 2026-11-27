@@ -1,13 +1,4 @@
-/**
- * @file usePresencePersonListInput.ts
- * @module shared/presence/composables
- * @description 人员列表输入 composable，管理在家人员清单的增删改查与排序。
- *   - 维护当前激活的人员索引（activeIdx）并随列表长度变化自动校正
- *   - 通过 emit('update:modelValue') 与父组件双向同步人员数据
- *   - 提供人员姓名首字母、状态样式类、实体计数等派生信息
- *   - 支持人员的新增、移除、字段更新与重排序（含拖拽与位移两种方式）
- * @dependencies vue, @/shared/presence/utils/person.util
- */
+/* ── 原 usePresencePersonListInput.ts 的实现 ── */
 import { computed, ref, watch } from 'vue'
 import { createEmptyPresencePerson, reorderPresencePersons } from '@/features/presence/model/utils/person.util'
 

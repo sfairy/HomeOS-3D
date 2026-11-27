@@ -1,9 +1,4 @@
-/**
- * @file useShellTeleportTarget.ts
- * @module composables/ui
- * @description 缩放壳 #teleport-target 就绪后再启用 Teleport，避免父组件早于 ScaledViewport 挂载时报
- *   “Invalid Teleport target on mount: null”，并避免回退 body 导致画布坐标错位。
- */
+/* ── 原 useShellTeleportTarget.ts 的实现 ── */
 import { computed, nextTick, onActivated, onMounted, ref } from 'vue'
 
 function probeShellTeleport() {

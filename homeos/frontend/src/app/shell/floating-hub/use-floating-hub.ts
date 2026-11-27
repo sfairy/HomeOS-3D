@@ -1,13 +1,4 @@
-/**
- * @file useFloatingHub.ts
- * @module frontend/src/components/shell/floating-hub
- *
- * 浮动控制中心的视图模型：负责实体/指标/面板部件的选择、定位与事件绑定。
- *
- * 归位在 `components/` 而不是 `composables/`：本模块按需 `defineAsyncComponent` 加载
- * 弹窗组件（`@/components/entities/popups/*`），属于组件层装配。放在 `composables/`
- * 会让「Hooks 层不得依赖 UI 层」出现唯一例外（原 README 为它单列了白名单）。
- */
+/* ── 原 useFloatingHub.ts 的实现 ── */
 import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
 import { formatLocaleTime } from '@/kernel/utils/format'
 import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch, type Ref } from 'vue'

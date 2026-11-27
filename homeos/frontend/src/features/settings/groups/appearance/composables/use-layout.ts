@@ -26,10 +26,7 @@ import { getSidebarWidgetDefaultHeight } from '@/kernel/utils/registry/widget-re
 import { clampPanelCardHeightPx, parsePanelCardHeightPx } from '@/domain/widget/utils/panel-widget-height.util'
 
 
-/**
- * @file layout-dashboard-embeds.internals.ts
- * @module frontend/src/views
- */
+/* ── 原 layout-dashboard-embeds.internals.ts 的实现 ── */
 /** 设置：嵌入页 Hub */
 
 // ── useSettingsEmbeds ──
@@ -195,10 +192,7 @@ export function useSettingsEmbeds(activeTabProp: () => string) {
   }
 }
 
-/**
- * @file layout-dashboard-slices.internals.ts
- * @module frontend/src/views
- */
+/* ── 原 layout-dashboard-slices.internals.ts 的实现 ── */
 /** 布局切片 pick/live/apply */
 
 // ── settings-layout-snapshot.util ──
@@ -282,10 +276,7 @@ export function applyEarthquakeLayoutSlice(
   if (slice.earthquakeConfig) layout.earthquakeConfig = clone(slice.earthquakeConfig)
 }
 
-/**
- * @file layout-dashboard.internals.ts
- * @module frontend/src/views
- */
+/* ── 原 layout-dashboard.internals.ts 的实现 ── */
 /** Dashboard / footer / widget editor */
 
 // ── useDashboardFooterEditor ──
@@ -479,10 +470,7 @@ export async function confirmRemoveWidget(
   return chrome.confirm(body, title, confirmOptions)
 }
 
-/**
- * @file layout-panel-widgets.internals.ts
- * @module frontend/src/views
- */
+/* ── 原 layout-panel-widgets.internals.ts 的实现 ── */
 /** composables：面板小组件与 Widgets 面板展示 */
 
 // ── usePanelWidgets ──

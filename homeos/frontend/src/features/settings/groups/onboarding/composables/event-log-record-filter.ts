@@ -35,10 +35,7 @@ export function readEventLogRecordFilterState(cfg: SystemConfig | null | undefin
   }
 }
 
-/**
- * @file event-log-record-filter.util.ts
- * @module frontend/src/views
- */
+/* ── 原 event-log-record-filter.util.ts 的实现 ── */
 /** 事件日志记录筛选 composable + 域预设（自 connection.internals 抽出） */
 
 // ── useEventLogRecordFilter ──

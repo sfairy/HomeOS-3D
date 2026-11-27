@@ -1,18 +1,4 @@
-/**
- * @file useHomeModes.ts
- * @module frontend/src/features/home-mode/composables
- *
- * 家庭模式（含多互斥组）的应用级共享状态。
- *
- * ## 为什么状态放在模块作用域，而不是 `useHomeModes()` 内部
- *
- * 这是**有意的应用级单例**：壳层 `HomeModeSwitcher`、设置页的模式编辑器、安防页读的是
- * 同一份模式列表和激活态。若改成每次调用各建一套 `ref`，三处会各自 fetch、也看不见
- * 彼此刚完成的切换结果（典型症状：壳层切了模式，编辑器仍显示旧激活项）。
- * `subscriberCount` 让首个订阅者负责拉数据、最后一个卸载时断开 WS 并复位。
- *
- * 所以本文件不适用「避免全局状态」这条规范 —— 改成工厂函数等于改语义，不是重构。
- */
+/* ── 原 useHomeModes.ts 的实现 ── */
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import {
   fetchHomeModes,

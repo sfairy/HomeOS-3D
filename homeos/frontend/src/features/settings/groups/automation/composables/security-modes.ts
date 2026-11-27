@@ -28,10 +28,7 @@ import { formatPresenceBadgeSummary } from '@/features/presence/model/utils/disp
 import { sanitizePresencePersonsForSave } from '@/features/presence/model/utils/person.util'
 import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
 
-/**
- * @file security-modes-core.internals.ts
- * @module frontend/src/views
- */
+/* ── 原 security-modes-core.internals.ts 的实现 ── */
 /** composables：安防模式核心逻辑 */
 
 // ── useSecurityModes ──
@@ -434,10 +431,7 @@ export function useSecurityModes() {
   }
 }
 
-/**
- * @file security-modes-emergency.internals.ts
- * @module frontend/src/views
- */
+/* ── 原 security-modes-emergency.internals.ts 的实现 ── */
 /** 安防模式：紧急场景配置 */
 
 export function useSecurityModesEmergency() {
@@ -623,10 +617,7 @@ export function useSecurityModesEmergency() {
   }
 }
 
-/**
- * @file security-modes-extras.internals.ts
- * @module frontend/src/views
- */
+/* ── 原 security-modes-extras.internals.ts 的实现 ── */
 /** 安防：全屋断电等扩展 */
 
 // ── useWholeHomeOffSection ──
@@ -753,10 +744,7 @@ export function useWholeHomeOffRecommend() {
   }
 }
 
-/**
- * @file security-modes-hazard.internals.ts
- * @module frontend/src/views
- */
+/* ── 原 security-modes-hazard.internals.ts 的实现 ── */
 /** 安防：危险品/隐患绑定 */
 
 // ── useHazardBindingsSection ──
@@ -1007,10 +995,7 @@ export function useHazardBindingsSection(models: HazardBindingsSectionModels) {
   }
 }
 
-/**
- * @file security-modes-linkage.internals.ts
- * @module frontend/src/views
- */
+/* ── 原 security-modes-linkage.internals.ts 的实现 ── */
 /** composables：安防联动配置与展示 */
 
 // ── useSecurityLinkage ──

@@ -1,7 +1,4 @@
-/**
- * @file frontend\src\composables\device\useDeviceAnalyticsCharts.ts
- * @module src
- */
+/* ── 原 frontend\src\composables\device\useDeviceAnalyticsCharts.ts 的实现 ── */
 /**
  * 设备分析图表组合式函数模块
  * - 提供设备分析仪表盘中各类图表的渲染和管理能力

@@ -1,7 +1,4 @@
-/**
- * @file useScreensaver.ts
- * @module frontend/src/composables/ui
- */
+/* ── 原 useScreensaver.ts 的实现 ── */
 /** - 管理屏保显隐、模式（clock/weather）与预览模式（管理端预览）； */
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useLayoutStore } from '@/domain/layout/store'

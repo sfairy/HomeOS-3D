@@ -19,16 +19,7 @@ import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
 import { isSecurityUtilityNoise } from '@/features/security/utils'
 import { isSensorAlertState } from '@/features/security/utils'
 
-/**
- * @file useSecurityAuditEvents.ts
- * @module composables/security
- * @description 安防审计事件日志 composable：会话内即时事件 + 后端审计事件的合并、过滤与拉取。
- *   - 从 SecurityOverview.vue 抽出，便于复用与单测
- *   - 维护会话事件队列（最多 30 条）与后端审计事件列表
- *   - 提供按类型/区域的过滤选项，并按时间戳倒序合并裁剪到上限
- *   - 暴露 addSecEvent 供外部推送即时事件，fetchSecAuditEvents 拉取后端日志
- * @dependencies vue, @/services/api/security, @/shared/utils/core/logger, @/shared/utils/config/frontend-config, @/features/security/utils/event-display.util, @/shared/utils/format/locale-format.util, @lucide/vue
- */
+/* ── 原 useSecurityAuditEvents.ts 的实现 ── */
 
 /**
  * 会话内即时事件结构
@@ -167,10 +158,7 @@ export function useSecurityAuditEvents(liveZones: Ref<Array<{ id: string; name: 
   }
 }
 
-/**
- * @file useSecurityEventsCalendar.ts
- * @module frontend/src/features/security/composables
- */
+/* ── 原 useSecurityEventsCalendar.ts 的实现 ── */
 /** 安防页门禁事件日历：按月网格、按日筛选、视频预览、缩略图滚动 */
 
 
@@ -316,17 +304,7 @@ export function useSecurityEventsCalendar(eventsPath: Ref<string> | ComputedRef<
   }
 }
 
-/**
- * @file useSecurityPanelStatus.ts
- * @module composables/security
- * @description 安防面板状态共享 composable。
- *   多个 SecurityPanelWidget / SecurityView 实例共用同一份轮询，避免重复请求。
- *   - 模块级单例：currentMode/zones/ready/error 跨组件共享
- *   - 订阅计数：仅在有订阅者且页面可见时轮询，节省网络与电量
- *   - WebSocket 推送：通过 store-bridge 接收模式变更并即时应用
- *   - sharedFetch 去重：同一时间窗内的多次请求合并为一次
- * @dependencies vue, @/services/api/security, @/stores/auth.store, @/shared/utils/bridge/store-bridge, @/shared/utils/core/poll-scheduler
- */
+/* ── 原 useSecurityPanelStatus.ts 的实现 ── */
 
 /** 安防面板区域结构 */
 type SecurityPanelZone = {
@@ -532,16 +510,7 @@ export function useSecurityPanelStatus() {
   }
 }
 
-/**
- * @file useSecuritySensors.ts
- * @module composables/security
- * @description 安防传感器聚合 composable，统一汇总绑定与未绑定的安全传感器。
- *   - 通过 hazardBindingMap 识别已绑定的危险传感器（烟感/燃气/水浸）
- *   - 按关键字匹配对未绑定传感器分类（烟感/燃气/CO/水浸/门窗/移动）
- *   - 派生告警数、告警 Chip、统计卡片、过滤器等 UI 所需结构
- *   - 模块级共享告警确认状态，保证导航角标与总览一致
- * @dependencies @homeos/shared, vue, @lucide/vue, @/stores/entities.store, @/stores/layout.store, @/shared/entity/utils/derived.util, @/features/security/utils/sensor-filter.util, @/features/security/utils/zone-mode.util
- */
+/* ── 原 useSecuritySensors.ts 的实现 ── */
 
 // 移动传感器关键字（中英文）
 const MOTION_KEYS = ['motion', 'occupancy', 'presence', '移动', '人体', '存在', '占位']

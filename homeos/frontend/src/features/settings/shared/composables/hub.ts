@@ -20,10 +20,7 @@ import { buildFavoritesRecommendations } from '@/domain/recommend/utils'
 import { type FavoriteCategoryMeta, FAVORITE_CATEGORIES, FAVORITE_CATEGORY_GROUPS, FAVORITE_CATEGORY_MAP } from '@/kernel/utils/registry/favorites-categories.config'
 import { useRoute, useRouter } from 'vue-router'
 
-/**
- * @file hub-backup-orchestrator.internals.ts
- * @module frontend/src/views
- */
+/* ── 原 hub-backup-orchestrator.internals.ts 的实现 ── */
 /** composables：配置与档案备份 */
 
 // ── useAppConfigBackup ──
@@ -171,10 +168,7 @@ export function useProfileManagement() {
   }
 }
 
-/**
- * @file hub-env.internals.ts
- * @module frontend/src/views
- */
+/* ── 原 hub-env.internals.ts 的实现 ── */
 /** rooms / env-health Hub */
 
 // ── useSettingsEnvHub ──
@@ -448,10 +442,7 @@ export function useSettingsEnvHub(options: UseSettingsEnvHubOptions) {
   }
 }
 
-/**
- * @file hub-favorites.internals.ts
- * @module frontend/src/views
- */
+/* ── 原 hub-favorites.internals.ts 的实现 ── */
 /** 收藏 Hub */
 
 type QuickActionEntities = Parameters<typeof countQuickActionLightsOn>[0]
@@ -628,10 +619,7 @@ export function useFavoritesHub() {
   }
 }
 
-/**
- * @file hub-ui.internals.ts
- * @module frontend/src/views
- */
+/* ── 原 hub-ui.internals.ts 的实现 ── */
 /** 设置面板 Hub UI：路由 section 同步与草稿字段 */
 
 // ── useSettingsHubRouteSection ──

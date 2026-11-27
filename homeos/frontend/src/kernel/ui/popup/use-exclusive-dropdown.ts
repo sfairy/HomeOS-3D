@@ -1,12 +1,4 @@
-/**
- * @file useExclusiveDropdown.ts
- * @module composables/ui
- * @description 全局互斥下拉：同时仅允许一个锚定下拉/菜单处于打开状态。
- *
- * 打开任一注册菜单时，自动关闭其它已注册菜单；卸载时释放登记。
- * 有任一互斥下拉打开时给 `.app-shell` 加 `app-shell--dropdown-open`，禁用 transform transition，
- * 避免手机 visualViewport 变化时 scale 缓动与定位换算失步。
- */
+/* ── 原 useExclusiveDropdown.ts 的实现 ── */
 import { onUnmounted, watch, type Ref } from 'vue'
 
 let seq = 0

@@ -1,7 +1,4 @@
-/**
- * @file useHomeModeSwitcher.ts
- * @module frontend/src/composables
- */
+/* ── 原 useHomeModeSwitcher.ts 的实现 ── */
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { Home } from '@lucide/vue'
 import { useHomeModes } from '@/features/home-mode/composables/use-home-modes'

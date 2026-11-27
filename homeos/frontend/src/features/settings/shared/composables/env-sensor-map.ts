@@ -12,10 +12,7 @@ import { logger } from '@/kernel/utils/core'
 import { invalidateSharedFetchPrefix } from '@/kernel/utils/core'
 import { computed, ref } from 'vue'
 
-/**
- * @file env-sensor-map-fields.internals.ts
- * @module frontend/src/views
- */
+/* ── 原 env-sensor-map-fields.internals.ts 的实现 ── */
 /** 环境传感器 / 快捷规则字段元数据 */
 
 export function getEnvSensorFields() {
@@ -97,10 +94,7 @@ export function getQuickRuleFields() {
   }
 }
 
-/**
- * @file env-sensor-map-util.internals.ts
- * @module frontend/src/views
- */
+/* ── 原 env-sensor-map-util.internals.ts 的实现 ── */
 /** 环境传感器映射：推断与 CSV 工具 */
 
 interface EnvSensorHaEntityAttributes {
@@ -436,10 +430,7 @@ export function ensureSensorMap(
   return next
 }
 
-/**
- * @file env-sensor-map.internals.ts
- * @module frontend/src/views
- */
+/* ── 原 env-sensor-map.internals.ts 的实现 ── */
 /** 环境传感器映射组合式函数 */
 
 /** 环境 IAQ 共享 fetch 缓存前缀（后端 POST /environment/iaq 的 rest 缓存键）。 */

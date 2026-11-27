@@ -8,15 +8,7 @@ import { countOfflineDevices } from '@/domain/entity/model/utils/device-group'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useEnvSensorMap } from '@/features/settings/index'
 
-/**
- * @file useSecurityZoneEditorList.ts
- * @module composables/security
- * @description 安防区域编辑器列表 composable，管理区域导航与渲染列表的展开/折叠状态。
- *   - 基于 useHomeModeItemExpansion 复用紧凑模式下的展开/折叠逻辑
- *   - 生成区域导航项（含名称、传感器数等元信息）
- *   - 在紧凑模式下仅渲染激活区域；展开模式下渲染全部
- * @dependencies vue, @/features/home-mode（useHomeModeItemExpansion）, @/features/security/utils/zone-room.util
- */
+/* ── 原 useSecurityZoneEditorList.ts 的实现 ── */
 
 /** 房间可选项 */
 interface RoomOption {
@@ -86,15 +78,7 @@ export function useSecurityZoneEditorList(zones: Ref<SecurityZoneDraft[] | undef
   }
 }
 
-/**
- * @file useSecurityZoneMonitor.ts
- * @module composables/security
- * @description 安防区域监控 composable，将实时区域与布局配置合并并富化为可展示的结构。
- *   - 合并 liveZones（实时状态）与 layoutZones（布局配置）补充 roomId/zoneType
- *   - 为每个区域构建传感器行（含告警/离线判定与类型标签）
- *   - 派生区域汇总：总数、已布防数、告警数、当前模式下激活数
- * @dependencies vue, @/stores/entities.store, @/features/security/composables/useSecurityZoneRooms, @/features/security/utils/zone-mode.util, @/features/security/utils/zone-room.util, @/shared/entity/utils/derived.util
- */
+/* ── 原 useSecurityZoneMonitor.ts 的实现 ── */
 
 /**
  * 安防区域监控 composable
@@ -240,15 +224,7 @@ export function useSecurityZoneMonitor(
   return { enrichedZones, summary }
 }
 
-/**
- * @file useSecurityZoneRooms.ts
- * @module composables/security
- * @description 安防区域房间 composable，基于 HA 区域分组管理传感器与区域的映射关系。
- *   - 通过 envMap 获取 HA 区域列表与房间分组
- *   - 按房间分组安全传感器，支持已分配/未分配两类查询
- *   - 提供区域与房间的双向操作：应用房间到区域、切换传感器、按房间生成区域
- * @dependencies vue, @/stores/entities.store, @/stores/chrome.store, @/features/settings, @/shared/entity/utils/derived.util, @/features/security/utils/zone-room.util
- */
+/* ── 原 useSecurityZoneRooms.ts 的实现 ── */
 
 /**
  * 安防区域房间 composable

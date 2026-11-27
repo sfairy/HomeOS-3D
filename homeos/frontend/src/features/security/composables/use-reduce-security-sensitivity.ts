@@ -1,12 +1,4 @@
-/**
- * @file useReduceSecuritySensitivity.ts
- * @module composables/security
- * @description 降低安防传感器告警灵敏度（延长冷却）composable，向导与安防页共用。
- *   - 调用 reduceSetupSecuritySensitivity 后端接口延长传感器告警冷却时间
- *   - 成功时 Toast 提示新的冷却秒数；失败时记录 error 日志并提示
- *   - 支持 recordFeedback 标记本次操作为误报反馈，便于后端统计
- * @dependencies vue, @/services/api/system, @/stores/chrome.store, @/shared/utils/core/logger
- */
+/* ── 原 useReduceSecuritySensitivity.ts 的实现 ── */
 import { ref } from 'vue'
 import { reduceSetupSecuritySensitivity } from '@/kernel/http/index'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'

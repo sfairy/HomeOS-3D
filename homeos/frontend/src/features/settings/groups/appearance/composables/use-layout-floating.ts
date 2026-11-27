@@ -12,10 +12,7 @@ import { useRouter } from 'vue-router'
 import { clampPct } from '@/kernel/utils/core'
 import { getFloatingHubTabOptions, FLOATING_HUB_DEFAULT_TAB } from '@/kernel/utils/registry/floating-hub-tab-options'
 
-/**
- * @file layout-floating-afh-actions.internals.ts
- * @module frontend/src/views
- */
+/* ── 原 layout-floating-afh-actions.internals.ts 的实现 ── */
 /** 浮动组件：AFH 保存 / 删除 / 跳转 */
 
 export function useFloatingAfhActions(opts: {
@@ -177,10 +174,7 @@ export function useFloatingAfhActions(opts: {
   }
 }
 
-/**
- * @file layout-floating-display.internals.ts
- * @module frontend/src/views
- */
+/* ── 原 layout-floating-display.internals.ts 的实现 ── */
 /** 浮动组件展示辅助 */
 
 // ── useFloatingPanelDisplay ──
@@ -244,15 +238,9 @@ export function useFloatingPanelDisplay({ afhEditId }: FloatingPanelDisplayOptio
   }
 }
 
-/**
- * @file layout-floating.internals.ts
- * @module frontend/src/views
- */
+/* ── 原 layout-floating.internals.ts 的实现 ── */
 /** 浮动组件编辑 */
-/**
- * @file layout-floating.internals.ts
- * @module frontend/src/views
- */
+/* ── 原 layout-floating.internals.ts 的实现 ── */
 /** composables：浮动小组件与浮动面板展示 */
 export { clampPct }
 

@@ -1,11 +1,4 @@
-/**
- * @file 弹窗位置自适应 Composable（固定像素锚点模式）
- * @module composables/ui/popup-position-fixed
- *
- * 根据锚点像素坐标计算弹窗 fixed 定位、箭头样式与方向 class。
- * 贴边定位用 bottom/right，避免声明高度与真实高度不一致时锚点错位；
- * 方向选择相对户型图显示区（上→下→右→左）。
- */
+/* ── 原 弹窗位置自适应 Composable（固定像素锚点模式） 的实现 ── */
 import { computed } from 'vue'
 import {
   getPopupPlacementBounds,

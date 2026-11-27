@@ -20,7 +20,7 @@
       "impl": 0,
       "moduleLet": 3
     },
-    "homeos/frontend/src/app/shell/composables.ts": {
+    "homeos/frontend/src/app/shell/composables/use-main-layout-chrome.ts": {
       "alias2": 2,
       "impl": 0,
       "moduleLet": 0
@@ -35,7 +35,7 @@
       "impl": 0,
       "moduleLet": 2
     },
-    "homeos/frontend/src/domain/client/utils.ts": {
+    "homeos/frontend/src/domain/client/utils/system.util.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 4
@@ -95,7 +95,7 @@
       "impl": 0,
       "moduleLet": 2
     },
-    "homeos/frontend/src/domain/layout/store.ts": {
+    "homeos/frontend/src/domain/layout/store/defaults.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 1
@@ -125,8 +125,13 @@
       "impl": 0,
       "moduleLet": 2
     },
-    "homeos/frontend/src/domain/widget/composables.ts": {
+    "homeos/frontend/src/domain/widget/composables/use-notification-center.ts": {
       "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/domain/widget/composables/use-scheduled-poll.ts": {
+      "alias2": 0,
       "impl": 0,
       "moduleLet": 1
     },
@@ -250,7 +255,7 @@
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/earthquake/composables.ts": {
+    "homeos/frontend/src/features/earthquake/composables/use-earthquake-tts.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 10
@@ -265,7 +270,7 @@
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/energy/composables.ts": {
+    "homeos/frontend/src/features/energy/composables/use-client-power-reporter.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 10
@@ -730,7 +735,7 @@
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/voice/composables.ts": {
+    "homeos/frontend/src/features/voice/composables/use-earcon.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 1
@@ -745,7 +750,7 @@
       "impl": 0,
       "moduleLet": 4
     },
-    "homeos/frontend/src/kernel/constants.ts": {
+    "homeos/frontend/src/kernel/constants/voice.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 1
@@ -810,20 +815,60 @@
       "impl": 0,
       "moduleLet": 8
     },
-    "homeos/frontend/src/kernel/utils/core.ts": {
+    "homeos/frontend/src/kernel/utils/core/poll-scheduler.ts": {
       "alias2": 0,
       "impl": 0,
-      "moduleLet": 5
+      "moduleLet": 4
+    },
+    "homeos/frontend/src/kernel/utils/core/post-restore-lock.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
     },
     "homeos/frontend/src/kernel/utils/page-cache-lifecycle.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 2
     },
-    "homeos/frontend/src/kernel/utils/perf.ts": {
+    "homeos/frontend/src/kernel/utils/perf/adaptive-perf.util.ts": {
       "alias2": 0,
       "impl": 0,
-      "moduleLet": 35
+      "moduleLet": 8
+    },
+    "homeos/frontend/src/kernel/utils/perf/baseline.util.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 4
+    },
+    "homeos/frontend/src/kernel/utils/perf/client-metrics.util.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 5
+    },
+    "homeos/frontend/src/kernel/utils/perf/fps-scheduler.util.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 9
+    },
+    "homeos/frontend/src/kernel/utils/perf/frontend-perf-monitor.util.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 3
+    },
+    "homeos/frontend/src/kernel/utils/perf/smart-performance.util.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 3
+    },
+    "homeos/frontend/src/kernel/utils/perf/webgl-availability.util.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 2
+    },
+    "homeos/frontend/src/kernel/utils/perf/webgl-context-loss-guard.util.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
     },
     "homeos/frontend/src/kernel/utils/registry/settings-header-icons.ts": {
       "alias2": 1,
@@ -840,20 +885,40 @@
       "impl": 0,
       "moduleLet": 1
     },
-    "homeos/frontend/src/kernel/utils/ui.ts": {
+    "homeos/frontend/src/kernel/utils/ui/glass-effect.util.ts": {
       "alias2": 0,
       "impl": 0,
-      "moduleLet": 3
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/kernel/utils/ui/screensaver-background-idle.util.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 2
     },
     "homeos/frontend/src/studio/app/bridge/bridge.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 2
     },
-    "homeos/frontend/src/studio/app/display.ts": {
+    "homeos/frontend/src/studio/app/display/apple-install-guide.ts": {
       "alias2": 0,
       "impl": 0,
-      "moduleLet": 4
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/studio/app/display/display-boot.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/studio/app/display/display-startup.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/studio/app/display/display.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
     },
     "homeos/frontend/src/studio/app/editor/bindings.ts": {
       "alias2": 8,
@@ -1460,8 +1525,13 @@
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/studio/authoring/store.ts": {
+    "homeos/frontend/src/studio/authoring/store/document-store.ts": {
       "alias2": 3,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/store/studio-draft-repository.ts": {
+      "alias2": 0,
       "impl": 5,
       "moduleLet": 0
     },

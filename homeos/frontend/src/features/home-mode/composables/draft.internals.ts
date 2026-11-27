@@ -1,7 +1,4 @@
-/**
- * @file home-mode-draft.internals.ts
- * @module frontend/src/views
- */
+/* ── 原 home-mode-draft.internals.ts 的实现 ── */
 /** composables：自 home-mode.internals.ts 拆出 — 草稿解析/序列化（原 home-mode-draft.util.ts） */
 import { getEntityDomain, normalizeHomeModeTimeAt } from '@homeos/shared'
 import { normalizeSunOffset } from '@/features/home-mode/utils/trigger-summary.util'

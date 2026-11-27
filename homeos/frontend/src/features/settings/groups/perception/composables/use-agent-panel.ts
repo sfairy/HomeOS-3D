@@ -16,10 +16,7 @@ import { type AgentCompanionConfig, type AgentConfig, type AgentProactiveConfig,
 import { normalizeAgentCompanion, resolveAgentCompanionPosition } from '@/kernel/utils/layout'
 import { readAgentQuickPrompts as AGENT_CHAT_QUICK_PROMPTS } from '@/features/agent/model/utils'
 
-/**
- * @file agent-panel-chat.internals.ts
- * @module frontend/src/features/settings/interact/composables
- */
+/* ── 原 agent-panel-chat.internals.ts 的实现 ── */
 /** 智能管家设置面板：对话 / 语音输入 */
 
 export type ChatLogEntry = {
@@ -421,10 +418,7 @@ export function useAgentPanelChat(opts: {
   }
 }
 
-/**
- * @file agent-panel-helpers.internals.ts
- * @module frontend/src/features/settings/interact/composables
- */
+/* ── 原 agent-panel-helpers.internals.ts 的实现 ── */
 /** 智能管家设置面板：纯辅助 / 常量 */
 
 /** 统计卡片色调（与 SettingsFlowStat.vue 的 FlowStatTone 保持对齐） */
@@ -539,10 +533,7 @@ export function toneFromAgentClass(cls: string): FlowStatTone {
   return mapFlowStatTone(cls)
 }
 
-/**
- * @file agent-panel-stats.internals.ts
- * @module frontend/src/features/settings/interact/composables
- */
+/* ── 原 agent-panel-stats.internals.ts 的实现 ── */
 /** 智能管家设置：模型就绪统计派生 */
 
 type AgentUsageToday = NonNullable<AgentPingResult['usageToday']>

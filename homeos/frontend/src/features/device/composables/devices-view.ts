@@ -19,10 +19,7 @@ import { logger } from '@/kernel/utils/core'
 import { appNotify } from '@/kernel/utils/bridge/store-bridge'
 import { hasEntityControlPopup } from '@/domain/entity/model/utils/popup-registry.util'
 
-/**
- * @file devices-view-actions.internals.ts
- * @module frontend/src/features/device/composables
- */
+/* ── 原 devices-view-actions.internals.ts 的实现 ── */
 /** /devices 列表：开关类设备服务名解析（纯函数） */
 
 
@@ -53,10 +50,7 @@ export function resolveDeviceToggleCommand(domain: string, state: string): Devic
   }
 }
 
-/**
- * @file devices-view-filter.internals.ts
- * @module frontend/src/features/device/composables
- */
+/* ── 原 devices-view-filter.internals.ts 的实现 ── */
 /** /devices 内存列表：按域/关键词/状态/房间/排序过滤（纯函数） */
 
 
@@ -123,10 +117,7 @@ export function filterMemoryDeviceItems(input: DevicesMemoryFilterInput): Device
   return result
 }
 
-/**
- * @file devices-view-map.internals.ts
- * @module frontend/src/features/device/composables
- */
+/* ── 原 devices-view-map.internals.ts 的实现 ── */
 /** /devices：实体行 → DeviceListItem 映射（纯函数） */
 
 
@@ -270,10 +261,7 @@ export function toDeviceQueryParams(state: { domain: string; status: DeviceFilte
   }
 }
 
-/**
- * @file useDevicesView.ts
- * @module frontend/src/features/device/composables
- */
+/* ── 原 useDevicesView.ts 的实现 ── */
 
 const FILTER_STORAGE_KEY = 'homeos:devices-filter'
 

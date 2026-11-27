@@ -4,14 +4,7 @@ import { type HaEntityState } from '@/kernel/types/entity'
 import { touchEntityStoreDisplayDeps } from '@/domain/entity/composables/entity'
 import { getEntityDomain, isControllableEntityId } from '@homeos/shared'
 
-/**
- * @file group-battery.util.ts
- * @module frontend/src/shared/device/utils
- *
- * 设备分组弹窗的电池分区：识别电池实体、解析电量、统计低电量数量。
- * 全部为纯函数（入参是结构化 store 形状，不 import store），因此可被
- * `components/` `composables/` `features/` 任意层安全复用。
- */
+/* ── 原 group-battery.util.ts 的实现 ── */
 
 export type DeviceGroupEntitiesStoreLike = {
   entities: Record<string, HaEntityState | undefined>

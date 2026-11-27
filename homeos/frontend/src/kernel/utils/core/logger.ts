@@ -1,0 +1,58 @@
+/** 输出策略： */
+/* console 封装层：Biome 的 noConsole 已在 biome.json 中按文件豁免，此处无需再声明 */
+
+/** 是否为开发环境（生产环境下降级只输出 error） */
+const isDev = import.meta.env?.DEV ?? false
+
+/** 日志附加参数类型 */
+type LogArgs = unknown[]
+
+/** 控制台日志全角标点 → 半角 */
+function toHalfWidthPunct(text: string): string {
+  return text
+    .replaceAll('…', '...')
+    .replaceAll('——', '--')
+    .replaceAll('：', ':')
+    .replaceAll('，', ',')
+    .replaceAll('。', '.')
+    .replaceAll('（', '(')
+    .replaceAll('）', ')')
+    .replaceAll('！', '!')
+    .replaceAll('？', '?')
+    .replaceAll('；', ';')
+    .replaceAll('、', ',')
+    .replaceAll('【', '[')
+    .replaceAll('】', ']')
+    .replaceAll('「', '"')
+    .replaceAll('」', '"')
+    .replaceAll('『', '"')
+    .replaceAll('』', '"')
+    .replaceAll('—', '-')
+    .replaceAll('～', '~')
+    .replaceAll('．', '.')
+}
+
+/** 统一拼接 [HomeOS:LEVEL] 前缀,便于控制台检索 */
+function prefix(level: string, msg: string): string {
+  return `[HomeOS:${level}] ${toHalfWidthPunct(msg)}`
+}
+
+/** logger：对象常量，字段 / 方法语义见定义处。 */
+export const logger = {
+  /** 错误日志：始终输出（dev/prod 均输出），用于需要现场排查的严重问题 */
+  error(msg: string, ...args: LogArgs): void {
+    console.error(prefix('ERROR', msg), ...args)
+  },
+  /** 警告日志：仅 dev 输出 */
+  warn(msg: string, ...args: LogArgs): void {
+    if (isDev) console.warn(prefix('WARN', msg), ...args)
+  },
+  /** 信息日志：仅 dev 输出 */
+  info(msg: string, ...args: LogArgs): void {
+    if (isDev) console.log(prefix('INFO', msg), ...args)
+  },
+  /** 调试日志：仅 dev 输出 */
+  debug(msg: string, ...args: LogArgs): void {
+    if (isDev) console.debug(prefix('DEBUG', msg), ...args)
+  },
+}

@@ -1,11 +1,4 @@
-/**
- * @file useRecommendInsight.ts
- * @module shared/recommend/composables
- * @description 推荐卡片属性聚合 composable，将推荐结果转换为卡片组件可直接消费的 props。
- *   - 合并 insight 自身字段与外部传入的 loading/meta/visible
- *   - 缺省字段做安全回退（标题、分组、横幅、链接等）
- * @dependencies vue, @/shared/recommend/types/recommend.types
- */
+/* ── 原 useRecommendInsight.ts 的实现 ── */
 import { computed, type ComputedRef, type Ref } from 'vue'
 import type { RecommendInsightResult } from '@/domain/recommend/types/recommend.types'
 

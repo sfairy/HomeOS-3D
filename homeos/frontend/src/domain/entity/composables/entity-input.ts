@@ -6,10 +6,7 @@ import { useClickOutside } from '@/kernel/ui/hooks/use-click-outside'
 import { useEntityPickerSession } from '@/domain/entity/composables/entity'
 import { inferSuggestDeviceClassFromPlaceholder } from '@/domain/entity/model/utils/suggest-device-class.util'
 
-/**
- * @file entity-input.internals.ts
- * @module frontend/src/composables/entity
- */
+/* ── 原 entity-input.internals.ts 的实现 ── */
 /** EntityInput：分组构建 / placeholder 推断 device_class（纯函数） */
 
 export interface EntityInputItem {
@@ -81,10 +78,7 @@ export function buildEntityInputGroups(options: BuildEntityInputGroupsOptions): 
  */
 export { inferSuggestDeviceClassFromPlaceholder } from '@/domain/entity/model/utils/suggest-device-class.util'
 
-/**
- * @file useEntityInput.ts
- * @module frontend/src/composables
- */
+/* ── 原 useEntityInput.ts 的实现 ── */
 
 
 interface UseEntityInputProps {

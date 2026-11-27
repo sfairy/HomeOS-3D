@@ -1,8 +1,4 @@
-/**
- * @file useSecurityOverview.ts
- * @module composables/security
- * @description 安防总览 composable，聚合面板状态、传感器、审计事件、危险联动等核心逻辑。
- */
+/* ── 原 useSecurityOverview.ts 的实现 ── */
 import { computed } from 'vue'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useLayoutStore } from '@/domain/layout/store'

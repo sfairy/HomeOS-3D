@@ -1,7 +1,4 @@
-/**
- * @file useSliderCommit.ts
- * @module frontend/src/composables
- */
+/* ── 原 useSliderCommit.ts 的实现 ── */
 import { ref, watch, unref, computed, type MaybeRefOrGetter } from 'vue'
 import { snapToSliderStep, sliderTrackStyle } from '@/kernel/utils/ui'
 

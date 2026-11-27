@@ -1,12 +1,4 @@
-/**
- * @file useHazardBindingStatus.ts
- * @module composables/security
- * @description 危险传感器绑定状态 composable，汇总烟感/燃气/水浸及其联动设备的实时状态。
- *   - 基于 config 与实体仓库构建状态行（rows）：传感器、阀门、排风
- *   - 通过 getDomainEpoch 触发响应式依赖，确保实体状态变化时重算
- *   - 派生告警数、离线数与受监测实体 ID 列表，供 UI 展示与轮询订阅
- * @dependencies vue, @homeos/shared, @/stores/entities.store, @/shared/entity/utils/derived.util
- */
+/* ── 原 useHazardBindingStatus.ts 的实现 ── */
 import { computed, type Ref } from 'vue'
 import {
   collectHazardBindingSummary,

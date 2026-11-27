@@ -1,7 +1,4 @@
-/**
- * @file home-mode-editor.internals.ts
- * @module frontend/src/views
- */
+/* ── 原 home-mode-editor.internals.ts 的实现 ── */
 /** composables：自 home-mode.internals.ts 拆出 — 合并自 home-mode-panel.context / useHomeModeActionsSection / useHomeModeEditor 等 */
 import { getEntityLeaf } from '@homeos/shared'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'

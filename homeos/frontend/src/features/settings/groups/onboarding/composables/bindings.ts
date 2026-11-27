@@ -19,10 +19,7 @@ import { logger } from '@/kernel/utils/core'
 import { applyLifeAccountsLayoutSlice, liveLifeAccountsLayoutSlice, pickLifeAccountsLayoutSlice } from '../../appearance/composables/use-layout'
 import { buildEnergyConfigPatch, isCumulativeEnergyMeter, readConfigEnergyMeter, readPanelEnergyBinding, seedPanelEnergyMeter } from '@/domain/energy/model/utils/binding-bridge.util'
 
-/**
- * @file bindings-account.internals.ts
- * @module frontend/src/views
- */
+/* ── 原 bindings-account.internals.ts 的实现 ── */
 /** 绑定：单账户/多账户编辑区 */
 
 // ── useBindingsAccountSection ──
@@ -200,10 +197,7 @@ export function useBindingsAccountSection(categoryTab: Ref<string>, props: Bindi
   }
 }
 
-/**
- * @file bindings-ha.internals.ts
- * @module frontend/src/features/settings/connect/composables
- */
+/* ── 原 bindings-ha.internals.ts 的实现 ── */
 /** HA 绑定：摄像头 / 门铃 */
 
 
@@ -276,10 +270,7 @@ export function useHaBindings(layoutConfig: Ref<UILayoutConfig>) {
   }
 }
 
-/**
- * @file bindings-recommend.internals.ts
- * @module frontend/src/features/settings/connect/composables
- */
+/* ── 原 bindings-recommend.internals.ts 的实现 ── */
 /** 绑定设置：缺口推荐 */
 
 
@@ -400,10 +391,7 @@ export function useBindingsRecommend(serverGaps: () => BindingGapItem[]) {
   }
 }
 
-/**
- * @file bindings.internals.ts
- * @module frontend/src/views
- */
+/* ── 原 bindings.internals.ts 的实现 ── */
 /** 绑定 Hub：能源/生活账户 */
 
 // ── useSettingsAccountBindingsHub ──

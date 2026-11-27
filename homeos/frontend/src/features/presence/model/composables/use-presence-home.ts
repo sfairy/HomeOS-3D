@@ -1,12 +1,4 @@
-/**
- * @file usePresenceHome.ts
- * @module shared/presence/composables
- * @description 在家状态轮询 composable，定时拉取家庭成员的在家/离家状态。
- *   - 通过 loadPresenceHome 拉取成员列表与自动模式标记
- *   - 默认每 30 秒轮询一次，挂载时立即拉取一次
- *   - 卸载时清理定时器，避免内存泄漏与重复请求
- * @dependencies vue, @/shared/presence/composables/load-presence-home
- */
+/* ── 原 usePresenceHome.ts 的实现 ── */
 import { ref, onMounted, onUnmounted } from 'vue'
 import { loadPresenceHome } from '@/features/presence/model/composables/load-presence-home'
 import { schedulePoll } from '@/kernel/utils/core'

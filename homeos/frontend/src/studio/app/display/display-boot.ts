@@ -1,0 +1,381 @@
+/**
+ * 展示页启动层：splash 相位机、文档主题、首屏稳定性轮询。
+ *
+ * 由 `DisplayView.vue` 在 `onMounted` 调 `bootDisplayBoot()`、`onBeforeUnmount` 调
+ * `teardownDisplayBoot()`。视图现在是 shell 内的可重入路由
+ * （总览 `/` 会被反复进出），因此所有状态在 boot 时重建、监听/定时器在 teardown 时回收，
+ * 每次进入都能拿到干净的 splash 相位与 `window.HomeOSDisplayBoot`。
+ *
+ * 对外契约（供 `display.ts` 调用，id 与形状不可改）：
+ * `window.HomeOSDisplayBoot = { setDocument, ready, fail, reveal, pending, failed }`
+ */
+const SPLASH_PHASE_LOADING = 'loading' as const
+
+type SplashPhase = 'loading' | 'waiting' | 'slow' | 'leaving' | 'done' | 'error'
+
+let disposeActiveBoot: (() => void) | null = null
+
+/** 引导展示页启动层（重复调用会先回收上一次）。 */
+export function bootDisplayBoot(): void {
+  teardownDisplayBoot()
+
+  const documentElement = document.documentElement,
+    isCapturePreview = new URLSearchParams(location.search).get('capturePreview') === '1',
+    themeStorageKey = `homeos:display-theme:${location.pathname}`,
+    warmStorageKey = `homeos:display-warm:${location.pathname}`
+  let isWarmStart = false
+  try {
+    isWarmStart = !isCapturePreview && localStorage.getItem(warmStorageKey) === '1'
+  } catch {
+    /* 存储写入是 best-effort：隐私模式 / 配额 / 序列化失败都不应影响本次渲染 */
+  }
+  const isAppleUserAgent = /\bHomeOS-Apple\/\d/.test(globalThis.navigator?.userAgent || ''),
+    isWarmBoot = isWarmStart || isAppleUserAgent,
+    isPerfDiagnosticsEnabled = new URLSearchParams(location.search).get('performance-diagnostics') === '1',
+    logBootPhase = (phase: any) => {
+      isPerfDiagnosticsEnabled &&
+        console.info(
+          '[display-load]',
+          JSON.stringify({
+            phase: phase,
+            at: Math.round(performance.now()),
+            warm: isWarmStart,
+          }),
+        )
+    }
+  logBootPhase('boot'),
+    documentElement.classList.toggle('display-warm-start', isWarmBoot),
+    documentElement.classList.toggle('capture-preview', isCapturePreview)
+  try {
+    const storedTheme = localStorage.getItem(themeStorageKey)
+    ;(storedTheme === 'dark' || storedTheme === 'light') && (documentElement.dataset.displayTheme = storedTheme)
+  } catch {
+    /* 存储写入是 best-effort：隐私模式 / 配额 / 序列化失败都不应影响本次渲染 */
+  }
+  let splashPhase: SplashPhase = isCapturePreview ? 'done' : SPLASH_PHASE_LOADING,
+    pollTimer: any,
+    loadingTimeoutTimer: any,
+    leaveTimer: any,
+    hintTimer: any,
+    bootStartedAt = performance.now(),
+    shellElement: any = null
+  const imageByUrl = new Map(),
+    displaySplashLookup = () => document.getElementById('display-splash'),
+    displaySplashMessageLookup = () => document.getElementById('display-splash-message'),
+    prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  function clearAllTimers() {
+    for (const timerId of [pollTimer, loadingTimeoutTimer, leaveTimer, hintTimer]) clearTimeout(timerId)
+  }
+  function applyDocumentTheme(dashboardDocument: any) {
+    const background = dashboardDocument?.canvas?.background,
+      colorValue = background?.type === 'color' ? String(background.color || '') : ''
+    let themeName = ''
+    const hexMatch = colorValue.match(/^#([\da-f]{3}|[\da-f]{6})$/i),
+      rgbMatch = colorValue.match(/^rgba?\(\s*(\d+)\s*[, ]\s*(\d+)\s*[, ]\s*(\d+)(?:\s*[,/]\s*1(?:\.0*)?)?\s*\)$/i)
+    let rgbChannels
+    if (hexMatch) {
+      const hexDigits = hexMatch[1].length === 3 ? [...hexMatch[1]].map((digit) => digit + digit).join('') : hexMatch[1]
+      rgbChannels = [0, 2, 4].map((byteOffset) => parseInt(hexDigits.slice(byteOffset, byteOffset + 2), 16))
+    } else rgbMatch && (rgbChannels = rgbMatch.slice(1, 4).map(Number))
+    if (rgbChannels)
+      themeName =
+        rgbChannels.reduce(
+          (accumulator, channelValue, channelIndex) =>
+            accumulator + channelValue * [0.2126, 0.7152, 0.0722][channelIndex],
+          0,
+        ) >= 150
+          ? 'light'
+          : 'dark'
+    else {
+      const themeLabel = String(dashboardDocument?.theme?.name || '').toLowerCase()
+      ;/(^|[-_])light($|[-_])/.test(themeLabel)
+        ? (themeName = 'light')
+        : /(^|[-_])dark($|[-_])/.test(themeLabel) && (themeName = 'dark')
+    }
+    themeName ? (documentElement.dataset.displayTheme = themeName) : delete documentElement.dataset.displayTheme
+    try {
+      themeName ? localStorage.setItem(themeStorageKey, themeName) : localStorage.removeItem(themeStorageKey)
+    } catch {
+      /* 存储写入是 best-effort：隐私模式 / 配额 / 序列化失败都不应影响本次渲染 */
+    }
+  }
+  function showError(error: any, canEnter = false) {
+    if (splashPhase === 'done' || splashPhase === 'error') return
+    logBootPhase(canEnter ? 'slow-loading' : 'load-error'),
+      clearAllTimers(),
+      (splashPhase = canEnter ? 'slow' : 'error'),
+      displaySplashLookup()?.classList.remove('is-complete', 'is-leaving'),
+      displaySplashLookup()?.classList.add('is-error'),
+      displaySplashMessageLookup() &&
+        (displaySplashMessageLookup!()!.textContent = error?.message || '仪表盘加载失败，请检查网络后重试。')
+    const displaySplashActionsNode = document.getElementById('display-splash-actions')
+    displaySplashActionsNode && (displaySplashActionsNode.hidden = false)
+    const displaySplashEnterButton = document.getElementById('display-splash-enter')
+    displaySplashEnterButton && (displaySplashEnterButton.hidden = !canEnter)
+  }
+  function finishLoading(isFirstScreenReady = false) {
+    if (splashPhase === 'done' || splashPhase === 'leaving') return
+    logBootPhase(isFirstScreenReady ? 'first-screen-ready' : 'manual-entry'),
+      clearAllTimers(),
+      (splashPhase = 'leaving'),
+      // 首屏已经揭幕，此刻才允许碰 GPU 驱动：诊断结果只进日志，不再影响相位机。
+      scheduleWebglDiagnostics(),
+      displaySplashLookup()?.classList.remove('is-error'),
+      displaySplashLookup()?.classList.add('is-complete')
+    const displaySplashActionsElement = document.getElementById('display-splash-actions')
+    displaySplashActionsElement && (displaySplashActionsElement.hidden = true),
+      displaySplashMessageLookup() &&
+        (displaySplashMessageLookup!()!.textContent = isFirstScreenReady ? '即将进入你的家…' : '正在进入仪表盘…'),
+      (leaveTimer = setTimeout(
+        () => {
+          displaySplashLookup()?.classList.add('is-leaving'),
+            logBootPhase('reveal-start'),
+            window.dispatchEvent?.(new Event('hb-display-reveal')),
+            (leaveTimer = setTimeout(
+              () => {
+                const splashEl = displaySplashLookup()
+                const hadFocusInside = !!splashEl?.contains(document.activeElement)
+                // 只通知 Vue（DisplayView `splashPresent=false` / v-if）卸节点。
+                // 禁止原生 `.remove()`：本仓库 Vue 无 flushSync，命令式摘节点会让父树
+                // 重渲染时对已脱离 vnode 做 insertBefore → ErrorBoundary 卡死。
+                window.dispatchEvent?.(new Event('hb-display-splash-detach'))
+                documentElement.classList.remove('display-booting')
+                splashPhase = 'done'
+                logBootPhase('entered')
+                if (isFirstScreenReady) {
+                  try {
+                    localStorage.setItem(warmStorageKey, '1')
+                  } catch {
+                    /* 存储写入是 best-effort：隐私模式 / 配额 / 序列化失败都不应影响本次渲染 */
+                  }
+                }
+                imageByUrl.clear(),
+                  hadFocusInside &&
+                    shellElement?.focus({
+                      preventScroll: true,
+                    })
+              },
+              prefersReducedMotion() ? 100 : isWarmBoot ? 150 : 550,
+            ))
+        },
+        prefersReducedMotion() || isWarmBoot ? 0 : 250,
+      ))
+  }
+  function isVisible(probedElement: any) {
+    if (!probedElement.isConnected || probedElement.closest('[hidden]')) return false
+    const rect = probedElement.getBoundingClientRect()
+    if (
+      rect.width <= 0 ||
+      rect.height <= 0 ||
+      rect.bottom <= 0 ||
+      rect.right <= 0 ||
+      rect.top >= innerHeight ||
+      rect.left >= innerWidth
+    )
+      return false
+    for (
+      let ancestorElement = probedElement;
+      ancestorElement && ancestorElement !== shellElement;
+      ancestorElement = ancestorElement.parentElement
+    ) {
+      const computedStyle = window.getComputedStyle(ancestorElement)
+      if (
+        computedStyle.visibility === 'hidden' ||
+        computedStyle.display === 'none' ||
+        Number(computedStyle.opacity) === 0
+      )
+        return false
+    }
+    return true
+  }
+  function hasPendingAssets() {
+    const excludedSelector = '.hb-camera-component, .hb-vacuum-map'
+    for (const imageElement of shellElement.querySelectorAll('img[src]'))
+      if (!imageElement.closest(excludedSelector) && isVisible(imageElement) && !imageElement.complete) return true
+    for (const hostElement of shellElement.querySelectorAll('.hb-interaction3d-host')) {
+      if (
+        !isVisible(hostElement) ||
+        hostElement.dataset.access === 'locked' ||
+        hostElement.querySelector('.is-load-error')
+      )
+        continue
+      const runtimeElement = hostElement.querySelector('.hb-interaction3d-runtime')
+      if (!runtimeElement || runtimeElement.classList.contains('is-loading')) return true
+    }
+    let hasPending = false
+    for (const styledElement of shellElement.querySelectorAll('[style*="background"]'))
+      if (!(styledElement.closest(excludedSelector) || !isVisible(styledElement)))
+        for (const urlMatch of styledElement.style.backgroundImage.matchAll(/url\(["']?([^"')]+)["']?\)/g)) {
+          const imageUrl = urlMatch[1]
+          if (!imageByUrl.has(imageUrl)) {
+            const image = new Image()
+            ;(image.src = imageUrl), imageByUrl.set(imageUrl, image)
+          }
+          imageByUrl.get(imageUrl).complete || (hasPending = true)
+        }
+    return hasPending
+  }
+  /**
+   * 兜底提示用的 WebGL2 判据 —— **不再在 `handleReady()` 里同步调用**。
+   *
+   * 历史：本函数曾是 `handleReady()` 的第一行，属于首屏关键路径上的同步 GPU 驱动调用。
+   * 2026-10-31 在 headless Edge 上测到它单独占用 2.3–2.7s（当时的报告记为 3.28s 长任务），
+   * 因此被移除；后来为了「不空白」又在 `27b5ae46` 里加了回来。
+   * 2026-11-01 复测（同机 Edge 156、无 throttling、连续 5 次 `getContext("webgl2")`
+   * 并 `WEBGL_lose_context`）中位数 1.7ms，最大值 10.6ms —— 也就是说在这个环境里它
+   * **不再是数量级瓶颈**，但它仍然是同步驱动调用，而且在真实平板上创建/销毁上下文
+   * 的成本无法用无头浏览器外推。
+   *
+   * 现在的分工：
+   * - 首屏不再探测，等待阶段直接用舞台 runtime 回传的 `.is-load-error` 给提示
+   *   （见下方 poll 里对 `.hb-interaction3d-host` 的检查，无 WebGL 时约 1.2s 就能出提示）；
+   * - 本函数只在**首屏揭幕之后**的 idle 时段跑一次，用于把「设备确实没有 WebGL2」
+   *   这个原因写进日志/提示，不影响任何首帧指标。
+   */
+  function isWebglAvailable() {
+    try {
+      const probeCanvas = document.createElement('canvas')
+      const webglContext = probeCanvas.getContext('webgl2')
+      if (!webglContext) return false
+      const loseContext = (webglContext as WebGLRenderingContext).getExtension?.('WEBGL_lose_context')
+      loseContext?.loseContext?.()
+      return true
+    } catch {
+      return false
+    }
+  }
+  /**
+   * 首屏之后的后台探测：只记一条诊断，不改 splash 相位。
+   * 用 `requestIdleCallback` 让出主线程；没有该 API 的老内核退化为 2s 定时器。
+   */
+  function scheduleWebglDiagnostics() {
+    const run = () => {
+      const available = isWebglAvailable()
+      logBootPhase(available ? 'webgl2-available' : 'webgl2-unavailable')
+      if (!available) {
+        // 舞台 runtime 可能已经自己报错；这里只在它没报时补一条，避免重复提示。
+        window.HomeOSLog?.warn?.(new Error('当前设备未启用 WebGL2，3D 户型无法渲染。'), {
+          phase: 'display-webgl-probe',
+        })
+      }
+    }
+    if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 4000 })
+    else setTimeout(run, 2000)
+  }
+  function handleReady(readyShellElement: any) {
+    if (splashPhase !== SPLASH_PHASE_LOADING) return
+    ;(shellElement = readyShellElement),
+      (splashPhase = 'waiting'),
+      logBootPhase('document-ready'),
+      clearTimeout(loadingTimeoutTimer),
+      (loadingTimeoutTimer = setTimeout(() => {
+        splashPhase === 'waiting' &&
+          (showError(new Error('首屏素材加载较慢，准备好后会自动进入，也可以重试或先进入仪表盘。'), true),
+          (pollTimer = setTimeout(poll, 1000)))
+      }, 60000))
+    let stableSinceMs = 0
+    const stableThresholdMs = isWarmBoot ? 32 : 120,
+      pollIntervalMs = isWarmBoot ? 32 : 80,
+      poll = () => {
+        if (splashPhase !== 'waiting' && splashPhase !== 'slow') return
+        // 3D 户型 host 就绪但仍带 `.is-load-error`：说明运行时已判定加载失败，
+        // 在等待阶段就让 splash 给出「重新加载 / 先进入」，而不是干等到稳定超时。
+        if (
+          [...shellElement.querySelectorAll('.hb-interaction3d-host')].find(
+            (hostElement: any) => isVisible(hostElement) && hostElement.querySelector('.is-load-error'),
+          ) &&
+          splashPhase === 'waiting'
+        ) {
+          showError(new Error('3D 户型加载失败，请重新加载或先进入仪表盘。'), true),
+            (pollTimer = setTimeout(poll, 1000))
+          return
+        }
+        const now = performance.now()
+        hasPendingAssets() ? (stableSinceMs = 0) : stableSinceMs || (stableSinceMs = now),
+          stableSinceMs &&
+          now - stableSinceMs >= stableThresholdMs &&
+          now - bootStartedAt >= (prefersReducedMotion() || isWarmBoot ? 0 : 1350)
+            ? requestAnimationFrame(() => {
+                ;(splashPhase !== 'waiting' && splashPhase !== 'slow') ||
+                  (hasPendingAssets()
+                    ? ((stableSinceMs = 0),
+                      (pollTimer = setTimeout(poll, splashPhase === 'slow' ? 1000 : pollIntervalMs)))
+                    : finishLoading(true))
+              })
+            : (pollTimer = setTimeout(poll, splashPhase === 'slow' ? 1000 : pollIntervalMs))
+      }
+    poll()
+  }
+
+  const handleOnline = () => {
+    splashPhase === 'error' && location.reload()
+  }
+  const handleSplashClick = (clickEvent: Event) => {
+    const clickTarget = clickEvent.target as Element | null
+    clickTarget?.closest('#display-splash-retry') && location.reload(),
+      clickTarget?.closest('#display-splash-enter') && finishLoading()
+  }
+  const handleFocusIn = (focusEvent: Event) => {
+    const focusTarget = focusEvent.target as Node | null
+    splashPhase !== 'done' &&
+      focusTarget &&
+      document.getElementById('display-shell')?.contains(focusTarget) &&
+      displaySplashLookup()?.focus({
+        preventScroll: true,
+      })
+  }
+
+  ;(window.HomeOSDisplayBoot = {
+    setDocument: applyDocumentTheme,
+    ready: handleReady,
+    fail: showError,
+    // 收起启动 splash 并放行外壳。用于「总览尚未创建任何仪表盘」这类**空状态**：
+    // 提示文案本身要求用户去「设置 → 布局」，而 splash 是 fixed + z-index 2.1e9 的整屏层，
+    // 留着它会把 MainLayout 的顶栏/侧边栏/页脚一起盖住，用户点不到导航、彻底卡死。
+    reveal: () => finishLoading(),
+    get pending() {
+      return splashPhase !== 'done'
+    },
+    get failed() {
+      return splashPhase === 'error'
+    },
+  }),
+    !isCapturePreview &&
+      (window.addEventListener('online', handleOnline),
+      documentElement.classList.add('display-booting'),
+      document.addEventListener('click', handleSplashClick),
+      (hintTimer = setTimeout(() => {
+        ;(splashPhase === 'loading' || splashPhase === 'waiting') &&
+          displaySplashMessageLookup() &&
+          (displaySplashMessageLookup!()!.textContent = '正在准备你的家，请稍候…')
+      }, 8000)),
+      (loadingTimeoutTimer = setTimeout(
+        // 超时不再把用户锁死在 splash：仍然允许「先进入仪表盘」，
+        // 否则 3D 资源失败时连顶栏 / 侧边栏都点不到。
+        () => showError(new Error('仪表盘加载超时，可重试或先进入仪表盘。'), true),
+        45000,
+      )),
+      document.addEventListener('focusin', handleFocusIn))
+
+  disposeActiveBoot = () => {
+    clearAllTimers()
+    if (!isCapturePreview) {
+      window.removeEventListener('online', handleOnline)
+      document.removeEventListener('click', handleSplashClick)
+      document.removeEventListener('focusin', handleFocusIn)
+    }
+    imageByUrl.clear()
+  }
+}
+
+/** 回收展示页启动层：注销监听/定时器、摘掉文档级类与主题、撤下全局契约。 */
+export function teardownDisplayBoot(): void {
+  const dispose = disposeActiveBoot
+  disposeActiveBoot = null
+  dispose?.()
+  delete (window as any).HomeOSDisplayBoot
+  const documentElement = document.documentElement
+  // 这三个类与主题都作用在 <html>（外壳所在文档），视图卸载后必须摘掉，否则会影响其它路由。
+  documentElement.classList.remove('display-warm-start', 'capture-preview', 'display-booting')
+  delete documentElement.dataset.displayTheme
+}

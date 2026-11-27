@@ -1,7 +1,4 @@
-/**
- * @file useEventsView.ts
- * @module frontend/src/composables
- */
+/* ── 原 useEventsView.ts 的实现 ── */
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'

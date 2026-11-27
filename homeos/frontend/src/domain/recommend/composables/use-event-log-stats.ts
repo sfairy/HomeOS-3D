@@ -1,12 +1,4 @@
-/**
- * @file useEventLogStats.ts
- * @module shared/recommend/composables
- * @description 事件日志统计 composable，按时间窗口拉取 HA 事件统计快照。
- *   - 通过 fetchEventStats 获取总事件数、按 domain 分组与 Top 实体
- *   - 时间窗口优先使用传入参数，缺省回退到前端配置 maxQueryHours
- *   - 异常时记录 debug 日志并将快照置空
- * @dependencies vue, @/services/api/entities, @/shared/utils/core/logger, @/shared/utils/config/frontend-config, @/shared/recommend/types/recommend.types
- */
+/* ── 原 useEventLogStats.ts 的实现 ── */
 import { ref } from 'vue'
 import { fetchEventStats } from '@/domain/api/entities'
 import { logger } from '@/kernel/utils/core'

@@ -12,10 +12,7 @@ import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
 import { securityCameraEntityIds } from '@/kernel/utils/layout'
 import { countOfflineDevices } from '@/domain/entity/model/utils/device-group'
 
-/**
- * @file security-view-calendar.internals.ts
- * @module frontend/src/features/security/composables
- */
+/* ── 原 security-view-calendar.internals.ts 的实现 ── */
 /** 安防页日历：纯日期网格 / 同一天判定（不依赖 Vue） */
 
 type SecurityCalendarDay = {
@@ -66,10 +63,7 @@ export function isSameCalendarDay(left: Date | null | undefined, right: Date | n
   )
 }
 
-/**
- * @file security-view-events.internals.ts
- * @module frontend/src/features/security/composables
- */
+/* ── 原 security-view-events.internals.ts 的实现 ── */
 /** 安防页门禁事件：视频 URL / hero 色调等纯辅助 */
 
 export type SecurityDoorEvent = {
@@ -95,16 +89,7 @@ export function resolveSecurityHeroTone(armed: boolean, alertCount: number): 'mu
   return 'amber'
 }
 
-/**
- * @file useSecurityView.ts
- * @module composables/security
- * @description 安防视图 composable，管理安防页的 Tab 切换、监控状态、门禁事件日历等。
- *   - 定义三个 Tab（总览/监控/事件）的元信息与跳转配置
- *   - 组合 useSecuritySensors / useSecurityPanelStatus 提供告警数与布防状态
- *   - 派生 hero 指标、降级横幅文案、HA 重连逻辑
- *   - 提供门禁事件日历：按月渲染、按日筛选、视频预览、缩略图滚动
- * @dependencies vue, vue-router, @lucide/vue, @/shared/utils/core/logger, @/stores/entities.store, @/stores/layout.store, @/services/api/security, @/features/security/composables/*, @/composables/entity/*, @homeos/shared, @/features/security/composables/useYamlValidation, @/composables/ui/useHaDegrade, @/shared/utils/format/locale-format.util, @/shared/utils/registry/settings-route.util
- */
+/* ── 原 useSecurityView.ts 的实现 ── */
 
 /** 安防页 Tab ID 常量列表 */
 const SEC_TAB_IDS = ['overview', 'monitor', 'events'] as const
