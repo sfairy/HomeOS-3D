@@ -100,8 +100,8 @@ function pythonPath() {
     REPO_ROOT,
     path.join(REPO_ROOT, 'ops'),
     path.join(REPO_ROOT, 'ops', 'checks'),
-    ...['business', 'python', 'contract', 'architecture', 'security', 'size', 'studio', 'unittests', 'lib'].map(
-      (name) => path.join(REPO_ROOT, 'ops', 'checks', name),
+    ...['business', 'python', 'contract', 'architecture', 'security', 'size', 'studio', 'lib'].map((name) =>
+      path.join(REPO_ROOT, 'ops', 'checks', name),
     ),
   ]
   const existing = process.env.PYTHONPATH

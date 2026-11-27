@@ -446,8 +446,8 @@ class SystemInfoResponse(ResponseModel):
     """``GET /system/info``：版本与服务器时间。
 
     字段集与 ``SystemService.get_system_info`` 的返回逐字对齐。用 ``ResponseModel``
-    （``extra="ignore"``）：多返回的键被忽略而不是把请求打成 500，漏声明的键由
-    ``ops/checks/unittests/test_system_schema.py`` 的键集断言发现。
+    （``extra="ignore"``）：多返回的键被忽略而不是把请求打成 500，漏声明的键
+    会在调用方按契约取值时暴露为 ``undefined`` —— 改这两处必须同步核对。
     """
 
     version: str

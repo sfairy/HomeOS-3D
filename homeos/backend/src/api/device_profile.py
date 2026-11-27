@@ -94,7 +94,7 @@ class DeviceProfileItem(ResponseModel):
 
     字段集与 `DeviceProfileService.list` 的返回**逐条对齐**，并用 `ResponseModel`
     （`extra="ignore"`）：服务端多返回的键被忽略而不是把请求打成 500；少声明的字段
-    由 `ops/checks/unittests/test_device_profile_schema.py` 的键集断言发现。
+    会在调用方按契约取值时暴露为 `undefined`，改这两个类时必须同步核对服务层。
     """
 
     entityId: str

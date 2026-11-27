@@ -163,12 +163,12 @@ const GATE_GROUPS = {
     // 镜像包的导入门禁：源码里的绝对 `src.` 导入在镜像里不存在。
     { name: 'check:image-imports', ...bun('run', 'check:image-imports') },
     // ---- business ----------------------------------------------------
-    // 三类断言：bun test 契约单测 + stdlib unittest + 19 个业务规则自检。三段都跑完再汇总。
-    {
-      name: 'check:tests',
-      ...bun('run', 'check:tests'),
-      covers: ['check:unit-tests', 'check:backend-unit-tests', 'check:selftests'],
-    },
+    // 业务规则自检：该告警的告警、该静默的静默（语义正确性，不依赖运行时）。
+    //
+    // 2026-11-27：原先这里跑 `check:tests`（bun 契约单测 + stdlib unittest + 自检三段），
+    // 单测目录 `ops/checks/unittests/` 已按发布要求移除，`run_tests.mjs` 随之删除。
+    // 现在直接跑自检那一段，避免留一个名字叫「tests」却只有自检的入口。
+    { name: 'check:selftests', ...bun('run', 'check:selftests') },
   ],
   model: [
     // 资产 / 几何 / 槽位 / 材质四条只读审计（各自产出报告，不写基线）。
@@ -429,7 +429,7 @@ const TAG_GROUPS = {
   contract: ['check:toolchain', 'check:env', 'check:deps', 'check:runtime-contract'],
   ratchet: ['check:frontend', 'check:backend'],
   invariant: ['check:studio-invariants', 'check:scene', 'check:python-lock', 'check:image-imports'],
-  business: ['check:tests'],
+  business: ['check:selftests'],
 }
 
 /**

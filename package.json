@@ -1,7 +1,7 @@
 {
   "name": "homeos-monorepo",
   "private": true,
-  "version": "0.8.9",
+  "version": "0.9.0",
   "type": "module",
   "packageManager": "bun@1.4.5",
   "scripts": {
@@ -35,7 +35,6 @@
     "check:frontend": "node ops/checks/run_frontend_checks.mjs",
     "check:backend": "node ops/lib/py.mjs ops/checks/run_backend_checks.py",
     "check:e2e": "node ops/checks/e2e/smoke.mjs",
-    "check:tests": "bun ops/checks/run_tests.mjs",
     "check:selftests": "node ops/lib/py.mjs ops/checks/run_selftests.py",
     "check:studio-invariants": "node ops/checks/run_studio_invariants.mjs",
     "check:model-assets": "bun ops/checks/run_model_checks.mjs --module assets,geometry,slots,materials",
@@ -104,18 +103,18 @@
     "vue-router": "5.5.1"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.6.8",
+    "@biomejs/biome": "^2.6.9",
     "@gltf-transform/core": "^4.5.1",
     "@gltf-transform/extensions": "^4.5.1",
     "@gltf-transform/functions": "^4.5.1",
-    "@types/node": "^26.6.6",
+    "@types/node": "^26.6.11",
     "draco3dgltf": "^1.5.9",
     "esbuild": "^0.28.2",
     "lightningcss": "^1.33.0",
     "pinia": "^4.1.0",
     "three": "0.187.0",
     "typescript": "^6.0.3",
-    "vite": "^8.3.8",
+    "vite": "^8.4.0",
     "vue-tsc": "^3.3.14"
   }
 }

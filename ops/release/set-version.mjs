@@ -160,16 +160,17 @@ const SLOTS = [
 
   // ── 界面兜底版本号（后端没下发 site.version 时显示） ─────────────────────
   {
-    file: 'homeos/frontend/src/components/common/SceneStage.vue',
+    file: 'homeos/frontend/src/kernel/ui/SceneStage.vue',
     label: '入户页场景壳版本兜底',
+    // 该文件渲染的是 `pkg.version`（package.json 单一真源），槽位按当前实际路径登记，
+    // 只为「有人手写成具体版本号」时兜底；动态绑定不该被改写成死字面量。
     pattern: /(version \|\| ')[^']*(')/g,
     replace: '$1__V__$2',
   },
   {
-    // ⚠ 商店前端的组件层已收敛到 `src/shared/components/`（P5 起），旧路径
-    // `src/components/SceneStage.vue` 已不存在；槽位指向不存在的文件会让
-    // `--check` 直接判失败（而不是静默跳过），此处必须跟随实际布局。
-    file: 'homeos-store/frontend/src/shared/components/SceneStage.vue',
+    // ⚠ 组件层已收敛到 `src/shared/`，旧路径 `src/components/SceneStage.vue` 不存在；
+    // 槽位指向不存在的文件会让 `--check` 直接判失败（而不是静默跳过），必须跟随实际布局。
+    file: 'homeos-store/frontend/src/shared/SceneStage.vue',
     label: '商店场景页版本兜底',
     pattern: /(site\.version \|\| ")[^"]*(")/g,
     replace: '$1__V__$2',

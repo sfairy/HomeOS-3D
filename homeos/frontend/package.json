@@ -1,7 +1,7 @@
 {
   "name": "homeos-dashboard",
   "private": true,
-  "version": "0.8.9",
+  "version": "0.9.0",
   "description": "HomeOS 前端中控界面（Vue）— 墙面平板优先的智能家居 Dashboard",
   "type": "module",
   "scripts": {
@@ -39,8 +39,8 @@
     "web-vitals": "^6.2.3"
   },
   "devDependencies": {
-    "@types/three": "0.187.0",
     "@tailwindcss/vite": "^4.3.5",
+    "@types/three": "0.187.0",
     "@vitejs/plugin-vue": "^6.0.11",
     "autoprefixer": "^10.7.0",
     "esbuild": "^0.28.2",
@@ -48,6 +48,6 @@
     "rollup-plugin-visualizer": "^7.1.3",
     "tailwindcss": "^4.3.5",
     "typescript": "^6.0.3",
-    "vite": "^8.3.8"
+    "vite": "^8.4.0"
   }
 }

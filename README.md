@@ -100,7 +100,6 @@ HomeOS/
 │   │   ├── architecture/ security/ #   依赖方向 / WS 鉴权
 │   │   ├── e2e/ perf/              #   浏览器冒烟 / 长跑观测（手动或 ux 组）
 │   │   ├── baselines/              #   全部棘轮基线（按域再分一层）
-│   │   ├── unittests/              #   bun test + stdlib unittest
 │   │   └── lib/ fixtures/          #   断言辅助、夹具
 │   ├── scripts/                   # 构建期与离线工具：CSS 压缩、预压缩 sidecar、时序表瘦身
 │   ├── lib/                       # 解释器入口（py.mjs）、walk、vue-tsc 与 biome 包装
@@ -243,7 +242,7 @@ static 的步骤按**标签**分六类（`--list` 按此打印，`--tag` 可整�
 | --- | --- | --- |
 | `check:frontend` | 2 | 1974 个 ts/vue 只遍历一次；离线计数 / 受限写法共用同一份 `SourceFile` |
 | `check:backend` | 3 | 694 个 `.py` 只 `ast.parse` 一次（此前每条都重解析）；guards / ws-auth / parity |
-| `check:tests` | 3 | 三类断言一个步骤，失败仍按模块定位 |
+| `check:selftests` | 1 | 业务规则自检；`--module <名称>` 单项调试 |
 | `check:studio-invariants` | 7 | 八条不变量里画布两条合成一条（同一份 `canvas-layout.util.ts`） |
 | `check:model-assets` | 4 | 四条 GLB 只读审计 |
 | `check:model-index` | 2 | 目录布局 + 中文名索引 |
@@ -309,8 +308,7 @@ CSS 重复、CSS 令牌、画布断点、Studio 拆分预算、0.8.9 对齐、�
 超前等于放行跑不了的语法。
 
 业务规则层「跑断言」的门禁是 `ops/checks/business/*_selftest.py`（标准库 + 运行期依赖，不需要 pytest）。
-`check:tests` 串起三类断言（bun test 契约单测 + stdlib unittest + 22 个业务自检模块，都在
-`ops/checks/business/` 与 `ops/checks/unittests/`），单项调试用 `--module`
+`check:selftests` 串起 22 个业务自检模块（都在 `ops/checks/business/`），单项调试用 `--module`
 （`bun run check:selftests -- --module device_profile_selftest`）：
 
 - 设备画像（58 项）：分类规则、别名归一与房间作用域、在线 / 可用二分、确认与审计、
