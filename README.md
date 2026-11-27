@@ -280,14 +280,13 @@ node ops/gates.mjs --list --json          # 机器可读（含 covers）
 `ops/checks/baselines/{frontend,backend,contracts,size,model}/`。
 
 已删除的门禁（连同脚本、基线、`package.json` 条目）：代码量总量（`check:code-size`）、
-单文件行数审计（`audit:file-size`）、`any` 计数、前端 / 后端函数复杂度、
-硬编码样式、UI 溢出、CSS 重复、CSS 令牌、画布断点、Studio 拆分预算、0.8.9 对齐、
-后端热点字节预算、bundle 体积预算。它们共同的问题是把「代码长什么样」固化成数字门槛，
+单文件行数审计（`audit:file-size`）、巨型文件扇出审计（`audit:giant-files`）、`any` 计数、
+前端 / 后端函数复杂度、硬编码样式、UI 溢出、CSS 重复、CSS 令牌、画布断点、Studio 拆分预算、
+0.8.9 对齐、后端热点字节预算、bundle 体积预算。它们共同的问题是把「代码长什么样」固化成数字门槛，
 而数字只能靠不断重录基线维持 —— 与「不设巨型文件定义」是同一条原则。
 
-**行数不作任何判据**：项目不再统计单文件行数，也不再设「巨型文件」定义。
-`audit:giant-files` 是唯一的体量手动入口，只测 imports / deps 扇出（`--min-lines`
-只是报告筛选参数），不参与 CI / `pre-push`。
+**行数不作任何判据**：项目不再统计单文件行数，也不再设「巨型文件」定义；
+按行数取证的手动入口（`audit:giant-files`）已一并删除，不维护任何体量基线。
 
 `check:toolchain` 守三条「写了两遍以上」的版本线，任何一处漂移都不影响编译、只会在换机或发版时才炸：
 

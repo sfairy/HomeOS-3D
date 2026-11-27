@@ -133,8 +133,7 @@ const GATE_GROUPS = {
       covers: ['check:aliases', 'check:perf-ratchet', 'check:offline-counting', 'check:restricted-syntax'],
     },
     // 体量棘轮只剩重复代码一条。行数不再参与任何门禁：总量变大不等于退化，单文件
-    // 「多少行算巨型」是项目取舍，都不该由门禁替人定义。巨型文件的 imports / deps
-    // 扇出仍可用 `audit:giant-files` 手动取证，不阻断 CI / pre-push。
+    // 「多少行算巨型」是项目取舍，都不该由门禁替人定义；按行数取证的手动审计也已删除。
     {
       name: 'check:size',
       ...bun('run', 'check:size'),
@@ -474,7 +473,6 @@ const MANUAL_SCRIPTS = [
   'check:plan-geometry-mutations', // 同上
   'audit:item-model', // 分支级哈希基线：items/ 仍在改，手动跑（见 README）
   'audit:materials', // 材质报告：只产出文档，判定在 check:materials
-  'audit:giant-files', // 巨型文件 import / deps 扇出度量：拆分前取证用，不判定行数
 ]
 
 /** 把标签挂到步骤上，并校验「每个 static 步骤恰好一类」。 */

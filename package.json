@@ -109,7 +109,6 @@
     "report:frontend-coverage": "node ops/lib/py.mjs ops/checks/architecture/frontend_route_coverage.py --report",
     "check:backend-unit-tests": "node ops/lib/py.mjs ops/checks/unittests/run.py",
     "check:selftests": "node ops/lib/py.mjs ops/checks/run_selftests.py",
-    "audit:giant-files": "node ops/checks/size/check_giant_files.mjs",
     "check:device-profile": "node ops/lib/py.mjs ops/checks/business/device_profile_selftest.py",
     "check:device-health": "node ops/lib/py.mjs ops/checks/business/device_health_selftest.py",
     "check:backup": "node ops/lib/py.mjs ops/checks/business/backup_selftest.py",
