@@ -1,4 +1,4 @@
-@import "@/app/popup-entities.css";
+@import "@/features/entity/popups/popup-entities.css";
 
 .preset-btn {
   padding: 6px 12px;

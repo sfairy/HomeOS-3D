@@ -5,7 +5,7 @@
    在 main.css 全局引入；组件直接使用类名，无需 scoped 重复样式。
    ========================================================================== */
 
-@import "./hos-glass-shell.css";
+@import "@/kernel/ui/hos-glass-shell.css";
 
 /* ---- 根容器 + 遮罩 ---- */
 .hos-modal-root {

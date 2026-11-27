@@ -6,7 +6,7 @@
 
    使用方式：
      @import '@/kernel/ui/popup-base.css';
-     @import '@/app/popup-entities.css';
+     @import '@/features/entity/popups/popup-entities.css';
      .popup-shell { --accent: #38bdf8; --accent-rgb: 56,189,248; }
    ========================================================================== */
 

@@ -36,7 +36,7 @@ import router from './app/router/index'
 // 设计令牌唯一真源：必须在所有既有样式表之前加载（canonical 定义在 packages/shared）
 import '../../../packages/shared/src/styles/design-tokens.css'
 import './app/main.css'
-import './app/app-premium-tokens.css'
+import './kernel/ui/app-premium-tokens.css'
 import './app/hos-design-system.css'
 import './kernel/ui/hos-panel.css'
 import './app/app-typography.css'

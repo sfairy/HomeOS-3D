@@ -1,5 +1,5 @@
 /** 设置页排版 token + 颜色 token + 全站 premium token */
-@import "../../../app/app-premium-tokens.css";
+@import "@/kernel/ui/app-premium-tokens.css";
 
 /* ── 统一动画（替代分散的 fade-in / pulse keyframes） ── */
 @keyframes setFadeIn {

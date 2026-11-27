@@ -1,13 +1,18 @@
 /* 设置页样式聚合入口 */
-@import "./settings-hub-patterns.css";
+/* 合并说明（2026-11-27）：
+   - settings-hub-patterns / settings-hub-workspace → 并入 settings-hub.css，
+     段内次序按原 @import 次序（patterns → hub → workspace）；
+   - orchestrator-premium → 并入 settings-orch-tabs.css（原次序即在其之后）；
+   - registry-degraded-guide → 并入其唯一消费者 RegistryDegradedGuide.vue 的 scoped style
+     （组件私有样式不能提到全局层）。
+   合并后的文件留在 settings-hub / settings-orch-tabs **原本的槽位**，不挪到被并入文件的位置：
+   CSS 同特异度靠源码顺序决胜，挪槽位等于静默改变渲染。 */
 @import "./bindings-theme.css";
 @import "./settings-tokens.css";
 @import "./settings-layout.css";
 @import "./settings-hub.css";
 @import "./settings-cards.css";
 @import "./settings-card-layers.css";
-@import "./settings-hub-workspace.css";
 @import "./settings-forms.css";
 @import "./settings-orch-tabs.css";
-@import "./orchestrator-premium.css";
 @import "./settings-utilities.css";

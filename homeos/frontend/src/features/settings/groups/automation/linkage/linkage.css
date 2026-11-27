@@ -46,7 +46,7 @@
 }
 
 /* ── linkage-panel.css ── */
-/* 全屋联动 · workspace 内分区（SettingsCard 壳见 settings-hub-workspace.css） */
+/* 全屋联动 · workspace 内分区（SettingsCard 壳见 settings-hub.css 的 workspace 段） */
 
 .link-workspace {
   min-width: 0;

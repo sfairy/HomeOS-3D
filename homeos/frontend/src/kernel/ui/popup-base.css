@@ -12,8 +12,8 @@
      }
    ========================================================================== */
 
-@import "../../app/hos-glass-shell.css";
-@import "../../app/popup-pointer.css";
+@import "./hos-glass-shell.css";
+@import "./popup-pointer.css";
 
 /* ---- 弹窗锚点定位 ---- */
 .popup-anchor {

@@ -78,5 +78,5 @@ defineExpose({ useAnchor, anchorStyle, popupClass })
 
 <style>
 @import '@/kernel/ui/popup-base.css';
-@import '@/app/popup-entities.css';
+@import '@/features/entity/popups/popup-entities.css';
 </style>

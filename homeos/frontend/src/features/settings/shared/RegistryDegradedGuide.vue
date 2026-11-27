@@ -47,4 +47,16 @@ defineProps({
 defineEmits(['retry'])
 </script>
 
-<style scoped src="./registry-degraded-guide.css"></style>
+<style scoped>
+/* 两条语义色工具类。原先单独放在 registry-degraded-guide.css 由本组件 `<style scoped src>` 引入；
+   那 2 条规则只被本组件用（`rd-text-*` 在仓库里没有第二个消费者），8 行的独立文件没有独立存在的理由。
+   保持 `scoped` 而不并入全局 settings-utilities.css：scoped 会给节点加 data 属性，
+   并入全局等于把作用域放大到全站。 */
+.rd-text-tertiary {
+  color: var(--hos-fg-3);
+}
+
+.rd-text-warn {
+  color: var(--hos-color-warning-text);
+}
+</style>

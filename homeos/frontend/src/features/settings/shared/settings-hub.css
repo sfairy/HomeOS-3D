@@ -1,4 +1,41 @@
-/* Hub 分栏导航 */
+/* ==========================================================================
+   settings-hub.css — Hub 分栏导航 + 工作区壳层
+
+   合并自（原先是 3 个独立文件，由 settings-theme.css 分别 @import）：
+     settings-hub-patterns.css   Hub 工作区共享模式（供 alert-rules / client-power 复用）
+     settings-hub.css            分栏导航本体
+     settings-hub-workspace.css  联动 / 统计带等 workspace 内分区
+
+   **段的先后次序即原 @import 的次序**（patterns=2 / hub=6 / workspace=9）；
+   CSS 同特异度靠源码顺序决胜，重排会静默改变渲染。
+   ========================================================================== */
+
+/* ─────────── 段 1：settings-hub-patterns.css ─────────── */
+/**
+ * 设置页 Hub 工作区共享样式模式
+ * 供 alert-rules / client-power 等功能域复用。
+ * 各域 CSS 通过 @import 引入，避免重复定义 workspace 壳层结构。
+ */
+
+/* ── 静态卡片 workspace 壳（无 hover 动效） ── */
+.svc-workspace.settings-card--static {
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* ── Hub 子页撑满视口 flex 栈（父级 overflow:hidden 时配合内层滚动） ── */
+.settings-hub-section--fill {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0%;
+  min-height: 0;
+  align-self: stretch;
+}
+
+/* ─────────── 段 2：settings-hub.css（分栏导航本体）─────────── */
 /* ── 高大上 · 分栏导航（语音/告警等 Hub 页） ── */
 .settings-hub-subnav {
   display: flex;
@@ -146,4 +183,63 @@
   gap: var(--hos-space-xl, 20px);
   flex: none;
   width: 100%;
+}
+
+/* ─────────── 段 3：settings-hub-workspace.css ─────────── */
+.link-body {
+  padding: var(--hos-panel-padding-default, 20px) var(--hub-inset-x, 2rem) var(--hos-space-2xl, 24px);
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+.link-body .linkage-workspace-block + .linkage-workspace-block {
+  margin-top: var(--hos-space-xl, 20px);
+  padding-top: var(--hos-space-xl, 20px);
+  border-top: var(--hos-hairline) solid rgba(var(--page-accent-secondary-rgb), 0.1);
+}
+
+/* hub-stat 左色条语义（克制，不大面积渐变） */
+.hub-stat-row .hub-stat[class*="--sky"],
+.hub-stat-row .hub-stat[class*="--emerald"],
+.hub-stat-row .hub-stat[class*="--amber"],
+.hub-stat-row .hub-stat[class*="--accent"],
+.hub-stat-row .hub-stat[class*="--secondary"] {
+  border-left-width: 3px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+[class*="-stat--sky"] {
+  border-left-color: var(--set-info, #38bdf8) !important;
+}
+
+[class*="-stat--emerald"] {
+  border-left-color: var(--set-success, #34d399) !important;
+}
+
+[class*="-stat--amber"] {
+  border-left-color: var(--set-warn, #fbbf24) !important;
+}
+
+[class*="-stat--accent"] {
+  border-left-color: rgba(var(--page-accent-rgb), 0.75) !important;
+}
+
+[class*="-stat--secondary"] {
+  border-left-color: rgba(var(--page-accent-secondary-rgb), 0.75) !important;
+}
+
+@container hos-canvas (max-width: 640px) {
+  .link-glance-band {
+    padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px) 12px;
+  }
+
+  .link-body {
+    padding: 16px;
+  }
 }

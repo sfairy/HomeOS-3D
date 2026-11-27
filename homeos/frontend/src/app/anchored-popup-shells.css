@@ -1,5 +1,5 @@
-@import "./hos-glass-shell.css";
-@import "./popup-pointer.css";
+@import "@/kernel/ui/hos-glass-shell.css";
+@import "@/kernel/ui/popup-pointer.css";
 
 @keyframes anchored-popup-bounce {
   0% {

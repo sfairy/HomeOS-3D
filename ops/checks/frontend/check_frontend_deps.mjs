@@ -20,6 +20,13 @@
  * 9. 值引用（非类型、非动态 import）不得成环；
  * 10. services 是叶子层：不得值引用 stores / composables / components / views / features / layouts；
  * 11. stores 不得值引用 composables（可复用逻辑放 shared/）。
+ * 12. 样式表（`.css`）遵守同一套层序：低层不得 `@import` 更高层（`css-up-layer`）；
+ * 13. 跨 feature 不得直接 `@import` 对方私有样式表（`css-cross-feature`）——
+ *     共用样式基元应先下沉到 kernel/domain；
+ * 14. `@import` 目标必须真实存在（`css-unresolved`）：写错路径浏览器不报错，只会静默少一段样式。
+ *
+ * 12–14 是 2026-11-27 补上的：此前 `SOURCE_EXTS` 不含 `.css`，四层约定在样式层面
+ * 零校验，实测存在 `kernel/ui/*.css → app/*.css` 这类反向引用。
  *
  * 用法：node ops/checks/frontend/check_frontend_deps.mjs [--root <src目录>] [--alias <前缀>=<替换>]...
  *
@@ -70,6 +77,18 @@ const WALK_SKIP_DIRS = new Set(['node_modules', 'dist'])
 
 function walk(dir, out = []) {
   return walkFiles(dir, { extensions: SOURCE_EXTS, skipDirs: WALK_SKIP_DIRS }, out)
+}
+
+/**
+ * 样式表单独遍历：`.css` **不能**混进 `SOURCE_EXTS`。
+ *
+ * 值环检测（Tarjan）只看 TS/Vue 的 import 图；样式表没有「值引用」概念，
+ * 混进去只会给图里塞一堆假的边。但四层方向约定对样式同样成立 ——
+ * 此前 `SOURCE_EXTS` 不含 `.css`，于是 `kernel/ui/*.css` 反向 `@import` `app/`
+ * 这类违规完全没有门禁覆盖（2026-11-27 实测 8 处）。
+ */
+function walkCss(dir, out = []) {
+  return walkFiles(dir, { extensions: new Set(['.css']), skipDirs: WALK_SKIP_DIRS }, out)
 }
 
 /** 把注释替换为空格，保留换行以维持行号；字符串原样保留。 */
@@ -223,28 +242,38 @@ function normalizeTarget(target) {
   return value
 }
 
+/**
+ * 四层架构（L0→L4）：
+ *   kernel  L0 设施，只依赖自身
+ *   domain  L1 共享领域，依赖 kernel/domain
+ *   features L2 业务模块，依赖 kernel/domain/自身；跨模块只能经对方 index.ts
+ *   studio  L3 3D 子系统，依赖 kernel/domain/studio（内部另有 app↛runtime 规则）
+ *   app     L4 装配层，可依赖全部
+ *
+ * 放在模块级：TS/Vue 的 import 与 CSS 的 `@import` 必须用**同一份**层序，
+ * 否则样式会悄悄长出一套自己的层级判定（正是这次补 CSS 覆盖时要避免的事）。
+ */
+const LAYERS = ['kernel', 'domain', 'features', 'studio', 'app']
+const layerOf = (target) => LAYERS.find((layer) => target === layer || target.startsWith(`${layer}/`)) ?? null
+
 function checkFile(filePath) {
   const rel = path.relative(ROOT, filePath).split(path.sep).join('/')
   const text = fs.readFileSync(filePath, 'utf8')
   const errors = []
   const valueEdges = []
 
-  /**
-   * 四层架构（L0→L4）：
-   *   kernel  L0 设施，只依赖自身
-   *   domain  L1 共享领域，依赖 kernel/domain
-   *   features L2 业务模块，依赖 kernel/domain/自身；跨模块只能经对方 index.ts
-   *   studio  L3 3D 子系统，依赖 kernel/domain/studio（内部另有 app↛runtime 规则）
-   *   app     L4 装配层，可依赖全部
-   */
-  const LAYERS = ['kernel', 'domain', 'features', 'studio', 'app']
-  const layerOf = (target) => LAYERS.find((layer) => target === layer || target.startsWith(`${layer}/`)) ?? null
   const importerLayer = layerOf(rel)
   const importerFeature = /^features\/([^/]+)\//.exec(rel)?.[1] ?? null
   const isRootEntry = rel === 'main.ts' || rel === 'App.vue'
 
-  /** 跨模块引用是否走了对方公开面（`features/<B>/index.ts`）。 */
-  const isFeaturePublicSurface = (target) => /^features\/[^/]+\/index\.ts$/.test(target)
+  /**
+   * 跨模块引用是否走了对方公开面。
+   *
+   * `normalizeTarget()` 已经把 `features/<B>/index.ts` 归一化成 `features/<B>`，
+   * 所以「公开面」的判据是**恰好两段路径**（`features/<B>`），而不是原始的
+   * `features/<B>/index.ts` —— 后者永远不可能出现，会让 barrel 引用被误判成深引用。
+   */
+  const isFeaturePublicSurface = (target) => /^features\/[^/]+$/.test(target)
 
   for (const item of collectImports(text)) {
     const resolved = resolveSpecifier(rel, item.specifier)
@@ -268,8 +297,15 @@ function checkFile(filePath) {
         errors.push({ line: item.line, rule: 'feature→upper', specifier: item.specifier })
       } else if (targetLayer === 'features') {
         const targetFeature = /^features\/([^/]+)/.exec(target)?.[1] ?? null
-        if (targetFeature && targetFeature !== importerFeature && !isFeaturePublicSurface(target)) {
-          errors.push({ line: item.line, rule: 'feature-cross-deep', specifier: item.specifier })
+        if (targetFeature && targetFeature !== importerFeature) {
+          if (!isFeaturePublicSurface(target)) {
+            errors.push({ line: item.line, rule: 'feature-cross-deep', specifier: item.specifier })
+          } else if (!fs.existsSync(path.join(ROOT, `${target}/index.ts`))) {
+            // 走到这里说明「引用了对方的域根」但对方根本没有公开面。
+            // 不报的话这条 import 在构建期解析成空、只在 typecheck 时才暴露；
+            // 而按本门禁的定位，域边界问题应该在**这里**被指出来。
+            errors.push({ line: item.line, rule: 'feature-barrel-missing', specifier: item.specifier })
+          }
         }
       }
     }
@@ -351,14 +387,12 @@ if (!fs.existsSync(ROOT)) {
 /**
  * 暂缓的规则（只报告、不阻断）。
  *
- * `feature-cross-deep`：跨模块深引用是历史写法，彻底清零需要先给每个 feature 建立
- * `index.ts` 公开面并逐个改调用点（工作量约等于一次独立重构）。当前先把它当**可见的
- * 待办**打印出来，避免「规则一上线就红一片、于是被整体关掉」。
+ * 目前为空：`feature-cross-deep` 曾经挂在这里，2026-11-27 已清零并转阻断。
  *
- * 阻断规则（kernel→upper / domain→upper / feature→upper / studio→upper / root→studio-deep）
- * 已经全部为 0，这才是四层架构真正的护栏。
+ * 阻断规则（kernel→upper / domain→upper / feature→upper / cross-deep / studio→upper /
+ * root→studio-deep）全部为 0，这才是四层架构真正的护栏。
  */
-const ADVISORY_RULES = new Set(['feature-cross-deep'])
+const ADVISORY_RULES = new Set()
 
 /**
  * 已登记的值环（合并功能族后暴露的既有互依）。
@@ -400,6 +434,82 @@ function cycleKey(members) {
 }
 
 /**
+ * 样式表 `@import` 的说明符提取。
+ *
+ * 覆盖三种写法：`@import "x.css";`、`@import 'x.css';`、`@import url("x.css");`。
+ * 注释在 `stripComments()` 里已抹成空格，所以注释里举例的 `@import` 不会被误判
+ * （`features/entity/popups/popup-entities.css` 头注释就抄了两行示例）。
+ */
+const CSS_IMPORT_RE = /@import\s+(?:url\(\s*)?(['"]?)([^'")\s;]+)\1\s*\)?\s*;/g
+
+/**
+ * 把 `@import` 目标解析成「相对源码根的路径」，解析不到返回 null。
+ *
+ * 返回 null 的三类都不是层级问题，直接跳过：
+ * - 公共静态资源（`/static/**`，由 `public-static.seed.json` 与 CSS manifests 门禁管）；
+ * - npm 包（`tailwindcss`、`~@scope/x`）；
+ * - 越出源码根的相对路径（`../../..`）。
+ */
+function resolveCssTarget(importerRel, specifier) {
+  const clean = specifier.split('?')[0].trim()
+  if (!clean) return null
+  if (clean.startsWith('/') || clean.startsWith('~') || /^[a-z]+:/i.test(clean)) return null
+  for (const [prefix, replacement] of ALIAS_ENTRIES) {
+    if (clean.startsWith(prefix)) return `${replacement}${clean.slice(prefix.length)}`
+  }
+  if (clean.startsWith('.')) {
+    const joined = path.posix.normalize(path.posix.join(path.posix.dirname(importerRel), clean))
+    return joined.startsWith('../') ? null : joined
+  }
+  return null
+}
+
+/**
+ * 样式表层向检查。
+ *
+ * 两条规则，与 TS 侧同源：
+ * - `css-up-layer`：低层不得 `@import` 更高层（kernel/domain/features/studio → app 是典型违规）；
+ * - `css-cross-feature`：跨 feature 不得直接引对方私有样式表（应先下沉为 kernel/domain 基元）。
+ *
+ * 另外校验目标文件真实存在（`css-unresolved`）：`@import` 不存在的路径不会让浏览器报错，
+ * 只会静默少一段样式，是最难发现的一类漂移。
+ */
+function checkCssFile(filePath) {
+  const rel = path.relative(ROOT, filePath).split(path.sep).join('/')
+  const text = stripComments(fs.readFileSync(filePath, 'utf8'))
+  const importerLayer = layerOf(rel)
+  const importerFeature = /^features\/([^/]+)\//.exec(rel)?.[1] ?? null
+  const errors = []
+
+  for (const match of text.matchAll(CSS_IMPORT_RE)) {
+    const specifier = match[2]
+    const target = resolveCssTarget(rel, specifier)
+    if (!target) continue
+    const line = text.slice(0, match.index).split('\n').length
+
+    const diskPath = path.join(ROOT, target)
+    if (!fs.existsSync(diskPath)) {
+      errors.push({ line, rule: 'css-unresolved', specifier })
+      continue
+    }
+
+    const targetLayer = layerOf(target)
+    if (!importerLayer || !targetLayer) continue
+
+    if (LAYERS.indexOf(targetLayer) > LAYERS.indexOf(importerLayer)) {
+      errors.push({ line, rule: 'css-up-layer', specifier })
+      continue
+    }
+    const targetFeature = /^features\/([^/]+)\//.exec(target)?.[1] ?? null
+    if (importerFeature && targetFeature && targetFeature !== importerFeature) {
+      errors.push({ line, rule: 'css-cross-feature', specifier })
+    }
+  }
+
+  return { rel, errors }
+}
+
+/**
  * 已登记的上层引用（合并后暴露的既有耦合，需单独评审才能拆）。
  *
  * 1. `domain/api/studio-*.ts`：这两个资源访问器要复用 studio 创作域里的
@@ -415,6 +525,10 @@ const violations = []
 const valueGraph = new Map()
 for (const file of walk(ROOT)) {
   const result = checkFile(file)
+  for (const error of result.errors) violations.push({ file: result.rel, ...error })
+}
+for (const file of walkCss(ROOT)) {
+  const result = checkCssFile(file)
   for (const error of result.errors) violations.push({ file: result.rel, ...error })
 }
 for (const cycle of valueCycles(valueGraph)) {
