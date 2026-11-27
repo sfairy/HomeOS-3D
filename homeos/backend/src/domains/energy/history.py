@@ -17,8 +17,8 @@ from typing import Any
 
 from sqlalchemy import func, select
 
-from .energy_sgcc import account_identity_key, account_member_rank
-from .event_log_tier import is_billing_snapshot_entity
+from .sgcc import account_identity_key, account_member_rank
+from ..logs.event_log_tier import is_billing_snapshot_entity
 from ...platform.core.db.models import EnergyUsageDaily, EnergyUsageMonthly
 
 

@@ -21,7 +21,7 @@ from typing import Any
 
 from sqlalchemy import select
 
-from .event_log_tier import is_billing_snapshot_entity
+from ..logs.event_log_tier import is_billing_snapshot_entity
 from ...platform.core.db.models import EnergyUsageDaily
 
 logger = logging.getLogger("homeos.energy_guard")

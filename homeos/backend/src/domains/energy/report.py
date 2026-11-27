@@ -15,9 +15,9 @@ from typing import Any
 
 from sqlalchemy import func, select
 
-from .energy_cost import annotate_series, cost_from_hourly, resolve_prices
-from .energy_history import resolve_unit
-from .event_log_report import normalize_energy_range
+from .cost import annotate_series, cost_from_hourly, resolve_prices
+from .history import resolve_unit
+from ..logs.event_log_report import normalize_energy_range
 from ...platform.core.db.models import EnergyUsageDaily, EnergyUsageHourly
 from ...platform.core.runtime.app_config import load_raw_config
 
@@ -35,7 +35,7 @@ def _is_monthly_series(series: list[dict[str, Any]]) -> bool:
 
 def _hour_cost(kwh: float, hour_key: str, cfg: dict[str, Any], prices: dict[str, Any]) -> float:
     """单个小时的金额（逐点金额用，与总量口径必须来自同一套价格）。"""
-    from .energy_cost import hour_period
+    from .cost import hour_period
 
     tou = prices["tou"]
     if tou is None:
@@ -59,7 +59,7 @@ class EnergyReportExtraMixin:
             ids = sorted(self.circuit_entity_ids())
         if not ids:
             return {"range": resolved, "unit": "kWh", "total": 0.0, "items": [], "source": "empty"}
-        from .event_log_report import _report_now
+        from ..logs.event_log_report import _report_now
 
         now = _report_now(self._ops)
         today = now.date()

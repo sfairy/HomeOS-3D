@@ -40,17 +40,17 @@ class EventLogStatsPayload(TypedDict):
     topEntities: list[dict[str, Any]]
 
 
-from .energy_history import (
-    _format_short_label,
-    _round2,
-    read_range_history,
-    select_energy_candidates,
-)
 from .event_stats_rollup import ensure_backfilled, entity_totals, series_by_day
 from ..client_power.energy_meter import (
     business_day_key,
     reading_to_kwh,
     resolve_business_timezone,
+)
+from ..energy.history import (
+    _format_short_label,
+    _round2,
+    read_range_history,
+    select_energy_candidates,
 )
 from ...platform.core.db.models import (
     DeviceUsageStat,

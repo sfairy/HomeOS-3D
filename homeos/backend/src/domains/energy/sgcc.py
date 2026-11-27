@@ -35,7 +35,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
-from .energy_units import normalize_unit, unit_for_entity
+from .units import normalize_unit, unit_for_entity
 
 logger = logging.getLogger("homeos.energy_sgcc")
 

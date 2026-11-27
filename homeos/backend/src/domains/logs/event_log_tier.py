@@ -12,8 +12,8 @@ import json
 import random
 from typing import Any
 
-from .energy_sgcc import is_utility_account_entity
 from ..client_power.energy_meter import is_cumulative_energy_meter
+from ..energy.sgcc import is_utility_account_entity
 from ...platform.core.entity.entity_domain import get_entity_domain
 
 TIER_FULL_DOMAINS = frozenset(

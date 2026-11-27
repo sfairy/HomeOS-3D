@@ -3,7 +3,7 @@ import { computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import axios from 'axios'
 import { fetchSystemConfig, reportClientPower } from '@/kernel/http/system-api'
-import type { ApiRequestConfig } from '@/kernel/http'
+import type { ApiRequestConfig } from '@/kernel/http/index'
 import { useAuthStore } from '@/domain/auth/auth.store'
 import {
   buildClientSystemReport,

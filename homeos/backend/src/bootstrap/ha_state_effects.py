@@ -19,7 +19,7 @@ from typing import Any
 
 from fastapi import FastAPI
 
-from ..domains.logs.energy_backfill import EnergyBackfillService
+from ..domains.energy.backfill import EnergyBackfillService
 from ..platform.core.runtime.observability import record_ha_counter
 from ..realtime.state_divergence import compare_state_models, record_divergence
 from ..realtime.ws_payloads import REPLAY_ONLY_MAX_CHANGES

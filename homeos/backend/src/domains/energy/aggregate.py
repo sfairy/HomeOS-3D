@@ -18,8 +18,7 @@ from typing import Any
 
 from sqlalchemy import func, select
 
-from .energy_units import unit_for_entity
-from .event_log_tier import is_energy_meter_state
+from .units import unit_for_entity
 from ..client_power.energy_meter import (
     business_day_key,
     business_hour_key,
@@ -29,6 +28,7 @@ from ..client_power.energy_meter import (
     is_meter_reset,
     latest_reading_kwh,
 )
+from ..logs.event_log_tier import is_energy_meter_state
 from ...platform.core.db.models import (
     EnergyCandidateEntity,
     EnergyUsageDaily,

@@ -76,6 +76,7 @@ HOMEOS_PACKAGE_WHITELIST: frozenset[frozenset[str]] = frozenset(
                 "domains.channels",
                 "domains.client_power",
                 "domains.earthquake",
+                "domains.energy",
                 "domains.ha",
                 "domains.logs",
                 "domains.notification",

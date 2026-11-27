@@ -20,7 +20,7 @@ from typing import Any
 
 from sqlalchemy import delete, func, select
 
-from .energy_aggregate import (
+from .aggregate import (
     _merge_backfill_daily,
     _merge_backfill_monthly,
     _normalize_backfill_months,
@@ -28,11 +28,11 @@ from .energy_aggregate import (
     _register_backfill_candidates,
     accumulate_energy_totals,
 )
-from .energy_guard import drop_implausible_days, is_implausible_day, is_implausible_month, load_day_peers
-from .energy_units import unit_for_entity
-from .event_log_report import _resolve_ops_timezone_name
-from .event_log_tier import is_billing_snapshot_entity, is_energy_meter_state
+from .guard import drop_implausible_days, is_implausible_day, is_implausible_month, load_day_peers
+from .units import unit_for_entity
 from ..client_power.energy_meter import normalize_meter_scope
+from ..logs.event_log_report import _resolve_ops_timezone_name
+from ..logs.event_log_tier import is_billing_snapshot_entity, is_energy_meter_state
 from ...platform.core.db.models import (
     EnergyCandidateEntity,
     EnergyUsageDaily,

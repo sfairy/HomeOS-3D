@@ -13,8 +13,6 @@ from typing import Any
 from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
-from .energy_report import EnergyReportExtraMixin
-from .energy_store import EnergyStoreMixin
 from .event_log_report import (
     HISTORY_COLUMNS,
     EventLogReportMixin,
@@ -41,6 +39,8 @@ from .event_log_tier import (
 from .event_stats_rollup import build_counts, ensure_backfilled, local_hour_key, query_totals, upsert_counts
 from .event_stats_rollup import clear_all as clear_stats_rollup
 from ..client_power.energy_meter import resolve_business_timezone
+from ..energy.report import EnergyReportExtraMixin
+from ..energy.store import EnergyStoreMixin
 from ...platform.core.db.models import EventLog
 from ...platform.core.db.retention import (
     DEFAULT_OPS,
