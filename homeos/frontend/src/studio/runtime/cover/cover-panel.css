@@ -105,6 +105,13 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
 }
+/* 门面板（0.9.0 `cover-panel.css`）：门只有「开门 / 关门」（点动型只有「触发门机」），
+   按钮数量不固定。改成「按实际按钮数均分」，否则两按钮时右侧会空出一格。 */
+.i3d-cover-panel.is-door-opener .hb-cover-details-actions {
+  grid-template-columns: none;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+}
 .i3d-cover-panel .hb-cover-details-actions button {
   display: flex;
   min-height: 66px;

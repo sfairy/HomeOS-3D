@@ -1535,13 +1535,28 @@ export function drawCourtyardArea(deps: StudioPlanItemDrawingDeps, planItem: any
                                       itemPixelWidth * 0.16,
                                       itemPixelDepth * 0.84,
                                     ))
-                                  : planItem.tvMountStyle === 'tabletop' &&
-                                    planCanvasRenderer.strokeRect(
-                                      -itemPixelWidth * 0.3,
-                                      -itemPixelDepth * 0.34,
-                                      itemPixelWidth * 0.6,
-                                      itemPixelDepth * 0.68,
-                                    ),
+                                  : planItem.tvMountStyle === 'floor-stand'
+                                    ? // 四脚落地支架：画底座外框 + 四条腿的短刻线，与移动支架区分开。
+                                      ((planCanvasRenderer.fillStyle = 'rgba(46, 53, 61, .55)'),
+                                      planCanvasRenderer.fillRect(
+                                        -itemPixelWidth * 0.44,
+                                        -itemPixelDepth * 0.42,
+                                        itemPixelWidth * 0.88,
+                                        itemPixelDepth * 0.84,
+                                      ),
+                                      planCanvasRenderer.strokeRect(
+                                        -itemPixelWidth * 0.47,
+                                        -itemPixelDepth * 0.44,
+                                        itemPixelWidth * 0.94,
+                                        itemPixelDepth * 0.88,
+                                      ))
+                                    : planItem.tvMountStyle === 'tabletop' &&
+                                      planCanvasRenderer.strokeRect(
+                                        -itemPixelWidth * 0.3,
+                                        -itemPixelDepth * 0.34,
+                                        itemPixelWidth * 0.6,
+                                        itemPixelDepth * 0.68,
+                                      ),
                                   (planCanvasRenderer.fillStyle =
                                     planItem.screenEnabled === false
                                       ? 'rgba(8, 12, 15, .8)'

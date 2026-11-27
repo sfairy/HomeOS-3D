@@ -174,6 +174,17 @@ const defaultTimers: SaveStoreTimers = {
   clearTimeout: (handle) => globalThis.clearTimeout(handle as any),
 }
 
+/**
+ * 顶栏脏点 / 「离开户型绘制」守卫是否需要拦住用户。
+ *
+ * 判据是**文档 store 是否还有未保存改动**，不是保存文案的种类：
+ * 失败 / 冲突 / 离线 / 待确认都显示 `error`，但本地改动仍在。
+ * 这里只额外把「正在保存」当脏，避免 spinner 期间圆点闪一下消失。
+ */
+export function facadeDirtyForSaveState(documentDirty: boolean, saveStateKind: string): boolean {
+  return documentDirty || saveStateKind === 'saving'
+}
+
 function createInitialState(online: boolean): SaveStoreState {
   return {
     status: 'idle',
@@ -399,14 +410,25 @@ export class StudioSaveStore {
 
   /** 退出流程：等保存结束；冲突/确认未决时返回失败，交由三态对话框处理。 */
   async requestExit(): Promise<FlushResult> {
-    const result = await this.flushNow()
-    if (result.ok) return result
-    if (result.reason === 'retry-scheduled') return this.flushNowAfterResetAttempt()
+    let result = await this.flushNow()
+    if (!result.ok) {
+      if (result.reason === 'retry-scheduled') return this.flushNowAfterResetAttempt()
+      return result
+    }
+    // 保存期间又发生了编辑：flushNow 会保持脏并排一次自动保存。退出不能等定时器
+    // （teardown 会 dispose 掉它），必须在这里把最后这批改动也同步落盘。
+    // 退避上限 3 次：退出对话框打开时不应再有编辑，超过就是异常场景，交给 pagehide beacon。
+    for (let retry = 0; retry < 3 && this.documentStore.isDirty(); retry += 1) {
+      result = await this.flushNowAfterResetAttempt()
+      if (!result.ok) return result
+    }
     return result
   }
 
   private async flushNowAfterResetAttempt(): Promise<FlushResult> {
     if (this.inFlight) return this.inFlight
+    // 立即重试时把「保存期间又改过」那条 0ms 自动保存排期取消，避免同一批改动存两遍。
+    this.cancelTimers()
     this.patch({ status: 'dirty', attempt: 0, nextRetryAt: null })
     const promise = this.performSave()
     this.inFlight = promise
@@ -521,6 +543,9 @@ export class StudioSaveStore {
 
   private async performSave(): Promise<FlushResult> {
     const revision = this.state.revisionOverride ?? this.documentStore.getLoadedRevision()
+    // 在取快照**之前**采样，保证「取快照之后发生的任何改动」都会让版本计数变化；
+    // 采样放在取快照之后会漏掉「快照刚取完、PUT 还没返回」这一段最常见的编辑窗口。
+    const runtimeRevisionAtRequest = this.documentStore.getRuntimeSceneRevision()
     const scene = this.sceneForSave()
     const request: SaveTransportPutRequest = {
       revision,
@@ -531,6 +556,31 @@ export class StudioSaveStore {
     const result = await this.deps.transport.put(request)
     if (result.ok) {
       const payload = result.payload
+      // 请求期间是否又改过：PUT 发出去的是发起时的快照，那些新改动不在服务器上。
+      // 不能当「已保存」清脏，否则它们再也不会被自动保存（刷新即丢）。
+      const changedDuringSave = this.documentStore.getRuntimeSceneRevision() !== runtimeRevisionAtRequest
+      if (changedDuringSave) {
+        this.documentStore.acceptSavedWhileDirty({ revision: payload.revision, scene: payload.scene ?? scene })
+        this.patch({
+          status: 'dirty',
+          isSaveInFlight: false,
+          attempt: 0,
+          nextRetryAt: null,
+          // 新一轮改动从现在开始计 15s 上限；下面还会立刻排一次 0ms 保存。
+          firstDirtyAt: this.now(),
+          lastError: null,
+          lastErrorCategory: null,
+          lastSavedAt: this.now(),
+          revisionOverride: null,
+          pendingConflict: null,
+          pendingConfirmation: null,
+          interactionToken: null,
+        })
+        // revision 已经推进，马上带着新场景再存一次；定时器在本次 flushNow 的
+        // finally 之后才执行，不会与在途请求互相覆盖。
+        this.scheduleAutosave(0)
+        return { ok: true, reason: 'saved', revision: payload.revision }
+      }
       this.documentStore.applySaved({ revision: payload.revision, scene: payload.scene ?? scene })
       this.patch({
         status: 'saved',

@@ -31,6 +31,7 @@ from .climate import require_air_conditioner_model, validate_climate_command
 from .cover import require_curtain_model, validate_cover_command
 from .game_console import fetch_switch_artwork, switch_artwork_url
 from .media_device import MEDIA_DEVICE_PROFILES
+from .momentary_switch import MomentarySwitchBlocked
 from .render_cache import MAX_ENTRY_BYTES, cache_path, read_cache, write_cache
 from .scene_io import current_scene_payload, decode_draft_document, load_scene_document, scene_path
 from .studio_additions import router as studio_additions_router
@@ -496,6 +497,8 @@ class _EnvironmentDeviceFlags:
     extra_domain: bool
     is_purifier: bool
     is_window_opener: bool
+    #: 0.9.0 环境「开门器」：绑定集合 ``doorOpeners``，实体是 ``switch.*``。
+    is_door_opener: bool
 
 
 @dataclass
@@ -538,6 +541,8 @@ def _environment_device_flags(command: Interaction3dControlRequest) -> _Environm
     is_cover = command.domain == 'cover'
     # 开窗器：HA 里同样是 ``cover`` 域，但绑定集合、文案与模型校验都不同。
     is_window_opener = command.device_kind in {'window-opener', 'window-opener-extra'}
+    # 开门器（0.9.0）：宿主是户型里的门，实体是开关；与开窗器共用「开/关/停」心智但集合不同。
+    is_door_opener = command.device_kind in {'door-opener', 'door-opener-extra'}
     is_water_heater = command.domain == 'water_heater' or command.device_kind == 'water-heater-extra'
     generic_device = command.device_kind == 'device-extra'
     extra_domain = command.device_kind in {
@@ -549,6 +554,7 @@ def _environment_device_flags(command: Interaction3dControlRequest) -> _Environm
         'purifier-extra',
         'water-heater-extra',
         'window-opener-extra',
+        'door-opener-extra',
     }
     is_purifier = not (
         is_climate_extra
@@ -559,6 +565,8 @@ def _environment_device_flags(command: Interaction3dControlRequest) -> _Environm
         or is_water_heater
         or generic_device
         or is_cover
+        # 开门器的实体也是 switch 域，不排掉会被当成净化器兜底（文案与集合都会错）。
+        or is_door_opener
     ) and (command.domain == 'fan' or command.device_kind == 'purifier-extra')
     return _EnvironmentDeviceFlags(
         is_climate_extra=is_climate_extra,
@@ -572,6 +580,7 @@ def _environment_device_flags(command: Interaction3dControlRequest) -> _Environm
         extra_domain=extra_domain,
         is_purifier=is_purifier,
         is_window_opener=is_window_opener,
+        is_door_opener=is_door_opener,
     )
 
 
@@ -586,6 +595,7 @@ _ENVIRONMENT_DEVICE_KINDS: tuple[tuple[str, str, str | None], ...] = (
     ('is_water_heater', '热水器', 'waterHeaters'),
     ('generic_device', '设备', None),
     ('is_window_opener', '开窗器', 'windowOpeners'),
+    ('is_door_opener', '开门器', 'doorOpeners'),
     ('is_cover', '窗帘', 'curtains'),
 )
 
@@ -1117,17 +1127,55 @@ async def _dispatch_environment_command(
     flags,
 ) -> dict:
     """下发命令并维护窗帘行程记忆：失败不记目标位置（否则动画会朝没发生的位移跑）。"""
+    # 点动开关（0.9.0）：下发前先过防重发闸门。放在这里而不是各分支里，
+    # 是因为「门机 / 点动窗帘」都走这条统一下发路径。
+    momentary_press = _begin_momentary_press(request, primary, command.entity_id)
     memory, ticket = _begin_cover_memory(request, command, primary, flags)
     try:
         result = await call_service(command, request, database, viewer)
     except BaseException:
+        momentary_press is not None and _finish_momentary_press(request, command.entity_id)
         if memory is not None:
             memory.complete(ticket, ok=False)
         raise
+    momentary_press is not None and _finish_momentary_press(request, command.entity_id)
     if memory is not None:
         memory.complete(ticket, ok=True)
         await _publish_cover_memory_changed(request, command.entity_id)
     return result
+
+
+def _momentary_guard(request: Request):
+    """取点动开关闸门；没有状态中枢时返回 ``None``（单测 / 早期启动）。"""
+    hub = getattr(request.app.state, 'studio_ha', None)
+    return getattr(getattr(hub, 'state_hub', None), 'momentary_switches', None)
+
+
+def _begin_momentary_press(request: Request, primary: dict | None, entity_id: str):
+    """点动型绑定的下发前登记。非点动型 / 没闸门时返回 ``None``。
+
+    拒绝时给 409 + 一句能指导用户的话：只说「操作失败」会让用户以为按钮坏了而连点，
+    那正好会把门机打到反向。
+    """
+    if not isinstance(primary, dict) or primary.get('switchMode') != 'momentary':
+        return None
+    guard = _momentary_guard(request)
+    if guard is None:
+        return None
+    try:
+        guard.press(entity_id)
+    except MomentarySwitchBlocked as error:
+        raise HTTPException(
+            409,
+            detail='点动型开关尚未复位，请等待设备回报后再试。',
+        ) from error
+    return guard
+
+
+def _finish_momentary_press(request: Request, entity_id: str) -> None:
+    """下发完成（无论成败）：关闭发送窗口，等待状态回报。"""
+    guard = _momentary_guard(request)
+    guard is not None and guard.dispatched(entity_id)
 
 
 async def _control_environment_device(

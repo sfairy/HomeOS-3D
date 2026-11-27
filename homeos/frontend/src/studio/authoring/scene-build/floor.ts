@@ -769,15 +769,29 @@ export type FloorRegionMaterialParams = { brightness: number; roughness: number 
  *
  * 用整板同款基础色乘上分区的明度系数 —— 换贴图会在相邻分区之间错位（木纹对不上），
  * 只调明度在视觉上等价于「同一批木料的不同深浅」。
+ *
+ * 0.9.0：明度当**比值**用并逐通道夹到 1。纯 `multiplyScalar` 在亮基色（瓷砖）上会把
+ * 砖缝一起推成白色、纹理消失；夹取后亮基色在 +20 档只是「不再更亮」，砖缝保留。
+ * 贴图仍然参与（`color` 与 `map` 相乘），所以木纹/砖缝不会丢。
  */
 export function createFloorRegionMaterialFactory(baseColor: unknown) {
   const color = new three.Color(baseColor)
-  return (params: FloorRegionMaterialParams) =>
-    new three.MeshStandardMaterial({
-      color: color.clone().multiplyScalar(params.brightness),
+  return (params: FloorRegionMaterialParams) => {
+    // three 的 shim 只声明了 Color 的构造，取通道要放宽到结构类型；这里不引入 any。
+    const tonedColor = color.clone().multiplyScalar(params.brightness) as unknown as {
+      r: number
+      g: number
+      b: number
+    }
+    tonedColor.r = Math.min(1, tonedColor.r)
+    tonedColor.g = Math.min(1, tonedColor.g)
+    tonedColor.b = Math.min(1, tonedColor.b)
+    return new three.MeshStandardMaterial({
+      color: tonedColor as unknown as ThreeColor,
       roughness: params.roughness,
       metalness: 0,
     })
+  }
 }
 
 export type MountFloorRegionOptions = {

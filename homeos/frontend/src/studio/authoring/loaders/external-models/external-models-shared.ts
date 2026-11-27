@@ -231,6 +231,24 @@ export const PILLAR_MODEL_ITEM_TYPES = new Set([
 ])
 export const EXTERNAL_ITEM_MODELS = Object.freeze({
   'drawer-chest': createIndoorAssetDescriptor('drawer-chest', [1.05, 0.94, 0.45]),
+  /** 0.9.0 新增：榻榻米（家居/卧室家具），2.000 × 0.360 × 2.100。 */
+  tatami: createIndoorAssetDescriptor('tatami', [2.0, 0.36, 2.1]),
+  /**
+   * 0.9.0 新增：车辆开合件。**运行时挂载件，不是可摆放物品** ——
+   * 上游只发布 Draco 压缩件（无完整件），因此这里只声明 `url`（lite），不声明 `fallbackUrl`。
+   * 由 `car-openings` 运行时按车身位姿挂载，节点 `extras` 带
+   * `vehicleOpening / openingAxis / openingAngle`。
+   */
+  'smallcar-openings': Object.freeze({
+    url: modelAssetUrl('smallcar-openings', 'lite'),
+    scaleBasis: [2.19, 1.43, 5.01],
+    preserveOrigin: true,
+  }),
+  'suv-openings': Object.freeze({
+    url: modelAssetUrl('suv-openings', 'lite'),
+    scaleBasis: [2.09, 1.73, 4.75],
+    preserveOrigin: true,
+  }),
   'smart-socket-86': createIndoorAssetDescriptor('smart-socket-86', [0.086, 0.086, 0.012]),
   router: createIndoorAssetDescriptor('router', [0.287, 0.205, 0.177]),
   humidifier: createIndoorAssetDescriptor('humidifier', [0.206, 0.323, 0.218]),

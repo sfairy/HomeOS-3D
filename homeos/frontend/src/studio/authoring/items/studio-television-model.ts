@@ -15,7 +15,15 @@ import { box } from './mesh-shorthand'
 import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
 
 // 比例换算已切到 `studio-television-proportions.ts`（纯函数），这里只做转出以保持旧引用可用。
-export { computeTelevisionProportions }
+export {
+  computeTelevisionProportions,
+  tvFloorStandLegs,
+  tvScreenLayout,
+  TV_FLOOR_STAND,
+  normalizeTvMountStyle,
+  setTvMountStyle,
+  tvExternalModelType,
+} from './studio-television-proportions'
 
 /** 电视模型构件需要的外部状态（均为只读）。 */
 interface StudioTelevisionDeps {

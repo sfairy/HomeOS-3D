@@ -100,7 +100,7 @@ export function renderComponent(
   const componentPosition = renderComponentRecord.position || {},
     isFillLayoutMode =
       renderParentElement === this.canvas &&
-      ['image', 'floorplan-auto-diagram', 'interaction3d'].includes(renderComponentRecord.type) &&
+      ['image', 'floorplan-auto-diagram', 'interaction3d', 'page-background'].includes(renderComponentRecord.type) &&
       renderComponentRecord.properties?.layoutMode === 'fill',
     componentLayout = isFillLayoutMode
       ? {

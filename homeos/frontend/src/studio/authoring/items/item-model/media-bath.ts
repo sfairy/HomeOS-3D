@@ -6,7 +6,12 @@
  */
 import { box, cyl } from '../mesh-shorthand'
 
-import { computeTelevisionProportions } from '../studio-television-model'
+import {
+  computeTelevisionProportions,
+  tvScreenLayout,
+  tvFloorStandLegs,
+  TV_FLOOR_STAND,
+} from '../studio-television-model'
 import type { ItemModelScope } from './types'
 
 export function buildMediaBath(scope: ItemModelScope): boolean {
@@ -24,6 +29,39 @@ export function buildMediaBath(scope: ItemModelScope): boolean {
   } = scope
 
   if (modelItem.type === 'tv') {
+    // 0.9.0：四脚落地支架。它有自己的机身/中心比例（`bodyRatio 0.6 / centerRatio 0.7`），
+    // 且屏幕占比更大、面板更薄 —— 不能套用下面「宽度定屏幕」的等比轴，否则 1.48m 高的
+    // 支架会被撑成一张矮扁的板。四条腿按 `tvFloorStandLegs` 的顶/脚坐标摆位。
+    if (modelItem.tvMountStyle === TV_FLOOR_STAND) {
+      const layout = tvScreenLayout({ tvMountStyle: TV_FLOOR_STAND, width: width6, height: height6, depth }),
+        { radius: legRadius, legs } = tvFloorStandLegs(width6, height6, depth),
+        bodyBottomY = Math.max(layout.centerY - layout.bodyHeight * 0.5, 0.05)
+      for (const standLeg of legs) {
+        // 斜撑用「垂直细柱 + 脚垫」近似：真斜柱要额外算三轴旋转，视觉差异远小于收益。
+        box(
+          itemModelNode,
+          [legRadius * 2, bodyBottomY, legRadius * 2],
+          [(standLeg.topX + standLeg.footX) / 2, bodyBottomY / 2, (standLeg.topZ + standLeg.footZ) / 2],
+          furnitureDark,
+          { rounded: false, metalness: 0.5, roughness: 0.32 },
+        ),
+          box(
+            itemModelNode,
+            [legRadius * 4, legRadius * 1.2, legRadius * 4],
+            [standLeg.footX, legRadius * 0.6, standLeg.footZ],
+            furnitureDark,
+            { radius: legRadius * 0.6, metalness: 0.45, roughness: 0.3 },
+          )
+      }
+      box(
+        itemModelNode,
+        [width6, layout.bodyHeight, Math.max(layout.panelDepth, 0.03)],
+        [0, layout.centerY, 0],
+        furnitureDark,
+        { radius: Math.min(width6, layout.bodyHeight) * 0.012, roughness: 0.28 },
+      )
+      return true
+    }
     const { bodyHeight: ag4, centerY: ag5 } = computeTelevisionProportions(modelItem, width6, height6),
       tvStandTopY = ag5 - ag4 * 0.5
     if (modelItem.tvMountStyle === 'mobile') {

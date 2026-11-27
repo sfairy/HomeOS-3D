@@ -82,6 +82,7 @@ export const MODEL_ASSETS_BY_FOLDER = Object.freeze({
     'nightstand',
     'round-double-bed',
     'rounddiningtable_turntable',
+    'tatami',
     'vanity',
   ],
   'home/kitchen-furniture': [
@@ -217,9 +218,11 @@ export const MODEL_ASSETS_BY_FOLDER = Object.freeze({
     'pillar-round',
     'pillar-semicircle',
     'scooter',
+    'smallcar-openings',
     'stairs',
     'steel-stairs',
     'suv',
+    'suv-openings',
   ],
   /** 影音设备（家居侧）：乐器与琴架，电器侧的 TV / 音响在 `appliance/media`。 */
   'home/media': ['cello-stand', 'drum-kit', 'guitar-stand', 'keyboard-stand', 'piano'],

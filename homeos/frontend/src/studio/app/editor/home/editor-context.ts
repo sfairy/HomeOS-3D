@@ -58,6 +58,13 @@ export interface EditorContext {
   entities: any
   devices: any
   deviceNamesByDeviceId: any
+  /**
+   * 本会话实体目录来自哪台 HA（`haSource`）。
+   *
+   * 保存时随请求体回传：切换 HA 之后，旧标签页里的实体 id 在新机器上可能同名但
+   * 含义不同，服务端据这个字段 409 拒绝，避免把旧来源的绑定写进新机器（0.9.0）。
+   */
+  haSource: string
   entityResourcesByDeviceId: Record<string, any>
   entitiesLoadPromise: any
   isAreEntitiesLoaded: boolean
@@ -170,6 +177,7 @@ export function createEditorContext(): EditorContext {
     entities: [],
     devices: [],
     deviceNamesByDeviceId: undefined,
+    haSource: '',
     entityResourcesByDeviceId: {},
     entitiesLoadPromise: null,
     isAreEntitiesLoaded: false,

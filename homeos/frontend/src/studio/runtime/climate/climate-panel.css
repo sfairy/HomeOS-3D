@@ -366,6 +366,98 @@
   height: 26px;
   padding: 0 10px;
 }
+/* NAS 卡片底部的用量条（0.9.0 `nas-panel.css`）：`width` 由 JS 按百分比写内联样式，
+   这里只钉位置与颜色。缺了这条规则，`<i>` 是行内空元素 —— 高度 0，**整条状态条不可见**。 */
+.i3d-nas-panel .i3d-extra-state-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: #6bd49c;
+}
+/* 附加功能的表单行（0.9.0 `climate-panel.css`）：`.i3d-extra-form` 是自适应栅格，
+   `.i3d-extra-field` 是「标签 + 控件」两列，`.i3d-extra-channels` 是 RGBWW 通道块。
+   这三组此前只有 HTML、没有样式，附加功能里的输入框会退回浏览器默认外观。 */
+.i3d-extra-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr));
+  gap: 5px;
+  min-width: 0;
+}
+.i3d-extra-field {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  font-size: 12px;
+}
+.i3d-extra-field :is(input, select, textarea) {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  font: inherit;
+  color: inherit;
+}
+.i3d-extra-field :is(input:not([type="range"]):not([type="checkbox"]), select, textarea) {
+  width: 100%;
+  max-width: 100%;
+  min-height: 32px;
+  padding: 5px 8px;
+  color: inherit;
+  background: #8080801f;
+  border: 1px solid rgba(128, 128, 128, 0.3);
+  border-radius: 8px;
+  font: inherit;
+}
+.i3d-extra-field input[type="range"] {
+  accent-color: var(--i3d-climate-accent, #b39a6f);
+}
+.i3d-extra-channels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+  padding: 6px;
+  border: 1px solid #8886;
+  border-radius: 8px;
+}
+.i3d-extra-channels label {
+  display: grid;
+  gap: 3px;
+  width: 48px;
+  font-size: 12px;
+}
+.i3d-extra-channels input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+/* 附加功能的标题行与它右侧的「⋯」按钮：不换行、标题吃掉剩余宽度。 */
+.i3d-extra-light-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  flex: none;
+}
+.i3d-extra-light-heading > p {
+  margin: 0;
+  font-size: 11px;
+}
+/* 灯的附加功能里字段改成上下排（标签一行、控件一行）：灯卡的横向空间最窄，
+   两列会把输入框压到 60px 以下。作用域限定在 `.i3d-extra-light`（0.9.0 同口径），
+   不要做成全局 —— 其它卡片的两列表单是合适的。 */
+.i3d-extra-light .i3d-extra-field {
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  gap: 4px;
+  font-size: 10px;
+}
+.i3d-extra-light .i3d-extra-field :is(select, input[type="number"]) {
+  min-height: 24px;
+  padding: 2px 5px;
+}
 .i3d-extra-card.is-layout-editing > .i3d-extra-drag {
   opacity: 0;
   z-index: 2;
@@ -987,4 +1079,214 @@
 .i3d-climate-panel .i3d-climate-speed-levels > .i3d-climate-choice {
   padding-inline: 4px;
   white-space: nowrap;
+}
+
+/* ── 附加功能各形态的容器（0.9.0 `climate-panel.css`，逐条照搬） ────────────
+   这一组类名在本项目的 TS 里**都已产出**（`i3d-extra-actions` 3 处、
+   `i3d-extra-readouts` 2 处、`i3d-extra-camera-frame` 2 处……），但样式一直没跟过来：
+   于是「动作按钮」是裸 button 竖排、「读数」没有横排间距、摄像头帧没有 16:9 框。
+   这不是可选增强 —— 缺了它就是没排版。 */
+.i3d-extra-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 5px;
+}
+.i3d-extra-actions > button {
+  flex: 1 1 62px;
+  min-width: 0;
+  min-height: 26px;
+  padding: 3px 7px;
+  font-size: 12px;
+}
+.i3d-extra-readouts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 10px;
+  margin-bottom: 5px;
+  font-size: 12px;
+}
+/* 列表型附加功能（日程 / 待办）：每条一篇文章，行间用细线分隔。 */
+.i3d-extra-list-content {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.i3d-extra-list-content article {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 7px 0;
+  border-bottom: 1px solid #8884;
+  font-size: 12px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.i3d-extra-list-content article p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+.i3d-extra-list-panel details {
+  min-width: 0;
+  margin: 6px 0;
+  font-size: 12px;
+}
+.i3d-extra-list-panel summary {
+  cursor: pointer;
+  padding: 5px 0;
+}
+.i3d-extra-list-panel details > div {
+  margin-top: 5px;
+}
+.i3d-extra-list-panel > p {
+  margin: 0 0 5px;
+  font-size: 12px;
+}
+/* 服务调用型附加功能（脚本 / 服务）：按钮 + 可折叠的返回体。 */
+.i3d-extra-service > p {
+  margin: 0 0 6px;
+  font-size: 12px;
+}
+.i3d-extra-service details {
+  margin: 6px 0;
+  min-width: 0;
+}
+.i3d-extra-service summary {
+  cursor: pointer;
+  padding: 5px 0;
+  font-size: 12px;
+}
+.i3d-extra-response :is(p, pre) {
+  margin: 8px 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.i3d-extra-response img {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  border-radius: 8px;
+}
+/* 只读读数对（dt/dd 两列）：`dd` 允许长文本换行，不撑破卡片。 */
+.i3d-extra-display-rows {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 8px;
+  margin: 0;
+  font-size: 12px;
+}
+.i3d-extra-display-rows dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+/* 摄像头附加功能：固定 16:9 画面框，图/视频 `contain` 不裁切。 */
+.i3d-extra-camera-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #00000029;
+}
+.i3d-extra-camera-frame > :is(img, video) {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.i3d-extra-camera-frame > .i3d-extra-image-retry {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translate(-50%);
+  max-width: calc(100% - 16px);
+}
+.i3d-extra-camera-frame [hidden] {
+  display: none !important;
+}
+.i3d-extra-input-hint {
+  font-size: 10px;
+  opacity: 0.7;
+}
+/* `fieldset` / 取色器 / 服务返回体在自适应栅格里通栏，不挤在 140px 的列里。 */
+.i3d-extra-form > :is(fieldset, .i3d-color-picker, .i3d-extra-response) {
+  grid-column: 1 / -1;
+}
+.i3d-extra-compound > :is(.i3d-extra-form, .i3d-extra-actions, .i3d-extra-readouts)[hidden] {
+  display: none;
+}
+.i3d-extra-compound > .i3d-climate-error:empty,
+.i3d-extra-service > .i3d-climate-error:empty {
+  display: none;
+}
+.i3d-extra-response article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* 输入型附加功能（`input_text` / `input_datetime` / `input_number`）：0.9.0 的
+   `input-extra-panel.js` 结构 = 「输入框 + 应用按钮」两列 + 下面通栏的提示/报错。
+   本项目 `runtime/panels/panels.ts` 的 `createInputExtraPanel` 产出同名类，
+   但样式一直没跟过来 —— 于是输入框与应用按钮会各自撑满整行、提示语挤在两列之间。 */
+.i3d-extra-input-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+.i3d-extra-input-form .i3d-extra-input-value {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 30px;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 4px 6px;
+}
+/* 提示与报错通栏：留在第一列会被输入框挤成竖排单字。 */
+.i3d-extra-input-form > p {
+  grid-column: 1 / -1;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.i3d-extra-input-form > p:empty {
+  display: none;
+}
+
+/* 排序拖拽的「影子」与「占位」（0.9.0 `purifier-extras.js` + `climate-panel.css`）。
+   本项目的拖拽支持两种：缩放（虚线尺寸框 `i3d-extra-gesture-hint.is-size-outline`）
+   与排序（卡片形状的影子）。排序影子必须是卡片形状，否则用户看不出会落到哪一格。 */
+.i3d-extra-sort-ghost {
+  position: fixed;
+  pointer-events: none;
+  z-index: var(--z-toast);
+  box-sizing: border-box;
+  max-height: 112px;
+  overflow: hidden;
+  padding: 10px;
+  border: 2px solid #b99d69;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px #0005;
+  background: #202932;
+  color: #fff;
+  font: 600 12px / 1.5 sans-serif;
+  overflow-wrap: anywhere;
+}
+/* 被拖动的原卡片变成占位：卡片自身无底色、子节点全透明，网格里保留它的格子。 */
+.i3d-climate-panel .i3d-extra-grid > .is-sort-placeholder {
+  background: transparent !important;
+}
+.is-sort-placeholder > * {
+  opacity: 0 !important;
 }

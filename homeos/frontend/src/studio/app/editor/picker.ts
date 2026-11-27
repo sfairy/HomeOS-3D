@@ -1,5 +1,6 @@
 import { USER_IMAGE_HINT } from '../shared/user-image-upload'
 import { domElement } from '@app/shared/util/dom-factory'
+import { haSourceChangedMessage } from '@/kernel/ha-source-messages'
 
 export function createEditorAssetMatcher({
   getImageSource: getImageSource,
@@ -344,7 +345,13 @@ export function createEditorPickerLifecycle({
           !getEntitiesLoaded() || !hostElement?.isConnected || !canProceed() || onReady()
         })
         .catch((loadError) => {
-          hasExistingPromise || reportError(loadError)
+          /*
+           * 0.9.0：来源变化时给一句明确的解释。
+           *
+           * 换 HA 后旧来源的实体目录请求会以 `HA_SOURCE_CHANGED` 失败；此时笼统报
+           * 「加载失败」会让用户以为是网络问题，而实际只需要重新打开选择器。
+           */
+          hasExistingPromise || reportError(haSourceChangedMessage(loadError, 'picker') || loadError)
         })
         .finally(() => {
           deferredHostSet.delete(hostElement), hostElement?.removeAttribute('aria-busy')

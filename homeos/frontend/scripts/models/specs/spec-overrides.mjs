@@ -811,6 +811,64 @@ export const FLAGSHIP_SPECS = Object.freeze({
 })
 
 export const specOverrides = {
+  // 0.9.0 新增：榻榻米（家居/卧室家具）。GLB 世界包围盒 2.000 × 0.360 × 2.100，
+  // 与资产卡标注的 2.00 × 2.10 m 一致（高度是台垫厚度，不是榻榻米地台整体）。
+  tatami: {
+    size: [2.0, 0.36, 2.1],
+    mount: 'floor',
+    reference: {
+      type: 'asset',
+      title: 'GLB 世界包围盒 2.000 × 0.360 × 2.100 m',
+      confidence: 0.95,
+    },
+    assumptions: [
+      {
+        claim: '有效外廓 2.000 × 0.360 × 2.100 m',
+        basis: '原始 GLB 的 AABB；标准榻榻米两叠尺寸约 1.82 × 1.82m，本款 2.0×2.1 属加大规格',
+        confidence: 0.9,
+        risk: '尺寸不确定',
+      },
+    ],
+    notes: '0.9.0 新增模型；无注册表 scaleBasis，尺寸直接取资产包围盒。',
+  },
+  // 0.9.0 新增：车辆开合件（与车身同位同尺寸，仅作为可动门的宿主网格）。
+  // 两个开合件都不是可摆放物品，不参与摆放/碰撞，只由运行时按车型挂载。
+  'smallcar-openings': {
+    size: [2.19, 1.43, 5.01],
+    mount: 'floor',
+    reference: {
+      type: 'asset',
+      title: '与 car.glb 逐轴一致（±1.0958 × 1.4325 × ±2.51）',
+      confidence: 0.95,
+    },
+    assumptions: [
+      {
+        claim: '开合件与车身包围盒完全一致',
+        basis: 'AABB 逐轴比对 car.glb 完全相同，说明是同一份车身的可动件拆分',
+        confidence: 0.95,
+        risk: '',
+      },
+    ],
+    notes: '非可摆放模型：只由 vehicle 运行时挂载，节点 extras 带 vehicleOpening/openingAxis/openingAngle。',
+  },
+  'suv-openings': {
+    size: [2.09, 1.73, 4.75],
+    mount: 'floor',
+    reference: {
+      type: 'asset',
+      title: 'GLB 世界包围盒 2.085 × 1.733 × 4.754 m',
+      confidence: 0.95,
+    },
+    assumptions: [
+      {
+        claim: '开合件与越野车车身包围盒一致',
+        basis: 'AABB 与 suv-lite.glb 逐轴一致',
+        confidence: 0.95,
+        risk: '',
+      },
+    ],
+    notes: '非可摆放模型：只由 vehicle 运行时挂载，节点 extras 带 vehicleOpening/openingAxis/openingAngle。',
+  },
   'floor-lamp': {
     // 唯一一款**没有被注册表引用**的孤儿模型（SimLab 原始名：`frosted-white`、`[color_008]1`）。
     // 实测世界包围盒 1.64 × 2.04 × 0.44 m —— 这是「弧形落地灯（钓鱼灯）」的比例：

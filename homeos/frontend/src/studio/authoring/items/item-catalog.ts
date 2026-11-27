@@ -281,6 +281,15 @@ export const furnitureCatalog = {
     height: 0.94,
     color: '#7d8799',
   },
+  /** 0.9.0 新增：榻榻米（2.00 × 2.10m 台垫，高 0.36）。 */
+  tatami: {
+    name: '榻榻米',
+    glyph: '▤',
+    width: 2.0,
+    depth: 2.1,
+    height: 0.36,
+    color: '#c9b78f',
+  },
   wardrobe: {
     name: '衣柜',
     glyph: '▤',
@@ -2077,6 +2086,7 @@ export const squareEdgeItemTypeSet = new Set([
   'arched-glass-console',
   'double-open-wardrobe',
   'drawer-chest',
+  'tatami',
   'smart-socket-86',
   'wardrobe',
   'pool-table',
@@ -2193,7 +2203,7 @@ export const openStairTypeSet = new Set(['steelstairs', 'glassstairs', 'floating
 
 export const roundTableTypeSet = new Set(['rounddiningtable', 'rounddiningtableturntable'])
 
-export const tvMountStyleSet = new Set(['standard', 'tabletop', 'mobile'])
+export const tvMountStyleSet = new Set(['standard', 'tabletop', 'mobile', 'floor-stand'])
 
 export const sofaMinDimensions = Object.freeze({
   depth: 0.55,
@@ -2207,6 +2217,7 @@ export const nextBatchItemTypeSet = new Set([
   'arched-glass-console',
   'double-open-wardrobe',
   'drawer-chest',
+  'tatami',
   'smart-socket-86',
   'router',
   'humidifier',

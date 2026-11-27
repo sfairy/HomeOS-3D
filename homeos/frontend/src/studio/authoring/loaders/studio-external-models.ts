@@ -1,8 +1,15 @@
 import { COURTYARD_MODELS, courtyardPalette } from '../plan/courtyard'
-import { prepareVehicleChargeGeometry, prepareSuvRoofGlass, applyVehicleFinish } from '../items/studio-vehicle-models'
+import {
+  prepareVehicleChargeGeometry,
+  prepareSuvRoofGlass,
+  applyVehicleFinish,
+  carOpeningsModelType,
+  mountCarOpeningParts,
+} from '../items/studio-vehicle-models'
 import { decorateWarmFloor } from '../scene/studio-scene-style'
 import { pipelineDispenserModelType } from '../items/pipeline-dispenser'
 import { storageSectionModelType } from '../items/studio-storage-sections'
+import { tvExternalModelType } from '../items/studio-television-proportions'
 import { enlargeWarmLeaves } from '../materials/studio-warm-foliage'
 import {
   applyNaturalWoodCurtainCloth,
@@ -203,6 +210,40 @@ export function createExternalModelManager({
             pumpLoadQueue()
         })
   }
+  /**
+   * 车辆开合件的挂载（0.9.0）。
+   *
+   * 两个方向都要处理，因为两份模板的加载先后不确定：
+   * 1. 车身先好 → 车身模板就绪时尝试挂（开合件没好的话跳过）；
+   * 2. 开合件先好 → 开合件模板就绪时回头补挂到已就绪的车身模板上。
+   */
+  function mountOpeningPartsForVehicle(vehicleType: string, templateScene: any) {
+    const openingsType = carOpeningsModelType(vehicleType)
+    if (!openingsType || !templateScene) return
+    const openingsEntry = preparedTemplatesByItemType.get(openingsType)
+    if (openingsEntry?.source) mountCarOpeningParts(templateScene, openingsEntry.source)
+    else void ensureOpeningsTemplate(openingsType)
+  }
+
+  /** 开合件模板就绪时，回头挂到对应车型的车身模板上。 */
+  function attachOpeningsToVehicles(openingsType: string, openingsScene: any) {
+    const vehicleType = openingsType === 'smallcar-openings' ? 'smallcar' : 'suv',
+      vehicleEntry = preparedTemplatesByItemType.get(vehicleType)
+    vehicleEntry?.source && mountCarOpeningParts(vehicleEntry.source, openingsScene)
+  }
+
+  /** 只为「取到开合件模板」而加载；失败不影响车身（车照样能开，只是门不能动）。 */
+  async function ensureOpeningsTemplate(openingsType: string) {
+    if (preparedTemplatesByItemType.has(openingsType) || inflightLoadsByItemType.has(openingsType)) return
+    const openingsDefinition = (ALL_ITEM_MODELS as Record<string, any>)[openingsType]
+    if (!openingsDefinition) return
+    try {
+      await loadTemplateForItem(openingsDefinition, openingsType, { skipPersistentRestore: true })
+    } catch {
+      // 开合件缺失只损失「门能动」这一个效果，不能因此把整台车判为加载失败。
+    }
+  }
+
   async function loadTemplateForItem(
     itemDefinition: any,
     itemTypeName: any,
@@ -403,8 +444,8 @@ export function createExternalModelManager({
               (item.roundTableTurntable === true || item.type === 'rounddiningtableturntable')
             ? 'rounddiningtable_turntable'
             : item.type === 'tv'
-              ? 'tv_' +
-                (['standard', 'tabletop', 'mobile'].includes(item.tvMountStyle) ? item.tvMountStyle : 'standard')
+              ? // 四脚落地支架没有外部模型（`tvExternalModelType` 返回空），这里保持空串。
+                tvExternalModelType(item.tvMountStyle)
               : item.type === 'pipelinewaterpurifier'
                 ? pipelineDispenserModelType(item)
                 : storageSectionModelType(item)
@@ -525,6 +566,11 @@ export function createExternalModelManager({
     }
     if (
       (retryStateByItemType.delete(loadedItemType),
+      // 0.9.0：车身模板就绪后，把开合件挂上去（只有轿车 / SUV 有）。
+      // 开合件模板可能还没加载好 —— 那就先不挂，等它的模板就绪时在那边补挂。
+      mountOpeningPartsForVehicle(loadedItemType, templateScene),
+      // 反过来：开合件模板自己就绪时，回头挂到已就绪的车身模板上。
+      loadedItemType.endsWith('-openings') && attachOpeningsToVehicles(loadedItemType, templateScene),
       preparedTemplatesByItemType.set(loadedItemType, loadedModelEntry),
       preparedVariantByItemType.set(loadedItemType, loadedVariant),
       loadResult.preparedCacheKey)
@@ -542,7 +588,7 @@ export function createExternalModelManager({
       loadedModelEntry
     )
   }
-  const { upgradeExternalModelToFull, upgradeModelsNearCamera } = createVariantUpgradeApi({
+  const { upgradeExternalModelToFull, upgradeModelsNearCamera, upgradeAllModelsInScene } = createVariantUpgradeApi({
     threeNamespace,
     allItemModels: ALL_ITEM_MODELS as any,
     isDisposed: () => isDisposed,
@@ -2592,6 +2638,7 @@ export function createExternalModelManager({
     loadExternalItemModel: loadExternalItemModel,
     upgradeExternalModelToFull: upgradeExternalModelToFull,
     upgradeModelsNearCamera: upgradeModelsNearCamera,
+    upgradeAllModelsInScene: upgradeAllModelsInScene,
     preloadPersistentModels: preloadPersistentModels,
     modelTypeForItem: resolveModelTypeForItem,
     modelLoadState: collectLoadState,

@@ -51,6 +51,9 @@ COLLECTIONS = (
     ("environment", "waterHeaters"),
     ("environment", "curtains"),
     ("environment", "windowOpeners"),
+    # 0.9.0 开门器：绑定在户型里的门上（`door:{id}`），删门 / 改门型后必须一起清理，
+    # 否则面板里会留下一个永远「关联门模型已移除」的条目。
+    ("environment", "doorOpeners"),
     ("environment", "temperatureHumidity"),
     ("devices", "nas"),
     *(("devices", key) for key in MEDIA_DEVICE_COLLECTIONS),
@@ -70,6 +73,11 @@ FLOOR_COLLECTIONS = frozenset({("security", "alarms"), ("environment", "temperat
 
 #: 绑定在**窗扇**上的集合：钥匙是 ``window:{windowId}:{sashId}``。
 WINDOW_COLLECTIONS = frozenset({("security", "windows"), ("environment", "windowOpeners")})
+
+#: 绑定在**门**上的集合：钥匙是 ``door:{doorId}``（与 ``security.locks`` 同一身份空间）。
+#: 必须与 :func:`binding_key` 的 ``door`` 分支配套：只加进 COLLECTIONS 而不给它定身份，
+#: 每次保存都会被判成孤儿而删掉。
+DOOR_COLLECTIONS = frozenset({("environment", "doorOpeners")})
 
 
 def identities(scene) -> set[tuple[str, str, str]]:
@@ -130,6 +138,14 @@ def binding_key(item, path):
         return (item.get("floorId"), "door", item.get("modelId"))
     if path in WINDOW_COLLECTIONS:
         return (item.get("floorId"), "window", item.get("modelId"))
+    # 开门器与锁共用「门」这个身份空间：两边的 modelId 都是 `door:{id}`。
+    # 容错补前缀：校验层允许裸门 id（上层会补），若有人存了裸 id 而不补，
+    # 身份就会永远对不上、每次保存都被当孤儿删掉。
+    if path in DOOR_COLLECTIONS:
+        model_id = item.get("modelId")
+        if isinstance(model_id, str) and model_id and not model_id.startswith("door:"):
+            model_id = f"door:{model_id}"
+        return (item.get("floorId"), "door", model_id)
     return (
         item.get("floorId"),
         "light" if path == ("lights",) else "model",
@@ -447,11 +463,7 @@ def _restore_binding_entry(properties, entry, asset_exists) -> None:
     restored = deepcopy(item)
     if parts in (("devices", "computers"), ("devices", "televisions")) and asset_exists is not None:
         image = restored.get("screenImage")
-        if (
-            isinstance(image, dict)
-            and isinstance(image.get("assetId"), str)
-            and not asset_exists(image["assetId"])
-        ):
+        if isinstance(image, dict) and isinstance(image.get("assetId"), str) and not asset_exists(image["assetId"]):
             restored.pop("screenImage")
     parent[parts[-1]] = [*items, restored]
 
@@ -470,9 +482,7 @@ def _restorable_curtain_group(environment, entry) -> dict | None:
     valid = len(selected) == 2 and all(
         item.get("floorId") == group["floorId"] and item.get("coverKind") != "dream" for item in selected
     )
-    valid = valid and not (
-        selected[0].get("entityId") and selected[0].get("entityId") == selected[1].get("entityId")
-    )
+    valid = valid and not (selected[0].get("entityId") and selected[0].get("entityId") == selected[1].get("entityId"))
     return deepcopy(group) if valid else None
 
 

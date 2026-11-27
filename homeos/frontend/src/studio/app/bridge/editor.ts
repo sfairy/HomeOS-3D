@@ -10,7 +10,12 @@ import {
 import type { Interaction3dEditorView } from './bridge'
 import { createInteraction3dCover, updateInteraction3dCoverMessage } from './cover'
 import { withRequestTimeout } from '../shared/util/request-timeout'
-import { REPAIR_INSPECT_INTRO, repairResultMessage } from '@/studio/platform/navigation/binding-repair'
+import {
+  REPAIR_INSPECT_INTRO,
+  repairResultMessage,
+  REPAIR_RETRY_SAVE_MESSAGE,
+  isInteraction3dSaveFailure,
+} from '@/studio/platform/navigation/binding-repair'
 import { isWarmSceneStyle, normalizeSceneStyle, SCENE_STYLES, warmBackgroundChoices } from '../shared/scene-styles'
 import {
   FLOOR_CATEGORY_CHOICES,
@@ -283,6 +288,8 @@ export function renderInteraction3dInspector(hostElement: any, targetComponent: 
     [layoutKey: string]: any
   }
 
+  /* 上一次提交是否被「3D 配置无效」拒绝：决定检查通过后的结果文案（0.9.0 口径）。 */
+  let saveRejectedByInteraction3d = false
   const createElement = (tagName: any, className = '', textContent: any = '') =>
       domElement(document, tagName, className, textContent),
     createSection = (sectionTitle: any) => {
@@ -302,9 +309,12 @@ export function renderInteraction3dInspector(hostElement: any, targetComponent: 
       )
     },
     commitChange = (propertiesPatch: any) =>
-      Promise.resolve(editorOptions.onChange(propertiesPatch)).catch((changeError) =>
-        editorOptions.onError?.(changeError),
-      ),
+      Promise.resolve(editorOptions.onChange(propertiesPatch)).catch((changeError) => {
+        // 0.9.0：保存被「3D 配置无效」拒掉时，下一步是「检查失效配置」——
+        // 记下这次拒绝，检查通过后提示可以直接重试保存（而不是「没有发现失效配置」）。
+        saveRejectedByInteraction3d = isInteraction3dSaveFailure(changeError)
+        editorOptions.onError?.(changeError)
+      }),
     properties = targetComponent.properties || {},
     position = targetComponent.position || {},
     programmaticControlSet = new WeakSet(),
@@ -697,7 +707,10 @@ export function renderInteraction3dInspector(hostElement: any, targetComponent: 
           configureDevicesButton.disabled =
           environmentConfigButton.disabled =
             lightingConfigButton.disabled),
-        (planRenderButton.disabled = !properties.sceneId || isViewEditing))
+        (planRenderButton.disabled = !properties.sceneId || isViewEditing),
+        // 舞台刚挂载时 iframe 里还没有画布，第一帧拿到的是「按配置推算」；
+        // 舞台 ready 之后这里会再跑一次，换成实测值。
+        refreshRenderRatioNote())
     })
   const loadScene = async () => {
     if (sceneState.state !== 'loading') {
@@ -2190,6 +2203,63 @@ export function renderInteraction3dInspector(hostElement: any, targetComponent: 
     renderScaleSection.append(renderScaleSelect),
     (renderScaleSelect.title =
       '高清 150% 适合桌面电脑（推荐）；墙板等低性能设备建议均衡 80%。画面卡顿时，可降低渲染分辨率。')
+  /**
+   * 「当前实际像素比」——把 3D 画面真正拿到的渲染倍率写在选项下面。
+   *
+   * 为什么要写出来：3D 变糊只有三个来源（渲染分辨率、屏幕像素比上限 2×、GPU 兼容模式），
+   * 三者都发生在舞台 iframe 内部，检查器上原本完全看不见，于是「突然有点糊」只能靠猜。
+   * 这里直接读舞台画布的 `width / clientWidth`（同源可读）—— 是**实测值**而不是按公式推算，
+   * 兼容模式那种「像素比被悄悄压到 1×」也能立刻显形。
+   */
+  const renderRatioNoteElement = createElement('p', 'inspector-section-note')
+  renderRatioNoteElement.dataset.i3dRenderRatio = ''
+  const refreshRenderRatioNote = () => {
+    const frame = document.querySelector<HTMLIFrameElement>('.hb-component-interaction3d iframe.i3d-frame')
+    let stageCanvas: HTMLCanvasElement | null = null
+    try {
+      const stageDocument = frame?.contentDocument
+      stageCanvas =
+        (stageDocument &&
+          [...stageDocument.querySelectorAll('canvas')].find(
+            (canvasProbe) => canvasProbe.getBoundingClientRect().width > 1,
+          )) ||
+        null
+    } catch {
+      // 跨源 / 文档已卸载：退回「按配置推算」，不阻断面板渲染。
+      stageCanvas = null
+    }
+    const screenRatio = window.devicePixelRatio || 1,
+      configuredScale = Number(properties.renderScale ?? 1),
+      // 与舞台的 `idleRenderPixelRatio` 同口径：min(min(dpr, 2) × renderScale, 2)。
+      plannedRatio = Math.min(Math.min(screenRatio, 2) * configuredScale, 2),
+      stageWidthPx = stageCanvas?.getBoundingClientRect().width || 0,
+      liveRatio = stageCanvas && stageWidthPx > 1 ? stageCanvas.width / stageWidthPx : plannedRatio,
+      ratioText = liveRatio.toFixed(2).replace(/0$/, '') + '×'
+    // 0.05 的容差：0.8/1.5 这类档位乘出来本来就不是整数，不该因此误报「被降级」。
+    const isSofterThanScreen = liveRatio + 0.05 < screenRatio,
+      // 配了 150% 却只拿到 1× 左右 → 不是配置问题，是舞台被兼容模式压低了。
+      isCompatCapped = screenRatio > 1.2 && configuredScale > 1 && liveRatio <= 1.05,
+      hasNoSuperSampling =
+        !isSofterThanScreen && !isCompatCapped && screenRatio > 1.2 && liveRatio <= screenRatio + 0.05
+    renderRatioNoteElement.dataset.i3dRenderRatioState = isSofterThanScreen || isCompatCapped ? 'soft' : 'ok'
+    renderRatioNoteElement.textContent =
+      '当前实际像素比 ' +
+      ratioText +
+      '（渲染分辨率 ' +
+      Math.round(configuredScale * 100) +
+      '% × 屏幕 ' +
+      screenRatio.toFixed(1).replace(/\.0$/, '') +
+      ' 倍，上限 2×）。' +
+      (isCompatCapped
+        ? '像素比被压到 1×：3D 兼容模式生效了（近期 GPU 崩溃自动熔断）。浏览器恢复后加 ?studio-compat=0 还原完整画质。'
+        : isSofterThanScreen
+          ? '低于屏幕分辨率，细线会偏软：把渲染分辨率调到「高清 150%」可恢复。'
+          : hasNoSuperSampling
+            ? '与屏幕像素相同、没有超采样；想更锐利可把渲染分辨率调到「高清 150%」。'
+            : '')
+  }
+  renderScaleSection.append(renderRatioNoteElement)
+  refreshRenderRatioNote()
   const restoreClarityButton = createElement('button', 'inspector-secondary-button', '一键恢复清晰')
   ;(restoreClarityButton.type = 'button'),
     (restoreClarityButton.title = '将渲染分辨率恢复为标准 100%（清晰优先）'),
@@ -2815,8 +2885,14 @@ export function renderInteraction3dInspector(hostElement: any, targetComponent: 
             ? '已取消，配置保持不变。'
             : removedBindingCount
               ? repairResultMessage(removedBindingCount)
-              : '没有发现失效配置。',
+              : // 0.9.0：草稿本来就是干净的、而刚才那次保存被「3D 配置无效」拒掉时，
+                // 提示要用户直接重试保存；只有从未失败过才说「没有发现失效配置」。
+                saveRejectedByInteraction3d
+                ? REPAIR_RETRY_SAVE_MESSAGE
+                : '没有发现失效配置。',
         )
+        // 检查已跑过一轮：无论结论如何，「保存被拒」这个上下文都用掉了。
+        saveRejectedByInteraction3d = false
       } catch (repairBindingsError: any) {
         setRepairBindingsResult(repairBindingsError?.message || String(repairBindingsError))
       } finally {

@@ -4,7 +4,7 @@
  * 曾按类型拆成 6 个纯数据分片，但它们都是同一个模板数组的不同片段 —— 合并为一份数据表。
  */
 
-import { PAGE_BACKGROUND_TYPE, PAGE_BACKGROUND_FILL_POSITION, createPageBackground } from '@app/shared/page-background'
+import { DEFAULT_PAGE_BACKGROUND, PAGE_BACKGROUND_TYPE } from '@app/shared/page-background'
 import { EVENT_LOG_WALL_DOMAINS } from '../renderer/controls/event-log-runtime'
 import {
   timeComponentDimensions,
@@ -118,15 +118,15 @@ export const layoutTemplates = [
       }
     },
   },
-  // 页面背景（0.8.9）：整页背景层。`position` 是**铺满整块画布**（组件本身占满页面），
-  // 图片的实际位置/尺寸在 `properties.position`（百分比盒），由检查器编辑。
-  // 缩略图是 6 张预设拼的 3×2 网格，见 `component-editing.ts` 的 `appendTemplatePreview`。
+  // 页面背景（0.9.0）：整页背景层。组件 `position` 是自由布局时的实际盒（px），
+  // `layoutMode=fill` 时渲染器按画布铺满；`properties` 里没有 position。
+  // 缩略图是 6 张预设拼的 3×2 网格，见 `template-preview.ts`。
   {
     id: PAGE_BACKGROUND_TYPE,
     name: '页面背景',
     type: PAGE_BACKGROUND_TYPE,
-    description: '为整页铺上内置背景或自己的图片，可调透明度与位置。',
-    scopes: ['page'],
+    description: '为主页面或侧边栏选择内置背景或图片。',
+    scopes: ['page', 'shared'],
     create({
       id: pageBackgroundId,
       instanceName: pageBackgroundInstanceName = '页面背景',
@@ -136,23 +136,28 @@ export const layoutTemplates = [
       instanceName?: string
       canvas?: { width?: number; height?: number }
     }) {
+      const pageBackgroundCanvasWidth = Number(canvas?.width || 2778),
+        pageBackgroundCanvasHeight = Number(canvas?.height || 1940)
       return {
         id: pageBackgroundId,
         type: PAGE_BACKGROUND_TYPE,
         componentVersion: 1,
+        // 0.9.0 新建盒：13% / 20% 起点，74% × 65% 尺寸；`zIndex` 由页面背景类型再垫底。
         position: {
-          x: 0,
-          y: 0,
-          width: Number(canvas?.width || 2778),
-          height: Number(canvas?.height || 1940),
+          x: pageBackgroundCanvasWidth * 0.13,
+          y: pageBackgroundCanvasHeight * 0.2,
+          width: pageBackgroundCanvasWidth * 0.74,
+          height: pageBackgroundCanvasHeight * 0.65,
           rotation: 0,
-          zIndex: 0,
+          zIndex: 1,
         },
         bindings: {} as Record<string, any>,
         properties: {
-          ...createPageBackground(),
-          label: pageBackgroundInstanceName,
-          position: { ...PAGE_BACKGROUND_FILL_POSITION },
+          instanceName: pageBackgroundInstanceName,
+          backgroundSource: 'preset',
+          preset: DEFAULT_PAGE_BACKGROUND,
+          opacity: 1,
+          layoutMode: 'fill',
         },
         style: { scale: 1, visible: true },
         actions: {} as Record<string, any>,
@@ -519,59 +524,6 @@ export const displayTemplates = [
         },
         actions: {} as Record<string, any>,
         children: [] as any[],
-      }
-    },
-  },
-  {
-    id: 'page-background',
-    name: '页面背景',
-    type: 'page-background',
-    description: '为主页面选择内置背景或图片，支持铺满与自由布局、透明度调节。',
-    thumbnailId: 'page-background',
-    // 只能放在**页面顶层**（后端 `panel/schema.py` 会拒绝嵌套与侧边栏之外的层级）。
-    scopes: ['page'],
-    create({
-      id: pageBackgroundComponentId,
-      instanceName = '页面背景',
-      canvas,
-    }: {
-      id: string
-      instanceName?: string
-      canvas?: { width?: number; height?: number }
-    }) {
-      const pageBackgroundCanvasWidth = Number(canvas?.width || 2778),
-        pageBackgroundCanvasHeight = Number(canvas?.height || 1940)
-      return {
-        id: pageBackgroundComponentId,
-        type: 'page-background',
-        componentVersion: 1,
-        // 背景铺满整块画布，且 `zIndex` 取 0：其它控件默认 1，保证背景永远在最底层。
-        position: {
-          x: 0,
-          y: 0,
-          width: pageBackgroundCanvasWidth,
-          height: pageBackgroundCanvasHeight,
-          rotation: 0,
-          zIndex: 0,
-        },
-        // 页面背景没有实体绑定、没有动作、没有子控件：三个空容器按最小类型写
-        // （`Record<string, never>` / `unknown[]`），不留宽类型。
-        bindings: {} as Record<string, never>,
-        properties: {
-          instanceName,
-          source: 'preset',
-          preset: 'default/grid',
-          assetId: '',
-          opacity: 100,
-          layoutMode: 'fill',
-          position: { x: 0, y: 0, width: 100, height: 100 },
-        },
-        style: {
-          scale: 1,
-          visible: true,
-        },
-        actions: {} as Record<string, never>,
-        children: [] as unknown[],
       }
     },
   },
@@ -1508,6 +1460,8 @@ for (const componentTemplate of [
 }
 const templateScopeOrder = {
     shared: [
+      // 0.9.0：页面背景同时属于侧边栏作用域，并排在最前（整页底层）。
+      'page-background',
       'time',
       'date',
       'weather',

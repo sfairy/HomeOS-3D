@@ -42,6 +42,7 @@ import {
 } from '../items/item-catalog'
 import { syncLightShapeAndRepaint } from '../lights/light-areas'
 import { STORAGE_SECTION_TYPES, storageSectionStyle } from '../items/studio-storage-sections'
+import { setTvMountStyle } from '../items/studio-television-proportions'
 import { type StudioControlElement } from '../studio-app-types'
 import { lightPresetCatalog, lightAngleLimitForType } from '../lights/studio-app-light-data'
 import { doorTypeCatalog, normalizePlanLabelColor } from '../scene/payload/studio-scene-payload'
@@ -58,18 +59,28 @@ import { patchStudioFacadeState } from '@/studio/engine/studio-facade'
 import { generateId } from '../ui/studio-app-helpers'
 import { FLOOR_REGION_ERROR, FLOOR_REGION_PROMPT } from '../plan/studio-floor-region'
 import {
+  MIN_SPLIT_LENGTH,
   armSplit,
   cancelSplit,
-  clickFloorRegion,
   createFloorRegionInteraction,
   floorRegionTitle,
+  pointInsidePolygon,
+  regionHitsWithBounds,
   setSplitStart,
   type FloorRegionInteraction,
-  type FloorRegionStep,
   type PlanPoint,
 } from '../plan/studio-floor-region'
 import { splitFloorRegionByLine, type FloorRegionSplitSide } from '../plan/studio-floor-region'
-import { type FloorPoint, type FloorRegion } from '../plan/studio-floor'
+import {
+  type FloorFinish,
+  type FloorPoint,
+  type FloorRegion,
+  type FloorToneKind,
+  clampFloorTone,
+  floorToneKind,
+} from '../plan/studio-floor'
+import { floorRegionInspectorView, paintFloorRegionInspector } from '../plan/floor-region-inspector'
+import { pointInPolygon, polygonArea, subtractPolygonLoops } from '../plan/geometry'
 
 /**
  * 输入框的空值语义是「沿用门型默认」，必须删字段而不是写 0；
@@ -391,17 +402,10 @@ export function applyToolSetting(deps: ApplyToolSettingDeps, selectedToolName: a
               tvMountStyleValue = tvMountStyleSet.has(selectElement('#tv-mount-style').value)
                 ? selectElement('#tv-mount-style').value
                 : 'standard'
-            tvMountStyle2 !== tvMountStyleValue && tvMountStyleValue === 'mobile'
-              ? ((toolPlacedElement.height = Math.max(toolPlacedElement.height, sofaMinDimensions.height)),
-                (toolPlacedElement.depth = Math.max(toolPlacedElement.depth, sofaMinDimensions.depth)),
-                (toolPlacedElement.elevation = 0))
-              : tvMountStyle2 === 'mobile' &&
-                tvMountStyleValue !== 'mobile' &&
-                Math.abs(toolPlacedElement.height - sofaMinDimensions.height) < 0.001 &&
-                Math.abs(toolPlacedElement.depth - sofaMinDimensions.depth) < 0.001 &&
-                ((toolPlacedElement.height = itemTypeCatalog.tv.height),
-                (toolPlacedElement.depth = itemTypeCatalog.tv.depth)),
-              (toolPlacedElement.tvMountStyle = tvMountStyleValue)
+            // 0.9.0：移动支架与**四脚落地支架**都有「落地最小尺寸」，切换逻辑收敛到
+            // `setTvMountStyle`（含「离开落地件时回落到标准尺寸」「落地档 elevation 归零」）。
+            tvMountStyle2 !== tvMountStyleValue &&
+              setTvMountStyle(toolPlacedElement, tvMountStyleValue, sofaMinDimensions)
           }
           // 智能屏安装方式（0.8.7）：无条件调用，判断类型与是否需要换模型都在 helper 里。
           syncSmartDisplayMount(toolPlacedElement, selectElement('#smart-display-mount').value)
@@ -979,12 +983,48 @@ function installFloorRegionToolBindings(runtime: StudioAppRuntime): void {
  * 用 `const` + 可变字段而不是模块级 `let`：本仓的别名棘轮把模块级 `let` 计入
  * 「转发层」指标（只允许下降），而这里的状态本来就是一个可替换的槽位。
  */
-const state: { interaction: FloorRegionInteraction } = { interaction: createFloorRegionInteraction() }
+/** 选中的一块地面：`recordId` 为空表示这块地面还没有写进 `floorRegions`。 */
+type FloorRegionSelection = {
+  /** 已落盘分区的 id；`null` 表示选中的是墙线围出的整块房间，还没有分区记录。 */
+  recordId: string | null
+  /** 选中区域的几何；`room` 来源时洞口为空（墙线闭合环本身不带洞）。 */
+  area: FloorRegion
+  /**
+   * 选中时所在的楼层 id。
+   *
+   * 必须记下来：切换楼层后 `recordId` / 几何都属于**旧楼层**，继续拿它去切分或改铺面
+   * 会把旧楼层的轮廓写进新楼层（floorRegions 是按楼层存的），表现是「切一刀后另一层
+   * 多出一块形状完全不对的地面」。交互入口在每次点击前用楼层 id 校验一次即可避免。
+   */
+  floorId: string
+}
+
+/** 命中结果：几何 + 面板标题要用的序号 / 总数（楼层 id 由调用方补上）。 */
+type FloorRegionPick = Omit<FloorRegionSelection, 'floorId'> & {
+  display: { index: number; count: number }
+}
+
+const state: {
+  interaction: FloorRegionInteraction
+  selection: FloorRegionSelection | null
+  display: { index: number; count: number } | null
+} = {
+  interaction: createFloorRegionInteraction(),
+  selection: null,
+  display: null,
+}
 
 /** 当前层的墙线与合并容差（像素），用于求闭合地面。 */
 export type FloorPolygonSource = {
   walls: unknown
   mergeTolerance: number
+  /**
+   * 可铺设地面要**排除**的区域（平面坐标）：楼板洞口（`flooropening` 的投影）。
+   *
+   * 不排除的话，点洞口会得到一块「把洞口也铺上」的分区；表现是挑空处突然出现地板，
+   * 与整板渲染（`subtractPolygonLoops` 挖掉洞口）不一致。
+   */
+  excludeLoops?: ReadonlyArray<ReadonlyArray<FloorPoint>>
 }
 
 /** 一次点击的结果，宿主据此显示提示 / 落盘。 */
@@ -997,10 +1037,13 @@ export type FloorRegionClickResult =
 /** 换工具 / 退出平面视图时清空。 */
 export function resetFloorRegionTool(): void {
   state.interaction = createFloorRegionInteraction()
+  state.selection = null
+  state.display = null
 }
 
 /** 进入「画分割线」等待第一个点；未选中区域时返回 `false`。 */
 export function beginFloorRegionSplit(): boolean {
+  if (!state.selection) return false
   const next = armSplit(state.interaction)
   if (next === state.interaction) return false
   state.interaction = next
@@ -1044,32 +1087,161 @@ export function currentFloorPolygons(source: FloorPolygonSource): FloorPoint[][]
  * 切分的「第二点」由状态机产出线段；这里立刻切成两块轮廓返回给宿主，
  * 宿主负责生成新 `FloorRegion`（新 id、铺面沿用）并打 undo 快照。
  */
-export function clickFloorRegionTool(point: PlanPoint, source: FloorPolygonSource): FloorRegionClickResult {
-  const polygons = currentFloorPolygons(source)
+export function clickFloorRegionTool(
+  point: PlanPoint,
+  source: FloorPolygonSource,
+  storedRegions: ReadonlyArray<FloorRegion> = [],
+  floorId = '',
+): FloorRegionClickResult {
+  const rooms = currentFloorPolygons(source)
   // 已进入切分但还没定起点：这一次点击就是起点。
   if (state.interaction.phase === 'split' && state.interaction.splitStart === null) {
     state.interaction = setSplitStart(state.interaction, point)
     return { kind: 'awaiting-end', label: FLOOR_REGION_PROMPT.splitEnd }
   }
-  const regions = polygons.map((polygon, index) => ({ id: `region-${index}`, polygon }))
-  const { interaction: nextInteraction, step } = clickFloorRegion(state.interaction, point, regions)
-  state.interaction = nextInteraction
-  if (step.kind === 'error') return { kind: 'error', message: step.message }
-  if (step.kind === 'split-armed') {
-    return { kind: 'awaiting-end', label: FLOOR_REGION_PROMPT.splitEnd }
+  if (state.interaction.phase === 'split') return finishFloorRegionSplit(point)
+
+  const pick = pickFloorRegion(point, rooms, storedRegions, source.excludeLoops || [])
+  // `void`：点落在已存分区的洞口里。洞口是挖空的地面，不能退回去选中整块房间，
+  // 否则下一次「换铺面 / 切分」会在洞口上压出一块重叠分区。
+  if (!pick || pick === 'void') return { kind: 'error', message: FLOOR_REGION_ERROR.noFloor }
+  state.selection = { recordId: pick.recordId, area: pick.area, floorId }
+  state.display = pick.display
+  state.interaction = { phase: 'select', splitStart: null, selectedIndex: pick.display.index }
+  return {
+    kind: 'selected',
+    index: pick.display.index,
+    label: floorRegionTitle(state.interaction, pick.display.count),
   }
-  if (step.kind === 'select') {
-    return { kind: 'selected', index: step.index, label: floorRegionTitle(nextInteraction, polygons.length) }
-  }
-  return splitAt(step, polygons)
 }
 
-function splitAt(step: Extract<FloorRegionStep, { kind: 'split' }>, polygons: FloorPoint[][]): FloorRegionClickResult {
-  const outline = polygons[step.index]
-  if (!outline) return { kind: 'error', message: FLOOR_REGION_ERROR.noFloor }
-  const region: Pick<FloorRegion, 'outline' | 'holes'> = { outline, holes: [] }
-  const pieces = splitFloorRegionByLine(region, step.start, step.end)
+/**
+ * 命中一块地面：**已存分区优先**，其次才是墙线围出的整块房间。
+ *
+ * 这个顺序是「切分后还能继续编辑子块」的前提：切分落盘的子块盖在房间上，
+ * 若先命中房间，切分只会重复切整块地面，子块永远选不中。
+ *
+ * 房间这一路必须先做**差集**（房间 − 已存分区 − 楼板洞口）：否则在一块已被切走一半的
+ * 房间的剩余区域上点选，会生成一条覆盖整间房的新记录，与已有分区重叠 ——
+ * 渲染上表现为色块互相压盖，切分与铺面都会作用到错误的面。
+ */
+function pickFloorRegion(
+  point: PlanPoint,
+  rooms: ReadonlyArray<FloorPoint[]>,
+  storedRegions: ReadonlyArray<FloorRegion>,
+  excludeLoops: ReadonlyArray<ReadonlyArray<FloorPoint>> = [],
+): FloorRegionPick | 'void' | null {
+  for (let index = storedRegions.length - 1; index >= 0; index -= 1) {
+    const region = storedRegions[index]
+    if (!region) continue
+    if (!regionHitsWithBounds(point, region.outline)) continue
+    // 洞口是挖空区域：点到里面不命中任何一块地面。
+    if ((region.holes || []).some((hole) => pointInsidePolygon(point, hole))) return 'void'
+    return { recordId: region.id, area: region, display: { index, count: storedRegions.length } }
+  }
+  for (let index = rooms.length - 1; index >= 0; index -= 1) {
+    const outline = rooms[index]
+    if (!outline || !regionHitsWithBounds(point, outline)) continue
+    const areas = roomRemainderAreas(outline, storedRegions, excludeLoops)
+    // 后画的（数组靠后的）优先：差集结果的叠放顺序与渲染一致。
+    for (let areaIndex = areas.length - 1; areaIndex >= 0; areaIndex -= 1) {
+      const area = areas[areaIndex]
+      if (!area || !regionHitsWithBounds(point, area.outline)) continue
+      if (area.holes.some((hole) => pointInsidePolygon(point, hole))) continue
+      return {
+        recordId: null,
+        area: { id: '', finish: 'theme', outline: area.outline, holes: area.holes },
+        display: { index, count: rooms.length },
+      }
+    }
+    // 点在房间里，但已被已有分区 / 洞口挖空：不能退回去生成整间房记录。
+    return 'void'
+  }
+  return null
+}
+
+/** 差集结果的一块（外环 + 洞口），与 `FloorRegion` 的几何字段同形。 */
+type FloorAreaOutline = { outline: FloorPoint[]; holes: FloorPoint[][] }
+
+/** 复制一条环，断开与原数组/对象的引用（差集结果会被写进文档）。 */
+function copyRing(ring: ReadonlyArray<FloorPoint>): FloorPoint[] {
+  return ring.map((vertex) => ({ x: vertex.x, y: vertex.y }))
+}
+
+/**
+ * 把 `subtractPolygonLoops` 的输出还原成「外环 + 洞口」列表。
+ *
+ * 该函数的输出沿用 three `Shape` 的约定：**正面积是外环、负面积是洞**，
+ * 洞本身不保证紧跟在自己的外环后面，必须按「首点落在哪个外环内」重新归属。
+ * 全是负环（并集退化）时反转方向当外环，与 `buildShapesWithHoles` 同口径。
+ */
+function loopsToAreas(loops: ReadonlyArray<ReadonlyArray<FloorPoint>>): FloorAreaOutline[] {
+  const areas: FloorAreaOutline[] = []
+  const holes: FloorPoint[][] = []
+  for (const loop of loops) {
+    if (!Array.isArray(loop) || loop.length < 3) continue
+    const area = polygonArea(loop)
+    if (area > 0) areas.push({ outline: copyRing(loop), holes: [] })
+    else if (area < 0) holes.push(copyRing(loop))
+  }
+  if (!areas.length) {
+    for (const loop of holes) areas.push({ outline: [...loop].reverse(), holes: [] })
+    return areas
+  }
+  for (const hole of holes) {
+    const home = areas
+      .filter((candidate) => pointInPolygon(hole[0]!, candidate.outline, 1e-6))
+      .sort((left, right) => polygonArea(left.outline) - polygonArea(right.outline))[0]
+    home?.holes.push(hole)
+  }
+  return areas
+}
+
+/**
+ * 房间的可铺设剩余区域：房间轮廓减去已存分区与楼板洞口。
+ *
+ * 差集失败（几何退化，例如墙线自相交）时回落成整间房：宁可让用户看到一次重叠，
+ * 也不要因为几何异常让整个工具点不动 —— 后者更难自查。
+ */
+function roomRemainderAreas(
+  outline: ReadonlyArray<FloorPoint>,
+  storedRegions: ReadonlyArray<FloorRegion>,
+  excludeLoops: ReadonlyArray<ReadonlyArray<FloorPoint>>,
+): FloorAreaOutline[] {
+  const cutLoops: FloorPoint[][] = [
+    ...excludeLoops.map(copyRing),
+    ...storedRegions.flatMap((region) => [copyRing(region.outline), ...(region.holes || []).map(copyRing)]),
+  ]
+  const room = copyRing(outline)
+  if (!cutLoops.length) return [{ outline: room, holes: [] }]
+  let loops: ReadonlyArray<ReadonlyArray<FloorPoint>> = []
+  try {
+    loops = subtractPolygonLoops([room], cutLoops)
+  } catch {
+    loops = []
+  }
+  const areas = loopsToAreas(loops)
+  return areas.length ? areas : [{ outline: room, holes: [] }]
+}
+
+/** 切分第二点：用选中区域的真实几何（含洞口）切分，而不是墙线下标。 */
+function finishFloorRegionSplit(point: PlanPoint): FloorRegionClickResult {
+  const selection = state.selection
+  const start = state.interaction.splitStart
+  if (!selection || !start) {
+    resetFloorRegionTool()
+    return { kind: 'error', message: FLOOR_REGION_ERROR.noFloor }
+  }
+  if (Math.hypot(point.x - start.x, point.y - start.y) < MIN_SPLIT_LENGTH) {
+    return {
+      kind: 'error',
+      message: `分割线太短（需 ≥ ${MIN_SPLIT_LENGTH}m），请重新选择终点。`,
+    }
+  }
+  const pieces = splitFloorRegionByLine(selection.area, start, point)
+  // 切分失败时保持切分阶段与起点：用户可以直接重画终点，不用重新点「画分割线」。
   if (!pieces) return { kind: 'error', message: FLOOR_REGION_ERROR.splitInvalid }
+  state.interaction = { phase: 'select', splitStart: null, selectedIndex: state.display?.index ?? null }
   return { kind: 'split', pieces }
 }
 
@@ -1081,39 +1253,44 @@ function isPlanPoint(value: FloorPoint | undefined): value is FloorPoint {
  * 把一次切分结果写回某层的 `floorRegions`（纯函数，返回新数组）。
  *
  * 语义：
- * - 原区域被两块替换（**原地**替换，保持渲染叠放顺序不变）；
+ * - 命中的是**已落盘分区** → 原地替换成两块（保持渲染叠放顺序不变）；
+ * - 命中的是**还没落盘的房间** → 两块直接追加为新记录。新户型 `floorRegions` 为空，
+ *   旧实现用 0 号下标去替换 `regions[0]` 会拿到 `undefined` 并静默返回空数组，
+ *   界面却提示「已分割为两块」，等于整条切分链路第一次点击就失效；
  * - 铺面沿用原区域；色档是层级的（`floorFinishTones`），这里不动；
- * - 洞口不继承 —— `splitFloorRegionByLine` 对带洞区域直接返回 `null`，
- *   所以走到这里时一定没有洞，写成 `[]` 是明确的而不是"忘了"。
+ * - 洞口沿用切分结果：`splitFloorRegionByLine` 已把每个洞按分割线裁到两侧。
  */
 export function applySplitToFloorRegions(
   regions: readonly FloorRegion[],
-  index: number,
+  selected: { recordId: string | null; area: Pick<FloorRegion, 'finish'> },
   pieces: { left: FloorRegionSplitSide; right: FloorRegionSplitSide },
   createId: (prefix: string) => string,
 ): FloorRegion[] {
-  const original = regions[index]
-  if (!original) return [...regions]
+  const originalIndex = selected.recordId ? regions.findIndex((region) => region.id === selected.recordId) : -1
+  const finish = originalIndex >= 0 ? regions[originalIndex]!.finish : selected.area.finish
   const left: FloorRegion = {
     id: createId('floor-region'),
-    finish: original.finish,
+    finish,
     outline: pieces.left.outline,
-    holes: [],
+    holes: pieces.left.holes,
   }
   const right: FloorRegion = {
     id: createId('floor-region'),
-    finish: original.finish,
+    finish,
     outline: pieces.right.outline,
-    holes: [],
+    holes: pieces.right.holes,
   }
-  return [...regions.slice(0, index), left, right, ...regions.slice(index + 1)]
+  if (originalIndex >= 0) return [...regions.slice(0, originalIndex), left, right, ...regions.slice(originalIndex + 1)]
+  return [...regions, left, right]
 }
 
 /**
- * 切分完成后清空选中：两块新区域的下标依赖写入顺序，继续指向旧下标会编辑错误的那一块。
+ * 切分完成后清空选中：两块新区域各有新 id，继续保留旧记录会编辑到已经被替换的那一块。
  */
 export function clearFloorRegionSelection(): void {
   state.interaction = { phase: 'select', splitStart: null, selectedIndex: null }
+  state.selection = null
+  state.display = null
 }
 
 /**
@@ -1123,33 +1300,33 @@ export function clearFloorRegionSelection(): void {
  * 只要漏一条，就会出现「面板还开着但已经没选中」这种很难查的错位。
  */
 export function syncFloorRegionFacade(
-  regionCount: number,
   patch: (partial: { floorRegion: FloorRegionFacadeValue }) => void,
+  _regionCount = 0,
 ): void {
-  patch({ floorRegion: floorRegionFacadeValue(regionCount) })
+  patch({ floorRegion: floorRegionFacadeValue() })
 }
 
 /** facade 上的选区形态（与 `StudioFacadeState['floorRegion']` 同形）。 */
 export type FloorRegionFacadeValue = { label: string; regionCount: number; canSplit: boolean } | null
 
-/** 由当前交互状态算出 facade 值。 */
-export function floorRegionFacadeValue(regionCount: number): FloorRegionFacadeValue {
-  if (state.interaction.selectedIndex === null) return null
+/** 由当前交互状态算出 facade 值（选中信息由 `clickFloorRegionTool` 写入状态）。 */
+export function floorRegionFacadeValue(_regionCount = 0): FloorRegionFacadeValue {
+  if (!state.selection) return null
+  const count = state.display?.count ?? 0
   return {
-    label: floorRegionTitle(state.interaction, regionCount),
-    regionCount,
-    canSplit: state.interaction.selectedIndex < regionCount,
+    label: state.display ? floorRegionTitle(state.interaction, count) : '地面分区',
+    regionCount: count,
+    canSplit: true,
   }
 }
 
 /**
  * 移除选中的分区（检查器「移除分区」）。
  *
- * 返回新数组；只有一块时不允许移除 —— 那等于「这一层没有地面了」，
- * 用户真正想要的是换铺面或改户型，而不是把整层地面删掉。
+ * 允许移除最后一块：删掉这条记录后这层会回到「没有手工分区」的整板地面，
+ * 也就是把这一块改回默认铺面。返回新数组；下标越界返回 `null`。
  */
 export function removeFloorRegionAt(regions: readonly FloorRegion[], index: number): FloorRegion[] | null {
-  if (regions.length <= 1) return null
   if (index < 0 || index >= regions.length) return null
   return [...regions.slice(0, index), ...regions.slice(index + 1)]
 }
@@ -1230,8 +1407,12 @@ export function handleFloorRegionPointer(
   host: FloorRegionPointerHost,
   patchFacade: (partial: { floorRegion: FloorRegionFacadeValue }) => void,
 ): void {
-  const result = clickFloorRegionTool(host.point, host.source)
-  const regionCount = currentFloorPolygons(host.source).length
+  const activeFloor = host.floors.find((floorRecord) => floorRecord.id === host.activeFloorId)
+  // 换过楼层：旧选中的几何 / 记录 / 切分起点都属于上一层，必须先清空再判断这次点击。
+  // 这样落到新楼层的点击是「选中这块地面」，而不是继续切上一层的区域。
+  if (state.selection?.floorId && state.selection.floorId !== host.activeFloorId) resetFloorRegionTool()
+  // 命中测试必须同时看已存分区与墙线房间：只看墙线时，切分出来的子块永远选不中。
+  const result = clickFloorRegionTool(host.point, host.source, activeFloor?.floorRegions || [], host.activeFloorId)
   if (result.kind === 'error') {
     host.notify(result.message, 'error')
   } else if (result.kind === 'awaiting-end') {
@@ -1246,27 +1427,291 @@ export function handleFloorRegionPointer(
   syncUnderfloorHeatingToggle(
     host.floors.find((floorRecord) => floorRecord.id === host.activeFloorId)?.underfloorHeating === true,
   )
-  syncFloorRegionFacade(regionCount, patchFacade)
+  syncFloorRegionFacade(patchFacade)
+  // 选区变了：检查器的铺面高亮、深浅值与「移除分区」可用性都要跟着重画。
+  repaintFloorRegionInspector()
 }
 
 function applySplit(
   host: FloorRegionPointerHost,
   pieces: { left: FloorRegionSplitSide; right: FloorRegionSplitSide },
 ): void {
-  const regionIndex = selectedFloorRegionIndex()
+  const selection = state.selection
   const activeFloor = host.floors.find((floorRecord) => floorRecord.id === host.activeFloorId)
-  if (!activeFloor || regionIndex === null) {
+  if (!activeFloor || !selection) {
     host.notify('没有找到当前楼层，无法切分地面。', 'error')
     return
   }
+  // 切分用的是选中时缓存的几何；楼层已变时必须拒绝，否则会把旧楼层的轮廓写进新楼层。
+  if (selection.floorId && selection.floorId !== host.activeFloorId) {
+    clearFloorRegionSelection()
+    host.notify('已切换楼层，请在新楼层重新点选一块地面。', 'warning')
+    return
+  }
   host.pushUndoEntry()
-  activeFloor.floorRegions = applySplitToFloorRegions(
-    activeFloor.floorRegions || [],
-    regionIndex,
-    pieces,
-    host.createId,
-  )
+  activeFloor.floorRegions = applySplitToFloorRegions(activeFloor.floorRegions || [], selection, pieces, host.createId)
   clearFloorRegionSelection()
   host.markDocumentDirty()
   host.notify('已分割为两块地面。', 'success')
+}
+
+/* ------------------------------------------------------------------------- *
+ * 地面分区的「铺面 / 深浅」落盘（0.9.0）
+ *
+ * 与切分同一条提交链：`pushUndoEntry → 改楼层记录 → markDocumentDirty`。
+ * 色档是**层级**的（同层同 `toneKind` 共用一个档位），所以它写在楼层的
+ * `floorFinishTones` 上，而不是挂到分区上 —— 面板上「本层同类铺面一起调整」就是这条。
+ * ------------------------------------------------------------------------- */
+
+/** 铺面/色档落盘需要的宿主（比点击宿主窄：不需要 point / source）。 */
+export type FloorRegionCommitHost = {
+  activeFloorId: string
+  floors: Array<{
+    id?: string
+    floorRegions?: FloorRegion[]
+    floorFinishTones?: Partial<Record<FloorToneKind, number>>
+  }>
+  /** 新分区 id 生成器；只有「第一次给未落盘房间改铺面」时才需要。 */
+  createId?: (prefix: string) => string
+  pushUndoEntry: () => void
+  markDocumentDirty: () => void
+  notify: (message: string, kind?: string) => void
+}
+
+/**
+ * 设置当前选中分区的铺面。
+ *
+ * 选中「墙线房间但还没有分区记录」时，第一次改铺面会**创建一条记录** ——
+ * 与 0.9.0 的 `selectFloorRegion` 返回 `{record, area}` 后再 commit 同语义。
+ * 旧实现只按 `floorRegions[index]` 取记录，新户型（空数组）点任何房间都提示
+ * 「请先在平面上点选一块地面」，铺面按钮等于全废。
+ */
+export function commitSelectedFloorRegionFinish(host: FloorRegionCommitHost, finish: FloorFinish): boolean {
+  const activeFloor = host.floors.find((floorRecord) => floorRecord.id === host.activeFloorId)
+  const selection = state.selection
+  if (!activeFloor || !selection) {
+    host.notify('请先在平面上点选一块地面。', 'warning')
+    return false
+  }
+  // 选中后切过楼层：几何与 recordId 都属于旧楼层，继续写会把轮廓落到错误的层。
+  if (selection.floorId && selection.floorId !== host.activeFloorId) {
+    clearFloorRegionSelection()
+    host.notify('已切换楼层，请在新楼层重新点选一块地面。', 'warning')
+    return false
+  }
+  const storedRegion = selection.recordId
+    ? activeFloor.floorRegions?.find((region) => region.id === selection.recordId)
+    : undefined
+  if (storedRegion) {
+    if (storedRegion.finish === finish) return false
+    host.pushUndoEntry()
+    storedRegion.finish = finish
+    state.selection = { recordId: storedRegion.id, area: storedRegion, floorId: host.activeFloorId }
+    host.markDocumentDirty()
+    return true
+  }
+  // 还没落盘的房间：默认铺面就是 theme，再点「原色 / 跟随主题」不必生成一条无意义记录。
+  if (finish === 'theme') return false
+  if (!host.createId) {
+    host.notify('无法创建地面分区，请刷新后重试。', 'error')
+    return false
+  }
+  host.pushUndoEntry()
+  const created: FloorRegion = {
+    id: host.createId('floor-region'),
+    finish,
+    outline: selection.area.outline.map((vertex) => ({ x: vertex.x, y: vertex.y })),
+    holes: (selection.area.holes || []).map((hole) => hole.map((vertex) => ({ x: vertex.x, y: vertex.y }))),
+  }
+  activeFloor.floorRegions = [...(activeFloor.floorRegions || []), created]
+  state.selection = { recordId: created.id, area: created, floorId: host.activeFloorId }
+  // 记录数变了：标题里的 `1/N` 要跟着更新（否则还停在房间序号 / 房间总数）。
+  state.display = { index: activeFloor.floorRegions.length - 1, count: activeFloor.floorRegions.length }
+  state.interaction = { phase: 'select', splitStart: null, selectedIndex: state.display.index }
+  syncFloorRegionFacade(patchStudioFacadeState)
+  host.markDocumentDirty()
+  return true
+}
+
+/**
+ * 设置本层某色档（`wood` / `tile`），范围夹到 ±20。
+ *
+ * `0` 会**删键**而不是写 0：文档越小越好，且 `normalizeFloorTones` 缺省就是 0。
+ */
+export function commitFloorRegionTone(host: FloorRegionCommitHost, toneKind: FloorToneKind, tone: number): boolean {
+  const activeFloor = host.floors.find((floorRecord) => floorRecord.id === host.activeFloorId)
+  if (!activeFloor) {
+    host.notify('没有找到当前楼层，无法调整铺面深浅。', 'warning')
+    return false
+  }
+  const nextTone = clampFloorTone(tone),
+    currentTone = clampFloorTone(activeFloor.floorFinishTones?.[toneKind] ?? 0)
+  if (currentTone === nextTone) return false
+  host.pushUndoEntry()
+  const nextTones = { ...(activeFloor.floorFinishTones || {}) }
+  if (nextTone === 0) delete nextTones[toneKind]
+  else nextTones[toneKind] = nextTone
+  activeFloor.floorFinishTones = nextTones
+  host.markDocumentDirty()
+  return true
+}
+
+/* ------------------------------------------------------------------------- *
+ * 地面分区检查器的 DOM 绑定（0.9.0）
+ *
+ * 检查器能显示但按钮是死的，是因为**没人把 DOM 事件接到上面两个 commit**。
+ * 这一层只做三件事：把视图贴上去、把点击翻译成 commit、把 Esc / Enter 转给分割线状态机。
+ * 全部逻辑仍在 `commit*` 与纯函数里，便于单测。
+ * ------------------------------------------------------------------------- */
+
+/** 绑定检查器所需的宿主：落盘所需数据 + 场景风格 + 重绘。 */
+export type FloorRegionInspectorHost = FloorRegionCommitHost & {
+  /** 场景风格（决定铺面文案与瓷砖显隐）。 */
+  sceneStyle: () => string
+  /** 提交后的重绘（分区板与盘管）。 */
+  refresh: () => void
+}
+
+/**
+ * 已绑定的检查器宿主。
+ *
+ * 存在模块级而不是逐处传递：选区变化发生在画布点击路径（`handleFloorRegionPointer`），
+ * 那条路径拿不到场景风格与重绘函数，硬塞进去会让它的签名膨胀到 10 个参数。
+ * 绑定期写一次、解绑清空，读写都在同一线程。
+ */
+let boundInspectorHost: FloorRegionInspectorHost | null = null
+
+/** 选区变化后重画控件（未绑定时是 no-op）。 */
+export function repaintFloorRegionInspector(): void {
+  boundInspectorHost && refreshFloorRegionInspector(boundInspectorHost)
+}
+
+/**
+ * 当前选中分区的几何。
+ *
+ * 先按 `recordId` 查已存记录；记录不存在（或选中的是未落盘房间）时回落到选择时
+ * 保存的区域几何 —— 这样「点选房间 → 直接换铺面」在还没有任何分区的新户型上也能用。
+ */
+function selectedFloorRegionOf(host: FloorRegionCommitHost): FloorRegion | null {
+  const selection = state.selection
+  if (!selection) return null
+  const activeFloor = host.floors.find((floorRecord) => floorRecord.id === host.activeFloorId)
+  const storedRegion = selection.recordId
+    ? activeFloor?.floorRegions?.find((region) => region.id === selection.recordId)
+    : undefined
+  return storedRegion ?? selection.area
+}
+
+/** 把当前状态算成视图（供 `paintFloorRegionInspector` 使用）。 */
+export function currentFloorRegionInspectorView(
+  host: FloorRegionCommitHost & { sceneStyle: () => string },
+): ReturnType<typeof floorRegionInspectorView> {
+  const activeFloor = host.floors.find((floorRecord) => floorRecord.id === host.activeFloorId),
+    region = selectedFloorRegionOf(host)
+  return floorRegionInspectorView(
+    // 未落盘的房间没有 record 可删：此时「移除分区」应禁用（删它等于删空气）。
+    region ? { finish: region.finish, canRemove: !!state.selection?.recordId } : null,
+    activeFloor?.floorFinishTones ?? {},
+    host.sceneStyle(),
+  )
+}
+
+/** 重画检查器控件（值 / 文案 / 显隐）。不改容器的 `hidden` —— 那由 facade 决定。 */
+export function refreshFloorRegionInspector(host: FloorRegionInspectorHost): void {
+  paintFloorRegionInspector(document, currentFloorRegionInspectorView(host))
+}
+
+/**
+ * 绑定检查器的全部交互，返回解绑函数。
+ *
+ * 事件委托到容器上：按钮会被重绘（`textContent` 变化不影响监听），逐元素绑要跟着重建。
+ */
+export function bindFloorRegionInspector(host: FloorRegionInspectorHost): () => void {
+  const inspectorSection = document.getElementById('floor-region-inspector')
+  if (!inspectorSection) return () => {}
+  const commitAndRefresh = (commit: () => boolean) => () => {
+    commit() && (host.refresh(), refreshFloorRegionInspector(host))
+  }
+
+  const handleClick = (clickEvent: Event) => {
+    const clickTarget = clickEvent.target as HTMLElement | null
+    if (!clickTarget) return
+    const finishButton = clickTarget.closest<HTMLElement>('[data-floor-finish]')
+    if (finishButton) {
+      const finish = finishButton.dataset.floorFinish as FloorFinish | undefined
+      finish === 'theme' || finish === 'wood' || finish === 'tile'
+        ? commitAndRefresh(() => commitSelectedFloorRegionFinish(host, finish))()
+        : undefined
+      return
+    }
+    if (clickTarget.closest('[data-floor-tone-reset]')) {
+      commitAndRefresh(() => commitFloorRegionTone(host, currentFloorRegionToneKind(host), 0))()
+      return
+    }
+    if (clickTarget.closest('[data-floor-region-remove]')) {
+      const selection = state.selection,
+        activeFloor = host.floors.find((floorRecord) => floorRecord.id === host.activeFloorId)
+      // 选中未落盘房间时没有记录可删（按钮也已禁用）；这里再兜一次，避免误删邻居。
+      if (!selection?.recordId || !activeFloor?.floorRegions) return
+      const regionIndex = activeFloor.floorRegions.findIndex((region) => region.id === selection.recordId)
+      const nextRegions = regionIndex >= 0 ? removeFloorRegionAt(activeFloor.floorRegions, regionIndex) : null
+      if (!nextRegions) return
+      host.pushUndoEntry()
+      activeFloor.floorRegions = nextRegions
+      // 记录按 id 删除，剩余记录的相对顺序不变；清空选中避免面板继续指向已删记录。
+      clearFloorRegionSelection()
+      host.markDocumentDirty()
+      syncFloorRegionFacade(patchStudioFacadeState)
+      host.refresh()
+      refreshFloorRegionInspector(host)
+    }
+  }
+
+  /** 深浅输入：`change` 提交（避免每敲一位就写一次撤销栈），Enter 同 `change`。 */
+  const commitToneFromInput = () => {
+    const toneInput = document.querySelector<HTMLInputElement>('#floor-tone-input')
+    if (!toneInput) return
+    const parsedTone = Number(toneInput.valueAsNumber)
+    if (!Number.isFinite(parsedTone)) {
+      // 非法输入（空串 / 只打了负号）：恢复成当前档位，不要拿 NaN 去写文档。
+      refreshFloorRegionInspector(host)
+      return
+    }
+    commitAndRefresh(() => commitFloorRegionTone(host, currentFloorRegionToneKind(host), parsedTone))()
+  }
+
+  const handleChange = (changeEvent: Event) => {
+    ;(changeEvent.target as HTMLElement | null)?.id === 'floor-tone-input' && commitToneFromInput()
+  }
+
+  const handleKeydown = (keyEvent: KeyboardEvent) => {
+    if (keyEvent.key === 'Escape') {
+      // Esc：画线中放弃第一个点；否则清空选中（与勾选态一致）。
+      isAwaitingFloorRegionSplit()
+        ? (cancelFloorRegionSplit(), refreshFloorRegionInspector(host), host.refresh())
+        : (clearFloorRegionSelection(), syncFloorRegionFacade(patchStudioFacadeState))
+      return
+    }
+    keyEvent.key === 'Enter' &&
+      (keyEvent.target as HTMLElement | null)?.id === 'floor-tone-input' &&
+      commitToneFromInput()
+  }
+
+  inspectorSection.addEventListener('click', handleClick)
+  inspectorSection.addEventListener('change', handleChange)
+  inspectorSection.addEventListener('keydown', handleKeydown)
+  boundInspectorHost = host
+  refreshFloorRegionInspector(host)
+  return () => {
+    inspectorSection.removeEventListener('click', handleClick)
+    inspectorSection.removeEventListener('change', handleChange)
+    inspectorSection.removeEventListener('keydown', handleKeydown)
+    boundInspectorHost === host && (boundInspectorHost = null)
+  }
+}
+
+/** 当前深浅该写哪个色档键（跟随选中分区的铺面）。 */
+function currentFloorRegionToneKind(host: FloorRegionCommitHost): FloorToneKind {
+  const selectedRegion = selectedFloorRegionOf(host)
+  return floorToneKind(selectedRegion?.finish ?? 'wood')
 }

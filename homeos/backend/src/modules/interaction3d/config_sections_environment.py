@@ -38,6 +38,7 @@ from .config_ctx import (
     validate_layout_widget,
 )
 from .device import validate_device_status_rules
+from .door_opener import validate_door_opener_bindings
 from .field_sets import WIDGET_COMMON_FIELDS
 from .window import validate_window_bindings
 
@@ -57,6 +58,8 @@ ENVIRONMENT_FIELDS = frozenset(
         # 0.8.9 取暖壁挂炉（climate 主实体 + 地暖盘管开关）。
         'heatingBoilers',
         'windowOpeners',
+        # 0.9.0 环境「开门器」：宿主是户型里画的门，绑定 switch 实体。
+        'doorOpeners',
     }
 )
 #: 控件身份字段：必须存在且非空。
@@ -358,6 +361,7 @@ class EnvironmentSectionValidator:
         self.validate_appliances(environment)
         self.validate_curtains(environment)
         self.validate_window_openers(environment)
+        self.validate_door_openers(environment)
         self.validate_climate_sensors(environment)
         self.validate_curtain_groups(environment)
 
@@ -640,6 +644,15 @@ class EnvironmentSectionValidator:
         """
         openers = environment.get('windowOpeners', [])
         validate_window_bindings(openers)
+
+    def validate_door_openers(self, environment: dict) -> None:
+        """开门器绑定（0.9.0）：宿主是门模型，实体必须是 ``switch.*``。
+
+        与开窗器分开校验：门的 ``modelId`` 是 ``door:<id>``、实体是开关（不是 cover），
+        还多一个 ``switchMode``（保持型 / 点动型）。
+        """
+        door_openers = environment.get('doorOpeners', [])
+        validate_door_opener_bindings(door_openers)
 
     def validate_curtain_groups(self, environment: dict) -> None:
         groups = environment.get('curtainGroups', [])

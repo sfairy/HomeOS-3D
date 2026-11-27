@@ -10,12 +10,14 @@ import { describe, expect, test } from 'bun:test'
 
 import {
   FLOOR_FINISH_PROFILES,
+  FLOOR_TONE_STEP,
   THEME_FLOOR_BY_SCENE_STYLE,
   clampFloorTone,
   floorFinishSupportsTone,
   floorFinishToneKind,
   floorMaterialParams,
   floorToneBrightness,
+  floorToneCompressionRatio,
   floorToneForFinish,
 } from '../../../homeos/frontend/src/studio/authoring/plan/studio-floor'
 import {
@@ -148,10 +150,34 @@ describe('splitFloorRegionByLine', () => {
     ).toBeNull()
   })
 
-  test('带洞的分区拒绝切分（没有对应 UI 表达洞被切开）', () => {
-    expect(
-      splitFloorRegionByLine({ outline: square(6), holes: [square(1, 2, 2)] }, { x: 3, y: -1 }, { x: 3, y: 7 }),
-    ).toBeNull()
+  test('带洞的分区也能切分：洞按分割线裁到两侧', () => {
+    // 洞 [1..3]×[2..4]（size=2, 起点 1,2）被竖线 x=2 切开：左右各得一半。
+    const split = splitFloorRegionByLine(
+      { outline: square(6), holes: [square(2, 1, 2)] },
+      { x: 2, y: -1 },
+      { x: 2, y: 7 },
+    )
+    expect(split).not.toBeNull()
+    expect(split!.left.holes).toHaveLength(1)
+    expect(split!.right.holes).toHaveLength(1)
+    expect(ringAreaAbs(split!.left.holes[0]!)).toBeCloseTo(2, 6)
+    expect(ringAreaAbs(split!.right.holes[0]!)).toBeCloseTo(2, 6)
+  })
+
+  test('分割线不穿过洞时，整洞归到包含它的那一侧', () => {
+    // 洞 [1..3]×[1..3] 全在 x<4 一侧，竖线 x=4：左侧得整洞，右侧没有洞。
+    const split = splitFloorRegionByLine(
+      { outline: square(6), holes: [square(2, 1, 1)] },
+      { x: 4, y: -1 },
+      { x: 4, y: 7 },
+    )
+    expect(split).not.toBeNull()
+    const holesOnLeft = split!.left.holes.length === 1 && split!.right.holes.length === 0
+    const holesOnRight = split!.right.holes.length === 1 && split!.left.holes.length === 0
+    // `keepLeft` 的左右与直线方向绑定；这里只要求「整洞只落在一边」。
+    expect(holesOnLeft || holesOnRight).toBe(true)
+    const hole = (split!.left.holes[0] || split!.right.holes[0])!
+    expect(ringAreaAbs(hole)).toBeCloseTo(4, 6)
   })
 
   test('最小面积常量是正数（防止被改成 0 让碎块合法）', () => {
@@ -203,9 +229,9 @@ describe('色档与铺面', () => {
     expect(floorFinishSupportsTone('theme')).toBe(false)
   })
 
-  test('色档夹到 ±5 并取整', () => {
-    expect(clampFloorTone(99)).toBe(5)
-    expect(clampFloorTone(-99)).toBe(-5)
+  test('色档夹到 ±20 并取整', () => {
+    expect(clampFloorTone(99)).toBe(20)
+    expect(clampFloorTone(-99)).toBe(-20)
     expect(clampFloorTone(2.4)).toBe(2)
     expect(clampFloorTone('abc')).toBe(0)
   })
@@ -216,9 +242,31 @@ describe('色档与铺面', () => {
     expect(floorToneBrightness(-5)).toBeLessThan(1)
   })
 
-  test('±5 档的明度偏移约 ±30%', () => {
+  test('±5 档的明度偏移约 ±30%（线性区与 0.8.9 一致）', () => {
     expect(floorToneBrightness(5)).toBeCloseTo(1.3, 4)
     expect(floorToneBrightness(-5)).toBeCloseTo(0.7, 4)
+  })
+
+  test('+5 以上按基色压缩：基色越亮，增量越小', () => {
+    // 基色未知（0）→ 余量顶格 → 纯线性。
+    expect(floorToneCompressionRatio(0)).toBe(1)
+    expect(floorToneBrightness(20, 0)).toBeCloseTo(2.2, 4)
+    // 瓷砖基色 0.87 → headroom = (1−0.87−0.029)×100 = 10.1 档 → 压缩比 (10.1−5)/15。
+    expect(floorToneCompressionRatio(0.87)).toBeCloseTo((10.1 - 5) / 15, 4)
+    expect(floorToneBrightness(20, 0.87)).toBeCloseTo(1 + 10.1 * FLOOR_TONE_STEP, 4)
+    // 极亮基色 0.95 → headroom 2.1 档，低于 +5 线性上界 → 压缩比 0，+20 也只等于 +5。
+    expect(floorToneCompressionRatio(0.95)).toBe(0)
+    expect(floorToneBrightness(20, 0.95)).toBeCloseTo(1 + 5 * FLOOR_TONE_STEP, 4)
+    // 中间基色 0.80 → headroom 17.1 档，落在 (5,20) 区间 → 压缩但不归零。
+    const ratio = floorToneCompressionRatio(0.8)
+    expect(ratio).toBeGreaterThan(0)
+    expect(ratio).toBeLessThan(1)
+    expect(ratio).toBeCloseTo((17.1 - 5) / 15, 4)
+    expect(floorToneBrightness(20, 0.8)).toBeCloseTo(1 + (5 + 15 * ratio) * FLOOR_TONE_STEP, 4)
+  })
+
+  test('负向不压缩：越暗越不会丢纹理', () => {
+    expect(floorToneBrightness(-20, 0.95)).toBeCloseTo(1 - 20 * FLOOR_TONE_STEP, 4)
   })
 
   test('theme 的 toneKind 跟随场景风格', () => {

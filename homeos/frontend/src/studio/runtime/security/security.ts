@@ -48,7 +48,25 @@ export function createLockMotion(options: any) {
     for (let walkNode = node; walkNode; walkNode = walkNode.parent) if (walkNode === modelRoot) return true
     return false
   }
+  /**
+   * 卷帘是否走「绕顶部轴卷收」（0.9.0 `doorRollerPivot`）。
+   *
+   * 平移 + 缩高只是近似：真实卷帘是帘片绕顶部轴一圈圈卷起来。带 pivot 的模型改真转，
+   * 旧模型没有枢轴，继续用平移，否则会绕错轴、看起来像整扇门在翻。
+   */
+  function rollerUsesPivot(rollerMesh: any): boolean {
+    return rollerMesh.userData?.doorRollerPivot === true || rollerMesh.parent?.userData?.doorRollerPivot === true
+  }
+  /** 卷帘当前位置（pivot 模式读转角，否则读竖直位移）。 */
+  function readRollerValue(rollerMesh: any): number {
+    return rollerUsesPivot(rollerMesh) ? rollerMesh.rotation.x || 0 : rollerMesh.position.y
+  }
   function applyRollerTranslation(rollerMesh: any, translationValue: any) {
+    if (rollerUsesPivot(rollerMesh)) {
+      // 转角就是全部姿态：不挪位置、不缩高度（缩高会让帘片「消失」而不是卷起）。
+      rollerMesh.rotation.x = translationValue
+      return
+    }
     rollerMesh.position.y = translationValue
     const openTranslation = Number(
       rollerMesh.userData?.doorRollerOpenTranslation ?? rollerMesh.parent?.userData?.doorRollerOpenTranslation,
@@ -133,7 +151,16 @@ export function createLockMotion(options: any) {
       const rollerOpenTranslation = Number(
           parent.userData?.doorRollerOpenTranslation ?? meshObject.userData?.doorRollerOpenTranslation,
         ),
-        rollerClosedTranslation = Number(parent.userData?.doorRollerClosedTranslation ?? 0)
+        rollerClosedTranslation = Number(parent.userData?.doorRollerClosedTranslation ?? 0),
+        // pivot 模式用转角（0.9.0）：帘片绕顶部轴卷收，而不是整扇上下平移。
+        rollerUsesPivotNow = parent.userData?.doorRollerPivot === true || meshObject.userData?.doorRollerPivot === true,
+        rollerOpenRotation = Number(
+          parent.userData?.doorRollerOpenRotation ?? meshObject.userData?.doorRollerOpenRotation,
+        )
+      if (rollerUsesPivotNow)
+        return Number.isFinite(rollerOpenRotation)
+          ? { kind: 'roller', value: rollerOpenRotation * doorOpenRatio }
+          : null
       return Number.isFinite(rollerOpenTranslation)
         ? {
             kind: 'roller',
@@ -249,7 +276,13 @@ export function createLockMotion(options: any) {
         // 避免被动画过程中改动过的 position/scale 反向污染。
         const hingeMotion = motionByMesh.get(doorMesh) ||
             stashedMotion || { hingeX: doorMesh.position?.x, hingeScaleX: doorMesh.scale?.x },
-          poseBefore = [doorMesh.position?.x, doorMesh.position?.y, doorMesh.rotation?.y, doorMesh.scale?.y],
+          poseBefore = [
+            doorMesh.position?.x,
+            doorMesh.position?.y,
+            doorMesh.rotation?.y,
+            doorMesh.scale?.y,
+            doorMesh.rotation?.x,
+          ],
           target = resolveTarget(matchedDoorModel, doorParent, doorMesh, states, hingeMotion),
           kind = slidePivot ? 'slide' : rollerPivot ? 'roller' : 'hinge'
         let trackedMotion = motionByMesh.get(doorMesh)
@@ -263,11 +296,17 @@ export function createLockMotion(options: any) {
               (kind === 'slide'
                 ? Number(doorMesh.userData?.doorRestTranslation ?? doorMesh.position.x) || 0
                 : kind === 'roller'
-                  ? Number(doorMesh.userData?.doorRestTranslation ?? doorMesh.position.y) || 0
+                  ? rollerUsesPivot(doorMesh)
+                    ? Number(doorMesh.userData?.doorRestRotation ?? doorMesh.rotation.x) || 0
+                    : Number(doorMesh.userData?.doorRestTranslation ?? doorMesh.position.y) || 0
                   : Number(doorMesh.userData?.doorRestRotation ?? doorMesh.rotation.y) || 0),
             target:
               target?.value ??
-              (kind === 'slide' ? doorMesh.position.x : kind === 'roller' ? doorMesh.position.y : doorMesh.rotation.y),
+              (kind === 'slide'
+                ? doorMesh.position.x
+                : kind === 'roller'
+                  ? readRollerValue(doorMesh)
+                  : doorMesh.rotation.y),
           }),
             motionByMesh.set(doorMesh, trackedMotion)
           target &&
@@ -300,7 +339,11 @@ export function createLockMotion(options: any) {
         }
         target && (trackedMotion.target = target.value)
         const current =
-            kind === 'slide' ? doorMesh.position.x : kind === 'roller' ? doorMesh.position.y : doorMesh.rotation.y,
+            kind === 'slide'
+              ? doorMesh.position.x
+              : kind === 'roller'
+                ? readRollerValue(doorMesh)
+                : doorMesh.rotation.y,
           difference = trackedMotion.target - current,
           duration = Math.max(0.2, Number(matchedDoorModel.duration) || 0.7),
           maxStep =
@@ -328,11 +371,17 @@ export function createLockMotion(options: any) {
             (hasMotion = true),
             (shouldRedraw = true)
         }
-        const poseAfter = [doorMesh.position?.x, doorMesh.position?.y, doorMesh.rotation?.y, doorMesh.scale?.y]
+        const poseAfter = [
+          doorMesh.position?.x,
+          doorMesh.position?.y,
+          doorMesh.rotation?.y,
+          doorMesh.scale?.y,
+          doorMesh.rotation?.x,
+        ]
         poseBefore.some((beforeValue, axisIndex) => beforeValue !== poseAfter[axisIndex]) &&
           bumpOutlineRevision(doorParent)
         const latestPosition =
-          kind === 'slide' ? doorMesh.position.x : kind === 'roller' ? doorMesh.position.y : doorMesh.rotation.y
+          kind === 'slide' ? doorMesh.position.x : kind === 'roller' ? readRollerValue(doorMesh) : doorMesh.rotation.y
         parentHasMotionByMesh.set(
           doorParent,
           !!parentHasMotionByMesh.get(doorParent) || Math.abs(trackedMotion.target - latestPosition) > 0.0001,
@@ -1420,9 +1469,12 @@ export function openWindowConfigMergeDialog({
   let isMerging = false
   return openConfigurationPicker({
     document,
-    title: '选择整组使用的配置',
+    // 0.9.0：入口按钮与弹窗标题统一成「合并为整组配置」，并先说明「原绑定继续生效」，
+    // 否则用户会以为合并会丢配置而不敢点。
+    title: '合并为整组配置',
     kicker: 'SLIDING WINDOW',
     description:
+      '这组推拉窗保留了此前的逐扇配置。可选择一份配置供整组使用，合并前原绑定继续生效。' +
       '这组推拉窗现有 ' +
       duplicates.length +
       ' 份配置。选择要保留的窗磁、电量和标签设置后，合并为一条整组配置；其他重复项将移除。点击“保存配置”后应用，也可以关闭本窗口取消。',

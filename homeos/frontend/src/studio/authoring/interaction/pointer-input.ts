@@ -17,7 +17,8 @@ import {
   resizeRotatedItemFromEdge as resizeRotatedItemFromEdge2,
 } from '../plan/geometry'
 import { itemTypeCatalog } from '../items/item-catalog'
-import { isPlacedItemLocked } from '../items/placed-item-state'
+import { isPlacedItemLocked, isPlacedItemHidden } from '../items/placed-item-state'
+import { floorOpeningPolygon } from '../plan/studio-floor'
 import { generateId } from '../ui/studio-app-helpers'
 import { doorTypeCatalog } from '../scene/payload/studio-scene-payload'
 import { handleFloorRegionPointer } from './tools'
@@ -214,10 +215,20 @@ export function handlePointerDown(deps: HandlePointerDownDeps, handlePointerDown
     // 0.8.9：点选地面 / 画分割线。判定与落盘全在 `floor-region-tool`，这里只转发。
     'floor-region': () => {
       handlePointerDownPointerDownEvent.preventDefault()
+      // 注意两个口径不同：墙线合并容差是**像素**（约 1cm），而 `floorOpeningPolygon`
+      // 要的是 **pixelsPerMeter**。混用会让洞口被缩小 100 倍，等于没挖掉。
+      const floorPixelsPerMeter = getPixelsPerMeter()
       handleFloorRegionPointer(
         {
           point: pr3,
-          source: { walls: appCtx.studioState.walls, mergeTolerance: Math.max(1, getPixelsPerMeter() * 0.01) },
+          source: {
+            walls: appCtx.studioState.walls,
+            mergeTolerance: Math.max(1, floorPixelsPerMeter * 0.01),
+            // 楼板洞口要一起从可铺地面里挖掉，否则点挑空处会生成一块盖住洞口的地面。
+            excludeLoops: (appCtx.studioState.items || [])
+              .filter((item) => item.type === 'flooropening' && !isPlacedItemHidden(appCtx, item.id))
+              .map((item) => floorOpeningPolygon(item, floorPixelsPerMeter)),
+          },
           activeFloorId: appCtx.activeFloorId,
           floors: appCtx.studioProject?.floors || [],
           createId: generateId,

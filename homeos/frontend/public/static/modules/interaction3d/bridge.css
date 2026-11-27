@@ -96,6 +96,9 @@
   flex: 1;
   width: 0;
   min-width: 0;
+  /* 0.9.0 声明 `height:20px`（原生 range 的盒高）；flex 居中下实际占位仍是 16px，
+     与上游实测的 `getBoundingClientRect().height === 16` 一致。 */
+  height: 20px;
   margin: 0;
   padding: 0;
   accent-color: var(--hos-color-accent);
@@ -127,13 +130,9 @@
  * 检查器挂在宿主页面里，不钉就会把宿主的 `--accent`（蓝色）继承进来把滑条染蓝。
  */
 #interaction3d-inspector :is(.i3d-vignette-setting, .i3d-wall-opacity-row) {
-  /* 填充段用金色渐变：亮金（主金提亮）→ 主金，方向与 `button.primary` 的
-     `linear-gradient(180deg, #ffb82e, #ef9900)` 同源。亮端不复用 app.css 的
-     `--accent-bright`：宿主页面若自带同名变量（runtime.css 的 `.i3d-editor` 就把它定义成
-     另一个金）会串色，所以这里从已钉住的 `--accent` 现算；`--track-fill-to` 不写，落到
-     下面渐变里的 `var(--track-fill-to, var(--hos-color-accent))` 兜底。
-     JS 仍可用内联 `--track-fill-*` 覆盖（内联优先于本类）。 */
-  --track-fill-from: color-mix(in srgb, var(--hos-color-accent) 72%, white);
+  /* 0.9.0 用原生 `accent-color`：填充是**实色**（不是渐变）。这里保持同一语义 ——
+     两个停靠色取同一个值，视觉上就是一条实心金条；想改强调色只需要换 `--hos-color-accent`。 */
+  --track-fill-from: var(--hos-color-accent);
   --hos-color-accent: #f2a20d;
 }
 #interaction3d-inspector :is(.i3d-vignette-setting, .i3d-wall-opacity-row) input[type="range"] {
@@ -242,8 +241,10 @@
   row-gap: 8px;
 }
 /* `display: contents` 只拆掉 label 自己的盒子：点文案仍能切换开关，而「文案 / 开关」两个子元素
-   分别落进第 1 / 第 3 列，不依赖 DOM 里再包一层行容器。中列留给等待时间或方向段控。 */
-#interaction3d-inspector .i3d-idle-inline > .i3d-setting-toggle,
+   分别落进第 1 / 第 3 列，不依赖 DOM 里再包一层行容器。中列留给等待时间或方向段控。
+   `图标显示` 段例外：它是 0.9.0 的二维网格（`.i3d-icon-visibility-row`），
+   label 必须保留自己的盒子才能按 `grid-column / grid-row` 摆位。 */
+#interaction3d-inspector .i3d-idle-inline:not(.i3d-icon-visibility-row) > .i3d-setting-toggle,
 #interaction3d-inspector .i3d-auto-rotate-row > .i3d-setting-toggle {
   display: contents;
 }
@@ -585,6 +586,10 @@
  * （各 flex: 1）时，原生 select 会把正在使用的值截成「高清 1…」；按钮换行后
  * 下拉可稳定拿到 ≥150px，窄面板下还会自动再折一行拿到整宽。
  */
+/* 渲染分辨率下方的「当前实际像素比」：被降级时用强调色，正常时跟随次要文字色。 */
+#interaction3d-inspector [data-i3d-render-ratio-state="soft"] {
+  color: var(--hos-color-accent, #f2a20d);
+}
 #interaction3d-inspector .i3d-render-scale-section > select {
   flex: 1 1 150px;
   min-width: 0;
@@ -622,6 +627,35 @@
   flex: none;
   width: 66px;
   min-width: 0;
+}
+/*
+ * 0.9.0 的「图标显示」段：两列网格，行 1 是「闲置后隐藏图标 / 旋转时隐藏图标」，
+ * 行 2 是等待秒数（落在左列）。必须排在 `.i3d-idle-inline` 的三列网格之后 ——
+ * 两者特异性相同，靠源码顺序取后者（0.9.0 也是这个顺序）。
+ */
+#interaction3d-inspector .i3d-icon-visibility-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 10px;
+  row-gap: 6px;
+}
+#interaction3d-inspector .i3d-icon-visibility-row > label:first-of-type {
+  grid-column: 1;
+  grid-row: 1;
+}
+#interaction3d-inspector .i3d-icon-visibility-row > label:last-of-type {
+  grid-column: 2;
+  grid-row: 1;
+}
+#interaction3d-inspector .i3d-icon-visibility-row > .i3d-idle-wait {
+  grid-column: 1;
+  grid-row: 2;
+}
+#interaction3d-inspector .i3d-icon-visibility-row > label {
+  min-width: 0;
+  font-size: 9px;
+  gap: 4px;
+  white-space: nowrap;
 }
 #interaction3d-inspector .i3d-finishing-row {
   display: grid;

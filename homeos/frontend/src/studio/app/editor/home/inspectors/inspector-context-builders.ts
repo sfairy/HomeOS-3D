@@ -36,6 +36,8 @@ export interface InspectorContextsDeps {
   airConditionerInspectorElement: any
   airConditionerPreviewStateByComponentId: any
   allAssets: any
+  assetDisplayName: any
+  findAssetById: any
   buildCameraInspectorContext: any
   buildCoverMotorInspectorContext: any
   buildLightStatisticsInspectorContext: any
@@ -557,6 +559,9 @@ export function buildCoverMotorInspectorContext(deps: InspectorContextsDeps): Co
     editorMode: deps.editorCtx.editorMode,
     editorPickers: deps.editorPickers,
     editorRenderer: deps.editorCtx.editorRenderer,
+    // 页面背景检查器：素材 id → 展示名（与图片检查器同一套查表）。
+    assetDisplayName: deps.assetDisplayName,
+    findAssetById: deps.findAssetById,
     entities: deps.editorCtx.entities,
     eventLogWallInspectorElement: deps.eventLogWallInspectorElement,
     findReplaceableComponents: deps.findReplaceableComponents,
@@ -764,6 +769,11 @@ export async function ensureEntitiesLoaded(
         } while (collectedEntities.length < entityTotal)
         deps.editorCtx.entities = collectedEntities.filter(
           (filteredItemsConfig) => filteredItemsConfig.status !== 'missing',
+        )
+        // 记下这份目录来自哪台 HA：保存时回传，切换来源后旧标签页的保存会被服务端 409 拒绝。
+        // 来源为空（旧后端 / 未接入多源）时保持空串，服务端把空值视为「未声明」而放行。
+        deps.editorCtx.haSource = String(
+          (deps.editorCtx.entities as any[]).find((entityRecord) => entityRecord?.haSource)?.haSource || '',
         )
         const [all3, all4] = await Promise.all([
           deps.requestJson('/ha/devices').catch(() => ({

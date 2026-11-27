@@ -354,6 +354,8 @@ export class PanelRenderer {
   declare entityMetadata: Map<any, any>
   declare deviceMetadata: Map<any, any>
   declare entityCatalogReady: boolean
+  /** 设备目录的来源标识（与 `runtime_source_identity` 同口径）。 */
+  declare entityCatalogSource: string
   declare entityTranslations: Record<string, any>
   declare historySeries: Map<any, any>
   declare historySeriesCache: Map<any, any>
@@ -680,6 +682,11 @@ export class PanelRenderer {
     entityCatalogEntries: any[] = [],
     entityTranslations: Record<string, any> = {},
     deviceCatalogEntries: any[] = [],
+    /**
+     * 0.9.0：设备目录的**来源标识**。切换 HA 时旧目录会先到一拍，
+     * 记下来源就能在渲染前判断「这份目录是不是当前连接的」，避免混用两个来源。
+     */
+    entityCatalogSource = '',
   ) {
     ;(this.entityMetadata = new Map(
       (entityCatalogEntries || [])
@@ -692,6 +699,7 @@ export class PanelRenderer {
           .filter(([deviceCatalogId]) => deviceCatalogId),
       )),
       (this.entityTranslations = entityTranslations && typeof entityTranslations == 'object' ? entityTranslations : {}),
+      (this.entityCatalogSource = String(entityCatalogSource || '')),
       (this.entityCatalogReady = true),
       this.tryOpenPendingEntityDetails(),
       this.document &&

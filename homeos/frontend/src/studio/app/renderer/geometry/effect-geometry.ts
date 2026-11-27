@@ -16,12 +16,16 @@ export function componentHostZIndex(hostComponent: any, baseZIndex: any, applyTy
   const resolvedZIndex = Number(baseZIndex || 0)
   return !applyTypeBoost && hostComponent?.type !== 'group'
     ? resolvedZIndex
-    : hostComponent?.type === 'icon-button-effect' &&
-        (hostComponent.properties?.buttonVisible !== false || hostComponent.properties?.hiddenContentClickable === true)
-      ? 1000000000 + resolvedZIndex
-      : hostComponent?.type === 'presence-sensor'
-        ? 500000000 + resolvedZIndex
-        : resolvedZIndex
+    : hostComponent?.type === 'page-background'
+      ? // 0.9.0：页面背景永远垫底（-1,000,000），其它控件默认从 1 起。
+        resolvedZIndex - 1000000
+      : hostComponent?.type === 'icon-button-effect' &&
+          (hostComponent.properties?.buttonVisible !== false ||
+            hostComponent.properties?.hiddenContentClickable === true)
+        ? 1000000000 + resolvedZIndex
+        : hostComponent?.type === 'presence-sensor'
+          ? 500000000 + resolvedZIndex
+          : resolvedZIndex
 }
 export function effectFadeDuration(effectComponent: any) {
   const durationSeconds = Number(effectComponent?.properties?.effectFadeDuration)

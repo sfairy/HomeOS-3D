@@ -100,6 +100,55 @@ function collectNearCameraModelTypes(params: {
   return candidates
 }
 
+/**
+ * 收集**场景里实际用到**的全部模型类型（不看距离）。
+ *
+ * 为什么编辑器要这个：`lite` 是降面件，边缘是多段折线；俯瞰全屋时相机到家具通常 >4m，
+ * 「近场升级」几乎不会触发，于是编辑时看到的一直是低模 —— 用户会以为是自己改坏了。
+ * 编辑器是「看清楚再动手」的场景，宁可多占内存也要全量 full。
+ */
+function collectUsedModelTypes(params: {
+  root?: TraversableRoot
+  preparedVariantByItemType: Map<string, ModelVariant>
+}): Set<string> {
+  const used = new Set<string>()
+  params.root?.traverse?.((node) => {
+    const modelType = node?.userData?.externalModelType || node?.userData?.modelType
+    if (!modelType) return
+    const typeName = String(modelType)
+    if (params.preparedVariantByItemType.get(typeName) === 'full') return
+    used.add(typeName)
+  })
+  return used
+}
+
+/**
+ * 编辑器专用：把场景里用到的模型**全部**升到 full，按批推进。
+ *
+ * 一次升完会同时发起几十个 GLB 请求并另存一份几何 —— 编辑时正要点选、拖拽，卡顿比模糊更烦。
+ * 所以每轮只升 `batchSize` 个，用 `requestIdleCallback` 接着下一轮，直到没有剩的。
+ * 返回本轮升级的类型名（调用方据此决定要不要重建）。
+ */
+export async function upgradeAllModelsInScene(
+  deps: ModelVariantUpgradeDeps,
+  {
+    root,
+    batchSize = 3,
+    isStillWanted = () => true,
+  }: { root?: TraversableRoot; batchSize?: number; isStillWanted?: () => boolean } = {},
+): Promise<string[]> {
+  if (deps.isDisposed() || !isStillWanted()) return []
+  const candidates = collectUsedModelTypes({ root, preparedVariantByItemType: deps.preparedVariantByItemType })
+  const upgraded: string[] = []
+  for (const modelType of candidates) {
+    if (upgraded.length >= batchSize) break
+    if (deps.isDisposed() || !isStillWanted()) break
+    if (!deps.allItemModels[modelType]?.fallbackUrl) continue
+    ;(await upgradeExternalModelToFull(deps, modelType)) && upgraded.push(modelType)
+  }
+  return upgraded
+}
+
 /** 相机近场内的外部模型类型升 full；每轮最多 maxUpgrades 个，避免卡顿。 */
 export async function upgradeModelsNearCamera(
   deps: ModelVariantUpgradeDeps,
@@ -142,6 +191,8 @@ export function createVariantUpgradeApi(deps: ModelVariantUpgradeDeps) {
     upgradeExternalModelToFull: (modelItemType: string) => upgradeExternalModelToFull(deps, modelItemType),
     upgradeModelsNearCamera: (opts?: Parameters<typeof upgradeModelsNearCamera>[1]) =>
       upgradeModelsNearCamera(deps, opts),
+    upgradeAllModelsInScene: (opts?: Parameters<typeof upgradeAllModelsInScene>[1]) =>
+      upgradeAllModelsInScene(deps, opts),
   }
 }
 

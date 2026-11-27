@@ -2310,6 +2310,8 @@ export function createPurifierExtras({
       clearTimeout(drag.timer),
       drag.ghost?.remove?.(),
       drag.section.classList.toggle('is-dragging', false),
+      // 排序时被拖动的那张卡是「占位」（透明），拖拽结束要还原。
+      drag.section.classList.toggle('is-sort-placeholder', false),
       cards.forEach((otherCard: any) => otherCard.section.classList.toggle('is-drop-target', false))
     const freshLayout = extraLayout(viewModel.item.extraControls),
       appliedLayout =
@@ -2410,7 +2412,9 @@ export function createPurifierExtras({
         }
         gesture.ghost ||
           ((gesture.ghost = createEl('div')),
-          (gesture.ghost.className = 'i3d-extra-gesture-hint'),
+          // 两种拖拽用两套外观（0.9.0 同口径）：缩放是「虚线尺寸框」，排序是「卡片形状的影子」。
+          // 类名分开，样式才不会互相打架（`.is-size-outline` 会把 padding/背景改成半透明）。
+          (gesture.ghost.className = resize ? 'i3d-extra-gesture-hint' : 'i3d-extra-sort-ghost'),
           (doc.body || hostElement).append(gesture.ghost))
         const { sx: dragScaleX, sy: dragScaleY } = gesture.metrics
         if (
@@ -2510,6 +2514,15 @@ export function createPurifierExtras({
               ),
             )
           const sourceRecord = cards.find((sourceCard: any) => sourceCard.section === section)
+          // 0.9.0：排序时把被拖动的那张卡变成「占位」（子节点透明、卡片无底色），
+          // 这样网格里看得见「它原来的位置空着」，而不是卡片跟着指针走、原位仍留在那儿。
+          section.classList.toggle('is-sort-placeholder', true)
+          // 影子按卡片形状显示：边框 + 卡片宽度，与落点位置视觉对齐（不是一句小标签）。
+          Object.assign(gesture.ghost.style, {
+            left: gesture.rect.left + 'px',
+            top: gesture.rect.top - ((gesture.scroller?.scrollTop || 0) - gesture.scrollTop) * dragScaleY + 'px',
+            width: gesture.rect.width + 'px',
+          })
           gesture.ghost.textContent =
             (sourceRecord?.title.textContent || '附加功能') + ' → ' + (nearestTarget?.row.title.textContent || '原位置')
         }

@@ -785,10 +785,17 @@ export function syncAddComponentButton(deps: ComponentEditingDeps) {
 }
 
 export function renderComponentTemplates(deps: ComponentEditingDeps) {
-  const componentTemplates = [...listComponentTemplates2('shared'), ...listComponentTemplates2('page')].filter(
-    (templateEntry, templateIndex, templateList) =>
-      templateList.findIndex((templateEntryItem) => templateEntryItem.id === templateEntry.id) === templateIndex,
-  )
+  const currentPageComponents: any[] = deps.currentPage()?.components || [],
+    sharedComponents: any[] = deps.editorCtx.activeProject?.document?.sharedComponents || [],
+    currentScopeHasBackground = (
+      deps.editorCtx.componentScope === 'shared' ? sharedComponents : currentPageComponents
+    ).some((existingComponent) => existingComponent?.type === 'page-background'),
+    componentTemplates = [...listComponentTemplates2('shared'), ...listComponentTemplates2('page')].filter(
+      (templateEntry, templateIndex, templateList) =>
+        templateList.findIndex((templateEntryItem) => templateEntryItem.id === templateEntry.id) === templateIndex &&
+        // 0.9.0：当前容器已经有页面背景时，模板卡不再出现（避免叠加两层）。
+        !(templateEntry.id === 'page-background' && currentScopeHasBackground),
+    )
   if (
     ((deps.componentTemplateScopeElement.textContent =
       deps.editorCtx.componentScope === 'shared'

@@ -126,6 +126,7 @@ export async function openInteraction3dEditor({
     isCoverMode: any,
     isAirerMode: any,
     isWindowOpenerMode: any,
+    isDoorOpenerMode: any,
     isNasMode: any,
     isTemperatureHumidityMode: any,
     usesModelBinding: any,
@@ -145,6 +146,7 @@ export async function openInteraction3dEditor({
       (isGenericDeviceMode = isGenericDeviceKind2(deviceKind)),
       (isAirerMode = deviceKind === 'airer'),
       (isWindowOpenerMode = deviceKind === 'window-opener'),
+      (isDoorOpenerMode = deviceKind === 'door-opener'),
       (isClimateMode = [
         'climate',
         'bath-heater',
@@ -162,6 +164,7 @@ export async function openInteraction3dEditor({
         isClimateMode ||
         isCoverMode ||
         isWindowOpenerMode ||
+        isDoorOpenerMode ||
         isNasMode ||
         isMediaDeviceMode ||
         isSpeakerMode ||
@@ -170,66 +173,72 @@ export async function openInteraction3dEditor({
         isVacuumShortcutMode),
       (kindLabel = isAirerMode
         ? '晾衣架'
-        : isWindowOpenerMode
-          ? '开窗器'
-          : isSpeakerMode
-            ? '智能音响'
-            : isTemperatureHumidityMode
-              ? '环境标签'
-              : isVacuumShortcutMode
-                ? '快捷指令'
-                : isVacuumMode
-                  ? '扫地机'
-                  : isGenericDeviceMode
-                    ? genericDeviceProfile2(deviceKind).label
-                    : isDeviceKind && deviceKind !== 'water-heater'
-                      ? '设备'
-                      : isCoverMode
-                        ? '窗帘'
-                        : isClimateMode
-                          ? climateKindLabel(deviceKind)
-                          : '灯光'),
+        : isDoorOpenerMode
+          ? '开门器'
+          : isWindowOpenerMode
+            ? '开窗器'
+            : isSpeakerMode
+              ? '智能音响'
+              : isTemperatureHumidityMode
+                ? '环境标签'
+                : isVacuumShortcutMode
+                  ? '快捷指令'
+                  : isVacuumMode
+                    ? '扫地机'
+                    : isGenericDeviceMode
+                      ? genericDeviceProfile2(deviceKind).label
+                      : isDeviceKind && deviceKind !== 'water-heater'
+                        ? '设备'
+                        : isCoverMode
+                          ? '窗帘'
+                          : isClimateMode
+                            ? climateKindLabel(deviceKind)
+                            : '灯光'),
       (editorKindTitle = includes ? '环境' : isDeviceKind ? '设备' : isVacuumShortcutMode ? '扫地机' : kindLabel),
       (collectionKey = isAirerMode
         ? 'airers'
         : isWindowOpenerMode
           ? 'windowOpeners'
-          : isSpeakerMode
-            ? 'speakers'
-            : isGenericDeviceMode
-              ? genericDeviceProfile2(deviceKind).collection
-              : isTemperatureHumidityMode
-                ? 'temperatureHumidity'
-                : isVacuumMode || isVacuumShortcutMode
-                  ? 'vacuums'
-                  : isMediaDeviceMode
-                    ? mediaDeviceProfile(deviceKind)!.collection
-                    : isNasMode
-                      ? 'nas'
-                      : isCoverMode
-                        ? 'curtains'
-                        : climateKindCollection(deviceKind)),
+          : isDoorOpenerMode
+            ? 'doorOpeners'
+            : isSpeakerMode
+              ? 'speakers'
+              : isGenericDeviceMode
+                ? genericDeviceProfile2(deviceKind).collection
+                : isTemperatureHumidityMode
+                  ? 'temperatureHumidity'
+                  : isVacuumMode || isVacuumShortcutMode
+                    ? 'vacuums'
+                    : isMediaDeviceMode
+                      ? mediaDeviceProfile(deviceKind)!.collection
+                      : isNasMode
+                        ? 'nas'
+                        : isCoverMode
+                          ? 'curtains'
+                          : climateKindCollection(deviceKind)),
       (defaultIcon = isAirerMode
         ? 'mdi:hanger'
         : isWindowOpenerMode
           ? 'mdi:window-open-variant'
-          : isSpeakerMode
-            ? 'mdi:speaker'
-            : isGenericDeviceMode
-              ? genericDeviceProfile2(deviceKind).icon
-              : isVacuumShortcutMode
-                ? 'mdi:broom'
-                : isVacuumMode
-                  ? 'mdi:robot-vacuum'
-                  : isMediaDeviceMode
-                    ? mediaDeviceProfile(deviceKind)!.icon
-                    : isNasMode
-                      ? 'mdi:nas'
-                      : isCoverMode
-                        ? 'mdi:curtains'
-                        : isClimateMode
-                          ? climateKindIcon(deviceKind)
-                          : 'mdi:lightbulb-outline'),
+          : isDoorOpenerMode
+            ? 'mdi:door-open'
+            : isSpeakerMode
+              ? 'mdi:speaker'
+              : isGenericDeviceMode
+                ? genericDeviceProfile2(deviceKind).icon
+                : isVacuumShortcutMode
+                  ? 'mdi:broom'
+                  : isVacuumMode
+                    ? 'mdi:robot-vacuum'
+                    : isMediaDeviceMode
+                      ? mediaDeviceProfile(deviceKind)!.icon
+                      : isNasMode
+                        ? 'mdi:nas'
+                        : isCoverMode
+                          ? 'mdi:curtains'
+                          : isClimateMode
+                            ? climateKindIcon(deviceKind)
+                            : 'mdi:lightbulb-outline'),
       (modelIdKey = usesModelBinding ? 'modelId' : 'groupId')
   }
   applyKindFlags(deviceKind)
@@ -514,6 +523,13 @@ export async function openInteraction3dEditor({
       () => isWindowOpenerMode,
       (value) => {
         isWindowOpenerMode = value
+      },
+    )
+    __gs(
+      'isDoorOpenerMode',
+      () => isDoorOpenerMode,
+      (value) => {
+        isDoorOpenerMode = value
       },
     )
     __gs(

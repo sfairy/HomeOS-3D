@@ -25,7 +25,7 @@
     </button>
 
     <aside v-if="!collapsed" class="info-panel" :class="{ 'info-panel--agent': agentOpen }">
-      <!-- 0.8.9 侧边栏页面背景：与主页面共用同一份渲染实现（`page-background-layer`）。
+      <!-- 0.9.0 侧边栏页面背景：与主页面共用同一份渲染实现（`page-background-layer`）。
            背景层是绝对定位 + pointer-events:none，不改变 `.info-panel` 的盒模型，
            所以不影响原有部件布局。 -->
       <div ref="backgroundHostRef" class="info-panel__background" aria-hidden="true" />
@@ -95,7 +95,7 @@ import { readLocalStorageFlag, writeLocalStorage } from '@/kernel/core/local-sto
  * 卡片高度：有自定义 cardHeight 用自定义，否则用类型预设像素。
  * 「恢复预设」与保存同一数值时主页高度一致。时钟无自定义时按内容自适应。
  */
-import { onBeforeUnmount, ref, computed, watch, type Component, type PropType } from 'vue'
+import { onBeforeUnmount, onMounted, ref, computed, watch, type Component, type PropType } from 'vue'
 import { mountPageBackgroundLayer } from '@app/renderer/controls/page-background-layer'
 import { staticAssetImageSource } from '@app/renderer/registry/asset-state'
 import { ChevronLeft, ChevronRight } from '@lucide/vue'
@@ -109,25 +109,44 @@ import { filterWidgetsForProfile } from '@/domain/widget/profile-filter'
 import type { PanelWidget } from '@/kernel/layout-config'
 import { getSidebarWidgetClass } from '@/kernel/registry/widget-registry-meta'
 import { resolveSidebarWidgetHeightPx } from '@/domain/widget/panel-widget-height'
+import {
+  getSharedSidebarBackground,
+  subscribeSharedSidebarBackground,
+} from '@/kernel/dashboard/shared-sidebar-background'
+import type { PageBackground } from '@/kernel/widget/page-background'
 
 const layoutStore = useLayoutStore()
 
 /**
- * 侧边栏页面背景（0.8.9）。
+ * 侧边栏页面背景（0.9.0）。
  *
- * 与主页面共用 `mountPageBackgroundLayer`：预设 / 图片 / 铺满 / 自由 / 透明度全部同口径。
- * 配置缺失（`sidebarBackground` 为 undefined）时不插节点 —— 保持旧观感，而不是画一块空白。
+ * 两路来源，**共享组件优先**：
+ *
+ * 1. 仪表盘文档里的共享组件（`sharedComponents` 顶层 `page-background`）——
+ *    由 `display.ts` 经 `publishSharedSidebarBackground()` 发布，切仪表盘会跟着变；
+ * 2. `layoutConfig.sidebarBackground` —— 0.8.9 留下的本地方案设置，文档没有共享背景时生效。
+ *
+ * 两路共用 `mountPageBackgroundLayer`：预设 / 图片 / 铺满 / 自由 / 透明度全部同口径。
+ * 都没有时不插节点 —— 保持旧观感，而不是画一块空白。
  */
 const backgroundHostRef = ref<HTMLElement | null>(null)
+/** 共享组件的背景（`null` = 当前仪表盘没有，回退到本地布局配置）。 */
+const sharedSidebarBackground = ref<PageBackground | null>(getSharedSidebarBackground().background)
+
+/** 实际生效的背景：共享组件优先，其次本地设置。 */
+const activeSidebarBackground = computed<PageBackground | null>(
+  () => sharedSidebarBackground.value ?? layoutStore.layoutConfig.sidebarBackground ?? null,
+)
 
 function renderSidebarBackground() {
   const host = backgroundHostRef.value
   if (!host) return
   host.replaceChildren()
-  const background = layoutStore.layoutConfig.sidebarBackground
+  const background = activeSidebarBackground.value
   if (!background) return
   const layer = mountPageBackgroundLayer({
     background,
+    canvas: { width: host.clientWidth || undefined, height: host.clientHeight || undefined },
     resolveAssetUrl: staticAssetImageSource,
     className: 'hb-page-background--sidebar',
   })
@@ -140,24 +159,39 @@ function renderSidebarBackground() {
  * 指纹相同就不重绘，重绘也只发生在背景真的变了的时候。
  */
 const sidebarBackgroundFingerprint = computed(() => {
-  const background = layoutStore.layoutConfig.sidebarBackground
+  const background = activeSidebarBackground.value
   if (!background) return ''
-  const position = background.position
   return [
-    background.source,
+    background.backgroundSource,
     background.preset,
     background.assetId,
     background.opacity,
     background.layoutMode,
-    position?.x,
-    position?.y,
-    position?.width,
-    position?.height,
+    background.legacyPosition?.x,
+    background.legacyPosition?.y,
+    background.legacyPosition?.width,
+    background.legacyPosition?.height,
   ].join('|')
 })
 watch(sidebarBackgroundFingerprint, () => renderSidebarBackground())
 watch(backgroundHostRef, () => renderSidebarBackground())
+/**
+ * 订阅「共享组件 → 侧边栏」桥接。
+ *
+ * 展示端在拿到草稿后发布快照，可能早于本组件挂载（`/` 首屏），所以先读一次当前值；
+ * 之后每次切仪表盘 / 保存草稿都会收到通知。局部 ref 只做「触发重算」，真正的背景
+ * 仍是 computed 里的同一份对象。
+ */
+let unsubscribeSharedSidebarBackground: (() => void) | null = null
+onMounted(() => {
+  sharedSidebarBackground.value = getSharedSidebarBackground().background
+  unsubscribeSharedSidebarBackground = subscribeSharedSidebarBackground(() => {
+    sharedSidebarBackground.value = getSharedSidebarBackground().background
+  })
+})
 onBeforeUnmount(() => {
+  unsubscribeSharedSidebarBackground?.()
+  unsubscribeSharedSidebarBackground = null
   backgroundHostRef.value?.replaceChildren()
 })
 

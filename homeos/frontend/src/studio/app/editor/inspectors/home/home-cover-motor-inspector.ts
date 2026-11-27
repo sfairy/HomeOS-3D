@@ -41,9 +41,10 @@ function applyPageBackgroundInspector(
 ): void {
   syncPageBackgroundInspectorTo({
     component: createdInstanceConfig,
+    canvas: ctx.activeProject?.document?.canvas,
     changeProperties: (componentId: string, properties: Record<string, unknown>) => {
       ctx.mutateDocument((draftDocument: { components?: unknown }) => {
-        const targetComponent = ctx.findComponent(draftDocument, componentId)?.component
+        const targetComponent = findComponent2(draftDocument, componentId)?.component
         !targetComponent ||
           (targetComponent.properties = {
             ...(targetComponent.properties || {}),
@@ -51,8 +52,28 @@ function applyPageBackgroundInspector(
           })
       })
     },
-    assetName: (assetId: string) => ctx.assetDisplayName?.(assetId) || '',
-    pickAsset: () => ctx.openAssetPicker?.(),
+    changePosition: (componentId: string, position: Record<string, unknown>) => {
+      ctx.mutateDocument((draftDocument: { components?: unknown }) => {
+        const targetComponent = findComponent2(draftDocument, componentId)?.component
+        !targetComponent ||
+          (targetComponent.position = {
+            ...(targetComponent.position || {}),
+            ...position,
+          })
+      })
+    },
+    previewOpacity: (componentId: string, opacity: number) => {
+      // 只改已成活的背景层，不写文档、不打 undo 快照（与上游 `previewOpacity` 同口径）。
+      const host = ctx.editorRenderer?.componentHosts?.get?.(componentId) as HTMLElement | undefined
+      const layer = host?.querySelector<HTMLElement>('.hb-page-background')
+      if (layer) layer.style.opacity = String(opacity)
+    },
+    // 「选择图片」按钮由 `asset-dialog-wiring` 直接绑到图片资产拾取器（同一个列表），
+    // 这里只需要把已有素材 id 换成展示名。
+    assetName: (assetId: string) => {
+      const asset = ctx.findAssetById?.(assetId)
+      return (asset && ctx.assetDisplayName?.(asset)) || ''
+    },
   })
 }
 

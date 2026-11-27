@@ -33,6 +33,7 @@ const DEVICE_BUTTON_ICONS: Readonly<Record<string, string>> = Object.freeze({
   television: 'mdi:television',
   nas: 'mdi:nas',
   'window-opener': 'mdi:window-open',
+  'door-opener': 'mdi:door-open',
   cover: 'mdi:curtains',
   climate: 'mdi:air-conditioner',
 })
@@ -51,6 +52,7 @@ const DEVICE_ICON_PICKER_TITLES: Readonly<Record<string, string>> = Object.freez
   television: '选择电视按钮图标',
   nas: '选择NAS按钮图标',
   'window-opener': '选择开窗器按钮图标',
+  'door-opener': '选择开门器按钮图标',
   cover: '选择窗帘按钮图标',
   climate: '选择空调按钮图标',
 })
@@ -169,6 +171,12 @@ const ENTITY_PICKER_DEVICE_WORDING: Readonly<Record<string, { title: string; emp
   'window-opener': {
     title: '选择开窗器实体',
     emptyText: '没有匹配的开窗器，请检查 cover 实体及搜索条件',
+  },
+  // 0.9.0：开门器允许 cover 与 switch，文案里必须同时点名，否则用 switch 的人
+  // 会以为「没有匹配的实体」是设备没接入，而不是筛选口径不同。
+  'door-opener': {
+    title: '选择开门器实体',
+    emptyText: '没有匹配的开门器，请检查 cover 或 switch 实体及搜索条件',
   },
   'water-heater': {
     title: '选择热水器实体',

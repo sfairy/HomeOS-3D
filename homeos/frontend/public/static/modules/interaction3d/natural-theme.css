@@ -25,6 +25,46 @@
   --nw-top: #fffdf8;
 }
 
+/*
+ * 深色主题（暖阳原木 / 默认）把同一批 `--nw-*` 变量**复位**。
+ *
+ * 为什么需要：这两个主题继承的是深色面板配色，但 `--nw-*` 是浅色语义键。如果某个元素
+ * 上残留了 natural-wood 的取值（切换风格、面板跨主题复用、内联样式带过来），深色面板就会
+ * 突然出现浅色描边 / 浅色底。0.9.0 用 `initial` 显式切断这条继承链。
+ *
+ * 本项目所有消费点都写成 `var(--nw-xxx, 兜底字面量)`，未定义时会落到兜底值，所以之前
+ * 看不出问题；但那是「靠兜底」，一旦新规则漏写兜底就会串色。这里补齐，让行为不再依赖
+ * 调用点是否记得写兜底。
+ */
+:is(
+  [data-scene-style="warm-wood"],
+  [data-theme="warm-wood"],
+  [data-weather-theme="warm-wood"],
+  [data-runtime-dialog-theme="warm-wood"],
+  [data-scene-theme="warm-wood"],
+  [data-scene-style="default"],
+  [data-theme="default"]
+) {
+  --nw-ink: initial;
+  --nw-copy: initial;
+  --nw-muted: initial;
+  --nw-line: initial;
+  --nw-line-soft: initial;
+  --nw-surface: initial;
+  --nw-top: initial;
+  --nw-bottom: initial;
+  --nw-field: initial;
+  --nw-accent: initial;
+  --nw-accent-strong: initial;
+  --nw-selected: initial;
+  --nw-selected-ink: initial;
+  --nw-track: initial;
+  --nw-shadow: initial;
+  --nw-highlight: initial;
+  --nw-panel-top: initial;
+  --nw-panel-bottom: initial;
+}
+
 .interaction3d-stage[data-scene-style="natural-wood"] :is(.i3d-device-panel, .i3d-climate-panel) .i3d-extra-card {
   color: var(--i3d-wood-ink, var(--nw-copy, #554632));
   border-color: #c9b99e;

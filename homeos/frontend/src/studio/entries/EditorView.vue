@@ -22,7 +22,8 @@ function scheduleEditorTeardown(teardown: (() => Promise<void> | void) | null | 
  * Vue 壳层（顶栏 / 分栏折叠 / 缩放 / 快捷键）+ 既有 DOM 契约供 bootEditor 操作。
  */
 import { computed, onBeforeUnmount, onMounted, watch } from "vue";
-import { useRouter } from "vue-router";
+import { onBeforeRouteLeave, useRouter } from "vue-router";
+import { useChromeStore } from "@/kernel/ui/chrome/chrome-store";
 import pkg from "../../../package.json";
 import { useStudioEditorStore } from "@app/state/studio-editor.store";
 import {
@@ -48,6 +49,23 @@ import { disposeEditorCanvasWelcome } from "@app/editor/home/welcome/editor-canv
 
 const router = useRouter();
 const editorStore = useStudioEditorStore();
+const chrome = useChromeStore();
+
+/**
+ * 离开仪表盘编辑器前拦住未保存的修改。
+ *
+ * SPA 内路由切换不会触发 beforeunload，teardown 也不会替用户保存；没有这道守卫时
+ * 点「返回后台」会直接丢掉正在编辑的内容（只剩 sessionStorage 恢复快照，下次进来
+ * 才弹窗）。与户型绘制页（StudioView）同一口径：先让用户明确选择是否放弃。
+ */
+onBeforeRouteLeave(async () => {
+  if (!editorStore.dirty) return true;
+  return await chrome.confirm(
+    "仪表盘还有未保存的修改。选择「继续编辑」可返回保存；选择「放弃修改并离开」将丢失本次修改。",
+    "离开仪表盘编辑器？",
+    { confirmText: "放弃修改并离开", cancelText: "继续编辑", type: "danger" },
+  );
+});
 
 const rootClass = computed(() => [
   "editor-chrome-root",

@@ -474,7 +474,15 @@ export function mountInteraction3d(
     wasStageActive: any,
     wasStageVisible: any,
     isPageFrozen = false,
-    lastActivityAtMs = -Infinity
+    lastActivityAtMs = -Infinity,
+    /**
+     * 上一次「页面离开前台」的时刻。用于判断回前台时要不要**重发场景载荷**。
+     *
+     * iOS 加到主屏后回前台，`pageshow` 可能不带 `persisted`，舞台里的模型与控制点位
+     * 会停在旧值（WebGL 上下文被系统回收过）。离开超过阈值就整帧重载一次，成本远低于
+     * 「用户点了半天发现灯不亮」。
+     */
+    pageHiddenAtMs = -Infinity
   const heldPointerIdsSet = new Set(),
     heldKeyCodesSet = new Set(),
     hasHeldInput = () => heldPointerIdsSet.size > 0 || heldKeyCodesSet.size > 0
@@ -618,9 +626,10 @@ export function mountInteraction3d(
         }))
   }
   function handlePageHide(pageHideEvent: any) {
-    reportRuntimeLifecycle('page-hide', {
-      persisted: pageHideEvent?.persisted === true,
-    }),
+    ;(pageHiddenAtMs = globalThis.performance?.now?.() ?? Date.now()),
+      reportRuntimeLifecycle('page-hide', {
+        persisted: pageHideEvent?.persisted === true,
+      }),
       closePopupLayoutPreview(),
       isVacuumPopupOpen && dismissFocus(true),
       (isPageFrozen = true),
@@ -644,13 +653,20 @@ export function mountInteraction3d(
   const handlePageFreeze = () => handlePageLifecycle(true),
     handlePageResume = () => handlePageLifecycle(false)
   function handlePageShow(pageShowEvent: any) {
+    const resumedAtMs = globalThis.performance?.now?.() ?? Date.now(),
+      // 离开超过 2s 才重载：切一下标签页就整帧重载会让预览反复闪。
+      resumeNeedsReload = !pageShowEvent?.persisted && resumedAtMs - pageHiddenAtMs > 2000
     reportRuntimeLifecycle('page-show', {
       persisted: pageShowEvent?.persisted === true,
     }),
       (isPageFrozen = false),
       pageShowEvent?.persisted && !isDisposed
         ? (reloadStageFrame('load-bfcache'), lightStream?.resume())
-        : (refreshActivityState(), lightStream?.resume())
+        : // 0.9.0：iOS 主屏回前台可能不带 `persisted`，此时舞台里的模型与点位会停在旧值。
+          // 整帧重载一次并让实时通道重新订阅，比逐个组件补同步更可靠。
+          (resumeNeedsReload && hasPresentedStage && !isDisposed && reloadStageFrame('page-resume'),
+          refreshActivityState(),
+          lightStream?.resume())
   }
   function handleVisibilityChange() {
     document.hidden && closePopupLayoutPreview(), refreshActivityState()
@@ -2475,6 +2491,14 @@ export function mountInteraction3d(
     }),
     (runtimeHandle.closePopupLayoutPreview = closePopupLayoutPreview),
     (runtimeHandle.closeWeatherPreview = weatherPreview.close),
+    /**
+     * 舞台**当前实际生效**的材质风格（`warm-wood` / `default`，已折过自然木语）。
+     *
+     * 「进阶设置」打开时会快照一份光照滑条值；如果这期间风格被换掉（户型绘制里改、
+     * 或在另一个窗口改），那批滑条值属于旧风格，回写会把新风格的默认光照冲掉。
+     * 因此保存前要能读到**舞台真源**，而不是再读一次组件属性（那就是同一份过期数据）。
+     */
+    (runtimeHandle.getSceneStyle = () => String(hostElement.dataset.sceneStyle || '')),
     (runtimeHandle.previewWeather = weatherPreview.preview),
     (runtimeHandle.onWeatherPreviewChange = (listener: unknown) =>
       typeof listener === 'function' ? weatherPreview.subscribe(listener as (state: string) => void) : () => {}),

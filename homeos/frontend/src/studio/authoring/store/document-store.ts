@@ -408,6 +408,23 @@ export class StudioDocumentStore {
   }
 
   /**
+   * PUT 成功，但**请求期间本地又发生了改动**：只推进服务端版本与已保存基线，
+   * 保留本地文档与脏标记。
+   *
+   * 为什么不能用 `applySaved`：`flushNow()` 发出去的是一份**发起时**的快照，
+   * 保存期间用户继续拖拽 / 改属性会再调 `markDirty()`。若这里按 applySaved 清脏，
+   * 那些改动既没有进 PUT、也不会再自动保存 —— 界面看着是新内容，刷新后全丢。
+   */
+  acceptSavedWhileDirty(payload: StudioDraftPayload): void {
+    const revision = Math.max(0, Math.trunc(Number(payload?.revision) || 0))
+    // 保存基线推进到「服务器刚收到的那份」，但 `runtimeSceneRevision` / dirtyPatches
+    // 保持原值，下一次 flushNow 因此仍会看到 isDirty() === true。
+    this.loadedRevisionValue = revision
+    this.loadedSignatureValue = this.signature(payload?.scene ?? this.documentValue)
+    this.documentValue = payload?.scene ?? this.documentValue
+  }
+
+  /**
    * 只推进服务端版本号，不采纳文档内容。
    *
    * 用于**定向写入**（内嵌自动导图只合并当前主题的光照）：服务器 revision 已经前进，

@@ -1378,10 +1378,10 @@ export function probeAssetNaturalSize(deps: AssetPickerDeps, probedComponent: an
       .finally(() => deps.pendingAssetProbeKeysSet.delete(probeKey)))
 }
 
-export function positionImageAssetMenu(deps: AssetPickerDeps) {
+export function positionImageAssetMenu(deps: AssetPickerDeps, anchorElement = deps.imageAssetButtonElement) {
   if (deps.imageAssetMenuElement.hidden) return
   positionFloatingMenu({
-    anchor: deps.imageAssetButtonElement,
+    anchor: anchorElement,
     panel: deps.imageAssetMenuElement,
     optionsElement: deps.imageAssetOptionsElement,
     optionsReserve: 150,

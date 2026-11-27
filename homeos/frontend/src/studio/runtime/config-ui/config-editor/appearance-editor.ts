@@ -2,6 +2,7 @@ import {
   requestInteraction3dAccess as requestInteraction3dAccess2,
   getInteraction3dEditorView as getInteraction3dEditorView2,
 } from '@app/bridge/bridge'
+import { isWarmSceneStyle } from '@app/shared/scene-styles'
 import { normalizeInteraction3dLightingMode as normalizeInteraction3dLightingMode2 } from '@app/bridge/definition'
 
 const APPEARANCE_GROUPS: [string, [string, string, number, number, number][]][] = [
@@ -141,6 +142,21 @@ export async function openInteraction3dAppearanceEditor({
         appearanceSaveButton.disabled = true
         try {
           if ((await requestInteraction3dAccess2(), isAppearanceDirty)) return
+          /**
+           * 风格在这期间被换掉 → 这次快照的滑条值属于旧风格，落盘会把新风格的默认光照冲掉。
+           * 读**舞台真源**（`getSceneStyle`），不读组件属性（同一份过期数据）。
+           * 舞台没提供该方法（旧运行时）时跳过判断，不误报。
+           */
+          const stageSceneStyle = String(editorView.getSceneStyle?.() || ''),
+            openSceneStyle = String(editorView.metadata.sceneStyle ?? stageSceneStyle),
+            isSceneStyleChanged =
+              !!stageSceneStyle &&
+              openSceneStyle !== stageSceneStyle &&
+              // 舞台只折成两值（暖阳/自然同属 warm-wood），折前值不同也要算变化。
+              (isWarmSceneStyle(String(appearanceComponent.properties?.sceneStyle ?? '')) !==
+                isWarmSceneStyle(stageSceneStyle) ||
+                String(appearanceComponent.properties?.sceneStyle ?? '') !== openSceneStyle)
+          if (isSceneStyleChanged) throw new Error('材质风格已变化，请重新打开进阶设置。')
           await onAppearanceSave(sourceBaseLighting), closeAppearanceEditor(true)
         } catch (appearanceSaveError: any) {
           isAppearanceDirty ||

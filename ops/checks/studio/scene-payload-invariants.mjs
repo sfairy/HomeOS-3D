@@ -374,8 +374,8 @@ check(
 )
 check('不足 3 点的退化分区被丢弃', !normalizedFloor?.floorRegions?.some((region) => region.id === 'region-bad'))
 check(
-  'floorFinishTones 被夹到 ±5',
-  normalizedFloor?.floorFinishTones?.wood === 5 && normalizedFloor?.floorFinishTones?.tile === -5,
+  'floorFinishTones 被夹到 ±20',
+  normalizedFloor?.floorFinishTones?.wood === 20 && normalizedFloor?.floorFinishTones?.tile === -20,
   JSON.stringify(normalizedFloor?.floorFinishTones),
 )
 check(

@@ -97,6 +97,12 @@ type ThreeLike = {
   RepeatWrapping: number
   SRGBColorSpace: string
   Vector2: new (x?: number, y?: number) => any
+  /** 正反面轴与背面乘色用（0.9.0）；三值向量。 */
+  Vector3: new (
+    x?: number,
+    y?: number,
+    z?: number,
+  ) => any
 }
 
 export interface NaturalWoodMaterialOptions {
@@ -205,6 +211,22 @@ const NATURAL_WOOD_MODEL_TYPES = new Set([
   'vanity',
   'plant',
   'planlabel',
+  // 0.9.0：自然木语配方扩到下列家居模型。缺了它们，同一套木纹在这些模型上会保留原厂色，
+  // 混在木色家具里非常显眼（尤其是折叠屏风、落地镜这类大面积平面）。
+  'aroma-diffuser',
+  'ceiling-fan',
+  'coat-rack',
+  'decor-small-plant',
+  'dual-monitors',
+  'electric-fireplace',
+  'exhaust-fan',
+  'folding-screen',
+  'full-length-mirror',
+  'projection-screen',
+  'shoe-bench',
+  'switch-console',
+  'umbrella-stand',
+  'xbox-series-x',
 ])
 
 export function naturalWoodModelCoverage(itemType: string): boolean {
@@ -233,6 +255,10 @@ uniform sampler2D nwLeatherRoughness;
 uniform sampler2D nwLeatherHeight;
 uniform vec2 nwGrainOffset;
 uniform float nwVerticalGrain;
+// 板材正反面分色（0.9.0）：正面吃完整木色，背面按 nwBackColor 压暗一档。
+// 贴墙柜体 / 背板用得上 —— 背面本来就不上漆，颜色应与正面不同。
+uniform vec3 nwBackColor;
+uniform vec3 nwFrontAxis;
 varying vec3 nwPosition;
 varying vec3 nwSurfaceNormal;
 
@@ -259,6 +285,15 @@ vec2 nwPlanar(vec3 p, vec3 n) {
 }
 `,
   surface: `
+/**
+ * 正反面系数：1 = 正面，0 = 背面。
+ *
+ * 用**法线与 front 轴的点积**判断，而不是「位置在板中心哪一侧」：
+ * 薄板的两个面几乎同位置，按位置分不开；法线才是可靠区别。
+ */
+float nwFrontFace(vec3 n) {
+  return smoothstep(-0.35, 0.35, dot(normalize(n), normalize(nwFrontAxis)));
+}
 vec3 nwSurface(vec3 p, vec3 n) {
   vec2 q = nwPlanar(p, n);
   // 屏幕空间导数：一个像素覆盖多少米。用它做 LOD，远处自动收敛到平均色，不会闪。
@@ -288,6 +323,8 @@ vec3 nwSurface(vec3 p, vec3 n) {
       float luminance = dot(scanned, vec3(0.2126, 0.7152, 0.0722));
       // 以贴图平均亮度 0.2346 为基准归一：深色贴图做胡桃、浅色贴图做奶油。
       float tone = mix(1.0, clamp(luminance / 0.23461, 0.55, 1.55), 0.85);
+      // 正反面分色：背面按 nwBackColor 压一档（默认 1,1,1 时无变化）。
+      tone *= mix(dot(nwBackColor, vec3(0.3333)), 1.0, nwFrontFace(n));
       float rough = texture2D(nwOakRoughness, uv).r;
       float height = (texture2D(nwOakHeight, uv).r - 0.5) * 0.0004 + (luminance - 0.23461) * 0.0002;
       if (nwKind > 4.5) {
@@ -304,8 +341,9 @@ vec3 nwSurface(vec3 p, vec3 n) {
     float rings = sin(q.y * 235.0 + warp * 10.0 + sin(q.x * 2.5) * 1.7);
     float grain = nwFbm(vec2(q.x * 5.0, q.y * 130.0 + warp * 3.0));
     float pores = nwNoise(vec2(q.x * 70.0, q.y * 1600.0));
-    float tone = 0.95 + nwFbm(q * vec2(1.5, 17.0)) * 0.09
-      + (grain - 0.5) * 0.16 + rings * 0.028 * fine + (pores - 0.5) * 0.025 * fine;
+    float tone = (0.95 + nwFbm(q * vec2(1.5, 17.0)) * 0.09
+      + (grain - 0.5) * 0.16 + rings * 0.028 * fine + (pores - 0.5) * 0.025 * fine)
+      * mix(dot(nwBackColor, vec3(0.3333)), 1.0, nwFrontFace(n));
     return vec3(tone, (grain - 0.5) * 0.12, (grain * 0.00012 + rings * 0.000025) * fine);
   }
 
@@ -540,6 +578,9 @@ function injectNaturalWoodShader(
     // 每块板 / 每扇门的纹理起点错开，避免一整排完全重复。
     nwGrainOffset: { value: new state.three.Vector2(Math.random(), Math.random()) },
     nwVerticalGrain: { value: verticalGrain ? 1 : 0 },
+    // 正面轴默认 +z（多数柜门 / 屏风朝 +z）；背面乘色默认 1（不分色）。
+    nwFrontAxis: { value: new state.three.Vector3(0, 0, 1) },
+    nwBackColor: { value: new state.three.Vector3(1, 1, 1) },
   }
   material.userData.naturalWoodUniforms = uniforms
   const vertex = naturalWoodVertexPatch(localCoordinates)

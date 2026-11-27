@@ -4,6 +4,8 @@ import { createAnimationVisibility as createAnimationVisibility2 } from './anima
 import { createCategoryTransitionDiagnostics as createCategoryTransitionDiagnostics2 } from '../navigation/navigation'
 import { createFanMotion as createFanMotion2 } from '../fan/fan'
 import { createCarCharging as createCarCharging2 } from '../vehicle/vehicle'
+import { createCarPresence } from '../vehicle/car-presence'
+import { createCarOpeningMotion } from '../vehicle/car-openings'
 import { createCarTires } from '../vehicle/vehicle'
 import { createSpeakerPanel as createSpeakerPanel2 } from '../speaker/speaker'
 import { createSpeakerRings as createSpeakerRings2 } from '../speaker/speaker'
@@ -1564,6 +1566,31 @@ export function mountStage(mountOptions: any) {
         mountOptions.requestRender?.(), wakeBackgroundAnimation()
       },
       isVisible: (carModel: any) => animationVisibility.visible(carModel, { reflected: true }),
+    }),
+    /**
+     * 车辆「在家 / 离家」驶离动画（0.9.0）。
+     *
+     * 与 `carCharging` 同一套节流通道：`setDynamicRenderObjects('car-presence', …)`
+     * 把在动的车交给反射 / 阴影重算，`requestFrame` 只做唤醒。
+     */
+    carPresence = createCarPresence({
+      requestFrame: () => {
+        mountOptions.requestRender?.(), wakeBackgroundAnimation()
+      },
+      setRenderObjects: (presenceRenderObjects: unknown[]) =>
+        mountOptions.setDynamicRenderObjects?.('car-presence', presenceRenderObjects),
+      // 车长取摆放物品的 depth：同一套车模可以按用户缩放，位移要跟着变。
+      vehicleLength: (presenceBinding: any) =>
+        stageModelIndex.item(presenceBinding.floorId, presenceBinding.modelId)?.depth ?? null,
+    }),
+    /** 车辆四门 / 前后备箱开合（0.9.0）。开合件是独立模型，索引靠 (floorId, modelId) 配对。 */
+    carOpenings = createCarOpeningMotion({
+      THREE: three,
+      requestFrame: () => {
+        mountOptions.requestRender?.(), wakeBackgroundAnimation()
+      },
+      setRenderObjects: (openingRenderObjects: unknown[]) =>
+        mountOptions.setDynamicRenderObjects?.('car-openings', openingRenderObjects),
     })
   const startupEffectsUnsubscribe = mountOptions.onStartupEffectsProgress?.((startupProgressValue: any) => {
     const isStartupBeforeFirstFrame = ctx.startupProgress === 0
@@ -1638,6 +1665,46 @@ export function mountStage(mountOptions: any) {
             revision: environmentRevision,
             bindings: fanBindings,
             states: ctx.deviceStates,
+          }),
+      ),
+      deviceStateMemo.run(
+        carPresence,
+        [modelRoot4, environmentRevision, ctx.options],
+        ctx.deviceStates,
+        () => ctx.options.devices?.cars || [],
+        (presenceBindings: any[]) =>
+          carPresence.sync({
+            root: modelRoot4,
+            retainedRoots: mountOptions.retainedModelRoots || [],
+            revision: environmentRevision,
+            sceneId: document4?.sceneId,
+            bindings: presenceBindings,
+            states: ctx.deviceStates,
+            editing: !!ctx.isEditing,
+            canAnimate: (presenceBinding: any) =>
+              animationVisibility.visible(stageModelIndex.item(presenceBinding.floorId, presenceBinding.modelId), {
+                reflected: true,
+              }),
+          }),
+      ),
+      deviceStateMemo.run(
+        carOpenings,
+        [modelRoot4, environmentRevision, ctx.options],
+        ctx.deviceStates,
+        () => ctx.options.devices?.cars || [],
+        (openingBindings: any[]) =>
+          carOpenings.sync({
+            root: modelRoot4,
+            retainedRoots: mountOptions.retainedModelRoots || [],
+            revision: environmentRevision,
+            sceneId: document4?.sceneId,
+            bindings: openingBindings,
+            states: ctx.deviceStates,
+            editing: !!ctx.isEditing,
+            canAnimate: (openingBinding: any) =>
+              animationVisibility.visible(stageModelIndex.item(openingBinding.floorId, openingBinding.modelId), {
+                reflected: true,
+              }),
           }),
       ),
       (ctx.startupDeviceSyncSnapshot = {
@@ -1862,6 +1929,50 @@ export function mountStage(mountOptions: any) {
         }
       },
     )
+  }
+  /**
+   * 环境「开门器」的绑定视图（0.9.0）。
+   *
+   * 与窗帘 / 晾衣架分开收集：门的宿主是户型里画的**门**（`door:{id}`），不是可摆放模型，
+   * 所以坐标与高度只能从门模型上取。门没有「位置百分比」概念，`coverKind` 用
+   * `door-opener` 让面板走门专用文案（`doorPanelLabel`）。
+   */
+  function collectDoorOpenerBindings() {
+    return (ctx.options.environment?.doorOpeners || []).map((doorOpenerSourceEntry: any) => {
+      const doorModel = stageModelIndex.item(doorOpenerSourceEntry.floorId, doorOpenerSourceEntry.modelId, 'door')
+      /**
+       * 同一扇门上的门磁（安防 `security.locks`）。
+       *
+       * 开门器负责**控制**、门磁负责**确认**；两者绑在同一扇门上是常态。面板需要门磁读数
+       * 才能说出「已发送 · 等待门磁回报」，也才能发现「开门器说自己关了、门磁说还开着」这种
+       * 不一致（0.9.0 的 `开门器与门磁状态不一致，请核对门或设备回报。`）。
+       * 匹配口径用 `(floorId, modelId)`：门是户型里画出来的，没有实体可以互认。
+       */
+      const doorContact = (ctx.options.security?.locks || []).find(
+        (lockCandidate: any) =>
+          lockCandidate.floorId === doorOpenerSourceEntry.floorId &&
+          lockCandidate.modelId === doorOpenerSourceEntry.modelId,
+      )
+      return {
+        ...doorOpenerSourceEntry,
+        doorOpener: true,
+        coverKind: 'door-opener',
+        deviceKind: 'cover',
+        modelAvailable: !!doorModel,
+        icon: doorOpenerSourceEntry.icon || 'mdi:door-open',
+        // 三选一：门磁的开关实体、门磁整体实体、事件实体。面板按顺序取第一个有读数的。
+        contactEntityIds: doorContact
+          ? [doorContact.doorOpenEntityId, doorContact.doorEntityId, doorContact.doorEventEntityId].filter(
+              (contactEntityId: unknown) => typeof contactEntityId === 'string' && contactEntityId,
+            )
+          : [],
+        x: Number.isFinite(doorOpenerSourceEntry.x) ? doorOpenerSourceEntry.x : (doorModel?.x ?? 0),
+        y: Number.isFinite(doorOpenerSourceEntry.y) ? doorOpenerSourceEntry.y : (doorModel?.y ?? 0),
+        height: Number.isFinite(doorOpenerSourceEntry.height)
+          ? doorOpenerSourceEntry.height
+          : (doorModel?.height ?? 2.1),
+      }
+    })
   }
   function buildCurtainGroups() {
     const sourceCoverBindings = collectCoverBindings()
@@ -2368,12 +2479,14 @@ export function mountStage(mountOptions: any) {
       ? collectSecurityBindings()
       : ctx.activeModule === 'window-opener'
         ? windowOpeners()
-        : ctx.activeModule === 'light'
-          ? ctx.options.lights || []
-          : [
-              ...collectModuleBindings(),
-              ...(ctx.activeModule === 'vacuum' && !ctx.isEditing ? collectVacuumShortcuts() : []),
-            ]
+        : ctx.activeModule === 'door-opener'
+          ? collectDoorOpenerBindings()
+          : ctx.activeModule === 'light'
+            ? ctx.options.lights || []
+            : [
+                ...collectModuleBindings(),
+                ...(ctx.activeModule === 'vacuum' && !ctx.isEditing ? collectVacuumShortcuts() : []),
+              ]
     ).filter(matchesSelectedFloor)
   /**
    * 「显示本类全部标签」的条目键（0.7.8 `showAllLabels`）。
@@ -4238,6 +4351,8 @@ export function mountStage(mountOptions: any) {
     activePointerDrag: ctx.activePointerDrag,
     advanceCameraMotion,
     airerMotion,
+    carOpenings,
+    carPresence,
     animationFrameRequestId: ctx.animationFrameRequestId,
     applyDefaultCamera,
     applyLightStates,
@@ -4843,6 +4958,8 @@ export function mountStage(mountOptions: any) {
         { label: 'speakerRings', run: () => speakerRings.dispose() },
         { label: 'fanMotion', run: () => fanMotion.dispose() },
         { label: 'airerMotion', run: () => airerMotion.dispose() },
+        { label: 'carPresence', run: () => carPresence.dispose() },
+        { label: 'carOpenings', run: () => carOpenings.dispose() },
         { label: 'televisionPanel', run: () => televisionPanel.dispose() },
         { label: 'televisionScreens', run: () => televisionScreens.dispose() },
         { label: 'environmentAirflow', run: () => environmentAirflow.dispose() },

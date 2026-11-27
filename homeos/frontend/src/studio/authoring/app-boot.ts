@@ -87,6 +87,7 @@ import {
   collectSelectedPlanItems as collectSelectedPlanItemsImpl,
   mirrorSelection as mirrorSelectionImpl,
   rotateSelection as rotateSelectionImpl,
+  bindFloorRegionInspector,
 } from '@/studio/authoring/interaction/tools'
 import {
   createSceneItem as createSceneItemImpl,
@@ -4501,6 +4502,26 @@ export function bootStudio(): void {
           (appCtx.studioState.settings.floorEdgeVisible = appCtx.studioState.settings.floorEdgeVisible === false),
           refreshScopeItems(),
           markDocumentDirty()
+      })
+      /*
+       * 地面分区检查器的交互（0.9.0）。
+       *
+       * 检查器能显示但按钮是死的：`data-floor-finish` / 深浅输入 / 「移除分区」
+       * 之前没有任何事件处理。绑定集中在这里（appCtx 在作用域内），
+       * 判定与落盘仍在 `commit*` 纯函数里。
+       *
+       * 提交后走 `refreshSceneRender` 整帧重建：铺面与色档都参与材质构建，
+       * 单独改材质会漏掉盘管与相邻分区的明度聚合。
+       */
+      bindFloorRegionInspector({
+        activeFloorId: appCtx.activeFloorId,
+        floors: (appCtx.studioProject?.floors || []) as any,
+        sceneStyle: () => String(appCtx.sceneStyle || 'default'),
+        createId: generateId,
+        pushUndoEntry,
+        markDocumentDirty,
+        notify: showToast,
+        refresh: () => refreshSceneRender(),
       })
       // 分组标题在标记里是普通 div：这里补上按钮语义，点标题或按 Enter / 空格都能展开整组。
       // 展开态默认全收起（`data-asset-expanded="false"`），且一次只展开一个分组。

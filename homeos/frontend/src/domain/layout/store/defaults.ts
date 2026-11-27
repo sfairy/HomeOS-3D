@@ -27,9 +27,9 @@ function createDefaultLayout(): UILayoutConfig {
     lightOnBackgroundUrl: '/backgrounds/light_on.webp',
     lightOffBackgroundUrl: '/backgrounds/light_off.webp',
     /**
-     * 0.8.9 侧边栏页面背景：**默认关闭**（`undefined` = 不铺背景，保持旧观感）。
+     * 0.9.0 侧边栏页面背景：**默认关闭**（`undefined` = 不铺背景，保持旧观感）。
      * 用户在外观设置里选了背景才写入；与主页面的页面背景共用同一份模型
-     * （`shared/utils/widget/page-background.util`）。
+     * （`kernel/widget/page-background`）。
      */
     sidebarBackground: undefined,
     // 悬浮组件（顶层）

@@ -80,6 +80,22 @@
       "ensureBoilerBinding",
       "renderBoilerSection"
     ],
+    "config-ui/config-editor/rendering/car-motion-section.ts": [
+      "CAR_OPENING_EMPTY_NOTE",
+      "CAR_OPENING_PART_LABELS",
+      "CAR_PRESENCE_KEYS",
+      "CAR_REBIND_WARNING",
+      "CAR_STATE_MAX_LENGTH",
+      "CAR_STATE_MAX_PER_GROUP",
+      "carOpeningHint",
+      "carPresenceHint",
+      "formatCarStateLines",
+      "hasCarStateValues",
+      "parseCarStateLines",
+      "renderCarMotionSections",
+      "renderCarOpeningSection",
+      "renderCarPresenceBlock"
+    ],
     "config-ui/config-editor/rendering/config-list-hint.ts": [
       "modelListHint"
     ],
@@ -87,6 +103,15 @@
       "MDI_SVG_ROOT",
       "deviceCategoryGroups",
       "resolveDeviceCategoryProfile"
+    ],
+    "config-ui/config-editor/rendering/door-opener-section.ts": [
+      "doorContactLabel",
+      "doorContactNote",
+      "doorSwitchModeNote",
+      "floorDoorContacts",
+      "isCoverDoorOpener",
+      "normalizeDoorSwitchMode",
+      "renderDoorOpenerSection"
     ],
     "config-ui/config-editor/rendering/extra-sources-section.ts": [
       "buildExtraSourceList",
@@ -139,13 +164,28 @@
       "openDeviceCategoryPicker"
     ],
     "config-ui/config-editor/rendering/sections.ts": [
+      "CAR_OPENING_EMPTY_NOTE",
+      "CAR_OPENING_PART_LABELS",
+      "CAR_PRESENCE_KEYS",
+      "CAR_REBIND_WARNING",
       "appendGameConsoleSection",
       "appendStatusOrGameMainSection",
       "autoPickGameMainEntity",
+      "carOpeningHint",
+      "carPresenceHint",
       "createExtraSourcesSection",
+      "doorContactNote",
+      "floorDoorContacts",
       "floorWindowContacts",
+      "formatCarStateLines",
       "modelListHint",
+      "normalizeDoorSwitchMode",
       "openGameMainEntityPicker",
+      "parseCarStateLines",
+      "renderCarMotionSections",
+      "renderCarOpeningSection",
+      "renderCarPresenceBlock",
+      "renderDoorOpenerSection",
       "renderWindowOpenerSection",
       "windowContactNote"
     ],
@@ -459,7 +499,11 @@
       "createCurtainMotion",
       "curtainGroupCandidates",
       "curtainGroupEntryId",
+      "doorOpenerDomain",
+      "doorSwitchControl",
+      "doorSwitchState",
       "isAssumedState",
+      "isDoorSwitch",
       "mergeCoverMemoryEntries",
       "mergeTravelState",
       "nextTravelState",
@@ -476,6 +520,17 @@
       "supportedFeatureBits",
       "travelDirectionOf",
       "validCurtainGroups"
+    ],
+    "cover/door-panel-state.ts": [
+      "DOOR_SWITCH_UNAVAILABLE_SUFFIX",
+      "doorContactMismatchNotice",
+      "doorPanelControls",
+      "doorPanelLabel",
+      "doorPanelPrimaryAction",
+      "doorPanelSecondaryAction",
+      "doorPanelTargetLabel",
+      "doorPanelTitle",
+      "doorPanelUnavailableReason"
     ],
     "device/device.ts": [
       "DEVICE_KINDS",
@@ -716,6 +771,15 @@
     "purifier/purifier-state.ts": [
       "purifierState"
     ],
+    "security/door-motion-source.ts": [
+      "DOOR_ANIMATION_TYPES",
+      "DOOR_MOTION_SOURCES",
+      "legacyMotionSource",
+      "normalizeDoorAnimationType",
+      "normalizeDoorMotionSource",
+      "resolveDoorMotion",
+      "rollerPose"
+    ],
     "security/security-editor.ts": [
       "openSecurityEditor"
     ],
@@ -782,11 +846,42 @@
       "vacuumQuip",
       "vacuumStatusPresentation"
     ],
+    "vehicle/car-openings.ts": [
+      "CAR_OPENING_DOOR_MS",
+      "CAR_OPENING_LID_MS",
+      "carOpeningDuration",
+      "carOpeningEase",
+      "createCarOpeningMotion"
+    ],
+    "vehicle/car-presence.ts": [
+      "CAR_PRESENCE_AWAY_MS",
+      "CAR_PRESENCE_DISTANCE_RATIO",
+      "CAR_PRESENCE_HOME_MS",
+      "CAR_PRESENCE_MAX_DISTANCE_M",
+      "CAR_PRESENCE_MIN_DISTANCE_M",
+      "CAR_PRESENCE_MODEL_TYPES",
+      "DEFAULT_VEHICLE_LENGTH_M",
+      "carPresenceDistance",
+      "carPresenceDuration",
+      "carPresenceEase",
+      "createCarPresence"
+    ],
     "vehicle/vehicle.ts": [
+      "CAR_OPENING_PARTS",
+      "CAR_PRESENCE_MAX_STATES",
+      "CAR_PRESENCE_STATE_LENGTH",
       "CAR_TIRE_WHEELS",
       "SCOOTER_TIRE_WHEELS",
       "carChargingMappingError",
       "carClickAction",
+      "carOpeningDisplay",
+      "carOpeningEntities",
+      "carOpeningMappingError",
+      "carOpeningReading",
+      "carPresenceDisplay",
+      "carPresenceEntityAllowed",
+      "carPresenceMappingError",
+      "carPresenceReading",
       "carState",
       "carTireEntities",
       "carTireModelType",
@@ -796,6 +891,7 @@
       "defaultCarTires",
       "retargetCarTires",
       "standardCarBindings",
+      "supportsCarOpenings",
       "supportsCarTires",
       "updateCarCard"
     ],

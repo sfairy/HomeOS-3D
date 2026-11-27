@@ -28,6 +28,8 @@ export const ENVIRONMENT_CATEGORY_LABELS: ReadonlyArray<readonly [string, string
   ['heating-boiler', '取暖壁挂炉', 'mdi:water-boiler'],
   ['cover', '窗帘', 'mdi:curtains'],
   ['window-opener', '开窗器', 'mdi:window-open'],
+  // 0.9.0：开门器的宿主是户型里画的门，实体是 switch（不是 cover）。
+  ['door-opener', '开门器', 'mdi:door-open'],
   ['fan', '风扇 / 吊扇', 'mdi:fan'],
   ['exhaust-fan', '排气扇', 'mdi:fan'],
   ['purifier', '空气净化器', 'mdi:air-purifier'],
@@ -126,6 +128,7 @@ const DEVICE_KIND_COLLECTIONS: Readonly<Record<string, string>> = Object.freeze(
   nas: 'nas',
   cover: 'curtains',
   'window-opener': 'windowOpeners',
+  'door-opener': 'doorOpeners',
   'heating-boiler': 'heatingBoilers',
   'water-heater': 'waterHeaters',
   fan: 'fans',
@@ -161,6 +164,7 @@ function deviceKindUsesEnvironment(deviceKind: string): boolean {
     'purifier',
     'cover',
     'window-opener',
+    'door-opener',
     'temperature-humidity',
   ].includes(deviceKind)
 }

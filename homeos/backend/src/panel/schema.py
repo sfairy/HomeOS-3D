@@ -287,7 +287,7 @@ class PanelDocument(ExtensibleModel):
                     if popup_source == "custom":
                         if action.data.get("popupId") not in popup_ids:
                             raise ValueError(f"组件 {component.id} 打开了不存在的组合弹窗。")
-        # 0.8.9 页面背景：位置只能在页面顶层，取值只认四类枚举（见 panel/page_background.py）。
+        # 0.9.0 页面背景：只能放在页面或共享组件顶层，取值只认三条枚举/静态规则（见 panel/page_background.py）。
         validate_page_backgrounds(pages=self.pages, shared_components=self.shared_components, walk=walk)
         return self
 

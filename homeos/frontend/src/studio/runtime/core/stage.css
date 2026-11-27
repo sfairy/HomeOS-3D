@@ -4244,7 +4244,9 @@ html[data-glass-effect="static"] .interaction3d-stage .i3d-light-panel {
   opacity: 1;
 }
 .interaction3d-stage .i3d-car-card {
-  width: 180px;
+  /* 0.9.0：宽度与字号由脚本写进 CSS 变量，卡片内部统一读同一个值。 */
+  width: var(--card-width, 180px);
+  font-size: var(--card-font-size, 1em);
   /* 字号解封后卡片至少要有「图标 + 读数」那么宽（随 em 放大）。 */
   min-width: calc(24px + 2.333em);
   gap: 7px;

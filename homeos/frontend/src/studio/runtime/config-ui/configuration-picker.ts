@@ -52,6 +52,14 @@ export interface ConfigurationPickerOptions {
   closeLabel?: string
   controls?: Node
   emptyMessage?: string
+  /**
+   * 二次确认（0.9.0 的「确定添加」）：给出后，点选只做**选中**，不立即提交；
+   * 提交后弹窗保持打开，并把 `hint` 留在选项下方 —— 用户要连着加几个模型时
+   * 不用每次重新打开、重新等楼层与进度。
+   */
+  confirmSelection?: { label: string; hint: string }
+  /** 二次确认模式下，每次提交后重建选项（新增的模型要从列表里消失）。 */
+  refreshSections?: () => readonly ConfigurationPickerSection[]
   onSelect: (choiceId: string) => Promise<unknown> | unknown
   onClose?: () => void
 }
@@ -170,6 +178,8 @@ export function openConfigurationPicker({
   selectedId,
   controls,
   emptyMessage = '当前楼层没有可选对象。',
+  confirmSelection,
+  refreshSections,
   onSelect,
   onClose,
 }: ConfigurationPickerOptions): ConfigurationPickerHandle {
@@ -208,63 +218,137 @@ export function openConfigurationPicker({
   }
   const errorElement = create('p', 'i3d-error')
   errorElement.setAttribute('role', 'status')
+  /**
+   * 列表锚点：选项区在**重建时**要落回「错误行之前、控件区之后」。
+   *
+   * 不能直接 `insertBefore(section, errorElement)` —— 首次渲染时 `errorElement` 还没挂进
+   * body，`insertBefore` 会抛 `NotFoundError`（整个选择器打不开）。这里先挂一个空锚点，
+   * 之后所有重建都插在锚点前面，位置稳定且与插入顺序无关。
+   */
+  const listAnchorElement = create('div', 'i3d-picker-list-anchor')
+  bodyElement.append(listAnchorElement, errorElement)
+  /** 二次确认模式下当前选中的选项（未给 `confirmSelection` 时恒为空）。 */
+  let pendingChoiceId = ''
   const optionRecords: Array<{ optionButton: HTMLButtonElement; disabled: boolean }> = []
-  for (const section of sections) {
-    const sectionElement = create('section', 'i3d-device-category-group')
-    section.label && sectionElement.append(create('h3', '', section.label))
-    const optionsElement = create('div', 'i3d-device-category-options')
-    for (const choice of section.options) {
-      const optionButton = create(
-        'button',
-        'i3d-device-category-option' + (choice.id === selectedId ? ' is-selected' : ''),
-      ) as HTMLButtonElement
-      optionButton.type = 'button'
-      optionButton.disabled = Boolean(choice.disabled)
-      optionButton.title = choice.label
-      optionButton.setAttribute('data-configuration-choice', choice.id)
-      optionButton.setAttribute('aria-pressed', String(choice.id === selectedId))
-      const topElement = create('span', 'i3d-device-category-option-top')
-      if (MDI_ICON_PATTERN.test(choice.icon ?? '')) {
-        const iconElement = create('i', 'i3d-device-category-icon')
-        iconElement.setAttribute('aria-hidden', 'true')
-        const maskUrl = "url('" + MDI_SVG_ROOT + (choice.icon ?? '').slice(4) + ".svg')"
-        ;(iconElement.style.maskImage = maskUrl), (iconElement.style.webkitMaskImage = maskUrl)
-        topElement.append(iconElement)
-      }
-      topElement.append(
-        create('span', 'i3d-device-category-option-label' + (choice.wrapLabel ? ' is-wrapped' : ''), choice.label),
+  const confirmButtonElement = confirmSelection
+    ? (create('button', 'primary-action', confirmSelection.label) as HTMLButtonElement)
+    : null
+  const confirmHintElement = confirmSelection ? create('p', 'i3d-note', confirmSelection.hint) : null
+  const sectionElements: HTMLElement[] = []
+  /** 空态文案节点（懒创建；重建时按最新条数显示或移除）。 */
+  let emptyMessageElement: HTMLElement | null = null
+
+  const syncConfirmState = () => {
+    if (!confirmButtonElement) return
+    confirmButtonElement.disabled = isSelecting || !pendingChoiceId
+    optionRecords.forEach((record) => {
+      record.optionButton.setAttribute(
+        'aria-pressed',
+        String(record.optionButton.dataset.configurationChoice === pendingChoiceId),
       )
-      choice.id === selectedId && topElement.append(create('span', 'i3d-device-category-option-current', '当前'))
-      optionButton.append(topElement)
-      appendChoiceMeta(optionButton, choice, ownerDocument)
-      optionButton.addEventListener('click', async () => {
-        if (isClosed || isSelecting || choice.disabled) return
-        ;(isSelecting = true),
-          optionRecords.forEach((record) => {
-            record.optionButton.disabled = true
-          }),
-          (errorElement.textContent = '')
-        try {
-          await onSelect(choice.id), isClosed || close()
-        } catch (selectError: unknown) {
-          isClosed ||
-            (errorElement.textContent =
-              (selectError as { message?: string } | undefined)?.message || '选择失败，请重试。')
-        } finally {
-          ;(isSelecting = false),
-            isClosed ||
-              optionRecords.forEach((record) => {
-                record.optionButton.disabled = record.disabled
-              })
-        }
-      })
-      optionRecords.push({ optionButton, disabled: optionButton.disabled })
-      optionsElement.append(optionButton)
-    }
-    sectionElement.append(optionsElement), bodyElement.append(sectionElement)
+      record.optionButton.classList.toggle(
+        'is-selected',
+        record.optionButton.dataset.configurationChoice === pendingChoiceId,
+      )
+    })
   }
-  optionRecords.length || bodyElement.append(create('p', 'i3d-note', emptyMessage))
-  bodyElement.append(errorElement)
+
+  /** 渲染（或重建）选项区：二次确认模式提交后要重跑一次，让新增的模型从列表消失。 */
+  const renderSections = (nextSections: readonly ConfigurationPickerSection[]) => {
+    for (const sectionElement of sectionElements) sectionElement.remove()
+    sectionElements.length = 0
+    optionRecords.length = 0
+    for (const section of nextSections) {
+      const sectionElement = create('section', 'i3d-device-category-group')
+      section.label && sectionElement.append(create('h3', '', section.label))
+      const optionsElement = create('div', 'i3d-device-category-options')
+      for (const choice of section.options) {
+        const optionButton = create(
+          'button',
+          'i3d-device-category-option' + (choice.id === selectedId ? ' is-selected' : ''),
+        ) as HTMLButtonElement
+        optionButton.type = 'button'
+        optionButton.disabled = Boolean(choice.disabled)
+        optionButton.title = choice.label
+        optionButton.setAttribute('data-configuration-choice', choice.id)
+        optionButton.setAttribute('aria-pressed', String(choice.id === selectedId))
+        const topElement = create('span', 'i3d-device-category-option-top')
+        if (MDI_ICON_PATTERN.test(choice.icon ?? '')) {
+          const iconElement = create('i', 'i3d-device-category-icon')
+          iconElement.setAttribute('aria-hidden', 'true')
+          const maskUrl = "url('" + MDI_SVG_ROOT + (choice.icon ?? '').slice(4) + ".svg')"
+          ;(iconElement.style.maskImage = maskUrl), (iconElement.style.webkitMaskImage = maskUrl)
+          topElement.append(iconElement)
+        }
+        topElement.append(
+          create('span', 'i3d-device-category-option-label' + (choice.wrapLabel ? ' is-wrapped' : ''), choice.label),
+        )
+        choice.id === selectedId && topElement.append(create('span', 'i3d-device-category-option-current', '当前'))
+        optionButton.append(topElement)
+        appendChoiceMeta(optionButton, choice, ownerDocument)
+        optionButton.addEventListener('click', async () => {
+          if (isClosed || isSelecting || choice.disabled) return
+          // 二次确认模式：点选只做「选中」，等用户按「确定添加」。
+          if (confirmSelection) {
+            pendingChoiceId = pendingChoiceId === choice.id ? '' : choice.id
+            errorElement.textContent = ''
+            syncConfirmState()
+            return
+          }
+          await commitSelection(choice.id)
+        })
+        optionRecords.push({ optionButton, disabled: optionButton.disabled })
+        optionsElement.append(optionButton)
+      }
+      sectionElement.append(optionsElement)
+      bodyElement.insertBefore(sectionElement, listAnchorElement)
+      sectionElements.push(sectionElement)
+    }
+    // 空态文案也归这里管：重建后可能从「有模型」变成「全加完了」。
+    optionRecords.length
+      ? emptyMessageElement?.remove()
+      : ((emptyMessageElement ||= create('p', 'i3d-note', emptyMessage)),
+        bodyElement.insertBefore(emptyMessageElement, listAnchorElement))
+    syncConfirmState()
+  }
+
+  /** 真正提交一次选择；二次确认模式下成功后**不关窗**，只清空选中并重建列表。 */
+  const commitSelection = async (choiceId: string) => {
+    if (isClosed || isSelecting) return
+    ;(isSelecting = true),
+      optionRecords.forEach((record) => {
+        record.optionButton.disabled = true
+      }),
+      (errorElement.textContent = '')
+    try {
+      await onSelect(choiceId)
+      if (isClosed) return
+      if (confirmSelection) {
+        pendingChoiceId = ''
+        renderSections(refreshSections ? refreshSections() : sections)
+      } else close()
+    } catch (selectError: unknown) {
+      isClosed ||
+        (errorElement.textContent = (selectError as { message?: string } | undefined)?.message || '选择失败，请重试。')
+    } finally {
+      ;(isSelecting = false),
+        isClosed ||
+          optionRecords.forEach((record) => {
+            record.optionButton.disabled = record.disabled
+          }),
+        isClosed || syncConfirmState()
+    }
+  }
+
+  renderSections(sections)
+  if (confirmButtonElement && confirmHintElement) {
+    const confirmRowElement = create('div', 'i3d-picker-confirm-row')
+    confirmButtonElement.type = 'button'
+    confirmButtonElement.addEventListener('click', () => void commitSelection(pendingChoiceId))
+    confirmRowElement.append(confirmHintElement, confirmButtonElement)
+    bodyElement.append(confirmRowElement)
+  }
+  syncConfirmState()
   dialogElement.append(headingElement, bodyElement),
     ownerDocument.body.append(dialogElement),
     dialogElement.addEventListener('cancel', (cancelEvent: Event) => {

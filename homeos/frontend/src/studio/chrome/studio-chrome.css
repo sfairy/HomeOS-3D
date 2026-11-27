@@ -344,14 +344,25 @@ html.editor-viewport-fit body {
 
 .editor-chrome-root .editor-shell {
   display: grid;
-  grid-template-columns: var(--sc-left, 260px) minmax(0, 1fr) var(--sc-right, 280px);
+  /* 0.9.0（与 0.8.9 相同）的固定三栏：250 | minmax(520, 1fr) | 250。
+     本项目的侧栏可拖动是增强，但**默认宽度必须等于上游**，否则右侧配置检查器
+     每行文字宽度、换行与分区高度整体偏移（实测 280 vs 250 = 每行差 30px）。 */
+  grid-template-columns: var(--sc-left, 250px) minmax(520px, 1fr) var(--sc-right, 250px);
   grid-template-areas: "nav workspace inspector";
   height: calc(100vh - var(--sc-header-height));
   height: calc(100dvh - var(--sc-header-height));
-  min-height: 480px;
-  min-width: 0;
+  min-height: 560px;
   overflow: hidden;
   background: var(--hos-bg-canvas);
+}
+
+/* 窄视口：与 0.9.0 `@media (max-width:1180px)` 一致 —— 三栏不再压缩，改为横向滚动。
+   上游是 `body,.editor-shell{min-width:1020px}` + `.editor-shell{overflow:visible}`。 */
+@media (max-width: 1180px) {
+  .editor-chrome-root .editor-shell {
+    min-width: 1020px;
+    overflow: visible;
+  }
 }
 
 /* 固定三区占位，避免某一列 display:none 后轨道重排 */
@@ -371,11 +382,11 @@ html.editor-viewport-fit body {
  * 使用 !important 压过后加载的 /static/app.css（page-assets 会在 Vite CSS 之后挂上）。
  */
 .editor-chrome-root.sc-shell--left-collapsed .editor-shell {
-  grid-template-columns: 0 minmax(0, 1fr) var(--sc-right, 280px) !important;
+  grid-template-columns: 0 minmax(520px, 1fr) var(--sc-right, 250px) !important;
 }
 
 .editor-chrome-root.sc-shell--right-collapsed .editor-shell {
-  grid-template-columns: var(--sc-left, 260px) minmax(0, 1fr) 0 !important;
+  grid-template-columns: var(--sc-left, 250px) minmax(520px, 1fr) 0 !important;
 }
 
 .editor-chrome-root.sc-shell--left-collapsed.sc-shell--right-collapsed .editor-shell {

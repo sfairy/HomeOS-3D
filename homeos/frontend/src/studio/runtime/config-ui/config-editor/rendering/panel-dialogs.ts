@@ -123,9 +123,135 @@ function currentConfigurationProgress(editorHost: AddDialogProgressHost) {
 }
 
 /**
+ * 扫地机的「添加」弹窗（0.9.0 `ADD BUTTON` 分支）。
+ *
+ * 与通用的「模型选择」（`MODEL SELECTION`）**不是同一个弹窗**，实测差异：
+ *
+ * | | 通用（灯光等） | 扫地机（本函数） |
+ * |---|---|---|
+ * | kicker | `MODEL SELECTION` | `ADD BUTTON` |
+ * | 标题 | `添加灯光` | `添加扫地机按钮` |
+ * | 模型行 | 一组选项卡（每个模型一张卡） | 一个 `关联扫地机模型` 下拉 |
+ * | 说明 | `…最后点击“保存配置”应用修改。` | `添加后可继续设置` + 换行 + `扫地机按钮，最后点击“保存配置”完成保存。` |
+ * | 确认 | 点卡片即加 | `确定添加` 按钮 |
+ *
+ * 扫地机的模型必须落到 `devices.vacuums`（带 floorId/modelId），所以这里只问「关联哪台」，
+ * 实体（清扫指令）留给面板的「指令实体」行 —— 与 0.9.0 一致。
+ */
+function openVacuumModelAddDialog(deps: PanelDialogsDeps, addDialogTriggerEvent: any = undefined) {
+  const { editorHost, createSelectRow, refreshEditorPreview, renderPanel, listAddableModels } = deps
+  const addableModels = listAddableModels() as ReadonlyArray<{ key: string; floor: { id: string }; group: any }>
+  const kindLabel = String(editorHost.kindLabel || '扫地机')
+  if (!addableModels.length) {
+    editorHost.errorMessageElement.textContent = '当前楼层没有可添加的' + kindLabel + '模型。'
+    return
+  }
+  void addDialogTriggerEvent
+  const dialogElement = editorHost.createElement('dialog', 'settings-dialog i3d-add-dialog'),
+    titleText = '添加' + kindLabel + '按钮'
+  dialogElement.setAttribute('aria-label', titleText)
+  const bodyElement = editorHost.createElement('div', 'i3d-add-dialog-body'),
+    errorElement = editorHost.createElement('p', 'i3d-error')
+  errorElement.setAttribute('role', 'status')
+  // 关卡：标题行（kicker / h2 / ×），与 `configuration-picker` 的 dialog-heading 同构。
+  const headingElement = editorHost.createElement('div', 'dialog-heading'),
+    headingTextElement = editorHost.createElement('div')
+  headingTextElement.append(
+    editorHost.createElement('span', 'i3d-picker-kicker', 'ADD BUTTON'),
+    editorHost.createElement('h2', '', titleText),
+  )
+  const closeButtonElement = editorHost.createButton('×', () => closeDialog())
+  closeButtonElement.className = 'icon-button'
+  closeButtonElement.setAttribute('aria-label', '关闭添加按钮窗口')
+  headingElement.append(headingTextElement, closeButtonElement)
+
+  const pickerRowHostElement = editorHost.createElement('div'),
+    modelOptions: Array<[string, string]> = addableModels.map((addableModelEntry) => [
+      addableModelEntry.key,
+      editorHost.describeItem(addableModelEntry.group),
+    ]),
+    modelSelectElement = createSelectRow(
+      pickerRowHostElement,
+      '关联' + kindLabel + '模型',
+      modelOptions,
+      modelOptions[0]?.[0] || '',
+      () => {},
+    )
+  void modelSelectElement
+  let isAdding = false
+  const performAdd = async () => {
+    if (isAdding) return
+    isAdding = true
+    confirmButtonElement.disabled = true
+    try {
+      await requestInteraction3dAccess2()
+      if (editorHost.isDisposed || !editorHost.isAccessAllowed) throw new Error('该配置已变更，请重新选择。')
+      const chosenOption = modelSelectElement.value,
+        chosenModel = addableModels.find((addableModelEntry) => addableModelEntry.key === chosenOption)
+      if (!chosenModel) throw new Error('该对象已添加或不再可用，请重新选择。')
+      const newItem = {
+        id: randomUuid2(),
+        floorId: chosenModel.floor.id,
+        [editorHost.modelIdKey]: chosenModel.group.id,
+        entityId: '',
+        label: editorHost.describeItem(chosenModel.group),
+        // 扫地机条目落在户型图上，默认放在模型自身坐标（0.9.0 同口径）。
+        x: chosenModel.group.x,
+        y: chosenModel.group.y,
+        height: chosenModel.group.height ?? 0.2,
+        icon: editorHost.defaultIcon,
+        clickAction: 'focus',
+      }
+      editorHost.getItemList().push(newItem)
+      editorHost.text = newItem.id
+      closeDialog()
+      renderPanel()
+      refreshEditorPreview()
+    } catch (addVacuumError: any) {
+      errorElement.textContent = addVacuumError?.message || String(addVacuumError)
+      confirmButtonElement.disabled = false
+    } finally {
+      isAdding = false
+    }
+  }
+  const confirmButtonElement = editorHost.createButton('确定添加', () => void performAdd())
+  confirmButtonElement.className = 'primary-action'
+  confirmButtonElement.type = 'button'
+  const cancelButtonElement = editorHost.createButton('取消', () => closeDialog())
+  cancelButtonElement.type = 'button'
+  const actionsElement = editorHost.createElement('div', 'dialog-actions')
+  actionsElement.append(cancelButtonElement, confirmButtonElement)
+  bodyElement.append(
+    pickerRowHostElement,
+    // 0.9.0 是**两段** `.i3d-note`（不是一段带换行）：`添加后可继续设置` 单独一行。
+    editorHost.createElement('p', 'i3d-note', '添加后可继续设置'),
+    editorHost.createElement('p', 'i3d-note', kindLabel + '按钮，最后点击“保存配置”完成保存。'),
+    errorElement,
+    actionsElement,
+  )
+  dialogElement.append(headingElement, bodyElement)
+  let isClosed = false
+  const closeDialog = () => {
+    if (isClosed) return
+    isClosed = true
+    ;(editorHost.addDialogState = null), dialogElement.close(), dialogElement.remove()
+  }
+  editorHost.addDialogState = dialogElement
+  dialogElement.addEventListener('cancel', (cancelEvent: any) => {
+    cancelEvent.preventDefault(), closeDialog()
+  })
+  document.body.append(dialogElement)
+  dialogElement.showModal()
+  confirmButtonElement.focus()
+}
+
+/**
  * 新增条目选择器（上游 `v475('add')`）：0.8.1 起不再是自建 `i3d-add-dialog`，
  * 改用统一的 `openConfigurationPicker`；已配置的模型留在列表里但禁用，
  * 失败的文案写回弹窗而不是关窗。
+ *
+ * 例外：**扫地机**仍走自建 `i3d-add-dialog`（0.9.0 的 `ADD BUTTON` 分支），
+ * 因为它的模型要落到 `devices.vacuums` 且只问「关联哪台」，见 `openVacuumModelAddDialog`。
  */
 export function openAddDialog(deps: PanelDialogsDeps, addDialogTriggerEvent: any = undefined) {
   // 只解构本函数用到的子集（解构全集会被 no-unused-vars 判红）。
@@ -141,6 +267,11 @@ export function openAddDialog(deps: PanelDialogsDeps, addDialogTriggerEvent: any
     return
   if (editorHost.isVacuumShortcutMode) {
     openVacuumRoomPicker(deps, addDialogTriggerEvent?.currentTarget || addDialogTriggerEvent?.target)
+    return
+  }
+  // 扫地机模型：0.9.0 用独立的 `ADD BUTTON` 弹窗（只问「关联哪台」）。
+  if (editorHost.isVacuumMode && editorHost.usesModelBinding) {
+    openVacuumModelAddDialog(deps, addDialogTriggerEvent)
     return
   }
   const addableModels = listAddableModels() as ReadonlyArray<{ key: string }>,
@@ -201,6 +332,41 @@ export function openAddDialog(deps: PanelDialogsDeps, addDialogTriggerEvent: any
     addGeneration = ++editorHost.pickerGeneration
   editorHost.pickerHandle?.close()
   let isAdding = false
+  /**
+   * 重建选项（二次确认提交后再算一次）。
+   *
+   * 必须把「可添加集合 / 已配置集合 / 模型列表」三样全部重算 —— 只重算禁用标记会留下
+   * 刚加进去的那条（用户会以为没加上，再点一次就撞上「已添加」的报错）。
+   */
+  const rebuildPickerChoices = () => {
+    const refreshedAddableKeys = new Set(
+        (listAddableModels() as ReadonlyArray<{ key: string }>).map((entry) => entry.key),
+      ),
+      refreshedConfiguredKeys = new Set(
+        (editorHost.getItemList() as ReadonlyArray<PickerChoiceRecord>).map((itemProbe) =>
+          JSON.stringify([itemProbe.floorId, itemProbe[editorHost.modelIdKey as string]]),
+        ),
+      ),
+      refreshedFloorModels = (
+        currentFloorRecord
+          ? (editorHost.usesModelBinding ? currentFloorRecord[editorHost.collectionKey] : currentFloorRecord.groups) ||
+            []
+          : []
+      ) as ReadonlyArray<PickerChoiceRecord>
+    return refreshedFloorModels.map((floorModelEntry) => {
+      const modelKey = JSON.stringify([currentFloorRecord?.id, floorModelEntry.id]),
+        isConfigured = refreshedConfiguredKeys.has(modelKey) || !refreshedAddableKeys.has(modelKey)
+      return {
+        id: modelKey,
+        label: editorHost.describeItem(floorModelEntry),
+        icon: floorModelEntry.icon || editorHost.defaultIcon,
+        wrapLabel: true,
+        disabled: isConfigured,
+        state: isConfigured ? ('configured' as const) : ('remaining' as const),
+        detail: isConfigured ? '已配置' : '未配置 · 点击选择',
+      }
+    })
+  }
   const pickerHandle = openConfigurationPicker({
     document: editorHost.editorDialogElement.ownerDocument,
     title: editorHost.isDeviceKind ? '添加设备' : '添加' + editorHost.kindLabel,
@@ -214,6 +380,10 @@ export function openAddDialog(deps: PanelDialogsDeps, addDialogTriggerEvent: any
     summary: currentConfigurationProgress(editorHost),
     controls: pickerControlsElement,
     emptyMessage: '本层没有' + pickerUnit + '，请先在 3D 户型图中添加。',
+    // 0.9.0 的「确定添加 + 添加后可继续设置」：点模型只是选中，确认后才加，
+    // 并且加完**不关窗** —— 一次配多件同层家具是最常见的操作。
+    confirmSelection: { label: '确定添加', hint: '添加后可继续设置' },
+    refreshSections: () => [{ options: rebuildPickerChoices() }],
     sections: [{ options: pickerChoices }],
     async onSelect(chosenModelKey: string) {
       if (
@@ -430,6 +600,9 @@ export function openCurtainGroupDialog(deps: PanelDialogsDeps, onCancel: any) {
           statusBodyElement.value,
           randomUuid2(),
         )
+        // 弹窗打开期间对方窗帘可能已被删除/改绑：`createCurtainGroup` 会抛错，
+        // 但「找不到那扇窗帘」要单独给一句明确的文案（0.9.0 原文）。
+        if (!trimmedStatusValues) throw new Error('该窗帘已变更，请重新选择。')
         ;(trimmedStatusValues.label = statusEntityInputElement.value.trim() || '双层窗帘'),
           (editorHost.structuredClone2.environment.curtainGroups = [
             ...editorHost.getCurtainGroupList(),

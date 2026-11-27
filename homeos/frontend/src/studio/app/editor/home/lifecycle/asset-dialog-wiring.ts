@@ -45,6 +45,7 @@ export function bindAssetDialogWiring(deps: Record<string, any>): void {
     mutateDocument,
     newId2,
     nextTemplateInstanceName2,
+    pageBackgroundAssetButtonElement,
     pageSelectElement,
     positionEffectAssetMenu,
     positionImageAssetMenu,
@@ -81,39 +82,65 @@ export function bindAssetDialogWiring(deps: Record<string, any>): void {
     value,
     writeError,
   } = deps
-  /* 图片 / 导图文件夹删除已迁 confirmAction（requestDeleteUserAsset / requestDeleteAssetFolder） */
-  imageAssetButtonElement.addEventListener('click', async () => {
-    const hidden13 = imageAssetMenuElement.hidden
-    if (
-      (closeOtherPickerMenus(hidden13 ? 'asset' : null),
-      (imageAssetMenuElement.hidden = !hidden13),
-      imageAssetButtonElement.setAttribute('aria-expanded', String(hidden13)),
-      hidden13)
-    ) {
-      try {
-        await reloadAssetCatalog({
-          refreshInspector: false,
-        }),
-          leftFolderName('image')
-      } catch (existingPopupModule: any) {
-        handleOperationError(existingPopupModule)
+  /**
+   * 把选中的资产写进**页面背景**组件（0.9.0 同一份拾取器、不同落点）。
+   *
+   * 只写 `assetId`，不改 `backgroundSource`：来源由检查器的「内置背景 / 图片」
+   * 分段按钮决定，选图入口本身只在来源为 `image` 时可见（与 0.9.0 的 `onSelect` 同口径）。
+   * 页面背景不需要 `fit` / 原始尺寸，所以返回 `true` 让调用方跳过图片控件的尺寸探测。
+   */
+  const applyPageBackgroundAssetId = (componentId: string, nextAssetId: string): boolean => {
+    const selectedComponent = findComponent2(editorCtx.activeProject?.document, componentId)?.component
+    if (selectedComponent?.type !== 'page-background') return false
+    if (selectedComponent.properties?.backgroundSource !== 'image') return true
+    mutateDocument((assetDraftDocument: any) => {
+      const backgroundComponent = findComponent2(assetDraftDocument, componentId)?.component
+      if (backgroundComponent?.type !== 'page-background') return
+      backgroundComponent.properties = {
+        ...(backgroundComponent.properties || {}),
+        assetId: nextAssetId,
       }
-      renderImageAssetOptions(imageAssetSearchInputElement.value),
-        positionImageAssetMenu(),
-        window.requestAnimationFrame(() => {
-          positionImageAssetMenu(),
-            imageAssetSearchInputElement.focus({
-              preventScroll: true,
-            })
-        })
+    })
+    return true
+  }
+  /* 图片 / 导图文件夹删除已迁 confirmAction（requestDeleteUserAsset / requestDeleteAssetFolder） */
+  /**
+   * 开 / 关图片资产拾取器。
+   *
+   * 抽成函数是为了两个锚点共用：图片检查器（`#image-asset-button`）与页面背景检查器
+   * （`#page-background-asset-button`）。0.9.0 里页面背景的「选择图片」用的就是同一个
+   * 资产列表，只是锚点换成背景检查器那一格。
+   */
+  const setImageAssetMenuOpen = async (anchorElement: any, open: boolean) => {
+    closeOtherPickerMenus(open ? 'asset' : null)
+    imageAssetMenuElement.hidden = !open
+    anchorElement.setAttribute('aria-expanded', String(open))
+    if (!open) return
+    try {
+      await reloadAssetCatalog({ refreshInspector: false })
+      leftFolderName('image')
+    } catch (existingPopupModule: any) {
+      handleOperationError(existingPopupModule)
     }
+    renderImageAssetOptions(imageAssetSearchInputElement.value)
+    positionImageAssetMenu(anchorElement)
+    window.requestAnimationFrame(() => {
+      positionImageAssetMenu(anchorElement)
+      imageAssetSearchInputElement.focus({ preventScroll: true })
+    })
+  }
+  imageAssetButtonElement.addEventListener('click', () => {
+    void setImageAssetMenuOpen(imageAssetButtonElement, imageAssetMenuElement.hidden)
+  })
+  pageBackgroundAssetButtonElement?.addEventListener('click', () => {
+    void setImageAssetMenuOpen(pageBackgroundAssetButtonElement, imageAssetMenuElement.hidden)
+  })
+  imageAssetFolderSelectElement.addEventListener('change', () => {
+    ;(editorCtx.imageAssetFolderState = imageAssetFolderSelectElement.value),
+      (imageAssetSearchInputElement.value = ''),
+      syncAssetFolderOptions('image'),
+      renderImageAssetOptions()
   }),
-    imageAssetFolderSelectElement.addEventListener('change', () => {
-      ;(editorCtx.imageAssetFolderState = imageAssetFolderSelectElement.value),
-        (imageAssetSearchInputElement.value = ''),
-        syncAssetFolderOptions('image'),
-        renderImageAssetOptions()
-    }),
     imageAssetSearchInputElement.addEventListener('input', () =>
       renderImageAssetOptions(imageAssetSearchInputElement.value),
     ),
@@ -137,6 +164,12 @@ export function bindAssetDialogWiring(deps: Record<string, any>): void {
       if ((hideAssetLargePreview(), closeOtherPickerMenus(), !assetId)) {
         mutateDocument((popupModuleMatch: any) => {
           const removedDeviceType = findComponent2(popupModuleMatch, popupModuleMatchState)?.component
+          // 页面背景（0.9.0）：只是清掉自己的 assetId，不动图片控件的 fit / 原始尺寸。
+          removedDeviceType?.type === 'page-background' &&
+            (removedDeviceType.properties = {
+              ...(removedDeviceType.properties || {}),
+              assetId: '',
+            })
           !removedDeviceType ||
             removedDeviceType.type !== 'image' ||
             ((removedDeviceType.properties = {
@@ -149,6 +182,7 @@ export function bindAssetDialogWiring(deps: Record<string, any>): void {
         })
         return
       }
+      if (applyPageBackgroundAssetId(popupModuleMatchState, assetId)) return
       const sn8 = findAssetById(assetId)
       if (sn8)
         try {
@@ -401,7 +435,10 @@ export function bindAssetDialogWiring(deps: Record<string, any>): void {
                                                     : deleteAssetFolderClosestElement.dataset.templateId ===
                                                         'event-log-wall'
                                                       ? '即时消息墙'
-                                                      : '图片',
+                                                      : deleteAssetFolderClosestElement.dataset.templateId ===
+                                                          'page-background'
+                                                        ? '页面背景'
+                                                        : '图片',
           scaleInputCaptureEventValue = nextTemplateInstanceName2(children2, popupActionTargetIdConfig),
           scaleInputValueState = createComponentFromTemplate2(deleteAssetFolderClosestElement.dataset.templateId, {
             id: scaleInputElements,

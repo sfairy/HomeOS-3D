@@ -13577,6 +13577,50 @@
       "flagship": false
     },
     {
+      "id": "smallcar-openings",
+      "itemTypes": [],
+      "name": "smallcar-openings",
+      "folder": "home/architecture",
+      "category": "home/architecture",
+      "mount": "floor",
+      "origin": "floor-center",
+      "size": [
+        2.19,
+        1.43,
+        5.01
+      ],
+      "sizeSource": "override",
+      "registrySize": [
+        2.19,
+        1.43,
+        5.01
+      ],
+      "topologyClass": "solid",
+      "materialFamily": "furniture",
+      "shading": "auto",
+      "animated": false,
+      "variants": [
+        "full"
+      ],
+      "triangleBudget": null,
+      "reference": {
+        "type": "asset",
+        "title": "与 car.glb 逐轴一致（±1.0958 × 1.4325 × ±2.51）",
+        "confidence": 0.95
+      },
+      "assumptions": [
+        {
+          "claim": "开合件与车身包围盒完全一致",
+          "basis": "AABB 逐轴比对 car.glb 完全相同，说明是同一份车身的可动件拆分",
+          "confidence": 0.95,
+          "risk": ""
+        }
+      ],
+      "exceptions": [],
+      "flagship": false,
+      "notes": "非可摆放模型：只由 vehicle 运行时挂载，节点 extras 带 vehicleOpening/openingAxis/openingAngle。"
+    },
+    {
       "id": "smart-display",
       "itemTypes": [
         "smart-display"
@@ -14725,6 +14769,50 @@
       "flagship": false
     },
     {
+      "id": "suv-openings",
+      "itemTypes": [],
+      "name": "suv-openings",
+      "folder": "home/architecture",
+      "category": "home/architecture",
+      "mount": "floor",
+      "origin": "floor-center",
+      "size": [
+        2.09,
+        1.73,
+        4.75
+      ],
+      "sizeSource": "override",
+      "registrySize": [
+        2.09,
+        1.73,
+        4.75
+      ],
+      "topologyClass": "solid",
+      "materialFamily": "furniture",
+      "shading": "auto",
+      "animated": false,
+      "variants": [
+        "full"
+      ],
+      "triangleBudget": null,
+      "reference": {
+        "type": "asset",
+        "title": "GLB 世界包围盒 2.085 × 1.733 × 4.754 m",
+        "confidence": 0.95
+      },
+      "assumptions": [
+        {
+          "claim": "开合件与越野车车身包围盒一致",
+          "basis": "AABB 与 suv-lite.glb 逐轴一致",
+          "confidence": 0.95,
+          "risk": ""
+        }
+      ],
+      "exceptions": [],
+      "flagship": false,
+      "notes": "非可摆放模型：只由 vehicle 运行时挂载，节点 extras 带 vehicleOpening/openingAxis/openingAngle。"
+    },
+    {
       "id": "switch-console",
       "itemTypes": [
         "switch-console"
@@ -14869,6 +14957,51 @@
       ],
       "exceptions": [],
       "flagship": false
+    },
+    {
+      "id": "tatami",
+      "itemTypes": [],
+      "name": "tatami",
+      "folder": "home/bedroom",
+      "category": "home/bedroom",
+      "mount": "floor",
+      "origin": "floor-center",
+      "size": [
+        2,
+        0.36,
+        2.1
+      ],
+      "sizeSource": "override",
+      "registrySize": [
+        2,
+        0.36,
+        2.1
+      ],
+      "topologyClass": "solid",
+      "materialFamily": "furniture",
+      "shading": "auto",
+      "animated": false,
+      "variants": [
+        "lite",
+        "full"
+      ],
+      "triangleBudget": null,
+      "reference": {
+        "type": "asset",
+        "title": "GLB 世界包围盒 2.000 × 0.360 × 2.100 m",
+        "confidence": 0.95
+      },
+      "assumptions": [
+        {
+          "claim": "有效外廓 2.000 × 0.360 × 2.100 m",
+          "basis": "原始 GLB 的 AABB；标准榻榻米两叠尺寸约 1.82 × 1.82m，本款 2.0×2.1 属加大规格",
+          "confidence": 0.9,
+          "risk": "尺寸不确定"
+        }
+      ],
+      "exceptions": [],
+      "flagship": false,
+      "notes": "0.9.0 新增模型；无注册表 scaleBasis，尺寸直接取资产包围盒。"
     },
     {
       "id": "tea-bar-machine",

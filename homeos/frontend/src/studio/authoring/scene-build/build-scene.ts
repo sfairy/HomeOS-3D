@@ -709,7 +709,19 @@ export function buildLayerGroup(
         (vu3.userData.environmentModelType = ['smallcar', 'suv', 'scooter'].includes(layerItem.type)
           ? 'smallcar'
           : layerItem.type),
-        (vu3.userData.environmentFloorId = runtime.appCtx.activeFloorId)),
+        (vu3.userData.environmentFloorId = runtime.appCtx.activeFloorId),
+        /*
+         * 0.9.0：开合件是车身的**子节点**（`mountCarOpeningParts` 挂进来的），
+         * 它们也要带同一个 (floorId, modelId) —— 运行时控制器靠这个键把「车」和「门」配成对。
+         * 不在这里同步的话，门会带着模板里那份空身份，永远匹配不上任何车辆绑定。
+         */
+        vu3.userData.hbCarOpeningParts &&
+          vu3.traverse((openingPartNode: any) => {
+            openingPartNode.userData?.vehicleOpening &&
+              ((openingPartNode.userData.environmentModelType = vu3.userData.environmentModelType),
+              (openingPartNode.userData.environmentModelId = vu3.userData.environmentModelId),
+              (openingPartNode.userData.environmentFloorId = vu3.userData.environmentFloorId))
+          })),
       vu3.position.set(world.x, layerItem.elevation || 0, world.z),
       applyItemOrientation(vu3, layerItem),
       /*
@@ -1587,7 +1599,15 @@ export function buildStudioScene(deps: BuildStudioSceneDeps, { preserveLightCach
         (vu2.userData.environmentModelType = ['smallcar', 'suv', 'scooter'].includes(placedItem.type)
           ? 'smallcar'
           : placedItem.type),
-        (vu2.userData.environmentFloorId = appCtx.activeFloorId)),
+        (vu2.userData.environmentFloorId = appCtx.activeFloorId),
+        // 0.9.0：开合件子节点同步同一身份（见上一处同名注释）。
+        vu2.userData.hbCarOpeningParts &&
+          vu2.traverse((openingPartNode: any) => {
+            openingPartNode.userData?.vehicleOpening &&
+              ((openingPartNode.userData.environmentModelType = vu2.userData.environmentModelType),
+              (openingPartNode.userData.environmentModelId = vu2.userData.environmentModelId),
+              (openingPartNode.userData.environmentFloorId = vu2.userData.environmentFloorId))
+          })),
       vu2.position.set(placedItemWorldPoint.x, placedItem.elevation || 0, placedItemWorldPoint.z),
       applyItemOrientation(vu2, placedItem),
       (vu2.userData.modelLayer = lampItemTypeSet.has(placedItem.type) ? 'lights' : 'items'),

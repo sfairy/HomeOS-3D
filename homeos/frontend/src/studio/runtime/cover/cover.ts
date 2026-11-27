@@ -11,6 +11,7 @@ import { applyRangeProgressCss } from '@app/shared/util/range-progress'
 import { createStageDeviceVisual } from '../core/stage-device-visual'
 import { createPopupFeedback } from '@app/shared/util/popup-feedback'
 import { attributesOf, haNumber } from '../device/device'
+import { doorContactMismatchNotice, doorPanelTitle } from './door-panel-state'
 
 /**
  * 三次 Hermite 切线缓动（两端切线为 0，等价 smoothstep）。
@@ -1815,6 +1816,9 @@ export function createCoverPanel({
   // 开窗器的状态提示（关联窗扇缺失 / 行程未知等），由舞台随载荷下发 `windowNotice`。
   const windowNoticeElement = createElement('p', 'i3d-note i3d-window-opener-notice')
   windowNoticeElement.hidden = true
+  // 开门器与门磁读数矛盾时的提示（0.9.0）；没有矛盾就整行收起。
+  const doorContactNoticeElement = createElement('p', 'i3d-note i3d-door-contact-notice')
+  doorContactNoticeElement.hidden = true
   const feedbackElement = createElement('p', 'i3d-cover-feedback')
   ;(feedbackElement.hidden = true),
     feedbackElement.setAttribute('role', 'status'),
@@ -1836,6 +1840,7 @@ export function createCoverPanel({
     bladeHintElement,
     controlsSlotElement,
     windowNoticeElement,
+    doorContactNoticeElement,
     feedbackElement,
     extrasPanelElement,
   ),
@@ -1975,7 +1980,15 @@ export function createCoverPanel({
         instanceId === instanceAtSend &&
         ticketCounter === ticket &&
         (clearPendingIntent(),
-        (errorText = error?.message || (viewModel.item?.airer ? '晾衣架控制失败，请重试。' : '窗帘控制失败，请重试。')),
+        (errorText =
+          error?.message ||
+          // 0.9.0 按设备类型分开三条：门窗是「开门器控制失败」，升降是「晾衣架」，
+          // 其余归到「窗帘」。混用会让门机用户以为是窗帘配错了。
+          (viewModel.item?.airer
+            ? '晾衣架控制失败，请重试。'
+            : viewModel.item?.doorOpener === true
+              ? '开门器控制失败，请重试。'
+              : '窗帘控制失败，请重试。')),
         render())
     } finally {
       !isDisposed &&
@@ -2161,6 +2174,58 @@ export function createCoverPanel({
     const isDreamCover = viewModel.item?.coverKind === 'dream',
       isAirerItem = viewModel.item?.airer,
       isWindowOpenerItem = viewModel.item?.windowOpener === true,
+      /*
+       * 门面板（0.9.0）：门机常不回报位置，所以文案要同时表达「开没开」「开度知不知道」
+       * 「指令受理没受理」「开门器能不能用」。判定与文案都在 `door-panel-state.ts`，
+       * 这里只负责把面板现有数据喂给它。
+       */
+      isDoorOpenerItem = viewModel.item?.doorOpener === true,
+      doorRawState = (deviceState as any)?.state as string | undefined,
+      /**
+       * 门磁读数（三态）：按 `contactEntityIds` 依次找第一个有读数的实体。
+       *
+       * `binary_sensor` 的 `on` / `off` 与 `switch` 同构；门磁整体实体常见是
+       * `door`/`garage_door` 域（`open`/`closed`）。两套都要认，否则「只在安防配了门磁」
+       * 的门会永远显示「未确认」。
+       */
+      doorContactOpen = (() => {
+        const contactEntityIds: string[] = viewModel.item?.contactEntityIds || []
+        for (const contactEntityId of contactEntityIds) {
+          const contactState = viewModel.states?.[contactEntityId]
+          const normalizedContactState = String(contactState?.state ?? '')
+            .trim()
+            .toLowerCase()
+          if (!normalizedContactState || contactState?.available === false) continue
+          if (['on', 'open', 'opening', 'detected'].includes(normalizedContactState)) return true
+          if (['off', 'closed', 'closing', 'clear'].includes(normalizedContactState)) return false
+        }
+        return null
+      })(),
+      doorOpenFromPosition =
+        deviceState.position === null
+          ? doorRawState === 'open' || doorRawState === 'opening'
+            ? true
+            : doorRawState === 'closed' || doorRawState === 'closing'
+              ? false
+              : null
+          : (deviceState.position as number) > 0,
+      doorPanelInput = {
+        doorOpen: doorOpenFromPosition,
+        // 门机只有 `cover` 域才给百分比；`switch` 门机只知道开/关。
+        positionKnown: deviceState.position !== null,
+        openerAvailable: deviceState.available,
+        // 0.9.0 把「门没配好」与「开关实体掉线」分成两档文案：
+        // 前者是 `门已打开 · 开门器不可用`，后者在标题后追加 ` · 开关不可用`。
+        switchAvailable: deviceState.available,
+        waitingForReset: (deviceState as any)?.momentarySwitch?.waitingForReset === true,
+        // 面板已经在用 `pendingIntent` 表达「指令已下发、等回报」。
+        awaitingReport: !!pendingIntent && !pendingIntent.confirmed,
+        momentary: viewModel.item?.switchMode === 'momentary',
+        targetPosition: pendingIntent?.target ?? null,
+        // 门磁读数：`doorPanelLabel` 用 `doorOpen`（开门器/门机自报），这里单独带一份给
+        // 「不一致」判定用 —— 两者语义不同，混用会让「门已打开 · 开度未知」误报。
+        contactOpen: doorContactOpen,
+      } as const,
       // 「部分开启」只看设备实际回报的位置：设备刚报 全开/100 时，本地位置还在做收尾平滑动画，
       // 拿动画中的中间值判断会让卡片先闪一下「整体部分开启」再跳「整体已开启」。
       railReportedPosition = deviceState.position ?? presentation.position,
@@ -2179,6 +2244,9 @@ export function createCoverPanel({
       editing: !!viewModel.editing,
     })
     rootElement.classList.toggle('is-dream', isDreamCover),
+      // 0.9.0：门面板单独一个状态类，供 `cover-panel.css` 把动作区从「三等分」改成
+      // 「按按钮数量均分」（门只有开/关两态，停止是可选）。
+      rootElement.classList.toggle('is-door-opener', isDoorOpenerItem),
       (bladeHintElement.hidden = !isDreamCover),
       isDreamCover &&
         !viewModel.editing &&
@@ -2224,6 +2292,9 @@ export function createCoverPanel({
         deviceState.available &&
         (statusElement.textContent =
           deviceState.state === 'unknown' ? '开窗状态未知' : coverStateLabel(deviceState.state)),
+      // 门面板：六条中间态（已发送 · 等待门磁回报 / 门已打开 · 开度未知 / 开门器不可用…）
+      // 由纯函数给文案；这里只贴上去。优先级与「 · 开关不可用」后缀都在纯函数里定好。
+      isDoorOpenerItem && !viewModel.editing && (statusElement.textContent = doorPanelTitle(doorPanelInput)),
       // 0.8.9：把「升降位置未知 / 指令受理状态」合成一处覆盖 —— 两条都是**覆盖普通状态**
       // 的高优先级文案，拆成两条 `&&` 链会把 render 的圈复杂度推过门禁阈值。
       !viewModel.editing &&
@@ -2297,6 +2368,16 @@ export function createCoverPanel({
     // 开窗器：舞台在载荷里带 `windowNotice`（关联窗扇缺失 / 行程不可知）；没有就整行收起。
     ;(windowNoticeElement.textContent = (viewModel.item?.windowOpener && viewModel.windowNotice) || ''),
       (windowNoticeElement.hidden = !windowNoticeElement.textContent),
+      // 开门器与门磁两组读数都明确且矛盾时才提示（0.9.0）。
+      (doorContactNoticeElement.textContent =
+        (isDoorOpenerItem &&
+          doorContactMismatchNotice(
+            doorPanelInput.doorOpen,
+            doorPanelInput.contactOpen ?? null,
+            doorPanelInput.momentary && doorPanelInput.waitingForReset,
+          )) ||
+        ''),
+      (doorContactNoticeElement.hidden = !doorContactNoticeElement.textContent),
       // 位置来自「记忆值」而不是设备回报时，滑杆标成 is-remembered（0.8.4），
       // 用户能一眼看出这是上次停的位置、不是实时读数。
       positionOutputElement.classList.toggle('is-remembered', rememberedPosition !== null),
@@ -2337,11 +2418,12 @@ export function createCoverPanel({
         !presentation.moving &&
         (statusElement.textContent = '在线'),
       (bladeHintElement.textContent = '叶片角度'),
+      // 0.9.0 删掉了「关闭到位后可调节叶片」：叶片能不能调已经由按钮禁用态与
+      // 状态行说明，再挂一句只在「已关闭且能调」时出现的 title 反而像提示缺失。
+      // 只剩「设备不回报整体状态」这一种需要额外解释的情形。
       (positionSliderElement.title =
-        isDreamCover && !viewModel.editing && deviceState.available
-          ? deviceState.overallFeedbackAvailable
-            ? '关闭到位后可调节叶片'
-            : '暂不可调节叶片'
+        isDreamCover && !viewModel.editing && deviceState.available && !deviceState.overallFeedbackAvailable
+          ? '暂不可调节叶片'
           : '')
     for (const { button: actionButton, service: actionService, capability: capability } of actionButtons) {
       ;(actionButton.children[0].textContent =
@@ -2949,6 +3031,120 @@ export function coverControl(coverDevice: any, serviceName: any, targetPosition:
     service: serviceName,
     data: serviceData,
   }
+}
+
+/* ------------------------------------------------------------------------- *
+ * 开门器（0.9.0 `cover-state.js` 的 `doorOpener` 分支）
+ *
+ * 门机和窗帘共用一套「开/关/停」心智，但有两个硬差异：
+ *
+ * 1. **点动型（momentary）**：发一次脉冲，开关随即自动复位。因此只能开门，
+ *    且在「等待复位」期间禁止再发（否则会在门还动着时反向触发）。
+ * 2. **开关极性**：`switchOpenState` 决定「开」对应 `turn_on` 还是 `turn_off`，
+ *    因为有些门机接线是低电平有效。
+ *
+ * 门磁（contact）与开门器是**两套来源**：开门器负责控制，门磁负责确认。
+ * 所以 `doorSwitchState` 的 `contactOpen` 只做展示，不参与「能不能发指令」。
+ * ------------------------------------------------------------------------- */
+
+/** 开门器的两种实体形态。
+
+- `switch`：门机只提供「开关」两态（多数车库门 / 卷帘门厂家的做法），多一个
+  `switchMode`（保持型 / 点动型）与 `switchOpenState` 极性；
+- `cover`：门机本身就是 `cover.*`（能报位置/行程），此时不需要开关方式，
+  直接按 `open_cover` / `close_cover` / `set_cover_position` 控制。
+
+上游文案是「选择可动门模型，再绑定 cover 或 switch 实体」—— 两种都要认。
+ */
+export type DoorOpenerDomain = 'switch' | 'cover'
+
+/** 该绑定是哪种实体形态；返回 `null` 表示既不是 switch 也不是 cover。 */
+export function doorOpenerDomain(binding: any): DoorOpenerDomain | null {
+  const entityId = typeof binding?.entityId === 'string' ? binding.entityId : ''
+  return entityId.startsWith('switch.') ? 'switch' : entityId.startsWith('cover.') ? 'cover' : null
+}
+
+/** 开门器可用：`switch` 或 `cover` 域，且不属于其它控件。 */
+export function isDoorSwitch(binding: any): boolean {
+  return doorOpenerDomain(binding) !== null
+}
+
+export type DoorSwitchState = {
+  /** 实体在线且状态可用。 */
+  available: boolean
+  /** 实体形态：`switch`（两态 + 开关方式）或 `cover`（有位置/行程）。 */
+  domain: DoorOpenerDomain
+  /** 点动型：脉冲触发、开关自动复位。`cover` 恒为 `false`。 */
+  momentary: boolean
+  /** 后端下发的脉冲状态（`momentarySwitch`），仅点动型存在。 */
+  pulse: any
+  /** 可以发指令：在线，且点动型不在「等待复位」。 */
+  ready: boolean
+  /** 门磁确认的「已打开」。 */
+  on: boolean
+  /** 门磁原始态；`null` 表示没有门磁或未匹配。 */
+  contactOpen: boolean | null
+  name: string
+}
+
+/**
+ * 开门器 + 门磁的合并读数。
+ *
+ * `switch` 与 `cover` 的可用判定不同：
+ * - `switch`：状态必须是 `on` / `off`；
+ * - `cover`：`open` / `closed` / `opening` / `closing` / `stopped` 都算可用
+ *   （门机正在动时也要能停下）。
+ *
+ * @param contactOpen 门磁读数（三态），没有门磁时传 `null`
+ */
+export function doorSwitchState(binding: any, stateChange: any, contactOpen: boolean | null = null): DoorSwitchState {
+  const domain = doorOpenerDomain(binding) ?? 'switch',
+    entityState = stateChange?.newState || stateChange || {},
+    normalizedState = String(entityState.state ?? '')
+      .trim()
+      .toLowerCase(),
+    // cover 域的合法状态比 switch 宽一档：正在开合时也要允许「停止」。
+    available =
+      doorOpenerDomain(binding) !== null &&
+      entityState.available !== false &&
+      (domain === 'cover'
+        ? ['open', 'closed', 'opening', 'closing', 'stopped'].includes(normalizedState)
+        : ['on', 'off'].includes(normalizedState)),
+    momentary = domain === 'switch' && binding?.switchMode === 'momentary',
+    pulse = momentary ? entityState.momentarySwitch : null
+  return {
+    available,
+    domain,
+    momentary,
+    pulse,
+    // 点动型在等待复位期间必须禁用：门还在动，再发一次会反向。
+    ready: available && (!momentary || !pulse?.waitingForReset),
+    on: contactOpen === true,
+    contactOpen: contactOpen ?? null,
+    name: String(entityState.attributes?.friendly_name || binding?.entityId || '开门器'),
+  }
+}
+
+/** 开门器「开 / 关」的服务调用。 */
+export function doorSwitchControl(
+  binding: any,
+  switchStatus: Pick<DoorSwitchState, 'ready' | 'momentary' | 'domain'>,
+  serviceName: string,
+): { entityId: any; domain: DoorOpenerDomain; service: string; data: Record<string, unknown> } {
+  if (!switchStatus?.ready) throw new Error('开门器开关暂不可用。')
+  // cover 域直接复用窗帘那套服务名：open/close 的语义是固定的，不做极性换算。
+  if (switchStatus.domain === 'cover') {
+    if (!['open_cover', 'close_cover', 'stop_cover', 'set_cover_position'].includes(serviceName))
+      throw new Error('开门器不支持此操作。')
+    return { entityId: binding?.entityId, domain: 'cover', service: serviceName, data: {} }
+  }
+  // 点动型只能开门：关门需要「再脉冲一次」的语义，而点动开关复位前的第二次触发会被后端拒绝。
+  if (serviceName !== 'open_cover' && (switchStatus.momentary || serviceName !== 'close_cover'))
+    throw new Error('开门器不支持此操作。')
+  const isOpenCommand = serviceName === 'open_cover',
+    // `switchOpenState === 'off'` 表示低电平有效：开门对应 turn_off，关门对应 turn_on。
+    service = switchStatus.momentary || isOpenCommand === (binding?.switchOpenState !== 'off') ? 'turn_on' : 'turn_off'
+  return { entityId: binding?.entityId, domain: 'switch', service, data: {} }
 }
 
 const {

@@ -49,6 +49,9 @@ export const useLayoutStore = defineStore('layout', () => {
     const { profileId } = await resolveActiveProfileId(routeQueryProfile)
     if (token !== activeProfileResolveToken) return
     if (activeProfileId.value !== profileId) {
+      // 换方案会整份重拉布局：先把未保存改动写成**旧方案的**草稿，
+      // 否则这次跳转会把用户刚改的布局静默丢掉（旧实现只有设置页那条路径会提醒）。
+      await saveDraft()
       activeProfileId.value = profileId
       isConfigLoaded.value = false
     }
@@ -84,8 +87,18 @@ export const useLayoutStore = defineStore('layout', () => {
     notify(`${fallbackMsg}: ${message}`, 'error')
   }
 
+  // 未保存草稿切片：localStorage 抢救式持久化（beforeunload 钩子 + 载入后询问恢复），
+  // 按用户 + 方案隔离，保存成功后清除。必须在 persistence 之前创建：
+  // `onAfterLoad` 需要用它询问「是否恢复上次未保存的修改」。
+  const { saveDraft, maybeRestoreDraft, clearDraft, clearDraftFor, clearAllDrafts } = createLayoutDraftState({
+    layoutConfig,
+    layoutDirty,
+    activeProfileId,
+    setSuppressDirtyTracking,
+  })
+
   // 布局加载/保存切片：loadConfig（防抖 + 竞态保护 + 默认值合并）、saveConfig（HA URL 校验 + 并发 coalesce）
-  const { loadConfig, saveConfig, saveLayout } = createLayoutPersistence({
+  const { loadConfig, saveConfig } = createLayoutPersistence({
     layoutConfig,
     layoutDirty,
     activeProfileId,
@@ -93,7 +106,15 @@ export const useLayoutStore = defineStore('layout', () => {
     isConfigLoading,
     notify,
     setSuppressDirtyTracking,
-    onAfterLoad: () => maybeActivateProfileHomeMode(),
+    preserveUnsavedDraft: saveDraft,
+    onAfterLoad: () => {
+      maybeActivateProfileHomeMode()
+      // 草稿询问放在载入完成之后：此时 layoutConfig 已是服务端最新值，
+      // 「草稿是否与服务端一致」才有意义（一致就直接丢弃，不打扰用户）。
+      void maybeRestoreDraft().catch((err: unknown) => {
+        logger.warn(`恢复布局草稿失败: ${err instanceof Error ? err.message : String(err)}`)
+      })
+    },
   })
 
   // 布局方案 CRUD 与切换切片：拉取列表 / 创建 / 删除 / 切换，切换后按绑定激活家庭模式
@@ -114,11 +135,7 @@ export const useLayoutStore = defineStore('layout', () => {
     loadConfig,
   })
 
-  // 未保存草稿切片：localStorage 抢救式持久化（beforeunload 钩子），刷新/崩溃后可恢复
-  const { saveDraft, loadDraft, clearDraft } = createLayoutDraftState({
-    layoutConfig,
-    layoutDirty,
-  })
+  // 未保存草稿切片在上面创建（onAfterLoad 需要它），这里不再重复创建。
 
   // 编辑模式行为切片：进入/退出、放置实体控制、退出确认（脏数据时拦截）
   const {
@@ -165,6 +182,9 @@ export const useLayoutStore = defineStore('layout', () => {
       Object.assign(layoutConfig, baseline)
       applyTabletDefaultPerformanceMode(layoutConfig)
       layoutDirty.value = false
+      // 基线换了（导入备份 / 回到历史快照），旧草稿已不代表「未保存的改动」：
+      // 留着它会让下次载入把导入前的旧布局当成「可恢复的未保存修改」提出来。
+      clearDraft()
     } finally {
       nextTick(() => {
         setSuppressDirtyTracking(false)
@@ -187,10 +207,48 @@ export const useLayoutStore = defineStore('layout', () => {
   }
 
   /**
+   * 保存布局，并在成功后清掉本地方案草稿。
+   *
+   * 草稿是「异常退出」的兜底；保存成功却不清草稿，下一次进入会拿一份旧内容
+   * 询问「是否恢复未保存修改」，用户点恢复就等于把刚存的新内容覆盖回旧的。
+   * 保存期间又发生编辑时 `layoutDirty` 仍为 true（见 save-store 的同名场景），
+   * 这时必须**保留**草稿，不能清。
+   *
+   * @param silent 是否静默成功（不弹成功 Toast）
+   * @returns 是否保存成功
+   */
+  async function saveConfigAndClearDraft(silent = false): Promise<boolean> {
+    const ok = await saveConfig(silent)
+    if (ok && !layoutDirty.value) clearDraft()
+    return ok
+  }
+
+  /**
+   * 切换显示方案：先把当前未保存的改动写成草稿，再加载目标方案。
+   *
+   * `switchProfile` 会整份重拉布局，未保存改动本来会**静默丢失**（设置页的确认框
+   * 只是告知，不会保存）。写成草稿后，用户切回该方案时会被询问是否恢复，
+   * 这条路径与「意外关闭页面」共用同一份兜底。
+   */
+  async function switchProfileWithDraft(id: string): Promise<void> {
+    await saveDraft()
+    await switchProfile(id)
+  }
+
+  /** 删除方案：连同该方案的本地草稿一起清掉（否则 localStorage 里会留下读不到的整份布局）。 */
+  async function deleteProfileAndDraft(id: string): Promise<boolean> {
+    const deleted = await deleteProfile(id)
+    if (deleted) clearDraftFor(id)
+    return deleted
+  }
+
+  /**
    * 认证变更（登出 / 401）时重置布局域状态：
    * 清空方案列表与编辑历史、核心状态回默认，避免下一个会话读取到上一个用户的布局与方案。
+   * 草稿也要清：按用户隔离的 key 虽然不会串号，但上一账号的整份布局没有理由留在本机。
    */
   function resetForAuthChange(): void {
+    clearAllDrafts()
     resetCoreState()
     availableProfiles.value = []
     clearEditHistory()
@@ -216,16 +274,15 @@ export const useLayoutStore = defineStore('layout', () => {
     updateFloatingWidget,
     removeFloatingWidget,
     loadConfig,
-    saveConfig,
-    saveLayout,
+    saveConfig: saveConfigAndClearDraft,
+    saveLayout: saveConfigAndClearDraft,
     revertLayoutConfig,
     fetchProfiles,
     createProfile,
-    deleteProfile,
-    switchProfile,
+    deleteProfile: deleteProfileAndDraft,
+    switchProfile: switchProfileWithDraft,
     availableProfiles,
     saveDraft,
-    loadDraft,
     clearDraft,
     pushEditHistory,
     undoEdit,

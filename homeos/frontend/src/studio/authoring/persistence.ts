@@ -18,10 +18,16 @@ import {
 } from '@app/shared/scene/window/window-deletion'
 import { syncCourtyardGates as syncCourtyardGates2 } from './plan/courtyard-drawing'
 import { navigateInShell } from '@/studio/platform/shell-navigation'
+import { urlFlag } from './render-kit/url-flags'
 import { shellNotify } from '@/studio/platform/shell-chrome'
 import { patchStudioFacadeState, getStudioFacadeState } from '@/studio/engine/studio-facade'
 import { resolveInteractionCleanup } from './ui/studio-interaction-cleanup'
-import { StudioSaveStore, type FlushResult, type SaveStoreState } from '@/studio/authoring/store/save-store'
+import {
+  StudioSaveStore,
+  facadeDirtyForSaveState,
+  type FlushResult,
+  type SaveStoreState,
+} from '@/studio/authoring/store/save-store'
 import { type SceneSyncOutcome } from '@/studio/authoring/store/scene-sync-controller'
 import { applyDocumentPatch, canApplyDocumentPatch, type DocumentPatch } from '@/studio/authoring/store/document-store'
 import { diffDocumentPatches, describeDocumentPatch } from '@/studio/authoring/store/document-diff'
@@ -692,8 +698,12 @@ export function showSaveState(runtime: StudioAppRuntime, saveStateText: any, sav
           : saveStateText?.includes?.('未保存') || saveStateKind === 'saving'
             ? 'dirty'
             : 'idle'
+  // 脏状态必须以文档 store 为准，不能从文案 kind 反推：
+  // 失败 / 冲突 / 离线 / 待确认都显示 `error`，但本地改动仍在（dirty=true）。
+  // 旧实现把 `error` 映射成 dirty=false，顶栏圆点和「离开户型绘制」守卫都会误判成
+  // 「没有未保存修改」，用户直接离开就会丢掉这批没存上的内容。
   patchStudioFacadeState({
-    dirty: mapped === 'dirty' || mapped === 'saving',
+    dirty: facadeDirtyForSaveState(runtime.studioDocumentStore?.isDirty() === true, mapped),
     saveState: mapped as any,
     history: {
       canUndo: runtime.historyUndoDepth() > 0,
@@ -1203,6 +1213,8 @@ export function flushPendingHistory(runtime: StudioAppRuntime) {
  */
 
 type NearbyUpgradeRuntime = {
+  /** 嵌入舞台（仪表盘里的 3D）走「近场升级」；编辑器否则走「全量升级」。 */
+  isEmbeddedStage?: boolean
   appCtx: {
     selectedItems?: unknown[]
     scheduleNearbyModelUpgrades?: (() => void) | null
@@ -1216,11 +1228,26 @@ type NearbyUpgradeRuntime = {
       maxUpgrades: number
       focusTypes: string[]
     }) => Promise<string[] | void> | undefined
+    /** 编辑器：把场景里用到的模型全部升 full（分批）。 */
+    upgradeAllModelsInScene?: (opts?: {
+      root?: unknown
+      batchSize?: number
+      isStillWanted?: () => boolean
+    }) => Promise<string[] | void> | undefined
   }
   requestSceneRebuild?: (opts: { force: boolean; externalModelsOnly: boolean; scope: string }) => void
 }
 
-/** 绑定近场升级调度；idle 时跑一轮，并把同一函数挂到 appCtx 供运动静止后复用。 */
+/**
+ * 绑定模型变体升级调度；并把同一函数挂到 appCtx 供「运动静止后」复用。
+ *
+ * 两种口径，取决于跑在哪：
+ * - **嵌入舞台**（仪表盘的 3D 面板）：`lite` 优先，等相机靠近 / 聚焦再升 full。
+ *   用户是「看状态」不是「挑细节」，而且在几十个组件同屏时要省内存。
+ * - **编辑器**：直接全量升 full。俯瞰全屋时相机离家具普遍 >4m，「近场」几乎永不触发，
+ *   结果就是编辑时一直看低模（边缘是折线段）—— 用户会以为是被改糊了。
+ *   编辑器是「看清楚再动手」的场景，分批升（每轮 3 个）换取不吃掉交互帧。
+ */
 export function scheduleNearbyModelUpgradesAfterReady(params: {
   runtime: NearbyUpgradeRuntime
   isSceneStable: () => boolean
@@ -1228,12 +1255,40 @@ export function scheduleNearbyModelUpgradesAfterReady(params: {
   sceneRoot: unknown
 }): void {
   const { runtime, isSceneStable, camera, sceneRoot } = params
+  const registry = runtime.externalModelRegistry
+  // `?models=full` / `?models=lite` 强制两档：调画质时不必改代码（与 `?dpr-cap` 同风格）。
+  const modelsFlag = (urlFlag('models') || '').toLowerCase()
+  const isEditorMode = modelsFlag === 'full' || (modelsFlag !== 'lite' && runtime.isEmbeddedStage !== true)
+  const idleCycle = (callback: () => void) => {
+    const idleWindow = globalThis.window as Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number
+    }
+    if (typeof idleWindow?.requestIdleCallback === 'function')
+      idleWindow.requestIdleCallback(callback, { timeout: 4000 })
+    else globalThis.window?.setTimeout?.(callback, 400)
+  }
+  const rebuildItems = () => runtime.requestSceneRebuild?.({ force: true, externalModelsOnly: true, scope: 'items' })
+
+  /** 编辑器：一轮升几个，没有新的就停；期间场景变了（重新构建）也停。 */
+  const upgradeEditorModels = () => {
+    if (!isSceneStable()) return
+    registry
+      ?.upgradeAllModelsInScene?.({ root: sceneRoot, batchSize: 3, isStillWanted: isSceneStable })
+      ?.then?.((upgraded: string[] | void) => {
+        if (!upgraded?.length) return
+        rebuildItems()
+        // 还有剩的就继续下一轮 idle；`isSceneStable` 会在重建期间返回 false，自动收口。
+        idleCycle(upgradeEditorModels)
+      })
+  }
+
   const scheduleNearbyUpgrades = () => {
     if (!isSceneStable()) return
+    if (isEditorMode) return upgradeEditorModels()
     const focusTypes = (runtime.appCtx.selectedItems || [])
-      .map((item) => runtime.externalModelRegistry?.modelTypeForItem?.(item))
+      .map((item) => registry?.modelTypeForItem?.(item))
       .filter(Boolean) as string[]
-    runtime.externalModelRegistry
+    registry
       ?.upgradeModelsNearCamera?.({
         camera,
         root: sceneRoot,
@@ -1242,21 +1297,9 @@ export function scheduleNearbyModelUpgradesAfterReady(params: {
         focusTypes,
       })
       ?.then?.((upgraded: string[] | void) => {
-        upgraded?.length &&
-          runtime.requestSceneRebuild?.({
-            force: true,
-            externalModelsOnly: true,
-            scope: 'items',
-          })
+        upgraded?.length && rebuildItems()
       })
   }
-  const idleWindow = globalThis.window as Window & {
-    requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number
-  }
-  if (typeof idleWindow?.requestIdleCallback === 'function') {
-    idleWindow.requestIdleCallback(scheduleNearbyUpgrades, { timeout: 4000 })
-  } else {
-    globalThis.window?.setTimeout?.(scheduleNearbyUpgrades, 400)
-  }
+  idleCycle(scheduleNearbyUpgrades)
   runtime.appCtx.scheduleNearbyModelUpgrades = scheduleNearbyUpgrades
 }

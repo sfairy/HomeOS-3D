@@ -99,21 +99,26 @@ export function componentLabel(component: any) {
                                               ? '图标按钮（效果）'
                                               : component.type === 'group'
                                                 ? '组合'
-                                                : component.type,
+                                                : component.type === 'page-background'
+                                                  ? '页面背景'
+                                                  : component.type,
     instanceName = component.properties?.instanceName,
     instanceNameMatch =
       component.type === 'light-statistics'
         ? /^(?:灯光统计|开灯统计)(_副本\d*)?$/.exec(String(instanceName || ''))
         : null,
-    computedLabel =
-      component.type === 'light-statistics' && instanceName === '图片'
-        ? typeLabel
-        : instanceNameMatch
-          ? '' + typeLabel + (instanceNameMatch[1] || '')
-          : (component.type === 'vacuum-map' && instanceName === '扫地机地图') ||
-              (component.type === 'camera' && instanceName === '摄像头画面')
-            ? typeLabel
-            : instanceName
+    // `图片` 是 0.9.0 早期把页面背景当图片模板时的残留名：显示成「图片」会让用户
+    // 以为添加的是图片控件，所以和数量统计一样在标签层兜回来（不改文档）。
+    hasStaleImageInstanceName =
+      (component.type === 'light-statistics' || component.type === 'page-background') && instanceName === '图片',
+    computedLabel = hasStaleImageInstanceName
+      ? typeLabel
+      : instanceNameMatch
+        ? '' + typeLabel + (instanceNameMatch[1] || '')
+        : (component.type === 'vacuum-map' && instanceName === '扫地机地图') ||
+            (component.type === 'camera' && instanceName === '摄像头画面')
+          ? typeLabel
+          : instanceName
   return component.properties?.label || computedLabel || component.properties?.title || typeLabel
 }
 export function nextTemplateInstanceName(existingComponents: any, candidateName: any) {

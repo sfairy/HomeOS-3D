@@ -103,6 +103,25 @@
 .hb-component {
   position: absolute;
 }
+/* 页面背景（0.9.0 `renderer.css`）：外层铺满组件宿主，子节点只做装饰、不吃指针。 */
+.hb-page-background {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  user-select: none;
+}
+.hb-page-background > img,
+.hb-page-background > canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+.hb-page-background > canvas[hidden] {
+  display: none;
+}
 .hb-component-group {
   overflow: visible;
   pointer-events: auto;

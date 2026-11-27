@@ -45,6 +45,8 @@ export async function openInteraction3dRangeEditor({
     unsubscribeAccess = () => {},
     generation = 0,
     overridesRevision = 0,
+    /** 上次成功保存时的修订号；与 `overridesRevision` 相等即「没有需要保存的修改」。 */
+    lastSavedRevision = 0,
     resolveReady: any,
     rejectReady: any
   const readyPromise = new Promise((resolve, reject) => {
@@ -128,6 +130,12 @@ export async function openInteraction3dRangeEditor({
   return (
     saveButton.addEventListener('click', async () => {
       if (!(isClosed || isSaving || !isRangeReady || saveButton.disabled)) {
+        // 0.9.0：一进来就点保存（或只挪了视角没改范围）不该真的落盘，
+        // 明确告诉用户「没有需要保存的修改」，而不是给一句「正在保存…」然后无声无息。
+        if (overridesRevision === lastSavedRevision) {
+          ;(statusElement.textContent = LIGHT_RANGE_COPY.nothingToSave), statusElement.classList.remove('is-error')
+          return
+        }
         ;(isSaving = true),
           (saveButton.disabled = true),
           (closeButton.disabled = true),
@@ -139,6 +147,7 @@ export async function openInteraction3dRangeEditor({
             revisionAtSave = overridesRevision
           if ((await requestInteraction3dAccess(), isClosed)) return
           await onSave(savedOverrides),
+            (lastSavedRevision = revisionAtSave),
             isClosed ||
               // 保存后没有再改 → 「可继续调整」；保存期间又改了 → 「另有新修改待保存」（上游两条分支）。
               ((statusElement.textContent =

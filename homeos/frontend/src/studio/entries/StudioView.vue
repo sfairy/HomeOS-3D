@@ -573,6 +573,9 @@ onBeforeUnmount(() => {
                     <button class="asset-card" type="button" draggable="true" data-item-type="bed-end-bench"
                         data-library-category="home" data-library-group="bedroom" data-library-name="床尾凳"
                         data-asset-subcategory="bedroom"><i>▤</i><span>床尾凳</span><small>独立模型</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="tatami"
+                        data-library-category="home" data-library-group="bedroom" data-library-name="榻榻米"
+                        data-asset-subcategory="bedroom"><i>▤</i><span>榻榻米</span><small>2.00 × 2.10m</small></button>
                     <button class="asset-card" type="button" draggable="true" data-item-type="bed-storage-chest"
                         data-library-category="home" data-library-group="bedroom" data-library-name="床尾储物箱"
                         data-asset-subcategory="bedroom"><i>▤</i><span>床尾储物箱</span><small>独立模型</small></button>
@@ -1749,6 +1752,7 @@ onBeforeUnmount(() => {
                                 <option value="standard">壁挂电视</option>
                                 <option value="tabletop">桌面底座</option>
                                 <option value="mobile">移动支架</option>
+                                <option value="floor-stand">四脚落地支架</option>
                             </select></label>
                         <label id="smart-display-mount-field" class="door-type-field" hidden><span>安装方式</span><select id="smart-display-mount"><option value="tabletop">桌面放置</option><option value="wall">墙面安装</option></select></label> <label id="storage-section-field" class="door-type-field"
                             hidden><span>柜门结构</span><select id="storage-section">
@@ -1931,19 +1935,22 @@ onBeforeUnmount(() => {
                         <header class="selection-heading">
                             <strong id="floor-region-title">地面分区</strong>
                         </header>
-                        <p data-floor-region-instruction aria-live="polite"></p>
+                        <p id="floor-region-instruction" data-floor-region-instruction aria-live="polite"></p>
                         <div data-floor-region-actions hidden>
-                            <div class="floor-region-finishes" role="group" aria-label="地面铺面">
-                                <button type="button" data-floor-finish="theme" aria-pressed="true">跟随主题</button>
-                                <button type="button" data-floor-finish="wood" aria-pressed="false" title="木地板">原色</button>
-                                <button type="button" data-floor-finish="tile" aria-pressed="false" title="瓷砖">浅色</button>
-                            </div>
-                            <div class="floor-region-tone" data-floor-tone-fields hidden>
-                                <label data-floor-tone-label for="floor-tone-slider">深浅</label>
-                                <output data-floor-tone-value for="floor-tone-slider">默认</output>
-                                <input id="floor-tone-slider" type="range" value="0" step="1" aria-describedby="floor-tone-scope">
-                                <button type="button" data-floor-tone-reset>恢复默认</button>
-                                <small id="floor-tone-scope">本层使用同一色档的分区一起调整</small>
+                            <div class="floor-region-surface">
+                                <div class="floor-region-finishes" role="group" aria-label="地面铺面">
+                                    <button type="button" data-floor-finish="theme" aria-pressed="true">跟随主题</button>
+                                    <button type="button" data-floor-finish="wood" aria-pressed="false" title="木地板">木地板</button>
+                                    <button type="button" data-floor-finish="tile" aria-pressed="false" title="瓷砖">瓷砖</button>
+                                </div>
+                                <!-- 0.9.0：深浅改为**数字步进**（−20…+20），不再用滑条 + 读数。
+                                     文案改为「深浅同步本层同类铺面，0 为默认」并与区间说明分开。 -->
+                                <div class="floor-region-tone" data-floor-tone-fields hidden>
+                                    <label for="floor-tone-input">深浅</label>
+                                    <input id="floor-tone-input" type="number" value="0" step="1" min="-20" max="20"
+                                        aria-describedby="floor-region-instruction">
+                                    <button type="button" data-floor-tone-reset aria-label="恢复默认" title="恢复默认">默认</button>
+                                </div>
                             </div>
                             <div class="floor-region-controls">
                                 <button type="button" data-floor-region-cut @click="startFloorRegionSplit">画分割线</button>

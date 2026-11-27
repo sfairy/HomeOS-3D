@@ -24,6 +24,7 @@ import {
 } from '../../editor'
 import { guardInteraction3dChanges as guardInteraction3dChanges2 } from '../../../bridge/editor'
 import { confirmAction } from '../../../shared/ui'
+import { shellNotify } from '@/studio/platform/shell-chrome'
 import { validateGo2rtcDocument } from '@/studio/platform/go2rtc-url'
 import { beginEditorCanvasWelcome } from '../welcome/editor-canvas-welcome'
 
@@ -764,7 +765,22 @@ export async function projectSummary(
   )
 }
 
-export async function recoverDraftConflict(deps: WorkspaceHistoryDeps, projectId2: any) {
+/**
+ * 保存撞上 409 后的三出口。
+ *
+ * 两种冲突必须分开提示，但恢复动作一样：都必须把 revision / globalPopupRevision
+ * 换成服务器最新值，否则用户点「保留本地并重试」只会拿旧版本号再撞一次 409。
+ *
+ * - `project`：这份仪表盘草稿被别的页面改过（`PROJECT_REVISION_CONFLICT`）；
+ * - `popup`：**全局组合弹窗**被别的仪表盘改过（`GLOBAL_POPUP_REVISION_CONFLICT`）。
+ *   旧实现只认前者，后者落进通用错误弹窗：弹窗关掉后再点保存仍是旧 popup revision，
+ *   永远 409，只能刷新页面才能继续编辑。
+ */
+export async function recoverDraftConflict(
+  deps: WorkspaceHistoryDeps,
+  projectId2: any,
+  kind: 'project' | 'popup' = 'project',
+) {
   let latestDraft
   try {
     latestDraft = await deps.requestJson('/projects/' + projectId2 + '/draft')
@@ -773,17 +789,25 @@ export async function recoverDraftConflict(deps: WorkspaceHistoryDeps, projectId
     return
   }
   if (!deps.editorCtx.activeProject || deps.editorCtx.activeProject.projectId !== projectId2) return
+  const popupConflict = kind === 'popup'
   const useRemote = await confirmAction({
     kicker: 'REVISION CONFLICT',
-    title: '草稿已在其它页面被更新',
-    message: '服务器上的这份草稿比你打开的更新，当前版本号已无法直接保存。',
-    detail: '「加载远端」丢弃本页未保存的修改；「保留本地并重试」保留当前编辑，改用最新版本号重新保存。',
+    title: popupConflict ? '全局组合弹窗已在其它仪表盘更新' : '草稿已在其它页面被更新',
+    message: popupConflict
+      ? '其它仪表盘修改了共享的组合弹窗，当前会话拿着的弹窗版本号已无法直接保存。'
+      : '服务器上的这份草稿比你打开的更新，当前版本号已无法直接保存。',
+    detail: popupConflict
+      ? '「加载远端」丢弃本页未保存的修改并采用最新弹窗；「保留本地并重试」保留当前编辑，但会用本页的组合弹窗覆盖对方的修改。'
+      : '「加载远端」丢弃本页未保存的修改；「保留本地并重试」保留当前编辑，改用最新版本号重新保存。',
     confirmLabel: '加载远端',
     cancelLabel: '保留本地并重试',
     tone: 'warning',
   })
   if (!deps.editorCtx.activeProject || deps.editorCtx.activeProject.projectId !== projectId2) return
   if (useRemote) {
+    // 用户已经明确选择丢弃本地修改：先清掉 sessionStorage 的恢复快照，
+    // 否则 `historyEntry` 读回来的还是同一份旧快照，会再弹一次「检测到刷新前的编辑内容」。
+    deps.discardRecoverySnapshot(projectId2)
     await deps.historyEntry(projectId2)
     return
   }
@@ -849,12 +873,24 @@ export async function saveDraft(deps: WorkspaceHistoryDeps) {
         globalPopupRevision: deps.editorCtx.activeProject.globalPopupRevision,
         globalPopupsDirty: isPopupsDirty,
         document: draftBeforeSave,
+        // 0.9.0：声明「这份文档里的实体 id 是按哪台 HA 的目录选的」。切换 HA 后旧标签页
+        // 再保存会被服务端 409（HA_SOURCE_CHANGED）拒绝，而不是把旧来源的绑定写进新机器。
+        // 空串表示未声明（旧后端 / 单源部署），服务端一律放行。
+        ...(deps.editorCtx.haSource ? { expectedHaSource: deps.editorCtx.haSource } : {}),
       }),
     })
     if (deps.editorCtx.componentScopeState !== Ie4 || deps.editorCtx.activeProject?.projectId !== projectId2) return
     const savedProjectSummary = documentSignature2(deps.editorCtx.activeProject.document),
-      isPopupsChanged = savedProjectSummary !== draftSignatureBeforeSave,
-      document3 = isPopupsChanged ? clone2(deps.editorCtx.activeProject.document) : saveResponse.document
+      /**
+       * 相对**发出去的那份**（`draftBeforeSave`）有没有再改过。
+       *
+       * PUT 用的是发起时快照；这段时间的编辑（含组合弹窗）不在服务器上。为 true 时必须
+       * 保留本地 document3、不能按响应回填，并按「仍未保存」提示 —— 否则界面跳回保存前
+       * 或谎报全部已存，用户关页就丢。
+       */
+      changedDuringSave = savedProjectSummary !== draftSignatureBeforeSave,
+      isPopupsChanged = changedDuringSave,
+      document3 = changedDuringSave ? clone2(deps.editorCtx.activeProject.document) : saveResponse.document
     isPopupsChanged &&
       documentSignature2(document3.customPopups || []) === documentSignature2(draftBeforeSave.customPopups || []) &&
       (document3.customPopups = clone2(saveResponse.document.customPopups || [])),
@@ -885,9 +921,29 @@ export async function saveDraft(deps: WorkspaceHistoryDeps) {
       deps.loadNavigationIconOptions(deps.projectSelectElement),
       documentSignature2(deps.editorCtx.activeProject.document) !== savedProjectSummary &&
         deps.renderEditorWorkspace(deps.pageSelectElement.value)
+    // 保存期间的新编辑仍留在本地（document3 与回显不同）：明确告诉用户这批改动**还没存**，
+    // 否则「看到『已保存』提示 + 内容也是新的」会让人以为全部落库，关掉页面就丢。
+    changedDuringSave && shellNotify('已保存到点击保存时的内容；保存期间的新修改尚未保存，请再保存一次。', 'warning')
   } catch (refreshAuthSession: any) {
     if (refreshAuthSession?.code === 'PROJECT_REVISION_CONFLICT') {
-      await deps.recoverDraftConflict(projectId2)
+      await deps.recoverDraftConflict(projectId2, 'project')
+      return
+    }
+    if (refreshAuthSession?.code === 'GLOBAL_POPUP_REVISION_CONFLICT') {
+      await deps.recoverDraftConflict(projectId2, 'popup')
+      return
+    }
+    // 0.9.0：切换 HA 之后旧标签页再保存。服务端 409 拒绝是**正确**行为（不能把旧来源的
+    // 实体绑定写进新机器）；这里要做的是把原因说清并刷新实体目录，让用户重新映射失效项，
+    // 而不是丢进通用「保存失败」里让人反复点保存。
+    if (refreshAuthSession?.code === 'HA_SOURCE_CHANGED') {
+      deps.handleOperationError(
+        new Error(
+          'HA 来源已变化：本页的实体目录来自切换前的连接，这次保存已被拒绝。' +
+            '正在刷新实体目录，请重新选择受影响控件绑定的实体后再保存。',
+        ),
+      )
+      void deps.ensureEntitiesLoaded({ afterCurrent: true }).catch(() => {})
       return
     }
     deps.handleOperationError(refreshAuthSession)

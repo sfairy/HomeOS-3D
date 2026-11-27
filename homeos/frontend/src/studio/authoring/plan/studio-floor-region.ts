@@ -81,7 +81,13 @@ export type FloorRegionInteraction = {
   phase: FloorRegionPhase
   /** `split` 阶段的第一个点；`select` 阶段为 `null`。 */
   splitStart: PlanPoint | null
-  /** 已选中的区域下标（`floorRegions` 数组下标）；`null` 表示没选中。 */
+  /**
+   * 已选中的区域下标；`null` 表示没选中。
+   *
+   * 注意：`FloorRegion` 的落盘不认这个下标 —— 状态机只把它当**显示序号**用
+   * （命中的是已存分区就用 `floorRegions` 下标，命中的是墙线房间就用房间下标）。
+   * 提交时按 `recordId` / 选择时保存的几何定位，避免「切分后下标错位改到邻居」。
+   */
   selectedIndex: number | null
 }
 
@@ -170,9 +176,59 @@ export function resolveRegionAt(
   for (let index = regions.length - 1; index >= 0; index -= 1) {
     const region = regions[index]
     if (!region) continue
-    if (pointHitsRegion(point, region.polygon)) return { index, region }
+    // 走带包围盒兜底的版本：旧户型里的自相交地面靠射线法会判成未命中。
+    if (regionHitsWithBounds(point, region.polygon)) return { index, region }
   }
   return null
+}
+
+/** 一个区域在平面上的包围盒（与 `FloorPoint` 同单位：场景米）。 */
+export type RegionBounds = { minX: number; maxX: number; minY: number; maxY: number }
+
+/**
+ * 算区域的包围盒；点数不足 3 时返回 `null`。
+ *
+ * 闭环地面在旧户型里可能带自相交边（早年绘制器不校验），射线法在这种多边形上
+ * 会因为奇偶计数错乱而判成「点在区域外」——表现就是「这块地面怎么点都选不中」。
+ * 包围盒命中作为**兜底**：射线法说不中、但点在包围盒内且离边界够近时仍然算命中。
+ */
+export function regionBounds(polygon: ReadonlyArray<PlanPoint>): RegionBounds | null {
+  if (polygon.length < 3) return null
+  let minX = Infinity,
+    maxX = -Infinity,
+    minY = Infinity,
+    maxY = -Infinity
+  for (const vertex of polygon) {
+    if (!Number.isFinite(vertex.x) || !Number.isFinite(vertex.y)) return null
+    minX = Math.min(minX, vertex.x)
+    maxX = Math.max(maxX, vertex.x)
+    minY = Math.min(minY, vertex.y)
+    maxY = Math.max(maxY, vertex.y)
+  }
+  return { minX, maxX, minY, maxY }
+}
+
+/**
+ * 带包围盒兜底的区域命中（0.9.0 `studio-floor-regions.js`）。
+ *
+ * 两段判定：
+ * 1. 包围盒快速排除 —— 点在盒外直接跳过，省掉逐边距离；
+ * 2. 盒内再跑射线法；射线法不中时，用「到边界距离」兜底（容差放大一倍）。
+ *
+ * 第 2 步的兜底是修「闭合地面无法点选」的关键：自相交多边形上射线法不可靠，
+ * 但用户点的位置确实在这块地面内（离边不远），不该判成未命中。
+ */
+export function regionHitsWithBounds(
+  point: PlanPoint,
+  polygon: ReadonlyArray<PlanPoint>,
+  tolerance = REGION_HIT_TOLERANCE,
+): boolean {
+  const bounds = regionBounds(polygon)
+  if (!bounds) return false
+  if (point.x < bounds.minX - tolerance || point.x > bounds.maxX + tolerance) return false
+  if (point.y < bounds.minY - tolerance || point.y > bounds.maxY + tolerance) return false
+  if (pointInsidePolygon(point, polygon)) return true
+  return distanceToPolygonSquared(point, polygon) <= tolerance * 2 * (tolerance * 2)
 }
 
 /** 交互的下一步。 */
@@ -501,21 +557,42 @@ export type FloorRegionSplitSide = {
  * - 某一侧面积过小（< `MIN_REGION_AREA`，用户会以为没切开）；
  * - 任一侧自交（深度凹区域的裁剪产物）。
  *
- * 洞不做切分：分区上有洞时直接拒绝（`holes.length > 0` → `null`）。理由见下 ——
- * 洞与分割线的组合会出现「洞被切成两半」的第四种情形，而没有对应 UI 表达它。
+ * ## 洞口也参与裁剪
+ *
+ * 早期实现遇到 `holes.length > 0` 直接拒绝（注释写着「没有对应 UI 表达洞被切开」）。
+ * 但洞口来自**楼板挑空**，房间带洞口是常态：用户选中有挑空的客厅后，切分按钮
+ * 一律报「分割线需留在所选区域内」，等于这块房间永远切不了。
+ * 现在把每个洞按同一条线裁到两侧，各自归属对应的半块 —— 线与洞不相交时结果
+ * 与「整洞跟着包含它的那侧」等价，只有真的切开时才各得一半。
  */
 export function splitFloorRegionByLine(
   region: Pick<FloorRegion, 'outline' | 'holes'>,
   lineStart: FloorPoint,
   lineEnd: FloorPoint,
 ): { left: FloorRegionSplitSide; right: FloorRegionSplitSide } | null {
-  if (region.holes.length > 0) return null
   const left = dedupeRing(clipRingByLine(region.outline, lineStart, lineEnd, true))
   const right = dedupeRing(clipRingByLine(region.outline, lineStart, lineEnd, false))
   if (left.length < 3 || right.length < 3) return null
   if (ringAreaAbs(left) < MIN_REGION_AREA || ringAreaAbs(right) < MIN_REGION_AREA) return null
   if (hasSelfIntersection(left) || hasSelfIntersection(right)) return null
-  return { left: { outline: left, holes: [] }, right: { outline: right, holes: [] } }
+  const leftHoles = clipHolesByLine(region.holes || [], lineStart, lineEnd, true)
+  const rightHoles = clipHolesByLine(region.holes || [], lineStart, lineEnd, false)
+  return { left: { outline: left, holes: leftHoles }, right: { outline: right, holes: rightHoles } }
+}
+
+/** 把每个洞口裁到分割线的指定一侧；裁没了的洞口直接丢弃（不该留下 1–2 点的环）。 */
+function clipHolesByLine(
+  holes: ReadonlyArray<readonly FloorPoint[]>,
+  lineStart: FloorPoint,
+  lineEnd: FloorPoint,
+  keepLeft: boolean,
+): FloorPoint[][] {
+  const clipped: FloorPoint[][] = []
+  for (const hole of holes) {
+    const ring = dedupeRing(clipRingByLine(hole, lineStart, lineEnd, keepLeft))
+    if (ring.length >= 3) clipped.push(ring)
+  }
+  return clipped
 }
 
 /** 点到线段的最短距离。 */
@@ -569,10 +646,14 @@ export function snapToFloorRegionEdge(
   return best
 }
 
-/** 刀切之后给两块分区分配 id（保留原 id 给面积更大的一侧，另一侧派生）。 */
+/**
+ * 刀切之后给两块分区分配 id（保留原 id 给面积更大的一侧，另一侧派生）。
+ *
+ * 派生 id 只用后端 `_REGION_ID` 允许的字符：早先用 `~` 拼后缀，服务端校验
+ * `^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$` 会直接 422，整份户型都存不进去。
+ */
 export function splitRegionIds(regionId: string, leftArea: number, rightArea: number): { left: string; right: string } {
-  const suffix = `${Date.now().toString(36)}`
-  return leftArea >= rightArea
-    ? { left: regionId, right: `${regionId}~${suffix}` }
-    : { left: `${regionId}~${suffix}`, right: regionId }
+  // 后端 id 上限 64 字符：截断基 id，保证加上 `-<后缀>` 后仍然合法。
+  const derived = `${regionId.slice(0, 55)}-${Date.now().toString(36)}`
+  return leftArea >= rightArea ? { left: regionId, right: derived } : { left: derived, right: regionId }
 }

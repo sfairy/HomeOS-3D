@@ -31,17 +31,17 @@ from .field_sets import WIDGET_COMMON_FIELDS
 
 #: 绿植类允许的模型（只有这些模型会被 ``plant`` 集合收纳）。
 INDOOR_PLANT_MODEL_TYPES = (
-    'decor-small-plant',
-    'plant',
-    'plant-monstera',
-    'plant-snake',
-    'plant-palm',
-    'plant-rubber',
-    'plant-pothos',
-    'flower-orchid',
-    'flower-peace-lily',
-    'flower-anthurium',
-    'flower-hydrangea',
+    "decor-small-plant",
+    "plant",
+    "plant-monstera",
+    "plant-snake",
+    "plant-palm",
+    "plant-rubber",
+    "plant-pothos",
+    "flower-orchid",
+    "flower-peace-lily",
+    "flower-anthurium",
+    "flower-hydrangea",
 )
 
 #: 设备型号档案：集合名、场景模型类型、展示名。
@@ -49,209 +49,229 @@ INDOOR_PLANT_MODEL_TYPES = (
 #: ``collection`` 必须与 ``devices`` 分区里的集合名一致（前端按它读数据）；
 #: ``model_types`` 只出现在「一个集合收纳多种场景模型」的类别上。
 DEVICE_PROFILES: dict[str, dict[str, Any]] = {
-    'smallcar': {
-        'collection': 'cars',
-        'model_type': 'smallcar',
-        'model_types': ('smallcar', 'suv', 'scooter'),
-        'label': '汽车',
+    "smallcar": {
+        "collection": "cars",
+        "model_type": "smallcar",
+        "model_types": ("smallcar", "suv", "scooter"),
+        "label": "汽车",
     },
-    'fridge': {'collection': 'fridges', 'model_type': 'fridge', 'label': '冰箱'},
-    'printer': {'collection': 'printers', 'model_type': 'printer', 'label': '打印机'},
-    'water-purifier': {
-        'collection': 'waterPurifiers',
-        'model_type': 'water-purifier',
-        'label': '净水器',
+    "fridge": {"collection": "fridges", "model_type": "fridge", "label": "冰箱"},
+    "printer": {"collection": "printers", "model_type": "printer", "label": "打印机"},
+    "water-purifier": {
+        "collection": "waterPurifiers",
+        "model_type": "water-purifier",
+        "label": "净水器",
     },
-    'ricecooker': {'collection': 'riceCookers', 'model_type': 'ricecooker', 'label': '电饭煲'},
-    'steamoven': {'collection': 'steamOvens', 'model_type': 'steamoven', 'label': '蒸烤箱'},
-    'air-fryer': {'collection': 'airFryers', 'model_type': 'air-fryer', 'label': '空气炸锅'},
-    'pet-feeder': {
-        'collection': 'petFeeders',
-        'model_type': 'pet-feeder',
-        'label': '自动喂食器',
+    "ricecooker": {"collection": "riceCookers", "model_type": "ricecooker", "label": "电饭煲"},
+    "steamoven": {"collection": "steamOvens", "model_type": "steamoven", "label": "蒸烤箱"},
+    "air-fryer": {"collection": "airFryers", "model_type": "air-fryer", "label": "空气炸锅"},
+    "pet-feeder": {
+        "collection": "petFeeders",
+        "model_type": "pet-feeder",
+        "label": "自动喂食器",
     },
-    'smart-litter-box': {
-        'collection': 'smartLitterBoxes',
-        'model_type': 'smart-litter-box',
-        'label': '智能猫砂盆',
+    "smart-litter-box": {
+        "collection": "smartLitterBoxes",
+        "model_type": "smart-litter-box",
+        "label": "智能猫砂盆",
     },
-    'pet-fountain': {
-        'collection': 'petFountains',
-        'model_type': 'pet-fountain',
-        'label': '宠物饮水机',
+    "pet-fountain": {
+        "collection": "petFountains",
+        "model_type": "pet-fountain",
+        "label": "宠物饮水机",
     },
-    '3d-printer': {'collection': 'printers3d', 'model_type': '3d-printer', 'label': '3D打印机'},
-    'router': {'collection': 'routers', 'model_type': 'router', 'label': '路由器'},
-    'home-network-cabinet': {
-        'collection': 'networkCabinets',
-        'model_type': 'home-network-cabinet',
-        'label': '机柜',
+    "3d-printer": {"collection": "printers3d", "model_type": "3d-printer", "label": "3D打印机"},
+    "router": {"collection": "routers", "model_type": "router", "label": "路由器"},
+    "home-network-cabinet": {
+        "collection": "networkCabinets",
+        "model_type": "home-network-cabinet",
+        "label": "机柜",
     },
-    'humidifier': {'collection': 'humidifiers', 'model_type': 'humidifier', 'label': '加湿器'},
+    "humidifier": {"collection": "humidifiers", "model_type": "humidifier", "label": "加湿器"},
     # 0.8.9：取暖器 / 除湿机 / 电动阀门。三者都复用「主实体 + 附加功能」的通用家电面板，
     # 没有独立的渲染形态（不新增 climate kind，故 ``check:parity`` 不受影响）。
-    'heater': {'collection': 'heaters', 'model_type': 'heater', 'label': '取暖器'},
-    'dehumidifier': {
-        'collection': 'dehumidifiers',
-        'model_type': 'dehumidifier',
-        'label': '除湿机',
+    "heater": {"collection": "heaters", "model_type": "heater", "label": "取暖器"},
+    "dehumidifier": {
+        "collection": "dehumidifiers",
+        "model_type": "dehumidifier",
+        "label": "除湿机",
     },
-    'electric-valve': {
-        'collection': 'electricValves',
-        'model_type': 'electric-valve',
-        'label': '电动阀门',
+    "electric-valve": {
+        "collection": "electricValves",
+        "model_type": "electric-valve",
+        "label": "电动阀门",
     },
-    'aroma-diffuser': {
-        'collection': 'aromaDiffusers',
-        'model_type': 'aroma-diffuser',
-        'label': '香氛机',
+    "aroma-diffuser": {
+        "collection": "aromaDiffusers",
+        "model_type": "aroma-diffuser",
+        "label": "香氛机",
     },
-    'dishwasher': {'collection': 'dishwashers', 'model_type': 'dishwasher', 'label': '洗碗机'},
-    'washer': {'collection': 'washers', 'model_type': 'washer', 'label': '洗衣机'},
-    'floor-washer': {'collection': 'floorWashers', 'model_type': 'floor-washer', 'label': '洗地机'},
-    'rangehood': {'collection': 'rangehoods', 'model_type': 'rangehood', 'label': '油烟机'},
-    'dryer': {'collection': 'dryers', 'model_type': 'dryer', 'label': '烘干机'},
-    'pressure-cooker': {
-        'collection': 'pressureCookers',
-        'model_type': 'pressure-cooker',
-        'label': '电压力锅',
+    "dishwasher": {"collection": "dishwashers", "model_type": "dishwasher", "label": "洗碗机"},
+    "washer": {"collection": "washers", "model_type": "washer", "label": "洗衣机"},
+    "floor-washer": {"collection": "floorWashers", "model_type": "floor-washer", "label": "洗地机"},
+    "rangehood": {"collection": "rangehoods", "model_type": "rangehood", "label": "油烟机"},
+    "dryer": {"collection": "dryers", "model_type": "dryer", "label": "烘干机"},
+    "pressure-cooker": {
+        "collection": "pressureCookers",
+        "model_type": "pressure-cooker",
+        "label": "电压力锅",
     },
-    'pet-dryer': {'collection': 'petDryers', 'model_type': 'pet-dryer', 'label': '宠物烘干机'},
-    'disinfection-cabinet': {
-        'collection': 'disinfectionCabinets',
-        'model_type': 'disinfection-cabinet',
-        'label': '消毒柜',
+    "pet-dryer": {"collection": "petDryers", "model_type": "pet-dryer", "label": "宠物烘干机"},
+    "disinfection-cabinet": {
+        "collection": "disinfectionCabinets",
+        "model_type": "disinfection-cabinet",
+        "label": "消毒柜",
     },
-    'tea_bar_machine': {
-        'collection': 'teaBarMachines',
-        'model_type': 'tea_bar_machine',
-        'label': '茶吧机',
+    "tea_bar_machine": {
+        "collection": "teaBarMachines",
+        "model_type": "tea_bar_machine",
+        "label": "茶吧机",
     },
-    'smart-socket-86': {
-        'collection': 'smartSockets86',
-        'model_type': 'smart-socket-86',
-        'label': '86型智能插座',
+    "smart-socket-86": {
+        "collection": "smartSockets86",
+        "model_type": "smart-socket-86",
+        "label": "86型智能插座",
     },
-    'pipelinewaterpurifier': {
-        'collection': 'pipelineWaterPurifiers',
-        'model_type': 'pipelinewaterpurifier',
-        'label': '管线机',
+    "pipelinewaterpurifier": {
+        "collection": "pipelineWaterPurifiers",
+        "model_type": "pipelinewaterpurifier",
+        "label": "管线机",
     },
-    'juicer': {'collection': 'juicers', 'model_type': 'juicer', 'label': '榨汁机'},
-    'bread-maker': {'collection': 'breadMakers', 'model_type': 'bread-maker', 'label': '面包机'},
-    'power-blender': {
-        'collection': 'powerBlenders',
-        'model_type': 'power-blender',
-        'label': '破壁机',
+    "juicer": {"collection": "juicers", "model_type": "juicer", "label": "榨汁机"},
+    "bread-maker": {"collection": "breadMakers", "model_type": "bread-maker", "label": "面包机"},
+    "power-blender": {
+        "collection": "powerBlenders",
+        "model_type": "power-blender",
+        "label": "破壁机",
     },
-    'microwave': {'collection': 'microwaves', 'model_type': 'microwave', 'label': '微波炉'},
+    "microwave": {"collection": "microwaves", "model_type": "microwave", "label": "微波炉"},
     # 游戏机：Switch 的主实体是 ``sensor.*``（nxapi presence），PlayStation 是 ``media_player.*``。
     # 两者共用一套「唤醒 / 休眠 / 切换游戏」的主面板，差异只在实体域。
-    'switch-console': {
-        'collection': 'switchConsoles',
-        'model_type': 'switch-console',
-        'label': 'Switch 游戏机',
+    "switch-console": {
+        "collection": "switchConsoles",
+        "model_type": "switch-console",
+        "label": "Switch 游戏机",
     },
-    'playstation': {
-        'collection': 'playstations',
-        'model_type': 'playstation',
-        'model_types': ('playstation', 'ps5'),
-        'label': 'PlayStation',
+    "playstation": {
+        "collection": "playstations",
+        "model_type": "playstation",
+        "model_types": ("playstation", "ps5"),
+        "label": "PlayStation",
     },
-    'coffee-machine': {
-        'collection': 'coffeeMachines',
-        'model_type': 'coffee-machine',
-        'label': '咖啡机',
+    "coffee-machine": {
+        "collection": "coffeeMachines",
+        "model_type": "coffee-machine",
+        "label": "咖啡机",
     },
-    'toilet': {'collection': 'toilets', 'model_type': 'toilet', 'label': '智能马桶'},
-    'plant': {
-        'collection': 'plants',
-        'model_type': 'plant',
-        'model_types': INDOOR_PLANT_MODEL_TYPES,
-        'label': '绿植',
+    "toilet": {"collection": "toilets", "model_type": "toilet", "label": "智能马桶"},
+    "plant": {
+        "collection": "plants",
+        "model_type": "plant",
+        "model_types": INDOOR_PLANT_MODEL_TYPES,
+        "label": "绿植",
     },
-    'bed': {
-        'collection': 'beds',
-        'model_type': 'bed',
-        'model_types': ('bed', 'round-double-bed'),
-        'label': '床',
+    "bed": {
+        "collection": "beds",
+        "model_type": "bed",
+        "model_types": ("bed", "round-double-bed"),
+        "label": "床",
     },
-    'computer': {
-        'collection': 'computers',
-        'model_type': 'computer',
-        'model_types': ('desktop', 'laptop'),
-        'label': '电脑',
+    "computer": {
+        "collection": "computers",
+        "model_type": "computer",
+        "model_types": ("desktop", "laptop"),
+        "label": "电脑",
     },
-    'sofa': {
-        'collection': 'sofas',
-        'model_type': 'sofa',
-        'model_types': ('sofa', 'sofa-single', 'sofa-l'),
-        'label': '沙发',
+    "sofa": {
+        "collection": "sofas",
+        "model_type": "sofa",
+        "model_types": ("sofa", "sofa-single", "sofa-l"),
+        "label": "沙发",
     },
 }
 
 #: ``devices`` 分区里归本模块管的集合名。
-GENERIC_DEVICE_COLLECTIONS = tuple(
-    profile['collection'] for profile in DEVICE_PROFILES.values()
-)
+GENERIC_DEVICE_COLLECTIONS = tuple(profile["collection"] for profile in DEVICE_PROFILES.values())
 
 #: 家电公共白名单（注意：家电**不允许**有 ``entityId``，主实体由设备档案推断）。
 GENERIC_DEVICE_FIELDS = frozenset(
     {
         *WIDGET_COMMON_FIELDS,
-        'deviceId',
-        'deviceName',
-        'statusRules',
-        'extraControls',
-        'extraDevices',
-        'mainEntityId',
+        "deviceId",
+        "deviceName",
+        "statusRules",
+        "extraControls",
+        "extraDevices",
+        "mainEntityId",
     }
 )
 #: 游戏机：主实体域（Switch 是 ``sensor.*``，PlayStation 是 ``media_player.*``）。
-GAME_CONSOLE_ENTITY_DOMAINS = {'switch-console': 'sensor', 'playstation': 'media_player'}
+GAME_CONSOLE_ENTITY_DOMAINS = {"switch-console": "sensor", "playstation": "media_player"}
 #: 汽车多出来的电量/充电卡片字段。
 SMALLCAR_EXTRA_FIELDS = frozenset(
     {
-        'cardScale',
-        'cardWidth',
-        'cardOpacity',
-        'cardFontSize',
-        'chargingStates',
-        'batteryEntityId',
-        'chargingEntityId',
-        'tirePressure',
+        "cardScale",
+        "cardWidth",
+        "cardOpacity",
+        "cardFontSize",
+        "chargingStates",
+        "batteryEntityId",
+        "chargingEntityId",
+        "tirePressure",
         # 0.8.1：车辆标签与车模共用点击开关（`clickAction` 只在开关打开时生效）。
-        'interactionEnabled',
+        "interactionEnabled",
+        # 0.9.0：在家 / 离家（驶离与倒回）与四门两舱的开合绑定。
+        # 不放进白名单的话前端一保存就被 422 拒绝 —— 这三个字段是本轮新增的唯一数据面。
+        "presenceEntityId",
+        "presenceStates",
+        "openings",
     }
 )
+
+#: 车辆在家/离家的允许状态组（与前端 `CAR_PRESENCE_GROUPS` 同口径）。
+CAR_PRESENCE_GROUPS = ("home", "away")
+#: 车辆开合件的允许部件（与前端 `CAR_OPENING_PARTS` 同口径，顺序即面板顺序）。
+CAR_OPENING_PARTS = ("leftFront", "leftRear", "rightFront", "rightRear", "hood", "tail")
+#: 开合件的允许状态组。
+CAR_OPENING_GROUPS = ("open", "closed")
+#: 每类状态值上限（与前端 `CAR_PRESENCE_MAX_STATES` 一致）。
+CAR_STATE_MAX_PER_GROUP = 16
+#: 单个状态值字符上限。
+CAR_STATE_MAX_LENGTH = 255
+#: 车辆实体允许的域：``person`` / ``device_tracker`` 是位置，其余是手填状态选择器。
+CAR_STATE_ENTITY_DOMAINS = frozenset(
+    {"person", "device_tracker", "binary_sensor", "sensor", "input_select", "input_text", "number", "select"}
+)
+#: 车辆实体 id：``domain.object_id``。
+CAR_STATE_ENTITY_PATTERN = re.compile(r"[a-z_]+(\.[a-z0-9_]+)?")
 #: 电脑：电源实体 + 自定义屏幕图（用户上传素材）。
-COMPUTER_EXTRA_FIELDS = frozenset({'powerEntityId', 'screenImage'})
+COMPUTER_EXTRA_FIELDS = frozenset({"powerEntityId", "screenImage"})
 #: 管线机：外观款式（原款 / 矩形双出水），对应前端 `pipelineDispenserStyle`。
-PIPELINE_DISPENSER_EXTRA_FIELDS = frozenset({'pipelineDispenserStyle'})
+PIPELINE_DISPENSER_EXTRA_FIELDS = frozenset({"pipelineDispenserStyle"})
 #: 管线机允许的外观款式取值（与前端 `pipeline-dispenser.ts` 同口径）。
-PIPELINE_DISPENSER_STYLES = frozenset({'original', 'rectangular'})
+PIPELINE_DISPENSER_STYLES = frozenset({"original", "rectangular"})
 #: 吸风动画（油烟机）与喷雾动画（加湿器 / 香氛机）。
-ANIMATION_EXTRA_FIELDS = frozenset({'animationEntityId', 'animationEnabled'})
+ANIMATION_EXTRA_FIELDS = frozenset({"animationEntityId", "animationEnabled"})
 #: 不显示状态指示灯的型号：床与沙发（0.7.9 沙发档案 ``statusIndicator: false``）。
-STATUS_INDICATOR_DISABLED_MODELS = frozenset({'bed', 'sofa'})
+STATUS_INDICATOR_DISABLED_MODELS = frozenset({"bed", "sofa"})
 #: 只有这些型号允许挂 ``animationEntityId``。
-ANIMATION_MODEL_TYPES = frozenset({'rangehood', 'humidifier', 'aroma-diffuser'})
+ANIMATION_MODEL_TYPES = frozenset({"rangehood", "humidifier", "aroma-diffuser"})
 #: 吸风动画可绑定的实体域（binary_sensor 用来读门窗开合）。
-RANGEHOOD_ANIMATION_DOMAINS = frozenset({'fan', 'switch', 'binary_sensor', 'input_boolean'})
+RANGEHOOD_ANIMATION_DOMAINS = frozenset({"fan", "switch", "binary_sensor", "input_boolean"})
 #: 喷雾动画可绑定的实体域。
-MIST_ANIMATION_DOMAINS = frozenset({'fan', 'switch', 'input_boolean'})
+MIST_ANIMATION_DOMAINS = frozenset({"fan", "switch", "input_boolean"})
 #: 用户上传素材 id：``user:`` + 32 位小写十六进制。
-ASSET_ID_PATTERN = re.compile(r'user:[0-9a-f]{32}')
+ASSET_ID_PATTERN = re.compile(r"user:[0-9a-f]{32}")
 
 #: ``型号 → 白名单``（查表代替每类设备各写一遍 if）。
 DEVICE_FIELDS_BY_MODEL: dict[str, frozenset[str]] = {}
 for _model_type in DEVICE_PROFILES:
     _fields = set(GENERIC_DEVICE_FIELDS)
-    if _model_type == 'smallcar':
+    if _model_type == "smallcar":
         _fields |= SMALLCAR_EXTRA_FIELDS
-    if _model_type == 'computer':
+    if _model_type == "computer":
         _fields |= COMPUTER_EXTRA_FIELDS
-    if _model_type == 'pipelinewaterpurifier':
+    if _model_type == "pipelinewaterpurifier":
         _fields |= PIPELINE_DISPENSER_EXTRA_FIELDS
     if _model_type in ANIMATION_MODEL_TYPES:
         _fields |= ANIMATION_EXTRA_FIELDS
@@ -259,74 +279,74 @@ for _model_type in DEVICE_PROFILES:
 
 #: 坐标 / 高度 / 尺寸边界（尺寸下限极小，不用 ``positive_number``）。
 DEVICE_NUMBER_BOUNDS: tuple[tuple[str, float, float], ...] = (
-    ('x', -1_000_000, 1_000_000),
-    ('y', -1_000_000, 1_000_000),
-    ('height', 0, 20),
-    ('size', 1e-06, 1_000_000),
-    ('iconSize', 1e-06, 1_000_000),
-    ('hitSize', 1e-06, 1_000_000),
+    ("x", -1_000_000, 1_000_000),
+    ("y", -1_000_000, 1_000_000),
+    ("height", 0, 20),
+    ("size", 1e-06, 1_000_000),
+    ("iconSize", 1e-06, 1_000_000),
+    ("hitSize", 1e-06, 1_000_000),
 )
-DEVICE_FLAG_FIELDS = ('visible', 'hiddenClickable', 'buttonHidden')
-DEVICE_CLICK_ACTIONS = ('focus', 'focus-panel', 'panel')
+DEVICE_FLAG_FIELDS = ("visible", "hiddenClickable", "buttonHidden")
+DEVICE_CLICK_ACTIONS = ("focus", "focus-panel", "panel")
 #: 家电点击动作（默认面板档）。
-DEVICE_CLICK_ACTION_ENUM = EnumSpec('clickAction', DEVICE_CLICK_ACTIONS, 'focus-panel')
+DEVICE_CLICK_ACTION_ENUM = EnumSpec("clickAction", DEVICE_CLICK_ACTIONS, "focus-panel")
 #: 车辆点击动作（0.8.1）：多一个「不响应点击」，且是默认值 —— 与 `carClickAction` 同口径。
-VEHICLE_CLICK_ACTIONS = ('none', *DEVICE_CLICK_ACTIONS)
-VEHICLE_CLICK_ACTION_ENUM = EnumSpec('clickAction', VEHICLE_CLICK_ACTIONS, 'none')
+VEHICLE_CLICK_ACTIONS = ("none", *DEVICE_CLICK_ACTIONS)
+VEHICLE_CLICK_ACTION_ENUM = EnumSpec("clickAction", VEHICLE_CLICK_ACTIONS, "none")
 #: 汽车卡片三项数值边界。
 SMALLCAR_CARD_BOUNDS: tuple[tuple[str, float, float], ...] = (
-    ('cardScale', 0.5, 3),
-    ('cardOpacity', 0, 1),
-    ('cardWidth', 100, 600),
+    ("cardScale", 0.5, 3),
+    ("cardOpacity", 0, 1),
+    ("cardWidth", 100, 600),
 )
 #: 汽车两个只读实体的域限制。
 SMALLCAR_ENTITY_DOMAINS: tuple[tuple[str, tuple[str, ...]], ...] = (
-    ('batteryEntityId', ('sensor',)),
-    ('chargingEntityId', ('binary_sensor', 'sensor')),
+    ("batteryEntityId", ("sensor",)),
+    ("chargingEntityId", ("binary_sensor", "sensor")),
 )
 #: 四轮胎压（0.8.0）：开关 + 显示方式 + 两个样式值 + 四个轮位 ``sensor.*``。
-TIRE_PRESSURE_FIELDS = frozenset({'enabled', 'mode', 'fontSize', 'opacity', 'wheels'})
+TIRE_PRESSURE_FIELDS = frozenset({"enabled", "mode", "fontSize", "opacity", "wheels"})
 #: 胎压显示方式：简洁数值 / 数值和轮位。
-TIRE_PRESSURE_MODES = ('compact', 'named')
-TIRE_PRESSURE_MODE_ENUM = EnumSpec('mode', TIRE_PRESSURE_MODES, 'compact')
+TIRE_PRESSURE_MODES = ("compact", "named")
+TIRE_PRESSURE_MODE_ENUM = EnumSpec("mode", TIRE_PRESSURE_MODES, "compact")
 #: 四个轮位的键（左前 / 右前 / 左后 / 右后）。
-TIRE_PRESSURE_WHEEL_KEYS = frozenset({'fl', 'fr', 'rl', 'rr', 'front', 'rear'})
-TIRE_PRESSURE_SENSOR = re.compile(r'sensor\.[a-z0-9_]+')
+TIRE_PRESSURE_WHEEL_KEYS = frozenset({"fl", "fr", "rl", "rr", "front", "rear"})
+TIRE_PRESSURE_SENSOR = re.compile(r"sensor\.[a-z0-9_]+")
 #: 字号与背景不透明度边界（0.8.1）：字号只要求 > 0（不设上限，与卡片字号同口径），
 #: 不透明度是 0–1 闭区间。
-TIRE_PRESSURE_POSITIVE_FIELDS = ('fontSize',)
-TIRE_PRESSURE_UNIT_FIELDS = ('opacity',)
+TIRE_PRESSURE_POSITIVE_FIELDS = ("fontSize",)
+TIRE_PRESSURE_UNIT_FIELDS = ("opacity",)
 #: 状态灯文案与附加控制标签上限。
 STATUS_STATE_TEXT_LIMIT = 120
 EXTRA_CONTROL_TEXT_LIMIT = 120
 #: 充电状态里视为"没状态"的取值（大小写不敏感）。
-CHARGING_STATE_BLANK_VALUES = frozenset({'unknown', 'unavailable', 'none', 'null'})
+CHARGING_STATE_BLANK_VALUES = frozenset({"unknown", "unavailable", "none", "null"})
 #: 状态灯里不允许作为匹配条件的取值（它们表示"没有状态"）。
-STATUS_RULE_REJECTED_VALUES = frozenset({'unknown', 'unavailable'})
+STATUS_RULE_REJECTED_VALUES = frozenset({"unknown", "unavailable"})
 #: 状态灯规则字段与附加控制字段。
-STATUS_RULE_FIELDS = frozenset({'active', 'entityId', 'inactive'})
+STATUS_RULE_FIELDS = frozenset({"active", "entityId", "inactive"})
 #: 数值规则多一个 ``kind`` 字段；键集合必须**恰好**是这四项，多写少写都按 422 处理。
-NUMERIC_STATUS_RULE_FIELDS = frozenset({'kind', 'active', 'entityId', 'inactive'})
+NUMERIC_STATUS_RULE_FIELDS = frozenset({"kind", "active", "entityId", "inactive"})
 #: 数值规则的比较方式。与前端 ``NUMERIC_OPERATORS`` 同口径。
-NUMERIC_OPERATORS = frozenset({'gt', 'gte', 'lt', 'lte', 'eq', 'ne'})
+NUMERIC_OPERATORS = frozenset({"gt", "gte", "lt", "lte", "eq", "ne"})
 #: 反向比较：``gt 30`` 的反向是 ``lte 30``，两者合起来才无缝覆盖实数轴。
 INVERSE_OPERATOR = {
-    'gt': 'lte',
-    'gte': 'lt',
-    'lt': 'gte',
-    'lte': 'gt',
-    'eq': 'ne',
-    'ne': 'eq',
+    "gt": "lte",
+    "gte": "lt",
+    "lt": "gte",
+    "lte": "gt",
+    "eq": "ne",
+    "ne": "eq",
 }
 #: 一组状态值最多 64 条（前端 textarea 同口径）。
 STATUS_STATE_GROUP_LIMIT = 64
-EXTRA_CONTROL_FIELDS = frozenset({'rows', 'type', 'label', 'columns', 'entityId', 'sourceDeviceId'})
+EXTRA_CONTROL_FIELDS = frozenset({"rows", "type", "label", "columns", "entityId", "sourceDeviceId"})
 #: 附加控制网格档位（列 / 行）。
-GRID_SPANS: dict[str, tuple[int, ...]] = {'columns': (1, 2, 3, 4), 'rows': (1, 2)}
+GRID_SPANS: dict[str, tuple[int, ...]] = {"columns": (1, 2, 3, 4), "rows": (1, 2)}
 #: 附加控制里「整块面板 / 画面」两种展示类型；它们仍然绑定一个实体。
-EXTRA_PANEL_TYPES = frozenset({'panel', 'picture'})
+EXTRA_PANEL_TYPES = frozenset({"panel", "picture"})
 #: 允许用 ``scene.`` 实体做附加控制的域前缀（点「运行场景」）。
-EXTRA_ENTITY_PREFIXES = ('fan.', 'scene.')
+EXTRA_ENTITY_PREFIXES = ("fan.", "scene.")
 
 
 def _status_values(value: Any) -> list[Any] | None:
@@ -347,10 +367,10 @@ def _numeric_condition(condition: Any) -> tuple[str, int | float] | None:
     ``NaN`` / ``±Infinity`` 用 ``math.isfinite`` 拦截，溢出（如 ``1e400`` 解析成的 ``inf``）
     同样按非法处理。
     """
-    if not isinstance(condition, dict) or set(condition) != {'operator', 'value'}:
+    if not isinstance(condition, dict) or set(condition) != {"operator", "value"}:
         return None
-    operator = condition['operator']
-    value = condition['value']
+    operator = condition["operator"]
+    value = condition["value"]
     if operator not in NUMERIC_OPERATORS or isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
     try:
@@ -371,47 +391,45 @@ def _numeric_rule_valid(active: tuple[str, int | float], inactive: tuple[str, in
     """
     if inactive == (INVERSE_OPERATOR[active[0]], active[1]):
         return True
-    high = active if active[0] in ('gt', 'gte') else inactive
-    low = active if active[0] in ('lt', 'lte') else inactive
-    if high[0] not in ('gt', 'gte') or low[0] not in ('lt', 'lte'):
+    high = active if active[0] in ("gt", "gte") else inactive
+    low = active if active[0] in ("lt", "lte") else inactive
+    if high[0] not in ("gt", "gte") or low[0] not in ("lt", "lte"):
         return False
     if low[1] > high[1]:
         return False
     # 相等时只有「两个严格比较」留出了一个空点（如 gt 30 + lt 30），不构成重叠。
-    return not (low[1] == high[1] and (high[0] != 'gt' or low[0] != 'lt'))
+    return not (low[1] == high[1] and (high[0] != "gt" or low[0] != "lt"))
 
 
-def validate_device_status_rules(
-    status_rules: Any, fail_validation: Callable[[], NoReturn]
-) -> None:
+def validate_device_status_rules(status_rules: Any, fail_validation: Callable[[], NoReturn]) -> None:
     """各类家电（含热水器）共享的状态灯契约。
 
     ``health`` 允许写成列表（多个健康探针），其余键是单个规则对象。
     规则有两形态：状态匹配（``active`` / ``inactive`` 是字符串或字符串列表）与
     数值比较（``kind == 'numeric'``，两侧各是一个 ``{operator, value}`` 条件）。
     """
-    if not isinstance(status_rules, dict) or set(status_rules) - {'power', 'health'}:
+    if not isinstance(status_rules, dict) or set(status_rules) - {"power", "health"}:
         fail_validation()
     rules_to_check: list[Any] = []
     for key, status_rule in status_rules.items():
-        if key == 'health' and isinstance(status_rule, list):
+        if key == "health" and isinstance(status_rule, list):
             rules_to_check.extend(status_rule)
             continue
         rules_to_check.append(status_rule)
     for status_rule in rules_to_check:
         if not isinstance(status_rule, dict):
             fail_validation()
-        is_numeric = status_rule.get('kind') == 'numeric'
+        is_numeric = status_rule.get("kind") == "numeric"
         required_fields = NUMERIC_STATUS_RULE_FIELDS if is_numeric else STATUS_RULE_FIELDS
         if (
             set(status_rule) != required_fields
-            or not isinstance(status_rule.get('entityId'), str)
-            or ENTITY_ID_PATTERN.fullmatch(status_rule['entityId']) is None
+            or not isinstance(status_rule.get("entityId"), str)
+            or ENTITY_ID_PATTERN.fullmatch(status_rule["entityId"]) is None
         ):
             fail_validation()
         if is_numeric:
-            active_condition = _numeric_condition(status_rule['active'])
-            inactive_condition = _numeric_condition(status_rule['inactive'])
+            active_condition = _numeric_condition(status_rule["active"])
+            inactive_condition = _numeric_condition(status_rule["inactive"])
             if (
                 active_condition is None
                 or inactive_condition is None
@@ -419,18 +437,15 @@ def validate_device_status_rules(
             ):
                 fail_validation()
             continue
-        active_values = _status_values(status_rule['active'])
-        inactive_values = _status_values(status_rule['inactive'])
+        active_values = _status_values(status_rule["active"])
+        inactive_values = _status_values(status_rule["inactive"])
         if active_values is None or inactive_values is None:
             fail_validation()
             continue
         # 去重后再比较：重复值不会扩大匹配面，但会让「互不重叠」判断失真。
         active_values = list(dict.fromkeys(active_values))
         inactive_values = list(dict.fromkeys(inactive_values))
-        if any(
-            not (1 <= len(values) <= STATUS_STATE_GROUP_LIMIT)
-            for values in (active_values, inactive_values)
-        ):
+        if any(not (1 <= len(values) <= STATUS_STATE_GROUP_LIMIT) for values in (active_values, inactive_values)):
             fail_validation()
         if any(
             not isinstance(value, str)
@@ -446,18 +461,18 @@ def validate_device_status_rules(
             fail_validation()
 
 
-def _fail_device(profile: Mapping[str, Any], model_type: str = '') -> NoReturn:
+def _fail_device(profile: Mapping[str, Any], model_type: str = "") -> NoReturn:
     """设备类校验失败：文案带上设备类型与具体检查面，前端好定位。
 
     床与沙发没有状态灯也没有吸风动画，检查面只剩「实体和布局」；
     油烟机多一个吸风动画来源；其余家电是实体、布局与状态灯规则。
     """
     if model_type in STATUS_INDICATOR_DISABLED_MODELS:
-        reason = '实体和布局'
-    elif model_type == 'rangehood':
-        reason = '实体、布局和吸风动画来源'
+        reason = "实体和布局"
+    elif model_type == "rangehood":
+        reason = "实体、布局和吸风动画来源"
     else:
-        reason = '实体、布局和状态灯规则'
+        reason = "实体、布局和状态灯规则"
     raise HTTPException(422, detail=f"设备配置无效，请检查{reason}。")
 
 
@@ -469,26 +484,20 @@ def _validate_game_console_bindings(item: dict, model_type: str, fail: Callable[
     ``extraControls`` 里的实体重复 —— 一次点击下发两次、乐观状态互相覆盖就是这么来的。
     """
     domain = GAME_CONSOLE_ENTITY_DOMAINS[model_type]
-    main = item.get('mainEntityId', '')
+    main = item.get("mainEntityId", "")
     if (
         not isinstance(main, str)
         or not main
-        or re.fullmatch(rf'{domain}\.[a-z0-9_]+', main) is None
-        or not item.get('deviceId')
+        or re.fullmatch(rf"{domain}\.[a-z0-9_]+", main) is None
+        or not item.get("deviceId")
     ):
         fail()
-    selected = {
-        control.get('entityId')
-        for control in item.get('extraControls', []) or []
-        if isinstance(control, dict)
-    }
+    selected = {control.get("entityId") for control in item.get("extraControls", []) or [] if isinstance(control, dict)}
     if main in selected:
         fail()
 
 
-def validate_device_bindings(
-    ctx: ValidationContext, items: Any, model_type: str = 'fridge'
-) -> None:
+def validate_device_bindings(ctx: ValidationContext, items: Any, model_type: str = "fridge") -> None:
     """一类家电的集合校验：白名单 / 身份 / 去重 / 布局 / 附加控制与状态灯。"""
     profile = DEVICE_PROFILES[model_type]
     fail = lambda: _fail_device(profile, model_type)  # noqa: E731 - 与其它校验器同形
@@ -502,11 +511,11 @@ def validate_device_bindings(
             fail()
         if model_type in GAME_CONSOLE_ENTITY_DOMAINS:
             _validate_game_console_bindings(item, model_type, fail)
-        if model_type == 'smallcar':
+        if model_type == "smallcar":
             _validate_smallcar_bindings(ctx, item, fail)
-        if model_type == 'computer':
+        if model_type == "computer":
             _validate_computer_bindings(ctx, item, fail)
-        if model_type == 'pipelinewaterpurifier':
+        if model_type == "pipelinewaterpurifier":
             _validate_pipeline_dispenser_fields(item, fail)
         if model_type in ANIMATION_MODEL_TYPES:
             _validate_animation_bindings(item, model_type, fail)
@@ -517,8 +526,8 @@ def validate_device_bindings(
 
 def _register_device_item(seen_ids: set, seen_models: set, item: dict) -> bool:
     """登记 ``id`` 与 ``(floorId, modelId)``；重复或身份字段缺失即返回 ``False``。"""
-    device_id = item['id']
-    model_key = (item['floorId'], item['modelId'])
+    device_id = item["id"]
+    model_key = (item["floorId"], item["modelId"])
     if device_id in seen_ids or model_key in seen_models:
         return False
     seen_ids.add(device_id)
@@ -531,55 +540,122 @@ def _entity_in_domains(entity_id: Any, domains: tuple[str, ...] | frozenset[str]
     return (
         isinstance(entity_id, str)
         and ENTITY_ID_PATTERN.fullmatch(entity_id) is not None
-        and entity_id.split('.')[0] in domains
+        and entity_id.split(".")[0] in domains
     )
 
 
-def _validate_smallcar_bindings(
-    ctx: ValidationContext, item: dict, fail
-) -> None:
+def _validate_smallcar_bindings(ctx: ValidationContext, item: dict, fail) -> None:
     """汽车专有：电量/充电实体必须与设备绑定，卡片数值与充电状态映射有界。"""
     for key, domains in SMALLCAR_ENTITY_DOMAINS:
-        entity_id = item.get(key, '')
-        if entity_id and (not _entity_in_domains(entity_id, domains) or not item.get('deviceId')):
+        entity_id = item.get(key, "")
+        if entity_id and (not _entity_in_domains(entity_id, domains) or not item.get("deviceId")):
             fail()
         if not isinstance(entity_id, str):
             fail()
     if not ctx.numbers_within(item, SMALLCAR_CARD_BOUNDS):
         fail()
     # 0.8.1：`interactionEnabled` 是点击开关本身，必须是布尔（缺省视为关闭）。
-    if 'interactionEnabled' in item and type(item['interactionEnabled']) is not bool:
+    if "interactionEnabled" in item and type(item["interactionEnabled"]) is not bool:
         fail()
     # 字号不设上限（9-32 夹紧会把放大后的读数裁掉），只要求为正数。
-    if 'cardFontSize' in item and not ctx.positive_number(item['cardFontSize']):
+    if "cardFontSize" in item and not ctx.positive_number(item["cardFontSize"]):
         fail()
-    if 'chargingStates' in item:
-        charging_states = item['chargingStates']
+    if "chargingStates" in item:
+        charging_states = item["chargingStates"]
         if (
             not isinstance(charging_states, dict)
-            or set(charging_states) != {'active', 'inactive'}
+            or set(charging_states) != {"active", "inactive"}
             or any(
                 not ctx.text(charging_states.get(key), EXTRA_CONTROL_TEXT_LIMIT)
                 or not charging_states[key].strip()
-                or '\n' in charging_states[key]
-                or '\r' in charging_states[key]
+                or "\n" in charging_states[key]
+                or "\r" in charging_states[key]
                 or charging_states[key].strip().lower() in CHARGING_STATE_BLANK_VALUES
-                for key in ('active', 'inactive')
+                for key in ("active", "inactive")
             )
-            or charging_states['active'].strip() == charging_states['inactive'].strip()
+            or charging_states["active"].strip() == charging_states["inactive"].strip()
         ):
             fail()
     _validate_tire_pressure(ctx, item, fail)
+    _validate_car_presence(ctx, item, fail)
+    _validate_car_openings(ctx, item, fail)
+
+
+def _car_state_groups_ok(groups: Any, group_keys: tuple[str, ...], entity_id: Any) -> bool:
+    """状态组校验：两个键齐全、各 ≤16 个、单个 ≤255 字符、禁换行、trim 后不重复。
+
+    与前端 `carStateGroupError` 同一口径 —— 两侧只要有一处放宽，用户就会在
+    「前端能填、保存被拒」或「保存成功但运行时匹配不上」之间来回撞。
+    """
+    if groups is None:
+        # 缺省 = 自动识别，合法。
+        return True
+    if not isinstance(groups, dict) or set(groups) != set(group_keys):
+        return False
+    flattened: list[str] = []
+    for key in group_keys:
+        state_list = groups.get(key)
+        if not isinstance(state_list, list) or len(state_list) > CAR_STATE_MAX_PER_GROUP:
+            return False
+        for state_value in state_list:
+            if (
+                not isinstance(state_value, str)
+                or not state_value
+                or len(state_value) > CAR_STATE_MAX_LENGTH
+                or "\n" in state_value
+                or "\r" in state_value
+            ):
+                return False
+            flattened.append(state_value.strip())
+    return len(set(flattened)) == len(flattened)
+
+
+def _validate_car_presence(ctx: ValidationContext, item: dict, fail) -> None:
+    """在家 / 离家：实体域受限，状态组与开合同口径校验。"""
+    entity_id = item.get("presenceEntityId", "")
+    if entity_id:
+        if not _entity_in_domains(entity_id, CAR_STATE_ENTITY_DOMAINS):
+            fail()
+    elif not isinstance(entity_id, str):
+        fail()
+    # 只给了实体却不给状态组 → 走自动识别，合法；只给了状态组却没实体 → 拒绝（无法匹配）。
+    if "presenceStates" in item and item["presenceStates"] is not None and not entity_id:
+        fail()
+    if not _car_state_groups_ok(item.get("presenceStates"), CAR_PRESENCE_GROUPS, entity_id):
+        fail()
+
+
+def _validate_car_openings(ctx: ValidationContext, item: dict, fail) -> None:
+    """四门两舱：部件名白名单、每件一个实体、状态组同口径。"""
+    openings = item.get("openings")
+    if openings is None:
+        return
+    if not isinstance(openings, dict) or set(openings) - set(CAR_OPENING_PARTS):
+        fail()
+    for opening_part in openings.values():
+        if not isinstance(opening_part, dict):
+            fail()
+        if set(opening_part) - {"openingEntityId", "states", "label"}:
+            fail()
+        opening_entity_id = opening_part.get("openingEntityId", "")
+        if opening_entity_id and not _entity_in_domains(opening_entity_id, CAR_STATE_ENTITY_DOMAINS):
+            fail()
+        if not isinstance(opening_entity_id, str):
+            fail()
+        if "states" in opening_part and opening_part["states"] is not None and not opening_entity_id:
+            fail()
+        if not _car_state_groups_ok(opening_part.get("states"), CAR_OPENING_GROUPS, opening_entity_id):
+            fail()
 
 
 def _validate_tire_pressure(ctx: ValidationContext, item: dict, fail) -> None:
     """四轮胎压：``enabled`` 必填布尔，其余可选；轮位只认 ``sensor.*``，键表即白名单。"""
-    tire_pressure = item.get('tirePressure')
+    tire_pressure = item.get("tirePressure")
     if tire_pressure is None:
         return
     if not isinstance(tire_pressure, dict) or not set(tire_pressure) <= TIRE_PRESSURE_FIELDS:
         fail()
-    if not isinstance(tire_pressure.get('enabled'), bool):
+    if not isinstance(tire_pressure.get("enabled"), bool):
         fail()
     if not ctx.enum(tire_pressure, TIRE_PRESSURE_MODE_ENUM):
         fail()
@@ -595,12 +671,11 @@ def _validate_tire_pressure(ctx: ValidationContext, item: dict, fail) -> None:
                 fail()
         elif not 0 <= style_value <= 1:
             fail()
-    wheels = tire_pressure.get('wheels', {})
+    wheels = tire_pressure.get("wheels", {})
     if not isinstance(wheels, dict) or set(wheels) - TIRE_PRESSURE_WHEEL_KEYS:
         fail()
     if any(
-        not isinstance(wheel_entity_id, str)
-        or TIRE_PRESSURE_SENSOR.fullmatch(wheel_entity_id) is None
+        not isinstance(wheel_entity_id, str) or TIRE_PRESSURE_SENSOR.fullmatch(wheel_entity_id) is None
         for wheel_entity_id in wheels.values()
     ):
         fail()
@@ -611,108 +686,87 @@ def _validate_computer_bindings(ctx: ValidationContext, item: dict, fail) -> Non
     #:
     #: 电源实体是"通用电源键"的唯一来源，域不做限制（用户可能接插座/开关/自定义实体），
     #: 但必须是合法的 ``domain.object_id``；屏幕图只接受用户上传素材 id。
-    if 'powerEntityId' in item and (
-        not isinstance(item['powerEntityId'], str)
-        or (item['powerEntityId'] and ENTITY_ID_PATTERN.fullmatch(item['powerEntityId']) is None)
+    if "powerEntityId" in item and (
+        not isinstance(item["powerEntityId"], str)
+        or (item["powerEntityId"] and ENTITY_ID_PATTERN.fullmatch(item["powerEntityId"]) is None)
     ):
         fail()
-    screen_image = item.get('screenImage', '')
-    if screen_image and (
-        not isinstance(screen_image, str)
-        or ASSET_ID_PATTERN.fullmatch(screen_image) is None
-    ):
+    screen_image = item.get("screenImage", "")
+    if screen_image and (not isinstance(screen_image, str) or ASSET_ID_PATTERN.fullmatch(screen_image) is None):
         fail()
 
 
 def _validate_pipeline_dispenser_fields(item: dict, fail) -> None:
     """管线机：外观款式只能是 ``original`` / ``rectangular``，缺省按原款。"""
-    style = item.get('pipelineDispenserStyle')
+    style = item.get("pipelineDispenserStyle")
     if style is not None and style not in PIPELINE_DISPENSER_STYLES:
         fail()
 
 
 def _validate_animation_bindings(item: dict, model_type: str, fail) -> None:
     """吸风 / 喷雾动画：动画实体必须与设备绑定，域按型号收窄。"""
-    entity_id = item.get('animationEntityId', '')
-    domains = (
-        RANGEHOOD_ANIMATION_DOMAINS if model_type == 'rangehood' else MIST_ANIMATION_DOMAINS
-    )
-    if entity_id and (not _entity_in_domains(entity_id, domains) or not item.get('deviceId')):
+    entity_id = item.get("animationEntityId", "")
+    domains = RANGEHOOD_ANIMATION_DOMAINS if model_type == "rangehood" else MIST_ANIMATION_DOMAINS
+    if entity_id and (not _entity_in_domains(entity_id, domains) or not item.get("deviceId")):
         fail()
     if not isinstance(entity_id, str):
         fail()
-    if 'animationEnabled' in item and not isinstance(item['animationEnabled'], bool):
+    if "animationEnabled" in item and not isinstance(item["animationEnabled"], bool):
         fail()
 
 
-
-def _validate_device_item(
-    ctx: ValidationContext, item: Any, fail, model_type: str = ''
-) -> None:
+def _validate_device_item(ctx: ValidationContext, item: Any, fail, model_type: str = "") -> None:
     """家电公共判定：文本/身份/布局/图标/相机/附加控制。"""
     if any(
-        not ctx.text(item.get(key, ''), 128)
-        for key in ('id', 'floorId', 'modelId', 'deviceId', 'deviceName', 'label')
+        not ctx.text(item.get(key, ""), 128) for key in ("id", "floorId", "modelId", "deviceId", "deviceName", "label")
     ):
         fail()
     # 家电不允许自带 entityId（主实体由设备档案推断），但 deviceId/deviceName 必填。
-    if any(not item.get(key) for key in ('id', 'floorId', 'modelId')) or item.get('entityId'):
+    if any(not item.get(key) for key in ("id", "floorId", "modelId")) or item.get("entityId"):
         fail()
     if not ctx.numbers_within(item, DEVICE_NUMBER_BOUNDS):
         fail()
     if not ctx.flag_fields(item, DEVICE_FLAG_FIELDS):
         fail()
     # 车辆的点击动作多一档「none」，两版对 `clickAction` 的默认值也不同。
-    if not ctx.enum(
-        item, VEHICLE_CLICK_ACTION_ENUM if model_type == 'smallcar' else DEVICE_CLICK_ACTION_ENUM
-    ):
+    if not ctx.enum(item, VEHICLE_CLICK_ACTION_ENUM if model_type == "smallcar" else DEVICE_CLICK_ACTION_ENUM):
         fail()
     if not ctx.icon(item, MDI_ICON_LOOSE_PATTERN):
         fail()
-    ctx.validate_camera(item.get('focusCamera'))
+    ctx.validate_camera(item.get("focusCamera"))
     _validate_device_extras(ctx, item, fail, model_type)
 
 
-def _validate_device_extras(
-    ctx: ValidationContext, item: dict, fail, model_type: str = ''
-) -> None:
+def _validate_device_extras(ctx: ValidationContext, item: dict, fail, model_type: str = "") -> None:
     """附加控制 + 状态灯：两者都要求先绑设备（``deviceId``）。
 
     0.7.8 起附加控制**不再有条数上限**：面板大小由用户自己控制，后端只校验每一项。
     """
-    extras = item.get('extraControls', [])
-    status_rules = item.get('statusRules', {})
-    if (
-        not isinstance(extras, list)
-        or not isinstance(status_rules, dict)
-        or set(status_rules) - {'power', 'health'}
-    ):
+    extras = item.get("extraControls", [])
+    status_rules = item.get("statusRules", {})
+    if not isinstance(extras, list) or not isinstance(status_rules, dict) or set(status_rules) - {"power", "health"}:
         fail()
-    if (extras or status_rules) and not item.get('deviceId'):
+    if (extras or status_rules) and not item.get("deviceId"):
         fail()
     selected_entity_ids: set[str] = set()
     for extra in extras:
         if not isinstance(extra, dict) or set(extra) - EXTRA_CONTROL_FIELDS:
             fail()
-        extra_type = extra.get('type')
+        extra_type = extra.get("type")
         # 所有附加控制（含 panel / picture）都必须绑定实体，且 id 形状合法。
-        if (
-            not isinstance(extra.get('entityId'), str)
-            or ENTITY_ID_PATTERN.fullmatch(extra['entityId']) is None
-        ):
+        if not isinstance(extra.get("entityId"), str) or ENTITY_ID_PATTERN.fullmatch(extra["entityId"]) is None:
             fail()
-        extra_entity_id = extra['entityId']
+        extra_entity_id = extra["entityId"]
         # 域表里没有的实体只能"看状态"；风扇 / 场景额外允许以 state 形式挂上。
-        expected_type = EXTRA_TYPES.get(extra_entity_id.split('.')[0], 'state')
+        expected_type = EXTRA_TYPES.get(extra_entity_id.split(".")[0], "state")
         # panel / picture 域允许以只读 state 形式挂上；风扇 / 场景保留旧口径。
-        legacy_state = extra_type == 'state' and (
-            expected_type in EXTRA_PANEL_TYPES
-            or extra_entity_id.startswith(EXTRA_ENTITY_PREFIXES)
+        legacy_state = extra_type == "state" and (
+            expected_type in EXTRA_PANEL_TYPES or extra_entity_id.startswith(EXTRA_ENTITY_PREFIXES)
         )
         if (
             extra_entity_id in selected_entity_ids
             or (extra_type != expected_type and not legacy_state)
-            or not ctx.text(extra.get('label', ''), EXTRA_CONTROL_TEXT_LIMIT)
+            or not ctx.text(extra.get("label", ""), EXTRA_CONTROL_TEXT_LIMIT)
         ):
             fail()
         selected_entity_ids.add(extra_entity_id)
@@ -730,18 +784,16 @@ def _validate_device_extras(
         fail()
 
 
-def require_device_model(binding: dict, scene: dict, model_type: str = 'fridge') -> None:
+def require_device_model(binding: dict, scene: dict, model_type: str = "fridge") -> None:
     """确认绑定的场景模型还在，且类型与设备档案一致。"""
     scene_floor = next(
-        (floor for floor in scene.get('floors', []) if floor.get('id') == binding.get('floorId')),
+        (floor for floor in scene.get("floors", []) if floor.get("id") == binding.get("floorId")),
         {},
     )
     scene_models = [
-        item
-        for item in scene_floor.get('scene', {}).get('items', [])
-        if item.get('id') == binding.get('modelId')
+        item for item in scene_floor.get("scene", {}).get("items", []) if item.get("id") == binding.get("modelId")
     ]
     profile = DEVICE_PROFILES[model_type]
-    allowed_types = profile.get('model_types') or (profile['model_type'],)
-    if not scene_models or scene_models[0].get('type') not in allowed_types:
-        raise HTTPException(409, detail='模型已移除，请在设备配置中重新选择。')
+    allowed_types = profile.get("model_types") or (profile["model_type"],)
+    if not scene_models or scene_models[0].get("type") not in allowed_types:
+        raise HTTPException(409, detail="模型已移除，请在设备配置中重新选择。")

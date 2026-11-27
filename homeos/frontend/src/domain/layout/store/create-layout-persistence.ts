@@ -18,6 +18,7 @@ import {
 import { applyTabletDefaultPerformanceMode } from '@/kernel/perf/tablet-default-perf'
 import type { NotifyType } from '@/kernel/notify'
 import { KNOWN_PANEL_WIDGET_TYPES } from './create-layout-state'
+import { pruneMissingLayoutKeys } from './prune-layout-keys'
 import { WIDGET_REGISTRY_META, FLOATING_HUB_TYPE_SET } from '@/kernel/registry/widget-registry-meta'
 import { ensureDoorbellList } from '@/kernel/layout'
 import { normalizeSecurityCameras } from '@/kernel/layout'
@@ -97,8 +98,7 @@ function cloneLayoutForApi(layout: Record<string, unknown>) {
 /** createLayoutPersistence 的依赖注入参数 */
 interface LayoutPersistenceDeps {
   /** 布局配置对象 */
-  layoutConfig: Record<string, unknown>
-  /** 脏标志 ref */
+  layoutConfig: Record<string, unknown> /** 脏标志 ref */
   layoutDirty: Ref<boolean>
   /** 当前激活方案 ID ref */
   activeProfileId: Ref<string>
@@ -112,6 +112,29 @@ interface LayoutPersistenceDeps {
   setSuppressDirtyTracking: (v: boolean) => void
   /** 加载完成后的可选回调 */
   onAfterLoad?: () => void | Promise<void>
+  /**
+   * 保存撞上 409 时、重新拉取布局**之前**的兜底回调。
+   *
+   * 冲突处理会整份重载服务端布局，本次未保存的改动本应被丢弃；先写成草稿后，
+   * 载入完成时的草稿询问还能把它们捞回来，用户不必凭记忆重做一遍。
+   */
+  preserveUnsavedDraft?: () => void | Promise<void>
+  /**
+   * REST 调用（默认走 `@/domain/api/config`）。
+   *
+   * 抽成可注入是为了让「保存期间继续编辑」这类并发时序能在单测里精确复现：
+   * 真实实现是 axios 直连，无法在请求在途时插入一次本地改动。
+   */
+  api?: LayoutPersistenceApi
+}
+
+/** 布局持久化用到的 REST 能力（与 `@/domain/api/config` 的同名函数同形）。 */
+export type LayoutPersistenceApi = {
+  fetchProject: (
+    id: string,
+  ) => Promise<{ data?: { data?: { layout?: unknown; layoutParseError?: boolean; updatedAt?: string } } }>
+  saveProject: (id: string, payload: unknown) => Promise<{ data?: { data?: { updatedAt?: string } } }>
+  setActiveProject: (id: string) => Promise<unknown>
 }
 
 /**
@@ -125,9 +148,9 @@ function normalizeDisplayBackdropUrl(raw: unknown): string | undefined {
 }
 
 /**
- * 归一化侧边栏页面背景（0.8.9）。
+ * 归一化侧边栏页面背景（0.9.0）。
  *
- * 与主页面共用同一份模型（`shared/utils/widget/page-background.util`），这里直接转调，
+ * 与主页面共用同一份模型（`kernel/widget/page-background`），这里直接转调，
  * 避免「布局配置一套区间、文档组件另一套区间」导致同一份背景在两侧显示不同。
  *
  * 返回可展开的片段：缺失时不产生键（旧观感），给了才归一化 ——
@@ -250,6 +273,8 @@ export function createLayoutPersistence({
   notify,
   setSuppressDirtyTracking,
   onAfterLoad,
+  preserveUnsavedDraft,
+  api = { fetchProject, saveProject, setActiveProject },
 }: LayoutPersistenceDeps) {
   // loadConfig 的防抖定时器（200ms）
   let loadConfigDebounceTimer: ReturnType<typeof setTimeout> | null = null
@@ -420,6 +445,10 @@ export function createLayoutPersistence({
     }
     if (payload?.layout) {
       const { layout: merged } = applyLayoutFromRaw(payload.layout as Record<string, unknown>)
+      // `Object.assign` 只覆盖不删除：切换方案 / 换账号后，上一个方案独有的顶层键
+      // （某版本才有的配置段、独立保存页写入的字段）会残留在本地，下一次保存
+      // 再把它们整份写回服务端 —— 表现为「切回默认方案后仍然带着另一个方案的设置」。
+      pruneMissingLayoutKeys(layoutConfig as Record<string, unknown>, merged)
       Object.assign(layoutConfig, merged)
     }
     // 记录本次读取的版本：保存时回传，用于检测期间是否有别的终端写过
@@ -427,7 +456,7 @@ export function createLayoutPersistence({
 
     isConfigLoaded.value = true
     applyTabletDefaultPerformanceMode(layoutConfig)
-    void setActiveProject(profile).catch((e: unknown) => {
+    void api.setActiveProject(profile).catch((e: unknown) => {
       const caughtMessage = e instanceof Error ? e.message : String(e)
       logger.warn(`同步激活方案失败: ${caughtMessage}`)
     })
@@ -526,7 +555,7 @@ export function createLayoutPersistence({
       setSuppressDirtyTracking(true)
 
       try {
-        const res = await fetchProject(profileAtStart)
+        const res = await api.fetchProject(profileAtStart)
 
         // 竞态保护：若期间方案已切换则丢弃本次响应
         if (requestId !== loadConfigRequestId || activeProfileId.value !== profileAtStart) {
@@ -606,6 +635,8 @@ export function createLayoutPersistence({
       let lastOk = false
       /** 本轮是否撞上 409：结束后要重新拉取最新布局，避免拿着过期版本反复失败 */
       let conflictDetected = false
+      /** 「保存期间又改过」的重存次数上限：用户边存边拖时不能无限循环。 */
+      let stabiliseAttempts = 0
       try {
         do {
           const runSilent = saveConfigQueuedSilent
@@ -615,9 +646,13 @@ export function createLayoutPersistence({
             // 方案必然配对；但 await 期间用户可能切走方案，所以保存后的副作用必须再核对。
             const targetProfileId = activeProfileId.value
             const layout = cloneLayoutForApi(layoutConfig)
+            // 记下**这次真正发出去**的内容：保存期间用户继续改配置时，
+            // 那些改动不在本次请求体里，不能跟着把脏标记清掉（否则再也不会被保存，
+            // 刷新后回退）。旧实现只要后端回 200 就 layoutDirty=false，正是这个漏洞。
+            const sentSignature = JSON.stringify(layout)
             // 乐观锁：带上读取时的版本；服务端发现已被别人改过会返回 409
             const expectedUpdatedAt = loadedUpdatedAt
-            const response = await saveProject(targetProfileId, {
+            const response = await api.saveProject(targetProfileId, {
               layout,
               ...(expectedUpdatedAt ? { expectedUpdatedAt } : {}),
             })
@@ -634,10 +669,23 @@ export function createLayoutPersistence({
               lastOk = true
               break
             }
-            if (!runSilent) notify('布局配置已保存', 'success')
             // 保存成功后推送远程访问地址，原生端无需重启即可拿到新入口
             void syncServerAccessToNative(String(layout.externalUrl ?? ''))
-            layoutDirty.value = false
+            const changedDuringSave = JSON.stringify(cloneLayoutForApi(layoutConfig)) !== sentSignature
+            if (changedDuringSave && stabiliseAttempts < 5) {
+              // 保持脏 + 带着新 updatedAt 立刻再存一轮（不再多弹一次「已保存」）。
+              stabiliseAttempts += 1
+              saveConfigNeedsResave = true
+              layoutDirty.value = true
+              lastOk = true
+              continue
+            }
+            if (changedDuringSave) {
+              // 重存到上限仍在改：保留脏标记，交由 dirty watch / 用户下一次保存收尾。
+              logger.warn('布局在保存期间持续变化，已保存到当前快照，剩余改动仍需再次保存')
+            }
+            if (!runSilent) notify('布局配置已保存', 'success')
+            layoutDirty.value = changedDuringSave
             lastOk = true
           } catch (err) {
             if (isConflictError(err)) {
@@ -659,6 +707,13 @@ export function createLayoutPersistence({
           }
         } while (saveConfigNeedsResave)
         if (conflictDetected) {
+          // 冲突后会整份重载服务端布局，本地这批改动将被覆盖：先落成本地草稿，
+          // 载入完成时的草稿询问能把它们捞回来（用户不必凭记忆重做）。
+          try {
+            await preserveUnsavedDraft?.()
+          } catch (draftFailure) {
+            logger.debug(`保存冲突后写入本地草稿失败: ${String(draftFailure)}`)
+          }
           // 冲突后把版本号 / 布局拉回服务端最新，用户刷新视角后可重新编辑再保存
           void Promise.resolve(loadConfig()).catch(() => {
             /* 重新加载失败会由 loadConfig 自己提示 */

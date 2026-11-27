@@ -22,8 +22,9 @@ from ...platform.core.http.errors import BusinessException, ErrorCode, api_error
 #: 铺面枚举。与前端 `FLOOR_FINISHES` 逐项一致。
 FLOOR_FINISHES = frozenset({"theme", "wood", "tile"})
 
-#: 色档上下限。与前端 `FLOOR_TONE_LIMIT` 一致。
-FLOOR_TONE_LIMIT = 5
+#: 色档上下限。与前端 `FLOOR_TONE_LIMIT` 一致（0.9.0 从 ±5 扩到 ±20）。
+#: 前端在 +5 以上会按基色剩余亮度压缩明度，后端只管范围，不复制压缩曲线。
+FLOOR_TONE_LIMIT = 20
 
 #: 单层分区数 / 单环点数 / 单层洞口环数上限（与前端同口径，防外部注入撑爆载荷）。
 MAX_REGIONS = 128

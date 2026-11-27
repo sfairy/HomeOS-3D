@@ -18,6 +18,9 @@ import {
   modelListHint,
   openGameMainEntityPicker,
   renderWindowOpenerSection,
+  renderDoorOpenerSection,
+  renderCarOpeningSection,
+  renderCarPresenceBlock,
 } from './sections'
 import { ENVIRONMENT_CATEGORY_LABELS, bindPickerRow, openDeviceCategoryPicker } from './picker-row'
 import { openConfigurationPicker, type ConfigurationChoice } from '../../configuration-picker'
@@ -586,6 +589,29 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
         isFanMode = editorHost.deviceKind === 'fan',
         isExhaustFanMode = editorHost.deviceKind === 'exhaust-fan',
         bindingContainer = isBathHeaterMode || isPurifierMode || isWaterHeaterMode || isFanMode || isExhaustFanMode
+      // 0.9.0：空调与浴霸是**同一批模型上的两种设备类型**，所以在「基础绑定」顶部给一个
+      // 两段式切换（`设备类型：空调 / 浴霸`），而不是让用户退出去换一个环境类别。
+      if (editorHost.deviceKind === 'climate' || editorHost.deviceKind === 'bath-heater') {
+        const climateTypeFieldElement = editorHost.createElement('div', 'i3d-climate-type-field'),
+          climateTypeOptionsElement = editorHost.createElement('div', 'i3d-climate-type-options')
+        climateTypeOptionsElement.setAttribute('role', 'group')
+        climateTypeOptionsElement.setAttribute('aria-label', '设备类型')
+        climateTypeFieldElement.append(editorHost.createElement('span', '', '设备类型'), climateTypeOptionsElement)
+        for (const [climateTypeValue, climateTypeLabel] of [
+          ['air-conditioner', '空调'],
+          ['bath-heater', '浴霸'],
+        ] as [string, string][]) {
+          const climateTypeButton = editorHost.createElement('button', '', climateTypeLabel)
+          climateTypeButton.type = 'button'
+          const isActiveClimateType = (isBathHeaterMode ? 'bath-heater' : 'air-conditioner') === climateTypeValue
+          climateTypeButton.setAttribute('aria-pressed', String(isActiveClimateType))
+          climateTypeButton.addEventListener('click', () => {
+            isActiveClimateType || ((vector.climateType = climateTypeValue), refreshEditorPreview(), renderPanel())
+          })
+          climateTypeOptionsElement.append(climateTypeButton)
+        }
+        currentContainer.append(climateTypeFieldElement)
+      }
       bindingContainer && !vector.entityId && (vector.clickAction = 'focus')
       const bindingRowElement = currentContainer,
         nameRowElement = createConfigRow(bindingRowElement),
@@ -1570,7 +1596,41 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
             editorHost.entities,
             vector.deviceId,
             editorHost.latestStates || editorHost.states,
-          )
+          ),
+          // 「在家 / 离家」与「四门两舱」两段共用的依赖：同一个实体目录、同一份草稿对象。
+          carCarMotionDeps = () => ({
+            createElement: editorHost.createElement,
+            createConfigSection,
+            createConfigRow,
+            createSelectRow,
+            createSettingRow,
+            entityCatalog: carEntityCatalog,
+            item: vector,
+            readEntityState: (entityId: string) =>
+              (editorHost.latestStates || editorHost.states || {})[entityId] ?? null,
+            previewCarOpening: (part: string, opening: boolean) =>
+              (editorHost as any).previewCarOpening?.(String(vector.id || ''), part, opening),
+            refreshEditorPreview,
+            renderPanel,
+          })
+        // 0.9.0 的「车辆状态」分区：电量实体是普通行；「车辆充电」是一条
+        // `details.i3d-vehicle-state[data-vehicle-state=charging]`，自带折叠标题
+        // 与「 · 已绑定实体名」（`.i3d-vehicle-state-bound`）。
+        const chargingDetailsElement = editorHost.createElement('details', 'i3d-vehicle-state')
+        chargingDetailsElement.dataset.vehicleState = 'charging'
+        ;(chargingDetailsElement.open = !!vector.chargingEntityId),
+          chargingDetailsElement.append(editorHost.createElement('summary', '', '车辆充电（可选）') as HTMLElement),
+          vector.chargingEntityId &&
+            chargingDetailsElement
+              .querySelector('summary')!
+              .append(
+                editorHost.createElement('span', 'i3d-vehicle-state-bound', ' · ' + String(vector.chargingEntityId)),
+              )
+        const chargingBodyElement = editorHost.createElement('div', 'i3d-vehicle-state-body'),
+          chargingBodyFieldsElement = editorHost.createElement('div', 'i3d-vehicle-state-fields'),
+          chargingSelectHostElement = editorHost.createElement('div', 'i3d-vehicle-state-fields')
+        chargingBodyElement.append(chargingSelectHostElement, chargingBodyFieldsElement)
+        chargingDetailsElement.append(chargingBodyElement)
         for (const [carBindingField, carBindingLabel, carBindingDomains] of [
           ['batteryEntityId', '电量实体（%）', ['sensor']],
           ['chargingEntityId', '充电状态实体', ['binary_sensor', 'sensor']],
@@ -1590,7 +1650,8 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
             !carBindingOptions.some(([carOptionEntityId]) => carOptionEntityId === vector[carBindingField]) &&
             carBindingOptions.unshift([vector[carBindingField], vector[carBindingField] + '（失效或不属于当前设备）']),
             createSelectRow(
-              carStatusSectionElement,
+              // 充电状态实体落在 details 里，电量实体留在分区直属行（0.9.0 实测顺序）。
+              carBindingField === 'chargingEntityId' ? chargingSelectHostElement : carStatusSectionElement,
               carBindingLabel,
               [['', '未绑定'], ...carBindingOptions],
               vector[carBindingField] || '',
@@ -1602,38 +1663,52 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
               },
             )
         }
-        const carRawStatusElement = editorHost.createElement('p', 'i3d-note i3d-car-raw-state')
-        carRawStatusElement.setAttribute('aria-live', 'polite'), carStatusSectionElement.append(carRawStatusElement)
-        const chargingSettingsElement = editorHost.createElement('details', 'i3d-car-charging-settings')
-        ;(chargingSettingsElement.open = !!vector.chargingStates),
-          chargingSettingsElement.append(editorHost.createElement('summary', '', '自定义充电识别（可选）')),
-          chargingSettingsElement.append(
-            editorHost.createElement(
-              'p',
-              'i3d-note',
-              '在 HA 中查看充电状态实体，充电和不充电时显示什么文字，就分别填入对应输入框。两项都留空则自动识别。',
-            ),
-          )
+        carStatusSectionElement.append(chargingDetailsElement),
+          carStatusSectionElement.append(renderCarPresenceBlock(carCarMotionDeps()))
         const chargingInputsByKey: Record<string, HTMLInputElement> = {},
-          chargingErrorElement = editorHost.createElement('p', 'i3d-error')
+          chargingErrorElement = editorHost.createElement('p', 'i3d-error'),
+          chargingReadingList = editorHost.createElement('dl', 'i3d-vehicle-state-reading'),
+          chargingRawRowElement = editorHost.createElement('div'),
+          chargingMatchedRowElement = editorHost.createElement('div')
         chargingErrorElement.setAttribute('role', 'status')
-        const chargingSummaryElement = editorHost.createElement('p', 'i3d-note')
-        for (const [chargingFieldKey, chargingFieldLabel, chargingFieldHint] of [
-          ['inactive', '不充电状态值', '填写不充电时的文字'],
-          ['active', '充电状态值', '填写充电时的文字'],
-        ]) {
-          const chargingValueInputElement = editorHost.createElement('input')
-          ;(chargingValueInputElement.type = 'e.text'),
-            (chargingValueInputElement.maxLength = 120),
-            (chargingValueInputElement.placeholder = chargingFieldHint),
-            chargingValueInputElement.setAttribute('aria-label', chargingFieldLabel),
-            (chargingValueInputElement.value =
-              typeof vector.chargingStates?.[chargingFieldKey] == 'string'
-                ? vector.chargingStates[chargingFieldKey]
-                : ''),
-            (chargingValueInputElement.disabled = !vector.chargingEntityId),
-            (chargingInputsByKey[chargingFieldKey] = chargingValueInputElement),
-            createSettingRow(chargingSettingsElement, chargingFieldLabel, chargingValueInputElement),
+        chargingRawRowElement.append(
+          editorHost.createElement('dt', '', 'HA 当前值：'),
+          editorHost.createElement('dd', '', '尚未取得'),
+        )
+        chargingMatchedRowElement.append(
+          editorHost.createElement('dt', '', '自动识别为'),
+          editorHost.createElement('dd', '', '未识别'),
+        )
+        chargingReadingList.append(chargingRawRowElement, chargingMatchedRowElement)
+        // 0.9.0 实测：未绑定充电实体时 body 里**只有**实体选择一行，值输入与读数框都不出现。
+        if (vector.chargingEntityId) {
+          chargingBodyFieldsElement.append(
+            editorHost.createElement('p', 'i3d-note', '两项留空自动识别。自定义时请填写两个原始值。'),
+          )
+        }
+        if (vector.chargingEntityId) {
+          for (const [chargingFieldKey, chargingFieldLabel, chargingFieldHint] of [
+            ['inactive', '不充电状态值', '填写不充电时的文字'],
+            ['active', '充电状态值', '填写充电时的文字'],
+          ]) {
+            const chargingValueInputElement = editorHost.createElement('input')
+            ;(chargingValueInputElement.type = 'text'),
+              (chargingValueInputElement.maxLength = 120),
+              (chargingValueInputElement.placeholder = chargingFieldHint),
+              chargingValueInputElement.setAttribute('aria-label', chargingFieldLabel),
+              (chargingValueInputElement.value =
+                typeof vector.chargingStates?.[chargingFieldKey] == 'string'
+                  ? vector.chargingStates[chargingFieldKey]
+                  : ''),
+              (chargingValueInputElement.disabled = !vector.chargingEntityId),
+              (chargingInputsByKey[chargingFieldKey] = chargingValueInputElement)
+            // 0.9.0 的字段壳：label 在上、输入在下一行（`.i3d-vehicle-state-field` 的两行栅格）。
+            const chargingFieldElement = editorHost.createElement('div', 'i3d-vehicle-state-field')
+            chargingFieldElement.append(
+              editorHost.createElement('label', '', chargingFieldLabel),
+              chargingValueInputElement,
+            )
+            chargingBodyFieldsElement.append(chargingFieldElement)
             chargingValueInputElement.addEventListener('input', () => {
               const chargingValueDraft = {
                 inactive: chargingInputsByKey.inactive.value.trim(),
@@ -1649,29 +1724,27 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                 chargingInputElement.setCustomValidity(chargingErrorElement.textContent)
               refreshEditorPreview(), editorHost.refreshEffectSettings()
             })
+          }
+          chargingBodyFieldsElement.append(chargingErrorElement, chargingReadingList)
         }
-        chargingSettingsElement.append(chargingErrorElement, chargingSummaryElement),
-          carStatusSectionElement.append(chargingSettingsElement),
-          (editorHost.refreshEffectSettings = () => {
-            const carStatusSnapshot = carState2(vector, editorHost.latestStates || editorHost.states),
-              carRawStatusText = vector.chargingEntityId
+        ;(editorHost.refreshEffectSettings = () => {
+          const carStatusSnapshot = carState2(vector, editorHost.latestStates || editorHost.states),
+            carRawStatusText = vector.chargingEntityId
+              ? carStatusSnapshot.chargingRaw
                 ? carStatusSnapshot.chargingRaw
-                  ? '当前原始状态：' + carStatusSnapshot.chargingRaw
-                  : '当前原始状态：' + carStatusSnapshot.status + '，请等待实体恢复后再填写。'
-                : '当前原始状态：请先选择充电状态实体。'
-            carRawStatusElement.textContent !== carRawStatusText && (carRawStatusElement.textContent = carRawStatusText)
-            const carChargingStatusText =
-              '当前识别：' +
-              (carStatusSnapshot.charging === true
-                ? '充电中'
-                : carStatusSnapshot.charging === false
-                  ? '不充电'
-                  : '未匹配') +
-              '。'
-            chargingSummaryElement.textContent !== carChargingStatusText &&
-              (chargingSummaryElement.textContent = carChargingStatusText)
-          }),
+                : carStatusSnapshot.status + '（等待实体恢复）'
+              : '尚未取得'
+          const rawValueElement = chargingRawRowElement.lastElementChild as HTMLElement,
+            matchedValueElement = chargingMatchedRowElement.lastElementChild as HTMLElement
+          rawValueElement.textContent !== carRawStatusText && (rawValueElement.textContent = carRawStatusText)
+          const carChargingStatusText =
+            carStatusSnapshot.charging === true ? '充电中' : carStatusSnapshot.charging === false ? '不充电' : '未识别'
+          matchedValueElement.textContent !== carChargingStatusText &&
+            (matchedValueElement.textContent = carChargingStatusText)
+        }),
           editorHost.refreshEffectSettings()
+        // 0.9.0 顺序：车辆状态（电量 / 充电 / 在家离家）→ 车辆开合 → 汽车状态卡片 → 四轮胎压。
+        renderCarOpeningSection(carCarMotionDeps())
         // 汽车状态卡片（0.8.0 顺序：车辆状态 → 汽车状态卡片 → 四轮胎压）。
         const carStatusCardSectionElement = createConfigSection('汽车状态卡片')
         renderAirPurifierBindingSection(carStatusCardSectionElement, vector, {
@@ -1788,6 +1861,8 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
             ),
           )
         }
+        // 0.9.0 顺序已在上方落地：车辆状态（电量 / 充电 / 在家离家）→ 车辆开合 →
+        // 汽车状态卡片 → 四轮胎压。这里不再追加，否则会把「开合」排到胎压之后。
       }
       if (editorHost.isAirerMode) {
         const airerDirectionSectionElement = createConfigSection('实体升降方向')
@@ -2203,6 +2278,20 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
         )
         fanControlSection.append(bladeSection)
       }
+      // 开门器（0.9.0）：与开窗器同一套装配方式，宿主是门模型、实体是 switch。
+      if (editorHost.isDoorOpenerMode)
+        currentContainer = renderDoorOpenerSection(
+          {
+            editorHost,
+            createConfigSection,
+            createConfigRow,
+            createSelectRow,
+            createNumberRow,
+            refreshEditorPreview,
+            renderPanel,
+          },
+          vector,
+        )
       if (editorHost.isWindowOpenerMode)
         currentContainer = renderWindowOpenerSection(
           {

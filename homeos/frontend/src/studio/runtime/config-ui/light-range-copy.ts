@@ -29,6 +29,8 @@ export const LIGHT_RANGE_COPY = Object.freeze({
   /** 保存成功且保存后没有新改动（上游 `range-dialog.js` 的两条分支）。 */
   savedToLightConfig: '已保存到灯光配置，可继续调整。关闭后点击“保存配置”完成保存。',
   savedWithMoreChanges: '已保存，另有新修改待保存。',
+  /** 没有改动就点保存：不落盘，直接说明（0.9.0 `range-dialog.js`）。 */
+  nothingToSave: '没有需要保存的修改。',
   previewUnavailable: '轻量柔光预览暂时无法打开。',
   saveFailed: '照射范围保存失败。',
 

@@ -10,11 +10,6 @@
  * 会让用户以为只有一种。
  */
 import { PAGE_BACKGROUND_PRESETS, PAGE_BACKGROUND_TYPE, pageBackgroundPresetSource } from '@app/shared/page-background'
-
-/** 模板卡片缩略图的显示尺寸（与 `aspect-ratio: 520 / 260` 的容器一致）。 */
-const PREVIEW_WIDTH = 520
-const PREVIEW_HEIGHT = 260
-
 /**
  * 往预览容器里放缩略图（`preview` 已带 `component-template-preview` 类）。
  *
@@ -34,7 +29,8 @@ export function appendTemplatePreview(preview: HTMLElement, template: { id: stri
 
 function presetImage(presetId: string): HTMLImageElement {
   const image = document.createElement('img')
-  image.src = pageBackgroundPresetSource(presetId, PREVIEW_WIDTH, PREVIEW_HEIGHT)
+  // 0.9.0 模板卡直接用默认 1600×900 取图（六张都是 landscape），不按卡片盒算比例。
+  image.src = pageBackgroundPresetSource(presetId)
   // 装饰图：模板卡片本身已带名称，读屏不需要逐个念出六张背景。
   image.alt = ''
   return image

@@ -33,9 +33,11 @@ export function updateCarCard(containerElement: any, carConfig: any, carOptions:
       '--meter-background-opacity',
       String(Math.min(1, Math.max(0, carConfig.cardOpacity ?? 1))),
     ),
-    (cardElement.style.width = cardWidth + 'px'),
+    // 0.9.0：宽度与字号改走 CSS 变量，卡片内部（电量条、状态文字）能直接用同一个值排版，
+    // 不必再靠 `offsetWidth` 二次测量 —— 那在字号极大时会晚一帧、卡片先抖一下。
+    cardElement.style.setProperty('--card-width', cardWidth + 'px'),
     // 字号不再夹到 9–32px：用户填多少就多大（后端也只校验正数）。
-    (cardElement.style.fontSize = (cardTextSize ?? CARD_TEXT_SIZE_PX) + 'px'),
+    cardElement.style.setProperty('--card-font-size', (cardTextSize ?? CARD_TEXT_SIZE_PX) + 'px'),
     // 字号放大后卡片会被 CSS 的 min-width 撑宽：容器跟随实测宽度，避免内容溢出裁切。
     (containerElement.style.width = (cardElement.offsetWidth || cardWidth) + 'px'),
     (containerElement.style.height = cardElement.offsetHeight + 'px'),
@@ -343,6 +345,267 @@ export function standardCarBindings(entities: any[] = []) {
     batteryEntityId: findEntityId('sensor', 'battery'),
     chargingEntityId: findEntityId('binary_sensor', 'battery_charging'),
   }
+}
+
+/* ------------------------------------------------------------------------- *
+ * 车辆在家/离家与开合状态（0.9.0 `car-state.js` 的门侧契约）
+ *
+ * 这一族与 `carState` 的区别：充电只有「充/不充」两态，而**在家/离家**与
+ * **开合**都允许用户手填一组原始状态值（每类 ≤16 个），且有「自动识别」兜底。
+ * 因此读数必须返回**三态** `matched: boolean | null` —— `null` 表示「没匹配上，
+ * 不要动作」，而不是 `false`（`false` 会被误当成「已离家 / 已关闭」）。
+ *
+ * 状态值校验刻意与后端 `_valid_car_state_groups` 同口径：
+ * 两个键都必须存在、每类 ≤16 个、单个 ≤255 字符、禁换行、去重后个数不变。
+ * ------------------------------------------------------------------------- */
+
+/** 每类状态值上限（上游 `CAR_PRESENCE_MAX_STATES`）。 */
+export const CAR_PRESENCE_MAX_STATES = 16
+
+/** 单个状态值字符上限（上游 `CAR_PRESENCE_STATE_LENGTH`）。 */
+export const CAR_PRESENCE_STATE_LENGTH = 255
+
+/** 六块可独立绑定的开合件。顺序即配置面板顺序。 */
+export type CarOpeningPart = 'leftFront' | 'leftRear' | 'rightFront' | 'rightRear' | 'hood' | 'tail'
+
+export const CAR_OPENING_PARTS: Readonly<Record<CarOpeningPart, string>> = Object.freeze({
+  leftFront: '左前门',
+  leftRear: '左后门',
+  rightFront: '右前门',
+  rightRear: '右后门',
+  hood: '前备箱',
+  tail: '后备箱',
+})
+
+/** 只有轿车与 SUV 有可开合的四门两舱；电瓶车等不参与。 */
+export function supportsCarOpenings(modelType: string | undefined | null): boolean {
+  return modelType === 'smallcar' || modelType === 'suv'
+}
+
+/** 实体 id 合法性：`domain.object_id`，总长 ≤255。与后端 `car_presence_entity_id` 同口径。 */
+export function carPresenceEntityAllowed(entityId: unknown): boolean {
+  return typeof entityId === 'string' && entityId.length <= 255 && /^[a-z_]+\.[a-z0-9_]+$/.test(entityId)
+}
+
+/** 一组状态值的通用校验；返回空串表示通过。 */
+function carStateGroupError(
+  entityId: unknown,
+  stateMapping: unknown,
+  groupKeys: readonly string[],
+  label: string,
+): string {
+  if (!carPresenceEntityAllowed(entityId)) return '请选择有效的' + label + '实体。'
+  if (stateMapping === undefined) return ''
+  const groups = groupKeys.map((groupKey) => (stateMapping as Record<string, unknown>)?.[groupKey])
+  if (groups.some((group) => !Array.isArray(group)) || Object.keys(stateMapping as object).length !== 2)
+    return '请填写有效的状态值，每行一个。未知和不可用状态不能用于判断。'
+  if (groups.some((group) => (group as unknown[]).length > CAR_PRESENCE_MAX_STATES))
+    return label + '各可填写最多 ' + CAR_PRESENCE_MAX_STATES + ' 个状态值。'
+  const flattened = (groups as unknown[][]).flat()
+  return flattened.some(
+    (stateText) =>
+      typeof stateText !== 'string' || [...stateText].length > CAR_PRESENCE_STATE_LENGTH || /[\r\n]/.test(stateText),
+  )
+    ? '请填写有效的状态值，每行一个。未知和不可用状态不能用于判断。'
+    : new Set(flattened.map((stateText) => (stateText as string).trim())).size !== flattened.length
+      ? label + '的状态值不能重复。'
+      : ''
+}
+
+const CAR_PRESENCE_GROUPS = ['home', 'away'] as const
+const CAR_OPENING_GROUPS = ['open', 'closed'] as const
+
+/** 在家/离家的映射错误；两项都未配置时视为「不启用」，返回空串。 */
+export function carPresenceMappingError(carConfig: any): string {
+  if (carConfig?.presenceEntityId === undefined && carConfig?.presenceStates === undefined) return ''
+  return carStateGroupError(
+    carConfig?.presenceEntityId,
+    carConfig?.presenceStates,
+    CAR_PRESENCE_GROUPS,
+    '车辆在家 / 离家',
+  )
+}
+
+/** 单块开合件的映射错误。 */
+export function carOpeningMappingError(openingConfig: any): string {
+  return carStateGroupError(openingConfig?.openingEntityId, openingConfig?.states, CAR_OPENING_GROUPS, '车辆开合状态')
+}
+
+/** 车辆已绑定且映射合法的全部开合实体（供 `document_entity_references` 与订阅去重）。 */
+export function carOpeningEntities(carConfig: any): string[] {
+  return (Object.keys(CAR_OPENING_PARTS) as CarOpeningPart[]).flatMap((part) => {
+    const openingConfig = carConfig?.openings?.[part]
+    return openingConfig && !carOpeningMappingError(openingConfig) ? [openingConfig.openingEntityId as string] : []
+  })
+}
+
+/** 在家/离家的自动识别词表（小写比较）。 */
+const CAR_PRESENCE_LABELS = { on: ['在家', '在家里', 'Home'], off: ['离家', 'Away', 'not home'] } as const
+
+const CAR_PRESENCE_ON_MATCHERS = new Set(['at home', ...CAR_PRESENCE_LABELS.on.map((label) => label.toLowerCase())])
+const CAR_PRESENCE_OFF_MATCHERS = new Set([
+  '未连接',
+  'not home',
+  ...CAR_PRESENCE_LABELS.off.map((label) => label.toLowerCase()),
+])
+
+/** 开合的自动识别词表。键是**原始状态值**（`on`/`off`），不是配置里的 `open`/`closed`。 */
+const CAR_OPENING_LABELS = {
+  on: ['打开', '已打开', '开启', '已开启'],
+  off: ['关闭', '已关闭'],
+} as const
+
+const CAR_OPENING_ON_MATCHERS = new Set(CAR_OPENING_LABELS.on.map((label) => label.toLowerCase()))
+const CAR_OPENING_OFF_MATCHERS = new Set(CAR_OPENING_LABELS.off.map((label) => label.toLowerCase()))
+
+/** 允许自动识别设备类别的域（只认有明确开合语义的）。 */
+const CAR_OPENING_DOMAINS = new Set(['door', 'garage_door', 'opening', 'window'])
+
+/** 一类读数：`raw` 原始值、`available` 可用、`display` 首个显示文字、`matched` 三态。 */
+export type CarStateReading = {
+  raw: string
+  available: boolean
+  display?: string
+  matched: boolean | null
+  automatic?: boolean
+}
+
+/** 把显示文字去重拼成候选列表；`rawState` 本身不进列表（避免「显示文字==原始值」）。 */
+function carStateLabels(rawState: string, displayLabel: string, extraLabels: readonly string[] = []): string[] {
+  return [...new Set([displayLabel || extraLabels[0], ...extraLabels]).values()].filter(
+    (label): label is string => !!label && label !== rawState,
+  )
+}
+
+/** 在家/离家的显示文字：`binary_sensor` 按 device_class=presence，跟踪器按 home/not_home。 */
+export function carPresenceDisplay(entityId: string, entityState: any, displayLabel = ''): string[] {
+  const rawState = entityState?.state == null ? '' : String(entityState.state).trim()
+  if (!hasUsableState(entityState)) return []
+  const domain = entityId.split('.')[0]
+  const deviceClass = entityState.attributes?.device_class
+  let labels: string[] = []
+  if (domain === 'binary_sensor' && deviceClass === 'presence' && Object.hasOwn(CAR_PRESENCE_LABELS, rawState))
+    labels = [...(CAR_PRESENCE_LABELS as any)[rawState]]
+  else if ((domain === 'device_tracker' || domain === 'person') && (rawState === 'home' || rawState === 'not_home'))
+    labels = [...(CAR_PRESENCE_LABELS as any)[rawState === 'home' ? 'on' : 'off']]
+  return carStateLabels(rawState, displayLabel, labels)
+}
+
+/** 开合的显示文字：只有 `binary_sensor.door/window/...` 参与。 */
+export function carOpeningDisplay(entityId: string, entityState: any, displayLabel = ''): string[] {
+  if (!hasUsableState(entityState)) return []
+  const rawState = String(entityState.state).trim()
+  const deviceClass = entityState.attributes?.device_class
+  const labels =
+    entityId.startsWith('binary_sensor') && CAR_OPENING_DOMAINS.has(deviceClass)
+      ? (CAR_OPENING_LABELS as any)[rawState]
+      : undefined
+  return carStateLabels(rawState, displayLabel, labels || [])
+}
+
+/**
+ * 通用读数：先在用户手填列表里精确匹配，再用显示文字，最后用自动识别词表。
+ *
+ * 三处必须与上游同语义：
+ * 1. `haSource` **两边都有值且不一致** → 直接 `{raw:'',available:false,matched:null}`
+ *    （防止混用两个来源）。传空串表示「调用方不掌握来源」，此时不做这项判断 ——
+ *    本项目多数实体状态并不逐条带来源，硬性要求会把所有读数打成未匹配。
+ * 2. 映射本身有错 → `matched:null`（配置没填对时不要动作）；
+ * 3. 自动识别两侧都命中或都不命中 → `matched:null`（歧义即不动）。
+ */
+function readCarStateGroup(
+  options: {
+    entityId: string
+    mapping: any
+    groupKeys: readonly string[]
+    matchers: readonly [Set<string>, Set<string>]
+    labelsFor: (entityState: any) => string[]
+    error: () => string
+  },
+  stateSource: Record<string, any>,
+  haSource: string,
+): CarStateReading {
+  const entityState = readEntityState(stateSource, options.entityId)
+  if (haSource !== '' && typeof entityState?.haSource === 'string' && entityState.haSource !== haSource)
+    return { raw: '', available: false, matched: null }
+  const rawState = entityState?.state == null ? '' : String(entityState.state).trim()
+  const available = !!hasUsableState(entityState)
+  if (!available || !options.entityId) return { raw: rawState, available, matched: null }
+  const displayLabels = options.labelsFor(entityState)
+  const base: CarStateReading = {
+    raw: rawState,
+    available,
+    ...(displayLabels.length ? { display: displayLabels[0] } : {}),
+    matched: null,
+  }
+  if (options.error()) return base
+  const [onStates, offStates] = options.groupKeys.map((groupKey) => options.mapping?.[groupKey] || [])
+  if (onStates.some((stateText: string) => stateText.trim() === rawState)) return { ...base, matched: true }
+  if (offStates.some((stateText: string) => stateText.trim() === rawState)) return { ...base, matched: false }
+  // 显示文字可能与手填值同义（例如手填「在家」而实体回报中文翻译）：先按显示文字再匹配一次。
+  const matchesLabel = (stateList: readonly string[]) =>
+    stateList.some((stateText) => displayLabels.includes(stateText.trim()))
+  const onByLabel = matchesLabel(onStates)
+  const offByLabel = matchesLabel(offStates)
+  if (onByLabel || offByLabel) return { ...base, matched: onByLabel === offByLabel ? null : onByLabel }
+  // 自动识别：原始值 + 显示文字一起小写比较。
+  const candidates = [rawState, ...displayLabels].map((label) => label.toLowerCase())
+  const onByMatcher = candidates.some((candidate) => options.matchers[0].has(candidate))
+  const offByMatcher = candidates.some((candidate) => options.matchers[1].has(candidate))
+  const fallbackStates = onByMatcher ? onStates : offStates
+  return onByMatcher === offByMatcher || fallbackStates.length
+    ? base
+    : { ...base, matched: onByMatcher, automatic: true }
+}
+
+/** 在家/离家读数结果：三态 `home` 取代通用的 `matched`。 */
+export type CarPresenceReading = Omit<CarStateReading, 'matched'> & { home: boolean | null }
+
+/** 单块开合件读数结果：三态 `open` 取代通用的 `matched`。 */
+export type CarOpeningReading = Omit<CarStateReading, 'matched'> & { open: boolean | null }
+
+/** 在家/离家读数：`home === true` 在家、`false` 离家、`null` 未知。 */
+export function carPresenceReading(
+  carConfig: any,
+  stateSource: Record<string, any>,
+  haSource: string,
+): CarPresenceReading {
+  const { matched, ...rest } = readCarStateGroup(
+    {
+      entityId: carConfig?.presenceEntityId,
+      mapping: carConfig?.presenceStates,
+      groupKeys: CAR_PRESENCE_GROUPS,
+      matchers: [CAR_PRESENCE_ON_MATCHERS, CAR_PRESENCE_OFF_MATCHERS],
+      labelsFor: (entityState) =>
+        entityState?.vehiclePresenceDisplay || carPresenceDisplay(carConfig?.presenceEntityId, entityState),
+      error: () => carPresenceMappingError(carConfig),
+    },
+    stateSource,
+    haSource,
+  )
+  return { ...rest, home: matched }
+}
+
+/** 单块开合件读数：`open === true` 打开、`false` 关闭、`null` 未知。 */
+export function carOpeningReading(
+  openingConfig: any,
+  stateSource: Record<string, any>,
+  haSource: string,
+): CarOpeningReading {
+  const { matched, ...rest } = readCarStateGroup(
+    {
+      entityId: openingConfig?.openingEntityId,
+      mapping: openingConfig?.states,
+      groupKeys: CAR_OPENING_GROUPS,
+      matchers: [CAR_OPENING_ON_MATCHERS, CAR_OPENING_OFF_MATCHERS],
+      labelsFor: (entityState) =>
+        entityState?.vehicleOpeningDisplay || carOpeningDisplay(openingConfig?.openingEntityId, entityState),
+      error: () => carOpeningMappingError(openingConfig),
+    },
+    stateSource,
+    haSource,
+  )
+  return { ...rest, open: matched }
 }
 
 /** 车辆点击行为（0.8.1）：车辆标签与车模共用同一设置，默认不响应点击。

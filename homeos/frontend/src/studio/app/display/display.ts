@@ -13,6 +13,11 @@ import { PanelRenderer } from '../renderer/panel-renderer'
 import { componentFamiliesForDocument, ensureRegistryComponents } from '../renderer/registry/index'
 import type { DomControl } from '@app/shared/util/dom-control'
 import { navigateInShell } from '@/studio/platform/shell-navigation'
+import { haSourceChangedMessage } from '@/kernel/ha-source-messages'
+import {
+  clearSharedSidebarBackground,
+  publishSharedSidebarBackground,
+} from '@/kernel/dashboard/shared-sidebar-background'
 
 /**
  * iPhone 主屏 PWA 的画布高度校正（0.8.8 `display.js` 的 `Y()`）。
@@ -432,9 +437,24 @@ export function bootDisplay(): void {
           }
           pushCatalogToRenderer()
         }
-      })().finally(() => {
-        syncPromise = null
-      })),
+      })()
+        .catch((catalogError: unknown) => {
+          /*
+           * 0.9.0：来源变化要单独解释。
+           *
+           * 换 HA 之后，仍在路上的旧来源响应会以 `HA_SOURCE_CHANGED` 失败；此时
+           * 「设备目录刷新失败」会让用户以为网络坏了。其余错误继续静默（由下一次
+           * 状态检查自然重试），只有来源变化值得报出来 —— 它需要用户主动再刷一次。
+           */
+          const sourceMessage = haSourceChangedMessage(catalogError, 'catalog')
+          sourceMessage &&
+            window.HomeOSLog?.warn?.(sourceMessage, {
+              phase: 'display-catalog',
+            })
+        })
+        .finally(() => {
+          syncPromise = null
+        })),
       syncPromise)
     )
   }
@@ -469,10 +489,13 @@ export function bootDisplay(): void {
   }
   function pushCatalogToRenderer() {
     if (!panelRenderer) return
-    const catalogFingerprint = buildCatalogFingerprint()
-    catalogFingerprint !== lastCatalogFingerprint &&
-      ((lastCatalogFingerprint = catalogFingerprint),
-      panelRenderer.setEntityCatalog(entityRecords, translationResources, deviceRecords))
+    const catalogFingerprint = buildCatalogFingerprint(),
+      // 0.9.0：来源标识参与指纹 —— 换 HA 后即使实体逐条相同，也必须重推一次，
+      // 否则渲染端会继续用旧来源的 device_id 解析设备（表现为「设备错位」）。
+      catalogSource = String(entityRecords.find?.((entityRecord: any) => entityRecord?.haSource)?.haSource || '')
+    catalogFingerprint + '\u0000' + catalogSource !== lastCatalogFingerprint &&
+      ((lastCatalogFingerprint = catalogFingerprint + '\u0000' + catalogSource),
+      panelRenderer.setEntityCatalog(entityRecords, translationResources, deviceRecords, catalogSource))
   }
   async function resolveOverviewProject() {
     // 总览首页（`/`）：展示「当前活动仪表盘」。
@@ -561,6 +584,9 @@ export function bootDisplay(): void {
           const draftResponse = await apiRequest('/projects/' + encodeURIComponent(project.id) + '/draft')
           if (!draftResponse) return
           const displayDocument = normalizeDisplayDocument(draftResponse.document)
+          // 共享组件 → Vue 侧边栏的桥接：把当前仪表盘的共享页面背景发布出去，
+          // 侧边栏按订阅结果渲染（没有共享背景时回退到 layoutConfig.sidebarBackground）。
+          publishSharedSidebarBackground(project.id, displayDocument, displayDocument?.canvas)
           window.HomeOSDisplayBoot?.setDocument!(displayDocument), syncAppleDisplaySurface(displayDocument)
           let targetAssetsVersion = assetsVersion,
             builtinAssets: any = null,
@@ -810,4 +836,6 @@ export function teardownDisplay(): void {
   const dispose = disposeActiveDisplay
   disposeActiveDisplay = null
   dispose?.()
+  // 侧边栏背景是「当前仪表盘」的投影：离开展示页必须撤回，否则会带着上一台的背景。
+  clearSharedSidebarBackground()
 }

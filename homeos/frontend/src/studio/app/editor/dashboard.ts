@@ -368,7 +368,11 @@ function flattenDocumentComponents(dashboardDocument: any) {
   ]
 }
 function isComponentOutsideCanvas(targetComponent: any, canvasWidth: any, limitHeight: any) {
-  if (targetComponent?.type === 'interaction3d' && targetComponent.properties?.layoutMode === 'fill') return false
+  if (
+    ['interaction3d', 'page-background'].includes(targetComponent?.type) &&
+    targetComponent.properties?.layoutMode === 'fill'
+  )
+    return false
   const componentPosition = targetComponent?.position || {},
     positionX = Number(componentPosition.x),
     positionY = Number(componentPosition.y),

@@ -1701,6 +1701,20 @@ export async function openSecurityEditor({
           ),
           motionGridElement = createElement('div', 'i3d-security-grid i3d-lock-motion-grid')
         motionSectionElement.append(motionGridElement), (currentContainerElement = motionGridElement)
+        /*
+         * 0.9.0：这扇门已经在「环境 → 开门器」里配了门机时，门磁面板要明确分工 ——
+         * 门磁只管「确认」，开关门在开门器那边。不提示的话用户会在这里找开关门按钮。
+         */
+        if (!isWindowBinding) {
+          const doorOpenerEntry = ((draftProperties.environment?.doorOpeners as any[]) || []).find(
+            (openerProbe: any) =>
+              openerProbe?.modelId === selectedItem.modelId && openerProbe?.floorId === selectedItem.floorId,
+          )
+          doorOpenerEntry &&
+            motionSectionElement.append(
+              createElement('p', 'i3d-note', '此门已配置开门器。门磁状态在此查看，开关门操作在环境 → 开门器。'),
+            )
+        }
         const commitMotionChange = () => {
             markPropertiesDirty(),
               isWindowBinding

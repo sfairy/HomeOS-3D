@@ -14,7 +14,7 @@
 - `<中文名>-lite.glb`：降面版，运行时首选；
 - `<中文名>.glb`：完整件，精简版加载失败时兜底。
 
-共 336 个 id（672 个 GLB），已有中文文件名 336 个。
+共 339 个 id（678 个 GLB），已有中文文件名 339 个。
 
 新增模型时：先把 id 登记到 `loaders/external-models/model-asset-folders.ts`，
 放进对应分区的 `<中文名>.glb` / `<中文名>-lite.glb`，再到模型库加一张带 `data-library-name` 的卡片，
@@ -77,7 +77,7 @@
 
 ## 家居/卧室家具 — home/bedroom
 
-共 12 个模型。
+共 13 个模型。
 
 | 英文 id | 中文文件名 | 显示名 | 名称来源 |
 | --- | --- | --- | --- |
@@ -92,6 +92,7 @@
 | `nightstand` | `床头柜` | 床头柜 | 模型库 |
 | `round-double-bed` | `圆形双人床` | 圆形双人床 | 模型库 |
 | `rounddiningtable_turntable` | `圆形餐桌（转盘）` | 圆形餐桌（转盘） | 人工补名 |
+| `tatami` | `榻榻米` | 榻榻米 | 模型库 |
 | `vanity` | `梳妆台` | 梳妆台 | 模型库 |
 
 ## 家居/厨房家具 — home/kitchen-furniture
@@ -267,7 +268,7 @@
 
 ## 家居/建筑与交通 — home/architecture
 
-共 13 个模型。
+共 15 个模型。
 
 | 英文 id | 中文文件名 | 显示名 | 名称来源 |
 | --- | --- | --- | --- |
@@ -281,9 +282,11 @@
 | `pillar-round` | `圆柱` | 圆柱 | 人工补名 |
 | `pillar-semicircle` | `半圆柱` | 半圆柱 | 人工补名 |
 | `scooter` | `踏板车` | 踏板车 | 模型库 |
+| `smallcar-openings` | `小汽车-开合件` | 小汽车-开合件 | 文件名单列 |
 | `stairs` | `楼梯` | 楼梯 | 模型库 |
 | `steel-stairs` | `钢楼梯` | 钢楼梯 | 模型库（注册表别名 steelstairs） |
 | `suv` | `越野车` | SUV | 文件名单列 |
+| `suv-openings` | `越野车-开合件` | 越野车-开合件 | 文件名单列 |
 
 ## 家居/影音设备 — home/media
 

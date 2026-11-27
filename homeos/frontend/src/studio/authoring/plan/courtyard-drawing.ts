@@ -200,6 +200,45 @@ export function validHole(holeLoop: any, outlineLoop: any, otherHoleLoops: any[]
           return false
   return !otherHoleLoops.some((otherHole) => inside(holeLoop[0], otherHole) || inside(otherHole[0], holeLoop))
 }
+
+/**
+ * 「被墙围起来的」庭院铺装区域（0.9.0 `enclosedCourtyardPolygons`）。
+ *
+ * 修的是「庭院留空被地面覆盖」：只有**每个顶点都落在某个闭合墙环内**的
+ * `courtyard-area` 才算真正被围住，才能从室内地面分区里挖掉；伸到墙外的庭院铺装
+ * 不能参与挖洞，否则会把室外地面一起挖成洞。
+ *
+ * 洞单独返回（不在这里三角化）：本项目「纯函数只出描述，three 构造留在渲染层」，
+ * `ShapeUtils.triangulateShape` 由调用方在渲染层做。
+ *
+ * @param planDrawings 户型里的绘图对象（只读；非 `courtyard-area` 直接跳过）
+ * @param wallLoops    **闭合墙环**（每个环是平面点数组）
+ * @param pixelsPerMeter 像素 / 米（与户型同单位）
+ */
+export function enclosedCourtyardPolygons(
+  planDrawings: readonly any[],
+  wallLoops: readonly any[],
+  pixelsPerMeter: number,
+): Array<{ outline: Array<{ x: number; y: number }>; holes: Array<Array<{ x: number; y: number }>> }> {
+  if (!wallLoops.length) return []
+  const enclosedRegions: Array<{
+    outline: Array<{ x: number; y: number }>
+    holes: Array<Array<{ x: number; y: number }>>
+  }> = []
+  for (const planDrawing of planDrawings) {
+    if (planDrawing?.type !== 'courtyard-area' || !(planDrawing.drawing?.points?.length >= 3)) continue
+    const outline = drawingPlanPoints(planDrawing, pixelsPerMeter)
+    // 只要有一个顶点探出所有墙环，这块就不算「被围住」。
+    if (!wallLoops.some((wallLoop) => outline.every((outlinePoint: any) => inside(outlinePoint, wallLoop)))) continue
+    const holes: Array<Array<{ x: number; y: number }>> = []
+    for (const holePoints of planDrawing.drawing?.holes || []) {
+      const holeLoop = drawingPlanPoints(planDrawing, pixelsPerMeter, holePoints)
+      validHole(holeLoop, outline, holes) && holes.push(holeLoop)
+    }
+    enclosedRegions.push({ outline, holes })
+  }
+  return enclosedRegions
+}
 export function pathPoints(pathDrawing: any) {
   const localPathPoints = localPoints(pathDrawing),
     curvedPoints: any[] = []

@@ -391,6 +391,8 @@ export function inspectorsChartsElements(findElement: ElementQuery) {
   const imageAssetLargePreviewImageElement = findElement('#image-asset-large-preview')
   const imageAssetLargePreviewImageElementElement = findElement('#image-asset-large-preview-image')
   const imageAssetLargePreviewNameElement = findElement('#image-asset-large-preview-name')
+  // 页面背景（0.9.0）：它的「选择图片」复用图片资产拾取器，锚点换成自己这一格。
+  const pageBackgroundAssetButtonElement = findElement('#page-background-asset-button')
   const imageOpacityInputElement = findElement('#image-opacity')
   const imageLayoutOptionsElement = findElement('#image-layout-options')
   const imageLeftInputElement = findElement('#image-left')
@@ -505,6 +507,7 @@ export function inspectorsChartsElements(findElement: ElementQuery) {
     imageAssetLargePreviewImageElement,
     imageAssetLargePreviewImageElementElement,
     imageAssetLargePreviewNameElement,
+    pageBackgroundAssetButtonElement,
     imageOpacityInputElement,
     imageLayoutOptionsElement,
     imageLeftInputElement,

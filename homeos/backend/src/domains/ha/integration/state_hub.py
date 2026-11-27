@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
+from ....modules.interaction3d.momentary_switch import MomentarySwitchGuard
 from ....platform.core.runtime.observability import record_ha_counter
 
 LOGGER = logging.getLogger(__name__)
@@ -119,6 +120,9 @@ class StateHub:
         #: 发布载荷是否逐事件深拷贝（B20 回滚开关）：默认共享同一份只读快照，
         #: 一次状态更新只保留 normalize 里 attributes 的那一次深拷贝。
         self._copy_payload = resolve_state_hub_copy_payload()
+        #: 点动开关的防重发闸门（0.9.0）：按实体 id 维护「发了但没看到回报」的等待态。
+        #: 状态写入路径顺手喂给它 —— 不需要额外订阅，观察点就是 `update` / `replace` / `merge`。
+        self.momentary_switches = MomentarySwitchGuard()
 
     @asynccontextmanager
     async def track_fetch_changes(self, entity_ids: set[str] | None = None):
@@ -183,7 +187,11 @@ class StateHub:
             if previous and identity != previous:
                 self._runtime_epoch += 1
         self._runtime_online = bool(online)
-        return bool(previous) and self._runtime_source_identity != previous
+        identity_changed = bool(previous) and self._runtime_source_identity != previous
+        # 换 HA：闸门里所有「发了没回报」的等待态都属于旧连接，必须清掉，
+        # 否则新连接下第一次点动开关会立刻被拒。
+        identity_changed and self.momentary_switches.clear()
+        return identity_changed
 
     @staticmethod
     def browser_source_identity(base_url: str, credential: str) -> str:
@@ -289,6 +297,8 @@ class StateHub:
             # 登记这次写入，让进行中的取数窗口不要用更旧的返回值盖掉它。
             self._mark_fetch_changes({normalized["entityId"]})
             self._states[normalized["entityId"]] = normalized
+        # 点动开关：把这次回报交给闸门。只有它关心的实体才会被记录。
+        self.momentary_switches.observe(normalized["entityId"], normalized.get("state"))
         self._notify_observe((normalized,))
         await self.publish(normalized)
         return normalized

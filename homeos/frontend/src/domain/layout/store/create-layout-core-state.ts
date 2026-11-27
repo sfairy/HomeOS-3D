@@ -4,6 +4,7 @@ import type { UILayoutConfig } from '@/kernel/layout-config'
 import { getDefaultLayout } from '@/domain/layout/store/defaults'
 import { readStoredProfileId } from '@/domain/layout/store/create-layout-state'
 import { createLayoutDirtyTracking } from '@/domain/layout/store/create-layout-dirty-tracking'
+import { pruneMissingLayoutKeys } from '@/domain/layout/store/prune-layout-keys'
 import { applyTabletDefaultPerformanceMode } from '@/kernel/perf/tablet-default-perf'
 import { clonePlain } from '@/kernel/core/clone-plain'
 
@@ -56,7 +57,11 @@ export function createLayoutCoreState() {
     isProfilesLoading.value = false
     profilesLoadError.value = ''
     activeProfileId.value = 'default'
-    Object.assign(layoutConfig, clonePlain(getDefaultLayout()))
+    const defaults = clonePlain(getDefaultLayout()) as unknown as Record<string, unknown>
+    // 先删掉默认布局里没有的键：`Object.assign` 只覆盖不删除，上一个账号 / 方案
+    // 独有的顶层配置会残留内存，等下一次保存时又被写回服务端。
+    pruneMissingLayoutKeys(layoutConfig as unknown as Record<string, unknown>, defaults)
+    Object.assign(layoutConfig, defaults)
     applyTabletDefaultPerformanceMode(layoutConfig)
   }
 

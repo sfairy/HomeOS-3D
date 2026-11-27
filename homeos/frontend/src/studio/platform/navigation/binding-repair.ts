@@ -87,6 +87,10 @@ const INSPECTOR_FIELD_LABELS: Readonly<Record<string, string>> = Object.freeze({
   windowSash: '窗扇',
   openWindow: '开窗器控制',
   shutter: '开合类',
+  // 0.9.0：门/窗的「控制侧」绑定单独成组，修复提示要说清是开门器而不是门磁。
+  doorOpeners: '开门器',
+  windows: '窗磁',
+  presenceSensors: '人体传感器',
   brokenRelation: '失效关联',
 })
 
@@ -127,6 +131,14 @@ const REPAIR_COPY = Object.freeze({
 export function repairResultMessage(removedCount: number): string {
   return removedCount > 0 ? REPAIR_COPY.resultRepaired(removedCount) : '没有发现失效配置。'
 }
+
+/**
+ * 保存因「3D 配置无效」失败、而随后的检查又全部通过时的结果行（0.9.0 原文）。
+ *
+ * 与 `repairResultMessage` 的区别：那句说「已经修好了 N 项」，这句说「草稿现在是干净的，
+ * 可以直接重试保存」—— 用户此时要做的动作是重按保存，不是再检查一遍。
+ */
+export const REPAIR_RETRY_SAVE_MESSAGE = '当前草稿中的 3D 配置已通过检查，可以重试保存。'
 
 export function hasInteractionBindings(bindingTree: any): boolean {
   if (!bindingTree || typeof bindingTree !== 'object') return true

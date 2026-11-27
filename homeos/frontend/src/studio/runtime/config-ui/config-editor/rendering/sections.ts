@@ -17,3 +17,22 @@ export {
   openGameMainEntityPicker,
 } from './game-console-section'
 export { floorWindowContacts, renderWindowOpenerSection, windowContactNote } from './window-opener-section'
+export {
+  doorContactNote,
+  floorDoorContacts,
+  normalizeDoorSwitchMode,
+  renderDoorOpenerSection,
+} from './door-opener-section'
+export {
+  CAR_OPENING_EMPTY_NOTE,
+  CAR_OPENING_PART_LABELS,
+  CAR_PRESENCE_KEYS,
+  CAR_REBIND_WARNING,
+  carOpeningHint,
+  carPresenceHint,
+  formatCarStateLines,
+  parseCarStateLines,
+  renderCarMotionSections,
+  renderCarOpeningSection,
+  renderCarPresenceBlock,
+} from './car-motion-section'

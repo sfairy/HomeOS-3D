@@ -1,18 +1,24 @@
-"""页面背景组件的结构校验（0.8.9）。
+"""页面背景组件的结构校验（0.9.0）。
 
 ## 为什么单独一个模块
 
 四条规则里有两类：**位置**（只能顶层）和**取值**（来源 / 布局 / 静态）。位置校验要
 遍历整份文档（页面 / 共享组件 / 子组件），取值校验只看单个组件 —— 混进
-`PanelDocument.validate_structure` 会把那个已经很长的模型校验撑爆（它已经有 8 类规则）。
+`PanelDocument.validate_structure` 会把那个已经很长的模型校验撑爆。
 
-## 与前端的分工
+## 与 0.9.0 逐条对齐
 
-前端 `normalizePageBackground` 是**宽容**的：未知预设回落第一个、非法透明度夹到 0–100。
-后端这里是**严格**的：拒绝而不是修正。理由：宽容归一化在「用户手改备份文件」时会把
-错误悄悄改掉，用户永远不知道自己写错了；后端拒绝才能让问题在保存时暴露。
+0.9.0 的 `panel/schema.py` 只做四条校验，文案与 `.das` 逐字一致：
 
-## 文案与 0.8.9 一致
+1. 页面背景只支持静态显示。 —— `bindings` / `children` 非空，或存在 `type != 'none'` 的 action；
+2. 页面背景来源无效。 —— `properties.backgroundSource` 缺省写入 `preset` 后必须是 preset/image；
+3. 页面背景布局无效。 —— `properties.layoutMode` 缺省写入 `fill` 后必须是 free/fill；
+4. 页面背景只能添加到主页面或侧边栏的顶层。 —— 允许的顶层是**共享组件顶层**与**页面顶层**。
+
+注意：0.9.0 **没有**透明度 / 备注 / 位置范围校验；移植期额外加的宽松校验已移除，
+避免「0.9.0 能保存的文档本仓存不了」。
+
+## 文案风格
 
 四句话与上游 `.das` 里的常量逐字相同（含结尾句号）。面板 schema 的既有惯例是
 `raise ValueError("中文")`（20+ 处），API 层统一转 422 —— 沿用同一写法，
@@ -21,6 +27,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from typing import Any
 
 #: 页面背景组件的类型名（与前端 `PAGE_BACKGROUND_TYPE` 一致）。
@@ -28,95 +35,54 @@ PAGE_BACKGROUND_TYPE = "page-background"
 
 #: 背景来源与布局的枚举（与前端 `PAGE_BACKGROUND_SOURCES` / `_LAYOUTS` 一致）。
 BACKGROUND_SOURCES = frozenset({"preset", "image"})
-BACKGROUND_LAYOUTS = frozenset({"fill", "free"})
+BACKGROUND_LAYOUTS = frozenset({"free", "fill"})
 
-#: 备注上限（与前端 `PAGE_BACKGROUND_LABEL_LIMIT` 一致）。
-LABEL_LIMIT = 128
-
-#: 自由布局下宽高的下限（%）：0 会让元素彻底消失，用户会以为「点了没反应」。
-POSITION_MIN_SIZE = 0.1
-
-#: 「静态显示」的判据：出现这些键就说明写方想做动效 / 视频背景。
-#: 前端只渲染静态图（`<img>` / 画布裁切），这些字段即使存下来也不会生效 ——
-#: 与其让用户以为生效了，不如保存时就拒绝。
-DYNAMIC_KEYS = frozenset(
-    {
-        "animation",
-        "animationName",
-        "animationDuration",
-        "animationTimingFunction",
-        "animationIterationCount",
-        "transition",
-        "transitionDuration",
-        "motion",
-        "video",
-        "videoUrl",
-        "autoplay",
-        "playbackRate",
-    }
-)
+#: 0.9.0 字段名：来源存在 `backgroundSource`（旧移植期的 `source` 不再被读）。
+BACKGROUND_SOURCE_KEY = "backgroundSource"
+BACKGROUND_LAYOUT_KEY = "layoutMode"
 
 
-def _is_number(value: Any) -> bool:
-    return isinstance(value, (int, float)) and not isinstance(value, bool)
+def _is_static_action(action: Any) -> bool:
+    """0.9.0 的静态判据：`type == 'none'` 的动作不算动态。"""
+    return getattr(action, "type", "none") == "none"
 
 
-def _check_static(properties: dict[str, Any]) -> None:
-    """拒绝动效 / 视频相关字段。"""
-    present = [key for key in properties if key in DYNAMIC_KEYS]
-    if present:
+def _check_static(component: Any) -> None:
+    """拒绝绑定 / 子控件 / 非 none 动作（0.9.0 `validate_id` 的同一段）。"""
+    actions = getattr(component, "actions", None) or {}
+    if getattr(component, "bindings", None) or getattr(component, "children", None):
+        raise ValueError("页面背景只支持静态显示。")
+    if not all(_is_static_action(action) for action in actions.values()):
         raise ValueError("页面背景只支持静态显示。")
 
 
 def _check_source(properties: dict[str, Any]) -> None:
-    """来源必须是 `preset` / `image`（缺省视为 `preset`，与前端一致）。"""
-    source = properties.get("source", "preset")
-    if source not in BACKGROUND_SOURCES:
+    """来源必须是 `preset` / `image`；缺省写入 `preset`（与 0.9.0 setdefault 一致）。
+
+    兼容旧移植期文档的 `source` 键：缺失 `backgroundSource` 时把旧值搬过来，
+    否则 `setdefault` 会把图片背景静默改成内置预设。
+    """
+    if BACKGROUND_SOURCE_KEY not in properties and "source" in properties:
+        properties[BACKGROUND_SOURCE_KEY] = properties["source"]
+    if properties.setdefault(BACKGROUND_SOURCE_KEY, "preset") not in BACKGROUND_SOURCES:
         raise ValueError("页面背景来源无效。")
 
 
 def _check_layout(properties: dict[str, Any]) -> None:
-    """布局必须是 `fill` / `free`（缺省视为 `fill`，与前端一致）。"""
-    layout = properties.get("layoutMode", "fill")
-    if layout not in BACKGROUND_LAYOUTS:
+    """布局必须是 `free` / `fill`；缺省写入 `fill`（与 0.9.0 setdefault 一致）。"""
+    if properties.setdefault(BACKGROUND_LAYOUT_KEY, "fill") not in BACKGROUND_LAYOUTS:
         raise ValueError("页面背景布局无效。")
 
 
-def _check_scalars(properties: dict[str, Any]) -> None:
-    """透明度 / 备注 / 自由布局的尺寸与位置。"""
-    opacity = properties.get("opacity")
-    if opacity is not None and (not _is_number(opacity) or not 0 <= float(opacity) <= 100):
-        raise ValueError("页面背景透明度必须在 0 到 100 之间。")
-
-    label = properties.get("label")
-    if label is not None and (not isinstance(label, str) or len(label) > LABEL_LIMIT):
-        raise ValueError(f"页面背景备注不能超过 {LABEL_LIMIT} 个字符。")
-
-    # 铺满模式忽略 position（与前端 `normalizePosition` 同口径），所以只在自由布局校验。
-    if properties.get("layoutMode", "fill") != "free":
-        return
-    position = properties.get("position")
-    if position is None:
-        return
-    if not isinstance(position, dict):
-        raise ValueError("页面背景位置无效。")
-    for axis in ("x", "y"):
-        value = position.get(axis)
-        if value is not None and (not _is_number(value) or not 0 <= float(value) <= 100):
-            raise ValueError("页面背景位置无效。")
-    for axis in ("width", "height"):
-        value = position.get(axis)
-        if value is not None and (not _is_number(value) or not POSITION_MIN_SIZE <= float(value) <= 100):
-            raise ValueError("页面背景位置无效。")
-
-
 def validate_page_background_component(component: Any) -> None:
-    """校验单个页面背景组件（取值四类）。"""
-    properties = getattr(component, "properties", None) or {}
-    _check_static(properties)
+    """校验单个页面背景组件（0.9.0 的三条取值规则）。"""
+    properties = getattr(component, "properties", None)
+    if properties is None:
+        properties = {}
+        component.properties = properties
+    _check_static(component)
     _check_source(properties)
     _check_layout(properties)
-    _check_scalars(properties)
 
 
 def validate_page_backgrounds(
@@ -125,21 +91,25 @@ def validate_page_backgrounds(
     shared_components: list[Any],
     walk: Any,
 ) -> None:
-    """位置校验：只允许出现在**页面顶层**。
+    """位置校验：只允许出现在**共享组件顶层**或**页面顶层**（0.9.0 同口径）。
 
     `walk` 是调用方传入的「递归产出自身与全部子组件」的生成器，这里不重复实现遍历
     （schema 里已经有一份，两处各写一份必然会漂移）。
     """
-    for shared in shared_components:
-        for item in walk([shared]):
-            if getattr(item, "type", "") == PAGE_BACKGROUND_TYPE:
-                raise ValueError("页面背景只能添加到主页面或侧边栏的顶层。")
-
+    root_component_ids = {getattr(component, "id", "") for component in shared_components}
     for page in pages:
-        top_level_ids = {item.id for item in page.components}
-        for item in walk(page.components):
-            if getattr(item, "type", "") != PAGE_BACKGROUND_TYPE:
-                continue
-            if item.id not in top_level_ids:
-                raise ValueError("页面背景只能添加到主页面或侧边栏的顶层。")
-            validate_page_background_component(item)
+        root_component_ids.update(getattr(component, "id", "") for component in page.components)
+
+    for component in _walk_all(shared_components, pages, walk):
+        if getattr(component, "type", "") != PAGE_BACKGROUND_TYPE:
+            continue
+        if getattr(component, "id", "") not in root_component_ids:
+            raise ValueError("页面背景只能添加到主页面或侧边栏的顶层。")
+        validate_page_background_component(component)
+
+
+def _walk_all(shared_components: list[Any], pages: list[Any], walk: Any) -> Iterable[Any]:
+    """共享组件 + 全部页面的完整遍历（顺序与 0.9.0 的 all_components 一致）。"""
+    yield from walk(shared_components)
+    for page in pages:
+        yield from walk(page.components)

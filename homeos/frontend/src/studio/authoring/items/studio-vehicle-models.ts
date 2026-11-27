@@ -11,6 +11,58 @@ export function isVehicleModelType(candidateType: unknown): boolean {
   return VEHICLE_MODEL_TYPES.includes(candidateType as string)
 }
 
+/**
+ * 车型 → 开合件模型 id（0.9.0）。
+ *
+ * 只有轿车与 SUV 有可开合的六件套；电瓶车没有，返回 `null` 表示「不挂」。
+ * 开合件是**独立 GLB**（`car-openings` / `suv-openings`），不是车身的子网格。
+ */
+export function carOpeningsModelType(vehicleType: unknown): string | null {
+  return vehicleType === 'smallcar' ? 'smallcar-openings' : vehicleType === 'suv' ? 'suv-openings' : null
+}
+
+/**
+ * 把开合件的可动件挂到车身模型上（0.9.0 `car-openings` 挂载约定）。
+ *
+ * ## 为什么要挂成子节点
+ *
+ * 开合件只有「门 / 舱盖本身」，没有车身。运行时控制器按
+ * `(environmentFloorId, environmentModelId)` 把「车身」与「可动件」配成一对；
+ * 因此挂载时必须把**车身的身份**写到可动件上，否则控制器找不到它们。
+ *
+ * ## 为什么克隆而不是搬
+ *
+ * 开合件模板是**共享**的（同车型的所有实例都从它克隆）。直接把它下面的节点搬进
+ * 这一台车，会让模板残缺、第二台车就没有门了。所以每个部件克隆一份再挂。
+ *
+ * ## 为什么只挑带 `vehicleOpening` 的
+ *
+ * 开合件里还有车身替代件（`body` / `roof`），接进来会和主车身重叠（z-fighting）。
+ * 只认带 `vehicleOpening` 元数据的节点。
+ *
+ * @returns 实际挂上的可动件数量（0 表示没有可用部件）
+ */
+export function mountCarOpeningParts(carModel: any, openingsScene: any): number {
+  if (!carModel?.add || !openingsScene) return 0
+  const previousParts = carModel.userData?.hbCarOpeningParts
+  if (Array.isArray(previousParts))
+    for (const previousPart of previousParts)
+      previousPart?.parent === carModel && carModel.remove(previousPart), previousPart?.geometry?.dispose?.()
+  const attachedParts: any[] = []
+  openingsScene.traverse?.((partNode: any) => {
+    if (!partNode?.userData?.vehicleOpening) return
+    const clonedPart = partNode.clone(true)
+    // 枢轴就在节点原点上，位置与旋转必须原样保留（门才会绕铰链转）。
+    ;(clonedPart.userData.environmentModelType = carModel.userData?.environmentModelType),
+      (clonedPart.userData.environmentFloorId = carModel.userData?.environmentFloorId),
+      (clonedPart.userData.environmentModelId = carModel.userData?.environmentModelId),
+      carModel.add(clonedPart),
+      attachedParts.push(clonedPart)
+  })
+  carModel.userData && (carModel.userData.hbCarOpeningParts = attachedParts)
+  return attachedParts.length
+}
+
 export function prepareVehicleChargeGeometry(threeModule: any, rootObject: any) {
   rootObject.updateMatrixWorld(true)
   const bounds = new threeModule.Box3().setFromObject(rootObject),

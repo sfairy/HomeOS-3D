@@ -328,8 +328,8 @@ import ComponentActionTrigger from './ComponentActionTrigger.vue'
                 </section>
             </form>
 
-            <!-- 页面背景（0.8.9）：仪表盘文档组件。
-                 这是**整页**背景，`position` 是相对画布的百分比盒，`layoutMode=fill` 时忽略四格。
+            <!-- 页面背景（0.9.0）：仪表盘文档组件。
+                 组件 `position` 是自由布局的实际盒（px），`layoutMode=fill` 时渲染器按画布铺满。
                  所有节点常驻，显隐由 `home-page-background-inspector.ts` 按来源/布局切 —— 不要在这里写 v-if。 -->
             <form id="page-background-inspector" class="inspector-form" hidden>
                 <section class="inspector-section">

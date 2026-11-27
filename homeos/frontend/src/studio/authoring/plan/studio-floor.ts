@@ -6,7 +6,7 @@ import { buildUnderfloorHeatingPaths } from '../scene/studio-underfloor-heating'
  * 三层数据，刻意分开：
  *
  * 1. **铺面类型**（`theme` / `wood` / `tile`）—— 决定用哪套贴图与明度基线；
- * 2. **色档**（`-5..5`）—— 同层同 `toneKind` 的分区共用一个档位（见 `studio-floor-regions.ts`）；
+ * 2. **色档**（`-20..20`）—— 同层同 `toneKind` 的分区共用一个档位（见 `studio-floor-regions.ts`）；
  * 3. **主题**（`default` / `warm-wood` / `natural-wood`）—— `theme` 铺面跟随它。
  *
  * 深浅的实现不是换贴图，而是在**同一张贴图上调明度**：换贴图会让相邻分区出现
@@ -68,9 +68,33 @@ export function clampFloorTone(tone: unknown): number {
   return Math.max(-FLOOR_TONE_LIMIT, Math.min(FLOOR_TONE_LIMIT, Math.round(parsed)))
 }
 
-/** 色档 → 明度乘数（0 档为 1，正档更亮、负档更暗）。 */
-export function floorToneBrightness(tone: number): number {
-  return Number((1 + clampFloorTone(tone) * FLOOR_TONE_STEP).toFixed(4))
+/**
+ * 色档 → 明度乘数（0 档为 1，正档更亮、负档更暗）。
+ *
+ * `+5` 以内与 0.8.9 完全一致（`1 + tone × 0.06`）。超过 `+5` 时按基色剩余亮度压缩：
+ * 瓷砖的基色本来就亮，再线性加 15 档会把砖缝一起推成白色，纹理消失。
+ *
+ * @param baseLightness 基色 HSL 明度（0–1，缺省 0 表示「按满量程线性」）。
+ */
+export function floorToneBrightness(tone: number, baseLightness = 0): number {
+  const clampedTone = clampFloorTone(tone),
+    compressedTone =
+      clampedTone > FLOOR_TONE_LINEAR_LIMIT
+        ? FLOOR_TONE_LINEAR_LIMIT + (clampedTone - FLOOR_TONE_LINEAR_LIMIT) * floorToneCompressionRatio(baseLightness)
+        : clampedTone
+  return Number((1 + compressedTone * FLOOR_TONE_STEP).toFixed(4))
+}
+
+/**
+ * `+5` 以上的压缩比（0–1）：基色越亮，可用余量越小。
+ *
+ * 上游口径：`headroom = (1 − L − 0.029) × 100`（0.029 是瓷砖砖缝的暗部偏移），
+ * 夹到 `[5, 20]` 后再摊到 15 档上。基色亮度未知时取 0 → 余量顶格 → 压缩比 1（纯线性）。
+ */
+export function floorToneCompressionRatio(baseLightness = 0): number {
+  const headroom = (1 - baseLightness - 0.029) * 100,
+    allowedMaxTone = Math.max(FLOOR_TONE_LINEAR_LIMIT, Math.min(FLOOR_TONE_LIMIT, headroom))
+  return Number(((allowedMaxTone - FLOOR_TONE_LINEAR_LIMIT) / (FLOOR_TONE_LIMIT - FLOOR_TONE_LINEAR_LIMIT)).toFixed(4))
 }
 
 /** 最终材质参数：铺面基线 × 场景风格亮度 × 色档亮度。 */
@@ -84,18 +108,26 @@ export type FloorMaterialParams = FloorFinishProfile & {
 /**
  * 算出一个分区实际使用的材质参数。
  *
- * @param finish     分区铺面
- * @param tone       该分区所在层、该 `toneKind` 的色档
- * @param sceneStyle 当前场景风格（只影响 `theme` 铺面）
+ * @param finish        分区铺面
+ * @param tone          该分区所在层、该 `toneKind` 的色档
+ * @param sceneStyle    当前场景风格（只影响 `theme` 铺面）
+ * @param baseLightness 基色 HSL 明度（0–1）；只有 `+5` 以上会用到，用于压缩亮部增量
  */
-export function floorMaterialParams(finish: FloorFinish, tone: number, sceneStyle = 'default'): FloorMaterialParams {
+export function floorMaterialParams(
+  finish: FloorFinish,
+  tone: number,
+  sceneStyle = 'default',
+  baseLightness = 0,
+): FloorMaterialParams {
   const toneKind = floorFinishToneKind(finish, sceneStyle)
   const profile = FLOOR_FINISH_PROFILES[toneKind]
   const themeBrightness = finish === 'theme' ? (THEME_FLOOR_BY_SCENE_STYLE[sceneStyle]?.brightness ?? 1) : 1
   const toneValue = floorFinishSupportsTone(finish) ? clampFloorTone(tone) : 0
   return {
     ...profile,
-    brightness: Number((profile.brightness * themeBrightness * floorToneBrightness(toneValue)).toFixed(4)),
+    brightness: Number(
+      (profile.brightness * themeBrightness * floorToneBrightness(toneValue, baseLightness)).toFixed(4),
+    ),
     toned: floorFinishSupportsTone(finish) && toneValue !== 0,
   }
 }
@@ -199,8 +231,17 @@ export const FLOOR_FINISHES = Object.freeze(['theme', 'wood', 'tile'] as const)
 
 export type FloorFinish = (typeof FLOOR_FINISHES)[number]
 
-/** 色档上下限（`-5..5`，0 为「默认」）。与 0.8.9 `FLOOR_TONE_LIMIT` 一致。 */
-export const FLOOR_TONE_LIMIT = 5
+/**
+ * 色档上下限（`-20..20`，0 为「默认」）。
+ *
+ * 0.9.0 从 ±5 扩到 ±20：+5 以内仍是线性明度（`FLOOR_TONE_STEP` 一档 6%），
+ * 超过 +5 之后按「基色剩余亮度」压缩，避免瓷砖被推到纯白而把砖缝吃掉
+ * （见 `floorToneCompressionRatio`）。下限不压缩：越暗越不会丢纹理。
+ */
+export const FLOOR_TONE_LIMIT = 20
+
+/** 线性区上界：`0..5` 一档 6%，与 0.8.9 完全一致。 */
+export const FLOOR_TONE_LINEAR_LIMIT = 5
 
 /** 只有木地板与瓷砖允许调深浅；`theme` 的深浅由场景风格决定。 */
 export type FloorToneKind = Exclude<FloorFinish, 'theme'>

@@ -198,6 +198,14 @@ dialog.hb-interaction3d-runtime.is-borrowed-editor::backdrop {
 .i3d-editor * {
   box-sizing: border-box;
 }
+/* 0.9.0 的发布包不带 Tailwind preflight，弹窗里的标题走 UA bold（计算值 700）。
+   本项目全局 preflight 有 `h1..h6{font-weight:inherit}`，会把没显式写 font-weight 的
+   标题压成 400（`aside h4` / `.i3d-nas-fields h4` 等整体细一档）。
+   用 `:where()` 把特异性压到 0：只做兜底，任何带类名的显式声明（如
+   `.i3d-appearance-body h4{font-weight:600}`）仍然胜出。 */
+.i3d-editor :where(h1, h2, h3, h4, h5, h6) {
+  font-weight: 700;
+}
 .i3d-editor header {
   display: flex;
   flex: none;
@@ -664,6 +672,9 @@ dialog.hb-interaction3d-runtime.is-borrowed-editor::backdrop {
   border-top: 1px solid var(--line, #303840);
   color: var(--text, #e8ecef);
   font-size: 11px;
+  /* 0.9.0 弹窗内的分区标题走 UA bold（计算值 700）。本项目的 Tailwind preflight
+     `h1..h6{font-weight:inherit}` 把它压成 400，所有分区标题会比上游细一档。 */
+  font-weight: 700;
 }
 .i3d-editor aside .i3d-security-grid {
   display: grid;
@@ -1332,25 +1343,16 @@ dialog.hb-interaction3d-runtime.is-borrowed-editor::backdrop {
   line-height: 1.6;
   color: #b8c6da;
 }
-.i3d-vacuum-room-list > div {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 8px 0;
-  border-bottom: 1px solid #394457;
-}
-.i3d-vacuum-room-list input:not([type="checkbox"]) {
-  width: 100%;
-  box-sizing: border-box;
-}
-.i3d-vacuum-room-list button {
-  font-size: 12px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.i3d-vacuum-room-list button:first-of-type {
-  width: 100%;
-}
+/*
+ * `.i3d-vacuum-room-list` 是 0.9.0 地图编辑器侧栏的「房间列表」（逐房间改名 + 清扫）。
+ *
+ * 本项目没有这份列表：扫地机的房间操作是独立的「快捷按钮」段（`i3d-config-list-row` +
+ * `i3d-vacuum-plan` 上的快捷点），地图编辑器（`openVacuumMapEditor`）只做底图对齐
+ * （位置 / 宽高 / 旋转 / 显示强度）。所以这里**刻意不保留** 0.9.0 的 4 条
+ * `.i3d-vacuum-room-list` 规则 —— 留着就是没有消费者的死样式，会让「半边接线」检查
+ * 永远报一条假阳性。真要加房间列表时，从 0.9.0 的
+ * `modules/interaction3d/runtime.css` 原样取回这 4 条即可。
+ */
 @media (max-width: 640px) {
   .i3d-vacuum-map-editor > header span {
     display: none;
@@ -2624,10 +2626,12 @@ dialog.hb-interaction3d-runtime.is-borrowed-editor::backdrop {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 0;
+  /* 0.9.0 实测值：gap 3px / line-height 1.6。本项目曾写 0 / 1.7，
+     单看无感，但「已配置 · 未配置」之间的空隙与行高会整体不同。 */
+  gap: 3px;
   color: var(--muted);
   font-size: 11px;
-  line-height: 1.7;
+  line-height: 1.6;
 }
 /* 分隔点必须靠 padding 撑开：flex 项会把 `' · '` 两端的空格吃掉，只剩间距 0 的 `·`，
    整行就变成「模型 2·已配置 2·未配置 0」，读起来糊成一团。 */
@@ -2832,6 +2836,96 @@ dialog.hb-interaction3d-runtime.is-borrowed-editor::backdrop {
   font-size: 11px;
   line-height: 1.6;
   overflow-wrap: anywhere;
+}
+/* ── 车辆状态（0.9.0 的 `.i3d-vehicle-state*`，22 条逐值对齐） ───────────────
+   「车辆充电 / 车辆在家-离家 / 四门两舱」每条都是 `<details.i3d-vehicle-state>`：
+   折叠标题 → body（实体选择）→ fields（状态值多行输入）→ reading（HA 当前值 / 自动识别为）。
+   这组类名此前在本项目里没有任何消费者，因此整块样式也不存在 —— 少了它，折叠块会退回
+   浏览器默认的 1em 间距与 16px 标题，比上游高出一截。 */
+.i3d-editor .i3d-vehicle-state summary {
+  font-size: 11px;
+}
+.i3d-vehicle-state-bound {
+  color: var(--muted, #89949d);
+  font-weight: 400;
+}
+.i3d-vehicle-state-body,
+.i3d-vehicle-state-fields {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.i3d-vehicle-state-body {
+  padding-bottom: 10px;
+}
+.i3d-vehicle-state-body > label,
+.i3d-vehicle-state-body > .i3d-note,
+.i3d-vehicle-state-body > .i3d-error {
+  margin: 0;
+}
+.i3d-vehicle-state-reading {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding: 7px 8px;
+  border-radius: 4px;
+  background: var(--field, #171d22);
+  font-size: 11px;
+}
+.i3d-vehicle-state-reading > div {
+  display: grid;
+  grid-template-columns: 66px minmax(0, 1fr);
+  gap: 6px;
+}
+.i3d-vehicle-state-reading > div[hidden] {
+  display: none;
+}
+.i3d-vehicle-state-reading dt {
+  color: var(--muted, #89949d);
+}
+.i3d-vehicle-state-reading dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.i3d-vehicle-state-reading > div:first-child dd {
+  font-weight: 600;
+}
+.i3d-vehicle-state-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 5px 8px;
+}
+.i3d-vehicle-state-field > label {
+  display: block;
+  margin: 0;
+}
+.i3d-vehicle-state-field > input,
+.i3d-vehicle-state-field > textarea {
+  grid-area: 2 / 1 / 3 / 3;
+}
+.i3d-editor .i3d-vehicle-state-field > textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  padding: 6px 8px;
+  resize: vertical;
+  color: var(--text, #e8ecef);
+  background: var(--field, #171d22);
+  border: 1px solid #37414a;
+  border-radius: 4px;
+  font: inherit;
+  font-size: 11px;
+}
+.i3d-vehicle-state-field > textarea:focus-visible {
+  outline: 2px solid var(--accent, #f2a20d);
+  outline-offset: 2px;
+}
+.i3d-editor .i3d-vehicle-state-use-current {
+  grid-area: 1 / 2;
+  min-height: 26px;
+  padding: 3px 8px;
+  white-space: nowrap;
 }
 .i3d-indicator-dialog {
   width: min(500px, calc(100vw - 24px));

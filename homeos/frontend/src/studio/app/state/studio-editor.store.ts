@@ -11,15 +11,29 @@ import {
   type EditorFacadeState,
 } from '@/studio/index'
 
-const PANEL_STORAGE_KEY = 'homeos.studio-editor.panels'
+/**
+ * 0.9.0 对齐：默认三栏宽度与上游一致（250 | 1fr | 250）。
+ *
+ * 键名带 `v2`：0.9.0 之前写入的 260/280 会一直盖住对齐后的默认值，
+ * 让「像素对齐」在已用过的浏览器里永远量不准。升版后旧偏好丢弃一次，
+ * 用户再拖动侧栏仍会照常持久化（侧栏可拖动是本项目增强，保留）。
+ */
+const PANEL_STORAGE_KEY = 'homeos.studio-editor.panels.v2'
+
+const DEFAULT_PANEL_PREFS = Object.freeze({
+  leftCollapsed: false,
+  rightCollapsed: false,
+  leftWidth: 250,
+  rightWidth: 250,
+})
 
 function readPanelPrefs(): { leftCollapsed: boolean; rightCollapsed: boolean; leftWidth: number; rightWidth: number } {
   try {
     const raw = localStorage.getItem(PANEL_STORAGE_KEY)
-    if (!raw) return { leftCollapsed: false, rightCollapsed: false, leftWidth: 260, rightWidth: 280 }
-    return { leftCollapsed: false, rightCollapsed: false, leftWidth: 260, rightWidth: 280, ...JSON.parse(raw) }
+    if (!raw) return { ...DEFAULT_PANEL_PREFS }
+    return { ...DEFAULT_PANEL_PREFS, ...JSON.parse(raw) }
   } catch {
-    return { leftCollapsed: false, rightCollapsed: false, leftWidth: 260, rightWidth: 280 }
+    return { ...DEFAULT_PANEL_PREFS }
   }
 }
 

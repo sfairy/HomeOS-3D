@@ -1925,6 +1925,8 @@ export function createRunFrame(host: StageHandlersHost) {
         host.carCharging.tick(frameTimestamp),
         host.fanMotion.tick(frameTimestamp),
         host.airerMotion.tick(frameTimestamp),
+        host.carPresence.tick(frameTimestamp),
+        host.carOpenings.tick(frameTimestamp),
         host.nasStatus.tick(frameTimestamp),
         host.projectorStatus.tick(frameTimestamp)
       for (const speakerTickerEntry of Object.values<{ tick: (nowMs: number) => unknown }>(
@@ -2026,6 +2028,8 @@ export function createRunFrame(host: StageHandlersHost) {
         host.carCharging.nextDelay(),
         host.airerMotion.nextDelay(),
         host.fanMotion.nextDelay(),
+        host.carPresence.nextDelay(),
+        host.carOpenings.nextDelay(),
         host.speakerRings.nextDelay(),
         tick5 ? 1000 / 30 : Infinity,
         tick3,

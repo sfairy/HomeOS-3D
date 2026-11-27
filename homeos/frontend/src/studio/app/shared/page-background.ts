@@ -24,7 +24,7 @@
 
 export {
   DEFAULT_PAGE_BACKGROUND,
-  PAGE_BACKGROUND_FILL_POSITION,
+  DEFAULT_PAGE_BACKGROUND_OPACITY,
   PAGE_BACKGROUND_LABEL_LIMIT,
   PAGE_BACKGROUND_LAYOUTS,
   PAGE_BACKGROUND_PRESETS,
@@ -33,6 +33,7 @@ export {
   createPageBackground,
   isPageBackground,
   normalizePageBackground,
+  normalizePageBackgroundOpacity,
   pageBackgroundCss,
   pageBackgroundPreset,
   pageBackgroundPresetSource,
@@ -43,6 +44,7 @@ export type {
   PageBackground,
   PageBackgroundConfig,
   PageBackgroundLayout,
+  PageBackgroundLegacyPosition,
   PageBackgroundPosition,
   PageBackgroundSource,
 } from '@/kernel/widget/page-background'

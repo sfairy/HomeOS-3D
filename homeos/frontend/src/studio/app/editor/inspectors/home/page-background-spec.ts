@@ -1,20 +1,25 @@
 /**
- * 页面背景的**检查器字段表**（0.8.9）—— 主页面检查器与侧边栏设置共用。
+ * 页面背景的**检查器字段表**（0.9.0）—— 主页面检查器与侧边栏设置共用。
  *
- * 为什么把字段元数据单独抽出来：0.8.9 的检查器有 6 个控件（来源 / 预设 / 图片 / 透明度 /
- * 布局 / 位置四格），侧边栏设置也要同样一套。字段范围（`opacity` 0–100、位置 0.1–100%、
- * 备注 ≤128）若在两个宿主里各写一遍，用户会看到「侧边栏能填 0%、主页面最小 0.1%」
+ * 为什么把字段元数据单独抽出来：0.9.0 的检查器有 6 个控件（来源 / 预设 / 图片 / 透明度 /
+ * 布局 / 位置四格），侧边栏设置也要同样一套。字段范围（`opacity` 0–100 显示、文档存 0–1、
+ * 位置 0.1–100%）若在两个宿主里各写一遍，用户会看到「侧边栏能填 0%、主页面最小 0.1%」
  * 这类不一致。
  *
+ * 位置四格不在 `properties` 里：0.9.0 把它换算成**组件 `position` 的 px**（x/y 是中心点
+ * 百分比，width/height 是尺寸百分比）。换算函数放在本文件，宿主只负责把结果写到组件上。
+ *
  * 本模块只做**纯数据 + 纯函数**：给检查器读字段表、把一次编辑合并进配置、判断某个
- * 字段当前是否可用。它不碰 DOM，因此可以在 node 里直接断言。
+ * 字段当前是否可用，以及位置百分比与组件 px 的互算。它不碰 DOM，因此可以在 node 里直接断言。
  */
 
 import {
   PAGE_BACKGROUND_LABEL_LIMIT,
   PAGE_BACKGROUND_PRESETS,
-  type PageBackground,
   normalizePageBackground,
+  normalizePageBackgroundOpacity,
+  type PageBackground,
+  type PageBackgroundPosition,
 } from '@app/shared/page-background'
 
 /** 检查器里的一行输入描述（宿主据此渲染 input / select / 分段按钮）。 */
@@ -34,13 +39,16 @@ export type PageBackgroundField = {
 export const PAGE_BACKGROUND_POSITION_FIELDS = ['x', 'y', 'width', 'height'] as const
 export type PageBackgroundPositionAxis = (typeof PAGE_BACKGROUND_POSITION_FIELDS)[number]
 
-/** 位置字段的中文标签。x/y 是左上角百分比，width/height 是尺寸百分比。 */
+/** 位置字段的中文标签。x/y 是**中心点**百分比，width/height 是尺寸百分比。 */
 export const PAGE_BACKGROUND_POSITION_LABELS: Record<PageBackgroundPositionAxis, string> = {
   x: '左侧（%）',
   y: '顶部（%）',
   width: '宽度（%）',
   height: '高度（%）',
 }
+
+/** 画布尺寸（缺省与 0.9.0 渲染器一致：2778×1940）。 */
+export type PageBackgroundCanvas = { width?: number; height?: number }
 
 /** 预设下拉的选项（value → 中文名）。 */
 export function pageBackgroundPresetOptions(): Array<{ value: string; label: string }> {
@@ -56,7 +64,7 @@ export const PAGE_BACKGROUND_FIELDS: readonly PageBackgroundField[] = Object.fre
     visible: () => true,
   },
   {
-    key: 'source',
+    key: 'backgroundSource',
     label: '背景来源',
     kind: 'segmented',
     visible: () => true,
@@ -66,13 +74,13 @@ export const PAGE_BACKGROUND_FIELDS: readonly PageBackgroundField[] = Object.fre
     label: '背景主题',
     kind: 'select',
     // 选了「图片」时预设没有意义：显示出来只会让人以为两处都生效。
-    visible: (background) => background.source === 'preset',
+    visible: (background) => background.backgroundSource === 'preset',
   },
   {
     key: 'assetId',
     label: '选择背景图片',
     kind: 'text',
-    visible: (background) => background.source === 'image',
+    visible: (background) => background.backgroundSource === 'image',
   },
   {
     key: 'opacity',
@@ -105,7 +113,7 @@ export function pageBackgroundFieldVisible(key: string, background: unknown): bo
   return field.visible(normalizePageBackground(background))
 }
 
-/** 一次编辑：字段名 + 新值。位置四格用 `position.x` 这类点路径。 */
+/** 一次编辑：字段名 + 新值。 */
 export type PageBackgroundEdit = {
   key: string
   value: unknown
@@ -117,34 +125,81 @@ function clampNumber(value: unknown, min: number, max: number, fallback: number)
   return parsed < min ? min : parsed > max ? max : parsed
 }
 
-/** 位置轴的单格编辑：夹到 0.1–100%（x/y 是 0–100%）。 */
-function applyPositionAxis(
-  background: PageBackground,
-  axis: PageBackgroundPositionAxis,
-  value: unknown,
-): PageBackground {
-  const isSize = axis === 'width' || axis === 'height'
-  const clamp = (raw: unknown) => clampNumber(raw, isSize ? 0.1 : 0, 100, background.position[axis])
+/** 位置四格的百分比：x/y 是中心点，width/height 是尺寸（与 0.9.0 检查器一致）。 */
+export function pageBackgroundPositionPercentages(
+  position: PageBackgroundPosition | undefined,
+  canvas?: PageBackgroundCanvas,
+): Record<PageBackgroundPositionAxis, number> {
+  const box = position ?? { x: 0, y: 0, width: 100, height: 100 }
+  const canvasWidth = Number(canvas?.width || 2778)
+  const canvasHeight = Number(canvas?.height || 1940)
   return {
-    ...background,
-    position: { ...background.position, [axis]: clamp(value) },
+    x: round1(((box.x + box.width / 2) / canvasWidth) * 100),
+    y: round1(((box.y + box.height / 2) / canvasHeight) * 100),
+    width: round1((box.width / canvasWidth) * 100),
+    height: round1((box.height / canvasHeight) * 100),
   }
 }
 
 /**
- * 把一次编辑合并进配置，返回**归一化后**的新对象。
+ * 把一格百分比换算成组件 `position` 的 px 值（与 0.9.0 检查器一致）。
  *
- * 切换来源 / 布局时会顺手整理另一侧字段（例如选了图片就把 `preset` 保持原值但隐藏，
- * 因为它可能随时被切回来）—— 只改当前编辑的字段，其余交给 `normalizePageBackground`
- * 统一夹取，避免两处各写一套范围。
+ * - x/y：百分比是**中心点**，换算后减去一半尺寸得到左上角；
+ * - width/height：直接按画布尺寸折算，最小 0.1%（0 会让元素彻底消失）。
  */
-/** 单字段编辑（除位置轴外）。查表而不是 switch：新字段只加一行，主函数不增长。 */
+export function pageBackgroundPositionAxisValue(
+  axis: PageBackgroundPositionAxis,
+  percent: unknown,
+  position: PageBackgroundPosition | undefined,
+  canvas?: PageBackgroundCanvas,
+): number {
+  const isHorizontal = axis === 'x' || axis === 'width'
+  const canvasSize = Number((isHorizontal ? canvas?.width : canvas?.height) || (isHorizontal ? 2778 : 1940))
+  const box = position ?? { x: 0, y: 0, width: 100, height: 100 }
+  const clamped = clampNumber(percent, axis === 'width' || axis === 'height' ? 0.1 : 0, 100, 0)
+  if (axis === 'width' || axis === 'height') return (canvasSize * clamped) / 100
+  const offset = axis === 'x' ? box.width / 2 : box.height / 2
+  return (canvasSize * clamped) / 100 - offset
+}
+
+/**
+ * 旧移植期 `properties.position`（百分比盒）换算成组件 px 盒。
+ *
+ * 新数据没有 `legacyPosition`；只有从旧备份读出来的背景会带着它，渲染/检查器
+ * 用画布尺寸把它落成 px，用户第一次拖动位置后就改写成组件 `position`。
+ */
+export function pageBackgroundLegacyBox(
+  background: PageBackground,
+  canvas?: PageBackgroundCanvas,
+): PageBackgroundPosition | undefined {
+  const legacy = background.legacyPosition
+  if (!legacy) return undefined
+  const canvasWidth = Number(canvas?.width || 2778)
+  const canvasHeight = Number(canvas?.height || 1940)
+  return {
+    x: (canvasWidth * legacy.x) / 100,
+    y: (canvasHeight * legacy.y) / 100,
+    width: (canvasWidth * legacy.width) / 100,
+    height: (canvasHeight * legacy.height) / 100,
+  }
+}
+
+/** 单字段编辑（位置四格除外）。查表而不是 switch：新字段只加一行，主函数不增长。 */
 const SIMPLE_EDITORS: Record<string, (background: PageBackground, value: unknown) => PageBackground> = {
-  source: (background, value) => ({ ...background, source: value === 'image' ? 'image' : 'preset' }),
+  // `source` 是旧字段名，保留别名让旧调用点不至于静默失败。
+  backgroundSource: (background, value) => ({
+    ...background,
+    backgroundSource: value === 'image' ? 'image' : 'preset',
+  }),
+  source: (background, value) => ({
+    ...background,
+    backgroundSource: value === 'image' ? 'image' : 'preset',
+  }),
   layoutMode: (background, value) => ({ ...background, layoutMode: value === 'free' ? 'free' : 'fill' }),
   preset: (background, value) => ({ ...background, preset: String(value ?? '') }),
   assetId: (background, value) => ({ ...background, assetId: String(value ?? '') }),
-  opacity: (background, value) => ({ ...background, opacity: value as number }),
+  // UI 输入的是 0–100，文档存 0–1；两者都接受，>1 视为百分数。
+  opacity: (background, value) => ({ ...background, opacity: normalizePageBackgroundOpacity(value) }),
   label: (background, value) => ({
     ...background,
     label: String(value ?? '').slice(0, PAGE_BACKGROUND_LABEL_LIMIT),
@@ -159,11 +214,6 @@ const SIMPLE_EDITORS: Record<string, (background: PageBackground, value: unknown
  */
 export function applyPageBackgroundEdit(background: unknown, edit: PageBackgroundEdit): PageBackground {
   const current = normalizePageBackground(background)
-  if (edit.key.startsWith('position.')) {
-    const axis = edit.key.slice('position.'.length)
-    if (!PAGE_BACKGROUND_POSITION_FIELDS.includes(axis as PageBackgroundPositionAxis)) return current
-    return normalizePageBackground(applyPositionAxis(current, axis as PageBackgroundPositionAxis, edit.value))
-  }
   const editor = SIMPLE_EDITORS[edit.key]
   return editor ? normalizePageBackground(editor(current, edit.value)) : current
 }
@@ -173,4 +223,8 @@ export function applyPageBackgroundEdits(background: unknown, edits: readonly Pa
     (accumulated, edit) => applyPageBackgroundEdit(accumulated, edit),
     normalizePageBackground(background),
   )
+}
+
+function round1(value: number): number {
+  return Math.round(value * 10) / 10
 }
