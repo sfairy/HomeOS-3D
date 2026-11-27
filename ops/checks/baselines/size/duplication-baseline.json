@@ -23,13 +23,13 @@
     "ops"
   ],
   "totals": {
-    "sources": 3506,
-    "lines": 741650,
-    "clones": 157,
-    "duplicatedLines": 2705,
-    "percentage": 0.3647,
-    "tokens": 4339544,
-    "duplicatedTokens": 13815
+    "sources": 3509,
+    "lines": 741859,
+    "clones": 158,
+    "duplicatedLines": 2749,
+    "percentage": 0.3706,
+    "tokens": 4339649,
+    "duplicatedTokens": 14084
   },
   "byFormat": {
     "css": {
@@ -47,11 +47,11 @@
       "clones": 20
     },
     "javascript": {
-      "sources": 338,
-      "lines": 47980,
-      "duplicatedLines": 320,
-      "percentage": 0.6669,
-      "clones": 16
+      "sources": 341,
+      "lines": 48424,
+      "duplicatedLines": 364,
+      "percentage": 0.7517,
+      "clones": 17
     },
     "python": {
       "sources": 766,
@@ -62,9 +62,9 @@
     },
     "typescript": {
       "sources": 1525,
-      "lines": 390783,
+      "lines": 390548,
       "duplicatedLines": 1619,
-      "percentage": 0.4143,
+      "percentage": 0.4145,
       "clones": 84
     },
     "vue": {
@@ -267,6 +267,12 @@
       "first": "homeos/frontend/src/features/device/components/DeviceAnalyticsPanel.vue",
       "second": "homeos/frontend/src/features/device/components/DeviceUsageStats.vue",
       "lines": 20
+    },
+    {
+      "fingerprint": "351bc8debfb99eb3200ef58e1961a61a052bee3a",
+      "first": "ops/scripts/codemod/extract-deps.mjs",
+      "second": "ops/scripts/codemod/split-comma-expressions.mjs",
+      "lines": 44
     },
     {
       "fingerprint": "36505fc8032df11fc5dfe4eef05ea846cdb225c5",
