@@ -144,8 +144,8 @@ import SettingsPendingSaveAction from '@/features/settings/shared/SettingsPendin
 import SettingsBindingsEnvironmentSection from '@/features/settings/groups/onboarding/bindings/SettingsBindingsEnvironmentSection.vue'
 import SettingsRoomEntityOrderPanel from '@/features/settings/groups/household/SettingsRoomEntityOrderPanel.vue'
 import RegistryDegradedGuide from '@/features/settings/shared/RegistryDegradedGuide.vue'
-import { useSettingsEnvHub } from '@/features/settings/shared/composables/hub-ui.internals'
-import { useSettingsHubRouteSection } from '@/features/settings/shared/composables/hub-ui.internals'
+import { useSettingsEnvHub } from '@/features/settings/shared/composables/hub'
+import { useSettingsHubRouteSection } from '@/features/settings/shared/composables/hub'
 import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
 import { sortHaAreas } from '@/domain/api/ha'
 

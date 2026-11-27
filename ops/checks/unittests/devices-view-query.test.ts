@@ -12,7 +12,7 @@ import { describe, expect, test } from 'bun:test'
 import {
   parseDeviceQueryFilters,
   toDeviceQueryParams,
-} from '../../../homeos/frontend/src/features/device/composables/devices-view-query.internals'
+} from '../../../homeos/frontend/src/features/device/composables/devices-view'
 
 describe('parseDeviceQueryFilters', () => {
   test('两个键都合法时全部解析出来', () => {

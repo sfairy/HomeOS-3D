@@ -3,7 +3,7 @@
  * @module frontend/src/views
  */
 /** 浮动组件：AFH 保存 / 删除 / 跳转 */
-import { confirmRemoveWidget } from '@/features/settings/groups/appearance/composables/layout-dashboard.internals'
+import { confirmRemoveWidget } from '@/features/settings/groups/appearance/composables/layout-dashboard'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'

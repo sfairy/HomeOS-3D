@@ -3,7 +3,7 @@
  * @module frontend/src/views
  */
 /** 高级参数面板：字段标签 / 提示 / DOM id */
-import type { EditableConfigField, EditableConfigSection } from '@/kernel/types/system-config-editor'
+import type { EditableConfigField, EditableConfigSection } from '@/kernel/types/system-config'
 import { resolveSystemConfigFieldLabel, systemConfigFieldHint } from '@/kernel/utils/config/system-config/field.meta'
 import { getSectionLabels } from '@/domain/layout/composables/system-config-core.internals'
 

@@ -14,7 +14,7 @@ import { resetSystemConfig } from '@/kernel/http/system-api'
 import { reloadFrontendConfig } from '@/kernel/config/frontend-config'
 import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
 import { logger } from '@/kernel/utils/core/logger'
-import type { EditableConfigSection } from '@/kernel/types/system-config-editor'
+import type { EditableConfigSection } from '@/kernel/types/system-config'
 import { ref, type Ref } from 'vue'
 
 type ConfigValidationError = { section: string; key: string; message?: string }

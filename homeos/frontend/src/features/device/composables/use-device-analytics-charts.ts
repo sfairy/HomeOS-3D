@@ -26,8 +26,8 @@ import {
   DEVICE_CHART_COLORS,
 } from '@/kernel/utils/chart/device-chart-theme'
 import type { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import type { useDeviceAnalyticsDashboard } from '@/features/device/composables/use-device-analytics-dashboard'
-import type { useDeviceHealthTrend } from '@/features/device/composables/use-device-health-trend'
+import type { useDeviceAnalyticsDashboard } from '@/features/device/composables/device-analytics-dashboard'
+import type { useDeviceHealthTrend } from '@/features/device/composables/device'
 import { ensureDeviceChartOnElement } from '@/kernel/utils/chart/device-chart-boot.util'
 
 /** ECharts 模块类型（仅类型引用，运行时经动态 import 懒加载） */

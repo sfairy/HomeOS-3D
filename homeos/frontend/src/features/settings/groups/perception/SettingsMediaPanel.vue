@@ -227,7 +227,7 @@ import {
   pollMediaArrivals,
   searchMusic,
   testMediaConnection,
-} from '@/domain/api/media-library'
+} from '@/domain/api/media'
 import { listHaAreas } from '@/domain/api/ha'
 import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
 

@@ -240,7 +240,7 @@ import ListPageHero from '@/kernel/ui/list-page/ListPageHero.vue'
 import ListPageMetrics from '@/kernel/ui/list-page/ListPageMetrics.vue'
 import ApiQueryState from '@/kernel/ui/ApiQueryState.vue'
 import VEmptyState from '@/kernel/ui/primitives/VEmptyState.vue'
-import { useDevicesView } from './composables/use-devices-view'
+import { useDevicesView } from './composables/devices-view'
 import { useHorizontalScrollNav } from '@/kernel/ui/hooks/use-horizontal-scroll-nav'
 
 /** DeviceRow 单行渲染高度（px）：与 list-page__row 内 44px 触控元素 + 上下 padding 14px×2 对齐，

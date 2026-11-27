@@ -90,7 +90,7 @@ export function haEntityDomainFilter(key = '') {
   return HA_ENTITY_DOMAIN_FILTERS[key] || ''
 }
 
-import type { EditableConfigField } from '@/kernel/types/system-config-editor'
+import type { EditableConfigField } from '@/kernel/types/system-config'
 
 export function systemConfigCellClass(field: Pick<EditableConfigField, 'type' | 'key'>) {
   const wide =

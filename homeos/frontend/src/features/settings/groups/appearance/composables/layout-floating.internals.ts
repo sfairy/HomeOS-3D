@@ -22,7 +22,7 @@ import {
 import { FLOATING_HUB_WIDTH_MAP, getWidgetName } from '@/kernel/utils/registry/widget-catalog'
 import type { Ref } from 'vue'
 import { computed, reactive, ref, watch } from 'vue'
-import { useWidgetEditorState } from '@/features/settings/groups/appearance/composables/layout-dashboard.internals'
+import { useWidgetEditorState } from '@/features/settings/groups/appearance/composables/layout-dashboard'
 import { useFloatingAfhActions } from '@/features/settings/groups/appearance/composables/layout-floating-afh-actions.internals'
 
 // ── useFloatingWidgets ──

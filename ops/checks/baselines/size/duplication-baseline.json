@@ -23,13 +23,13 @@
     "ops"
   ],
   "totals": {
-    "sources": 3699,
-    "lines": 740505,
+    "sources": 3656,
+    "lines": 740732,
     "clones": 153,
-    "duplicatedLines": 2564,
-    "percentage": 0.3463,
-    "tokens": 4327865,
-    "duplicatedTokens": 12385
+    "duplicatedLines": 2578,
+    "percentage": 0.348,
+    "tokens": 4329777,
+    "duplicatedTokens": 12386
   },
   "byFormat": {
     "css": {
@@ -47,10 +47,10 @@
       "clones": 20
     },
     "javascript": {
-      "sources": 321,
-      "lines": 45806,
+      "sources": 324,
+      "lines": 46367,
       "duplicatedLines": 161,
-      "percentage": 0.3515,
+      "percentage": 0.3472,
       "clones": 11
     },
     "python": {
@@ -61,10 +61,10 @@
       "clones": 37
     },
     "typescript": {
-      "sources": 1735,
-      "lines": 391812,
-      "duplicatedLines": 1637,
-      "percentage": 0.4178,
+      "sources": 1689,
+      "lines": 391478,
+      "duplicatedLines": 1651,
+      "percentage": 0.4217,
       "clones": 85
     },
     "vue": {
@@ -83,12 +83,6 @@
       "lines": 15
     },
     {
-      "fingerprint": "03f8ee22e886f69c4f4c2641a7400c6605622c87",
-      "first": "homeos/frontend/src/features/security/composables/use-security-sensors.ts",
-      "second": "homeos/frontend/src/features/security/utils/zone-room.util.ts",
-      "lines": 14
-    },
-    {
       "fingerprint": "044cc780b71569f69bdf35028a06ba44ded277b7",
       "first": "homeos/frontend/src/studio/runtime/core/editor-preview.ts",
       "second": "homeos/frontend/src/studio/runtime/core/editor-preview.ts",
@@ -105,12 +99,6 @@
       "first": "homeos/backend/src/api/backups.py",
       "second": "homeos/backend/src/api/backups.py",
       "lines": 13
-    },
-    {
-      "fingerprint": "08bd266432e6d234e90bc38d8723ba65a05b77d3",
-      "first": "homeos/frontend/src/features/device/DevicesPage.vue",
-      "second": "homeos/frontend/src/features/device/composables/use-devices-view.ts",
-      "lines": 28
     },
     {
       "fingerprint": "0ef7a02942fdf5b598d47e3bf2712a8cd66c17ca",
@@ -147,12 +135,6 @@
       "first": "homeos/backend/src/domains/security/layout.py",
       "second": "homeos/backend/src/domains/security/layout.py",
       "lines": 12
-    },
-    {
-      "fingerprint": "1784a3fe678b0010dca019a77e2b09dd6d080d06",
-      "first": "homeos/frontend/src/domain/recommend/composables/use-event-log-stats.ts",
-      "second": "homeos/frontend/src/features/settings/groups/onboarding/composables/event-log-record-filter.util.ts",
-      "lines": 13
     },
     {
       "fingerprint": "181e9b93555b6b32d4820943d1d7db0b6c0b5338",
@@ -225,12 +207,6 @@
       "first": "homeos/frontend/src/studio/app/3d-studio/materials/studio-model-material-roles.ts",
       "second": "homeos/frontend/src/studio/app/3d-studio/materials/studio-model-material-roles.ts",
       "lines": 16
-    },
-    {
-      "fingerprint": "2b54ac8eeafa126f36b78065c51bafd77c9a1ab4",
-      "first": "homeos/frontend/src/features/settings/groups/automation/composables/security-modes-linkage.internals.ts",
-      "second": "homeos/frontend/src/features/settings/groups/automation/composables/security-modes-linkage.internals.ts",
-      "lines": 14
     },
     {
       "fingerprint": "2bc8c5d9cc2fb6c38629e48b643ac734cb29e2d4",
@@ -557,6 +533,12 @@
       "lines": 12
     },
     {
+      "fingerprint": "879536f846bd67c825f284e56a483aae4d9b749a",
+      "first": "homeos/frontend/src/features/device/DevicesPage.vue",
+      "second": "homeos/frontend/src/features/device/composables/devices-view.ts",
+      "lines": 28
+    },
+    {
       "fingerprint": "892c22fc3921f1ddd0b14d20b69efa57070990f2",
       "first": "homeos/frontend/src/studio/runtime/config-ui/config-editor/rendering/panel-assembly.ts",
       "second": "homeos/frontend/src/studio/runtime/config-ui/config-editor/rendering/panel-sections.ts",
@@ -593,6 +575,12 @@
       "lines": 25
     },
     {
+      "fingerprint": "8c4d78888cd1359325aa2c8530c76963a00b2a4c",
+      "first": "homeos/frontend/src/domain/recommend/composables/use-event-log-stats.ts",
+      "second": "homeos/frontend/src/features/settings/groups/onboarding/composables/event-log-record-filter.ts",
+      "lines": 13
+    },
+    {
       "fingerprint": "8cb7edcd0b0e2f140dce1ca4bcf0bd2f3ac36a95",
       "first": "homeos/frontend/src/studio/app/3d-studio/loaders/external-models/_shared.ts",
       "second": "homeos/frontend/src/studio/app/3d-studio/loaders/external-models/all-item-models.ts",
@@ -626,6 +614,12 @@
       "fingerprint": "951ec47d39cd513c469c75c2b1cfb9e784b4bb95",
       "first": "homeos/frontend/src/studio/app/editor/home/elements/inspectors-charts.ts",
       "second": "homeos/frontend/src/studio/app/editor/home/lifecycle/boot.ts",
+      "lines": 28
+    },
+    {
+      "fingerprint": "95d2b97a9232798c5f119aa704a05542689966bd",
+      "first": "homeos/frontend/src/features/security/composables/security.ts",
+      "second": "homeos/frontend/src/features/security/utils/zone-room.util.ts",
       "lines": 28
     },
     {
@@ -831,6 +825,12 @@
       "first": "homeos/frontend/src/features/settings/groups/system/diagnostics/use-diagnostics-summary.ts",
       "second": "homeos/frontend/src/features/settings/groups/system/diagnostics/use-diagnostics-summary.ts",
       "lines": 17
+    },
+    {
+      "fingerprint": "d428608fedfc232e0c61d586310887417df40558",
+      "first": "homeos/frontend/src/features/settings/groups/automation/composables/security-modes.ts",
+      "second": "homeos/frontend/src/features/settings/groups/automation/composables/security-modes.ts",
+      "lines": 14
     },
     {
       "fingerprint": "d516c059c8c31ec727fa6586a263b3743d431ef7",

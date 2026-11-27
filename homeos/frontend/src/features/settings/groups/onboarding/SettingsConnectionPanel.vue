@@ -89,7 +89,7 @@ import ConnectionCredentialsSection from './connection/CredentialsSection.vue'
 import ConnectionEntitiesSection from './connection/EntitiesSection.vue'
 import EventLogRecordFilterSection from './connection/EventLogRecordFilterSection.vue'
 import ConnectionAdvancedSection from './connection/AdvancedSection.vue'
-import { useConnectionPanel } from '@/features/settings/groups/onboarding/composables/connection.internals'
+import { useConnectionPanel } from '@/features/settings/groups/onboarding/composables/connection'
 
 const props = defineProps({ activeTab: { type: String, default: 'connection' } })
 

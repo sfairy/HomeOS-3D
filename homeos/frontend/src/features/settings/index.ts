@@ -11,4 +11,4 @@
  */
 
 // 由 features/security 跨域使用（环境传感器字段映射）
-export { useEnvSensorMap } from './shared/composables/env-sensor-map.internals'
+export { useEnvSensorMap } from './shared/composables/env-sensor-map'

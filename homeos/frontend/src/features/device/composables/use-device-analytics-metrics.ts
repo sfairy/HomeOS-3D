@@ -1,6 +1,6 @@
 /** 设备分析指标派生 Composable */
 import { computed, type Ref } from 'vue'
-import type { useDeviceAnalyticsDashboard } from '@/features/device/composables/use-device-analytics-dashboard'
+import type { useDeviceAnalyticsDashboard } from '@/features/device/composables/device-analytics-dashboard'
 
 // 低活跃判定阈值：7 天内切换次数 <= 2 视为低活跃
 const LOW_ACTIVITY_THRESHOLD = 2

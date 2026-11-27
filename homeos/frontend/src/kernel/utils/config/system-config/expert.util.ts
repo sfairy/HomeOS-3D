@@ -41,7 +41,7 @@ const EXPERT_ONLY_FIELD_KEYS = new Set([
   'maxExecHistory',
 ])
 
-import type { EditableConfigSection } from '@/kernel/types/system-config-editor'
+import type { EditableConfigSection } from '@/kernel/types/system-config'
 
 /**
  * 按专家模式过滤可编辑分节视图

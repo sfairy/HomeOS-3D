@@ -27,14 +27,14 @@ export { default as MediaPagerControls } from './components/MediaPagerControls.v
 // ── composables ──
 export * from './composables/use-hazard-binding-status'
 export * from './composables/use-reduce-security-sensitivity'
-export * from './composables/use-security-audit-events'
+export * from './composables/security'
 export * from './composables/use-security-overview'
-export * from '@/features/security/composables/use-security-panel-status'
-export * from './composables/use-security-sensors'
-export * from './composables/use-security-view'
-export * from './composables/use-security-zone-editor-list'
-export * from './composables/use-security-zone-monitor'
-export * from './composables/use-security-zone-rooms'
+export * from '@/features/security/composables/security'
+export * from './composables/security'
+export * from './composables/security-view'
+export * from './composables/security-zone'
+export * from './composables/security-zone'
+export * from './composables/security-zone'
 export * from './composables/use-yaml-validation'
 
 // ── 域内纯函数（只被 security 自己消费）──

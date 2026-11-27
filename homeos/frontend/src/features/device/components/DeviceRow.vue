@@ -146,7 +146,7 @@ import { getTeleportContainerSize } from '@/kernel/ui/popup/popup-position-share
 import type { DeviceListItem } from '@/kernel/types/device'
 import { copyTextWithNotify } from '@/kernel/ui/notify'
 import { getDomainLabel } from '@/features/device/model/utils/domain-labels.util'
-import { displayEntityStateLabel } from '@/kernel/constants/entity-state-labels'
+import { displayEntityStateLabel } from '@/kernel/constants/entity-state'
 import { entityPopupOpensOnClick } from '@/domain/entity/model/utils/popup-registry.util'
 
 // 当前设备项与是否被选中。

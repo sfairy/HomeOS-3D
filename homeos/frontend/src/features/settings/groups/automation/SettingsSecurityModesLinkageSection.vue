@@ -27,7 +27,7 @@ import { usePresenceEntityConfig } from '@/features/settings/groups/automation/c
 import {
   useSecurityLinkage,
   useSettingsSecurityModesLinkageDisplay,
-} from '@/features/settings/groups/automation/composables/security-modes-core.internals'
+} from '@/features/settings/groups/automation/composables/security-modes'
 import LinkageLoadErrorBanner from '@/features/settings/groups/automation/linkage/LoadErrorBanner.vue'
 import LinkageHeroSection from '@/features/settings/groups/automation/linkage/HeroSection.vue'
 import LinkagePresenceSection from '@/features/settings/groups/automation/linkage/PresenceSection.vue'

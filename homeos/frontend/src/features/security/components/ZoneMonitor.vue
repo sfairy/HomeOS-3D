@@ -133,7 +133,7 @@
 <script setup>
 import { toRef } from 'vue'
 import { LayoutGrid, Shield } from '@lucide/vue'
-import { useSecurityZoneMonitor } from '@/features/security/composables/use-security-zone-monitor'
+import { useSecurityZoneMonitor } from '@/features/security/composables/security-zone'
 import { sensorStateLabel } from '@/features/security/utils/zone-mode.util'
 import '../styles/security.css'
 

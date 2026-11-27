@@ -172,7 +172,7 @@ import DeviceAnalyticsOverviewTab from '../analytics/DeviceAnalyticsOverviewTab.
 import DeviceAnalyticsActivityTab from '../analytics/DeviceAnalyticsActivityTab.vue'
 import DeviceAnalyticsHealthTab from '../analytics/DeviceAnalyticsHealthTab.vue'
 import DeviceAnalyticsAlertsTab from '../analytics/DeviceAnalyticsAlertsTab.vue'
-import { useDeviceAnalyticsDashboardShell } from '@/features/device/composables/use-device-analytics-dashboard-shell'
+import { useDeviceAnalyticsDashboardShell } from '@/features/device/composables/device-analytics-dashboard'
 
 // 组件属性：visible 控制是否加载数据与初始化图表。
 const props = withDefaults(

@@ -1,6 +1,6 @@
 /** 实体弹窗通用基础组合式函数模块。 */
 import { computed, type ComputedRef, type Ref, type PropType } from 'vue'
-import { popupDomainStateLabel } from '@/kernel/constants/entity-state-labels'
+import { popupDomainStateLabel } from '@/kernel/constants/entity-state'
 import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
 import { useLiveEntity } from '@/domain/entity/composables/use-live-entity'
 import { useHaEntityService } from '@/domain/entity/composables/use-ha-entity-service'

@@ -9,7 +9,7 @@
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Timer, X } from '@lucide/vue'
-import { cancelDeviceTimer, listDeviceTimers, setDeviceTimer } from '@/domain/api/device-timer'
+import { cancelDeviceTimer, listDeviceTimers, setDeviceTimer } from '@/domain/api/device'
 import '@/kernel/ui/styles/hos-icon-btn.css'
 
 const props = defineProps({

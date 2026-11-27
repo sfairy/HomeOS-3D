@@ -194,7 +194,7 @@ import { Flame, Zap, PlayCircle } from '@lucide/vue'
 import EntityMultiSelect from '@/domain/entity/components/entity-multi-select/EntityMultiSelect.vue'
 import HazardBindingStatusPanel from '@/features/settings/groups/onboarding/bindings/HazardBindingStatusPanel.vue'
 import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
-import { useHazardBindingsSection } from '@/features/settings/groups/automation/composables/security-modes-extras.internals'
+import { useHazardBindingsSection } from '@/features/settings/groups/automation/composables/security-modes'
 
 defineProps({
   hazardTesting: Boolean,

@@ -338,7 +338,7 @@ import SettingsWholeHomeOffSection from '@/features/settings/groups/appearance/S
 import SettingsScreensaverSection from '@/features/settings/groups/appearance/SettingsScreensaverSection.vue'
 import SettingsLayoutDisplaySection from '@/features/settings/groups/appearance/layout/SettingsLayoutDisplaySection.vue'
 import SettingsLayoutFooterSection from '@/features/settings/groups/appearance/layout/SettingsLayoutFooterSection.vue'
-import { useDashboardFooterEditor } from '@/features/settings/groups/appearance/composables/layout-dashboard.internals'
+import { useDashboardFooterEditor } from '@/features/settings/groups/appearance/composables/layout-dashboard'
 import { useScaling } from '@/kernel/ui/hooks/use-scaling'
 import { reloadFrontendConfig } from '@/kernel/config/frontend-config'
 import { handleSystemConfigPatchError, useSystemConfig } from '@/domain/layout/composables/system-config-core.internals'
@@ -353,7 +353,7 @@ import {
 } from '@/kernel/utils/perf/runtime-perf-mode.util'
 import { applyGlassEffectDocument } from '@/kernel/utils/ui/glass-effect.util'
 import { useSettingsSidebarReentryReset } from '@/kernel/ui/hooks/hub-viewport'
-import { useSettingsHubRouteSection } from '@/features/settings/shared/composables/hub-ui.internals'
+import { useSettingsHubRouteSection } from '@/features/settings/shared/composables/hub'
 import { useSettingsPendingChanges } from '@/features/settings/kernel/pending.internals'
 
 const props = defineProps({ activeTab: { type: String, default: 'general' } })

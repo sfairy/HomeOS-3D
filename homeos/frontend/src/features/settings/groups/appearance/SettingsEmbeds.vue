@@ -222,7 +222,7 @@ import SettingsOrchTabs from '@/features/settings/components/SettingsOrchTabs.vu
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
 import { Globe, Layout, MonitorPlay, Plus, ChevronDown, Copy } from '@lucide/vue'
-import { useSettingsEmbeds } from '@/features/settings/groups/appearance/composables/layout-dashboard.internals'
+import { useSettingsEmbeds } from '@/features/settings/groups/appearance/composables/layout-dashboard'
 import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
 

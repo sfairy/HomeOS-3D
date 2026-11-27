@@ -13,7 +13,7 @@ import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import {
   applyEarthquakeLayoutSlice,
   type pickEarthquakeLayoutSlice,
-} from '../../appearance/composables/layout-dashboard.internals'
+} from '../../appearance/composables/layout-dashboard'
 import { createDefaultEarthquakeConfig } from '@/kernel/types/earthquake'
 import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
 import { ref } from 'vue'

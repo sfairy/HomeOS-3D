@@ -10,15 +10,15 @@ import {
   readExpertModePref,
   writeExpertModePref,
 } from '@/features/settings/groups/system/composables/system-config-panel-prefs.internals'
-import { useSettingsHubRouteSection } from '@/features/settings/shared/composables/hub-ui.internals'
+import { useSettingsHubRouteSection } from '@/features/settings/shared/composables/hub'
 import { useSettingsSave } from '@/features/settings/kernel/save.internals'
 import { fetchConfigAudit } from '@/kernel/http/system-api'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import type { SystemConfig, SystemConfigLoadOptions } from '@/kernel/types/system-config'
-import type { EditableConfigSection } from '@/kernel/types/system-config-editor'
+import type { EditableConfigSection } from '@/kernel/types/system-config'
 import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
 import { logger } from '@/kernel/utils/core/logger'
-import { useAppConfigBackup } from '@/features/settings/shared/composables/hub-backup-orchestrator.internals'
+import { useAppConfigBackup } from '@/features/settings/shared/composables/hub'
 import {
   countSystemConfigPendingChanges,
   fromEditableSections,

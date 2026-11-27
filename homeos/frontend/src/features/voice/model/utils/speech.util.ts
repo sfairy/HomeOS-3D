@@ -2,7 +2,7 @@
 import {
   getDefaultDailyAdvisorTtsDaytime,
   getDefaultDailyAdvisorTtsEvening,
-} from '@/kernel/constants/voice-alert-catalog'
+} from '@/kernel/constants/voice'
 import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
 
 /** 内置告警播报风格（用户选风格，后台仍存模板字符串） */

@@ -25,7 +25,7 @@ import {
   type DecorationLibraryState,
   type DecorationModel,
 } from '../../items/studio-user-decorations'
-import { deleteStudioModel, listStudioModels, uploadStudioModel } from '@/domain/api/studio-models'
+import { deleteStudioModel, listStudioModels, uploadStudioModel } from '@/domain/api/studio'
 import { USER_DECORATION_DRAG_TYPE } from '../interaction/drag-and-drop'
 import { shellConfirm } from '@/studio/platform/shell-chrome'
 import { installAssetNameScroll } from './asset-library'

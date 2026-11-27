@@ -5,7 +5,7 @@
 /** 高级参数：分区跳转 / 校验定位 */
 import { categoryForSection } from '@/domain/layout/composables/system-config-core.internals'
 import { nextTick, type Ref } from 'vue'
-import type { EditableConfigSection } from '@/kernel/types/system-config-editor'
+import type { EditableConfigSection } from '@/kernel/types/system-config'
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
 
 export function createSystemConfigPanelNav(opts: {

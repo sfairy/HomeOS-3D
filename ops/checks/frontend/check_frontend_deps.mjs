@@ -410,6 +410,9 @@ const ALLOWED_CYCLES = new Set([
   'studio/app/3d-studio/authoring/studio-app/ui/asset-library ↔ studio/app/3d-studio/authoring/studio-app/ui/decoration-library',
   'studio/app/3d-studio/authoring/studio-app/ui/editor-3d ↔ studio/app/3d-studio/authoring/studio-app/ui/light-toolbar',
   'studio/app/3d-studio/authoring/studio-app/ui/wiring ↔ studio/app/3d-studio/authoring/studio-app/ui/workspace',
+  // 安防面板的「状态与动作」与「视图派生」互相需要，合并成一对后形成 2 模块环；
+  // 消除需引入第三个派生层，属独立评审。新增环仍会失败。
+  'features/security/composables/security ↔ features/security/composables/security-view',
 ])
 
 /**
@@ -423,8 +426,7 @@ const ALLOWED_CYCLES = new Set([
  *    正确做法是给 studio 加一个 `DashboardSurface` 门面，先登记。
  */
 const ALLOWED_UPPER = new Set([
-  'domain/api/studio-interaction.ts',
-  'domain/api/studio-models.ts',
+  'domain/api/studio.ts',
   'features/dashboard/components/RightSidebar.vue',
 ])
 

@@ -10,7 +10,7 @@
  * 多出的几十 KB 与浏览器直载语义都不划算。
  */
 
-import { listDeviceProfiles } from '@/domain/api/device-profiles'
+import { listDeviceProfiles } from '@/domain/api/device'
 import { replaceDeviceProfileKinds, resetDeviceProfileKinds } from '@/domain/device/device-profile-kind-cache'
 
 let loaded = false

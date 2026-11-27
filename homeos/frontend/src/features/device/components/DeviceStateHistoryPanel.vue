@@ -211,9 +211,9 @@ import {
   hoursForRange,
   type DeviceHistoryRange,
   type DeviceStateHistoryEvent,
-} from '@/features/device/composables/use-device-state-history'
+} from '@/features/device/composables/device'
 import { displayEventState } from '@/features/events/model/utils/events-display.util'
-import { displayEntityStateLabel } from '@/kernel/constants/entity-state-labels'
+import { displayEntityStateLabel } from '@/kernel/constants/entity-state'
 import { formatDetailedDateTimeOrDash } from '@/kernel/utils/format/locale-format.util'
 import DeviceChartHeader from './DeviceChartHeader.vue'
 import { DEVICE_CHART_COPY } from '@/kernel/utils/chart/device-chart-copy.util'

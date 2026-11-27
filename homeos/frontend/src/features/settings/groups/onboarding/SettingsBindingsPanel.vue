@@ -140,14 +140,14 @@ import BindingsSectionInsights from '@/features/settings/groups/onboarding/bindi
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { useHaBindings } from '@/features/settings/groups/onboarding/composables/bindings.internals'
+import { useHaBindings } from '@/features/settings/groups/onboarding/composables/bindings'
 import SettingsHubSubnav from '@/features/settings/shared/layout/SettingsHubSubnav.vue'
 import { ensureDoorbellList, collectDoorbellCameraIds } from '@/kernel/utils/layout/doorbell.util'
 import {
   applyBindingsLayoutSlice,
   liveBindingsLayoutSlice,
   pickBindingsLayoutSlice,
-} from '@/features/settings/groups/appearance/composables/layout-dashboard.internals'
+} from '@/features/settings/groups/appearance/composables/layout-dashboard'
 import { afterLayoutCancelSync } from '@/features/settings/kernel/pending.internals'
 import { useSettingsPendingChanges } from '@/features/settings/kernel/pending.internals'
 import { useRegisterSettingsTabPending } from '@/features/settings/kernel/pending.internals'
@@ -161,9 +161,9 @@ import { fetchBindingsGaps } from '@/kernel/http/system-api'
 import { runHazardDrill as runHazardDrillApi } from '@/domain/api/security'
 import { useYamlValidation } from '@/features/security/index'
 import { useSettingsSidebarReentryReset } from '@/kernel/ui/hooks/hub-viewport'
-import { useSettingsHubRouteSection } from '@/features/settings/shared/composables/hub-ui.internals'
+import { useSettingsHubRouteSection } from '@/features/settings/shared/composables/hub'
 import SettingsPendingSaveAction from '@/features/settings/shared/SettingsPendingSaveAction.vue'
-import { useBindingsRecommend } from '@/features/settings/groups/onboarding/composables/bindings.internals'
+import { useBindingsRecommend } from '@/features/settings/groups/onboarding/composables/bindings'
 import {
   handleSystemConfigPatchError,
   patchSystemConfig,

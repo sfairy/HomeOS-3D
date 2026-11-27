@@ -4,7 +4,7 @@
  */
 /** 首装向导核心状态机 */
 import { useSystemConfig } from '@/domain/layout/composables/system-config-core.internals'
-import { useEnvSensorMap } from '@/features/settings/shared/composables/env-sensor-map.internals'
+import { useEnvSensorMap } from '@/features/settings/shared/composables/env-sensor-map'
 import {
   pauseGlobalPendingChanges,
   resumeGlobalPendingChanges,

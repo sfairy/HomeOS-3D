@@ -17,7 +17,7 @@ import type { SecurityMode } from '@/kernel/types/layout'
 import type { SecurityOverviewSensor } from './security-overview-sensors.internals'
 import type { useLayoutStore } from '@/domain/layout/store/layout.store'
 import type { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import type { useSecurityPanelStatus } from '@/features/security/composables/use-security-panel-status'
+import type { useSecurityPanelStatus } from '@/features/security/composables/security'
 import type { useReduceSecuritySensitivity } from './use-reduce-security-sensitivity'
 import type { Component } from 'vue'
 

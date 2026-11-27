@@ -143,8 +143,8 @@ import type { EChartsCoreOption } from 'echarts/core'
 import type * as EchartsModuleNS from '@/kernel/utils/chart/echarts'
 import { fetchAdvisorUsageSummary } from '@/kernel/http/system-api'
 import { fetchEventStats } from '@/domain/api/entities'
-import { useDeviceUsageStats } from '@/features/device/composables/use-device-usage-stats'
-import { useDeviceEventStats } from '@/features/device/composables/use-device-event-stats'
+import { useDeviceUsageStats } from '@/features/device/composables/device'
+import { useDeviceEventStats } from '@/features/device/composables/device'
 import DeviceChartHeader from './DeviceChartHeader.vue'
 import {
   DEVICE_CHART_COPY,

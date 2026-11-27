@@ -40,7 +40,7 @@ import { computed, reactive, ref } from 'vue'
 import {
   confirmRemoveWidget,
   useWidgetEditorState,
-} from '@/features/settings/groups/appearance/composables/layout-dashboard.internals'
+} from '@/features/settings/groups/appearance/composables/layout-dashboard'
 
 // ── usePanelWidgets ──
 function cfgStr(cfg: Record<string, unknown> | undefined, rawConfig: string): string {

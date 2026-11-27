@@ -8,7 +8,7 @@ import { Settings2 } from '@lucide/vue'
 import HubTabsConfigField from '../widgets/HubTabsConfigField.vue'
 import EntityMultiSelect from '@/domain/entity/components/entity-multi-select/EntityMultiSelect.vue'
 import { hubTabOptions } from '@/features/settings/groups/appearance/composables/layout-floating.internals'
-import { useDraftObjectField } from '@/features/settings/shared/composables/hub-ui.internals'
+import { useDraftObjectField } from '@/features/settings/shared/composables/hub'
 import { joinCommaEntityIds, parseCommaEntityIds } from '@/domain/entity/model/utils/comma-entity-ids.util'
 
 const afhHubTabs = defineModel('afhHubTabs', { type: Object, required: true })

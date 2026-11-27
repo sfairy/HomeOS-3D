@@ -230,7 +230,7 @@
       "impl": 0,
       "moduleLet": 2
     },
-    "homeos/frontend/src/features/device/composables/use-device-detail-view.ts": {
+    "homeos/frontend/src/features/device/composables/device.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 2
@@ -390,7 +390,7 @@
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/security/composables/use-security-panel-status.ts": {
+    "homeos/frontend/src/features/security/composables/security.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 3
@@ -500,7 +500,7 @@
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/settings/groups/automation/composables/security-modes-linkage.internals.ts": {
+    "homeos/frontend/src/features/settings/groups/automation/composables/security-modes.ts": {
       "alias2": 1,
       "impl": 0,
       "moduleLet": 0
@@ -720,15 +720,10 @@
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/settings/shared/composables/env-sensor-map-util.internals.ts": {
+    "homeos/frontend/src/features/settings/shared/composables/env-sensor-map.ts": {
       "alias2": 0,
       "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/features/settings/shared/composables/env-sensor-map.internals.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
+      "moduleLet": 2
     },
     "homeos/frontend/src/features/settings/shared/config-fields/SystemConfigActionsBar.vue": {
       "alias2": 1,
@@ -760,7 +755,7 @@
       "impl": 0,
       "moduleLet": 4
     },
-    "homeos/frontend/src/kernel/constants/voice-command-presets.ts": {
+    "homeos/frontend/src/kernel/constants/voice.ts": {
       "alias2": 0,
       "impl": 0,
       "moduleLet": 1

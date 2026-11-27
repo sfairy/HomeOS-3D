@@ -71,7 +71,7 @@ import {
   getSecurityPanelZonesFromLayout,
   mirrorSecurityPanelZonesToLayout,
 } from '@/features/security/model/utils/panel-layout.util'
-import { useSecurityZoneRooms } from '@/features/security/composables/use-security-zone-rooms'
+import { useSecurityZoneRooms } from '@/features/security/composables/security-zone'
 
 const props = defineProps({
   backendZones: { type: Array, default: () => [] },

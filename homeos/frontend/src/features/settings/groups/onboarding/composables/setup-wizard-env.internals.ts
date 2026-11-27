@@ -6,8 +6,8 @@
 
 import { computed, ref, watch } from 'vue'
 import { Droplets, Leaf, Thermometer, Wind } from '@lucide/vue'
-import type { useEnvSensorMap } from '@/features/settings/shared/composables/env-sensor-map.internals'
-import { getEnvSensorFields } from '@/features/settings/shared/composables/env-sensor-map.internals'
+import type { useEnvSensorMap } from '@/features/settings/shared/composables/env-sensor-map'
+import { getEnvSensorFields } from '@/features/settings/shared/composables/env-sensor-map'
 import { envRoomTabEmoji } from '@/kernel/utils/settings/tab-emoji.util'
 
 // ── useSetupWizardEnvStep ──

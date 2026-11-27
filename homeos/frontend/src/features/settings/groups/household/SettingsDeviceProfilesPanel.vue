@@ -263,9 +263,9 @@ import {
   listDeviceProfiles,
   refreshDeviceProfiles,
   setDeviceProfileAliases,
-} from '@/domain/api/device-profiles'
+} from '@/domain/api/device'
 import { listHaAreas } from '@/domain/api/ha'
-import { listMusicPlayers } from '@/domain/api/media-library'
+import { listMusicPlayers } from '@/domain/api/media'
 import { AUDIT_LABELS, KIND_LABELS, kindTransition, relativeTime } from './device-profiles-display.util'
 import { SETTINGS_ROUTES } from '@/kernel/utils/registry/settings-route.util'
 import { getApiErrorMessage } from '@/kernel/utils/core/error-message'

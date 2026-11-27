@@ -156,26 +156,36 @@ function splitImports(text) {
  * 整条去重会保留两行，TS 直接报 `Duplicate identifier`。必须按**绑定**去重，
  * 并保留 type-only 语义（写成内联 `type` 修饰符）。
  *
+ * 分组键必须是**解析后的真实模块**而不是原始说明符：同一模块可能一处写
+ * `./use-foo`、另一处写 `@/features/.../use-foo`，按字符串分组会留下两份绑定。
+ *
  * @param {Array<{statement: string, path: string}>} statements
  * @returns {string[]}
  */
 function normalizeImports(statements) {
-  /** @type {Map<string, {sideEffect: boolean, defaults: Set<string>, namespaces: Set<string>, named: Map<string,{imported:string,isType:boolean}>}>} */
+  /** @type {Map<string, {source: string, sideEffect: boolean, defaults: Set<string>, namespaces: Set<string>, named: Map<string,{imported:string,isType:boolean}>}>} */
   const bySource = new Map()
   const order = []
 
-  const bucket = (source) => {
-    if (!bySource.has(source)) {
-      bySource.set(source, { sideEffect: false, defaults: new Set(), namespaces: new Set(), named: new Map() })
-      order.push(source)
+  const bucket = (canonical, source) => {
+    if (!bySource.has(canonical)) {
+      bySource.set(canonical, {
+        source,
+        sideEffect: false,
+        defaults: new Set(),
+        namespaces: new Set(),
+        named: new Map(),
+      })
+      order.push(canonical)
     }
-    return bySource.get(source)
+    return bySource.get(canonical)
   }
 
-  for (const { statement } of statements) {
+  for (const { statement, path } of statements) {
     const source = importSource(statement)
     if (!source) continue
-    const entry = bucket(source)
+    const canonical = resolveCanonical(path, source) || source
+    const entry = bucket(canonical, source)
     const trimmed = statement.trim()
 
     // 纯副作用 import：`import './x.css'`
@@ -216,8 +226,9 @@ function normalizeImports(statements) {
   }
 
   const out = []
-  for (const source of order) {
-    const entry = bySource.get(source)
+  for (const canonical of order) {
+    const entry = bySource.get(canonical)
+    const source = entry.source
     // 命名空间导入不能与其它绑定合并成一条语句（ES 语法禁止），每个单独成行。
     for (const name of entry.namespaces) out.push(`import * as ${name} from '${source}'`)
 
@@ -242,7 +253,127 @@ function normalizeImports(statements) {
  * @param {{header?: string, into?: string}} [options]
  * @returns {string}
  */
+/**
+ * 把说明符解析成真实模块路径（用于合并时的同名判定）。
+ * 解析不到时退回原始说明符，保证「无法解析 = 不同来源」的保守语义。
+ * @param {string} fromPath 发起文件（旧位置）
+ * @param {string} spec
+ * @returns {string}
+ */
+function resolveCanonical(fromPath, spec) {
+  if (!spec) return ''
+  const absent = `unresolved:${spec}`
+  if (spec.startsWith('.')) {
+    const base = join(dirname(fromPath), spec).split('\\').join('/')
+    for (const cand of [`${base}.ts`, `${base}.tsx`, `${base}.vue`, `${base}.css`, base]) {
+      if (existsSync(cand)) return stripExt(cand)
+    }
+    return stripExt(base)
+  }
+  for (const [prefix, to] of [
+    ['@app/', 'studio/app/'],
+    ['@runtime/', 'studio/runtime/'],
+    ['@/', ''],
+  ]) {
+    if (!spec.startsWith(prefix)) continue
+    const base = join('homeos/frontend/src', to, spec.slice(prefix.length)).split('\\').join('/')
+    for (const cand of [`${base}.ts`, `${base}.tsx`, `${base}.vue`, `${base}.css`, base]) {
+      if (existsSync(cand)) return stripExt(cand)
+    }
+    return stripExt(base)
+  }
+  return absent
+}
+
+/**
+ * 去掉合并后正文里「同名且内容相同」的顶层类型别名。
+ *
+ * 同一功能族的两个文件常各自写一份 `type Summary = ...`（内容一字不差）。
+ * 合并后 TS 报 `Duplicate identifier`。只在**归一化后完全相同**时才删，
+ * 内容不同的同名声明仍然保留（那是需要人工判断的真实冲突）。
+ *
+ * `seen` 必须由调用方在**整个合并范围内**共享 —— 每次调用新建会让跨源去重失效。
+ * @param {string} body
+ * @param {Set<string>} seen
+ * @returns {string}
+ */
+function dedupeTypeAliases(body, seen) {
+  return body
+    .split('\n')
+    .filter((line) => {
+      const match = line.match(/^\s*(?:export\s+)?type\s+([A-Za-z_$][\w$]*)\s*=/)
+      if (!match) return true
+      const key = `${match[1]}|${line.replace(/\s+/g, ' ').trim()}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+    .join('\n')
+}
+
+/**
+ * 丢掉「重复的本地导出清单」。
+ *
+ * 合并后常出现：正文里有 `export function Foo`，末尾还有一条 `export { Foo }`
+ * （原文件为了聚合出口写的）。两条同时存在 TS 报
+ * `Export declaration conflicts with exported declaration`。
+ * 只在清单里**每个名字都已有 `export` 声明**时才丢，否则保留（可能真的只是重命名导出）。
+ * @param {string} text
+ * @returns {string}
+ */
+function dropRedundantExportLists(text) {
+  const declared = new Set()
+  for (const match of text.matchAll(/^export\s+(?:async\s+)?(?:function|const|let|var|class|type|interface)\s+([A-Za-z_$][\w$]*)/gm)) {
+    declared.add(match[1])
+  }
+  return text
+    .replace(/^[ \t]*export\s+(?:type\s+)?\{([\s\S]*?)\}[ \t]*;?[ \t]*\r?\n?/gm, (statement, inner, offset, whole) => {
+      // 带 `from` 的重导出不属于本函数处理范围（正则已排除：要求 `}` 后紧跟换行/分号）。
+      const names = inner
+        .split(',')
+        .map((part) => part.trim().replace(/^type\s+/, ''))
+        .map((part) => part.split(/\s+as\s+/).pop().trim())
+        .filter(Boolean)
+      if (!names.length) return statement
+      return names.every((name) => declared.has(name)) ? '' : statement
+    })
+}
+
 function mergeTexts(sources, { header, into } = {}) {
+  // CSS 合并：纯拼接，`@import` 必须全部提到文件头（CSS 规定它只能在最前），并去重。
+  if (into && into.endsWith('.css')) {
+    const imports = []
+    const seen = new Set()
+    const bodies = []
+    for (const { text } of sources) {
+      const lines = []
+      for (const line of text.split('\n')) {
+        const trimmed = line.trim()
+        if (trimmed.startsWith('@import')) {
+          if (seen.has(trimmed)) continue
+          seen.add(trimmed)
+          imports.push(line)
+          continue
+        }
+        lines.push(line)
+      }
+      bodies.push(lines.join('\n').trimEnd())
+    }
+    const sections = []
+    if (header) sections.push(header.trimEnd())
+    if (imports.length) sections.push(imports.join('\n'))
+    for (const body of bodies) if (body) sections.push(body)
+    return `${sections.join('\n\n')}\n`
+  }
+
+  // 被合并掉的模块集合：它们的 `export ... from` 在合并后都指向自身，
+  // 必须丢弃 —— 符号已经在正文里定义，重复导出会报「Cannot redeclare exported variable」。
+  const mergedInto = (() => {
+    if (!into) return null
+    const set = new Set([stripExt(into)])
+    for (const { path } of sources) set.add(stripExt(path))
+    return set
+  })()
   // Python 不能用 JS 的 import 归一化：`from x import y` 不是 JS 语法，会被当成无来源丢掉。
   // 且 Python 允许重复 import，因此只做「整行去重」的朴素拼接。
   if (into && into.endsWith('.py')) {
@@ -267,11 +398,22 @@ function mergeTexts(sources, { header, into } = {}) {
 
   const statements = []
   const seen = new Set()
+  const typeSeen = new Set()
   const localOwner = new Map()
   const bodies = []
 
   for (const { path, text } of sources) {
     const { imports: fileImports, body } = splitImports(text)
+    // 正文里若有 `export ... from '<被合并模块>'`，同样要删（符号已在本文件定义）。
+    const cleanedBody = mergedInto
+      ? body.replace(
+          /^[ \t]*export\s+(?:type\s+)?(?:\{[\s\S]*?\}|\*)\s+from\s+['"]([^'"]+)['"];?[ \t]*\r?\n?/gm,
+          (statement, spec) => {
+            const canonical = resolveCanonical(path, spec)
+            return mergedInto.has(canonical) ? '' : statement
+          },
+        )
+      : body
     for (const statement of fileImports) {
       // 合并后指向自身的 import 必须删掉（否则 `xxx.ts` 里出现 `import ... from './xxx'`）。
       if (into) {
@@ -279,29 +421,45 @@ function mergeTexts(sources, { header, into } = {}) {
         const specifiers = [...statement.matchAll(/['"]([^'"]+)['"]/g)].map((m) => m[1])
         if (specifiers.some((spec) => textualTarget(spec, into) === target)) continue
       }
-      const source = importSource(statement)
+      // 冲突判定必须比较「解析后的真实模块」，不能比字符串：
+      // 同一模块可能一处写 `./use-foo`、另一处写 `@/features/.../use-foo`。
+      const specifier = importSource(statement)
+      const canonical = resolveCanonical(path, specifier)
       for (const local of importedLocals(statement)) {
         const previous = localOwner.get(local)
-        if (previous !== undefined && previous !== source) {
+        if (previous !== undefined && previous !== canonical) {
           throw new Error(
-            `merge: 本地名冲突 "${local}" —— ${path} 从 "${source}" 导入，但它已从 "${previous}" 导入。请先人工消歧。`,
+            `merge: 本地名冲突 "${local}" —— ${path} 从 "${specifier}" 导入，但它已从 "${previous}" 导入。请先人工消歧。`,
           )
         }
-        localOwner.set(local, source)
+        localOwner.set(local, canonical)
       }
       const key = statement.replace(/\s+/g, ' ').trim()
       if (seen.has(key)) continue
       seen.add(key)
       statements.push({ statement, path })
     }
-    bodies.push(body.trimEnd())
+    bodies.push(dedupeTypeAliases(cleanedBody, typeSeen).trimEnd())
   }
 
   const sections = []
   if (header) sections.push(header.trimEnd())
-  const imports = normalizeImports(statements)
+  const mergedBody = dropRedundantExportLists(bodies.join('\n\n'))
+  // 只保留正文真正用到的绑定：合并会删掉指向自身的 `export ... from`，
+  // 那些语句原先「消费」的 import 就变成了未使用导入（TS6133）。
+  const imports = normalizeImports(statements).filter((line) => {
+    const tokens = line
+      .replace(/^import\s+(?:type\s+)?/, '')
+      .replace(/\{[\s\S]*\} from/, '')
+      .match(/[A-Za-z_$][\w$]*/g)
+    // 副作用导入（`import 'x.css'`）永远保留。
+    if (!tokens || !tokens.length) return true
+    const bindings = importedLocals(line)
+    if (!bindings.length) return true
+    return bindings.some((name) => new RegExp(`\\b${name.replace(/\$/g, '\\$')}\\b`).test(mergedBody))
+  })
   if (imports.length) sections.push(imports.join('\n'))
-  for (const body of bodies) if (body) sections.push(body)
+  if (mergedBody.trim()) sections.push(mergedBody.trimEnd())
   return `${sections.join('\n\n')}\n`
 }
 

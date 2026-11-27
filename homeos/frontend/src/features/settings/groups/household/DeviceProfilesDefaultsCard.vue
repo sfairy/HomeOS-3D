@@ -141,7 +141,7 @@ import {
   deleteDeviceProfileDefault,
   listDeviceProfileDefaults,
   setDeviceProfileDefault,
-} from '@/domain/api/device-profiles'
+} from '@/domain/api/device'
 import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
 
 const props = defineProps({

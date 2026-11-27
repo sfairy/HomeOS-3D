@@ -29,6 +29,6 @@ export * from './energy'
 
 export * from './automation'
 
-export * from './device-profiles'
+export * from './device'
 
-export * from './media-library'
+export * from './media'

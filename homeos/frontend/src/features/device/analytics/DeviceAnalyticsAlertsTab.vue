@@ -132,7 +132,7 @@
 <script setup lang="ts">
 import { AlertCircle, Zap, BatteryWarning, Clock, HeartPulse } from '@lucide/vue'
 import DeviceChartHeader from '../components/DeviceChartHeader.vue'
-import { hintTypeLabel, hintClass } from '@/features/device/composables/use-device-analytics-dashboard-shell'
+import { hintTypeLabel, hintClass } from '@/features/device/composables/device-analytics-dashboard'
 
 // 父组件透传数据：summary.anomalyHints 为异常提示数组，alertCounts 为四类告警计数，
 // lowActivityDevices/lowActivityThreshold 用于低活跃表格；entityName/formatRuntime 为格式化辅助。

@@ -56,7 +56,7 @@ import { onMounted, ref } from 'vue'
 import { RefreshCw, ScrollText } from '@lucide/vue'
 import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
 import SettingsCardIntro from '@/features/settings/components/shell/SettingsCardIntro.vue'
-import { listDeviceProfileAudit } from '@/domain/api/device-profiles'
+import { listDeviceProfileAudit } from '@/domain/api/device'
 import { AUDIT_LABELS, kindTransition, relativeTime } from './device-profiles-display.util'
 
 const props = defineProps({

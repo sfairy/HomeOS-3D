@@ -9,7 +9,7 @@ import type {
   EditableConfigSection,
   EditableConfigSnapshot,
   SystemConfigPendingFieldKey,
-} from '@/kernel/types/system-config-editor'
+} from '@/kernel/types/system-config'
 
 const CONFIG_MASK = '••••••••'
 

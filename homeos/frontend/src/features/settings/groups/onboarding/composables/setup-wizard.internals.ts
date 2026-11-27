@@ -3,9 +3,9 @@
  * @module frontend/src/views
  */
 /** 首装向导面板 */
-import { useEnvSensorMap } from '@/features/settings/shared/composables/env-sensor-map.internals'
+import { useEnvSensorMap } from '@/features/settings/shared/composables/env-sensor-map'
 import { formatLocaleDate } from '@/kernel/utils/format/locale-format.util'
-import { useSettingsHubRouteSection } from '@/features/settings/shared/composables/hub-ui.internals'
+import { useSettingsHubRouteSection } from '@/features/settings/shared/composables/hub'
 import { useSetupWizardEnvStep } from '@/features/settings/groups/onboarding/composables/setup-wizard-env.internals'
 import { useSetupWizard } from '@/features/settings/groups/onboarding/composables/setup-wizard-core.internals'
 import { computed, onMounted, ref } from 'vue'

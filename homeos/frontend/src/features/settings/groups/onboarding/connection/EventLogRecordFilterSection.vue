@@ -13,7 +13,7 @@ import EntityMultiSelect from '@/domain/entity/components/entity-multi-select/En
 import RecommendInsightCard from '@/domain/recommend/components/RecommendInsightCard.vue'
 import { useRecommendInsight } from '@/domain/recommend/composables/use-recommend-insight'
 import { formatCount, hoursLabel } from '@/features/events/model/utils/events-display.util'
-import { useEventLogRecordFilter } from '@/features/settings/groups/onboarding/composables/event-log-record-filter.util'
+import { useEventLogRecordFilter } from '@/features/settings/groups/onboarding/composables/event-log-record-filter'
 
 const {
   enabled,
