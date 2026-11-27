@@ -30,7 +30,7 @@ import { Download, RefreshCw, WifiOff } from '@lucide/vue'
 import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
 import { getDeviceHealthSummary, installFirmwareUpdate } from '@/domain/api/device'
 import type { DeviceHealthDomainCount, DeviceHealthSample } from '@/domain/api/device'
-import { getDomainLabel } from '@/features/device/utils'
+import { getDomainLabel } from '@/domain/device/labels'
 import { formatLocaleNumber, formatLocaleTime } from '@/kernel/format'
 import '@/kernel/ui/hos-icon-btn.css'
 

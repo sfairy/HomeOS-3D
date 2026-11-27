@@ -4,7 +4,7 @@ import type { Ref } from 'vue'
 import type { EarthquakeAlertPayload } from '@/kernel/earthquake'
 import { speakVoiceMultiple } from '@/kernel/http/system-api'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { resolveTtsMediaPlayerIds } from '@/features/voice/utils'
+import { resolveTtsMediaPlayerIds } from '@/domain/voice/speech-templates'
 import { logger } from '@/kernel/core/logger'
 import {
   cancelLocalSpeech,

@@ -22,7 +22,7 @@ import { reloadFrontendConfig } from '@/kernel/config/frontend-config'
 import { getApiErrorMessage } from '@/kernel/core/error-message'
 import { logger } from '@/kernel/core/logger'
 import { AGENT_QUICK_PROMPTS, AGENT_QUICK_PROMPT_LIMITS } from '@/kernel/index'
-import { readAgentQuickPrompts } from '@/features/agent/utils'
+import { readAgentQuickPrompts } from '@/domain/agent/chat'
 
 /** 编辑态行：`id` 只用于 v-for 的稳定 key，不写进配置 */
 interface PromptRow {

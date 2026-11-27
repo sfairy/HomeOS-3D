@@ -145,7 +145,7 @@ import { useShellTeleportTarget } from '@/kernel/ui/shell/use-shell-teleport-tar
 import { getTeleportContainerSize } from '@/kernel/ui/popup/popup-position-shared'
 import type { DeviceListItem } from '@/kernel/device'
 import { copyTextWithNotify } from '@/kernel/ui/notify'
-import { getDomainLabel } from '@/features/device/utils'
+import { getDomainLabel } from '@/domain/device/labels'
 import { displayEntityStateLabel } from '@/kernel/index'
 import { entityPopupOpensOnClick } from '@/domain/entity/popup-registry'
 

@@ -26,8 +26,8 @@
  *
  * | 共享件 | 归宿 | 原因 |
  * |--------|------|------|
- * | `SettingsOrchTabs` 编排工具条 | `@/components/common/` | API 通用（tabs/modelValue/toolbar/sortable/plain）、无 store；`HomeModeTabsToolbar` 用它 |
- * | 待存登记 + 保存编排内核 | `@/composables/settings-kernel/` | 绑 `useLayoutStore.saveConfig()`，进不了 `shared/`；settings 与本域**平等**共用 |
+ * | `SettingsOrchTabs` 编排工具条 | `@/features/settings`（barrel 具名导出） | 组件本身属设置页；API 通用（tabs/modelValue/toolbar/sortable/plain）、无 store，故可安全跨域 |
+ * | 待存登记 + 保存编排内核 | `@/domain/layout/pending` + `@/domain/layout/settings-save` | 绑 `useLayoutStore.saveConfig()`，进不了 `kernel/`；settings 与本域**平等**共用，故落 L1 domain |
  *
  * 留在 settings、由宿主 `SettingsHomeModePanel.vue` 承担的：`SettingsPageShell`、
  * `SettingsPendingSaveAction`、页内注入的嵌入适配层样式。
@@ -79,3 +79,7 @@ export { useHomeModeItemExpansion, useHomeModeItemFocus } from './editor'
 
 // ── 场景选项（security modes 复用）──
 export { useHomeosSceneOptions } from './use-homeos-scene-options'
+
+// ── 编辑器左侧的模式条目导航（features/security 的区域编辑器复用）──
+// 安防区域里挑「用哪个模式/动作」时复用同一套条目渲染与展开手势。
+export { default as HomeModeItemNav } from './HomeModeItemNav.vue'

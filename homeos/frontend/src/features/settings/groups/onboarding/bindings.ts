@@ -52,7 +52,7 @@ import {
   syncGlobalLayoutPendingSnapshot,
   useRegisterSettingsTabPending,
   useSettingsHubPending,
-} from '@/features/settings/kernel/pending'
+} from '@/domain/layout/pending'
 import { useSettingsSidebarReentryReset } from '@/kernel/ui/hub-viewport'
 import { getApiErrorMessage } from '@/kernel/core/error-message'
 import { logger } from '@/kernel/core/logger'

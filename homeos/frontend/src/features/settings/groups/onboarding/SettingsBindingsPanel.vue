@@ -148,18 +148,18 @@ import {
   liveBindingsLayoutSlice,
   pickBindingsLayoutSlice,
 } from '@/features/settings/groups/appearance/use-layout'
-import { afterLayoutCancelSync } from '@/features/settings/kernel/pending'
-import { useSettingsPendingChanges } from '@/features/settings/kernel/pending'
-import { useRegisterSettingsTabPending } from '@/features/settings/kernel/pending'
+import { afterLayoutCancelSync } from '@/domain/layout/pending'
+import { useSettingsPendingChanges } from '@/domain/layout/pending'
+import { useRegisterSettingsTabPending } from '@/domain/layout/pending'
 import {
   syncGlobalLayoutPendingSnapshot,
   pauseGlobalPendingChanges,
   resumeGlobalPendingChanges,
-} from '@/features/settings/kernel/pending'
+} from '@/domain/layout/pending'
 import { getApiErrorMessage } from '@/kernel/core/error-message'
 import { fetchBindingsGaps } from '@/kernel/http/index'
 import { runHazardDrill as runHazardDrillApi } from '@/domain/api/security'
-import { useYamlValidation } from '@/features/security/index'
+import { useYamlValidation } from '@/features/security'
 import { useSettingsSidebarReentryReset } from '@/kernel/ui/hub-viewport'
 import { useSettingsHubRouteSection } from '@/features/settings/shared/hub'
 import SettingsPendingSaveAction from '@/features/settings/shared/SettingsPendingSaveAction.vue'

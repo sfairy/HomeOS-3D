@@ -100,7 +100,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import EntityMultiSelect from '@/domain/entity/entity-multi-select/EntityMultiSelect.vue'
-import { climateEntityBaseName } from '@/features/energy/climate/home-climate-chart/echarts'
+import { climateEntityBaseName } from '@/features/energy'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import {
   HOME_CLIMATE_CHART_VIEW_OPTIONS,

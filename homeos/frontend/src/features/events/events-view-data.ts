@@ -9,7 +9,7 @@ import { logger } from '@/kernel/core/logger'
 import { getApiErrorMessage } from '@/kernel/core/error-message'
 import { notifyError } from '@/kernel/ui/notify'
 import { configEpoch, getEventLogConfig } from '@/kernel/config/frontend-config'
-import { formatCount, hoursLabel, normalizeByDomain } from '@/features/events/events-display'
+import { formatCount, hoursLabel, normalizeByDomain } from '@/domain/events/display'
 import { getEntityDisplayName, hasEntityFriendlyName } from '@/domain/entity/derived'
 import type { useEntitiesStore } from '@/domain/entity/store/entities.store'
 

@@ -8,7 +8,7 @@
  *
  * 依赖：loadPresenceHome（@/shared/presence/composables/load-presence-home）。
  */
-import { loadPresenceHome } from '@/features/presence/load-presence-home'
+import { loadPresenceHome } from '@/domain/presence/load-presence-home'
 
 /** 人员判定实体 ID 缓存（来自 /security/presence/home） */
 let cachedIds: string[] | null = null

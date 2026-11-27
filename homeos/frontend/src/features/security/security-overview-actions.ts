@@ -10,7 +10,7 @@ import { getMaxRemoteNotifications, configEpoch, getConfigSection } from '@/kern
 import { hapticAlert } from '@/kernel/ui/haptics'
 import { fetchNotifications, markNotificationRead } from '@/domain/api/notifications'
 import { fetchPresenceSummary, triggerSecurityEmergency } from '@/domain/api/security'
-import { loadPresenceHome } from '@/features/presence/load-presence-home'
+import { loadPresenceHome } from '@/domain/presence/load-presence-home'
 import { normalizeSecurityEmergency } from '@/domain/layout/security-emergency'
 import { executeSecurityPanelArm } from '@/features/security/panel-arm'
 import { interpretSecurityArmResult } from '@/features/security/panel-arm-result'

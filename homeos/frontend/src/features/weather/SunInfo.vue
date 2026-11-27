@@ -117,8 +117,8 @@ import {
   formatDaylightDuration,
   formatSunCountdown,
   resolveSunriseSunset,
-} from '@/features/weather/utils'
-import { filterPresenceMembers, usePresenceHome } from '@/features/presence/use-presence-home'
+} from '@/domain/weather/metrics'
+import { filterPresenceMembers, usePresenceHome } from '@/domain/presence/use-presence-home'
 import { normalizeWeatherHubConfig } from '@/kernel/registry/weather-hub-options'
 
 /**

@@ -6,7 +6,7 @@ import {
   highlightSearchParts,
 } from '@/features/settings/nav-search'
 import { tabLabel } from '@/kernel/registry/settings-nav'
-import { getIndependentPendingTabIds } from '@/features/settings/kernel/pending'
+import { getIndependentPendingTabIds } from '@/domain/layout/pending'
 
 interface SettingsNavGroup {
   id: string

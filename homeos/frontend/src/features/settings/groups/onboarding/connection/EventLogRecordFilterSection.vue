@@ -12,7 +12,7 @@ import { FileText, Loader2, CheckCircle2, AlertCircle, ShieldOff, Ban, ListFilte
 import EntityMultiSelect from '@/domain/entity/entity-multi-select/EntityMultiSelect.vue'
 import RecommendInsightCard from '@/domain/recommend/RecommendInsightCard.vue'
 import { useRecommendInsight } from '@/domain/recommend/use-recommend-insight'
-import { formatCount, hoursLabel } from '@/features/events/events-display'
+import { formatCount, hoursLabel } from '@/domain/events/display'
 import { useEventLogRecordFilter } from '@/features/settings/groups/onboarding/event-log-record-filter'
 
 const {

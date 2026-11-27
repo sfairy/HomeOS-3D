@@ -12,3 +12,8 @@ export * from './use-utility-meter-popup'
 export * from './utility-meter-popup.calendar'
 export * from './utility-meter-popup.charts'
 export * from './utility-meter-popup.lists'
+
+// ── 家庭温湿度图表的名称归一（features/settings 的图表配置面板复用）──
+// 具名而非 `export *`：echarts.ts 会连带引入 `@/kernel/chart`（整条 ECharts 图依赖），
+// 整域再导出会让任何引 `@/features/energy` 的模块都被动吃下它。
+export { climateEntityBaseName } from './climate/home-climate-chart/echarts'

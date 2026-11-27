@@ -165,13 +165,13 @@ import RecommendInsightCard from '@/domain/recommend/RecommendInsightCard.vue'
 import { useFavoritesHub } from '@/features/settings/shared/hub'
 import { ChevronRight, Layers, Monitor, Star, Zap } from '@lucide/vue'
 import { defineAsyncComponent } from 'vue'
-import { DEVICES_ROUTES } from '@/features/device/utils'
+import { DEVICES_ROUTES } from '@/domain/device/labels'
 
 // 设备列表「收藏」入口链接
 const devicesFavoritesLink = DEVICES_ROUTES.favorites()
 
 // 实体选择弹窗（懒加载）
-const EntityPickModal = defineAsyncComponent(() => import('@/features/entity/EntityPickModal.vue'))
+const EntityPickModal = defineAsyncComponent(async () => (await import('@/features/entity')).EntityPickModal)
 
 defineProps({ activeTab: { type: String, default: 'favorites' } })
 

@@ -7,7 +7,7 @@ import { onActivated, onMounted } from 'vue'
 import { duplicateHomeMode, reorderHomeModes } from '@/domain/api/home-modes'
 import { getApiErrorMessage } from '@/kernel/core/error-message'
 import { logger } from '@/kernel/core/logger'
-import type { useSettingsSave } from '@/features/settings/kernel/save'
+import type { useSettingsSave } from '@/domain/layout/settings-save'
 import type { ModeActionDraft } from './draft'
 import type {
   ChromeStore,

@@ -25,9 +25,9 @@ import {
   rectCenterPct,
   sanitizeWidgetPct,
   isValidRootRect,
-} from '@/features/settings/floorplan/floating-hub-layout'
+} from '@/kernel/floating-hub-layout'
 import { buildAfhAccentStyle, resolveAfhWidgetTheme } from '@/domain/entity/floating-entity-colors'
-import { resolveAqiSensorId, collectSensorEntityIds } from '@/features/weather/utils'
+import { resolveAqiSensorId, collectSensorEntityIds } from '@/domain/weather/metrics'
 
 const AsyncUtilityMeterInfoPopup = defineAsyncComponent(
   () => import('@/features/entity/popups/UtilityMeterInfoPopup.vue'),

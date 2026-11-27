@@ -271,7 +271,7 @@ import {
 import { getApiErrorMessage } from '@/kernel/core/error-message'
 
 /** 实体选择器按需加载：它只在点「添加设备」时才需要。 */
-const EntityPickModal = defineAsyncComponent(() => import('@/features/entity/EntityPickModal.vue'))
+const EntityPickModal = defineAsyncComponent(async () => (await import('@/features/entity')).EntityPickModal)
 
 defineProps({ activeTab: { type: String, default: 'automation-drafts' } })
 

@@ -43,7 +43,7 @@ import { reloadFrontendConfig } from '@/kernel/config/frontend-config'
 import { getApiErrorMessage } from '@/kernel/core/error-message'
 import { logger } from '@/kernel/core/logger'
 import { useSettingsHubRouteSection, useAppConfigBackup } from '@/features/settings/shared/hub'
-import { useSettingsSave } from '@/features/settings/kernel/save'
+import { useSettingsSave } from '@/domain/layout/settings-save'
 
 /**
  * @file system-config-panel-prefs.internals.ts

@@ -25,14 +25,14 @@ import {
   detectDailyPreset,
   getDailyAdvisorDayPresets,
   getDailyAdvisorEveningPresets,
-} from '@/features/voice/utils'
+} from '@/domain/voice/speech-templates'
 import { fetchVoiceMeta, fetchVoicePresets } from '@/kernel/http/index'
 import { logger } from '@/kernel/core/logger'
 import { servicesForDomainBuilder } from '@/kernel/registry/widget-catalog'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { reloadFrontendConfig } from '@/kernel/config/frontend-config'
 import { getApiErrorMessage } from '@/kernel/core/error-message'
-import { useSettingsSave } from '@/features/settings/kernel/save'
+import { useSettingsSave } from '@/domain/layout/settings-save'
 import { isSystemConfigConflictError, useSystemConfig } from '@/domain/layout/system-config-core'
 
 /* ── 原 voice-alerts.internals.ts 的实现 ── */

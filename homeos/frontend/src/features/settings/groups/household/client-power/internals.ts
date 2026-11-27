@@ -1,6 +1,6 @@
 /** 待配对终端发现/清除、电池与设备信息派生逻辑，供 SettingsClientPowerPanel 与子 Section 复用。 */
 /** composables：客户端电源配置 / 面板 / 展示 */
-import { useRegisterSettingsTabPending, useSettingsHubPending } from '@/features/settings/kernel/pending'
+import { useRegisterSettingsTabPending, useSettingsHubPending } from '@/domain/layout/pending'
 import { handleSystemConfigPatchError, patchSystemConfig, useSystemConfig } from '@/domain/layout/system-config-core'
 import { dismissClientPowerOffline, dismissClientPowerPending, fetchClientPowerStatus } from '@/kernel/http/index'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'

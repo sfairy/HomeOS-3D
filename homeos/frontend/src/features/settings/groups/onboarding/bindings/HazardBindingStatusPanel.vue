@@ -38,7 +38,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useEnsureVisibleEntities } from '@/domain/entity/use-ensure-visible-entities'
-import { useHazardBindingStatus } from '@/features/security/index'
+import { useHazardBindingStatus } from '@/features/security'
 
 const props = defineProps({
   hazardSmokeEntityIds: { type: Array, default: () => [] },

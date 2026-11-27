@@ -4,8 +4,8 @@ import {
   pauseGlobalPendingChanges,
   resumeGlobalPendingChanges,
   syncGlobalLayoutPendingSnapshot,
-} from '@/features/settings/kernel/pending'
-import { useReduceSecuritySensitivity } from '@/features/security/index'
+} from '@/domain/layout/pending'
+import { useReduceSecuritySensitivity } from '@/features/security'
 import { completeSetupWizard, fetchSetupWizardStatus, validateSetupWizardEntities } from '@/kernel/http/index'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
@@ -25,8 +25,8 @@ import { ensureDoorbellList } from '@/kernel/layout'
 import { computed, ref, watch, type Ref, onMounted } from 'vue'
 import { Droplets, Leaf, Thermometer, Wind } from '@lucide/vue'
 import { envRoomTabEmoji } from '@/kernel/settings'
-import { loadPresenceHome } from '@/features/presence/load-presence-home'
-import { formatPresenceDetailSummary } from '@/features/presence/display'
+import { loadPresenceHome } from '@/domain/presence/load-presence-home'
+import { formatPresenceDetailSummary } from '@/domain/presence/display'
 import { formatLocaleDate } from '@/kernel/format'
 import { useSettingsHubRouteSection } from '@/features/settings/shared/hub'
 

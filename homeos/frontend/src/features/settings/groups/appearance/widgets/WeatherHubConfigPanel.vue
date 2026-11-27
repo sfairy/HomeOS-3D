@@ -178,7 +178,7 @@ import EntityInput from '@/domain/entity/entity-input/EntityInput.vue'
 import WidgetConfigFooter from '@/features/settings/groups/appearance/widgets/WidgetConfigFooter.vue'
 import { WEATHER_HUB_TABS } from '@/kernel/registry/weather-hub-options'
 import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
-import { usePresenceHome } from '@/features/presence/use-presence-home'
+import { usePresenceHome } from '@/domain/presence/use-presence-home'
 
 const draft = defineModel<{
   defaultTab: string

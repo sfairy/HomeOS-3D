@@ -73,7 +73,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { FileJson, Search } from '@lucide/vue'
-import { formatEntityAttrLabel, matchesEntityAttrSearch } from '@/features/device/utils'
+import { formatEntityAttrLabel, matchesEntityAttrSearch } from '@/domain/device/labels'
 
 type DeviceAttrEntry = {
   key: string

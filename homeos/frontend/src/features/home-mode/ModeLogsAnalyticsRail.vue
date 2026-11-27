@@ -45,7 +45,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useHubChart } from '@/features/settings/life/use-life-chart-host'
+import { useHubChart } from '@/kernel/ui/use-hub-chart'
 import { useCanvasMetrics } from '@/kernel/ui/use-canvas-metrics'
 // 域内相对导入：引用自己的域根 barrel 会被 feature-self-barrel 门禁判违规。
 import {

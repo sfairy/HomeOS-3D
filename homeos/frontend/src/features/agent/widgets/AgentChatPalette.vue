@@ -43,18 +43,18 @@ import { useSpeechToText } from '@/features/voice/index'
 import { useAgentSpeech } from '@/features/voice/index'
 import { playEarcon } from '@/features/voice/index'
 import { isEmbeddedBrowser, probeMicrophone } from '@/features/voice/index'
-import { clipAgentChatMessage, AGENT_CHAT_MAX_LENGTH } from '@/features/agent/utils'
-import { quickPromptAria, quickPromptTitle, readAgentQuickPrompts } from '@/features/agent/utils'
-import { agentDurationLabel, agentFootTitle, agentReplyText } from '@/features/agent/utils'
-import { agentModelLabel } from '@/features/agent/utils'
+import { clipAgentChatMessage, AGENT_CHAT_MAX_LENGTH } from '@/domain/agent/chat'
+import { quickPromptAria, quickPromptTitle, readAgentQuickPrompts } from '@/domain/agent/chat'
+import { agentDurationLabel, agentFootTitle, agentReplyText } from '@/domain/agent/chat'
+import { agentModelLabel } from '@/domain/agent/chat'
 import {
   newAgentChatSessionId,
   readAgentChatCurrentId,
   readAgentChatSessions,
   writeAgentChatCurrentId,
   type AgentChatSession,
-} from '@/features/agent/utils'
-import { toolLabels } from '@/features/agent/utils'
+} from '@/domain/agent/chat'
+import { toolLabels } from '@/domain/agent/chat'
 import AgentMechaAvatar from '@/features/agent/agent-companion/AgentMechaAvatar.vue'
 import AgentVoiceHoldBar from './AgentVoiceHoldBar.vue'
 import {

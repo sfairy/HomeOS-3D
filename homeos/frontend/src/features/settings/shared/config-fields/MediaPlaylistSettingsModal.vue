@@ -49,7 +49,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { X } from '@lucide/vue'
-import MediaPlaylistWidget from '@/features/media/PlaylistWidget.vue'
+import { PlaylistWidget as MediaPlaylistWidget } from '@/features/media'
 import { useFocusTrap } from '@/kernel/ui/use-focus-trap'
 import { useShellTeleportTarget } from '@/kernel/ui/shell/use-shell-teleport-target'
 

@@ -10,7 +10,7 @@ import {
   resumeGlobalPendingChanges,
   syncGlobalLayoutPendingSnapshot,
   useSettingsPendingChanges,
-} from '@/features/settings/kernel/pending'
+} from '@/domain/layout/pending'
 import { getEmergencyPresets, normalizeSecurityEmergency } from '@/domain/layout/security-emergency'
 import {
   getSecurityModePresets,
@@ -48,7 +48,7 @@ import { fetchAdvisorForgotten } from '@/kernel/http/index'
 import type { RecommendChip } from '@/domain/recommend/recommend.types'
 import { buildWholeHomeOffRecommendations } from '@/domain/recommend/whole-home-off-recommend'
 import { useHomeosSceneOptions } from '@/features/home-mode/index'
-import { useHazardBindingStatus } from '@/features/security/index'
+import { useHazardBindingStatus } from '@/features/security'
 import {
   idsToSingleEntity,
   joinCommaEntityIds,
@@ -60,8 +60,8 @@ import { handleSystemConfigPatchError, patchSystemConfig, useSystemConfig } from
 import { withBackendBootRetry } from '@/kernel/core/api-boot-retry'
 import { isBackendUnreachableError } from '@/kernel/core/error-message'
 import { logger } from '@/kernel/core/logger'
-import { formatPresenceBadgeSummary } from '@/features/presence/display'
-import { sanitizePresencePersonsForSave } from '@/features/presence/person'
+import { formatPresenceBadgeSummary } from '@/domain/presence/display'
+import { sanitizePresencePersonsForSave } from '@/domain/presence/person'
 import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
 
 /* ── 原 security-modes-core.internals.ts 的实现 ── */

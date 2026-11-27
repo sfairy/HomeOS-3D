@@ -354,7 +354,7 @@ import {
 import { applyGlassEffectDocument } from '@/kernel/ui/glass-effect'
 import { useSettingsSidebarReentryReset } from '@/kernel/ui/hub-viewport'
 import { useSettingsHubRouteSection } from '@/features/settings/shared/hub'
-import { useSettingsPendingChanges } from '@/features/settings/kernel/pending'
+import { useSettingsPendingChanges } from '@/domain/layout/pending'
 
 const props = defineProps({ activeTab: { type: String, default: 'general' } })
 

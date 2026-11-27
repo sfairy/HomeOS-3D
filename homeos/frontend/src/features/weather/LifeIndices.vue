@@ -237,8 +237,8 @@ import {
   Activity,
 } from '@lucide/vue'
 import VEmptyState from '@/kernel/ui/primitives/VEmptyState.vue'
-import { useLifeIndices } from '@/features/settings/life/use-life-indices'
-import { lifeIndexGroupLabel, type LifeIndexDef, type LifeIndexItem } from '@/features/weather/utils'
+import { useLifeIndices } from '@/domain/life/use-life-indices'
+import { lifeIndexGroupLabel, type LifeIndexDef, type LifeIndexItem } from '@/domain/weather/metrics'
 import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
 
 const props = defineProps({

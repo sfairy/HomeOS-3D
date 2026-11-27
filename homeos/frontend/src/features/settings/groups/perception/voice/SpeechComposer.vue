@@ -57,7 +57,7 @@
 <script setup>
 import { computed } from 'vue'
 import { Volume2 } from '@lucide/vue'
-import { applyTemplatePreview } from '@/features/voice/utils'
+import { applyTemplatePreview } from '@/domain/voice/speech-templates'
 
 const props = defineProps({
   presets: { type: Array, default: () => [] },

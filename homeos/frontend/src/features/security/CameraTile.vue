@@ -74,7 +74,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import HaCameraStream from '@/features/device/HaCameraStream.vue'
+import { HaCameraStream } from '@/features/device'
 import { getEntityDisplayName } from '@/domain/entity/derived'
 import { GRID_MAX_ACTIVE_STREAMS } from './constants'
 

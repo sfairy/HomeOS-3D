@@ -12,3 +12,8 @@
 
 // 由 features/security 跨域使用（环境传感器字段映射）
 export { useEnvSensorMap } from './shared/env-sensor-map'
+
+// 由 features/home-mode 跨域使用（编辑器顶部的编排工具条）
+// 品牌页里「模式编辑器」是设置页的宿主体，但它复用 settings 的工具条实现：
+// 页签 / 排序 / 工具栏三者一旦各写一份，快捷键与拖拽手感就会在两个入口不一致。
+export { default as SettingsOrchTabs } from './SettingsOrchTabs.vue'

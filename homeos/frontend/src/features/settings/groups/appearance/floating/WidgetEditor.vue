@@ -11,7 +11,7 @@ import { isEntityFloatType } from '@/features/settings/groups/appearance/use-lay
 import { useDraftObjectField } from '@/features/settings/shared/hub'
 import WidgetConfigStudioNav from '@/features/settings/groups/appearance/widgets/WidgetConfigStudioNav.vue'
 import WidgetConfigFooter from '@/features/settings/groups/appearance/widgets/WidgetConfigFooter.vue'
-import { ZoneEditorList as SecurityZoneEditorList } from '@/features/security/index'
+import { ZoneEditorList as SecurityZoneEditorList } from '@/features/security'
 import FloatingEditorLayoutSection from './EditorLayoutSection.vue'
 import FloatingEditorDataSection from './EditorDataSection.vue'
 import FloatingEditorHubTabsSection from './EditorHubTabsSection.vue'

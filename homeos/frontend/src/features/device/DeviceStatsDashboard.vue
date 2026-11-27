@@ -94,7 +94,7 @@ import type { EChartsCoreOption } from 'echarts/core'
 import type * as EchartsModuleNS from '@/kernel/chart'
 
 import { DEVICE_CHART_COLORS, deviceSidebarPieTooltip, deviceChartBase } from '@/kernel/chart'
-import { getDomainLabel } from '@/features/device/utils'
+import { getDomainLabel } from '@/domain/device/labels'
 import { countOfflineDevices } from '@/domain/entity/device-group-model'
 import { entityDomainColor } from '@/kernel/index'
 import { ensureDeviceChartOnElement } from '@/kernel/chart'

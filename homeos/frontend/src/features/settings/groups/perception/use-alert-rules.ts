@@ -8,11 +8,7 @@ import type {
   NotificationSettingsParsed,
   AlertLevel,
 } from '@/kernel/alert-rules'
-import {
-  useSettingsHubPending,
-  afterLayoutCancelSync,
-  syncGlobalLayoutPendingSnapshot,
-} from '@/features/settings/kernel/pending'
+import { useSettingsHubPending, afterLayoutCancelSync, syncGlobalLayoutPendingSnapshot } from '@/domain/layout/pending'
 import { useAuthStore } from '@/domain/auth/auth.store'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
@@ -22,7 +18,7 @@ import { sliderTrackStyle } from '@/kernel/ui/progress-bar'
 import { useSettingsHubRouteSection } from '@/features/settings/shared/hub'
 import { useVoiceAlertsEditor } from '@/features/settings/groups/perception/voice'
 import { defaultAlertClause as defaultClause } from '@/features/settings/groups/perception/use-alert-rules'
-import { getAlertHubSections, getCustomAlertSpeechModes, getEntityStateOptions } from '@/features/voice/utils'
+import { getAlertHubSections, getCustomAlertSpeechModes, getEntityStateOptions } from '@/domain/voice/speech-templates'
 import { type Ref, computed, onBeforeUnmount, onMounted, ref, unref, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import {

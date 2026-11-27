@@ -21,7 +21,7 @@ import {
 import { agentPing } from '@/domain/api/agent'
 import { extractErrorMessage } from '@/kernel/core/error-message'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import { useApiQuery } from '@/features/settings/use-api-query'
+import { useApiQuery } from '@/kernel/http/use-api-query'
 import { useSettingsHubRouteSection } from '@/features/settings/shared/hub'
 import {
   Activity,

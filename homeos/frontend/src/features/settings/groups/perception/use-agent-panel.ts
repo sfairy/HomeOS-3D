@@ -1,7 +1,7 @@
 import { computed, nextTick, ref, watch, type Ref, type ComponentPublicInstance, onMounted, reactive } from 'vue'
 import { useAgentSpeech } from '@/features/voice/index'
 import { useSpeechToText } from '@/features/voice/index'
-import { clipAgentChatMessage, AGENT_CHAT_MAX_LENGTH } from '@/features/agent/utils'
+import { clipAgentChatMessage, AGENT_CHAT_MAX_LENGTH } from '@/domain/agent/chat'
 import {
   agentChatStream,
   clearAgentSession,
@@ -14,7 +14,7 @@ import {
   type ChannelsStatusResult,
 } from '@/domain/api/agent'
 import { getApiErrorMessage } from '@/kernel/core/error-message'
-import { AGENT_PROVIDER_LABELS, agentProviderLabel } from '@/features/agent/utils'
+import { AGENT_PROVIDER_LABELS, agentProviderLabel } from '@/domain/agent/chat'
 import {
   Activity,
   BellRing,
@@ -36,7 +36,7 @@ import {
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { clonePlain } from '@/kernel/core/clone-plain'
-import { useRegisterSettingsTabPending } from '@/features/settings/kernel/pending'
+import { useRegisterSettingsTabPending } from '@/domain/layout/pending'
 import { getDefaultLayout } from '@/domain/layout/store/defaults'
 import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
 import type {
@@ -47,7 +47,7 @@ import type {
   SceneVoiceControl,
 } from '@/kernel/layout-config'
 import { normalizeAgentCompanion, resolveAgentCompanionPosition } from '@/kernel/layout'
-import { readAgentQuickPrompts as AGENT_CHAT_QUICK_PROMPTS } from '@/features/agent/utils'
+import { readAgentQuickPrompts as AGENT_CHAT_QUICK_PROMPTS } from '@/domain/agent/chat'
 
 /* ── 原 agent-panel-chat.internals.ts 的实现 ── */
 /** 智能管家设置面板：对话 / 语音输入 */
@@ -527,7 +527,7 @@ export const AGENT_PROVIDER_PRESETS = [
  * `readAgentQuickPrompts()`，用户在设置里改完立即两边同时生效。
  * 多轮理解的引导改为面板上的文字提示，不再靠预设凑句子。
  */
-export { readAgentQuickPrompts as AGENT_CHAT_QUICK_PROMPTS } from '@/features/agent/utils'
+export { readAgentQuickPrompts as AGENT_CHAT_QUICK_PROMPTS } from '@/domain/agent/chat'
 
 /**
  * 快捷指令子卡（存在 app config `ui` 分区）的未保存状态与回滚入口。

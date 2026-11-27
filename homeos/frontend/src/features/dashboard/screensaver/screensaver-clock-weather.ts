@@ -7,14 +7,14 @@ import { solarToLunar } from '@/kernel/format'
 import { formatLunarFullLine, formatLunarMonthDayLine } from '@/kernel/format'
 import { formatZonedDate, getZonedParts, getZonedWallDate } from '@/kernel/format'
 import { domainIndexToArray } from '@/domain/entity/derived'
-import { weatherStateLabel } from '@/features/weather/weather-labels'
+import { weatherStateLabel } from '@/domain/weather/labels'
 import {
   computeFeelsLike,
   collectSensorEntityIds,
   readAqiNumber,
   normalizeWindSpeedMs,
   numOr,
-} from '@/features/weather/utils'
+} from '@/domain/weather/metrics'
 import { WEATHER_ICON_EMOJI } from './screensaver.defaults'
 import type { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import type { useLayoutStore } from '@/domain/layout/store/layout.store'

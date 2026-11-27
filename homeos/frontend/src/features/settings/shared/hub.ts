@@ -11,7 +11,7 @@ import {
   globalLayoutPendingCount,
   useRegisterSettingsTabPending,
   useSettingsHubPending,
-} from '@/features/settings/kernel/pending'
+} from '@/domain/layout/pending'
 import { tabLabel } from '@/kernel/registry/settings-nav'
 import { ref, computed, nextTick, watch, type ComputedRef, type Ref, onMounted, unref } from 'vue'
 import { getEnvSensorFields, useEnvSensorMap } from '@/features/settings/shared/env-sensor-map'
@@ -750,6 +750,5 @@ export function useDraftObjectField<T extends Record<string, unknown>>(
 }
 
 // ── useSettingsSave ──
-// 已下沉至 @/composables/settings-kernel/save.internals（绑 useLayoutStore，无法进 shared，
-// 且需被 features/home-mode 等「内嵌编辑面板」域平等共用，故落跨层池）。
-// 请从新路径导入：import { useSettingsSave } from '@/features/settings/kernel/save'
+// 已下沉至 `@/domain/layout/settings-save`：它绑定 `useLayoutStore`，无法留在 settings 域内，
+// 且需被 features/home-mode 等「内嵌编辑面板」域平等共用 —— 因此归属 L1 domain 而不是 L2 feature。

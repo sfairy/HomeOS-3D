@@ -19,15 +19,15 @@ import { computed, ref, toValue, type MaybeRefOrGetter } from 'vue'
 import { handleSystemConfigPatchError, patchSystemConfig, useSystemConfig } from '@/domain/layout/system-config-core'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { loadPresenceHome } from '@/features/presence/load-presence-home'
-import { invalidateAndReloadPresenceEntityIds } from '@/features/presence/entity-filter'
-import { formatPresenceDetailSummary } from '@/features/presence/display'
+import { loadPresenceHome } from '@/domain/presence/load-presence-home'
+import { invalidateAndReloadPresenceEntityIds } from '@/domain/presence/entity-filter'
+import { formatPresenceDetailSummary } from '@/domain/presence/display'
 import {
   computePersonAtHome,
   createEmptyPresencePerson,
   getPresencePersonsFromSecurity,
   sanitizePresencePersonsForSave,
-} from '@/features/presence/person'
+} from '@/domain/presence/person'
 import { withBackendBootRetry } from '@/kernel/core/api-boot-retry'
 import { getApiErrorMessage, isBackendUnreachableError } from '@/kernel/core/error-message'
 import { logger } from '@/kernel/core/logger'

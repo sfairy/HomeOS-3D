@@ -16,7 +16,7 @@ import { useRouteEntityProjection } from '@/domain/entity/use-route-entity-proje
 import { useEntityProjection } from '@/domain/entity/entity'
 import { getEntityDisplayName } from '@/domain/entity/derived'
 import { copyTextToClipboard } from '@homeos/shared/utils/clipboard'
-import { getDomainLabel } from '@/features/device/utils'
+import { getDomainLabel } from '@/domain/device/labels'
 import { buildEntityAttrEntries, HVAC_ACTION_LABELS, HVAC_MODE_LABELS } from '@/domain/entity/attr-format'
 import { displayClimateOperatingLabel, displayEntityStateLabel } from '@/kernel/index'
 import { createFetchSequence } from '@/kernel/core/misc'

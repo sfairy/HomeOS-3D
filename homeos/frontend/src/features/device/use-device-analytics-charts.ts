@@ -10,7 +10,7 @@ import { ref, nextTick, type ComputedRef, type Ref } from 'vue'
 import type * as EchartsModuleNS from '@/kernel/chart'
 import type { EChartsCoreOption } from 'echarts/core'
 import { getEntityDisplayName } from '@/domain/entity/derived'
-import { getDomainLabel, resolveDomainId } from '@/features/device/utils'
+import { getDomainLabel, resolveDomainId } from '@/domain/device/labels'
 import { formatDualMetricTooltip, formatHeatmapTooltip } from '@/kernel/chart'
 import {
   deviceChartBase,

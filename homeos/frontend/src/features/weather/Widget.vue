@@ -141,10 +141,10 @@
  *  - @lucide/vue: 多种天气图标
  *  - @/stores/entities.store: 实体状态
  *  - @/composables/entity/useWeatherEntity: 天气实体 composable
- *  - @/shared/weather/constants/weather-labels: 天气状态标签与视觉键
+ *  - @/domain/weather/labels: 天气状态标签与视觉键
  *  - @/shared/utils/registry/settings-route.util: 设置页路由常量
  */
-import { weatherStateLabel, weatherVisualKey } from '@/features/weather/weather-labels'
+import { weatherStateLabel, weatherVisualKey } from '@/domain/weather/labels'
 import { computed, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import {
@@ -164,7 +164,7 @@ import {
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useWeatherEntity } from '@/domain/entity/use-weather-entity'
 import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
-import { collectSensorEntityIds, readAqiNumber } from '@/features/weather/utils'
+import { collectSensorEntityIds, readAqiNumber } from '@/domain/weather/metrics'
 
 const props = defineProps({
   config: {},

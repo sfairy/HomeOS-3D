@@ -212,7 +212,7 @@ import {
   type DeviceHistoryRange,
   type DeviceStateHistoryEvent,
 } from '@/features/device/device'
-import { displayEventState } from '@/features/events/events-display'
+import { displayEventState } from '@/domain/events/display'
 import { displayEntityStateLabel } from '@/kernel/index'
 import { formatDetailedDateTimeOrDash } from '@/kernel/format'
 import DeviceChartHeader from './DeviceChartHeader.vue'

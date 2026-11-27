@@ -1,6 +1,6 @@
 /** 地震预警数据源连接状态查询组合式函数 */
 import { ref, watch } from 'vue'
-import { useApiQuery } from '@/features/settings/use-api-query'
+import { useApiQuery } from '@/kernel/http/use-api-query'
 import { fetchEarthquakeStatus, type EarthquakeStatusPayload } from '@/domain/api/earthquake'
 
 /**

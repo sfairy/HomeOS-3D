@@ -16,7 +16,7 @@ import { getConfigSection } from '@/kernel/config/frontend-config'
 import { previewAgentTts } from '@/domain/api/agent'
 import { useServerTts } from '@/features/voice/use-server-tts'
 import { useTtsSpeak } from '@/domain/voice/use-tts-speak'
-import { previewDailyAdvisor } from '@/features/voice/utils'
+import { previewDailyAdvisor } from '@/domain/voice/speech-templates'
 import { logger } from '@/kernel/core/logger'
 
 /** 当天是否已问候（localStorage 里存的日期串） */

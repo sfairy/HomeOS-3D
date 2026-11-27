@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Download, Upload, Plus, Sparkles } from '@lucide/vue'
-import SettingsOrchTabs from '@/features/settings/SettingsOrchTabs.vue'
+import { SettingsOrchTabs } from '@/features/settings'
 
 defineProps({
   activeTab: { type: String, required: true },

@@ -5,7 +5,7 @@ import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { useEnsureVisibleEntities } from '@/domain/entity/use-ensure-visible-entities'
 import { getEventLogConfig, loadFrontendConfig, onConfigChange } from '@/kernel/config/frontend-config'
-import { formatCount, formatHourOption } from '@/features/events/events-display'
+import { formatCount, formatHourOption } from '@/domain/events/display'
 import {
   createEventsViewMetaState,
   createEventsViewLoaders,

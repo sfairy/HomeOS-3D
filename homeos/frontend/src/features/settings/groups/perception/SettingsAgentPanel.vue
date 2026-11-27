@@ -1104,7 +1104,7 @@ import SettingsAgentChatBubble from './SettingsAgentChatBubble.vue'
 import SettingsAgentMemorySection from './SettingsAgentMemorySection.vue'
 import SettingsAgentLearningSection from './SettingsAgentLearningSection.vue'
 import SettingsAgentQuickPromptsSection from './SettingsAgentQuickPromptsSection.vue'
-import AgentMechaAvatar from '@/features/agent/agent-companion/AgentMechaAvatar.vue'
+import { AgentMechaAvatar } from '@/features/agent'
 
 const props = defineProps({ activeTab: { type: String, default: 'agent' } })
 

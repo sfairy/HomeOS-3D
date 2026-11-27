@@ -64,10 +64,10 @@
  *  - @/shared/widget/composables/useScheduledPoll: 定时轮询
  *  - @/stores/entities.store: 实体状态
  *  - @/composables/entity/useWeatherEntity: 天气实体 composable
- *  - @/shared/weather/constants/weather-labels: 天气状态标签与视觉键
+ *  - @/domain/weather/labels: 天气状态标签与视觉键
  *  - @/shared/utils/format/locale-format.util: 本地日期格式化
  */
-import { weatherStateLabel, weatherVisualKey } from '@/features/weather/weather-labels'
+import { weatherStateLabel, weatherVisualKey } from '@/domain/weather/labels'
 import { formatLocaleDate } from '@/kernel/format'
 import { computed, onMounted, watch } from 'vue'
 import { useScheduledPoll } from '@/domain/widget/use-scheduled-poll'

@@ -9,7 +9,7 @@ import {
   buildRoomListFromHaAreas,
   filterEnvSensorMapToKnownAreas,
 } from '@homeos/shared'
-import { useSettingsSave } from '@/features/settings/kernel/save'
+import { useSettingsSave } from '@/domain/layout/settings-save'
 import {
   fetchSystemConfigFresh,
   isSystemConfigConflictError,

@@ -402,7 +402,7 @@ import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat
 import EntityMultiSelect from '@/domain/entity/entity-multi-select/EntityMultiSelect.vue'
 import VoiceSpeechComposer from '@/features/settings/groups/perception/voice/SpeechComposer.vue'
 import SettingsVoiceAgentSpeechSection from '@/features/settings/groups/perception/voice/SettingsVoiceAgentSpeechSection.vue'
-import { previewDailyAdvisor } from '@/features/voice/utils'
+import { previewDailyAdvisor } from '@/domain/voice/speech-templates'
 import { greetedToday } from '@/features/voice/index'
 import { useAudioDevices } from '@/features/voice/index'
 

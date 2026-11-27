@@ -524,7 +524,7 @@ import SettingsHubSubnav from '@/features/settings/shared/layout/SettingsHubSubn
 import SettingsPendingSaveAction from '@/features/settings/shared/SettingsPendingSaveAction.vue'
 import EntityInput from '@/domain/entity/entity-input/EntityInput.vue'
 import { useAlertRulesPanel } from '@/features/settings/groups/perception/use-alert-rules'
-import { useRegisterSettingsTabPending } from '@/features/settings/kernel/pending'
+import { useRegisterSettingsTabPending } from '@/domain/layout/pending'
 import { useSettingsSidebarReentryReset } from '@/kernel/ui/hub-viewport'
 import AlertRulesInboxSection from './alert-rules/AlertRulesInboxSection.vue'
 import AlertRulesVoiceSection from './alert-rules/AlertRulesVoiceSection.vue'

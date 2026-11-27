@@ -160,7 +160,7 @@ import SettingsPendingSaveAction from '@/features/settings/shared/SettingsPendin
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
 import { useSettingsHubRouteSection } from '@/features/settings/shared/hub'
-import { useRegisterSettingsTabPending } from '@/features/settings/kernel/pending'
+import { useRegisterSettingsTabPending } from '@/domain/layout/pending'
 
 const props = defineProps({ activeTab: { type: String, default: 'security-modes' } })
 

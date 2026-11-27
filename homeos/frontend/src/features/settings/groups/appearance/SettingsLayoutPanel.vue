@@ -21,7 +21,7 @@
 import { ref, watch } from 'vue'
 import { useLayoutConfigRef } from '@/domain/layout/use-layout-config-ref'
 import SettingsPageShell from '@/features/settings/shell/SettingsPageShell.vue'
-import { useSettingsPendingChanges } from '@/features/settings/kernel/pending'
+import { useSettingsPendingChanges } from '@/domain/layout/pending'
 import SettingsLayoutEditSection from '@/features/settings/groups/appearance/layout/SettingsLayoutEditSection.vue'
 
 defineProps({ activeTab: { type: String, default: 'layout' } })

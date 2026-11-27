@@ -1,7 +1,7 @@
 import { ref, computed, watch, onMounted, onUnmounted, type Ref, type ComponentPublicInstance } from 'vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { getEntityDisplayName } from '@/domain/entity/derived'
-import { getDomainLabel } from '@/features/device/utils'
+import { getDomainLabel } from '@/domain/device/labels'
 import { useDeviceAnalyticsMetrics } from '@/features/device/use-device-analytics-metrics'
 import { useDeviceHealthTrend } from '@/features/device/device'
 import { useDeviceAnalyticsCharts } from '@/features/device/use-device-analytics-charts'
