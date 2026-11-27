@@ -10,12 +10,12 @@ import {
   decorationSizeLabel,
   decorationStatusText,
   decorationUploadBlocked,
-} from '../../../homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/decoration-library'
+} from '../../../homeos/frontend/src/studio/authoring/ui/decoration-library'
 
 import type {
   DecorationLibraryState,
   DecorationModel,
-} from '../../../homeos/frontend/src/studio/app/3d-studio/authoring/items/studio-user-decorations'
+} from '../../../homeos/frontend/src/studio/authoring/items/studio-user-decorations'
 
 function library(overrides: Partial<DecorationLibraryState> = {}): DecorationLibraryState {
   return {

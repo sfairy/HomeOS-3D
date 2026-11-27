@@ -7,7 +7,7 @@
  */
 import { describe, expect, test } from 'bun:test'
 
-import { itemSelectionTitle } from '../../../homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/refresh-view'
+import { itemSelectionTitle } from '../../../homeos/frontend/src/studio/authoring/ui/refresh-view'
 
 describe('属性面板标题', () => {
   test('用户装饰用模型名', () => {

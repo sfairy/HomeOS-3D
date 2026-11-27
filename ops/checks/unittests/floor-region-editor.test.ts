@@ -24,7 +24,7 @@ import {
   resolveRegionAt,
   setSplitStart,
   shouldShowFloorRegionInspector,
-} from '../../../homeos/frontend/src/studio/app/3d-studio/plan/studio-floor-region'
+} from '../../../homeos/frontend/src/studio/authoring/plan/studio-floor-region'
 
 const square = (x0: number, y0: number, size = 4) => [
   { x: x0, y: y0 },

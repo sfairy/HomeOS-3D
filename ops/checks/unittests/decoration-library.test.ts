@@ -14,7 +14,7 @@ import {
   decorationToItem,
   decorationUploadIssue,
   normalizeDecorationLibrary,
-} from '../../../homeos/frontend/src/studio/app/3d-studio/authoring/items/studio-user-decorations'
+} from '../../../homeos/frontend/src/studio/authoring/items/studio-user-decorations'
 
 const ID_A = '0123456789abcdef0123456789abcdef'
 const ID_B = 'fedcba9876543210fedcba9876543210'

@@ -85,7 +85,7 @@ import { hasInteractionBindings as hasInteractionBindings2 } from "@/studio/plat
 import {
   DEFAULT_BASE_LIGHTING as DEFAULT_BASE_LIGHTING2,
   normalizeBaseLighting as normalizeBaseLighting2,
-} from "../../../3d-studio/loaders/studio-normalization";
+} from "../../../../authoring/loaders/studio-normalization";
 import { floorplanAutoDiagramExportResolution as floorplanAutoDiagramExportResolution2 } from "../../floorplan-auto-diagram-layout";
 
 

@@ -14,7 +14,7 @@
  */
 import { describe, expect, test } from 'bun:test'
 
-import { loadModelLiteOrFull } from '../../../homeos/frontend/src/studio/app/3d-studio/loaders/external-models/model-lite-full-load'
+import { loadModelLiteOrFull } from '../../../homeos/frontend/src/studio/authoring/loaders/external-models/model-lite-full-load'
 
 type Attempt = { url: string }
 

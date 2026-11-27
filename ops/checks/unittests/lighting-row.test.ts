@@ -10,7 +10,7 @@ import {
   LIGHTING_MODE_VERSION,
   fixtureLightingView,
   type FixtureLightingHost,
-} from '../../../homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/lighting'
+} from '../../../homeos/frontend/src/studio/authoring/ui/lighting'
 
 /** 无 DOM 环境下的最小宿主（`document` 不存在时两个控件都拿不到，函数应安全返回）。 */
 function host(overrides: Partial<FixtureLightingHost> = {}): FixtureLightingHost {

@@ -14,7 +14,7 @@ import {
   resolveHeatingPolylines,
   sharedToneKindFor,
   shouldRenderHeating,
-} from '../../../homeos/frontend/src/studio/app/3d-studio/plan/studio-floor'
+} from '../../../homeos/frontend/src/studio/authoring/plan/studio-floor'
 
 /** 一块 4m × 4m 的正方形地面（`{x, y}` 平面坐标）。 */
 const SQUARE = [

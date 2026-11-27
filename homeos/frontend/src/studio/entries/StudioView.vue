@@ -40,7 +40,7 @@ import StudioDialogs from "@/studio/chrome/creator/StudioDialogs.vue";
 import StudioOverlays from "@/studio/chrome/creator/StudioOverlays.vue";
 import { WORKFLOW_STEPS } from "./studio-creator-async";
 import { shellNotify } from "@/studio/platform/shell-chrome";
-import { LEAVE_PLAN_FOCUS_EVENT } from "@app/3d-studio/authoring/studio-app/ui/workspace";
+import { LEAVE_PLAN_FOCUS_EVENT } from "@/studio/authoring/ui/workspace";
 
 const route = useRoute();
 const router = useRouter();
@@ -150,7 +150,7 @@ function syncFloorRegionInspector(selection: { label: string; regionCount: numbe
  */
 async function startFloorRegionSplit() {
   const { beginFloorRegionSplit } = await import(
-    "@app/3d-studio/authoring/studio-app/interaction/tools"
+    "@/studio/authoring/interaction/tools"
   );
   if (!beginFloorRegionSplit()) {
     shellNotify("请先在平面上点选一块地面（地面分区工具）。", "warning");
@@ -163,7 +163,7 @@ async function startFloorRegionSplit() {
  */
 async function cancelFloorRegionSplit() {
   const { cancelFloorRegionSplit: cancel } = await import(
-    "@app/3d-studio/authoring/studio-app/interaction/tools"
+    "@/studio/authoring/interaction/tools"
   );
   cancel();
 }
@@ -199,8 +199,8 @@ onMounted(async () => {
     facadeBound = true;
     // stage-startup 必须先求值（它在模块顶层发起场景与舞台模块请求），但两个 chunk 的下载可以并行。
     const [, studio] = await Promise.all([
-      import("@app/3d-studio/stage-startup"),
-      import("@app/3d-studio/authoring/lifecycle"),
+      import("@/studio/authoring/stage-startup"),
+      import("@/studio/authoring/lifecycle"),
     ]);
     if (disposed) return;
     studio.bootStudio();

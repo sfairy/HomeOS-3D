@@ -14,7 +14,7 @@ import { describe, expect, test } from 'bun:test'
 import {
   USER_DECORATION_DRAG_TYPE,
   hasDraggablePayload,
-} from '../../../homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/interaction/drag-and-drop'
+} from '../../../homeos/frontend/src/studio/authoring/interaction/drag-and-drop'
 
 /** 造一个只带 `dataTransfer.types` 的最小拖拽事件。 */
 function dragEvent(types: string[]): { dataTransfer: DataTransfer | null } {

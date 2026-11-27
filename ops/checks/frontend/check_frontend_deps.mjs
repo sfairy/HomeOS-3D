@@ -407,16 +407,26 @@ const ADVISORY_RULES = new Set(['feature-cross-deep'])
  * 先在这里显式登记，**新增环仍会失败**。
  */
 const ALLOWED_CYCLES = new Set([
-  'studio/app/3d-studio/authoring/studio-app/ui/asset-library ↔ studio/app/3d-studio/authoring/studio-app/ui/decoration-library',
-  'studio/app/3d-studio/authoring/studio-app/ui/editor-3d ↔ studio/app/3d-studio/authoring/studio-app/ui/light-toolbar',
-  'studio/app/3d-studio/authoring/studio-app/ui/wiring ↔ studio/app/3d-studio/authoring/studio-app/ui/workspace',
+  'studio/authoring/ui/asset-library ↔ studio/authoring/ui/decoration-library',
+  'studio/authoring/ui/editor-3d ↔ studio/authoring/ui/light-toolbar',
+  'studio/authoring/ui/wiring ↔ studio/authoring/ui/workspace',
   // 安防面板的「状态与动作」与「视图派生」互相需要，合并成一对后形成 2 模块环；
   // 消除需引入第三个派生层，属独立评审。新增环仍会失败。
   'features/security/composables/security ↔ features/security/composables/security-view',
   // 地暖视觉与「地面 / 地面区域」几何：合并 floor 族后三者互依。消除需把地面几何
   // 抽成独立的纯数据层，属设计改动。新增环仍会失败。
-  'studio/app/3d-studio/authoring/scene/studio-underfloor-heating ↔ studio/app/3d-studio/plan/studio-floor ↔ studio/app/3d-studio/plan/studio-floor-region',
+  'studio/authoring/scene/studio-underfloor-heating ↔ studio/authoring/plan/studio-floor ↔ studio/authoring/plan/studio-floor-region',
 ])
+
+/** 环的成员排序后拼接的规范化键（顺序无关，见 `cycleKey`）。 */
+const ALLOWED_CYCLE_SETS = new Set(
+  [...ALLOWED_CYCLES].map((entry) => entry.split(' ↔ ').map((name) => name.trim()).sort().join('|')),
+)
+
+/** 把 Tarjan 给出的成员数组规范化为顺序无关的键。 */
+function cycleKey(members) {
+  return [...members].sort().join('|')
+}
 
 /**
  * 已登记的上层引用（合并后暴露的既有耦合，需单独评审才能拆）。
@@ -441,7 +451,9 @@ for (const file of walk(ROOT)) {
 }
 for (const cycle of valueCycles(valueGraph)) {
   const key = cycle.join(' ↔ ')
-  if (ALLOWED_CYCLES.has(key)) continue
+  // 环的成员顺序取决于 Tarjan 的遍历起点，会随无关改动变化。
+  // 因此按**排序后的成员集合**比对，而不是按字符串顺序。
+  if (ALLOWED_CYCLE_SETS.has(cycleKey(cycle))) continue
   violations.push({ file: cycle[0], line: 1, rule: 'value-cycle', specifier: key })
 }
 

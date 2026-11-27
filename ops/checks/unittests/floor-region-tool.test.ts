@@ -19,7 +19,7 @@ import {
   isAwaitingFloorRegionSplit,
   resetFloorRegionTool,
   selectedFloorRegionIndex,
-} from '../../../homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/interaction/tools'
+} from '../../../homeos/frontend/src/studio/authoring/interaction/tools'
 
 /** 一圈闭合矩形墙（4m × 4m），坐标是平面米制。 */
 const CLOSED_WALLS = [

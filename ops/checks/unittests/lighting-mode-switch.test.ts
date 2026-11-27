@@ -12,7 +12,7 @@ import { describe, expect, test } from 'bun:test'
 import {
   applyPreviewLightingMode,
   readDraftLightingMode,
-} from '../../../homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/lighting'
+} from '../../../homeos/frontend/src/studio/authoring/ui/lighting'
 
 type Call = { name: string; args?: unknown }
 

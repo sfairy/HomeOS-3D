@@ -24,7 +24,7 @@ import {
   unregisterUserDecorationModel,
   userDecorationModelDefinition,
   userDecorationModelKey,
-} from '../../../homeos/frontend/src/studio/app/3d-studio/loaders/external-models/user-decoration-models'
+} from '../../../homeos/frontend/src/studio/authoring/loaders/external-models/user-decoration-models'
 
 const ASSET_ID = '0123456789abcdef0123456789abcdef'
 const OTHER_ASSET_ID = 'fedcba9876543210fedcba9876543210'

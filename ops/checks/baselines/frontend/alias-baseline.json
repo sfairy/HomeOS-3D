@@ -900,351 +900,6 @@
       "impl": 0,
       "moduleLet": 2
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/boot/studio-boot.ts": {
-      "alias2": 2,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/items/item-model/climate-security.ts": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/items/item-model/decor.ts": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/items/item-model/misc.ts": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/items/item-model/storage-upper.ts": {
-      "alias2": 3,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/items/studio-item-model.ts": {
-      "alias2": 11,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/items/studio-shared-mesh-records.ts": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/items/studio-static-item-meshes.ts": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/items/studio-television-model.ts": {
-      "alias2": 2,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/lights/strip-light/strip-light-ltc.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/lights/strip-light/strip-light-spec.ts": {
-      "alias2": 2,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/lights/studio-app-light-data.ts": {
-      "alias2": 2,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/scene/payload/studio-document-payload.ts": {
-      "alias2": 9,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/scene/payload/studio-scene-payload.ts": {
-      "alias2": 18,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/scene/studio-box-mesh.ts": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/scene/walls/studio-walls.ts": {
-      "alias2": 17,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/store/document-store.ts": {
-      "alias2": 3,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/store/studio-draft-repository.ts": {
-      "alias2": 0,
-      "impl": 5,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/boot.ts": {
-      "alias2": 26,
-      "impl": 994,
-      "moduleLet": 14
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/export/export.ts": {
-      "alias2": 19,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/geometry/floor-geometry.ts": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/geometry/geometry.ts": {
-      "alias2": 3,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/interaction/create-scene-item.ts": {
-      "alias2": 5,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/interaction/gesture.ts": {
-      "alias2": 6,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/interaction/picking.ts": {
-      "alias2": 9,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/interaction/pointer-input.ts": {
-      "alias2": 23,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/interaction/tools.ts": {
-      "alias2": 21,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/add-light-model.ts": {
-      "alias2": 4,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/light-areas.ts": {
-      "alias2": 3,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/light-cache.ts": {
-      "alias2": 4,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/light-groups.ts": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 3
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/lighting.ts": {
-      "alias2": 10,
-      "impl": 0,
-      "moduleLet": 2
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/shadows.ts": {
-      "alias2": 5,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/weather-atmosphere.ts": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/materials/materials.ts": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/persistence/draft.ts": {
-      "alias2": 7,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/persistence/history.ts": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/plan/plan.ts": {
-      "alias2": 11,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/camera.ts": {
-      "alias2": 7,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/render-loop.ts": {
-      "alias2": 29,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/render-metrics.ts": {
-      "alias2": 6,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/renderer.ts": {
-      "alias2": 14,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/scene-refresh.ts": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/runtime/messages.ts": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/scene-build/background.ts": {
-      "alias2": 7,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/scene-build/build-scene.ts": {
-      "alias2": 21,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/scene-build/camera-bounds.ts": {
-      "alias2": 5,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/scene-build/floor.ts": {
-      "alias2": 7,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/scene-build/scene-lifecycle.ts": {
-      "alias2": 8,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/studio-app-context.ts": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/asset-library.ts": {
-      "alias2": 2,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/editor-3d.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 2
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/onboarding.ts": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/placement.ts": {
-      "alias2": 4,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/refresh-view.ts": {
-      "alias2": 20,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/wiring.ts": {
-      "alias2": 3,
-      "impl": 0,
-      "moduleLet": 2
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/workspace.ts": {
-      "alias2": 2,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-context-resources.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/ui/studio-export-layers.ts": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/ui/studio-widgets.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/studio/app/3d-studio/export/draco-decoder-worker.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/studio/app/3d-studio/loaders/model-asset-loader.ts": {
-      "alias2": 0,
-      "impl": 3,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/loaders/preview-diagnostics.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/studio/app/3d-studio/materials/natural-wood/natural-wood-model-theme.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/studio/app/3d-studio/plan/courtyard-drawing.ts": {
-      "alias2": 1,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/plan/studio-plan-item-drawing.ts": {
-      "alias2": 18,
-      "impl": 0,
-      "moduleLet": 0
-    },
-    "homeos/frontend/src/studio/app/3d-studio/plan/studio-wall.ts": {
-      "alias2": 2,
-      "impl": 0,
-      "moduleLet": 1
-    },
-    "homeos/frontend/src/studio/app/3d-studio/render-kit/url-flags.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 2
-    },
-    "homeos/frontend/src/studio/app/3d-studio/studio-gpu-compat.ts": {
-      "alias2": 0,
-      "impl": 0,
-      "moduleLet": 3
-    },
     "homeos/frontend/src/studio/app/bridge/bridge.ts": {
       "alias2": 0,
       "impl": 0,
@@ -1657,6 +1312,351 @@
     },
     "homeos/frontend/src/studio/app/shared/util/select-picker.ts": {
       "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/studio/authoring/app-boot.ts": {
+      "alias2": 26,
+      "impl": 994,
+      "moduleLet": 14
+    },
+    "homeos/frontend/src/studio/authoring/app-context.ts": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/boot/studio-boot.ts": {
+      "alias2": 2,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/studio/authoring/export/draco-decoder-worker.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/studio/authoring/export/export.ts": {
+      "alias2": 19,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/geometry/floor-geometry.ts": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/geometry/geometry.ts": {
+      "alias2": 3,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/interaction/create-scene-item.ts": {
+      "alias2": 5,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/interaction/gesture.ts": {
+      "alias2": 6,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/interaction/picking.ts": {
+      "alias2": 9,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/interaction/pointer-input.ts": {
+      "alias2": 23,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/interaction/tools.ts": {
+      "alias2": 21,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/items/item-model/climate-security.ts": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/items/item-model/decor.ts": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/items/item-model/misc.ts": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/items/item-model/storage-upper.ts": {
+      "alias2": 3,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/items/studio-item-model.ts": {
+      "alias2": 11,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/items/studio-shared-mesh-records.ts": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/items/studio-static-item-meshes.ts": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/items/studio-television-model.ts": {
+      "alias2": 2,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/lights/add-light-model.ts": {
+      "alias2": 4,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/lights/light-areas.ts": {
+      "alias2": 3,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/studio/authoring/lights/light-cache.ts": {
+      "alias2": 4,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/lights/light-groups.ts": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 3
+    },
+    "homeos/frontend/src/studio/authoring/lights/lighting.ts": {
+      "alias2": 10,
+      "impl": 0,
+      "moduleLet": 2
+    },
+    "homeos/frontend/src/studio/authoring/lights/shadows.ts": {
+      "alias2": 5,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/lights/strip-light/strip-light-ltc.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/studio/authoring/lights/strip-light/strip-light-spec.ts": {
+      "alias2": 2,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/lights/studio-app-light-data.ts": {
+      "alias2": 2,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/lights/weather-atmosphere.ts": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/loaders/model-asset-loader.ts": {
+      "alias2": 0,
+      "impl": 3,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/loaders/preview-diagnostics.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/studio/authoring/materials/materials.ts": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/materials/natural-wood/natural-wood-model-theme.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/studio/authoring/persistence/draft.ts": {
+      "alias2": 7,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/persistence/history.ts": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/plan/courtyard-drawing.ts": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/plan/plan.ts": {
+      "alias2": 11,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/plan/studio-plan-item-drawing.ts": {
+      "alias2": 18,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/plan/studio-wall.ts": {
+      "alias2": 2,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/studio/authoring/render-kit/url-flags.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 2
+    },
+    "homeos/frontend/src/studio/authoring/render/camera.ts": {
+      "alias2": 7,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/render/render-loop.ts": {
+      "alias2": 29,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/render/render-metrics.ts": {
+      "alias2": 6,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/render/renderer.ts": {
+      "alias2": 14,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/render/scene-refresh.ts": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/runtime/messages.ts": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/scene-build/background.ts": {
+      "alias2": 7,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/scene-build/build-scene.ts": {
+      "alias2": 21,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/scene-build/camera-bounds.ts": {
+      "alias2": 5,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/scene-build/floor.ts": {
+      "alias2": 7,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/scene-build/scene-lifecycle.ts": {
+      "alias2": 8,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/scene/payload/studio-document-payload.ts": {
+      "alias2": 9,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/scene/payload/studio-scene-payload.ts": {
+      "alias2": 18,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/scene/studio-box-mesh.ts": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/scene/walls/studio-walls.ts": {
+      "alias2": 17,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/store/document-store.ts": {
+      "alias2": 3,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/store/studio-draft-repository.ts": {
+      "alias2": 0,
+      "impl": 5,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/studio-context-resources.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/studio/authoring/studio-gpu-compat.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 3
+    },
+    "homeos/frontend/src/studio/authoring/ui/asset-library.ts": {
+      "alias2": 2,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/ui/editor-3d.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 2
+    },
+    "homeos/frontend/src/studio/authoring/ui/onboarding.ts": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/ui/placement.ts": {
+      "alias2": 4,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/ui/refresh-view.ts": {
+      "alias2": 20,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/ui/studio-export-layers.ts": {
+      "alias2": 1,
+      "impl": 0,
+      "moduleLet": 0
+    },
+    "homeos/frontend/src/studio/authoring/ui/studio-widgets.ts": {
+      "alias2": 0,
+      "impl": 0,
+      "moduleLet": 1
+    },
+    "homeos/frontend/src/studio/authoring/ui/wiring.ts": {
+      "alias2": 3,
+      "impl": 0,
+      "moduleLet": 2
+    },
+    "homeos/frontend/src/studio/authoring/ui/workspace.ts": {
+      "alias2": 2,
       "impl": 0,
       "moduleLet": 1
     },

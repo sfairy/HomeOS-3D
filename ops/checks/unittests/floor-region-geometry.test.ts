@@ -17,7 +17,7 @@ import {
   floorMaterialParams,
   floorToneBrightness,
   floorToneForFinish,
-} from '../../../homeos/frontend/src/studio/app/3d-studio/plan/studio-floor'
+} from '../../../homeos/frontend/src/studio/authoring/plan/studio-floor'
 import {
   MIN_REGION_AREA,
   clipRingByLine,
@@ -27,13 +27,13 @@ import {
   ringAreaAbs,
   snapToFloorRegionEdge,
   splitFloorRegionByLine,
-} from '../../../homeos/frontend/src/studio/app/3d-studio/plan/studio-floor-region'
+} from '../../../homeos/frontend/src/studio/authoring/plan/studio-floor-region'
 import {
   buildRegionHeatingPaths,
   buildUnderfloorHeatingPaths,
   clipHorizontalSpan,
   shouldShowUnderfloorHeating,
-} from '../../../homeos/frontend/src/studio/app/3d-studio/authoring/scene/studio-underfloor-heating'
+} from '../../../homeos/frontend/src/studio/authoring/scene/studio-underfloor-heating'
 
 const square = (size = 4, x = 0, y = 0) => [
   { x, y },
