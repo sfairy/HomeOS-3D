@@ -152,7 +152,7 @@ import SetupWizardCompleteStep from '@/features/settings/groups/onboarding/setup
 import SetupWizardNavigation from '@/features/settings/groups/onboarding/setup-wizard/SetupWizardNavigation.vue'
 import { SETUP_WIZARD_ENV_STEP_KEY } from '@/features/settings/groups/onboarding/setup-wizard/context'
 import { resolveEnergyScopeOption } from '@/features/settings/groups/onboarding/setup-wizard/energy-scope.options'
-import { useSetupWizardPanel } from '@/features/settings/groups/onboarding/composables/setup-wizard.internals'
+import { useSetupWizardPanel } from '@/features/settings/groups/onboarding/composables/use-setup-wizard'
 
 const props = defineProps({
   activeTab: { type: String, default: 'setup-wizard' },

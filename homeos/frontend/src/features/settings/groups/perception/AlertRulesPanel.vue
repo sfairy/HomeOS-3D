@@ -523,7 +523,7 @@ import SettingsPageShell from '@/features/settings/components/shell/SettingsPage
 import SettingsHubSubnav from '@/features/settings/shared/layout/SettingsHubSubnav.vue'
 import SettingsPendingSaveAction from '@/features/settings/shared/SettingsPendingSaveAction.vue'
 import EntityInput from '@/domain/entity/components/entity-input/EntityInput.vue'
-import { useAlertRulesPanel } from '@/features/settings/groups/perception/composables/alert-rules.internals'
+import { useAlertRulesPanel } from '@/features/settings/groups/perception/composables/use-alert-rules'
 import { useRegisterSettingsTabPending } from '@/features/settings/kernel/pending.internals'
 import { useSettingsSidebarReentryReset } from '@/kernel/ui/hooks/hub-viewport'
 import AlertRulesInboxSection from './alert-rules/AlertRulesInboxSection.vue'

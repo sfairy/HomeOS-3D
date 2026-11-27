@@ -151,18 +151,12 @@ function splitImports(text) {
 /**
  * 把一批 import 语句归一成「按来源分组的绑定表」，再重建语句。
  *
- * 为什么不能只做「整条语句去重」：同一个本地名可能以不同写法出现两次——
- *   `import type { Vec3 } from 'three'` 与 `import { Vec3 } from 'three'`
- * 整条去重会保留两行，TS 直接报 `Duplicate identifier`。必须按**绑定**去重，
- * 并保留 type-only 语义（写成内联 `type` 修饰符）。
- *
- * 分组键必须是**解析后的真实模块**而不是原始说明符：同一模块可能一处写
- * `./use-foo`、另一处写 `@/features/.../use-foo`，按字符串分组会留下两份绑定。
- *
  * @param {Array<{statement: string, path: string}>} statements
+ * @param {(local: string, canonical: string, source: string) => boolean} [accept]
+ *   逐绑定判定是否保留；省略时全部保留。
  * @returns {string[]}
  */
-function normalizeImports(statements) {
+function normalizeImports(statements, accept) {
   /** @type {Map<string, {source: string, sideEffect: boolean, defaults: Set<string>, namespaces: Set<string>, named: Map<string,{imported:string,isType:boolean}>}>} */
   const bySource = new Map()
   const order = []
@@ -181,6 +175,8 @@ function normalizeImports(statements) {
     return bySource.get(canonical)
   }
 
+  const allowed = (local, canonical, source) => (accept ? accept(local, canonical, source) : true)
+
   for (const { statement, path } of statements) {
     const source = importSource(statement)
     if (!source) continue
@@ -198,14 +194,14 @@ function normalizeImports(statements) {
 
     // 默认导入（可带 type-only）
     const defaultMatch = trimmed.match(/^import\s+(?:type\s+)?([A-Za-z_$][\w$]*)\s*(?:,|from)/)
-    if (defaultMatch) entry.defaults.add(`${defaultMatch[1]}${isTypeOnly ? '' : ''}`)
+    if (defaultMatch && allowed(defaultMatch[1], canonical, source)) entry.defaults.add(defaultMatch[1])
 
     // 命名空间导入
     const namespaceMatch = trimmed.match(/\*\s+as\s+([A-Za-z_$][\w$]*)/)
-    if (namespaceMatch) entry.namespaces.add(namespaceMatch[1])
+    if (namespaceMatch && allowed(namespaceMatch[1], canonical, source)) entry.namespaces.add(namespaceMatch[1])
 
     // 具名导入（含内联 type 修饰）
-    const namedMatch = trimmed.match(/\{([\s\S]*?)\}/)
+    const namedMatch = trimmed.match(/\{([^{}]*)\}/)
     if (namedMatch) {
       for (const part of namedMatch[1].split(',')) {
         const piece = part.trim()
@@ -214,7 +210,7 @@ function normalizeImports(statements) {
         const body = piece.replace(/^type\s+/, '')
         const [imported, local = imported] = body.split(/\s+as\s+/).map((s) => s.trim())
         if (!imported) continue
-        // 同名只保留一次；type-only 与值导入都要保留「是类型」的信息。
+        if (!allowed(local, canonical, source)) continue
         const key = local
         const isType = isTypeOnly || inlineType
         const previous = entry.named.get(key)
@@ -286,11 +282,13 @@ function resolveCanonical(fromPath, spec) {
 }
 
 /**
- * 去掉合并后正文里「同名且内容相同」的顶层类型别名。
+ * 去掉合并后正文里「同名且逐字相同」的顶层声明。
  *
- * 同一功能族的两个文件常各自写一份 `type Summary = ...`（内容一字不差）。
- * 合并后 TS 报 `Duplicate identifier`。只在**归一化后完全相同**时才删，
- * 内容不同的同名声明仍然保留（那是需要人工判断的真实冲突）。
+ * 同一功能族的两个文件常各自写一份 `type Summary = ...` 或 `const LIMIT = 3`。
+ * 合并后 TS 报 `Duplicate identifier`。只在**归一化后完全相同**时才删：
+ * - `type` / `interface`：内容相同即等价；
+ * - `const` / `let`：仅当右侧是纯字面量（数字 / 字符串 / 布尔 / null）才删 ——
+ *   有函数调用或对象字面量时去掉第二份可能改变求值次数，属于真实冲突，保留给人判断。
  *
  * `seen` 必须由调用方在**整个合并范围内**共享 —— 每次调用新建会让跨源去重失效。
  * @param {string} body
@@ -298,14 +296,24 @@ function resolveCanonical(fromPath, spec) {
  * @returns {string}
  */
 function dedupeTypeAliases(body, seen) {
+  const LITERAL_RHS = /^(?:-?\d+(?:\.\d+)?|'[^']*'|"[^"]*"|true|false|null|undefined)$/
   return body
     .split('\n')
     .filter((line) => {
-      const match = line.match(/^\s*(?:export\s+)?type\s+([A-Za-z_$][\w$]*)\s*=/)
-      if (!match) return true
-      const key = `${match[1]}|${line.replace(/\s+/g, ' ').trim()}`
-      if (seen.has(key)) return false
-      seen.add(key)
+      const alias = line.match(/^\s*(?:export\s+)?type\s+([A-Za-z_$][\w$]*)\s*=/)
+      if (alias) {
+        const key = `${alias[1]}|${line.replace(/\s+/g, ' ').trim()}`
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+      }
+      const constant = line.match(/^\s*(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=\s*(.+?);?\s*$/)
+      if (constant && LITERAL_RHS.test(constant[2].trim())) {
+        const key = `${constant[1]}|${line.replace(/\s+/g, ' ').trim()}`
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+      }
       return true
     })
     .join('\n')
@@ -327,7 +335,7 @@ function dropRedundantExportLists(text) {
     declared.add(match[1])
   }
   return text
-    .replace(/^[ \t]*export\s+(?:type\s+)?\{([\s\S]*?)\}[ \t]*;?[ \t]*\r?\n?/gm, (statement, inner, offset, whole) => {
+    .replace(/^[ \t]*export\s+(?:type\s+)?\{([^{}]*)\}[ \t]*;?[ \t]*\r?\n?/gm, (statement, inner) => {
       // 带 `from` 的重导出不属于本函数处理范围（正则已排除：要求 `}` 后紧跟换行/分号）。
       const names = inner
         .split(',')
@@ -337,6 +345,36 @@ function dropRedundantExportLists(text) {
       if (!names.length) return statement
       return names.every((name) => declared.has(name)) ? '' : statement
     })
+}
+
+/**
+ * 从源码里抽出「转手导出」映射：`export { a as b } from 'src'` → b ⇢ {orig: a, src}。
+ * 合并时若某符号只是被转手导出（本文件没实现），导入方需要改指向 src。
+ * @param {Array<{path: string, text: string}>} sources
+ * @returns {Map<string, {orig: string, src: string}>}
+ */
+function collectReExports(sources) {
+  const map = new Map()
+  for (const { text } of sources) {
+    for (const match of text.matchAll(/^[ \t]*export\s+(?:type\s+)?\{([^{}]*)\}\s+from\s+['"]([^'"]+)['"]/gm)) {
+      for (const part of match[1].split(',')) {
+        const piece = part.trim().replace(/^type\s+/, '')
+        if (!piece) continue
+        const [orig, local = orig] = piece.split(/\s+as\s+/).map((s) => s.trim())
+        if (local && orig) map.set(local, { orig, src: match[2] })
+      }
+    }
+  }
+  return map
+}
+
+/** 正文里声明的顶层名字（用于判断导入的绑定是否还需要）。 */
+function declaredNames(body) {
+  const names = new Set()
+  for (const match of body.matchAll(/^(?:export\s+)?(?:async\s+)?(?:function|const|let|var|class|type|interface|enum)\s+([A-Za-z_$][\w$]*)/gm)) {
+    names.add(match[1])
+  }
+  return names
 }
 
 function mergeTexts(sources, { header, into } = {}) {
@@ -405,9 +443,13 @@ function mergeTexts(sources, { header, into } = {}) {
   for (const { path, text } of sources) {
     const { imports: fileImports, body } = splitImports(text)
     // 正文里若有 `export ... from '<被合并模块>'`，同样要删（符号已在本文件定义）。
+    //
+    // 正则必须严格限定在**一条语句内**：`\{[^{}]*\}` 不允许跨花括号，`[ \t]+from`
+    // 不允许跨行。早期写成 `\{[\s\S]*?\}\s+from` 时，lazy 组会从 `export { clampPct }`
+    // 一路吞到几百行后的 `} from '...'`，把整段实现删掉 —— 静默丢代码。
     const cleanedBody = mergedInto
       ? body.replace(
-          /^[ \t]*export\s+(?:type\s+)?(?:\{[\s\S]*?\}|\*)\s+from\s+['"]([^'"]+)['"];?[ \t]*\r?\n?/gm,
+          /^[ \t]*export\s+(?:type\s+)?(?:\{[^{}]*\}|\*)\s+from\s+['"]([^'"]+)['"];?[ \t]*\r?\n?/gm,
           (statement, spec) => {
             const canonical = resolveCanonical(path, spec)
             return mergedInto.has(canonical) ? '' : statement
@@ -415,14 +457,6 @@ function mergeTexts(sources, { header, into } = {}) {
         )
       : body
     for (const statement of fileImports) {
-      // 合并后指向自身的 import 必须删掉（否则 `xxx.ts` 里出现 `import ... from './xxx'`）。
-      if (into) {
-        const target = stripExt(into)
-        const specifiers = [...statement.matchAll(/['"]([^'"]+)['"]/g)].map((m) => m[1])
-        if (specifiers.some((spec) => textualTarget(spec, into) === target)) continue
-      }
-      // 冲突判定必须比较「解析后的真实模块」，不能比字符串：
-      // 同一模块可能一处写 `./use-foo`、另一处写 `@/features/.../use-foo`。
       const specifier = importSource(statement)
       const canonical = resolveCanonical(path, specifier)
       for (const local of importedLocals(statement)) {
@@ -445,19 +479,31 @@ function mergeTexts(sources, { header, into } = {}) {
   const sections = []
   if (header) sections.push(header.trimEnd())
   const mergedBody = dropRedundantExportLists(bodies.join('\n\n'))
-  // 只保留正文真正用到的绑定：合并会删掉指向自身的 `export ... from`，
-  // 那些语句原先「消费」的 import 就变成了未使用导入（TS6133）。
-  const imports = normalizeImports(statements).filter((line) => {
-    const tokens = line
-      .replace(/^import\s+(?:type\s+)?/, '')
-      .replace(/\{[\s\S]*\} from/, '')
-      .match(/[A-Za-z_$][\w$]*/g)
-    // 副作用导入（`import 'x.css'`）永远保留。
-    if (!tokens || !tokens.length) return true
-    const bindings = importedLocals(line)
-    if (!bindings.length) return true
-    return bindings.some((name) => new RegExp(`\\b${name.replace(/\$/g, '\\$')}\\b`).test(mergedBody))
+  // 合并后哪些名字有本地定义 —— 决定「从被合并模块导入的绑定」还剩哪些有意义。
+  const localNames = declaredNames(mergedBody)
+  const reExports = mergedInto ? collectReExports(sources) : new Map()
+  /** 被合并模块转手导出、且正文确实在用的符号：需要改指向原始来源。 */
+  const passthrough = new Map()
+
+  // 按**绑定**过滤（不是按语句）：同一条 import 里可能既有本地已实现的符号
+  // （来自被合并模块，应删）又有外部符号（应保留）。语句级过滤会连带保留冲突项。
+  const imports = normalizeImports(statements, (local, canonical, source) => {
+    const used = new RegExp(`\\b${local.replace(/\$/g, '\\$')}\\b`).test(mergedBody)
+    if (!used) return false
+    if (mergedInto && mergedInto.has(canonical)) {
+      if (localNames.has(local)) return false
+      const origin = reExports.get(local)
+      if (origin) {
+        if (!passthrough.has(origin.src)) passthrough.set(origin.src, [])
+        const rendered = origin.orig === local ? local : `${origin.orig} as ${local}`
+        if (!passthrough.get(origin.src).includes(rendered)) passthrough.get(origin.src).push(rendered)
+        return false
+      }
+    }
+    return true
   })
+  for (const [src, names] of passthrough) imports.push(`import { ${names.join(', ')} } from '${src}'`)
+
   if (imports.length) sections.push(imports.join('\n'))
   if (mergedBody.trim()) sections.push(mergedBody.trimEnd())
   return `${sections.join('\n\n')}\n`

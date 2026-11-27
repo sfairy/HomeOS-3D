@@ -20,7 +20,7 @@ import {
   widgetConfigBtnLabel,
   widgetConfigDescription,
   WIDGET_PANEL_CONFIG_KEY,
-} from '@/features/settings/groups/appearance/composables/layout-panel-widgets.internals'
+} from '@/features/settings/groups/appearance/composables/use-layout'
 
 const widgetConfig = inject(WIDGET_PANEL_CONFIG_KEY)
 

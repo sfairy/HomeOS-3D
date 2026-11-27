@@ -1093,7 +1093,7 @@ import SettingsHubSubnav from '@/features/settings/shared/layout/SettingsHubSubn
 import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSectionHead.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
-import { useSettingsAgentPanel } from '@/features/settings/groups/perception/composables/agent-panel.internals'
+import { useSettingsAgentPanel } from '@/features/settings/groups/perception/composables/use-agent-panel'
 import { runAgentProactive } from '@/domain/api/agent'
 import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
 import SettingsAgentChannelsSection from './SettingsAgentChannelsSection.vue'

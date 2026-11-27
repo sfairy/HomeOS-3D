@@ -14,7 +14,7 @@ import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat
 import SettingsPopoutMenu from '@/features/settings/shared/layout/SettingsPopoutMenu.vue'
 import WidgetPickerList from './WidgetPickerList.vue'
 import WidgetPanelRow from './WidgetPanelRow.vue'
-import { catalogTierClass } from '@/features/settings/groups/appearance/composables/layout-panel-widgets.internals'
+import { catalogTierClass } from '@/features/settings/groups/appearance/composables/use-layout'
 
 const showAddWidget = defineModel('showAddWidget', { type: Boolean, required: true })
 

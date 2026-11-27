@@ -1,29 +1,29 @@
-/**
- * @file setup-wizard-core.internals.ts
- * @module frontend/src/views
- */
-/** 首装向导核心状态机 */
-import { useSystemConfig } from '@/domain/layout/composables/system-config-core.internals'
-import { useEnvSensorMap } from '@/features/settings/shared/composables/env-sensor-map'
-import {
-  pauseGlobalPendingChanges,
-  resumeGlobalPendingChanges,
-  syncGlobalLayoutPendingSnapshot,
-} from '@/features/settings/kernel/pending.internals'
+import { useSystemConfig, handleSystemConfigPatchError } from '@/domain/layout/composables/system-config-core.internals'
+import { useEnvSensorMap, getEnvSensorFields } from '@/features/settings/shared/composables/env-sensor-map'
+import { pauseGlobalPendingChanges, resumeGlobalPendingChanges, syncGlobalLayoutPendingSnapshot } from '@/features/settings/kernel/pending.internals'
 import { useReduceSecuritySensitivity } from '@/features/security/index'
 import { completeSetupWizard, fetchSetupWizardStatus, validateSetupWizardEntities } from '@/kernel/http/system-api'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
-import type { EntityValidateResult, SetupWizardStatus, SetupWizardStepId } from '@/kernel/types/setup-wizard'
-import type { EnergyMeterScope, SharedEnergyConfig } from '@homeos/shared'
+import { type EntityValidateResult, type SetupWizardStatus, type SetupWizardStepId, type DoorbellConfig, type PresenceHomeResponse, type PresenceMember } from '@/kernel/types/setup-wizard'
+import { type EnergyMeterScope, type SharedEnergyConfig } from '@homeos/shared'
 import { logger } from '@/kernel/utils/core/logger'
 import { seedPanelEnergyMeter } from '@/domain/energy/model/utils/binding-bridge.util'
 import { ensureDoorbellList } from '@/kernel/utils/layout/doorbell.util'
-import { useSetupWizardEnvStep } from '@/features/settings/groups/onboarding/composables/setup-wizard-env.internals'
-import { useSetupWizardPresence } from '@/features/settings/groups/onboarding/composables/setup-wizard-presence.internals'
-import { useSetupWizardDoorbells } from '@/features/settings/groups/onboarding/composables/setup-wizard-doorbell.internals'
-import { computed, ref } from 'vue'
+import { computed, ref, watch, type Ref, onMounted } from 'vue'
+import { Droplets, Leaf, Thermometer, Wind } from '@lucide/vue'
+import { envRoomTabEmoji } from '@/kernel/utils/settings/tab-emoji.util'
+import { loadPresenceHome } from '@/features/presence/model/composables/load-presence-home'
+import { formatPresenceDetailSummary } from '@/features/presence/model/utils/display.util'
+import { formatLocaleDate } from '@/kernel/utils/format/locale-format.util'
+import { useSettingsHubRouteSection } from '@/features/settings/shared/composables/hub'
+
+/**
+ * @file setup-wizard-core.internals.ts
+ * @module frontend/src/views
+ */
+/** 首装向导核心状态机 */
 
 // ── useSetupWizard ──
 const ENV_ROOM_MIN = 3
@@ -542,5 +542,354 @@ export function useSetupWizard(envMap = useEnvSensorMap(), envStep = useSetupWiz
     loadPresence,
     toggleAutoArm,
     toggleAutoUpgrade,
+  }
+}
+
+/**
+ * @file setup-wizard-doorbell.internals.ts
+ * @module frontend/src/views
+ */
+/** 首装向导：门铃绑定 */
+
+export function useSetupWizardDoorbells() {
+  const layoutStore = useLayoutStore()
+  const doorbellList = computed({
+    get(): DoorbellConfig[] {
+      const hc = layoutStore.layoutConfig.haConfig
+      if (!hc.doorbells) hc.doorbells = []
+      return hc.doorbells
+    },
+    set(v: DoorbellConfig[]) {
+      layoutStore.layoutConfig.haConfig.doorbells = v
+    },
+  })
+
+  function addDoorbell() {
+    doorbellList.value.push({
+      id: `db_${Date.now()}`,
+      label: '新门铃',
+      triggerEntityId: '',
+      cameraEntityId: '',
+      lockEntityId: '',
+    })
+  }
+
+  function removeDoorbell(idx: number) {
+    doorbellList.value = doorbellList.value.filter((_, i) => i !== idx)
+  }
+
+  return { doorbellList, addDoorbell, removeDoorbell }
+}
+
+/**
+ * @file setup-wizard-env.internals.ts
+ * @module frontend/src/features/settings/connect/composables
+ */
+/** Setup 向导：环境传感器步骤 */
+
+
+// ── useSetupWizardEnvStep ──
+const ENV_SENSOR_ICONS = {
+  temperature: Thermometer,
+  humidity: Droplets,
+  pm25: Wind,
+  co2: Leaf,
+  tvoc: Wind,
+} as const
+
+const ENV_SENSOR_UNITS = {
+  temperature: '°C',
+  humidity: '%',
+  pm25: 'µg/m³',
+  co2: 'ppm',
+  tvoc: 'ppb',
+} as const
+
+const SENSOR_KEYS = ['temperature', 'humidity', 'pm25', 'co2', 'tvoc'] as const
+
+/** 与后端 ENV_ROOM_MIN / setup-wizard-core 口径一致 */
+
+export function useSetupWizardEnvStep(envMap: ReturnType<typeof useEnvSensorMap>) {
+  const {
+    sensorMap,
+    roomList: envRoomList,
+    loading: envLoading,
+    registryDegraded,
+    registryError,
+    refreshHaAreas,
+  } = envMap
+
+  const envRoomTab = ref('living')
+
+  const envSensorFieldList = computed(() =>
+    Object.values(getEnvSensorFields()).map((f) => ({
+      ...f,
+      icon: ENV_SENSOR_ICONS[f.key as keyof typeof ENV_SENSOR_ICONS],
+      unit: ENV_SENSOR_UNITS[f.key as keyof typeof ENV_SENSOR_UNITS],
+      iconClass:
+        f.key === 'temperature'
+          ? 'sw-env-sensor-icon--temp'
+          : f.key === 'humidity'
+            ? 'sw-env-sensor-icon--humid'
+            : f.key === 'pm25'
+              ? 'sw-env-sensor-icon--pm25'
+              : f.key === 'co2'
+                ? 'sw-env-sensor-icon--co2'
+                : 'sw-env-sensor-icon--tvoc',
+      shortLabel:
+        f.key === 'temperature'
+          ? '温度'
+          : f.key === 'humidity'
+            ? '湿度'
+            : f.key === 'pm25'
+              ? 'PM2.5'
+              : f.key === 'co2'
+                ? 'CO₂'
+                : 'TVOC',
+    })),
+  )
+
+  function envRoomBound(roomId: string) {
+    const entry = sensorMap.value[roomId]
+    if (!entry) return false
+    return SENSOR_KEYS.some((k) => String(entry[k] || '').trim())
+  }
+
+  function envRoomSensorCount(roomId: string) {
+    const entry = sensorMap.value[roomId]
+    if (!entry) return 0
+    return SENSOR_KEYS.filter((k) => String(entry[k] || '').trim()).length
+  }
+
+  const envConfiguredRoomCount = computed(() => envRoomList.value.filter((room) => envRoomBound(room.id)).length)
+
+  const envStepReady = computed(() => envConfiguredRoomCount.value >= ENV_ROOM_MIN)
+
+  const envProgressPct = computed(() => Math.min(100, Math.round((envConfiguredRoomCount.value / ENV_ROOM_MIN) * 100)))
+
+  const envRoomTabs = computed(() =>
+    envRoomList.value.map((room) => ({
+      id: room.id,
+      label: sensorMap.value[room.id]?.label?.trim() || room.defaultLabel,
+      emoji: envRoomTabEmoji(room.id),
+      accent: envRoomBound(room.id) ? '#34d399' : '#64748b',
+      count: envRoomBound(room.id) ? String(envRoomSensorCount(room.id)) : undefined,
+    })),
+  )
+
+  watch(envRoomTabs, (tabs) => {
+    if (!tabs.length) return
+    if (!tabs.some((t) => t.id === envRoomTab.value)) {
+      envRoomTab.value = tabs[0].id
+    }
+  })
+
+  const activeEnvRoom = computed(() => envRoomList.value.find((r) => r.id === envRoomTab.value))
+
+  return {
+    sensorMap,
+    envLoading,
+    envRoomTab,
+    envSensorFieldList,
+    envRoomBound,
+    envRoomSensorCount,
+    envConfiguredRoomCount,
+    envStepReady,
+    envProgressPct,
+    envRoomTabs,
+    activeEnvRoom,
+    registryDegraded,
+    registryDegradedReason: registryError,
+    refreshAreas: refreshHaAreas,
+  }
+}
+
+/**
+ * @file setup-wizard-presence.internals.ts
+ * @module frontend/src/views
+ */
+/** 首装向导：在场 / 安防联动开关 */
+
+export function useSetupWizardPresence(opts: {
+  stepMeta: Ref<{ id: string }>
+  notify: (text: string, ok?: boolean) => void
+}) {
+  const { stepMeta, notify } = opts
+  const chrome = useChromeStore()
+  const { load: loadSystemConfig, save: saveSystemConfig } = useSystemConfig()
+
+  const presenceHome = ref<PresenceHomeResponse | null>(null)
+  const presenceLoading = ref(false)
+  const presenceLoaded = ref(false)
+  const autoArmEnabled = ref(false)
+  const autoUpgradeEnabled = ref(false)
+  const presenceFlagSaving = ref(false)
+
+  const presenceMembers = computed((): PresenceMember[] => {
+    const list = presenceHome.value?.members
+    return Array.isArray(list) ? list : []
+  })
+
+  const presenceAutoMode = computed(() => presenceHome.value?.autoMode !== false)
+
+  const presenceSummary = computed(() =>
+    formatPresenceDetailSummary(presenceMembers.value, {
+      loading: presenceLoading.value,
+      autoMode: presenceAutoMode.value,
+      personCount: presenceHome.value?.persons?.length ?? 0,
+    }),
+  )
+
+  const presenceAtHomeCount = computed(() => presenceMembers.value.filter((m) => m.atHome).length)
+
+  function applyPresenceSecurityFlags(cfg: { security?: Record<string, unknown> } | null) {
+    const sec = cfg?.security || {}
+    autoArmEnabled.value = Boolean(sec.autoArmOnEveryoneLeft)
+    autoUpgradeEnabled.value = Boolean(sec.autoUpgradeToAwayOnEveryoneLeft)
+  }
+
+  async function loadPresence() {
+    presenceLoading.value = true
+    try {
+      const [presence, cfg] = await Promise.all([loadPresenceHome(), loadSystemConfig().catch(() => null)])
+      presenceHome.value = (presence as PresenceHomeResponse | null) ?? null
+      if (!presence) {
+        notify('加载在家状态失败', false)
+      }
+      applyPresenceSecurityFlags(cfg)
+    } catch (e) {
+      logger.error('加载人员 presence 失败', e)
+      presenceHome.value = null
+      notify('加载在家状态失败', false)
+    } finally {
+      presenceLoading.value = false
+      presenceLoaded.value = true
+    }
+  }
+
+  async function setPresenceSecurityFlag(
+    key: 'autoArmOnEveryoneLeft' | 'autoUpgradeToAwayOnEveryoneLeft',
+    next: boolean,
+  ) {
+    if (presenceFlagSaving.value) return false
+    const prevArm = autoArmEnabled.value
+    const prevUpgrade = autoUpgradeEnabled.value
+    if (key === 'autoArmOnEveryoneLeft') autoArmEnabled.value = next
+    else autoUpgradeEnabled.value = next
+    presenceFlagSaving.value = true
+    try {
+      await saveSystemConfig({ security: { [key]: next } })
+      const label = key === 'autoArmOnEveryoneLeft' ? '全员离家自动布防' : '居家/夜间升级为离家布防'
+      notify(next ? `已开启：${label}` : `已关闭：${label}`)
+      return true
+    } catch (e) {
+      autoArmEnabled.value = prevArm
+      autoUpgradeEnabled.value = prevUpgrade
+      logger.error('保存 Presence 安防开关失败', e)
+      if (await handleSystemConfigPatchError(e, chrome)) {
+        notify('配置已被其他终端修改，已重新加载', false)
+        return false
+      }
+      notify('保存失败，请稍后重试', false)
+      return false
+    } finally {
+      presenceFlagSaving.value = false
+    }
+  }
+
+  async function toggleAutoArm() {
+    return setPresenceSecurityFlag('autoArmOnEveryoneLeft', !autoArmEnabled.value)
+  }
+
+  async function toggleAutoUpgrade() {
+    return setPresenceSecurityFlag('autoUpgradeToAwayOnEveryoneLeft', !autoUpgradeEnabled.value)
+  }
+
+  watch(stepMeta, (meta) => {
+    if (meta.id === 'security') void loadPresence()
+  })
+
+  return {
+    presenceHome,
+    presenceLoading,
+    presenceLoaded,
+    autoArmEnabled,
+    autoUpgradeEnabled,
+    presenceFlagSaving,
+    presenceMembers,
+    presenceAutoMode,
+    presenceSummary,
+    presenceAtHomeCount,
+    loadPresence,
+    toggleAutoArm,
+    toggleAutoUpgrade,
+  }
+}
+
+/**
+ * @file setup-wizard.internals.ts
+ * @module frontend/src/views
+ */
+/** 首装向导面板 */
+
+// ── useSetupWizardPanel ──
+const STEP_LABELS: Record<string, string> = {
+  complete: '完成',
+  connection: '连接 HA',
+  energy: '主电表',
+  environment: '环境传感器',
+  security: '安防绑定',
+}
+
+const PRESENCE_MEMBER_TONES = ['cyan', 'violet', 'emerald', 'amber', 'rose']
+
+export function useSetupWizardPanel(activeTab: () => string) {
+  const envMap = useEnvSensorMap()
+  const envStep = useSetupWizardEnvStep(envMap)
+  const wizard = useSetupWizard(envMap, envStep)
+
+  useSettingsHubRouteSection(ref(''), wizard.STEPS, {
+    tabId: 'setup-wizard',
+    activeTab,
+    onApply: (sec: string) => {
+      const idx = wizard.STEPS.value.findIndex((s: { id: string }) => s.id === sec)
+      if (idx >= 0) wizard.goToStep(idx)
+    },
+  })
+
+  const wizardSteps = computed(() =>
+    wizard.STEPS.value.map((s) => ({
+      ...s,
+      label: STEP_LABELS[s.id] ?? s.label,
+    })),
+  )
+
+  function formatDate(iso: string) {
+    try {
+      return formatLocaleDate(iso)
+    } catch {
+      return iso
+    }
+  }
+
+  function memberInitial(name: string) {
+    const s = String(name || '').trim()
+    return s ? s.charAt(0).toUpperCase() : '?'
+  }
+
+  function memberTone(idx: number) {
+    return PRESENCE_MEMBER_TONES[idx % PRESENCE_MEMBER_TONES.length]
+  }
+
+  onMounted(() => wizard.init())
+
+  return {
+    envMap,
+    envStep,
+    wizard,
+    wizardSteps,
+    formatDate,
+    memberInitial,
+    memberTone,
   }
 }

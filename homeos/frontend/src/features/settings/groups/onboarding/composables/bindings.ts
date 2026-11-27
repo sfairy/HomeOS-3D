@@ -16,7 +16,7 @@ import { afterLayoutCancelSync, syncGlobalLayoutPendingSnapshot, useRegisterSett
 import { useSettingsSidebarReentryReset } from '@/kernel/ui/hooks/hub-viewport'
 import { getApiErrorMessage } from '@/kernel/utils/core/error-message'
 import { logger } from '@/kernel/utils/core/logger'
-import { applyLifeAccountsLayoutSlice, liveLifeAccountsLayoutSlice, pickLifeAccountsLayoutSlice } from '../../appearance/composables/layout-dashboard'
+import { applyLifeAccountsLayoutSlice, liveLifeAccountsLayoutSlice, pickLifeAccountsLayoutSlice } from '../../appearance/composables/use-layout'
 import { buildEnergyConfigPatch, isCumulativeEnergyMeter, readConfigEnergyMeter, readPanelEnergyBinding, seedPanelEnergyMeter } from '@/domain/energy/model/utils/binding-bridge.util'
 
 /**

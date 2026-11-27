@@ -7,7 +7,7 @@ import { computed } from 'vue'
 import { Eye, EyeOff, Palette, Zap } from '@lucide/vue'
 import EntityInput from '@/domain/entity/components/entity-input/EntityInput.vue'
 import { useDraftObjectField } from '@/features/settings/shared/composables/hub'
-import { AFH_THEMES } from '@/features/settings/groups/appearance/composables/layout-floating.internals'
+import { AFH_THEMES } from '@/features/settings/groups/appearance/composables/use-layout-floating'
 import { AFH_SEMANTIC_COLOR_PRESETS, normalizeHexColor } from '@/domain/entity/model/utils/floating-entity-colors.util'
 
 defineProps({

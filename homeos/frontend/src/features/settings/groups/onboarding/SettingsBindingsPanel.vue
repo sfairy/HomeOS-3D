@@ -147,7 +147,7 @@ import {
   applyBindingsLayoutSlice,
   liveBindingsLayoutSlice,
   pickBindingsLayoutSlice,
-} from '@/features/settings/groups/appearance/composables/layout-dashboard'
+} from '@/features/settings/groups/appearance/composables/use-layout'
 import { afterLayoutCancelSync } from '@/features/settings/kernel/pending.internals'
 import { useSettingsPendingChanges } from '@/features/settings/kernel/pending.internals'
 import { useRegisterSettingsTabPending } from '@/features/settings/kernel/pending.internals'

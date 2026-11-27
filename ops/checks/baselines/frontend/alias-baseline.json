@@ -650,7 +650,7 @@
       "impl": 0,
       "moduleLet": 0
     },
-    "homeos/frontend/src/features/settings/groups/perception/composables/alert-rules.internals.ts": {
+    "homeos/frontend/src/features/settings/groups/perception/composables/use-alert-rules.ts": {
       "alias2": 3,
       "impl": 0,
       "moduleLet": 0

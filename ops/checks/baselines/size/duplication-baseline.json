@@ -23,12 +23,12 @@
     "ops"
   ],
   "totals": {
-    "sources": 3656,
-    "lines": 740732,
+    "sources": 3627,
+    "lines": 740593,
     "clones": 153,
     "duplicatedLines": 2578,
-    "percentage": 0.348,
-    "tokens": 4329777,
+    "percentage": 0.3481,
+    "tokens": 4329438,
     "duplicatedTokens": 12386
   },
   "byFormat": {
@@ -48,9 +48,9 @@
     },
     "javascript": {
       "sources": 324,
-      "lines": 46367,
+      "lines": 46412,
       "duplicatedLines": 161,
-      "percentage": 0.3472,
+      "percentage": 0.3469,
       "clones": 11
     },
     "python": {
@@ -61,10 +61,10 @@
       "clones": 37
     },
     "typescript": {
-      "sources": 1689,
-      "lines": 391478,
+      "sources": 1660,
+      "lines": 391294,
       "duplicatedLines": 1651,
-      "percentage": 0.4217,
+      "percentage": 0.4219,
       "clones": 85
     },
     "vue": {
@@ -677,6 +677,12 @@
       "lines": 11
     },
     {
+      "fingerprint": "a0ae9dd362bb0f001da81a0f3d5d1d18573de74b",
+      "first": "homeos/frontend/src/domain/entity/composables/use-entity-projection.ts",
+      "second": "homeos/frontend/src/domain/entity/composables/use-entity.ts",
+      "lines": 23
+    },
+    {
       "fingerprint": "a170ecb39e0de1bba2b203d65ecbf340ea7afd7a",
       "first": "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/light-areas.ts",
       "second": "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/lights/light-groups.ts",
@@ -903,12 +909,6 @@
       "first": "homeos/frontend/src/studio/app/editor/home/inspectors/inspector-context-builders.ts",
       "second": "homeos/frontend/src/studio/app/editor/inspectors/home/home-title-button-inspector.ts",
       "lines": 30
-    },
-    {
-      "fingerprint": "e18fc7d529edcdea66180321904b5ee00908cf0b",
-      "first": "homeos/frontend/src/domain/entity/composables/use-entity-projection.ts",
-      "second": "homeos/frontend/src/domain/entity/composables/use-entity.ts",
-      "lines": 23
     },
     {
       "fingerprint": "e1930b2896e260c86b98764e9847ea8e95f5d87f",

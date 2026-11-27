@@ -338,7 +338,7 @@ import SettingsWholeHomeOffSection from '@/features/settings/groups/appearance/S
 import SettingsScreensaverSection from '@/features/settings/groups/appearance/SettingsScreensaverSection.vue'
 import SettingsLayoutDisplaySection from '@/features/settings/groups/appearance/layout/SettingsLayoutDisplaySection.vue'
 import SettingsLayoutFooterSection from '@/features/settings/groups/appearance/layout/SettingsLayoutFooterSection.vue'
-import { useDashboardFooterEditor } from '@/features/settings/groups/appearance/composables/layout-dashboard'
+import { useDashboardFooterEditor } from '@/features/settings/groups/appearance/composables/use-layout'
 import { useScaling } from '@/kernel/ui/hooks/use-scaling'
 import { reloadFrontendConfig } from '@/kernel/config/frontend-config'
 import { handleSystemConfigPatchError, useSystemConfig } from '@/domain/layout/composables/system-config-core.internals'

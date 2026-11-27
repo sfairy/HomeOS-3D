@@ -71,8 +71,8 @@ import SettingsCard from '@/features/settings/components/shell/SettingsCard.vue'
 import FloatingPanelHeaderSection from './floating/PanelHeaderSection.vue'
 import FloatingWidgetRow from './floating/WidgetRow.vue'
 import { useLayoutConfigRef } from '@/domain/layout/composables/use-layout-config-ref'
-import { useFloatingWidgets } from '@/features/settings/groups/appearance/composables/layout-floating.internals'
-import { useFloatingPanelDisplay } from '@/features/settings/groups/appearance/composables/layout-floating.internals'
+import { useFloatingWidgets } from '@/features/settings/groups/appearance/composables/use-layout-floating'
+import { useFloatingPanelDisplay } from '@/features/settings/groups/appearance/composables/use-layout-floating'
 import './floating/styles/floating.css'
 
 defineProps({ activeTab: { type: String, default: 'floating' } })

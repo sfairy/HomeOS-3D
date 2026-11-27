@@ -10,7 +10,7 @@ import {
   formatPct,
   getAfhTypeTone,
   getFloatingCategoryLabel,
-} from '@/features/settings/groups/appearance/composables/layout-floating.internals'
+} from '@/features/settings/groups/appearance/composables/use-layout-floating'
 import FloatingWidgetEditor from './WidgetEditor.vue'
 import './styles/floating.css'
 

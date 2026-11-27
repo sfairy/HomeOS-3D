@@ -1,5 +1,5 @@
 import { type Component, computed, onMounted, ref, watch, type Ref } from 'vue'
-import { applySecurityModesLayoutSlice, liveSecurityModesLayoutSlice, pickSecurityModesLayoutSlice } from '@/features/settings/groups/appearance/composables/layout-dashboard'
+import { applySecurityModesLayoutSlice, liveSecurityModesLayoutSlice, pickSecurityModesLayoutSlice } from '@/features/settings/groups/appearance/composables/use-layout'
 import { afterLayoutCancelSync, pauseGlobalPendingChanges, resumeGlobalPendingChanges, syncGlobalLayoutPendingSnapshot, useSettingsPendingChanges } from '@/features/settings/kernel/pending.internals'
 import { getEmergencyPresets, normalizeSecurityEmergency } from '@/domain/layout/constants/security-emergency'
 import { getSecurityModePresets, getSecurityLinkageFlagRows, getSecurityLinkageParamRows, getSecurityLinkagePresets } from '@/kernel/constants/security'

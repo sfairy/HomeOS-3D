@@ -192,7 +192,7 @@ import VoiceSpeechComposer from '@/features/settings/groups/perception/voice/Spe
 import { getEntityTtsQuickDomains } from '@/kernel/constants/voice'
 import { useAlertRulesSection } from './context'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
-import { useAlertRulesRecommend } from '@/features/settings/groups/perception/composables/alert-rules.internals'
+import { useAlertRulesRecommend } from '@/features/settings/groups/perception/composables/use-alert-rules'
 import { getEntityDisplayName } from '@/domain/entity/model/utils/derived.util'
 
 const entitiesStore = useEntitiesStore()

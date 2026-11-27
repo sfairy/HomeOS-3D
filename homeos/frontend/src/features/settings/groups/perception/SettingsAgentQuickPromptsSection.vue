@@ -18,7 +18,7 @@ import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSecti
 import {
   agentQuickPromptsDirty,
   agentQuickPromptsRevert,
-} from '@/features/settings/groups/perception/composables/agent-panel-helpers.internals'
+} from '@/features/settings/groups/perception/composables/use-agent-panel'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import { isSystemConfigConflictError, patchSystemConfig } from '@/domain/layout/composables/system-config-core.internals'
 import { reloadFrontendConfig } from '@/kernel/config/frontend-config'
