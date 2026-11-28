@@ -26,6 +26,22 @@ HISTORY_FETCH_CONCURRENCY = 2
 HISTORY_CACHE_SECONDS = 30
 #: haConnector / other 高级参数（重连退避、心跳、历史缓存上限）的读取缓存窗口（秒）。
 _HA_TUNING_TTL_SECONDS = 5.0
+#: 实时连接 pong 等待总窗口的下限（秒）。
+#:
+#: ``wsPongTimeoutMs × wsHeartbeatMaxMisses`` 是用户可以调小的配置，但直接拿它当总窗口
+#: 会让「一次 pong 丢失」拆掉一条仍然健康的连接：HA 侧只是瞬时卡了一下，客户端却要
+#: 断开并重做一次全量同步（实测 1455 个实体、中位 ~9 秒）。给总窗口一个下限，把一次
+#: 瞬时卡顿的代价从「掉线重同步」降为「最多晚 1 分钟发现」。
+WS_PONG_TIMEOUT_FLOOR_SECONDS = 60.0
+
+#: 注册表事件（entity / device / area）在收包循环里的排队上限与单批上限。
+#:
+#: 这三类事件过去是在 ``recv`` 循环里**同步落库**（每条一次事务 + 三次 COUNT + 一次
+#: 目录广播）。HA 重启 / 集成重载时它们成串到达，收包循环被数据库阻塞，而实时连接的
+#: ``max_queue`` 只有 4，反压很快会传导回 HA 侧。改成「进队列 + 独立 worker 成批落库」：
+#: 收包循环只做一次 ``put_nowait``，积压时丢最旧（下一轮周期对账会补齐目录）。
+REGISTRY_EVENT_QUEUE_MAX = 512
+REGISTRY_EVENT_BATCH_MAX = 64
 # 实体翻译表只随 HA 版本变化，编辑器/墙屏每次加载都重拉一遍纯属浪费（实测 12 个集成 ~3s）。
 TRANSLATION_CACHE_SECONDS = 600
 # 并发探测端点时，先用一个的成功结果之后，再给更高优先级端点留的追赶窗口。

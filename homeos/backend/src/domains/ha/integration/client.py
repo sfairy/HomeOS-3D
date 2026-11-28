@@ -236,6 +236,7 @@ class HAClient:
         ws_ping_timeout: float | None = None,
         use_subscribe_entities: bool = False,
         subscribe_entities_shadow: bool = False,
+        states_snapshot_registry: dict[str, Any] | None = None,
     ) -> None:
         self.base_url = normalize_base_url(base_url)
         self.access_token = access_token
@@ -253,6 +254,9 @@ class HAClient:
         self.use_subscribe_entities = bool(use_subscribe_entities)
         #: 诊断期影子对比：额外订阅 state_changed，仅用于校验压缩解码，不参与下游派发。
         self.subscribe_entities_shadow = bool(subscribe_entities_shadow)
+        #: ``/api/states`` 全量拉取的「单飞」登记表。必须由连接器跨实例共享：
+        #: 每次 ``client_for`` 都新建本对象，挂在实例上等于没有合并。
+        self._states_snapshot_registry = states_snapshot_registry
         # control_pool 非空时，控制类请求（调服务）走共享连接池，由 HAControlPool 决定
         # 是否复用已有连接、何时淘汰；缺省 None 表示每次新建（测试与一次性脚本的用法）。
         self._control_pool = control_pool
@@ -394,7 +398,9 @@ class HAClient:
         if len(requested) >= 4:
             try:
                 payload = await fetch_all_states_single_flight(
-                    self, lambda: HAAuthError(ha_errors.token_invalid())
+                    self,
+                    lambda: HAAuthError(ha_errors.token_invalid()),
+                    registry=self._states_snapshot_registry,
                 )
                 if isinstance(payload, list):
                     return [
@@ -541,6 +547,10 @@ class HAClient:
                         "请提高 APP_HA_WEBSOCKET_MAX_SIZE_BYTES 或减少异常庞大的实体属性。"
                     ) from error
                 raise HAClientError(f"Home Assistant 命令 {command_type} 连接中断：{error}") from error
+            except (TypeError, ValueError) as error:
+                # 非 JSON 帧：按「连接层故障」处理（一行摘要 + 重连可恢复），不要落进
+                # 「未预期异常」分支打一份与真实原因无关的堆栈。
+                raise HAClientError(f"Home Assistant 命令 {command_type} 返回了非法 JSON：{error}") from error
             if message.get("id") != message_id:
                 continue
             if message.get("type") != "result" or not message.get("success"):
@@ -590,7 +600,10 @@ class HAClient:
             )
         buffered_events = []
         while pending:
-            message = json.loads(await websocket.recv())
+            try:
+                message = json.loads(await websocket.recv())
+            except (TypeError, ValueError) as error:
+                raise HAClientError(f"订阅 HA 事件时收到非法 JSON：{error}") from error
             if message.get("type") == "event":
                 buffered_events.append(message)
                 continue
@@ -605,7 +618,12 @@ class HAClient:
                 raise HAClientError(str(error.get("message") or f"订阅 HA 事件 {event_type} 失败。"))
         return buffered_events
 
-    async def subscribe_entities(self, websocket, start_id: int = 200) -> list[dict[str, Any]]:
+    async def subscribe_entities(
+        self,
+        websocket,
+        start_id: int = 200,
+        timeout: float | None = None,
+    ) -> list[dict[str, Any]]:
         """订阅压缩状态流（``subscribe_entities``）。
 
         返回握手期间读到的其它事件（例如同时订阅的注册表事件），交给调用方按原路径分派；
@@ -613,7 +631,19 @@ class HAClient:
 
         协议细节：HA 先回 ``result``，紧接着在同一回调里推送首帧全量状态，
         因此这里只需要等到 ``result``；把期间读到的 ``event`` 消息一并带回即可。
+
+        ``timeout``：等 ``result`` 的超时，与 ``subscribe_events`` 同一口径。
+        反代把 WebSocket 挂住时 ``recv`` 不会返回；不给超时就会永远停在「连接中」，
+        既不报错也不进入重连循环。
         """
+        try:
+            async with asyncio.timeout(timeout):
+                return await HAClient._subscribe_entities(websocket, start_id)
+        except TimeoutError as error:
+            raise HAClientError("Home Assistant 压缩状态流订阅确认超时。") from error
+
+    @staticmethod
+    async def _subscribe_entities(websocket, start_id: int) -> list[dict[str, Any]]:
         message_id = start_id
         await websocket.send(json.dumps({"id": message_id, "type": "subscribe_entities"}))
         buffered_events: list[dict[str, Any]] = []

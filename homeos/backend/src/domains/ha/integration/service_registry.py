@@ -25,6 +25,12 @@ from ....platform.core.db.models import (
 )
 
 
+def _event_changes(event_data: dict[str, Any]) -> dict[str, Any]:
+    """``changes`` 只接受 dict；其它形状按「没有变更前值」处理。"""
+    changes = event_data.get('changes')
+    return changes if isinstance(changes, dict) else {}
+
+
 class HARegistryMixin(HAConnectorHost):
     """HA 注册表事件订阅与防抖刷新。"""
 
@@ -36,23 +42,42 @@ class HARegistryMixin(HAConnectorHost):
         返回 ``action`` 供调用方判断是否需要广播；事件被忽略时返回 ``None``，
         **且不产生任何写入** —— 缺 id 的事件不该让 ``catalog_revision`` 自增。
         """
-        action = str(event_data.get('action') or 'update')
-        if action not in {'create', 'remove', 'update'}:
-            return None
+        applied = self._apply_registry_events_batch(connection_id, [(event_type, event_data)])
+        return applied[0][2] if applied else None
+
+    def _apply_registry_events_batch(
+        self, connection_id: str, events: list[tuple[str, dict[str, Any]]]
+    ) -> list[tuple[str, dict[str, Any], str]]:
+        """在一**个**事务里落一批注册表事件，返回真正生效的 ``(类型, 数据, action)``。
+
+        为什么成批：HA 重启 / 集成重载时 ``entity_registry_updated`` 会成串到达，
+        逐条路径每条都要开一次 session、提交一次、跑三次 ``COUNT(*)``。合并成批后
+        事务数与计数查询都从 O(N) 降到 O(1)，收包循环也不再被它阻塞
+        （调用方在独立 worker 里跑，见 ``service_live._run_registry_worker``）。
+        """
+        applied_events: list[tuple[str, dict[str, Any], str]] = []
         now = utc_now()
-        changes_value = event_data.get('changes')
-        changes = changes_value if isinstance(changes_value, dict) else {}
         with self.database.session_factory() as database:
-            if event_type == 'entity_registry_updated':
-                applied = self._apply_entity_registry_event(database, connection_id, action, event_data, changes, now)
-            elif event_type == 'device_registry_updated':
-                applied = self._apply_device_registry_event(database, connection_id, action, event_data, now)
-            else:
-                applied = self._apply_area_registry_event(database, connection_id, action, event_data, now)
-            if not applied:
-                return None
+            for event_type, event_data in events:
+                action = str(event_data.get('action') or 'update')
+                if action not in {'create', 'remove', 'update'}:
+                    continue
+                if event_type == 'entity_registry_updated':
+                    applied = self._apply_entity_registry_event(
+                        database, connection_id, action, event_data, _event_changes(event_data), now
+                    )
+                elif event_type == 'device_registry_updated':
+                    applied = self._apply_device_registry_event(database, connection_id, action, event_data, now)
+                elif event_type == 'area_registry_updated':
+                    applied = self._apply_area_registry_event(database, connection_id, action, event_data, now)
+                else:
+                    applied = False
+                if applied:
+                    applied_events.append((event_type, event_data, action))
+            if not applied_events:
+                return []
             self._commit_registry_state(database, connection_id, now)
-        return action
+        return applied_events
 
     def _apply_entity_registry_event(self, database, connection_id: str, action: str, event_data: dict[str, Any], changes: dict[str, Any], now) -> bool:
         """``entity_registry_updated``：含 entity_id 改名（改名要连旧行一起搬）。"""

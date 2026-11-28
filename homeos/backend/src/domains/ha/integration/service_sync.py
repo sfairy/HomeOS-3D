@@ -283,6 +283,8 @@ class HASyncMixin(HAConnectorHost):
                     self._initial_sync_logged = True
                 # 记录最近一次全量成功时刻：重连时据此决定能否跳过全量（fast reconnect）。
                 self._last_full_sync_at = time.monotonic()
+                # 同时钉住「这份基线属于哪条连接」：换 HA 后旧基线必须作废（见 _can_fast_reconnect）。
+                self._live_seed_connection_id = connection.id
                 record_ha_counter("full_sync")
                 record_ha_sync_latency("full_sync", (self._last_full_sync_at - started) * 1000)
                 return counts

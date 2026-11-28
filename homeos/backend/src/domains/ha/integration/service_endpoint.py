@@ -27,6 +27,7 @@ from .service_support import (
     HISTORY_CACHE_SECONDS,
     LOGGER,
     TRANSLATION_CACHE_SECONDS,
+    WS_PONG_TIMEOUT_FLOOR_SECONDS,
 )
 from .weather_forecast import read_weather_forecast
 from ....platform.core.db.models import HAConnection
@@ -184,8 +185,13 @@ class HAEndpointMixin(HAConnectorHost):
         except (TypeError, ValueError):
             ping_interval, pong_timeout_ms, max_misses = 15.0, 10_000, 2
         # websockets 只暴露「单次 pong 等待窗口」，无法直接表达「连续 N 次未响应才断开」；
-        # 用 wsPongTimeoutMs × wsHeartbeatMaxMisses 近似「容忍 N 次心跳未响应」的总窗口。
-        ping_timeout = (pong_timeout_ms * max_misses) / 1000.0
+        # 用 wsPongTimeoutMs × wsHeartbeatMaxMisses 近似「容忍 N 次心跳未响应」的总窗口，
+        # 但不允许低于下限：一次丢包就拆连接会付出一次全量同步，而 HA 的瞬时卡顿往往
+        # 几秒内就恢复（见 WS_PONG_TIMEOUT_FLOOR_SECONDS 的实测说明）。
+        ping_timeout = max(
+            (pong_timeout_ms * max_misses) / 1000.0,
+            WS_PONG_TIMEOUT_FLOOR_SECONDS,
+        )
         return HAClient(
             endpoint.base_url, token,
             verify_tls = endpoint.verify_tls,
@@ -198,6 +204,7 @@ class HAEndpointMixin(HAConnectorHost):
             ws_ping_timeout = ping_timeout,
             use_subscribe_entities = bool(connector.get('useSubscribeEntities')),
             subscribe_entities_shadow = bool(connector.get('subscribeEntitiesShadow')),
+            states_snapshot_registry = self._states_snapshot_tasks,
         )
 
     def _control_configuration(self) -> HAControlConfiguration | None:

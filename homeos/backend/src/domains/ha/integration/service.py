@@ -89,6 +89,16 @@ class HAConnectorService(
         self._live_seed: dict[str, tuple[str, float | None]] = {}
         # 最近一次全量同步成功的单调时钟（秒）；重连时用于判定能否跳过全量。
         self._last_full_sync_at: float = 0.0
+        #: ``_live_seed`` / ``_last_full_sync_at`` 属于哪条连接。换 HA（或删连接重建）后
+        #: 拿旧实例的基线去比对会把新 HA 的首帧全量误判成「已一致」而抑制掉。
+        self._live_seed_connection_id: str | None = None
+        #: 压缩流解码器缺基线的待补实体（见 HALiveMixin._heal_decoder_baseline）。
+        self._decoder_heal_pending: set[str] = set()
+        #: 注册表事件队列（收包循环只入队，落库由独立 worker 成批完成）。
+        self._registry_event_queue: asyncio.Queue[tuple[str, dict[str, Any]]] | None = None
+        #: 读取类请求「单飞」的共享登记表：``HAClient`` 每次 ``client_for`` 都是新实例，
+        #: 在途任务挂在实例上等于没有合并（多块屏同时上线各拉一份全量 1455 实体）。
+        self._states_snapshot_tasks: dict[str, asyncio.Task[Any]] = {}
         self._database_lock = asyncio.Lock()
         self._connected = False
         # 当前连接的 HA 版本号（内存镜像，权威值在 ``HAConnection.ha_version``）。
@@ -170,7 +180,11 @@ class HAConnectorService(
         否则新连接的墙屏会读到上一台机器的位置。
         """
         memory = self.cover_memory
-        memory.credential = self._active_credential()
+        # ``credential`` 是「取当前凭据」的回调（见 CoverMemory.__init__），不是凭据值：
+        # 赋值 ``self._active_credential()`` 会把回调覆盖成字符串，下一次
+        # ``connection_scope()`` 调它时直接抛 'str' object is not callable，
+        # 作用域退回空串 → 位置记忆被暂停且每次重连都清空一次。
+        # 这里只 activate：回调会在每次取作用域时重新读库，换连接天然生效。
         memory.activate()
         self.state_hub.source_key = memory.scope
         # 0.8.9：同时刷新「面向浏览器的连接身份」。身份只由 base_url + 凭据指纹决定，
@@ -410,6 +424,11 @@ class HAConnectorService(
             'status': status,
             **{key: value for key, value in extra.items() if value is not None},
         })
+        # 换 HA 判定只看 identity：断连重连不换身份，缓存继续有效。这里断连只改在线
+        # 事实：``runtime_online`` 曾在连上时置真，断开后仍是 True，诊断页与写请求
+        # 拿到的是「在线」这种与事实不符的口径。
+        if status != "connected":
+            self.state_hub.set_runtime_online(False)
         listener = self._connection_listener
         if status == 'reconnecting':
             record_ha_counter('reconnect')

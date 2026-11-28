@@ -333,7 +333,12 @@ class LiveStateEventQueue:
         except Exception:
             self._requeue_failed(changes)
             raise
-        self._flush_retries.clear()
+        # 只清本批实体的重试计数：旧实现整表 clear()，会把其它实体的连续失败次数
+        # 一并抹掉，重试上限（LIVE_EVENT_FLUSH_MAX_RETRIES）因此永远达不到。
+        for change in changes:
+            entity_id = str(change.get('entity_id') or '')
+            if entity_id:
+                self._flush_retries.pop(entity_id, None)
 
     def _requeue_failed(self, changes: list[dict[str, Any]]) -> None:
         """落地失败：把这批变化放回队列等下一个窗口，超过重试上限才丢弃并计数。

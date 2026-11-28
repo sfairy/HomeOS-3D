@@ -237,12 +237,10 @@ def register_exception_handlers(app: FastAPI, settings: Settings) -> None:
     async def _validation_error(request: Request, exc: RequestValidationError):
         # 复刻 Nest ValidationPipe：400 + 展平后的 message 数组。
         status = 400
-        parts: list[str] = []
-        for item in exc.errors():
-            loc = ".".join(str(part) for part in item.get("loc", []) if part != "body")
-            msg = str(item.get("msg", "")).replace("Value error, ", "")
-            parts.append(f"{loc}: {msg}" if loc else msg)
-        message = "；".join(dict.fromkeys(parts)) or validation_reason(exc.errors())
+        # ``message`` 是给用户看的：pydantic 原生文案是英文（``String should have at
+        # least 1 character``），必须逐条翻成中文 —— 前端只读这个字段，原样透出等于让
+        # 中文界面弹一句英文。字段标签 / 长度上限都在 ``validation_reason`` 里统一处理。
+        message = validation_reason(exc.errors())
         message = localize_http_exception_message(message, status, "Bad Request")
         trace_id = get_trace_id() or request.headers.get("x-trace-id")
         tag_error(request, error_code=str(ErrorCode.UNKNOWN), message=message)

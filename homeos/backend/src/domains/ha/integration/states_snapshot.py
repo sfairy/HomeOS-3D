@@ -19,13 +19,27 @@ import asyncio
 from collections.abc import Callable
 from typing import Any
 
-#: 在途任务挂在 client 上的属性名。
+#: 在途任务挂在 client 上（缺省）或调用方提供的共享登记表里的键名。
 _INFLIGHT_ATTR = "_states_snapshot_task"
 
 
-async def fetch_all_states_single_flight(client: Any, auth_error: Callable[[], Exception]) -> Any:
-    """拉全量 ``/api/states``；同一 client 的并发调用共享同一个在途请求。"""
-    task = getattr(client, _INFLIGHT_ATTR, None)
+async def fetch_all_states_single_flight(
+    client: Any,
+    auth_error: Callable[[], Exception],
+    registry: dict[str, Any] | None = None,
+) -> Any:
+    """拉全量 ``/api/states``；同一 ``registry`` 上的并发调用共享同一个在途请求。
+
+    ``registry`` 必须由调用方提供**跨实例共享**的字典（连接器级别）：``client_for``
+    每次都会新建 ``HAClient``，在途任务挂在实例上就等于没有合并 —— 多块屏同时上线
+    仍会各拉一份全量（实测 1455 个实体）。缺省时退回实例属性，保持单测与一次性脚本
+    的既有语义。
+    """
+    owner = registry if registry is not None else client.__dict__
+    # 按基地址分桶：同一份登记表被多条 HA 连接记录共用时（换地址 / 主备端点切换），
+    # 不同实例的在途请求绝不能合并 —— 否则会把 A 的全量状态喂给 B。
+    key = f"{_INFLIGHT_ATTR}:{getattr(client, 'base_url', '') or ''}"
+    task = owner.get(key)
     if task is None or task.done():
 
         async def load() -> Any:
@@ -41,7 +55,7 @@ async def fetch_all_states_single_flight(client: Any, auth_error: Callable[[], E
                 return response.json()
 
         task = asyncio.ensure_future(load())
-        setattr(client, _INFLIGHT_ATTR, task)
+        owner[key] = task
         # 所有等待者都被取消时任务仍会完成；兜底取一次异常，避免
         # "Task exception was never retrieved" 的日志噪音。
         task.add_done_callback(lambda finished: finished.exception() if not finished.cancelled() else None)

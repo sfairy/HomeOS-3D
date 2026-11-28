@@ -27,6 +27,46 @@ import {
   relatedVacuumStatusEntities as relatedVacuumStatusEntities2,
 } from '@app/shared/device'
 
+/**
+ * 实时通道静默阈值（毫秒）。
+ *
+ * 服务端在空闲时每 25s 发一帧 ``{"type":"ping"}``（见 ``api/ha/routes.py`` 的
+ * ``send_updates``），因此「65s 内一帧都没有」只可能是连接已经半死：Wi-Fi 切换、
+ * NAT 表项过期、页面被冻结后 TCP 连接被中间设备回收。浏览器在这种情况下经常
+ * **不触发** ``close``，界面就会一直停在旧值，只有手动刷新才恢复（旧实现正是如此：
+ * 仪表盘渲染器只监听 close/error，没有心跳与连接超时）。
+ */
+const RUNTIME_SILENCE_TIMEOUT_MS = 65_000
+
+/** 重新武装静默看门狗（每次收到任何帧都调用）。 */
+function armRuntimeWatchdog(self: PanelRenderer): void {
+  window.clearTimeout(self.runtimeWatchdogTimer!)
+  self.runtimeWatchdogTimer = window.setTimeout(() => {
+    self.runtimeWatchdogTimer = null
+    const socket = self.socket
+    // 主动断开已经被别处接管（断开/重连中）：不重复动作。
+    if (!socket || socket.readyState === WebSocket.CLOSED) return
+    window.HomeOSLog?.report!(
+      'warning',
+      '实时连接',
+      `实时状态连接超过 ${RUNTIME_SILENCE_TIMEOUT_MS / 1000} 秒没有任何数据帧，主动重连`,
+      { phase: 'websocket-stalled', path: '/api/v1/ws/runtime' },
+    )!
+    // 关掉之后由 close 回调里的指数退避重连接手，不在这里另开一条连接。
+    try {
+      socket.close()
+    } catch {
+      /* 已经关掉：close 回调不会再触发，下一次 configure 会重建 */
+    }
+  }, RUNTIME_SILENCE_TIMEOUT_MS)
+}
+
+/** 清除静默看门狗（断开 / 停机 / bfcache 冻结）。 */
+function clearRuntimeWatchdog(self: PanelRenderer): void {
+  window.clearTimeout(self.runtimeWatchdogTimer!)
+  self.runtimeWatchdogTimer = null
+}
+
 export function connectRuntime(this: PanelRenderer, { force: isForcedConnect = false } = {}) {
   if (!this.document || this.destroyed) {
     this.disconnectRuntime()
@@ -234,6 +274,9 @@ export function connectRuntime(this: PanelRenderer, { force: isForcedConnect = f
             path: '/api/v1/ws/runtime',
           })!,
         (this.reconnectAttempt = 0),
+        // 握手期也要有上限：服务端若一直不回快照（订阅帧丢失 / 反代挂住），
+        // 看门狗会在 65s 后主动重连，而不是让面板永久停在旧值。
+        armRuntimeWatchdog(this),
         webSocket.send(
           JSON.stringify({
             type: 'subscribe',
@@ -246,6 +289,8 @@ export function connectRuntime(this: PanelRenderer, { force: isForcedConnect = f
     }),
     webSocket.addEventListener('message', (socketMessageEvent) => {
       if (socketGeneration !== this.socketGeneration) return
+      // 任何一帧（快照 / 增量 / 服务端 ping）都证明连接还活着。
+      armRuntimeWatchdog(this)
       const { entityIds: subscriptionEntityIds } = runtimeSubscriptionOptions
       let runtimeMessage
       try {
@@ -415,6 +460,7 @@ export function connectRuntime(this: PanelRenderer, { force: isForcedConnect = f
     }),
     webSocket.addEventListener('close', (socketCloseEvent) => {
       if (socketGeneration !== this.socketGeneration || this.destroyed) return
+      clearRuntimeWatchdog(this)
       if (
         (this.pauseRuntimeFlowLines(),
         (this.runtimeHaConnected = false),
@@ -569,6 +615,7 @@ function sendRuntimeSubscriptionUpdate(self: PanelRenderer, subscription: Runtim
 export function suspendRuntime(this: PanelRenderer) {
   if (this.destroyed) return
   window.clearTimeout(this.reconnectTimer!), (this.reconnectTimer = null)
+  clearRuntimeWatchdog(this)
   this.runtimeSuspended = true
   // 增代让这次主动关闭触发的 close 回调直接失效，否则它会再排一轮退避重连，
   // 与我们回来时的手动重连撞在一起。

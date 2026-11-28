@@ -50,8 +50,14 @@ CODE_HINTS: dict[str, str] = {
 #: 错误响应里的字段名 → 中文标签（校验失败可读化，只用于日志/提示，不改响应体）。
 FIELD_LABELS: dict[str, str] = {
     "username": "账号",
+    "email": "邮箱",
+    "code": "验证码",
     "password": "密码",
     "passwordConfirmation": "确认密码",
+    "confirmPassword": "确认密码",
+    "currentPassword": "当前密码",
+    "newPassword": "新密码",
+    "newPasswordConfirmation": "确认新密码",
     "adminPassword": "管理员密码",
     "activationCode": "激活码",
     "backupPassword": "备份密码",
@@ -201,13 +207,32 @@ def _field_label(position: Any) -> str:
     return FIELD_LABELS.get(text, f"字段（{text[:30]}）")
 
 
+#: FastAPI 会把请求体包在 ``body`` 下、查询参数包在 ``query`` 下；这些都是位置前缀，
+#: 不是字段名。原样拼进文案会得到「字段（body）两次输入的密码不一致」这种句子。
+_LOCATION_PREFIXES = frozenset({"body", "query", "path", "header", "cookie"})
+
+
 def _validation_message(error: dict[str, Any]) -> str:
-    parts = [_field_label(part) for part in (error.get("loc") or []) if isinstance(part, (str, int))]
+    positions = [
+        part
+        for part in (error.get("loc") or [])
+        if isinstance(part, (str, int)) and not (isinstance(part, str) and part in _LOCATION_PREFIXES)
+    ]
+    parts = [_field_label(part) for part in positions]
     where = " › ".join(parts) or "请求参数"
-    message = str(error.get("msg") or "")
+    message = str(error.get("msg") or "").removeprefix("Value error, ").strip()
+    if not message:
+        return f"{where}未通过校验。"
     if re.search(r"[\u4e00-\u9fff]", message):
+        # 业务自定义校验器抛的中文本身就是完整句子（且常已自报字段，如「密码至少 8 位…」）：
+        # 再前缀一次字段名会得到「密码密码至少 8 位」。字段名已出现在句首时原样返回。
+        label = parts[-1] if parts else ""
+        if where == "请求参数" or message.startswith(where) or (label and message.startswith(label)):
+            return message
         return where + message if message.startswith("是") else f"{where}{message}"
     kind = str(error.get("type") or "")
+    context = error.get("ctx")
+    ctx = context if isinstance(context, dict) else {}
     reasons = {
         "missing": "不能为空。",
         "int_parsing": "需要填写整数。",
@@ -215,12 +240,33 @@ def _validation_message(error: dict[str, Any]) -> str:
         "float_parsing": "需要填写有效数字。",
         "float_type": "需要填写有效数字。",
         "string_type": "需要填写文本。",
-        "string_too_short": "长度不足。",
-        "string_too_long": "长度超过限制。",
+        "bool_parsing": "需要填写是 / 否。",
+        "string_too_short": _length_reason(ctx, "至少需要", "个字符", "长度不足。"),
+        "string_too_long": _length_reason(ctx, "最多", "个字符", "长度超过限制。"),
+        "too_short": _length_reason(ctx, "至少需要", "项", "数量不足。"),
+        "too_long": _length_reason(ctx, "最多", "项", "数量超过限制。"),
+        "greater_than_equal": _number_reason(ctx, "ge", "不能小于"),
+        "less_than_equal": _number_reason(ctx, "le", "不能大于"),
         "literal_error": "不在允许的选项中。",
         "extra_forbidden": "是不支持的字段。",
     }
     return where + reasons.get(kind, "格式不正确，校验位置见日志详情。")
+
+
+def _length_reason(ctx: dict[str, Any], word: str, unit: str, fallback: str) -> str:
+    """用 pydantic ``ctx`` 里的长度上限拼出可执行文案（「至少需要 8 个字符。」）。"""
+    for key in ("min_length", "max_length"):
+        value = ctx.get(key)
+        if isinstance(value, int) and not isinstance(value, bool):
+            return f"{word} {value} {unit}。"
+    return fallback
+
+
+def _number_reason(ctx: dict[str, Any], key: str, word: str) -> str:
+    value = ctx.get(key)
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return f"{word} {value}。"
+    return "数值超出允许范围。"
 
 
 def validation_reason(errors: Any) -> str:
@@ -228,7 +274,7 @@ def validation_reason(errors: Any) -> str:
     if not isinstance(errors, (list, tuple)):
         return "请求参数未通过校验。"
     items = [error for error in errors[:4] if isinstance(error, dict)]
-    text = "；".join(_validation_message(error) for error in items) or "请求参数未通过校验。"
+    text = "；".join(dict.fromkeys(_validation_message(error) for error in items)) or "请求参数未通过校验。"
     extra = len(errors) - len(items)
     return text + (f"另有 {extra} 处参数问题，见详情。" if extra > 0 else "")
 

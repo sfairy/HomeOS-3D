@@ -39,6 +39,10 @@ class HAConnectorHost:
     _known_entity_ids: Any = None
     _last_connection_status: Any = None
     _last_full_sync_at: Any = None
+    _live_seed_connection_id: Any = None
+    _decoder_heal_pending: Any = None
+    _registry_event_queue: Any = None
+    _states_snapshot_tasks: Any = None
     _lifecycle_lock: Any = None
     _live_seed: Any = None
     _persistent_entity_ids: Any = None
@@ -72,6 +76,13 @@ class HAConnectorHost:
     _discard_history_fetch: Any = None
     _dispatch_live_event: Any = None
     _dispatch_message: Any = None
+    _enqueue_registry_event: Any = None
+    _heal_decoder_baseline: Any = None
+    _run_registry_worker: Any = None
+    _stop_registry_worker: Any = None
+    _apply_registry_batch: Any = None
+    _apply_registry_events_batch: Any = None
+    _record_deferred_dwell: Any = None
     _fetch_and_cache_history: Any = None
     _flush_live_state_changes: Any = None
     _ha_tuning: Any = None

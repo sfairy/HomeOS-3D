@@ -601,6 +601,8 @@ export function disconnectRuntime(self: PanelRenderer) {
     (self.socketGeneration += 1),
     window.clearTimeout(self.reconnectTimer!),
     (self.reconnectTimer = null),
+    window.clearTimeout(self.runtimeWatchdogTimer!),
+    (self.runtimeWatchdogTimer = null),
     window.clearTimeout(self.runtimeHydrationRetryTimer!),
     (self.runtimeHydrationRetryTimer = null),
     // 断连后重置恢复判定：否则重连回来的第一帧会被当成「恢复」，白清一遍历史缓存。

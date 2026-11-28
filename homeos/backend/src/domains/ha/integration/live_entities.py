@@ -176,8 +176,12 @@ class CompressedStateDecoder:
         self._states: dict[str, dict[str, Any]] = {}
         self._seed: dict[str, tuple[str, float | None]] = dict(seed or {})
         self._initialized = False
-        #: 出现无法解释的增量（基线缺失）时置位，由调用方安排一次全量对账。
+        #: 出现无法解释的增量（基线缺失）时置位，由调用方处理（见 ``take_missing_baseline``）。
         self.needs_resync = False
+        #: 缺**基线**的实体：压缩帧只有 diff，没有上一份完整状态就还原不出 old_state /
+        #: 属性增量。调用方按这个集合做**定向**补齐（REST 单实体），不要为了一两个实体
+        #: 就整轮全量对账 —— 那会把「一条异常帧」放大成「周期全量同步」。
+        self.missing_baseline: set[str] = set()
         #: 统计：解码的帧数 / 实体数，便于和影子订阅对账。
         self.frames = 0
         self.entities = 0
@@ -266,20 +270,52 @@ class CompressedStateDecoder:
             previous = self._states.get(entity_id)
             if previous is None:
                 # 没有基线就没法还原 old_state / 合并属性增量。静默跳过会让下游
-                # 永远停在旧值，所以标记重同步，交给全量对账修复。
+                # 永远停在旧值，所以记下实体，交给调用方按实体定向补齐
+                # （``take_missing_baseline`` / ``adopt``），补齐失败才退化成全量对账。
+                self.missing_baseline.add(entity_id)
                 self.needs_resync = True
-                record_ha_counter('decode_resync')
-                LOGGER.debug('HA 压缩状态缺少基线，将触发一次全量对账：%s', entity_id)
+                LOGGER.debug('HA 压缩状态缺少基线，将按实体补齐：%s', entity_id)
                 continue
             if not isinstance(diff, Mapping):
+                self.missing_baseline.add(entity_id)
                 self.needs_resync = True
-                record_ha_counter('decode_resync')
                 continue
             current = _apply_diff(previous, diff)
             self._states[entity_id] = current
             self.entities += 1
             emitted.append(_state_message(entity_id, previous, current))
         return emitted
+
+    def take_missing_baseline(self) -> set[str]:
+        """取走「缺基线」的实体集合（调用方负责补齐或退化成全量对账）。"""
+        pending = set(self.missing_baseline)
+        self.missing_baseline.clear()
+        return pending
+
+    def adopt(self, state: Mapping[str, Any]) -> dict[str, Any] | None:
+        """用一份 REST 全量状态补上缺失的基线，返回可直接派发的 ``state_changed`` 消息。
+
+        只补**这一个实体**，不重建整份解码器：压缩流的下一条 diff 就能正常合并，
+        不需要为了一条异常帧重做一次全量同步。
+        """
+        entity_id = str(state.get('entity_id') or '')
+        if not entity_id:
+            return None
+        full = {
+            'entity_id': entity_id,
+            'state': state.get('state', 'unknown'),
+            'attributes': dict(state.get('attributes') or {}) if isinstance(state.get('attributes'), dict) else {},
+            'last_changed': state.get('last_changed'),
+            'last_updated': state.get('last_updated') or state.get('last_changed'),
+            'context': dict(state.get('context') or {}) if isinstance(state.get('context'), dict) else {},
+        }
+        self._states[entity_id] = full
+        self._seed.pop(entity_id, None)
+        self.missing_baseline.discard(entity_id)
+        self.entities += 1
+        # old=None：这份状态来自 HA 的权威读取，下游按「新值」覆盖即可（L1 侧另有
+        # ``last_updated`` 单调守卫，晚到更旧的帧会被拒）。
+        return _state_message(entity_id, None, full)
 
 
 class ShadowStateTracker:

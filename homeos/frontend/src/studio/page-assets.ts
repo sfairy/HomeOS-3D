@@ -288,9 +288,12 @@ export function adoptPreloadedStylesheets(): void {
   if (preloads.length === 0) return
   let cursor: Element | null = document.head.querySelector(ANCHOR_SELECTOR)
   for (const el of preloads) {
+    // 顺序不能反：先 `removeAttribute('as')` 会在 `rel` 还是 `preload` 时重新求值一次，
+    // Chrome 立刻报「<link rel=preload> must have a valid `as` value」—— 每张预载表一条
+    // （总览 / 编辑器各 5 张，控制台就是 5 条噪音）。先切 `rel` 后摘 `as`，预载校验不再触发。
+    el.rel = 'stylesheet'
     // `as` 只对预载有意义；留着会让部分工具把它当成「还是一张预载」。
     el.removeAttribute('as')
-    el.rel = 'stylesheet'
     cursor = placeManagedStylesheet(el, cursor)
   }
 }

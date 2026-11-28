@@ -31,12 +31,18 @@ from .service_support import (
     LIVE_EVENT_TYPES,
     LOGGER,
     OFFLINE_LOG_INTERVAL_SECONDS,
+    REGISTRY_EVENT_BATCH_MAX,
+    REGISTRY_EVENT_QUEUE_MAX,
     classify_connector_failure,
     classify_disconnect_reason,
 )
 from ..config.perf_windows import resolve_live_event_batch_window_seconds
 from ...logs.global_log import _safe_text
-from ....platform.core.runtime.observability import record_ha_counter, record_ha_sync_latency
+from ....platform.core.runtime.observability import (
+    record_ha_counter,
+    record_ha_sync_latency,
+    record_ha_ws_deferred_dropped,
+)
 
 #: HA 注册表事件 → 进程内事件名（区域索引与语音快路径缓存据此失效）。
 _REGISTRY_EVENT_NAMES = {
@@ -44,6 +50,29 @@ _REGISTRY_EVENT_NAMES = {
     "device_registry_updated": "ha.device_registry_updated",
     "area_registry_updated": "ha.area_registry_updated",
 }
+
+
+def _removed_entities_for_registry_event(event_data: Mapping[str, Any], action: str) -> set[str]:
+    """一条 ``entity_registry_updated`` 之后应当从读模型里摘掉的实体 id。
+
+    三种来源：改名（旧 id 不再存在）、删除、以及被禁用。``changes`` 存的是**变更前**
+    的旧值，因此 ``changes.disabled_by is None`` 恰恰表示「之前没禁用、现在禁用了」。
+    """
+    entity_id = str(event_data.get("entity_id") or "")
+    changes_value = event_data.get("changes")
+    changes = changes_value if isinstance(changes_value, Mapping) else {}
+    removed: set[str] = set()
+    old_entity_id = str(changes.get("entity_id") or "")
+    if old_entity_id and old_entity_id != entity_id:
+        removed.add(old_entity_id)
+    if action == "remove":
+        removed.add(entity_id)
+    elif "disabled_by" in event_data:
+        if event_data.get("disabled_by"):
+            removed.add(entity_id)
+    elif "disabled_by" in changes and changes.get("disabled_by") is None:
+        removed.add(entity_id)
+    return removed
 
 
 def _event_lag_ms(time_fired: Any) -> float | None:
@@ -94,7 +123,7 @@ class HALiveMixin(HAConnectorHost):
                 # 上一轮遗留的周期对账可能还卡在全量快照上：先取消，避免这次重连同步
                 # 在 _sync_lock 上排队等它跑完。
                 await self._cancel_reconcile()
-                fast_reconnect = self._can_fast_reconnect()
+                fast_reconnect = self._can_fast_reconnect(connection_id)
                 if fast_reconnect:
                     # 刚同步过、且用压缩状态流：断连窗口内的差异会由
                     # ``subscribe_entities`` 的首帧全量 + 解码器比对补齐，
@@ -257,7 +286,7 @@ class HALiveMixin(HAConnectorHost):
         connector = self._ha_tuning()["haConnector"]
         return resolve_live_event_batch_window_seconds(connector.get("liveEventBatchWindowMs"))
 
-    def _can_fast_reconnect(self) -> bool:
+    def _can_fast_reconnect(self, connection_id: str) -> bool:
         """重连是否可以跳过全量同步。
 
         必须同时满足：
@@ -265,6 +294,8 @@ class HALiveMixin(HAConnectorHost):
         - 开关打开（``haConnector.fastReconnectEnabled``，默认开）；
         - 正在使用 ``subscribe_entities``：它的首帧全量 + 解码器比对能把断连窗口内的
           状态差异补齐。用 ``subscribe_events`` 时没有这个能力，跳过就会静默丢状态；
+        - 基线属于**这条连接**（``_live_seed_connection_id``）：换 HA 之后拿旧实例的
+          基线去比对，会把新 HA 的首帧全量误判成「与快照一致」而抑制掉；
         - 距上次全量成功不超过 ``fastReconnectWindowMs``（默认 120s），避免长时间离线后
           拿一份过旧的基线去比。
         """
@@ -274,6 +305,9 @@ class HALiveMixin(HAConnectorHost):
         if not connector.get("useSubscribeEntities"):
             return False
         if self._last_full_sync_at <= 0:
+            return False
+        if self._live_seed_connection_id != connection_id:
+            # seed / 时间戳都不属于这条连接（换 HA、删连接重建）：只能全量同步。
             return False
         try:
             window_ms = max(int(connector.get("fastReconnectWindowMs") or 120_000), 1_000)
@@ -305,6 +339,14 @@ class HALiveMixin(HAConnectorHost):
         )
         # ``subscribe_entities`` 只承载状态流，注册表变更仍需单独订阅。
         registry_event_types = tuple(event_type for event_type in LIVE_EVENT_TYPES if event_type != "state_changed")
+        # 注册表事件不能落在收包循环上：HA 重启 / 集成重载时它们成串到达，每条一次事务
+        # + 三次 COUNT + 一次目录广播，会把 recv 循环堵住（实时连接 max_queue 只有 4，
+        # 反压会立刻传回 HA）。这里只入队，由独立 worker 成批落库。
+        self._registry_event_queue = asyncio.Queue(maxsize=REGISTRY_EVENT_QUEUE_MAX)
+        registry_worker: asyncio.Task[Any] | None = asyncio.create_task(
+            self._run_registry_worker(connection_id), name="ha-registry-events"
+        )
+        baseline_heal_task: asyncio.Task[Any] | None = None
         decoder: CompressedStateDecoder | None = None
         shadow: ShadowStateTracker | None = None
         compressed_stream = False
@@ -337,7 +379,10 @@ class HALiveMixin(HAConnectorHost):
             # 解码器的比对基线必须是「刚落地的那份快照」：先订阅后同步时它只能在同步之后
             # 创建，否则首帧全量里的每个实体都会拿旧基线比对失败，等于重连广播一次全屋。
             if compressed_stream:
-                decoder = CompressedStateDecoder(seed=self._live_seed)
+                # 基线还必须属于这条连接：换 HA 之后旧实例的 seed 会把新 HA 的首帧
+                # 全部当成「与快照一致」而抑制掉（见 _can_fast_reconnect）。
+                seed = self._live_seed if self._live_seed_connection_id == connection_id else {}
+                decoder = CompressedStateDecoder(seed=seed)
                 if shadow_stream:
                     shadow = ShadowStateTracker()
             await self._run_database(self._mark_connected, connection_id)
@@ -387,19 +432,72 @@ class HALiveMixin(HAConnectorHost):
                     # 能抛出来的是注册表落库 —— 下一轮周期对账会把它补回来。
                     LOGGER.warning("HA 实时事件分派失败，已跳过", exc_info=True)
                 if decoder is not None and decoder.needs_resync:
-                    # 增量基线缺失：先安排一次全量对账，由对账重建快照（并刷新 _live_seed）。
+                    # 增量基线缺失：先按实体定向补齐（只重拉那几个实体），补齐失败才退化成
+                    # 一次全量对账。旧实现只排对账且**不修解码器基线**，于是同一实体每来
+                    # 一条变更就再触发一次全量同步（`_live_seed` 只在新解码器上生效）。
                     decoder.needs_resync = False
-                    self.schedule_reconcile(connection_id)
+                    missing = decoder.take_missing_baseline()
+                    if missing:
+                        if baseline_heal_task is not None and not baseline_heal_task.done():
+                            self._decoder_heal_pending.update(missing)
+                        else:
+                            self._decoder_heal_pending.update(missing)
+                            baseline_heal_task = asyncio.create_task(
+                                self._heal_decoder_baseline(connection_id, client, decoder, events),
+                                name="ha-decoder-baseline",
+                            )
+                    else:
+                        self.schedule_reconcile(connection_id)
                 if time.monotonic() >= reconcile_at:
                     self.schedule_reconcile(connection_id)
                     reconcile_at = time.monotonic() + self.settings.ha_reconcile_interval_seconds
         finally:
             self._connected = False
-            await self._stop_handshake_capture(capture_task)
+            # 收尾的每一步都必须独立兜底。旧实现是一串裸 await：``events.aclose()``
+            # 里的 flush 失败一次，后面的 ``_notify_connection`` 与 ``websocket.close()``
+            # 就全部被跳过 —— 表现为「HA 掉线不广播 + socket 泄漏」，而重连仍在继续。
+            cancelled = False
+            try:
+                await self._stop_handshake_capture(capture_task)
+            except asyncio.CancelledError:
+                cancelled = True
+            except Exception:
+                LOGGER.debug("握手期收包旁路收尾失败", exc_info=True)
             # 断开前把已收到但还没落地的变化冲出去：最后一帧也要进读模型与广播。
-            await events.aclose()
-            await self._notify_connection("disconnected")
-            await websocket.close()
+            try:
+                await events.aclose()
+            except asyncio.CancelledError:
+                cancelled = True
+            except Exception:
+                LOGGER.warning("HA 实时状态收尾失败（继续关闭连接）", exc_info=True)
+            try:
+                await self._stop_registry_worker(registry_worker, connection_id)
+            except asyncio.CancelledError:
+                cancelled = True
+            except Exception:
+                LOGGER.debug("注册表事件 worker 收尾失败", exc_info=True)
+            self._registry_event_queue = None
+            self._decoder_heal_pending.clear()
+            if baseline_heal_task is not None and not baseline_heal_task.done():
+                baseline_heal_task.cancel()
+                # 只吞「被取消 / 普通异常」：KeyboardInterrupt 这类必须照常冒泡。
+                with contextlib.suppress(asyncio.CancelledError, Exception):
+                    await baseline_heal_task
+            try:
+                await self._notify_connection("disconnected")
+            except asyncio.CancelledError:
+                cancelled = True
+            except Exception:
+                LOGGER.debug("HA 断开通知外发失败", exc_info=True)
+            try:
+                await websocket.close()
+            except asyncio.CancelledError:
+                cancelled = True
+            except Exception:
+                LOGGER.debug("HA 实时连接关闭失败", exc_info=True)
+            if cancelled:
+                # 停机路径：清理必须做完，但取消语义不能被吞掉（否则 stop() 等不到 runner）。
+                raise asyncio.CancelledError
 
     async def _subscribe_compressed_stream(
         self, client, websocket, registry_event_types: tuple[str, ...]
@@ -420,7 +518,11 @@ class HALiveMixin(HAConnectorHost):
         compressed_stream = False
         shadow_stream = False
         try:
-            buffered_events += await client.subscribe_entities(websocket)
+            # 与 subscribe_events 同一超时口径：反代挂住时不能永远停在「连接中」。
+            buffered_events += await client.subscribe_entities(
+                websocket,
+                timeout=self.settings.ha_request_timeout_seconds,
+            )
             compressed_stream = True
         except HAClientError as error:
             record_ha_counter("subscribe_entities_fallback")
@@ -615,43 +717,6 @@ class HALiveMixin(HAConnectorHost):
         except Exception:
             LOGGER.debug("HA 实时状态丢弃事件外发失败", exc_info=True)
 
-    async def _notify_single_state_change(
-        self, change: dict[str, Any], flushed_at: float
-    ) -> tuple[float, dict[str, Any] | None, str]:
-        """单条落地：延迟打点 + 外发监听（含删除事件）。
-
-        返回 ``(notify 耗时 ms, 可入库的 new_state, 被删除的实体 ID)``。
-        """
-        removed_entity_id = str(change.get("removed_entity_id") or "")
-        new_state = change.get("new_state")
-        # ② 合并队列停留：入队 → 本批落地，窗口本身（50ms）也算在内，
-        # 因为这就是「被刻意推迟」的那一段。
-        received_at = change.get("received_at")
-        if isinstance(received_at, float):
-            dwell_ms = max(0.0, (flushed_at - received_at) * 1000)
-            record_ha_sync_latency("ha_deferred_dwell", dwell_ms)
-            # 关键域单独记一段：它的窗口是 4ms 而不是 50ms，混在一起会被传感器样本淹没，
-            # 于是「点灯反馈变快了没有」在 /metrics 里看不出来。
-            if entity_domain(change.get("entity_id")) in LIVE_EVENT_CRITICAL_DOMAINS:
-                record_ha_sync_latency("ha_deferred_dwell_critical", dwell_ms)
-        started = time.monotonic()
-        # 删除事件必须把 id 一并下发：``removed_entity_id`` 原本只在本模块内部使用，
-        # 于是消费端只看到 ``entity_id=None`` 就 return，删除分支永远走不到 ——
-        # HA 里删掉的实体在 L1 / ``/api/state`` / 前端实体表里永久残留。
-        await self._notify_state(
-            "change",
-            {
-                "entity_id": change.get("entity_id") or (removed_entity_id or None),
-                "old_state": change.get("old_state"),
-                "new_state": new_state,
-                "time_fired": change.get("time_fired"),
-                **({"removed": True} if removed_entity_id else {}),
-            },
-        )
-        # ③ 事件总线段：读模型监听 + socket.io 广播（不含网络发送）。
-        notify_ms = (time.monotonic() - started) * 1000
-        return notify_ms, (new_state if isinstance(new_state, dict) else None), removed_entity_id
-
     async def _publish_watched_updates(self, states: list[dict[str, Any]], removed_entity_ids: list[str]) -> None:
         """把本批落地结果推给状态中心（被监听的实体才更新，删除一律移除）。"""
         watched = await self.watched_entity_ids()
@@ -704,22 +769,48 @@ class HALiveMixin(HAConnectorHost):
     async def _flush_live_state_changes(self, connection_id: str, changes: list[dict[str, Any]]) -> None:
         """把一批合并后的状态变化落地。
 
+        顺序刻意是「墙屏 → 网页端/副作用 → 数据库」：StateHub（``/ws/runtime``，3D 墙屏与
+        仪表盘）只做内存写入，而 ``_notify_state`` 会同步走到事件总线，先广播再串行跑
+        家庭模式 / 安防 / 通知等副作用（见 ``bootstrap.ha_state_effects``）。旧顺序里
+        墙屏排在这整条链之后，于是一次场景切换（几十条变更）的 3D 反馈会被 N 次广播与
+        N 个副作用任务推后 —— 用户看到的就是「按了开关，3D 亮得慢半拍」。
+
         外发仍逐条：监听器契约（kind=change，载荷含 entity_id / old_state / new_state /
-        time_fired）不变，homeos 读模型与 socket.io 广播的语义与逐条路径完全一致；
-        数据库写入与目录计数则按批处理 —— 一批一次事务、最多一次 catalog_counts。
+        time_fired）不变；数据库写入与目录计数则按批处理 —— 一批一次事务、最多一次
+        catalog_counts。
         """
+        flushed_at = time.monotonic()
+        notify_items: list[dict[str, Any]] = []
         states: list[dict[str, Any]] = []
         removed_entity_ids: list[str] = []
-        flushed_at = time.monotonic()
-        notify_ms = 0.0
         for change in changes:
-            change_ms, new_state, removed_entity_id = await self._notify_single_state_change(change, flushed_at)
-            notify_ms += change_ms
+            removed_entity_id = str(change.get("removed_entity_id") or "")
+            new_state = change.get("new_state")
+            self._record_deferred_dwell(change, flushed_at)
+            # 删除事件必须把 id 一并下发：``removed_entity_id`` 原本只在本模块内部使用，
+            # 于是消费端只看到 ``entity_id=None`` 就 return，删除分支永远走不到 ——
+            # HA 里删掉的实体在 L1 / ``/api/state`` / 前端实体表里永久残留。
+            notify_items.append(
+                {
+                    "entity_id": change.get("entity_id") or (removed_entity_id or None),
+                    "old_state": change.get("old_state"),
+                    "new_state": new_state,
+                    "time_fired": change.get("time_fired"),
+                    **({"removed": True} if removed_entity_id else {}),
+                }
+            )
             if removed_entity_id:
                 removed_entity_ids.append(removed_entity_id)
-            if new_state is not None:
+            if isinstance(new_state, dict):
                 states.append(new_state)
+        # ① 墙屏优先：StateHub 是纯内存写入，先让它拿到本批。
         await self._publish_watched_updates(states, removed_entity_ids)
+        # ② 网页端广播 + 副作用（含读模型 L1）。
+        notify_ms = 0.0
+        for payload in notify_items:
+            started = time.monotonic()
+            await self._notify_state("change", payload)
+            notify_ms += (time.monotonic() - started) * 1000
         if notify_ms > 0:
             record_ha_sync_latency("hot_apply", notify_ms / max(len(changes), 1))
         catalog_changed = await self._apply_removed_states_batch(connection_id, removed_entity_ids)
@@ -731,44 +822,167 @@ class HALiveMixin(HAConnectorHost):
         catalog_changed = (
             bool(await self._run_database(self._apply_incremental_states, connection_id, states)) or catalog_changed
         )
-        # ④ 落地段：一批一次 SQLite 事务。
+        # ③ 落地段：一批一次 SQLite 事务。
         record_ha_sync_latency("ingress_flush", (time.monotonic() - started) * 1000)
         if catalog_changed:
             await self._publish_catalog_changed(connection_id, "added")
 
+    @staticmethod
+    def _record_deferred_dwell(change: dict[str, Any], flushed_at: float) -> None:
+        """合并队列停留：入队 → 本批落地，窗口本身也算在内（它就是被刻意推迟的那一段）。"""
+        received_at = change.get("received_at")
+        if not isinstance(received_at, float):
+            return
+        dwell_ms = max(0.0, (flushed_at - received_at) * 1000)
+        record_ha_sync_latency("ha_deferred_dwell", dwell_ms)
+        # 关键域单独记一段：它的窗口是帧级而不是批窗，混在一起会被传感器样本淹没，
+        # 于是「点灯反馈变快了没有」在 /metrics 里看不出来。
+        if entity_domain(change.get("entity_id")) in LIVE_EVENT_CRITICAL_DOMAINS:
+            record_ha_sync_latency("ha_deferred_dwell_critical", dwell_ms)
+
+    # ── 注册表事件：入队 + 独立 worker 成批落库 ──────────────────────────
+
+    def _enqueue_registry_event(self, event_type: str, event_data: dict[str, Any]) -> None:
+        """把一条注册表事件塞给 worker；队列满时丢最旧（对账会补齐目录）。"""
+        queue = self._registry_event_queue
+        if queue is None:
+            return
+        try:
+            queue.put_nowait((event_type, event_data))
+        except asyncio.QueueFull:
+            # 丢最旧而不是丢最新：最新的目录状态才是客户端要的。
+            with contextlib.suppress(asyncio.QueueEmpty):
+                queue.get_nowait()
+            record_ha_counter("registry_event_dropped")
+            record_ha_ws_deferred_dropped()
+            try:
+                queue.put_nowait((event_type, event_data))
+            except asyncio.QueueFull:
+                LOGGER.warning("HA 注册表事件队列持续溢出，本次事件已丢弃（由周期对账补齐）")
+
+    async def _run_registry_worker(self, connection_id: str) -> None:
+        """把注册表事件成批落库；一次事务一批，不再阻塞收包循环。"""
+        queue = self._registry_event_queue
+        if queue is None:
+            return
+        while True:
+            first = await queue.get()
+            batch = [first]
+            while len(batch) < REGISTRY_EVENT_BATCH_MAX:
+                try:
+                    batch.append(queue.get_nowait())
+                except asyncio.QueueEmpty:
+                    break
+            try:
+                await self._apply_registry_batch(connection_id, batch)
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                # 落库失败不致命：目录还有周期对账这条兜底路径。
+                LOGGER.warning("HA 注册表事件落库失败（下轮对账补齐）", exc_info=True)
+
+    async def _stop_registry_worker(self, task: asyncio.Task[Any] | None, connection_id: str) -> None:
+        """取消 worker 前先把队列里剩下的写完：目录变更不该因为断开而丢。"""
+        queue = self._registry_event_queue
+        if queue is not None and not queue.empty():
+            batch: list[tuple[str, dict[str, Any]]] = []
+            while not queue.empty() and len(batch) < REGISTRY_EVENT_BATCH_MAX:
+                try:
+                    batch.append(queue.get_nowait())
+                except asyncio.QueueEmpty:
+                    break
+            if batch:
+                try:
+                    await self._apply_registry_batch(connection_id, batch)
+                except Exception:
+                    LOGGER.debug("断开前注册表事件收尾失败", exc_info=True)
+        if task is None or task.done():
+            return
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+
+    async def _apply_registry_batch(
+        self, connection_id: str, batch: list[tuple[str, dict[str, Any]]]
+    ) -> None:
+        """一批注册表事件落库，然后统一补齐三件事：广播、目录、缓存失效。"""
+        if not connection_id or not batch:
+            return
+        applied = await self._run_database(self._apply_registry_events_batch, connection_id, batch)
+        if not applied:
+            return
+        # 无论增量落库是否成功都要广播：注册表变了，房间索引 / 语音快路径的房间缓存
+        # 就必须失效，否则新增「书房灯」后语音指令会一直命中旧缓存。
+        removed_entity_ids: set[str] = set()
+        operation = "updated"
+        for event_type, event_data, action in applied:
+            operation = action
+            if event_type == "entity_registry_updated":
+                removed_entity_ids |= _removed_entities_for_registry_event(event_data, action)
+            await self._emit_registry_event(event_type, event_data)
+        for removed_entity_id in sorted(removed_entity_ids - {""}):
+            await self.state_hub.remove(removed_entity_id)
+        # 计数与广播按批一次：逐条目录广播会把墙屏与 SPA 的整表刷新打成风暴。
+        await self._publish_catalog_changed(connection_id, operation)
+        self._schedule_registry_refresh(connection_id)
+
+    # ── 压缩流解码器：按实体补基线 ──────────────────────────────────────
+
+    async def _heal_decoder_baseline(
+        self,
+        connection_id: str,
+        client: Any,
+        decoder: CompressedStateDecoder,
+        events: LiveStateEventQueue,
+    ) -> None:
+        """压缩流缺基线：只重拉缺的那几个实体，避免为一两条异常帧做整轮全量对账。
+
+        ``fetch_states`` 内部逐实体容错，单个失败不会抛；拿不到的那些才退化成一次
+        全量对账（它们可能是刚被删除的实体，对账会顺带清理目录）。
+        """
+        while True:
+            pending = sorted(self._decoder_heal_pending)
+            self._decoder_heal_pending.clear()
+            if not pending:
+                return
+            try:
+                states = await client.fetch_states(set(pending))
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                states = []
+            healed = 0
+            for state in states:
+                message = decoder.adopt(state)
+                if message is None:
+                    continue
+                healed += 1
+                try:
+                    await self._dispatch_message(events, connection_id, message, None, None)
+                except Exception:
+                    LOGGER.debug("补齐基线后的状态派发失败", exc_info=True)
+            if healed:
+                record_ha_counter("decode_baseline_healed", healed)
+            fetched = {str(state.get("entity_id") or "") for state in states}
+            if set(pending) - fetched:
+                record_ha_counter("decode_resync")
+                self.schedule_reconcile(connection_id)
+                return
+
     async def _handle_live_event(self, connection_id: str, message: dict[str, Any]) -> None:
-        """非状态类事件（三类注册表变更）的即时处理。"""
+        """非状态类事件（三类注册表变更）：只入队，落库交给 worker。"""
         if message.get("type") != "event":
             return
         event = message.get("event") or {}
         event_type = event.get("event_type")
         event_data = event.get("data") or {}
-        if event_type in {"entity_registry_updated", "device_registry_updated", "area_registry_updated"}:
-            operation = await self._run_database(self._apply_registry_event, connection_id, event_type, event_data)
-            if operation:
-                if event_type == "entity_registry_updated":
-                    action = str(event_data.get("action") or "update")
-                    entity_id = str(event_data.get("entity_id") or "")
-                    changes_value = event_data.get("changes")
-                    changes = changes_value if isinstance(changes_value, dict) else {}
-                    old_entity_id = str(changes.get("entity_id") or "")
-                    removed_entity_ids = set()
-                    if old_entity_id and old_entity_id != entity_id:
-                        removed_entity_ids.add(old_entity_id)
-                    if action == "remove":
-                        removed_entity_ids.add(entity_id)
-                    elif "disabled_by" in event_data:
-                        if event_data.get("disabled_by"):
-                            removed_entity_ids.add(entity_id)
-                    elif "disabled_by" in changes and changes.get("disabled_by") is None:
-                        removed_entity_ids.add(entity_id)
-                    for removed_entity_id in sorted(removed_entity_ids - {""}):
-                        await self.state_hub.remove(removed_entity_id)
-                await self._publish_catalog_changed(connection_id, operation)
-                self._schedule_registry_refresh(connection_id)
-            # 无论增量落库是否成功都要广播：注册表变了，房间索引 / 语音快路径的房间缓存
-            # 就必须失效，否则新增「书房灯」后语音指令会一直命中旧缓存。
-            await self._emit_registry_event(event_type, event_data)
+        if event_type not in {"entity_registry_updated", "device_registry_updated", "area_registry_updated"}:
+            return
+        if self._registry_event_queue is None:
+            # 未启动 worker（测试 / 旧调用点）：退回同步单条路径。
+            await self._apply_registry_batch(connection_id, [(str(event_type), event_data)])
+            return
+        self._enqueue_registry_event(str(event_type), event_data)
 
     async def _emit_registry_event(self, event_type: str, event_data: dict[str, Any]) -> None:
         """把 HA 注册表变更转成进程内事件（``ha.<kind>_registry_updated``）。

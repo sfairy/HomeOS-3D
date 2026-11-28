@@ -67,6 +67,7 @@ MODULES: tuple[str, ...] = (
     "device_timer_selftest",
     "notification_mute_selftest",
     "public_config_selftest",
+    "http_validation_selftest",
     "store_links_selftest",
     "ui_assets_selftest",
     "timeline_selftest",

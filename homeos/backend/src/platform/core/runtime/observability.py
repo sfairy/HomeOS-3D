@@ -129,6 +129,18 @@ def get_ha_ws_deferred_dropped_total() -> int:
         return _ha_ws_deferred_dropped_total
 
 
+def record_ha_ws_deferred_dropped(count: int = 1) -> None:
+    """记录「HA 实时入口在过载下丢掉的事件」。
+
+    此前只在 ``/metrics`` 与诊断页**读取**这个数，没有任何地方写入，于是它恒为 0：
+    真正发生「注册表事件积压丢弃」时，看板上是一片安静。现在由实时连接器的注册表
+    队列在溢出时写入（见 ``service_live._enqueue_registry_event``）。
+    """
+    global _ha_ws_deferred_dropped_total
+    with _latency_lock:
+        _ha_ws_deferred_dropped_total += max(int(count), 0)
+
+
 #: 实时链路的计数指标（固定一份名单，无事件时也导出 0，便于建基线/告警）。
 HA_COUNTER_NAMES: tuple[str, ...] = (
     "recv",
@@ -162,6 +174,11 @@ HA_COUNTER_NAMES: tuple[str, ...] = (
     # ``/ws/runtime`` 队列溢出时的「按实体合并」次数。这个数持续增长说明墙屏侧的
     # 消费速度跟不上推送（订阅范围过大 / 前端卡顿），而中间态正在被吃掉。
     "ws_runtime_compacted",
+    # 压缩流解码器缺基线时的**定向**补齐次数（只重拉那几个实体）。
+    # 与 ``decode_resync``（退化成整轮全量对账）分开：前者是常态，后者才说明补齐失败。
+    "decode_baseline_healed",
+    # 注册表事件队列溢出丢弃（HA 重启 / 集成重载时成串到达）：丢弃后由周期对账补齐目录。
+    "registry_event_dropped",
 )
 
 _ha_counter_lock = threading.Lock()

@@ -407,6 +407,8 @@ export class PanelRenderer {
   declare socketGeneration: number
   declare reconnectTimer: number | null
   declare reconnectAttempt: number
+  /** 实时通道「静默看门狗」：超过阈值没有任何数据帧就主动重连（见 runtime-connect）。 */
+  declare runtimeWatchdogTimer: number | null
   declare runtimeHydrationRetryTimer: number | null
   declare runtimeHydrationRetryAttempt: number
   declare lastRuntimeResumeAt: number
@@ -508,6 +510,7 @@ export class PanelRenderer {
       (this.socketGeneration = 0),
       (this.reconnectTimer = null),
       (this.reconnectAttempt = 0),
+      (this.runtimeWatchdogTimer = null),
       (this.runtimeSuspended = false),
       (this.runtimeHaConnected = false),
       (this.runtimeHydrationRetryTimer = null),
