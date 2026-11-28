@@ -10,7 +10,7 @@ import { mountDisplayImage } from '../controls/display-images'
 
 export function registerImageComponent(registerComponent: (type: any, def: any) => void) {
   registerComponent('image', {
-    render(imageComponent: any) {
+    render(imageComponent: any, imageRenderEnvironment: any) {
       const imageProperties = imageComponent.properties || {},
         imageSourceUrl = staticAssetImageSource(imageProperties.assetId)
       if (!imageSourceUrl) {
@@ -24,7 +24,14 @@ export function registerImageComponent(registerComponent: (type: any, def: any) 
       const imageElement = document.createElement('img')
       // 按实际显示尺寸取图（0.8.9）：一块 200×120 的控件不该下 4000×3000 的原图。
       // `mountDisplayImage` 内部只在可派生 URL 上生效，外链 / SVG 原样保留。
-      mountDisplayImage(imageElement, imageSourceUrl)
+      //
+      // **必须把返回的清理函数交给渲染环境**：它同时解绑 `ResizeObserver` 与共享尺寸
+      // 控制器里的登记。此前这里丢弃了返回值，而共享控制器是**进程级单例** ——
+      // 面板每次重建都会永久留下一个已脱离文档的 `<img>`、一个 ResizeObserver，
+      // 以及一条 `flush()` 每次重排都要跳过的记录。墙屏长时间切页/重绘时，堆与每次
+      // 窗口 resize 的开销只增不减。
+      const stopDisplayImageSizing = mountDisplayImage(imageElement, imageSourceUrl)
+      imageRenderEnvironment?.cleanup?.(stopDisplayImageSizing)
       return (
         (imageElement.className = 'hb-image-component'),
         (imageElement.alt = imageProperties.alt || imageProperties.label || '图片'),

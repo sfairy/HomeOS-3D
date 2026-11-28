@@ -93,6 +93,7 @@ export function disposeObjectTree(runtime: StudioAppRuntime, disposedRoot: any) 
             !traversedNode.userData.externalModelSharedMaterial &&
             !traversedNode.userData.sofaSharedMaterial &&
             !traversedNode.userData.rugSharedMaterial &&
+            !traversedNode.userData.sharedCanvasTexture &&
             !traversedNode.userData.architectureSharedMaterial)
         ) {
           for (const [materialPropertyKey, materialPropertyValue] of Object.entries(nodeMaterial) as [string, any][])

@@ -58,6 +58,9 @@ export function createFeaturewallModel(three: any, item: any) {
     claddingMesh.position.set(0, itemHeight * 0.5, 0.0015)
     claddingMesh.castShadow = false
     claddingMesh.receiveShadow = true
+    // 与壁画同理：`createFeatureWallTexture` 按 `wallStyle` 共享同一份 CanvasTexture，
+    // 单块护墙板被删时不能 dispose 掉其它同风格护墙板仍在用的纹理。
+    claddingMesh.userData.sharedCanvasTexture = true
     group.add(claddingMesh)
   }
 

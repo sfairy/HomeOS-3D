@@ -61,6 +61,11 @@ export function createMuralModel(three: any, item: any, palette: any) {
     artworkMesh.position.set(0, itemHeight * 0.5, wallZ + frameDepth * 0.72)
     artworkMesh.castShadow = false
     artworkMesh.receiveShadow = true
+    // 画芯贴图是按 `muralStyle` 缓存在模块级 map 里的**同一份** CanvasTexture
+    // （见 texture-cache.ts）：删掉一块壁画不能 dispose 掉其它同风格挂画仍在用的
+    // GPU 纹理 —— 那会让所有存活实例在下一帧重新 texImage2D，低端墙屏上是可复现的卡顿。
+    // 真正的归属释放由 `releaseSurfaceStyleTextures()` 统一负责。
+    artworkMesh.userData.sharedCanvasTexture = true
     group.add(artworkMesh)
   }
 

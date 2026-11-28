@@ -63,7 +63,12 @@ export function createDisplayImageSizing(env: SizingEnv = {}) {
     frame = null
     const dpr = env.devicePixelRatio ?? 1
     for (const [element, target] of targets) {
-      if (!element.isConnected) continue
+      // 已脱离文档 = 调用方没交清理函数（或先移除了元素）：顺手摘掉登记。
+      // 只 `continue` 会让这条记录永久留在**进程级**共享控制器里，每次重排都被遍历一遍。
+      if (!element.isConnected) {
+        targets.delete(element)
+        continue
+      }
       const size = quantizeDisplaySize(element.clientWidth, element.clientHeight, dpr)
       if (!size) continue
       const band = target.cover ? displayImageCropBand(size.width, size.height) : null

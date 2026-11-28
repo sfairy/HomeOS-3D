@@ -2189,6 +2189,13 @@ export function mountStage(mountOptions: any) {
       wakeSceneBackground()
   })
   const vacuumFollowCamera = createVacuumFollowCamera2(three)
+  // 跟拍用的一次性容器：`revealFollowCamera` 每帧都跑（面板以 60fps 播放动画时），
+  // 原地复用避免每帧产生 3 个 Vector3 + 2 次数组展开 + `toArray()` 的垃圾，
+  // 低内存墙屏上的 GC 锯齿就是这类每帧分配堆出来的。
+  const followScratchCenter = new three.Vector3(),
+    followScratchLift = new three.Vector3(0, 0.05, 0),
+    followScratchTarget = new three.Vector3(),
+    followScratchPosition: number[] = [0, 0, 0]
   function revealFollowCamera() {
     if (!ctx.followVacuumId) return
     const worldPosition = vacuumMotion.worldPosition(ctx.followVacuumId),
@@ -2200,14 +2207,19 @@ export function mountStage(mountOptions: any) {
       return
     }
     const vacuumCenter = mountOptions.environmentModelPose(
-        followVacuumBinding.floorId,
-        followVacuumBinding.modelId,
-      )?.center,
-      add = (vacuumCenter ? new three.Vector3(...vacuumCenter) : worldPosition.clone()).add(
-        new three.Vector3(0, 0.05, 0),
-      ),
-      followPose = vacuumFollowPose2(ctx.followCameraPose, add.toArray()),
-      followTargetVector = new three.Vector3(...followPose.position)
+      followVacuumBinding.floorId,
+      followVacuumBinding.modelId,
+    )?.center
+    // 有环境位姿时用它，否则退回实时世界坐标；两者都写进同一个 scratch 向量。
+    if (vacuumCenter) followScratchCenter.set(vacuumCenter[0], vacuumCenter[1], vacuumCenter[2])
+    else followScratchCenter.copy(worldPosition)
+    const add = followScratchCenter.add(followScratchLift),
+      followPose = vacuumFollowPose2(ctx.followCameraPose, add.toArray(followScratchPosition)),
+      followTargetVector = followScratchTarget.set(
+        followPose.position[0],
+        followPose.position[1],
+        followPose.position[2],
+      )
     vacuumFollowCamera.reveal(mountOptions, followVacuumBinding, add, followTargetVector),
       mountOptions.setFocusViewport(0),
       mountOptions.applyCameraPose(followPose)
@@ -4329,6 +4341,15 @@ export function mountStage(mountOptions: any) {
     window.addEventListener('keydown', (stageKeydownEvent) => {
       stageKeydownEvent.key === 'Escape' && exitFocusMode()
     })
+  // 具名句柄：上面这条是 mountStage 里唯一没有卸载路径的 window 监听。
+  // 其余（活动输入、blur、visibilitychange、focus-exit 组、ResizeObserver）都在
+  // permanent pagehide 块里成对移除；匿名箭头函数做不到，只能留一个 pin 住整个
+  // mountStage 闭包的残留处理器 —— 同一文档内重新 mount（测试夹具 / 宿主换配置）时
+  // 会出现重复 Escape 处理，并对已释放的 ctx 调用 exitFocusMode。
+  const handleStageEscapeKeydown = (keydownEvent: KeyboardEvent) => {
+    keydownEvent.key === 'Escape' && exitFocusMode()
+  }
+  window.addEventListener('keydown', handleStageEscapeKeydown)
   const stageHandlersHost: StageHandlersHost = {
     activateMarker,
     markerHold,
@@ -4987,6 +5008,7 @@ export function mountStage(mountOptions: any) {
       for (const activityEventNameRef of activityEventNames)
         window.removeEventListener(activityEventNameRef, handleActivityInput, true)
       window.removeEventListener('blur', clearActivityState),
+        window.removeEventListener('keydown', handleStageEscapeKeydown),
         focusExitListeners.uninstall(),
         document.removeEventListener?.('visibilitychange', handleVisibilityChange),
         ctx.sceneBackground.dispose(),

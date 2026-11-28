@@ -880,6 +880,8 @@ export function attachReflectionProbeMesh(params: {
 }): {
   reflectionProbeMesh: ProbeMesh
   previousOnBeforeRender: ((...args: unknown[]) => void) | undefined
+  /** 拆掉探针（幂等）：SPA 卸载与真 pagehide 两条路径都调它。 */
+  disposeReflectionProbeMesh: () => void
 } {
   const { THREE: ns } = params
   const reflectionProbeMesh = new ns.Mesh(
@@ -905,12 +907,17 @@ export function attachReflectionProbeMesh(params: {
   }
   const previousOnBeforeRender = params.threeScene.onBeforeRender
   params.threeScene.add(reflectionProbeMesh)
-  bindNamedPageHideOnce(params.pageHideBindings, () => {
+  // 具名且幂等：既挂在 pagehide 上（真卸载），也作为渲染循环 teardown 的子系统
+  // （SPA 路由切换不会触发 pagehide）。旧实现只有 pagehide 一条路，而
+  // `createRenderLoopTeardown` 只是**摘掉**那个处理器、并不执行它 ——
+  // 于是 SPA 卸载路径上探针的几何体 / 材质从未被 dispose。
+  const disposeReflectionProbeMesh = () => {
     reflectionProbeMesh.removeFromParent()
     reflectionProbeMesh.geometry.dispose()
     reflectionProbeMesh.material.dispose()
-  })
-  return { reflectionProbeMesh, previousOnBeforeRender }
+  }
+  bindNamedPageHideOnce(params.pageHideBindings, disposeReflectionProbeMesh)
+  return { reflectionProbeMesh, previousOnBeforeRender, disposeReflectionProbeMesh }
 }
 
 export interface PublishRenderStatsDeps {
@@ -2615,7 +2622,7 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
       floorTransition.finish(), trimRetainedFloors()
     }),
     bindNamedPageHideOnce(pageHideBindings, () => groundReflections.dispose())
-  const { previousOnBeforeRender: onBeforeRender } = attachReflectionProbeMesh({
+  const { previousOnBeforeRender: onBeforeRender, disposeReflectionProbeMesh } = attachReflectionProbeMesh({
     THREE: ns2 as unknown as Parameters<typeof attachReflectionProbeMesh>[0]['THREE'],
     threeScene: appCtx.threeScene,
     pageHideBindings,
@@ -2833,7 +2840,21 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
     appCtx,
     groundReflections,
     progressListeners: progressListenerSet,
-    subsystems: [startupPresentation, groundReflections, overviewDetail, deps.interactionBatches],
+    subsystems: [
+      startupPresentation,
+      groundReflections,
+      overviewDetail,
+      deps.interactionBatches,
+      // SPA 卸载路径也要跑完 pagehide 那条路做的事（见 attachReflectionProbeMesh 的注释）：
+      // 只摘处理器不执行它，探针与保留楼层会留到场景被整体 GC 为止。
+      { dispose: disposeReflectionProbeMesh },
+      {
+        dispose: () => {
+          floorTransition.finish()
+          trimRetainedFloors()
+        },
+      },
+    ],
     releaseInteractionBatches: () => ((deps.interactionBatches = null), undefined),
     pageHideHandlers: pageHideBindings,
   })

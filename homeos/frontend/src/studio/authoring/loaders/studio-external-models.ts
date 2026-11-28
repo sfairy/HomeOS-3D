@@ -87,7 +87,7 @@ export { ALL_ITEM_MODELS } from './external-models/all-item-models'
  * - `suv`：`prepareSuvRoofGlass` 从车身挑面生成顶棚玻璃。
  *
  * `smallcar` 曾经也在这里（玻璃舱靠运行期切），后来把结果**烘进了 GLB**
- * （`ops/checks/studio/bake_car_glass.mjs`），资产本身就是最终形态，不必再绕缓存。
+ * （一次性烘焙脚本，已随 ops/checks/studio 移除），资产本身就是最终形态，不必再绕缓存。
  */
 const RUNTIME_GEOMETRY_ITEM_TYPES: ReadonlySet<string> = new Set(['suv'])
 
@@ -319,6 +319,7 @@ export function createExternalModelManager({
         assetLoader,
         prepareModelTextures,
         assertScene,
+        releaseModelAsset,
         reportPreviewIssue,
         statusOfPreviewError,
         messageOfPreviewError,
