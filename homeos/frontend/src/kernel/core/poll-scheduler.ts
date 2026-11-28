@@ -153,6 +153,10 @@ let cacheCleanupTimer: ReturnType<typeof setTimeout> | null = null
 
 /** 清理过期（>60s）与超量缓存条目；若仍有残留则继续调度下一轮清理 */
 function cleanupExpiredCache() {
+  // 先把句柄置空再干活：定时器已经触发，句柄仍留着会让下面的 scheduleCacheCleanup()
+  // 与后续所有调用都在 `if (cacheCleanupTimer) return` 处提前返回 ——
+  // 清理链在第一次成功清扫后就永久死掉，>60s 的条目从此常驻。
+  cacheCleanupTimer = null
   const now = Date.now()
   let deleted = 0
   for (const [key, entry] of sharedCache) {
@@ -172,8 +176,6 @@ function cleanupExpiredCache() {
   }
   if (deleted > 0 && sharedCache.size > 0) {
     scheduleCacheCleanup()
-  } else {
-    cacheCleanupTimer = null
   }
 }
 

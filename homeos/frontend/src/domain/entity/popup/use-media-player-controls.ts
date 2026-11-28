@@ -194,20 +194,27 @@ export function useMediaPlayerControls(
     if (rafId != null) cancelAnimationFrame(rafId)
     rafId = null
   }
-  // hasProgress 变化时启停播放循环
+  // 播放循环只在「需要连续插值」时启动：有进度、且真的在播或正在拖拽。
+  // 暂停的曲目也带 media_duration，若只判 hasProgress，弹窗一开就按屏幕刷新率
+  // 空转 rAF（墙屏 / 平板会持续耗电，且标签页永远不进入 idle）。
+  const needsPlaybackLoop = computed(() => hasProgress.value && (state.value === 'playing' || isSeeking.value))
+
+  // 需要插值时启停播放循环
   watch(
-    hasProgress,
+    needsPlaybackLoop,
     (active) => {
       stopPlaybackLoop()
       if (active) startPlaybackLoop()
-      else livePosition.value = 0
+      else livePosition.value = resolveLivePosition()
     },
     { immediate: true },
   )
   watch(entityId, () => {
     isSeeking.value = false
     seekPreviewPct.value = null
-    startPlaybackLoop()
+    // 换实体后位置立刻对齐；是否需要常驻循环由上面的 needsPlaybackLoop 决定，
+    // 这里不再无条件启动（暂停的新实体不该起 rAF）。
+    livePosition.value = resolveLivePosition()
   })
   onUnmounted(stopPlaybackLoop)
   // 进度百分比：拖拽中使用预览值，否则用 livePosition / duration

@@ -48,7 +48,6 @@
     "check:python-lock": "node ops/lib/py.mjs ops/ci/python_lock.py verify",
     "check:image-imports": "node ops/lib/py.mjs ops/ci/image_imports.py",
     "check:event-contract": "node ops/checks/contract/check_event_contract.mjs",
-    "check:event-contract": "node ops/checks/contract/check_event_contract.mjs",
     "check:cython": "node ops/lib/py.mjs ops/ci/cython_check.py",
     "check:font-subset": "node homeos-store/frontend/scripts/build-font-subset.mjs --check",
     "generate:font-subset": "node homeos-store/frontend/scripts/build-font-subset.mjs --write",

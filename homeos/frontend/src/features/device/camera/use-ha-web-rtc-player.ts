@@ -184,40 +184,55 @@ async function startHaNativeWebRtc(entityId: string, videoEl: HTMLVideoElement):
   const offer = await peerConnection.createOffer()
   await peerConnection.setLocalDescription(offer)
 
-  // 提交 offer 进行协商，获取 answer 与远端候选
-  const negotiatedRes = await apiPost<{
-    session_id: string
-    answer: string
-    candidates: Record<string, unknown>[]
-    subscription_id: number
-  }>('/ha/webrtc/negotiate', { entity_id: entityId, offer: offer.sdp }, { timeout: NEGOTIATE_TIMEOUT_MS })
+  try {
+    // 提交 offer 进行协商，获取 answer 与远端候选
+    const negotiatedRes = await apiPost<{
+      session_id: string
+      answer: string
+      candidates: Record<string, unknown>[]
+      subscription_id: number
+    }>('/ha/webrtc/negotiate', { entity_id: entityId, offer: offer.sdp }, { timeout: NEGOTIATE_TIMEOUT_MS })
 
-  const negotiated = negotiatedRes.data
-  sessionId = negotiated.session_id
-  const subscriptionId = negotiated.subscription_id
+    const negotiated = negotiatedRes.data
+    sessionId = negotiated.session_id
+    const subscriptionId = negotiated.subscription_id
 
-  // 补报协商前缓存的本地候选
-  for (const candidate of pendingLocalCandidates) postLocalCandidate(entityId, sessionId, candidate)
-  pendingLocalCandidates.length = 0
+    // 补报协商前缓存的本地候选
+    for (const candidate of pendingLocalCandidates) postLocalCandidate(entityId, sessionId, candidate)
+    pendingLocalCandidates.length = 0
 
-  await peerConnection.setRemoteDescription({ type: 'answer', sdp: negotiated.answer })
-  await addRemoteCandidates(peerConnection, negotiated.candidates ?? [])
+    await peerConnection.setRemoteDescription({ type: 'answer', sdp: negotiated.answer })
+    await addRemoteCandidates(peerConnection, negotiated.candidates ?? [])
 
-  await waitForConnection(peerConnection, (ev) => {
-    if (ev.track) remoteStream.addTrack(ev.track)
-  })
+    await waitForConnection(peerConnection, (ev) => {
+      if (ev.track) remoteStream.addTrack(ev.track)
+    })
 
-  // 返回停止函数：关闭连接、清理资源、通知后端释放会话
-  return () => {
+    // 返回停止函数：关闭连接、清理资源、通知后端释放会话
+    return () => {
+      stopped = true
+      peerConnection.close()
+      videoEl.srcObject = null
+      if (subscriptionId != null) {
+        void closeWebRtcSession({
+          entity_id: entityId,
+          subscription_id: subscriptionId,
+        }).catch((error) => logger.debug('[WebRTC] 关闭会话失败', error))
+      }
+    }
+  } catch (error) {
+    // 失败必须自己收尾：调用方会立刻在同一 <video> 上降级到 HLS/MJPEG。
+    // `srcObject` 还挂着一个空的 MediaStream 时，`video.src = blob:` 会被忽略 ——
+    // 用户看到的是黑屏而不是 HLS，同时每重试一次就泄漏一条 RTCPeerConnection / 后端订阅。
     stopped = true
     peerConnection.close()
     videoEl.srcObject = null
-    if (subscriptionId != null) {
-      void closeWebRtcSession({
-        entity_id: entityId,
-        subscription_id: subscriptionId,
-      }).catch((error) => logger.debug('[WebRTC] 关闭会话失败', error))
+    if (sessionId) {
+      void closeWebRtcSession({ entity_id: entityId, subscription_id: sessionId }).catch((err) =>
+        logger.debug('[WebRTC] 清理失败会话失败', err),
+      )
     }
+    throw error
   }
 }
 

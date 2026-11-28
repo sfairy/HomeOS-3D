@@ -211,7 +211,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onDeactivated, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { RefreshCw } from '@lucide/vue'
 import SettingsPageShell from '@/features/settings/shell/SettingsPageShell.vue'
 import SettingsCard from '@/features/settings/shell/SettingsCard.vue'
@@ -383,6 +383,19 @@ function schedulePollRefresh() {
   }, 800)
 }
 
+/**
+ * 离开面板时清掉「保存后补轮询」的定时器。
+ *
+ * 设置页按分组切换会 deactivate（keep-alive）而不一定 unmount：800ms 内切走，
+ * 定时器照样触发，对已离开的组件发请求并写回 `players/loading`（旧数据 + 无效流量）。
+ */
+function cancelPollRefresh() {
+  if (pollTimer) {
+    clearTimeout(pollTimer)
+    pollTimer = null
+  }
+}
+
 async function load() {
   loading.value = true
   error.value = ''
@@ -510,4 +523,7 @@ useRegisterSettingsTabPending('media', () => dirty.value, resetDraft)
 
 readConfig()
 onMounted(load)
+// keep-alive 下面板切走时 deactivate（不 unmount）：两条生命周期都要清定时器。
+onDeactivated(cancelPollRefresh)
+onUnmounted(cancelPollRefresh)
 </script>

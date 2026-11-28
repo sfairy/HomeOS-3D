@@ -205,6 +205,26 @@ def test_dnd_weekdays() -> None:
     )
 
 
+def test_alert_rules_use_the_same_dnd_predicate() -> None:
+    """告警规则与推送侧必须用**同一套**免打扰判定（含 ``dndWeekdays``）。
+
+    历史上 `NotificationService.is_dnd_active()` 只比小时、忽略星期：用户把免打扰
+    限制在周末，工作日的告警规则却仍被静默抑制（没有锁存、没有重试、没有任何提示）。
+    """
+    from homeos.backend.src.domains.notification.service import NotificationService
+
+    service = object.__new__(NotificationService)
+    cfg = {"dndStart": 22, "dndEnd": 8, "dndWeekdays": [0, 6]}  # 仅周日 / 周六
+    service._cfg = lambda: cfg  # type: ignore[method-assign]
+    service._get_timezone = lambda: "UTC"  # type: ignore[method-assign]
+
+    weekday_night = datetime(2026, 11, 24, 23, 30, tzinfo=UTC)  # 周二
+    weekend_night = datetime(2026, 11, 28, 23, 30, tzinfo=UTC)  # 周六
+
+    check("工作日不在 dndWeekdays 内时不静音", service.is_dnd_active(now=weekday_night) is False)
+    check("周末命中同一窗口", service.is_dnd_active(now=weekend_night) is True)
+
+
 def main() -> int:
     test_source_matching()
     test_dispatch_mutes_info_but_not_danger()
@@ -214,6 +234,7 @@ def main() -> int:
     test_dnd_suppresses_speech()
     test_hazard_voice_keys()
     test_dnd_weekdays()
+    test_alert_rules_use_the_same_dnd_predicate()
     report("通知静音")
     return 0
 

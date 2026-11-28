@@ -416,7 +416,10 @@ async function refreshLicenseFeatureAccess(
   auth: ReturnType<typeof useAuthStore>,
   prefetched: Promise<LicenseFeatureResult> | null,
 ): Promise<void> {
-  if (!auth.isAuthenticated || !getLicenseActivated() || !shouldRefreshLicenseFeatures()) return
+  if (!auth.isAuthenticated || !getLicenseActivated()) return
+  // `prefetched` 非空说明「发起时」的 TTL 判定已通过；消费它时不能再查一次 TTL ——
+  // 中间那次可用性刷新会盖章，把刚发出去的请求判成过期并丢弃。
+  if (!prefetched && !shouldRefreshLicenseFeatures()) return
   const settled = prefetched ? await prefetched : await requestLicenseFeatures()
   if (settled.ok) {
     setLicenseFeatureAccess(settled.featureAccess)

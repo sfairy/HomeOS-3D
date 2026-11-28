@@ -37,7 +37,7 @@ from .stats import (
     map_notification_row,
     resolve_notification_time_granularity,
 )
-from ..alerts.dnd import current_hour_in, is_dnd_active
+from ..alerts.dnd import is_dnd_active_now
 from ..alerts.sources import is_life_safety_notification  # noqa: F401  # pyright: ignore[reportUnusedImport] - 供外部/测试引用
 from ..app_config.rooms import resolve_room_label_from_ha_areas
 from ..ha.config.ha_config import ha_connection_configured
@@ -214,14 +214,17 @@ class NotificationService:
     def _cfg(self) -> dict[str, Any]:
         return self._load(load_notification_config)
 
-    def is_dnd_active(self) -> bool:
+    def is_dnd_active(self, now: Any = None) -> bool:
+        """当前是否免打扰（与推送侧同一判定）。
+
+        曾经这里只比小时、忽略 ``dndWeekdays``：用户把免打扰限制在周末，
+        工作日的告警规则却仍被静默抑制，且界面上也没有任何「被抑制过」的痕迹。
+
+        ``now`` 仅供自检注入固定时刻；生产调用不传，取当前时钟。
+        """
         cfg = self._cfg()
-        dnd_start = cfg.get("dndStart")
-        dnd_end = cfg.get("dndEnd")
-        if dnd_start is None or dnd_end is None:
-            return False
-        # 免打扰窗口按家庭当地时间判定（服务器多为 UTC 容器，直接用本机小时会错 8 小时）。
-        return is_dnd_active(current_hour_in(self._get_timezone()), int(dnd_start), int(dnd_end))
+        # ``is_dnd_active_now`` 统一处理时段、跨午夜与星期（含跨午夜窗口的前一天星期）。
+        return is_dnd_active_now(cfg, now=now, timezone_name=self._get_timezone())
 
     def _get_timezone(self) -> str | None:
         """家庭时区（``ops.homeTimezone``）。"""

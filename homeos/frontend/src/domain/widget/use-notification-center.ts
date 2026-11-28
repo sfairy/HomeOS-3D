@@ -218,6 +218,17 @@ export function useNotificationCenter() {
   // 未读通知数量
   const unreadCount = computed(() => displayNotifications.value.filter((notification) => !notification.read).length)
 
+  /**
+   * 全量未读数（不受来源 / 级别筛选影响）。
+   *
+   * 外壳顶栏的铃铛角标必须用它：筛选面板里点一下「安防」来源，`displayNotifications`
+   * 就只剩安防这一类，角标会跟着掉到该子集甚至整块消失（`v-if="unread > 0"`），
+   * 而实际还有几十条未读。`unreadCount` 仍给抽屉头部的「当前筛选」自用。
+   */
+  const totalUnreadCount = computed(
+    () => prefFilteredNotifications.value.filter((notification) => !notification.read).length,
+  )
+
   // 局域网推送是否就绪：需要实体连接 + 已登录
   const lanPushReady = computed(() => Boolean(entitiesStore.connected && authStore.isAuthenticated))
 
@@ -541,6 +552,7 @@ export function useNotificationCenter() {
     displayNotifications,
     filterCounts,
     unreadCount,
+    totalUnreadCount,
     lanPushReady,
     setFilterRef,
     onListKeydown,

@@ -13,6 +13,14 @@ const licenseActivated = ref<boolean | null>(null)
 let lastLicenseCheckAt = 0
 const LICENSE_CHECK_TTL_MS = 15_000
 
+/**
+ * 功能码明细**独立**的探测时间戳。
+ *
+ * 曾经与可用性共用 `lastLicenseCheckAt`：路由守卫先刷新可用性（顺带盖章），再判断
+ * 「功能码该不该刷新」就永远为假 —— 并行发起的那次请求被丢弃，权限变更后界面永不更新。
+ */
+let lastFeatureCheckAt = 0
+
 function touchLicenseCheckedAt(): void {
   lastLicenseCheckAt = Date.now()
 }
@@ -43,6 +51,7 @@ const licenseFeaturesLoaded = ref(false)
 
 /** 写入功能码明细；传空表示重置（登出时调用）。 */
 export function setLicenseFeatureAccess(access?: Record<string, boolean> | null): void {
+  lastFeatureCheckAt = Date.now()
   if (!access) {
     licenseFeatureAccess.value = {}
     licenseFeaturesLoaded.value = false
@@ -50,17 +59,16 @@ export function setLicenseFeatureAccess(access?: Record<string, boolean> | null)
   }
   licenseFeatureAccess.value = { ...access }
   licenseFeaturesLoaded.value = true
-  touchLicenseCheckedAt()
 }
 
 /**
- * 功能码明细是否应重新拉取（与 license status 共用 TTL）。
+ * 功能码明细是否应重新拉取（**独立 TTL**，不与授权可用性混用）。
  * 失败后保持 ``loaded=false`` 时也会返回 true，避免永久卡在 fail-closed。
  */
 export function shouldRefreshLicenseFeatures(force = false): boolean {
   if (force) return true
   if (!licenseFeaturesLoaded.value) return true
-  return Date.now() - lastLicenseCheckAt >= LICENSE_CHECK_TTL_MS
+  return Date.now() - lastFeatureCheckAt >= LICENSE_CHECK_TTL_MS
 }
 
 /** 读取当前功能码明细（供 watch）。 */

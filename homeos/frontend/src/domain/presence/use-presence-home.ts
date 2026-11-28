@@ -54,14 +54,18 @@ export function usePresenceHome(pollMs = 30_000) {
   /**
    * 拉取最新在家状态
    * @sideEffects 更新 members/autoMode/loading
-   * @exceptions 捕获异常后将 members 置空，不向上抛出
+   * @exceptions 请求失败时保留上一次的成员列表，不向上抛出
    */
   async function refresh() {
     const data = await loadPresenceHome()
-    // 后端可能返回非数组，做防御性处理；失败时清空成员，避免展示过期数据
-    members.value = Array.isArray(data?.members) ? data.members : []
-    // autoMode 显式为 false 时才关闭，缺省视为 true
-    autoMode.value = data?.autoMode !== false
+    // 失败（null）与「读到空列表」必须分开处理：一次网络抖动不该把墙屏改成「无人在家」，
+    // 那是安全敏感信息。失败时保留上次结果，只收 loading。
+    if (data !== null) {
+      // 后端可能返回非数组，做防御性处理
+      members.value = Array.isArray(data.members) ? data.members : []
+      // autoMode 显式为 false 时才关闭，缺省视为 true
+      autoMode.value = data.autoMode !== false
+    }
     loading.value = false
   }
 

@@ -116,7 +116,7 @@ const showAgentChat = computed({
   set: (v) => (v ? chrome.openAgentChat() : chrome.closeAgentChat()),
 })
 
-const notificationUnread = computed(() => notificationCenterState?.unreadCount?.value ?? 0)
+const notificationUnread = computed(() => notificationCenterState?.totalUnreadCount?.value ?? 0)
 
 // 授权收回时关掉已打开的壳层浮层，避免无入口却仍挂着面板。
 watch(showAgentChrome, (ok) => {

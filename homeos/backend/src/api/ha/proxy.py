@@ -315,6 +315,9 @@ async def _cached_snapshot(
         headers,
         client_config.verify_tls,
         client_config.timeout,
+        # 与首帧请求同一代理策略：内网 HA 直连，容器里的 HTTP_PROXY/SOCKS 不能把后台刷新
+        # 拖到公网上去（那会让首帧成功、之后每次刷新静默失败，实时地图冻住）。
+        bypass_environment_proxy(client_config.base_url),
     )
     if not live_map:
         # 普通快照可以先把旧图给出去，刷新在后台完成。

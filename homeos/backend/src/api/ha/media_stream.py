@@ -231,11 +231,20 @@ def load_authorized_camera_connection(database_manager: Database, viewer: Viewer
 
 
 async def _refresh_camera_snapshot(
-    key: str, target: str, headers: Mapping[str, str], verify_tls: bool, timeout: float
+    key: str,
+    target: str,
+    headers: Mapping[str, str],
+    verify_tls: bool,
+    timeout: float,
+    bypass_proxy: bool = False,
 ) -> None:
     try:
         # 后台刷新同样走共享池：这是 hb_live 墙屏最频繁的一条路径。
-        upstream = await _shared_media_client(verify_tls).get(target, headers=dict(headers), timeout=timeout)
+        # 代理策略必须与首帧请求一致（内网 HA 直连、不被容器里的 HTTP_PROXY 拖去公网），
+        # 否则首帧成功、之后每次刷新都静默失败，实时地图冻在最后一帧。
+        upstream = await _shared_media_client(verify_tls, bypass_proxy).get(
+            target, headers=dict(headers), timeout=timeout
+        )
         if 200 <= upstream.status_code < 300 and upstream.content:
             _remember_camera_snapshot(key, upstream.content, upstream.headers.get("content-type", "image/jpeg"))
     except httpx.HTTPError:
@@ -245,7 +254,12 @@ async def _refresh_camera_snapshot(
 
 
 def _schedule_camera_snapshot_refresh(
-    key: str, target: str, headers: Mapping[str, str], verify_tls: bool, timeout: float
+    key: str,
+    target: str,
+    headers: Mapping[str, str],
+    verify_tls: bool,
+    timeout: float,
+    bypass_proxy: bool = False,
 ) -> None:
     existing = camera_snapshot_refreshes.get(key)
     if existing and not existing.done():
@@ -253,7 +267,7 @@ def _schedule_camera_snapshot_refresh(
     # 走受管任务：`asyncio` 只对任务持弱引用，仅存在 dict 里的强引用是这里**唯一**的存活依据，
     # 一旦字典被换掉任务就可能静默消失；受管登记簿同时负责异常留痕与停机收尾。
     task = background_tasks.spawn(
-        _refresh_camera_snapshot(key, target, headers, verify_tls, timeout),
+        _refresh_camera_snapshot(key, target, headers, verify_tls, timeout, bypass_proxy),
         label=f"ha.camera.snapshot.{key}",
     )
     camera_snapshot_refreshes[key] = task

@@ -42,24 +42,34 @@ export function useNotificationsView() {
   const stats = ref<NotificationStatsPayload | null>(null)
   const statsLoading = ref(false)
   const statsError = ref('')
+  /**
+   * 请求序号：快速切换来源 / 时间窗时，先发的请求可能后回。
+   * 没有这道守卫，界面会把「上一个筛选」的统计画在当前 tab 下（事件页与设备页
+   * 都有同一模式，见 `features/events/events-view-data.ts`）。
+   */
+  let statsSeq = 0
 
   const hourOptions = NOTIFICATION_HOUR_OPTIONS
 
   async function fetchStats() {
     if (!authStore.isAuthenticated) return
+    const seq = ++statsSeq
     statsLoading.value = true
     statsError.value = ''
     try {
       const params: Record<string, string | number> = { hours: hours.value }
       if (activeSource.value !== 'all') params.source = activeSource.value
       const res = await fetchNotificationStats(params)
+      if (seq !== statsSeq) return
       stats.value = res.data as NotificationStatsPayload
     } catch (e: unknown) {
+      if (seq !== statsSeq) return
       stats.value = null
       statsError.value = getApiErrorMessage(e, '统计数据加载失败')
       logger.warn('通知统计加载失败', e)
     } finally {
-      statsLoading.value = false
+      // 只有最新一次请求能关 loading，否则过期响应会提前收起骨架屏。
+      if (seq === statsSeq) statsLoading.value = false
     }
   }
 
