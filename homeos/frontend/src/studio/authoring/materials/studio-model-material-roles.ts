@@ -623,7 +623,17 @@ const FAMILY_BY_ITEM_TYPE: Readonly<Record<string, string>> = Object.freeze({
   car: 'vehicle',
   suv: 'vehicle',
   scooter: 'vehicle',
+  /**
+   * 车辆开合件（`小汽车-开合件` / `越野车-开合件`）：独立 GLB，材质名沿用车身原名
+   * （`car_tms` / `glass_01` / `car-interior-*`）。必须归 `vehicle`，否则
+   * `usesDetailMaterialPipeline` 会把它们当普通家具按调色板整块重建，`car_tms` 的
+   * UV 图集当场丢贴图；同时家族兜底角色也会从 `body` 变成 `fabric`。
+   */
+  'smallcar-openings': 'vehicle',
+  'suv-openings': 'vehicle',
   aquarium: 'aquatic',
+  /** 榻榻米：草席面 + 布艺包边，按软装家族取配方（`dark` / `accent` / `soft` / `light`）。 */
+  tatami: 'upholstery',
   door: 'door',
   'tea-table-set': 'tea',
   plant: 'plant',
@@ -1069,6 +1079,61 @@ const MODEL_ROLE_BY_MATERIAL_NAME: Readonly<Record<string, Readonly<Record<strin
     headlight_01: 'emissive',
     headlight_02: 'emissive',
   },
+  /**
+   * 车辆开合件的材质名沿用**车身**那一份（`小汽车.glb` / `越野车.glb` 的导出材质），
+   * 单独建条目而不是复用 `smallcar` / `suv`：这两份 GLB 少了 `glass_02` / `glass_back`
+   * 之类的槽位，却多出整套 `car-interior-*` 内饰件，共用一个表会让「没有的槽位」
+   * 也出现在解析分支里，日后按名字取色容易踩空。
+   */
+  'smallcar-openings': {
+    car_tms: 'bodywork',
+    base: 'base',
+    body: 'body',
+    gray: 'trim',
+    salon: 'seat',
+    glass: 'glass',
+    glass_01: 'glass',
+    headlight_01: 'emissive',
+    headlight_02: 'emissive',
+    'car-interior-carpet': 'fabric',
+    'car-interior-seal': 'trim',
+    'car-interior-liner': 'panel',
+    'car-interior-sedan-leather': 'seat',
+    'car-interior-sedan-trim': 'trim',
+    'car-interior-sedan-seam': 'trim',
+    'car-interior-aluminium': 'metal',
+    'car-interior-buckle': 'metal',
+    'car-interior-dashboard': 'panel',
+    'car-interior-screen': 'display',
+    'car-interior-display': 'display',
+    'car-interior-rim': 'metal',
+    'car-interior-rib': 'panel',
+    'car-interior-lid': 'panel',
+  },
+  'suv-openings': {
+    base: 'base',
+    body: 'body',
+    gray: 'trim',
+    salon: 'seat',
+    glass: 'glass',
+    glass_01: 'glass',
+    headlight_01: 'emissive',
+    headlight_02: 'emissive',
+    'car-interior-carpet': 'fabric',
+    'car-interior-seal': 'trim',
+    'car-interior-liner': 'panel',
+    'car-interior-suv-leather': 'seat',
+    'car-interior-suv-trim': 'trim',
+    'car-interior-suv-seam': 'trim',
+    'car-interior-aluminium': 'metal',
+    'car-interior-buckle': 'metal',
+    'car-interior-dashboard': 'panel',
+    'car-interior-screen': 'display',
+    'car-interior-display': 'display',
+    'car-interior-rim': 'metal',
+    'car-interior-rib': 'panel',
+    'car-interior-lid': 'panel',
+  },
   scooter: {
     gogoro_color: 'body',
     'scooter-seat': 'seat',
@@ -1229,6 +1294,23 @@ const MODEL_ROLE_RECIPE_OVERRIDES: Record<string, RoleRecipeTable> = {
 
   rug: {
     fabric: { color: 'furnitureLight', surface: 'fabric', polygonOffset: true },
+  },
+
+  /**
+   * 榻榻米（`榻榻米.glb`）：五个候选色槽位 `body / dark / accent / soft / light`。
+   *
+   * 家族给的是 `upholstery`，但那张表只登记了 `dark` / `light` / `accent`，`soft`
+   * 与 `body` 会落到家族兜底或直接没有配方（C8），整块榻榻米于是只剩一个灰面。
+   * 这里按实物落配方：草席主体（`body`）走浅木色 + 织物编织面（0.82 粗糙度与
+   * 内嵌值一致，不必回写 GLB），包边布（`dark` / `soft`）走深 / 浅家具布，`accent`
+   * / `light` 是被褥与贴边。颜色一律用调色板键，跟随主题深浅档。
+   */
+  tatami: {
+    body: { color: 'woodLight', surface: 'fabric', roughness: 0.82, fabricLike: true },
+    dark: { color: 'furnitureDark', surface: 'fabric', fabricLike: true },
+    soft: { color: 'furnitureSoft', surface: 'fabric', fabricLike: true },
+    accent: { color: 'decorAccent', surface: 'fabric', fabricLike: true },
+    light: { color: 'furnitureLight', surface: 'fabric', fabricLike: true },
   },
 
   tv_standard: { body: { color: 'applianceDark', surface: 'lacquer' } },

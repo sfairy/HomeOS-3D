@@ -8,7 +8,8 @@
  *   lite 与完整件是不是同一套槽位」。
  *
  * 判定全部来自契约 `specs/model-slot-contracts.json`，脚本不自己猜角色：
- * 1. 覆盖：336 款都有契约，槽位数与两个变体的 materials 长度一致；
+ * 1. 覆盖：**磁盘上的每个 GLB 模型**都要有契约（S0 抓「有文件没契约」），槽位数与两个变体的
+ *    materials 长度一致；
  * 2. 解析：每个槽位按当前名解析出的角色 == 契约角色，来源不是家族兜底；
  * 3. 命名：规范字符、不是 `material-<n>` / 序号 / 符号；
  * 4. 引用：没有死材质（契约登记例外的除外）；
@@ -290,13 +291,39 @@ function main() {
   }
   const contracts = JSON.parse(fs.readFileSync(contractsPath, 'utf8'))
   const variants = collectModelVariants(listModelFiles())
-  const targets = only ? contracts.models.filter((model) => model.id === only) : contracts.models
-  const results = targets.map((contract) => auditModel(contract, variants.get(contract.id)))
+  const contractById = new Map(contracts.models.map((model) => [model.id, model]))
+  /**
+   * 覆盖口径是**磁盘**，不是契约：分母用契约时，缺契约的模型会直接从门禁里消失
+   * （`tatami` / 两个开合件就这样漏了整整一轮）。磁盘上有 GLB 却没有契约 → S0 直接判 fail。
+   */
+  const diskIds = [...variants.keys()].sort()
+  const targets = (only ? diskIds.filter((id) => id === only) : diskIds).map(
+    (id) => contractById.get(id) ?? { id, missingContract: true },
+  )
+  const results = targets.map((contract) =>
+    contract.missingContract
+      ? {
+          id: contract.id,
+          itemType: contract.id,
+          family: null,
+          status: 'fail',
+          coverage: 0,
+          slots: [],
+          findings: [
+            {
+              rule: 'S0',
+              detail: `磁盘上有 GLB，但槽位契约里没有该模型（跑 bun homeos/frontend/scripts/models/build-slot-contracts.mjs 重建）`,
+            },
+          ],
+        }
+      : auditModel(contract, variants.get(contract.id)),
+  )
 
   const ruleCounts = {}
   for (const model of results)
     for (const finding of model.findings) ruleCounts[finding.rule] = (ruleCounts[finding.rule] ?? 0) + 1
   const failing = results.filter((model) => model.status === 'fail')
+  const covered = results.filter((model) => !model.missingContract).length
   const summary = {
     generatedAt: new Date().toISOString(),
     models: results.length,
@@ -304,7 +331,9 @@ function main() {
     slots: results.reduce((sum, model) => sum + model.slots.length, 0),
     pass: results.length - failing.length,
     fail: failing.length,
-    coverage: contracts.totals?.models ? results.length / contracts.models.length : 0,
+    /** 覆盖率按磁盘模型算：缺契约的模型现在是 fail（S0），不会再从分母里消失。 */
+    coverage: results.length ? covered / results.length : 0,
+    missingContracts: results.filter((model) => model.missingContract).map((model) => model.id),
     minCoverage: MIN_COVERAGE,
     ruleCounts,
     thresholds: { pbrTolerance: PBR_TOLERANCE, areaShareTolerance: AREA_SHARE_TOLERANCE },
@@ -354,12 +383,16 @@ function main() {
   )
   lines.push('')
   lines.push(
-    '规则：S1 契约覆盖 / S2 角色解析 / S3 命名规范 / S4 死材质 / S5 整件同角色 / S6 lite 一致 / S7 PBR 偏差 / S8 几何漂移',
+    '规则：S0 契约覆盖（磁盘为准）/ S1 槽位结构 / S2 角色解析 / S3 命名规范 / S4 死材质 / S5 整件同角色 / S6 lite 一致 / S7 PBR 偏差 / S8 几何漂移',
   )
   lines.push('')
   for (const model of results) {
     if (model.status === 'pass') continue
-    lines.push(`## ${model.id}（${model.itemType} / ${model.family}）`, '')
+    // 缺契约（S0）时 itemType / family 无从得知：只写 id，避免报告里出现「null / null」。
+    lines.push(
+      model.missingContract ? `## ${model.id}（无槽位契约）` : `## ${model.id}（${model.itemType} / ${model.family}）`,
+      '',
+    )
     lines.push('| 槽位 | 名称 | 解析角色（来源） | 契约角色 | 结论 |')
     lines.push('| --- | --- | --- | --- | --- |')
     for (const slot of model.slots) {

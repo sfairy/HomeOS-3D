@@ -16,6 +16,13 @@
  * 4. **名字稳定**：节点名、材质名集合与基线一致。运行期还有按名字判定的分支，改名会静默失效。
  * 5. **面数下限**：三角面 ≥ 基线 0.9×。低模顶替原版正是「不如原图」的根因。
  * 6. **lite 形态**：lite 必须带 Draco + 量化；完整件不允许被 Draco 压（导出/编辑要用原网格）。
+ * 7. **结构卫生**：不允许「不在任何 scene 里的节点」（死数据，会污染面数与节点名统计），
+ *    也不允许 `STALE_UV_ITEM_TYPES` 里的模型留着归一化伪 UV。判定与修复共用
+ *    `models/lib/glb-json-surgery.mjs` / `stale-uv-models.mjs`，清理命令见
+ *    `ops/checks/studio/repair_glb_structure.mjs`。
+ *
+ * 面数口径：按**可达节点实例**累加（同一 mesh 被两个可达节点引用 = 两次绘制）。早期版本
+ * 对所有节点无差别累加，于是 `越野车.glb` 被那条死装配链多算了一倍（40,430 vs 真实 20,215）。
  *
  * 重建件（`REBUILT`）允许面数/名字变化：它们是**基于原网格重做**并有人工验收证据的模型，
  * 名单必须是白名单而不是「面数掉了就放行」。
@@ -38,6 +45,11 @@ import {
   modelsDir,
   parseGlb,
 } from '../../../homeos/frontend/scripts/models/lib/glb-io.mjs'
+import { STALE_UV_ITEM_TYPES } from '../../../homeos/frontend/scripts/models/lib/stale-uv-models.mjs'
+import {
+  declaresAttribute,
+  unreachableNodeIndices,
+} from '../../../homeos/frontend/scripts/models/lib/glb-json-surgery.mjs'
 
 const hereDir = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(hereDir, '../../..')
@@ -115,6 +127,11 @@ const valueOf = (name) => {
   return index >= 0 ? args[index + 1] : undefined
 }
 
+/**
+ * 「不可达节点」与「是否声明了 UV」的判定都在 `lib/glb-json-surgery.mjs`：
+ * 审计与修复共用一份，避免两边口径漂移。
+ */
+
 /** 每个 GLB 的可比指标，全部来自 JSON chunk（不解码几何，跑得快且不受 Draco 影响）。 */
 function inspectFile(relativePath) {
   const absolutePath = path.join(modelsDir, relativePath)
@@ -123,8 +140,13 @@ function inspectFile(relativePath) {
   const nodeNames = []
   const materialNames = []
   const accessors = json.accessors ?? []
+  const unreachable = unreachableNodeIndices(json)
+  const unreachableSet = new Set(unreachable)
   let triangles = 0
-  for (const node of json.nodes ?? []) {
+  // 面数按**可达节点实例**统计：同一 mesh 被两个可达节点引用就是两次绘制（实例化），
+  // 但被死节点引用不算 —— 那正是这一版要修的口径错误。
+  for (const [index, node] of (json.nodes ?? []).entries()) {
+    if (unreachableSet.has(index)) continue
     if (node.name) nodeNames.push(node.name)
     const mesh = node.mesh === undefined ? null : json.meshes?.[node.mesh]
     if (!mesh) continue
@@ -147,6 +169,8 @@ function inspectFile(relativePath) {
     // 贴图有效性单列：数量对但 bufferView 空/越界，运行期同样画不出贴图。
     brokenImages: brokenImageIndices(json, binLength),
     draco: (json.extensionsUsed ?? []).includes('KHR_draco_mesh_compression'),
+    unreachableNodes: unreachable.length,
+    declaresUv: declaresAttribute(json, 'TEXCOORD_0'),
   }
 }
 
@@ -293,6 +317,28 @@ for (const id of ids) {
         add('error', id, relativePath, 'lite 丢失 Draco 压缩（体积会回到未压缩状态）')
     } else if (!before?.draco && current.draco) {
       add('error', id, relativePath, '完整件被 Draco 压缩（导出/再编辑会拿到量化网格）')
+    }
+    /**
+     * 结构卫生：不在任何 scene 里的节点就是死数据。
+     *
+     * 它不影响渲染（加载器按场景图建对象），但会污染面数 / 节点名统计，还会在 JSON 里
+     * 留着一条与真实变换无关的缩放链 —— `越野车.glb` 的 24 个死节点同时造成了
+     * 「面数翻倍」与「20 个 Geom3D 重名」两个假象。清理脚本：`repair_glb_structure.mjs`。
+     */
+    if (current.unreachableNodes > 0) {
+      add(
+        'error',
+        id,
+        relativePath,
+        `${current.unreachableNodes} 个节点不在任何 scene 里（死数据，会污染面数与节点名统计）`,
+      )
+    }
+    /**
+     * 归一化伪 UV：这些模型的细节图没有贴图可用，UV 只喂给运行时的程序化细节图；
+     * 0..1 铺满整个构件会把纹理拉粗数倍（见 `stale-uv-models.mjs`）。
+     */
+    if (STALE_UV_ITEM_TYPES[id] && current.declaresUv) {
+      add('error', id, relativePath, '仍有归一化伪 UV（应摘掉，由运行时按米补盒式 UV）')
     }
     /**
      * S8 可达性：磁盘上的两份变体都要有入口。

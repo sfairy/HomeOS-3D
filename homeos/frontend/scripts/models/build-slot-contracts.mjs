@@ -27,6 +27,7 @@ import path from 'node:path'
 import { collectModelVariants, listModelFiles, modelsDir, repoRoot, specsDir } from './lib/glb-io.mjs'
 import { enumerateSlots } from './lib/material-slots.mjs'
 import { materialAuditFile, repoRelative } from './lib/model-audit-paths.mjs'
+import { OPEN_SHELL_ITEM_TYPES } from './lib/open-shell-models.mjs'
 
 const auditPath = materialAuditFile
 const specsPath = path.join(specsDir, 'model-specs.json')
@@ -223,6 +224,14 @@ const EXPLICIT_ROLE_OVERRIDES = Object.freeze({
 /** 槽位名规范：小写 kebab，允许下划线分段。 */
 const CANONICAL_SLOT = /^[a-z0-9][a-z0-9_]*(?:[-][a-z0-9][a-z0-9_]*)*$/
 
+/**
+ * 已审「共享槽位命名」的模型：材质名沿用上游导出的车身原名（`car_tms` / `glass_01` /
+ * `car-interior-*`），与 `audit_glb_materials.mjs → DECLARED_SHARED_SLOT_MODELS` 同一份
+ * 判断。这里让 `planSlotRenames` 一律 keep，避免契约给出「待改名 22 处」这种
+ * 永远不打算执行的计划，也避免有人照着契约跑一次改名把运行期取色分支打穿。
+ */
+const NO_RENAME_ITEM_TYPES = new Set(['smallcar-openings', 'suv-openings'])
+
 /** 角色 → 槽位名尾段：`playBall` → `play-ball`、`rugPile` → `rug-pile`。 */
 function roleSlug(role) {
   return String(role)
@@ -266,6 +275,15 @@ function needsSlotRename(name, itemType, role) {
  * 占用的名字（包括不改名的槽位）不会被抢。
  */
 function planSlotRenames(itemType, slots, previousLegacyFor) {
+  // 已审共享命名：契约保持原名，改名计划为 0（见 `NO_RENAME_ITEM_TYPES`）。
+  if (NO_RENAME_ITEM_TYPES.has(itemType)) {
+    for (const slot of slots) {
+      slot.action = 'keep'
+      slot.targetName = slot.name
+      slot.legacyName = previousLegacyFor(slot.name)
+    }
+    return 0
+  }
   const kept = new Set(
     slots.filter((slot) => !needsSlotRename(slot.name, itemType, slot.role)).map((slot) => slot.name.toLowerCase()),
   )
@@ -448,7 +466,9 @@ function main() {
               alphaMode: material.target.alphaMode ?? 'OPAQUE',
               opacity: round(material.target.opacity, 3),
               emissiveHex: material.target.emissiveHex ?? null,
-              doubleSided: material.target.doubleSided === true,
+              // 开放壳模型（门板 / 内饰片是单面壳）必须双面：契约写 true，
+              // 修复脚本才不会把它们改回单面（见 `open-shell-models.mjs`）。
+              doubleSided: OPEN_SHELL_ITEM_TYPES[model.itemType] ? true : material.target.doubleSided === true,
             }
           : null,
         embedded: {

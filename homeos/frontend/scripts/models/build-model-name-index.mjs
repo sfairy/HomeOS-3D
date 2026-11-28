@@ -96,6 +96,24 @@ for (const [folder, assetIds] of Object.entries(MODEL_ASSETS_BY_FOLDER)) {
   for (const id of assetIds) idRows.push({ folder, id })
 }
 
+/**
+ * 磁盘上的 GLB 实数（不是 `id × 2`）。
+ *
+ * 以前这里写死 `${rows.length * 2}`，于是文档一直声称 678 个 GLB：实际有 2 个 id 只有
+ * lite 档（`小汽车-开合件` / `越野车-开合件`，上游未出完整件），真实是 676。文档里
+ * 的派生数字必须来自磁盘，否则每次对账都要人工重数一遍。
+ */
+function countGlbFiles(directory = modelsDir) {
+  let count = 0
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    const absolute = path.join(directory, entry.name)
+    if (entry.isDirectory()) count += countGlbFiles(absolute)
+    else if (entry.isFile() && entry.name.toLowerCase().endsWith('.glb')) count += 1
+  }
+  return count
+}
+const glbFileCount = countGlbFiles()
+
 /** 第一轮：卡片直名 / 显示名人工补名。 */
 const nameById = new Map()
 for (const { id } of idRows) {
@@ -264,10 +282,11 @@ function renderMarkdown() {
     '',
     '每个 id 通常有两个文件：',
     '',
-    '- `<中文名>-lite.glb`：降面版，运行时首选；',
-    '- `<中文名>.glb`：完整件，精简版加载失败时兜底。',
+    '- `<中文名>-lite.glb`：运行时首选（Draco 压缩；只有 20 款真的降了面，其余与完整件同面数）；',
+    '- `<中文名>.glb`：完整件，精简版加载失败时兜底，也是导出 / 再编辑的源网格。',
     '',
-    `共 ${rows.length} 个 id（${rows.length * 2} 个 GLB），已有中文文件名 ${rows.length - unnamed.length} 个。`,
+    `共 ${rows.length} 个 id（磁盘上 ${glbFileCount} 个 GLB），已有中文文件名 ${rows.length - unnamed.length} 个。` +
+      '`小汽车-开合件` / `越野车-开合件` 只有 lite 档（上游没有完整件）。',
     '',
     '新增模型时：先把 id 登记到 `loaders/external-models/model-asset-folders.ts`，',
     '放进对应分区的 `<中文名>.glb` / `<中文名>-lite.glb`，再到模型库加一张带 `data-library-name` 的卡片，',

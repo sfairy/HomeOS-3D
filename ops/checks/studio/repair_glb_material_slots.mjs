@@ -21,6 +21,8 @@
  * bun ops/checks/studio/repair_glb_material_slots.mjs --write             # 落盘 GLB + 生成文件
  * bun ops/checks/studio/repair_glb_material_slots.mjs --model sofa --json # 单模型机读
  * bun ops/checks/studio/repair_glb_material_slots.mjs --write --prune-dead # 额外删死材质（会重排下标）
+ * bun ops/checks/studio/repair_glb_material_slots.mjs --write --backfill-pbr --backfill-surface
+ *   # 按契约回填 roughness / metalness，并把 alphaMode / opacity / doubleSided 对齐目标
  * ```
  */
 import fs from 'node:fs'
@@ -35,6 +37,7 @@ import {
   specsDir,
 } from '../../../homeos/frontend/scripts/models/lib/glb-io.mjs'
 import { formatGenerated } from '../../lib/biome-format.mjs'
+import { OPEN_SHELL_ITEM_TYPES } from '../../../homeos/frontend/scripts/models/lib/open-shell-models.mjs'
 
 const hereDir = path.dirname(fileURLToPath(import.meta.url))
 void hereDir
@@ -53,6 +56,7 @@ const write = hasFlag('write')
 const pruneDead = hasFlag('prune-dead')
 const emitOnly = hasFlag('emit-generated')
 const forceRename = hasFlag('force-rename')
+const backfillSurface = hasFlag('backfill-surface')
 const only = valueOf('model')
 const asJson = hasFlag('json')
 
@@ -211,6 +215,76 @@ function renderRoleFile(tables) {
 }
 
 /**
+ * 透明度 / 双面按契约回填（`--backfill-surface`）。
+ *
+ * 只做四件有明确契约证据的事：
+ * 1. `alphaMode` 与契约目标不同 → 写成目标值（A4/A7 的根因：镜面 / 水面被导成 OPAQUE，
+ *    或车身材质被导成 MASK 却带着 `< 1` 的 alpha）；
+ * 2. 由不透明转成 `BLEND` 且原本 alpha 满值 → 补 `baseColorFactor[3] = opacity`，
+ *    否则 BLEND 依然不透明；**已经是 BLEND 的一律不动 alpha** —— 那是作者按部件
+ *    调过的值（`suv.glb` 的前风挡 0.16、尾灯罩 0.42 是两回事，套用配方会统一成 0.42）；
+ * 3. 目标 `MASK` 却没写 `alphaCutoff` → 补规范默认 0.5（A2）；
+ * 4. 最终是 `OPAQUE` 却标了双面 → 关掉（A4）。**透明件不在此列**：玻璃 / 水 / 镜面
+ *    单面化会让背面直接消失，远比起伏的面片更难看。
+ *
+ * 两条跳过：
+ * - 带 `baseColorTexture` 的 `MASK` 材质（`car_tms` 这类 UV 图集）保持原状：
+ *   图集的 alpha 通道就是裁切信息，改成 OPAQUE 会把整块贴图铺满；
+ * - 已经是 BLEND 的材质不改 opacity（见上）。
+ *
+ * 每次都写日志，调用方据此判断 this file 是否需要落盘。
+ */
+function applySurfaceBackfill(material, pbr, slot, log, { openShell = false } = {}) {
+  const target = slot.target
+  if (!target) return
+  const wantAlphaMode = target.alphaMode
+  if (!wantAlphaMode) return
+  const currentAlphaMode = material.alphaMode ?? 'OPAQUE'
+  const hasBaseColorTexture = Boolean(pbr.baseColorTexture)
+  // 开放壳（门板 / 内饰片是单面壳）必须双面：单面化会从背面直接看穿。
+  // 契约对这类模型已经把 `target.doubleSided` 固定成 true，这里再兜一次 ——
+  // 免得有人先跑修复、后重建契约时把它们改回单面。
+  if (openShell && material.doubleSided !== true) {
+    material.doubleSided = true
+    log.push('doubleSided 恢复（开放壳必须双面）')
+  }
+  if (wantAlphaMode === 'OPAQUE' && currentAlphaMode === 'MASK' && hasBaseColorTexture) return
+  if (wantAlphaMode !== currentAlphaMode) {
+    material.alphaMode = wantAlphaMode
+    log.push(`alphaMode ${currentAlphaMode} → ${wantAlphaMode}`)
+  }
+  if (wantAlphaMode === 'MASK' && (material.alphaCutoff === undefined || material.alphaCutoff === null)) {
+    material.alphaCutoff = 0.5
+    log.push('alphaCutoff 补 0.5（MASK 缺省值）')
+  }
+  if (wantAlphaMode !== 'MASK') delete material.alphaCutoff
+  if (wantAlphaMode === 'BLEND' && currentAlphaMode !== 'BLEND' && typeof target.opacity === 'number') {
+    const factor = Array.isArray(pbr.baseColorFactor)
+      ? [...pbr.baseColorFactor]
+      : target.baseColorHex
+        ? hexToFactor(target.baseColorHex, target.opacity)
+        : null
+    // 原材质在 OPAQUE 下写过的 `< 1` alpha 视为作者意图，只补满值 / 缺失的情况。
+    if (factor && !(factor[3] !== undefined && factor[3] < 1)) {
+      const before = factor[3]
+      factor[3] = Number(target.opacity.toFixed(4))
+      pbr.baseColorFactor = factor
+      log.push(`alpha ${before ?? '缺省'} → ${factor[3]}（BLEND）`)
+    }
+  }
+  if (wantAlphaMode === 'OPAQUE') {
+    if (Array.isArray(pbr.baseColorFactor) && pbr.baseColorFactor[3] !== undefined && pbr.baseColorFactor[3] < 1) {
+      pbr.baseColorFactor = [...pbr.baseColorFactor.slice(0, 3), 1]
+      log.push('alpha 归 1（OPAQUE 下不生效）')
+    }
+    if (material.doubleSided === true && target.doubleSided === false) {
+      material.doubleSided = false
+      log.push('doubleSided 关（OPAQUE 无裁剪意义）')
+    }
+  }
+}
+
+/**
  * 单个 GLB 的改写：清死材质 → 改名 → 自发光归零。
  *
  * 两条刻意的边界：
@@ -220,9 +294,13 @@ function renderRoleFile(tables) {
  *    doubleSided 这类 PBR 规则曾由 `repair_glb_materials.mjs` 拥有（该脚本已随手动 3D
  *    工具链清理移除），这里再写一遍会变成两套互相打架的真值；需要时用
  *    `--backfill-pbr` 强制按契约回填 roughness / metalness。
+ * 3. **透明度 / 双面只在显式 `--backfill-surface` 时动**（`applySurfaceBackfill`）：
+ *    `alphaMode` 写错会让镜面 / 水面渲染成实心板，`doubleSided` 写错只是多一倍背面
+ *    绘制，两者都不该在没有契约证据时由脚本自行猜测。
  */
-function planFilePatch(json, model, { backfillPbr = false, pruneDead = false } = {}) {
+function planFilePatch(json, model, { backfillPbr = false, backfillSurface = false, pruneDead = false } = {}) {
   const log = []
+  const openShell = Boolean(OPEN_SHELL_ITEM_TYPES[model.itemType])
   const materials = json.materials ?? []
   const referenced = new Set()
   for (const mesh of json.meshes ?? []) {
@@ -310,7 +388,10 @@ function planFilePatch(json, model, { backfillPbr = false, pruneDead = false } =
         log.push(`baseColorFactor 回填 ${slot.target.baseColorHex}`)
       }
     }
-    if (!backfillPbr) continue
+    if (!backfillPbr) {
+      backfillSurface && applySurfaceBackfill(material, pbr, slot, log, { openShell })
+      continue
+    }
     const target = slot.target
     if (!target) continue
     if (typeof target.roughness === 'number') {
@@ -327,6 +408,7 @@ function planFilePatch(json, model, { backfillPbr = false, pruneDead = false } =
         log.push(`metalness ${value} → ${target.metalness}`)
       }
     }
+    backfillSurface && applySurfaceBackfill(material, pbr, slot, log, { openShell })
   }
 
   return { changed: log.length > 0, log }
@@ -382,6 +464,7 @@ function main() {
           (json) => {
             const plan = planFilePatch(json, model, {
               backfillPbr: hasFlag('backfill-pbr'),
+              backfillSurface,
               pruneDead: hasFlag('prune-dead'),
             })
             log = plan.log

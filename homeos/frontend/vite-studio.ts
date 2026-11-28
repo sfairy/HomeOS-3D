@@ -59,8 +59,21 @@ const classicEntries: Record<string, string> = {
   'display/display-startup': path.join(studioRoot, 'app/display/display-startup.ts'),
   'auth/scene/scene-depth': path.join(studioRoot, 'app/auth/scene/scene-depth.ts'),
   // studio-app 以字面量 URL 经 new Worker 加载。
-  '3d-studio/export/draco-decoder-worker': path.join(studioRoot, 'app/3d-studio/export/draco-decoder-worker.ts'),
+  // 源文件在压平目录时从 `app/3d-studio/export/` 迁到 `authoring/export/`，
+  // 这里必须跟着改：路径写错时 Vite 不会报错、只是**不产出**这个文件，
+  // 运行期 `new Worker('/static/3d-studio/export/draco-decoder-worker.js')` 直接 404，
+  // 全库 Draco 压缩的 lite 模型就都加载不了（日志里是成片的 404 重试）。
+  '3d-studio/export/draco-decoder-worker': path.join(studioRoot, 'authoring/export/draco-decoder-worker.ts'),
 }
+
+/**
+ * 经典 IIFE 入口的产物 URL（`/static/<name>.js`）。
+ *
+ * `vite.config.ts` 用它做「产物必须存在」的硬校验：这些脚本不在 `index.html` 里，
+ * 白名单发现不到，而 `bundleClassicIife` 对缺失入口是**静默跳过**的 ——
+ * `draco-decoder-worker.js` 就这样整份消失过一轮（Studio 里 Draco 模型全 404）。
+ */
+export const CLASSIC_IIFE_OUTPUTS: readonly string[] = Object.keys(classicEntries).map((name) => `/static/${name}.js`)
 
 /**
  * 把 `three` 解析为根绝对 URL 外置；`/static/vendor/**` 同样外置。

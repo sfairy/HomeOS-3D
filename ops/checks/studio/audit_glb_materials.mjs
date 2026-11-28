@@ -53,6 +53,7 @@
  * bun ops/checks/studio/audit_glb_materials.mjs --stdout     # 只打摘要，不写文件
  * bun ops/checks/studio/audit_glb_materials.mjs --json       # 机读 JSON 到 stdout
  * bun ops/checks/studio/audit_glb_materials.mjs --check      # 覆盖度 + 角色基线门禁，漂移则退出码 1
+ * bun ops/checks/studio/audit_glb_materials.mjs --check --strict  # 再把单模型级问题计入退出码（门禁用这个）
  * bun ops/checks/studio/audit_glb_materials.mjs --write-role-baseline  # 刻意调整角色后重写基线
  * ```
  *
@@ -65,6 +66,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { materialAuditFile } from '../../../homeos/frontend/scripts/models/lib/model-audit-paths.mjs'
+import { OPEN_SHELL_ITEM_TYPES } from '../../../homeos/frontend/scripts/models/lib/open-shell-models.mjs'
 
 const hereDir = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(hereDir, '../../..')
@@ -97,6 +99,15 @@ const option = (name, fallback) => {
 }
 const asJson = flag('json')
 const checkMode = flag('check')
+/**
+ * `--check --strict`：把「单模型级问题」也变成退出码。
+ *
+ * 默认 `--check` 只守覆盖度 / 角色基线 / 策略链路 —— 那几项是全库性契约，
+ * 单模型问题（M4 透明通道、A4 双面、C7 内嵌值漂移…）历来只进报告，否则历史存量
+ * 一多门禁就常年红着。`--strict` 给「本轮把存量清零之后」用：`run_model_checks`
+ * 的 materials 模块就跑这个模式，新引入的材质问题会立刻挡住提交。
+ */
+const strictMode = flag('strict')
 const writeRoleBaseline = flag('write-role-baseline')
 const stdoutOnly = flag('stdout') || checkMode || writeRoleBaseline
 const outDir = path.resolve(repoRoot, option('out-dir', reportDir))
@@ -389,6 +400,30 @@ const declaredAssetException = (modelId, kind) => {
   const entry = DECLARED_ASSET_EXCEPTIONS[modelId]
   return entry?.kind === kind ? entry : null
 }
+
+/* ------------------------------------------------------------------ *
+ * 已审过的槽位命名例外（共享 / 历史命名，不改名）
+ * ------------------------------------------------------------------ */
+
+/**
+ * 材质名**沿用车身原始导出名**的独立 GLB。
+ *
+ * 这两个文件是 `小汽车.glb` / `越野车.glb` 拆出来的可动件，材质名（`car_tms`、
+ * `glass_01`、`headlight_01`、`car-interior-*`）来自上游导出器，**没有**
+ * `<itemType>-` 前缀，尾词也常常是序号。改名会同时打穿：
+ * - `vehicleMaterialSlotFor` 的成员表（按原始名归并车辆槽位）；
+ * - `studio-external-models.ts` 里按 `material-<n>` / 原始名取色的遗留分支；
+ * - 质量基线与角色基线（都按「文件 + 下标」存）。
+ *
+ * 收益只是名字好看，故保持现状；N1 / N3 对这两个模型降级为「已审例外」，
+ * 只进报告注记，不参与单模型 status。新增条目同样要在 review 里逐条过。
+ */
+const DECLARED_SHARED_SLOT_MODELS = Object.freeze({
+  'smallcar-openings':
+    '`小汽车-开合件-lite.glb`：可动件从 `car.glb` 拆出，材质名由上游导出器决定' +
+    '（`car_tms` / `glass_01` / `headlight_0*` / `car-interior-*`），改名会打穿车辆槽位归并与取色分支',
+  'suv-openings': '`越野车-开合件-lite.glb`：同上，材质名与 `suv.glb` 同源（`glass_01` / `salon` / `car-interior-*`）',
+})
 
 /* ------------------------------------------------------------------ *
  * 注册表：GLB 文件 stem → itemType
@@ -1191,6 +1226,8 @@ function auditMaterial({ material, itemType, variant, family, modelId, isOrphan 
     roleSource: roleResult.source,
     isOrphan,
   })
+  /** 已审的共享 / 历史槽位命名：只压掉 N1 / N3，材质属性问题照报。 */
+  const sharedSlotName = DECLARED_SHARED_SLOT_MODELS[modelId] ?? null
 
   // M1 基础色
   if (!material.baseColorFactorPresent && !material.baseColorTexturePresent) {
@@ -1271,6 +1308,7 @@ function auditMaterial({ material, itemType, variant, family, modelId, isOrphan 
   // A4 OPAQUE + doubleSided
   if (material.doubleSided && material.alphaMode === 'OPAQUE') {
     const excused =
+      Boolean(OPEN_SHELL_ITEM_TYPES[itemType]) ||
       (recipe?.surface && DOUBLE_SIDED_OK_SURFACES.has(recipe.surface)) ||
       DOUBLE_SIDED_OK_ROLE.test(role) ||
       DOUBLE_SIDED_OK_ROLE.test(String(material.name || ''))
@@ -1352,7 +1390,9 @@ function auditMaterial({ material, itemType, variant, family, modelId, isOrphan 
   }
 
   // ── 槽位名语义化 ────────────────────────────────────────────────
-  if (naming.semantics === 'opaque') {
+  // `sharedSlotName` 命中的模型（车辆开合件）名字由上游导出器决定，N1 / N3 已审放行；
+  // 材质层问题（A3 / A4 / A7 / C7 …）仍然照报。
+  if (naming.semantics === 'opaque' && !sharedSlotName) {
     issues.push(
       issue('N1', {
         location,
@@ -1405,7 +1445,7 @@ function auditMaterial({ material, itemType, variant, family, modelId, isOrphan 
       }),
     )
   }
-  if (naming.namingSystem === 'legacy-foreign' && naming.semantics !== 'opaque') {
+  if (naming.namingSystem === 'legacy-foreign' && naming.semantics !== 'opaque' && !sharedSlotName) {
     issues.push(
       issue('N3', {
         location,
@@ -1841,6 +1881,10 @@ function auditModel(modelId) {
     }
   }
   model.naming = naming
+  // 已审的共享槽位命名（N1 / N3 放行）也要留痕：报告附录 + JSON 都要能看到原因。
+  if (DECLARED_SHARED_SLOT_MODELS[modelId]) model.sharedSlotException = DECLARED_SHARED_SLOT_MODELS[modelId]
+  // 开放壳（A4 放行）同理：报告里必须能看到「为什么这里双面是对的」。
+  if (OPEN_SHELL_ITEM_TYPES[itemType]) model.openShellException = OPEN_SHELL_ITEM_TYPES[itemType]
 
   const blocking = model.issues.filter((entry) => entry.severity === 'model')
   model.status = blocking.length ? 'issues' : 'ok'
@@ -1994,6 +2038,16 @@ summary.assetExceptions = models
 summary.namingAliases = models
   .filter((model) => model.namingAlias)
   .map((model) => ({ id: model.id, itemType: model.itemType, ...model.namingAlias }))
+
+/** 已审的共享槽位命名例外（N1 / N3 放行）：报告里必须能看到「为什么没报」。 */
+summary.sharedSlotExceptions = models
+  .filter((model) => model.sharedSlotException)
+  .map((model) => ({ id: model.id, itemType: model.itemType, reason: model.sharedSlotException }))
+
+/** 开放壳模型（A4 放行）：双面是几何决定的，不是配置残留。 */
+summary.openShellExceptions = models
+  .filter((model) => model.openShellException)
+  .map((model) => ({ id: model.id, itemType: model.itemType, reason: model.openShellException }))
 
 /**
  * M3 / S1：细节（bump）链路核验结果 + 贴图来源分布。
@@ -2381,6 +2435,8 @@ function renderReport() {
       `（${s.detailCycleStrategy.ready ? '✓ ≥ 16' : '✗ 过密'}） |`,
   )
   lines.push(`| 命名等价别名（C5，不计入不一致） | ${s.namingAliases?.length ?? 0} |`)
+  lines.push(`| 共享槽位命名例外（N1 / N3，不计入 status） | ${s.sharedSlotExceptions?.length ?? 0} |`)
+  lines.push(`| 开放壳双面例外（A4，不计入 status） | ${s.openShellExceptions?.length ?? 0} |`)
   lines.push(
     `| 槽位名语义化 | 构件语义 ${s.naming.semantics.semantic ?? 0}、明度候选已还原 ${
       s.naming.semantics['lightness-remapped'] ?? 0
@@ -2800,6 +2856,32 @@ function renderReport() {
       lines.push(`| ${code(entry.id)} | \`${entry.file}\` | ${code(entry.itemType)} | ${entry.reason} |`)
     }
   }
+  if (summary.sharedSlotExceptions.length) {
+    lines.push('')
+    lines.push(
+      `**已审的共享槽位命名**（\`DECLARED_SHARED_SLOT_MODELS\`：材质名沿用上游导出的车身原名，` +
+        `N1 / N3 放行、不计入 status）：${summary.sharedSlotExceptions.length} 个模型`,
+    )
+    lines.push('')
+    lines.push('| 模型 | itemType | 保留原因 |')
+    lines.push('| --- | --- | --- |')
+    for (const entry of summary.sharedSlotExceptions) {
+      lines.push(`| ${code(entry.id)} | ${code(entry.itemType)} | ${entry.reason} |`)
+    }
+  }
+  if (summary.openShellExceptions.length) {
+    lines.push('')
+    lines.push(
+      `**开放壳模型**（\`OPEN_SHELL_ITEM_TYPES\`：实测边界边 > 1000，单面化会从背面看穿；` +
+        `A4 放行、不计入 status）：${summary.openShellExceptions.length} 个模型`,
+    )
+    lines.push('')
+    lines.push('| 模型 | itemType | 判据 |')
+    lines.push('| --- | --- | --- |')
+    for (const entry of summary.openShellExceptions) {
+      lines.push(`| ${code(entry.id)} | ${code(entry.itemType)} | ${entry.reason} |`)
+    }
+  }
   if (summary.assetExceptions.length) {
     lines.push('')
     lines.push('**已登记的保留例外**（`audit_glb_materials.mjs → DECLARED_ASSET_EXCEPTIONS`，不计入 status）：')
@@ -2914,6 +2996,8 @@ const jsonPayload = {
     declaredDeadMaterials: model.declaredDeadMaterials,
     assetException: model.assetException,
     namingAlias: model.namingAlias,
+    sharedSlotException: model.sharedSlotException,
+    openShellException: model.openShellException,
     normalMap: model.normalMap,
     unreadableReason: model.unreadableReason,
     issues: model.issues,
@@ -2955,6 +3039,18 @@ if (asJson) {
     `· 细节周期密度（M7 / S7）：${cycleStrategy.ready ? '✓' : '✗'} ${cycleStrategy.texelsPerCycle ?? '—'} 纹素 / 周期（阈值 ≥ 16）`,
   )
   console.log(`· 命名等价别名（C5，只差 -/_，不计入不一致）：${summary.namingAliases.length} 个`)
+  console.log(
+    `· 共享槽位命名例外（N1 / N3，已审）：${summary.sharedSlotExceptions.length} 个模型` +
+      (summary.sharedSlotExceptions.length
+        ? `（${summary.sharedSlotExceptions.map((entry) => entry.id).join('、')}）`
+        : ''),
+  )
+  console.log(
+    `· 开放壳双面例外（A4，已审）：${summary.openShellExceptions.length} 个模型` +
+      (summary.openShellExceptions.length
+        ? `（${summary.openShellExceptions.map((entry) => entry.id).join('、')}）`
+        : ''),
+  )
   if (!stdoutOnly) {
     fs.mkdirSync(outDir, { recursive: true })
     const mdPath = reportPath
@@ -3042,6 +3138,30 @@ if (checkMode) {
   if (!summary.detailCycleStrategy.ready) {
     problems.push(`细节周期密度过密：${summary.detailCycleStrategy.breaks.join('；')}`)
   }
+  if (strictMode) {
+    // 只看单模型级（`severity === 'model'`）：全局项（M3 / M5）有自己的链路检查，覆盖度已单独守。
+    const withIssues = models.filter((model) => model.issues.some((entry) => entry.severity === 'model'))
+    for (const model of withIssues.slice(0, 20)) {
+      const sample = model.issues.filter((entry) => entry.severity === 'model')
+      const byRule = {}
+      for (const entry of sample) byRule[entry.rule] = (byRule[entry.rule] ?? 0) + 1
+      problems.push(
+        `${model.id}：${Object.entries(byRule)
+          .map(([rule, count]) => `${rule}×${count}`)
+          .join('、')}（${sample
+          .slice(0, 3)
+          .map((entry) => entry.location)
+          .join('；')}）`,
+      )
+    }
+    if (withIssues.length > 20) problems.push(`…另有 ${withIssues.length - 20} 个模型有单模型级问题`)
+    if (withIssues.length) {
+      problems.push(
+        '单模型级问题在严格模式下计入退出码：按报告逐条修复（透明通道用 `repair_glb_material_slots.mjs --backfill-surface`，' +
+          '内嵌 PBR 漂移用 `--backfill-pbr`，角色缺失补 `studio-model-material-roles.ts`）',
+      )
+    }
+  }
   if (problems.length) {
     for (const problem of problems) console.error(`✗ ${problem}`)
     process.exit(1)
@@ -3053,12 +3173,16 @@ if (checkMode) {
     `✓ 角色基线一致：${Object.keys(roleSnapshot).length} 个文件 / ${Object.values(roleSnapshot).reduce((sum, roles) => sum + roles.length, 0)} 条「槽位下标 → 角色」`,
   )
   console.log(
-    `· 存量待修：缺失 ${summary.kindCounts.missing}、异常 ${summary.kindCounts.anomaly}、不一致 ${summary.kindCounts.inconsistent}（不计入退出码）`,
+    `· 存量待修：缺失 ${summary.kindCounts.missing}、异常 ${summary.kindCounts.anomaly}、不一致 ${
+      summary.kindCounts.inconsistent
+    }${strictMode ? '（严格模式：已计入退出码）' : '（不计入退出码）'}`,
   )
   console.log(
     `· 已落实策略：细节图运行时补齐 ${summary.surfaceDetailStrategy.ready ? '✓' : '✗'}、金属环境贴图 ${summary.metalEnvironmentStrategy.ready ? '✓' : '✗'}、` +
       `档位结构件金属化 ${summary.presetStructuralMetalStrategy.hits.length === 0 ? '✓ 0 命中' : `✗ ${summary.presetStructuralMetalStrategy.hits.length} 处`}、` +
-      `命名等价别名 ${summary.namingAliases.length} 个（均不计入不一致）`,
+      `命名等价别名 ${summary.namingAliases.length} 个（均不计入不一致）、` +
+      `共享槽位命名例外 ${summary.sharedSlotExceptions.length} 个模型（N1 / N3 放行）、` +
+      `开放壳双面例外 ${summary.openShellExceptions.length} 个模型（A4 放行）`,
   )
   console.log(
     `· 槽位名：语义 ${summary.naming.semantics.semantic ?? 0}、明度候选 ${

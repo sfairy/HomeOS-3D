@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-10-28T15:42:02.963Z",
+  "generatedAt": "2026-11-28T00:39:25.170Z",
   "unit": "m",
   "note": "槽位契约：逐槽位锁定「原名 → 构件 → 角色 → 表面 → 外观目标」。角色来自运行时解析器，几何证据来自 GLB 实测；审计脚本只比对契约，不改名、不回写 GLB。",
   "totals": {
-    "models": 336,
-    "slots": 1568,
-    "withoutGeometry": 399,
+    "models": 339,
+    "slots": 1612,
+    "withoutGeometry": 438,
     "renamePending": 0,
     "deadMaterials": 274,
     "sameRoleModels": 0
@@ -324,7 +324,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.483Z",
+        "generatedAt": "2026-11-28T00:39:24.903Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/办公数码/3D打印机.glb"
       }
     },
@@ -581,7 +581,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.485Z",
+        "generatedAt": "2026-11-28T00:39:24.904Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/空气炸锅.glb"
       }
     },
@@ -838,7 +838,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.486Z",
+        "generatedAt": "2026-11-28T00:39:24.906Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/健身娱乐/桌上冰球.glb"
       }
     },
@@ -915,7 +915,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.487Z",
+        "generatedAt": "2026-11-28T00:39:24.906Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/环境设备/空调出风口.glb"
       }
     },
@@ -1232,7 +1232,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.490Z",
+        "generatedAt": "2026-11-28T00:39:24.908Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/环境设备/空气净化器.glb"
       }
     },
@@ -1729,7 +1729,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.492Z",
+        "generatedAt": "2026-11-28T00:39:24.909Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/鱼缸.glb"
       }
     },
@@ -2046,7 +2046,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.494Z",
+        "generatedAt": "2026-11-28T00:39:24.910Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/健身娱乐/游戏街机.glb"
       }
     },
@@ -2303,7 +2303,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.498Z",
+        "generatedAt": "2026-11-28T00:39:24.912Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/玄关用品/拱形玻璃玄关台.glb"
       }
     },
@@ -2680,7 +2680,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.500Z",
+        "generatedAt": "2026-11-28T00:39:24.913Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/环境设备/香氛机.glb"
       }
     },
@@ -2877,7 +2877,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.501Z",
+        "generatedAt": "2026-11-28T00:39:24.914Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/儿童用品/婴儿床.glb"
       }
     },
@@ -3133,7 +3133,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.506Z",
+        "generatedAt": "2026-11-28T00:39:24.917Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/儿童用品/小型球池.glb"
       }
     },
@@ -3408,7 +3408,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.506Z",
+        "generatedAt": "2026-11-28T00:39:24.917Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/厨房家具/吧台.glb"
       }
     },
@@ -3605,7 +3605,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.507Z",
+        "generatedAt": "2026-11-28T00:39:24.918Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/厨房家具/吧台椅.glb"
       }
     },
@@ -3802,7 +3802,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.508Z",
+        "generatedAt": "2026-11-28T00:39:24.919Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/健身娱乐/杠铃架.glb"
       }
     },
@@ -3844,7 +3844,7 @@
               0.474,
               1
             ],
-            "roughness": 0.82,
+            "roughness": 0.3,
             "metalness": 0,
             "alphaMode": "OPAQUE",
             "alphaCutoff": null,
@@ -3903,7 +3903,7 @@
               0.491,
               1
             ],
-            "roughness": 0.82,
+            "roughness": 0.3,
             "metalness": 0,
             "alphaMode": "OPAQUE",
             "alphaCutoff": null,
@@ -3962,8 +3962,8 @@
               0.246,
               1
             ],
-            "roughness": 0.82,
-            "metalness": 0,
+            "roughness": 0.32,
+            "metalness": 0.72,
             "alphaMode": "OPAQUE",
             "alphaCutoff": null,
             "doubleSided": false,
@@ -4021,7 +4021,7 @@
               0.68,
               1
             ],
-            "roughness": 0.82,
+            "roughness": 0.3,
             "metalness": 0,
             "alphaMode": "OPAQUE",
             "alphaCutoff": null,
@@ -4080,7 +4080,7 @@
               0.617,
               1
             ],
-            "roughness": 0.82,
+            "roughness": 0.24,
             "metalness": 0,
             "alphaMode": "OPAQUE",
             "alphaCutoff": null,
@@ -4120,7 +4120,7 @@
           "roleExplicit": false,
           "surface": "glass",
           "required": true,
-          "alphaMode": "OPAQUE",
+          "alphaMode": "BLEND",
           "emissive": false,
           "doubleSided": false,
           "target": {
@@ -4137,11 +4137,11 @@
               0.397,
               0.558,
               0.651,
-              1
+              0.5
             ],
-            "roughness": 0.82,
-            "metalness": 0,
-            "alphaMode": "OPAQUE",
+            "roughness": 0.14,
+            "metalness": 0.06,
+            "alphaMode": "BLEND",
             "alphaCutoff": null,
             "doubleSided": false,
             "emissiveFactor": null
@@ -4179,7 +4179,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.510Z",
+        "generatedAt": "2026-11-28T00:39:24.920Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卫浴用品/台盆.glb"
       }
     },
@@ -4376,7 +4376,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.511Z",
+        "generatedAt": "2026-11-28T00:39:24.920Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卫浴用品/浴缸.glb"
       }
     },
@@ -4693,7 +4693,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.513Z",
+        "generatedAt": "2026-11-28T00:39:24.921Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卧室家具/双人床.glb"
       }
     },
@@ -4830,7 +4830,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.514Z",
+        "generatedAt": "2026-11-28T00:39:24.921Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卧室家具/床尾凳.glb"
       }
     },
@@ -5087,7 +5087,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.514Z",
+        "generatedAt": "2026-11-28T00:39:24.922Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卧室家具/床尾储物箱.glb"
       }
     },
@@ -5224,7 +5224,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.516Z",
+        "generatedAt": "2026-11-28T00:39:24.922Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卧室家具/床上托盘.glb"
       }
     },
@@ -5481,7 +5481,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.519Z",
+        "generatedAt": "2026-11-28T00:39:24.925Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/客厅家具/自行车＋停放架.glb"
       }
     },
@@ -6218,7 +6218,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.519Z",
+        "generatedAt": "2026-11-28T00:39:24.925Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/书房家具/书架.glb"
       }
     },
@@ -6535,7 +6535,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.520Z",
+        "generatedAt": "2026-11-28T00:39:24.926Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/面包机.glb"
       }
     },
@@ -6791,7 +6791,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.521Z",
+        "generatedAt": "2026-11-28T00:39:24.926Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/儿童用品/积木桌.glb"
       }
     },
@@ -7108,7 +7108,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.524Z",
+        "generatedAt": "2026-11-28T00:39:24.928Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卧室家具/上下铺.glb"
       }
     },
@@ -7253,7 +7253,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.524Z",
+        "generatedAt": "2026-11-28T00:39:24.928Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/柜架收纳/储物柜.glb"
       }
     },
@@ -7390,7 +7390,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.525Z",
+        "generatedAt": "2026-11-28T00:39:24.929Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/柜架收纳/双段储物柜.glb"
       }
     },
@@ -7646,7 +7646,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.525Z",
+        "generatedAt": "2026-11-28T00:39:24.929Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/烛台.glb"
       }
     },
@@ -7962,7 +7962,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.528Z",
+        "generatedAt": "2026-11-28T00:39:24.930Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/厨房用品/咖啡胶囊架.glb"
       }
     },
@@ -7985,9 +7985,9 @@
           "roleExplicit": false,
           "surface": "lacquer",
           "required": true,
-          "alphaMode": "MASK",
+          "alphaMode": "OPAQUE",
           "emissive": false,
-          "doubleSided": true,
+          "doubleSided": false,
           "target": {
             "baseColorHex": "#DADDE0",
             "roughness": 0.36,
@@ -8001,9 +8001,9 @@
             "baseColorFactor": null,
             "roughness": 0.36,
             "metalness": 0.06,
-            "alphaMode": "MASK",
-            "alphaCutoff": 0.5,
-            "doubleSided": true,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": false,
             "emissiveFactor": null
           },
           "geometryEvidence": {
@@ -8034,7 +8034,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.533Z",
+        "generatedAt": "2026-11-28T00:39:24.932Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/建筑与交通/小汽车.glb"
       }
     },
@@ -8171,7 +8171,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.534Z",
+        "generatedAt": "2026-11-28T00:39:24.933Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/宠物用品/猫抓板.glb"
       }
     },
@@ -8428,7 +8428,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.538Z",
+        "generatedAt": "2026-11-28T00:39:24.934Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/宠物用品/猫爬架.glb"
       }
     },
@@ -8625,7 +8625,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.540Z",
+        "generatedAt": "2026-11-28T00:39:24.936Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/环境设备/吊扇.glb"
       }
     },
@@ -8882,7 +8882,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.543Z",
+        "generatedAt": "2026-11-28T00:39:24.938Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/影音设备/大提琴＋支架.glb"
       }
     },
@@ -9138,7 +9138,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.544Z",
+        "generatedAt": "2026-11-28T00:39:24.939Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/电陶炉.glb"
       }
     },
@@ -9404,7 +9404,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.545Z",
+        "generatedAt": "2026-11-28T00:39:24.939Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/厨房家具/椅子.glb"
       }
     },
@@ -9720,7 +9720,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.547Z",
+        "generatedAt": "2026-11-28T00:39:24.940Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/儿童用品/儿童餐椅.glb"
       }
     },
@@ -9917,7 +9917,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.548Z",
+        "generatedAt": "2026-11-28T00:39:24.941Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/玄关用品/衣帽架.glb"
       }
     },
@@ -10234,7 +10234,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.549Z",
+        "generatedAt": "2026-11-28T00:39:24.942Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/咖啡磨豆机.glb"
       }
     },
@@ -10551,7 +10551,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.551Z",
+        "generatedAt": "2026-11-28T00:39:24.943Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/咖啡机.glb"
       }
     },
@@ -10688,7 +10688,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.552Z",
+        "generatedAt": "2026-11-28T00:39:24.943Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/客厅家具/组合茶几.glb"
       }
     },
@@ -10944,7 +10944,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.554Z",
+        "generatedAt": "2026-11-28T00:39:24.945Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/厨房用品/锅具组合.glb"
       }
     },
@@ -11021,7 +11021,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.555Z",
+        "generatedAt": "2026-11-28T00:39:24.945Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卫浴用品/台面.glb"
       }
     },
@@ -11292,7 +11292,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.555Z",
+        "generatedAt": "2026-11-28T00:39:24.945Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/窗帘（左片）.glb"
       }
     },
@@ -11563,7 +11563,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.555Z",
+        "generatedAt": "2026-11-28T00:39:24.945Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/窗帘（右片）.glb"
       }
     },
@@ -11834,7 +11834,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.555Z",
+        "generatedAt": "2026-11-28T00:39:24.945Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/窗帘（对开）.glb"
       }
     },
@@ -11971,7 +11971,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.556Z",
+        "generatedAt": "2026-11-28T00:39:24.945Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/厨房用品/砧板架.glb"
       }
     },
@@ -12288,7 +12288,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.563Z",
+        "generatedAt": "2026-11-28T00:39:24.949Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/健身娱乐/飞镖靶.glb"
       }
     },
@@ -12485,7 +12485,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.563Z",
+        "generatedAt": "2026-11-28T00:39:24.950Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/书本组合.glb"
       }
     },
@@ -12682,7 +12682,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.565Z",
+        "generatedAt": "2026-11-28T00:39:24.950Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/室内植物/小盆栽.glb"
       }
     },
@@ -12879,7 +12879,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.565Z",
+        "generatedAt": "2026-11-28T00:39:24.950Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/托盘杯子.glb"
       }
     },
@@ -13076,7 +13076,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.565Z",
+        "generatedAt": "2026-11-28T00:39:24.950Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/纸巾盒.glb"
       }
     },
@@ -13273,7 +13273,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.566Z",
+        "generatedAt": "2026-11-28T00:39:24.951Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/陶瓷花瓶.glb"
       }
     },
@@ -13528,7 +13528,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.567Z",
+        "generatedAt": "2026-11-28T00:39:24.951Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/装饰灯笼.glb"
       }
     },
@@ -13785,7 +13785,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.568Z",
+        "generatedAt": "2026-11-28T00:39:24.952Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/装饰盘.glb"
       }
     },
@@ -14042,7 +14042,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.570Z",
+        "generatedAt": "2026-11-28T00:39:24.954Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/环境设备/除湿机.glb"
       }
     },
@@ -14188,7 +14188,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.571Z",
+        "generatedAt": "2026-11-28T00:39:24.954Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/书房家具/桌子.glb"
       }
     },
@@ -14505,7 +14505,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.572Z",
+        "generatedAt": "2026-11-28T00:39:24.954Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/办公数码/台式电脑.glb"
       }
     },
@@ -14822,7 +14822,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.572Z",
+        "generatedAt": "2026-11-28T00:39:24.955Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/桌面相框.glb"
       }
     },
@@ -15079,7 +15079,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.573Z",
+        "generatedAt": "2026-11-28T00:39:24.955Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/厨房用品/碗碟沥水架.glb"
       }
     },
@@ -15336,7 +15336,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.575Z",
+        "generatedAt": "2026-11-28T00:39:24.956Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/洗碗机.glb"
       }
     },
@@ -15652,7 +15652,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.579Z",
+        "generatedAt": "2026-11-28T00:39:24.958Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/消毒柜.glb"
       }
     },
@@ -15849,7 +15849,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.581Z",
+        "generatedAt": "2026-11-28T00:39:24.959Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/宠物用品/狗笼.glb"
       }
     },
@@ -16165,7 +16165,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.585Z",
+        "generatedAt": "2026-11-28T00:39:24.961Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/儿童用品/玩偶收纳架.glb"
       }
     },
@@ -16421,7 +16421,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.586Z",
+        "generatedAt": "2026-11-28T00:39:24.961Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卧室家具/双列开放衣柜.glb"
       }
     },
@@ -16678,7 +16678,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.587Z",
+        "generatedAt": "2026-11-28T00:39:24.961Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/柜架收纳/斗柜.glb"
       }
     },
@@ -16874,7 +16874,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.588Z",
+        "generatedAt": "2026-11-28T00:39:24.961Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/办公数码/绘图板.glb"
       }
     },
@@ -17071,7 +17071,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.590Z",
+        "generatedAt": "2026-11-28T00:39:24.964Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/干花花束.glb"
       }
     },
@@ -17388,7 +17388,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.595Z",
+        "generatedAt": "2026-11-28T00:39:24.967Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/影音设备/架子鼓.glb"
       }
     },
@@ -17705,7 +17705,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.598Z",
+        "generatedAt": "2026-11-28T00:39:24.968Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/洗衣烘干/烘干机.glb"
       }
     },
@@ -17902,7 +17902,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.600Z",
+        "generatedAt": "2026-11-28T00:39:24.969Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/洗衣烘干/落地晾衣架.glb"
       }
     },
@@ -18099,7 +18099,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.602Z",
+        "generatedAt": "2026-11-28T00:39:24.970Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/办公数码/双屏显示器.glb"
       }
     },
@@ -18356,7 +18356,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.606Z",
+        "generatedAt": "2026-11-28T00:39:24.972Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/健身娱乐/哑铃架＋哑铃.glb"
       }
     },
@@ -18672,7 +18672,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.606Z",
+        "generatedAt": "2026-11-28T00:39:24.973Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/书房家具/画架＋画板.glb"
       }
     },
@@ -18986,7 +18986,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.607Z",
+        "generatedAt": "2026-11-28T00:39:24.974Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/影音设备/电壁炉.glb"
       }
     },
@@ -19183,7 +19183,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.608Z",
+        "generatedAt": "2026-11-28T00:39:24.975Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/电热水壶.glb"
       }
     },
@@ -19440,7 +19440,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.610Z",
+        "generatedAt": "2026-11-28T00:39:24.976Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/环境设备/电动阀门.glb"
       }
     },
@@ -19814,7 +19814,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.611Z",
+        "generatedAt": "2026-11-28T00:39:24.976Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/建筑与交通/电梯.glb"
       }
     },
@@ -20131,7 +20131,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.614Z",
+        "generatedAt": "2026-11-28T00:39:24.978Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/健身娱乐/椭圆机.glb"
       }
     },
@@ -20392,7 +20392,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.615Z",
+        "generatedAt": "2026-11-28T00:39:24.978Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/玄关用品/玄关到顶柜.glb"
       }
     },
@@ -20709,7 +20709,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.622Z",
+        "generatedAt": "2026-11-28T00:39:24.981Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/环境设备/排气扇.glb"
       }
     },
@@ -21023,7 +21023,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.625Z",
+        "generatedAt": "2026-11-28T00:39:24.982Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/手办组合.glb"
       }
     },
@@ -21339,7 +21339,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.625Z",
+        "generatedAt": "2026-11-28T00:39:24.983Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/建筑与交通/悬空楼梯.glb"
       }
     },
@@ -21710,7 +21710,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.635Z",
+        "generatedAt": "2026-11-28T00:39:24.987Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/装饰灯具/落地灯（旧版）.glb"
       }
     },
@@ -21906,7 +21906,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.636Z",
+        "generatedAt": "2026-11-28T00:39:24.988Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/落地雕塑.glb"
       }
     },
@@ -22223,7 +22223,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.639Z",
+        "generatedAt": "2026-11-28T00:39:24.989Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/清洁设备/洗地机.glb"
       }
     },
@@ -22540,7 +22540,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.641Z",
+        "generatedAt": "2026-11-28T00:39:24.989Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/环境设备/柜机空调.glb"
       }
     },
@@ -22772,7 +22772,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.641Z",
+        "generatedAt": "2026-11-28T00:39:24.989Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/装饰灯具/落地灯.glb"
       }
     },
@@ -23209,7 +23209,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.644Z",
+        "generatedAt": "2026-11-28T00:39:24.991Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/室内植物/红掌.glb"
       }
     },
@@ -23646,7 +23646,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.649Z",
+        "generatedAt": "2026-11-28T00:39:24.994Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/室内植物/绣球花.glb"
       }
     },
@@ -24083,7 +24083,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.653Z",
+        "generatedAt": "2026-11-28T00:39:24.997Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/室内植物/蝴蝶兰.glb"
       }
     },
@@ -24520,7 +24520,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.657Z",
+        "generatedAt": "2026-11-28T00:39:24.998Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/室内植物/白掌.glb"
       }
     },
@@ -24716,7 +24716,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.657Z",
+        "generatedAt": "2026-11-28T00:39:24.998Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/玄关用品/屏风.glb"
       }
     },
@@ -25033,7 +25033,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.659Z",
+        "generatedAt": "2026-11-28T00:39:24.999Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/电蒸锅.glb"
       }
     },
@@ -25349,7 +25349,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.666Z",
+        "generatedAt": "2026-11-28T00:39:25.002Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/健身娱乐/桌上足球.glb"
       }
     },
@@ -25606,7 +25606,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.667Z",
+        "generatedAt": "2026-11-28T00:39:25.003Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卫浴用品/足浴盆.glb"
       }
     },
@@ -26163,7 +26163,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.668Z",
+        "generatedAt": "2026-11-28T00:39:25.003Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/冰柜.glb"
       }
     },
@@ -26309,7 +26309,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.668Z",
+        "generatedAt": "2026-11-28T00:39:25.003Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/冰箱.glb"
       }
     },
@@ -26564,7 +26564,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.669Z",
+        "generatedAt": "2026-11-28T00:39:25.004Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/厨房用品/水果篮.glb"
       }
     },
@@ -26821,7 +26821,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.670Z",
+        "generatedAt": "2026-11-28T00:39:25.005Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/玄关用品/穿衣镜.glb"
       }
     },
@@ -27130,7 +27130,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.671Z",
+        "generatedAt": "2026-11-28T00:39:25.005Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/构筑物/花园拱门.glb"
       }
     },
@@ -27473,7 +27473,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.673Z",
+        "generatedAt": "2026-11-28T00:39:25.007Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/植物/竹丛.glb"
       }
     },
@@ -27816,7 +27816,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.678Z",
+        "generatedAt": "2026-11-28T00:39:25.008Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/植物/浓密竹丛.glb"
       }
     },
@@ -28142,7 +28142,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.679Z",
+        "generatedAt": "2026-11-28T00:39:25.009Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/设施/户外烧烤台.glb"
       }
     },
@@ -28451,7 +28451,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.680Z",
+        "generatedAt": "2026-11-28T00:39:25.009Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/设施/球形烧烤炉.glb"
       }
     },
@@ -28760,7 +28760,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.681Z",
+        "generatedAt": "2026-11-28T00:39:25.009Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/户外长椅.glb"
       }
     },
@@ -29069,7 +29069,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.682Z",
+        "generatedAt": "2026-11-28T00:39:25.009Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/无靠背长凳.glb"
       }
     },
@@ -29378,7 +29378,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.684Z",
+        "generatedAt": "2026-11-28T00:39:25.010Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/弧形景观长凳.glb"
       }
     },
@@ -29687,7 +29687,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.684Z",
+        "generatedAt": "2026-11-28T00:39:25.010Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/设施/草坪灯.glb"
       }
     },
@@ -30013,7 +30013,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.685Z",
+        "generatedAt": "2026-11-28T00:39:25.010Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/构筑物/庭院车棚.glb"
       }
     },
@@ -30339,7 +30339,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.685Z",
+        "generatedAt": "2026-11-28T00:39:25.010Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/户外扶手椅.glb"
       }
     },
@@ -30648,7 +30648,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.686Z",
+        "generatedAt": "2026-11-28T00:39:25.011Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/圆背庭院椅.glb"
       }
     },
@@ -30991,7 +30991,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.687Z",
+        "generatedAt": "2026-11-28T00:39:25.011Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/植物/景观松树.glb"
       }
     },
@@ -31334,7 +31334,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.689Z",
+        "generatedAt": "2026-11-28T00:39:25.013Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/植物/层叠景松.glb"
       }
     },
@@ -31643,7 +31643,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.690Z",
+        "generatedAt": "2026-11-28T00:39:25.013Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/木平台.glb"
       }
     },
@@ -31969,7 +31969,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.691Z",
+        "generatedAt": "2026-11-28T00:39:25.014Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/设施/围栏.glb"
       }
     },
@@ -32295,7 +32295,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.691Z",
+        "generatedAt": "2026-11-28T00:39:25.014Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/设施/横条围栏.glb"
       }
     },
@@ -32587,7 +32587,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.692Z",
+        "generatedAt": "2026-11-28T00:39:25.014Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/设施/格栅围栏.glb"
       }
     },
@@ -32879,7 +32879,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.694Z",
+        "generatedAt": "2026-11-28T00:39:25.014Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/设施/金属围栏.glb"
       }
     },
@@ -33188,7 +33188,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.695Z",
+        "generatedAt": "2026-11-28T00:39:25.015Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/设施/庭院火盆.glb"
       }
     },
@@ -33531,7 +33531,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.698Z",
+        "generatedAt": "2026-11-28T00:39:25.015Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/花箱与花坛/花坛.glb"
       }
     },
@@ -33857,7 +33857,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.700Z",
+        "generatedAt": "2026-11-28T00:39:25.016Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/花箱与花坛/花朵组团.glb"
       }
     },
@@ -34183,7 +34183,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.701Z",
+        "generatedAt": "2026-11-28T00:39:25.017Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/花箱与花坛/野花组团.glb"
       }
     },
@@ -34492,7 +34492,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.701Z",
+        "generatedAt": "2026-11-28T00:39:25.017Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/水景/庭院喷泉.glb"
       }
     },
@@ -34818,7 +34818,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.702Z",
+        "generatedAt": "2026-11-28T00:39:25.018Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/水景/壁泉水景.glb"
       }
     },
@@ -35144,7 +35144,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.702Z",
+        "generatedAt": "2026-11-28T00:39:25.018Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/设施/庭院门.glb"
       }
     },
@@ -35453,7 +35453,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.704Z",
+        "generatedAt": "2026-11-28T00:39:25.018Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/设施/拱形铁艺院门.glb"
       }
     },
@@ -35779,7 +35779,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.704Z",
+        "generatedAt": "2026-11-28T00:39:25.018Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/设施/独立门柱.glb"
       }
     },
@@ -36105,7 +36105,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.705Z",
+        "generatedAt": "2026-11-28T00:39:25.018Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/设施/双扇实木院门.glb"
       }
     },
@@ -36431,7 +36431,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.705Z",
+        "generatedAt": "2026-11-28T00:39:25.019Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/构筑物/四角凉亭.glb"
       }
     },
@@ -36757,7 +36757,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.706Z",
+        "generatedAt": "2026-11-28T00:39:25.019Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/构筑物/六角凉亭.glb"
       }
     },
@@ -37083,7 +37083,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.706Z",
+        "generatedAt": "2026-11-28T00:39:25.020Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/植物/丛生草.glb"
       }
     },
@@ -37409,7 +37409,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.707Z",
+        "generatedAt": "2026-11-28T00:39:25.021Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/植物/低矮草.glb"
       }
     },
@@ -37735,7 +37735,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.708Z",
+        "generatedAt": "2026-11-28T00:39:25.021Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/支架吊床.glb"
       }
     },
@@ -38061,7 +38061,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.708Z",
+        "generatedAt": "2026-11-28T00:39:25.022Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/鸟巢吊椅.glb"
       }
     },
@@ -38387,7 +38387,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.710Z",
+        "generatedAt": "2026-11-28T00:39:25.023Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/植物/绿篱.glb"
       }
     },
@@ -38713,7 +38713,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.712Z",
+        "generatedAt": "2026-11-28T00:39:25.023Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/植物/圆形绿篱.glb"
       }
     },
@@ -39022,7 +39022,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.712Z",
+        "generatedAt": "2026-11-28T00:39:25.023Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/设施/庭院灯柱.glb"
       }
     },
@@ -39348,7 +39348,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.713Z",
+        "generatedAt": "2026-11-28T00:39:25.024Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/花箱与花坛/高盆观叶植物.glb"
       }
     },
@@ -39640,7 +39640,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.713Z",
+        "generatedAt": "2026-11-28T00:39:25.024Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/草坪.glb"
       }
     },
@@ -39837,7 +39837,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.714Z",
+        "generatedAt": "2026-11-28T00:39:25.024Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/日光躺椅.glb"
       }
     },
@@ -40146,7 +40146,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.714Z",
+        "generatedAt": "2026-11-28T00:39:25.024Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/设施/矮墙.glb"
       }
     },
@@ -40455,7 +40455,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.714Z",
+        "generatedAt": "2026-11-28T00:39:25.025Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/设施/砖砌矮墙.glb"
       }
     },
@@ -40798,7 +40798,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.715Z",
+        "generatedAt": "2026-11-28T00:39:25.025Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/设施/板条矮墙.glb"
       }
     },
@@ -41107,7 +41107,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.715Z",
+        "generatedAt": "2026-11-28T00:39:25.025Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/户外茶几.glb"
       }
     },
@@ -41349,7 +41349,7 @@
           "roleExplicit": false,
           "surface": "paint",
           "required": false,
-          "alphaMode": "OPAQUE",
+          "alphaMode": "BLEND",
           "emissive": false,
           "doubleSided": false,
           "target": {
@@ -41366,11 +41366,11 @@
               0.337,
               0.392,
               0.491,
-              1
+              0.42
             ],
-            "roughness": 0.82,
+            "roughness": 0.3,
             "metalness": 0,
-            "alphaMode": "OPAQUE",
+            "alphaMode": "BLEND",
             "alphaCutoff": null,
             "doubleSided": false,
             "emissiveFactor": null
@@ -41433,7 +41433,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.715Z",
+        "generatedAt": "2026-11-28T00:39:25.025Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/设施/户外水槽台.glb"
       }
     },
@@ -41776,7 +41776,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.715Z",
+        "generatedAt": "2026-11-28T00:39:25.026Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/户外双人沙发.glb"
       }
     },
@@ -42068,7 +42068,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.716Z",
+        "generatedAt": "2026-11-28T00:39:25.026Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/地面铺装.glb"
       }
     },
@@ -42377,7 +42377,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.716Z",
+        "generatedAt": "2026-11-28T00:39:25.026Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/构筑物/庭院廊架.glb"
       }
     },
@@ -42686,7 +42686,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.716Z",
+        "generatedAt": "2026-11-28T00:39:25.026Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/构筑物/遮阳布廊架.glb"
       }
     },
@@ -43029,7 +43029,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.717Z",
+        "generatedAt": "2026-11-28T00:39:25.027Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/花箱与花坛/长条花箱.glb"
       }
     },
@@ -43355,7 +43355,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.717Z",
+        "generatedAt": "2026-11-28T00:39:25.027Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/花箱与花坛/方形花盆.glb"
       }
     },
@@ -43681,7 +43681,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.717Z",
+        "generatedAt": "2026-11-28T00:39:25.027Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/花箱与花坛/石质长花槽.glb"
       }
     },
@@ -44024,7 +44024,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.717Z",
+        "generatedAt": "2026-11-28T00:39:25.027Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/水景/景观水池.glb"
       }
     },
@@ -44350,7 +44350,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.718Z",
+        "generatedAt": "2026-11-28T00:39:25.027Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/水景/圆形景观池.glb"
       }
     },
@@ -44676,7 +44676,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.718Z",
+        "generatedAt": "2026-11-28T00:39:25.028Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/水景/庭院泳池.glb"
       }
     },
@@ -45002,7 +45002,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.718Z",
+        "generatedAt": "2026-11-28T00:39:25.028Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/花箱与花坛/高架花床.glb"
       }
     },
@@ -45311,7 +45311,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.718Z",
+        "generatedAt": "2026-11-28T00:39:25.028Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/设施/挡土墙.glb"
       }
     },
@@ -45637,7 +45637,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.719Z",
+        "generatedAt": "2026-11-28T00:39:25.028Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/水景/假山水景.glb"
       }
     },
@@ -45929,7 +45929,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.719Z",
+        "generatedAt": "2026-11-28T00:39:25.028Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/水景/景石组合.glb"
       }
     },
@@ -46255,7 +46255,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.719Z",
+        "generatedAt": "2026-11-28T00:39:25.029Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/花箱与花坛/圆形灌木花盆.glb"
       }
     },
@@ -46581,7 +46581,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.720Z",
+        "generatedAt": "2026-11-28T00:39:25.030Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/植物/灌木丛.glb"
       }
     },
@@ -46924,7 +46924,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.722Z",
+        "generatedAt": "2026-11-28T00:39:25.030Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/植物/开花灌木.glb"
       }
     },
@@ -47250,7 +47250,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.723Z",
+        "generatedAt": "2026-11-28T00:39:25.031Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/植物/低矮圆灌木.glb"
       }
     },
@@ -47593,7 +47593,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.723Z",
+        "generatedAt": "2026-11-28T00:39:25.032Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/户外滑梯.glb"
       }
     },
@@ -47885,7 +47885,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.723Z",
+        "generatedAt": "2026-11-28T00:39:25.032Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/汀步.glb"
       }
     },
@@ -48194,7 +48194,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.723Z",
+        "generatedAt": "2026-11-28T00:39:25.032Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/台阶.glb"
       }
     },
@@ -48503,7 +48503,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.724Z",
+        "generatedAt": "2026-11-28T00:39:25.032Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/设施/户外储物屋.glb"
       }
     },
@@ -48829,7 +48829,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.724Z",
+        "generatedAt": "2026-11-28T00:39:25.032Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/庭院秋千.glb"
       }
     },
@@ -49138,7 +49138,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.724Z",
+        "generatedAt": "2026-11-28T00:39:25.033Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/户外餐桌.glb"
       }
     },
@@ -49447,7 +49447,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.725Z",
+        "generatedAt": "2026-11-28T00:39:25.033Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/连体野餐桌.glb"
       }
     },
@@ -49756,7 +49756,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.725Z",
+        "generatedAt": "2026-11-28T00:39:25.033Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/圆形庭院桌.glb"
       }
     },
@@ -50099,7 +50099,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.726Z",
+        "generatedAt": "2026-11-28T00:39:25.034Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/植物/庭院乔木.glb"
       }
     },
@@ -50442,7 +50442,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.727Z",
+        "generatedAt": "2026-11-28T00:39:25.035Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/植物/柱形乔木.glb"
       }
     },
@@ -50785,7 +50785,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.728Z",
+        "generatedAt": "2026-11-28T00:39:25.036Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/植物/多干小乔木.glb"
       }
     },
@@ -51128,7 +51128,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.729Z",
+        "generatedAt": "2026-11-28T00:39:25.037Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/植物/圆冠乔木.glb"
       }
     },
@@ -51437,7 +51437,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.730Z",
+        "generatedAt": "2026-11-28T00:39:25.037Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/构筑物/格栅廊架.glb"
       }
     },
@@ -51763,7 +51763,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.730Z",
+        "generatedAt": "2026-11-28T00:39:25.037Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/构筑物/遮阳伞.glb"
       }
     },
@@ -52089,7 +52089,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.731Z",
+        "generatedAt": "2026-11-28T00:39:25.037Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/构筑物/方形遮阳伞.glb"
       }
     },
@@ -52415,7 +52415,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.732Z",
+        "generatedAt": "2026-11-28T00:39:25.038Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/花箱与花坛/菜圃模块.glb"
       }
     },
@@ -52732,7 +52732,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.732Z",
+        "generatedAt": "2026-11-28T00:39:25.039Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/环境设备/燃气热水器.glb"
       }
     },
@@ -53048,7 +53048,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.733Z",
+        "generatedAt": "2026-11-28T00:39:25.039Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/建筑与交通/玻璃楼梯.glb"
       }
     },
@@ -53828,7 +53828,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.733Z",
+        "generatedAt": "2026-11-28T00:39:25.039Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/柜架收纳/玻璃柜.glb"
       }
     },
@@ -53974,7 +53974,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.733Z",
+        "generatedAt": "2026-11-28T00:39:25.039Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卫浴用品/玻璃隔断.glb"
       }
     },
@@ -54231,7 +54231,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.736Z",
+        "generatedAt": "2026-11-28T00:39:25.041Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/影音设备/吉他＋支架.glb"
       }
     },
@@ -54428,7 +54428,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.737Z",
+        "generatedAt": "2026-11-28T00:39:25.042Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卫浴用品/吹风机支架.glb"
       }
     },
@@ -54745,7 +54745,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.738Z",
+        "generatedAt": "2026-11-28T00:39:25.042Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/养生壶.glb"
       }
     },
@@ -55002,7 +55002,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.739Z",
+        "generatedAt": "2026-11-28T00:39:25.043Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卫浴用品/电热毛巾架.glb"
       }
     },
@@ -55259,7 +55259,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.741Z",
+        "generatedAt": "2026-11-28T00:39:25.044Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/环境设备/取暖器.glb"
       }
     },
@@ -55576,7 +55576,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.741Z",
+        "generatedAt": "2026-11-28T00:39:25.045Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/办公数码/家用网络机柜.glb"
       }
     },
@@ -55833,7 +55833,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.742Z",
+        "generatedAt": "2026-11-28T00:39:25.045Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/环境设备/加湿器.glb"
       }
     },
@@ -56030,7 +56030,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.743Z",
+        "generatedAt": "2026-11-28T00:39:25.046Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/电磁炉.glb"
       }
     },
@@ -56346,7 +56346,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.743Z",
+        "generatedAt": "2026-11-28T00:39:25.046Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卧室家具/首饰收纳盒.glb"
       }
     },
@@ -56723,7 +56723,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.744Z",
+        "generatedAt": "2026-11-28T00:39:25.047Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/榨汁机.glb"
       }
     },
@@ -57040,7 +57040,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.745Z",
+        "generatedAt": "2026-11-28T00:39:25.048Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/影音设备/电子琴＋支架.glb"
       }
     },
@@ -57236,7 +57236,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.747Z",
+        "generatedAt": "2026-11-28T00:39:25.048Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/儿童用品/滑梯.glb"
       }
     },
@@ -57433,7 +57433,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.747Z",
+        "generatedAt": "2026-11-28T00:39:25.049Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/儿童用品/秋千.glb"
       }
     },
@@ -57748,7 +57748,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.748Z",
+        "generatedAt": "2026-11-28T00:39:25.049Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/儿童用品/儿童帐篷.glb"
       }
     },
@@ -58182,7 +58182,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.750Z",
+        "generatedAt": "2026-11-28T00:39:25.050Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/厨房家具/岛台.glb"
       }
     },
@@ -58414,7 +58414,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.750Z",
+        "generatedAt": "2026-11-28T00:39:25.050Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/厨房家具/厨房地柜.glb"
       }
     },
@@ -58909,7 +58909,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.751Z",
+        "generatedAt": "2026-11-28T00:39:25.051Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/厨房家具/地柜带燃气灶.glb"
       }
     },
@@ -59286,7 +59286,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.751Z",
+        "generatedAt": "2026-11-28T00:39:25.051Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/厨房家具/岛台（旧版）.glb"
       }
     },
@@ -59781,7 +59781,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.752Z",
+        "generatedAt": "2026-11-28T00:39:25.052Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/厨房家具/地柜带水盆.glb"
       }
     },
@@ -59978,7 +59978,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.753Z",
+        "generatedAt": "2026-11-28T00:39:25.052Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/厨房用品/刀具架.glb"
       }
     },
@@ -60295,7 +60295,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.754Z",
+        "generatedAt": "2026-11-28T00:39:25.053Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/办公数码/笔记本电脑.glb"
       }
     },
@@ -60432,7 +60432,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.755Z",
+        "generatedAt": "2026-11-28T00:39:25.054Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/洗衣烘干/洗衣篮.glb"
       }
     },
@@ -60628,7 +60628,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.755Z",
+        "generatedAt": "2026-11-28T00:39:25.054Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/宠物用品/普通猫砂盆.glb"
       }
     },
@@ -60885,7 +60885,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.757Z",
+        "generatedAt": "2026-11-28T00:39:25.056Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卧室家具/圆孔高架床.glb"
       }
     },
@@ -61200,7 +61200,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.758Z",
+        "generatedAt": "2026-11-28T00:39:25.056Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/影音设备/杂志架.glb"
       }
     },
@@ -61516,7 +61516,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.760Z",
+        "generatedAt": "2026-11-28T00:39:25.058Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/健身娱乐/麻将桌.glb"
       }
     },
@@ -61773,7 +61773,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.763Z",
+        "generatedAt": "2026-11-28T00:39:25.059Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/微波炉.glb"
       }
     },
@@ -61970,7 +61970,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.763Z",
+        "generatedAt": "2026-11-28T00:39:25.060Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卫浴用品/拖把池.glb"
       }
     },
@@ -62107,7 +62107,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.764Z",
+        "generatedAt": "2026-11-28T00:39:25.060Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/厨房用品/杯架.glb"
       }
     },
@@ -62364,7 +62364,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.765Z",
+        "generatedAt": "2026-11-28T00:39:25.061Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/多功能料理锅.glb"
       }
     },
@@ -62685,7 +62685,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.765Z",
+        "generatedAt": "2026-11-28T00:39:25.061Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/办公数码/网络存储.glb"
       }
     },
@@ -62917,7 +62917,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.765Z",
+        "generatedAt": "2026-11-28T00:39:25.062Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卧室家具/床头柜.glb"
       }
     },
@@ -63217,7 +63217,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.766Z",
+        "generatedAt": "2026-11-28T00:39:25.062Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/书房家具/办公椅.glb"
       }
     },
@@ -63474,7 +63474,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.767Z",
+        "generatedAt": "2026-11-28T00:39:25.063Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/办公数码/碎纸机.glb"
       }
     },
@@ -63850,7 +63850,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.769Z",
+        "generatedAt": "2026-11-28T00:39:25.065Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/宠物用品/宠物窝＋食盆.glb"
       }
     },
@@ -64167,7 +64167,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.771Z",
+        "generatedAt": "2026-11-28T00:39:25.066Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/宠物用品/宠物烘干机.glb"
       }
     },
@@ -64424,7 +64424,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.772Z",
+        "generatedAt": "2026-11-28T00:39:25.067Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/宠物用品/自动喂食器.glb"
       }
     },
@@ -64740,7 +64740,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.772Z",
+        "generatedAt": "2026-11-28T00:39:25.067Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/宠物用品/宠物饮水机.glb"
       }
     },
@@ -64877,7 +64877,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.774Z",
+        "generatedAt": "2026-11-28T00:39:25.068Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/宠物用品/宠物围栏.glb"
       }
     },
@@ -65014,7 +65014,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.774Z",
+        "generatedAt": "2026-11-28T00:39:25.068Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/宠物用品/宠物台阶.glb"
       }
     },
@@ -65271,7 +65271,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.775Z",
+        "generatedAt": "2026-11-28T00:39:25.069Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/宠物用品/宠物推车.glb"
       }
     },
@@ -65468,7 +65468,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.779Z",
+        "generatedAt": "2026-11-28T00:39:25.072Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/影音设备/钢琴.glb"
       }
     },
@@ -65785,7 +65785,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.780Z",
+        "generatedAt": "2026-11-28T00:39:25.073Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/健身娱乐/普拉提床.glb"
       }
     },
@@ -65845,7 +65845,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.781Z",
+        "generatedAt": "2026-11-28T00:39:25.073Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/建筑与交通/柱子.glb"
       }
     },
@@ -66042,7 +66042,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.781Z",
+        "generatedAt": "2026-11-28T00:39:25.073Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/建筑与交通/四分之一圆柱.glb"
       }
     },
@@ -66239,7 +66239,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.781Z",
+        "generatedAt": "2026-11-28T00:39:25.073Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/建筑与交通/四分之一圆柱（内弧）.glb"
       }
     },
@@ -66436,7 +66436,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.782Z",
+        "generatedAt": "2026-11-28T00:39:25.073Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/建筑与交通/圆柱.glb"
       }
     },
@@ -66633,7 +66633,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.782Z",
+        "generatedAt": "2026-11-28T00:39:25.074Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/建筑与交通/半圆柱.glb"
       }
     },
@@ -66829,7 +66829,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.782Z",
+        "generatedAt": "2026-11-28T00:39:25.074Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/独立抱枕组合.glb"
       }
     },
@@ -67146,7 +67146,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.784Z",
+        "generatedAt": "2026-11-28T00:39:25.075Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/健身娱乐/乒乓球桌.glb"
       }
     },
@@ -67283,7 +67283,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.787Z",
+        "generatedAt": "2026-11-28T00:39:25.077Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/环境设备/管线机.glb"
       }
     },
@@ -67600,7 +67600,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.789Z",
+        "generatedAt": "2026-11-28T00:39:25.079Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/室内植物/绿植.glb"
       }
     },
@@ -67917,7 +67917,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.794Z",
+        "generatedAt": "2026-11-28T00:39:25.082Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/室内植物/龟背竹.glb"
       }
     },
@@ -68234,7 +68234,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.799Z",
+        "generatedAt": "2026-11-28T00:39:25.085Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/室内植物/散尾葵.glb"
       }
     },
@@ -68551,7 +68551,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.803Z",
+        "generatedAt": "2026-11-28T00:39:25.088Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/室内植物/绿萝.glb"
       }
     },
@@ -68868,7 +68868,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.804Z",
+        "generatedAt": "2026-11-28T00:39:25.089Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/室内植物/橡皮树.glb"
       }
     },
@@ -69125,7 +69125,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.806Z",
+        "generatedAt": "2026-11-28T00:39:25.090Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/室内植物/虎皮兰.glb"
       }
     },
@@ -69499,7 +69499,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.807Z",
+        "generatedAt": "2026-11-28T00:39:25.091Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/儿童用品/玩具厨房.glb"
       }
     },
@@ -69816,7 +69816,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.810Z",
+        "generatedAt": "2026-11-28T00:39:25.093Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/健身娱乐/台球桌.glb"
       }
     },
@@ -70133,7 +70133,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.811Z",
+        "generatedAt": "2026-11-28T00:39:25.093Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/破壁机.glb"
       }
     },
@@ -70449,7 +70449,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.813Z",
+        "generatedAt": "2026-11-28T00:39:25.095Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/电压力锅.glb"
       }
     },
@@ -70706,7 +70706,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.813Z",
+        "generatedAt": "2026-11-28T00:39:25.095Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/办公数码/打印机.glb"
       }
     },
@@ -70903,7 +70903,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.814Z",
+        "generatedAt": "2026-11-28T00:39:25.096Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/影音设备/投影幕布.glb"
       }
     },
@@ -71160,7 +71160,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.814Z",
+        "generatedAt": "2026-11-28T00:39:25.096Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/影音设备/投影仪.glb"
       }
     },
@@ -71477,7 +71477,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.816Z",
+        "generatedAt": "2026-11-28T00:39:25.097Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/影音设备/PS5游戏机.glb"
       }
     },
@@ -71733,7 +71733,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.817Z",
+        "generatedAt": "2026-11-28T00:39:25.097Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/健身娱乐/拳击沙袋.glb"
       }
     },
@@ -71990,7 +71990,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.818Z",
+        "generatedAt": "2026-11-28T00:39:25.098Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/健身娱乐/赛车模拟座舱.glb"
       }
     },
@@ -72246,7 +72246,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.819Z",
+        "generatedAt": "2026-11-28T00:39:25.099Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/油烟机.glb"
       }
     },
@@ -72503,7 +72503,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.820Z",
+        "generatedAt": "2026-11-28T00:39:25.100Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/环境设备/方形管线饮水机.glb"
       }
     },
@@ -72760,7 +72760,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.821Z",
+        "generatedAt": "2026-11-28T00:39:25.100Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/厨房用品/米桶.glb"
       }
     },
@@ -73017,7 +73017,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.822Z",
+        "generatedAt": "2026-11-28T00:39:25.101Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/电饭煲.glb"
       }
     },
@@ -73334,7 +73334,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.823Z",
+        "generatedAt": "2026-11-28T00:39:25.102Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/清洁设备/扫地机器人.glb"
       }
     },
@@ -73531,7 +73531,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.825Z",
+        "generatedAt": "2026-11-28T00:39:25.103Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/客厅家具/摇椅.glb"
       }
     },
@@ -73787,7 +73787,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.827Z",
+        "generatedAt": "2026-11-28T00:39:25.104Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/儿童用品/玩具木马.glb"
       }
     },
@@ -74104,7 +74104,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.836Z",
+        "generatedAt": "2026-11-28T00:39:25.109Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卧室家具/圆形双人床.glb"
       }
     },
@@ -74241,7 +74241,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.836Z",
+        "generatedAt": "2026-11-28T00:39:25.110Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/圆形地毯.glb"
       }
     },
@@ -74524,7 +74524,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.838Z",
+        "generatedAt": "2026-11-28T00:39:25.111Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/厨房家具/圆形餐桌.glb"
       }
     },
@@ -74841,7 +74841,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.841Z",
+        "generatedAt": "2026-11-28T00:39:25.112Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卧室家具/圆形餐桌（转盘）.glb"
       }
     },
@@ -75098,7 +75098,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.842Z",
+        "generatedAt": "2026-11-28T00:39:25.113Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/办公数码/路由器.glb"
       }
     },
@@ -75294,7 +75294,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.843Z",
+        "generatedAt": "2026-11-28T00:39:25.113Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/健身娱乐/划船机.glb"
       }
     },
@@ -75397,7 +75397,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.843Z",
+        "generatedAt": "2026-11-28T00:39:25.113Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/地毯.glb"
       }
     },
@@ -75714,7 +75714,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.844Z",
+        "generatedAt": "2026-11-28T00:39:25.113Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/办公数码/扫描仪.glb"
       }
     },
@@ -76276,7 +76276,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.854Z",
+        "generatedAt": "2026-11-28T00:39:25.117Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/建筑与交通/踏板车.glb"
       }
     },
@@ -76422,7 +76422,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.854Z",
+        "generatedAt": "2026-11-28T00:39:25.117Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/柜架收纳/货架.glb"
       }
     },
@@ -76679,7 +76679,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.855Z",
+        "generatedAt": "2026-11-28T00:39:25.118Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/玄关用品/换鞋凳.glb"
       }
     },
@@ -76911,7 +76911,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.855Z",
+        "generatedAt": "2026-11-28T00:39:25.118Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/玄关用品/鞋柜.glb"
       }
     },
@@ -77057,7 +77057,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.855Z",
+        "generatedAt": "2026-11-28T00:39:25.118Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卫浴用品/花洒.glb"
       }
     },
@@ -77254,7 +77254,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.856Z",
+        "generatedAt": "2026-11-28T00:39:25.118Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卫浴用品/淋浴凳.glb"
       }
     },
@@ -77451,7 +77451,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.858Z",
+        "generatedAt": "2026-11-28T00:39:25.118Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/客厅家具/边几.glb"
       }
     },
@@ -77640,7 +77640,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.858Z",
+        "generatedAt": "2026-11-28T00:39:25.118Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/柜架收纳/餐边柜.glb"
       }
     },
@@ -77897,7 +77897,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.859Z",
+        "generatedAt": "2026-11-28T00:39:25.120Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/柜架收纳/单列玻璃展示柜.glb"
       }
     },
@@ -78094,7 +78094,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.859Z",
+        "generatedAt": "2026-11-28T00:39:25.121Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/洗衣烘干/单杆晾衣架.glb"
       }
     },
@@ -78291,8 +78291,751 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.860Z",
+        "generatedAt": "2026-11-28T00:39:25.121Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/柜架收纳/窄高置物柜.glb"
+      }
+    },
+    {
+      "id": "smallcar-openings",
+      "itemType": "smallcar-openings",
+      "family": "vehicle",
+      "topologyClass": "solid",
+      "expectedSlotCount": 17,
+      "slots": [
+        {
+          "index": 0,
+          "name": "car_tms",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "car_tms",
+          "component": "lacquer",
+          "role": "bodywork",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "lacquer",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": false,
+          "doubleSided": true,
+          "target": {
+            "baseColorHex": "#DADDE0",
+            "roughness": 0.36,
+            "metalness": 0.06,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": null,
+            "roughness": 0.36,
+            "metalness": 0.1,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": true,
+            "emissiveFactor": null
+          },
+          "geometryEvidence": null,
+          "confidence": 0.92,
+          "basis": "槽位名直接解析出角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 1,
+          "name": "car-interior-carpet",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "car-interior-carpet",
+          "component": "软包织物面",
+          "role": "fabric",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "fabric",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": false,
+          "doubleSided": true,
+          "target": {
+            "baseColorHex": "#C7C0B2",
+            "roughness": 0.94,
+            "metalness": 0,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.036,
+              0.034,
+              0.04,
+              1
+            ],
+            "roughness": 0.984,
+            "metalness": 0.004,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": true,
+            "emissiveFactor": null
+          },
+          "geometryEvidence": null,
+          "confidence": 0.92,
+          "basis": "槽位名直接解析出角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 2,
+          "name": "car-interior-seal",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "car-interior-seal",
+          "component": "收边饰条",
+          "role": "trim",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "metal",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": false,
+          "doubleSided": true,
+          "target": {
+            "baseColorHex": "#2C3034",
+            "roughness": 0.32,
+            "metalness": 0.72,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.019,
+              0.02,
+              0.021,
+              1
+            ],
+            "roughness": 0.32,
+            "metalness": 0.72,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": true,
+            "emissiveFactor": null
+          },
+          "geometryEvidence": null,
+          "confidence": 0.92,
+          "basis": "槽位名直接解析出角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 3,
+          "name": "car-interior-liner",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "car-interior-liner",
+          "component": "面板 / 门板",
+          "role": "panel",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "lacquer",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": false,
+          "doubleSided": true,
+          "target": {
+            "baseColorHex": "#3A3F45",
+            "roughness": 0.36,
+            "metalness": 0.06,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.053,
+              0.061,
+              0.068,
+              1
+            ],
+            "roughness": 0.36,
+            "metalness": 0.012,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": true,
+            "emissiveFactor": null
+          },
+          "geometryEvidence": null,
+          "confidence": 0.92,
+          "basis": "槽位名直接解析出角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 4,
+          "name": "base",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "base",
+          "component": "底座 / 基座",
+          "role": "base",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "metal",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": false,
+          "doubleSided": true,
+          "target": {
+            "baseColorHex": "#2C3034",
+            "roughness": 0.32,
+            "metalness": 0.72,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.022,
+              0.025,
+              0.028,
+              1
+            ],
+            "roughness": 0.32,
+            "metalness": 0.72,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": true,
+            "emissiveFactor": null
+          },
+          "geometryEvidence": null,
+          "confidence": 0.92,
+          "basis": "槽位名直接解析出角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 5,
+          "name": "car-interior-sedan-leather",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "car-interior-sedan-leather",
+          "component": "座面",
+          "role": "seat",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "leather",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": false,
+          "doubleSided": true,
+          "target": {
+            "baseColorHex": "#9D9384",
+            "roughness": 0.62,
+            "metalness": 0.02,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.184,
+              0.198,
+              0.209,
+              1
+            ],
+            "roughness": 0.62,
+            "metalness": 0.026,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": true,
+            "emissiveFactor": null
+          },
+          "geometryEvidence": null,
+          "confidence": 0.92,
+          "basis": "槽位名直接解析出角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 6,
+          "name": "car-interior-sedan-trim",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "car-interior-sedan-trim",
+          "component": "收边饰条",
+          "role": "trim",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "metal",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": false,
+          "doubleSided": true,
+          "target": {
+            "baseColorHex": "#2C3034",
+            "roughness": 0.32,
+            "metalness": 0.72,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.314,
+              0.332,
+              0.342,
+              1
+            ],
+            "roughness": 0.32,
+            "metalness": 0.72,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": true,
+            "emissiveFactor": null
+          },
+          "geometryEvidence": null,
+          "confidence": 0.92,
+          "basis": "槽位名直接解析出角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 7,
+          "name": "car-interior-sedan-seam",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "car-interior-sedan-seam",
+          "component": "收边饰条",
+          "role": "trim",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "metal",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": false,
+          "doubleSided": true,
+          "target": {
+            "baseColorHex": "#2C3034",
+            "roughness": 0.32,
+            "metalness": 0.72,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.413,
+              0.44,
+              0.445,
+              1
+            ],
+            "roughness": 0.32,
+            "metalness": 0.72,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": true,
+            "emissiveFactor": null
+          },
+          "geometryEvidence": null,
+          "confidence": 0.92,
+          "basis": "槽位名直接解析出角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 8,
+          "name": "car-interior-aluminium",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "car-interior-aluminium",
+          "component": "金属件",
+          "role": "metal",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "metal",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": false,
+          "doubleSided": true,
+          "target": {
+            "baseColorHex": "#B7BEC5",
+            "roughness": 0.32,
+            "metalness": 0.72,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.347,
+              0.386,
+              0.407,
+              1
+            ],
+            "roughness": 0.32,
+            "metalness": 0.72,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": true,
+            "emissiveFactor": null
+          },
+          "geometryEvidence": null,
+          "confidence": 0.92,
+          "basis": "槽位名直接解析出角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 9,
+          "name": "car-interior-buckle",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "car-interior-buckle",
+          "component": "金属件",
+          "role": "metal",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "metal",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": false,
+          "doubleSided": true,
+          "target": {
+            "baseColorHex": "#B7BEC5",
+            "roughness": 0.32,
+            "metalness": 0.72,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.337,
+              0.033,
+              0.027,
+              1
+            ],
+            "roughness": 0.32,
+            "metalness": 0.72,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": true,
+            "emissiveFactor": null
+          },
+          "geometryEvidence": null,
+          "confidence": 0.92,
+          "basis": "槽位名直接解析出角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 10,
+          "name": "car-interior-dashboard",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "car-interior-dashboard",
+          "component": "面板 / 门板",
+          "role": "panel",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "lacquer",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": false,
+          "doubleSided": true,
+          "target": {
+            "baseColorHex": "#3A3F45",
+            "roughness": 0.36,
+            "metalness": 0.06,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.034,
+              0.034,
+              0.042,
+              1
+            ],
+            "roughness": 0.36,
+            "metalness": 0.021,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": true,
+            "emissiveFactor": null
+          },
+          "geometryEvidence": null,
+          "confidence": 0.92,
+          "basis": "槽位名直接解析出角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 11,
+          "name": "car-interior-screen",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "car-interior-screen",
+          "component": "屏幕 / 面板显示",
+          "role": "display",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "lacquer",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": true,
+          "doubleSided": true,
+          "target": {
+            "baseColorHex": "#1E242A",
+            "roughness": 0.36,
+            "metalness": 0.06,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.022,
+              0.04,
+              0.065,
+              1
+            ],
+            "roughness": 0.36,
+            "metalness": 0.08,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": true,
+            "emissiveFactor": [
+              0.002,
+              0.003,
+              0.005
+            ]
+          },
+          "geometryEvidence": null,
+          "confidence": 0.92,
+          "basis": "槽位名直接解析出角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 12,
+          "name": "car-interior-display",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "car-interior-display",
+          "component": "屏幕 / 面板显示",
+          "role": "display",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "lacquer",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": true,
+          "doubleSided": true,
+          "target": {
+            "baseColorHex": "#1E242A",
+            "roughness": 0.36,
+            "metalness": 0.06,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.165,
+              0.305,
+              0.413,
+              1
+            ],
+            "roughness": 0.36,
+            "metalness": 0.06,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": true,
+            "emissiveFactor": [
+              0.026,
+              0.049,
+              0.066
+            ]
+          },
+          "geometryEvidence": null,
+          "confidence": 0.92,
+          "basis": "槽位名直接解析出角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 13,
+          "name": "car-interior-rim",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "car-interior-rim",
+          "component": "金属件",
+          "role": "metal",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "metal",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": false,
+          "doubleSided": true,
+          "target": {
+            "baseColorHex": "#B7BEC5",
+            "roughness": 0.32,
+            "metalness": 0.72,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.1,
+              0.12,
+              0.138,
+              1
+            ],
+            "roughness": 0.32,
+            "metalness": 0.72,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": true,
+            "emissiveFactor": null
+          },
+          "geometryEvidence": null,
+          "confidence": 0.92,
+          "basis": "槽位名直接解析出角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 14,
+          "name": "car-interior-rib",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "car-interior-rib",
+          "component": "面板 / 门板",
+          "role": "panel",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "lacquer",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": false,
+          "doubleSided": true,
+          "target": {
+            "baseColorHex": "#3A3F45",
+            "roughness": 0.36,
+            "metalness": 0.06,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.07,
+              0.082,
+              0.093,
+              1
+            ],
+            "roughness": 0.36,
+            "metalness": 0.015,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": true,
+            "emissiveFactor": null
+          },
+          "geometryEvidence": null,
+          "confidence": 0.92,
+          "basis": "槽位名直接解析出角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 15,
+          "name": "car-interior-lid",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "car-interior-lid",
+          "component": "面板 / 门板",
+          "role": "panel",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "lacquer",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": false,
+          "doubleSided": true,
+          "target": {
+            "baseColorHex": "#3A3F45",
+            "roughness": 0.36,
+            "metalness": 0.06,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.061,
+              0.068,
+              0.072,
+              1
+            ],
+            "roughness": 0.36,
+            "metalness": 0.027,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": true,
+            "emissiveFactor": null
+          },
+          "geometryEvidence": null,
+          "confidence": 0.92,
+          "basis": "槽位名直接解析出角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 16,
+          "name": "glass",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "glass",
+          "component": "玻璃 / 透明面",
+          "role": "glass",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "glass",
+          "required": true,
+          "alphaMode": "BLEND",
+          "emissive": false,
+          "doubleSided": true,
+          "target": {
+            "baseColorHex": "#1F2933",
+            "roughness": 0.14,
+            "metalness": 0.06,
+            "alphaMode": "BLEND",
+            "opacity": 0.42,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.019,
+              0.034,
+              0.051,
+              0.42
+            ],
+            "roughness": 0.14,
+            "metalness": 0.06,
+            "alphaMode": "BLEND",
+            "alphaCutoff": null,
+            "doubleSided": true,
+            "emissiveFactor": null
+          },
+          "geometryEvidence": null,
+          "confidence": 0.92,
+          "basis": "槽位名直接解析出角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        }
+      ],
+      "expectedRoles": [
+        "bodywork",
+        "fabric",
+        "trim",
+        "panel",
+        "base",
+        "seat",
+        "metal",
+        "display",
+        "glass"
+      ],
+      "exceptions": [],
+      "source": {
+        "audit": "docs/model-audit/glb-material-audit.json",
+        "generatedAt": "2026-11-28T00:39:25.121Z",
+        "geometry": "homeos/frontend/public/static/3d-studio/models/家居/建筑与交通/小汽车-开合件-lite.glb"
       }
     },
     {
@@ -78608,7 +79351,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.861Z",
+        "generatedAt": "2026-11-28T00:39:25.122Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/办公数码/智慧屏.glb"
       }
     },
@@ -78925,7 +79668,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.862Z",
+        "generatedAt": "2026-11-28T00:39:25.123Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/影音设备/智慧屏上墙.glb"
       }
     },
@@ -79182,7 +79925,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.862Z",
+        "generatedAt": "2026-11-28T00:39:25.123Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/宠物用品/智能猫砂盆.glb"
       }
     },
@@ -79439,7 +80182,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.863Z",
+        "generatedAt": "2026-11-28T00:39:25.124Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/办公数码/86型智能插座.glb"
       }
     },
@@ -79739,7 +80482,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.865Z",
+        "generatedAt": "2026-11-28T00:39:25.125Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/客厅家具/沙发.glb"
       }
     },
@@ -80039,7 +80782,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.867Z",
+        "generatedAt": "2026-11-28T00:39:25.126Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/客厅家具/L型沙发.glb"
       }
     },
@@ -80339,7 +81082,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.869Z",
+        "generatedAt": "2026-11-28T00:39:25.127Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/客厅家具/L型沙发（左）.glb"
       }
     },
@@ -80639,7 +81382,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.871Z",
+        "generatedAt": "2026-11-28T00:39:25.128Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/客厅家具/单人沙发.glb"
       }
     },
@@ -80776,7 +81519,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.873Z",
+        "generatedAt": "2026-11-28T00:39:25.129Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/沙发毯.glb"
       }
     },
@@ -81033,7 +81776,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.875Z",
+        "generatedAt": "2026-11-28T00:39:25.130Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/影音设备/长条音响.glb"
       }
     },
@@ -81289,7 +82032,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.876Z",
+        "generatedAt": "2026-11-28T00:39:25.130Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/厨房用品/调味瓶组合.glb"
       }
     },
@@ -81486,7 +82229,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.878Z",
+        "generatedAt": "2026-11-28T00:39:25.130Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/健身娱乐/动感单车.glb"
       }
     },
@@ -81769,7 +82512,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.878Z",
+        "generatedAt": "2026-11-28T00:39:25.131Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/客厅家具/方茶几.glb"
       }
     },
@@ -81966,7 +82709,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.879Z",
+        "generatedAt": "2026-11-28T00:39:25.131Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卫浴用品/蹲便.glb"
       }
     },
@@ -82112,7 +82855,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.880Z",
+        "generatedAt": "2026-11-28T00:39:25.131Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/建筑与交通/楼梯.glb"
       }
     },
@@ -82309,7 +83052,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.881Z",
+        "generatedAt": "2026-11-28T00:39:25.132Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/厨师机.glb"
       }
     },
@@ -82566,7 +83309,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.882Z",
+        "generatedAt": "2026-11-28T00:39:25.133Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/蒸烤箱.glb"
       }
     },
@@ -82703,7 +83446,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.887Z",
+        "generatedAt": "2026-11-28T00:39:25.135Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/建筑与交通/钢楼梯.glb"
       }
     },
@@ -82900,7 +83643,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.888Z",
+        "generatedAt": "2026-11-28T00:39:25.136Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/柜架收纳/收纳箱.glb"
       }
     },
@@ -83097,7 +83840,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.890Z",
+        "generatedAt": "2026-11-28T00:39:25.137Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/柜架收纳/三层收纳推车.glb"
       }
     },
@@ -83414,7 +84157,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.891Z",
+        "generatedAt": "2026-11-28T00:39:25.138Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/环境设备/储水式热水器.glb"
       }
     },
@@ -83671,7 +84414,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.892Z",
+        "generatedAt": "2026-11-28T00:39:25.139Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/玄关用品/行李箱.glb"
       }
     },
@@ -83721,10 +84464,10 @@
             "emissiveFactor": null
           },
           "geometryEvidence": {
-            "triangles": 13410,
+            "triangles": 6705,
             "areaShare": 0.17,
             "thinness": 0.252,
-            "shells": 7564,
+            "shells": 3782,
             "yBand": 0.41,
             "offset": [
               0,
@@ -83780,10 +84523,10 @@
             "emissiveFactor": null
           },
           "geometryEvidence": {
-            "triangles": 640,
+            "triangles": 320,
             "areaShare": 0.001,
             "thinness": 0.163,
-            "shells": 504,
+            "shells": 252,
             "yBand": 0.47,
             "offset": [
               0,
@@ -83843,10 +84586,10 @@
             ]
           },
           "geometryEvidence": {
-            "triangles": 444,
+            "triangles": 222,
             "areaShare": 0.002,
             "thinness": 0.075,
-            "shells": 276,
+            "shells": 138,
             "yBand": 0.52,
             "offset": [
               0,
@@ -83906,10 +84649,10 @@
             ]
           },
           "geometryEvidence": {
-            "triangles": 456,
+            "triangles": 228,
             "areaShare": 0.002,
             "thinness": 0.326,
-            "shells": 320,
+            "shells": 160,
             "yBand": 0.45,
             "offset": [
               0,
@@ -83965,10 +84708,10 @@
             "emissiveFactor": null
           },
           "geometryEvidence": {
-            "triangles": 10412,
+            "triangles": 5206,
             "areaShare": 0.411,
             "thinness": 0.318,
-            "shells": 7692,
+            "shells": 3846,
             "yBand": 0.56,
             "offset": [
               0,
@@ -84024,10 +84767,10 @@
             "emissiveFactor": null
           },
           "geometryEvidence": {
-            "triangles": 8716,
+            "triangles": 4358,
             "areaShare": 0.17,
             "thinness": 0.179,
-            "shells": 4996,
+            "shells": 2498,
             "yBand": 0.44,
             "offset": [
               0,
@@ -84083,10 +84826,10 @@
             "emissiveFactor": null
           },
           "geometryEvidence": {
-            "triangles": 1304,
+            "triangles": 652,
             "areaShare": 0.005,
             "thinness": 0.163,
-            "shells": 836,
+            "shells": 418,
             "yBand": 0.47,
             "offset": [
               0,
@@ -84142,10 +84885,10 @@
             "emissiveFactor": null
           },
           "geometryEvidence": {
-            "triangles": 516,
+            "triangles": 258,
             "areaShare": 0.002,
             "thinness": 0.077,
-            "shells": 320,
+            "shells": 160,
             "yBand": 0.52,
             "offset": [
               0,
@@ -84201,10 +84944,10 @@
             "emissiveFactor": null
           },
           "geometryEvidence": {
-            "triangles": 488,
+            "triangles": 244,
             "areaShare": 0.001,
             "thinness": 0.035,
-            "shells": 284,
+            "shells": 142,
             "yBand": 0.52,
             "offset": [
               0,
@@ -84260,10 +85003,10 @@
             "emissiveFactor": null
           },
           "geometryEvidence": {
-            "triangles": 1264,
+            "triangles": 632,
             "areaShare": 0.122,
             "thinness": 0.155,
-            "shells": 908,
+            "shells": 454,
             "yBand": 0.78,
             "offset": [
               0,
@@ -84319,10 +85062,10 @@
             "emissiveFactor": null
           },
           "geometryEvidence": {
-            "triangles": 3472,
+            "triangles": 1736,
             "areaShare": 0.114,
             "thinness": 0.215,
-            "shells": 1752,
+            "shells": 876,
             "yBand": 0.22,
             "offset": [
               0,
@@ -84351,8 +85094,975 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.915Z",
+        "generatedAt": "2026-11-28T00:39:25.146Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/建筑与交通/越野车.glb"
+      }
+    },
+    {
+      "id": "suv-openings",
+      "itemType": "suv-openings",
+      "family": "vehicle",
+      "topologyClass": "solid",
+      "expectedSlotCount": 22,
+      "slots": [
+        {
+          "index": 0,
+          "name": "gray",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "gray",
+          "component": "收边饰条",
+          "role": "trim",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "metal",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": false,
+          "doubleSided": true,
+          "target": {
+            "baseColorHex": "#2C3034",
+            "roughness": 0.32,
+            "metalness": 0.72,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.212,
+              0.212,
+              0.212,
+              1
+            ],
+            "roughness": 0.35,
+            "metalness": 0.72,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": true,
+            "emissiveFactor": null
+          },
+          "geometryEvidence": null,
+          "confidence": 0.92,
+          "basis": "槽位名直接解析出角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 1,
+          "name": "base",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "base",
+          "component": "底座 / 基座",
+          "role": "base",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "metal",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": false,
+          "doubleSided": true,
+          "target": {
+            "baseColorHex": "#2C3034",
+            "roughness": 0.32,
+            "metalness": 0.72,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.014,
+              0.015,
+              0.019,
+              1
+            ],
+            "roughness": 0.32,
+            "metalness": 0.72,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": true,
+            "emissiveFactor": null
+          },
+          "geometryEvidence": null,
+          "confidence": 0.92,
+          "basis": "槽位名直接解析出角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 2,
+          "name": "headlight_01",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "headlight_01",
+          "component": "lacquer",
+          "role": "emissive",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "lacquer",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": true,
+          "doubleSided": true,
+          "target": {
+            "baseColorHex": "#FFF2CF",
+            "roughness": 0.36,
+            "metalness": 0.06,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "#FFF2CF",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.815,
+              0.823,
+              0.839,
+              1
+            ],
+            "roughness": 0.36,
+            "metalness": 0.1,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": true,
+            "emissiveFactor": [
+              0.77,
+              0.88,
+              1
+            ]
+          },
+          "geometryEvidence": null,
+          "confidence": 0.92,
+          "basis": "槽位名直接解析出角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 3,
+          "name": "headlight_02",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "headlight_02",
+          "component": "lacquer",
+          "role": "emissive",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "lacquer",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": true,
+          "doubleSided": true,
+          "target": {
+            "baseColorHex": "#FFF2CF",
+            "roughness": 0.36,
+            "metalness": 0.06,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "#FFF2CF",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.84,
+              0.036,
+              0.018,
+              1
+            ],
+            "roughness": 0.36,
+            "metalness": 0.1,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": true,
+            "emissiveFactor": [
+              0.84,
+              0.036,
+              0.018
+            ]
+          },
+          "geometryEvidence": null,
+          "confidence": 0.92,
+          "basis": "槽位名直接解析出角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 4,
+          "name": "body",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "body",
+          "component": "主体外壳",
+          "role": "body",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "lacquer",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": false,
+          "doubleSided": true,
+          "target": {
+            "baseColorHex": "#7D8089",
+            "roughness": 0.32,
+            "metalness": 0.55,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.672,
+              0.68,
+              0.694,
+              1
+            ],
+            "roughness": 0.32,
+            "metalness": 0.55,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": true,
+            "emissiveFactor": null
+          },
+          "geometryEvidence": null,
+          "confidence": 0.85,
+          "basis": "明度候选经家族表还原角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 5,
+          "name": "glass_01",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "glass_01",
+          "component": "玻璃 / 透明面",
+          "role": "glass",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "glass",
+          "required": true,
+          "alphaMode": "BLEND",
+          "emissive": false,
+          "doubleSided": true,
+          "target": {
+            "baseColorHex": "#1F2933",
+            "roughness": 0.14,
+            "metalness": 0.06,
+            "alphaMode": "BLEND",
+            "opacity": 0.42,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              1,
+              1,
+              1,
+              0.16
+            ],
+            "roughness": 0.14,
+            "metalness": 0.1,
+            "alphaMode": "BLEND",
+            "alphaCutoff": null,
+            "doubleSided": true,
+            "emissiveFactor": null
+          },
+          "geometryEvidence": null,
+          "confidence": 0.92,
+          "basis": "槽位名直接解析出角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 6,
+          "name": "glass",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "glass",
+          "component": "玻璃 / 透明面",
+          "role": "glass",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "glass",
+          "required": true,
+          "alphaMode": "BLEND",
+          "emissive": false,
+          "doubleSided": true,
+          "target": {
+            "baseColorHex": "#1F2933",
+            "roughness": 0.14,
+            "metalness": 0.06,
+            "alphaMode": "BLEND",
+            "opacity": 0.42,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.018,
+              0.022,
+              0.025,
+              0.42
+            ],
+            "roughness": 0.14,
+            "metalness": 0.06,
+            "alphaMode": "BLEND",
+            "alphaCutoff": null,
+            "doubleSided": true,
+            "emissiveFactor": null
+          },
+          "geometryEvidence": null,
+          "confidence": 0.92,
+          "basis": "槽位名直接解析出角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 7,
+          "name": "salon",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "salon",
+          "component": "座面",
+          "role": "seat",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "leather",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": false,
+          "doubleSided": true,
+          "target": {
+            "baseColorHex": "#9D9384",
+            "roughness": 0.62,
+            "metalness": 0.02,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.001,
+              0.001,
+              0.002,
+              1
+            ],
+            "roughness": 0.62,
+            "metalness": 0,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": true,
+            "emissiveFactor": null
+          },
+          "geometryEvidence": null,
+          "confidence": 0.92,
+          "basis": "槽位名直接解析出角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 8,
+          "name": "car-interior-carpet",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "car-interior-carpet",
+          "component": "软包织物面",
+          "role": "fabric",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "fabric",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": false,
+          "doubleSided": true,
+          "target": {
+            "baseColorHex": "#C7C0B2",
+            "roughness": 0.94,
+            "metalness": 0,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.036,
+              0.034,
+              0.04,
+              1
+            ],
+            "roughness": 0.984,
+            "metalness": 0.004,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": true,
+            "emissiveFactor": null
+          },
+          "geometryEvidence": null,
+          "confidence": 0.92,
+          "basis": "槽位名直接解析出角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 9,
+          "name": "car-interior-seal",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "car-interior-seal",
+          "component": "收边饰条",
+          "role": "trim",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "metal",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": false,
+          "doubleSided": true,
+          "target": {
+            "baseColorHex": "#2C3034",
+            "roughness": 0.32,
+            "metalness": 0.72,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.019,
+              0.02,
+              0.021,
+              1
+            ],
+            "roughness": 0.32,
+            "metalness": 0.72,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": true,
+            "emissiveFactor": null
+          },
+          "geometryEvidence": null,
+          "confidence": 0.92,
+          "basis": "槽位名直接解析出角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 10,
+          "name": "car-interior-liner",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "car-interior-liner",
+          "component": "面板 / 门板",
+          "role": "panel",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "lacquer",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": false,
+          "doubleSided": true,
+          "target": {
+            "baseColorHex": "#3A3F45",
+            "roughness": 0.36,
+            "metalness": 0.06,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.053,
+              0.061,
+              0.068,
+              1
+            ],
+            "roughness": 0.36,
+            "metalness": 0.012,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": true,
+            "emissiveFactor": null
+          },
+          "geometryEvidence": null,
+          "confidence": 0.92,
+          "basis": "槽位名直接解析出角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 11,
+          "name": "car-interior-suv-leather",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "car-interior-suv-leather",
+          "component": "座面",
+          "role": "seat",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "leather",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": false,
+          "doubleSided": true,
+          "target": {
+            "baseColorHex": "#9D9384",
+            "roughness": 0.62,
+            "metalness": 0.02,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.314,
+              0.202,
+              0.12,
+              1
+            ],
+            "roughness": 0.62,
+            "metalness": 0.021,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": true,
+            "emissiveFactor": null
+          },
+          "geometryEvidence": null,
+          "confidence": 0.92,
+          "basis": "槽位名直接解析出角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 12,
+          "name": "car-interior-suv-trim",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "car-interior-suv-trim",
+          "component": "收边饰条",
+          "role": "trim",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "metal",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": false,
+          "doubleSided": true,
+          "target": {
+            "baseColorHex": "#2C3034",
+            "roughness": 0.32,
+            "metalness": 0.72,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.445,
+              0.314,
+              0.205,
+              1
+            ],
+            "roughness": 0.32,
+            "metalness": 0.72,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": true,
+            "emissiveFactor": null
+          },
+          "geometryEvidence": null,
+          "confidence": 0.92,
+          "basis": "槽位名直接解析出角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 13,
+          "name": "car-interior-suv-seam",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "car-interior-suv-seam",
+          "component": "收边饰条",
+          "role": "trim",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "metal",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": false,
+          "doubleSided": true,
+          "target": {
+            "baseColorHex": "#2C3034",
+            "roughness": 0.32,
+            "metalness": 0.72,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.565,
+              0.407,
+              0.275,
+              1
+            ],
+            "roughness": 0.32,
+            "metalness": 0.72,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": true,
+            "emissiveFactor": null
+          },
+          "geometryEvidence": null,
+          "confidence": 0.92,
+          "basis": "槽位名直接解析出角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 14,
+          "name": "car-interior-aluminium",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "car-interior-aluminium",
+          "component": "金属件",
+          "role": "metal",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "metal",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": false,
+          "doubleSided": true,
+          "target": {
+            "baseColorHex": "#B7BEC5",
+            "roughness": 0.32,
+            "metalness": 0.72,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.347,
+              0.386,
+              0.407,
+              1
+            ],
+            "roughness": 0.32,
+            "metalness": 0.72,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": true,
+            "emissiveFactor": null
+          },
+          "geometryEvidence": null,
+          "confidence": 0.92,
+          "basis": "槽位名直接解析出角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 15,
+          "name": "car-interior-buckle",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "car-interior-buckle",
+          "component": "金属件",
+          "role": "metal",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "metal",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": false,
+          "doubleSided": true,
+          "target": {
+            "baseColorHex": "#B7BEC5",
+            "roughness": 0.32,
+            "metalness": 0.72,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.337,
+              0.033,
+              0.027,
+              1
+            ],
+            "roughness": 0.32,
+            "metalness": 0.72,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": true,
+            "emissiveFactor": null
+          },
+          "geometryEvidence": null,
+          "confidence": 0.92,
+          "basis": "槽位名直接解析出角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 16,
+          "name": "car-interior-dashboard",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "car-interior-dashboard",
+          "component": "面板 / 门板",
+          "role": "panel",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "lacquer",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": false,
+          "doubleSided": true,
+          "target": {
+            "baseColorHex": "#3A3F45",
+            "roughness": 0.36,
+            "metalness": 0.06,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.034,
+              0.034,
+              0.042,
+              1
+            ],
+            "roughness": 0.36,
+            "metalness": 0.021,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": true,
+            "emissiveFactor": null
+          },
+          "geometryEvidence": null,
+          "confidence": 0.92,
+          "basis": "槽位名直接解析出角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 17,
+          "name": "car-interior-screen",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "car-interior-screen",
+          "component": "屏幕 / 面板显示",
+          "role": "display",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "lacquer",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": true,
+          "doubleSided": true,
+          "target": {
+            "baseColorHex": "#1E242A",
+            "roughness": 0.36,
+            "metalness": 0.06,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.022,
+              0.04,
+              0.065,
+              1
+            ],
+            "roughness": 0.36,
+            "metalness": 0.08,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": true,
+            "emissiveFactor": [
+              0.002,
+              0.003,
+              0.005
+            ]
+          },
+          "geometryEvidence": null,
+          "confidence": 0.92,
+          "basis": "槽位名直接解析出角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 18,
+          "name": "car-interior-display",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "car-interior-display",
+          "component": "屏幕 / 面板显示",
+          "role": "display",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "lacquer",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": true,
+          "doubleSided": true,
+          "target": {
+            "baseColorHex": "#1E242A",
+            "roughness": 0.36,
+            "metalness": 0.06,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.165,
+              0.305,
+              0.413,
+              1
+            ],
+            "roughness": 0.36,
+            "metalness": 0.06,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": true,
+            "emissiveFactor": [
+              0.026,
+              0.049,
+              0.066
+            ]
+          },
+          "geometryEvidence": null,
+          "confidence": 0.92,
+          "basis": "槽位名直接解析出角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 19,
+          "name": "car-interior-rim",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "car-interior-rim",
+          "component": "金属件",
+          "role": "metal",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "metal",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": false,
+          "doubleSided": true,
+          "target": {
+            "baseColorHex": "#B7BEC5",
+            "roughness": 0.32,
+            "metalness": 0.72,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.1,
+              0.12,
+              0.138,
+              1
+            ],
+            "roughness": 0.32,
+            "metalness": 0.72,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": true,
+            "emissiveFactor": null
+          },
+          "geometryEvidence": null,
+          "confidence": 0.92,
+          "basis": "槽位名直接解析出角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 20,
+          "name": "car-interior-rib",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "car-interior-rib",
+          "component": "面板 / 门板",
+          "role": "panel",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "lacquer",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": false,
+          "doubleSided": true,
+          "target": {
+            "baseColorHex": "#3A3F45",
+            "roughness": 0.36,
+            "metalness": 0.06,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.07,
+              0.082,
+              0.093,
+              1
+            ],
+            "roughness": 0.36,
+            "metalness": 0.015,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": true,
+            "emissiveFactor": null
+          },
+          "geometryEvidence": null,
+          "confidence": 0.92,
+          "basis": "槽位名直接解析出角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 21,
+          "name": "car-interior-lid",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "car-interior-lid",
+          "component": "面板 / 门板",
+          "role": "panel",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "lacquer",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": false,
+          "doubleSided": true,
+          "target": {
+            "baseColorHex": "#3A3F45",
+            "roughness": 0.36,
+            "metalness": 0.06,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.061,
+              0.068,
+              0.072,
+              1
+            ],
+            "roughness": 0.36,
+            "metalness": 0.027,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": true,
+            "emissiveFactor": null
+          },
+          "geometryEvidence": null,
+          "confidence": 0.92,
+          "basis": "槽位名直接解析出角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        }
+      ],
+      "expectedRoles": [
+        "trim",
+        "base",
+        "emissive",
+        "body",
+        "glass",
+        "seat",
+        "fabric",
+        "panel",
+        "metal",
+        "display"
+      ],
+      "exceptions": [],
+      "source": {
+        "audit": "docs/model-audit/glb-material-audit.json",
+        "generatedAt": "2026-11-28T00:39:25.146Z",
+        "geometry": "homeos/frontend/public/static/3d-studio/models/家居/建筑与交通/越野车-开合件-lite.glb"
       }
     },
     {
@@ -84668,7 +86378,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.917Z",
+        "generatedAt": "2026-11-28T00:39:25.147Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/影音设备/Switch游戏机.glb"
       }
     },
@@ -84951,7 +86661,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.919Z",
+        "generatedAt": "2026-11-28T00:39:25.148Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/厨房家具/餐桌组合.glb"
       }
     },
@@ -85147,8 +86857,325 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.923Z",
+        "generatedAt": "2026-11-28T00:39:25.149Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/装饰灯具/台灯.glb"
+      }
+    },
+    {
+      "id": "tatami",
+      "itemType": "tatami",
+      "family": "upholstery",
+      "topologyClass": "solid",
+      "expectedSlotCount": 5,
+      "slots": [
+        {
+          "index": 0,
+          "name": "tatami-candidate-dark",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "tatami-candidate-dark",
+          "component": "fabric（下部(y=0.36)）",
+          "role": "dark",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "fabric",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": false,
+          "doubleSided": false,
+          "target": {
+            "baseColorHex": "#9D9384",
+            "roughness": 0.94,
+            "metalness": 0,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.084,
+              0.109,
+              0.165,
+              1
+            ],
+            "roughness": 0.94,
+            "metalness": 0,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": false,
+            "emissiveFactor": null
+          },
+          "geometryEvidence": {
+            "triangles": 50,
+            "areaShare": 0.163,
+            "thinness": 0.126,
+            "shells": 40,
+            "yBand": 0.36,
+            "offset": [
+              0,
+              -0.052,
+              0.03
+            ],
+            "size": [
+              1.91,
+              0.257,
+              2.04
+            ],
+            "inverted": false
+          },
+          "confidence": 0.85,
+          "basis": "明度候选经家族表还原角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 1,
+          "name": "tatami-candidate-body",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "tatami-candidate-body",
+          "component": "主体外壳（中部(y=0.43)）",
+          "role": "body",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "fabric",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": false,
+          "doubleSided": false,
+          "target": {
+            "baseColorHex": "#7D8089",
+            "roughness": 0.82,
+            "metalness": 0,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.205,
+              0.242,
+              0.319,
+              1
+            ],
+            "roughness": 0.82,
+            "metalness": 0,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": false,
+            "emissiveFactor": null
+          },
+          "geometryEvidence": {
+            "triangles": 40,
+            "areaShare": 0.229,
+            "thinness": 0.111,
+            "shells": 32,
+            "yBand": 0.43,
+            "offset": [
+              0,
+              -0.026,
+              0.007
+            ],
+            "size": [
+              1.974,
+              0.232,
+              2.081
+            ],
+            "inverted": false
+          },
+          "confidence": 0.85,
+          "basis": "明度候选经家族表还原角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 2,
+          "name": "tatami-candidate-accent",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "tatami-candidate-accent",
+          "component": "饰条 / 点缀件（薄板，上部(y=0.79)）",
+          "role": "accent",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "fabric",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": false,
+          "doubleSided": false,
+          "target": {
+            "baseColorHex": "#B0A58F",
+            "roughness": 0.94,
+            "metalness": 0,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.205,
+              0.242,
+              0.319,
+              1
+            ],
+            "roughness": 0.94,
+            "metalness": 0,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": false,
+            "emissiveFactor": null
+          },
+          "geometryEvidence": {
+            "triangles": 12,
+            "areaShare": 0.313,
+            "thinness": 0.019,
+            "shells": 8,
+            "yBand": 0.79,
+            "offset": [
+              0,
+              0.104,
+              0
+            ],
+            "size": [
+              2,
+              0.04,
+              2.1
+            ],
+            "inverted": false
+          },
+          "confidence": 0.85,
+          "basis": "明度候选经家族表还原角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 3,
+          "name": "tatami-candidate-soft",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "tatami-candidate-soft",
+          "component": "fabric（薄板，顶部(y=0.92)）",
+          "role": "soft",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "fabric",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": false,
+          "doubleSided": false,
+          "target": {
+            "baseColorHex": "#CFC6B6",
+            "roughness": 0.94,
+            "metalness": 0,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.337,
+              0.392,
+              0.491,
+              1
+            ],
+            "roughness": 0.94,
+            "metalness": 0,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": false,
+            "emissiveFactor": null
+          },
+          "geometryEvidence": {
+            "triangles": 248,
+            "areaShare": 0.195,
+            "thinness": 0.028,
+            "shells": 128,
+            "yBand": 0.92,
+            "offset": [
+              0,
+              0.152,
+              0
+            ],
+            "size": [
+              1.896,
+              0.056,
+              1.998
+            ],
+            "inverted": false
+          },
+          "confidence": 0.85,
+          "basis": "明度候选经家族表还原角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        },
+        {
+          "index": 4,
+          "name": "tatami-candidate-light",
+          "legacyName": null,
+          "action": "keep",
+          "targetName": "tatami-candidate-light",
+          "component": "灯具发光面（薄板，顶部(y=0.92)，靠前）",
+          "role": "light",
+          "roleSource": "name",
+          "roleExplicit": false,
+          "surface": "fabric",
+          "required": true,
+          "alphaMode": "OPAQUE",
+          "emissive": false,
+          "doubleSided": false,
+          "target": {
+            "baseColorHex": "#D6D2C9",
+            "roughness": 0.94,
+            "metalness": 0,
+            "alphaMode": "OPAQUE",
+            "opacity": 1,
+            "emissiveHex": "—",
+            "doubleSided": true
+          },
+          "embedded": {
+            "baseColorFactor": [
+              0.527,
+              0.591,
+              0.68,
+              1
+            ],
+            "roughness": 0.94,
+            "metalness": 0,
+            "alphaMode": "OPAQUE",
+            "alphaCutoff": null,
+            "doubleSided": false,
+            "emissiveFactor": null
+          },
+          "geometryEvidence": {
+            "triangles": 124,
+            "areaShare": 0.099,
+            "thinness": 0.042,
+            "shells": 64,
+            "yBand": 0.92,
+            "offset": [
+              -0.478,
+              0.152,
+              0.327
+            ],
+            "size": [
+              0.938,
+              0.056,
+              1.344
+            ],
+            "inverted": false
+          },
+          "confidence": 0.85,
+          "basis": "明度候选经家族表还原角色；解析来源 name；几何指纹（面积占比 / 薄厚比 / 位置带）"
+        }
+      ],
+      "expectedRoles": [
+        "dark",
+        "body",
+        "accent",
+        "soft",
+        "light"
+      ],
+      "exceptions": [],
+      "source": {
+        "audit": "docs/model-audit/glb-material-audit.json",
+        "generatedAt": "2026-11-28T00:39:25.149Z",
+        "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卧室家具/榻榻米.glb"
       }
     },
     {
@@ -85284,7 +87311,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.928Z",
+        "generatedAt": "2026-11-28T00:39:25.151Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/环境设备/茶吧机.glb"
       }
     },
@@ -85601,7 +87628,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.932Z",
+        "generatedAt": "2026-11-28T00:39:25.153Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/客厅家具/组合茶桌.glb"
       }
     },
@@ -85858,7 +87885,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.933Z",
+        "generatedAt": "2026-11-28T00:39:25.154Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/吐司机.glb"
       }
     },
@@ -86055,7 +88082,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.934Z",
+        "generatedAt": "2026-11-28T00:39:25.154Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卫浴用品/马桶.glb"
       }
     },
@@ -86312,7 +88339,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.934Z",
+        "generatedAt": "2026-11-28T00:39:25.155Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卫浴用品/洗漱用品组合.glb"
       }
     },
@@ -86568,7 +88595,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.935Z",
+        "generatedAt": "2026-11-28T00:39:25.155Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卫浴用品/壁挂牙刷架.glb"
       }
     },
@@ -86883,7 +88910,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.937Z",
+        "generatedAt": "2026-11-28T00:39:25.157Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/影音设备/立式音响.glb"
       }
     },
@@ -87140,7 +89167,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.938Z",
+        "generatedAt": "2026-11-28T00:39:25.157Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/清洁设备/垃圾桶.glb"
       }
     },
@@ -87457,7 +89484,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.940Z",
+        "generatedAt": "2026-11-28T00:39:25.158Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/健身娱乐/跑步机.glb"
       }
     },
@@ -87653,7 +89680,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.941Z",
+        "generatedAt": "2026-11-28T00:39:25.158Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/奖杯.glb"
       }
     },
@@ -87910,7 +89937,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.943Z",
+        "generatedAt": "2026-11-28T00:39:25.159Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/影音设备/唱片机.glb"
       }
     },
@@ -88185,7 +90212,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.943Z",
+        "generatedAt": "2026-11-28T00:39:25.159Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/影音设备/移动电视.glb"
       }
     },
@@ -88245,7 +90272,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.943Z",
+        "generatedAt": "2026-11-28T00:39:25.160Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/影音设备/标准电视.glb"
       }
     },
@@ -88434,7 +90461,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.944Z",
+        "generatedAt": "2026-11-28T00:39:25.160Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/影音设备/桌面电视.glb"
       }
     },
@@ -88717,7 +90744,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.945Z",
+        "generatedAt": "2026-11-28T00:39:25.160Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/客厅家具/电视柜.glb"
       }
     },
@@ -88974,7 +91001,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.946Z",
+        "generatedAt": "2026-11-28T00:39:25.160Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/玄关用品/雨伞架.glb"
       }
     },
@@ -89111,7 +91138,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.946Z",
+        "generatedAt": "2026-11-28T00:39:25.160Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/装饰灯具/上下出光壁灯.glb"
       }
     },
@@ -89367,7 +91394,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.948Z",
+        "generatedAt": "2026-11-28T00:39:25.161Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卫浴用品/小便斗.glb"
       }
     },
@@ -89684,7 +91711,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.949Z",
+        "generatedAt": "2026-11-28T00:39:25.162Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卧室家具/梳妆台.glb"
       }
     },
@@ -90001,7 +92028,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.949Z",
+        "generatedAt": "2026-11-28T00:39:25.162Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/挂画.glb"
       }
     },
@@ -90198,7 +92225,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.950Z",
+        "generatedAt": "2026-11-28T00:39:25.162Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/宠物用品/壁挂猫跳台.glb"
       }
     },
@@ -90455,7 +92482,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.951Z",
+        "generatedAt": "2026-11-28T00:39:25.164Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/挂钟.glb"
       }
     },
@@ -90592,7 +92619,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.952Z",
+        "generatedAt": "2026-11-28T00:39:25.164Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/玄关用品/壁挂衣钩.glb"
       }
     },
@@ -90742,7 +92769,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.953Z",
+        "generatedAt": "2026-11-28T00:39:25.164Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/环境设备/挂机空调.glb"
       }
     },
@@ -90931,7 +92958,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.953Z",
+        "generatedAt": "2026-11-28T00:39:25.164Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/柜架收纳/吊柜.glb"
       }
     },
@@ -91188,7 +93215,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.954Z",
+        "generatedAt": "2026-11-28T00:39:25.164Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/装饰灯具/壁灯.glb"
       }
     },
@@ -91445,7 +93472,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.955Z",
+        "generatedAt": "2026-11-28T00:39:25.165Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/柜架收纳/衣柜.glb"
       }
     },
@@ -91642,7 +93669,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.955Z",
+        "generatedAt": "2026-11-28T00:39:25.165Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/柜架收纳/双段衣柜.glb"
       }
     },
@@ -91959,7 +93986,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.957Z",
+        "generatedAt": "2026-11-28T00:39:25.166Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/洗衣烘干/洗衣机.glb"
       }
     },
@@ -92216,7 +94243,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.958Z",
+        "generatedAt": "2026-11-28T00:39:25.167Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/净水器主机.glb"
       }
     },
@@ -92353,7 +94380,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.958Z",
+        "generatedAt": "2026-11-28T00:39:25.167Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/健身娱乐/健身长凳.glb"
       }
     },
@@ -92670,7 +94697,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.959Z",
+        "generatedAt": "2026-11-28T00:39:25.168Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/影音设备/Xbox游戏机.glb"
       }
     },
@@ -92925,7 +94952,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-28T15:42:02.963Z",
+        "generatedAt": "2026-11-28T00:39:25.170Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/健身娱乐/瑜伽垫＋健身球.glb"
       }
     }

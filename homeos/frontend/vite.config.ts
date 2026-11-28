@@ -13,6 +13,7 @@ import { ensureLockParent, pidAlive, withFileLock } from './vite-file-lock.ts'
 import { SPA_ENTRY, assertSpaShellPresent, stripCssComments } from '../../ops/vite/build-helpers.js'
 import { publishFrontendEntries } from '../../ops/vite/publish-frontend.js'
 import {
+  CLASSIC_IIFE_OUTPUTS,
   THREE_VENDOR,
   isRuntimeExternal,
   runtimeUrlExternalPlugin,
@@ -551,6 +552,7 @@ function updatePublicStaticManifest(): void {
     // 源文件在 0.7 之后就不存在了（`index.html` / `page-assets.ts` 均无引用），
     // 只剩这份登记。干净构建时它们必然缺失 → 整个构建失败。
     '/static/auth/scene/scene-depth.js',
+    ...CLASSIC_IIFE_OUTPUTS,
     // 认证页样式表由 App.vue 在运行时插入 <head>，不在 SPA 入口里，需显式登记。
     '/static/auth/scene/fonts.css',
     '/static/auth/scene/page.css',

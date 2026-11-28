@@ -26,8 +26,17 @@ const MODULES = [
   { name: 'slots', cmd: ['bun', 'ops/checks/studio/audit_glb_material_slots.mjs', '--check'], covers: ['check:slots'] },
   {
     name: 'materials',
-    cmd: ['bun', 'ops/checks/studio/audit_glb_materials.mjs', '--check'],
+    // `--strict`：单模型级问题（M4 透明通道 / A4 双面 / C7 内嵌值漂移…）也计入退出码。
+    // 存量已在 2026-11 清零，再出现就是本轮引入的回归。
+    cmd: ['bun', 'ops/checks/studio/audit_glb_materials.mjs', '--check', '--strict'],
     covers: ['check:materials'],
+  },
+  {
+    name: 'textures',
+    // 大体积内嵌贴图不许在多个变体里重复（同一张 1024² 图集曾在车身 + 开合件里存两份，
+    // 一辆车的 lite 流量一半是重复字节）；`MASK` 材质的贴图没有 alpha 通道也直接判红。
+    cmd: ['bun', 'ops/checks/studio/optimize_glb_textures.mjs', '--check'],
+    covers: ['check:textures'],
   },
   {
     name: 'models-layout',
