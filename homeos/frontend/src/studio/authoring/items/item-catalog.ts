@@ -638,6 +638,13 @@ export const furnitureCatalog = {
     depth: 0.35,
     height: 0.82,
     color: '#9a806c',
+    /**
+     * 吊柜不落地：几何原已重定基到 `y=0`（`ops/checks/studio/rebase_glb_origin.mjs`），
+     * 挂高改由这里给默认值。之前是把 1.3775m 烘进 GLB 几何里，导致「离地」字段
+     * 对它是**偏移量**而不是绝对高度（`elevation=0` 时柜子已经在 1.38m），
+     * 与其余 34 个挂墙件的语义不一致。
+     */
+    elevation: 1.3775,
   },
   elevator: {
     name: '电梯',

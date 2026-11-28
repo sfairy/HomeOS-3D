@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-28T01:25:34.659Z",
+  "generatedAt": "2026-11-28T01:33:16.788Z",
   "budgets": {
     "fullTotalBytes": 31457280,
     "liteTotalBytes": 8388608,
@@ -13252,7 +13252,7 @@
       "declaresUv": false
     },
     "家居/卫浴用品/花洒-lite.glb": {
-      "bytes": 4060,
+      "bytes": 4128,
       "triangles": 368,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -13273,7 +13273,7 @@
       "declaresUv": false
     },
     "家居/卫浴用品/花洒.glb": {
-      "bytes": 4448,
+      "bytes": 4516,
       "triangles": 592,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -16053,7 +16053,7 @@
       "declaresUv": false
     },
     "家居/柜架收纳/吊柜-lite.glb": {
-      "bytes": 4224,
+      "bytes": 4292,
       "triangles": 108,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -16075,7 +16075,7 @@
       "declaresUv": false
     },
     "家居/柜架收纳/吊柜.glb": {
-      "bytes": 4284,
+      "bytes": 4352,
       "triangles": 108,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"

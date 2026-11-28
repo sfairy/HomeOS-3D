@@ -168,7 +168,7 @@
       "folder": "appliance/environment",
       "category": "appliance/environment",
       "mount": "wall",
-      "origin": "wall-back-center",
+      "origin": "wall-bottom-face",
       "size": [
         0.188,
         0.3,
@@ -2164,7 +2164,7 @@
       "folder": "home/decor",
       "category": "home/decor",
       "mount": "wall",
-      "origin": "wall-back-center",
+      "origin": "wall-bottom-center",
       "size": [
         1.908,
         2.334,
@@ -2210,7 +2210,7 @@
       "folder": "home/decor",
       "category": "home/decor",
       "mount": "wall",
-      "origin": "wall-back-center",
+      "origin": "wall-bottom-center",
       "size": [
         1.908,
         2.334,
@@ -2256,7 +2256,7 @@
       "folder": "home/decor",
       "category": "home/decor",
       "mount": "wall",
-      "origin": "wall-back-center",
+      "origin": "wall-bottom-center",
       "size": [
         1.908,
         2.334,
@@ -3746,7 +3746,7 @@
       "folder": "appliance/environment",
       "category": "appliance/environment",
       "mount": "wall",
-      "origin": "wall-back-center",
+      "origin": "wall-bottom-center",
       "size": [
         0.22,
         0.15,
@@ -3896,7 +3896,7 @@
       "folder": "home/entry",
       "category": "home/entry",
       "mount": "wall",
-      "origin": "wall-back-center",
+      "origin": "wall-bottom-center",
       "size": [
         1.3,
         2.6,
@@ -3954,7 +3954,7 @@
       "folder": "appliance/environment",
       "category": "appliance/environment",
       "mount": "wall",
-      "origin": "wall-back-center",
+      "origin": "wall-bottom-center",
       "size": [
         0.34,
         0.34,
@@ -4883,7 +4883,7 @@
       "folder": "home/entry",
       "category": "home/entry",
       "mount": "wall",
-      "origin": "wall-back-center",
+      "origin": "wall-bottom-center",
       "size": [
         0.52,
         1.65,
@@ -5639,7 +5639,7 @@
       "folder": "courtyard/facilities",
       "category": "courtyard/facilities",
       "mount": "wall",
-      "origin": "wall-back-center",
+      "origin": "wall-bottom-center",
       "size": [
         2,
         1.15,
@@ -5685,7 +5685,7 @@
       "folder": "courtyard/facilities",
       "category": "courtyard/facilities",
       "mount": "wall",
-      "origin": "wall-back-center",
+      "origin": "wall-bottom-center",
       "size": [
         2,
         1.15,
@@ -5731,7 +5731,7 @@
       "folder": "courtyard/facilities",
       "category": "courtyard/facilities",
       "mount": "wall",
-      "origin": "wall-back-center",
+      "origin": "wall-bottom-center",
       "size": [
         2,
         1.2,
@@ -5777,7 +5777,7 @@
       "folder": "courtyard/facilities",
       "category": "courtyard/facilities",
       "mount": "wall",
-      "origin": "wall-back-center",
+      "origin": "wall-bottom-center",
       "size": [
         2,
         1.2,
@@ -6663,7 +6663,7 @@
       "folder": "courtyard/facilities",
       "category": "courtyard/facilities",
       "mount": "wall",
-      "origin": "wall-back-center",
+      "origin": "wall-bottom-center",
       "size": [
         0.42,
         2.3,
@@ -8599,7 +8599,7 @@
       "folder": "courtyard/structures",
       "category": "courtyard/structures",
       "mount": "wall",
-      "origin": "wall-back-center",
+      "origin": "wall-bottom-center",
       "size": [
         1.4,
         1.9,
@@ -8819,7 +8819,7 @@
       "folder": "appliance/environment",
       "category": "appliance/environment",
       "mount": "wall",
-      "origin": "wall-back-center",
+      "origin": "wall-bottom-center",
       "size": [
         0.42,
         0.72,
@@ -9097,7 +9097,7 @@
       "folder": "home/bathroom",
       "category": "home/bathroom",
       "mount": "wall",
-      "origin": "wall-back-center",
+      "origin": "wall-bottom-center",
       "size": [
         0.14,
         0.2535,
@@ -9189,7 +9189,7 @@
       "folder": "home/bathroom",
       "category": "home/bathroom",
       "mount": "wall",
-      "origin": "wall-back-center",
+      "origin": "wall-bottom-center",
       "size": [
         0.4969,
         0.7925,
@@ -11469,7 +11469,7 @@
       "folder": "appliance/environment",
       "category": "appliance/environment",
       "mount": "wall",
-      "origin": "wall-back-center",
+      "origin": "wall-bottom-face",
       "size": [
         0.26,
         0.378,
@@ -12061,7 +12061,7 @@
       "folder": "appliance/media",
       "category": "appliance/media",
       "mount": "wall",
-      "origin": "wall-back-center",
+      "origin": "wall-bottom-center",
       "size": [
         2.08,
         1.265,
@@ -12291,7 +12291,7 @@
       "folder": "appliance/kitchen-devices",
       "category": "appliance/kitchen-devices",
       "mount": "wall",
-      "origin": "wall-back-center",
+      "origin": "wall-bottom-center",
       "size": [
         0.9,
         0.55,
@@ -12345,7 +12345,7 @@
       "folder": "appliance/environment",
       "category": "appliance/environment",
       "mount": "wall",
-      "origin": "wall-back-center",
+      "origin": "wall-bottom-center",
       "size": [
         0.6,
         0.44,
@@ -13527,7 +13527,7 @@
       "folder": "home/storage",
       "category": "home/storage",
       "mount": "wall",
-      "origin": "wall-back-center",
+      "origin": "wall-bottom-center",
       "size": [
         0.66,
         2.6,
@@ -13578,7 +13578,9 @@
     },
     {
       "id": "smallcar-openings",
-      "itemTypes": [],
+      "itemTypes": [
+        "smallcar-openings"
+      ],
       "name": "smallcar-openings",
       "folder": "home/architecture",
       "category": "home/architecture",
@@ -13600,7 +13602,7 @@
       "shading": "auto",
       "animated": false,
       "variants": [
-        "full"
+        "lite"
       ],
       "triangleBudget": null,
       "reference": {
@@ -13675,7 +13677,7 @@
       "folder": "appliance/media",
       "category": "appliance/media",
       "mount": "wall",
-      "origin": "wall-back-center",
+      "origin": "wall-bottom-center",
       "size": [
         0.257,
         0.162,
@@ -13767,7 +13769,7 @@
       "folder": "appliance/office-devices",
       "category": "appliance/office-devices",
       "mount": "wall",
-      "origin": "wall-back-center",
+      "origin": "wall-bottom-center",
       "size": [
         0.086,
         0.086,
@@ -14615,7 +14617,7 @@
       "folder": "appliance/environment",
       "category": "appliance/environment",
       "mount": "wall",
-      "origin": "wall-back-center",
+      "origin": "wall-bottom-center",
       "size": [
         0.86,
         0.48,
@@ -14770,7 +14772,9 @@
     },
     {
       "id": "suv-openings",
-      "itemTypes": [],
+      "itemTypes": [
+        "suv-openings"
+      ],
       "name": "suv-openings",
       "folder": "home/architecture",
       "category": "home/architecture",
@@ -14792,7 +14796,7 @@
       "shading": "auto",
       "animated": false,
       "variants": [
-        "full"
+        "lite"
       ],
       "triangleBudget": null,
       "reference": {
@@ -14821,7 +14825,7 @@
       "folder": "appliance/media",
       "category": "appliance/media",
       "mount": "wall",
-      "origin": "wall-back-center",
+      "origin": "wall-bottom-center",
       "size": [
         0.241,
         0.128,
@@ -14960,8 +14964,10 @@
     },
     {
       "id": "tatami",
-      "itemTypes": [],
-      "name": "tatami",
+      "itemTypes": [
+        "tatami"
+      ],
+      "name": "榻榻米",
       "folder": "home/bedroom",
       "category": "home/bedroom",
       "mount": "floor",
@@ -15262,7 +15268,7 @@
       "folder": "home/bathroom",
       "category": "home/bathroom",
       "mount": "wall",
-      "origin": "wall-back-center",
+      "origin": "wall-bottom-center",
       "size": [
         0.27,
         0.2345,
@@ -15789,7 +15795,7 @@
       "folder": "appliance/lighting-decor",
       "category": "appliance/lighting-decor",
       "mount": "wall",
-      "origin": "wall-back-center",
+      "origin": "wall-bottom-face",
       "size": [
         0.06,
         0.3,
@@ -15847,7 +15853,7 @@
       "folder": "home/bathroom",
       "category": "home/bathroom",
       "mount": "wall",
-      "origin": "wall-back-center",
+      "origin": "wall-bottom-center",
       "size": [
         0.38,
         0.72,
@@ -15939,7 +15945,7 @@
       "folder": "home/decor",
       "category": "home/decor",
       "mount": "wall",
-      "origin": "wall-back-center",
+      "origin": "wall-bottom-center",
       "size": [
         0.64,
         0.84,
@@ -15985,7 +15991,7 @@
       "folder": "home/pets",
       "category": "home/pets",
       "mount": "wall",
-      "origin": "wall-back-center",
+      "origin": "wall-bottom-center",
       "size": [
         1.12,
         0.7788,
@@ -16031,7 +16037,7 @@
       "folder": "home/decor",
       "category": "home/decor",
       "mount": "wall",
-      "origin": "wall-back-center",
+      "origin": "wall-bottom-center",
       "size": [
         0.36,
         0.36,
@@ -16077,7 +16083,7 @@
       "folder": "home/entry",
       "category": "home/entry",
       "mount": "wall",
-      "origin": "wall-back-center",
+      "origin": "wall-bottom-center",
       "size": [
         0.6,
         0.084,
@@ -16123,7 +16129,7 @@
       "folder": "appliance/environment",
       "category": "appliance/environment",
       "mount": "wall",
-      "origin": "wall-back-center",
+      "origin": "wall-bottom-center",
       "size": [
         0.9,
         0.28,
@@ -16169,7 +16175,7 @@
       "folder": "home/storage",
       "category": "home/storage",
       "mount": "wall",
-      "origin": "wall-back-center",
+      "origin": "wall-bottom-center",
       "size": [
         1.53,
         0.842,
@@ -16215,7 +16221,7 @@
       "folder": "appliance/lighting-decor",
       "category": "appliance/lighting-decor",
       "mount": "wall",
-      "origin": "wall-back-center",
+      "origin": "wall-bottom-center",
       "size": [
         0.3,
         0.34,

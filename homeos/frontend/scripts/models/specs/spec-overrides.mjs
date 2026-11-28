@@ -250,9 +250,25 @@ export function mountOf({ id, primaryType, folder, collectionEntry }) {
  */
 const ARC_CENTER_ORIGIN_IDS = new Set(['pillar-semicircle', 'pillar-quarter'])
 
+/**
+ * 挂墙件里**厚度方向锚在某个面**（而不是几何中心）的少数款。
+ *
+ * 实测（2026-11-28 全线复核）：35 个挂墙件全部是「底部对齐 `y=0`」，厚度方向 32 个居中、
+ * 这 3 个锚在面上 —— 所以标签要分开写，否则「wall-bottom-center」对它们也是错的。
+ */
+const WALL_FACE_ANCHORED_IDS = new Set(['air-outlet', 'pipeline-water-purifier', 'up-down-wall-lamp'])
+
+/**
+ * 原点口径（**必须与几何实测一致**，改名前先重跑
+ * `ops/checks/studio/audit_glb_geometry.mjs` 核对）。
+ *
+ * 历史：这里曾经写 `wall-back-center`，暗示「背面中心」。但 35 个挂墙件的原点其实在
+ * **底部、厚度方向中心**（`min.z ≈ -深度/2`），既不是背面也不是竖直中心 —— 标签错了
+ * 会让审计与对拍误读「离地」字段的语义。
+ */
 export function originOf({ id, mount }) {
   if (ARC_CENTER_ORIGIN_IDS.has(id)) return 'floor-arc-center'
-  if (mount === 'wall') return 'wall-back-center'
+  if (mount === 'wall') return WALL_FACE_ANCHORED_IDS.has(id) ? 'wall-bottom-face' : 'wall-bottom-center'
   if (mount === 'ceiling') return 'ceiling-center'
   if (mount === 'tabletop') return 'base-center'
   return 'floor-center'
