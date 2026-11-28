@@ -10,6 +10,7 @@ import {
 import { deviceProfileKind } from '@/domain/device/device-profile-kind-cache'
 import {
   bathHeaterModeUsesAirflow,
+  climateAirflowMode,
   climateIsPoweredOn,
   climateIsRunning,
   climatePresentationMode,
@@ -309,35 +310,9 @@ export function climateSwingModeLabel(
   )
 }
 export function climateEffectMode(effectState: any, effectDeviceType = 'air-conditioner') {
-  if (!climateIsPoweredOn(effectState, effectDeviceType)) return 'off'
-  if (effectDeviceType === 'water-heater') return 'heat'
-  const effectModeKey = normalizeClimateModeKey(climatePresentationMode(effectState, effectDeviceType)),
-    hvacActionName = String(effectState?.attributes?.hvac_action || '')
-      .trim()
-      .toLowerCase()
-  return effectDeviceType === 'bath-heater'
-    ? ['fan', 'fan_only', '吹风'].includes(effectModeKey)
-      ? 'cool'
-      : [
-            'heat',
-            'heating',
-            'quick_heat',
-            'rapid_heat',
-            'fast_heat',
-            'quick_defog',
-            'rapid_defog',
-            'fast_defog',
-            '取暖',
-            '暖风',
-            '制热',
-          ].includes(effectModeKey)
-        ? 'heat'
-        : 'other'
-    : ['cooling', 'cool'].includes(hvacActionName) || effectModeKey === 'cool'
-      ? 'cool'
-      : ['heating', 'heat'].includes(hvacActionName) || ['heat', 'heating'].includes(effectModeKey)
-        ? 'heat'
-        : 'other'
+  // 档位判定统一交给 domain：cool / heat 之外还有 dry（除湿）与 fan（送风），
+  // 否则这两档的气流在 3D 羽流和弹窗图标里完全一样。
+  return climateAirflowMode(effectState, effectDeviceType)
 }
 /** 返回 MDI 图标名，由 `createUiIcon` 渲染。 */
 export function climateModeIcon(iconModeInput: any, iconDeviceType = 'air-conditioner'): string {

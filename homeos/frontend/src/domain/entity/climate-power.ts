@@ -165,3 +165,77 @@ function asNumber(value: unknown): number | null {
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : null
 }
+
+/**
+ * 气流的**档位**：把 HA 的模式名收敛成渲染真正需要区分的几种气流形态。
+ *
+ * 为什么要单独一层：`climateEffectMode` 早期只有 cool / heat / other 三档，
+ * 于是「除湿」和「送风」一起落进 `other`，房间里的羽流颜色、速度、长度和
+ * 弹窗图标完全一样 —— 用户按了除湿却看不出和送风的区别。档位只回答
+ * 「这一档的气流长什么样」，不参与开关/运行判定。
+ */
+export type ClimateAirflowMode = 'off' | 'cool' | 'heat' | 'dry' | 'fan' | 'other'
+
+/** 除湿档：HA 常见 `dry` / `drying`，中文集成会直接下发「除湿」「抽湿」。 */
+const DRY_MODE_KEYS: ReadonlySet<string> = new Set(['dry', 'drying', 'dehumidify', 'dehumidification', '除湿', '抽湿'])
+
+/** 送风档：`fan` / `fan_only`，以及中文集成的「送风」「通风」「吹风」。 */
+const FAN_MODE_KEYS: ReadonlySet<string> = new Set([
+  'fan',
+  'fan_only',
+  'fanonly',
+  'ventilate',
+  'ventilation',
+  '送风',
+  '通风',
+  '吹风',
+])
+
+/** 浴霸的制热档（含各家集成的别名），与旧 `climateEffectMode` 保持一致。 */
+const BATH_HEATER_HEAT_KEYS: ReadonlySet<string> = new Set([
+  'heat',
+  'heating',
+  'quick_heat',
+  'rapid_heat',
+  'fast_heat',
+  'quick_defog',
+  'rapid_defog',
+  'fast_defog',
+  '取暖',
+  '暖风',
+  '制热',
+])
+
+/**
+ * 解析设备当前的**气流档位**。
+ *
+ * - 浴霸只有「吹风 / 取暖」两种气流，吹风仍归入 `cool`（沿用旧渲染口径，
+ *   避免把浴霸的换气画成空调送风的白雾）；
+ * - 热水器恒为 `heat`；
+ * - 空调区分 cool / heat / dry / fan，其余（auto 等）落 `other`。
+ */
+export function climateAirflowMode(
+  snapshot: ClimateStateSnapshot,
+  deviceType: ClimateDeviceTypeInput = 'air-conditioner',
+): ClimateAirflowMode {
+  if (!climateIsPoweredOn(snapshot, deviceType)) return 'off'
+  if (deviceType === 'water-heater') return 'heat'
+  const modeKey = normalizeClimateModeKey(climatePresentationMode(snapshot, deviceType))
+  const hvacAction = String(snapshot.attributes?.hvac_action ?? '')
+    .trim()
+    .toLowerCase()
+  if (deviceType === 'bath-heater') {
+    if (FAN_MODE_KEYS.has(modeKey)) return 'cool'
+    return BATH_HEATER_HEAT_KEYS.has(modeKey) ? 'heat' : 'other'
+  }
+  if (DRY_MODE_KEYS.has(modeKey)) return 'dry'
+  if (FAN_MODE_KEYS.has(modeKey)) return 'fan'
+  if (modeKey === 'cool') return 'cool'
+  if (modeKey === 'heat' || modeKey === 'heating') return 'heat'
+  // 模式名缺失时才退回 hvac_action：运行态比档位名字更能说明正在吹什么风。
+  if (DRY_MODE_KEYS.has(hvacAction)) return 'dry'
+  if (FAN_MODE_KEYS.has(hvacAction)) return 'fan'
+  if (hvacAction === 'cooling') return 'cool'
+  if (hvacAction === 'heating') return 'heat'
+  return 'other'
+}

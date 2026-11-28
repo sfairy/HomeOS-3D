@@ -4931,6 +4931,13 @@
 .hb-climate-visual.is-running .hb-climate-visual-airflow i {
   animation: hb-climate-airflow 2.1s ease-in-out infinite;
 }
+/* 除湿与送风的气流节奏要拉开：同一个 2.1s 呼吸看起来只是换了颜色。 */
+.hb-climate-visual.is-running[data-visual-mode="dry"] .hb-climate-visual-airflow i {
+  animation-duration: 3.2s;
+}
+.hb-climate-visual.is-running[data-visual-mode="fan"] .hb-climate-visual-airflow i {
+  animation-duration: 1.4s;
+}
 .hb-climate-visual.is-water-heater .hb-climate-visual-unit {
   top: -17px;
   left: 75%;

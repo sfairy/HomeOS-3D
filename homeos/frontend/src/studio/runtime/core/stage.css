@@ -3406,6 +3406,12 @@ html[data-glass-effect="static"] .interaction3d-stage .i3d-light-panel {
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel[data-climate-mode="heat"] {
   --i3d-climate-accent: #a4472a;
 }
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel[data-climate-mode="dry"] {
+  --i3d-climate-accent: #1f6b60;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel[data-climate-mode="fan"] {
+  --i3d-climate-accent: #4c626e;
+}
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel[data-climate-mode="off"] {
   --i3d-climate-accent: #70685d;
 }

@@ -139,7 +139,11 @@ export function createClimateDetailsControls(
             ? climateModeColors.cool || '#73c8ff'
             : climateVisualModeName === 'heat'
               ? climateModeColors.heat || '#ff8a65'
-              : climateModeColors.other || '#dce2e6',
+              : climateVisualModeName === 'dry'
+                ? climateModeColors.dry || '#63d2c3'
+                : climateVisualModeName === 'fan'
+                  ? climateModeColors.fan || '#dfeaf2'
+                  : climateModeColors.other || '#dce2e6',
         climateDarkAccentColor =
           climateVisualModeName === 'off'
             ? '#65717a'

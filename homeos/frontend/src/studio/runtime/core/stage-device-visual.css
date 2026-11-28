@@ -167,42 +167,88 @@
 
 .interaction3d-stage .i3d-device-climate-airflow {
   position: absolute;
-  right: 18px;
+  right: 16px;
   bottom: 0;
-  left: 18px;
+  left: 16px;
   display: flex;
   justify-content: space-between;
-  height: 16px;
+  align-items: flex-start;
+  height: var(--i3d-airflow-height, 18px);
   opacity: 0;
 }
 
 .interaction3d-stage .i3d-device-climate-airflow i {
   width: 2px;
   height: 100%;
-  border-radius: 2px;
-  background: color-mix(in srgb, var(--i3d-device-accent) 70%, #fff);
+  border-radius: 999px;
+  /* 末端化开：气流是一缕缕渐隐的丝，不是一根亮白实心条。 */
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--i3d-device-accent) 58%, transparent) 0%,
+    color-mix(in srgb, var(--i3d-device-accent) 72%, #fff) 30%,
+    color-mix(in srgb, var(--i3d-device-accent) 40%, transparent) 72%,
+    transparent 100%
+  );
   transform-origin: top center;
-  transform: scaleY(0.2);
+  transform: scaleY(0.45) rotate(calc(var(--i3d-airflow-tilt, 0deg) * var(--i3d-airflow-splay, 1)));
+  opacity: 0;
+}
+
+/* 每条丝缕错开相位与时长，避免整排一起闪烁；倾角让它从出风口呈扇形散开。 */
+.interaction3d-stage .i3d-device-climate-airflow i:nth-child(1) {
+  --i3d-airflow-tilt: -9deg;
+  --i3d-airflow-delay: -0.05s;
+  --i3d-airflow-duration: 1.6s;
+}
+
+.interaction3d-stage .i3d-device-climate-airflow i:nth-child(2) {
+  --i3d-airflow-tilt: -4deg;
+  --i3d-airflow-delay: -0.62s;
+  --i3d-airflow-duration: 1.45s;
+}
+
+.interaction3d-stage .i3d-device-climate-airflow i:nth-child(3) {
+  --i3d-airflow-tilt: 0deg;
+  --i3d-airflow-delay: -0.3s;
+  --i3d-airflow-duration: 1.7s;
+}
+
+.interaction3d-stage .i3d-device-climate-airflow i:nth-child(4) {
+  --i3d-airflow-tilt: 4deg;
+  --i3d-airflow-delay: -0.85s;
+  --i3d-airflow-duration: 1.5s;
+}
+
+.interaction3d-stage .i3d-device-climate-airflow i:nth-child(5) {
+  --i3d-airflow-tilt: 9deg;
+  --i3d-airflow-delay: -0.45s;
+  --i3d-airflow-duration: 1.62s;
 }
 
 .interaction3d-stage .i3d-device-visual.is-on .i3d-device-climate-airflow,
 .interaction3d-stage .i3d-device-visual.is-running .i3d-device-climate-airflow {
-  opacity: 0.85;
+  opacity: var(--i3d-airflow-strength, 0.72);
+}
+
+/* 档位差异：除湿慢而短，送风快而长，避免两档只剩同一个「在吹」的观感。 */
+.interaction3d-stage .i3d-device-visual[data-climate-mode="dry"] {
+  --i3d-airflow-height: 13px;
+  --i3d-airflow-tempo: 1.55;
+  --i3d-airflow-splay: 0.55;
+  --i3d-airflow-strength: 0.5;
+}
+
+.interaction3d-stage .i3d-device-visual[data-climate-mode="fan"] {
+  --i3d-airflow-height: 24px;
+  --i3d-airflow-tempo: 0.62;
+  --i3d-airflow-splay: 1.45;
+  --i3d-airflow-strength: 0.92;
 }
 
 .interaction3d-stage .i3d-device-visual.is-on .i3d-device-climate-airflow i,
 .interaction3d-stage .i3d-device-visual.is-running .i3d-device-climate-airflow i {
-  animation: i3d-device-airflow 0.9s ease-in-out infinite alternate;
-}
-
-.interaction3d-stage .i3d-device-visual.is-on .i3d-device-climate-airflow i:nth-child(2),
-.interaction3d-stage .i3d-device-visual.is-running .i3d-device-climate-airflow i:nth-child(2) {
-  animation-delay: 0.12s;
-}
-
-.interaction3d-stage .i3d-device-visual.is-on .i3d-device-climate-airflow i:nth-child(3),
-.interaction3d-stage .i3d-device-visual.is-running .i3d-device-climate-airflow i:nth-child(3) {
-  animation-delay: 0.24s;
+  animation: i3d-device-airflow calc(var(--i3d-airflow-duration, 1.55s) * var(--i3d-airflow-tempo, 1))
+    cubic-bezier(0.4, 0, 0.6, 1) var(--i3d-airflow-delay, 0s) infinite;
 }
 
 .interaction3d-stage .i3d-device-visual.is-on .i3d-device-climate-vent i {
@@ -214,13 +260,20 @@
 }
 
 @keyframes i3d-device-airflow {
-  from {
-    transform: scaleY(0.25);
-    opacity: 0.35;
+  0% {
+    transform: translateY(-1px) scaleY(0.35) rotate(calc(var(--i3d-airflow-tilt, 0deg) * var(--i3d-airflow-splay, 1)));
+    opacity: 0;
   }
-  to {
-    transform: scaleY(1);
-    opacity: 1;
+  18% {
+    opacity: 0.55;
+  }
+  62% {
+    transform: translateY(1px) scaleY(0.95) rotate(calc(var(--i3d-airflow-tilt, 0deg) * var(--i3d-airflow-splay, 1)));
+    opacity: 0.48;
+  }
+  100% {
+    transform: translateY(2px) scaleY(1.05) rotate(calc(var(--i3d-airflow-tilt, 0deg) * var(--i3d-airflow-splay, 1)));
+    opacity: 0;
   }
 }
 
@@ -1338,5 +1391,11 @@
   .interaction3d-stage .i3d-device-visual[data-status="warning"] .i3d-device-nas-led,
   .interaction3d-stage .i3d-device-visual.is-on .i3d-device-generic-aura {
     animation: none;
+  }
+  /* 关闭动画后仍保留静止的丝缕，而不是整片气流凭空消失。 */
+  .interaction3d-stage .i3d-device-visual.is-on .i3d-device-climate-airflow i,
+  .interaction3d-stage .i3d-device-visual.is-running .i3d-device-climate-airflow i {
+    opacity: 0.45;
+    transform: scaleY(0.75) rotate(calc(var(--i3d-airflow-tilt, 0deg) * var(--i3d-airflow-splay, 1)));
   }
 }

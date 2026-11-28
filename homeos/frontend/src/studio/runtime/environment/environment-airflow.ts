@@ -1,12 +1,29 @@
 import { bathHeaterState as bathHeaterState2 } from '../bath-heater/bath-heater'
 import { purifierState as purifierState2 } from '../purifier/purifier-state'
+import { climateAirflowMode } from '../../../domain/entity/climate-power'
+
+/**
+ * 各档气流的「性格」。颜色之外还要动起来，否则除湿和送风只是换了个色：
+ * - 除湿是慢、短、薄的抽湿风；
+ * - 送风是快、长、饱满的循环风。
+ */
+const airflowProfiles = {
+  cool: { speed: 1, reach: 1, density: 1 },
+  heat: { speed: 1, reach: 1, density: 1 },
+  dry: { speed: 0.55, reach: 0.72, density: 0.78 },
+  fan: { speed: 1.6, reach: 1, density: 1.12 },
+  other: { speed: 1, reach: 1, density: 1 },
+} as const
+
 const flowStateColors = {
     cool: '#73c8ff',
     heat: '#ff8a65',
+    dry: '#63d2c3',
+    fan: '#dfeaf2',
     other: '#dce2e6',
     purifier: '#69dc91',
   },
-  airflowActionSet = new Set(['cooling', 'cool', 'heating', 'heat', 'fan', 'fan_only', 'drying']),
+  airflowActionSet = new Set(['cooling', 'cool', 'heating', 'heat', 'dry', 'drying', 'fan', 'fan_only']),
   sceneModelKey = (floorId: any, modelId: any) => JSON.stringify([String(floorId ?? ''), String(modelId ?? '')])
 export function createEnvironmentAirflow({
   THREE: THREE,
@@ -51,7 +68,7 @@ export function createEnvironmentAirflow({
     FLOW_LIGHT_FRAGMENT_SHADER =
       'uniform vec3 flowColor;\n    uniform float flowOpacity;\n    varying vec2 vFlowUv;\n    void main() {\n      float edge = 1.0 - smoothstep(0.2, 0.5, abs(vFlowUv.x - 0.5));\n      gl_FragColor = vec4(flowColor, flowOpacity * edge * 0.35);\n      #include <colorspace_fragment>\n    }',
     FLOW_FRAGMENT_SHADER =
-      'uniform vec3 flowColor;\n    uniform float flowOpacity;\n    uniform float flowTime;\n    uniform float flowOverview;\n    varying vec2 vFlowUv;\n    varying float vFlowLayer;\n    float hash(vec2 p) {\n      return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);\n    }\n    float noise(vec2 p) {\n      vec2 cell = floor(p), f = fract(p);\n      f = f * f * (3.0 - 2.0 * f);\n      return mix(mix(hash(cell), hash(cell + vec2(1.0, 0.0)), f.x),\n        mix(hash(cell + vec2(0.0, 1.0)), hash(cell + vec2(1.0)), f.x), f.y);\n    }\n    void main() {\n      float t = vFlowUv.y, across = vFlowUv.x * 2.0 - 1.0;\n      // Keep the breeze as narrow strands; a broad alpha field reads as a\n      // floating transparent rectangle beside the purifier.\n      float edge = exp(-3.2 * across * across) * (1.0 - smoothstep(0.62, 1.0, abs(across)));\n      float distanceFade = smoothstep(0.0, 0.025, t) * exp(-mix(1.15, 0.9, flowOverview) * t)\n        * (1.0 - smoothstep(0.62, 1.0, t));\n      // Advected, lengthwise fibres: deliberately much longer than they are\n      // wide, so the air reads as a continuous breeze, never dots or light bars.\n      float drift = sin(t * 4.0 - flowTime * 0.45 + vFlowLayer * 2.0) * t * 0.16;\n      // Keep individual strands fine even in overview; visibility comes from\n      // their bright cores rather than widening them into opaque white bands.\n      vec2 p = vec2(vFlowUv.x * mix(22.0, 16.0, flowOverview) + drift + vFlowLayer * 23.0,\n        t * mix(1.8, 1.25, flowOverview) - flowTime * 0.9);\n      float detail = 0.28;\n      float fibres = noise(p) * (1.0 - detail) + noise(p * vec2(1.9, 0.7) + 13.0) * detail;\n      // Give the moving strands enough coverage on both pale wood and dark\n      // floors. Keep the empty space clear instead of adding a uniform veil.\n      float density = 0.012 + 1.25 * fibres * fibres;\n      // A soft density ceiling keeps the stronger near-outlet strands\n      // translucent while letting their motion remain readable at room scale.\n      density = density / (1.0 + density * 0.65);\n      // Moving fibre crests catch a white highlight, with the mode color in\n      // their softer edges. This remains one transparent draw, without lights.\n      float crest = smoothstep(0.56, 0.9, fibres);\n      float highlight = crest * crest;\n      float alpha = min(0.38, flowOpacity * edge * distanceFade\n        * (density + highlight * 0.16) * mix(1.0, 0.42, vFlowLayer));\n      vec3 strandColor = mix(flowColor, vec3(1.0), highlight * 0.68);\n      gl_FragColor = vec4(strandColor, alpha);\n      #include <colorspace_fragment>\n    }',
+      'uniform vec3 flowColor;\n    uniform float flowOpacity;\n    uniform float flowTime;\n    uniform float flowOverview;\n    uniform float flowSpeed;\n    uniform float flowReach;\n    uniform float flowDensity;\n    varying vec2 vFlowUv;\n    varying float vFlowLayer;\n    float hash(vec2 p) {\n      return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);\n    }\n    float noise(vec2 p) {\n      vec2 cell = floor(p), f = fract(p);\n      f = f * f * (3.0 - 2.0 * f);\n      return mix(mix(hash(cell), hash(cell + vec2(1.0, 0.0)), f.x),\n        mix(hash(cell + vec2(0.0, 1.0)), hash(cell + vec2(1.0)), f.x), f.y);\n    }\n    void main() {\n      // 除湿把 visible plume 提前收束（reach < 1），送风保持整条风程。\n      float t = clamp(vFlowUv.y / max(flowReach, 0.35), 0.0, 1.0), across = vFlowUv.x * 2.0 - 1.0;\n      // Ease the envelope open downstream instead of starting as a full-width slab.\n      float width = mix(0.78, 1.0, smoothstep(0.0, 0.85, t));\n      float edge = exp(-3.1 * pow(abs(across) / width, 2.0))\n        * (1.0 - smoothstep(0.7, 1.0, abs(across)));\n      // A long inlet ramp avoids the solid bright band a short ramp painted\n      // across the vent; the tail dissolves before the sheet end.\n      float distanceFade = smoothstep(0.0, 0.1, t) * (1.0 - smoothstep(0.55, 1.0, t)) * exp(-0.62 * t);\n      // Domain-warped, advected filaments: the cross-flow frequency stays high\n      // and the downstream one low, so strands read as continuous air instead\n      // of drifting into soft blobs.\n      float travel = flowTime * flowSpeed;\n      float sway = sin(t * 2.4 - travel * 0.5 + vFlowLayer * 2.1) * 0.055 * t;\n      vec2 p = vec2((vFlowUv.x + sway) * mix(38.0, 30.0, flowOverview) + vFlowLayer * 19.0,\n        t * 1.15 - travel * 0.72);\n      float wide = noise(p);\n      float fine = noise(p * vec2(2.4, 0.55) + 17.0);\n      float fibres = wide * 0.72 + fine * 0.28;\n      // A gentle gamma keeps gaps translucent and removes the hard crests that\n      // previously read as white bars. A small floor keeps the breeze continuous.\n      float density = 0.06 + 0.94 * pow(smoothstep(0.12, 0.9, fibres), 1.35);\n      float alpha = flowOpacity * edge * distanceFade * density * flowDensity * 0.29\n        * mix(1.0, 0.55, vFlowLayer);\n      // Keep the mode color dominant; the highlight only lifts the fibre cores.\n      vec3 strandColor = mix(flowColor, vec3(1.0), smoothstep(0.6, 1.0, fibres) * 0.16);\n      gl_FragColor = vec4(strandColor, alpha);\n      #include <colorspace_fragment>\n    }',
     PURIFIER_FLOW_VERTEX_SHADER =
       'attribute float flowLayer;\n    uniform float flowTime, flowOverview, flowStrength, flowWidth;\n    varying vec2 vFlowUv;\n    varying float vFlowLayer;\n    varying vec3 vNormal, vView;\n    void main() {\n      vFlowUv = uv; vFlowLayer = flowLayer;\n      float t = uv.y;\n      vec3 p = position;\n      p.xy *= 1.0 + flowOverview * 0.12 * t;\n      p.z *= (0.68 + flowStrength * 0.45) * (1.0 + flowOverview * 0.25);\n      // Motion grows away from the grille; the complete outlet stays anchored.\n      p.xy += flowWidth * t * t * vec2(\n        sin(t * 4.0 - flowTime * 0.65 + flowLayer * 1.7),\n        cos(t * 3.2 - flowTime * 0.5 + flowLayer * 2.3)) * 0.12;\n      vec4 view = modelViewMatrix * vec4(p, 1.0);\n      vNormal = normalize(normalMatrix * normal); vView = -view.xyz;\n      gl_Position = projectionMatrix * view;\n    }',
     PURIFIER_FLOW_FRAGMENT_SHADER =
@@ -311,6 +328,15 @@ export function createEnvironmentAirflow({
           flowOverview: {
             value: overviewValue,
           },
+          flowSpeed: {
+            value: 1,
+          },
+          flowReach: {
+            value: 1,
+          },
+          flowDensity: {
+            value: 1,
+          },
           flowStrength: {
             value: 0.5,
           },
@@ -422,6 +448,11 @@ export function createEnvironmentAirflow({
         lowerCase2 = String(stateBody.attributes?.hvac_action || '').toLowerCase(),
         isFocusTarget = !text || binding.id === text,
         isPurifierEffect = effect.layout?.type === 'airpurifier',
+        // 同一份档位判定同时决定颜色与运动：除湿 / 送风不再共用 other 的羽流。
+        airflowMode = isPurifierEffect
+          ? 'other'
+          : climateAirflowMode(stateBody, binding.climateType === 'bath-heater' ? 'bath-heater' : 'air-conditioner'),
+        airflowProfile = (airflowProfiles as any)[airflowMode] || airflowProfiles.other,
         percentageValue = stateBody.attributes?.percentage,
         finite =
           (typeof percentageValue == 'number' ||
@@ -452,32 +483,43 @@ export function createEnvironmentAirflow({
           ? flowStateColors.purifier
           : binding.bathEffect
             ? flowStateColors.other
-            : (flowStateColors as any)[lowerCase] || flowStateColors.other,
+            : (flowStateColors as any)[airflowMode] || flowStateColors.other,
       )
       targetOpacity > 0 &&
         !uniforms.flowColor.value.equals(targetColor) &&
-        (uniforms.flowColor.value.copy(targetColor), (hasChanged = true)),
-        (effect.target !== targetOpacity || effect.overviewTarget !== overviewUniformValue) &&
-          ((effect.target = targetOpacity),
-          (effect.startOpacity = uniforms.flowOpacity.value),
-          (effect.overviewTarget = overviewUniformValue),
-          (effect.startOverview = uniforms.flowOverview.value),
-          (effect.startTime = null),
-          (hasChanged = true)),
-        !isFocusTarget || prefersReducedMotion()
-          ? ((uniforms.flowOpacity.value !== targetOpacity || uniforms.flowOverview.value !== overviewUniformValue) &&
-              (hasChanged = true),
-            (uniforms.flowOpacity.value = targetOpacity),
-            (uniforms.flowOverview.value = overviewUniformValue),
-            (effect.mesh.visible = targetOpacity > 0),
-            prefersReducedMotion() &&
-              ((uniforms.flowTime.value = 0),
-              (uniforms.flowStrength.value = effect.strengthTarget),
-              (effect.lastTick = null)))
-          : targetOpacity > 0
-            ? (effect.mesh.visible = true)
-            : uniforms.flowOpacity.value === 0 &&
-              ((effect.mesh.visible = false), (uniforms.flowOverview.value = overviewUniformValue))
+        (uniforms.flowColor.value.copy(targetColor), (hasChanged = true))
+      if (!isPurifierEffect && binding.bathEffect !== 'light') {
+        uniforms.flowSpeed.value !== airflowProfile.speed &&
+          ((uniforms.flowSpeed.value = airflowProfile.speed), (hasChanged = true))
+        uniforms.flowReach.value !== airflowProfile.reach &&
+          ((uniforms.flowReach.value = airflowProfile.reach), (hasChanged = true))
+        uniforms.flowDensity.value !== airflowProfile.density &&
+          ((uniforms.flowDensity.value = airflowProfile.density), (hasChanged = true))
+      }
+      if (effect.target !== targetOpacity || effect.overviewTarget !== overviewUniformValue) {
+        effect.target = targetOpacity
+        effect.startOpacity = uniforms.flowOpacity.value
+        effect.overviewTarget = overviewUniformValue
+        effect.startOverview = uniforms.flowOverview.value
+        effect.startTime = null
+        hasChanged = true
+      }
+      if (!isFocusTarget || prefersReducedMotion()) {
+        if (uniforms.flowOpacity.value !== targetOpacity || uniforms.flowOverview.value !== overviewUniformValue)
+          hasChanged = true
+        uniforms.flowOpacity.value = targetOpacity
+        uniforms.flowOverview.value = overviewUniformValue
+        effect.mesh.visible = targetOpacity > 0
+        if (prefersReducedMotion()) {
+          uniforms.flowTime.value = 0
+          uniforms.flowStrength.value = effect.strengthTarget
+          effect.lastTick = null
+        }
+      } else if (targetOpacity > 0) effect.mesh.visible = true
+      else if (uniforms.flowOpacity.value === 0) {
+        effect.mesh.visible = false
+        uniforms.flowOverview.value = overviewUniformValue
+      }
     }
     hasChanged && requestFrame()
   }

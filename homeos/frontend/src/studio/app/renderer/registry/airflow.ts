@@ -4,14 +4,25 @@ import { isClimatePoweredOn, resolveAirflowMotionKind } from './cover-climate-st
 import { domElement } from '@app/shared/util/dom-factory'
 type RenderPropertyBag = any
 
+/**
+ * 除湿 / 送风没有独立的颜色配置项（历史上两者都吃 `airflowOtherColor`）。
+ * 给它们各定一套语义色，再按档位微调丝缕速度，避免两档画出同一团白雾。
+ */
+const airflowModePresets = {
+  dry: { color: '#63d2c3', speed: 0.6 },
+  fan: { color: '#dfeaf2', speed: 1.35 },
+} as const
+
 function buildAirflowSvg(airflowProperties: RenderPropertyBag = {}, airflowModeKind = 'other') {
-  const airflowMotionKind = airflowProperties.airflowMotion === 'static' ? 'static' : 'dynamic',
+  const airflowModePreset = (airflowModePresets as any)[airflowModeKind],
+    airflowModeSpeed = airflowModePreset?.speed ?? 1,
+    airflowMotionKind = airflowProperties.airflowMotion === 'static' ? 'static' : 'dynamic',
     airflowColor =
       airflowModeKind === 'cool'
         ? normalizeCssColor(airflowProperties.airflowCoolColor, '#73c8ff')
         : airflowModeKind === 'heat'
           ? normalizeCssColor(airflowProperties.airflowHeatColor, '#ff8a65')
-          : normalizeCssColor(airflowProperties.airflowOtherColor, '#ffffff'),
+          : normalizeCssColor(airflowModePreset?.color || airflowProperties.airflowOtherColor, '#ffffff'),
     airflowAngleDegrees = clampNumberWithFallback(airflowProperties.airflowAngle, -360, 360, 7),
     airflowLengthRatio = clampNumberWithFallback(airflowProperties.airflowLength, 10, 300, 200) / 100,
     airflowFadeRatio = clampNumberWithFallback(airflowProperties.airflowFadePosition, 15, 100, 50) / 100,
@@ -90,7 +101,9 @@ function buildAirflowSvg(airflowProperties: RenderPropertyBag = {}, airflowModeK
             ),
             wispHeight = Math.max(0.2, Math.min(14, (1.5 + pseudoRandom(wispSeed + 7) * 2.9) * airflowThicknessRatio)),
             wispVelocity =
-              airflowSpeedValue * (0.8 + pseudoRandom(wispSeed + 13) * 0.42 * (0.55 + airflowIrregularityRatio * 0.45)),
+              airflowSpeedValue *
+              airflowModeSpeed *
+              (0.8 + pseudoRandom(wispSeed + 13) * 0.42 * (0.55 + airflowIrregularityRatio * 0.45)),
             wispPhase =
               (strandSlotIndex / wispStrandCount +
                 bedPathIndex * 0.067 +

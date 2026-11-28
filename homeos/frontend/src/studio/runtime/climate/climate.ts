@@ -442,21 +442,27 @@ export function createClimatePanel({
     resolveClimateVisualMode = (modeValue: any, isPoweredOn: any) =>
       !isPoweredOn || modeValue === 'off'
         ? 'off'
-        : modeValue === 'cool'
+        : modeValue === 'cool' || modeValue === 'cooling'
           ? 'cool'
-          : modeValue === 'heat'
+          : modeValue === 'heat' || modeValue === 'heating'
             ? 'heat'
-            : modeValue === 'fan' || modeValue === 'fan_only'
-              ? 'fan'
-              : 'other',
+            : modeValue === 'dry' || modeValue === 'drying' || modeValue === '除湿' || modeValue === '抽湿'
+              ? 'dry'
+              : modeValue === 'fan' || modeValue === 'fan_only' || modeValue === '送风' || modeValue === '通风'
+                ? 'fan'
+                : 'other',
     resolveClimateAccent = (visualModeValue: any) =>
       visualModeValue === 'cool'
         ? '#73c8ff'
         : visualModeValue === 'heat'
           ? '#ff8a65'
-          : visualModeValue === 'off'
-            ? '#65717a'
-            : '#c9a26d'
+          : visualModeValue === 'dry'
+            ? '#63d2c3'
+            : visualModeValue === 'fan'
+              ? '#dfeaf2'
+              : visualModeValue === 'off'
+                ? '#65717a'
+                : '#c9a26d'
   function resolveTemperature() {
     return draftTemperature ?? deviceState.temperature
   }

@@ -104,7 +104,8 @@ function buildClimateDrawing(doc: Document, kind: StageDeviceVisualKind) {
   for (let i = 0; i < 5; i += 1) vent.append(el(doc, 'i'))
   unit.append(brand, display, vent)
   const airflow = el(doc, 'span', 'i3d-device-climate-airflow')
-  for (let i = 0; i < 3; i += 1) airflow.append(el(doc, 'i'))
+  // 5 缕细丝：3 根时排布太像一组同步闪烁的条形码，看不出「吹风」。
+  for (let i = 0; i < 5; i += 1) airflow.append(el(doc, 'i'))
   if (kind === 'air-purifier') {
     drawing.classList.add('is-purifier')
     const body = el(doc, 'span', 'i3d-device-purifier-body')

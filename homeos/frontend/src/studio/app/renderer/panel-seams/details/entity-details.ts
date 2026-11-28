@@ -1025,6 +1025,9 @@ export function showEntityDetails(
           modeColors: {
             cool: entityDetailsComponent.properties?.airflowCoolColor || '#73c8ff',
             heat: entityDetailsComponent.properties?.airflowHeatColor || '#ff8a65',
+            // 除湿 / 送风没有独立配置项，用与 3D 羽流、舞台面板一致的一套语义色。
+            dry: '#63d2c3',
+            fan: '#dfeaf2',
             other: entityDetailsComponent.properties?.airflowOtherColor || '#dce2e6',
           },
         })

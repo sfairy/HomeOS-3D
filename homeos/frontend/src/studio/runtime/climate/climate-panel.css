@@ -28,7 +28,13 @@
 .i3d-climate-panel[data-climate-mode="heat"] {
   --i3d-climate-accent: #ff8a65;
 }
-.i3d-climate-panel[data-climate-mode="fan"],
+/* 除湿 / 送风各有自己的强调色：此前两者都落到「其它」的金棕，图标与数值完全同色。 */
+.i3d-climate-panel[data-climate-mode="dry"] {
+  --i3d-climate-accent: #63d2c3;
+}
+.i3d-climate-panel[data-climate-mode="fan"] {
+  --i3d-climate-accent: #dfeaf2;
+}
 .i3d-climate-panel[data-climate-mode="other"] {
   --i3d-climate-accent: #c9a26d;
 }
