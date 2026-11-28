@@ -39,6 +39,17 @@ SOCKETIO_PATH_PREFIX = "/socket.io"
 #: ``_get_socket`` 抛出的两类 KeyError 文案，只有它们代表「会话已失效」。
 STALE_SESSION_MESSAGES = ("Session not found", "Session is disconnected")
 
+#: 允许在**缺少 Origin** 时仍放行的 ``Sec-Fetch-Site`` 取值。
+#:
+#: 背景：engine.io 只在 **Origin 存在时**才调用我们的来源判定（`server.py` 的
+#: `if origin:` 分支），所以「没带 Origin」等于**完全不做校验**。浏览器的同源
+#: XHR GET 握手本来就不带 Origin（只有 POST 才带），因此不能简单拒绝缺 Origin 的请求。
+#: 但 `Sec-Fetch-Site` 是浏览器自己算的、页面脚本无法伪造，可以区分两类情况：
+#: - `same-origin` / `none`：同源页面或用户直接打开 —— 放行；
+#: - `cross-site`：别的站点发起的 no-cors 请求（Origin 被省略）—— 拒绝。
+#: 没有任何 `Sec-Fetch-*` 头时视为非浏览器客户端（curl / 脚本），维持放行以兼容。
+ALLOWED_SEC_FETCH_SITE_WITHOUT_ORIGIN = frozenset({"same-origin", "none"})
+
 
 def is_socketio_path(path: str) -> bool:
     """``path`` 是否属于 Socket.IO 的传输端点（不是业务路由）。"""
@@ -55,6 +66,36 @@ def is_stale_session_error(error: BaseException) -> bool:
         return False
     message = error.args[0]
     return isinstance(message, str) and message in STALE_SESSION_MESSAGES
+
+
+def _header(scope: dict, name: str) -> str:
+    """从 ASGI scope 里取一个请求头（小写名，字节对）。"""
+    for key, value in scope.get("headers") or ():
+        if key.decode("latin-1").lower() == name:
+            return value.decode("latin-1").strip()
+    return ""
+
+
+def is_cross_site_without_origin(scope: dict) -> bool:
+    """这次请求是否「浏览器发起、跨站、且没有 Origin」——即需要额外拒绝的那一类。
+
+    engine.io 只在 Origin 存在时才做来源校验（见 ``engineio/server.py`` 的
+    ``if origin:``），所以这一条必须在 ASGI 层补。判据只用浏览器自己设置、脚本无法
+    伪造的 ``Sec-Fetch-Site``：
+
+    - 没有该头 → 非浏览器客户端（curl / 原生壳 / 旧浏览器），维持现状放行；
+    - ``same-origin`` / ``none`` → 同源页面或直接打开，放行；
+    - 其余（``cross-site`` / ``same-site``）→ 拒绝。
+
+    ``same-site`` 也拒绝：Cookie 不按端口隔离，同主机不同端口就是另一个源，
+    而正常部署里 Socket.IO 永远连自己页面所在的源。
+    """
+    if _header(scope, "origin"):
+        return False
+    site = _header(scope, "sec-fetch-site").lower()
+    if not site:
+        return False
+    return site not in ALLOWED_SEC_FETCH_SITE_WITHOUT_ORIGIN
 
 
 def _query_sid(query_string: bytes | str) -> str:
@@ -77,7 +118,35 @@ class SocketIOTransportGuard:
         self.app = app
 
     async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
-        if scope.get("type") != "http" or not is_socketio_path(scope.get("path") or ""):
+        scope_type = scope.get("type")
+        if scope_type not in ("http", "websocket") or not is_socketio_path(scope.get("path") or ""):
+            await self.app(scope, receive, send)
+            return
+
+        # 跨站且无 Origin：engine.io 在缺 Origin 时**完全不校验**（它只在 `if origin:`
+        # 分支里调我们的判定），这里补上。同源握手（浏览器 XHR GET）不带 Origin，
+        # 但会带 `Sec-Fetch-Site: same-origin`，因此不受影响。
+        if is_cross_site_without_origin(scope):
+            logger.warning(
+                "Socket.IO 拒绝跨站且无 Origin 的 %s 请求：sec-fetch-site=%s",
+                scope_type,
+                _header(scope, "sec-fetch-site") or "-",
+            )
+            if scope_type == "websocket":
+                await send({"type": "websocket.close", "code": 1008})
+            else:
+                await send(
+                    {
+                        "type": "http.response.start",
+                        "status": 403,
+                        "headers": [(b"content-type", b"text/plain; charset=utf-8")],
+                    }
+                )
+                await send({"type": "http.response.body", "body": b"Cross-site origin rejected"})
+            return
+
+        if scope_type != "http":
+            # WebSocket 升级不走「过期会话 400」那条路径（engineio 的 GET 分支自带 try/except）。
             await self.app(scope, receive, send)
             return
 
@@ -116,10 +185,12 @@ def guard_socketio_transport(app: Any) -> Any:
 
 
 __all__ = [
+    "ALLOWED_SEC_FETCH_SITE_WITHOUT_ORIGIN",
     "SOCKETIO_PATH_PREFIX",
     "STALE_SESSION_MESSAGES",
     "SocketIOTransportGuard",
     "guard_socketio_transport",
+    "is_cross_site_without_origin",
     "is_socketio_path",
     "is_stale_session_error",
 ]

@@ -80,6 +80,7 @@ MODULES: tuple[str, ...] = (
     "entity_room_order_selftest",
     "timeline_selftest",
     "security_selftest",
+    "socketio_origin_selftest",
     "media_ticket_selftest",
     "command_proxy_selftest",
     "voice_device_selftest",

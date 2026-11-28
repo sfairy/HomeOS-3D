@@ -15,6 +15,7 @@ import { logger } from '@/kernel/core/logger'
 import { isLicenseInactiveError } from '@/kernel/core/error-message'
 import { getLicenseActivated } from '@/domain/license'
 import { schedulePoll } from '@/kernel/core/poll-scheduler'
+import { isReportBackedOff, nextReportBackoffMs } from '@/domain/client/power-backoff'
 
 /**
  * 客户端电量与系统信息实时上报 composable
@@ -57,6 +58,10 @@ let reporting = false
 let reportFailStreak = 0
 /** 是否已警告过多次失败（避免日志刷屏） */
 let reportFailWarned = false
+/** 当前退避时长（毫秒）；0 表示上一次上报成功 */
+let backoffMs = 0
+/** 允许下一次尝试的时刻（`Date.now()` 口径）；0 表示立即可试 */
+let nextAttemptAt = 0
 
 /**
  * 计算电池百分比。
@@ -100,15 +105,21 @@ async function loadReportIntervalSec() {
  *
  * @param opts.refreshStatic 是否刷新静态信息（CPU/内存等）
  * @param opts.retryAuth      401 时是否尝试刷新会话重试
+ * @param opts.force          跳过失败退避（页面恢复可见 / 刚启动时用）
  */
 async function postReport({
   refreshStatic = false,
   retryAuth = true,
+  force = false,
 }: {
   refreshStatic?: boolean
   retryAuth?: boolean
+  force?: boolean
 } = {}) {
   if (reporting) return
+  // 失败退避：断线期间不要每 10 秒重建一次 payload 再失败一次。
+  // 采样本身有开销（CPU / 内存 / 电池），而重复失败只会刷日志。
+  if (!force && isReportBackedOff(Date.now(), nextAttemptAt)) return
   reporting = true
   try {
     const payload = await buildClientSystemReport({ refreshStatic })
@@ -117,6 +128,9 @@ async function postReport({
     if (pct != null) lastReportedLevelPct = pct
     reportFailStreak = 0
     reportFailWarned = false
+    // 成功即回到正常节奏：退避只用于「连续失败」，不能让恢复后的上报继续被拖慢。
+    backoffMs = 0
+    nextAttemptAt = 0
   } catch (err) {
     if (isLicenseInactiveError(err)) {
       stopReporter()
@@ -138,9 +152,12 @@ async function postReport({
     }
 
     reportFailStreak += 1
+    // 指数退避（10s → 20s → 40s → 60s → 120s 封顶）。成功分支会把两者清零。
+    backoffMs = nextReportBackoffMs(backoffMs)
+    nextAttemptAt = Date.now() + backoffMs
     if (reportFailStreak >= 3 && !reportFailWarned) {
       reportFailWarned = true
-      logger.warn('客户端系统上报多次失败', err)
+      logger.warn(`客户端系统上报多次失败,已退避至最长 ${Math.round(backoffMs / 1000)} 秒`, err)
     } else {
       logger.debug('客户端系统上报失败', err)
     }
@@ -197,7 +214,10 @@ function onVisibilityChange() {
   hidden = typeof document !== 'undefined' && document.hidden
   scheduleInterval(intervalSec)
   if (wasHidden && !hidden) {
-    void postReport({ refreshStatic: true })
+    // 页面恢复可见往往伴随网络环境变化（切换 Wi-Fi / 从后台唤醒）：清掉退避，
+    // 立即试一次；不 force 的话可能还要等最长 2 分钟才恢复正常上报。
+    nextAttemptAt = 0
+    void postReport({ refreshStatic: true, force: true })
   }
 }
 
@@ -239,7 +259,10 @@ async function startReporter() {
   started = true
   intervalSec = await loadReportIntervalSec()
   await ensureBatteryManager()
-  void postReport({ refreshStatic: true })
+  // 启动是显式动作（登录完成 / 授权刚激活）：清掉上一轮会话留下的退避。
+  backoffMs = 0
+  nextAttemptAt = 0
+  void postReport({ refreshStatic: true, force: true })
   scheduleInterval(intervalSec)
   clearFullProfileTimer()
   // 完整静态信息（CPU/内存等）刷新周期 5 分钟，同样后台常驻（visibilityAware:false）
@@ -272,6 +295,8 @@ function stopReporter() {
   lastReportedLevelPct = null
   reportFailStreak = 0
   reportFailWarned = false
+  backoffMs = 0
+  nextAttemptAt = 0
   document.removeEventListener('visibilitychange', onVisibilityChange)
 }
 
