@@ -7,6 +7,8 @@
 - ``ops/checks/backup_selftest.py`` 可以直接断言口径本身，而不必搭一个可跑的 DB。
 
 口径是「配置 + 实体目录」，不是整机快照 —— 判定依据见各常量的注释。
+商业授权（``license_state`` 表、授权密钥与本机实例标识）**一律不进包**：授权按本机
+硬件指纹绑定，换机必须重新激活；备份只承载「家的配置与素材」。
 """
 
 from __future__ import annotations
@@ -76,13 +78,23 @@ BACKUP_ROOTS = (
     "modules/interaction3d/models",
 )
 
-#: 不进全量备份的历史 / 日志 / 时序 / 运行时缓存表：快照后清空其数据（保留表结构）。
+#: 商业授权状态表。
 #:
-#: 三类——
+#: **不进备份**：授权按本机实例（硬件指纹）绑定，换机恢复必然要重新激活；把激活码、
+#: 签名租约与会话令牌打进备份包，等于把「另一台机器的授权」连同密文一起搬走 ——
+#: 那既解不开（恢复侧会保持本机授权），也不该离开本机。恢复侧见
+#: :func:`domains.backup.business_backup._apply_local_license`：即使拿到旧版本仍含授权
+#: 的包，也只把恢复前的本机授权写回。
+LICENSE_TABLE = "license_state"
+
+#: 不进全量备份的历史 / 日志 / 时序 / 运行时缓存 / 授权表：快照后清空其数据（保留表结构）。
+#:
+#: 四类——
 #:   历史事件与日志：实体状态变化、安防审计、通知记录、地震预警、环境与能耗时序；
 #:   语义上的「派生数据」：``agent_context_timeline`` 是实体的变化时间线（与
 #:     ``event_logs`` 同类）、``agent_task_execution_logs`` 是计划任务的执行历史；
-#:   运行时缓存：登录会话（还原后必须重新登录）、可随 HA 连接自动重建的实体/设备/区域目录。
+#:   运行时缓存：登录会话（还原后必须重新登录）、可随 HA 连接自动重建的实体/设备/区域目录；
+#:   商业授权：``license_state``（换机必须重新激活，且激活码 / 租约 / 令牌不应随包流转）。
 #:
 #: 「哪些表该在这里」的判据是 **换机后是否仍然有意义**：配置、用户、设备画像、别名、
 #: 场景要留；「什么时候什么变成了什么」不要 —— 那是本机的观测历史，不是家的配置。
@@ -108,13 +120,32 @@ EXCLUDED_DB_TABLES: tuple[str, ...] = (
     "ha_devices",
     "ha_areas",
     "ha_sync_state",
+    # 商业授权（本机绑定；见 LICENSE_TABLE 的说明）
+    LICENSE_TABLE,
 )
+
+#: 授权相关文件（相对 ``data_dir``）：不进备份，恢复时也保持本机原样。
+#:
+#: - ``secrets/license_credentials.key``：授权凭证（激活码 / 会话令牌）的 Fernet 密钥，
+#:   与数据库分离存放正是为了「备份数据库不带密钥」；
+#: - ``instance-id`` / ``hardware-fallback-id``：本机实例标识，租约按它绑定。把别的
+#:   机器的标识搬过来只会让本机授权变成 INSTANCE_CHANGED。
+#:
+#: 注意：``secrets/`` 本身不能整目录排除 —— 里面还有 HA 连接令牌的 ``ha_credentials.key``，
+#: 那是必须随包迁移的业务数据。这里只点名授权那一个文件。
+AUTH_EXCLUDED_FILES = frozenset({
+    "instance-id",
+    "hardware-fallback-id",
+    "secrets/license_credentials.key",
+})
 
 
 def is_excluded(relative: str) -> bool:
-    """相对 ``data_dir`` 的路径是否不进备份（目录白/黑名单 + 库文件本身）。"""
+    """相对 ``data_dir`` 的路径是否不进备份（目录白/黑名单 + 授权文件 + 库文件本身）。"""
     parts = PurePosixPath(relative).parts
     if parts and parts[0] in EXCLUDED_TOP_DIRS:
+        return True
+    if relative in AUTH_EXCLUDED_FILES:
         return True
     if any(relative == prefix or relative.startswith(prefix + "/") for prefix in EXCLUDED_REL_PREFIXES):
         return True
@@ -144,12 +175,14 @@ def oversize_reason(value: Any) -> str:
 
 
 __all__ = [
+    "AUTH_EXCLUDED_FILES",
     "BACKUP_ROOTS",
     "DB_NAME",
     "DB_SIDECARS",
     "EXCLUDED_DB_TABLES",
     "EXCLUDED_REL_PREFIXES",
     "EXCLUDED_TOP_DIRS",
+    "LICENSE_TABLE",
     "MAX_EXPANDED",
     "MAX_FILES",
     "is_excluded",

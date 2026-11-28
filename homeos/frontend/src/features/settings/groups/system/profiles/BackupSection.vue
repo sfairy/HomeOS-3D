@@ -19,7 +19,7 @@
       <div class="settings-note-box mt-2.5 pb-note-box">
         <p class="text-[12px] pb-c-text">
           {{
-            '全量备份（含数据库）—— 一键打包整库业务数据（账号、授权、HA 连接与密钥、仪表盘、户型、系统参数）与 data 目录（含素材、3D 场景）。不含操作日志与历史事件数据。适合换机、升级与回滚，还原为原样整体覆盖。'
+            '全量备份（含数据库）—— 一键打包整库业务数据（账号、HA 连接与密钥、仪表盘、户型、系统参数）与 data 目录（含素材、3D 场景）。不含商业授权与操作日志、历史事件数据：授权保持本机原样，不随备份迁移。适合换机、升级与回滚，还原为原样整体覆盖。'
           }}
         </p>
 
@@ -270,7 +270,7 @@ const backupFlowSummary = computed(() => {
 
 const backupFlowSteps = computed(() => [
   { label: '整库快照', meta: '业务数据表', icon: HardDrive, tone: 'in' },
-  { label: '素材与密钥', meta: 'data 目录', icon: Settings, tone: 'mid' },
+  { label: '素材与 HA 密钥', meta: 'data 目录（不含授权）', icon: Settings, tone: 'mid' },
   { label: '加密备份包', meta: '单文件', icon: Package, tone: 'exec' },
   { label: '原样还原', meta: '整库覆盖', icon: Upload, tone: 'out' },
 ])
@@ -282,8 +282,8 @@ function openEncryptedBackupDialog() {
 
 /**
  * 还原服务器快照前先收当前管理员密码。
- * 该操作会用备份包整体覆盖数据库（含账号与授权），后端强制校验此密码，
- * 不能沿用只需点「确定」的确认框——那证明不了此刻是本人操作。
+ * 该操作会用备份包整体覆盖数据库（含账号与素材），后端强制校验此密码，
+ * 不能沿用只需点「确定」的确认框——那证明不了此刻是本人操作。商业授权保持本机原样。
  */
 async function requestRestore(name) {
   if (backupFileActionName.value) return

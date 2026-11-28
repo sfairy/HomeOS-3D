@@ -26,10 +26,11 @@
 
     <div class="hos-backup-dialog__body">
       <div class="hos-backup-dialog__guide">
-        <p>全量备份（含数据库）：打包整库业务数据（账号、授权、HA 连接与密钥、仪表盘、户型、系统参数）与数据目录（含素材、3D 场景）。</p>
+        <p>全量备份（含数据库）：打包整库业务数据（账号、HA 连接与密钥、仪表盘、户型、系统参数）与数据目录（含素材、3D 场景）。</p>
         <p>不含操作日志与历史事件（实体状态变化、通知、安防/地震事件、环境与能耗时序），也不含登录会话与可自动重建的 HA 目录缓存。</p>
-        <p>用于换机、升级与回滚；恢复为整库原样覆盖，会覆盖当前账号与授权绑定，跨机迁移后中控需重新配对。</p>
-        <p>授权与本机硬件指纹绑定：恢复完成后登录会话会清空，需要重新登录；换机恢复还会要求在本机重新激活授权。</p>
+        <p><strong>不含商业授权</strong>：激活码、租约、授权密钥与本机实例标识都不进备份，恢复时保持本机恢复前的授权状态，换机后需要在本机重新激活。</p>
+        <p>用于换机、升级与回滚；恢复为整库原样覆盖，会覆盖当前账号与素材，跨机迁移后中控需重新配对。</p>
+        <p>恢复完成后登录会话会清空，需要重新登录；本机授权不受影响。</p>
         <p>备份使用密码加密，密码遗失无法恢复。恢复会自动保留本机回退副本，失败时自动回滚。</p>
       </div>
 
@@ -144,13 +145,13 @@
         </label>
         <label class="hos-backup-dialog__confirm">
           <input v-model="confirmOverwrite" type="checkbox" required :disabled="busy" />
-          <span>已了解：恢复会用备份中的数据库、账号与素材整体覆盖当前数据，且无法撤销。</span>
+          <span>已了解：恢复会用备份中的数据库、账号与素材整体覆盖当前数据，且无法撤销；商业授权保持本机原样。</span>
         </label>
         <label v-if="missingSecrets" class="hos-backup-dialog__confirm hos-backup-dialog__confirm--risk">
           <input v-model="acknowledgeMissingSecrets" type="checkbox" required :disabled="busy" />
           <span>
-            已了解风险：此备份<strong>不含连接密钥</strong>。恢复后 HA 令牌与授权凭证将无法解密，
-            需要重新填写连接信息并可能重新激活授权；仍要继续半恢复。
+            已了解风险：此备份<strong>不含连接密钥</strong>。恢复后 HA 令牌将无法解密，
+            需要重新填写连接信息；仍要继续半恢复。商业授权不受影响，保持本机原样。
           </span>
         </label>
         <div class="hos-backup-dialog__actions">
@@ -253,6 +254,7 @@ function buildInspectPreview(data) {
     `${data.projects || 0} 个仪表盘 · ${data.connections || 0} 个 HA 连接 · ${data.users || 0} 个账号`,
     `数据库 ${sizeText} · ${data.files || 0} 个文件${data.hasSecrets ? ' · 含连接密钥' : ' · ⚠ 不含连接密钥'}`,
     data.includesHistory === false ? '不含历史事件与操作日志' : '含历史事件数据',
+    '不含商业授权 · 恢复后保持本机授权不变',
     // 整包恢复（没有按组件勾选）：这里只告诉用户包内实际有数据的表，避免「恢复了什么」不可见。
     restorable ? `可恢复范围：整包（含数据的业务表 ${restorable} 张）` : '可恢复范围：整包',
   ].join('\n')
@@ -416,8 +418,9 @@ async function runRestore() {
       acknowledgeMissingSecrets: acknowledgeMissingSecrets.value,
     })
     ticket.value = ''
-    // 恢复后登录会话已被清空、授权租约也已与本机解绑：不能原地 reload（深链接会撞上
-    // 授权门禁的 JSON 401，屏幕上是「一段代码」），直接送去登录 / 激活引导页。
+    // 恢复后登录会话已被清空：不能原地 reload（深链接会撞上授权门禁的 JSON 401，
+    // 屏幕上是「一段代码」），直接送去登录 / 激活引导页。商业授权在恢复时按本机原样写回，
+    // 已激活的机器不会因此掉授权。
     const destination = await resolvePostRestoreDestination()
     setMessage(destination.message, 'success')
     navigateAfterRestore(destination)

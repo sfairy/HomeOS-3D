@@ -443,12 +443,17 @@ bfcache 交接在 `shared/utils/page-cache-lifecycle.ts`：`pagehide(persisted)`
 
 | 进包 | 不进包 |
 | --- | --- |
-| 数据库（清空历史 / 时序 / 运行时缓存表后） | `data/backups/`（迁移快照与备份包自身） |
-| `secrets/`（HA 令牌与授权凭据的加密密钥） | `cache/`、`logs/`、`backup-work/`、`backup-recovery/` |
-| `assets/`、`studio3d/`、`exports/`、场景与窗帘记忆 | `event_logs`、`notifications`、能耗与时序、`agent_context_timeline`、`agent_task_execution_logs`、`sessions`、HA 目录缓存 |
+| 数据库（清空历史 / 时序 / 运行时缓存 / 授权表后） | `data/backups/`（迁移快照与备份包自身） |
+| `secrets/` 中的 HA 令牌密钥 | `secrets/license_credentials.key`、`instance-id`、`hardware-fallback-id`（授权相关） |
+| `assets/`、`studio3d/`、`exports/`、场景与窗帘记忆 | `cache/`、`logs/`、`backup-work/`、`backup-recovery/` |
+|  | `event_logs`、`notifications`、能耗与时序、`agent_context_timeline`、`agent_task_execution_logs`、`sessions`、HA 目录缓存、`license_state` |
 
 判据是「换机后是否仍然有意义」：配置、用户、设备画像、别名、场景要留；「什么时候什么变成了什么」
 不要 —— 那是本机的观测历史，不是家的配置。表的清单在 `domains/backup/scope.py`（`EXCLUDED_DB_TABLES`）。
+
+**商业授权不进包**：授权按本机硬件指纹绑定，换机必须重新激活，激活码 / 租约 / 令牌不应随
+备份文件流转。恢复侧同样不动授权：整库替换后把恢复前的 `license_state` 与授权文件原样写回
+（`_apply_local_license` / `_restore_auth_files`），旧版本的包带着授权也不会覆盖本机状态。
 
 两条容易踩的边界：
 

@@ -49,6 +49,8 @@ ROW_COUNT_SKIP_TABLES = {
     "security_events",
     "agent_context_timeline",
     "schema_migrations",
+    # 授权不进备份（换机必须重新激活），恢复侧也保持本机原样 —— 包内 0 行是预期结果。
+    "license_state",
 }
 
 

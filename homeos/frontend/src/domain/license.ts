@@ -129,16 +129,17 @@ export function forgetLicenseAvailability(): void {
 /**
  * 全量备份恢复后的落点。
  *
- * 恢复是「整库原样覆盖」，两件东西不会随备份回到可用状态：
+ * 恢复是「整库原样覆盖」，只有**登录会话**必然失效：
+ * `sessions` 表在快照里就是空的（见 `business_backup.EXCLUDED_DB_TABLES`），恢复后当前
+ * 浏览器持有的 Cookie 已失效。
  *
- * 1. **登录会话**：`sessions` 表在快照里就是空的（见 `business_backup.EXCLUDED_DB_TABLES`），
- *    恢复后当前浏览器持有的 Cookie 已失效；
- * 2. **本机授权绑定**：签名租约与硬件指纹派生出的 `instanceId` 一一对应，
- *    换机恢复后租约直接作废（`INSTANCE_CHANGED`），必须重新激活。
+ * **授权不随备份还原**：`license_state`、授权密钥与本机实例标识都在恢复前留存，整库替换后
+ * 原样写回（见 `business_backup._apply_local_license`）。所以已激活的机器恢复后仍是激活态，
+ * 换机恢复也不会被灌进备份里那台机器的激活码。仅当本机恢复前就未激活时才需要去激活页。
  *
- * 所以恢复成功后**不能原地 `location.reload()`**：设置页这类深链接不在授权门禁的白名单里，
+ * 恢复成功后仍**不能原地 `location.reload()`**：设置页这类深链接不在授权门禁的白名单里，
  * 未激活时后端会回 JSON 401，浏览器把响应体当网页渲染 —— 用户看到的就是屏幕上一段代码。
- * 这里统一把用户送到登录 / 激活引导页，让授权页自己说明下一步。
+ * 这里统一把用户送到登录（或激活引导）页，让授权页自己说明下一步。
  */
 
 /** 未激活：登录成功后直接进激活页。 */
@@ -166,7 +167,8 @@ function postRestoreDestination(licenseUsable: boolean | null): PostRestoreDesti
     return {
       path: LOGIN_WITH_ACTIVATION,
       needsActivation: true,
-      message: '全量数据已恢复。登录会话已清空，授权需要在本机重新激活：请用备份中的账号密码登录，随后进入激活页。',
+      message:
+        '全量数据已恢复。登录会话已清空，请用备份中的账号密码重新登录；本机授权保持恢复前状态，若此前未激活还需进入激活页。',
     }
   }
   return {

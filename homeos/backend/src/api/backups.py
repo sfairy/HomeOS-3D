@@ -51,7 +51,8 @@ class RestoreRequest(BaseModel):
     ticket: str = Field(pattern="^[a-f0-9]{32}$")
     adminPassword: str = Field(min_length=1, max_length=128)
     confirm: bool = False
-    #: 备份包不含 secrets/ 时必须显式勾选风险确认，否则禁止恢复（半恢复会导致 HA/授权密文无法解密）。
+    #: 备份包不含 secrets/ 时必须显式勾选风险确认，否则禁止恢复（半恢复会导致 HA 令牌无法解密）。
+    #: 商业授权不在备份范围内，恢复时保持本机原样，与此确认无关。
     acknowledgeMissingSecrets: bool = False
 
 
@@ -382,7 +383,7 @@ async def restore_backup(
                 "success",
                 "系统后台",
                 "备份",
-                "全量业务数据（含账号、授权、素材与数据库）已恢复；中控设备需重新配对",
+                "全量业务数据（含账号、素材与数据库）已恢复；授权保持本机原样，中控设备需重新配对",
                 context=update_request_context(
                     request,
                     finished=True,

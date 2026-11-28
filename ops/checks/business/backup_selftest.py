@@ -14,7 +14,8 @@
 备份体积主要就是它），迁移快照只按「份数」保留（10 份 × 整库 = 灾难）。
 
 本自检覆盖：排除项的语义、超限报错的可用性、按字节预算清理快照、以及
-「回收站式目录永不被当作业务数据」。
+「回收站式目录永不被当作业务数据」；另含授权口径 —— 授权表 / 授权密钥 / 实例标识不进包，
+恢复后只写回本机授权（旧包里的授权不生效）。
 
 用法：
     node ops/lib/py.mjs ops/checks/backup_selftest.py
@@ -22,6 +23,7 @@
 
 from __future__ import annotations
 
+import sqlite3
 import sys
 import tempfile
 from pathlib import Path
@@ -30,11 +32,17 @@ ROOT = Path(__file__).resolve().parents[3]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from homeos.backend.src.domains.backup.business_backup import _data_files
+from homeos.backend.src.domains.backup.business_backup import (
+    _apply_local_license,
+    _capture_local_license,
+    _data_files,
+)
 from homeos.backend.src.domains.backup.scope import (
+    AUTH_EXCLUDED_FILES,
     BACKUP_ROOTS,
     EXCLUDED_DB_TABLES,
     EXCLUDED_TOP_DIRS,
+    LICENSE_TABLE,
     MAX_EXPANDED,
     MAX_FILES,
     is_excluded,
@@ -73,6 +81,12 @@ def test_exclusions() -> None:
     check("不误排 studio3d", not is_excluded("studio3d/a.json"))
     for table in ("event_logs", "agent_context_timeline", "agent_task_execution_logs", "sessions"):
         check(f"清表含 {table}", table in EXCLUDED_DB_TABLES)
+    # 授权不进备份：表清空、密钥与实例标识排除；HA 密钥仍必须随包迁移
+    check("清表含 license_state", LICENSE_TABLE in EXCLUDED_DB_TABLES)
+    for relative in AUTH_EXCLUDED_FILES:
+        check(f"排除授权文件 {relative}", is_excluded(relative))
+    check("不误排 HA 密钥", not is_excluded("secrets/ha_credentials.key"))
+    check("不误排 agent_tts 密钥", not is_excluded("secrets/agent_tts.key"))
     # 0.8.9：派生图片缓存必须排除，否则备份凭空多出上百 MB
     check(
         "排除 display-images 缓存",
@@ -115,6 +129,65 @@ def test_data_files_skip_backups() -> None:
         check("收集体积只剩业务数据", total < 1024, f"{total} 字节")
 
 
+def test_auth_files_not_collected() -> None:
+    """授权文件（授权密钥 / 实例标识）不进包，HA 密钥与业务文件仍要进包。"""
+    with tempfile.TemporaryDirectory() as tmp:
+        data = Path(tmp) / "data"
+        write(data / "secrets" / "ha_credentials.key", 32)
+        write(data / "secrets" / "license_credentials.key", 32)
+        write(data / "instance-id", 64)
+        write(data / "hardware-fallback-id", 64)
+        write(data / "studio3d" / "scene.json", 8)
+        settings = FakeSettings(data, Path(tmp) / "backups")
+
+        collected = {relative for _path, relative in _data_files(settings)}
+        check("不收集授权密钥", "secrets/license_credentials.key" not in collected, str(collected))
+        check("不收集实例标识", "instance-id" not in collected, str(collected))
+        check("不收集兜底硬件标识", "hardware-fallback-id" not in collected, str(collected))
+        check("仍收集 HA 密钥", "secrets/ha_credentials.key" in collected, str(collected))
+        check("仍收集业务文件", "studio3d/scene.json" in collected, str(collected))
+
+
+def _make_license_db(path: Path, instance: str, status: str) -> None:
+    with sqlite3.connect(path) as connection:
+        connection.execute(
+            "CREATE TABLE license_state ("
+            "id INTEGER PRIMARY KEY, instance_id TEXT NOT NULL, status TEXT NOT NULL, feature_set TEXT NOT NULL)"
+        )
+        connection.execute(
+            "INSERT INTO license_state (id, instance_id, status, feature_set) VALUES (1, ?, ?, '[]')",
+            (instance, status),
+        )
+
+
+def _license_rows(path: Path) -> list[tuple[str, str]]:
+    with sqlite3.connect(f"file:{path}?mode=ro", uri=True) as connection:
+        return [tuple(row) for row in connection.execute("SELECT instance_id, status FROM license_state")]
+
+
+def test_license_state_preserved() -> None:
+    """恢复只写回本机授权：旧包里的激活码 / 租约 / 状态一律不生效。"""
+    with tempfile.TemporaryDirectory() as tmp:
+        live = Path(tmp) / "live.db"
+        restored = Path(tmp) / "restored.db"
+        _make_license_db(live, "local-instance", "ACTIVE")
+        _make_license_db(restored, "backup-instance", "EXPIRED")
+
+        captured = _capture_local_license(live)
+        check("读到本机授权行", captured is not None and bool(captured[1]), str(captured))
+        _apply_local_license(restored, captured)
+        rows = _license_rows(restored)
+        check("恢复后仍是本机授权", rows == [("local-instance", "ACTIVE")], str(rows))
+
+        # 本机原本没有授权：恢复后必须保持未授权，不能把旧包里的授权留下
+        with sqlite3.connect(restored) as connection:
+            connection.execute("DELETE FROM license_state")
+        _apply_local_license(restored, None)
+        check("本机未授权时清空恢复出来的授权", _license_rows(restored) == [], str(_license_rows(restored)))
+        empty = _capture_local_license(restored)
+        check("本机无授权行时捕获为空", empty is not None and empty[1] == [], str(empty))
+
+
 def testoversize_message() -> None:
     message = oversize_message("展开后上限 4 GB", 54 * 1024**3, 37, [(53, "backups/schema/a.db")])
     check("报错说明触发的是哪条限制", "展开后上限" in message, message)
@@ -152,6 +225,8 @@ def test_prune_by_budget() -> None:
 def main() -> int:
     test_exclusions()
     test_data_files_skip_backups()
+    test_auth_files_not_collected()
+    test_license_state_preserved()
     testoversize_message()
     test_prune_by_budget()
     print(f"备份域自检通过：{len(CHECKS)} 项")

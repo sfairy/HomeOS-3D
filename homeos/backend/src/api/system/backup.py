@@ -29,9 +29,9 @@ router = NestRouter(prefix="/system/backup", tags=["system"])
 class RestoreServerBackupRequest(BaseModel):
     """服务器快照还原请求。
 
-    ``adminPassword`` 是**强制**的：这条路由会用备份包整体覆盖数据库（含账号与授权），
+    ``adminPassword`` 是**强制**的：这条路由会用备份包整体覆盖数据库（含账号与素材），
     与业务备份恢复同样不可撤销。只有 ``confirm`` 不足以证明此刻是本人操作 —— 一条被窃取
-    的会话 Cookie 就能完成清库。
+    的会话 Cookie 就能完成清库。商业授权不参与还原（保持本机恢复前状态）。
     """
 
     name: str = Field(default="", max_length=255)

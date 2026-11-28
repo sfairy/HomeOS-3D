@@ -178,7 +178,7 @@ function useProfilesServerBackups() {
 
   async function restoreBackupFile(name: string, adminPassword: string) {
     const ok = await chrome.confirm(
-      `确定从「${name}」还原全量备份？将用备份中的数据库、账号、授权与素材整体覆盖当前数据，无法撤销。建议先另存一份当前备份。还原后需要重新登录；换机还原还需在本机重新激活授权。`,
+      `确定从「${name}」还原全量备份？将用备份中的数据库、账号与素材整体覆盖当前数据，无法撤销。建议先另存一份当前备份。还原后需要重新登录；商业授权保持本机恢复前状态，不随备份还原。`,
       '全量还原',
       { confirmText: '确认还原', type: 'danger' },
     )
@@ -187,7 +187,7 @@ function useProfilesServerBackups() {
     backupFileActionKind.value = 'restore'
     try {
       await restoreServerBackupFile({ name, confirm: true, adminPassword })
-      // 整库（含会话与授权绑定）已被替换：原地刷新会撞上授权门禁的 JSON 401，
+      // 整库（含会话）已被替换、授权按本机原样写回：原地刷新会撞上授权门禁的 JSON 401，
       // 由 post-restore 统一送去登录 / 激活引导页。
       const destination = await resolvePostRestoreDestination()
       chrome.notify(destination.message, 'success', 5000)

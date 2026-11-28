@@ -4,12 +4,16 @@ from __future__ import annotations
 
 
 def require_secrets_acknowledgment(has_secrets: bool, *, acknowledged: bool) -> None:
-    """无 secrets 的包必须显式风险确认；未勾选则拒绝恢复（避免一键半恢复）。"""
+    """无 secrets 的包必须显式风险确认；未勾选则拒绝恢复（避免一键半恢复）。
+
+    这里的 secrets 只指 HA 连接的落库密钥（``secrets/ha_credentials.key`` 等）：
+    商业授权已整体移出备份范围，恢复时也保持本机原样，不再受这条确认影响。
+    """
     if has_secrets or acknowledged:
         return
     from .business_backup import BackupError
 
     raise BackupError(
-        "该备份不含连接密钥（secrets）。恢复后 HA 令牌与授权凭证将无法解密；"
-        "请勾选风险确认后再恢复，或改用包含密钥的完整备份。"
+        "该备份不含连接密钥（secrets）。恢复后 HA 令牌将无法解密；"
+        "请勾选风险确认后再恢复，或改用包含密钥的完整备份（授权不受影响，恢复后保持本机原样）。"
     )

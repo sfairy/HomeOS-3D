@@ -4,7 +4,7 @@
 密钥由 Scrypt(n=32768,r=8,p=1) 从密码派生。载荷为 zip，内含：
 
 - ``manifest.json``：格式元数据 + 文件清单（sha256 / size）；
-- ``homeos.db``：``VACUUM INTO`` 生成的整库快照（全部表，含 users / license）；
+- ``homeos.db``：``VACUUM INTO`` 生成的整库快照（全部表，含 users；授权表清空）；
 - 数据目录文件：除排除项以外的整个 ``data_dir``（含 ``secrets/`` 密钥、``assets/``、
   ``studio3d/``、``exports/``、``modules/interaction3d/scenes``、
   ``modules/interaction3d/cover-memory`` 等）。
@@ -18,9 +18,15 @@ HA 目录缓存。
 备份包目录（``settings.backups_dir``；容器里位于 ``data_dir`` 内部，必须排除，否则新包会
 吞掉全部旧包与自己）、渲染缓存与数据库文件本身。
 
-**为什么必须带 ``secrets/``**：HA access token 与 license 凭证用 ``data_dir/secrets/*.key``
+**为什么必须带 ``secrets/``**：HA access token 用 ``data_dir/secrets/*.key``
 （Fernet）加密后落库（见 :mod:`src.domains.ha.integration.crypto`）。只备份数据库、不带密钥，
 换机后这些密文无法解密。
+
+**为什么授权不进包**：商业授权（``license_state`` 表、``secrets/license_credentials.key``、
+``instance-id`` / ``hardware-fallback-id``）按本机硬件指纹绑定，换机后无论如何都要重新激活；
+把激活码、签名租约与会话令牌装进备份包只会让它们随文件流转。所以备份侧清空授权表、
+排除授权文件；恢复侧（:func:`_apply_local_license` / :func:`_restore_auth_files`）
+即使面对旧版本仍含授权的包，也只把**恢复前的本机授权**写回，保持本机原样。
 
 恢复采用「整库原样还原」：先把当前数据库与数据文件留一份回退快照，再原子替换，
 最后校验还原出来的库结构与完整性，全程可回滚。
@@ -52,10 +58,12 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 
 from .scope import (
+    AUTH_EXCLUDED_FILES,
     DB_NAME,
     DB_SIDECARS,
     EXCLUDED_DB_TABLES,
     EXCLUDED_TOP_DIRS,
+    LICENSE_TABLE,
     MAX_EXPANDED,
     MAX_FILES,
     is_excluded,
@@ -407,6 +415,9 @@ def _restorable_tables(path: Path) -> list[str]:
         ).fetchall()
         tables: list[str] = []
         for (name,) in rows:
+            if name == LICENSE_TABLE:
+                # 授权不参与还原（恢复后保持本机原样），不该出现在「可恢复范围」里。
+                continue
             try:
                 count = connection.execute(f'SELECT COUNT(*) FROM "{name}"').fetchone()  # noqa: S608
             except sqlite3.Error:
@@ -416,6 +427,27 @@ def _restorable_tables(path: Path) -> list[str]:
     return tables
 
 
+def _auth_file_paths(settings: Any) -> tuple[Path, ...]:
+    """本机授权相关文件：标准 ``data_dir`` 布局 + 可覆盖路径（去重）。
+
+    备份侧用它把授权文件挡在包外，恢复侧用同一份清单决定「哪些文件必须保持本机原样」。
+    覆盖路径也收进来：``license_secret_key_path`` / ``instance_id_path`` 可由配置改到别的
+    位置，只按固定相对路径排除会漏掉它们。
+    """
+    candidates: list[Path] = []
+    data_dir = getattr(settings, "data_dir", None)
+    if data_dir:
+        candidates.extend(Path(data_dir) / relative for relative in AUTH_EXCLUDED_FILES)
+    for attribute in ("license_secret_key_path", "instance_id_path", "hardware_fallback_id_path"):
+        value = getattr(settings, attribute, None)
+        if value:
+            candidates.append(Path(value))
+    unique: dict[str, Path] = {}
+    for path in candidates:
+        unique.setdefault(str(path), path)
+    return tuple(unique.values())
+
+
 # 创建备份
 def _data_files(settings: Any) -> list[tuple[Path, str]]:
     base = settings.data_dir
@@ -423,6 +455,7 @@ def _data_files(settings: Any) -> list[tuple[Path, str]]:
     if not base.is_dir():
         return collected
     backups_prefix = _backups_prefix_in_data_dir(settings)
+    auth_paths = {str(path) for path in _auth_file_paths(settings)}
     for path in sorted(base.rglob("*")):
         relative = path.relative_to(base).as_posix()
         if is_excluded(relative):
@@ -434,6 +467,10 @@ def _data_files(settings: Any) -> list[tuple[Path, str]]:
             continue
         if path.is_symlink():
             raise BackupError(f"数据目录含符号链接，无法创建完整备份：{relative}")
+        if str(path) in auth_paths:
+            # 授权文件按本机实例绑定，不进包（固定相对路径已由 ``is_excluded`` 拦住，
+            # 这里兜住被配置改到别处的覆盖路径）。
+            continue
         if path.is_file():
             collected.append((path, relative))
     return collected
@@ -842,6 +879,109 @@ def _restore_data_files(
     _write_journal(rollback_dir, journal)
 
 
+# ---- 授权保持本机原样：不进备份，也不被恢复覆盖 ----
+
+
+def _capture_local_license(path: Path) -> tuple[list[str], list[tuple[Any, ...]]] | None:
+    """读取恢复前的本机授权行；库没有授权表时返回 ``None``。
+
+    返回 ``(列名, 行)``：列名取自**恢复前**的库（当前版本 schema）；恢复后的库跑过迁移，
+    这些列一定都在。
+
+    读不到就**取消恢复**（``BackupError``）：把「读失败」当成「本机没有授权」会在恢复后
+    清空授权表，等于把用户的激活状态弄丢 —— 而授权保持原样正是这条链路的前提。
+    """
+    if not path.is_file():
+        raise BackupError("数据库文件不存在，无法保留本机授权状态，已取消恢复。")
+    try:
+        with closing(sqlite3.connect(f"file:{path}?mode=ro", uri=True)) as connection:
+            connection.execute("PRAGMA busy_timeout=5000")
+            exists = connection.execute(
+                "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", (LICENSE_TABLE,)
+            ).fetchone()
+            if exists is None:
+                # 极老的库还没有授权表：本机确实没有授权可保留。
+                return None
+            cursor = connection.execute(f'SELECT * FROM "{LICENSE_TABLE}"')  # noqa: S608 - 表名来自常量
+            columns = [str(item[0]) for item in cursor.description or []]
+            rows = [tuple(row) for row in cursor.fetchall()]
+    except sqlite3.Error as error:
+        raise BackupError(f"读取本机授权状态失败，已取消恢复（授权必须保持原样）：{error}") from error
+    if not columns:
+        return None
+    return columns, rows
+
+
+def _apply_local_license(
+    path: Path, captured: tuple[list[str], list[tuple[Any, ...]]] | None
+) -> None:
+    """把恢复前的本机授权写回还原出来的库（授权保持原样，不跟着备份走）。
+
+    不能写成「备份里没有授权就不用管」：旧版本的包仍带着 ``license_state``，直接沿用
+    等于把另一台机器的激活码 / 租约 / 会话令牌搬到本机。这里一律先清空、再写回本机行；
+    本机原本没有授权时清空后即返回（未授权状态必须保持未授权）。
+    """
+    try:
+        connection = sqlite3.connect(path, isolation_level=None)
+    except sqlite3.Error as error:
+        raise BackupError(f"写回本机授权状态失败：{error}") from error
+    try:
+        connection.execute("PRAGMA busy_timeout=5000")
+        connection.execute(f'DELETE FROM "{LICENSE_TABLE}"')  # noqa: S608 - 表名来自常量白名单
+        if captured is not None:
+            columns, rows = captured
+            if rows:
+                quoted = ", ".join(f'"{name}"' for name in columns)
+                placeholders = ", ".join("?" for _ in columns)
+                connection.executemany(
+                    f'INSERT INTO "{LICENSE_TABLE}" ({quoted}) VALUES ({placeholders})',  # noqa: S608
+                    rows,
+                )
+    except sqlite3.Error as error:
+        raise BackupError(f"写回本机授权状态失败：{error}") from error
+    finally:
+        connection.close()
+
+
+def _capture_auth_files(settings: Any) -> dict[Path, tuple[bytes, int]]:
+    """把本机授权文件读进内存（密钥、实例标识都是小文件），恢复后原样写回。
+
+    读取失败直接取消恢复：写回阶段会按这份副本决定「删掉恢复出来的授权文件 / 写回本机
+    文件」，读不到内容时继续恢复只会让本机授权文件凭空消失。
+    """
+    captured: dict[Path, tuple[bytes, int]] = {}
+    for path in _auth_file_paths(settings):
+        try:
+            if path.is_file():
+                captured[path] = (path.read_bytes(), path.stat().st_mode & 0o777)
+        except OSError as error:
+            raise BackupError(f"读取本机授权文件失败，已取消恢复（授权必须保持原样）：{path}") from error
+    return captured
+
+
+def _restore_auth_files(settings: Any, captured: dict[Path, tuple[bytes, int]]) -> None:
+    """把本机授权文件写回；恢复前不存在的授权文件（旧包带来的）一律删掉。
+
+    运行在整库替换与迁移之后、标记 ``done`` 之前：此前的任何崩溃都会触发启动期回滚，
+    回滚恢复的是恢复前的整库与文件，授权同样保持原样。
+    """
+    for path in _auth_file_paths(settings):
+        kept = captured.get(path)
+        try:
+            if kept is None:
+                if path.exists() or path.is_symlink():
+                    _remove_path(path)
+                continue
+            content, mode = kept
+            path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+            descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, mode or 0o600)
+            with os.fdopen(descriptor, "wb") as output:
+                output.write(content)
+            os.chmod(path, mode or 0o600)
+        except OSError as error:
+            raise BackupError(f"写回本机授权文件失败：{path}") from error
+
+
 def _remove_path(path: Path) -> None:
     if path.is_dir() and not path.is_symlink():
         shutil.rmtree(path, ignore_errors=True)
@@ -907,6 +1047,10 @@ def restore_business(
     回退材料（还原前的数据库快照 + 被替换掉的顶层数据目录项）统一放在
     ``data_dir/backup-recovery/<id>/``。成功时保留该目录作为「还原后反悔」副本
     （由 :meth:`BackupCoordinator.prune_rollbacks` 限量），失败时自动回滚并清掉。
+
+    **授权不参与还原**：商业授权按本机实例绑定，恢复前会先把本机的 ``license_state``
+    与授权文件（授权密钥、实例标识）留一份，整库替换完成后再原样写回 —— 换台机器
+    恢复也不会把备份里的授权带过来，本机恢复更不会把已激活状态弄丢。
     """
     payload = directory / PAYLOAD_NAME
     manifest = read_manifest(payload)
@@ -927,6 +1071,10 @@ def restore_business(
     }
     _write_journal(rollback_dir, journal)
     try:
+        # 0) 授权先留一份本机副本：授权不进备份，恢复也不能覆盖它（尤其旧版本的包）。
+        kept_license = _capture_local_license(settings.database_path)
+        kept_auth_files = _capture_auth_files(settings)
+
         # 1) 当前数据库回退快照
         snapshot_database(settings, rollback_dir / DB_NAME)
         journal["phase"] = "files"
@@ -967,6 +1115,11 @@ def restore_business(
         from ... import db_models
 
         prepare_schema(settings, metadata=db_models.main_metadata(), log_metadata=db_models.log_metadata())
+
+        # 6) 授权保持本机原样：备份包（尤其旧版本的包）里的激活码 / 租约 / 实例标识一律
+        #    不生效，只把恢复前的本机授权写回。整库替换前已留好副本（失败会整体回滚）。
+        _apply_local_license(settings.database_path, kept_license)
+        _restore_auth_files(settings, kept_auth_files)
 
         journal["phase"] = "done"
         journal["finishedAt"] = _now_iso()
@@ -1043,9 +1196,9 @@ async def refresh_runtime_after_restore(app: Any) -> None:
         except Exception:
             logger.warning("还原后重连 Home Assistant 失败", exc_info=True)
 
-    # 授权缓存也必须丢：整库换掉后，进程内还留着还原前的 ``allows()`` 判定结果，
-    # 页面会按旧状态放行（或反过来把刚恢复的授权当成失效），直到 2 秒 TTL 自然过期。
-    # 换机恢复时租约还会被判定为 INSTANCE_CHANGED —— 前端据此把用户送去重新激活。
+    # 授权缓存也必须丢：整库换掉后进程内还留着还原前的 ``allows()`` 判定结果，直到
+    # 2 秒 TTL 才自然过期。授权行本身已按「本机原样」写回（见 ``_apply_local_license``），
+    # 这里只是让新库里的授权立刻生效，不需要重新激活。
     license_service = getattr(app.state, "license_service", None)
     invalidate_license = getattr(license_service, "invalidate_allow_cache", None)
     if callable(invalidate_license):

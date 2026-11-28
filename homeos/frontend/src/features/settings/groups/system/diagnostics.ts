@@ -1063,7 +1063,7 @@ export function useDiagnosticsExport(deps: {
       icon: Archive,
       accent: 'var(--hos-color-accent)',
       title: '全量备份（含数据库）',
-      desc: '一键导出整库（全部数据表、账号与授权）与数据目录（含 HA 密钥、素材、3D 场景）。',
+      desc: '一键导出整库（全部数据表、账号；不含商业授权）与数据目录（含 HA 密钥、素材、3D 场景）。',
       linkTo: SETTINGS_ROUTES.profiles('backup'),
       linkLabel: '前往备份与恢复',
     },

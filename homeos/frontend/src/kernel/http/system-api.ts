@@ -170,7 +170,7 @@ export function deleteServerBackupFile(name: string, config?: AxiosRequestConfig
  * 还原指定全量备份文件（含数据库）。
  *
  * 需 `confirm=true` **且**提供当前管理员密码：这条接口会用备份包整体覆盖数据库
- * （含账号与授权），仅凭登录态不足以执行。
+ * （含账号与素材），仅凭登录态不足以执行。商业授权不参与还原，保持本机恢复前状态。
  */
 export function restoreServerBackupFile(
   body: { name: string; confirm: boolean; adminPassword: string },
