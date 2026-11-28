@@ -42,6 +42,10 @@ class HomeModeDeps:
     async def list_active_modes(self) -> list[dict[str, Any]]:
         return await run_db(self._service._list_active_modes)
 
+    async def persist_time_occurrences(self, day: str, keys: dict[str, int]) -> None:
+        """落盘「今日已触发的时间触发器」：重启后不再重放（见 runtime 的 occurrence store）。"""
+        await self._service.persist_time_occurrences(day, keys)
+
     async def find_first_active(self) -> dict[str, Any] | None:
         return await run_db(self._service._find_first_active)
 

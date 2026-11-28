@@ -310,7 +310,12 @@ class EnergyBackfillService:
             series = collect_utility_series(accounts, primary_entities, today=today)
             self._log_account_freshness(accounts, today)
             _merge_daily_totals(totals, series.today_days)
-            if not totals and not series.authoritative_days and not series.authoritative_months:
+            if (
+                not totals
+                and not series.authoritative_days
+                and not series.authoritative_months
+                and not series.current_months
+            ):
                 logger.info(
                     "能耗回填：%s 个电量实体 / %s 个电费账户在窗口内没有可用读数",
                     len(candidates),
@@ -320,6 +325,7 @@ class EnergyBackfillService:
             written = await run_db(
                 self._event_log.apply_energy_backfill,
                 totals,
+                monthly=series.current_months,
                 authoritative_days=series.authoritative_days,
                 authoritative_months=series.authoritative_months,
             )

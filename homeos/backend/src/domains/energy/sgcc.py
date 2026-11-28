@@ -507,10 +507,14 @@ class UtilitySeries:
     authoritative_days: dict[str, dict[str, float]]
     #: 今天：与实时增量并存，只取最大值，避免两边叠加。
     today_days: dict[str, dict[str, float]]
-    #: 月总量（月列表 / 整月覆盖的日行求和）：双向覆盖月行。
+    #: 历史月（< 本月）：账单级权威值，双向覆盖月行。
     authoritative_months: dict[str, dict[str, float]]
+    #: **本月**：国网给的是月内累计（通常只到昨天）。它是账单口径但**不完整**，
+    #: 实时链路已经写入了含今天的月行 —— 直接覆盖会把今天的用量抹掉，
+    #: 所以单列一档，落库时只做「只增不减」（max）合并。
+    current_months: dict[str, dict[str, float]] = field(default_factory=dict)
     #: 参与聚合的账户数（日志用）。
-    accounts: int
+    accounts: int = 0
     #: 目标实体 → 用能单位（``kWh`` / ``m³``）：报表按单位分组返回必须靠它。
     units: dict[str, str] = field(default_factory=dict)
 
@@ -525,7 +529,9 @@ def collect_utility_series(
     auth_days: dict[str, dict[str, float]] = {}
     today_days: dict[str, dict[str, float]] = {}
     auth_months: dict[str, dict[str, float]] = {}
+    current_months: dict[str, dict[str, float]] = {}
     today_date = date.fromisoformat(today)
+    current_month = today[:7]
     seen_series: set[tuple[Any, ...]] = set()
     target_accounts: dict[str, list[str]] = {}
     units: dict[str, str] = {}
@@ -562,7 +568,10 @@ def collect_utility_series(
             value = _month_value(account, month, today_date)
             if value is None or value <= 0:
                 continue
-            per_month = auth_months.setdefault(target, {})
+            # 本月是「月内累计」：实时链路已经写了含今天的月行，直接覆盖会把今天的
+            # 用电量抹掉。单列一档，落库时按 max 合并（见 UtilitySeries.current_months）。
+            bucket = current_months if month == current_month else auth_months
+            per_month = bucket.setdefault(target, {})
             per_month[month] = per_month.get(month, 0.0) + value
     for target, keys in target_accounts.items():
         if len(keys) > 1:
@@ -573,6 +582,7 @@ def collect_utility_series(
         authoritative_days=auth_days,
         today_days=today_days,
         authoritative_months=auth_months,
+        current_months=current_months,
         accounts=len(accounts),
         units=units,
     )

@@ -35,7 +35,6 @@ from .stats import (
     clamp_notification_stats_hours,
     combine_conditions,
     map_notification_row,
-    resolve_notification_time_granularity,
 )
 from ..alerts.dnd import is_dnd_active_now
 from ..alerts.sources import is_life_safety_notification  # noqa: F401  # pyright: ignore[reportUnusedImport] - 供外部/测试引用
@@ -703,7 +702,6 @@ class NotificationService:
         since = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=window_hours)
         source_filter = (source or "").strip()
         source_condition = build_notification_source_conditions(source_filter) if source_filter else None
-        granularity = resolve_notification_time_granularity(window_hours)
 
         def _query() -> dict[str, Any]:
             from sqlalchemy import func as sa_func
@@ -745,14 +743,14 @@ class NotificationService:
                         select(Notification.level, sa_func.count()).where(*base_conditions).group_by(Notification.level)
                     ).all()
                 ]
-                bucket_expr = sa_func.substr(Notification.created_at, 1, 13 if granularity == "hour" else 10)
-                time_rows = [
-                    (row[0], int(row[1]))
+                # 逐条取时间戳、在 Python 里按**家庭时区**分桶。
+                # 原先 `substr(created_at, 1, 13|10)` 是按 UTC 文本分组：东八区 23:30 的
+                # 通知落到 15:00 的桶、日边界落在本地 16:00，与界面其它时间互相矛盾，
+                # 也表达不了 DST / 半小时时区。窗口上限 720h、通知表上限 1 万条，代价可控。
+                time_timestamps = [
+                    str(row[0])
                     for row in session.execute(
-                        select(bucket_expr, sa_func.count())
-                        .where(*base_conditions)
-                        .group_by(bucket_expr)
-                        .order_by(bucket_expr.asc())
+                        select(Notification.created_at).where(*base_conditions).order_by(Notification.created_at.asc())
                     ).all()
                 ]
             return build_notification_stats(
@@ -762,7 +760,8 @@ class NotificationService:
                 window_hours=window_hours,
                 source_rows=source_rows,
                 level_rows=level_rows,
-                time_rows=time_rows,
+                time_timestamps=time_timestamps,
+                time_zone=self._get_timezone(),
             )
 
         stats = await asyncio.to_thread(_query)

@@ -22,6 +22,50 @@ logger = logging.getLogger("homeos.home_mode")
 
 HOME_MODE_RUNTIME_CONFIG_ID = "home-mode-runtime"
 
+#: 时间触发器「当天已触发」记录的 runtime_kv 键。
+#:
+#: 为什么必须持久化：``fired_time_occurrences`` 原先只在内存里。进程在触发后的
+#: 宽限期（默认 10 分钟）内重启 —— 傍晚发版就是常态 —— 那次 22:30 的触发已经执行过，
+#: 但新进程没有任何记录，于是**再执行一遍**（模式脚本 / 场景重放，锁与阀门动两次）。
+TIME_OCCURRENCES_CONFIG_ID = "home-mode-time-occurrences-v1"
+
+
+class HomeModeTriggerOccurrenceStore:
+    """时间触发器 occurrence（``mode@HH:MM@日期``）的持久化。
+
+    只在「真的触发成功」与「跨天清空」时写一次：一天最多几次写，不构成热点。
+    读失败按空记录处理（宁可在重启后多触发一次，也不能因此起不来）。
+    """
+
+    def __init__(self, session_factory: Any) -> None:
+        self._session_factory = session_factory
+
+    def load(self) -> tuple[str, dict[str, int]]:
+        """返回 ``(day, {occurrenceKey: 1})``；读不到返回 ``("", {})``。"""
+        try:
+            with self._session_factory() as session:
+                data = load_runtime_kv(session, TIME_OCCURRENCES_CONFIG_ID)
+        except Exception as exc:
+            logger.warning("加载时间触发器触发记录失败，按无记录继续: %s", exc)
+            return "", {}
+        if not isinstance(data, dict):
+            return "", {}
+        day = str(data.get("day") or "")
+        raw = data.get("keys")
+        keys = {str(item): 1 for item in raw if str(item)} if isinstance(raw, list) else {}
+        return day, keys
+
+    def persist(self, day: str, keys: dict[str, int]) -> None:
+        """落盘（同步；调用方负责放进线程池）。"""
+        try:
+            persist_runtime_kv(
+                self._session_factory,
+                TIME_OCCURRENCES_CONFIG_ID,
+                {"day": day, "keys": sorted(keys)},
+            )
+        except Exception as exc:
+            logger.warning("保存时间触发器触发记录失败: %s", exc)
+
 
 def clamp_int(value: Any, minimum: int, maximum: int) -> int:
     try:

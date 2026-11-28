@@ -159,6 +159,10 @@ class CommandProxyService:
         self._license_service = license_service
         self._idempotency: dict[str, _IdempotencyEntry] = {}
         self._idempotency_pruned_at = 0.0
+        #: 幂等请求 TTL 的内存副本：启动时用默认值，之后由 ``refresh_idempotency_ttl``
+        #: 在线程池里从配置刷新（剪枝路径绝不读库）。
+        self._idempotency_ttl_cache = float(DEFAULT_COMMAND_PROXY["idempotencyTtlMs"])
+        self._idempotency_ttl_refreshed_at = 0.0
         self._command_proxy_cfg = DEFAULT_COMMAND_PROXY
         #: 按实体的串行锁（LRU 上限，见 ``_entity_lock``）。
         self._entity_locks: OrderedDict[str, asyncio.Lock] = OrderedDict()
@@ -332,15 +336,36 @@ class CommandProxyService:
             self._command_proxy_cfg = DEFAULT_COMMAND_PROXY
         return self._command_proxy_cfg
 
+    def _idempotency_ttl_ms(self) -> float:
+        """幂等请求 TTL（毫秒）——**只读内存**。
+
+        剪枝跑在 ``call_service`` 的异步热路径上；旧实现每个请求（至少每 1 秒一次）
+        在这里开一次同步 SQLite 会话读配置，等于把一次连接池 checkout 塞进事件循环，
+        期间所有 HA 状态写入与 WS 广播都排队。TTL 从 3s 变成 5s 并不影响正确性，
+        因此改用启动时读一次、之后由异步路径按需刷新。
+        """
+        return self._idempotency_ttl_cache
+
+    async def refresh_idempotency_ttl(self) -> None:
+        """从配置刷新幂等 TTL（在**线程池**里读库，绝不占事件循环）。"""
+        try:
+            cfg = await asyncio.to_thread(self._config)
+        except Exception:
+            logger.debug("刷新幂等 TTL 失败，沿用旧值", exc_info=True)
+            return
+        try:
+            self._idempotency_ttl_cache = float(max(int(cfg.get("idempotencyTtlMs") or 3000), 1))
+        except (TypeError, ValueError):  # fmt: skip
+            logger.debug("idempotencyTtlMs 非法，沿用旧值: %r", cfg.get("idempotencyTtlMs"))
+
     def _prune_idempotency(self, now: float) -> None:
         """按 TTL 惰性剪枝（替代 Nest 的 setInterval 定期清理）。"""
         if not self._idempotency:
             return
-        # 剪枝窗口判断放在读配置**之前**：``_config()`` 会开一次同步 DB 会话，
-        # 而前端每次控制都带幂等键，等于把「每个控制请求一次查库」变成常态。
+        # 纯内存判定：这里不读配置、不开数据库会话（见 ``_idempotency_ttl_ms``）。
         if len(self._idempotency) < _IDEMPOTENCY_MAX_ENTRIES and (now - self._idempotency_pruned_at < 1000.0):
             return
-        request_ttl = float(max(int(self._config().get("idempotencyTtlMs") or 3000), 1))
+        request_ttl = self._idempotency_ttl_ms()
         result_ttl = max(request_ttl, float(_IDEMPOTENCY_RESULT_TTL_MS))
         # inflight 条目不能按请求 TTL 剪枝：慢服务（AI 生成 / 固件安装）要跑上百秒，
         # 期间条目一旦被剪掉，同键重试会被当成首次请求再下发一次。
@@ -452,6 +477,10 @@ class CommandProxyService:
         ``policy=None`` 仅供已在同一请求内校验过、且需要放行更宽字段集的内部路径使用。
         """
         await self._assert_ha_control_allowed()
+        # 幂等 TTL 每 60s 从配置刷新一次（线程池读库，不占事件循环）。
+        if time.monotonic() - self._idempotency_ttl_refreshed_at > 60.0:
+            self._idempotency_ttl_refreshed_at = time.monotonic()
+            await self.refresh_idempotency_ttl()
         self._assert_service_policy(dto, policy)
         raw_key = dto.get("idempotency_key")
         idempotency_key = str(raw_key) if raw_key else ""

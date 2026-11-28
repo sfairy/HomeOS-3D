@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 from dataclasses import dataclass, field
@@ -236,6 +237,11 @@ async def check_home_mode_time_triggers(state: HomeModeTriggersState, deps: Any)
     if state.time_occurrence_day != day_key:
         state.fired_time_occurrences.clear()
         state.time_occurrence_day = day_key
+        # 跨天清空也要落盘：否则重启后读到昨天的记录，当天触发会被当成「已触发」跳过。
+        persist = getattr(deps, "persist_time_occurrences", None)
+        if callable(persist):
+            with contextlib.suppress(Exception):
+                await persist(day_key, {})
 
     # 日出日落只在这批绑定里真的存在时才去读 sun.sun（避免每轮都多一次取数）。
     sun = await _read_sun_state(state, deps)
@@ -390,6 +396,12 @@ async def _handle_time_binding(
         # 只有整轮动作成功（activate 未抛错且未返回 success=False）才记 occurrence，
         # 失败可在宽限期内重试。
         state.fired_time_occurrences[occurrence_key] = 1
+        # 落盘：进程在宽限期内重启（傍晚发版）时，新进程要能知道这次已经执行过 ——
+        # 否则模式脚本 / 场景 / 锁阀会被重放第二遍。落盘失败不影响本次触发。
+        persist = getattr(deps, "persist_time_occurrences", None)
+        if callable(persist):
+            with contextlib.suppress(Exception):
+                await persist(state.time_occurrence_day, dict(state.fired_time_occurrences))
 
 
 async def handle_home_mode_state_trigger(state: HomeModeTriggersState, deps: Any, event: dict[str, Any]) -> None:

@@ -6,6 +6,7 @@ import asyncio
 import contextlib
 import json
 import logging
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import func, select, update
@@ -41,6 +42,7 @@ from .presence_rules import evict_other_modes
 from .restore import summarize_pending_restore
 from .runtime import (
     HomeModeRuntimeLogStore,
+    HomeModeTriggerOccurrenceStore,
     clamp_int,
 )
 from .settle import settle_home_mode
@@ -59,6 +61,7 @@ from ...platform.core.db.models import HomeMode
 from ...platform.core.http.errors import api_error, bad_request, not_found
 from ...platform.core.runtime.app_config import load_raw_config
 from ...platform.core.runtime.background_tasks import background_tasks
+from ...platform.core.runtime.zoned_time import zoned_date_parts
 
 logger = logging.getLogger("homeos.home_mode")
 
@@ -111,6 +114,8 @@ class HomeModeService:
         self._settle_tasks: dict[str, asyncio.Task[Any]] = {}
         self._runtime_logs = HomeModeRuntimeLogStore(session_factory, self._runtime_limits)
         self._trigger_state = HomeModeTriggersState()
+        #: 时间触发器「当天已触发」记录的持久化：重启后不再重放已经执行过的触发。
+        self._time_occurrences = HomeModeTriggerOccurrenceStore(session_factory)
         self._home_mode_cfg: dict[str, Any] = dict(HOME_MODE_DEFAULT_CONFIG)
         self._security_cfg: dict[str, Any] = dict(SECURITY_DEFAULT_CONFIG)
         self._home_timezone: str | None = None
@@ -132,7 +137,28 @@ class HomeModeService:
             self._schedule_settle(active)
         await self.reload_trigger_bindings()
         await self._runtime_logs.load()
+        await self._restore_time_occurrences()
         self._timer = asyncio.create_task(self._time_trigger_loop(), name="home-mode-time-triggers")
+
+    async def _restore_time_occurrences(self) -> None:
+        """启动时还原本日已触发的时间触发器记录（跨重启去重）。
+
+        只看**当天**：跨天的记录没有意义（``time_occurrence_day`` 不同时本来就会清空）。
+        """
+        day, keys = await run_db(self._time_occurrences.load)
+        if not day or not keys:
+            return
+        part = zoned_date_parts(datetime.now(UTC), self._home_timezone)
+        today = f"{part['year']:04d}-{part['month']:02d}-{part['day']:02d}"
+        if day != today:
+            return
+        self._trigger_state.time_occurrence_day = day
+        self._trigger_state.fired_time_occurrences = dict(keys)
+        logger.info("已恢复今日时间触发器记录 %s 条（重启后不重复激活）", len(keys))
+
+    async def persist_time_occurrences(self, day: str, keys: dict[str, int]) -> None:
+        """落盘时间触发器记录（由触发器在成功激活 / 跨天清空后调用）。"""
+        await run_db(self._time_occurrences.persist, day, dict(keys))
 
     # 自动回落（过渡模式）
     def _cancel_settle(self, mode_id: str | None = None) -> None:

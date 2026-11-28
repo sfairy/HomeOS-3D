@@ -7,7 +7,7 @@ SQLite 适配：无 ``date_trunc``，按 ``substr(createdAt, 1, 13|10)`` 分桶�
 from __future__ import annotations
 
 import math
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import and_, or_
@@ -136,6 +136,92 @@ def _format_time_label(timestamp: int, granularity: str) -> str:
     return f"{moment.month}/{moment.day}"
 
 
+def _resolve_timezone(time_zone: str | None):
+    """家庭时区；未配置 / 非法时回退本机时区（与 ``zoned_time`` 同口径）。"""
+    from ...platform.core.runtime.zoned_time import _tzinfo
+
+    return _tzinfo(time_zone)
+
+
+def _parse_created_at(text: Any) -> datetime | None:
+    """把库里的 ``YYYY-MM-DDTHH:MM:SS.mmmZ``（naive UTC 文本）解析成带时区的时刻。"""
+    raw = str(text or "").strip()
+    if len(raw) < 19:
+        return None
+    try:
+        return datetime.strptime(raw[:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=UTC)
+    except ValueError:
+        return None
+
+
+def _floor_local(moment: datetime, granularity: str) -> datetime:
+    """按**家庭时区墙上时钟**取整到小时 / 天的起点。"""
+    if granularity == "hour":
+        return moment.replace(minute=0, second=0, microsecond=0)
+    return moment.replace(hour=0, minute=0, second=0, microsecond=0)
+
+
+def build_notification_time_series_in_zone(
+    timestamps: list[Any],
+    window_hours: int,
+    time_zone: str | None,
+    now_ms: int | None = None,
+) -> list[dict[str, Any]]:
+    """按家庭时区构建完整时间序列（补齐空桶）。
+
+    ## 为什么不能在 SQL 里 ``substr(createdAt, 1, 13)``
+
+    ``created_at`` 落库是 **UTC** 文本，按它的前 13 位分桶等于把横轴画成 UTC：
+    东八区家庭 23:30 的通知会被放进 15:00 的桶里，日边界也落在本地 16:00，
+    与界面上所有其它时间（家庭时区）互相矛盾。``substr`` 也拿不到 DST / 半小时时区。
+
+    这里改为逐条取 ``created_at``、按家庭时区取整后聚合：窗口最大 720 小时、
+    通知表上限 1 万条，代价可接受（统计端点本身有 ``sharedFetch`` 去抖）。
+    """
+    granularity = resolve_notification_time_granularity(window_hours)
+    tz = _resolve_timezone(time_zone)
+    reference = datetime.fromtimestamp((now_ms if now_ms is not None else _now_ms()) / 1000, tz=UTC)
+    local_now = reference.astimezone(tz) if tz is not None else reference.astimezone()
+    anchor = _floor_local(local_now, granularity)
+    step = timedelta(hours=1) if granularity == "hour" else timedelta(days=1)
+    span = window_hours if granularity == "hour" else max(1, window_hours // 24)
+
+    buckets: dict[int, int] = {}
+    for offset in range(span, -1, -1):
+        bucket_start = anchor - offset * step
+        buckets[int(bucket_start.timestamp() * 1000)] = 0
+
+    # 没有家庭时区时用本机时区：``local_now`` 已按同一规则换算，分桶键必须一致。
+    for raw in timestamps:
+        parsed = _parse_created_at(raw)
+        if parsed is None:
+            continue
+        local = parsed.astimezone(tz) if tz is not None else parsed.astimezone()
+        key = int(_floor_local(local, granularity).timestamp() * 1000)
+        if key not in buckets:
+            # 窗口边界外的桶不补：SQL 已按 ``created_at >= since`` 过滤，这里多出来的
+            # 只会是取整溢出的那半个桶，补进去会让 X 轴出现窗口外的刻度。
+            continue
+        buckets[key] += 1
+
+    return [
+        {"ts": ts, "count": count, "label": _format_local_label(ts, granularity, tz)}
+        for ts, count in sorted(buckets.items())
+    ]
+
+
+def _format_local_label(timestamp: int, granularity: str, tz) -> str:
+    moment = datetime.fromtimestamp(timestamp / 1000, tz=UTC)
+    local = moment.astimezone(tz) if tz is not None else moment.astimezone()
+    if granularity == "hour":
+        return f"{local.hour:02d}:00"
+    return f"{local.month}/{local.day}"
+
+
+def _now_ms() -> int:
+    return int(datetime.now(UTC).timestamp() * 1000)
+
+
 def build_notification_time_series(
     rows: list[tuple[Any, int]],
     window_hours: int,
@@ -173,9 +259,15 @@ def build_notification_stats(
     window_hours: int,
     source_rows: list[tuple[str, int]],
     level_rows: list[tuple[str, int]],
-    time_rows: list[tuple[Any, int]],
+    time_rows: list[tuple[Any, int]] | None = None,
+    time_timestamps: list[Any] | None = None,
+    time_zone: str | None = None,
 ) -> dict[str, Any]:
-    """构建完整的通知统计结果（对齐 ``buildNotificationStats``）。"""
+    """构建完整的通知统计结果（对齐 ``buildNotificationStats``）。
+
+    ``time_timestamps`` 优先：按家庭时区分桶（正确处理时差 / 跨午夜 / DST）。
+    ``time_rows`` 是旧的「SQL 已按 UTC 分桶」入参，仅在调用方没给逐条时间时使用。
+    """
     by_source: dict[str, int] = {}
     for source, count in source_rows:
         key = normalize_notification_source(source)
@@ -191,6 +283,10 @@ def build_notification_stats(
     ]
 
     read = max(0, total - unread)
+    if time_timestamps is not None:
+        by_time = build_notification_time_series_in_zone(time_timestamps, window_hours, time_zone)
+    else:
+        by_time = build_notification_time_series(time_rows or [], window_hours)
     return {
         "total": total,
         "unread": unread,
@@ -199,7 +295,7 @@ def build_notification_stats(
         "windowHours": window_hours,
         "bySource": by_source,
         "byLevel": by_level,
-        "byTime": build_notification_time_series(time_rows, window_hours),
+        "byTime": by_time,
         "topSources": top_sources,
         "deliveryRate": _round_half_up(delivered / total * 100, 2) if total else 0,
         "readRate": _round_half_up(read / total * 100, 2) if total else 0,
@@ -211,6 +307,7 @@ __all__ = [
     "build_notification_source_conditions",
     "build_notification_stats",
     "build_notification_time_series",
+    "build_notification_time_series_in_zone",
     "clamp_notification_stats_hours",
     "combine_conditions",
     "iso_or_none",
