@@ -7,9 +7,15 @@ import type { DeviceFilterState } from '@/kernel/device'
 const PAGE_SIZE = 200
 const SEARCH_DEBOUNCE_MS = 250
 
-/** 把前端排序枚举映射为后端 sort 参数（last-changed -> last_changed） */
+/**
+ * 把前端排序枚举映射为后端 sort 参数。
+ *
+ * `name-asc` 是默认值，**不上送**：后端的房间自定义顺序只在没有显式排序时生效，
+ * 每页都带 `sort=name_asc` 会让设置页里保存的房间内顺序形同虚设（见后端
+ * `api/entities.py#entity_order_override_applies`）。
+ */
 function mapSortToApi(sort: DeviceFilterState['sort']): string {
-  if (sort === 'name-asc') return 'name_asc'
+  if (sort === 'name-asc') return ''
   if (sort === 'name-desc') return 'name_desc'
   if (sort === 'last-changed') return 'last_changed'
   return sort

@@ -1,8 +1,10 @@
 /* ── 原 useSecurityOverview.ts 的实现 ── */
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
+import { getApiErrorMessage } from '@/kernel/core/error-message'
 import { useLayoutStore } from '@/domain/layout/store/layout.store'
 import { useSecurityPanelStatus } from '@/features/security/security'
+import { executeSecurityPanelArm } from '@/features/security/panel-arm'
 import { useReduceSecuritySensitivity } from '@/features/security/use-reduce-security-sensitivity'
 import { useSecuritySensors } from '@/features/security/security'
 import { useSecurityAuditEvents } from '@/features/security/security'
@@ -39,6 +41,8 @@ export function useSecurityOverview() {
     patchModeFromSocket,
     error: secPanelError,
     ready: secPanelReady,
+    entryPending,
+    entryRemainingSeconds,
   } = useSecurityPanelStatus()
   const { reducing: reducingSensitivity, reduceSensitivity } = useReduceSecuritySensitivity()
   const { allSensors, alertCount, activeAlertChips, statCards, sensorFilters, acknowledgeAllAlerts } =
@@ -56,6 +60,24 @@ export function useSecurityOverview() {
   } = useSecurityAuditEvents(zones)
 
   const hazard = createSecurityOverviewHazard({ layoutStore, chrome })
+
+  /**
+   * 进入延时窗口内的「立即撤防」：刻意不做二次确认 —— 窗口只有几十秒，
+   * 再弹确认框等于把用户的撤防机会一起吃掉。
+   */
+  const entryDisarming = ref(false)
+  async function disarmEntryNow() {
+    if (entryDisarming.value) return
+    entryDisarming.value = true
+    try {
+      const data = await executeSecurityPanelArm('disarmed', [], zones.value, patchModeFromSocket)
+      if (data?.success === false) chrome.notify('撤防未完成，请重试', 'warning')
+    } catch (error) {
+      chrome.notify(getApiErrorMessage(error, '撤防失败，请重试'), 'error')
+    } finally {
+      entryDisarming.value = false
+    }
+  }
   const sensors = createSecurityOverviewSensorView({
     securityModes,
     secCurrentMode,
@@ -107,6 +129,10 @@ export function useSecurityOverview() {
     secPanelLoading,
     secPanelReady,
     refreshSecPanel,
+    entryPending,
+    entryRemainingSeconds,
+    entryDisarming,
+    disarmEntryNow,
     presenceSummary: actions.presenceSummary,
     hazardConfigured: hazard.hazardConfigured,
     hazardBarTitle: hazard.hazardBarTitle,

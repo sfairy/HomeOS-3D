@@ -10,6 +10,30 @@
     </div>
 
     <div
+      v-if="entryPending"
+      class="sec-dash-entry"
+      role="alert"
+      aria-live="assertive"
+    >
+      <div class="sec-dash-entry__body">
+        <p class="sec-dash-entry__title">
+          {{ `安防进入延时：${entryPending.zoneNames.join('、') || '安防区域'} 已触发` }}
+        </p>
+        <p class="sec-dash-entry__hint">
+          {{ `${entryRemainingSeconds} 秒内撤防可取消告警` }}
+        </p>
+      </div>
+      <button
+        type="button"
+        class="sec-dash-btn sec-dash-btn--danger"
+        :disabled="entryDisarming"
+        @click="disarmEntryNow"
+      >
+        {{ entryDisarming ? '撤防中…' : '立即撤防' }}
+      </button>
+    </div>
+
+    <div
       v-if="hazardConfigured"
       class="sec-dash-hazard glass-shine"
       role="region"
@@ -154,6 +178,10 @@ const {
   secPanelLoading,
   secPanelReady,
   refreshSecPanel,
+  entryPending,
+  entryRemainingSeconds,
+  entryDisarming,
+  disarmEntryNow,
   presenceSummary,
   hazardConfigured,
   hazardBarTitle,

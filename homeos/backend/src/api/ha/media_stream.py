@@ -50,8 +50,12 @@ CAMERA_STREAM_IDLE_SECONDS = 30
 _camera_license_cache: dict[int, tuple[float, bool]] = {}
 
 
-async def _camera_license_allows(request: Request) -> bool:
-    """带 TTL 的摄像头授权判定，合并同进程内并发流的复检。"""
+async def _camera_license_allows(request: Request | Any) -> bool:
+    """带 TTL 的摄像头授权判定，合并同进程内并发流的复检。
+
+    参数只用到 ``.app.state``：HTTP 请求与 WebSocket 握手都满足（``/ha/webrtc-ws``
+    也走同一条授权判定，摄像头属于安防增量，不能只在 HTTP 侧设门禁）。
+    """
     service = getattr(request.app.state, "license_service", None)
     if service is None:
         # 无许可服务时 fail-closed：摄像头属于安防增量，不能默开放行。

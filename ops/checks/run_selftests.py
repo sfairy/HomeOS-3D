@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""业务规则自检的批量入口：一个解释器跑完 ``ops/checks/*_selftest.py``。
+"""业务规则自检的批量入口：一个解释器跑完 ``ops/checks/business/*_selftest.py``。
 
 ## 为什么合并
 
-此前 22 条业务自检在门禁里是 22 个独立步骤，每条都走一次
+此前每条业务自检在门禁里都是一个独立步骤（当前为 24 条，清单见 ``MODULES``），每条都走一次
 ``node ops/lib/py.mjs <script>`` —— 也就是重新启动一个 Python、重新导入一遍
 ``homeos.backend``。这些自检共用同一套 ``_selftest_support`` 骨架、彼此不依赖运行时
 状态，为每条断言付一次解释器启动成本没有任何收益，只让门禁清单变长、日志变吵。
@@ -52,6 +52,7 @@ ensure_repo_on_path()
 MODULES: tuple[str, ...] = (
     "device_profile_selftest",
     "device_health_selftest",
+    "ha_live_merge_selftest",
     "backup_selftest",
     "event_log_selftest",
     "log_database_selftest",
@@ -60,18 +61,23 @@ MODULES: tuple[str, ...] = (
     "iaq_monitor_selftest",
     "energy_cost_selftest",
     "energy_hourly_selftest",
+    "energy_reading_selftest",
     "circadian_selftest",
     "sun_trigger_selftest",
     "home_mode_restore_selftest",
     "security_entry_delay_selftest",
     "device_timer_selftest",
     "notification_mute_selftest",
+    "alert_rule_timing_selftest",
     "public_config_selftest",
+    "config_env_selftest",
     "http_validation_selftest",
     "store_links_selftest",
     "ui_assets_selftest",
+    "entity_room_order_selftest",
     "timeline_selftest",
     "security_selftest",
+    "media_ticket_selftest",
     "command_proxy_selftest",
     "voice_device_selftest",
 )
@@ -122,6 +128,17 @@ def main() -> int:
     unknown = sorted(set(modules) - set(MODULES))
     if unknown:
         print(f"未知自检模块：{'、'.join(unknown)}", file=sys.stderr)
+        return 2
+
+    # 注册一致性：新写的 `*_selftest.py` 漏登记 MODULES 就等于「写了但门禁不跑」。
+    # 这正是「新增自检没生效」的静默缺口，必须在跑之前挡住（--module 单跑时也提示）。
+    on_disk = {path.stem for path in BUSINESS_DIR.glob("*_selftest.py")}
+    unregistered = sorted(on_disk - set(MODULES))
+    if unregistered:
+        print(
+            f"有 {len(unregistered)} 个自检文件未登记到 MODULES：{'、'.join(unregistered)}",
+            file=sys.stderr,
+        )
         return 2
 
     if args.list:

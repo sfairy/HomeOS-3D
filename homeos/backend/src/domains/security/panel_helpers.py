@@ -763,6 +763,10 @@ class SecurityAlarmHelper:
         # 进入延时（门/窗/锁生效，人体传感器不延迟）：见 security/entry_delay.py。
         # **冷却必须等真正告警时再写**：撤防会取消 pending，而旧顺序在 pending 之前就把
         # 区域冷却消耗掉了 —— 用户正常回家并撤防后，冷却窗口内的一次真实入侵会被静默吞掉。
+        # 窗口内任何其它已布防触发都并入同一 pending：否则「开门 + 走廊人体」会立刻拉响
+        # 警笛，撤防窗口等于不存在，到点还会再响一次。
+        if self.entry_delay.absorb(entity_id, new_state_obj, zones_to_alert, cooldown_sec):
+            return
         if self.entry_delay.begin(entity_id, new_state_obj, new_state, zones_to_alert, cooldown_sec):
             return
         await self._dispatch_alarm(entity_id, new_state_obj, zones_to_alert, cooldown_sec)

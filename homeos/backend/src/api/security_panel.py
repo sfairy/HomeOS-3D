@@ -83,7 +83,8 @@ async def get_status(
     request: Request, user: dict[str, Any] = Depends(require_user)
 ):
     panel = _panel(request)
-    return {"mode": panel.get_mode(), "zones": panel.get_zones()}
+    # entryPending 是纯增量字段：老前端忽略它，新前端据此显示进入延时倒计时。
+    return {"mode": panel.get_mode(), "zones": panel.get_zones(), "entryPending": panel.get_entry_pending()}
 
 @router.post("/arm")
 async def arm(

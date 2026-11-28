@@ -69,6 +69,11 @@ class WebRtcSession:
 _sessions: dict[str, WebRtcSession] = {}
 _sessions_lock = asyncio.Lock()
 
+#: 同时在册的协商会话上限。每条会话持有一条上游 HA WebSocket；循环 ``negotiate``
+#: 而不 ``close`` 会让会话表随到达速率线性增长，最终把 HA 连接表 / 本进程 fd 吃空。
+#: 正常观看同一时间只有几条，32 已远超真实用量。
+MAX_SESSIONS = 32
+
 
 async def _require_camera_license(request: Request) -> None:
     if not await _camera_license_allows(request):
@@ -150,17 +155,16 @@ async def _ha_client(request: Request):
 
 async def _purge_expired_sessions() -> None:
     now = time.monotonic()
+    expired: list[WebRtcSession] = []
     async with _sessions_lock:
-        expired = [
-            sid
-            for sid, session in _sessions.items()
-            if now - session.created_at > SESSION_TTL_SECONDS
-        ]
-        for sid in expired:
-            session = _sessions.pop(sid, None)
-            if session is None:
-                continue
-            await _close_session_ws(session)
+        for sid, session in list(_sessions.items()):
+            if now - session.created_at > SESSION_TTL_SECONDS:
+                _sessions.pop(sid, None)
+                expired.append(session)
+    # 关闭动作放到锁外：关闭是一条 await（要发 unsubscribe 并关 WS），
+    # 持锁 await 会让所有并发 negotiate / close 排在它后面。
+    for session in expired:
+        await _close_session_ws(session)
 
 
 async def _close_session_ws(session: WebRtcSession) -> None:
@@ -350,6 +354,19 @@ async def webrtc_negotiate(
         )
         async with _sessions_lock:
             _sessions[session_id] = session
+            overflow = len(_sessions) - MAX_SESSIONS
+            evicted: list[WebRtcSession] = []
+            if overflow > 0:
+                # 按创建时间淘汰最旧（本次刚加入的永不淘汰）。
+                oldest = sorted(_sessions, key=lambda sid: _sessions[sid].created_at)[:overflow]
+                for sid in oldest:
+                    if sid == session_id:
+                        continue
+                    stale = _sessions.pop(sid, None)
+                    if stale is not None:
+                        evicted.append(stale)
+        for stale in evicted:
+            await _close_session_ws(stale)
         # 所有权已交给会话表，勿在 finally 里关掉。
         websocket = None
         return {

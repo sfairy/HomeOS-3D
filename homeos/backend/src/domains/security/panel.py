@@ -193,6 +193,10 @@ class SecurityPanelService:
     def get_zones(self) -> list[dict[str, Any]]:
         return self._zones
 
+    def get_entry_pending(self) -> dict[str, Any]:
+        """进入延时的待触发状态（``/security/status`` 与前端倒计时共用同一份）。"""
+        return self.alarm_helper.entry_delay.status()
+
     def get_armed_at(self) -> int | None:
         return self._armed_at
 
@@ -480,6 +484,9 @@ class SecurityPanelService:
 
         self._mode = mode
         self._armed_at = int(time.time() * 1000)
+        # 布防模式变更即作废窗口内的待触发告警：区域集合变了（例如 armed_away → armed_home
+        # 后内区不再布防），继续按旧防区/旧冷却在 30 秒后拉响就是误报。
+        self.alarm_helper.entry_delay.cancel(f"布防模式变更:{mode}")
         self._apply_manual_lock(opts)
         armed_zone_ids = [str(z.get("id")) for z in self._zones if z.get("armed")]
 
@@ -614,7 +621,9 @@ class SecurityPanelService:
                 "queued": False,
                 "reason": "in_progress" if self._emergency_running else "cooldown",
             }
-        self._last_emergency_at = now
+        #: 冷却时间戳**成功后才写**：呼叫失败（HA 断连 / 超时 / 声光设备离线）不应该
+        #: 消耗掉用户的重试窗口 —— 恐慌按钮按下去没响，60 秒内再按却被拒绝是最坏的体验。
+        #: 重入由上面的 ``_emergency_running`` 同步挡住。
 
         await self._bus.emit("security.emergency", {"action": action, "timestamp": _iso_now()})
         self.state_helper.schedule_security_event("emergency", f"紧急求助: {action}", source=source, actor=actor)
@@ -639,6 +648,9 @@ class SecurityPanelService:
             }
         failed = int((result or {}).get("failed") or 0)
         ok = failed == 0
+        if ok:
+            # 成功才消费冷却窗口（失败必须允许立刻重试）。
+            self._last_emergency_at = now
         if not ok:
             await self._bus.emit(
                 "security.emergencyFailed",

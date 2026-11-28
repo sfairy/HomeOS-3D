@@ -52,7 +52,9 @@ import { useAuthStore } from '@/domain/auth/auth.store'
 import {
   registerSecurityPanelRefreshHandler,
   registerSecurityPanelModeHandler,
+  registerSecurityEntryHandlers,
   type SecurityModeSocketPayload,
+  type SecurityEntrySocketPayload,
 } from '@/kernel/bridge/store-bridge'
 import { sharedFetch, schedulePoll, invalidateSharedFetch } from '@/kernel/core/poll-scheduler'
 import { getEntityDomain, buildHazardBindingMap, type HazardSensorKind, getEntityLeaf } from '@homeos/shared'
@@ -369,6 +371,107 @@ type SecurityPanelZone = {
 const currentMode = ref('disarmed')
 // 使用 shallowRef 避免 zones 数组深层响应式带来的性能开销
 const zones = shallowRef<SecurityPanelZone[]>([])
+/**
+ * 进入延时待触发状态（后端 `security.entryPending` / `/security-panel/status`）。
+ *
+ * 布防后开门进屋，用户只有 N 秒撤防窗口；没有这份状态时界面什么都不显示，
+ * 用户只会听到告警突然响起。`null` 表示当前没有待触发的进门事件。
+ */
+const entryPending = ref<EntryPendingState | null>(null)
+/** 倒计时刷新节拍：每 500ms 重算一次剩余秒数（只在本模块有 pending 时启用） */
+const entryTickAt = ref(0)
+let entryTickTimer: ReturnType<typeof setInterval> | null = null
+
+/** 进入延时视图模型（字段与后端 `EntryDelayController.status()` 对齐） */
+export interface EntryPendingState {
+  /** 触发进门的实体 ID（窗口内合并后可能多个） */
+  entityIds: string[]
+  /** 实体展示名，与 entityIds 一一对应 */
+  friendlyNames: string[]
+  /** 命中并待告警的防区 ID */
+  zoneIds: string[]
+  /** 防区展示名，与 zoneIds 一一对应 */
+  zoneNames: string[]
+  /** 窗口开始时刻（毫秒） */
+  startedAt: number
+  /** 撤防截止时刻（毫秒）；到 0 即失去撤防窗口 */
+  deadlineAt: number
+}
+
+/** 把后端 / Socket 负载归一成视图模型；缺截止时刻或已结束返回 null。 */
+function normalizeEntryPending(raw: unknown): EntryPendingState | null {
+  if (!raw || typeof raw !== 'object') return null
+  const data = raw as SecurityEntrySocketPayload
+  if (data.pending === false) return null
+  const deadlineAt = Number(data.deadlineAt ?? 0)
+  if (!deadlineAt || !Number.isFinite(deadlineAt)) return null
+  const entityIds = Array.isArray(data.entityIds)
+    ? data.entityIds.map((id) => String(id))
+    : data.entityId
+      ? [String(data.entityId)]
+      : []
+  const friendlyNames = Array.isArray(data.friendlyNames)
+    ? data.friendlyNames.map((name) => String(name))
+    : data.friendlyName
+      ? [String(data.friendlyName)]
+      : []
+  const zoneIds = Array.isArray(data.zoneIds) ? data.zoneIds.map((id) => String(id)) : []
+  const zoneNames = Array.isArray(data.zoneNames) ? data.zoneNames.map((name) => String(name)) : []
+  return {
+    entityIds,
+    friendlyNames,
+    zoneIds,
+    zoneNames,
+    startedAt: Number(data.startedAt ?? 0),
+    deadlineAt,
+  }
+}
+
+/** 停掉倒计时节拍（没有 pending 时不留常驻定时器）。 */
+function stopEntryTicker() {
+  if (entryTickTimer === null) return
+  clearInterval(entryTickTimer)
+  entryTickTimer = null
+}
+
+/** 启动倒计时节拍；到点兜底清态，避免 resolved 丢包后倒计时永久停留。 */
+function ensureEntryTicker() {
+  if (entryTickTimer !== null) return
+  entryTickTimer = setInterval(() => {
+    entryTickAt.value = Date.now()
+    const pending = entryPending.value
+    if (pending && Date.now() >= pending.deadlineAt) {
+      // 正常路径后端会补一条 resolved；这里只是客户端兜底（网络抖动 / 页面休眠）。
+      clearEntryPending()
+    }
+  }, 500)
+}
+
+/** 清空进入延时状态并停止节拍。 */
+function clearEntryPending() {
+  entryPending.value = null
+  stopEntryTicker()
+}
+
+/** 写入进入延时状态（开始或窗口内合并）。 */
+function writeEntryPending(raw: unknown) {
+  const next = normalizeEntryPending(raw)
+  if (!next) {
+    clearEntryPending()
+    return
+  }
+  entryPending.value = next
+  entryTickAt.value = Date.now()
+  ensureEntryTicker()
+}
+
+/** 剩余撤防秒数（节拍驱动，页面内实时递减）。 */
+const entryRemainingSeconds = computed(() => {
+  entryTickAt.value // 依赖节拍：500ms 重算一次
+  const pending = entryPending.value
+  if (!pending) return 0
+  return Math.max(0, Math.ceil((pending.deadlineAt - Date.now()) / 1000))
+})
 const loading = ref(true)
 const ready = ref(false)
 const error = ref<string>('')
@@ -414,6 +517,8 @@ async function refresh(force = false) {
         if (generation !== statusGeneration) return data
         currentMode.value = data.mode || 'disarmed'
         zones.value = data.zones || []
+        // 页面刷新 / 重进时从这里恢复倒计时（WS 只保证在线期间的状态）。
+        writeEntryPending(data.entryPending)
         ready.value = true
         error.value = ''
         return data
@@ -464,11 +569,33 @@ function applyModeFromSocket(data: SecurityModeSocketPayload) {
   void refresh(true)
 }
 
+/**
+ * 应用 WebSocket 推送的进入延时开始 / 窗口内合并。
+ * @param data 进入延时负载（含截止时刻与合并后的实体 / 防区）
+ */
+function applyEntryPendingFromSocket(data: SecurityEntrySocketPayload) {
+  // 与模式变更共用代际：在途 poll 不得用旧快照把刚收到的 pending 清掉。
+  statusGeneration++
+  invalidateSharedFetch('security:panel-status')
+  writeEntryPending(data)
+}
+
+/**
+ * 应用 WebSocket 推送的进入延时结束（撤防取消 / 到点派发）。
+ * 必须无条件清态：漏这一条会让倒计时永久停在界面上。
+ */
+function applyEntryResolvedFromSocket(_data: SecurityEntrySocketPayload) {
+  statusGeneration++
+  invalidateSharedFetch('security:panel-status')
+  clearEntryPending()
+}
+
 // 注册刷新与模式变更处理器（模块级一次性注册）
 registerSecurityPanelRefreshHandler(() => {
   void refresh()
 })
 registerSecurityPanelModeHandler(applyModeFromSocket)
+registerSecurityEntryHandlers(applyEntryPendingFromSocket, applyEntryResolvedFromSocket)
 
 /** 启动轮询：已注册时跳过 */
 function startPolling() {
@@ -548,6 +675,8 @@ export function useSecurityPanelStatus() {
     loading,
     ready,
     error,
+    entryPending,
+    entryRemainingSeconds,
     refresh,
     patchModeFromSocket: applyModeFromSocket,
   }

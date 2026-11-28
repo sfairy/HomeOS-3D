@@ -157,6 +157,19 @@ def latest_reading_kwh(state: Any) -> float:
     return max(values[1], 0.0) if values is not None else 0.0
 
 
+def reading_kwh_or_none(state: Any) -> float | None:
+    """单条状态的表底读数；不可解析 / 非累计电量返回 ``None``。
+
+    与 :func:`latest_reading_kwh` 的区别是**不把「读不到」伪装成 0**：``unavailable``
+    在聚合里被当成 0 会成为「本周期读数为零」，覆盖掉当天真实用电量（一天的表计数据
+    被一次连接抖动抹掉）。聚合侧只应更新「真的读到了」的周期。
+    """
+    values = _meter_values(state, state)
+    if values is None:
+        return None
+    return max(values[1], 0.0)
+
+
 def is_meter_reset(old_state: Any, new_state: Any) -> bool:
     """是否发生表底重置/换表（新读数小于旧读数）。"""
     values = _meter_values(old_state, new_state)

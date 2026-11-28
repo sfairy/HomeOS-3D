@@ -24,7 +24,7 @@ import time
 from datetime import timedelta
 from typing import Any
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 
 from .findings import read_ha_automations, read_policy_rules, read_scheduled_rules, scan_conflicts
 from .landing import build_ha_automation_payload, build_task_payload, describe_landing
@@ -64,6 +64,9 @@ STATUS_SUPERSEDED = "SUPERSEDED"
 STATUS_DISCARDED = "DISCARDED"
 #: 已由用户确认落成计划任务（不再出现在待确认列表）
 STATUS_APPLIED = "APPLIED"
+#: 落地中：抢到「落地权」的中间态。先读校验、再建计划任务、最后标 APPLIED 的三步
+#: 在并发 / 重放下会建出两条任务（同一设备被切两次），所以落库前先原子抢占。
+STATUS_APPLYING = "APPLYING"
 #: 在册（会出现在设置页）的状态：拦截的高危草案也要能看到原因，不能静默消失
 ACTIVE_STATUSES = (STATUS_READY, STATUS_CLARIFYING, STATUS_BLOCKED)
 #: 列表刷新时的过期清理节流：20 秒轮询不必每次都写一遍状态
@@ -393,6 +396,35 @@ class AutomationDraftService:
             session.commit()
             return True
 
+    def claim_for_apply(self, draft_id: str) -> dict[str, Any]:
+        """原子领取一份草案（``READY → APPLYING``）。
+
+        「校验 → 建计划任务 → 标已应用」是 check-then-act：两次点击 / 客户端重试
+        都会通过校验，各建一条周期任务，同一个设备于是被切两次。这里用条件 UPDATE
+        做真正的抢占，只有 rowcount == 1 的调用方可以继续创建任务。
+        """
+        with self._session_factory() as session:
+            result = session.execute(
+                update(AutomationDraft)
+                .where(AutomationDraft.id == draft_id, AutomationDraft.status == STATUS_READY)
+                .values(status=STATUS_APPLYING)
+            )
+            session.commit()
+            claimed = int(result.rowcount or 0) == 1
+        if not claimed:
+            return {"ok": False, "reason": "claimed", "message": "草案正在落地或已落地，请刷新后再试。"}
+        return {"ok": True}
+
+    def release_claim(self, draft_id: str) -> None:
+        """落地失败时把 ``APPLYING`` 退回 ``READY``（否则草案永久卡死）。"""
+        with self._session_factory() as session:
+            session.execute(
+                update(AutomationDraft)
+                .where(AutomationDraft.id == draft_id, AutomationDraft.status == STATUS_APPLYING)
+                .values(status=STATUS_READY)
+            )
+            session.commit()
+
     def mark_applied(self, draft_id: str, task_id: str) -> bool:
         """把草案标记为 APPLIED 并记下计划任务 ID；重复调用是幂等的。"""
         with self._session_factory() as session:
@@ -401,7 +433,7 @@ class AutomationDraftService:
                 return False
             if draft.status == STATUS_APPLIED:
                 return True
-            if draft.status not in ACTIVE_STATUSES:
+            if draft.status not in (*ACTIVE_STATUSES, STATUS_APPLYING):
                 return False
             draft.status = STATUS_APPLIED
             draft.execution_id = text(task_id)[:64] or None

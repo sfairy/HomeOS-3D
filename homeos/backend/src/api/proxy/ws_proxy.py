@@ -15,6 +15,7 @@ from typing import Any
 
 from fastapi import WebSocket, WebSocketDisconnect
 
+from ..ha.media_stream import _camera_license_allows
 from ..router import NestRouter
 from ...domains.proxy.ws_proxy import (
     EMBED_WS_HEARTBEAT_MS,
@@ -72,6 +73,13 @@ async def ha_webrtc_ws(websocket: WebSocket) -> None:
     user = await asyncio.to_thread(resolve_go2rtc_ws_user, app, websocket.headers.get("cookie"), entity_id)
     if user is None:
         await _reject(websocket, CLOSE_UNAUTHORIZED)
+        return
+
+    # 摄像头信令同样是安防增量：只买基础 `api` 码的租约不能从这里拿到摄像头流。
+    # HTTP 媒体代理（`_guard_media_request`）与 `/go2rtc/ws` 都有这道判定，只有这条
+    # 原生 WS 通道曾经漏掉 —— 同一条边界不能因为通道不同而不同。
+    if not await _camera_license_allows(websocket):
+        await _reject(websocket, CLOSE_FORBIDDEN)
         return
 
     ha_url = await resolve_ha_base_url(app)

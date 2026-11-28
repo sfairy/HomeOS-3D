@@ -257,6 +257,14 @@ class BroadcastMixin:
         """安防告警：携带告警实体、区域、模式与动作失败列表。"""
         await self._emit_domain("security_alarm", ws_event("security_alarm", event))
 
+    async def broadcast_security_entry_pending(self, event: DomainBroadcastEvent | dict[str, Any]) -> None:
+        """进入延时开始 / 窗口内合并：前端据此显示倒计时与「立即撤防」。"""
+        await self._emit_domain("security_entry_pending", ws_event("security_entry_pending", event))
+
+    async def broadcast_security_entry_resolved(self, event: DomainBroadcastEvent | dict[str, Any]) -> None:
+        """进入延时结束（撤防取消 / 到点派发）：没有它前端倒计时会永久停留。"""
+        await self._emit_domain("security_entry_resolved", ws_event("security_entry_resolved", event))
+
     async def broadcast_security_emergency(self, event: DomainBroadcastEvent | dict[str, Any]) -> None:
         """紧急事件（如 SOS）：默认 action 为 SOS。"""
         await self._emit_domain(

@@ -2,39 +2,18 @@
 /**
  * 门禁编排器：把「哪些检查算门禁、按什么顺序跑」收敛成一份可执行清单。
  *
- * 为什么需要它
- * ------------
- * 此前门禁有三份互相不知情的描述：
- *   1. `.github/workflows/checks.yml` 的 job 步骤（唯一真正阻断的地方）；
- *   2. `package.json` 里 30+ 个 `check:*` / `test:*`（大多从未被任何地方调用）；
- *   3. README 里的一张命令表（与上面两份都不同步）。
- * 结果是同一件事三种说法：CI 里跑的那条本地复现不了（解释器不同），本地能跑的那条 CI
- * 不跑（没人接线），README 写的那条可能指向已删除的文件。
+ * 2026-11-28 起做了一次大幅瘦身：删除了 `ops/checks` 下的全部工程门禁（前端分层 / CSS 布局 /
+ * 模型 GLB 审计 / 跨语言契约 / 依赖方向 / AST 守卫 / WS 鉴权 / 浏览器冒烟与 soak），
+ * 只保留**运行与构建必需**的检查、以及 `ops/checks/business` 下的业务规则自检。
  *
- * 现在：下面这份 GROUPS 是**唯一**清单，CI 的每个 job 对应一个组（`bun run gate:<组>`），
- * 本地跑 `bun run gate` 得到同一批检查、同一条命令、同一个顺序。
+ * 分组口径（`bun run gate:<组>` 与 CI job 一一对应）：
+ * - `static`：静态检查（类型、lint、静态产物一致性、镜像依赖锁、业务自检）；
+ * - `build`：需要前端产物的检查（构建 + 结构断言 + 静态产物处理）；
+ * - `infra`：shell / workflow / compose / Caddyfile / Cython 兼容性（部署相关）。
  *
- * 分组口径
- * --------
- * - `static`：不依赖构建产物的静态检查（类型、lint、ruff、结构规则、棘轮、依赖 DAG 与路由基线）；
- * - `model`：3D 模型库的只读审计（几何 / 槽位 / 材质 / 资产 / 目录与命名索引）；
- * - `build`：需要前端产物的检查（构建 + 结构断言 + chunk 初始化顺序 + 静态产物处理）；
- * - `infra`：shell / workflow / compose / Caddyfile / Cython 兼容性。
- *
- * 两层分类：**组**回答「在哪个 job 跑」，**标签**回答「这是什么检查」。
- * `TAG_GROUPS` 把 static 收成 types / lint / contract / ratchet / invariant / business 六类，
- * `--tag` 可整类跑，`--list` 也按类打印。新增 static 检查必须登记标签，否则启动即报错 ——
- * 分类过期比没有分类更糟。
- *
- * 批量入口与 `covers`
- * -------------------
- * 同一批文件被多条检查反复扫描时（前端 / 后端 / 路由各一批），门禁里只登记一个
- * 批量入口（`check:frontend` 等），各子检查的名字写进 `covers`：
- *
- * - `--step` 按子检查名子串命中（`--step offline` → `check:frontend`）；
- * - `--list --json` 输出 `covers`，供「合并前后覆盖对照」机器比对；
- * - 单项调试用批量入口自己的 `--module`（`bun run check:backend -- --module guards`），
- *   不再为每条子检查各留一个 `check:*` 别名 —— 别名只会让 package.json 长出第二份清单。
+ * 两层分类：**组**回答「在哪个 job 跑」，**标签**回答「这是什么检查」。`TAG_GROUPS` 把
+ * static 收成 types / lint / contract / business 四类，`--tag` 可整类跑，`--list` 也按类打印。
+ * 新增 static 检查必须登记标签，否则启动即报错 —— 分类过期比没有分类更糟。
  *
  * 三类跳过都必须**显式打印**，不允许静默成功：
  * - 缺工具（shellcheck / actionlint / docker）：本机给安装提示并 SKIP，CI 里直接 FAIL；
@@ -44,15 +23,15 @@
  * 用法
  * ----
  * ```bash
- * bun run gate                    # static + model（默认）
- * bun run gate:model              # 只跑一组
+ * bun run gate                    # static（默认）
+ * bun run gate:build              # 只跑一组
  * node ops/gates.mjs --all        # 含 build + infra
- * node ops/gates.mjs --group static,model
+ * node ops/gates.mjs --group static,build
  * node ops/gates.mjs --list       # 打印清单，不执行
- * node ops/gates.mjs --list --json # 机器可读（含 covers，用于覆盖对照）
- * node ops/gates.mjs --tag ratchet          # 只跑某一类检查
- * node ops/gates.mjs --step parity          # 只跑名字匹配的步骤（含批量入口的 covers）
- * node ops/gates.mjs --jobs 8               # 并行度（默认 4；build/infra 恒为串行）
+ * node ops/gates.mjs --list --json
+ * node ops/gates.mjs --tag business
+ * node ops/gates.mjs --step selftests
+ * node ops/gates.mjs --jobs 8
  * node ops/gates.mjs --fail-fast
  * HOMEOS_GATE_CONTEXT=ci bun run gate:infra   # CI 上下文：ciOnly 步骤参与、缺工具即失败
  * ```
@@ -68,7 +47,7 @@ const CONTEXT = process.env.HOMEOS_GATE_CONTEXT === 'ci' ? 'ci' : 'local'
 const IS_CI = CONTEXT === 'ci'
 
 /**
- * 「可选：内置 Caddy 入口」段的临时产物。路径显式传给 op/ci/compose_public.py 的 --out，
+ * 「可选：内置 Caddy 入口」段的临时产物。路径显式传给 ops/ci/compose_public.py 的 --out，
  * 后面两个 docker 步骤读同一个文件 —— 三处各写一个字面量就会有一处漂移（Windows 上还没有
  * /tmp）。用 os.tmpdir() 与 Python 侧 tempfile.gettempdir() 同源。
  */
@@ -80,10 +59,9 @@ const bun = (...args) => ({ cmd: 'bun', args })
 /**
  * 门禁清单。
  *
- * 顺序即执行顺序：快而确定的放在前面，几十秒能给出结论的先出结论，构建类最后。
+ * 顺序即执行顺序：快而确定的放在前面，构建类最后。
  * 每一项：
  *   name    展示名（与 package.json 脚本同名时直接写脚本名）
- *   ...     由 bun() / cmd / fn 构造的一条执行描述
  *   tools   需要的可执行文件；缺了按上下文 SKIP（local）或 FAIL（ci）
  *   hint    缺工具时打印的安装提示
  *   ciOnly  只在 CI 上下文执行（本机 SKIP 并说明）
@@ -94,107 +72,34 @@ const GATE_GROUPS = {
     { name: 'typecheck', ...bun('run', 'typecheck'), serial: true },
     { name: 'typecheck:node', ...bun('run', 'typecheck:node') },
     // ---- lint --------------------------------------------------------
-    // 单一 Biome 配置覆盖主应用 / 商店 / shared / ops。走 `biome ci` 而不是 `biome check`：
-    // CI 形态语义明确（只读、格式化差异即失败），避免有人顺手加 `--write` 把「检查」变「改代码」。
     { name: 'lint:biome', ...bun('run', 'format:check') },
     // CSS 语法仍走 esbuild（与构建同一引擎）：Biome 的 CSS 解析器不认识 Tailwind 的
     // `@import` / `@config` 顺序，也不认 Vue 的 `:deep()`，用它判定会与真实产物脱节。
     { name: 'check:css-syntax', ...bun('run', 'check:css-syntax') },
-    // CSS 路径真源一致性：spa_static 预载 / page-assets 挂载 / index.html / public-static.seed
-    // 四处人工同步、零校验，改一处漏一处只会表现为「首屏变慢」或「登录页丢样式」。
-    { name: 'check:css-manifests', ...bun('run', 'check:css-manifests') },
-    // ruff check + 新增 .py 的 ruff format 校验：同一个解释器、同一条规则来源，
-    // 拆成两步只会在失败时跑两遍解释器。
-    { name: 'lint:py', ...bun('run', 'lint:py'), covers: ['check:python-format'] },
+    // ruff check；格式检查已随 `ops/checks/python` 一并移除。
+    { name: 'lint:py', ...bun('run', 'lint:py') },
     // ---- contract ----------------------------------------------------
-    // 版本三条线（Bun / 基础镜像 / Python）各有两处以上副本，漂移不报错、只在换机或发版时暴露。
-    { name: 'check:toolchain', ...bun('run', 'check:toolchain') },
-    // 环境变量契约：模板里不许有没人读的键（inventory）。「`os.getenv` 只许出现在白名单
-    // 叶子」那条已删除：它是 66 条文件级计数的棘轮，基线只能靠重录维持。
-    { name: 'check:env', ...bun('run', 'check:env'), covers: ['check:env-inventory'] },
-    // 分层依赖方向：前端 `check_frontend_deps` + 后端 `check_backend_deps`，同一主题两端各一道。
-    { name: 'check:deps', ...bun('run', 'check:deps'), covers: ['check:frontend-deps', 'check:backend-deps'] },
-    // `studio/runtime/**` 同时被主 bundle 与逐文件产物消费；导出面一改，主 bundle 类型检查
-    // 照样通过，舞台只在运行时炸 —— 用契约快照拦住。
-    { name: 'check:runtime-contract', ...bun('run', 'check:runtime-contract') },
-    // ---- ratchet -----------------------------------------------------
-    // 前端三条守卫（离线计数口径 / 受限写法 / CSS 布局契约）。合并的意义是**共享一次遍历与一份 AST**。
-    // 计数类与外观类已全部删除：别名计数、性能反模式计数、命名形态、重复代码、覆盖率、
-    // 视觉 / a11y / Vitals 基线都把「代码长什么样」固化成了数字门槛，与「行数不作判据」同源。
-    {
-      name: 'check:frontend',
-      ...bun('run', 'check:frontend'),
-      covers: ['check:offline-counting', 'check:restricted-syntax', 'check:css-layout'],
-    },
-    // 后端静态检查（语义断言）。合并的意义是共享一份 `ast.parse` 缓存：此前每条都把 694 个
-    // `.py` 重新解析一遍（合计约 25s），现在一个解释器跑完约 4s。
-    {
-      name: 'check:backend',
-      ...bun('run', 'check:backend'),
-      covers: [
-        // guards = async 同步 DB / PEP 758 / 响应模型；ws-auth = 每条 WS 路由必须真的鉴权；
-        // parity = 设备 kind 两表 + 域控制类型表 + 迁移回归。原六条计数型棘轮已删除。
-        'check:guards',
-        'check:ws-auth',
-        'check:parity',
-      ],
-    },
-    // ---- invariant ---------------------------------------------------
-    // 3D / 画布八条纯逻辑断言（几何内核 / 放置吸附 / 视口手势 / 窗型撤销 / 场景归一化 /
-    // 状态游标 / 画布基准 / 分辨率审计）。
-    {
-      name: 'check:studio-invariants',
-      ...bun('run', 'check:studio-invariants'),
-      covers: [
-        'check:plan-geometry',
-        'check:studio-placement',
-        'check:studio-gesture',
-        'check:studio-window-undo',
-        'check:scene-payload',
-        'check:state-revision',
-        'check:canvas-layout',
-        'audit:scaling',
-      ],
-    },
     // 入户场景静态资源：真源在 packages/shared/scene/static，两个前端只是 `sync:scene` 的产物。
     { name: 'check:scene', ...bun('run', 'check:scene') },
     // 运行期 Python 依赖锁：与 requirements.txt 指纹漂移时，镜像里装的包与代码假设不一致。
     { name: 'check:python-lock', ...bun('run', 'check:python-lock') },
     // 镜像包的导入门禁：源码里的绝对 `src.` 导入在镜像里不存在。
     { name: 'check:image-imports', ...bun('run', 'check:image-imports') },
+    // 事件契约：后端 emit 的事件必须有订阅方（后端 `.on` / 领域桥接表 / 前端监听），
+    // 网关广播必须有前端监听。安防进入延时就是「事件发了、没人接」的实例：类型检查看不见。
+    { name: 'check:event-contract', ...bun('run', 'check:event-contract') },
     // ---- business ----------------------------------------------------
     // 业务规则自检：该告警的告警、该静默的静默（语义正确性，不依赖运行时）。
-    //
-    // 2026-11-27：原先这里跑 `check:tests`（bun 契约单测 + stdlib unittest + 自检三段），
-    // 单测目录 `ops/checks/unittests/` 已按发布要求移除，`run_tests.mjs` 随之删除。
-    // 现在直接跑自检那一段，避免留一个名字叫「tests」却只有自检的入口。
     { name: 'check:selftests', ...bun('run', 'check:selftests') },
-  ],
-  model: [
-    // 资产 / 几何 / 槽位 / 材质四条只读审计（各自产出报告，不写基线）。
-    {
-      name: 'check:model-assets',
-      ...bun('run', 'check:model-assets'),
-      covers: ['check:assets', 'check:geometry', 'check:slots', 'check:materials'],
-    },
-    // 目录分区与中文名索引：新增/移动模型后这两处必须同步。
-    {
-      name: 'check:model-index',
-      ...bun('run', 'check:model-index'),
-      covers: ['check:models-layout', 'check:model-names'],
-    },
   ],
   build: [
     {
       name: 'clean dist',
-      // 干净检出的状态必须能复现：本地残留的 dist/ 是「本地绿、CI 红」的经典来源
-      // （2026-10-10 的构建锁 ENOENT 就是被它兜住的）。
+      // 干净检出的状态必须能复现：本地残留的 dist/ 是「本地绿、CI 红」的经典来源。
       fn: () => {
         const dist = path.join(REPO_ROOT, 'dist')
         // 先确认没人在服务 dist：`bun run dev` 的后端直接把 dist 当静态根，
-        // 在它运行时清空 = 把线上正在用的产物删掉 20~32 秒（watch-build 重建期间）。
-        // 现象是浏览器里一堆 `Failed to load resource: 503`、`/stage.html` 回
-        // 「前端产物尚未就绪」，但后端本身是健康的 —— 排查方向会被带偏。
+        // 在它运行时清空 = 把正在用的产物删掉 20~32 秒（watch-build 重建期间）。
         const dev = devServerServing()
         if (dev.serving && process.env.HOMEOS_GATE_FORCE_CLEAN !== '1') {
           console.error(`  拒绝清空 dist/：${dev.reason}`)
@@ -213,19 +118,11 @@ const GATE_GROUPS = {
       cmd: 'bash',
       args: ['ops/ci/build_frontend_verify.sh'],
     },
-    { name: 'check:chunk-init', ...bun('run', 'check:chunk-init') },
     { name: 'check:font-subset', ...bun('run', 'check:font-subset') },
     // 内置字体（assets-default/fonts）：catalog 的 size/sha256 必须与实际文件一致。
-    // 换了文件名却忘了回写 catalog 会让浏览器按旧 `?v=` 一直拿旧缓存，症状是「字体没更新」。
     { name: 'check:default-fonts', ...bun('run', 'check:default-fonts') },
-    // `public/static` 的 CSS 靠 `minify-static-css` 压、`.br`/`.gz` 靠 `precompress-static` 生成
-    // （Vite 只压 `assets/` 下打包过的样式）。裸 `vite build` 会静默产出未压缩的 `studio.css`
-    // 且不生成 sidecar，页面照常工作、没有报错，只有这两条能把「产物没处理过」变成红灯。
-    {
-      name: 'check:dist-assets',
-      ...bun('run', 'check:dist-assets'),
-      covers: ['check:minified-css', 'check:precompress'],
-    },
+    // `public/static` 的 CSS 压缩与 `.br`/`.gz` sidecar 生成（Vite 只压 `assets/`）。
+    { name: 'check:dist-assets', ...bun('run', 'check:dist-assets') },
   ],
   infra: [
     {
@@ -269,8 +166,6 @@ const GATE_GROUPS = {
     },
     {
       // 注释态「可选：内置 Caddy 入口」段：只取消注释，正确性交给下一步的 compose 解析。
-      // 直接给解释器入口而不是 `bun run compose:public -- --out …`：少一层 `--` 透传，
-      // 参数怎么到达脚本一眼可见（对应的人类入口仍是 `bun run compose:public`）。
       name: 'compose public: uncomment',
       cmd: 'node',
       args: ['ops/lib/py.mjs', 'ops/ci/compose_public.py', '--out', COMPOSE_PUBLIC_PATH],
@@ -280,7 +175,7 @@ const GATE_GROUPS = {
       cmd: 'docker',
       args: ['compose', '-f', COMPOSE_PUBLIC_PATH, 'config', '-q'],
       // ACME_EMAIL 在该段里是 `${ACME_EMAIL:?…}` 必填占位符（邮箱不能给默认值）：
-      // 不注入的话 `compose config` 会在**插值阶段**先失败，掩盖掉真正要验的缩进问题。
+      // 不注入的话 `compose config` 会在插值阶段先失败，掩盖掉真正要验的缩进问题。
       env: { ACME_EMAIL: 'ops@example.com' },
       tools: ['docker'],
       hint: '装 Docker Desktop / colima；CI runner 自带',
@@ -298,7 +193,10 @@ const GATE_GROUPS = {
           console.error(result.stderr || 'docker compose config --services 失败')
           return result.status ?? 1
         }
-        const services = result.stdout.split('\n').map((line) => line.trim())
+        const services = result.stdout
+          .split('\n')
+          .map((line) => line.trim())
+          .filter(Boolean)
         if (!services.includes('caddy-public')) {
           console.error('caddy-public 不在 services 下 —— 取消注释时缩进掉了（被顶成顶层键）。')
           return 1
@@ -323,21 +221,9 @@ const GATE_GROUPS = {
       ciOnly: true,
     },
   ],
-  /**
-   * 浏览器级端到端冒烟（`check:e2e`）。
-   *
-   * 为什么不并进 static：它需要「本地 dev 服务器 + 一个开了调试端口的浏览器」，
-   * 在干净的 CI runner 上必然缺失。因此单独成组，**不进默认组**：
-   *   node ops/gates.mjs --group ux
-   * 缺环境时脚本以退出码 3 结束，这里按 SKIP 处理（不是通过，也不算失败）。
-   *
-   * 视觉回归 / 可访问性 / Web Vitals / HTTP 微基准已删除：它们是像素或数字基线，
-   * 每次界面调整都要重录，维护成本高于发现问题的价值，与「不设数字门槛」同一条原则。
-   */
-  ux: [{ name: 'check:e2e', ...bun('run', 'check:e2e'), skipExitCodes: [3] }],
 }
 
-const DEFAULT_GROUPS = ['static', 'model']
+const DEFAULT_GROUPS = ['static']
 
 /**
  * 「是否有人在服务 dist」的判定。
@@ -358,7 +244,7 @@ function devServerServing() {
   const marker = path.join(REPO_ROOT, '.dev-server.json')
   if (existsSync(marker)) {
     try {
-      const payload = JSON.parse(readFileSyncText(marker))
+      const payload = JSON.parse(readFileSync(marker, 'utf8'))
       const pid = Number(payload?.pid)
       if (Number.isInteger(pid) && pid > 0 && processAlive(pid)) {
         return {
@@ -381,11 +267,6 @@ function devServerServing() {
   return { serving: false, reason: '' }
 }
 
-/** 读文本（只在判定标记时用一次，不值得为它再加一个具名导入的别名）。 */
-function readFileSyncText(file) {
-  return readFileSync(file, 'utf8')
-}
-
 /** 进程是否还活着：`kill(pid, 0)` 只做存在性检查，不发信号。 */
 function processAlive(pid) {
   try {
@@ -396,7 +277,7 @@ function processAlive(pid) {
   }
 }
 
-/** 端口是否有 HTTP 响应（300ms 超时：本机回环，不该慢）。 */
+/** 端口是否有 HTTP 响应（1s 超时：本机回环，不该慢）。 */
 function portResponding(port) {
   const probe = spawnSync('curl', ['-s', '-o', '/dev/null', '-m', '1', `http://127.0.0.1:${port}/`], {
     stdio: 'ignore',
@@ -413,35 +294,14 @@ function portResponding(port) {
  *
  * 只分一层：**组**是执行单元（一个 CI job），**标签**是理解单元（一类退化）。
  * 这份表同时是完备性约束：static 里每条步骤必须恰好归入一类，表里也不许出现
- * 清单里没有的名字 —— 两边任一漂移，启动时直接报错，避免分类慢慢过期成摆设。
- *
- * 取值含义：
- *   types      编译/类型（改一处类型错误全链路可见）
- *   lint       格式与语法（Biome / ruff / CSS 语法 / 受限写法）
- *   contract   跨端或跨文件的契约对齐（两端各有一份表、接口有无调用方）
- *   ratchet    只许降不许增的**语义**基线（调用约定 / 离线计数口径），不守外观与风格
- *   invariant  纯逻辑/几何/状态机的数学不变量（给定输入断言输出）
- *   business   业务规则自检（语义正确性：该告警的告警、该静默的静默）
+ * 清单里没有的名字 —— 两边任一漂移，启动时直接报错。
  */
 const TAG_GROUPS = {
   types: ['typecheck', 'typecheck:node'],
-  lint: ['lint:biome', 'check:css-syntax', 'check:css-manifests', 'lint:py'],
-  contract: ['check:toolchain', 'check:env', 'check:deps', 'check:runtime-contract'],
-  ratchet: ['check:frontend', 'check:backend'],
-  invariant: ['check:studio-invariants', 'check:scene', 'check:python-lock', 'check:image-imports'],
+  lint: ['lint:biome', 'check:css-syntax', 'lint:py'],
+  contract: ['check:scene', 'check:python-lock', 'check:image-imports', 'check:event-contract'],
   business: ['check:selftests'],
 }
-
-/**
- * 手动入口清单（**显式登记**，不再从 package.json 推断）。
- *
- * 为什么改成显式：推断版只能看出「命令里有没有被 gates 引用」，合并成批量入口后，
- * 被合并的脚本仍在 `covers` 里，推断会漏判；而真正的「手动工具」又只能靠名字猜。
- * 这份清单是给人看的：这些命令**不阻断 CI**，别误以为门禁已经在跑。
- */
-const MANUAL_SCRIPTS = [
-  'soak', // 长跑泄漏观测：需要浏览器长连接稳定，见 ops/checks/perf/soak.mjs
-]
 
 /** 把标签挂到步骤上，并校验「每个 static 步骤恰好一类」。 */
 function attachTags() {
@@ -537,8 +397,8 @@ function parseArgs(argv) {
 /**
  * `--tag` / `--step` 过滤。
  *
- * `--step` 是**子串**匹配（`--step energy` 一次挑出 energy-* 这一类），
- * `--tag` 只对起了标签的组有效；未登记标签的组在有 `--tag` 时整体跳过。
+ * `--step` 是**子串**匹配（`--step selftest` 命中 `check:selftests`）；`--tag` 只对起了
+ * 标签的组有效；未登记标签的组在有 `--tag` 时整体跳过。
  */
 function matchesFilters(step, group) {
   if (options.tags.length) {
@@ -546,8 +406,6 @@ function matchesFilters(step, group) {
     if (!options.tags.includes(step.tag)) return false
   }
   if (options.steps.length) {
-    // 批量步骤（check:frontend 等）还接受被合并的原脚本名：`--step offline` 仍能命中
-    // `check:frontend`，否则合并之后连「只复跑失败的那一条」都做不到。
     const haystack = [step.name, ...(step.covers ?? [])].map((item) => item.toLowerCase())
     if (!options.steps.some((needle) => haystack.some((item) => item.includes(needle.toLowerCase())))) return false
   }
@@ -573,9 +431,9 @@ function printHelp() {
 上下文：HOMEOS_GATE_CONTEXT=ci 时执行 ciOnly 步骤、缺工具即失败（当前：${CONTEXT}）
 
 示例：
-  node ops/gates.mjs --tag ratchet --jobs 1     # 一条一条看棘轮
-  node ops/gates.mjs --step offline           # 命中 check:frontend（批量入口按 covers 匹配）
-  bun run gate:fast                            # 日常快检：types + lint（其余留给 pre-push / CI）
+  node ops/gates.mjs --tag business --jobs 1     # 只跑业务自检
+  node ops/gates.mjs --step selftests            # 按名字子串命中
+  bun run gate:fast                              # 日常快检：types + lint（其余留给 pre-push / CI）
 `)
 }
 
@@ -706,7 +564,7 @@ function exitStatus(result, step, command) {
   return result.status === 0 ? 'pass' : 'fail'
 }
 
-/** 按整段打印并行步骤的输出：只在失败 / 跳过时可见，避免 50 条绿色日志淹没失败原因。 */
+/** 按整段打印并行步骤的输出：只在失败 / 跳过时可见，避免绿色日志淹没失败原因。 */
 function printBuffered(outcome) {
   const lines = (outcome.output ?? '').replace(/\s+$/, '').split('\n')
   const shown =
@@ -856,7 +714,7 @@ function stepMarks(step) {
 }
 
 if (options.list) {
-  // `--list --json`：供「合并前后覆盖对照」这类机器比对使用（脚本无需解析人类可读表格）。
+  // `--list --json`：供机器比对使用（脚本无需解析人类可读表格）。
   if (options.json) {
     const payload = Object.fromEntries(
       Object.entries(GATE_GROUPS).map(([group, steps]) => [
@@ -870,13 +728,13 @@ if (options.list) {
         })),
       ]),
     )
-    console.log(JSON.stringify({ context: CONTEXT, groups: payload, manual: MANUAL_SCRIPTS }, null, 2))
+    console.log(JSON.stringify({ context: CONTEXT, groups: payload }, null, 2))
     process.exit(0)
   }
   console.log(`上下文：${CONTEXT}`)
   for (const [group, steps] of Object.entries(GATE_GROUPS)) {
     console.log(`\n${group}（${steps.length}）`)
-    // static 按标签分组打印：一份 50 条的平铺清单看不出结构，按类读才像目录。
+    // static 按标签分组打印：一份平铺清单看不出结构，按类读才像目录。
     if (group === 'static') {
       for (const [tag, names] of Object.entries(TAG_GROUPS)) {
         console.log(`  ${tag}（${names.length}）`)
@@ -893,14 +751,7 @@ if (options.list) {
       console.log(`  - ${step.name}${marks ? `  [${marks}]` : ''}`)
     }
   }
-  printManualScripts()
   process.exit(0)
-}
-
-/** `--list` 末尾打印手动入口：避免「门禁已经在跑」的误解。 */
-function printManualScripts() {
-  console.log(`\n手动入口（不属于门禁）：${MANUAL_SCRIPTS.length} 条`)
-  for (const name of MANUAL_SCRIPTS) console.log(`  - ${name}`)
 }
 
 console.log(`gates：上下文=${CONTEXT}，组=${groups.join(' + ')}`)

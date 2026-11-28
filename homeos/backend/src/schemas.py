@@ -167,11 +167,16 @@ class HAAreaSortRequest(BaseModel):
 
 
 class HAAreaEntitiesRequest(BaseModel):
-    """把实体批量归入某个房间。"""
+    """把实体批量归入某个房间。
+
+    ``max_length=200``：每个实体都要开一次 HA WebSocket 做 registry update，
+    无上限的列表等于一条请求打爆 HA 连接表（也拖住请求到分钟级）。200 已远超
+    单个房间的真实实体数。
+    """
 
     model_config = ConfigDict(populate_by_name=True)
 
-    entity_ids: list[str] = Field(alias="entityIds", default_factory=list)
+    entity_ids: list[str] = Field(alias="entityIds", default_factory=list, max_length=200)
 
 
 class HAAreaEntitySortRequest(BaseModel):

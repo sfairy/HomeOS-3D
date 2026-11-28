@@ -373,7 +373,9 @@ function basisFor(material) {
 
 function main() {
   if (!fs.existsSync(auditPath)) {
-    console.error(`缺少材质审计快照：${auditPath}\n先跑 bun ops/checks/studio/audit_glb_materials.mjs`)
+    console.error(
+      `缺少材质审计快照：${auditPath}\n（审计脚本已随 ops/checks 瘦身移除；请使用已提交的快照，或从外部流程重新生成）`,
+    )
     process.exit(1)
   }
   const audit = JSON.parse(fs.readFileSync(auditPath, 'utf8'))

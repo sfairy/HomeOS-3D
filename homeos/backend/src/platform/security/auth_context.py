@@ -15,6 +15,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import threading
 import time
@@ -25,7 +26,7 @@ from fastapi import Depends, Request, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .media_ticket import resolve_ticket
+from .media_ticket import resolve_ticket, ticket_path_allowed
 from .session_store import (
     LAST_SEEN_REFRESH_SECONDS,
     session_token_hash,
@@ -36,7 +37,27 @@ from ..core.http.errors import unauthorized
 
 #: 登录会话解析缓存：受保护请求在 TTL 内不再查 sessions 表。
 #: 登出 / 改密会显式清空，因此窗口只影响「同一 token 的并发请求」，不延长吊销。
-_SESSION_CACHE_TTL_SECONDS = max(0.0, float(os.getenv("HOMEOS_AUTH_CACHE_SECONDS", "2") or "2"))
+_SESSION_CACHE_DEFAULT_TTL_SECONDS = 2.0
+
+
+def _session_cache_ttl() -> float:
+    """读 ``HOMEOS_AUTH_CACHE_SECONDS``；非法值必须回落默认值而不是让进程起不来。
+
+    这个常量在模块导入期求值，直接 ``float(os.getenv(...))`` 会把一个拼错的环境变量
+    变成「服务无法启动 + 一条与变量名无关的 ValueError」。
+    """
+    raw = os.getenv("HOMEOS_AUTH_CACHE_SECONDS")
+    if raw is None or not str(raw).strip():
+        return _SESSION_CACHE_DEFAULT_TTL_SECONDS
+    try:
+        return max(0.0, float(str(raw).strip()))
+    except (TypeError, ValueError):  # fmt: skip
+        logger.warning("环境变量 HOMEOS_AUTH_CACHE_SECONDS 不是数字（%r），按默认值 2 处理", raw)
+        return _SESSION_CACHE_DEFAULT_TTL_SECONDS
+
+
+logger = logging.getLogger("homeos.security.auth")
+_SESSION_CACHE_TTL_SECONDS = _session_cache_ttl()
 _SESSION_CACHE_MAX_ENTRIES = 256
 _session_cache: dict[str, tuple[float, dict[str, Any]]] = {}
 _session_cache_lock = threading.Lock()
@@ -174,9 +195,16 @@ def authenticate_session(
     """
     settings = _settings(request)
     token = request.cookies.get(settings.cookie_name, "")
+    #: 本次身份是否来自 ``?ticket=``。票据只做「这一次媒体请求」的身份，不能升级成 Cookie。
+    ticket_authenticated = False
     if not token:
         # ``?ticket=``：``<img>`` / MJPEG / SSE 无法携带自定义头时的短票据通道。
-        token = resolve_ticket(request.query_params.get("ticket")) or ""
+        # 只在媒体路径上认（见 ``media_ticket.MEDIA_TICKET_PATH_PREFIXES``）：
+        # 否则 URL 泄露一次就从「60 秒看一张图」变成「全 API 的 Bearer 凭据」。
+        ticket = request.query_params.get("ticket")
+        if ticket and ticket_path_allowed(request.url.path):
+            token = resolve_ticket(ticket) or ""
+            ticket_authenticated = bool(token)
     if not token:
         return None
     # 一次 outer join 同时取会话与用户：原先 select(LoginSession) + session.get(User) 是
@@ -196,7 +224,9 @@ def authenticate_session(
         session.commit()
         return None
     max_age = settings.session_max_age_seconds
-    if refresh and now - _aware(record.last_seen_at) >= timedelta(seconds=LAST_SEEN_REFRESH_SECONDS):
+    if refresh and not ticket_authenticated and now - _aware(record.last_seen_at) >= timedelta(
+        seconds=LAST_SEEN_REFRESH_SECONDS
+    ):
         record.last_seen_at = now
         record.expires_at = now + timedelta(seconds=max_age)
         session.commit()

@@ -154,6 +154,29 @@ interface EntitySocketRefs {
   entitiesCacheHydrated: Ref<boolean> // 是否已完成缓存水合
   entitiesCacheSavedAt?: Ref<number | null> // 缓存最近保存时间戳
 }
+/**
+ * 安防进入延时 payload（`security_entry_pending` / `security_entry_resolved` 共用）。
+ *
+ * `pending=true` 时前端显示倒计时；`resolved` 事件用 `reason` 区分撤防取消与到点派发，
+ * `alarmed` 表示这次窗口是否以真实告警收尾。
+ */
+export interface SecurityEntryPendingSocketPayload {
+  pending?: boolean
+  entityId?: string
+  entityIds?: string[]
+  friendlyName?: string
+  friendlyNames?: string[]
+  zoneIds?: string[]
+  zoneNames?: string[]
+  delaySeconds?: number
+  startedAt?: number
+  deadlineAt?: number
+  merged?: boolean
+  reason?: 'cancelled' | 'expired'
+  alarmed?: boolean
+  timestamp?: number
+}
+
 /** 实体 store 暴露给 socket 处理器的动作集合 */
 interface EntitySocketActions {
   clearHaDisconnectDebounce: () => void // 清除 HA 断连防抖
@@ -192,6 +215,8 @@ interface EntitySocketActions {
   addRemoteNotification: (data: Record<string, unknown>) => void // 添加远程通知
   refreshSecurityPanelFromSocket: () => void // 从 socket 刷新安防面板
   applySecurityModeFromSocket?: (data: { mode?: string; zones?: string[] }) => void // 从 socket 应用安防模式
+  applySecurityEntryPendingFromSocket?: (data: SecurityEntryPendingSocketPayload) => void // 进入延时开始/合并
+  applySecurityEntryResolvedFromSocket?: (data: SecurityEntryPendingSocketPayload) => void // 进入延时结束
   refreshNotificationsFromSocket?: () => void // 从 socket 刷新通知
   refreshEventLogFromSocket?: () => void // 从 socket 刷新事件日志
   appNotify: (message: string, type?: string) => void // 应用内通知

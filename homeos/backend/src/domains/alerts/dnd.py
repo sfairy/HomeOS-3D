@@ -59,13 +59,23 @@ def is_dnd_active_now(
     dnd_end = cfg.get("dndEnd")
     if dnd_start is None or dnd_end is None:
         return False
-    if not _dnd_weekday_matches(cfg.get("dndWeekdays"), now, timezone_name):
+    if not _dnd_weekday_matches(cfg.get("dndWeekdays"), now, timezone_name, int(dnd_start), int(dnd_end)):
         return False
     return is_dnd_active(current_hour_in(timezone_name, now), int(dnd_start), int(dnd_end))
 
 
-def _dnd_weekday_matches(raw: Any, now: datetime | None, timezone_name: str | None) -> bool:
-    """``dndWeekdays`` 为空/非法时视为「每天生效」。"""
+def _dnd_weekday_matches(
+    raw: Any,
+    now: datetime | None,
+    timezone_name: str | None,
+    dnd_start: int | None = None,
+    dnd_end: int | None = None,
+) -> bool:
+    """``dndWeekdays`` 为空/非法时视为「每天生效」。
+
+    跨午夜窗口（``22 → 8``）的前半段属于**前一天**：周六 02:00 仍在周五 22:00 开始的
+    免打扰里，只按「当前星期」判会漏掉这一半，用户明确静音的夜里照样被通知。
+    """
     if not isinstance(raw, list) or not raw:
         return True
     allowed = {int(item) for item in raw if isinstance(item, (int, float)) and 0 <= int(item) <= 6}
@@ -74,7 +84,16 @@ def _dnd_weekday_matches(raw: Any, now: datetime | None, timezone_name: str | No
     reference = now or datetime.now(UTC)
     if reference.tzinfo is None:
         reference = reference.replace(tzinfo=UTC)
-    weekday = int(zoned_date_parts(reference, timezone_name)["weekday"])
+    parts = zoned_date_parts(reference, timezone_name)
+    weekday = int(parts["weekday"])
+    if (
+        dnd_start is not None
+        and dnd_end is not None
+        and dnd_start > dnd_end
+        and int(parts["hour"]) < dnd_end
+    ):
+        # 跨午夜窗口的「凌晨段」是前一天开始的那一段。
+        weekday = (weekday - 1) % 7
     return weekday in allowed
 
 

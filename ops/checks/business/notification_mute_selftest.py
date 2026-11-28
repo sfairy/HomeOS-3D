@@ -188,6 +188,21 @@ def test_dnd_weekdays() -> None:
         "非法星期数组回退为每天生效",
         is_dnd_active_now({**base, "dndWeekdays": ["x"]}, now=monday, timezone_name="UTC") is True,
     )
+    # 跨午夜：2026-11-28 是周六，02:00 仍在周五（weekday=5）开始的窗口里。
+    saturday_2am = datetime(2026, 11, 28, 2, 0, tzinfo=UTC)
+    check(
+        "跨午夜窗口的凌晨段按前一天星期判定",
+        is_dnd_active_now({**base, "dndWeekdays": [5]}, now=saturday_2am, timezone_name="UTC") is True,
+    )
+    check(
+        "跨午夜窗口的凌晨段不接受当天星期",
+        is_dnd_active_now({**base, "dndWeekdays": [6]}, now=saturday_2am, timezone_name="UTC") is False,
+    )
+    check(
+        "跨午夜窗口的深夜段仍按当天星期",
+        is_dnd_active_now({**base, "dndWeekdays": [5]}, now=monday.replace(day=27, hour=23), timezone_name="UTC")
+        is True,
+    )
 
 
 def main() -> int:

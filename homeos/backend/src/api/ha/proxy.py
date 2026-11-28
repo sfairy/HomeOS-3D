@@ -22,7 +22,7 @@ import logging
 from collections.abc import Mapping
 from dataclasses import dataclass
 from time import monotonic
-from urllib.parse import parse_qs, parse_qsl, urlencode
+from urllib.parse import parse_qs, parse_qsl, unquote, urlencode
 
 import httpx
 from anyio import CancelScope
@@ -139,10 +139,26 @@ def upstream_request_headers(headers: Mapping[str, str]) -> dict[str, str]:
 
 
 def allowed_media_proxy_path(path: str) -> bool:
-    """只允许 HA 媒体路径，并拒绝路径规范化绕过。"""
+    """只允许 HA 媒体路径，并拒绝路径规范化绕过。
+
+    只比较「字面」``.`` / ``..`` 不够：``%2e%2e`` 在路由层看起来是一段普通文本，
+    等上游（httpx / aiohttp）自己解码后就是父目录。这里先做一次（最多两次）
+    URL 解码再判段，并对 ``%2f`` / ``%5c`` 这类编码分隔符直接拒绝。
+    """
     if not path.startswith(ALLOWED_MEDIA_PROXY_PREFIXES) or "\\" in path:
         return False
-    return all(segment not in {".", ".."} for segment in path.split("/"))
+    decoded = path
+    for _ in range(2):
+        next_value = unquote(decoded)
+        if next_value == decoded:
+            break
+        decoded = next_value
+    lowered = decoded.lower()
+    if "\\" in decoded or "%2f" in lowered or "%5c" in lowered:
+        return False
+    if not decoded.startswith(ALLOWED_MEDIA_PROXY_PREFIXES):
+        return False
+    return all(segment not in {".", ".."} for segment in decoded.split("/"))
 
 
 def rewrite_location(value: str, base_url: str) -> str:

@@ -620,11 +620,19 @@ class AgentSchedulerService:
         task = await run_db(self._load_task_payload, task_id)
         if task is None:
             return {"ok": False, "message": "计划任务不存在"}
-        run_actor = actor if actor is not None else actor_from_snapshot(task.get("actor"))
-        run_actor = await apply_device_allowlist(self._agent_config, run_actor)
-        started_at = now_naive()
-        status, message, result = await self._perform_action(task, run_actor)
-        finished_at = now_naive()
+        # 与 tick 共用 ``_running``：手动「执行一次」和到点执行撞在一起时，
+        # 把同一条任务的设备动作连发两遍（门锁/阀门/场景都是不可幂等的）。
+        if task_id in self._running:
+            return {"ok": False, "message": "任务正在执行中，请稍后再试"}
+        self._running.add(task_id)
+        try:
+            run_actor = actor if actor is not None else actor_from_snapshot(task.get("actor"))
+            run_actor = await apply_device_allowlist(self._agent_config, run_actor)
+            started_at = now_naive()
+            status, message, result = await self._perform_action(task, run_actor)
+            finished_at = now_naive()
+        finally:
+            self._running.discard(task_id)
         try:
             await run_db(
                 self._record_manual_sync,

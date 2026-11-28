@@ -170,7 +170,11 @@ class HomeModeService:
         except Exception as exc:  # 回落失败不能静默：否则模式会一直挂着
             logger.warning("模式自动回落失败(%s): %s", mode_id, exc)
         finally:
-            self._settle_tasks.pop(mode_id, None)
+            # 只在字典里仍是「本次任务」时才移除：直接 pop(mode_id) 会把重新激活时
+            # 登记的新定时器一起删掉，之后第三次激活就再也取消不到那个活着的旧定时器，
+            # 旧定时器到点会把刚重新激活的模式提前回落。
+            if self._settle_tasks.get(mode_id) is asyncio.current_task():
+                self._settle_tasks.pop(mode_id, None)
 
     def _load_active_mode_row(self) -> dict[str, Any] | None:
         """读取当前激活模式（同步；由 :meth:`start` 放进线程池）。

@@ -3,6 +3,7 @@ import { HVAC_MODE_LABELS as CLIMATE_HVAC_MODE_LABELS, PRESET_MODE_LABELS } from
 import { brightnessToPercent } from '@/domain/entity/control/light-control-core'
 import { volumeLevelToPercent } from '@/domain/entity/control/media-player-control-core'
 import { formatLocaleString } from '@/kernel/format'
+import { resolveTemperatureUnit } from '@/domain/entity/temperature-unit'
 
 const MEASUREMENT_ATTR_KEYS = new Set([
   'temperature',
@@ -35,6 +36,20 @@ const MEASUREMENT_ATTR_KEYS = new Set([
   'water',
   'cleaned_area',
   'gps_accuracy',
+])
+
+/** 温度类属性：单位来自 ``temperature_unit``（climate / weather），而不是 unit_of_measurement。 */
+const TEMPERATURE_ATTR_KEYS = new Set([
+  'temperature',
+  'current_temperature',
+  'target_temp_high',
+  'target_temp_low',
+  'target_temperature',
+  'current_temp',
+  'dew_point',
+  'apparent_temperature',
+  'min_temp',
+  'max_temp',
 ])
 
 const PERCENT_ATTR_KEYS = new Set([
@@ -587,6 +602,13 @@ function tryFormatIsoDateString(key: string, raw: string): string | null {
 }
 
 function resolveAttrUnit(key: string, attrs: Record<string, unknown>): string | null {
+  // 温度键优先按 HA 的温度单位解析：``climate`` 实体给的是 ``temperature_unit``，
+  // 通常**没有** ``unit_of_measurement``；只看后者会让华氏温标下的属性表恒显示 °C，
+  // 与同一页面的温控弹窗（已按 temperature_unit 渲染）互相矛盾。
+  if (TEMPERATURE_ATTR_KEYS.has(key)) {
+    const resolved = resolveTemperatureUnit(attrs)
+    if (resolved) return resolved
+  }
   const unit = attrs.unit_of_measurement
   if (typeof unit === 'string' && unit.trim()) {
     // 仅对计量相关键或通用数值使用 entity 自带单位

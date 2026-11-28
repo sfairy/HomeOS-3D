@@ -28,7 +28,7 @@
               <span class="text-4xl font-light text-white tracking-tight">{{
                 weatherData.temp
               }}</span>
-              <span class="text-lg text-white/40">°C</span>
+              <span class="text-lg text-white/40">{{ weatherData.tempUnit }}</span>
             </div>
             <div
               class="text-[12px] weather-lbl-faint font-medium tracking-[0.15em] uppercase mt-0.5"
@@ -73,7 +73,7 @@
               {{ '风速' }}
             </div>
             <div class="text-sm font-light tabular-nums" :class="weatherData.windColor">
-              {{ weatherData.windSpeed }} m/s
+              {{ weatherData.windSpeed }} {{ weatherData.windUnit }}
             </div>
           </div>
         </div>
@@ -164,7 +164,7 @@ import {
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { useWeatherEntity } from '@/domain/entity/use-weather-entity'
 import { SETTINGS_ROUTES } from '@/kernel/registry/settings-route'
-import { collectSensorEntityIds, readAqiNumber } from '@/domain/weather/metrics'
+import { collectSensorEntityIds, normalizeWindSpeedMs, readAqiNumber } from '@/domain/weather/metrics'
 
 const props = defineProps({
   config: {},
@@ -255,9 +255,11 @@ const weatherData = computed(() => {
     return {
       name: '—',
       temp: '--',
+      tempUnit: '°C',
       info: { icon: Cloud, label: '—', color: 'weather-lbl-faint' },
       humidity: '--',
       windSpeed: '--',
+      windUnit: 'm/s',
       visibility: '--',
       pressure: '--',
       precipitation: '0',
@@ -298,7 +300,12 @@ const weatherData = computed(() => {
         : { icon: Cloud, label: label || '未知', color: 'weather-lbl-faint' }
   }
 
-  // 基础气象数据
+  // 基础气象数据。单位必须跟着实体走：HA 的 weather 实体自带 temperature_unit /
+  // wind_speed_unit（默认 km/h），硬编码 °C / m/s 会让 12 km/h 的微风显示成 12 m/s，
+  // 并在华氏温标下把 75°F 显示成「75°C」。
+  const tempUnit = String(attrs.temperature_unit || attrs.unit_of_measurement || '°C').trim() || '°C'
+  const temperatureUnit = /(?:°\s*)?f/i.test(tempUnit) ? '°F' : tempUnit
+  const windUnit = String(attrs.wind_speed_unit || 'm/s').trim() || 'm/s'
   const temp = attrs.temperature ?? '--'
   const humidity = attrs.humidity ?? '--'
   const precipitation = attrs.precipitation ?? '0'
@@ -313,8 +320,9 @@ const weatherData = computed(() => {
   const locMatch = eid.match(/^weather\.(.+)$/)
   const pm25 = locMatch ? (entitiesStore.getEntity(`sensor.${locMatch[1]}_pm25`)?.state ?? '--') : '--'
 
-  // 温度颜色
-  const tVal = parseFloat(temp)
+  // 温度颜色：阈值按 °C 定义，华氏温标先换算再判档（否则 75°F 会命中「≥35 危险」）。
+  const tRaw = parseFloat(temp)
+  const tVal = isNaN(tRaw) ? NaN : temperatureUnit === '°F' ? ((tRaw - 32) * 5) / 9 : tRaw
   const tempColor = isNaN(tVal)
     ? 'weather-c-white'
     : tVal >= 35
@@ -343,8 +351,8 @@ const weatherData = computed(() => {
             ? 'weather-c-warn'
             : 'weather-c-warn-deep'
 
-  // 风速颜色
-  const ws = parseFloat(windSpeed)
+  // 风速颜色：阈值按 m/s 定义，按实体声明单位换算后再判档（HA 默认 km/h）。
+  const ws = normalizeWindSpeedMs(parseFloat(windSpeed), windUnit)
   const windColor = isNaN(ws)
     ? 'weather-c-info'
     : ws >= 12
@@ -396,11 +404,13 @@ const weatherData = computed(() => {
     state: s,
     info,
     temp,
+    tempUnit: temperatureUnit,
     tempColor,
     humidity,
     humidityColor,
     precipitation,
     windSpeed,
+    windUnit,
     windColor,
     visibility,
     visColor,

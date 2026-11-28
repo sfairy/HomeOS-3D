@@ -28,6 +28,7 @@ import type {
   ResolveListenerOldStateArgs,
   EntitySocketHandlerContext,
   EntitySocketSyncState,
+  SecurityEntryPendingSocketPayload,
 } from '@/kernel/entity'
 import {
   isStaleState,
@@ -529,6 +530,16 @@ export function bindEntitySocketDomainEvents(socket: Socket, ctx: EntitySocketHa
 
   socket.on(WS_CLIENT_EVENTS.SECURITY_ZONES, () => {
     actions.refreshSecurityPanelFromSocket()
+  })
+
+  socket.on(WS_CLIENT_EVENTS.SECURITY_ENTRY_PENDING, (data: SecurityEntryPendingSocketPayload) => {
+    // 进入延时窗口：前端据此显示倒计时与「立即撤防」，否则用户只能等告警响。
+    actions.applySecurityEntryPendingFromSocket?.(data)
+  })
+
+  socket.on(WS_CLIENT_EVENTS.SECURITY_ENTRY_RESOLVED, (data: SecurityEntryPendingSocketPayload) => {
+    // 必须有这一条：撤防取消 / 到点派发后倒计时不清掉会永久停在界面上。
+    actions.applySecurityEntryResolvedFromSocket?.(data)
   })
 
   socket.on(WS_CLIENT_EVENTS.SECURITY_EMERGENCY, () => {

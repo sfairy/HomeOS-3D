@@ -6,7 +6,7 @@
  * 就变成两套规则 —— 一半命中、一半落空，且同一份 CSS 会重复打进每个 chunk。
  * 历史上这批表混着写，表现为「某个面板的间距只在打开顺序不同的时候才对」。
  *
- * 由 `node ops/checks/frontend/audit_css_layout.mjs` 的 scoping 统计守卫。
+ * 约定：同一份表只以全局方式加载一次（不再由自动门禁检查，靠评审遵守）。
  */
 /* 从 SecurityPanelWidget.vue 抽出 */
 .sp-card.widget-hub-root {
@@ -184,6 +184,53 @@
   text-overflow: ellipsis;
   max-width: 100%;
   padding: 0 2px;
+}
+
+/* ── 进入延时横幅（布防后开门进屋的撤防窗口） ──
+ * 窗口只有几十秒：必须比普通操作区更抢眼，并给一个不用二次确认的撤防入口。 */
+.sp-entry-pending {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--hos-radius-card);
+  background: color-mix(in srgb, var(--premium-accent-amber) 16%, rgba(0, 0, 0, 0));
+  border: var(--hos-hairline) solid color-mix(in srgb, var(--premium-accent-amber) 48%, rgba(0, 0, 0, 0));
+  color: #fcd34d;
+}
+
+.sp-entry-pending__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.sp-entry-pending__title {
+  margin: 0;
+  font-size: var(--premium-fs-caption);
+  font-weight: 700;
+}
+
+.sp-entry-pending__hint {
+  margin: 2px 0 0;
+  font-size: var(--premium-fs-micro);
+  opacity: 0.85;
+}
+
+.sp-entry-pending__btn {
+  flex-shrink: 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: var(--hos-hairline) solid color-mix(in srgb, var(--premium-accent-red) 60%, rgba(0, 0, 0, 0));
+  background: color-mix(in srgb, var(--premium-accent-red) 22%, rgba(0, 0, 0, 0));
+  color: #fecaca;
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  min-height: 32px;
+}
+
+.sp-entry-pending__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .sp-zones {

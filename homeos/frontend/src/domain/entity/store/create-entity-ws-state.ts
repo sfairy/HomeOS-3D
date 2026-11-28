@@ -17,6 +17,8 @@ import {
   appNotify,
   refreshSecurityPanelFromSocket,
   applySecurityModeFromSocket,
+  applySecurityEntryPendingFromSocket,
+  applySecurityEntryResolvedFromSocket,
   refreshNotificationsFromSocket,
   refreshEventLogFromSocket,
 } from '@/kernel/bridge/store-bridge'
@@ -555,6 +557,8 @@ export function createEntityWsState(deps: EntityWsStateDeps) {
       addRemoteNotification,
       refreshSecurityPanelFromSocket,
       applySecurityModeFromSocket,
+      applySecurityEntryPendingFromSocket,
+      applySecurityEntryResolvedFromSocket,
       refreshNotificationsFromSocket,
       refreshEventLogFromSocket,
       appNotify: (message, type) => appNotify(message, type as NotifyType | undefined),

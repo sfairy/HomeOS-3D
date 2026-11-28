@@ -179,7 +179,10 @@ def _ha_trigger_from_cron(cron: str, spec: dict[str, Any]) -> dict[str, Any] | N
         return None
     if day != "*" or month != "*":
         return None
-    if minute_value not in {0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}:
+    # HA 的 ``time`` 触发接受任意 ``HH:MM[:SS]``（07:03 完全合法）。这里只校验范围；
+    # 旧实现额外要求「分钟是 5 的倍数」，于是「07:03」草案能落成 HomeOS 任务、
+    # 却导不出 HA 自动化（还提示「超出 HA 时间触发可表达的范围」）。
+    if not (0 <= hour_value <= 23 and 0 <= minute_value <= 59):
         return None
     trigger: dict[str, Any] = {"platform": "time", "at": f"{hour_value:02d}:{minute_value:02d}:00"}
     if dow != "*":

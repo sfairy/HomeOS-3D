@@ -118,8 +118,14 @@ async def apply_draft(
             f"这份草案与 {len(certain)} 条已有规则存在确定性冲突，确认继续后才能创建计划任务。",
         )
 
+    claimed = await asyncio.to_thread(service.claim_for_apply, draft_id)
+    if not claimed.get("ok"):
+        raise BusinessException(ErrorCode.CONFLICT, str(claimed.get("message") or "草案不能落地"))
+
     result = await scheduler.create_task(prepared["task"], _actor(user))
     if not result.get("ok"):
+        # 抢占失败要把草案退回 READY，否则用户重试永远被「正在落地」挡住。
+        await asyncio.to_thread(service.release_claim, draft_id)
         raise BusinessException(ErrorCode.VALIDATION_FAILED, str(result.get("message") or "创建计划任务失败"))
     task = result.get("task") or {}
     applied = await asyncio.to_thread(service.mark_applied, draft_id, str(task.get("id") or ""))

@@ -212,7 +212,20 @@ class LiveStateEventQueue:
         if entity_id:
             existing = self._pending.get(entity_id)
             if existing is not None:
-                existing['new_state'] = change.get('new_state')
+                # 合并时**必须同步删除标记**：HA 会在一个批窗内先发状态变化、再发实体删除。
+                # 旧实现只更新 new_state，removed_entity_id 留在首包（通常是 None），
+                # 下游便不会把这条当成删除 —— 实体在 /entities 与墙屏上一直「活着」，
+                # 直到数小时后下一轮全量对账。反向顺序（先删后加）也要清掉删除标记。
+                if change.get('new_state') is not None:
+                    existing['new_state'] = change['new_state']
+                    existing['entity_id'] = change.get('entity_id')
+                    existing['removed_entity_id'] = None
+                else:
+                    existing['new_state'] = None
+                    existing['entity_id'] = None
+                    existing['removed_entity_id'] = change.get('removed_entity_id') or existing.get(
+                        'removed_entity_id'
+                    )
                 existing['time_fired'] = change.get('time_fired') or existing.get('time_fired')
                 return
             key = entity_id

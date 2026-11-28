@@ -43,6 +43,8 @@ class DomainEventBridge:
             "security.modeChanged": self._handle_security_mode_changed,
             "security.zonesConfigured": self._handle_security_zones_changed,
             "security.alarm": self._handle_security_alarm,
+            "security.entryPending": self._handle_security_entry_pending,
+            "security.entryResolved": self._handle_security_entry_resolved,
             "security.emergency": self._handle_security_emergency,
             "security.emergencyCompleted": self._handle_security_emergency_completed,
             "presence.changed": self._handle_presence_changed,
@@ -99,6 +101,12 @@ class DomainEventBridge:
 
     async def _handle_security_alarm(self, event: Any) -> None:
         await self._safe("安防告警", self._gateway.broadcast_security_alarm, event)
+
+    async def _handle_security_entry_pending(self, event: Any) -> None:
+        await self._safe("安防进入延时", self._gateway.broadcast_security_entry_pending, event)
+
+    async def _handle_security_entry_resolved(self, event: Any) -> None:
+        await self._safe("安防进入延时结束", self._gateway.broadcast_security_entry_resolved, event)
 
     async def _handle_security_emergency(self, event: Any) -> None:
         await self._safe("紧急求助", self._gateway.broadcast_security_emergency, event)

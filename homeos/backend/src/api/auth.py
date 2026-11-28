@@ -631,6 +631,9 @@ async def logout(
     request: Request,
     response: Response,
 ) -> None:
+    # 登出在 CSRF 豁免表里（3D 外壳可能拿不到 csrf_token），但「谁都能把你踢下线」
+    # 同样是可利用的破坏（同站不同端口即可发 POST）。来源校验在这个端点上补位。
+    require_same_origin_write(request)
     settings = request.app.state.settings
     token = request.cookies.get(settings.cookie_name, "")
     username = "用户"

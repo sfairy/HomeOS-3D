@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from collections.abc import Awaitable, Callable
@@ -86,6 +87,11 @@ class CircuitBreaker:
         self._metrics["totalCalls"] += 1
         try:
             result = await fn()
+        except asyncio.CancelledError:
+            # 取消/超时是**调用方**离开，不是下游故障。旧实现把它记成失败：
+            # 三五个用户关掉慢页面就能把健康的 HA 判成故障，断路器打开后
+            # 所有人一起快速失败 30 秒（一次由 UI 造成的「假故障」）。
+            raise
         except BaseException as err:
             self._metrics["lastError"] = str(err).strip() or err.__class__.__name__
             self._on_failure()

@@ -32,6 +32,10 @@ from ...platform.core.runtime.params import non_negative_seconds
 
 logger = logging.getLogger("homeos.notification.rules")
 
+#: 定时器回调创建的复评 / 解锁任务：必须被强引用，否则事件循环只持弱引用，
+#: 任务可能在跑之前就被 GC 掉（「持续 5 分钟」的规则会静默丢失）。
+_BACKGROUND_TASKS: set[asyncio.Task[Any]] = set()
+
 RULE_REVISIONS_ID = "alert-rule-revisions"
 MAX_REVISIONS_PER_RULE = 20
 MAX_RULES = 500
@@ -133,6 +137,12 @@ class NotificationRulesHelper:
         self._pending_since: dict[str, float] = {}
         #: 「条件开始不成立」的时刻：用于 ``clearDelaySeconds`` 回落去抖。
         self._clear_since: dict[str, float] = {}
+        #: ``forSeconds`` 到点复核的定时器：只有状态变化才评估规则，没有它
+        #: 「门开 5 分钟」这类规则永远等不到那一次评估。
+        self._confirm_timers: dict[str, asyncio.TimerHandle] = {}
+        #: ``clearDelaySeconds`` 到点解锁的定时器：只有**再一次**不成立事件才会走到
+        #: 真实解锁，没有它「开 → 关 → 再开」会让规则永久静默。
+        self._clear_timers: dict[str, asyncio.TimerHandle] = {}
         #: 已报出但未恢复的告警（未确认抑制 / 恢复 / 升级）。
         self.lifecycle = AlertLifecycle()
 
@@ -141,6 +151,7 @@ class NotificationRulesHelper:
         required = non_negative_seconds(rule.get("forSeconds"))
         if required <= 0:
             self._pending_since.pop(edge_key, None)
+            self._cancel_timer(self._confirm_timers, edge_key)
             return True
         now = _monotonic()
         started = self._pending_since.setdefault(edge_key, now)
@@ -148,7 +159,82 @@ class NotificationRulesHelper:
             return False
         # 满足时长：清掉起点，后续走冷却 / 免打扰 / 推送。
         self._pending_since.pop(edge_key, None)
+        self._cancel_timer(self._confirm_timers, edge_key)
         return True
+
+    @staticmethod
+    def _cancel_timer(timers: dict[str, asyncio.TimerHandle], edge_key: str) -> None:
+        handle = timers.pop(edge_key, None)
+        if handle is not None:
+            handle.cancel()
+
+    def _schedule_confirm_recheck(
+        self,
+        rule: dict[str, Any],
+        edge_key: str,
+        entity_id: str,
+        state: Any,
+        attributes: dict[str, Any],
+    ) -> None:
+        """``forSeconds`` 到点主动复评一次。
+
+        规则评估只发生在「实体状态变化」时：门磁从 ``off`` 变 ``on`` 之后就一直 ``on``，
+        再也不会有后一次事件，若不在到点时自己回来评一次，「持续 5 分钟才报」的规则
+        永远不会触发（原实现只对持续上报的数值传感器碰巧有效）。
+        """
+        if edge_key in self._confirm_timers:
+            return
+        required = non_negative_seconds(rule.get("forSeconds"))
+        if required <= 0:
+            return
+        started = self._pending_since.get(edge_key)
+        if started is None:
+            return
+        remaining = max(0.0, required - (_monotonic() - started))
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return
+
+        def _fire() -> None:
+            self._confirm_timers.pop(edge_key, None)
+            task = loop.create_task(self.evaluate_rules(entity_id, state, attributes))
+            _BACKGROUND_TASKS.add(task)
+            task.add_done_callback(_BACKGROUND_TASKS.discard)
+
+        self._confirm_timers[edge_key] = loop.call_later(remaining, _fire)
+
+    def _schedule_clear_release(self, rule: dict[str, Any], edge_key: str) -> None:
+        """``clearDelaySeconds`` 到点解锁（不依赖下一次不成立事件）。"""
+        if edge_key in self._clear_timers:
+            return
+        delay = non_negative_seconds(rule.get("clearDelaySeconds"))
+        if delay <= 0:
+            return
+        started = self._clear_since.get(edge_key)
+        if started is None:
+            return
+        remaining = max(0.0, delay - (_monotonic() - started))
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return
+
+        def _fire() -> None:
+            self._clear_timers.pop(edge_key, None)
+            task = loop.create_task(self._release_after_delay(edge_key))
+            _BACKGROUND_TASKS.add(task)
+            task.add_done_callback(_BACKGROUND_TASKS.discard)
+
+        self._clear_timers[edge_key] = loop.call_later(remaining, _fire)
+
+    async def _release_after_delay(self, edge_key: str) -> None:
+        """去抖窗口到时：确认条件仍未恢复才解锁并补恢复通知。"""
+        if self._match_state.get(edge_key) is not True:
+            return
+        self._clear_since.pop(edge_key, None)
+        self._match_state[edge_key] = False
+        await self._emit_resolved(edge_key)
 
     def _release_edge(self, rule: dict[str, Any], edge_key: str) -> None:
         """条件不成立时解除锁存（带 ``clearDelaySeconds`` 去抖）。
@@ -159,11 +245,13 @@ class NotificationRulesHelper:
         只做状态判定，不发通知；需要补 ``resolved`` 时用 :meth:`_release_edge_async`。
         """
         self._pending_since.pop(edge_key, None)
+        self._cancel_timer(self._confirm_timers, edge_key)
         if self._match_state.get(edge_key) is not True:
             return
         delay = non_negative_seconds(rule.get("clearDelaySeconds"))
         if delay <= 0:
             self._clear_since.pop(edge_key, None)
+            self._cancel_timer(self._clear_timers, edge_key)
             self._match_state[edge_key] = False
             return
         now = _monotonic()
@@ -171,6 +259,11 @@ class NotificationRulesHelper:
         if now - started >= delay:
             self._clear_since.pop(edge_key, None)
             self._match_state[edge_key] = False
+            self._cancel_timer(self._clear_timers, edge_key)
+            return
+        # 到点必须自己解锁：正常传感器只发一次 off，不会有「第二次不成立事件」
+        # 来把锁存放掉；不放的话下一次 on 会被当成「还在告警中」永久跳过。
+        self._schedule_clear_release(rule, edge_key)
 
     async def _release_edge_async(self, rule: dict[str, Any], edge_key: str) -> None:
         """解除锁存，并在真正解除时补一条 ``resolved``（仅对已报出的告警）。"""
@@ -178,6 +271,10 @@ class NotificationRulesHelper:
         self._release_edge(rule, edge_key)
         if not was_latched or self._match_state.get(edge_key) is True:
             return
+        await self._emit_resolved(edge_key)
+
+    async def _emit_resolved(self, edge_key: str) -> None:
+        """对已报出的告警补一条「已恢复」通知（已确认的不再打扰）。"""
         alert = self.lifecycle.resolve(edge_key)
         if alert is None:
             return
@@ -308,12 +405,19 @@ class NotificationRulesHelper:
             if not matched:
                 await self._release_edge_async(rule, edge_key)
                 continue
+            # 条件重新成立：取消待解锁的定时器（抖动窗口内来回跳变不应解除锁存，
+            # 但计时起点必须重新算）。
+            self._clear_since.pop(edge_key, None)
+            self._cancel_timer(self._clear_timers, edge_key)
             # 电平持续匹配时不重复通知，仅在边沿（未匹配→匹配）触发
             if self._match_state.get(edge_key) is True:
                 continue
             # 持续判定：条件需连续成立 ``forSeconds`` 才告警。抖动会被这里吃掉 ——
             # 每次不成立都会清掉起点，所以「闪一下又回落」永远不满足。
             if not self._confirm_duration(rule, edge_key):
+                # 只有状态变化才评估规则：到点必须自己回来复评一次，
+                # 否则「门开 5 分钟」这类规则永远等不到后一次事件。
+                self._schedule_confirm_recheck(rule, edge_key, entity_id, state, attributes)
                 continue
             # 第二层抑制（冷却之外）：这条告警已经报过、用户还没确认时不再重复推送。
             # 「没处理的事」由升级负责再提醒，而不是靠冷却到期后反复刷屏。

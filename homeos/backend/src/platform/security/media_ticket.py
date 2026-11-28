@@ -7,12 +7,16 @@
 
 参考实现用 JWT 的 ``?ticket=`` 解决。本项目是 DB 会话，不能凭空签一个 JWT，
 因此改为**进程内短票据**：票据是 32 字节随机串，只映射到「原始会话令牌」，
-默认 60 秒过期，用完即弃。
+默认 60 秒过期。
 
-安全性取舍：
-- 票据只在内存里、只活 60 秒、上限 512 条，泄露窗口远小于会话本身；
-- 票据不能续期会话（媒体端点本来就用 ``refresh=False``）；
-- 不记录票据明文到日志（``global_log`` 只记实体与路径）。
+安全性取舍（票据**不是**第二张会话 Cookie）：
+- 只在 :data:`MEDIA_TICKET_PATH_PREFIXES`（媒体路径）上生效；任何业务读写路由都不认票据，
+  否则一次 URL 泄露就等于拿到全 API 的 Bearer 凭据；
+- 票据命中的请求**不续期会话、不回写 Cookie**（``authenticate_session`` 里显式跳过），
+  泄露窗口被限制在票据自己的 60 秒；
+- 票据只在内存里、上限 512 条，不记录明文到日志；
+- 同一票据在有效期内可被多个媒体请求复用（一个页面常有多个摄像头贴片），
+  这是「单次使用」与「缓存续签」之间的取舍；60 秒上限承担了主要风险。
 """
 
 from __future__ import annotations
@@ -26,8 +30,25 @@ TICKET_TTL_SECONDS = 60
 #: 同时存在的票据上限：超过后按过期时间淘汰最旧的一批。
 MAX_TICKETS = 512
 
+#: 票据**只**在这些路径上生效（媒体代理 / HLS / 图片）。
+#: 少一条会让对应媒体拉不到，多一条就是权限放大 —— 新增媒体路由时必须同步这里。
+MEDIA_TICKET_PATH_PREFIXES = (
+    "/api/camera_proxy/",
+    "/api/camera_proxy_stream/",
+    "/api/image_proxy/",
+    "/api/media_player_proxy/",
+    "/api/hls/",
+    "/api/camera_hls/",
+)
+
 _tickets: dict[str, tuple[str, float]] = {}
 _lock = threading.Lock()
+
+
+def ticket_path_allowed(path: str) -> bool:
+    """该请求路径是否允许用 ``?ticket=`` 鉴权（仅媒体）。"""
+    text = str(path or "")
+    return any(text.startswith(prefix) for prefix in MEDIA_TICKET_PATH_PREFIXES)
 
 
 def issue_ticket(session_token: str, ttl: int = TICKET_TTL_SECONDS) -> str:

@@ -26,7 +26,7 @@ from ..client_power.energy_meter import (
     compute_meter_delta,
     is_cumulative_energy_meter,
     is_meter_reset,
-    latest_reading_kwh,
+    reading_kwh_or_none,
 )
 from ..logs.event_log_tier import is_energy_meter_state
 from ...platform.core.db.models import (
@@ -256,13 +256,18 @@ def _month_merge_value(
     return max(daily_sums.get(key, 0.0), explicit.get(key, 0.0), 0.0), False
 
 
-def _reading_kwh(row: dict[str, Any]) -> float:
-    """取一条状态变更后的表底读数（折算成 kWh）；无效或非累计电量返回 0。"""
+def _reading_kwh(row: dict[str, Any]) -> float | None:
+    """取一条状态变更后的表底读数（折算成 kWh）；读不到返回 ``None``。
+
+    不能返回 0 当兜底：``unavailable`` / ``unknown`` 会被聚合当成「本周期读数为零」，
+    以 ``reading`` 模式覆盖掉当天真实用电量（见 ``energy/aggregate.py`` 的
+    ``_merge_grain_totals``）。读不到就跳过这次更新，让差分兜底继续生效。
+    """
     new_state = row["new_state"]
     attrs = new_state.get("attributes") if isinstance(new_state, dict) else None
     if not is_cumulative_energy_meter(attrs if isinstance(attrs, dict) else None):
-        return 0.0
-    return latest_reading_kwh(new_state)
+        return None
+    return reading_kwh_or_none(new_state)
 
 
 def _merge_grain_totals(
@@ -438,8 +443,15 @@ def _collect_bound_points(
 
 
 def _bump_reading(readings: dict[str, float], key: str, row: dict[str, Any]) -> None:
-    """同一周期内取最大读数：读数单调递增，最大值即该周期的完整用量。"""
-    readings[key] = max(readings.get(key, 0.0), _reading_kwh(row))
+    """同一周期内取最大读数：读数单调递增，最大值即该周期的完整用量。
+
+    读不到（``unavailable`` / 非累计）时什么都不做：把它写成 0 会让 ``reading`` 模式
+    覆盖掉当天真实用电量。
+    """
+    value = _reading_kwh(row)
+    if value is None:
+        return
+    readings[key] = max(readings.get(key, 0.0), value)
 
 
 def _accumulate_primary_delta(

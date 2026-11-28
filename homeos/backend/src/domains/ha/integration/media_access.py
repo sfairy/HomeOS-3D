@@ -29,6 +29,7 @@ from sqlalchemy import select, text
 
 from ...studio3d.projects.schema import GlobalCustomPopupState, ProjectDraft
 from ....platform.core.db.models import HAConnection
+from ....platform.core.http.errors import BusinessException
 from ....platform.security.viewer_scope import (
     ViewerPrincipal,
     require_viewer_entity,
@@ -211,7 +212,11 @@ def check_media_access(request, load_connection) -> bool:
                 require_viewer_entity(database, viewer, access.entity_id)
             access.scope_revision = revision
         access.checked_at = monotonic()
-    except HTTPException as error:
-        LOGGER.warning("媒体访问复检被拒绝：%s", error.detail)
+    except (HTTPException, BusinessException) as error:
+        # ``revalidate_viewer`` 走 ``unauthorized()``，抛的是 ``BusinessException`` 而不是
+        # ``HTTPException``。只收后者会让「会话被吊销」这条最需要拒绝的路径整段逃出去，
+        # 跳过流式响应的清理（上游连接泄漏），日志里也看不到这一行。
+        detail = getattr(error, "detail", None) or getattr(error, "message", None)
+        LOGGER.warning("媒体访问复检被拒绝：%s", detail)
         return False
     return True

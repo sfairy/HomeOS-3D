@@ -213,9 +213,13 @@ class EnergyMonitor(MonitorEmitMixin, PeriodicMonitor):
         # 同步 SQLite 读必须离开事件循环：本方法由 ``PeriodicMonitor`` 的异步循环调用，
         # 同一时刻事件循环正在推 WS 状态。与 ``_read_today_and_baseline`` 同一条理由。
         month_total = await asyncio.to_thread(self._month_total, ids, month_start.isoformat(), now.date().isoformat())
-        # 外推：按「已过天数 + 今日日均」推月末总量；没有基线时只按月总量判定。
-        days_elapsed = max(1, (now.date() - month_start).days + 1)
-        daily = (month_total / days_elapsed) if month_total > 0 else (average or 0.0)
+        # 外推只看**完整天数**：把「今天这半天」当一整天会系统性高估（00:30 用了 3 kWh
+        # 就外推成 90 kWh/月，月初必然误报）。当月还没过完一天时退回历史日均基线。
+        completed_days = max(0, (now.date() - month_start).days)
+        if completed_days > 0 and month_total > 0:
+            daily = month_total / completed_days
+        else:
+            daily = average or 0.0
         days_in_month = ((month_start.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)).day
         projected = daily * days_in_month if daily > 0 else 0.0
         triggered = month_total >= budget * cfg["budgetWarnRatio"] or projected >= budget

@@ -367,15 +367,42 @@ async def list_areas(
     }
 
 
+#: 用户显式要求「别的排序」的取值：与房间自定义顺序是互斥意图。
+#: ``name_asc`` 是默认值（设备页总会带上它），**不**算显式 —— 把它也算进来会让
+#: 设置页保存的房间内顺序在设备列表里永远失效。
+_EXPLICIT_ENTITY_SORTS = frozenset({"name_desc", "status", "last_changed"})
+
+
+def entity_order_override_applies(sort: str | None) -> bool:
+    """本地房间顺序是否应生效；``name_asc`` / 空值都生效，其余显式排序让位。"""
+    return normalize_entity_sort_filter(sort) not in _EXPLICIT_ENTITY_SORTS
+
+
+def sort_entities_by_local_order(
+    entities: list[dict[str, Any]], order: dict[str, int]
+) -> list[dict[str, Any]]:
+    """按本地顺序表稳定重排；没有记录的实体保持原相对顺序，排在已排序实体之后。"""
+    if not order:
+        return entities
+    fallback = len(order) + 1_000_000
+    return sorted(
+        entities,
+        key=lambda item: order.get(str(item.get("entity_id") or ""), fallback),
+    )
+
+
 def _apply_entity_order(
     request: Request, area_id: str, entities: list[dict[str, Any]], sort: str | None
 ) -> list[dict[str, Any]]:
     """按本地 ``ha_area_entity_order`` 重排房间内实体。
 
-    显式 ``sort``（非默认 ``name_asc``）时不动：用户已经用查询参数表达了别的排序意图。
+    ``name_desc`` / ``status`` / ``last_changed`` 时不动：用户已经用查询参数表达了
+    别的排序意图。``name_asc``（前端默认值）与空值都应用本地顺序 —— 否则设备页
+    总会带上默认 ``sort=name_asc``，设置页里保存的房间内顺序等于形同虚设。
+
     没有覆盖记录的实体保持原有相对顺序，排在已排序实体之后（稳定排序保证这一点）。
     """
-    if str(sort or "").strip():
+    if not entity_order_override_applies(sort):
         return entities
     with request.app.state.database.session_factory() as database:
         connection = active_connection(database)
@@ -390,11 +417,7 @@ def _apply_entity_order(
     if not rows:
         return entities
     order = {str(entity_id): int(sort_order or 0) for entity_id, sort_order in rows}
-    fallback = len(order) + 1_000_000
-    return sorted(
-        entities,
-        key=lambda item: order.get(str(item.get("entity_id") or ""), fallback),
-    )
+    return sort_entities_by_local_order(entities, order)
 
 
 def _local_area_order(request: Request) -> dict[str, int]:

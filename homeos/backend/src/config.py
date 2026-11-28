@@ -103,6 +103,21 @@ def _environment_non_negative_float(name: str, default: float) -> float:
     return parsed if parsed >= 0 else default
 
 
+def _environment_float(name: str, default: float, *, minimum: float, maximum: float) -> float:
+    """读一个带上下界的浮点环境变量；缺省 / 非法一律回落到 ``default``（并夹到区间内）。
+
+    与 :func:`_environment_int` 同一口径：环境变量拼错时服务必须能起来并留下告警，
+    而不是在导入期抛 ``ValueError``（那种报错里连变量名都不出现，现场无从排查）。
+    """
+    raw = os.getenv(name)
+    try:
+        value = float(str(raw).strip()) if raw is not None and str(raw).strip() else default
+    except (TypeError, ValueError):  # fmt: skip
+        _logger.warning("环境变量 %s 不是数字（%r），按默认值 %s 处理", name, raw, default)
+        value = default
+    return min(max(value, minimum), maximum)
+
+
 def _valid_public_origin(value: str) -> bool:
     """一个「额外公开来源」是否合法（完整 ``scheme://host:port``，无路径/凭据/列表）。
 
@@ -579,8 +594,12 @@ def load_settings() -> Settings:
         data_dir=data_dir,
         store_url=os.getenv("APP_STORE_URL", "").strip().rstrip("/"),
         jwt_secret=os.getenv("JWT_SECRET", "").strip(),
-        jwt_expires_in_seconds=int(os.getenv("JWT_EXPIRES_IN_SECONDS", "86400")),
-        session_max_age_seconds=max(1, int(os.getenv("HOMEOS_SESSION_MAX_AGE_SECONDS", str(30 * 24 * 60 * 60)))),
+        jwt_expires_in_seconds=_environment_int(
+            "JWT_EXPIRES_IN_SECONDS", 86400, minimum=60, maximum=365 * 24 * 3600
+        ),
+        session_max_age_seconds=_environment_int(
+            "HOMEOS_SESSION_MAX_AGE_SECONDS", 30 * 24 * 60 * 60, minimum=60, maximum=365 * 24 * 3600
+        ),
         schema_mode=os.getenv("HOMEOS_SCHEMA_MODE", "auto").strip().lower() or "auto",
         slow_db_query_ms=_environment_int("HOMEOS_SLOW_DB_QUERY_MS", 100, minimum=1, maximum=60000),
         cookie_name=os.getenv("COOKIE_NAME", "auth_token").strip() or "auth_token",
@@ -597,14 +616,24 @@ def load_settings() -> Settings:
             if os.getenv("APP_TRUSTED_PROXIES") is not None
             else ("127.0.0.1", "::1")
         ),
-        public_body_limit_bytes=int(os.getenv("PUBLIC_BODY_LIMIT_BYTES", str(1 * 1024 * 1024))),
-        authenticated_body_limit_bytes=int(os.getenv("AUTHENTICATED_BODY_LIMIT_BYTES", str(50 * 1024 * 1024))),
-        ha_request_timeout_seconds=float(os.getenv("HA_REQUEST_TIMEOUT_SECONDS", "10")),
-        ha_websocket_max_size_bytes=int(os.getenv("HA_WEBSOCKET_MAX_SIZE_BYTES", str(67108864))),
+        public_body_limit_bytes=_environment_int(
+            "PUBLIC_BODY_LIMIT_BYTES", 1024 * 1024, minimum=1024, maximum=1024 * 1024 * 1024
+        ),
+        authenticated_body_limit_bytes=_environment_int(
+            "AUTHENTICATED_BODY_LIMIT_BYTES", 50 * 1024 * 1024, minimum=1024, maximum=1024 * 1024 * 1024
+        ),
+        ha_request_timeout_seconds=_environment_float(
+            "HA_REQUEST_TIMEOUT_SECONDS", 10.0, minimum=0.5, maximum=300.0
+        ),
+        ha_websocket_max_size_bytes=_environment_int(
+            "HA_WEBSOCKET_MAX_SIZE_BYTES", 64 * 1024 * 1024, minimum=1024 * 1024, maximum=512 * 1024 * 1024
+        ),
         # 周期全量对账是兜底：实时 WS 已覆盖大部分变化，30 分钟把 700+ 实体全量拉一遍
         # 既费 HA 又写库，默认降到 6 小时；重连/手动刷新仍会立即全量同步，
         # 需要更频繁可用 HA_RECONCILE_INTERVAL_SECONDS 调回。
-        ha_reconcile_interval_seconds=int(os.getenv("HA_RECONCILE_INTERVAL_SECONDS", "21600")),
+        ha_reconcile_interval_seconds=_environment_int(
+            "HA_RECONCILE_INTERVAL_SECONDS", 21600, minimum=60, maximum=7 * 24 * 3600
+        ),
         runtime_access_cache_seconds=_environment_non_negative_float(
             "APP_RUNTIME_ACCESS_CACHE_SECONDS", DEFAULT_RUNTIME_ACCESS_CACHE_SECONDS
         ),
@@ -616,7 +645,9 @@ def load_settings() -> Settings:
         license_expired_grace_days=_environment_int("LICENSE_EXPIRED_GRACE_DAYS", 90, minimum=1, maximum=3650),
         license_server_url=os.getenv("APP_LICENSE_SERVER_URL", "").strip().rstrip("/") or DEFAULT_LICENSE_SERVER_URL,
         license_server_batches=_environment_batches("APP_LICENSE_SERVER_BATCHES"),
-        license_request_timeout_seconds=float(os.getenv("APP_LICENSE_REQUEST_TIMEOUT_SECONDS", "10")),
+        license_request_timeout_seconds=_environment_float(
+            "APP_LICENSE_REQUEST_TIMEOUT_SECONDS", 10.0, minimum=0.5, maximum=300.0
+        ),
         license_public_key_sha256=os.getenv("APP_LICENSE_PUBLIC_KEY_SHA256", "").strip()
         or DEFAULT_LICENSE_PUBLIC_KEY_SHA256,
         license_transport_public_key_sha256=os.getenv("APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256", "").strip()

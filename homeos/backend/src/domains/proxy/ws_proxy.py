@@ -31,8 +31,12 @@ from ...platform.security.ws_auth import extract_auth_token_from_cookie, resolve
 
 logger = logging.getLogger("homeos.ws-proxy")
 
-#: 双向桥接默认消息上限（None = 不限制，避免大帧被 websockets 默认 1MB 截断）。
-WS_MAX_MESSAGE_SIZE: int | None = None
+#: 双向桥接的单帧上限。不能留 ``None``：一对 WebSocket 桥接把对端帧读进本进程内存，
+#: 无上限时一个行为异常的内嵌目标（或病态的上游帧）就能把整个后端的堆吃光。
+#: 8 MiB 远大于正常信令 / 嵌入式页面帧，又给了明确的拒绝边界。
+WS_MAX_MESSAGE_SIZE: int | None = 8 * 1024 * 1024
+#: 上游待收队列上限：与 HA 客户端一致，避免对端慢消费时在内存里堆积。
+WS_MAX_QUEUE = 4
 
 #: 内嵌页 WS 心跳间隔（毫秒）。
 EMBED_WS_HEARTBEAT_MS = 30_000
@@ -173,6 +177,7 @@ async def bridge_websockets(
             subprotocols=cast("Sequence[Subprotocol] | None", subprotocols or None),
             ssl=ssl_context_for(upstream_uri),
             max_size=WS_MAX_MESSAGE_SIZE,
+            max_queue=WS_MAX_QUEUE,
             open_timeout=10,
         ) as upstream:
 

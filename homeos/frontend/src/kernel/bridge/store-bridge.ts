@@ -1,12 +1,15 @@
 /** Store 桥接：打破 api / auth / entities / ui 之间的循环依赖。 */
 import { ref } from 'vue'
 import type { NotifyType } from '@/kernel/notify'
+import type { SecurityEntryPendingSocketPayload } from '@/kernel/entity'
 import { logger } from '@/kernel/core/logger'
 
 type VoidHandler = () => void
 type NotifyHandler = (message: string, type?: NotifyType, duration?: number) => void
 /** 安防面板 Socket 推送的负载形状（模式 + 区域列表） */
 export type SecurityModeSocketPayload = { mode?: string; zones?: string[] }
+/** 进入延时 Socket 推送的负载形状（与后端 entry_pending / entry_resolved 对齐） */
+export type SecurityEntrySocketPayload = SecurityEntryPendingSocketPayload
 
 let unauthorizedHandler: VoidHandler | null = null
 let navigateToLoginHandler: VoidHandler | null = null
@@ -16,6 +19,8 @@ let authChangeHandler: VoidHandler | null = null
 let uiNotifyHandler: NotifyHandler | null = null
 let securityPanelRefreshHandler: VoidHandler | null = null
 let securityPanelModeHandler: ((data: SecurityModeSocketPayload) => void) | null = null
+let securityEntryPendingHandler: ((data: SecurityEntrySocketPayload) => void) | null = null
+let securityEntryResolvedHandler: ((data: SecurityEntrySocketPayload) => void) | null = null
 let notificationRefreshHandler: VoidHandler | null = null
 const eventLogRefreshHandlers = new Set<VoidHandler>()
 
@@ -133,6 +138,43 @@ export function registerSecurityPanelRefreshHandler(handler: VoidHandler): void 
  */
 export function registerSecurityPanelModeHandler(handler: (data: SecurityModeSocketPayload) => void): void {
   securityPanelModeHandler = handler
+}
+
+/**
+ * 注册安防进入延时处理器（Socket 推送 pending / resolved 时即时应用）。
+ * @param pending 开始或窗口内合并
+ * @param resolved 结束（撤防取消 / 到点派发）
+ */
+export function registerSecurityEntryHandlers(
+  pending: (data: SecurityEntrySocketPayload) => void,
+  resolved: (data: SecurityEntrySocketPayload) => void,
+): void {
+  securityEntryPendingHandler = pending
+  securityEntryResolvedHandler = resolved
+}
+
+/**
+ * 从 Socket 推送应用进入延时开始 / 合并；handler 未就绪时忽略。
+ * @param data Socket 推送的进入延时负载
+ */
+export function applySecurityEntryPendingFromSocket(data: SecurityEntrySocketPayload): void {
+  try {
+    securityEntryPendingHandler?.(data)
+  } catch (err) {
+    logger.warn('[Store 桥接] 进入延时应用失败', err)
+  }
+}
+
+/**
+ * 从 Socket 推送应用进入延时结束（必须执行，否则前端倒计时永远清不掉）。
+ * @param data Socket 推送的进入延时结束负载
+ */
+export function applySecurityEntryResolvedFromSocket(data: SecurityEntrySocketPayload): void {
+  try {
+    securityEntryResolvedHandler?.(data)
+  } catch (err) {
+    logger.warn('[Store 桥接] 进入延时结束应用失败', err)
+  }
 }
 
 /**

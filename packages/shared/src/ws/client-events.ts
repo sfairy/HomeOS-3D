@@ -21,6 +21,8 @@ export const WS_CLIENT_EVENTS = {
   SECURITY_MODE: 'security_mode', // [安防] 布防模式变更
   SECURITY_ZONES: 'security_zones', // [安防] 安防区域状态
   SECURITY_ALARM: 'security_alarm', // [安防] 安防告警
+  SECURITY_ENTRY_PENDING: 'security_entry_pending', // [安防] 进入延时开始/窗口内合并
+  SECURITY_ENTRY_RESOLVED: 'security_entry_resolved', // [安防] 进入延时结束（撤防取消/到点派发）
   SECURITY_EMERGENCY: 'security_emergency', // [安防] 紧急求助触发
   SECURITY_EMERGENCY_COMPLETED: 'security_emergency_completed', // [安防] 紧急求助结束
   PRESENCE_CHANGED: 'presence_changed', // [人员在场] 人员状态变更

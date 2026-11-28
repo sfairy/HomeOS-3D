@@ -74,6 +74,11 @@ MOTION = {
     "state": "on",
     "attributes": {"device_class": "motion", "friendly_name": "走廊人体"},
 }
+WINDOW = {
+    "entity_id": "binary_sensor.back_window",
+    "state": "on",
+    "attributes": {"device_class": "window", "friendly_name": "后窗"},
+}
 
 
 def test_door_starts_pending() -> None:
@@ -109,7 +114,13 @@ def test_disarm_cancels() -> None:
         cancelled = helper.entry_delay.cancel("已撤防")
         check("撤防能取消 pending", cancelled is True)
         check("取消后状态清空", helper.entry_delay.status() == {"pending": False}, str(helper.entry_delay.status()))
-        # 到点回调不应再告警
+        names = bus.names()
+        check("取消时发出 resolved 事件", "security.entryResolved" in names, str(names))
+        resolved = bus.first("security.entryResolved")
+        check("resolved 标记为 cancelled", resolved.get("reason") == "cancelled", str(resolved))
+        check("resolved 未告警", resolved.get("alarmed") is False, str(resolved))
+        # 到点回调不应再告警，也不应再发第二条 resolved
+        bus.events.clear()
         helper.entry_delay._on_deadline()
         check("取消后到点不告警", not bus.events, str(bus.events))
 
@@ -124,8 +135,11 @@ def test_deadline_fires_alarm() -> None:
         helper.entry_delay._on_deadline()
         # 到点任务异步派发，给它一个调度机会
         await asyncio.sleep(0)
-        names = [name for name, _payload in bus.events]
+        names = bus.names()
         check("到点仍未撤防 → 真正告警", "security.alarm" in names, str(names))
+        check("到点发出 resolved 事件", "security.entryResolved" in names, str(names))
+        resolved = bus.first("security.entryResolved")
+        check("resolved 标记为 expired 且已告警", resolved.get("reason") == "expired" and resolved.get("alarmed") is True, str(resolved))
 
     asyncio.run(scenario())
 
@@ -137,7 +151,9 @@ def test_deadline_disarmed_skips() -> None:
         bus.events.clear()
         helper.entry_delay._on_deadline()
         await asyncio.sleep(0)
-        check("到点时已撤防则不告警", not bus.events, str(bus.events))
+        check("到点时已撤防则不告警", "security.alarm" not in bus.names(), str(bus.events))
+        resolved = bus.first("security.entryResolved")
+        check("撤防到点仍要发 resolved 清掉倒计时", resolved is not None and resolved.get("alarmed") is False, str(bus.events))
 
     asyncio.run(scenario())
 
@@ -200,6 +216,102 @@ def test_lock_unlock_counts_as_entry() -> None:
     asyncio.run(scenario())
 
 
+def test_status_exposes_countdown() -> None:
+    """页面刷新 / 重进时需要从 ``/status`` 恢复倒计时，字段必须齐全。"""
+
+    async def scenario():
+        helper, _bus, _cooldown = build(30)
+        helper.entry_delay.begin("binary_sensor.front_door", DOOR, "on", [{"id": "z1", "name": "玄关"}], 0)
+        status = helper.entry_delay.status()
+        check("status 带 pending", status["pending"] is True)
+        check("status 带实体列表", status["entityIds"] == ["binary_sensor.front_door"], str(status))
+        check("status 带防区名", status["zoneNames"] == ["玄关"], str(status))
+        check("status 带截止时刻", isinstance(status["deadlineAt"], int) and status["deadlineAt"] > 0, str(status))
+        check("status 带剩余秒数", status["delaySeconds"] >= 0, str(status))
+        helper.entry_delay.cancel("test")
+
+    asyncio.run(scenario())
+
+
+def test_second_sensor_merges_zones() -> None:
+    """窗口内第二个传感器触发不得被静默丢弃；到点按防区并集告警。"""
+
+    async def scenario():
+        helper, bus, _cooldown = build(30, mode="armed_away")
+        window = {"id": "z_window", "name": "后窗"}
+        entry = {"id": "z_entry", "name": "玄关"}
+        helper.entry_delay.begin("binary_sensor.front_door", DOOR, "on", [entry], 0)
+        bus.events.clear()
+        merged = helper.entry_delay.begin("binary_sensor.back_window", WINDOW, "on", [window], 0)
+        check("窗口内第二次进门触发仍算挂起", merged is True)
+        status = helper.entry_delay.status()
+        check("两次触发合并到同一 pending", status["entityIds"] == ["binary_sensor.front_door", "binary_sensor.back_window"], str(status))
+        check("防区取并集", sorted(status["zoneIds"]) == ["z_entry", "z_window"], str(status))
+        names = bus.names()
+        check("合并时刷新 pending 事件", names.count("security.entryPending") == 1, str(names))
+        check("合并事件标记 merged", bus.first("security.entryPending").get("merged") is True, str(bus.events))
+        # 只有一个定时器：到点只派发一次，且携带两个防区
+        bus.events.clear()
+        helper.entry_delay._on_deadline()
+        await asyncio.sleep(0)
+        alarms = [payload for name, payload in bus.events if name == "security.alarm"]
+        check("到点只告警一次", len(alarms) == 1, str(bus.events))
+        zones = alarms[0].get("zones") if alarms else []
+        check("告警携带两个防区", sorted(zones or []) == ["z_entry", "z_window"], str(alarms))
+
+    asyncio.run(scenario())
+
+
+def test_motion_during_pending_is_absorbed() -> None:
+    """窗口内人体触发不得立即拉响警笛（否则撤防窗口等于不存在，到点还会再响一次）。"""
+
+    async def scenario():
+        helper, bus, _cooldown = build(30, mode="armed_away")
+        door_zone = {
+            "id": "z_entry",
+            "name": "玄关",
+            "armed": True,
+            "sensors": ["binary_sensor.front_door"],
+            "zoneType": "perimeter",
+        }
+        hall_zone = {
+            "id": "z_hall",
+            "name": "走廊",
+            "armed": True,
+            "sensors": ["binary_sensor.hall_motion"],
+            "zoneType": "interior",
+        }
+        helper._get_zones = lambda: [door_zone, hall_zone]
+        await helper.handle_sensor_trigger(
+            {"entity_id": "binary_sensor.front_door", "old_state": {"state": "off"}, "new_state": dict(DOOR)}
+        )
+        check("门磁先进入 pending", helper.entry_delay.status()["pending"] is True)
+        bus.events.clear()
+        await helper.handle_sensor_trigger(
+            {"entity_id": "binary_sensor.hall_motion", "old_state": {"state": "off"}, "new_state": dict(MOTION)}
+        )
+        check("窗口内人体触发不立即告警", "security.alarm" not in bus.names(), str(bus.events))
+        status = helper.entry_delay.status()
+        check("窗口仍然只有一个 pending", status["pending"] is True, str(status))
+        check(
+            "防区取并集",
+            sorted(status["zoneIds"]) == ["z_entry", "z_hall"],
+            str(status),
+        )
+        bus.events.clear()
+        helper.entry_delay._on_deadline()
+        await asyncio.sleep(0)
+        alarms = [payload for name, payload in bus.events if name == "security.alarm"]
+        check("到点只告警一次", len(alarms) == 1, str(bus.events))
+        check(
+            "告警携带并集防区",
+            sorted((alarms[0].get("zones") or []) if alarms else []) == ["z_entry", "z_hall"],
+            str(alarms),
+        )
+
+    asyncio.run(scenario())
+
+
 def main() -> int:
     test_door_starts_pending()
     test_motion_not_delayed()
@@ -209,6 +321,9 @@ def main() -> int:
     test_deadline_disarmed_skips()
     test_disabled_when_zero()
     test_lock_unlock_counts_as_entry()
+    test_status_exposes_countdown()
+    test_second_sensor_merges_zones()
+    test_motion_during_pending_is_absorbed()
     report("安防进入延时")
     return 0
 

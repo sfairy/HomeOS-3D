@@ -30,6 +30,22 @@
 
     <div class="sp-card__body">
       <div v-if="activeTab === 'arm'" class="sp-tab-panel">
+        <div v-if="entryPending" class="sp-entry-pending" role="alert" aria-live="assertive">
+          <div class="sp-entry-pending__body">
+            <p class="sp-entry-pending__title">
+              {{ `进入延时：${entryPending.zoneNames.join('、') || '安防区域'} 已触发` }}
+            </p>
+            <p class="sp-entry-pending__hint">{{ `${entryRemainingSeconds} 秒内撤防可取消告警` }}</p>
+          </div>
+          <button
+            type="button"
+            class="sp-entry-pending__btn"
+            :disabled="arming === 'disarmed'"
+            @click="disarmNow"
+          >
+            {{ '立即撤防' }}
+          </button>
+        </div>
         <ApiQueryState
           :loading="loading"
           :error="panelError"
@@ -160,6 +176,8 @@ const {
   error: panelError,
   refresh,
   patchModeFromSocket,
+  entryPending,
+  entryRemainingSeconds,
 } = useSecurityPanelStatus()
 
 function refreshPanel() {
@@ -300,6 +318,30 @@ async function handleArm(mode) {
 
 function isZoneSelected(id) {
   return armZoneSelection.value.includes(id)
+}
+
+/**
+ * 进入延时窗口内的「立即撤防」。
+ *
+ * 刻意**不走** `handleArm` 的二次确认：窗口只有几十秒，再弹确认框等于把撤防机会吞掉。
+ */
+async function disarmNow() {
+  if (arming.value) return
+  arming.value = 'disarmed'
+  try {
+    const data = await executeSecurityPanelArm('disarmed', [], panelZones.value, patchModeFromSocket)
+    const outcome = interpretSecurityArmResult('disarmed', '撤防', data)
+    if (outcome.kind === 'failed') {
+      chrome.notify(outcome.message, 'error')
+      return
+    }
+    hapticAlert()
+    lastEvent.value = `${formatLocaleTime(new Date(), { hour: '2-digit', minute: '2-digit' })} 撤防`
+  } catch (err) {
+    notifyError(err, '安防撤防')
+  } finally {
+    arming.value = null
+  }
 }
 
 function toggleZoneSelect(id) {
