@@ -95,26 +95,9 @@ if [ -z "$caddy_bin" ]; then
   # **完整性校验**：这个 tarball 解出来的二进制接下来会被直接执行，`gzip -t` 只是格式检查，
   # 挡不住被替换过的资产（或会重打包的 TLS 中间层）。摘要白名单在
   # ops/ci/caddy_asset_pins.json，缺失即失败（fail-closed，不提供「校验不了就跳过」）。
-  expected_sha="$(node -e '
-    const pins = require(process.argv[1]).assets || {}
-    const key = `${process.argv[2]}:${process.argv[3]}_${process.argv[4]}`
-    process.stdout.write(pins[key] || "")
-  ' "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/ops/ci/caddy_asset_pins.json" \
-    "$caddy_version" "$caddy_os" "$caddy_arch")"
-  if [ -z "$expected_sha" ]; then
-    echo "::error::ops/ci/caddy_asset_pins.json 里没有 ${caddy_version}:${caddy_os}_${caddy_arch} 的摘要 ——" \
-      "升级 caddy 时必须同步补上（取法见该文件 _doc）" >&2
-    exit 1
-  fi
-  actual_sha="$(node -e '
-    const { createHash } = require("node:crypto")
-    const { readFileSync } = require("node:fs")
-    process.stdout.write(createHash("sha256").update(readFileSync(process.argv[1])).digest("hex"))
-  ' "$caddy_tarball")"
-  if [ "$actual_sha" != "$expected_sha" ]; then
-    echo "::error::caddy 发包摘要不匹配（版本 ${caddy_version}，${caddy_os}_${caddy_arch}）：期望 ${expected_sha}，实际 ${actual_sha}" >&2
-    exit 1
-  fi
+  # 校验逻辑放在独立脚本里：内联 `node -e '...'` 里出现 `${}` 会触发 shellcheck SC2016，
+  # 而禁用该告警会让「真的写错引号」永远看不见。
+  node ops/ci/verify_caddy_asset.mjs "$caddy_tarball" "$caddy_version" "$caddy_os" "$caddy_arch"
   tar -xzf "$caddy_tarball" -C "$caddy_work" caddy
   caddy_bin="$caddy_work/caddy"
 fi
