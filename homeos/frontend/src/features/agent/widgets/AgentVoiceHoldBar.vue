@@ -324,9 +324,7 @@ const transcriptText = computed(() => props.transcript || '正在聆听…')
 
 .avh-hud-enter-active,
 .avh-hud-leave-active {
-  transition:
-    opacity var(--hos-dur-fast) var(--hos-ease-standard),
-    transform var(--hos-dur-fast) var(--hos-ease-standard);
+  transition: transform var(--hos-dur-fast) var(--hos-ease-standard), opacity var(--hos-dur-fast) var(--hos-ease-standard);
 }
 
 .avh-hud-enter-from,

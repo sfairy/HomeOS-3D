@@ -236,7 +236,8 @@ if (typeof document !== 'undefined') {
   document.documentElement.dir = 'ltr'
 }
 
-// 尽早应用主题 token（html[data-theme]），避免首屏闪色
+// 主题：调色板固定（真源在 app/hos-design-system.css 的 :root），这里只清理
+// 历史切换偏好，避免老设备上遗留的 homeos_ui_theme 被其它读取方当真。
 applyHomeOsTheme()
 // 毛玻璃档位同样在首帧前定档：入户页配置在挂载后才到，若等它来写，触摸设备会先用
 // native 渲染一次再翻成 static（表单整体变一次色/变一次模糊）。见 glass-effect.util。

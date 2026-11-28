@@ -21,6 +21,21 @@
   padding: 20px;
 }
 
+/* 7.10e 关掉 blur 后补实底（0.72 已够深，只补一点点以免场景色透上来） */
+@media (pointer: coarse), (hover: none) {
+  .device-batch__modal-overlay {
+    background: rgba(0, 0, 0, 0.82);
+  }
+}
+@container hos-canvas (max-width: 900px) {
+  .device-batch__modal-overlay {
+    background: rgba(0, 0, 0, 0.82);
+  }
+}
+html[data-glass-effect="static"] .device-batch__modal-overlay {
+  background: rgba(0, 0, 0, 0.82);
+}
+
 .device-batch__modal {
   width: 100%;
   max-width: 440px;

@@ -203,4 +203,4 @@ const widgetFlowSummary = computed(() => `目录 ${catalogCount.value} · 右侧
   </div>
 </template>
 
-<style scoped src="../layout-panels.css"></style>
+<style src="../layout-panels.css"></style>

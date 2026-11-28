@@ -74,7 +74,7 @@ const {
       {{ statsError }}
     </div>
 
-    <section class="notifications-view__content">
+    <section class="notifications-view__content" v-scroll-region="'通知分析区'">
       <div class="notifications-view__layout">
         <section class="notifications-view__analytics">
           <NotificationsViewAnalytics

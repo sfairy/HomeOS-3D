@@ -43,8 +43,6 @@ import { resolvePerfShellClass } from '@/kernel/perf/adaptive-perf'
 import { autoPerformanceModeRef, resolveEffectivePerformanceMode } from '@/kernel/perf/runtime-perf-mode'
 import { applyGlassEffectDocument } from '@/kernel/ui/glass-effect'
 import { isNavTabRouteActive } from '@/kernel/layout'
-import { useViewportTier } from '@/kernel/layout'
-import { useCanvasMetrics } from '@/kernel/ui/use-canvas-metrics'
 import {
   buildDropdownFixedStyle,
   rectToDropdownPosition,
@@ -384,10 +382,10 @@ watch(
   (path) => setDerivedRoutePath(path),
   { immediate: true },
 )
-// 视口档位：写 <html data-viewport-tier>，供壳层 / 大屏适配的 CSS 统一消费。
-// 基准必须传画布宽度：档位语义是「这块画布有多宽」，窗口宽度在缩放态下会错档。
-const { canvasWidth: canvasTierWidth } = useCanvasMetrics()
-useViewportTier(canvasTierWidth)
+// 逐路由 / 逐面板的宽度档位判断统一走 `useCanvasMetrics()`（见 use-main-layout-nav-menu.ts）；
+// 曾经这里还调用 `useViewportTier()` 往 <html> 写 data-viewport-tier，但全仓没有任何选择器
+// 消费那个属性 / 那两个 CSS 变量，等于每个 resize 白跑一次 DOM 写入，已删除。
+// 需要「按画布宽度分支」时：CSS 用 @container hos-canvas，JS 用 useCanvasMetrics()。
 
 // 每日顾问问候：必须等 isConfigLoaded，否则读到的是前端默认值（dailyAdvisorSpeak=false 永不触发）。
 const { maybeGreet: maybeDailyGreet } = useDailyAdvisorGreeting()
@@ -627,7 +625,7 @@ watch(
               </a>
             </router-link>
           </template>
-          <button @click="toggleFullscreen" class="icon-btn" :title="'全屏'" :aria-label="'全屏'">
+          <button type="button" @click="toggleFullscreen" class="icon-btn" :title="'全屏'" :aria-label="'全屏'">
             <Maximize2 class="w-4 h-4" />
           </button>
         </div>

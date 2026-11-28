@@ -337,6 +337,12 @@ export function useFloatingHub(rootRef: Ref<HTMLElement | null>) {
     window.addEventListener('mouseup', onDragEnd)
     window.addEventListener('touchmove', onDragMove, { passive: false })
     window.addEventListener('touchend', onDragEnd)
+    // 手势被系统/浏览器取消时也必须收尾：来电报、通知中心下拉、多指手势、页面切到后台
+    // 都会让 touchend / mouseup 永远不来。原先只监听 end 事件，`draggingId` 会残留，
+    // 部件于是跟着后续的鼠标/手指乱跑（直到下一次选择才复位）。
+    window.addEventListener('touchcancel', onDragEnd)
+    window.addEventListener('pointercancel', onDragEnd)
+    window.addEventListener('blur', onDragEnd)
   })
 
   onUnmounted(() => {
@@ -344,6 +350,9 @@ export function useFloatingHub(rootRef: Ref<HTMLElement | null>) {
     window.removeEventListener('mouseup', onDragEnd)
     window.removeEventListener('touchmove', onDragMove)
     window.removeEventListener('touchend', onDragEnd)
+    window.removeEventListener('touchcancel', onDragEnd)
+    window.removeEventListener('pointercancel', onDragEnd)
+    window.removeEventListener('blur', onDragEnd)
   })
 
   const context: FloatingHubContext = {

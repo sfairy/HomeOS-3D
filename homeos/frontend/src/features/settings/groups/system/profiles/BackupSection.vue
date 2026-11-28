@@ -301,4 +301,4 @@ async function requestRestore(name) {
 }
 </script>
 
-<style scoped src="./profiles-theme.css"></style>
+<style src="./profiles-theme.css"></style>

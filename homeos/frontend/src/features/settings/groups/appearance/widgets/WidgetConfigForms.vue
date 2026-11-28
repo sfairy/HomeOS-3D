@@ -129,4 +129,4 @@ const playerEntitiesList = computed({
   </WidgetConfigShell>
 </template>
 
-<style scoped src="../layout-panels.css"></style>
+<style src="../layout-panels.css"></style>

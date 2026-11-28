@@ -1,3 +1,13 @@
+/*
+ * 【加载契约 · 多组件共用】
+ * 本表被多个组件引入，必须**一律以全局方式**加载（`<style src="...">`，不带 `scoped`）。
+ *
+ * 为什么：`scoped` 会给选择器最后一段加 `[data-v-xxxx]`，同一份表在不同组件里
+ * 就变成两套规则 —— 一半命中、一半落空，且同一份 CSS 会重复打进每个 chunk。
+ * 历史上这批表混着写，表现为「某个面板的间距只在打开顺序不同的时候才对」。
+ *
+ * 由 `node ops/checks/frontend/audit_css_layout.mjs` 的 scoping 统计守卫。
+ */
 .diagnostics-hub {
   --diag-fs-micro: var(--premium-fs-micro);
   --diag-fs-caption: var(--premium-fs-caption);
@@ -174,8 +184,10 @@
   animation: setFadeIn 0.22s ease-out;
   --section-accent: var(--diag-emerald);
   max-width: 100%;
-  overflow-x: clip;
-  overflow-y: visible;
+  /* 只夹宽度不裁内容：原先 `overflow-x:clip` + `overflow-y:visible` 按规范会把纵向
+     算成 auto，白给整块面板一个纵向滚动容器（滚动条 + 焦点陷阱）。宽度由
+     max-width:100% 与子项的 min-width:0 控制，装饰元素各自裁剪。 */
+  overflow: visible;
 }
 
 .diag-overview-panel--summary {
@@ -625,7 +637,14 @@
   border-radius: var(--hos-radius-card);
   background: rgba(var(--set-success-rgb), 0.12);
   border: var(--hos-hairline) solid rgba(var(--set-success-rgb), 0.32);
-  transition: all 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    color 0.2s ease,
+    filter 0.2s ease;
   letter-spacing: 0.02em;
 }
 .diag-config-health__link:hover {

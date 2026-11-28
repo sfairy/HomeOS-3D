@@ -2,31 +2,6 @@
   margin-top: 10px;
 }
 
-.bind-section__head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  margin: 10px 0 10px;
-}
-
-.bind-section__eyebrow {
-  margin: 0 0 4px;
-  font-size: var(--premium-fs-micro);
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--page-accent-secondary, var(--module-accent-bindings-sub));
-  opacity: 0.75;
-}
-
-.bind-section__title {
-  margin: 0;
-  font-size: var(--premium-fs-body, 14px);
-  font-weight: 800;
-  color: rgba(255, 255, 255, 0.9);
-}
-
 .bind-energy-status {
   display: flex;
   align-items: center;

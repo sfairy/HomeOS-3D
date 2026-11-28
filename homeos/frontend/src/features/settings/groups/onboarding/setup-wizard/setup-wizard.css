@@ -1,3 +1,13 @@
+/*
+ * 【加载契约 · 多组件共用】
+ * 本表被多个组件引入，必须**一律以全局方式**加载（`<style src="...">`，不带 `scoped`）。
+ *
+ * 为什么：`scoped` 会给选择器最后一段加 `[data-v-xxxx]`，同一份表在不同组件里
+ * 就变成两套规则 —— 一半命中、一半落空，且同一份 CSS 会重复打进每个 chunk。
+ * 历史上这批表混着写，表现为「某个面板的间距只在打开顺序不同的时候才对」。
+ *
+ * 由 `node ops/checks/frontend/audit_css_layout.mjs` 的 scoping 统计守卫。
+ */
 /* 合并自：setup-wizard-tokens.css, setup-wizard-shared.css, setup-wizard-panel.css, setup-wizard-progress.css, setup-wizard-env.css, setup-wizard-presence.css, setup-wizard-doorbell.css */
 
 /* ── setup-wizard-tokens.css ── */
@@ -241,7 +251,14 @@
   font-size: var(--set-fs-caption);
   font-weight: 700;
   cursor: pointer;
-  transition: all var(--hos-dur-base) ease;
+  transition:
+    transform var(--hos-dur-base) ease,
+    opacity var(--hos-dur-base) ease,
+    background-color var(--hos-dur-base) ease,
+    border-color var(--hos-dur-base) ease,
+    box-shadow var(--hos-dur-base) ease,
+    color var(--hos-dur-base) ease,
+    filter var(--hos-dur-base) ease;
 }
 
 .sw-btn:hover:not(:disabled) {
@@ -482,7 +499,14 @@
   color: var(--hos-text-secondary);
   background: rgba(255, 255, 255, 0.03);
   border: var(--hos-hairline) solid var(--sw-border-subtle);
-  transition: all var(--hos-dur-base) ease;
+  transition:
+    transform var(--hos-dur-base) ease,
+    opacity var(--hos-dur-base) ease,
+    background-color var(--hos-dur-base) ease,
+    border-color var(--hos-dur-base) ease,
+    box-shadow var(--hos-dur-base) ease,
+    color var(--hos-dur-base) ease,
+    filter var(--hos-dur-base) ease;
 }
 
 .sw-timeline__node-svg {

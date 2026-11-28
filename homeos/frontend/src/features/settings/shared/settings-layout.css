@@ -326,6 +326,10 @@
   box-shadow: var(--hos-surface-well-inset, inset 0 1px 0 rgba(255, 255, 255, 0.03));
 }
 
+/* `.settings-card--nested` 的 padding / radius 曾同时在 kernel/ui/hos-panel.css 声明
+   （一份带 fallback、一份不带），两者取值相同但排版不同，审计会报「跨文件冲突」。
+   这里才是完整配方（表面色 + 描边 + inset），hos-panel.css 里那份已删除。 */
+
 .settings-card--flat::before,
 .settings-card--flat::after,
 .settings-card--static::before,
@@ -731,7 +735,14 @@
   font-weight: 700;
   color: var(--set-text-secondary);
   cursor: pointer;
-  transition: all 0.28s cubic-bezier(0.25, 0.1, 0.25, 1);
+  transition:
+    transform 0.28s cubic-bezier(0.25, 0.1, 0.25, 1),
+    opacity 0.28s cubic-bezier(0.25, 0.1, 0.25, 1),
+    background-color 0.28s cubic-bezier(0.25, 0.1, 0.25, 1),
+    border-color 0.28s cubic-bezier(0.25, 0.1, 0.25, 1),
+    box-shadow 0.28s cubic-bezier(0.25, 0.1, 0.25, 1),
+    color 0.28s cubic-bezier(0.25, 0.1, 0.25, 1),
+    filter 0.28s cubic-bezier(0.25, 0.1, 0.25, 1);
   background: var(--set-glass-bg-subtle);
 }
 
@@ -953,7 +964,14 @@
   font-weight: 600;
   cursor: pointer;
   border: none;
-  transition: all 0.35s cubic-bezier(0.25, 0.1, 0.25, 1);
+  transition:
+    transform 0.35s cubic-bezier(0.25, 0.1, 0.25, 1),
+    opacity 0.35s cubic-bezier(0.25, 0.1, 0.25, 1),
+    background-color 0.35s cubic-bezier(0.25, 0.1, 0.25, 1),
+    border-color 0.35s cubic-bezier(0.25, 0.1, 0.25, 1),
+    box-shadow 0.35s cubic-bezier(0.25, 0.1, 0.25, 1),
+    color 0.35s cubic-bezier(0.25, 0.1, 0.25, 1),
+    filter 0.35s cubic-bezier(0.25, 0.1, 0.25, 1);
   box-shadow: 0 4px 16px rgba(10, 132, 255, 0.25);
 }
 .save-btn:hover {
@@ -1034,7 +1052,14 @@
   background: var(--set-glass-bg);
   border: var(--hos-hairline) solid var(--set-border-strong);
   cursor: pointer;
-  transition: all 0.22s cubic-bezier(0.25, 0.1, 0.25, 1);
+  transition:
+    transform 0.22s cubic-bezier(0.25, 0.1, 0.25, 1),
+    opacity 0.22s cubic-bezier(0.25, 0.1, 0.25, 1),
+    background-color 0.22s cubic-bezier(0.25, 0.1, 0.25, 1),
+    border-color 0.22s cubic-bezier(0.25, 0.1, 0.25, 1),
+    box-shadow 0.22s cubic-bezier(0.25, 0.1, 0.25, 1),
+    color 0.22s cubic-bezier(0.25, 0.1, 0.25, 1),
+    filter 0.22s cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 .sidebar-footer__cancel-btn:hover:not(:disabled) {
@@ -1065,7 +1090,14 @@
   font-weight: 600;
   cursor: pointer;
   border: none;
-  transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+  transition:
+    transform 0.3s cubic-bezier(0.25, 0.1, 0.25, 1),
+    opacity 0.3s cubic-bezier(0.25, 0.1, 0.25, 1),
+    background-color 0.3s cubic-bezier(0.25, 0.1, 0.25, 1),
+    border-color 0.3s cubic-bezier(0.25, 0.1, 0.25, 1),
+    box-shadow 0.3s cubic-bezier(0.25, 0.1, 0.25, 1),
+    color 0.3s cubic-bezier(0.25, 0.1, 0.25, 1),
+    filter 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
   box-shadow: 0 4px 16px rgba(10, 132, 255, 0.25);
 }
 
@@ -1205,7 +1237,7 @@
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  padding: 10px var(--settings-inset-x, 2rem) calc(12px + env(safe-area-inset-bottom, 0px));
+  padding: 10px var(--settings-inset-x, 2rem) calc(12px + var(--hos-safe-bottom, 0px));
   border-top: var(--hos-hairline) solid var(--set-border-subtle);
   text-align: center;
 }
@@ -1249,7 +1281,14 @@
   font-size: var(--set-fs-btn);
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition:
+    transform 0.3s ease,
+    opacity 0.3s ease,
+    background-color 0.3s ease,
+    border-color 0.3s ease,
+    box-shadow 0.3s ease,
+    color 0.3s ease,
+    filter 0.3s ease;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1263,7 +1302,14 @@
 .settings-main input[type="number"],
 .settings-main input[type="password"],
 .settings-main textarea {
-  transition: all 0.25s ease;
+  transition:
+    transform 0.25s ease,
+    opacity 0.25s ease,
+    background-color 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.25s ease,
+    color 0.25s ease,
+    filter 0.25s ease;
 }
 
 .settings-main input:focus,
@@ -1357,28 +1403,9 @@
   .toggle-dot.on {
     transform: translate3d(var(--hos-switch-travel-sm), 0, 0);
   }
-
-  /* 命中区补偿：轨道仍是 40×24，可点区域由透明伪元素扩到 48×48（见 main.css 同名块）。 */
-  .toggle-btn {
-    position: relative;
-    overflow: visible;
-  }
-
-  .toggle-btn::before {
-    content: "";
-    position: absolute;
-    inset: -12px -4px;
-    border-radius: inherit;
-  }
 }
 
-.profile-card {
-  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.profile-card:hover {
-  border-color: rgba(129, 140, 248, 0.3) !important;
-  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.08);
-}
+/* `.profile-card` 的过渡与悬停描边由 profiles-theme.css（域真源）声明，这里不再重复。 */
 
 @keyframes settingsFadeIn {
   0% {
@@ -1404,53 +1431,22 @@
 }
 
 .settings-card .grid > div {
-  transition: all 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    color 0.2s ease,
+    filter 0.2s ease;
 }
 
 .settings-card .grid > div:hover {
   transform: translateY(-1px);
 }
 
-.sm-batch-panel {
-  max-height: 0;
-  overflow: hidden;
-  opacity: 0;
-  transition: all 0.25s ease;
-  padding: 0;
-  margin-top: 0;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: var(--hos-radius-card, 14px);
-  border: var(--hos-hairline) solid transparent;
-}
-.sm-batch-panel--open {
-  max-height: min(calc(var(--hos-screen-h, 100vh) * 0.7), 1200px);
-  overflow-y: auto;
-  opacity: 1;
-  padding: 16px;
-  margin-top: 12px;
-  border-color: rgba(10, 132, 255, 0.1);
-}
-
-.sp-check-chip {
-  font-size: var(--set-fs-caption);
-  font-family: "SF Mono", "Fira Code", monospace;
-  padding: 2px 8px;
-  border-radius: 6px;
-  border: var(--hos-hairline) solid var(--premium-border-strong);
-  background: var(--set-glass-bg-subtle);
-  color: var(--set-text-label);
-  transition: all 0.15s;
-  cursor: pointer;
-}
-.sp-check-chip:hover {
-  background: var(--premium-glass-bg-hover);
-  color: var(--set-text-secondary);
-}
-.sp-check-chip--on {
-  background: rgba(10, 132, 255, 0.15);
-  border-color: rgba(10, 132, 255, 0.4);
-  color: #0a84ff;
-}
+/* `.sm-batch-panel` / `.sp-check-chip` 属于安防模式面板，真源已移到
+   features/settings/groups/automation/security-modes.css（本文件原先替它写了一份）。 */
 
 /* 高度钉到 lg 档，只作用于文本框/下拉触发器。
    注意 .settings-field 同时被复用为 flex 列容器（settings-forms.css），
@@ -1622,8 +1618,11 @@ input.settings-field {
 }
 
 .settings-page-inset {
-  padding-left: 2rem;
-  padding-right: 2rem;
+  /* 左右内边距的唯一真源：--settings-inset-x 由 settings-tokens.css 按画布宽度分档
+     （2rem → 2.5rem@1920 → 3.5rem@3200）。面包屑、概览条、保存条都消费同一个令牌，
+     此前这里另写死 2rem 并在 1920/3200 档写 2.75rem / 4rem，大屏上会与其它三条差 4~8px。 */
+  padding-left: var(--settings-inset-x, 2rem);
+  padding-right: var(--settings-inset-x, 2rem);
   flex-shrink: 0;
 }
 
@@ -1790,10 +1789,9 @@ input.settings-field {
     height: 32px;
   }
 
-  .settings-page-inset {
-    padding-left: 2.75rem;
-    padding-right: 2.75rem;
-  }
+  /* 左右内边距不再在此声明：唯一真源是 settings-tokens.css 的 --settings-inset-x
+     （1920 档 = 2.5rem），由 .settings-page-inset 的 padding-inline 直接消费。
+     这里曾写 2.75rem，与面包屑 / 概览条 / 保存条用的 2.5rem 差 4px，大屏上肉眼可见错位。 */
 
   .settings-page-inset--scroll {
     padding-bottom: 3.5rem;
@@ -1866,10 +1864,7 @@ input.settings-field {
     height: 36px;
   }
 
-  .settings-page-inset {
-    padding-left: 4rem;
-    padding-right: 4rem;
-  }
+  /* 左右内边距由 --settings-inset-x（3200 档 = 3.5rem）统一给出，见 1920 档处的说明。 */
 
   .settings-page-inset--scroll {
     padding-bottom: 4rem;

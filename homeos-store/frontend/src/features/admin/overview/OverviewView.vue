@@ -464,7 +464,7 @@ onMounted(load);
   <section class="admin-panel active" data-domain="operations">
     <PanelHead title="运营概览" desc="营收、订单漏斗、待办与风险项目的经营看板" domain="运营">
       <span class="overview-stamp">{{ stamp }}</span>
-      <button class="hb-button hb-button--secondary hb-button--sm" :disabled="loading" @click="load">刷新</button>
+      <button type="button" class="hb-button hb-button--secondary hb-button--sm" :disabled="loading" @click="load">刷新</button>
     </PanelHead>
 
     <AdminTabs
@@ -568,7 +568,7 @@ onMounted(load);
               <strong>入账异常 <span class="hb-chip" :data-tone="incidentsPill.tone">{{ incidentsPill.text }}</span></strong>
               <p>{{ incidentsDetail }}</p>
             </div>
-            <button
+            <button type="button"
               v-if="incidentsTotal > 0"
               class="hb-button hb-button--secondary hb-button--sm"
               @click="ackIncidents"
@@ -667,7 +667,7 @@ onMounted(load);
               <strong>维护模式</strong>
               <p>开启后商店前台显示维护遮罩，下单会被拒绝。</p>
             </div>
-            <button class="hb-button hb-button--danger hb-button--sm" @click="toggleMaintenance">切换维护模式</button>
+            <button type="button" class="hb-button hb-button--danger hb-button--sm" @click="toggleMaintenance">切换维护模式</button>
           </div>
           <div class="setting-row">
             <div>
@@ -675,7 +675,7 @@ onMounted(load);
               <p>按「仍占用库存的订单」重新统计各商品的预留数。历史版本曾重复扣减预留，
               导致可用库存虚低甚至误报售罄；发现库存数字对不上时点这里修正。</p>
             </div>
-            <button class="hb-button hb-button--secondary hb-button--sm" @click="recomputeStock">重算库存预留</button>
+            <button type="button" class="hb-button hb-button--secondary hb-button--sm" @click="recomputeStock">重算库存预留</button>
           </div>
           <div class="setting-row">
             <div>
@@ -683,7 +683,7 @@ onMounted(load);
               <p>按优惠码核销记录重新统计各码的「已核销」数。名额计数是快照，改过名额、
               释放过订单或历史版本重复占用时可能与真实情况对不上，发现数字不对点这里修正。</p>
             </div>
-            <button class="hb-button hb-button--secondary hb-button--sm" @click="recomputeCoupons">重算优惠码核销数</button>
+            <button type="button" class="hb-button hb-button--secondary hb-button--sm" @click="recomputeCoupons">重算优惠码核销数</button>
           </div>
         </div>
       </div>

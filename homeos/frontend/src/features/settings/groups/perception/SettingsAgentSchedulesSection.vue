@@ -510,6 +510,6 @@ onMounted(() => {
   padding: 8px 12px;
   border-radius: 8px;
   background: var(--hos-surface-2, rgba(127, 127, 127, 0.08));
-  color: var(--hos-text, inherit);
+  color: var(--hos-text-body, inherit);
 }
 </style>

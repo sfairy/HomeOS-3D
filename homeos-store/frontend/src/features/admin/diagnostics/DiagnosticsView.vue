@@ -317,7 +317,7 @@ function clearCouponFilter() {
       desc="排查「是不是被撞库了」「验证码发没发出去」「冷却该不该放行」时看这里。列表可翻页；日志类可按天数清理（只清过期或已消费的记录，当前有效的永不删）"
       domain="数据"
     >
-      <button class="hb-button hb-button--secondary hb-button--sm" @click="reloadAll">刷新</button>
+      <button type="button" class="hb-button hb-button--secondary hb-button--sm" @click="reloadAll">刷新</button>
     </PanelHead>
 
     <AdminTabs
@@ -347,7 +347,7 @@ function clearCouponFilter() {
             后台与商店前台的网页会话。可单条踢下线 。
           </p>
         </div>
-        <button class="hb-button hb-button--secondary hb-button--sm" @click="purge('sessions')">
+        <button type="button" class="hb-button hb-button--secondary hb-button--sm" @click="purge('sessions')">
           清理已过期…
         </button>
       </div>
@@ -377,7 +377,7 @@ function clearCouponFilter() {
             </td>
             <td class="nowrap">
               <div class="row-actions">
-                <button class="hb-button hb-button--secondary hb-button--sm" @click="revokeSession(row)">
+                <button type="button" class="hb-button hb-button--secondary hb-button--sm" @click="revokeSession(row)">
                   踢下线
                 </button>
               </div>
@@ -394,7 +394,7 @@ function clearCouponFilter() {
             谁在用哪张授权。撤销后该客户端下次心跳会要求重新激活。
           </p>
         </div>
-        <button class="hb-button hb-button--secondary hb-button--sm" @click="purge('license-sessions')">
+        <button type="button" class="hb-button hb-button--secondary hb-button--sm" @click="purge('license-sessions')">
           清理已过期…
         </button>
       </div>
@@ -423,7 +423,7 @@ function clearCouponFilter() {
             <td class="nowrap">{{ dt(row.expiresAt) }}</td>
             <td class="nowrap">
               <div class="row-actions">
-                <button class="hb-button hb-button--secondary hb-button--sm" @click="revokeLicenseSession(row)">
+                <button type="button" class="hb-button hb-button--secondary hb-button--sm" @click="revokeLicenseSession(row)">
                   撤销
                 </button>
               </div>
@@ -456,7 +456,7 @@ function clearCouponFilter() {
           <h3 class="admin-block-title">设备找回令牌</h3>
           <p class="admin-block__hint">设备丢失后换机用的找回凭证。令牌疑似外泄时在这里作废。</p>
         </div>
-        <button class="hb-button hb-button--secondary hb-button--sm" @click="purge('recovery-tokens')">
+        <button type="button" class="hb-button hb-button--secondary hb-button--sm" @click="purge('recovery-tokens')">
           清理已过期…
         </button>
       </div>
@@ -485,7 +485,7 @@ function clearCouponFilter() {
             </td>
             <td class="nowrap">
               <div class="row-actions">
-                <button class="hb-button hb-button--secondary hb-button--sm" @click="revokeRecoveryToken(row)">
+                <button type="button" class="hb-button hb-button--secondary hb-button--sm" @click="revokeRecoveryToken(row)">
                   作废
                 </button>
               </div>
@@ -502,7 +502,7 @@ function clearCouponFilter() {
             自助解绑的冷却判定读的是「每条授权最近一次解绑时间」，所以清理时每条授权的最新一条永远保留。
           </p>
         </div>
-        <button class="hb-button hb-button--secondary hb-button--sm" @click="purge('device-release-events')">
+        <button type="button" class="hb-button hb-button--secondary hb-button--sm" @click="purge('device-release-events')">
           清理历史…
         </button>
       </div>
@@ -551,7 +551,7 @@ function clearCouponFilter() {
           <h3 class="admin-block-title">登录尝试</h3>
           <p class="admin-block__hint">纯日志，只记 scope 与成败，删了不影响任何判定。</p>
         </div>
-        <button class="hb-button hb-button--secondary hb-button--sm" @click="purge('login-attempts')">
+        <button type="button" class="hb-button hb-button--secondary hb-button--sm" @click="purge('login-attempts')">
           清理历史…
         </button>
       </div>
@@ -584,7 +584,7 @@ function clearCouponFilter() {
             清理时只删「已消费或已过期」的：把用户正在走的注册/改密流程删掉会让他凭空失败。
           </p>
         </div>
-        <button class="hb-button hb-button--secondary hb-button--sm" @click="purge('email-verifications')">
+        <button type="button" class="hb-button hb-button--secondary hb-button--sm" @click="purge('email-verifications')">
           清理历史…
         </button>
       </div>
@@ -687,7 +687,7 @@ function clearCouponFilter() {
             <td class="nowrap">
               <div class="row-actions">
                 <span v-if="row.voidedAt" class="hb-muted" :title="String(row.voidReason || '已作废')">—</span>
-                <button v-else class="hb-button hb-button--secondary hb-button--sm" @click="voidRedemption(row)">
+                <button type="button" v-else class="hb-button hb-button--secondary hb-button--sm" @click="voidRedemption(row)">
                   作废
                 </button>
               </div>

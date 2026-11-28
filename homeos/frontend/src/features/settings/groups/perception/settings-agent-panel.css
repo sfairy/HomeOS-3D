@@ -265,7 +265,7 @@
 }
 
 .agent-cred-input {
-  background: var(--hos-overlay-scrim, rgba(0, 0, 0, 0.28));
+  background: var(--hos-bg-scrim, rgba(0, 0, 0, 0.28));
   border-color: var(--glass-border, rgba(255, 255, 255, 0.1));
 }
 
@@ -1002,7 +1002,7 @@
 
 .agent-chat-composer__input {
   padding-left: 38px !important;
-  background: var(--hos-overlay-scrim, rgba(0, 0, 0, 0.28));
+  background: var(--hos-bg-scrim, rgba(0, 0, 0, 0.28));
   border-color: rgba(var(--page-accent-rgb), 0.16) !important;
 }
 
@@ -1563,7 +1563,7 @@
 }
 
 .agent-hub .agent-band-hint--meta {
-  color: var(--hos-text-muted, rgba(255, 255, 255, 0.45));
+  color: var(--hos-text-faint, rgba(255, 255, 255, 0.5));
 }
 
 /* 字段块：标签 → 控件 → 说明，统一 6px 呼吸 */
@@ -1769,7 +1769,7 @@
 .agent-rail-meter__label {
   flex: 0 0 auto;
   font-size: 0.62rem;
-  color: var(--hos-text-muted, rgba(255, 255, 255, 0.45));
+  color: var(--hos-text-faint, rgba(255, 255, 255, 0.5));
   font-variant-numeric: tabular-nums;
 }
 

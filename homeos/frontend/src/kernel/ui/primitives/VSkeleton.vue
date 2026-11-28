@@ -38,4 +38,4 @@ const sizeStyle = computed(() => {
 })
 </script>
 
-<style scoped src="./primitives.css"></style>
+<style src="./primitives.css"></style>

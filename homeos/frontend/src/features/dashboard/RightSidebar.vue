@@ -24,7 +24,16 @@
       <ChevronRight v-else class="w-3.5 h-3.5" />
     </button>
 
-    <aside v-if="!collapsed" class="info-panel" :class="{ 'info-panel--agent': agentOpen }">
+    <!-- 右栏整体可滚（`overflow: hidden auto`）。键盘用户原先无法把焦点送进来，
+         内容一多就完全够不着 —— 补 `v-scroll-region` 后仅在真的溢出时挂
+         tabindex=0 + role=region；不溢出时不占用 Tab 序列。
+         管家面板打开时由面板自己滚动，故此时不加（避免两个 region 叠在一起）。 -->
+    <aside
+      v-if="!collapsed"
+      class="info-panel"
+      :class="{ 'info-panel--agent': agentOpen }"
+      v-scroll-region="'右侧信息栏'"
+    >
       <!-- 0.9.0 侧边栏页面背景：与主页面共用同一份渲染实现（`page-background-layer`）。
            背景层是绝对定位 + pointer-events:none，不改变 `.info-panel` 的盒模型，
            所以不影响原有部件布局。 -->

@@ -78,7 +78,14 @@
   padding: 4px 8px;
   border-bottom: var(--hos-hairline) solid rgba(255, 255, 255, 0.02);
   display: flex;
-  transition: all 0.4s var(--ease-bounce);
+  transition:
+    transform 0.4s var(--ease-bounce),
+    opacity 0.4s var(--ease-bounce),
+    background-color 0.4s var(--ease-bounce),
+    border-color 0.4s var(--ease-bounce),
+    box-shadow 0.4s var(--ease-bounce),
+    color 0.4s var(--ease-bounce),
+    filter 0.4s var(--ease-bounce);
   border-radius: var(--hos-radius-card);
 }
 

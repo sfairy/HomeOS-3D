@@ -334,4 +334,4 @@ function onClickOutside() {
 useClickOutside(() => [wrapRef.value, dropdownRef.value].filter(Boolean), onClickOutside)
 </script>
 
-<style scoped src="../../../kernel/ui/primitives/primitives.css"></style>
+<style src="../../../kernel/ui/primitives/primitives.css"></style>

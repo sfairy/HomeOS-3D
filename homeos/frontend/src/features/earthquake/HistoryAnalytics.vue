@@ -89,4 +89,4 @@ const { magChartRef, distChartRef, timeChartRef, extraChartRef, kpiCells } = use
 )
 </script>
 
-<style scoped src="./earthquake.css"></style>
+<style src="./earthquake.css"></style>

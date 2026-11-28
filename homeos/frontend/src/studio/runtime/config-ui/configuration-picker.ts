@@ -53,13 +53,10 @@ export interface ConfigurationPickerOptions {
   controls?: Node
   emptyMessage?: string
   /**
-   * 二次确认（0.9.0 的「确定添加」）：给出后，点选只做**选中**，不立即提交；
-   * 提交后弹窗保持打开，并把 `hint` 留在选项下方 —— 用户要连着加几个模型时
-   * 不用每次重新打开、重新等楼层与进度。
+   * 点选即提交，提交成功后弹窗**关闭**。
+   *
+   * 不再提供「选中 → 确定添加」的二次确认：卡片上写着「点击选择」，点下去就该生效。
    */
-  confirmSelection?: { label: string; hint: string }
-  /** 二次确认模式下，每次提交后重建选项（新增的模型要从列表里消失）。 */
-  refreshSections?: () => readonly ConfigurationPickerSection[]
   onSelect: (choiceId: string) => Promise<unknown> | unknown
   onClose?: () => void
 }
@@ -178,8 +175,6 @@ export function openConfigurationPicker({
   selectedId,
   controls,
   emptyMessage = '当前楼层没有可选对象。',
-  confirmSelection,
-  refreshSections,
   onSelect,
   onClose,
 }: ConfigurationPickerOptions): ConfigurationPickerHandle {
@@ -227,33 +222,13 @@ export function openConfigurationPicker({
    */
   const listAnchorElement = create('div', 'i3d-picker-list-anchor')
   bodyElement.append(listAnchorElement, errorElement)
-  /** 二次确认模式下当前选中的选项（未给 `confirmSelection` 时恒为空）。 */
-  let pendingChoiceId = ''
+  /** 当前选中的选项（未给 `selectedId` 时恒为空）。 */
   const optionRecords: Array<{ optionButton: HTMLButtonElement; disabled: boolean }> = []
-  const confirmButtonElement = confirmSelection
-    ? (create('button', 'primary-action', confirmSelection.label) as HTMLButtonElement)
-    : null
-  const confirmHintElement = confirmSelection ? create('p', 'i3d-note', confirmSelection.hint) : null
   const sectionElements: HTMLElement[] = []
   /** 空态文案节点（懒创建；重建时按最新条数显示或移除）。 */
   let emptyMessageElement: HTMLElement | null = null
 
-  const syncConfirmState = () => {
-    if (!confirmButtonElement) return
-    confirmButtonElement.disabled = isSelecting || !pendingChoiceId
-    optionRecords.forEach((record) => {
-      record.optionButton.setAttribute(
-        'aria-pressed',
-        String(record.optionButton.dataset.configurationChoice === pendingChoiceId),
-      )
-      record.optionButton.classList.toggle(
-        'is-selected',
-        record.optionButton.dataset.configurationChoice === pendingChoiceId,
-      )
-    })
-  }
-
-  /** 渲染（或重建）选项区：二次确认模式提交后要重跑一次，让新增的模型从列表消失。 */
+  /** 渲染选项区。 */
   const renderSections = (nextSections: readonly ConfigurationPickerSection[]) => {
     for (const sectionElement of sectionElements) sectionElement.remove()
     sectionElements.length = 0
@@ -288,13 +263,7 @@ export function openConfigurationPicker({
         appendChoiceMeta(optionButton, choice, ownerDocument)
         optionButton.addEventListener('click', async () => {
           if (isClosed || isSelecting || choice.disabled) return
-          // 二次确认模式：点选只做「选中」，等用户按「确定添加」。
-          if (confirmSelection) {
-            pendingChoiceId = pendingChoiceId === choice.id ? '' : choice.id
-            errorElement.textContent = ''
-            syncConfirmState()
-            return
-          }
+          // 点选即提交：卡片上写的是「点击选择」，不要再让用户找「确定添加」。
           await commitSelection(choice.id)
         })
         optionRecords.push({ optionButton, disabled: optionButton.disabled })
@@ -309,10 +278,9 @@ export function openConfigurationPicker({
       ? emptyMessageElement?.remove()
       : ((emptyMessageElement ||= create('p', 'i3d-note', emptyMessage)),
         bodyElement.insertBefore(emptyMessageElement, listAnchorElement))
-    syncConfirmState()
   }
 
-  /** 真正提交一次选择；二次确认模式下成功后**不关窗**，只清空选中并重建列表。 */
+  /** 真正提交一次选择；成功后关窗，失败把错误留在弹窗里。 */
   const commitSelection = async (choiceId: string) => {
     if (isClosed || isSelecting) return
     ;(isSelecting = true),
@@ -323,10 +291,7 @@ export function openConfigurationPicker({
     try {
       await onSelect(choiceId)
       if (isClosed) return
-      if (confirmSelection) {
-        pendingChoiceId = ''
-        renderSections(refreshSections ? refreshSections() : sections)
-      } else close()
+      close()
     } catch (selectError: unknown) {
       isClosed ||
         (errorElement.textContent = (selectError as { message?: string } | undefined)?.message || '选择失败，请重试。')
@@ -335,20 +300,11 @@ export function openConfigurationPicker({
         isClosed ||
           optionRecords.forEach((record) => {
             record.optionButton.disabled = record.disabled
-          }),
-        isClosed || syncConfirmState()
+          })
     }
   }
 
   renderSections(sections)
-  if (confirmButtonElement && confirmHintElement) {
-    const confirmRowElement = create('div', 'i3d-picker-confirm-row')
-    confirmButtonElement.type = 'button'
-    confirmButtonElement.addEventListener('click', () => void commitSelection(pendingChoiceId))
-    confirmRowElement.append(confirmHintElement, confirmButtonElement)
-    bodyElement.append(confirmRowElement)
-  }
-  syncConfirmState()
   dialogElement.append(headingElement, bodyElement),
     ownerDocument.body.append(dialogElement),
     dialogElement.addEventListener('cancel', (cancelEvent: Event) => {

@@ -84,7 +84,14 @@
   letter-spacing: 0.04em;
   cursor: pointer;
   outline: none;
-  transition: all 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    color 0.2s ease,
+    filter 0.2s ease;
 }
 
 .ems-domain-btn:hover {
@@ -131,7 +138,14 @@
   font-weight: 600;
   color: var(--hos-fg-2);
   cursor: pointer;
-  transition: all 0.12s ease;
+  transition:
+    transform 0.12s ease,
+    opacity 0.12s ease,
+    background-color 0.12s ease,
+    border-color 0.12s ease,
+    box-shadow 0.12s ease,
+    color 0.12s ease,
+    filter 0.12s ease;
 }
 
 .ems-domain-item:hover {
@@ -268,7 +282,14 @@
   border-radius: 5px;
   border: 1.5px solid rgba(255, 255, 255, 0.18);
   color: transparent;
-  transition: all 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    opacity 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    color 0.15s ease,
+    filter 0.15s ease;
 }
 
 .ems-item:hover .ems-check {
@@ -330,14 +351,14 @@
 
 .ems-drop-enter-active {
   transition:
-    opacity 0.14s ease-out,
-    transform 0.14s ease-out;
+    transform 0.14s ease-out,
+    opacity 0.14s ease-out;
 }
 
 .ems-drop-leave-active {
   transition:
-    opacity 0.1s ease-in,
-    transform 0.1s ease-in;
+    transform 0.1s ease-in,
+    opacity 0.1s ease-in;
 }
 
 .ems-drop-enter-from,

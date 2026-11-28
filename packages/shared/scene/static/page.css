@@ -6,7 +6,9 @@
   color-scheme: dark;
   /* 原生控件（勾选框 / 单选 / 进度条 / 日期选择）也走主控色。商店的 theme.css 早已
      可滚动前台」，前台不在 .hos-page 里。 */
-  accent-color: var(--hb-accent);
+  /* 首帧时 `--hos-color-accent` 还没到（它在 Vite 包里），回退到同色值的 `--hb-accent`
+     （appearance.css 与场景四片同批预装）。两处写同一串声明，层叠结果就与加载顺序无关。 */
+  accent-color: var(--hos-color-accent, var(--hb-accent));
 
   /* 夜空面：蓝相往靛偏约 6°，给极光紫与暖金让出色域（原 #050910 是纯蓝，加紫会发灰）。 */
   --hos-sky-deep: #050912;

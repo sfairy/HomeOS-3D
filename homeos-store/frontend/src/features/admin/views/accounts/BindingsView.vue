@@ -114,8 +114,8 @@ async function removeBinding(binding: Binding) {
         placeholder="实例号 / 版本 / IP / 激活码"
       />
       <label class="hb-check"><input v-model="activeOnly" type="checkbox" /> 仅有效</label>
-      <button class="hb-button hb-button--secondary hb-button--sm" @click="reload">查询</button>
-      <button class="hb-button hb-button--ghost hb-button--sm" @click="reset">重置</button>
+      <button type="button" class="hb-button hb-button--secondary hb-button--sm" @click="reload">查询</button>
+      <button type="button" class="hb-button hb-button--ghost hb-button--sm" @click="reset">重置</button>
     </div>
 
     <DataTable ref="table" path="/bindings" :columns="COLUMNS" :params="params" empty-text="没有符合条件的设备绑定">
@@ -137,7 +137,7 @@ async function removeBinding(binding: Binding) {
           </td>
           <td class="nowrap">
             <div class="row-actions">
-              <button
+              <button type="button"
                 v-if="binding.bound"
                 class="hb-button hb-button--danger hb-button--sm"
                 @click="release(binding)"

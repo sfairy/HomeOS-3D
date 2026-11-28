@@ -399,6 +399,11 @@ input[type="range"].sm-emergency-range::-moz-range-thumb {
  * 金色，与检查器 / 材质面板同源）。宿主若想保留自己的色相，只要在宿主规则里加一行
  * `--hos-range-ui-accent: <自己的令牌>` 即可 —— 几何不必再碰。
  *
+ * ⚠️ `--line` / `--muted` 只由 studio / editor 两条路由的 `studio.css` / `app.css` 定义，
+ * 而本配方也被 `renderer.css`（display / 编辑预览）消费。没有兜底时那两个路由上整条
+ * `background` / `border` 解析失败 —— 轨道退回浏览器默认灰条、圆点消失。因此统一兜底到
+ * 全局的 `--hos-line-*`，studio 自带的取值仍然优先。
+ *
  * 填充画在 input 自身的背景上、`runnable-track` 保持透明：Chromium 下
  * `::-webkit-slider-runnable-track` 里的 var() 进度裁切不可靠，会出现整段留灰。
  * 进度由 `--progress-pct` 裁切，由 `syncHtmlRangeProgress()` 在初值与 `input` 事件里写入。
@@ -414,15 +419,15 @@ input[type="range"].hos-range-ui {
   /* 1px 描边正好吃掉轨道上下沿，填充 / 灰槽画满 6px 内容盒 */
   height: 8px;
   padding: 0;
-  border: 1px solid var(--muted);
+  border: 1px solid var(--muted, var(--hos-line-3));
   border-radius: var(--hos-radius-pill);
   outline: none;
   background: linear-gradient(
     to right,
     var(--hos-range-ui-accent) 0,
     var(--hos-range-ui-accent) var(--progress-pct, 0%),
-    var(--line) var(--progress-pct, 0%),
-    var(--line) 100%
+    var(--line, var(--hos-line-2)) var(--progress-pct, 0%),
+    var(--line, var(--hos-line-2)) 100%
   );
   cursor: pointer;
 }
@@ -451,7 +456,7 @@ input[type="range"].hos-range-ui::-moz-range-track {
   height: 6px;
   border: 0;
   border-radius: var(--hos-radius-pill);
-  background: var(--line);
+  background: var(--line, var(--hos-line-2));
 }
 
 input[type="range"].hos-range-ui::-moz-range-progress {
@@ -614,9 +619,44 @@ input[type="range"].hos-range-ui:disabled {
      容器自身是 pointer-events:none，抬高它不会拦截路由内的点击。
      仍低于 --z-alert(99999，挂在 body 上) 与全局 toast(100000)。 */
   --z-shell-overlay: 14000;
+  /* 壳层内部层级（都在 `.app-shell` 这一个 stacking context 里比数值，与 --z-* 大档
+     互不干扰）。给它们命名是为了不再让「200 / 190 / 140 / 130 / 120」散在四个文件里：
+     读代码的人无法判断某个 190 是笔误还是有意压过 200，改动时也不敢动。 */
+  --z-shell-topbar: 200; /* 顶栏：盖住内容区与右侧栏 */
+  --z-presence-pop: 190; /* 在家模式切换器的成员浮层：须盖住顶栏内其它控件 */
+  --z-afh-drag: 140; /* 正在拖动的悬浮部件 */
+  --z-afh-hover: 130; /* 悬浮部件悬停抬升，仍低于拖动 */
+  --z-shell-anchor: 120; /* HA 降级 toast 的锚点与浮层 */
+  /* ── 壳层基础叠放（自低向高，数值相同即顺序相同） ── */
+  --z-shell-canvas: 10; /* .app-shell 自身，压住 .viewport-frame 的氛围光层 */
+  --z-shell-sidebar: 15; /* 右侧栏外层容器（.info-panel-outer） */
+  --z-shell-footer: 20; /* 底部能耗页脚（.power-panel） */
+  --z-floating-hub: 40; /* 悬浮部件根（.afh-root）：铺满内容区但空白处穿透 */
+  --z-shell-sidebar-raised: 45; /* 右侧栏折叠后的实际层级：须高于 .afh-root，折叠柄才不被抢点击（LAY-06） */
+  --z-shell-collapse: 50; /* 侧栏折叠柄：伸出到舞台缝里，高于上面两者 */
+  /* 壳层「确认 / 输入 / 媒体全屏」三件套的容器（`#teleport-target`，由 ScaledViewport 渲染）。
+     壳里其实有**两个**同 z 的 teleport 容器：
+       · `#teleport-target`（ScaledViewport，`__content` 之前）——确认框 / 输入框 / 媒体全屏；
+       · `.teleport-target`（MainLayout，`__content` 之内、之后）——门铃 / 实体控制 / 抽屉 / 管家。
+     同值时后一个（内层）永远盖住前一个，于是「设备组弹窗上弹确认」「门铃里弹确认」会被
+     自己的宿主盖住。确认类必须永远在最上面，因此外容器单独提一档，高于内层容器。 */
+  --z-shell-modal: 20000;
   --z-alert: 99999; /* 全屏紧急告警：地震、屏幕保护等 */
   --z-notification: 100000; /* 全局 toast 容器（须盖住 alert 保证提示可读） */
   --z-max: 2147483647; /* 绝对顶层：下拉选择器/拾色器/输入联想等浮层 */
+
+  /* 7.9c 安全区令牌（Safe Area）
+     唯一承担者是 `.viewport-frame`：它用 `env(safe-area-inset-*)` 作为**外层 padding**
+     把整块画布让开，同时把下面四个令牌覆盖成 0 —— 因此壳内后代拿到的是「已经让过」的值，
+     再叠一次就会在刘海 / 手势条设备上多出一整条空白（顶栏、设置保存条、锁屏、内嵌页
+     历史上各加过一次，横屏 iPhone 上合计多 20~47px）。
+
+     渲染在 `<body>` 上的全屏层（屏保、地震告警、App 级 toast、无主壳路由）不在
+     `.viewport-frame` 内，继承到这里就是真实的 env()，可以直接消费。 */
+  --hos-safe-top: env(safe-area-inset-top, 0px);
+  --hos-safe-right: env(safe-area-inset-right, 0px);
+  --hos-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --hos-safe-left: env(safe-area-inset-left, 0px);
 
   /* 7.10 圆角半径（Border Radius）
      真源在 hos-design-system.css（--hos-radius-control / input / card / panel / shell），该表后加载。
@@ -663,11 +703,16 @@ input[type="range"].hos-range-ui:disabled {
   -webkit-backdrop-filter: blur(var(--blur-md)) saturate(200%);
   backdrop-filter: blur(var(--blur-md)) saturate(200%); /* 毛玻璃核心 */
   border: var(--hos-hairline) solid var(--card-border);
-  border-radius: var(--radius-2xl);
-  transition: all 0.5s cubic-bezier(0.25, 0.1, 0.25, 1); /* Apple 风格缓动 */
+  border-radius: var(--hos-radius-panel);
+  /* 过渡 / 阴影 / 抬升一律走 hos 令牌：`kernel/ui/hos-panel.css` 曾经也声明这几个属性，
+     靠加载更晚赢下比赛，这里的字面量因此从来没生效过。现在两边同源，只在这一处写。 */
+  transition:
+    transform var(--hos-transition-panel),
+    box-shadow var(--hos-transition-panel),
+    border-color var(--hos-transition-panel);
   position: relative;
   overflow: hidden;
-  box-shadow: var(--card-shadow);
+  box-shadow: var(--hos-shadow-card);
 }
 
 /** 对角线渐变高光层：左上到右下由亮到暗 */
@@ -709,8 +754,8 @@ input[type="range"].hos-range-ui:disabled {
 .ios-card:hover {
   background: var(--card-bg-2);
   border-color: var(--card-border-hover);
-  box-shadow: var(--card-shadow-hover);
-  transform: translateY(-2px); /* 轻微抬升 */
+  box-shadow: var(--hos-shadow-card-hover);
+  transform: translateY(var(--hos-hover-lift)); /* 轻微抬升（桌面 -1px，触屏 0） */
 }
 
 /** 悬停时顶部光泽线更亮 */
@@ -966,16 +1011,12 @@ input[type="range"].hos-range-ui:disabled {
 /**
  * 触摸屏设备适配（pointer: coarse）
  * - 禁用 widget-wrapper 的 will-change（减少内存占用）
- * - 禁用 ios-card 的 backdrop-filter（触摸屏 GPU 性能有限）
  * - 发丝边框宽度由 hos-design-system.css 的 --hos-hairline 统一切到 1px
+ * - backdrop-filter 的关闭统一在 7.10e（`*:not(.hos-glass-keep)`），此处不再重复
  */
 @media (pointer: coarse) {
   .widget-wrapper {
     will-change: auto !important;
-  }
-  .ios-card {
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
   }
 
   /* 触控端取消易粘住的 hover 态（桌面仍靠 @media (hover:hover) 生效） */
@@ -990,10 +1031,6 @@ input[type="range"].hos-range-ui:disabled {
 @media (hover: none) {
   .widget-wrapper {
     will-change: auto !important;
-  }
-  .ios-card {
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
   }
 
   /* 触控端取消易粘住的 hover 态（桌面仍靠 @media (hover:hover) 生效） */
@@ -1097,7 +1134,7 @@ input[type="range"].hos-range-ui:disabled {
     background: var(--glass-off-bg-heavy);
   }
   .popup-shell {
-    background: var(--glass-off-bg-popup);
+    background: var(--glass-off-bg-popup, rgba(18, 18, 26, 0.96));
   }
 
   /* 去掉玻璃顶/装饰细线，避免圆角裁剪失败时的亮边光晕 */
@@ -1203,7 +1240,7 @@ input[type="range"].hos-range-ui:disabled {
     background: var(--glass-off-bg-heavy);
   }
   .popup-shell {
-    background: var(--glass-off-bg-popup);
+    background: var(--glass-off-bg-popup, rgba(18, 18, 26, 0.96));
   }
 
   /* 去掉玻璃顶/装饰细线，避免圆角裁剪失败时的亮边光晕 */
@@ -1274,41 +1311,38 @@ input[type="range"].hos-range-ui:disabled {
   }
 }
 
-/* 7.10e 毛玻璃禁用组（唯一清单）：coarse 触屏、窄画布容器、专家配置 / 自适应的
-   静态毛玻璃模式三种条件下关闭 backdrop-filter。原生嵌套由构建展开为三条扁平规则；
-   声明均为 !important 且没有其他非 none 的 !important 竞争，所在位置不影响层叠。 */
-:is(
-  .ios-card,
-  .climate-card,
-  .tab-bar,
-  .power-panel,
-  .premium-glass-surface--elevated,
-  .premium-glass-surface--panel,
-  .premium-head--card,
-  .list-page__panel,
-  .list-page__pager,
-  .list-page__hero.premium-head--card,
-  .hos-panel--glass,
-  .premium-backdrop,
-  .popup-shell,
-  .info-panel,
-  .panel-collapse-btn,
-  .notification-drawer,
-  .device-group-modal,
-  .sov-zones
-) {
-  @media (pointer: coarse), (hover: none) {
+/* 7.10e 毛玻璃降级（唯一实现）：默认全关，显式豁免。
+ *
+ * 旧写法是「维护一张选择器清单」。审计（2026-11）实测：`src` 内有 75 个不同选择器在用
+ * `backdrop-filter`，清单只覆盖 9 个 —— 全屏遮罩（`hos-modal-backdrop` / `entity-control-backdrop`
+ * / `notification-drawer-backdrop` / `device-batch__modal-overlay` / `embed-loading`）、安防面板、
+ * 管家面板、所有锚定弹窗全部漏网。低端设备照付 GPU，圆角处照旧泛白，而清单本身还会随新组件
+ * 继续腐化。
+ *
+ * 反过来写：粗指针 / 窄画布 / 静态玻璃三档下**一律**关掉，只有显式标了 `.hos-glass-keep`
+ * 的元素保留（目前没有消费者，留给将来「必须靠模糊保证可读」的元素）。
+ *
+ * 关掉模糊后，全屏遮罩会失去「背后内容被虚化」的隔离感，因此各遮罩样式表在自己的
+ * coarse / 窄容器块里把底色 alpha 提上去（`modal-theme.css` / `entity-modals.css` /
+ * `notifications.css` / `device-batch-actions.css` / `embed-page.css`）。改这里不影响那批补偿。
+ *
+ * ⚠️ 通配选择器 + `!important` 是为了一次性压过所有组件样式（含内联 `style="backdrop-filter:…"`）。
+ * 这是性能底线，不是视觉偏好；不要为了局部效果往 `:not()` 里加例外，改用 `.hos-glass-keep`。 */
+@media (pointer: coarse), (hover: none) {
+  *:not(.hos-glass-keep) {
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
   }
-  @container hos-canvas (max-width: 900px) {
+}
+@container hos-canvas (max-width: 900px) {
+  *:not(.hos-glass-keep) {
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
   }
-  html[data-glass-effect="static"] & {
-    -webkit-backdrop-filter: none !important;
-    backdrop-filter: none !important;
-  }
+}
+html[data-glass-effect="static"] *:not(.hos-glass-keep) {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
 }
 html[data-glass-effect="static"] .tab-bar {
   background: var(--glass-off-bg-surface);
@@ -1320,60 +1354,77 @@ html[data-glass-effect="static"] .popup-shell {
   background: var(--glass-off-bg-popup);
 }
 
+/* ── 侧栏部件的占位尺寸（content-visibility: auto 的兜底高度）──
+ *
+ * 这里手写过一组数字，与真源 `kernel/registry/widget-registry-meta.ts` 的
+ * `SIDEBAR_WIDGET_DEFAULT_HEIGHT`（clock 80 / quickActions 80 / weather 280 /
+ * mediaMini 115 / homeClimateChart 320 / 其余 fallback 120）并不一致：时钟与快捷操作写的
+ * 92、未预设类型写的 180，相机瓷片写死 44/120 而它实际是 `aspect-video` 自适应高度。
+ * 偏差直接表现为「右栏滚动位置在部件懒加载前后跳一下、滚动条长度乱跳」。
+ *
+ * 两处一起修：
+ *  1. 数字对齐 registry；
+ *  2. 一律写成 `auto <长度>` —— `auto` 让浏览器**记住上一次渲染后的真实高度**，
+ *     长度只在首次渲染前作为占位。这样即便某个部件将来改了默认高度，也不会再抖。 */
 .widget-card,
 .widget-wrapper,
 .info-panel .widget-wrapper,
 .security-camera-tile {
   content-visibility: auto;
-  contain-intrinsic-size: 0 44px;
+  contain-intrinsic-size: auto 44px;
 }
 .widget-wrapper,
 .info-panel .widget-wrapper {
-  contain-intrinsic-size: 0 180px;
+  contain-intrinsic-size: auto 120px; /* registry fallback */
 }
-/* 占位高度按类型细分（实际高度见 RightSidebar.css 各类型 min/max-height）：
-   fixed/compact 用实际高度、elastic 用较大值，减少滚动跳变 */
 .widget-wrapper.widget-fixed--clock,
 .widget-wrapper.widget-fixed--quickActions {
-  contain-intrinsic-size: 0 92px;
+  contain-intrinsic-size: auto 80px; /* registry: clock / quickActions */
 }
 .widget-wrapper.widget-fixed--weather {
-  contain-intrinsic-size: 0 280px;
+  contain-intrinsic-size: auto 280px; /* registry: weather */
 }
 .widget-wrapper.widget-fixed--mediaMini {
-  contain-intrinsic-size: 0 115px;
+  contain-intrinsic-size: auto 115px; /* registry: mediaMini */
 }
 .widget-wrapper.widget-elastic {
-  contain-intrinsic-size: 0 320px;
+  contain-intrinsic-size: auto 320px;
 }
 .widget-wrapper.widget-elastic--heroSwiper {
-  contain-intrinsic-size: 0 250px;
+  contain-intrinsic-size: auto 250px;
 }
 .widget-wrapper.widget-elastic--homeClimateChart {
-  contain-intrinsic-size: 0 320px;
+  contain-intrinsic-size: auto 320px; /* registry: homeClimateChart */
 }
 .widget-wrapper.widget-elastic--homeEnvironment {
-  contain-intrinsic-size: 0 330px;
+  contain-intrinsic-size: auto 330px;
 }
 .widget-wrapper.widget-elastic--switchGroup {
-  contain-intrinsic-size: 0 360px;
+  contain-intrinsic-size: auto 360px;
 }
 .widget-wrapper.widget-elastic--systemTimeline {
-  contain-intrinsic-size: 0 340px;
+  contain-intrinsic-size: auto 340px;
 }
 .widget-wrapper.widget-elastic--customHtml {
-  contain-intrinsic-size: 0 480px;
+  contain-intrinsic-size: auto 480px;
 }
 .widget-wrapper.widget-compact,
 .security-camera-tile {
-  contain-intrinsic-size: 0 120px;
+  contain-intrinsic-size: auto 120px;
 }
 
-/** 触控 icon 按钮：最小 44×44 点击区 + 焦点环 */
+/** 触控 icon 按钮：最小 44×44 点击区 + 焦点环
+ *
+ * 唯一真源。`app/layouts/main-layout.css` 曾另写一份（width/height 44、color secondary、
+ * `transition: all`、hover 用 --glass-bg-md），加载更晚所以那一份生效、这一份的
+ * display/color/transition 全是死声明。现在把两者需要的属性合并到这里：
+ * 固定 44×44 盒（图标在顶栏是等宽排列）、文字色走 secondary、hover 用玻璃中档。 */
 .icon-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 44px;
+  height: 44px;
   min-width: 44px;
   min-height: 44px;
   padding: 8px;
@@ -1381,15 +1432,19 @@ html[data-glass-effect="static"] .popup-shell {
   background: transparent;
   cursor: pointer;
   border-radius: var(--hos-radius-card);
-  color: inherit;
+  color: var(--hos-text-secondary);
+  position: relative;
+  box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
   transition:
     background 0.15s ease,
+    color 0.15s ease,
     transform 0.12s ease;
 }
 
 .icon-btn:hover {
-  background: var(--premium-glass-bg-hover);
+  background: var(--glass-bg-md);
+  color: var(--hos-text-strong);
 }
 
 .icon-btn:active {

@@ -137,7 +137,7 @@
 
 @container hos-canvas (max-width: 640px) {
   .settings-home-mode-workspace__main {
-    padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(0.5rem + var(--hos-safe-bottom, 0px));
   }
   .settings-home-mode-workspace .home-mode-panel--embedded {
     border-radius: var(--hos-r-2);

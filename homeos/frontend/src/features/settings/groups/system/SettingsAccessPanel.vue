@@ -176,4 +176,4 @@ function openPinEditor() {
 }
 </script>
 
-<style scoped src="./system.css"></style>
+<style src="./system.css"></style>

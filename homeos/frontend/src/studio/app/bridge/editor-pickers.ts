@@ -328,6 +328,7 @@ export function createInteraction3dEditorPickers({
   getState: getState = () => null,
   ensureEntities: ensureEntities,
   entityPickerText: entityPickerText,
+  entityPickerLabel: entityPickerLabel,
   elements: elements,
   deviceKind: deviceKind = 'light',
   fetchAreas: fetchAreas = async () => {
@@ -410,6 +411,11 @@ export function createInteraction3dEditorPickers({
     )
   }
   return {
+    // 触发按钮的展示名：优先走实体所属设备名（`formatEntityPrimaryName`），
+    // 没有注入格式化器时退回实体自身名称/ID。修复「下拉只显示区域名」的问题。
+    entityLabel(entity: any) {
+      return entity ? entityPickerLabel?.(entity) || entity.name || entity.entityId || '' : ''
+    },
     entityCatalog: buildEntityCatalog,
     async loadEntities() {
       return (await ensureEntities!(), buildEntityCatalog())

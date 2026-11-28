@@ -203,8 +203,8 @@ async function removeAccount(account: Account) {
           <option value="inactive">已停用</option>
           <option value="unverified">邮箱未验证</option>
         </select>
-        <button class="hb-button hb-button--secondary hb-button--sm" @click="reload">查询</button>
-        <button class="hb-button hb-button--ghost hb-button--sm" @click="reset">重置</button>
+        <button type="button" class="hb-button hb-button--secondary hb-button--sm" @click="reload">查询</button>
+        <button type="button" class="hb-button hb-button--ghost hb-button--sm" @click="reset">重置</button>
       </div>
 
       <DataTable ref="table" path="/accounts" :columns="COLUMNS" :params="params" empty-text="没有符合条件的账号">
@@ -228,7 +228,7 @@ async function removeAccount(account: Account) {
             </td>
             <td class="nowrap">
               <div class="row-actions">
-                <button class="hb-button hb-button--secondary hb-button--sm" @click="openEditor(account)">
+                <button type="button" class="hb-button hb-button--secondary hb-button--sm" @click="openEditor(account)">
                   编辑
                 </button>
                 <RowMenu>

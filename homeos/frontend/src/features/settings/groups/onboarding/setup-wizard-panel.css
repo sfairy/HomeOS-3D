@@ -15,7 +15,14 @@
   font-size: var(--set-fs-caption);
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    color 0.2s ease,
+    filter 0.2s ease;
 }
 
 .sw-refresh-btn:hover:not(:disabled) {
@@ -84,8 +91,8 @@
 .sw-step-enter-active,
 .sw-step-leave-active {
   transition:
-    opacity 0.22s ease,
-    transform 0.22s ease;
+    transform 0.22s ease,
+    opacity 0.22s ease;
 }
 
 .sw-flow-band__shell {

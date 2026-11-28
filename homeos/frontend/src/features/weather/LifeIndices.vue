@@ -366,4 +366,4 @@ const groupedPrimary = computed(() => {
 })
 </script>
 
-<style scoped src="./weather.css"></style>
+<style src="./weather.css"></style>

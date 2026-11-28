@@ -185,11 +185,15 @@
 }
 
 .ss-drop-enter-active {
-  transition: all 0.12s ease-out;
+  transition:
+    transform 0.12s ease-out,
+    opacity 0.12s ease-out;
 }
 
 .ss-drop-leave-active {
-  transition: all 0.08s ease-in;
+  transition:
+    transform 0.08s ease-in,
+    opacity 0.08s ease-in;
 }
 
 .ss-drop-enter-from,
@@ -433,7 +437,14 @@
   max-width: 500px;
   padding: 14px 22px;
   font-size: var(--premium-fs-body-sm);
-  transition: all 0.35s var(--ease-spring);
+  transition:
+    transform 0.35s var(--ease-spring),
+    opacity 0.35s var(--ease-spring),
+    background-color 0.35s var(--ease-spring),
+    border-color 0.35s var(--ease-spring),
+    box-shadow 0.35s var(--ease-spring),
+    color 0.35s var(--ease-spring),
+    filter 0.35s var(--ease-spring);
   display: flex;
   box-shadow:
     0 8px 40px rgba(0, 0, 0, 0.4),
@@ -546,7 +557,9 @@
 /** 通知入场/离场过渡动画 */
 .toast-enter-active,
 .toast-leave-active {
-  transition: all 0.4s var(--ease-spring);
+  transition:
+    transform 0.4s var(--ease-spring),
+    opacity 0.4s var(--ease-spring);
 }
 
 .toast-enter-from {

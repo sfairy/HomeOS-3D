@@ -332,41 +332,6 @@ export function openAddDialog(deps: PanelDialogsDeps, addDialogTriggerEvent: any
     addGeneration = ++editorHost.pickerGeneration
   editorHost.pickerHandle?.close()
   let isAdding = false
-  /**
-   * 重建选项（二次确认提交后再算一次）。
-   *
-   * 必须把「可添加集合 / 已配置集合 / 模型列表」三样全部重算 —— 只重算禁用标记会留下
-   * 刚加进去的那条（用户会以为没加上，再点一次就撞上「已添加」的报错）。
-   */
-  const rebuildPickerChoices = () => {
-    const refreshedAddableKeys = new Set(
-        (listAddableModels() as ReadonlyArray<{ key: string }>).map((entry) => entry.key),
-      ),
-      refreshedConfiguredKeys = new Set(
-        (editorHost.getItemList() as ReadonlyArray<PickerChoiceRecord>).map((itemProbe) =>
-          JSON.stringify([itemProbe.floorId, itemProbe[editorHost.modelIdKey as string]]),
-        ),
-      ),
-      refreshedFloorModels = (
-        currentFloorRecord
-          ? (editorHost.usesModelBinding ? currentFloorRecord[editorHost.collectionKey] : currentFloorRecord.groups) ||
-            []
-          : []
-      ) as ReadonlyArray<PickerChoiceRecord>
-    return refreshedFloorModels.map((floorModelEntry) => {
-      const modelKey = JSON.stringify([currentFloorRecord?.id, floorModelEntry.id]),
-        isConfigured = refreshedConfiguredKeys.has(modelKey) || !refreshedAddableKeys.has(modelKey)
-      return {
-        id: modelKey,
-        label: editorHost.describeItem(floorModelEntry),
-        icon: floorModelEntry.icon || editorHost.defaultIcon,
-        wrapLabel: true,
-        disabled: isConfigured,
-        state: isConfigured ? ('configured' as const) : ('remaining' as const),
-        detail: isConfigured ? '已配置' : '未配置 · 点击选择',
-      }
-    })
-  }
   const pickerHandle = openConfigurationPicker({
     document: editorHost.editorDialogElement.ownerDocument,
     title: editorHost.isDeviceKind ? '添加设备' : '添加' + editorHost.kindLabel,
@@ -380,10 +345,8 @@ export function openAddDialog(deps: PanelDialogsDeps, addDialogTriggerEvent: any
     summary: currentConfigurationProgress(editorHost),
     controls: pickerControlsElement,
     emptyMessage: '本层没有' + pickerUnit + '，请先在 3D 户型图中添加。',
-    // 0.9.0 的「确定添加 + 添加后可继续设置」：点模型只是选中，确认后才加，
-    // 并且加完**不关窗** —— 一次配多件同层家具是最常见的操作。
-    confirmSelection: { label: '确定添加', hint: '添加后可继续设置' },
-    refreshSections: () => [{ options: rebuildPickerChoices() }],
+    // 卡片上写着「点击选择」，点下去就添加并关窗 —— 不再要求「选中 → 确定添加」两步。
+    // 要连着加第二件就再点一次「添加」，面板会重算已配置列表。
     sections: [{ options: pickerChoices }],
     async onSelect(chosenModelKey: string) {
       if (

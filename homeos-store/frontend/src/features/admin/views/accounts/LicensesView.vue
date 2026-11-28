@@ -271,7 +271,7 @@ async function removeLicense(license: License) {
       desc="停用后客户端下次心跳即转吊销；彻底删除需先停用且无活跃绑定"
       domain="授权"
     >
-      <button class="hb-button hb-button--primary hb-button--sm" @click="openIssue">手动签发</button>
+      <button type="button" class="hb-button hb-button--primary hb-button--sm" @click="openIssue">手动签发</button>
     </PanelHead>
 
     <AdminTabs
@@ -307,8 +307,8 @@ async function removeLicense(license: License) {
           <option value="30">30 天内到期</option>
           <option value="90">90 天内到期</option>
         </select>
-        <button class="hb-button hb-button--secondary hb-button--sm" @click="reload">查询</button>
-        <button class="hb-button hb-button--ghost hb-button--sm" @click="reset">重置</button>
+        <button type="button" class="hb-button hb-button--secondary hb-button--sm" @click="reload">查询</button>
+        <button type="button" class="hb-button hb-button--ghost hb-button--sm" @click="reset">重置</button>
       </div>
 
       <DataTable ref="table" path="/licenses" :columns="COLUMNS" :params="params" empty-text="没有符合条件的激活码">
@@ -341,14 +341,14 @@ async function removeLicense(license: License) {
             </td>
             <td class="nowrap">
               <div class="row-actions">
-                <button
+                <button type="button"
                   v-if="license.active"
                   class="hb-button hb-button--danger hb-button--sm"
                   @click="deactivate(license)"
                 >
                   停用
                 </button>
-                <button
+                <button type="button"
                   v-else
                   class="hb-button hb-button--success hb-button--sm"
                   @click="setActive(license, true)"

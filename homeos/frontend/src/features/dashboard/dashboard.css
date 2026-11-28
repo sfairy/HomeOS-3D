@@ -5,10 +5,13 @@
   backdrop-filter: blur(80px) saturate(260%);
   border-top: var(--hos-hairline) solid var(--premium-border-strong);
   flex-shrink: 0;
-  z-index: 20;
+  z-index: var(--z-shell-footer);
   position: relative;
-  overflow-x: hidden;
-  overflow-y: visible;
+  /* 两轴都 visible：原先写 `overflow-x: hidden` + `overflow-y: visible`，按 CSS 规范
+     另一轴的 visible 会被算成 auto —— 整块页脚变成滚动容器，`top:-60px` 的
+     `.power-panel__glow` 被裁掉，卡片的 hover 外阴影也被裁。网格自身是
+     `repeat(auto-fit, minmax(132px,1fr))` + `width:100%`，不会横向溢出。 */
+  overflow: visible;
   isolation: isolate;
   box-shadow:
     0 -8px 40px rgba(0, 0, 0, 0.5),
@@ -440,7 +443,7 @@
   flex-shrink: 0;
   min-width: 0;
   overflow: visible;
-  z-index: 15;
+  z-index: var(--z-shell-sidebar);
 }
 
 /** 折叠按钮：在外层容器中绝对定位，位于面板左侧外部 */
@@ -466,7 +469,7 @@
   transition:
     color 0.3s,
     background 0.3s;
-  z-index: 50;
+  z-index: var(--z-shell-collapse);
   padding: 0;
 }
 
@@ -580,8 +583,8 @@
 .slide-fade-enter-active,
 .slide-fade-leave-active {
   transition:
-    opacity var(--hos-dur-slow) var(--hos-ease-spring),
-    transform var(--hos-dur-slow) var(--hos-ease-spring);
+    transform var(--hos-dur-slow) var(--hos-ease-spring),
+    opacity var(--hos-dur-slow) var(--hos-ease-spring);
 }
 
 .slide-fade-enter-from,

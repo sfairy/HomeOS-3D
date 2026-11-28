@@ -70,4 +70,4 @@ const GUIDE_BY_SECTION: Record<string, { text: string; links?: { to: string; lab
 const guide = computed(() => GUIDE_BY_SECTION[props.sectionKey] || null)
 </script>
 
-<style scoped src="./config-fields.css"></style>
+<style src="./config-fields.css"></style>

@@ -6,7 +6,7 @@
     }"
   >
     <!--
-      主操作（进入目录 / 选择文件）必须是真 <button>：原来 @click 挂在根 div 上，
+      主操作（进入目录 / 选择文件）必须是真 <button type="button">：原来 @click 挂在根 div 上，
       键盘完全不可达。右侧的复制/删除是绝对定位的同级按钮，不能塞进主按钮里
       （HTML 禁止按钮嵌套），所以拆成「主按钮 + 操作层」两段。
     -->
@@ -96,4 +96,4 @@ const mainLabel = computed(() =>
 )
 </script>
 
-<style scoped src="../../features/settings/asset-picker/asset-picker.css"></style>
+<style src="../../features/settings/asset-picker/asset-picker.css"></style>

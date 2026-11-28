@@ -48,14 +48,9 @@
   }
 }
 
-.tap-active {
-  transition:
-    transform 0.2s var(--ease-spring),
-    box-shadow 0.25s ease;
-}
-.tap-active:active {
-  transform: scale(0.98);
-}
+/* `.tap-active` 的唯一真源在 app/main.css（按压反馈 95% + 降透明度）。
+   motion.css 曾另写一份 98% + box-shadow 过渡，靠加载顺序决定手感 ——
+   同一颗按钮在有的页面缩 5%、有的缩 2%。本文件只保留 reduced-motion 归零那一段。 */
 
 .focus-ring:focus-visible {
   outline: var(--hos-focus-outline);

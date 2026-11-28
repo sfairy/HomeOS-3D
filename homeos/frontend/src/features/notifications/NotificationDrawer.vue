@@ -33,7 +33,7 @@
               <X class="w-4 h-4" />
             </button>
           </header>
-          <div class="notification-drawer-body custom-scrollbar">
+          <div class="notification-drawer-body custom-scrollbar" v-scroll-region="'通知列表'">
             <NotificationCenter drawer />
           </div>
         </aside>

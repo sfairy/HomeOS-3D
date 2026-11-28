@@ -38,7 +38,14 @@
   border-radius: 6px;
   white-space: nowrap;
   color: var(--hos-text-secondary);
-  transition: all 0.15s;
+  transition:
+    transform 0.15s,
+    opacity 0.15s,
+    background-color 0.15s,
+    border-color 0.15s,
+    box-shadow 0.15s,
+    color 0.15s,
+    filter 0.15s;
   background: none;
   border: none;
   cursor: pointer;
@@ -74,7 +81,14 @@
   background: none;
   border: none;
   cursor: pointer;
-  transition: all 0.15s;
+  transition:
+    transform 0.15s,
+    opacity 0.15s,
+    background-color 0.15s,
+    border-color 0.15s,
+    box-shadow 0.15s,
+    color 0.15s,
+    filter 0.15s;
 }
 .asset-header__btn:hover {
   background: var(--premium-glass-bg-hover);

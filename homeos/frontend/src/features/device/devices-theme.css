@@ -2064,7 +2064,9 @@
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
-  padding: 9px 14px;
+  /* 与 list-page-views.css 的同名规则对齐（10px 14px）：两处都声明时，谁后加载决定
+     上下留白是 9 还是 10px，滚动时高度会差 1px。 */
+  padding: 10px 14px;
   margin-bottom: 0;
   border-radius: 0;
 }

@@ -1,7 +1,7 @@
 <template>
   <!--
     可点击性只在「公用事业实体」上成立（onWidgetClick 对其它实体直接 return），
-    所以只有可点击时元素才是有语义的 <button>：键盘可 Tab 到、Enter/Space 可触发。
+    所以只有可点击时元素才是有语义的 <button type="button">：键盘可 Tab 到、Enter/Space 可触发。
     不可点击时仍是普通 div，不会被读屏当成可操作控件。
   -->
   <component

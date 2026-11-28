@@ -20,11 +20,14 @@
   color: var(--hos-fg-2);
 }
 
-.animate-shake {
-  animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+/* 错误抖动：类名 `animate-shake` 的全局定义在 app/main.css（`gentle-shake`，
+   水平 ±6px 递减）。这里原先另写一份 `shake`（±1px 微颤）覆盖同名类，
+   靠加载顺序决定「密码错误时抖多大幅度」。改成本地专属类名，语义清晰也互不干扰。 */
+.lock-shake {
+  animation: lock-shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 }
 
-@keyframes shake {
+@keyframes lock-shake {
   10%,
   90% {
     transform: translate(-1px);

@@ -3,7 +3,7 @@
   <Teleport :to="teleportTarget" :disabled="teleportDisabled">
     <Transition name="hos-modal" appear>
       <div v-if="isOpen" ref="rootRef" class="hos-modal-root" @click.self="$emit('close')">
-        <div class="hos-modal-backdrop" @click="$emit('close')" />
+        <div class="hos-modal-backdrop" aria-hidden="true" @click="$emit('close')" />
         <div
           ref="panelRef"
           :class="[

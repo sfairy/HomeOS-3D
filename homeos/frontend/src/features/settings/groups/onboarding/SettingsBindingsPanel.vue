@@ -429,4 +429,4 @@ onMounted(async () => {
 })
 </script>
 
-<style scoped src="../../shared/bindings-theme.css"></style>
+<style src="../../shared/bindings-theme.css"></style>

@@ -35,10 +35,10 @@
         </span>
       </div>
       <div v-if="!page" class="nc-header-actions">
-        <button v-if="unreadCount > 0" class="nc-action-btn" @click="markAllRead" :title="'已读'">
+        <button type="button" v-if="unreadCount > 0" class="nc-action-btn" @click="markAllRead" :title="'已读'">
           {{ '已读' }}
         </button>
-        <button class="nc-clear-btn" @click="clearAll" :title="'清除'">{{ '清除' }}</button>
+        <button type="button" class="nc-clear-btn" @click="clearAll" :title="'清除'">{{ '清除' }}</button>
       </div>
     </div>
 
@@ -49,7 +49,7 @@
       :aria-label="'通知来源筛选'"
       @keydown="onFilterKeydown"
     >
-      <button
+      <button type="button"
         v-for="(f, idx) in sourceFilters"
         :key="f.key"
         :class="['nc-filter', activeSource === f.key && 'nc-filter--active']"

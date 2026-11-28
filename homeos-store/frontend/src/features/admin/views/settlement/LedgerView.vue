@@ -84,7 +84,7 @@ function kindLabel(entry: LedgerEntry): string {
       desc="余额由流水汇总而来，这张表是对账的唯一依据；人工调账也必须留痕在这里"
       domain="数据"
     >
-      <button class="hb-button hb-button--secondary hb-button--sm" @click="reload">刷新</button>
+      <button type="button" class="hb-button hb-button--secondary hb-button--sm" @click="reload">刷新</button>
     </PanelHead>
 
     <div class="panel-toolbar">
@@ -98,8 +98,8 @@ function kindLabel(entry: LedgerEntry): string {
         <option value="">全部类型</option>
         <option v-for="item in kinds" :key="item.value" :value="item.value">{{ item.label }}</option>
       </select>
-      <button class="hb-button hb-button--secondary hb-button--sm" @click="reload">查询</button>
-      <button class="hb-button hb-button--warning hb-button--sm" @click="adjust">人工调账</button>
+      <button type="button" class="hb-button hb-button--secondary hb-button--sm" @click="reload">查询</button>
+      <button type="button" class="hb-button hb-button--warning hb-button--sm" @click="adjust">人工调账</button>
     </div>
 
     <DataTable

@@ -21,7 +21,7 @@
       <span class="text-xs lcp-section-label font-bold uppercase tracking-wider">{{
         '电源状态'
       }}</span>
-      <button
+      <button type="button"
         :class="[
           'flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all',
           isOn ? 'lcp-power-on text-black font-bold' : 'lcp-power-off font-medium',
@@ -122,7 +122,7 @@
           <div class="color-picker-thumb" :style="{ left: hueX + '%', top: satY + '%' }" />
         </div>
         <div class="color-presets">
-          <button
+          <button type="button"
             v-for="c in colorPresets"
             :key="c"
             class="color-preset-dot"

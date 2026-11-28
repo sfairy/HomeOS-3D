@@ -2058,44 +2058,47 @@ export async function openSecurityEditor({
         }
         currentContainerElement = previousContainerElement
       }
-      const entityPickerButtonElement = createButton(
-        entities.find((entityMatch: any) => entityMatch.entityId === selectedItem.entityId)?.name ||
-          selectedItem.entityId ||
-          '选择' + getKindLabel() + '实体',
-        async () => {
-          const entityPickerGeneration = ++pickerGeneration
-          activePickerHandle?.close()
-          try {
-            const entityPickerHandle = await pickers.entity({
-              trigger: entityPickerButtonElement,
-              current: selectedItem.entityId,
-              deviceKind: securityKind,
-              onSelect(pickedEntityId: any) {
-                isDisposed ||
-                  !isAccessAllowed ||
-                  entityPickerGeneration !== pickerGeneration ||
-                  findSelectedItem() !== selectedItem ||
-                  ((selectedItem.entityId = pickedEntityId),
-                  securityKind === 'presence' &&
-                    (delete selectedItem.deviceId,
-                    delete selectedItem.deviceName,
-                    deviceEntitiesByItemId.delete(selectedItem.id)),
-                  securityKind === 'presence' &&
-                    pickedEntityId.startsWith('event.') &&
-                    !(selectedItem.displayDuration > 0) &&
-                    (selectedItem.displayDuration = 30),
-                  markPropertiesDirty(),
-                  renderPanel())
-              },
-            })
-            isDisposed || entityPickerGeneration !== pickerGeneration
-              ? entityPickerHandle?.close()
-              : (activePickerHandle = entityPickerHandle)
-          } catch (entityPickerError: any) {
-            showError(entityPickerError)
-          }
-        },
-      )
+      const selectedCameraEntity = entities.find((entityMatch: any) => entityMatch.entityId === selectedItem.entityId),
+        entityPickerButtonElement = createButton(
+          // 与实体选择器一致：优先显示实体所属设备名，避免只显示与区域同名的实体名。
+          pickers.entityLabel?.(selectedCameraEntity) ||
+            selectedCameraEntity?.name ||
+            selectedItem.entityId ||
+            '选择' + getKindLabel() + '实体',
+          async () => {
+            const entityPickerGeneration = ++pickerGeneration
+            activePickerHandle?.close()
+            try {
+              const entityPickerHandle = await pickers.entity({
+                trigger: entityPickerButtonElement,
+                current: selectedItem.entityId,
+                deviceKind: securityKind,
+                onSelect(pickedEntityId: any) {
+                  isDisposed ||
+                    !isAccessAllowed ||
+                    entityPickerGeneration !== pickerGeneration ||
+                    findSelectedItem() !== selectedItem ||
+                    ((selectedItem.entityId = pickedEntityId),
+                    securityKind === 'presence' &&
+                      (delete selectedItem.deviceId,
+                      delete selectedItem.deviceName,
+                      deviceEntitiesByItemId.delete(selectedItem.id)),
+                    securityKind === 'presence' &&
+                      pickedEntityId.startsWith('event.') &&
+                      !(selectedItem.displayDuration > 0) &&
+                      (selectedItem.displayDuration = 30),
+                    markPropertiesDirty(),
+                    renderPanel())
+                },
+              })
+              isDisposed || entityPickerGeneration !== pickerGeneration
+                ? entityPickerHandle?.close()
+                : (activePickerHandle = entityPickerHandle)
+            } catch (entityPickerError: any) {
+              showError(entityPickerError)
+            }
+          },
+        )
       securityKind === 'presence' &&
         (entityPickerButtonElement.textContent = selectedItem.entityId
           ? '手动绑定：' + selectedItem.entityId

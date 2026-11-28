@@ -636,9 +636,10 @@ body.interaction3d-stage.is-background-hidden #preview-3d {
 
 /* 总览 Display 辅助条 */
 
-/* AFH 与场景导航叠层约定 */
+/* AFH 与场景导航叠层约定。z-index 走令牌（唯一真源在 app/main.css 的 --z-floating-hub），
+   这里原先写死 40，与 floating-hub/index.css 的同一类名各自一份、靠加载顺序决胜。 */
 .afh-root {
-  z-index: 40;
+  z-index: var(--z-floating-hub);
   pointer-events: none;
 }
 
@@ -649,7 +650,7 @@ body.interaction3d-stage.is-background-hidden #preview-3d {
 
 /* 楼层条 / marker 安全区：默认避开底边中央 */
 .i3d-floor-tabs {
-  z-index: 45;
+  z-index: var(--z-shell-sidebar-raised);
 }
 
 @media (max-width: 1200px) {

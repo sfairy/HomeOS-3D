@@ -343,4 +343,4 @@ const dndFlowSummary = computed(() => {
 })
 </script>
 
-<style scoped src="./alert-rules.css"></style>
+<style src="./alert-rules.css"></style>

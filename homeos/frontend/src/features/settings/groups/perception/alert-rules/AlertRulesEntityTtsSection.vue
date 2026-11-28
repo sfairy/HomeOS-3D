@@ -268,4 +268,4 @@ function confirmAddEntity() {
 }
 </script>
 
-<style scoped src="./alert-rules.css"></style>
+<style src="./alert-rules.css"></style>

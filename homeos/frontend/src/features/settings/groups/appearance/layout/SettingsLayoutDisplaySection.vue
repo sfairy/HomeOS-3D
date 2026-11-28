@@ -102,7 +102,7 @@
         <div>
           <label class="settings-form-label mb-2">{{ '侧边功能区停靠位置' }}</label>
           <div class="flex gap-2">
-            <button
+            <button type="button"
               :class="[
                 'flex-1 py-3 border rounded-xl font-bold transition-all text-sm',
                 layoutConfig.panelPosition === 'right'
@@ -113,7 +113,7 @@
             >
               {{ '停靠在屏幕右侧 (默认)' }}
             </button>
-            <button
+            <button type="button"
               :class="[
                 'flex-1 py-3 border rounded-xl font-bold transition-all text-sm',
                 layoutConfig.panelPosition === 'left' ? 'ldp-pos-btn--active' : 'ldp-pos-btn--idle',

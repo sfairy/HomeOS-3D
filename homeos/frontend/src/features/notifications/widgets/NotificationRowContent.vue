@@ -43,7 +43,7 @@ defineEmits(['action-prompt', 'dismiss'])
     </div>
   </div>
   <ChevronRight v-if="hasLink" class="nc-item__chevron" aria-hidden="true" />
-  <button class="nc-dismiss" :aria-label="'关闭通知'" @click.stop="$emit('dismiss')">
+  <button type="button" class="nc-dismiss" :aria-label="'关闭通知'" @click.stop="$emit('dismiss')">
     <X class="nc-dismiss__icon" />
   </button>
 </template>

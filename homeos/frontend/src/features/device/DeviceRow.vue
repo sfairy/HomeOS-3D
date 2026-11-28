@@ -90,6 +90,7 @@
     <Teleport v-if="menuVisible" :to="menuTeleportTo">
       <div
         class="device-row-menu-overlay"
+        aria-hidden="true"
         @click="closeMenu"
         @contextmenu.prevent="closeMenu"
       >

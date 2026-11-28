@@ -510,17 +510,60 @@
   max-height: 0;
   overflow: hidden;
   opacity: 0;
+  /* 展开/收起靠 max-height 过渡：`max-height`、`margin`、`padding` 必须显式列出，
+     原先写 `all` 顺带覆盖了它们；换成显式表后漏掉就会出现「瞬间跳开」。 */
   transition:
     max-height 0.25s ease,
     opacity 0.2s ease,
-    margin 0.2s ease;
+    margin 0.2s ease,
+    padding 0.25s ease;
+  padding: 0;
+  margin-top: 0;
   margin-bottom: 0;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: var(--hos-radius-card, 14px);
+  border: var(--hos-hairline) solid transparent;
 }
 
 .sm-batch-panel--open {
-  max-height: 480px;
+  /* 上限取「屏幕高的 70%」：面板里是可滚动的实体清单，480px 固定值在 4K 墙屏上太矮。 */
+  max-height: min(calc(var(--hos-screen-h, 100vh) * 0.7), 1200px);
+  overflow-y: auto;
   opacity: 1;
+  padding: 16px;
+  margin-top: 12px;
   margin-bottom: 14px;
+  border-color: rgba(10, 132, 255, 0.1);
+}
+
+/* 实体清单里的小胶囊（批量勾选状态）。原先写在 settings-layout.css，
+   但它只被 SettingsSecurityModes* 使用，属于本文件的组件样式。 */
+.sp-check-chip {
+  font-size: var(--set-fs-caption);
+  font-family: "SF Mono", "Fira Code", monospace;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: var(--hos-hairline) solid var(--premium-border-strong);
+  background: var(--set-glass-bg-subtle);
+  color: var(--set-text-label);
+  transition:
+    transform 0.15s,
+    opacity 0.15s,
+    background-color 0.15s,
+    border-color 0.15s,
+    box-shadow 0.15s,
+    color 0.15s,
+    filter 0.15s;
+  cursor: pointer;
+}
+.sp-check-chip:hover {
+  background: var(--premium-glass-bg-hover);
+  color: var(--set-text-secondary);
+}
+.sp-check-chip--on {
+  background: rgba(10, 132, 255, 0.15);
+  border-color: rgba(10, 132, 255, 0.4);
+  color: #0a84ff;
 }
 
 .sm-batch-row {

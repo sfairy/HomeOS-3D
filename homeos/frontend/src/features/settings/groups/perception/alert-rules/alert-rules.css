@@ -1,3 +1,13 @@
+/*
+ * 【加载契约 · 多组件共用】
+ * 本表被多个组件引入，必须**一律以全局方式**加载（`<style src="...">`，不带 `scoped`）。
+ *
+ * 为什么：`scoped` 会给选择器最后一段加 `[data-v-xxxx]`，同一份表在不同组件里
+ * 就变成两套规则 —— 一半命中、一半落空，且同一份 CSS 会重复打进每个 chunk。
+ * 历史上这批表混着写，表现为「某个面板的间距只在打开顺序不同的时候才对」。
+ *
+ * 由 `node ops/checks/frontend/audit_css_layout.mjs` 的 scoping 统计守卫。
+ */
 /* 合并自：alert-rules-theme.css, alert-rules-dnd.css, alert-rules-voice.css, alert-eew-theme.css */
 
 /* 区内保存栏：窄屏页头 actions 被藏时仍可保存 */
@@ -130,12 +140,6 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-}
-.settings-checkbox {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--page-accent);
-  flex-shrink: 0;
 }
 .settings-check-row {
   display: flex;
@@ -721,7 +725,14 @@
 }
 
 .alert-dnd-hero__orb {
-  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    color 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    filter 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .ard-status-band--active .alert-dnd-hero__orb {
@@ -995,7 +1006,14 @@
   border: var(--hos-hairline) solid var(--set-border-subtle);
   color: var(--set-text-secondary);
   cursor: pointer;
-  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+    color 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+    filter 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .alert-dnd-preset:hover {
@@ -1764,7 +1782,14 @@
   background: var(--set-glass-bg-subtle);
   border: var(--hos-hairline) solid var(--premium-border-strong);
   cursor: pointer;
-  transition: all 0.2s;
+  transition:
+    transform 0.2s,
+    opacity 0.2s,
+    background-color 0.2s,
+    border-color 0.2s,
+    box-shadow 0.2s,
+    color 0.2s,
+    filter 0.2s;
 }
 
 .alert-eew-city-chip:hover {

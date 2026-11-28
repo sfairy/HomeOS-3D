@@ -310,7 +310,7 @@ onMounted(load)
 .devices-mgmt-warning {
   margin: 8px 20px 4px;
   padding: 8px 12px;
-  border-radius: var(--hos-radius-sm, 8px);
+  border-radius: var(--hos-radius-control, 8px);
   background: rgba(245, 158, 11, 0.12);
   border: var(--hos-hairline) solid rgba(245, 158, 11, 0.35);
   font-size: var(--set-fs-micro, 12px);

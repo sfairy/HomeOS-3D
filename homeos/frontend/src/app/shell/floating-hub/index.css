@@ -1,7 +1,7 @@
 .afh-root {
   /* 空白穿透到 3D 舞台；仅 .afh-widget 拦截命中。z-index 低于楼层条(45+)/壳模态 */
   pointer-events: none;
-  z-index: 40;
+  z-index: var(--z-floating-hub);
   position: absolute;
   /* 必须铺满内容区：底边 inset 会缩短百分比坐标系，底边锚点面板（yPct≈100）
      会提前顶死，表现为「明明下面还有空位却拖不下去」。楼层条用更高 z-index 叠在上面即可。 */
@@ -41,7 +41,7 @@
 }
 
 .afh-widget:hover {
-  z-index: 130;
+  z-index: var(--z-afh-hover);
   filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.35));
 }
 
@@ -55,7 +55,7 @@
 
 .afh-widget.is-dragging {
   cursor: grabbing;
-  z-index: 140;
+  z-index: var(--z-afh-drag);
   border-color: #0a84ff;
   box-shadow: 0 0 20px rgba(10, 132, 255, 0.4);
 }
@@ -150,9 +150,10 @@
   -webkit-backdrop-filter: blur(16px);
 }
 
-/* 非 Hub 面板（若有）仍允许外层滚动 */
+/* 非 Hub 面板（若有）仍允许外层滚动。
+   `overflow-x: visible` 原本就无效：纵向设 auto 后横向的 visible 会被算成 auto，
+   留着只会让下一个人误以为「横向不裁」。需要的横向裁切交给内容自己。 */
 .afh-content--panel:not(.afh-content--hub-panel):not(:has(> .widget-hub-root)) {
-  overflow-x: visible;
   overflow-y: auto;
   scrollbar-width: thin;
 }

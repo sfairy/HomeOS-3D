@@ -5,7 +5,7 @@
 <template>
   <Transition name="doorbell-pop">
     <div v-if="isOpen" class="hos-modal-root">
-      <div class="hos-modal-backdrop" @click="onDismiss" />
+      <div class="hos-modal-backdrop" aria-hidden="true" @click="onDismiss" />
       <div
         ref="panelRef"
         class="hos-modal-panel hos-modal-panel--doorbell hos-modal-panel--amber pointer-events-auto flex flex-col"

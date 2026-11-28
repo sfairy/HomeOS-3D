@@ -99,7 +99,15 @@
                     'alert-voice-card--expanded': expandedAlert === item.key,
                   }"
                 >
-                  <div class="alert-voice-card__head" @click="toggleAlertExpand(item.key)">
+                  <div
+                    class="alert-voice-card__head"
+                    role="button"
+                    tabindex="0"
+                    :aria-expanded="expandedAlert === item.key"
+                    @click="toggleAlertExpand(item.key)"
+                    @keydown.enter.prevent="toggleAlertExpand(item.key)"
+                    @keydown.space.prevent="toggleAlertExpand(item.key)"
+                  >
                     <label class="alert-voice-card__toggle" @click.stop>
                       <input
                         v-model="voice.ttsAlerts[item.key]"

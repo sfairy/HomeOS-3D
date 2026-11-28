@@ -1,46 +1,4 @@
-.bind-section__head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  margin: 10px 0 14px;
-}
-
-.bind-section__eyebrow {
-  margin: 0 0 4px;
-  font-size: var(--premium-fs-micro);
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--page-accent-text);
-  opacity: 0.85;
-}
-
-.bind-section__title {
-  margin: 0;
-  font-size: var(--premium-fs-body, 14px);
-  font-weight: 800;
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.bind-section__desc {
-  margin: 6px 0 0;
-  font-size: var(--premium-fs-micro, 11px);
-  line-height: 1.45;
-  color: var(--hos-text-secondary);
-  max-width: 42rem;
-}
-
-.bind-section__badge {
-  flex-shrink: 0;
-  padding: var(--hos-chip-pad-y, 6px) var(--hos-chip-pad-x, 12px);
-  border-radius: var(--hos-radius-pill);
-  font-size: var(--premium-fs-micro);
-  font-weight: 600;
-  color: var(--page-accent-text);
-  background: var(--page-accent-bg);
-  border: var(--hos-hairline) solid var(--page-accent-border);
-}
+/* `.bind-section__*` 的共用样式在 settings/shared/bindings-theme.css（唯一真源）。 */
 
 .bind-cam-list {
   display: flex;

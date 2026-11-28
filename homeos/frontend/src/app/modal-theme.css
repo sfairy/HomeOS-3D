@@ -27,6 +27,22 @@
   will-change: opacity;
 }
 
+/* 模糊被 7.10e 统一关掉（触屏 / 窄画布 / 静态玻璃）时，遮罩必须自己变实：
+   没有 blur 就只剩 0.55 的黑，后面的按钮与文字会「透」上来抢注意力。 */
+@media (pointer: coarse), (hover: none) {
+  .hos-modal-backdrop {
+    background: rgba(0, 0, 0, 0.78);
+  }
+}
+@container hos-canvas (max-width: 900px) {
+  .hos-modal-backdrop {
+    background: rgba(0, 0, 0, 0.78);
+  }
+}
+html[data-glass-effect="static"] .hos-modal-backdrop {
+  background: rgba(0, 0, 0, 0.78);
+}
+
 /* ---- 玻璃面板 ---- */
 .hos-modal-panel {
   --hos-accent: 10, 132, 255;
@@ -111,7 +127,7 @@
   max-height: calc(var(--hos-screen-h, 100vh) * 0.85);
 }
 /*
- * --lg 原本用硬 600px：平板横屏 / 高缩放（--hos-scale>1）下会高过可视区，
+ * --lg 原本用硬 600px：平板横屏 / 整页缩放比 >1 时会高过可视区，
  * 弹窗底部按钮被推出屏幕且无法滚动。与 --md/--xl 统一走视口高度，并给宽度加视口上限。
  */
 .hos-modal-panel--lg {
@@ -236,7 +252,14 @@
   background: rgba(255, 255, 255, 0.04);
   border: var(--hos-hairline) solid var(--premium-border);
   cursor: pointer;
-  transition: all 0.3s var(--ease-bounce);
+  transition:
+    transform 0.3s var(--ease-bounce),
+    opacity 0.3s var(--ease-bounce),
+    background-color 0.3s var(--ease-bounce),
+    border-color 0.3s var(--ease-bounce),
+    box-shadow 0.3s var(--ease-bounce),
+    color 0.3s var(--ease-bounce),
+    filter 0.3s var(--ease-bounce);
 }
 
 .hos-modal-close:hover {
@@ -298,7 +321,14 @@
   font-weight: 600;
   letter-spacing: 0.01em;
   height: 44px;
-  transition: all 0.35s var(--ease-bounce);
+  transition:
+    transform 0.35s var(--ease-bounce),
+    opacity 0.35s var(--ease-bounce),
+    background-color 0.35s var(--ease-bounce),
+    border-color 0.35s var(--ease-bounce),
+    box-shadow 0.35s var(--ease-bounce),
+    color 0.35s var(--ease-bounce),
+    filter 0.35s var(--ease-bounce);
 }
 
 .hos-modal-btn--ghost {
@@ -362,7 +392,14 @@
   color: rgba(255, 255, 255, 0.9);
   font-size: var(--premium-fs-caption);
   outline: none;
-  transition: all 0.25s;
+  transition:
+    transform 0.25s,
+    opacity 0.25s,
+    background-color 0.25s,
+    border-color 0.25s,
+    box-shadow 0.25s,
+    color 0.25s,
+    filter 0.25s;
 }
 
 .hos-modal-search {
@@ -423,7 +460,14 @@
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.04);
   background: rgba(255, 255, 255, 0.015);
   cursor: pointer;
-  transition: all 0.25s;
+  transition:
+    transform 0.25s,
+    opacity 0.25s,
+    background-color 0.25s,
+    border-color 0.25s,
+    box-shadow 0.25s,
+    color 0.25s,
+    filter 0.25s;
   overflow: hidden;
 }
 
@@ -473,7 +517,14 @@
   height: 12px;
   border-radius: 50%;
   border: 2px solid rgba(255, 255, 255, 0.18);
-  transition: all 0.3s;
+  transition:
+    transform 0.3s,
+    opacity 0.3s,
+    background-color 0.3s,
+    border-color 0.3s,
+    box-shadow 0.3s,
+    color 0.3s,
+    filter 0.3s;
 }
 
 .hos-modal-pin-dot--filled {
@@ -510,7 +561,14 @@
   font-size: var(--premium-fs-stat);
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s;
+  transition:
+    transform 0.2s,
+    opacity 0.2s,
+    background-color 0.2s,
+    border-color 0.2s,
+    box-shadow 0.2s,
+    color 0.2s,
+    filter 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -577,7 +635,9 @@
    两者刻意不再同名，避免「绝对定位 + 横向位移」的换页规则泄漏到组件内淡入淡出。 */
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.3s ease;
+  transition:
+    transform 0.3s ease,
+    opacity 0.3s ease;
 }
 .fade-enter-from,
 .fade-leave-to {

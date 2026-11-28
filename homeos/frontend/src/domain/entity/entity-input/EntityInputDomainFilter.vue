@@ -7,7 +7,7 @@
 <template>
   <div v-if="show" class="ei-filter-bar">
     <div class="ei-domain-dropdown" :ref="bindAnchor">
-      <button
+      <button type="button"
         class="ei-domain-btn"
         :class="{ 'ei-domain-btn--active': selectedDomain }"
         @click.prevent.stop="emit('toggle-menu')"

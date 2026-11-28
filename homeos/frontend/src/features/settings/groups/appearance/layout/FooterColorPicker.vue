@@ -116,4 +116,4 @@ useClickOutside(
 )
 </script>
 
-<style scoped src="./layout.css"></style>
+<style src="./layout.css"></style>

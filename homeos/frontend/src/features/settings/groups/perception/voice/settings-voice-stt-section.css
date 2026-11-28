@@ -45,7 +45,14 @@
   border: var(--hos-hairline) solid var(--premium-glass-bg-hover);
   color: var(--hos-text-secondary);
   cursor: pointer;
-  transition: all 0.15s;
+  transition:
+    transform 0.15s,
+    opacity 0.15s,
+    background-color 0.15s,
+    border-color 0.15s,
+    box-shadow 0.15s,
+    color 0.15s,
+    filter 0.15s;
 }
 .voice-mode-card:hover {
   border-color: rgba(var(--module-accent-voice-sub-rgb), 0.3);
@@ -90,13 +97,6 @@
   color: var(--set-success);
   border: var(--hos-hairline) solid rgba(var(--set-success-rgb), 0.25);
 }
-.settings-checkbox {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--module-accent-voice);
-  flex-shrink: 0;
-}
-
 .voice-stt-flow-band__shell {
   --flow-glow-a: rgba(var(--module-accent-voice-rgb), var(--flow-glow-alpha-a));
   --flow-glow-b: rgba(56, 189, 248, var(--flow-glow-alpha-b));
@@ -155,9 +155,4 @@
   color: var(--hos-text-secondary);
   margin: 0;
 }
-.voice-field-hint--warn {
-  color: var(--set-warn, #fbbf24);
-}
-.voice-field-hint--ok {
-  color: var(--set-success, #34d399);
-}
+/* `.voice-field-hint--warn` / `--ok` 的基础色在 voice-form.css，这里不重复声明。 */

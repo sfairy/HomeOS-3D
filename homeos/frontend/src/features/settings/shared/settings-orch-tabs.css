@@ -421,7 +421,14 @@
   background: var(--set-glass-bg-subtle);
   color: var(--set-text-label);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    color 0.2s ease,
+    filter 0.2s ease;
 }
 
 .settings-orch-arrow:hover:not(:disabled) {
@@ -513,7 +520,14 @@
   background: transparent;
   cursor: pointer;
   scroll-snap-align: center;
-  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    transform 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+    color 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+    filter 0.28s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
   z-index: 1;
   isolation: isolate;
@@ -606,7 +620,14 @@
   color: var(--set-text-tertiary);
   background: color-mix(in srgb, var(--set-glass-bg, var(--hos-bg-tint-1)) 100%, #0c0e14);
   border: var(--hos-hairline) solid var(--set-border-subtle);
-  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    transform 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+    color 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+    filter 0.28s cubic-bezier(0.16, 1, 0.3, 1);
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
   transform: translateZ(0);

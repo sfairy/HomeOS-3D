@@ -16,6 +16,21 @@
   backdrop-filter: blur(8px);
 }
 
+/* 7.10e 关掉 blur 后补实底，避免背后内容直接透上来 */
+@media (pointer: coarse), (hover: none) {
+  .notification-drawer-backdrop {
+    background: rgba(0, 0, 0, 0.75);
+  }
+}
+@container hos-canvas (max-width: 900px) {
+  .notification-drawer-backdrop {
+    background: rgba(0, 0, 0, 0.75);
+  }
+}
+html[data-glass-effect="static"] .notification-drawer-backdrop {
+  background: rgba(0, 0, 0, 0.75);
+}
+
 .notification-drawer-panel {
   position: relative;
   z-index: 1;
@@ -124,20 +139,12 @@
   flex-direction: column;
 }
 
-.custom-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
-}
+/* .custom-scrollbar 的唯一真源在 app/main.css（4px 细条 + hover 变亮）。
+   这里曾重复定义一份 8px 粗条与 --hos-radius-card 圆角，只在通知抽屉里生效，
+   与全站观感不一致；删除后抽屉与其它滚动区一致。 */
 
-.custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: var(--hos-radius-card);
-}
-
+/* 抽屉：遮罩层只淡入淡出，面板平移单独声明（见下一条规则）。
+   两者分开过渡，避免 `all` 把面板宽度/位置也纳入动画。 */
 .notification-drawer-enter-active,
 .notification-drawer-leave-active {
   transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
@@ -173,7 +180,9 @@
 /* —— DoorbellAlertModal —— */
 .doorbell-pop-enter-active,
 .doorbell-pop-leave-active {
-  transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .doorbell-pop-enter-from,
 .doorbell-pop-leave-to {

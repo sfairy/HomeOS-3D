@@ -314,7 +314,7 @@ void catalog.load().catch((error) => {
       desc="定价、有效期与库存；有历史授权或订单的商品只能下架"
       domain="商品"
     >
-      <button class="hb-button hb-button--primary hb-button--sm" @click="editProduct(null)">
+      <button type="button" class="hb-button hb-button--primary hb-button--sm" @click="editProduct(null)">
         新增商品
       </button>
     </PanelHead>
@@ -348,8 +348,8 @@ void catalog.load().catch((error) => {
           <option value="soldout">已售罄</option>
           <option value="lowstock">低库存（可售 ≤ 5）</option>
         </select>
-        <button class="hb-button hb-button--secondary hb-button--sm" @click="reload">查询</button>
-        <button class="hb-button hb-button--ghost hb-button--sm" @click="reset">重置</button>
+        <button type="button" class="hb-button hb-button--secondary hb-button--sm" @click="reload">查询</button>
+        <button type="button" class="hb-button hb-button--ghost hb-button--sm" @click="reset">重置</button>
       </div>
 
       <DataTable ref="table" path="/products" :columns="COLUMNS" :params="params" empty-text="没有符合条件的商品">
@@ -374,7 +374,7 @@ void catalog.load().catch((error) => {
             </td>
             <td class="nowrap">
               <div class="row-actions">
-                <button class="hb-button hb-button--secondary hb-button--sm" @click="editProduct(product)">
+                <button type="button" class="hb-button hb-button--secondary hb-button--sm" @click="editProduct(product)">
                   编辑
                 </button>
                 <RowMenu>

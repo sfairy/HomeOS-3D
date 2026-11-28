@@ -220,4 +220,4 @@ function formatSunTime(value: Parameters<typeof formatLocaleTime>[0] | null | un
 }
 </script>
 
-<style scoped src="./weather.css"></style>
+<style src="./weather.css"></style>

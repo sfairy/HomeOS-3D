@@ -122,8 +122,8 @@ async function remove(item: Withdrawal) {
         <option value="rejected">已驳回</option>
       </select>
       <input v-model="keyword" class="hb-input" aria-label="账号邮箱关键字" placeholder="邮箱" />
-      <button class="hb-button hb-button--secondary hb-button--sm" @click="reload">查询</button>
-      <button class="hb-button hb-button--ghost hb-button--sm" @click="reset">重置</button>
+      <button type="button" class="hb-button hb-button--secondary hb-button--sm" @click="reload">查询</button>
+      <button type="button" class="hb-button hb-button--ghost hb-button--sm" @click="reset">重置</button>
     </div>
 
     <DataTable
@@ -143,14 +143,14 @@ async function remove(item: Withdrawal) {
           <td class="nowrap">{{ dt(item.createdAt) }}</td>
           <td class="nowrap">
             <div class="row-actions">
-              <button
+              <button type="button"
                 v-if="item.status === 'pending'"
                 class="hb-button hb-button--success hb-button--sm"
                 @click="resolve(item, true)"
               >
                 通过
               </button>
-              <button
+              <button type="button"
                 v-if="item.status === 'pending'"
                 class="hb-button hb-button--danger hb-button--sm"
                 @click="resolve(item, false)"

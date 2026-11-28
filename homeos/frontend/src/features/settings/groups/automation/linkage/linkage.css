@@ -388,7 +388,14 @@
   background: var(--set-glass-bg);
   border: var(--hos-hairline) solid var(--premium-border-strong);
   color: var(--set-text-secondary);
-  transition: all 0.25s ease;
+  transition:
+    transform 0.25s ease,
+    opacity 0.25s ease,
+    background-color 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.25s ease,
+    color 0.25s ease,
+    filter 0.25s ease;
 }
 
 .linkage-preset-card--amber .linkage-preset-card__orb--on {

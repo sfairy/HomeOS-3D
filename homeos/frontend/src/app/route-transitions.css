@@ -9,7 +9,9 @@
  */
 .route-fade-enter-active,
 .route-fade-leave-active {
-  /* 路由壳保持实体渲染，避免 out-in 的透明度熄灭/点亮闪烁。 */
+  /* 路由壳保持实体渲染，避免 out-in 的透明度熄灭/点亮闪烁。
+     只过渡 transform：透明度参与路由换页会让两层页面同时「呼吸」，
+     且 opacity 动画在合成层上会把整页内容重绘。 */
   transition: transform 0.42s cubic-bezier(0.22, 0.8, 0.2, 1);
   will-change: transform;
   /*

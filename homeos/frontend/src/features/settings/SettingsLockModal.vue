@@ -9,7 +9,7 @@
         role="dialog"
         aria-modal="true"
         :aria-label="'设置锁验证'"
-        :class="{ 'animate-shake': isError }"
+        :class="{ 'lock-shake': isError }"
         v-swipe-close="() => emit('close')"
       >
         <div class="hos-modal-glow hos-modal-glow--blue" />

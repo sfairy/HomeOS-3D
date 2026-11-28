@@ -1,10 +1,9 @@
 /* 响应式 + Tailwind 排版映射 + 导航编辑器 */
-@container hos-canvas (min-width: 1440px) {
-  .settings-page-inset {
-    padding-left: 2.5rem;
-    padding-right: 2.5rem;
-  }
-}
+
+/* `.settings-page-inset` 的左右内边距不在本文件覆盖：唯一真源在 settings-layout.css +
+   settings-tokens.css 的 --settings-inset-x。本文件在 settings-theme.css 里最后导入，
+   原先那条 `min-width:1440px → 2.5rem` 会压过 1920 档的 2.75rem 与 3200 档的 4rem，
+   使两档放大全部失效。 */
 
 /* 宽屏不再覆盖卡片 padding：基线已是 --hos-panel-padding-default，
    避免 ≥1200 与 flat/workspace 的 padding:0 互相打架 */
@@ -125,6 +124,18 @@
 .settings-shell .settings-page .sm-empty__desc,
 .settings-shell .settings-page .vsc-preview__text {
   font-size: var(--set-fs-body-sm);
+}
+
+/* ── 复选框（设置页共用） ──
+ * 原先在 alert-rules.css 与 voice 的 stt 段各写一份，只有 `accent-color` 不同
+ * （`--page-accent` vs `--module-accent-voice`）。但设置页每个 hub 都会把
+ * `--page-accent` 覆盖成自己的模块色，所以这里用 `--page-accent` 就自动跟随；
+ * 两份重复定义只会让「哪个后加载」决定勾选框颜色。 */
+.settings-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--page-accent);
+  flex-shrink: 0;
 }
 
 .settings-shell .settings-page .hub-stat__val {

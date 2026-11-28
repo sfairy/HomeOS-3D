@@ -44,7 +44,14 @@
   font-size: var(--set-fs-body-sm);
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition:
+    transform 0.18s ease,
+    opacity 0.18s ease,
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    color 0.18s ease,
+    filter 0.18s ease;
 }
 
 .sw-nav__prev:hover:not(:disabled) {
@@ -75,7 +82,14 @@
   cursor: pointer;
   pointer-events: auto;
   box-shadow: 0 4px 16px var(--sw-emerald-glow);
-  transition: all 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    color 0.2s ease,
+    filter 0.2s ease;
 }
 
 .sw-nav__next:hover:not(:disabled) {

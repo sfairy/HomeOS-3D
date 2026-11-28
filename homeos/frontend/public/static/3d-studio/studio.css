@@ -6615,7 +6615,7 @@ body:has(.studio-shell[data-editor-workspace]) .studio-header {
   border: 1px solid var(--line-strong);
   border-radius: 9px;
   background: var(--panel-bg, var(--surface-2, #151e27));
-  box-shadow: var(--hos-shadow-lg, 0 10px 24px rgb(0 0 0 / 32%));
+  box-shadow: var(--hos-shadow-3, 0 10px 24px rgb(0 0 0 / 32%));
 }
 
 .preview-camera-panel[hidden] {

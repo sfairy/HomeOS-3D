@@ -22,9 +22,46 @@
 
 .notifications-view__query-grid {
   display: grid;
+  /* 两列定宽筛选 + 弹性搜索 + 自动宽按钮。定宽那两列在窄画布上必须让位：
+     140+140+按钮+间距 ≈ 380px，390px 手机档放不下，原先没有任何回退，
+     整块筛选区横向溢出被父级 `overflow: hidden` 裁掉（右侧按钮直接点不到）。 */
   grid-template-columns: 140px 140px minmax(0, 1fr) auto;
   gap: 8px 10px;
   align-items: end;
+}
+
+@container hos-canvas (max-width: 900px) {
+  /* 平板：动作按钮让到第二行，搜索仍占满剩余宽度 */
+  .notifications-view__query-grid {
+    grid-template-columns: 140px 140px minmax(0, 1fr);
+  }
+
+  .notifications-view__field--action {
+    grid-column: 1 / -1;
+    justify-self: end;
+  }
+}
+
+@container hos-canvas (max-width: 720px) {
+  /* 窄屏：两个定宽筛选各占一半，搜索与按钮各自整行 */
+  .notifications-view__query-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .notifications-view__field--action {
+    justify-self: stretch;
+  }
+
+  .notifications-view__field--action > * {
+    width: 100%;
+  }
+}
+
+@container hos-canvas (max-width: 480px) {
+  /* 手机档（流体布局）：单列堆叠，不再横向溢出 */
+  .notifications-view__query-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .notifications-view__field--action {

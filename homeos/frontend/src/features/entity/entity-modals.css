@@ -12,6 +12,21 @@
   backdrop-filter: blur(4px);
 }
 
+/* 7.10e 关掉 blur 后补实底（同 modal-theme.css 的理由） */
+@media (pointer: coarse), (hover: none) {
+  .entity-control-backdrop {
+    background: rgba(0, 0, 0, 0.72);
+  }
+}
+@container hos-canvas (max-width: 900px) {
+  .entity-control-backdrop {
+    background: rgba(0, 0, 0, 0.72);
+  }
+}
+html[data-glass-effect="static"] .entity-control-backdrop {
+  background: rgba(0, 0, 0, 0.72);
+}
+
 /* —— EntityPickModal —— */
 .epm-state-dot {
   width: 10px;

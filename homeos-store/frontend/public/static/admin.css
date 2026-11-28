@@ -109,6 +109,12 @@ body {
   background: var(--hb-bg);
   color: var(--hb-ink);
   font-family: var(--hb-font);
+}
+
+/* 后台密度更高：字号在 `.admin-shell` 上收一档，而不是改 `body`。
+   改 body 会连带影响所有 Teleport 到 body 的弹层（它们不在 .admin-shell 里），
+   也让「主题表 14px / 后台 13.5px」变成两张全局表的 fight。 */
+.admin-shell {
   font-size: 13.5px;
 }
 
@@ -2797,7 +2803,7 @@ body {
 /* 表格横向可发现性：提示只在真的溢出时由 DataTable 渲染。 */
 .table-scroll-hint {
   margin: 8px 2px 0;
-  color: var(--hb-fg-2);
+  color: var(--hb-ink-soft);
   font-size: 12px;
   line-height: 1.5;
 }
@@ -2814,7 +2820,7 @@ body {
     position: sticky;
     left: 0;
     z-index: 2;
-    background: var(--hb-bg-elev-2);
+    background: var(--hb-surface-raised);
   }
 
   .table-wrap .hb-table thead th:first-child {

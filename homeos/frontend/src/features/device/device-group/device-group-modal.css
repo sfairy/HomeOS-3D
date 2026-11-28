@@ -14,7 +14,14 @@
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.04);
   border-radius: var(--hos-radius-panel);
   padding: 22px;
-  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    color 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    filter 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
   overflow: hidden;
   box-shadow:
@@ -263,7 +270,14 @@
   font-weight: 700;
   letter-spacing: 0.02em;
   cursor: pointer;
-  transition: all 0.22s ease;
+  transition:
+    transform 0.22s ease,
+    opacity 0.22s ease,
+    background-color 0.22s ease,
+    border-color 0.22s ease,
+    box-shadow 0.22s ease,
+    color 0.22s ease,
+    filter 0.22s ease;
   line-height: 1.1;
   text-align: center;
 }
@@ -343,7 +357,14 @@
   background: rgba(255, 255, 255, 0.03);
   color: var(--text-muted);
   cursor: pointer;
-  transition: all 0.25s;
+  transition:
+    transform 0.25s,
+    opacity 0.25s,
+    background-color 0.25s,
+    border-color 0.25s,
+    box-shadow 0.25s,
+    color 0.25s,
+    filter 0.25s;
 }
 
 .dgm-climate-off-btn:hover {
@@ -375,7 +396,14 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    color 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    filter 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   background: rgba(255, 255, 255, 0.05);
   border: var(--hos-hairline) solid var(--premium-border);
   color: var(--text-muted);
@@ -434,7 +462,14 @@
   background: rgba(255, 255, 255, 0.04);
   border: var(--hos-hairline) solid var(--premium-border);
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    color 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    filter 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .dgm-temp-btn:hover {
@@ -532,7 +567,14 @@
   background: var(--hos-bg-tint-1);
   border: var(--hos-hairline) solid var(--hos-glass-border);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+  transition:
+    transform 0.3s cubic-bezier(0.25, 0.1, 0.25, 1),
+    opacity 0.3s cubic-bezier(0.25, 0.1, 0.25, 1),
+    background-color 0.3s cubic-bezier(0.25, 0.1, 0.25, 1),
+    border-color 0.3s cubic-bezier(0.25, 0.1, 0.25, 1),
+    box-shadow 0.3s cubic-bezier(0.25, 0.1, 0.25, 1),
+    color 0.3s cubic-bezier(0.25, 0.1, 0.25, 1),
+    filter 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 .dgm-modal-head .hos-modal-close svg {
@@ -687,7 +729,14 @@
   border: var(--hos-hairline) solid var(--premium-border-strong);
   background: rgba(255, 255, 255, 0.03);
   cursor: pointer;
-  transition: all 0.2s;
+  transition:
+    transform 0.2s,
+    opacity 0.2s,
+    background-color 0.2s,
+    border-color 0.2s,
+    box-shadow 0.2s,
+    color 0.2s,
+    filter 0.2s;
 }
 
 .dgm-section-toggle:hover {
@@ -712,7 +761,14 @@
   align-items: center;
   gap: 12px;
   text-align: left;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    color 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    filter 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   min-width: 0;
 }
 
@@ -773,7 +829,14 @@ button.dgm-light-card:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s;
+  transition:
+    transform 0.3s,
+    opacity 0.3s,
+    background-color 0.3s,
+    border-color 0.3s,
+    box-shadow 0.3s,
+    color 0.3s,
+    filter 0.3s;
 }
 
 .dgm-light-body {
@@ -790,7 +853,14 @@ button.dgm-light-card:focus-visible {
   height: 8px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.12);
-  transition: all 0.3s;
+  transition:
+    transform 0.3s,
+    opacity 0.3s,
+    background-color 0.3s,
+    border-color 0.3s,
+    box-shadow 0.3s,
+    color 0.3s,
+    filter 0.3s;
 }
 
 .dgm-light-dot--on {
@@ -854,7 +924,14 @@ button.dgm-light-card:focus-visible {
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.05);
   border-radius: var(--hos-radius-panel);
   padding: 14px 12px;
-  transition: all 0.3s;
+  transition:
+    transform 0.3s,
+    opacity 0.3s,
+    background-color 0.3s,
+    border-color 0.3s,
+    box-shadow 0.3s,
+    color 0.3s,
+    filter 0.3s;
   min-width: 0;
 }
 
@@ -965,7 +1042,14 @@ button.dgm-light-card:focus-visible {
   align-items: center;
   text-align: center;
   gap: 8px;
-  transition: all 0.35s;
+  transition:
+    transform 0.35s,
+    opacity 0.35s,
+    background-color 0.35s,
+    border-color 0.35s,
+    box-shadow 0.35s,
+    color 0.35s,
+    filter 0.35s;
   min-width: 0;
 }
 
@@ -1241,7 +1325,14 @@ button.dgm-light-card:focus-visible {
   font-size: var(--premium-fs-caption);
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition:
+    transform 0.2s,
+    opacity 0.2s,
+    background-color 0.2s,
+    border-color 0.2s,
+    box-shadow 0.2s,
+    color 0.2s,
+    filter 0.2s;
   white-space: nowrap;
 }
 

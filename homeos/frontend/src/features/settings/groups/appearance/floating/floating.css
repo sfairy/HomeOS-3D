@@ -560,12 +560,9 @@
   opacity: 1;
 }
 
-.widget-config-studio {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 0 12px 12px;
-}
+/* `.widget-config-studio` 的基础布局（flex/gap/padding）真源在 layout-panels.css，
+   本文件只保留 `.afh-card` 内的内边距变体。原先这里又写一份 gap:10px / padding:0 12px 12px，
+   与真源 gap:12px / padding:4px 4px 8px 互抢，取决于先打开哪个面板。 */
 
 .widget-config-studio__surface {
   padding: 14px;
@@ -1274,8 +1271,8 @@
 .afh-section-enter-active,
 .afh-section-leave-active {
   transition:
-    opacity 0.2s var(--afh-ease),
-    transform 0.2s var(--afh-ease);
+    transform 0.2s var(--afh-ease),
+    opacity 0.2s var(--afh-ease);
 }
 
 .afh-section-enter-from {

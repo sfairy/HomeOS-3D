@@ -44,4 +44,4 @@ function formatAuditKeys(entry) {
 }
 </script>
 
-<style scoped src="./config-fields.css"></style>
+<style src="./config-fields.css"></style>

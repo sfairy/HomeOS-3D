@@ -108,7 +108,7 @@ async function purge() {
 <template>
   <section class="admin-panel active" data-domain="system">
     <PanelHead title="审计日志" desc="后台所有写操作的追溯记录，可单条删除或按时间批量清理" domain="系统">
-      <button class="hb-button hb-button--secondary hb-button--sm" @click="reload">刷新</button>
+      <button type="button" class="hb-button hb-button--secondary hb-button--sm" @click="reload">刷新</button>
     </PanelHead>
 
     <AdminTabs
@@ -145,7 +145,7 @@ async function purge() {
             </td>
             <td class="nowrap">
               <div class="row-actions">
-                <button class="hb-button hb-button--danger hb-button--sm" @click="remove(item)">删除</button>
+                <button type="button" class="hb-button hb-button--danger hb-button--sm" @click="remove(item)">删除</button>
               </div>
             </td>
           </tr>
@@ -171,7 +171,7 @@ async function purge() {
             <span>清理多少天之前的记录</span>
             <input v-model="purgeDays" class="hb-input purge-days" type="number" min="1" step="1" />
           </label>
-          <button class="hb-button hb-button--danger hb-button--sm" :disabled="purging" @click="purge">
+          <button type="button" class="hb-button hb-button--danger hb-button--sm" :disabled="purging" @click="purge">
             {{ purging ? "清理中…" : "执行清理" }}
           </button>
         </div>

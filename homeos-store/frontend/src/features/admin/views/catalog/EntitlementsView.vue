@@ -219,8 +219,8 @@ void catalog.load().catch((error) => {
       desc="客户端按 feature_code 判断功能开关；这张表过去在后台完全看不到"
       domain="数据"
     >
-      <button class="hb-button hb-button--secondary hb-button--sm" @click="reload">刷新</button>
-      <button class="hb-button hb-button--primary hb-button--sm" @click="openCreate">手工补权益</button>
+      <button type="button" class="hb-button hb-button--secondary hb-button--sm" @click="reload">刷新</button>
+      <button type="button" class="hb-button hb-button--primary hb-button--sm" @click="openCreate">手工补权益</button>
     </PanelHead>
 
     <AdminTabs
@@ -250,8 +250,8 @@ void catalog.load().catch((error) => {
           <option value="active">实际生效中</option>
           <option value="inactive">未生效 / 已过期</option>
         </select>
-        <button class="hb-button hb-button--secondary hb-button--sm" @click="reload">查询</button>
-        <button class="hb-button hb-button--ghost hb-button--sm" @click="reset">重置</button>
+        <button type="button" class="hb-button hb-button--secondary hb-button--sm" @click="reload">查询</button>
+        <button type="button" class="hb-button hb-button--ghost hb-button--sm" @click="reset">重置</button>
       </div>
 
       <DataTable
@@ -288,7 +288,7 @@ void catalog.load().catch((error) => {
             </td>
             <td class="nowrap">
               <div class="row-actions">
-                <button class="hb-button hb-button--secondary hb-button--sm" @click="openPatch(entry)">
+                <button type="button" class="hb-button hb-button--secondary hb-button--sm" @click="openPatch(entry)">
                   改期/开关
                 </button>
                 <RowMenu>

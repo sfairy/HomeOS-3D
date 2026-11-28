@@ -2,42 +2,6 @@
   margin-top: 10px;
 }
 
-.bind-section__head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  margin: 10px 0 14px;
-}
-
-.bind-section__eyebrow {
-  margin: 0 0 4px;
-  font-size: var(--hos-fs-2);
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--hos-color-accent);
-  opacity: 0.75;
-}
-
-.bind-section__title {
-  margin: 0;
-  font-size: var(--hos-fs-5);
-  font-weight: 800;
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.bind-section__badge {
-  flex-shrink: 0;
-  padding: var(--hos-chip-pad-y, 6px) var(--hos-chip-pad-x, 12px);
-  border-radius: var(--hos-r-pill);
-  font-size: var(--hos-fs-2);
-  font-weight: 600;
-  color: var(--hos-color-accent);
-  background: var(--hos-color-accent-soft);
-  border: var(--hos-hairline) solid var(--hos-color-accent-line);
-}
-
 .bind-doorbell-list {
   display: flex;
   flex-direction: column;

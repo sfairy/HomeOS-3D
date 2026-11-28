@@ -1,5 +1,6 @@
 /** 智能管家对话的本地会话管理（历史归档 / 切换 / 新建 / 删除） */
 import type { Ref } from 'vue'
+import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
 import {
   AGENT_CHAT_HISTORY_LIMIT,
   buildAgentChatSession,
@@ -81,8 +82,20 @@ export function useAgentChatSessions(deps: AgentChatSessionDeps) {
     historyOpen.value = false
   }
 
-  /** 删除对话：连历史一起删 —— 否则关掉面板再打开会被历史兜底恢复成「没删掉」 */
-  function deleteConversation() {
+  /**
+   * 删除对话：连历史一起删 —— 否则关掉面板再打开会被历史兜底恢复成「没删掉」。
+   *
+   * 不可逆（本地历史 + 服务端上下文一起清），所以先确认。原先直接删：点一下垃圾桶
+   * 整段对话就没了，且没有撤销入口 —— 在平板墙屏上（点击热区大、误触多）代价很高。
+   */
+  async function deleteConversation() {
+    const chrome = useChromeStore()
+    const ok = await chrome.confirm('删除后这段对话与其上下文都会清除，无法恢复。确定删除吗？', '删除对话', {
+      confirmText: '删除',
+      cancelText: '取消',
+      type: 'danger',
+    })
+    if (!ok) return
     deps.stopGenerating()
     deps.stopListen()
     const removedId = sessionId.value

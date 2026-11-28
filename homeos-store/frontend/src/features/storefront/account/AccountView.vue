@@ -335,9 +335,9 @@ async function copyCommand(command: string) {
                       class="hb-button hb-button--primary"
                       :to="`/products?upgrade=${encodeURIComponent(item.activationCodeId)}`"
                     >升级为永久授权</RouterLink>
-                    <button v-if="item.activationCode" class="hb-button hb-button--secondary" @click="resendEmail(item)">重发激活码邮件</button>
-                    <button class="hb-button hb-button--secondary" @click="openLabel(item)">修改备注</button>
-                    <button v-if="item.device" class="hb-button hb-button--secondary" @click="openRelease(item, $event)">解除设备绑定</button>
+                    <button type="button" v-if="item.activationCode" class="hb-button hb-button--secondary" @click="resendEmail(item)">重发激活码邮件</button>
+                    <button type="button" class="hb-button hb-button--secondary" @click="openLabel(item)">修改备注</button>
+                    <button type="button" v-if="item.device" class="hb-button hb-button--secondary" @click="openRelease(item, $event)">解除设备绑定</button>
                   </div>
                 </header>
                 <div class="hb-account-body">
@@ -439,10 +439,10 @@ async function copyCommand(command: string) {
                 <div class="hb-account-order-side">
                   <span>{{ new Date(String(item.createdAt)).toLocaleDateString("zh-CN") }}</span>
                   <div v-if="item.status === 'pending' && item.payment?.qrCode" class="hb-account-actions">
-                    <button class="hb-button hb-button--secondary" @click="payOrder(item)">继续支付</button>
+                    <button type="button" class="hb-button hb-button--secondary" @click="payOrder(item)">继续支付</button>
                   </div>
                   <div v-else-if="['cancelled', 'expired', 'payment_failed', 'refunded'].includes(String(item.status))" class="hb-account-actions">
-                    <button class="hb-button hb-button--secondary" @click="archiveOrder(item)">清除记录</button>
+                    <button type="button" class="hb-button hb-button--secondary" @click="archiveOrder(item)">清除记录</button>
                   </div>
                 </div>
               </article>

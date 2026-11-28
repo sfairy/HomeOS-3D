@@ -8297,7 +8297,7 @@
   width: 100%;
   height: 100%;
   border-radius: inherit;
-  object-fit: fill;
+  object-fit: cover;
 }
 .hb-custom-popup-camera-stage > span {
   position: absolute;

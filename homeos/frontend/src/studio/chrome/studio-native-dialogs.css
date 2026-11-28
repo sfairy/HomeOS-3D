@@ -153,7 +153,14 @@
   font-size: 20px;
   line-height: 1;
   cursor: pointer;
-  transition: all var(--hos-dur-slow) var(--ease-bounce, cubic-bezier(0.22, 1.2, 0.36, 1));
+  transition:
+    transform var(--hos-dur-slow) var(--ease-bounce, cubic-bezier(0.22, 1.2, 0.36, 1)),
+    opacity var(--hos-dur-slow) var(--ease-bounce, cubic-bezier(0.22, 1.2, 0.36, 1)),
+    background-color var(--hos-dur-slow) var(--ease-bounce, cubic-bezier(0.22, 1.2, 0.36, 1)),
+    border-color var(--hos-dur-slow) var(--ease-bounce, cubic-bezier(0.22, 1.2, 0.36, 1)),
+    box-shadow var(--hos-dur-slow) var(--ease-bounce, cubic-bezier(0.22, 1.2, 0.36, 1)),
+    color var(--hos-dur-slow) var(--ease-bounce, cubic-bezier(0.22, 1.2, 0.36, 1)),
+    filter var(--hos-dur-slow) var(--ease-bounce, cubic-bezier(0.22, 1.2, 0.36, 1));
 }
 
 .scale-dialog .dialog-close:hover:not(:disabled),
@@ -191,7 +198,14 @@
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: all var(--hos-dur-slow) var(--ease-bounce, cubic-bezier(0.22, 1.2, 0.36, 1));
+  transition:
+    transform var(--hos-dur-slow) var(--ease-bounce, cubic-bezier(0.22, 1.2, 0.36, 1)),
+    opacity var(--hos-dur-slow) var(--ease-bounce, cubic-bezier(0.22, 1.2, 0.36, 1)),
+    background-color var(--hos-dur-slow) var(--ease-bounce, cubic-bezier(0.22, 1.2, 0.36, 1)),
+    border-color var(--hos-dur-slow) var(--ease-bounce, cubic-bezier(0.22, 1.2, 0.36, 1)),
+    box-shadow var(--hos-dur-slow) var(--ease-bounce, cubic-bezier(0.22, 1.2, 0.36, 1)),
+    color var(--hos-dur-slow) var(--ease-bounce, cubic-bezier(0.22, 1.2, 0.36, 1)),
+    filter var(--hos-dur-slow) var(--ease-bounce, cubic-bezier(0.22, 1.2, 0.36, 1));
 }
 
 .scale-dialog .dialog-actions button:hover:not(:disabled),

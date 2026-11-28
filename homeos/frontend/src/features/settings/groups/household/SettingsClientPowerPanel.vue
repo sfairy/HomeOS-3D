@@ -134,4 +134,4 @@ const {
 } = useClientPowerPanel()
 </script>
 
-<style scoped src="./client-power/client-power.css"></style>
+<style src="./client-power/client-power.css"></style>

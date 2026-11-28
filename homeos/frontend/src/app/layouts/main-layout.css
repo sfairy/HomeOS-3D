@@ -58,7 +58,7 @@
 .shell-right-sidebar {
   flex-shrink: 0;
   /* 高于 .afh-root(40)，折叠柄伸出到舞台缝时不被浮动层抢点击（LAY-06） */
-  z-index: 45;
+  z-index: var(--z-shell-sidebar-raised);
 }
 /* 底部能耗页脚（.power-panel）横跨内容区 + 右栏下方 */
 .shell-footer {
@@ -72,7 +72,7 @@
 .tab-bar {
   height: auto;
   min-height: 52px;
-  padding-top: max(env(safe-area-inset-top, 0px), 4px);
+  padding-top: max(var(--hos-safe-top, 0px), 4px);
   padding-bottom: 6px;
   padding-left: 20px;
   padding-right: 20px;
@@ -86,7 +86,7 @@
   box-shadow:
     0 1px 0 var(--glass-bg-sm) inset,
     0 12px 40px rgba(0, 0, 0, 0.22);
-  z-index: 200;
+  z-index: var(--z-shell-topbar);
   flex-shrink: 0;
   align-items: center;
   gap: 6px;
@@ -213,7 +213,7 @@
   height: 0;
   min-height: 0;
   pointer-events: none;
-  z-index: 120;
+  z-index: var(--z-shell-anchor);
 }
 
 .main-layout__ha-anchor:has(> .main-layout__ha-banner) {
@@ -226,7 +226,7 @@
   top: 8px;
   right: 16px;
   left: auto;
-  z-index: 120;
+  z-index: var(--z-shell-anchor);
   width: min(380px, calc(100% - 32px));
   margin: 0;
   transform: none;
@@ -573,31 +573,10 @@
   overflow: visible;
 }
 
-.icon-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  /* 触控目标统一 ≥44px：与全局 main.css 的 .icon-btn 最小点击区保持一致 */
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  min-height: 44px;
-  border-radius: var(--hos-radius-card);
-  border: none;
-  background: transparent;
-  color: var(--hos-text-secondary);
-  cursor: pointer;
-  transition: all 0.28s var(--ease-ios);
-  position: relative;
-}
-
-.icon-btn:hover {
-  background: var(--glass-bg-md);
-  color: var(--hos-text-strong);
-}
-
+/* .icon-btn 的外观（尺寸 / 配色 / hover / transition）唯一真源在 app/main.css。
+   这里只保留「作为链接时」的排版修正：<a class="icon-btn"> 需要去掉下划线并保持盒模型。 */
 a.icon-btn {
-  color: inherit;
+  color: var(--hos-text-secondary);
   text-decoration: none;
   box-sizing: border-box;
 }
@@ -644,7 +623,7 @@ a.icon-btn {
   /* 手机走 /m；此处覆盖近方形小窗 / DevTools，必须保留顶栏 Tab */
   .tab-bar {
     flex-wrap: nowrap;
-    padding: max(env(safe-area-inset-top, 0px), 4px) 8px 4px 8px;
+    padding: max(var(--hos-safe-top, 0px), 4px) 8px 4px 8px;
     min-height: 44px;
     gap: 6px;
   }
@@ -759,18 +738,10 @@ a.icon-btn {
   }
 }
 
-.toast-enter-active,
-.toast-leave-active {
-  transition: all 0.35s var(--ease-spring);
-}
-.toast-enter-from {
-  opacity: 0;
-  transform: translateY(-16px);
-}
-.toast-leave-to {
-  opacity: 0;
-  transform: translateY(-8px);
-}
+/* 路由级 toast 过渡的唯一真源在 kernel/ui/primitives/primitives.css：
+   VNotification 是唯一消费者，且它在 App 根与主壳里都用同一份。
+   这里曾另写一套 0.35s / translateY(-16px)，与 primitives 的 0.4s / scale(0.9)
+   在加载顺序上互抢，导致同一个 toast 观感随路由变化。 */
 
 /* ══════════════════════════════════════════════════════════
    响应式布局适配 — 移动端 / 平板
@@ -782,11 +753,12 @@ a.icon-btn {
    「事件 / 通知」会被裁进无提示的横向滚动区（与本轮 P0 同形）。
    文字在 aria-label、title 与「更多」菜单里仍然完整可达。
 
-   ⚠️ 本文件所有顶栏响应式规则都带 `html:not(.hos-canvas-scaled)` 门控：
-   整页等比缩放开启时画布是固定 1366~1728 宽的虚拟桌面，但 @media 读的是真实窗口宽度。
-   若不加门控，1280px 的笔记本窗口会让 1728 宽的画布套用手机档规则 ——
-   顶栏文字消失、操作区被裁、导航塌成图标 +「更多」，表现为「缩放后显示不全」。
-   缩放开启时按画布宽度（桌面档）渲染，再整体等比缩小。 */
+   这里用 `@container hos-canvas` 而不是 `@media`：整页等比缩放开启时画布是
+   1366~1728 宽的虚拟桌面，而 `@media` 读的是真实窗口宽度。用窗口宽度决策时，
+   1280px 的笔记本窗口会让 1728 宽的画布套用手机档规则 —— 顶栏文字消失、操作区被裁、
+   导航塌成图标 +「更多」，表现为「缩放后显示不全」。
+   容器查询的基准恒等于画布宽度（缩放态是 `.app-shell`，流式态落到 `body`），
+   所以不再需要 `html:not(.hos-canvas-scaled)` 之类的门控。 */
 @container hos-canvas (max-width: 1280px) {
   .tab-bar__tab-label {
     display: none;
@@ -909,7 +881,7 @@ a.icon-btn {
 @media (orientation: landscape) and (max-height: 520px) {
   .tab-bar {
     min-height: 44px;
-    padding-top: max(env(safe-area-inset-top, 0px), 2px);
+    padding-top: max(var(--hos-safe-top, 0px), 2px);
     padding-bottom: 2px;
     padding-left: 12px;
     padding-right: 12px;

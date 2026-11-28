@@ -2,7 +2,7 @@
   <Teleport :to="teleportTarget" :disabled="teleportDisabled">
     <Transition name="hos-modal">
       <div v-if="isOpen" ref="rootRef" class="hos-modal-root">
-        <div class="hos-modal-backdrop" @click="$emit('close')" />
+        <div class="hos-modal-backdrop" aria-hidden="true" @click="$emit('close')" />
         <div
           ref="panelRef"
           class="hos-modal-panel hos-modal-panel--lg hos-modal-panel--asset"
@@ -78,4 +78,4 @@ useBackgroundInert(rootRef, isActive)
 useBodyScrollLock(isActive, '素材管理器')
 </script>
 
-<style scoped src="./asset-picker.css"></style>
+<style src="./asset-picker.css"></style>

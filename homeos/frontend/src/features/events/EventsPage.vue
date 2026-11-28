@@ -83,7 +83,7 @@ const {
       />
     </div>
 
-    <section class="events-view__content">
+    <section class="events-view__content" v-scroll-region="'事件分析区'">
       <div class="events-view__layout">
         <section class="events-view__analytics">
           <EventsViewAnalytics

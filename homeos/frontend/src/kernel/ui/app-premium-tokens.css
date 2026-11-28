@@ -49,8 +49,13 @@
   --control-height-lg: 44px;
   --control-padding-y: 8px;
   --control-padding-inline-compact: 6px;
-  /** 触控目标下限（WCAG / iOS HIG）：coarse 指针下控件至少 44px */
-  --touch-target-min: 44px;
+  /**
+   * 触控目标下限（WCAG 2.5.5 / iOS HIG）。
+   *
+   * 别名到 canonical 的 `--hos-touch-min`（design-tokens.css 里 44px），不再自己写死：
+   * 两处都写 44px 时，将来只改一处就会出现「主站 44 / 设置页 48」这类分裂。
+   */
+  --touch-target-min: var(--hos-touch-min, 44px);
 
   /* ── 模块主题色映射（17 个模块） ── */
   --module-accent-devices: #38bdf8;
@@ -248,9 +253,11 @@
     -webkit-backdrop-filter: none;
   }
 }
-@media (pointer: coarse), (hover: none), (max-width: 900px) {
+@media (pointer: coarse), (hover: none) {
   :root {
-    /* coarse 下抬高控件高度 token，HosSelect / SearchableSelect / EntityInput 等自动受益 */
+    /* coarse 下抬高控件高度 token，HosSelect / SearchableSelect / EntityInput 等自动受益。
+       同样只用设备判定，不带窗口宽度：`:root` 进不了容器查询，而窗口宽度会在
+       整页缩放时与画布宽度分叉（理由见 hos-design-system.css 同位置的长注释）。 */
     --control-height-md: var(--touch-target-min, 44px);
     --control-padding-y: 10px;
   }

@@ -15,6 +15,13 @@
    */
   padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px)
     env(safe-area-inset-left, 0px);
+  /* 安全区：本层是唯一承担者。padding 已经用 env() 把画布让开，因此把令牌覆盖成 0，
+     壳内子树（顶栏、侧栏、保存条、内嵌页…）消费 --hos-safe-* 时就只有这一层留白。
+     渲染在 <body> 上的层不在本元素内，继承到的是 main.css :root 里的真实 env()。 */
+  --hos-safe-top: 0px;
+  --hos-safe-right: 0px;
+  --hos-safe-bottom: 0px;
+  --hos-safe-left: 0px;
   box-sizing: border-box;
   display: flex;
   justify-content: center;
@@ -89,7 +96,7 @@
   width: 100%;
   height: 100%;
   color: var(--text-primary);
-  z-index: 10;
+  z-index: var(--z-shell-canvas);
   background: transparent;
   flex-direction: column;
   font-family:
@@ -171,6 +178,22 @@
   inset: 0;
   pointer-events: none;
   z-index: var(--z-shell-overlay);
+}
+
+/**
+ * 两个容器必须分层，不能同 z。
+ *
+ * 壳里同时存在 `#teleport-target`（本文件渲染，`__content` **之前**）与 MainLayout 的
+ * `.teleport-target`（`__content` **之内、之后**）。两者原先都是 `--z-shell-overlay`，
+ * 同值时 DOM 更靠后的内层容器恒赢 —— 于是「设备组弹窗 / 门铃 / 设置锁 / 管家面板」
+ * 会盖住它们自己触发的确认框、输入框与媒体全屏（这些挂在 `#teleport-target`）。
+ *
+ * 确认类必须永远在最上面，所以用 id 选择器把外容器单独提到 `--z-shell-modal`。
+ * 内层容器保持 `--z-shell-overlay`（高于路由内最高档，低于本档）。
+ * 容器都是 pointer-events:none，抬高不会拦截下层点击。
+ */
+#teleport-target {
+  z-index: var(--z-shell-modal);
 }
 
 /**

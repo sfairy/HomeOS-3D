@@ -2,7 +2,7 @@
 /* 1. 令牌 */
 :root {
   color-scheme: dark;
-  accent-color: var(--hb-accent);
+  accent-color: var(--hos-color-accent, var(--hb-accent));
 
   /* 夜空族：与场景（packages/shared/scene/static/page.css 的 --hos-sky-*）同值。
      首页夜空与入口页山景所以下面用 var() 别名而不是抄一遍十六进制：抄一遍就迟早只改一侧。 */
@@ -361,7 +361,7 @@
 
 html {
   font-size: 14px;
-  background: var(--hb-bg);
+  background: var(--hb-bg, #050912);
   -webkit-text-size-adjust: 100%;
 }
 

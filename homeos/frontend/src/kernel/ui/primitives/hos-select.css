@@ -453,11 +453,15 @@
 }
 
 .hos-select-drop-enter-active {
-  transition: all 0.12s ease-out;
+  transition:
+    transform 0.12s ease-out,
+    opacity 0.12s ease-out;
 }
 
 .hos-select-drop-leave-active {
-  transition: all 0.08s ease-in;
+  transition:
+    transform 0.08s ease-in,
+    opacity 0.08s ease-in;
 }
 
 .hos-select-drop-enter-from,

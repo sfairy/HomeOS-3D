@@ -10,9 +10,14 @@
  *
  * ## 保留哪些
  *
- * 只保留**能指出具体语义错误**的两条守卫：离线计数口径（按设备而非按实体）、受限写法
- * （中文格式与实体显示名必须走统一出口）。计数类 / 外观类 / 命名形态类已全部删除：
+ * 只保留**能指出具体语义错误**的守卫：离线计数口径（按设备而非按实体）、受限写法
+ * （中文格式与实体显示名必须走统一出口）、CSS / 布局契约（令牌名、安全区归属、
+ * overflow 陷阱、内边距真源、契约选择器归属）。计数类 / 外观类 / 命名形态类已全部删除：
  * 它们把「代码长什么样」固化成门槛，基线只能靠重录维持。
+ *
+ * CSS 的存量分布（跨文件冲突、混合 scoping、毛玻璃覆盖率、`transition: all` 数量）
+ * 属于「外观类」，因此只作为 `notes` 打印、不参与退出码；需要完整清单时跑
+ * `node ops/checks/frontend/audit_css_layout.mjs --report`。
  *
  * ## 失败语义不变
  *
@@ -35,6 +40,7 @@ import process from 'node:process'
 
 import { parseBatchArgs, selectModules, summarise } from '../lib/batch.mjs'
 import { createContext } from '../lib/ratchet.mjs'
+import { audit as cssLayoutAudit } from './frontend/audit_css_layout.mjs'
 import { audit as offlineCountingAudit } from './frontend/check_offline_counting.mjs'
 import { audit as restrictedAudit } from './frontend/check_restricted_syntax.mjs'
 
@@ -51,6 +57,20 @@ const MODULES = [
     run: () => offlineCountingAudit(),
   },
   { name: 'restricted-syntax', covers: ['check:restricted-syntax'], run: (ctx) => restrictedAudit(ctx) },
+  {
+    /**
+     * CSS / 布局契约。
+     *
+     * 只判语义不变量（令牌名、安全区归属、overflow 陷阱、内边距真源、契约选择器归属），
+     * 存量报告放在 `notes` 里照常打印但不影响退出码 —— 与上面两条守卫同一口径：
+     * 门禁抓「一定错」，不抓「长得不一样」。
+     *
+     * 逐文件清单用 `node ops/checks/frontend/audit_css_layout.mjs --report` 生成。
+     */
+    name: 'css-layout',
+    covers: ['check:css-layout', 'audit:css-layout'],
+    run: (ctx) => cssLayoutAudit({ ctx }),
+  },
 ]
 
 /**

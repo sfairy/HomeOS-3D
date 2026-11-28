@@ -2,25 +2,25 @@
 <template>
   <div :class="`${prefix}-expand`">
     <div :class="`${prefix}-expand-tabs`">
-      <button
+      <button type="button"
         :class="[`${prefix}-expand-tab`, expTab === 'day' && `${prefix}-expand-tab--active`]"
         @click.stop="$emit('switchTab', 'day')"
       >
         {{ '日' }}
       </button>
-      <button
+      <button type="button"
         :class="[`${prefix}-expand-tab`, expTab === 'month' && `${prefix}-expand-tab--active`]"
         @click.stop="$emit('switchTab', 'month')"
       >
         {{ '月' }}
       </button>
-      <button
+      <button type="button"
         :class="[`${prefix}-expand-tab`, expTab === 'year' && `${prefix}-expand-tab--active`]"
         @click.stop="$emit('switchTab', 'year')"
       >
         {{ '年' }}
       </button>
-      <button
+      <button type="button"
         :class="[`${prefix}-expand-tab`, expTab === 'calendar' && `${prefix}-expand-tab--active`]"
         @click.stop="$emit('switchTab', 'calendar')"
       >
@@ -53,10 +53,10 @@
 
     <div v-if="expTab === 'calendar'" :class="`${prefix}-calendar`">
       <div :class="`${prefix}-calendar-header`">
-        <button :class="`${prefix}-cal-nav`" @click.stop="$emit('calPrev')">&lt;</button>
+        <button type="button" :class="`${prefix}-cal-nav`" @click.stop="$emit('calPrev')">&lt;</button>
         <span :class="`${prefix}-cal-title`">{{ `${calYear}年${calMonth}月` }}</span>
-        <button :class="`${prefix}-cal-nav`" @click.stop="$emit('calNext')">&gt;</button>
-        <button :class="`${prefix}-cal-today`" @click.stop="$emit('calToday')">{{ '本月' }}</button>
+        <button type="button" :class="`${prefix}-cal-nav`" @click.stop="$emit('calNext')">&gt;</button>
+        <button type="button" :class="`${prefix}-cal-today`" @click.stop="$emit('calToday')">{{ '本月' }}</button>
       </div>
       <div :class="`${prefix}-cal-grid`">
         <div :class="`${prefix}-cal-dow`" v-for="d in calDayNames" :key="d">{{ d }}</div>
@@ -64,7 +64,12 @@
           v-for="(cell, idx) in calCells"
           :key="idx"
           :class="[`${prefix}-cal-cell`, cell.cls]"
+          :role="cell._data ? 'button' : undefined"
+          :tabindex="cell._data ? 0 : undefined"
+          :aria-label="cell._data ? `${cell.day} 日用量 ${cell._usage} ${cell._cost}` : undefined"
           @click.stop="cell._data && $emit('openDayTab', cell)"
+          @keydown.enter.prevent="cell._data && $emit('openDayTab', cell)"
+          @keydown.space.prevent="cell._data && $emit('openDayTab', cell)"
         >
           <span :class="`${prefix}-cal-date`">{{ cell.day }}</span>
           <span v-if="cell._data" :class="`${prefix}-cal-val`">{{ cell._usage }}</span>

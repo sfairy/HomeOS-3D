@@ -236,4 +236,4 @@ const {
 } = useEarthquakeSetupWizard(props, emit)
 </script>
 
-<style scoped src="./earthquake.css"></style>
+<style src="./earthquake.css"></style>

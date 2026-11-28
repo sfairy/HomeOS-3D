@@ -38,7 +38,7 @@
           @retry="refreshPanel"
         >
           <div class="sp-actions">
-            <button
+            <button type="button"
               v-for="action in armActions"
               :key="action.mode"
               :class="[
@@ -366,4 +366,4 @@ async function pushZonesToBackend() {
 
 <style src="./widgets.css"></style>
 
-<style scoped src="./widgets.css"></style>
+<style src="./widgets.css"></style>

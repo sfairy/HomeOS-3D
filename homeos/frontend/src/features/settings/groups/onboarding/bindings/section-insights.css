@@ -52,16 +52,9 @@
   text-decoration: underline;
 }
 
-.bind-gaps-card {
-  border-color: rgba(var(--hos-color-accent-strong-rgb), 0.25) !important;
-  background: rgba(var(--hos-color-accent-strong-rgb), 0.05) !important;
-}
-
-.bind-gaps-card__icon {
-  color: var(--hos-color-accent-strong);
-}
-
-.bind-gaps-card__orb {
-  background: rgba(var(--hos-color-accent-strong-rgb), 0.1);
-  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-strong-rgb), 0.2);
-}
+/*
+ * `.bind-gaps-card*` 的唯一真源是 bindings-theme.css（已用 `--module-accent-bindings-sub`）。
+ * 这里原先又用 `--hos-color-accent-strong`（全局蓝）写了一遍，靠加载顺序决定谁生效；
+ * 两个文件都会被 bindings 面板加载，顺序随组件挂载顺序变化 → 卡片颜色时蓝时青。
+ * 需要改配色请改 bindings-theme.css。
+ */

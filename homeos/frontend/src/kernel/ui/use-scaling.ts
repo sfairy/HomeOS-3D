@@ -150,11 +150,9 @@ export function computeScreensaverLayout(vw: number, vh: number, designW: number
 /**
  * 等比缩放画布标记的持有计数。
  *
- * 画布是一块按设计基准等比铺满的虚拟桌面，但 CSS 的 `@media` 断点读的是**真实窗口宽度**：
- * 1280px 的笔记本窗口会让更宽的画布套用「平板/手机」规则，看起来就是「缩放后显示不全」。
- *
- * 这里给 `<html>` 打一个 `hos-canvas-scaled` 标记，供还需要按「是否缩放」本身分支的样式使用
- * （布局断点已改为 `@container hos-canvas`，不再依赖窗口宽度）。
+ * 画布是一块按设计基准等比铺满的虚拟桌面，但 CSS 的 `@media` 断点读的是**真实窗口宽度**。
+ * 断点已经统一迁到 `@container hos-canvas`，所以这个 class **不再承载任何样式**；
+ * 它现在只作为「当前处于缩放态」的调试标记（DevTools / 审计脚本）。
  * 用引用计数是因为同一时刻可能有多个壳（主布局 / 独立全屏页）同时存在。
  */
 let scaledCanvasHolders = 0

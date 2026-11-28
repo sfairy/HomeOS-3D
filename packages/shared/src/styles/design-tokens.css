@@ -32,7 +32,7 @@
 
 :root {
   color-scheme: dark;
-  accent-color: var(--hos-color-accent);
+  accent-color: var(--hos-color-accent, var(--hb-accent));
 
   /* ══ 1. 背景面 ══════════════════════════════════════════════ */
   --hos-bg-canvas: #070a0f; /* 最底层画布：整屏底色，与首帧 display-boot 同值 */

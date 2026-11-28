@@ -1,3 +1,13 @@
+/*
+ * 【加载契约 · 多组件共用】
+ * 本表被多个组件引入，必须**一律以全局方式**加载（`<style src="...">`，不带 `scoped`）。
+ *
+ * 为什么：`scoped` 会给选择器最后一段加 `[data-v-xxxx]`，同一份表在不同组件里
+ * 就变成两套规则 —— 一半命中、一半落空，且同一份 CSS 会重复打进每个 chunk。
+ * 历史上这批表混着写，表现为「某个面板的间距只在打开顺序不同的时候才对」。
+ *
+ * 由 `node ops/checks/frontend/audit_css_layout.mjs` 的 scoping 统计守卫。
+ */
 /* 绑定面板主题：sky 主色（--page-accent）+ amber 子色 + 语义状态色。
    主色由 SettingsPageShell 注入 --page-accent=var(--module-accent-bindings)，
    此处同步覆盖 --page-accent-rgb 以匹配 sky，使派生变量自动跟随。 */
@@ -10,6 +20,61 @@
      --page-accent-secondary(-rgb)，没有声明时 rgba(var(--x)) 会整条失效。 */
   --page-accent-secondary: var(--module-accent-bindings-sub);
   --page-accent-secondary-rgb: var(--module-accent-bindings-sub-rgb);
+}
+
+/* ── bindings 各分区的小标题行（account / cameras / security 三处共用） ──
+ *
+ * 这三套规则原先在三个 section 文件里各写一份，取值互相漂移
+ * （`margin` 10px vs 14px、`font-size` 12px vs 15px、`opacity` 0.75 vs 0.85、
+ * `color` 在 `--page-accent-text` / `--hos-color-accent` 之间跳）。
+ * 三个文件都会被 bindings 面板加载，谁后加载谁生效 —— 于是「同一个标题行的字号
+ * 取决于先打开哪个分区」。合并到这里，各 section 只保留自己的专属规则。
+ *
+ * 配色取 bindings 的页面强调色（`.bindings-hub` 上注入的 `--page-accent*`），
+ * 字号走 canonical 的 `--hos-fs-*`（`--premium-fs-micro` 就是 `--hos-fs-2` 的别名，
+ * 不要再两套并用）。
+ */
+.bind-section__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 10px 0 14px;
+}
+
+.bind-section__eyebrow {
+  margin: 0 0 4px;
+  font-size: var(--hos-fs-2);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--page-accent-text);
+  opacity: 0.8;
+}
+
+.bind-section__title {
+  margin: 0;
+  font-size: var(--hos-fs-5);
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.bind-section__desc {
+  margin: 6px 0 0;
+  color: var(--hos-text-secondary);
+  font-size: var(--hos-fs-3);
+  line-height: 1.5;
+}
+
+.bind-section__badge {
+  flex-shrink: 0;
+  padding: var(--hos-chip-pad-y, 6px) var(--hos-chip-pad-x, 12px);
+  border-radius: var(--hos-radius-pill);
+  font-size: var(--hos-fs-2);
+  font-weight: 600;
+  color: var(--page-accent-text);
+  background: var(--page-accent-bg);
+  border: var(--hos-hairline) solid var(--page-accent-border);
 }
 
 /* 完整性检查卡片：amber 子色点缀 */

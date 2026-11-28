@@ -245,8 +245,8 @@
 .ef-picker-pop-enter-active,
 .ef-picker-pop-leave-active {
   transition:
-    opacity 0.16s ease,
-    transform 0.16s ease;
+    transform 0.16s ease,
+    opacity 0.16s ease;
 }
 
 .ef-picker-pop-enter-from,

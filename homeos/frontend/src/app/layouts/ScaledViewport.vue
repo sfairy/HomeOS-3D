@@ -112,7 +112,6 @@ const {
   shellStyle: rawShellStyle,
   contentStyle,
   scalingOn,
-  scale,
   stageStyle,
   canvasVars,
   isResizing,
@@ -125,15 +124,15 @@ const {
 // 外层 frame 样式：直接合并传入的 frameStyle（保留外部对齐能力）
 const mergedFrameStyle = computed(() => ({ ...props.frameStyle }))
 
-// app-shell 的实际样式：缩放模式下注入 transform/缩放原点 + --hos-scale CSS 变量；
-// 非缩放模式下注入 100% 宽高 + 最大宽度，--hos-scale 供子组件按比例调整字号/间距等。
+// app-shell 的实际样式：缩放模式下注入 transform/缩放原点 + 画布单位变量；
+// 非缩放模式下注入 100% 宽高 + 最大宽度。
 // --hos-vw/--hos-vh 只在缩放开启时注入（画布单位），未注入时子组件回退到 100vw/100vh。
+// （历史上还注入过 `--hos-scale`，全仓没有任何 var(--hos-scale) 消费者，已删除。）
 const computedShellStyle = computed(() => {
   if (scalingOn.value) {
     return {
       ...rawShellStyle.value,
       ...canvasVars.value,
-      '--hos-scale': String(scale.value),
     }
   }
   return {
@@ -141,7 +140,6 @@ const computedShellStyle = computed(() => {
     height: '100%',
     // 上限而不是固定宽：窄屏自然铺满，宽屏最多到 fluidMaxWidth，居中由 .viewport-frame 的 flex 完成
     maxWidth: `${fluidMaxWidth.value}px`,
-    '--hos-scale': '1',
   }
 })
 
@@ -152,10 +150,11 @@ const wrapperContentStyle = computed(() => (scalingOn.value ? contentStyle.value
  * 缩放画布标记（`html.hos-canvas-scaled`）。
  *
  * 断点已统一迁到 `@container hos-canvas`（见 `.app-shell` 的 container-type），
- * 不再需要用这个 class 去门控 `@media`。保留它的原因只剩两点：
- *   1. 其它仍按窗口宽度决策的少量逻辑/样式需要知道「现在处于缩放态」；
- *   2. 便于 DevTools 与审计脚本快速识别当前模式。
- * 注意：新增样式**不要**再写 `html:not(.hos-canvas-scaled)` 门控，直接写容器查询。
+ * 这个 class **不再承载任何样式**：保留它只为 DevTools / 审计脚本能一眼看出
+ * 「当前处于整页缩放态」，以及未来真有「按是否缩放」分支时的落点。
+ * 用引用计数是因为同一时刻可能有多个壳（主布局 / 独立全屏页）同时存在。
+ *
+ * 注意：新增样式**不要**用 `html:not(.hos-canvas-scaled)` 门控宽度，直接写容器查询。
  */
 let releaseCanvasFlag = null
 watch(

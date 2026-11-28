@@ -8,7 +8,14 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  transition: all 0.2s;
+  transition:
+    transform 0.2s,
+    opacity 0.2s,
+    background-color 0.2s,
+    border-color 0.2s,
+    box-shadow 0.2s,
+    color 0.2s,
+    filter 0.2s;
   cursor: pointer;
   padding: 8px 8px 6px;
   box-sizing: border-box;
@@ -171,7 +178,14 @@
   justify-content: center;
   border: none;
   cursor: pointer;
-  transition: all 0.15s;
+  transition:
+    transform 0.15s,
+    opacity 0.15s,
+    background-color 0.15s,
+    border-color 0.15s,
+    box-shadow 0.15s,
+    color 0.15s,
+    filter 0.15s;
   color: #fff;
 }
 
@@ -221,15 +235,10 @@
   border-top: 1px solid rgba(255, 255, 255, 0.03);
 }
 
-/* —— AssetManagerModal —— */
-.hos-modal-head-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: var(--hos-radius-card);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+/* —— AssetManagerModal ——
+   图标徽章尺寸走全局 `.hos-modal-head-icon`（48px）。这里原先重写 width/height 为 40px，
+   于是资产弹窗的头部图标比其它弹窗小一圈，且因为本表后加载，全局值在资产弹窗里失效。
+   只保留它真正的私有部分：配色变体。 */
 .hos-modal-head-icon--blue {
   background: linear-gradient(135deg, rgba(59, 130, 246, 0.18), rgba(99, 102, 241, 0.08));
   color: #60a5fa;
@@ -252,14 +261,9 @@
   min-height: 0;
 }
 
-.hos-modal-head-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: var(--hos-radius-card);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+/* 图标徽章的尺寸 / 圆角 / 居中由全局 `.hos-modal-head-icon`（modal-theme.css）提供；
+   本文件只补配色变体。这里原先在文件里重复声明了两次 40px 版本 —— 两份都会
+   覆盖全局 48px，导致资产弹窗头部比其它弹窗小一圈。 */
 
 .hos-modal-head-icon--accent {
   background: linear-gradient(135deg, rgba(250, 204, 21, 0.18), rgba(251, 191, 36, 0.08));
@@ -279,7 +283,14 @@
   color: #93c5fd;
   border: 1px solid rgba(59, 130, 246, 0.25);
   backdrop-filter: blur(8px);
-  transition: all 0.3s;
+  transition:
+    transform 0.3s,
+    opacity 0.3s,
+    background-color 0.3s,
+    border-color 0.3s,
+    box-shadow 0.3s,
+    color 0.3s,
+    filter 0.3s;
 }
 
 .picker-body {

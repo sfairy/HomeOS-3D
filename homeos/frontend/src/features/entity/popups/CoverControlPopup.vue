@@ -57,16 +57,16 @@
       </div>
     </div>
 
-    <div class="action-btns">
-      <button class="action-btn" @click="handleAction('open_cover')">
+    <div class="cover-action-btns">
+      <button type="button" class="cover-action-btn" @click="handleAction('open_cover')">
         <ArrowUpFromLine class="w-6 h-6 mb-1" />
         <span class="text-xs font-black leading-normal">{{ '⬆ 打开' }}</span>
       </button>
-      <button class="action-btn" @click="handleAction('stop_cover')">
+      <button type="button" class="cover-action-btn" @click="handleAction('stop_cover')">
         <Square class="w-5 h-5 mb-1 fill-current" />
         <span class="text-xs font-black leading-normal">{{ '⏸ 停止' }}</span>
       </button>
-      <button class="action-btn" @click="handleAction('close_cover')">
+      <button type="button" class="cover-action-btn" @click="handleAction('close_cover')">
         <ArrowDownToLine class="w-6 h-6 mb-1" />
         <span class="text-xs font-black leading-normal">{{ '⬇ 关闭' }}</span>
       </button>

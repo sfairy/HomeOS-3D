@@ -20,7 +20,14 @@
   border: var(--hos-hairline) solid var(--hos-bg-tint-2);
   color: rgba(255, 255, 255, 0.7);
   cursor: pointer;
-  transition: all 0.15s;
+  transition:
+    transform 0.15s,
+    opacity 0.15s,
+    background-color 0.15s,
+    border-color 0.15s,
+    box-shadow 0.15s,
+    color 0.15s,
+    filter 0.15s;
   min-width: 88px;
 }
 .vsc-preset:hover {

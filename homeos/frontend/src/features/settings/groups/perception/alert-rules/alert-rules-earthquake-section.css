@@ -1,26 +1,37 @@
 @import "alert-rules.css";
-/* ── Tailwind 颜色类替换：scoped 引用 CSS 变量 ── */
+/* ── Tailwind 颜色类替换：引用语义令牌 ──
+ *
+ * 这些类同时也由 features/earthquake/earthquake.css 定义（全屏告警层）。设置页不一定
+ * 加载那张表，所以这里必须**保留**定义；但取值要与它逐字一致（都走 `--hos-color-*`），
+ * 否则同一个图标在告警层是金黄、在设置面板是橙色 —— 取决于谁先挂载。
+ */
 .eew-c-warn-soft {
-  color: var(--set-warn, rgba(251, 191, 36, 0.9));
+  color: var(--hos-color-warning-text);
+  opacity: 0.6;
 }
+
 .eew-c-warn {
-  color: var(--set-warn, #fbbf24);
+  color: var(--hos-color-warning-text);
 }
+
 .eew-c-warn-deep {
-  color: var(--set-warn-deep, #fb923c);
+  color: var(--hos-color-warning);
 }
 
 .eew-ic-amber {
   color: #fb923c;
 }
+
 .eew-ic-warn-deep {
-  color: var(--set-warn-deep, #fb923c);
+  color: var(--hos-color-warning);
 }
+
 .eew-ic-rose {
   color: #fb7185;
 }
+
 .eew-ic-danger {
-  color: var(--set-danger, #f87171);
+  color: var(--hos-color-danger-text);
 }
 
 .eew-orb-amber {

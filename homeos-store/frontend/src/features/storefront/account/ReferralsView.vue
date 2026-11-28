@@ -242,11 +242,11 @@ async function submitWithdraw() {
           <p>{{ rateText }}</p>
           <p>{{ wallet?.code || "生成邀请码，开始邀请好友。" }}</p>
           <div class="referral-actions">
-            <button v-if="!wallet" class="hb-button hb-button--primary" :disabled="!settings.enabled || busy" @click="generate">
+            <button type="button" v-if="!wallet" class="hb-button hb-button--primary" :disabled="!settings.enabled || busy" @click="generate">
               生成我的邀请码
             </button>
-            <button v-if="wallet" class="hb-button hb-button--secondary" @click="copyText(wallet.code || '')">复制邀请码</button>
-            <button v-if="wallet" class="hb-button hb-button--secondary" @click="copyText(inviteLink)">复制邀请链接</button>
+            <button type="button" v-if="wallet" class="hb-button hb-button--secondary" @click="copyText(wallet.code || '')">复制邀请码</button>
+            <button type="button" v-if="wallet" class="hb-button hb-button--secondary" @click="copyText(inviteLink)">复制邀请链接</button>
           </div>
           <input v-if="wallet" :value="inviteLink" aria-label="我的邀请链接" readonly />
         </div>
@@ -325,9 +325,9 @@ async function submitWithdraw() {
           <p v-else class="referral-empty">暂无记录。分享邀请链接，开始积累积分。</p>
         </div>
         <div class="referral-pagination">
-          <button class="hb-button hb-button--secondary hb-button--sm" :disabled="page <= 1" @click="prevPage">上一页</button>
+          <button type="button" class="hb-button hb-button--secondary hb-button--sm" :disabled="page <= 1" @click="prevPage">上一页</button>
           <span>第 {{ page }} 页 · 共 {{ total }} 条</span>
-          <button class="hb-button hb-button--secondary hb-button--sm" :disabled="page * 20 >= total" @click="nextPage">下一页</button>
+          <button type="button" class="hb-button hb-button--secondary hb-button--sm" :disabled="page * 20 >= total" @click="nextPage">下一页</button>
         </div>
       </section>
 

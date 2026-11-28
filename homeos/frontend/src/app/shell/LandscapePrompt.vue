@@ -8,6 +8,7 @@
 <template>
   <div
     v-if="visible"
+    ref="promptRef"
     class="hos-landscape-prompt"
     role="dialog"
     aria-modal="true"
@@ -38,9 +39,22 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useLandscapePrompt } from '@/kernel/ui/use-landscape-prompt'
+import { useBackgroundInert } from '@/kernel/ui/use-background-inert'
+import { useFocusTrap } from '@/kernel/ui/use-focus-trap'
 
 const { visible, locking, hint, requestLandscape, dismiss } = useLandscapePrompt()
+
+/**
+ * 这是个真模态：`aria-modal="true"` 必须配「初始焦点 + 焦点陷阱 + 背景隔离」。
+ *
+ * 原先三样都缺 —— 读屏把背景念成可用，Tab 也能直接走进被遮住的页面，
+ * 于是「请横屏使用」的按钮反而最难被键盘用户找到（要先把整页 Tab 一遍）。
+ */
+const promptRef = ref<HTMLElement | null>(null)
+useFocusTrap(promptRef, visible)
+useBackgroundInert(promptRef, visible)
 </script>
 
 <style scoped>

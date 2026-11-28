@@ -98,7 +98,7 @@
       </div>
     </div>
     <div v-if="activeHvacModes.length > 0" class="ccp-hvac-modes mb-4">
-      <button
+      <button type="button"
         v-for="mode in activeHvacModes"
         :key="mode"
         :class="['mode-card', liveEntity?.state === mode ? modeInfo(mode).activeClass : '']"
@@ -127,7 +127,7 @@
         }}</span>
       </div>
       <div class="flex flex-wrap justify-center gap-2.5">
-        <button
+        <button type="button"
           v-for="mode in fanModes"
           :key="mode"
           :class="['fan-mode-btn', liveEntity?.attributes?.fan_mode === mode ? 'active' : '']"
@@ -139,7 +139,7 @@
     </div>
 
     <div v-else-if="isFan" class="flex justify-center">
-      <button
+      <button type="button"
         :class="[
           'flex flex-col items-center justify-center p-5 rounded-full transition-all duration-300 w-[76px] h-[76px]',
           liveEntity?.state === 'on' ? 'ccp-fan-btn--on' : 'ccp-fan-btn--off',
@@ -222,7 +222,7 @@
         }}</span>
       </div>
       <div class="flex flex-wrap justify-center gap-2">
-        <button
+        <button type="button"
           v-for="mode in swingModes"
           :key="mode"
           :class="['fan-mode-btn', liveEntity?.attributes?.swing_mode === mode ? 'active' : '']"
@@ -243,7 +243,7 @@
         }}</span>
       </div>
       <div class="flex flex-wrap justify-center gap-2">
-        <button
+        <button type="button"
           v-for="p in presetModes"
           :key="p"
           :class="[

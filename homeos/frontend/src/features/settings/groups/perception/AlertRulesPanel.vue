@@ -14,7 +14,7 @@
     body-class="alert-hub__body"
   >
     <template #actions>
-      <button
+      <button type="button"
         v-if="alertSection === 'inbox' && !editing"
         class="settings-btn-accent"
         @click="openCreate"
@@ -745,4 +745,4 @@ function resetAlertsHubTabs() {
 useSettingsSidebarReentryReset(() => props.activeTab, 'alerts', resetAlertsHubTabs)
 </script>
 
-<style scoped src="./alert-rules/alert-rules.css"></style>
+<style src="./alert-rules/alert-rules.css"></style>

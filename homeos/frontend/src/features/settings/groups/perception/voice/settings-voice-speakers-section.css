@@ -19,10 +19,10 @@
   justify-content: center;
   min-height: 32px;
   padding: 0 12px;
-  border: 1px solid var(--hos-color-border, rgb(148 163 184 / 32%));
+  border: 1px solid var(--hos-line-3, rgb(148 163 184 / 32%));
   border-radius: 8px;
-  background: var(--hos-color-surface, rgb(255 255 255 / 6%));
-  color: var(--hos-color-text, inherit);
+  background: var(--hos-surface-1, rgb(255 255 255 / 6%));
+  color: var(--hos-text-body, inherit);
   font-size: 0.8125rem;
   line-height: 1;
   cursor: pointer;
@@ -52,7 +52,7 @@
 
 .vs-hint {
   margin: 0;
-  color: var(--hos-color-text-muted, rgb(148 163 184));
+  color: var(--hos-text-tertiary, rgb(148 163 184));
   font-size: 0.75rem;
   line-height: 1.5;
 }
@@ -84,7 +84,7 @@
 
 .vs-code__label {
   font-size: 0.75rem;
-  color: var(--hos-color-text-muted, rgb(148 163 184));
+  color: var(--hos-text-tertiary, rgb(148 163 184));
 }
 
 /* 有效期做成胶囊：它一直在倒数，静止的灰字读起来像说明而不是状态。 */
@@ -116,10 +116,10 @@
 .vs-code__value {
   min-width: 0;
   padding: 8px 12px;
-  border: 1px solid var(--hos-color-border, rgb(148 163 184 / 24%));
+  border: 1px solid var(--hos-line-3, rgb(148 163 184 / 24%));
   border-radius: 8px;
   background: rgb(2 6 23 / 45%);
-  color: var(--hos-color-text, inherit);
+  color: var(--hos-text-body, inherit);
   font-family: var(--hos-font-mono, ui-monospace, SFMono-Regular, monospace);
   /* 码是给人抄的：稍大一号 + 拉开字距，比正文更易辨认 0/O、l/1。 */
   font-size: 0.875rem;
@@ -141,7 +141,7 @@
 .vs-steps {
   margin: 0;
   padding: 0 0 0 1.15em;
-  color: var(--hos-color-text-muted, rgb(148 163 184));
+  color: var(--hos-text-tertiary, rgb(148 163 184));
   font-size: 0.75rem;
   line-height: 1.7;
 }
@@ -161,7 +161,7 @@
   align-items: center;
   gap: 8px;
   padding-top: 10px;
-  border-top: 1px solid var(--hos-color-border, rgb(148 163 184 / 16%));
+  border-top: 1px solid var(--hos-line-2, rgb(148 163 184 / 16%));
 }
 
 .vs-btn--ghost {
@@ -181,7 +181,7 @@
 
 .vs-empty {
   margin-top: var(--hos-space-3, 12px);
-  color: var(--hos-color-text-muted, rgb(148 163 184));
+  color: var(--hos-text-tertiary, rgb(148 163 184));
   font-size: 0.8125rem;
 }
 
@@ -199,7 +199,7 @@
   flex-direction: column;
   gap: var(--hos-space-2, 8px);
   padding: var(--hos-space-3, 12px);
-  border: 1px solid var(--hos-color-border, rgb(148 163 184 / 20%));
+  border: 1px solid var(--hos-line-2, rgb(148 163 184 / 20%));
   border-radius: 10px;
 }
 
@@ -217,7 +217,7 @@
 
 .vs-item__meta {
   margin-top: 2px;
-  color: var(--hos-color-text-muted, rgb(148 163 184));
+  color: var(--hos-text-tertiary, rgb(148 163 184));
   font-size: 0.75rem;
   overflow-wrap: anywhere;
 }
@@ -236,7 +236,7 @@
 
 .vs-field__label {
   font-size: 0.75rem;
-  color: var(--hos-color-text-muted, rgb(148 163 184));
+  color: var(--hos-text-tertiary, rgb(148 163 184));
 }
 
 .vs-members {
@@ -250,7 +250,7 @@
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  border: 1px solid var(--hos-color-border, rgb(148 163 184 / 24%));
+  border: 1px solid var(--hos-line-3, rgb(148 163 184 / 24%));
   border-radius: 999px;
   font-size: 0.75rem;
   cursor: pointer;
@@ -265,10 +265,10 @@
   width: 100%;
   margin-top: var(--hos-space-2, 8px);
   padding: 8px 10px;
-  border: 1px solid var(--hos-color-border, rgb(148 163 184 / 28%));
+  border: 1px solid var(--hos-line-3, rgb(148 163 184 / 28%));
   border-radius: 8px;
   background: rgb(2 6 23 / 35%);
-  color: var(--hos-color-text, inherit);
+  color: var(--hos-text-body, inherit);
   font: inherit;
   line-height: 1.6;
   resize: vertical;

@@ -38,6 +38,15 @@ type ScrollRegionEl = HTMLElement & {
   __scrollRegionMutation?: MutationObserver
   /** 当前是否已挂上可聚焦语义，避免每帧重复写 DOM。 */
   __scrollRegionActive?: boolean
+  /**
+   * 当前绑定的参数（label / axis）。
+   *
+   * 必须存在元素上而不是闭包里：两个观察器在 `mounted` 时创建、之后不再重建，
+   * 闭包捕获的是**首次**绑定值。页签切换 / 文案变更后，`updated` 只改一次属性，
+   * 但随后内容再溢出时观察器仍会用旧 label 把 `aria-label` 覆盖回去 —— 读屏念的
+   * 是上一个页签的区域名。观察器统一从 `el.__scrollRegionOptions` 读，永远是最新的。
+   */
+  __scrollRegionOptions?: ScrollRegionBinding
 }
 
 function normalize(bindingValue: unknown): ScrollRegionBinding {
@@ -79,18 +88,22 @@ function sync(el: ScrollRegionEl, options: ScrollRegionBinding): void {
 
 function attach(el: ScrollRegionEl, options: ScrollRegionBinding): void {
   detach(el)
+  el.__scrollRegionOptions = options
+
+  /** 观察器一律读元素上的最新参数，避免闭包捕获首次绑定的 label / axis。 */
+  const readOptions = () => el.__scrollRegionOptions ?? options
 
   if (typeof ResizeObserver !== 'undefined') {
-    el.__scrollRegionResize = new ResizeObserver(() => sync(el, options))
+    el.__scrollRegionResize = new ResizeObserver(() => sync(el, readOptions()))
     el.__scrollRegionResize.observe(el)
   }
   if (typeof MutationObserver !== 'undefined') {
     // `characterData` 覆盖「同一行文本变长撑高」；子节点增删覆盖异步列表追加。
-    el.__scrollRegionMutation = new MutationObserver(() => sync(el, options))
+    el.__scrollRegionMutation = new MutationObserver(() => sync(el, readOptions()))
     el.__scrollRegionMutation.observe(el, { childList: true, subtree: true, characterData: true })
   }
   // 首帧内容可能还没排版完（字体、图片），下一帧再补测一次。
-  requestAnimationFrame(() => sync(el, options))
+  requestAnimationFrame(() => sync(el, readOptions()))
 }
 
 function detach(el: ScrollRegionEl): void {
@@ -112,7 +125,11 @@ export const scrollRegion: ObjectDirective<HTMLElement, string | ScrollRegionBin
     attach(el as ScrollRegionEl, normalize(binding.value))
   },
   updated(el, binding) {
-    sync(el as ScrollRegionEl, normalize(binding.value))
+    const target = el as ScrollRegionEl
+    const options = normalize(binding.value)
+    // 先更新元素上的参数，再立刻测一次：观察器随后触发时读到的也是新值。
+    target.__scrollRegionOptions = options
+    sync(target, options)
   },
   beforeUnmount(el) {
     detach(el as ScrollRegionEl)

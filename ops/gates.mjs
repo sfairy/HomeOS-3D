@@ -118,13 +118,13 @@ const GATE_GROUPS = {
     // 照样通过，舞台只在运行时炸 —— 用契约快照拦住。
     { name: 'check:runtime-contract', ...bun('run', 'check:runtime-contract') },
     // ---- ratchet -----------------------------------------------------
-    // 前端两条守卫（离线计数口径 / 受限写法）。合并的意义是**共享一次遍历与一份 AST**。
+    // 前端三条守卫（离线计数口径 / 受限写法 / CSS 布局契约）。合并的意义是**共享一次遍历与一份 AST**。
     // 计数类与外观类已全部删除：别名计数、性能反模式计数、命名形态、重复代码、覆盖率、
     // 视觉 / a11y / Vitals 基线都把「代码长什么样」固化成了数字门槛，与「行数不作判据」同源。
     {
       name: 'check:frontend',
       ...bun('run', 'check:frontend'),
-      covers: ['check:offline-counting', 'check:restricted-syntax'],
+      covers: ['check:offline-counting', 'check:restricted-syntax', 'check:css-layout'],
     },
     // 后端静态检查（语义断言）。合并的意义是共享一份 `ast.parse` 缓存：此前每条都把 694 个
     // `.py` 重新解析一遍（合计约 25s），现在一个解释器跑完约 4s。

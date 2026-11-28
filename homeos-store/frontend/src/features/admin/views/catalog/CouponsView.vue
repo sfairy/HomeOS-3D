@@ -236,7 +236,7 @@ async function removeCoupon(coupon: Coupon) {
       desc="「占用」= 此刻仍占着名额（参与上限校验，取消订单会回落）；「历史核销」= 曾占用过的次数（对账凭证，决定能否删除）"
       domain="商品"
     >
-      <button class="hb-button hb-button--primary hb-button--sm" @click="openEditor(null)">新增优惠码</button>
+      <button type="button" class="hb-button hb-button--primary hb-button--sm" @click="openEditor(null)">新增优惠码</button>
     </PanelHead>
 
     <AdminTabs
@@ -263,8 +263,8 @@ async function removeCoupon(coupon: Coupon) {
           <option value="scheduled">未生效</option>
           <option value="expired">已失效</option>
         </select>
-        <button class="hb-button hb-button--secondary hb-button--sm" @click="reload">查询</button>
-        <button class="hb-button hb-button--ghost hb-button--sm" @click="reset">重置</button>
+        <button type="button" class="hb-button hb-button--secondary hb-button--sm" @click="reload">查询</button>
+        <button type="button" class="hb-button hb-button--ghost hb-button--sm" @click="reset">重置</button>
       </div>
 
       <DataTable ref="table" path="/coupons" :columns="COLUMNS" :params="params" empty-text="没有符合条件的优惠码">
@@ -298,7 +298,7 @@ async function removeCoupon(coupon: Coupon) {
             </td>
             <td class="nowrap">
               <div class="row-actions">
-                <button class="hb-button hb-button--secondary hb-button--sm" @click="toggle(coupon)">
+                <button type="button" class="hb-button hb-button--secondary hb-button--sm" @click="toggle(coupon)">
                   {{ coupon.active ? "停用" : "启用" }}
                 </button>
                 <RowMenu>

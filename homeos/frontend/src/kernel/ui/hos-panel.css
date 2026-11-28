@@ -98,26 +98,12 @@
   transform: translateY(var(--hos-hover-lift));
 }
 
-/* ── 映射现有类名 ── */
-.ios-card {
-  border-radius: var(--hos-radius-panel);
-  box-shadow: var(--hos-shadow-card);
-  transition:
-    transform var(--hos-transition-panel),
-    box-shadow var(--hos-transition-panel),
-    border-color var(--hos-transition-panel);
-}
-
-.ios-card:hover {
-  transform: translateY(var(--hos-hover-lift));
-  box-shadow: var(--hos-shadow-card-hover);
-}
-
-.premium-head--card {
-  padding: var(--hos-panel-padding-hero-y) var(--hos-panel-padding-hero-x);
-  border-radius: var(--hos-radius-card);
-  gap: var(--hos-space-md) var(--hos-space-lg);
-}
+/* ── 映射现有类名 ──
+ *
+ * `.ios-card` / `.premium-head--card` 的完整配方唯一真源在 `app/main.css` 与
+ * `kernel/ui/list-page/premium-head.css`。这里原先各写一份 radius / shadow / padding /
+ * transition / hover，因为本表后加载而全部生效，把真源的同名声明压成死声明 ——
+ * 两边一改就漂移。需要 token 化时改真源，不要在这里重新声明。 */
 
 .list-page__panel.premium-glass-surface--panel,
 .premium-glass-surface--panel {
@@ -140,19 +126,9 @@
   padding: var(--hos-panel-padding-default);
 }
 
-.settings-card--nested {
-  padding: var(--hos-panel-padding-nested-y) var(--hos-panel-padding-nested-x);
-  border-radius: var(--hos-radius-card);
-}
+/* `.settings-card--nested` 的完整配方（含表面色 / 描边 / inset）在 settings-layout.css。
+   这里原先还有一份只写 padding / radius 的版本，两份取值一致但排版不同 —— 属于重复。 */
 
-.sec-dash-panel {
-  border-radius: var(--hos-radius-panel);
-  border-color: var(--hos-border-subtle);
-  background: var(--hos-surface-panel);
-  box-shadow: var(--hos-shadow-card), var(--hos-surface-inset);
-}
-
-.sec-dash-panel-head {
-  padding: var(--hos-space-md) var(--hos-panel-padding-compact-x);
-  gap: var(--hos-space-md);
-}
+/* `.sec-dash-panel` / `.sec-dash-panel-head` 属于安防面板的组件样式，真源在
+   features/security/security.css。本文件曾把它们「映射」到全局令牌再声明一遍，
+   两份同时生效、靠加载顺序决胜（一份带 fallback、一份不带）。已删除。 */

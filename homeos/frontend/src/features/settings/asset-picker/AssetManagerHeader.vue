@@ -27,7 +27,7 @@
       >
         <Upload class="w-4 h-4" />
       </button>
-      <!-- 隐藏的文件输入不能放进 <button>：button 内不允许交互式子元素 -->
+      <!-- 隐藏的文件输入不能放进 <button type="button">：button 内不允许交互式子元素 -->
       <input :ref="setFileInput" type="file" multiple class="hidden" @change="onUpload" />
     </div>
   </div>

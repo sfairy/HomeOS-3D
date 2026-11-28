@@ -34,7 +34,14 @@
   background: rgba(255, 255, 255, 0.1);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.12);
   position: relative;
-  transition: all 0.2s;
+  transition:
+    transform 0.2s,
+    opacity 0.2s,
+    background-color 0.2s,
+    border-color 0.2s,
+    box-shadow 0.2s,
+    color 0.2s,
+    filter 0.2s;
 }
 
 .hm-trigger-card__enable-switch::before {
@@ -46,7 +53,14 @@
   height: var(--hos-switch-knob-xs);
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.4);
-  transition: all 0.2s;
+  transition:
+    transform 0.2s,
+    opacity 0.2s,
+    background-color 0.2s,
+    border-color 0.2s,
+    box-shadow 0.2s,
+    color 0.2s,
+    filter 0.2s;
 }
 
 .hm-trigger-card__enable-input:checked + .hm-trigger-card__enable-switch {

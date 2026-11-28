@@ -2802,10 +2802,9 @@ html[data-glass-effect="static"] .interaction3d-stage .i3d-light-panel {
   gap: 8px;
   min-width: 0;
 }
-.i3d-editor aside .i3d-lock-motion-grid,
-.i3d-editor aside .i3d-lock-appearance-grid {
-  grid-template-columns: minmax(0, 1fr);
-}
+/* `.i3d-lock-motion-grid` 的基础列数在 runtime.css（两列）。这里原先又写了一份单列版，
+   与紧随其后的 `@media (max-width: 360px)` 单列兜底自相矛盾 —— 窄屏兜底永远看不出效果，
+   宽屏则取决于两张表谁后加载。基础列数只在 runtime.css 声明。 */
 .i3d-editor aside .i3d-lock-appearance-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);

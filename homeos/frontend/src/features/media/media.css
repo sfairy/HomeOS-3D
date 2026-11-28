@@ -59,7 +59,14 @@
   transform: scale(1.1);
   background-size: cover;
   background-position: center;
-  transition: all 1.2s;
+  transition:
+    transform 1.2s,
+    opacity 1.2s,
+    background-color 1.2s,
+    border-color 1.2s,
+    box-shadow 1.2s,
+    color 1.2s,
+    filter 1.2s;
   pointer-events: none;
 }
 
@@ -79,7 +86,19 @@
   height: 5px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.15);
-  transition: all 0.4s var(--ease-bounce);
+  /* `width` / `border-radius` 是**有意**动画的：激活态从 5px 圆点拉成 18px 胶囊。
+     原先写 `transition: all` 顺带把它们带上了，改成显式表时必须补回这两项，
+     否则激活瞬间会「跳一下」而不是生长。 */
+  transition:
+    transform 0.4s var(--ease-bounce),
+    opacity 0.4s var(--ease-bounce),
+    background-color 0.4s var(--ease-bounce),
+    border-color 0.4s var(--ease-bounce),
+    box-shadow 0.4s var(--ease-bounce),
+    color 0.4s var(--ease-bounce),
+    filter 0.4s var(--ease-bounce),
+    width 0.4s var(--ease-bounce),
+    border-radius 0.4s var(--ease-bounce);
   /* 分页点现在是真的 <button>（键盘可达），复位原生外观 */
   border: none;
   padding: 0;
@@ -274,7 +293,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s var(--ease-bounce);
+  transition:
+    transform 0.3s var(--ease-bounce),
+    opacity 0.3s var(--ease-bounce),
+    background-color 0.3s var(--ease-bounce),
+    border-color 0.3s var(--ease-bounce),
+    box-shadow 0.3s var(--ease-bounce),
+    color 0.3s var(--ease-bounce),
+    filter 0.3s var(--ease-bounce);
 }
 
 .mm-btn:hover {
@@ -293,7 +319,14 @@
   justify-content: center;
   color: #fff;
   cursor: pointer;
-  transition: all 0.4s var(--ease-bounce);
+  transition:
+    transform 0.4s var(--ease-bounce),
+    opacity 0.4s var(--ease-bounce),
+    background-color 0.4s var(--ease-bounce),
+    border-color 0.4s var(--ease-bounce),
+    box-shadow 0.4s var(--ease-bounce),
+    color 0.4s var(--ease-bounce),
+    filter 0.4s var(--ease-bounce);
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
 }
 

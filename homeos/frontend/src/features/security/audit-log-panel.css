@@ -63,7 +63,10 @@
   overflow: hidden;
 }
 
-.sec-dash-audit-list {
+/* 只在「面板填充模式」下接管列表尺寸：`.sec-dash-audit-fill` 是 AuditLogPanel 自己的
+   撑满容器。基础态（仪表盘侧栏里的紧凑列表）由 security.css 定义（max-height 220px），
+   这里再写一条无前缀的 `.sec-dash-audit-list` 会把它顶掉 —— 侧栏列表于是不再限高。 */
+.sec-dash-audit-fill > .sec-dash-audit-list {
   flex: 1;
   min-height: 0;
   max-height: none;

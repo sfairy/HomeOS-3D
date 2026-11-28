@@ -1,3 +1,13 @@
+/*
+ * 【加载契约 · 多组件共用】
+ * 本表被多个组件引入，必须**一律以全局方式**加载（`<style src="...">`，不带 `scoped`）。
+ *
+ * 为什么：`scoped` 会给选择器最后一段加 `[data-v-xxxx]`，同一份表在不同组件里
+ * 就变成两套规则 —— 一半命中、一半落空，且同一份 CSS 会重复打进每个 chunk。
+ * 历史上这批表混着写，表现为「某个面板的间距只在打开顺序不同的时候才对」。
+ *
+ * 由 `node ops/checks/frontend/audit_css_layout.mjs` 的 scoping 统计守卫。
+ */
 /* 合并自：widgets-panel.css, settings-embeds.css, widget-config-theme.css, embed-panel.css, settings-layout-footer-section.css */
 
 /* ── widgets-panel.css ── */
@@ -281,8 +291,8 @@
 .embed-pop-enter-active,
 .embed-pop-leave-active {
   transition:
-    opacity 0.16s ease,
-    transform 0.16s ease;
+    transform 0.16s ease,
+    opacity 0.16s ease;
 }
 
 .embed-pop-enter-from,
@@ -1025,7 +1035,14 @@
   font-size: var(--set-fs-caption);
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    color 0.2s ease,
+    filter 0.2s ease;
 }
 
 .ef-visibility-btn--on {
@@ -1102,7 +1119,14 @@
   font-size: var(--set-fs-caption);
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition:
+    transform 0.18s ease,
+    opacity 0.18s ease,
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    color 0.18s ease,
+    filter 0.18s ease;
 }
 
 .ef-action:hover:not(:disabled) {
@@ -1522,7 +1546,9 @@
 
 .ef-fade-enter-active,
 .ef-fade-leave-active {
-  transition: opacity 0.25s ease;
+  transition:
+    transform 0.25s ease,
+    opacity 0.25s ease;
 }
 
 .ef-fade-enter-from,

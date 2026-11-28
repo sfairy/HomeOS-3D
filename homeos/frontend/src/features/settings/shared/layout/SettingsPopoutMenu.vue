@@ -4,6 +4,10 @@
 -->
 <template>
   <div class="settings-popout-wrap">
+    <!-- 这层 div 只是「点击转发 + 定位锚点」：插槽里必须是真正的可聚焦按钮
+         （现有两个消费者都传原生 button 元素）。键盘 Enter/Space 触发按钮的 click，
+         冒泡到这里再 toggle —— 所以这里**不要**再加 role="button"/tabindex，
+         否则会形成「按钮套按钮」的双重可聚焦控件。 -->
     <div ref="triggerRef" class="settings-popout-trigger" @click.stop="toggle">
       <slot name="trigger" :open="open" />
     </div>

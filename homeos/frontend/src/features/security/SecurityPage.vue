@@ -289,7 +289,7 @@
               class="shrink-0 h-12 px-4 flex items-center justify-between bg-[#0a0a0c]/60 border-b border-white/[0.04]"
             >
               <div class="flex items-center gap-1 bg-black/40 rounded-full p-1 border border-white/10">
-                <button
+                <button type="button"
                   v-if="dayEvents.length > 0"
                   class="p-1.5 rounded-full hover:bg-white/10 sec-text-muted"
                   @click="selectedEventIdx = Math.max(0, selectedEventIdx - 1)"
@@ -299,7 +299,7 @@
                 <span class="px-3 py-1 text-xs font-bold sec-text-muted font-mono"
                   >{{ dayEvents.length ? selectedEventIdx + 1 : 0 }} / {{ dayEvents.length }}</span
                 >
-                <button
+                <button type="button"
                   v-if="dayEvents.length > 0"
                   class="p-1.5 rounded-full hover:bg-white/10 sec-text-muted"
                   @click="selectedEventIdx = Math.min(dayEvents.length - 1, selectedEventIdx + 1)"
@@ -331,13 +331,13 @@
                   class="w-full h-full object-contain"
                 />
                 <div class="absolute top-4 left-4 flex gap-2 z-30" v-if="currentEventVideo">
-                  <button
+                  <button type="button"
                     :class="['sec-config-btn text-[12px]', eventShowVideo && 'opacity-60']"
                     @click="eventShowVideo = false"
                   >
                     <Image class="w-3 h-3" /> {{ '截图' }}
                   </button>
-                  <button
+                  <button type="button"
                     :class="['sec-config-btn text-[12px]', !eventShowVideo && 'opacity-60']"
                     @click="eventShowVideo = true"
                   >

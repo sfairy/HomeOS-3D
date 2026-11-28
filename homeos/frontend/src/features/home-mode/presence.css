@@ -46,7 +46,7 @@
   top: calc(100% + 8px);
   left: 50%;
   transform: translateX(-50%);
-  z-index: 190;
+  z-index: var(--z-presence-pop);
   pointer-events: auto;
   min-width: 176px;
   max-width: 220px;

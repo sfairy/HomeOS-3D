@@ -481,7 +481,7 @@ onBeforeUnmount(() => {
           <span class="admin-topbar__tz">时间按 {{ localZoneLabel() }} 显示</span>
         </div>
         <div class="admin-topbar__right">
-          <button class="hb-button hb-button--ghost hb-button--sm" @click="pwDialog?.showModal()">修改密码</button>
+          <button type="button" class="hb-button hb-button--ghost hb-button--sm" @click="pwDialog?.showModal()">修改密码</button>
           <RouterLink
             class="hb-button hb-button--ghost hb-button--sm"
             to="/"
@@ -489,7 +489,7 @@ onBeforeUnmount(() => {
             rel="noreferrer"
             aria-label="查看商店（新窗口打开）"
           >查看商店</RouterLink>
-          <button class="hb-button hb-button--ghost hb-button--sm" @click="logout">退出登录</button>
+          <button type="button" class="hb-button hb-button--ghost hb-button--sm" @click="logout">退出登录</button>
         </div>
       </header>
 

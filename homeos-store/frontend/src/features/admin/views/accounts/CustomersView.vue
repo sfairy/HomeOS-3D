@@ -41,12 +41,12 @@ function reload() {
 <template>
   <section class="admin-panel active" data-domain="data">
     <PanelHead title="客户档案" desc="下单与开票用的客户记录；账号邮箱变更时这里会同步" domain="数据">
-      <button class="hb-button hb-button--secondary hb-button--sm" @click="reload">刷新</button>
+      <button type="button" class="hb-button hb-button--secondary hb-button--sm" @click="reload">刷新</button>
     </PanelHead>
 
     <div class="panel-toolbar">
       <input v-model="keyword" class="hb-input" placeholder="邮箱 / 姓名关键字" />
-      <button class="hb-button hb-button--secondary hb-button--sm" @click="reload">查询</button>
+      <button type="button" class="hb-button hb-button--secondary hb-button--sm" @click="reload">查询</button>
     </div>
 
     <DataTable ref="table" path="/customers" :columns="COLUMNS" :params="params" empty-text="暂无客户档案">

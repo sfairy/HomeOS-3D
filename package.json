@@ -17,6 +17,8 @@
     "check:scene": "bun run --cwd packages/shared check:scene",
     "check:css-syntax": "bun run --cwd homeos/frontend check:css && bun run --cwd homeos-store check:css && bun run --cwd packages/shared check:css",
     "check:css-manifests": "node ops/checks/frontend/check_css_manifests.mjs",
+    "check:css-layout": "node ops/checks/frontend/audit_css_layout.mjs",
+    "audit:css-layout": "node ops/checks/frontend/audit_css_layout.mjs --report",
     "setup:hooks": "git config core.hooksPath .githooks",
     "set-version": "bun ops/release/set-version.mjs",
     "clean:local": "bun ops/dev/clean-local.mjs",

@@ -102,7 +102,7 @@
           :description="'调整界面动效、毛玻璃与图表动画的渲染开销以平衡视觉效果与功耗；3D 户型的画质在组件属性面板「渲染分辨率 / 地面反射」中单独设置。'"
         />
         <div class="settings-choice-grid mt-5">
-          <button
+          <button type="button"
             :class="perfBtnClass('high')"
             style="--choice-accent: var(--hos-color-accent)"
             @click="setPerformanceMode('high')"
@@ -115,7 +115,7 @@
               <div class="sys-hint-micro">{{ '完整动效 · 开毛玻璃' }}</div>
             </div>
           </button>
-          <button
+          <button type="button"
             :class="perfBtnClass('medium')"
             style="--choice-accent: var(--hos-color-info-text)"
             @click="setPerformanceMode('medium')"
@@ -126,7 +126,7 @@
               <div class="sys-hint-micro">{{ '关毛玻璃与图表动画' }}</div>
             </div>
           </button>
-          <button
+          <button type="button"
             :class="perfBtnClass('low')"
             style="--choice-accent: var(--hos-color-warning-text)"
             @click="setPerformanceMode('low')"

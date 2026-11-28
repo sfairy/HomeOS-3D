@@ -43,7 +43,14 @@
 
     <slot name="tabs" />
 
-    <div v-if="scrollBody" :class="['settings-page-inset settings-page-inset--scroll', bodyClass]">
+    <!-- 设置页唯一的滚动体：整个右侧内容区（`overflow-y: auto`）。
+         没有它时键盘用户无法把焦点送进设置内容，只能靠读屏虚拟光标 ——
+         补 `v-scroll-region` 后仅在溢出时挂 tabindex=0 + role=region。 -->
+    <div
+      v-if="scrollBody"
+      :class="['settings-page-inset settings-page-inset--scroll', bodyClass]"
+      v-scroll-region="'设置内容'"
+    >
       <div :class="stackClasses">
         <slot />
       </div>

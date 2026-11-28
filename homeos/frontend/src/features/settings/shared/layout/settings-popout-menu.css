@@ -59,12 +59,16 @@
 .settings-popout-drop-leave-active,
 .settings-popout-drop-up-enter-active,
 .settings-popout-drop-up-leave-active {
-  transition: all 0.12s ease-out;
+  transition:
+    transform 0.12s ease-out,
+    opacity 0.12s ease-out;
 }
 
 .settings-popout-fade-enter-active,
 .settings-popout-fade-leave-active {
-  transition: opacity 0.16s ease;
+  transition:
+    transform 0.16s ease,
+    opacity 0.16s ease;
 }
 
 .settings-popout-fade-leave-active,

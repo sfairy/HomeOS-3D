@@ -1194,7 +1194,9 @@ onUnmounted(() => {
 
 .bubble-pop-enter-active,
 .bubble-pop-leave-active {
-  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition:
+    transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+    opacity 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .bubble-pop-enter-from {

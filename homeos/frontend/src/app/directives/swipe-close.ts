@@ -6,10 +6,11 @@
  * 用法：<div class="popup-shell" v-swipe-close="() => $emit('close')">
  */
 import type { ObjectDirective } from 'vue'
+import { activeCanvasWidth } from '@/kernel/ui/use-scaling'
 
 /** 水平滑动触发关闭的最小绝对像素阈值 */
 const DEFAULT_THRESHOLD_PX = 80
-/** 水平滑动触发关闭的最小屏幕宽度比例（与像素阈值取较大值） */
+/** 水平滑动触发关闭的最小画布宽度比例（与像素阈值取较大值） */
 const DEFAULT_THRESHOLD_RATIO = 0.2
 
 // 起手落在交互控件上时不触发 swipe-close，避免与滑块/拖拽冲突
@@ -81,8 +82,11 @@ function attach(el: SwipeCloseEl) {
     const dy = e.clientY - startY
     // 垂直位移仍大于水平时不触发（二次校验，防止 move 后又转水平）
     if (Math.abs(dy) > Math.abs(dx)) return
-    const width = typeof window !== 'undefined' ? window.innerWidth : 1024
-    // 取像素阈值与屏幕比例阈值的较大值，适配不同屏幕尺寸
+    // 阈值基准必须是**画布宽度**而不是窗口宽度：整页等比缩放开启后画布可能远宽于窗口
+    // （1280 窗口 + 1366 基准 → 画布 1638），用 window.innerWidth 会让「滑 20% 屏宽」
+    // 在缩放态下变成「滑 26% 画布」，手感与不缩放时不一致。
+    const width = activeCanvasWidth.value || (typeof window !== 'undefined' ? window.innerWidth : 1024)
+    // 取像素阈值与画布比例阈值的较大值，适配不同屏幕尺寸
     const minDx = Math.max(DEFAULT_THRESHOLD_PX, width * DEFAULT_THRESHOLD_RATIO)
     if (Math.abs(dx) >= minDx) el.__swipeCloseHandler?.()
   }

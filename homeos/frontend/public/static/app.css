@@ -5536,31 +5536,17 @@ h2 {
   max-height: calc(100vh - 46px);
   display: flex;
   flex-direction: column;
-  border: 1px solid rgba(121, 133, 141, 0.34);
   border-radius: 22px;
-  background: linear-gradient(145deg, #1c2329, #11171c);
-  box-shadow:
-    0 30px 90px #000000b8,
-    inset 0 1px #ffffff09;
   overflow: hidden;
 }
 .hb-custom-popup-heading {
   position: relative;
-  min-height: 58px;
-  padding: 0 72px;
   display: flex;
-  align-items: center;
-  justify-content: center;
   border-bottom: 1px solid rgba(126, 141, 153, 0.12);
   background: transparent;
-  text-align: center;
 }
 .hb-custom-popup-heading strong {
   overflow: hidden;
-  color: #f2f4f5;
-  font-size: 28px;
-  font-weight: 650;
-  letter-spacing: 0.03em;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -5585,25 +5571,15 @@ h2 {
 .hb-custom-popup-grid {
   flex: 1;
   min-height: 0;
-  padding: 14px;
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 10px;
   overflow: auto;
 }
 .hb-custom-popup-module {
   min-width: 0;
   min-height: 0;
-  padding: 13px 14px 14px;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  gap: 10px;
-  border: 1px solid rgba(126, 141, 153, 0.18);
-  border-radius: 18px;
-  background: linear-gradient(145deg, #ffffff0b, #ffffff04);
-  box-shadow:
-    0 12px 28px #00000038,
-    inset 0 1px #ffffff08;
   overflow: hidden;
 }
 .hb-custom-popup-module > strong {
@@ -5619,47 +5595,33 @@ h2 {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.hb-custom-popup-module--light {
-  grid-template-rows: auto minmax(0, 1fr) auto;
-}
+.hb-custom-popup-module--light {}
+
 .hb-custom-popup-module--light > .hb-light-details-controls {
   width: 100%;
   height: 100%;
   min-height: 0;
-  grid-template-rows: repeat(2, minmax(0, 1fr));
-  gap: 9px;
   padding: 0;
 }
 .hb-custom-popup-module--light .hb-light-details-slider {
   min-height: 0;
-  align-content: space-between;
-  padding: 11px 13px;
   border-color: #7e8d9929;
-  border-radius: 13px;
-  background: linear-gradient(145deg, #ffffff0b, #ffffff05);
-  box-shadow:
-    0 10px 22px #0000002e,
-    inset 0 1px #ffffff06;
 }
-.hb-custom-popup-module--light .hb-light-details-slider-heading {
-  grid-template-columns: 36px minmax(0, 1fr) auto;
-  gap: 11px;
-}
+.hb-custom-popup-module--light .hb-light-details-slider-heading {}
+
 .hb-custom-popup-module--light .hb-light-details-slider-icon {
   width: 36px;
   height: 36px;
   font-size: 20px;
 }
-.hb-custom-popup-module--light .hb-light-details-slider strong {
-  font-size: 23px;
-}
-.hb-custom-popup-module--light .hb-light-details-slider output {
-  font-size: 19px;
-}
-.hb-custom-popup-module--light .hb-light-details-slider-legend small {
-  font-size: 18px;
-}
+.hb-custom-popup-module--light .hb-light-details-slider strong {}
+
+.hb-custom-popup-module--light .hb-light-details-slider output {}
+
+.hb-custom-popup-module--light .hb-light-details-slider-legend small {}
+
 .hb-custom-popup-module--light .hb-light-details-slider input {}
+
 .hb-custom-popup-module--light > .hb-light-details-power {
   width: 100%;
   min-height: 50px;
@@ -5688,7 +5650,6 @@ h2 {
   row-gap: 14px;
   column-gap: 14px;
   padding: 0;
-  overflow: hidden;
 }
 .hb-custom-popup-module--climate > .hb-climate-details-controls > .hb-climate-thermostat {
   grid-row: 1 / -1;
@@ -5700,7 +5661,6 @@ h2 {
   gap: 8px;
 }
 .hb-custom-popup-module--climate .hb-climate-details-options button {
-  min-height: 50px;
   font-size: 16px;
 }
 .hb-custom-popup-module--climate
@@ -5710,9 +5670,8 @@ h2 {
 .hb-custom-popup-module--climate
   .hb-climate-details-group.compact-options
   .hb-climate-details-options
-  button {
-  min-height: 42px;
-}
+  button {}
+
 .hb-custom-popup-module--climate .hb-climate-fan-slider {
   gap: 10px;
   padding: 10px 12px;
@@ -5742,16 +5701,10 @@ h2 {
   height: 100%;
   min-height: 0;
   margin: 0;
-  padding: 10px 12px;
   display: grid;
   place-items: center;
   overflow: hidden;
   border-color: #7e8d9924;
-  border-radius: 13px;
-  background: linear-gradient(145deg, #ffffff09, #ffffff03);
-  box-shadow:
-    inset 0 1px #ffffff06,
-    0 8px 20px #00000024;
 }
 .hb-custom-popup-module--line-chart > .hb-line-chart-details > svg {
   width: 100%;
@@ -5767,16 +5720,10 @@ h2 {
 }
 .hb-custom-popup-camera-stage {
   position: relative;
-  width: 100%;
   height: 100%;
   min-height: 0;
   overflow: hidden;
-  border: 1px solid rgba(126, 141, 153, 0.14);
-  border-radius: 13px;
   background: #080b0e;
-  box-shadow:
-    inset 0 1px #ffffff06,
-    0 8px 20px #0000002e;
 }
 .hb-custom-popup-camera-stage video,
 .hb-custom-popup-camera-stage img {

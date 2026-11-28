@@ -351,8 +351,8 @@ loadMeta();
         <input v-model="dateTo" class="hb-input" type="date" aria-label="下单时间止" />
       </label>
       <label class="hb-check"><input v-model="reviewOnly" type="checkbox" /> 仅待人工复核</label>
-      <button class="hb-button hb-button--secondary hb-button--sm" @click="reload">查询</button>
-      <button class="hb-button hb-button--ghost hb-button--sm" @click="reset">重置</button>
+      <button type="button" class="hb-button hb-button--secondary hb-button--sm" @click="reload">查询</button>
+      <button type="button" class="hb-button hb-button--ghost hb-button--sm" @click="reset">重置</button>
     </div>
 
     <DataTable
@@ -407,14 +407,14 @@ loadMeta();
           <td class="nowrap">{{ dt(order.createdAt) }}</td>
           <td class="nowrap">
             <div class="row-actions">
-              <button
+              <button type="button"
                 v-if="canMarkPaid(order)"
                 class="hb-button hb-button--primary hb-button--sm"
                 @click="markPaid(order)"
               >
                 标记支付
               </button>
-              <button
+              <button type="button"
                 v-else-if="canFulfill(order)"
                 class="hb-button hb-button--secondary hb-button--sm"
                 @click="fulfill(order)"

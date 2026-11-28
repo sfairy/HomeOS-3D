@@ -12,7 +12,7 @@
       aria-labelledby="media-pl-modal-title"
       aria-describedby="media-pl-modal-desc"
     >
-      <div class="media-pl-modal__backdrop" @click="emit('close')" />
+      <div class="media-pl-modal__backdrop" aria-hidden="true" @click="emit('close')" />
       <div
         ref="panelRef"
         class="media-pl-modal__panel"
@@ -68,4 +68,4 @@ useFocusTrap(
 )
 </script>
 
-<style scoped src="./config-fields.css"></style>
+<style src="./config-fields.css"></style>

@@ -97,6 +97,24 @@ export function formatEntityLabel(deps: EntityLabelsDeps, entity: any, navigatio
   return nw2 ? (yE2 && yE2 !== nw2 ? nw2 + ' · ' + yE2 : nw2) : yE2 || entity?.entityId || ''
 }
 
+/**
+ * 选择器触发按钮的主名：优先用实体所属设备名，避免摄像头/门锁这类实体的
+ * 名称与区域名重合时，下拉里只剩一个房间名（两块摄像头都叫「门厅」）。
+ * 没有设备归属时回落到实体自身名称，再不行才用实体 ID。
+ */
+export function formatEntityPrimaryName(deps: EntityLabelsDeps, entity: any) {
+  if (!entity) return ''
+  if (entity.virtual) return entity.name || entity.entityId || ''
+  return (
+    deps.navigationIconValue(entity) ||
+    deps.runSource(entity, '') ||
+    deps.runCursor(entity.name) ||
+    deps.runCursor(entity.originalName) ||
+    entity.entityId ||
+    ''
+  )
+}
+
 export function formatEntitySummary(deps: EntityLabelsDeps, entity: any) {
   const vt2 = deps.runSnapshot(entity),
     navigationIconPreviewElementState = entity?.entityId || ''

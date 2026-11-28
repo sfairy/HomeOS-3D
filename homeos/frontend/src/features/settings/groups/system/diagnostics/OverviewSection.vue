@@ -634,4 +634,4 @@ const diagFlowSteps = computed(() =>
 )
 </script>
 
-<style scoped src="./diagnostics-theme.css"></style>
+<style src="./diagnostics-theme.css"></style>

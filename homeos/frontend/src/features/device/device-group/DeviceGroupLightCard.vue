@@ -1,7 +1,7 @@
 <template>
   <!--
     紧凑网格卡片：light/switch 域使用，点击直接切换开关（静态网格与虚拟滚动共用）。
-    根元素必须是 <button>，保证键盘与读屏可达；
+    根元素必须是 <button type="button">，保证键盘与读屏可达；
     aria-pressed 表达开 / 关，aria-label 用实体名（可见的「开启/关闭」是状态而非名称）。
   -->
   <button

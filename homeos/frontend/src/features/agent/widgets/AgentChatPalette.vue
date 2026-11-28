@@ -571,7 +571,7 @@ async function send(raw?: string) {
         </button>
       </div>
 
-      <div ref="logRef" class="acp-body" aria-live="polite">
+      <div ref="logRef" class="acp-body" aria-live="polite" v-scroll-region="'对话消息'">
         <div v-if="!messages.length && !busy" class="acp-welcome">
           <AgentMechaAvatar
             mode="active"

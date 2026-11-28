@@ -6,7 +6,7 @@
 <template>
   <Transition name="hos-modal">
     <div v-if="isOpen" ref="rootRef" class="hos-modal-root">
-      <div class="hos-modal-backdrop" @click="$emit('close')" />
+      <div class="hos-modal-backdrop" aria-hidden="true" @click="$emit('close')" />
       <div
         ref="panelRef"
         class="hos-modal-panel hos-modal-panel--md"
