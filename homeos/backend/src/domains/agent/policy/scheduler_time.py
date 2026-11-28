@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -17,6 +17,9 @@ logger = logging.getLogger("homeos.agent.scheduler")
 CRON_ALLOWED = set("0123456789*/-,? ")
 #: 一次性任务最长延迟（分钟）：一年，挡住明显写错的超大值
 MAX_DELAY_MINUTES = 60 * 24 * 365
+#: 周期任务的最小间隔（分钟）。与参考实现的 ``MIN_RECURRING_INTERVAL_MINUTES`` 一致：
+#: 低于这个值的 cron 会被接受但每分钟下发一次控制命令，实际是误配置。
+MIN_RECURRING_INTERVAL_MINUTES = 5
 
 
 def now_naive() -> datetime:
@@ -104,6 +107,45 @@ def delay_minutes(value: Any) -> float | None:
         logger.debug("delayMinutes 不是数字: %r", value)
         return None
     return max(0.0, min(MAX_DELAY_MINUTES, minutes))
+
+
+def validate_recurring_interval(cron: str, timezone_name: str) -> str | None:
+    """周期任务的最小间隔校验；返回给用户看的中文说明，``None`` 表示可以创建。
+
+    为什么需要：``* * * * *`` 这类表达式语法完全合法，但每分钟真的去控制一次设备
+    不是用户想要的（"开灯"这种幂等动作还好，空调调温会一直发）。参考实现同样限制
+    ``MIN_RECURRING_INTERVAL_MINUTES``，这里只做「相邻两次触发的间隔」判定 ——
+    比解析 cron 字段简单得多，也不会漏掉 ``*/2 * * * *`` 这种花式写法。
+
+    取三次触发而不是两次：单看前两次，``0 0 1 * *``（每月 1 日）下次间隔可能是 28 或
+    31 天，正常；而 ``0 23 * * *`` 的间隔恒为 24h。次数少一个就可能把「一年只触发一次」
+    的边界误判成频繁。
+    """
+    try:
+        trigger = cron_trigger(cron, timezone_name)
+    except Exception:  # fmt: skip
+        return "cron 表达式不合法（需 5 段：分 时 日 月 周）"
+    start = localize(now_naive(), timezone_name)
+    fire_times: list[datetime] = []
+    moment = start
+    try:
+        for _ in range(3):
+            # 第一个参数是「上一次触发时间」，必须传才能得到**严格晚于**它的下一次；
+            # 传 ``None`` 时 APScheduler 只按 ``now`` 往上找，同一分钟内会一直返回同一次。
+            nxt = trigger.get_next_fire_time(moment, moment)
+            if nxt is None:
+                break
+            fire_times.append(nxt)
+            moment = nxt
+    except Exception as exc:  # pragma: no cover - APScheduler 内部异常
+        logger.debug("计算周期任务间隔失败: %s", exc)
+        return None
+    if len(fire_times) < 2:
+        return None
+    gap = fire_times[1] - fire_times[0]
+    if gap < timedelta(minutes=MIN_RECURRING_INTERVAL_MINUTES):
+        return f"周期任务的最小间隔为 {MIN_RECURRING_INTERVAL_MINUTES} 分钟"
+    return None
 
 
 def normalize_cron(payload: dict[str, Any]) -> str:

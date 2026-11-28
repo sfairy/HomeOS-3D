@@ -12,8 +12,10 @@ import {
   deleteNotification,
   clearNotifications,
   fetchNotifications,
+  fetchNotificationsPage,
   fetchNotificationSettings,
 } from '@/domain/api/notifications'
+
 import { notifyError } from '@/kernel/ui/notify'
 import { useScheduledPoll } from '@/domain/widget/use-scheduled-poll'
 import { parseNotificationSettings } from '@/domain/notifications/dnd'
@@ -155,8 +157,24 @@ export function useNotificationCenter() {
     activeSource.value = tabs[next].key
     filterRefs.value[next]?.focus?.()
   }
-  // 全部通知（唯一数据源 = 实体 store 的远程通知列表，按时间倒序）
-  const allNotifications = computed(() => mergeNotificationLists(remoteList.value as NotificationItem[]))
+  // 全部通知（唯一数据源 = 实体 store 的远程通知列表 + 分页「加载更多」追加的旧数据）
+  //
+  // 分页结果**不能**塞进 `entities.store.remoteNotifications`：那里每来一条 WS 通知就按
+  // `maxRemoteNotifications`（默认 100）截断，翻出来的旧页会被立刻挤掉。所以另存一份
+  // `pagedExtra`，在展示层按 id 去重合并。
+  const pagedExtra = ref<NotificationCenterItem[]>([])
+  /**
+   * 分页缓存里的同 id 条目。
+   *
+   * WS 列表与分页结果是两份对象（id 相同），只改其中一份会出现「列表里已读、
+   * 翻到旧页又变未读」——已读 / 删除这类写操作必须两份一起改。
+   */
+  function pagedTwin(id: string | number): NotificationCenterItem | undefined {
+    return pagedExtra.value.find((item) => item.id === id)
+  }
+  const allNotifications = computed(() =>
+    mergeNotificationLists(remoteList.value as NotificationItem[], pagedExtra.value),
+  )
 
   // 应用偏好后的通知列表（不含级别/来源过滤）
   const prefFilteredNotifications = computed(() => applyNotifyPrefs(allNotifications.value, notifyPrefs.value))
@@ -188,6 +206,9 @@ export function useNotificationCenter() {
 
   watch(activeSource, () => {
     focusedIndex.value = displayNotifications.value.length ? 0 : -1
+    // 游标是「某条记录在某个来源下的位置」：换了来源还沿用旧游标，下一页会从旧来源的
+    // 位置往后取，漏掉新来源里比它更新的记录。
+    resetPaging()
   })
 
   watch(activeLevel, () => {
@@ -239,12 +260,16 @@ export function useNotificationCenter() {
     if (notification.read) return
     // 合并列表保留的是 store 里的同一个对象，这一行就是对数据源的唯一一次乐观更新
     notification.read = true
+    // 分页缓存里可能是另一份对象：不同步改会出现「列表已读、翻回旧页又未读」。
+    const twin = pagedTwin(notification.id)
+    if (twin && twin !== notification) twin.read = true
     try {
       await markNotificationRead(notification.id)
     } catch (error) {
       // 回滚改的是同一个对象，不需要再按 id 找回 store 那份（早期两份快照各写一次，
       // 一处漏改就出现「点了已读、刷新又变未读」）
       notification.read = false
+      if (twin && twin !== notification) twin.read = false
       logger.debug('标记通知为已读失败', error)
     }
   }
@@ -271,11 +296,23 @@ export function useNotificationCenter() {
     // 摘除与回插都走 store 的 action：通知列表只有 store 一个写入方，composable 不再
     // 直接 splice 数组（早期 compose 直接改数组，回滚越界、期间被重新推送回来时会插重复项）。
     const removed = entitiesStore.removeRemoteNotification(id)
-    if (!removed) return
+    // 旧页里的条目只在 pagedExtra 里：以前这里 `if (!removed) return`，于是点 × 完全没反应
+    // （连 DELETE 都不发），只能等下一次刷新才消失。两份都要摘。
+    const pagedIndex = pagedExtra.value.findIndex((item) => item.id === id)
+    const pagedRemoved = pagedIndex >= 0 ? pagedExtra.value[pagedIndex] : null
+    if (pagedIndex >= 0) pagedExtra.value = pagedExtra.value.filter((_, index) => index !== pagedIndex)
+    if (!removed && !pagedRemoved) return
     try {
       await deleteNotification(id)
     } catch (error) {
-      entitiesStore.restoreRemoteNotification(removed.entry, removed.index)
+      if (removed) entitiesStore.restoreRemoteNotification(removed.entry, removed.index)
+      if (pagedRemoved) {
+        pagedExtra.value = [
+          ...pagedExtra.value.slice(0, pagedIndex),
+          pagedRemoved,
+          ...pagedExtra.value.slice(pagedIndex),
+        ]
+      }
       notifyError(error, '关闭通知')
     }
   }
@@ -285,15 +322,20 @@ export function useNotificationCenter() {
    * 失败时按 id 回滚到调用前的已读状态。
    */
   async function markAllRead() {
-    const prevRead = new Map(remoteList.value.map((notification) => [notification.id, Boolean(notification.read)]))
-    const list = remoteList.value
-    for (const notification of list) notification.read = true
+    // 两份列表都要改：只遍历 remoteList 会让「翻出来的旧页」保持未读，
+    // 未读徽标与底部计数就会和真实已读状态对不上。
+    const targets = [
+      ...remoteList.value,
+      ...pagedExtra.value.filter((item) => !remoteList.value.some((other) => other.id === item.id)),
+    ]
+    const prevRead = new Map(targets.map((notification) => [notification.id, Boolean(notification.read)]))
+    for (const notification of targets) notification.read = true
     try {
       await markAllNotificationsRead()
     } catch (error) {
       // 只按 id 恢复「调用前那批」的已读状态：整体替换数组会把 await 期间新到达的
       // 通知一起抹掉。
-      for (const notification of list) {
+      for (const notification of targets) {
         const previous = prevRead.get(notification.id)
         if (previous !== undefined) notification.read = previous
       }
@@ -315,6 +357,8 @@ export function useNotificationCenter() {
     if (!ok) return
     const prevRemote = [...remoteList.value]
     entitiesStore.clearRemoteNotifications()
+    // 分页里缓存的是旧页，不清掉会让「清空全部」之后列表又冒出历史记录。
+    resetPaging()
     try {
       await clearNotifications()
     } catch (error) {
@@ -360,6 +404,59 @@ export function useNotificationCenter() {
       logger.warn('远程通知加载失败', error)
     } finally {
       remoteLoading.value = false
+    }
+  }
+
+  // ── 游标分页（「加载更多」）──────────────────────────────────
+  /** 下一页的游标：`null` = 还没有翻过页，也 = 没有更多。 */
+  const nextBefore = ref<string | null>(null)
+  const hasMore = ref(false)
+  const loadingMore = ref(false)
+  /** 分页是否已经被用户触发过：首屏不预取，避免与 WS 首屏列表重复请求。 */
+  let pagedStarted = false
+
+  /** 重载分页状态（刷新 / 切账号 / 清空时调用）。 */
+  function resetPaging(): void {
+    pagedExtra.value = []
+    nextBefore.value = null
+    hasMore.value = false
+    loadingMore.value = false
+    pagedStarted = false
+  }
+
+  /**
+   * 加载下一页。
+   *
+   * 第一次调用先取一页（`before` 为空）并把 `nextBefore` 记下来；之后按游标往后翻。
+   * 失败时保留已有数据，只把错误写进 `remoteError`（翻页失败不该清空列表）。
+   */
+  async function loadMore(): Promise<void> {
+    if (!authStore.isAuthenticated || loadingMore.value) return
+    if (pagedStarted && !hasMore.value) return
+    loadingMore.value = true
+    const firstPage = !pagedStarted
+    pagedStarted = true
+    try {
+      const res = await fetchNotificationsPage<NotificationCenterItem>({
+        before: firstPage ? null : nextBefore.value,
+        source: activeSource.value === 'all' ? undefined : activeSource.value,
+      })
+      const page = res.data
+      if (page && Array.isArray(page.items)) {
+        // 与已有 id 去重后再追加：两次翻页之间 WS 可能补进了同样的记录。
+        const known = new Set(pagedExtra.value.map((item) => String(item.id)))
+        const fresh = page.items.filter((item) => !known.has(String(item.id)))
+        pagedExtra.value = [...pagedExtra.value, ...fresh]
+        nextBefore.value = page.nextBefore ?? null
+        hasMore.value = Boolean(page.nextBefore)
+      } else {
+        hasMore.value = false
+      }
+    } catch (error) {
+      remoteError.value = getApiErrorMessage(error, '加载更多通知失败')
+      logger.warn('通知分页加载失败', error)
+    } finally {
+      loadingMore.value = false
     }
   }
 
@@ -410,6 +507,17 @@ export function useNotificationCenter() {
     registerNotificationRefreshHandler(fetchRemote)
   })
 
+  // 登录态变化时必须清掉分页缓存与远程列表：
+  // 否则登出再登录后，新会话会先看到上一个账号翻出来的旧页（它们不在新列表的 id 集合里，
+  // 去重也拦不住）。`clearRemoteNotifications` 由实体 store 提供，和其它写路径同一份数据源。
+  watch(
+    () => authStore.isAuthenticated,
+    (authenticated) => {
+      resetPaging()
+      if (!authenticated) entitiesStore.clearRemoteNotifications()
+    },
+  )
+
   onUnmounted(() => {
     registerNotificationRefreshHandler(null)
   })
@@ -443,6 +551,11 @@ export function useNotificationCenter() {
     markAllRead,
     clearAll,
     fetchRemote,
+    loadMore,
+    resetPaging,
+    nextBefore,
+    hasMore,
+    loadingMore,
     levelIcon,
     levelColor,
     resolveNotificationLink,

@@ -426,6 +426,84 @@ def _home_mode_activity_groups(connection: sqlite3.Connection, _context: Migrati
         LOGGER.info("家庭模式「%s」是手动活动，已归入叠加活动组", name)
 
 
+#: 12 号：账号角色与显示名。
+#:
+#: 单账号部署下老库每一行都是管理员，所以回填 ``ADMIN`` 而不是猜。用
+#: ``PRAGMA table_info`` 判存在性，与 ``create_all`` 建出的新库同形。
+_USER_ROLE_COLUMNS: tuple[tuple[str, str], ...] = (
+    ("role", "VARCHAR(16) NOT NULL DEFAULT 'ADMIN'"),
+    ("displayName", "VARCHAR(64)"),
+    ("avatarPreset", "VARCHAR(32)"),
+)
+
+
+def _user_role_columns(connection: sqlite3.Connection, _context: MigrationContext) -> None:
+    if not _table_exists(connection, "users"):
+        return
+    existing = {row[1] for row in connection.execute("PRAGMA table_info(users)")}
+    for column, definition in _USER_ROLE_COLUMNS:
+        if column not in existing:
+            connection.execute(f"ALTER TABLE users ADD COLUMN {column} {definition}")
+    # 老库里 role 可能被写成空串（手工插入 / 早期备份导入），统一收敛成 ADMIN。
+    connection.execute("UPDATE users SET role = 'ADMIN' WHERE role IS NULL OR role = ''")
+
+
+#: 13 号：WebPush 订阅归属。
+#:
+#: 新增列 + 索引；历史行为 NULL（= 全局设备），推送时回退全量，不需要回填。
+def _webpush_subscription_user(connection: sqlite3.Connection, _context: MigrationContext) -> None:
+    if not _table_exists(connection, "web_push_subscriptions"):
+        return
+    existing = {row[1] for row in connection.execute("PRAGMA table_info(web_push_subscriptions)")}
+    if "userId" not in existing:
+        connection.execute("ALTER TABLE web_push_subscriptions ADD COLUMN userId VARCHAR(36)")
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS web_push_subscriptions_userId_idx ON web_push_subscriptions (userId)"
+    )
+
+
+#: 14 号：智能音箱配对授权表。
+#:
+#: ``create_all`` 只建缺失的表，升级路径必须显式建；``pairingHash`` 用**部分唯一索引**
+#: （``WHERE pairingHash IS NOT NULL``）表达「同一时刻只有一支未消费的配对码」——
+#: 配对成功后该列置 NULL，普通 UNIQUE 会让多行 NULL 互相冲突。
+_VOICE_DEVICE_SQL: tuple[str, ...] = (
+    """
+    CREATE TABLE IF NOT EXISTS voice_device_grants (
+        id VARCHAR(36) NOT NULL PRIMARY KEY,
+        memberId VARCHAR(36) NOT NULL,
+        pairingHash VARCHAR(64),
+        pairingExpires DATETIME,
+        credentialHash VARCHAR(64),
+        accessHash VARCHAR(64),
+        accessExpires DATETIME,
+        voiceGatewayId VARCHAR(96),
+        voiceDeviceId VARCHAR(96),
+        allowVoiceWakeWordAdd BOOLEAN NOT NULL DEFAULT 0,
+        notifyMemberIds TEXT,
+        lastUsedAt DATETIME,
+        revokedAt DATETIME,
+        createdAt DATETIME NOT NULL,
+        FOREIGN KEY (memberId) REFERENCES users (id) ON DELETE CASCADE
+    )
+    """,
+    (
+        "CREATE UNIQUE INDEX IF NOT EXISTS voice_device_grants_pairing_uq "
+        "ON voice_device_grants (pairingHash) WHERE pairingHash IS NOT NULL"
+    ),
+    "CREATE INDEX IF NOT EXISTS voice_device_grants_member_idx ON voice_device_grants (memberId)",
+    (
+        "CREATE INDEX IF NOT EXISTS voice_device_grants_device_idx "
+        "ON voice_device_grants (voiceGatewayId, voiceDeviceId)"
+    ),
+)
+
+
+def _voice_device_grants_table(connection: sqlite3.Connection, _context: MigrationContext) -> None:
+    for statement in _VOICE_DEVICE_SQL:
+        connection.execute(statement)
+
+
 MIGRATIONS: tuple[Migration, ...] = (
     Migration(BASELINE_VERSION, BASELINE_NAME, BASELINE_CHECKSUM, _noop),
     Migration(2, "agent-timeline-open-index", "h0002-timeline-open-index", _timeline_open_index),
@@ -438,6 +516,9 @@ MIGRATIONS: tuple[Migration, ...] = (
     Migration(9, "draft-entity-refs-and-indexes", "h0009-draft-refs", _draft_entity_refs_table),
     Migration(10, "home-mode-settle-and-groups", "h0010-mode-settle-groups", _home_mode_settle_column),
     Migration(11, "home-mode-activity-groups", "h0011-mode-activity-groups", _home_mode_activity_groups),
+    Migration(12, "user-role-and-profile", "h0012-user-role", _user_role_columns),
+    Migration(13, "webpush-subscription-user", "h0013-webpush-user", _webpush_subscription_user),
+    Migration(14, "voice-device-grants", "h0014-voice-device-grants", _voice_device_grants_table),
 )
 
 

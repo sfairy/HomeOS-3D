@@ -43,6 +43,12 @@ _MESSAGE_MAX = 500
 _CONTENT_MAX = 2000
 #: sessionId 最长字符数
 _SESSION_ID_MAX = 64
+#: 语音上下文字段长度上限（对齐参考 ``VoiceContextDto``）
+_VOICE_ID_MAX = 96
+#: 语音能力声明上限
+_VOICE_CAPABILITIES_MAX = 16
+#: 单个能力名长度上限
+_VOICE_CAPABILITY_MAX = 64
 
 
 class ChatDto(BaseModel):
@@ -53,6 +59,9 @@ class ChatDto(BaseModel):
     message: Any = None
     history: Any = None
     sessionId: Any = None
+    #: 语音上下文（只有音箱端携带）：``protocolVersion`` / ``gatewayId`` / ``speakerId`` /
+    #: ``conversationId`` / ``turnId`` / ``capabilities``。web 对话不传。
+    voiceContext: Any = None
 
     @model_validator(mode="before")
     @classmethod
@@ -96,7 +105,45 @@ class ChatDto(BaseModel):
                 raise ValueError("sessionId 须为字符串")
             if len(session_id) > _SESSION_ID_MAX:
                 raise ValueError(f"sessionId 最长 {_SESSION_ID_MAX} 字符")
+
+        voice = data.get("voiceContext")
+        if voice is not None:
+            _validate_voice_context(voice)
         return data
+
+
+def _validate_voice_context(voice: Any) -> dict[str, Any]:
+    """校验语音上下文（对齐参考 ``VoiceContextDto``）。
+
+    字段长度上限与参考一致（96 / 16 / 64）：这些值是音箱侧生成的，超长只可能是伪造或
+    编码错误，早拒比拿去拼会话 key 安全。
+    """
+    if not isinstance(voice, dict):
+        raise ValueError("voiceContext 须为对象")
+    if voice.get("protocolVersion") != 1:
+        raise ValueError("voiceContext.protocolVersion 须为 1")
+    for field in ("gatewayId", "speakerId", "conversationId", "turnId"):
+        value = voice.get(field)
+        if not isinstance(value, str) or not value:
+            raise ValueError(f"voiceContext.{field} 须为非空字符串")
+        if len(value) > _VOICE_ID_MAX:
+            raise ValueError(f"voiceContext.{field} 最长 {_VOICE_ID_MAX} 字符")
+    request_id = voice.get("requestId")
+    if request_id is not None:
+        if not isinstance(request_id, str) or len(request_id) > _VOICE_ID_MAX:
+            raise ValueError(f"voiceContext.requestId 最长 {_VOICE_ID_MAX} 字符")
+    capabilities = voice.get("capabilities")
+    if capabilities is not None:
+        if not isinstance(capabilities, list):
+            raise ValueError("voiceContext.capabilities 须为数组")
+        if len(capabilities) > _VOICE_CAPABILITIES_MAX:
+            raise ValueError(f"voiceContext.capabilities 最多 {_VOICE_CAPABILITIES_MAX} 项")
+        for item in capabilities:
+            if not isinstance(item, str):
+                raise ValueError("voiceContext.capabilities 每项须为字符串")
+            if len(item) > _VOICE_CAPABILITY_MAX:
+                raise ValueError(f"voiceContext.capabilities 每项最长 {_VOICE_CAPABILITY_MAX} 字符")
+    return voice
 
 
 def _service(request: Request):
@@ -109,6 +156,7 @@ def _actor_from_user(user: dict[str, Any]) -> AgentActor:
         restrictions=user.get("restrictions"),
         user_id=user.get("userId"),
         username=user.get("username"),
+        role=str(user.get("role") or "") or None,
     )
 
 

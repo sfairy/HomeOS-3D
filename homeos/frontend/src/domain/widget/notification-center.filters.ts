@@ -72,8 +72,20 @@ export function mergeNotificationLists(
   remote: NotificationCenterItem[],
   local: NotificationCenterItem[] = [],
 ): NotificationCenterItem[] {
-  const merged: NotificationCenterItem[] = [...remote, ...local]
-  merged.sort((left, right) => {
+  // 去重按 id：分页「加载更多」追加的旧通知与 WS 实时列表必然有交集，不去重会在列表里
+  // 出现两条一模一样的记录（而且点其中一条，另一条的已读态不会跟着变）。
+  // 先出现的优先（``remote`` 在前 = 保留 store 里那条可变的引用）。
+  const seen = new Set<string>()
+  const unique: NotificationCenterItem[] = []
+  for (const item of [...remote, ...local]) {
+    const key = item?.id === undefined || item?.id === null ? '' : String(item.id)
+    if (key) {
+      if (seen.has(key)) continue
+      seen.add(key)
+    }
+    unique.push(item)
+  }
+  unique.sort((left, right) => {
     const leftTime = Date.parse(left.createdAt || left.time || '') || (typeof left.id === 'number' ? left.id : 0)
     const rightTime = Date.parse(right.createdAt || right.time || '') || (typeof right.id === 'number' ? right.id : 0)
     if (leftTime !== rightTime) return rightTime - leftTime
@@ -81,7 +93,7 @@ export function mergeNotificationLists(
     const rightIndex = Number(right.id) > 1e15 ? 0 : 1
     return leftIndex - rightIndex
   })
-  return merged
+  return unique
 }
 
 /** 应用通知偏好：关闭紧急/离线/低电量时移除对应项。 */

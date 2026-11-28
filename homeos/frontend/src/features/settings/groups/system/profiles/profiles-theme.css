@@ -214,9 +214,6 @@
   opacity: 0.75;
 }
 
-@container hos-canvas (min-width: 768px) {
-}
-
 /* —— ProfilesBackupSection —— */
 .pb-note-box {
   background: var(--page-accent-bg);
@@ -230,8 +227,6 @@
 .pb-flow-band__shell {
   --flow-glow-a: rgba(129, 140, 248, var(--flow-glow-alpha-strong));
   --flow-glow-b: rgba(52, 211, 153, var(--flow-glow-alpha-b));
-}
-@container hos-canvas (min-width: 640px) {
 }
 
 /* —— 定时自动备份 —— */

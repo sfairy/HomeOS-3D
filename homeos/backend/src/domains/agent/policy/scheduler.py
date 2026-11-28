@@ -46,6 +46,7 @@ from .scheduler_time import (
     normalize_cron,
     now_naive,
     parse_iso,
+    validate_recurring_interval,
 )
 from ..runtime.service_support import apply_device_allowlist
 from ....platform.core.db.db_exec import run_db
@@ -207,6 +208,10 @@ class AgentSchedulerService:
             except Exception as exc:
                 logger.info("周期任务表达式不合法: %s", exc)
                 return {"ok": False, "message": str(exc)}
+            # 最小间隔：`* * * * *` 语法合法但每分钟下发一次控制命令，属于误配置。
+            interval_error = validate_recurring_interval(cron, timezone_name)
+            if interval_error is not None:
+                return {"ok": False, "message": interval_error}
             next_run = next_cron_run(cron, timezone_name, now_naive())
             if next_run is None:
                 return {"ok": False, "message": "cron 表达式无法计算下次执行时间"}
@@ -292,6 +297,15 @@ class AgentSchedulerService:
             if not row.enabled:
                 row.next_run_at = None
             else:
+                # 启用前再校验一次最小间隔：老任务可能是这条规则上线前建的（或由备份导入），
+                # 只在创建时检查会让它们永久绕过限制、每分钟真的下发一次。
+                if str(row.schedule_type or "").upper() == "RECURRING":
+                    interval_error = validate_recurring_interval(
+                        str(row.cron or ""), str(row.timezone or "") or self._timezone()
+                    )
+                    if interval_error is not None:
+                        row.enabled = False
+                        return {"ok": False, "message": interval_error}
                 next_run = self._compute_next(row, now_naive())
                 if next_run is None:
                     # 启用一个算不出下次触发的任务（cron 永不成立 / 一次性任务没有时间）

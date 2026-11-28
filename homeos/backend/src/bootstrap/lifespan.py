@@ -275,6 +275,9 @@ class _StartupContext:
     ui_config: UiConfigService = _pending()
     external_api: ExternalApiService = _pending()
     auto_backup: AutoBackupService = _pending()
+    #: 启动前的备份包校验结论（``{"state": "ok"|"failed"|"empty", ...}``）。
+    #: 不阻断启动，只供日志与系统诊断读取。
+    backup_verification: dict[str, Any] = _pending()
     home_mode: HomeModeService = _pending()
     agent_service: AgentService = _pending()
     notification: NotificationService = _pending()
@@ -646,6 +649,21 @@ async def _build_ui_and_system_services(app: FastAPI, startup: _StartupContext) 
     )
     # 状态事件驱动增量同步：设备改名 / 换类型 / 上线离线后画像自己跟上，不用等面板打开。
     app.state.device_profiles.bind_events(startup.security_bus)
+
+    # 智能音箱域：配对授权 + 唤醒词网关 + 语音端「添加唤醒词」确认流。
+    # 三者共用一份 session_factory / app_config；/agent/voice-devices 与 /agent/voice-chat
+    # 都从这里取（见 api/voice_device.py）。网关未配置时只影响唤醒词读写，
+    # 配对与语音对话照常可用。
+    from ..domains.voice_device import VoiceDeviceService, WakeWordGateway
+    from ..domains.voice_device.wake_word_flow import VoiceWakeWordFlow
+
+    voice_devices = VoiceDeviceService(app.state.database.session_factory)
+    wake_word_gateway = WakeWordGateway(app_config)
+    app.state.voice_devices = voice_devices
+    app.state.wake_word_gateway = wake_word_gateway
+    app.state.voice_wake_word_flow = VoiceWakeWordFlow(voice_devices, wake_word_gateway)
+    app.state.voice_current_turns = {}
+
     # 媒体域：Music Assistant 点歌 + MoviePilot 入库轮询（通知服务后置注入）。
     from ..domains.media import ArrivalPoller, MediaService
 
@@ -681,6 +699,30 @@ async def _build_ui_and_system_services(app: FastAPI, startup: _StartupContext) 
     auto_backup = AutoBackupService(app_config, server_backup, business_backup)
     app.state.server_backup = server_backup
     app.state.auto_backup = auto_backup
+    # 启动前校验最新备份包（公告「强化启动前数据库自动备份校验」）。
+    # 放在建库/迁移之前：这是「升级前那份备份到底还能不能恢复」的最后一次问询机会。
+    # 结论只记日志并挂到 `startup.backup_verification`，**不阻断启动** ——
+    # 备份盘坏了就锁住服务，比带着警告继续跑更糟。
+    from ..domains.backup.business_backup import verify_latest_archive
+
+    try:
+        verification = await asyncio.to_thread(verify_latest_archive, app_settings)
+    except Exception as error:  # pragma: no cover - 校验自身失败不该拦住启动
+        verification = {"state": "failed", "message": f"校验异常：{error}"}
+    startup.backup_verification = verification
+    app.state.backup_verification = verification
+    if verification.get("state") == "ok":
+        logger.info(
+            "启动前备份校验通过：%s（%s 个条目）",
+            verification.get("name"),
+            verification.get("entries"),
+        )
+    elif verification.get("state") == "failed":
+        logger.warning(
+            "启动前备份校验未通过：%s（%s）。服务继续启动，但建议先在「备份与恢复」重新导出一份。",
+            verification.get("name") or "-",
+            verification.get("message"),
+        )
     auto_backup.start()
     startup.auto_backup = auto_backup
 
@@ -991,6 +1033,14 @@ async def _build_agent_domain(app: FastAPI, startup: _StartupContext) -> None:
     app.state.agent_service = agent_service
     startup.agent_service = agent_service
     agent_service.bind_learning(learning_store, negative_experience, habit_candidates)
+    # 点歌候选槽必须在这里绑：候选槽在 `_build_agent_automation`（更早）里建好，
+    # 但那时 AgentService 还不存在。绑定之后「播放第 N 个版本」才真正可达。
+    agent_service.bind_media(
+        getattr(app.state, "media_service", None),
+        getattr(app.state, "media_choices", None),
+    )
+    if getattr(app.state, "media_choices", None) is not None:
+        logger.info("点歌候选槽已接入（多版本同名可说「播放第 N 个版本」）")
 
     app.state.mcp_gateway = McpGatewayService(
         agent_service,
@@ -1110,6 +1160,15 @@ def _build_agent_automation(
         getattr(app.state, "media_service", None),
         getattr(app.state, "device_profiles", None),
     )
+    # 点歌候选槽：多版本同名时「播放第二个版本」的落点。与短时记忆共用状态库，
+    # 多 worker 下同一段对话落到哪个进程都读得到。
+    #
+    # 注意：这里**只能**建槽，不能顺手绑定到 AgentService —— 本函数在
+    # `app.state.agent_service` 赋值之前执行（同一条启动链的前半段），此时取到的永远是
+    # None，绑了个寂寞。真正的 bind 在 agent_service 构造之后。
+    from ..domains.media.choices import MediaChoiceSlot
+
+    app.state.media_choices = MediaChoiceSlot(getattr(app.state, "agent_state_store", None))
     return env_context
 
 
@@ -1201,6 +1260,10 @@ async def _build_channels_and_notification(app: FastAPI, startup: _StartupContex
     home_tools = getattr(app.state, "home_tools", None)
     if home_tools is not None:
         home_tools.bind_notification(notification)
+        # 音箱授权服务（语音域）：`send_notification` 的「发到手机」据此解析默认接收人 / 点名。
+        voice_devices = getattr(app.state, "voice_devices", None)
+        if voice_devices is not None:
+            home_tools.bind_voice_devices(voice_devices)
         presence_service = getattr(app.state, "presence", None)
         if presence_service is not None:
             home_tools.bind_presence(presence_service)

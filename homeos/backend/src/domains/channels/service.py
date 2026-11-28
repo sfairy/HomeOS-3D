@@ -167,7 +167,31 @@ class ChannelsService:
         )
         return {"email": email, "webpush": webpush, "wecom": wecom}
 
-    async def send_external_alert(self, channels: list[str], message: str, title: str | None = None) -> dict[str, str]:
+    def push_device_count(self, user_ids: list[str] | None = None) -> int:
+        """可投递的 WebPush 设备数（按账号过滤）；通道未启用时 0。
+
+        「发到手机」用它做前置判断：没有设备就明确失败，而不是回一句「已提交」让用户
+        以为消息在路上。历史无归属订阅计入，与 ``send_text`` 的投递口径一致。
+        """
+        counter = getattr(self._webpush, "count_for_users", None)
+        if not callable(counter):
+            return 0
+        try:
+            raw_count = counter(user_ids)
+        except Exception as exc:  # pragma: no cover - 通道自身防御
+            logger.debug("读取 WebPush 设备数失败: %s", exc)
+            return 0
+        # ``counter`` 取自 getattr，静态类型只看到 ``object`` 返回；按契约只认整数，
+        # 其它类型当作「无法判断」——这里与调用方口径一致，返回 0 表示没有可投递设备。
+        return raw_count if isinstance(raw_count, int) else 0
+
+    async def send_external_alert(
+        self,
+        channels: list[str],
+        message: str,
+        title: str | None = None,
+        user_ids: list[str] | None = None,
+    ) -> dict[str, str]:
         """告警/系统通知的外部通道投递（Email / WebPush / 企业微信）。
 
         主动推送正文统一前置 ``[YYYY-MM-DD HH:mm:ss]`` 时间戳（Asia/Shanghai）。
@@ -175,6 +199,9 @@ class ChannelsService:
         返回**逐通道结果**：``"ok"``（真正送出）/ ``"failed"``（启用且尝试过但失败）/
         ``"skipped"``（未启用或未配置，根本没尝试）。调用方据此判断是否算「已投递」，
         不能吞掉异常后把「什么都没发出去」记成成功。
+
+        ``user_ids`` 只对 WebPush 生效：非空时只推这些账号的设备（「发到手机上」）。
+        邮件与企业微信没有「设备归属」概念，按通道本身广播。
         """
         if not isinstance(channels, list) or not channels or not str(message or "").strip():
             return {}
@@ -186,10 +213,17 @@ class ChannelsService:
         results: dict[str, str] = {}
         for channel in channels:
             if channel in ("email", "webpush", "wecom"):
-                results[channel] = await self._send_external_channel(channel, status, text, title)
+                results[channel] = await self._send_external_channel(channel, status, text, title, user_ids)
         return results
 
-    async def _send_external_channel(self, channel: str, status: dict[str, Any], text: str, title: str | None) -> str:
+    async def _send_external_channel(
+        self,
+        channel: str,
+        status: dict[str, Any],
+        text: str,
+        title: str | None,
+        user_ids: list[str] | None = None,
+    ) -> str:
         """投递单个外部通道；返回 ``ok`` / ``failed`` / ``skipped``。"""
         if channel == "email":
             return await self._send_email(status, text, title)
@@ -197,7 +231,7 @@ class ChannelsService:
             if not (status["webpush"].get("enabled") and status["webpush"].get("configured")):
                 return "skipped"
             try:
-                return _webpush_outcome_state(await self._webpush.send_text("", text, title))
+                return _webpush_outcome_state(await self._webpush.send_text("", text, title, user_ids))
             except Exception as exc:
                 logger.error("WebPush 告警投递失败: %s", exc)
                 return "failed"

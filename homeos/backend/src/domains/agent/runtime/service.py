@@ -51,6 +51,7 @@ from ..providers.llm_provider_interface import (
 )
 from ..state.store import MemoryStateStore, SharedStateStore
 from ..tools.home_tools_service import HomeToolsService
+from ...media.choices import parse_choice_index
 from ....platform.core.http.errors import BusinessException, ErrorCode, api_error
 
 logger = logging.getLogger("homeos.agent.service")
@@ -169,6 +170,10 @@ class AgentService:
         self._state_store = state_store or MemoryStateStore()
         #: 诊断日志（意图门影子回放 / 执行实证）；None 表示只写 DEBUG
         self._diagnostics = diagnostics
+        #: 点歌候选槽（多版本同名时的「播放第二个版本」）：装配层 bind_media 注入
+        self._media_choices: Any = None
+        #: 媒体服务：候选槽选中后按 uri 直接播放
+        self._media: Any = None
         #: 学习体系（教学别名 / 房间默认 / 负经验）
         self._learning: Any = None
         self._negative: Any = None
@@ -186,6 +191,11 @@ class AgentService:
         self._learning = learning
         self._negative = negative
         self._habits = habits
+
+    def bind_media(self, media: Any = None, choices: Any = None) -> None:
+        """注入媒体服务与点歌候选槽（候选槽未注入时「播放第二个版本」不可用）。"""
+        self._media = media
+        self._media_choices = choices
 
     @property
     def _L(self) -> Any:
@@ -292,21 +302,50 @@ class AgentService:
                 entry=options.entry,
                 room=options.room,
                 on_progress=options.on_progress,
+                voice_grant_id=options.voice_grant_id,
+                voice_context=options.voice_context,
             )
             if options is not None
             else None
         )
+        # 语音「自然结束」先于一切处理：它既不该进 LLM，也不该消耗一次工具调用。
+        # 语音授权 id 挂在执行身份上：工具层（`send_notification`）据此取音箱的默认接收人。
+        if scoped_options is not None and scoped_options.voice_grant_id and actor is not None:
+            actor = AgentActor(
+                restrictions=actor.restrictions,
+                user_id=actor.user_id,
+                username=actor.username,
+                voice_grant_id=scoped_options.voice_grant_id,
+                role=actor.role,
+            )
+            scoped_options = AgentChatOptions(
+                actor=actor,
+                session_id=scoped_options.session_id,
+                entry=scoped_options.entry,
+                room=scoped_options.room,
+                on_progress=scoped_options.on_progress,
+                voice_grant_id=scoped_options.voice_grant_id,
+                voice_context=scoped_options.voice_context,
+            )
+        # 语音「自然结束」先于一切处理：它既不该进 LLM，也不该消耗一次工具调用。
+        ended = self._voice_end_reply(user_message, scoped_options, session_id)
+        if ended is not None:
+            return ended
         # 连续对话：服务端会话优先；过期 / 空会话时回退前端 history
         effective_history = history
         if session_id:
             stored = self._sessions.get(session_id)
             if stored:
                 effective_history = [{"role": t.role, "content": t.content} for t in stored]
-        # 短时记忆（45s / 2 轮）追加在末尾：保证上一轮管家的反问句紧邻当前输入
+        # 短时记忆（90s / 2 轮）追加在末尾：保证上一轮管家的反问句紧邻当前输入
         effective_history = self._merge_short_term_history(effective_history, session_id)
         state = {"short_term_reset": False}
         result = await self._chat_internal(user_message, effective_history, scoped_options, state)
         self._attach_tts(result)
+        # 「晚安」是「先执行睡眠场景，再收麦」：场景要照常跑（不能像「退下」那样提前返回），
+        # 但这一轮不该留在会话里 —— 音箱已经结束对话了。
+        if self._attach_voice_end(result, user_message, scoped_options, session_id):
+            return result
         # 记录本轮上下文（清除记忆口令除外），供后续指令补全实体 / 意图
         if session_id and user_message.strip() != self._L.clear_memory:
             session_summary = self._build_session_summary(result)
@@ -320,6 +359,98 @@ class AgentService:
                     session_summary or self._build_short_term_summary(result),
                 )
         return result
+
+    #: 语音「自然结束」口令（整句匹配；带「吧」这类语气词也接受）。
+    _VOICE_END_PATTERNS = (
+        re.compile(r"^(?:请)?(?:退下(?:吧)?|结束对话(?:吧)?|不需要你了|不用了[，,、\s]*(?:你)?退下(?:吧)?)$"),
+    )
+
+    def _voice_end_reply(
+        self,
+        user_message: str,
+        options: AgentChatOptions | None,
+        session_id: str | None,
+    ) -> AgentChatResponse | None:
+        """语音通道的「自然结束对话」。
+
+        只在音箱显式声明 ``end_conversation`` 能力时生效（声明了才说明它在等这个动作）；
+        web 端说「退下」仍然是一句普通的话，不能把会话历史清掉。
+
+        「晚安」也走这里：它既是结束口令，也顺带执行睡眠场景 —— 由 ``_chat_internal``
+        处理场景，这里只负责收麦。
+        """
+        if options is None or not isinstance(options.voice_context, dict):
+            return None
+        capabilities = options.voice_context.get("capabilities")
+        if not isinstance(capabilities, list) or "end_conversation" not in capabilities:
+            return None
+        text = (user_message or "").strip().strip("，,、。！!？? ")
+        if not any(pattern.match(text) for pattern in self._VOICE_END_PATTERNS):
+            return None
+        if session_id:
+            self._sessions.clear(session_id)
+            self._short_term.clear(session_id)
+        voice = options.voice_context
+        return AgentChatResponse(
+            reply="",
+            speak=False,
+            outcome="answer",
+            provider="system",
+            terminal_actions=[
+                {
+                    "actionId": str(uuid4()),
+                    "type": "end_conversation",
+                    "speakerId": str(voice.get("speakerId") or ""),
+                    "conversationId": str(voice.get("conversationId") or ""),
+                    "turnId": str(voice.get("turnId") or ""),
+                    "parameters": {"acknowledgement": "earcon"},
+                }
+            ],
+            timing={"llmMs": 0, "toolMs": 0, "totalMs": 0},
+            usage={"promptTokens": 0, "completionTokens": 0, "cachedTokens": 0, "estimatedCostCNY": 0},
+        )
+
+    def _attach_voice_end(
+        self,
+        result: AgentChatResponse,
+        user_message: str,
+        options: AgentChatOptions | None,
+        session_id: str | None,
+    ) -> bool:
+        """「晚安」这类**需要先执行动作**的结束口令：给结果补上 ``end_conversation``。
+
+        与 :meth:`_voice_end_reply` 的分工：
+
+        - 「退下 / 结束对话」没有任何动作可做 → 直接在入口返回，省掉一次 LLM 调用；
+        - 「晚安」要先把睡眠场景跑一遍（快路径会命中场景），所以只能等 ``_chat_internal``
+          结束后再挂收麦动作 —— 否则用户说完晚安，灯没关、麦克风倒先关了。
+
+        返回 ``True`` 表示已经收麦（调用方不再把这一轮写进会话记忆）。
+        """
+        if options is None or not isinstance(options.voice_context, dict) or result is None:
+            return False
+        capabilities = options.voice_context.get("capabilities")
+        if not isinstance(capabilities, list) or "end_conversation" not in capabilities:
+            return False
+        text = (user_message or "").strip().strip("，,、。！!？? ")
+        if text != "晚安":
+            return False
+        voice = options.voice_context
+        result.terminal_actions = [
+            *result.terminal_actions,
+            {
+                "actionId": str(uuid4()),
+                "type": "end_conversation",
+                "speakerId": str(voice.get("speakerId") or ""),
+                "conversationId": str(voice.get("conversationId") or ""),
+                "turnId": str(voice.get("turnId") or ""),
+                "parameters": {"acknowledgement": "earcon"},
+            },
+        ]
+        if session_id:
+            self._sessions.clear(session_id)
+            self._short_term.clear(session_id)
+        return True
 
     def _attach_tts(self, result: AgentChatResponse) -> None:
         """给需要朗读的回复签一个音频 URL。
@@ -417,6 +548,10 @@ class AgentService:
         batch_reply = await self._serve_batch_flow(ctx)
         if batch_reply is not None:
             return batch_reply
+        # 1.6) 点歌候选：上一轮搜到多首同名，这一句「播放第二个版本」
+        choice_reply = await self._serve_media_choice(ctx)
+        if choice_reply is not None:
+            return choice_reply
         # 2) 命令缓存命中：已确认直接执行工具；待确认则提示用户确认，不直接执行
         cached_reply = await self._serve_cached_command(ctx)
         if cached_reply is not None:
@@ -951,8 +1086,38 @@ class AgentService:
                 logger.debug("记录负经验失败: %s", exc)
         if bool(result.get("ok", True)) and name in CONTROL_TOOL_NAMES:
             await self._observe_habit(ctx, name, payload)
+        self._remember_media_choices(ctx, name, payload, result)
         self._audit_control(ctx, name, payload, result, elapsed)
         return result
+
+    def _remember_media_choices(
+        self,
+        ctx: _ChatRunContext,
+        name: str,
+        payload: dict[str, Any],
+        result: dict[str, Any],
+    ) -> None:
+        """点歌多版本歧义：把候选存进槽，下一句「播放第二个版本」才有着落。
+
+        只在 ``media_control`` 返回 ``reason=ambiguous`` 且带 ``candidates`` 时存；
+        其它歧义（多台音箱）没有可播的 ``uri``，不该进这个槽。
+        """
+        slot = self._media_choices
+        if slot is None or name != "media_control" or not ctx.session_id:
+            return
+        if str(result.get("reason") or "") != "ambiguous":
+            return
+        candidates = result.get("candidates")
+        if not isinstance(candidates, list) or not candidates:
+            return
+        choices = [
+            {"uri": str(item.get("uri") or ""), "name": str(item.get("name") or "")}
+            for item in candidates
+            if isinstance(item, dict) and str(item.get("uri") or "").strip()
+        ]
+        if not choices:
+            return
+        slot.set(ctx.session_id, choices, str(payload.get("area_name") or payload.get("areaId") or ""))
 
     def _serve_budget_guard(self, ctx: _ChatRunContext) -> AgentChatResponse | None:
         """每日额度检查：超限时返回友好提示，不再调用 LLM。"""
@@ -991,6 +1156,60 @@ class AgentService:
         if ctx.session_id:
             return f"session:{ctx.session_id}"
         return "anon"
+
+    async def _serve_media_choice(self, ctx: _ChatRunContext) -> AgentChatResponse | None:
+        """点歌候选槽：「播放第二个版本」按上一轮候选直接播。
+
+        为什么放在快路径之前：这句话本身没有任何可解析的歌名，快路径一定会落空、
+        LLM 也不知道 ``uri``（那在上一轮的工具结果里，早已滚出上下文）。
+        没有这个槽时用户只能把歌名重说一遍，然后再次撞上同一个多版本歧义。
+        """
+        slot = self._media_choices
+        if slot is None or not ctx.session_id:
+            return None
+        pending = slot.get(ctx.session_id)
+        if pending is None:
+            return None
+        index = parse_choice_index(ctx.user_message)
+        if index is None:
+            return None
+        choices = pending.get("choices") or []
+        if index > len(choices):
+            return self._empty_system_reply(
+                self._t(
+                    f"刚才有 {len(choices)} 个版本，请在这个范围内选一个。",
+                    f"There were {len(choices)} versions; please pick one in that range.",
+                )
+            )
+        chosen = choices[index - 1]
+        media = self._media
+        if media is None:
+            return None
+        result = await media.play_uri(str(chosen.get("uri") or ""), str(pending.get("areaName") or ""))
+        slot.clear(ctx.session_id)
+        if not isinstance(result, dict) or not result.get("success"):
+            message = str((result or {}).get("message") or "点歌失败，请再试一次。") if isinstance(result, dict) else "点歌失败"
+            return AgentChatResponse(
+                reply=message,
+                speak=True,
+                outcome="failed",
+                earcon="error",
+                provider="fast-path",
+                rounds=0,
+                timing={"llmMs": 0, "toolMs": 0, "totalMs": 0},
+                usage=_empty_usage(),
+            )
+        name = str(chosen.get("name") or "")
+        return AgentChatResponse(
+            reply=self._t(f"好的，正在播放{name}。", f"Playing {name}."),
+            speak=True,
+            outcome="success",
+            earcon="success",
+            provider="fast-path",
+            rounds=0,
+            timing={"llmMs": 0, "toolMs": 0, "totalMs": 0},
+            usage=_empty_usage(),
+        )
 
     async def _handle_memory_command(self, ctx: _ChatRunContext) -> AgentChatResponse | None:
         """处理「记住 / 忘记 / 纠正 / 清除记忆」口令；返回 None 表示继续走后续流程。"""
@@ -1200,6 +1419,37 @@ class AgentService:
             return self._stage_batch(ctx, [(tool_name, tool_args)], summary)
         tool_result = await self._call_tool(ctx, tool_name, tool_args)
         ctx.tool_ms = _now_ms() - s0
+        # 点歌多版本：不能只回一个空成功/失败 —— 用户看不到候选就没法说「第二个」。
+        # 候选已由 `_call_tool` 存进候选槽，这里把名字念出来。
+        if (
+            tool_name == "media_control"
+            and isinstance(tool_result, dict)
+            and str(tool_result.get("reason") or "") == "ambiguous"
+        ):
+            names = [
+                str(item.get("name") or "")
+                for item in (tool_result.get("candidates") or [])
+                if isinstance(item, dict) and str(item.get("name") or "").strip()
+            ]
+            reply = (
+                self._t(
+                    f"找到多首同名的，请说要第几个：{'、'.join(names)}。",
+                    f"Found several matches; say which one: {', '.join(names)}.",
+                )
+                if names
+                else str(tool_result.get("message") or "")
+            )
+            return AgentChatResponse(
+                reply=reply,
+                speak=True,
+                outcome="answer",
+                earcon=None,
+                provider="fast-path",
+                rounds=1,
+                tool_calls=ctx.tool_trace,
+                timing={"llmMs": 0, "toolMs": ctx.tool_ms, "totalMs": _now_ms() - ctx.start_ms},
+                usage=_empty_usage(),
+            )
         outcome = self._record_tool_result(ctx, tool_name, tool_args, tool_result)
         evidence = self._evidence_for(ctx, tool_name, tool_args, tool_result)
         ok = outcome.applied

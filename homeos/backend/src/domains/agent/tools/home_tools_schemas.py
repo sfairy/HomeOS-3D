@@ -407,20 +407,27 @@ def _insight_schemas() -> list[LlmToolSchema]:
     ]
 
 
+#: ``send_notification`` 的工具描述：字段多、解释长，单独定义避免在字典里做隐式字符串拼接。
+_SEND_NOTIFICATION_DESCRIPTION = (
+    "给家人或自己发一条通知（站内 + 已配置的 WebPush / 企微 / 邮件）。"
+    '当用户说"告诉爸妈我晚点到""发消息提醒大家关火""通知一下我在忙"时使用。'
+    "只能走系统已配置的通道，不能指定手机号或链接；只发一条，不要连续刷屏。"
+    '用户说"发到手机""发到我手机上"时用 target_scope=self；'
+    '明确点名（"发到妈妈手机上"）时把名字填进 target_recipient。'
+    "target_scope=all（全屋广播）仅管理员可用。"
+)
+
+
 def _business_schemas() -> list[LlmToolSchema]:
     """业务能力族：通知推送 / 待办清单 / 日历事件 / 偏好记忆。"""
     return [
         LlmToolSchema(
             name="send_notification",
-            description=(
-                "给家人或自己发一条通知（站内 + 已配置的 WebPush / 企微 / 邮件）。"
-                '当用户说"告诉爸妈我晚点到""发消息提醒大家关火""通知一下我在忙"时使用。'
-                "只能走系统已配置的通道，不能指定手机号或链接；只发一条，不要连续刷屏。"
-            ),
+            description=_SEND_NOTIFICATION_DESCRIPTION,
             parameters={
                 "type": "object",
                 "properties": {
-                    "message": {"type": "string", "description": "消息正文（1-500 字）"},
+                    "message": {"type": "string", "description": "消息正文（1-1500 字，超长会自动截断）"},
                     "title": {"type": "string", "description": "标题（可选，最多 120 字）"},
                     "level": {
                         "type": "string",
@@ -431,6 +438,15 @@ def _business_schemas() -> list[LlmToolSchema]:
                         "type": "array",
                         "items": {"type": "string", "enum": ["in_app", "socket", "webpush", "wecom", "email"]},
                         "description": "投递渠道子集；不填走通知中心默认通道",
+                    },
+                    "target_scope": {
+                        "type": "string",
+                        "enum": ["self", "all"],
+                        "description": "self=只推个人手机（默认）；all=全屋广播（仅管理员）",
+                    },
+                    "target_recipient": {
+                        "type": "string",
+                        "description": "点名的成员显示名或用户名（如「妈妈」）；不填时语音端用该音箱的默认接收人",
                     },
                 },
                 "required": ["message"],

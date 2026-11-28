@@ -20,10 +20,11 @@ from pydantic import BeforeValidator, ConfigDict
 
 from .router import NestRouter
 from .schemas.base import StrictModel as _StrictModel
-from ..dependencies import license_feature
+from ..dependencies import license_feature, owner_only_user
 from ..domains.alerts.channels import resolve_notification_fetch_limit
 from ..domains.license import features as feature_codes
-from ..platform.core.http.errors import api_error, forbidden
+from ..platform.core.db.models import User
+from ..platform.core.http.errors import BusinessException, ErrorCode, api_error, forbidden
 from ..platform.core.runtime.app_config import load_raw_config
 from ..platform.security.auth_context import get_current_user, require_user
 
@@ -154,9 +155,31 @@ async def get_notifications(
     request: Request,
     limit: str | None = Query(default=None),
     source: str | None = Query(default=None),
+    paged: str | None = Query(default=None),
+    before: str | None = Query(default=None),
+    after: str | None = Query(default=None),
     user: dict[str, Any] = Depends(get_current_user),
 ):
-    """获取通知列表（limit 受 frontend / notification 配置夹取）。"""
+    """获取通知列表。
+
+    - 不带 ``paged``：旧行为，按 ``limit`` 取最近若干条（受配置夹取）。
+    - ``paged=1``：键集分页，固定 20 条一页，返回 ``{items, nextBefore, hasMore}``。
+      ``before`` 取上一页的 ``nextBefore``；``after`` 只用于断线补拉。
+    """
+    trimmed = (source or "").strip() or None
+    if str(paged or "").strip() in ("1", "true", "yes"):
+        from ..domains.notification.cursor import InvalidCursor
+
+        try:
+            return await _service(request).get_notifications_page(
+                before=before,
+                after=after,
+                page_size=20,
+                source=trimmed,
+                restrictions=user.get("restrictions"),
+            )
+        except InvalidCursor as error:
+            raise BusinessException(ErrorCode.VALIDATION_FAILED, str(error)) from None
 
     def _load_config() -> dict[str, Any]:
         with request.app.state.database.session_factory() as session:
@@ -170,7 +193,6 @@ async def get_notifications(
         frontend if isinstance(frontend, dict) else {},
         notification if isinstance(notification, dict) else {},
     )
-    trimmed = (source or "").strip() or None
     return await _service(request).get_notifications(safe_limit, trimmed, user.get("restrictions"))
 
 
@@ -200,8 +222,9 @@ async def update_settings(
     payload: UpdateNotificationSettingsDto,
     request: Request,
     user: dict[str, Any] = Depends(require_user),
+    _owner: User = Depends(owner_only_user),
 ):
-    """更新免打扰时段与全屋通知开关。"""
+    """更新免打扰时段与全屋通知开关（系统级；与告警规则同一道 owner 门禁）。"""
     return await _service(request).update_settings(payload.model_dump(exclude_unset=True), user.get("userId"))
 
 
@@ -251,6 +274,7 @@ async def test_rule(
     payload: TestAlertRuleDto,
     request: Request,
     user: dict[str, Any] = Depends(require_user),
+    _owner: User = Depends(owner_only_user),
 ):
     """模拟测试告警条件（不会真正发通知）。"""
     return _service(request).test_condition(payload.condition or "", payload.state or "", payload.attributes)
@@ -261,6 +285,7 @@ async def create_rule(
     payload: CreateAlertRuleDto,
     request: Request,
     user: dict[str, Any] = Depends(require_user),
+    _owner: User = Depends(owner_only_user),
 ):
     """创建告警规则。"""
     return await _service(request).add_rule(payload.model_dump())
@@ -272,6 +297,7 @@ async def update_rule(
     payload: UpdateAlertRuleDto,
     request: Request,
     user: dict[str, Any] = Depends(require_user),
+    _owner: User = Depends(owner_only_user),
 ):
     """更新告警规则（部分字段；未提供的字段保持不变）。"""
     return await _service(request).update_rule(rule_id, payload.model_dump(exclude_unset=True))
@@ -282,6 +308,7 @@ async def delete_rule(
     rule_id: str,
     request: Request,
     user: dict[str, Any] = Depends(require_user),
+    _owner: User = Depends(owner_only_user),
 ):
     """删除告警规则。"""
     return await _service(request).delete_rule(rule_id)

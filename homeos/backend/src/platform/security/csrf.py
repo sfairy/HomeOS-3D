@@ -54,6 +54,13 @@ CSRF_SKIP_PATHS = frozenset(
         # Web Vitals 匿名上报：与 public-events 同源的页面，sendBeacon 不带 CSRF 头；
         # 路由自身做 Origin/Host 同源校验 + 匿名限流。
         "/api/v1/logs/public-metrics",
+        # 智能音箱的设备侧端点：音箱拿的是 Bearer 设备凭证，没有浏览器会话，
+        # 也就不会有 csrf_token Cookie。跨站伪造在这里没有价值 —— 没有凭证就调不动，
+        # 有凭证的攻击者本来就能直接调；CSRF 双提交只会把配对流程锁死。
+        "/api/v1/agent/voice-devices/pair",
+        "/api/v1/agent/voice-devices/renew",
+        "/api/v1/agent/voice-devices/unlink",
+        "/api/v1/agent/voice-chat",
     }
 )
 

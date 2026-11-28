@@ -159,6 +159,20 @@ class UserResponse(BaseModel):
     id: str
     username: str
     email: str | None = None
+    #: 账号角色（``ADMIN`` / ``MEMBER``）。单账号部署下恒为 ``ADMIN``。
+    role: str = "ADMIN"
+    #: 显示名；空时前端回退 ``username``。
+    displayName: str | None = None
+
+
+class PublicMemberResponse(BaseModel):
+    """成员摘要（``GET /auth/users``）：**不含**邮箱与任何凭据字段。"""
+
+    id: str
+    username: str
+    displayName: str | None = None
+    role: str = "ADMIN"
+    isActive: bool = True
 
 
 class SetupStatusResponse(BaseModel):
@@ -169,6 +183,7 @@ __all__ = [
     "LoginRequest",
     "PasswordChangeRequest",
     "PasswordResetRequest",
+    "PublicMemberResponse",
     "RegisterRequest",
     "SetupStatusResponse",
     "UserResponse",

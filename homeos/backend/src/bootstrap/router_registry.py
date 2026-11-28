@@ -50,6 +50,7 @@ from ..api.system.ops import router as system_ops_router
 from ..api.system.setup import router as system_setup_router
 from ..api.ui_config import router as ui_config_router
 from ..api.voice import router as voice_router
+from ..api.voice_device import router as voice_device_router
 from ..api.water import router as water_router
 from ..modules.interaction3d.api import router as interaction3d_router
 
@@ -95,6 +96,7 @@ def register_homeos_routers(app: FastAPI) -> None:
     app.include_router(system_setup_router, prefix=API_PREFIX)
     app.include_router(ui_config_router, prefix=API_PREFIX)
     app.include_router(voice_router, prefix=API_PREFIX)
+    app.include_router(voice_device_router, prefix=API_PREFIX)
     app.include_router(advisor_usage_router, prefix=API_PREFIX)
     app.include_router(ws_proxy_router, prefix=API_PREFIX)
     app.include_router(go2rtc_router, prefix=API_PREFIX)

@@ -311,6 +311,14 @@ body.interaction3d-stage {
 .interaction3d-stage .preview-card > :not(#preview-3d):not(#webgl-message) {
   display: none !important;
 }
+/* 视图操作提示 HUD（「左键拖动旋转 / 右键拖动平移 / 滚轮缩放」）只属于家居编辑器的
+   实时预览卡：舞台是只读交互图，没有拖拽编辑语义，提示只会压住画面。
+   上面的 `> :not(#preview-3d)` 管不到它（HUD 在 #preview-3d 内部），而 studio.css 用
+   `.studio-shell[data-editor-workspace] … > .preview-view-hud { display: flex }` 打开它，
+   优先级高于单类选择器，故这里用 !important 兜住。 */
+.interaction3d-stage .preview-view-hud {
+  display: none !important;
+}
 /* WebGL 初始化失败时必须让人看见。
    此前 #webgl-message 既没有独立样式，又被上面那条 display:none !important 一并隐藏，
    于是「建不出 3D 上下文」在真机上只表现为整块空白（App/WebView 尤其常见）。
@@ -815,8 +823,6 @@ html[data-glass-effect="static"] .interaction3d-stage .i3d-light-panel {
     #3a342c var(--hb-light-slider-progress, var(--progress-pct, 0%)),
     #3a342c 100%
   ) !important;
-}
-.interaction3d-stage .i3d-temperature input {
 }
 .interaction3d-stage :is(.i3d-slider input, input.i3d-control-range)::-webkit-slider-runnable-track {
   background: transparent !important;
@@ -3389,12 +3395,6 @@ html[data-glass-effect="static"] .interaction3d-stage .i3d-light-panel {
     #ddd2c0 var(--hb-light-slider-progress, var(--progress-pct, 0%)),
     #ddd2c0 100%
   ) !important;
-}
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-temperature input,
-.interaction3d-stage[data-scene-style="natural-wood"] .i3d-temperature input {
-}
-.interaction3d-stage[data-scene-style="warm-wood"] .hb-cover-details-position input,
-.interaction3d-stage[data-scene-style="natural-wood"] .hb-cover-details-position input {
 }
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel,
 .interaction3d-stage[data-scene-style="natural-wood"] .i3d-climate-panel {

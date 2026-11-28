@@ -170,7 +170,6 @@ class NotificationDispatchHelper:
         persisted_channels = [channel for channel in channels if channel != "tts"]
         # 只接受系统提醒写入的短指令；截断到 120 字，避免通知条目变成一大段可执行文本
         action_prompt = str(raw_prompt).strip()[:120] if raw_prompt else None
-        notification: dict[str, Any]
 
         notification = await self._build_notification(
             {
@@ -203,7 +202,13 @@ class NotificationDispatchHelper:
             logger.debug("免打扰期间延后外部投递: source=%s level=%s", source, level)
             return notification
 
-        self._send_external_notifications(channels, message, opts.get("title"), notification.get("id"))
+        self._send_external_notifications(
+            channels,
+            message,
+            opts.get("title"),
+            notification.get("id"),
+            opts.get("targetUserIds"),
+        )
         await self._announce(cfg, level, message, source, opts)
 
         return notification
@@ -387,7 +392,12 @@ class NotificationDispatchHelper:
             logger.debug("标记通知投递时间失败: %s", exc)
 
     def _send_external_notifications(
-        self, channels: list[str], message: str, title: str | None, notification_id: str | None = None
+        self,
+        channels: list[str],
+        message: str,
+        title: str | None,
+        notification_id: str | None = None,
+        user_ids: list[str] | None = None,
     ) -> None:
         if self._channels_service is None:
             return
@@ -405,7 +415,8 @@ class NotificationDispatchHelper:
             failed: list[str] = []
             for attempt in range(1, _EXTERNAL_MAX_ATTEMPTS + 1):
                 try:
-                    result = sender(pending, message, title)
+                    # 只有 WebPush 认 ``user_ids``（设备归属）；邮件 / 企微按通道广播。
+                    result = sender(pending, message, title, user_ids)
                     if inspect.isawaitable(result):
                         result = await result
                 except Exception as exc:

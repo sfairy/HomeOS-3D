@@ -25,9 +25,19 @@ NOTIFY_SOURCE = "agent-notify"
 #: 允许模型选择的渠道（与 ``alerts.channels.LAN_NOTIFICATION_CHANNELS`` 对齐的子集）
 ALLOWED_CHANNELS = frozenset({"in_app", "socket", "webpush", "wecom", "email"})
 
-#: 标题 / 正文长度上限（通知中心列表单行展示，超过会被前端截断，不如先收敛）
+#: 「发到手机」允许的渠道：站内（留一条可查的记录）+ 实时 + 手机推送。
+#: 邮件 / 企微是**群发**通道：用户说「发到我手机上」时把消息抄送全屋邮箱显然不对。
+PERSONAL_CHANNELS = frozenset({"in_app", "socket", "webpush"})
+DEFAULT_PERSONAL_CHANNELS = ("in_app", "webpush")
+
+#: 正文上限：与参考实现一致（1500 字）。超长**截断**而不是拒绝 ——
+#: 拒绝会逼模型把同一句话改短再发一遍（多一次推理，且常常改丢关键信息）。
+#: 通知中心的渠道正文上限也是 1500（``notification.dispatch.MAX_TEXT_CHARS``），两处同源。
+MAX_MESSAGE_CHARS = 1500
+#: 标题上限（通知中心列表单行展示）。
 MAX_TITLE_CHARS = 120
-MAX_MESSAGE_CHARS = 500
+#: 截断标记：与通知域 ``dispatch._TRUNCATED_SUFFIX`` 同一句话。
+TRUNCATED_SUFFIX = "…(内容过长，已截断)"
 
 #: 频控：每分钟条数 / 每天条数
 RATE_LIMIT_PER_MINUTE = 10
@@ -72,6 +82,8 @@ class HomeToolsNotifyMixin(HomeToolsHost):
 
     #: 进程内发射频控：主类 ``__init__`` 建实例，mixin 只声明类型
     _notify_limiter: Any = None
+    #: 音箱授权服务（装配层 ``bind_voice_devices`` 注入）：只用于「发到手机」收件人解析
+    _voice_devices: Any = None
 
     async def _send_notification(self, args: dict[str, Any], actor: Any = None) -> dict[str, Any]:
         """把一条消息推到通知中心与已配置的外部通道。
@@ -99,7 +111,23 @@ class HomeToolsNotifyMixin(HomeToolsHost):
             logger.warning("管家发消息被频控拦截: owner=%s", owner)
             return {"success": False, "blocked": True, "message": denied}
 
+        recipients, invalid_target = await self._resolve_notify_targets(args, actor)
+        if invalid_target is not None:
+            return invalid_target
+
+        # 「发到手机」必须先确认真的有一台设备可收：否则回「已提交」而实际什么都没送达，
+        # 用户会在手机上空等（参考实现在这里也是明确失败）。
+        if recipients:
+            device_error = self._push_device_error(notification, recipients)
+            if device_error is not None:
+                return device_error
+            # 个人推送不走外部群发通道（邮件 / 企微）：用户说的是「发到我手机上」。
+            # 模型显式给的渠道仍被尊重，只把群发类剔掉。
+            channels = [item for item in (channels or DEFAULT_PERSONAL_CHANNELS) if item in PERSONAL_CHANNELS]
+
         opts = _notify_opts(title, channels, args.get("bypass_dnd"))
+        if recipients:
+            opts["targetUserIds"] = recipients
         try:
             result = await notification.notify(level, message, NOTIFY_SOURCE, None, opts)
         except Exception as exc:  # pragma: no cover - 通知服务自身防御
@@ -109,6 +137,46 @@ class HomeToolsNotifyMixin(HomeToolsHost):
         self._notify_limiter.record(owner)
         return _notify_response(result, title)
 
+    async def _resolve_notify_targets(
+        self, args: dict[str, Any], actor: Any
+    ) -> tuple[list[str] | None, dict[str, Any] | None]:
+        """解析「发到手机」的收件人。
+
+        返回 ``(userIds, error)``：``error`` 非空时直接作为工具结果返回（明确告知原因，
+        而不是静默降级成广播）。
+
+        语义（与参考一致）：
+
+        - ``target_scope=all``：全屋广播，管理员才能用；不返回 userIds（走全局设备）。
+        - ``target_scope=self`` + 点名：按显示名 / 用户名精确匹配，再退到包含匹配；
+          0 命中或多命中都要报错，让用户自己说清楚。
+        - ``target_scope=self`` + 未点名：语音来源取该音箱的默认接收人；否则是发言人本人。
+        """
+        scope = str(args.get("target_scope") or "self").strip().lower()
+        if scope == "all":
+            if str(getattr(actor, "role", "") or "ADMIN").upper() != "ADMIN":
+                return None, {"success": False, "blocked": True, "message": "权限不足：仅管理员可向全屋广播。"}
+            return None, None
+        voice_devices = getattr(self, "_voice_devices", None)
+        if voice_devices is None:
+            return None, None
+        recipient = _s(args.get("target_recipient")).strip()
+        if recipient:
+            matched, error = voice_devices.find_member_by_name(recipient)
+            if error is not None or matched is None:
+                return None, {"success": False, "message": error or "未找到指定成员。"}
+            return [str(matched["id"])], None
+        grant_id = str(getattr(actor, "voice_grant_id", "") or "")
+        if grant_id:
+            resolved = voice_devices.resolve_notify_recipients(grant_id, getattr(actor, "user_id", None))
+            if not resolved.get("userIds"):
+                return None, {
+                    "success": False,
+                    "message": "当前音箱尚未配置默认推送接收人，请管理员在「设置 → 语音」为该音箱勾选，或在语音中直接说明发送给哪位成员。",
+                }
+            return list(resolved["userIds"]), None
+        return None, None
+
     def _notify_allowed(self, owner: str) -> str | None:
         """频控闸门：懒建限流器（精简装配可能跳过 __init__）。"""
         limiter = self._notify_limiter
@@ -116,6 +184,29 @@ class HomeToolsNotifyMixin(HomeToolsHost):
             limiter = _NotifyRateLimiter()
             self._notify_limiter = limiter
         return limiter.check(owner)
+
+    @staticmethod
+    def _push_device_error(notification: Any, user_ids: list[str]) -> dict[str, Any] | None:
+        """目标账号没有任何推送设备时给出明确失败；无法判断时放行（``-1``）。"""
+        counter = getattr(notification, "push_device_count", None)
+        if not callable(counter):
+            return None
+        try:
+            raw_count = counter(user_ids)
+        except Exception as exc:  # pragma: no cover - 通道自身防御
+            logger.debug("读取推送设备数失败，跳过检查: %s", exc)
+            return None
+        # ``counter`` 取自 getattr，静态类型只看到 ``object`` 返回；按契约只认整数，
+        # 其它类型一律当成「无法判断」放行，不把消息拦掉。
+        if not isinstance(raw_count, int):
+            return None
+        count = raw_count
+        if count < 0 or count > 0:
+            return None
+        return {
+            "success": False,
+            "message": "目标账号还没有绑定推送设备：请在手机浏览器打开 HomeOS 并在「通知」里允许推送后再试。",
+        }
 
 
 def _notify_channels(raw: Any) -> tuple[list[str] | None, str | None]:
@@ -134,8 +225,10 @@ def _notify_payload(args: dict[str, Any]) -> tuple[str, str, str, list[str] | No
     message = _s(args.get("message")).strip()
     if not message:
         return "", "", "", None, "消息内容不能为空"
+    # 超长截断而**不**报错：模型收到「太长」只会把同一段话压缩后再发一次，
+    # 既多一轮推理又常把关键信息压没。参考实现同样截断并回 `truncated` 标记。
     if len(message) > MAX_MESSAGE_CHARS:
-        return "", "", "", None, f"消息内容过长（最多 {MAX_MESSAGE_CHARS} 字），请精简后重试。"
+        message = message[: MAX_MESSAGE_CHARS - len(TRUNCATED_SUFFIX)] + TRUNCATED_SUFFIX
     title = _s(args.get("title")).strip()[:MAX_TITLE_CHARS]
     level = "warn" if _s(args.get("level")).strip().lower() == "warn" else "info"
     channels, invalid = _notify_channels(args.get("channels"))
@@ -175,8 +268,11 @@ def _notify_response(result: Any, title: str) -> dict[str, Any]:
 
 __all__ = [
     "ALLOWED_CHANNELS",
+    "DEFAULT_PERSONAL_CHANNELS",
     "MAX_MESSAGE_CHARS",
     "MAX_TITLE_CHARS",
     "NOTIFY_SOURCE",
+    "PERSONAL_CHANNELS",
+    "TRUNCATED_SUFFIX",
     "HomeToolsNotifyMixin",
 ]

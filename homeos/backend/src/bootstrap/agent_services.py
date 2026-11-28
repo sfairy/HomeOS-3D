@@ -42,7 +42,7 @@ async def build_agent_shared_state(
     agent_state_store = build_shared_store(startup.app_settings.data_dir, env=os.environ)
     app.state.agent_state_store = agent_state_store
 
-    # 会话记忆分两层：10 分钟长会话（内存 LRU + DB 持久化）+ 45s 短时滑窗（共享状态）
+    # 会话记忆分两层：10 分钟长会话（内存 LRU + DB 持久化）+ 90s 短时滑窗（共享状态）
     app.state.agent_sessions = AgentSessionStoreService(app.state.database.session_factory)
     app.state.agent_short_term = AgentShortTermMemoryService(agent_state_store)
     # 长期记忆：设备 / 房间别名与用户偏好

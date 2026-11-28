@@ -21,21 +21,17 @@ from .platform.security.viewer_scope import (
 )
 
 
-def authenticated_user(
-    request: Request, response: Response, database: DatabaseSession
-) -> User:
+def authenticated_user(request: Request, response: Response, database: DatabaseSession) -> User:
     user = resolve_session_user(request, response, database)
     if user is None:
         # 与 ``security.auth_context.get_current_user`` 走同一个 helper，保证两套鉴权依赖的
         # 未登录响应逐字段一致（``errorCode=UNAUTHORIZED``）。前端按 ``errorCode`` 分派
         # 「未登录 → 跳登录页」，同一个语义给两种码会让部分端点上的跳转悄悄失效。
-        unauthorized('登录状态已失效，请重新登录。')
+        unauthorized("登录状态已失效，请重新登录。")
     return user
 
 
-def authenticated_short_lived_user(
-    request: Request, response: Response
-) -> User:
+def authenticated_short_lived_user(request: Request, response: Response) -> User:
     """用独立短会话取一份脱离会话的用户快照。
 
     路由用 ``CurrentUser``（复用请求级会话，不为每个请求多开一条连接）；本函数只给
@@ -50,6 +46,37 @@ def authenticated_short_lived_user(
 CurrentUser = Annotated[User, Depends(authenticated_user)]
 
 
+#: 账号角色常量：与参考实现一致（``ADMIN`` / ``MEMBER``）。
+ROLE_ADMIN = "ADMIN"
+ROLE_MEMBER = "MEMBER"
+
+
+def owner_only_user(user: CurrentUser) -> User:
+    """仅管理员可访问（对齐参考 ``OwnerOnlyGuard``）。
+
+    判定依据是**库里的** ``users.role``，不是会话里缓存的快照：降级 / 停用账号必须立刻
+    失效，否则一个被改成 MEMBER 的会话在 TTL 内还能继续改系统级配置。
+
+    当前部署仍是单账号（注册即 ``ADMIN``），这道门禁等价于「登录 + 启用」，但把边界先
+    落到代码里：后续加成员时无需再改鉴权层。
+    """
+    role = str(getattr(user, "role", "") or ROLE_ADMIN).strip().upper()
+    if not bool(getattr(user, "is_active", True)):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "ACCOUNT_DISABLED", "message": "账号已停用，请联系管理员。"},
+        )
+    if role != ROLE_ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "OWNER_ONLY", "message": "仅管理员可访问"},
+        )
+    return user
+
+
+OwnerOnlyUser = Annotated[User, Depends(owner_only_user)]
+
+
 def _license_restricted(request: Request) -> HTTPException:
     """授权门禁统一的 403：``detail.code = LICENSE_RESTRICTED``。
 
@@ -61,9 +88,9 @@ def _license_restricted(request: Request) -> HTTPException:
     return HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
         detail={
-            'code': 'LICENSE_RESTRICTED',
-            'message': '当前授权状态不允许执行此操作。',
-            'licenseStatus': license_status['status'],
+            "code": "LICENSE_RESTRICTED",
+            "message": "当前授权状态不允许执行此操作。",
+            "licenseStatus": license_status["status"],
         },
     )
 
@@ -77,9 +104,7 @@ def licensed_user(request: Request, user: CurrentUser) -> User:
 LicensedUser = Annotated[User, Depends(licensed_user)]
 
 
-def licensed_cached_session(
-    request: Request, user: Annotated[dict, Depends(get_current_user)]
-) -> dict:
+def licensed_cached_session(request: Request, user: Annotated[dict, Depends(get_current_user)]) -> dict:
     """登录 + 授权门禁的轻量版：会话解析走 ``get_current_user`` 的短 TTL 缓存。
 
     只给「静态代码资源」这类高并发、不需要 ORM 用户实体的只读路由用：一个 3D 舞台
@@ -120,9 +145,7 @@ def license_feature(feature: str):
     return Depends(_dependency)
 
 
-def authenticated_short_lived_viewer(
-    request: Request, response: Response
-) -> ViewerPrincipal:
+def authenticated_short_lived_viewer(request: Request, response: Response) -> ViewerPrincipal:
     "返回已脱离会话的身份数据，以释放身份验证持有的数据库连接。"
     with request.app.state.database.session_factory() as database:
         viewer = authenticated_viewer(request, response, database)
@@ -143,9 +166,7 @@ LicensedViewer = Annotated[ViewerPrincipal, Depends(licensed_viewer)]
 ShortLivedCurrentViewer = Annotated[ViewerPrincipal, Depends(authenticated_short_lived_viewer)]
 
 
-def licensed_short_lived_viewer(
-    request: Request, viewer: ShortLivedCurrentViewer
-) -> ViewerPrincipal:
+def licensed_short_lived_viewer(request: Request, viewer: ShortLivedCurrentViewer) -> ViewerPrincipal:
     return licensed_viewer(request, viewer)
 
 
@@ -161,9 +182,7 @@ def require_viewer_project(viewer: ViewerPrincipal, project_id: str) -> None:
     return
 
 
-def viewer_entity_ids(
-    database: DatabaseSession, viewer: ViewerPrincipal
-) -> set[str] | None:
+def viewer_entity_ids(database: DatabaseSession, viewer: ViewerPrincipal) -> set[str] | None:
     """返回当前查看者可见的实体白名单。
 
     返回 ``None`` 表示不限制：登录会话与编辑器同权限，实体不做收敛。
@@ -187,7 +206,7 @@ def viewer_user_asset_ids(
 def viewer_asset_ids(
     database: DatabaseSession,
     viewer: ViewerPrincipal,
-    prefixes: tuple[str, ...] = ('user:', 'studio3d:', 'font:'),
+    prefixes: tuple[str, ...] = ("user:", "studio3d:", "font:"),
 ) -> set[str] | None:
     """查看者可见的可变素材白名单；``None`` 表示不限制（0.8.1 新增）。
 
@@ -208,12 +227,10 @@ def require_viewer_asset(
         return
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
-        detail='该图片不属于当前中控仪表盘。',
+        detail="该图片不属于当前中控仪表盘。",
     )
 
 
-def require_viewer_user_asset(
-    database: DatabaseSession, viewer: ViewerPrincipal, asset_id: str
-) -> None:
+def require_viewer_user_asset(database: DatabaseSession, viewer: ViewerPrincipal, asset_id: str) -> None:
     """校验查看者是否有权访问该素材；登录会话不做收敛。"""
     return

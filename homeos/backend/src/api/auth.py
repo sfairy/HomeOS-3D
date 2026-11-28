@@ -31,7 +31,7 @@ from .schemas.auth import (
     UserResponse,
     VerificationRequest,
 )
-from ..dependencies import CurrentUser, DatabaseSession, authenticated_user
+from ..dependencies import CurrentUser, DatabaseSession, authenticated_user, owner_only_user
 from ..domains.license.store import (
     StoreVerificationError,
     VerificationPurpose,
@@ -75,7 +75,13 @@ CSRF_MAX_AGE_MS = 30 * 24 * 3600 * 1000
 
 
 def public_user(user: User) -> UserResponse:
-    return UserResponse(id=user.id, username=user.username, email=user.email)
+    return UserResponse(
+        id=user.id,
+        username=user.username,
+        email=user.email,
+        role=str(getattr(user, "role", "") or "ADMIN"),
+        displayName=getattr(user, "display_name", None),
+    )
 
 
 def request_metadata(request: Request) -> tuple[str, str]:
@@ -689,3 +695,28 @@ def me(request: Request, response: Response, database: DatabaseSession) -> UserR
             error.headers = {"set-cookie": cleared.headers["set-cookie"]}
         raise
     return public_user(user)
+
+
+@router.get("/auth/users")
+def list_members(
+    request: Request,
+    _owner: User = Depends(owner_only_user),
+) -> list[dict[str, Any]]:
+    """成员摘要列表（仅管理员）。
+
+    只读端点：给「音箱默认推送接收人」这类选择器提供候选账号。**不返回**邮箱、口令哈希或
+    任何凭据字段；也不提供建号 / 改号 / 删号 —— 本轮仍是单账号部署，成员体系只落了
+    ``users.role`` 与门禁，界面与写操作等后续一期。
+    """
+    with request.app.state.database.session_factory() as session:
+        rows = session.scalars(select(User).order_by(User.created_at.asc())).all()
+        return [
+            {
+                "id": row.id,
+                "username": row.username,
+                "displayName": getattr(row, "display_name", None),
+                "role": str(getattr(row, "role", "") or "ADMIN"),
+                "isActive": bool(row.is_active),
+            }
+            for row in rows
+        ]

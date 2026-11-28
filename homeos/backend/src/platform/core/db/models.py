@@ -29,10 +29,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .database import Base
 
 # 设备倒计时表在独立模块：import 只为把表注册进 metadata（create_all 依赖它）。
-from .device_timer_model import DeviceTimer  # noqa: F401
+from .device_timer_model import DeviceTimer  # noqa: F401  # pyright: ignore[reportUnusedImport]
 from .log_base import LogBase
 from .model_mixins import AlertRuleStructuredMixin, AlertRuleTimingMixin, HomeModeExtraMixin
-from .water_usage_model import WaterUsageDaily  # noqa: F401
+from .water_usage_model import WaterUsageDaily  # noqa: F401  # pyright: ignore[reportUnusedImport]
 
 
 def utc_now() -> datetime:
@@ -66,6 +66,16 @@ class User(Base):
         "emailVerifiedAt", DateTime(timezone=True), nullable=True
     )
     password: Mapped[str] = mapped_column(String(512), nullable=False)
+    #: 账号角色：``ADMIN``（唯一管理员，可改系统级配置）/ ``MEMBER``（普通成员）。
+    #:
+    #: 当前仍是单账号部署（注册即管理员，没有建号入口），这一列只为把「谁能改系统级
+    #: 配置」这条边界先立起来：``dependencies.OwnerOnlyUser`` 按它判定，后续加成员时
+    #: 鉴权层零改动。老库由 12 号迁移补成 ``ADMIN``。
+    role: Mapped[str] = mapped_column(String(16), nullable=False, default="ADMIN", server_default="ADMIN")
+    #: 显示名（成员列表 / 推送收件人展示用）；空时回退 ``username``。
+    display_name: Mapped[str | None] = mapped_column("displayName", String(64), nullable=True)
+    #: 头像预设（无头像 UI 时恒为空；保留列以对齐参考实现的契约）。
+    avatar_preset: Mapped[str | None] = mapped_column("avatarPreset", String(32), nullable=True)
     #: 带 server_default，保证 ORM 建库与直接 INSERT 时的默认值一致。
     is_active: Mapped[bool] = mapped_column("isActive", Boolean, nullable=False, default=True, server_default=text("1"))
     preferences: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -240,6 +250,15 @@ class HomeMode(HomeModeExtraMixin, Base):
     sort_order: Mapped[int] = mapped_column("sortOrder", Integer, nullable=False, default=0)
     exclusive_group: Mapped[str | None] = mapped_column("exclusiveGroup", String(64), nullable=True, default="default")
     priority: Mapped[int] = mapped_column(Integer, nullable=False, default=50)
+    #: 自动回落分钟数（0 = 不回落）：「回家」这类过渡模式到期退回「日常」。
+    #:
+    #: 这条列由 10 号迁移补进老库，**但模型必须同步声明** —— 少声明一列时
+    #: ``HomeMode(**build_mode_row(...))`` 会因未知关键字参数直接 ``TypeError``，
+    #: 表现为「新建家庭模式」整条链路 500；``create_all`` 建出的新库也会缺这一列，
+    #: 而 ``getattr(mode, "settle_minutes", 0)`` 永远读到 0（自动回落静默失效）。
+    settle_minutes: Mapped[int] = mapped_column(
+        "settleMinutes", Integer, nullable=False, default=0, server_default=text("0")
+    )
     created_at: Mapped[datetime] = mapped_column("createdAt", DateTime, nullable=False, default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(
         "updatedAt", DateTime, nullable=False, default=utc_now, onupdate=utc_now
@@ -281,19 +300,79 @@ class AwayPatternBucket(Base):
 
 
 class WebPushSubscription(Base):
+    """WebPush 订阅设备。
+
+    ``user_id`` 是本轮新增的归属列：设备订阅记在「谁在手机上开的推送」名下，
+    ``send_notification`` 的「发到手机上」才能只推目标账号的设备。历史行没有归属
+    （NULL）→ 推送时按「无归属即全局」回退全量，保证老数据不丢推送。
+    """
+
     __tablename__ = "web_push_subscriptions"
-    __table_args__ = (Index("web_push_subscriptions_createdAt_idx", "createdAt"),)
+    __table_args__ = (
+        Index("web_push_subscriptions_createdAt_idx", "createdAt"),
+        Index("web_push_subscriptions_userId_idx", "userId"),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
     endpoint: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
     p256dh: Mapped[str] = mapped_column(Text, nullable=False)
     auth: Mapped[str] = mapped_column(Text, nullable=False)
+    #: 订阅归属账号；NULL = 老数据 / 未登录注册，推送时视作全局设备。
+    user_id: Mapped[str | None] = mapped_column("userId", ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     user_agent: Mapped[str | None] = mapped_column("userAgent", Text, nullable=True)
     label: Mapped[str | None] = mapped_column(String(128), nullable=True)
     created_at: Mapped[datetime] = mapped_column("createdAt", DateTime, nullable=False, default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(
         "updatedAt", DateTime, nullable=False, default=utc_now, onupdate=utc_now
     )
+
+
+class VoiceDeviceGrant(Base):
+    """智能音箱配对授权（对齐参考 ``VoiceDeviceGrant``）。
+
+    生命周期：管理端生成一次性**配对码**（10 分钟）→ 音箱用它换**设备凭证**
+    （长期，落 ``credential_hash``）→ 每次对话前用凭证换 15 分钟的**访问令牌**
+    （``access_hash`` + ``access_expires``）。三把凭据都只存 sha256，库泄露也拿不到明文。
+
+    ``pairing_hash`` 在配对成功后被清空（置 NULL），所以它不能是 UNIQUE 约束的一部分
+    宽限 —— 用**部分唯一索引**（``WHERE pairingHash IS NOT NULL``）表达「同一时刻只有
+    一支未消费的配对码」，NULL 行彼此不冲突。
+    """
+
+    __tablename__ = "voice_device_grants"
+    __table_args__ = (
+        Index(
+            "voice_device_grants_pairing_uq",
+            "pairingHash",
+            unique=True,
+            sqlite_where=text("pairingHash IS NOT NULL"),
+        ),
+        Index("voice_device_grants_member_idx", "memberId"),
+        Index("voice_device_grants_device_idx", "voiceGatewayId", "voiceDeviceId"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    #: 音箱代言的账号（当前部署恒为管理员本人）。
+    member_id: Mapped[str] = mapped_column("memberId", ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    #: 未消费配对码的 sha256；配对成功后置 NULL。
+    pairing_hash: Mapped[str | None] = mapped_column("pairingHash", String(64), nullable=True)
+    pairing_expires: Mapped[datetime | None] = mapped_column("pairingExpires", DateTime, nullable=True)
+    #: 设备凭证的 sha256（长期，只有 renew 时校验）。
+    credential_hash: Mapped[str | None] = mapped_column("credentialHash", String(64), nullable=True)
+    #: 访问令牌的 sha256（15 分钟）。
+    access_hash: Mapped[str | None] = mapped_column("accessHash", String(64), nullable=True)
+    access_expires: Mapped[datetime | None] = mapped_column("accessExpires", DateTime, nullable=True)
+    voice_gateway_id: Mapped[str | None] = mapped_column("voiceGatewayId", String(96), nullable=True)
+    voice_device_id: Mapped[str | None] = mapped_column("voiceDeviceId", String(96), nullable=True)
+    #: 是否允许这台音箱通过语音添加唤醒词（默认关闭，需管理端逐台打开）。
+    allow_voice_wake_word_add: Mapped[bool] = mapped_column(
+        "allowVoiceWakeWordAdd", Boolean, nullable=False, default=False, server_default=text("0")
+    )
+    #: 「发到手机」未点名时的默认接收人（JSON 字符串数组；空 = 发言人本人）。
+    notify_member_ids: Mapped[str | None] = mapped_column("notifyMemberIds", Text, nullable=True)
+    last_used_at: Mapped[datetime | None] = mapped_column("lastUsedAt", DateTime, nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column("revokedAt", DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column("createdAt", DateTime, nullable=False, default=utc_now)
 
 
 class EventLog(LogBase):

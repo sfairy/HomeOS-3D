@@ -4,11 +4,13 @@
 ``settings.cookie_name`` 携带不透明令牌，落库形态为其 sha256，因而会话**可服务端吊销**，
 并自带滑动续期。
 
-**无角色维度**：HomeOS 是单一管理员模型 —— 注册即唯一账号，库里不存在非管理员用户
-（也没有创建其他账号的入口，见 ``api/auth.py``）。因此这里只提供「是否已登录」这一种
-判定，没有角色守卫；授权边界落在「登录会话 + 授权许可（license）」两层上。
+**角色维度只在「管理员」这一侧**：HomeOS 仍是单账号部署 —— 注册即唯一账号，``users.role``
+恒为 ``ADMIN``，库里不存在非管理员用户（也没有创建成员的入口，见 ``api/auth.py``）。
+因此本模块只提供「是否已登录」判定；「只有管理员能改系统级配置」这条边界由
+``dependencies.owner_only_user`` 按库里的 ``role`` 判定（先落地，后续加成员时零改动）。
+授权边界仍落在「登录会话 + 授权许可（license）」两层上。
 
-返回字典形状（``userId`` / ``username`` / ``restrictions``）保持稳定，使业务路由调用点零改动。
+返回字典形状（``userId`` / ``username`` / ``role`` / ``restrictions``）保持稳定，使业务路由调用点零改动。
 """
 
 from __future__ import annotations
@@ -131,10 +133,14 @@ def _user_from_db(user: Any) -> dict[str, Any]:
     """把 ORM ``User`` 归一成守卫链使用的用户字典。
 
     ``mfa`` 恒记 ``True``：DB 会话只在完整登录之后才签发，会话本身即代表已通过登录校验。
+    ``role`` / ``displayName`` 供「仅管理员」门禁与推送收件人展示使用；缺省按管理员处理
+    （老库/备份导入的行在 12 号迁移里已回填 ``ADMIN``）。
     """
     return {
         "userId": user.id,
         "username": user.username,
+        "role": str(getattr(user, "role", "") or "ADMIN"),
+        "displayName": getattr(user, "display_name", None),
         "restrictions": resolve_restrictions(getattr(user, "preferences", None)),
         "mfa": True,
         "notificationPrefs": {},

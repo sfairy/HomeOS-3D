@@ -302,6 +302,33 @@ class HomeToolsAutomationMixin(HomeToolsHost):
         )
 
     # 计划任务
+    def _scheduled_climate_error(self, action_args: dict[str, Any]) -> str | None:
+        """计划任务的空调能力校验（复用直控链路那份实现）。
+
+        ``_climate_command_error`` 定义在实体族 mixin 上，这里只在 ``devices`` 动作上调用；
+        非 climate / water_heater 域它会直接返回 ``None``，所以无需先判域。
+        """
+        checker = getattr(self, "_climate_command_error", None)
+        if not callable(checker):
+            return None
+        entity_id = _s(action_args.get("entity_id")).strip()
+        service = _s(action_args.get("service")).strip()
+        if not entity_id or not service:
+            return None
+        data = action_args.get("service_data")
+        try:
+            error = checker(
+                entity_id,
+                entity_id.split(".", 1)[0],
+                service,
+                data if isinstance(data, dict) else None,
+            )
+        except Exception as exc:  # pragma: no cover - 校验器自身异常不该拦住建任务
+            logger.debug("计划任务空调能力校验失败: %s", exc)
+            return None
+        # ``checker`` 取自 getattr，静态类型只能看到 object；按校验器契约只认 str。
+        return error if isinstance(error, str) else None
+
     async def _schedule_task(self, args: dict[str, Any], actor: Any = None) -> dict[str, Any]:
         scheduler = self._scheduler
         if scheduler is None:
@@ -312,6 +339,12 @@ class HomeToolsAutomationMixin(HomeToolsHost):
         action_tool, action_args, precondition, error = _scheduled_action(args)
         if error is not None:
             return error
+        # 与直控链路同一份能力校验：温度越界 / 模式不支持的空调任务建了也执行不了，
+        # 与其到点才发现（还会被记成一次失败执行），不如在创建时就拒掉。
+        if action_tool == "control_device":
+            climate_error = self._scheduled_climate_error(action_args)
+            if climate_error is not None:
+                return {"error": f"能力校验未通过：{climate_error}", "success": False, "blocked": True}
         payload = {
             "name": _s(args.get("name")).strip(),
             "scheduleType": _s(args.get("schedule_type")).strip().upper() or "ONCE",

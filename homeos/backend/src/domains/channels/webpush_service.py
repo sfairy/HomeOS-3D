@@ -336,6 +336,8 @@ class PushSubscription:
     user_agent: str | None = None
     label: str | None = None
     id: str | None = None
+    #: 订阅归属账号；``None`` = 历史行 / 未登录注册，推送时按「全局设备」处理。
+    user_id: str | None = None
     created_at: datetime | None = None
 
     def to_public(self) -> dict[str, Any]:
@@ -345,6 +347,7 @@ class PushSubscription:
             "endpoint": self.endpoint,
             "label": self.label,
             "userAgent": self.user_agent,
+            "userId": self.user_id,
             "createdAt": self.created_at.isoformat() if self.created_at else None,
         }
 
@@ -475,6 +478,7 @@ class WebPushService:
                     user_agent=row.user_agent,
                     label=row.label,
                     id=row.id,
+                    user_id=getattr(row, "user_id", None),
                     created_at=row.created_at,
                 )
             loaded = len(self._subscriptions)
@@ -513,20 +517,52 @@ class WebPushService:
     def list_subscriptions(self) -> list[dict[str, Any]]:
         return [sub.to_public() for sub in self._subscriptions.values()]
 
+    def count_for_users(self, user_ids: list[str] | None = None) -> int:
+        """可投递的订阅数（按账号过滤；无归属的历史行计入）。
+
+        ``user_ids`` 为空时返回全部订阅数。历史行（``user_id`` 为空）计入，是因为
+        ``send_text(user_ids=…)`` 也会推它们 —— 判断「有没有手机可收」必须与投递口径一致，
+        否则会出现「说有设备、实际推不到」或反之。
+        """
+        if not self._enabled:
+            return 0
+        if not user_ids:
+            return len(self._subscriptions)
+        wanted = {str(item) for item in user_ids if str(item or "").strip()}
+        if not wanted:
+            return len(self._subscriptions)
+        return sum(
+            1
+            for sub in self._subscriptions.values()
+            if sub.user_id in wanted or not sub.user_id
+        )
+
     async def register_subscription(
         self,
         endpoint: str,
         keys: dict[str, Any] | None,
         user_agent: str | None = None,
         label: str | None = None,
+        user_id: str | None = None,
     ) -> None:
-        """注册订阅：endpoint/keys 校验 → 内存缓存 → DB upsert。"""
+        """注册订阅：endpoint/keys 校验 → 内存缓存 → DB upsert。
+
+        ``user_id`` 是订阅归属：同一台手机换账号登录时，endpoint 不变但归属要跟着改，
+        否则「发到手机上」会把消息推到上一个账号名下（设备其实是同一台）。
+        """
         p256dh = str((keys or {}).get("p256dh") or "")
         auth = str((keys or {}).get("auth") or "")
         if not is_safe_webpush_endpoint(endpoint) or not _valid_webpush_keys(p256dh, auth):
             bad_request(api_error("CHANNEL_WEBPUSH_ENDPOINT_INVALID"))
 
-        subscription = PushSubscription(endpoint=endpoint, p256dh=p256dh, auth=auth, user_agent=user_agent, label=label)
+        subscription = PushSubscription(
+            endpoint=endpoint,
+            p256dh=p256dh,
+            auth=auth,
+            user_agent=user_agent,
+            label=label,
+            user_id=user_id,
+        )
         self._subscriptions[endpoint] = subscription
         try:
             row = await asyncio.to_thread(self._upsert_row, subscription)
@@ -550,6 +586,7 @@ class WebPushService:
                     auth=subscription.auth,
                     user_agent=subscription.user_agent,
                     label=subscription.label,
+                    user_id=subscription.user_id,
                 )
                 session.add(existing)
             else:
@@ -557,6 +594,7 @@ class WebPushService:
                 existing.auth = subscription.auth
                 existing.user_agent = subscription.user_agent
                 existing.label = subscription.label
+                existing.user_id = subscription.user_id
                 existing.updated_at = datetime.now(UTC)
             session.commit()
             session.refresh(existing)
@@ -581,8 +619,18 @@ class WebPushService:
     def on_message(self, handler: MessageHandler) -> None:
         self._message_handler = handler
 
-    async def send_text(self, to: str | int, text: str, title: str | None = None) -> dict[str, int]:
+    async def send_text(
+        self,
+        to: str | int,
+        text: str,
+        title: str | None = None,
+        user_ids: list[str] | None = None,
+    ) -> dict[str, int]:
         """发送文本推送；``to`` 为空表示广播给全部订阅者。
+
+        ``user_ids`` 非空时只推这些账号的设备（「发到手机上」的精准投递）。过滤规则：
+        订阅归属命中 → 推；历史行（``user_id`` 为空）→ **只在没有任何命中时**作为兜底
+        全量推，避免老订阅在升级后彻底收不到消息。
 
         返回 ``{"attempted": n, "delivered": m}``：调用方据此判断「是否真的送达」，
         而不再把「没有抛异常」当作投递成功。
@@ -598,6 +646,16 @@ class WebPushService:
                 logger.warning("未找到 endpoint: %s", to)
                 return {"attempted": 0, "delivered": 0}
             targets.append(sub)
+        elif user_ids:
+            wanted = {str(item) for item in user_ids if str(item or "").strip()}
+            # 归属命中 + 历史行（`user_id` 为空）一起推：历史行来自本功能上线前注册的
+            # 设备，单账号部署下它们就是同一个人的手机。**只在有命中时才带上历史行**会让
+            # 那台没再打开过的浏览器永久收不到推送；而多推一次最多收到一个 410 并自动清理。
+            targets.extend(
+                sub
+                for sub in self._subscriptions.values()
+                if sub.user_id in wanted or not sub.user_id
+            )
         else:
             targets.extend(self._subscriptions.values())
 

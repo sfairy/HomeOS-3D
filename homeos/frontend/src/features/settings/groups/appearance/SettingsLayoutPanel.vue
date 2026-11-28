@@ -46,9 +46,3 @@ watch(
   { immediate: true },
 )
 </script>
-
-<style>
-/* ── Layout 面板主题色 RGB 派生：violet 主色 + cyan 子色 ── */
-.layout-hub {
-}
-</style>

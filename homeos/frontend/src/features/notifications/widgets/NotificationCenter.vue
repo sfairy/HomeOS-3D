@@ -147,7 +147,7 @@
       </template>
     </VirtualList>
 
-    <footer v-if="page && authStore.isAuthenticated && totalPages > 1" class="nc-pager">
+    <footer v-if="page && authStore.isAuthenticated" class="nc-pager">
       <button
         type="button"
         class="list-page__btn"
@@ -166,6 +166,18 @@
         @click="nextPage"
       >
         下一页
+      </button>
+      <!--
+        「加载更多」把服务端的下一页追加进本地列表（键集游标）。
+        它与上面的翻页互补：翻页只切已加载的数据，加载更多才真正向后端要更早的记录。
+      -->
+      <button
+        type="button"
+        class="list-page__btn"
+        :disabled="moreLoading || remoteLoading || (loadedMoreOnce && !canLoadMore)"
+        @click="onLoadMore"
+      >
+        {{ moreLoading ? '加载中…' : '加载更多' }}
       </button>
     </footer>
 
@@ -208,7 +220,7 @@
  *  - @homeos/shared: 通知来源标签
  *  - @/composables/ui/hub-viewport.internals: 固定页码分页
  */
-import { computed, inject, watch } from 'vue'
+import { computed, inject, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import ApiQueryState from '@/kernel/ui/ApiQueryState.vue'
 import VirtualList from '@/kernel/ui/primitives/VirtualList.vue'
@@ -254,6 +266,9 @@ const {
   markAllRead,
   clearAll,
   fetchRemote,
+  loadMore,
+  hasMore,
+  loadingMore,
   levelIcon,
   levelColor,
   resolveNotificationLink,
@@ -269,6 +284,21 @@ const unreadCount = computed(() => {
   return typeof unreadCountRaw === 'number' ? unreadCountRaw : (unreadCountRaw.value ?? 0)
 })
 
+/**
+ * 分页相关的值同样可能是 ref（inject / HMR / 直接组合式调用三种来源）。
+ * 模板里直接绑定裸 ref 会渲染成 `[object Object]`，所以统一在这里取 `.value`。
+ * 本文件是 JS 脚本（不含 lang="ts"），这里不使用泛型与类型断言。
+ */
+function unwrapRef(source, fallback) {
+  if (source && typeof source === 'object' && 'value' in source) {
+    const value = source.value
+    return value ?? fallback
+  }
+  return source ?? fallback
+}
+const canLoadMore = computed(() => Boolean(unwrapRef(hasMore, false)))
+const moreLoading = computed(() => Boolean(unwrapRef(loadingMore, false)))
+
 const notificationCount = computed(() => displayNotifications.value.length)
 
 const { currentPage, totalPages, canPrev, canNext, prevPage, nextPage, resetPage, sliceItems } = useFixedPagePagination(
@@ -282,6 +312,20 @@ const pagedNotifications = computed(() => {
   const list = displayNotifications.value
   return props.page ? sliceItems(list) : list
 })
+
+/**
+ * 「加载更多」是否已用过一次。
+ *
+ * 首次点之前 `hasMore` 还是 `false`（没问过后端，不能当作「没有更多」），所以按钮要可点；
+ * 问过之后才按 `hasMore` 决定禁用。
+ */
+const loadedMoreOnce = ref(false)
+
+async function onLoadMore() {
+  if (typeof loadMore !== 'function') return
+  await loadMore()
+  loadedMoreOnce.value = true
+}
 
 watch(activeSource, () => {
   if (props.page) resetPage()

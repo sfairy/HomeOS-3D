@@ -79,7 +79,9 @@ TOOL_DESCRIPTIONS_EN: dict[str, str] = {
         "Send a notification to family or yourself through the in-app center plus any "
         'configured WebPush / WeCom / email channels. Use for "tell my parents I\'ll be late" '
         'or "remind everyone to turn off the stove". Only configured channels are used; '
-        "never send more than one message for the same request."
+        "never send more than one message for the same request. Use target_scope=self for "
+        '"send it to my phone" and fill target_recipient when a member is named; '
+        "target_scope=all is a household broadcast available to admins only."
     ),
     "manage_todo": (
         "Manage todo / shopping lists: list, add, complete, remove items or clear completed "

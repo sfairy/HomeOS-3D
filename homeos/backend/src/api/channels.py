@@ -21,7 +21,7 @@ from fastapi import Depends, Query, Request
 from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict
 
-from ..dependencies import license_feature
+from ..dependencies import license_feature, owner_only_user
 from ..domains.channels.wecom_crypto import compute_msg_signature, decrypt_wecom, sha1
 from ..domains.license import features as feature_codes
 from ..platform.core.http.errors import BusinessException, ErrorCode
@@ -133,6 +133,8 @@ async def subscribe(
         keys=dto.keys if isinstance(dto.keys, dict) else {},
         user_agent=user_agent if isinstance(user_agent, str) else None,
         label=dto.label if isinstance(dto.label, str) else None,
+        # 归属当前登录账号：「发到手机」才能只推这个人的设备。
+        user_id=str(_user.get("userId") or "") or None,
     )
     return {"ok": True}
 
@@ -156,6 +158,7 @@ async def test_channel(
     dto: ChannelTestDto,
     request: Request,
     _user: dict[str, Any] = Depends(require_user),
+    _owner: Any = Depends(owner_only_user),
 ):
     """发送一条测试消息（Email / WebPush / 企业微信）。
 
@@ -173,9 +176,11 @@ async def test_channel(
 
 
 @router.post("/webpush/test")
-async def test_push(    request: Request,
+async def test_push(
+    request: Request,
     dto: WebPushTestDto | None = None,
     _user: dict[str, Any] = Depends(require_user),
+    _owner: Any = Depends(owner_only_user),
 ):
     """发送 WebPush 测试通知；指定 endpoint 则单设备推送，否则全部订阅者。"""
     target = dto.endpoint if dto and isinstance(dto.endpoint, str) else None

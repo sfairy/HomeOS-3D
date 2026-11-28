@@ -365,6 +365,39 @@ bfcache 交接在 `shared/utils/page-cache-lifecycle.ts`：`pagehide(persisted)`
 | `domains/agent/runtime/fast_path*` | 只做确定性解析；有任何画像 / 多候选疑义就返回 `None` 交给 LLM | 快路径宁可不答，也不能猜错设备 |
 | `domains/agent/learning/` | 别名 / 房间默认按 `household` 共享，偏好按 `user:{id}` 隔离 | 设备叫法是一家人的常识，偏好是个人习惯 |
 
+### 4.2 语音终端接入
+
+这里的「终端」是**能主动发 HTTP 请求的设备**（ESP32 / 自研网关 / 树莓派）。
+小米、天猫、HomePod 这类成品音箱**不适用**：它们只连厂商云，没有「把语音转发给自有服务器」
+的接口。成品音箱仍然能当播报喇叭（「设置 → 语音 → 播报输出」选 media_player），那是另一条链路。
+
+终端用**设备凭证**调用 `/agent/voice-chat`，不走登录 Cookie（终端上没有浏览器会话）：
+
+```
+管理端「设置 → 语音 → 语音终端」生成配对码（10 分钟，一次性）
+  → 终端 POST /api/v1/agent/voice-devices/pair      {pairingCode, voiceGatewayId, voiceDeviceId}
+  → 终端 POST /api/v1/agent/voice-devices/renew     {deviceCredential} → 15 分钟 accessToken
+  → 终端 POST /api/v1/agent/voice-chat              Authorization: Bearer <accessToken>
+```
+
+没有硬件时可用面板里的「本机模拟配对（调试）」按钮：它用 `gw-local-test` / `spk-local-test`
+调一次真实的 `pair`，验证「发码 → 换凭证 → 列表出现 → 吊销」整条链路（创建的是**真实**授权，
+测完点吊销即可）。
+
+| 语义 | 落点 |
+| --- | --- |
+| 三把凭据（配对码 / 设备凭证 / 访问令牌）只存 sha256 | `domains/voice_device/service.py` |
+| 配对码一次性、过期整行删除、同设备重配对即吊销旧凭证 | 同上（条件更新 + 同设备互斥） |
+| 唤醒词真源在语音网关，本地只镜像；写入带 `expectedVersion` CAS | `domains/voice_device/wake_words.py` |
+| 「允许语音添加唤醒词」逐台开关；加词是**追加**不是替换 | `wake_word_flow.py` |
+| 「退下 / 结束对话 / 晚安」→ `terminalActions: [end_conversation]` | `domains/agent/runtime/service.py` |
+| 「发到手机」按终端默认接收人 / 点名，只推该账号的 WebPush 设备 | `home_tools_notify.py` + `webpush_service.send_text(user_ids=…)` |
+
+网关未配置时唤醒词只在「语音交互 → 唤醒词」本地保存，配对与对话不受影响。变量见 `.env.example` 的 G 段。
+
+`/api/v1/agent/voice-devices/pair|renew|unlink` 与 `/agent/voice-chat` 在 CSRF 豁免表里（`platform/security/csrf.py`）：
+它们用 Bearer 凭证鉴权，双提交校验只会把配对流程锁死。
+
 ## 5. 3D Studio 与模型库
 
 创作页与展示页共用 `buildStudioScene`。根应用只 `import '@/studio'`，不直达 `@app/*` / `@runtime/*`（`check:deps` 守）。

@@ -8,7 +8,7 @@ import {
 } from '@/kernel/core/local-storage'
 
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { disposeDerivedWorker } from '@/workers/entity-derived-bridge'
 import {
   changePassword as apiChangePassword,
@@ -55,6 +55,14 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref<string | null>(readLocalStorage('auth_user') || null)
   const restrictions = ref<string[]>(loadRestrictions())
   const isAuthenticated = ref(false)
+  /**
+   * 账号角色：单账号部署下恒为 ADMIN。只暴露给需要「仅管理员」判定的入口
+   * （如设置页的系统级面板），**本轮不据此隐藏任何现有面板** —— 没有成员时隐藏
+   * 只会让唯一的管理员把自己锁在外面。
+   */
+  const role = ref<string>('ADMIN')
+  /** 是否管理员；角色缺省（老接口 / 老缓存）按 ADMIN 处理，避免误把管理员降权。 */
+  const isOwner = computed(() => String(role.value || 'ADMIN').toUpperCase() === 'ADMIN')
 
   /**
    * 设置当前登录用户并同步到 localStorage
@@ -68,6 +76,7 @@ export const useAuthStore = defineStore('auth', () => {
       removeLocalStorage('auth_user')
       removeLocalStorage('auth_restrictions')
       restrictions.value = []
+      role.value = 'ADMIN'
     }
   }
 
@@ -104,6 +113,8 @@ export const useAuthStore = defineStore('auth', () => {
   function syncAuthFromResponse(data: AuthUserPayload | null | undefined): void {
     if (!data) return
     if (data.username) setUser(data.username)
+    // 角色缺省按 ADMIN：老接口没有该字段，老缓存里也没有 —— 猜成 MEMBER 会把唯一管理员降权。
+    role.value = String(data.role || 'ADMIN').toUpperCase()
     if (Array.isArray(data.restrictions)) setRestrictions(data.restrictions)
     // 未携带 restrictions 时重置为默认权限集（空数组）：空集放行全部。
     // 避免上一会话的 restrictions 残留导致 isEntityAllowed 按旧权限放行。
@@ -391,6 +402,8 @@ export const useAuthStore = defineStore('auth', () => {
     user,
     restrictions,
     isAuthenticated,
+    role,
+    isOwner,
     login,
     logout,
     getSetupStatus,

@@ -108,9 +108,3 @@ const { openSection, floatingCatalogGroups, toggleFloatingVisible } = useFloatin
 // AFH 编辑器是否锁定（默认锁定）
 const isAfhLocked = computed(() => layoutConfig.value.isAfhLocked !== false)
 </script>
-
-<style>
-/* ── Floating 面板主题色 RGB 派生：violet 主色 + cyan 子色 ── */
-.floating-hub {
-}
-</style>

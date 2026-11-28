@@ -102,9 +102,3 @@ const {
   toggleQuickButton,
 } = useQuickButtonConfig(widgetConfig)
 </script>
-
-<style>
-/* ── Widgets 面板主题色 RGB 派生：violet 主色 + cyan 子色 ── */
-.widgets-hub {
-}
-</style>

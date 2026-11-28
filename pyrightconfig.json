@@ -61,7 +61,19 @@
       // 顺序即解析顺序：`src` 包在两个后端同名，ops 下的测试只有主应用那份才含
       // `domains.*`（商店侧 src 只有 api/commerce/core/licensing），所以主应用放前面，
       // 商店侧留作兜底。两边都没有静态 `src.*` 导入，不会互相“接住”写错的导入。
-      "extraPaths": [".", "homeos/backend", "homeos-store/backend", "packages/shared-py"]
+      //
+      // 末尾两条对应 `ops/lib/py.mjs` 在运行期注入的 PYTHONPATH：自检脚本按
+      // `from _selftest_support import ...` / `import _bootstrap` 这种裸模块名导入，
+      // 静态分析看不到那一步 sys.path 注入。放在最后，不影响上面 `src` 包的先后关系；
+      // 这两个目录只有自检脚本与 `_` 前缀的辅助模块，不会遮蔽任何真实依赖。
+      "extraPaths": [
+        ".",
+        "homeos/backend",
+        "homeos-store/backend",
+        "packages/shared-py",
+        "ops/checks",
+        "ops/checks/business"
+      ]
     },
     {
       // 兜底环境：两个后端源码与 packages/** 都落在这里（上面那条只覆盖 ops）。

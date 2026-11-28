@@ -94,6 +94,8 @@
         "
       />
 
+      <SettingsVoiceSpeakersSection v-if="voiceSection === 'speakers'" />
+
       <SettingsVoiceSttSection
         v-if="voiceSection === 'input'"
         v-model:voice="voice"
@@ -136,6 +138,7 @@ import SettingsVoiceOverviewSection from '@/features/settings/groups/perception/
 import SettingsVoiceTtsSection from '@/features/settings/groups/perception/voice/SettingsVoiceTtsSection.vue'
 import SettingsVoiceSttSection from '@/features/settings/groups/perception/voice/SettingsVoiceSttSection.vue'
 import SettingsVoiceCommandsSection from '@/features/settings/groups/perception/voice/SettingsVoiceCommandsSection.vue'
+import SettingsVoiceSpeakersSection from '@/features/settings/groups/perception/voice/SettingsVoiceSpeakersSection.vue'
 import { useEntitiesStore } from '@/domain/entity/store/entities.store'
 import { getEntityDisplayName, domainIndexToArray } from '@/domain/entity/derived'
 import { useChromeStore } from '@/kernel/ui/chrome/chrome-store'
@@ -334,6 +337,7 @@ const voiceSubnavSections = computed(() => [
   { id: 'overview', label: '概览', emoji: '📋' },
   { id: 'output', label: '播报输出', emoji: '🔊' },
   { id: 'input', label: '语音交互', emoji: '🎙️' },
+  { id: 'speakers', label: '语音终端', emoji: '🔉' },
   { id: 'commands', label: '命令映射', emoji: '⌨️' },
 ])
 

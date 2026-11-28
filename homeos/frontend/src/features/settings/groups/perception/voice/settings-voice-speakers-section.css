@@ -1,0 +1,289 @@
+/*
+ * 智能音箱区段的局部样式。
+ *
+ * 只做「卡片内的列表与表单」这一层：容器、字体、圆角都来自 settings-card / hos-panel，
+ * 这里不重复定义，避免与设置页主题（含字体缩放）打架。
+ */
+
+.voice-speakers .vs-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--hos-space-2, 8px);
+  margin-top: var(--hos-space-3, 12px);
+}
+
+.vs-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--hos-color-border, rgb(148 163 184 / 32%));
+  border-radius: 8px;
+  background: var(--hos-color-surface, rgb(255 255 255 / 6%));
+  color: var(--hos-color-text, inherit);
+  font-size: 0.8125rem;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.vs-btn:hover:not(:disabled) {
+  border-color: var(--hos-color-accent, #38bdf8);
+}
+
+.vs-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.vs-btn--primary {
+  border-color: var(--hos-color-accent, #38bdf8);
+  background: color-mix(in srgb, var(--hos-color-accent, #38bdf8) 18%, transparent);
+}
+
+.vs-btn--danger {
+  border-color: rgb(248 113 113 / 45%);
+  color: rgb(252 165 165);
+}
+
+.vs-hint {
+  margin: 0;
+  color: var(--hos-color-text-muted, rgb(148 163 184));
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.vs-error {
+  margin: var(--hos-space-2, 8px) 0 0;
+  color: rgb(248 113 113);
+  font-size: 0.8125rem;
+}
+
+.vs-code {
+  margin-top: var(--hos-space-3, 12px);
+  padding: var(--hos-space-3, 12px);
+  border: 1px dashed color-mix(in srgb, var(--hos-color-accent, #38bdf8) 45%, transparent);
+  border-radius: 10px;
+  /* 竖向节奏统一由 gap 控制：原来靠 margin 逐段手调，加一行提示就挤在一起。 */
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.vs-code__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.vs-code__label {
+  font-size: 0.75rem;
+  color: var(--hos-color-text-muted, rgb(148 163 184));
+}
+
+/* 有效期做成胶囊：它一直在倒数，静止的灰字读起来像说明而不是状态。 */
+.vs-code__badge {
+  padding: 2px 8px;
+  border: 1px solid color-mix(in srgb, var(--hos-color-accent, #38bdf8) 35%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--hos-color-accent, #38bdf8) 12%, transparent);
+  color: var(--hos-color-accent, #38bdf8);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.vs-code__badge--expired {
+  border-color: rgb(248 113 113 / 45%);
+  background: rgb(248 113 113 / 12%);
+  color: rgb(252 165 165);
+}
+
+/* 码与复制按钮同一行：码占满剩余宽度、复制固定宽度，长码只在自己那一格内滚动。 */
+.vs-code__value-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.vs-code__value {
+  min-width: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--hos-color-border, rgb(148 163 184 / 24%));
+  border-radius: 8px;
+  background: rgb(2 6 23 / 45%);
+  color: var(--hos-color-text, inherit);
+  font-family: var(--hos-font-mono, ui-monospace, SFMono-Regular, monospace);
+  /* 码是给人抄的：稍大一号 + 拉开字距，比正文更易辨认 0/O、l/1。 */
+  font-size: 0.875rem;
+  letter-spacing: 0.04em;
+  line-height: 1.7;
+  /* 点一下就整段选中，剪贴板不可用时也能手动复制。 */
+  user-select: all;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.vs-code__copy {
+  min-width: 64px;
+  /* 与码的高度对齐，避免按钮比输入框矮一截。 */
+  align-self: stretch;
+}
+
+/* 三步说明：编号列固定宽，文字左对齐成一块，比两段长提示更好扫。 */
+.vs-steps {
+  margin: 0;
+  padding: 0 0 0 1.15em;
+  color: var(--hos-color-text-muted, rgb(148 163 184));
+  font-size: 0.75rem;
+  line-height: 1.7;
+}
+
+.vs-steps code {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: rgb(148 163 184 / 14%);
+  font-family: var(--hos-font-mono, ui-monospace, SFMono-Regular, monospace);
+  font-size: 0.95em;
+  overflow-wrap: anywhere;
+}
+
+.vs-code__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--hos-color-border, rgb(148 163 184 / 16%));
+}
+
+.vs-btn--ghost {
+  background: transparent;
+}
+
+/* 状态回执：成功用绿色，与错误态的红区分开（原来两类都走灰色 hint）。 */
+.vs-note {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.vs-note--ok {
+  color: rgb(74 222 128);
+}
+
+.vs-empty {
+  margin-top: var(--hos-space-3, 12px);
+  color: var(--hos-color-text-muted, rgb(148 163 184));
+  font-size: 0.8125rem;
+}
+
+.vs-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--hos-space-3, 12px);
+  margin: var(--hos-space-3, 12px) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vs-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--hos-space-2, 8px);
+  padding: var(--hos-space-3, 12px);
+  border: 1px solid var(--hos-color-border, rgb(148 163 184 / 20%));
+  border-radius: 10px;
+}
+
+.vs-item__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--hos-space-2, 8px);
+}
+
+.vs-item__title {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.vs-item__meta {
+  margin-top: 2px;
+  color: var(--hos-color-text-muted, rgb(148 163 184));
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+.vs-field {
+  display: flex;
+  align-items: center;
+  gap: var(--hos-space-2, 8px);
+  font-size: 0.8125rem;
+}
+
+.vs-field--stack {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.vs-field__label {
+  font-size: 0.75rem;
+  color: var(--hos-color-text-muted, rgb(148 163 184));
+}
+
+.vs-members {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--hos-space-2, 8px);
+}
+
+.vs-member {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--hos-color-border, rgb(148 163 184 / 24%));
+  border-radius: 999px;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+/* 唤醒词：网关直读的编辑区。多行框给两行高度即可 —— 词表上限 10 个、每个 20 字。 */
+.voice-speakers .vs-wake {
+  margin-top: var(--hos-space-3, 12px);
+}
+
+.vs-textarea {
+  width: 100%;
+  margin-top: var(--hos-space-2, 8px);
+  padding: 8px 10px;
+  border: 1px solid var(--hos-color-border, rgb(148 163 184 / 28%));
+  border-radius: 8px;
+  background: rgb(2 6 23 / 35%);
+  color: var(--hos-color-text, inherit);
+  font: inherit;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.vs-textarea:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--hos-color-accent, #38bdf8) 55%, transparent);
+  outline-offset: 1px;
+}
+
+/* 网关未配置时，逐台授权开关不可用：功能本身依赖网关返回的词表。 */
+.vs-field--muted {
+  opacity: 0.6;
+}
+
+.vs-field--muted input {
+  cursor: not-allowed;
+}

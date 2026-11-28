@@ -72,6 +72,7 @@ MODULES: tuple[str, ...] = (
     "timeline_selftest",
     "security_selftest",
     "command_proxy_selftest",
+    "voice_device_selftest",
 )
 
 

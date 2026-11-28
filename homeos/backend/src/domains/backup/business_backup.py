@@ -34,8 +34,10 @@ import inspect
 import json
 import logging
 import os
+import re
 import shutil
 import sqlite3
+import tempfile
 import time
 import zipfile
 from collections.abc import Callable
@@ -299,9 +301,15 @@ def _stream_decrypt(
     os.replace(target, target.with_name(target.name.removesuffix(".part")))
 
 
-def _validate_database_file(path: Path) -> None:
-    """整库快照校验：完整性、外键与必需业务表。"""
-    required = _required_tables()
+def _validate_database_file(path: Path, *, require_all_tables: bool = True) -> None:
+    """整库快照校验：完整性、外键与必需业务表。
+
+    ``require_all_tables=False`` 只用于**启动前校验历史备份包**：版本更早的备份必然缺少
+    后来新增的表（本轮就多了 ``voice_device_grants``），但那份备份仍然可以用来恢复 ——
+    恢复流程会在旧库上跑迁移把表补回来。按当前模型的全部表去要求老包，只会让每次启动都
+    报一次"校验未通过"，真正的问题反而被噪音淹没。
+    """
+    required = _required_tables() if require_all_tables else _CORE_TABLES
     with closing(sqlite3.connect(f"file:{path}?mode=ro", uri=True)) as connection:
         integrity = connection.execute("PRAGMA integrity_check").fetchone()
         if integrity is None or integrity[0] != "ok":
@@ -313,6 +321,11 @@ def _validate_database_file(path: Path) -> None:
     missing = sorted(required - live)
     if missing:
         raise BackupError(f"数据库缺少业务表：{', '.join(missing)}")
+
+
+#: 历史备份包至少应该带的表：没有这些就不是一份能恢复的 HomeOS 库。
+#: 只放"从 0.8.x 起就存在"的骨架表，不放后来新增的域表（见 ``_validate_database_file``）。
+_CORE_TABLES = frozenset({"users", "sessions", "project_configs", "notifications"})
 
 
 def _required_tables() -> set[str]:
@@ -595,8 +608,61 @@ def read_manifest(payload: Path) -> dict[str, Any]:
     return manifest
 
 
+#: 备份包文件名（``homeos-auto-*.zip`` / ``homeos-full-*.zip``）。
+#: 与 ``server_backup.BUNDLE_NAME_RE`` 同形；这里单独写一份是为了让「启动前校验」
+#: 不依赖 server_backup 模块的导入顺序（它在 lifespan 更早的位置才会被构造）。
+_BUNDLE_NAME_RE = re.compile(r"^homeos-(?:auto|full)-[\w.:-]+\.zip$")
+
+
+def verify_latest_archive(settings: Any) -> dict[str, Any]:
+    """启动前校验最新一份备份包，返回结论（**不抛异常**）。
+
+    公告里的「强化启动前数据库自动备份校验」不是「拒绝启动」：备份盘坏了就把用户的
+    服务锁死，比「带着一个警告继续跑」更糟。所以这里把结论作为结构化状态返回，由
+    lifespan 记日志并挂到 ``app.state.startup`` 上，前端系统诊断可读。
+
+    校验三件事（都是「备份能不能真的用来恢复」的必要条件）：
+    1. zip 可读、``manifest.json`` 可解析、清单文件齐全且大小对得上；
+    2. 包内 ``homeos.db`` 能解出来；
+    3. 解出来的库能过 ``PRAGMA integrity_check``。
+
+    没有备份包时返回 ``state="empty"``：全新安装还没跑过备份，不是错误。
+    """
+    directory = getattr(settings, "backups_dir", None)
+    base = _resolved(directory) if directory is not None else None
+    if base is None or not base.is_dir():
+        return {"state": "empty", "message": "尚未配置备份目录"}
+    candidates: list[Path] = []
+    try:
+        for child in base.iterdir():
+            if child.is_file() and _BUNDLE_NAME_RE.match(child.name):
+                candidates.append(child)
+    except OSError as error:
+        return {"state": "failed", "message": f"无法读取备份目录：{error}"}
+    if not candidates:
+        return {"state": "empty", "message": "目录中还没有备份包"}
+    latest = max(candidates, key=lambda item: item.stat().st_mtime)
+    result: dict[str, Any] = {"name": latest.name, "size": latest.stat().st_size}
+    with tempfile.TemporaryDirectory(prefix="homeos-backup-verify-") as workspace:
+        target = Path(workspace)
+        try:
+            manifest = read_manifest(latest)
+            result["createdAt"] = manifest.get("createdAt")
+            result["formatVersion"] = manifest.get("formatVersion")
+            result["entries"] = len(manifest.get("files") or {})
+            with ZipFile(latest, "r") as archive, archive.open(DB_NAME) as source:
+                database = target / DB_NAME
+                with database.open("wb") as sink:
+                    shutil.copyfileobj(source, sink)
+            _validate_database_file(database, require_all_tables=False)
+        except (BackupError, OSError, zipfile.BadZipFile, KeyError, ValueError) as error:
+            return {**result, "state": "failed", "message": str(error)}
+        except Exception as error:  # pragma: no cover - 解析器的意外失败也要留住结论
+            return {**result, "state": "failed", "message": f"校验异常：{error}"}
+    return {**result, "state": "ok", "message": "最近一份备份包校验通过"}
+
+
 def inspect_payload(settings: Any, directory: Path) -> dict[str, Any]:
-    """校验已落地的载荷并返回预览信息（不改动任何现有数据）。"""
     payload = directory / PAYLOAD_NAME
     if not payload.is_file():
         raise BackupError("备份内容缺失。")

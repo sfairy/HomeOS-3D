@@ -7,6 +7,35 @@ export function fetchNotifications(params?: { limit?: number }, config?: AxiosRe
   return apiGet('/notifications', { ...config, params: { ...config?.params, ...params } })
 }
 
+/** 分页响应的载荷形状（``paged=1``）。 */
+export interface NotificationPage<T = Record<string, unknown>> {
+  items: T[]
+  nextBefore: string | null
+  hasMore: boolean
+}
+
+/**
+ * 通知中心键集分页。
+ *
+ * 游标是服务端给的不透明串：前端只负责把上一页的 `nextBefore` 原样带回，
+ * 不解析、不比较、不拼接。
+ */
+export function fetchNotificationsPage<T = Record<string, unknown>>(
+  params?: { before?: string | null; after?: string | null; source?: string },
+  config?: AxiosRequestConfig,
+) {
+  return apiGet<NotificationPage<T>>('/notifications', {
+    ...config,
+    params: {
+      ...config?.params,
+      paged: '1',
+      ...(params?.before ? { before: params.before } : {}),
+      ...(params?.after ? { after: params.after } : {}),
+      ...(params?.source && params.source !== 'all' ? { source: params.source } : {}),
+    },
+  })
+}
+
 /** 获取通知统计。 */
 export function fetchNotificationStats(params?: Record<string, unknown>, config?: AxiosRequestConfig) {
   return apiGet('/notifications/stats', { ...config, params: { ...config?.params, ...params } })

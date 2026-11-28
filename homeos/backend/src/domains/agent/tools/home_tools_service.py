@@ -120,6 +120,10 @@ class HomeToolsService(
         if self._notify_limiter is None:
             self._notify_limiter = _NotifyRateLimiter()
 
+    def bind_voice_devices(self, voice_devices: Any = None) -> None:
+        """注入音箱授权服务（「发到手机」按音箱默认接收人 / 点名解析）。"""
+        self._voice_devices = voice_devices
+
     def bind_presence(self, presence: Any = None) -> None:
         """注入在场服务（全屋状态回答「有没有人 / 哪个房间有人」）。"""
         self._presence = presence

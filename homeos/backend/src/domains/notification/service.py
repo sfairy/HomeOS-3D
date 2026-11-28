@@ -10,7 +10,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any, TypeVar
 
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import and_, delete, func, or_, select
 
 from .config import (
     load_energy_config,
@@ -22,6 +22,7 @@ from .config import (
     load_security_section,
     load_water_config,
 )
+from .cursor import cursor_of_row, decode_cursor
 from .dedupe import NotificationDeduplicator
 from .dispatch import NotificationDispatchHelper
 from .event_handlers import NotificationEventHandlersHelper
@@ -97,6 +98,8 @@ class NotificationService:
         self._ha_outage_alarmed = False
         #: 最近一次 HA 连接成功的时刻（``monotonic``），用于重连静置期判定。
         self._ha_reconnected_at: float | None = None
+        #: 告警升级巡检任务；``start`` 时创建，``stop`` 时取消并置回 ``None``。
+        self._escalation_task: asyncio.Task[None] | None = None
 
         self._watch_index = AlertRuleWatchIndex()
         self._router = HaStateChangeRouter(self._watch_index)
@@ -275,7 +278,7 @@ class NotificationService:
                 logger.warning("告警升级检查失败", exc_info=True)
 
     async def stop(self) -> None:
-        task = getattr(self, "_escalation_task", None)
+        task = self._escalation_task
         if task is not None:
             task.cancel()
             with contextlib.suppress(asyncio.CancelledError, Exception):
@@ -372,6 +375,25 @@ class NotificationService:
         opts: dict[str, Any] | None = None,
     ) -> dict[str, Any] | None:
         return await self._dispatch_helper.notify(level, message, source, entity_id, opts)
+
+    def push_device_count(self, user_ids: list[str] | None = None) -> int:
+        """这些账号有几台可收 WebPush 的设备（``channels`` 未装配时返回 -1 = 未知）。
+
+        「发到手机」用它做前置判断。返回 ``-1`` 表示无法判断（精简装配 / 通道服务缺失）——
+        调用方据此**跳过**检查，而不是把「未知」当成「没有设备」把消息拦掉。
+        """
+        channels = getattr(self, "_channels_service", None)
+        counter = getattr(channels, "push_device_count", None)
+        if not callable(counter):
+            return -1
+        try:
+            raw_count = counter(user_ids)
+        except Exception as exc:  # pragma: no cover - 通道自身防御
+            logger.debug("读取推送设备数失败: %s", exc)
+            return -1
+        # ``counter`` 取自 getattr，静态类型只看到 ``object`` 返回；非整数按「无法判断」
+        # 处理（返回 ``-1``），让调用方跳过检查而不是误判成没有设备。
+        return raw_count if isinstance(raw_count, int) else -1
 
     async def check_device_offline(self, entity_id: str, friendly_name: str) -> None:
         cfg = self._cfg()
@@ -566,6 +588,92 @@ class NotificationService:
             if not record.get("entityId") or is_entity_allowed_by_restrictions(record["entityId"], restrictions)
         ]
         return filtered[:limit]
+
+    async def get_notifications_page(
+        self,
+        before: str | None = None,
+        after: str | None = None,
+        page_size: int = 20,
+        source: str | None = None,
+        restrictions: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """通知中心游标分页（键集分页，``ORDER BY createdAt DESC, id DESC``）。
+
+        为什么不用 ``offset``：通知表一直在被 WS 推送插入，翻页期间 offset 会错位
+        （第二页重复第一页的尾部）。键集只依赖「上一页最后一行的位置」，插入不影响已翻过的页。
+
+        为什么游标不是整数 id：本项目 ``notifications.id`` 是 UUID，不是自增主键；
+        参考实现的 ``beforeId=123`` 在这里没有对应物。游标改成不透明串
+        ``base64url(createdAt ISO|id)``，前端只当 token 传递、不解析。
+
+        ``after`` 只用于「断线补拉」：取比它**更新**的记录，返回时保持倒序。
+        """
+        from ...platform.security.entity_access import is_entity_allowed_by_restrictions
+
+        size = max(1, min(int(page_size or 20), 100))
+
+        def _query() -> dict[str, Any]:
+            with self._session_factory() as session:
+                conditions: list[Any] = []
+                if source:
+                    conditions.append(Notification.source == source)
+                cursor = decode_cursor(after or before, label="after" if after else "before")
+                if cursor is not None:
+                    created_at, row_id = cursor
+                    if after:
+                        conditions.append(
+                            or_(
+                                Notification.created_at > created_at,
+                                and_(
+                                    Notification.created_at == created_at,
+                                    Notification.id > row_id,
+                                ),
+                            )
+                        )
+                    else:
+                        conditions.append(
+                            or_(
+                                Notification.created_at < created_at,
+                                and_(
+                                    Notification.created_at == created_at,
+                                    Notification.id < row_id,
+                                ),
+                            )
+                        )
+                # 多取一条判断「还有没有下一页」，避免多一次 count 查询。
+                order = Notification.created_at.asc() if after else Notification.created_at.desc()
+                rows = (
+                    session.execute(
+                        select(Notification)
+                        .where(*conditions)
+                        .order_by(order, Notification.id.asc() if after else Notification.id.desc())
+                        .limit(size + 1)
+                    )
+                    .scalars()
+                    .all()
+                )
+                has_more = len(rows) > size
+                picked = rows[:size]
+                if after:
+                    picked = list(reversed(picked))
+                items = [map_notification_row(row) for row in picked]
+                if after:
+                    # ``after`` 是「断线补拉」的一次性查询：翻页语义是往后（更旧），
+                    # 这里若还回 ``nextBefore``，调用方会把它当翻页游标用，
+                    # 结果是原地打转（同一批记录反复取）。补拉只看最新一段即可。
+                    return {"items": items, "nextBefore": None, "hasMore": False}
+                next_before = cursor_of_row(picked[-1]) if has_more and picked else None
+                return {"items": items, "nextBefore": next_before, "hasMore": has_more}
+
+        page = await asyncio.to_thread(_query)
+        if not restrictions:
+            return page
+        allowed = [
+            record
+            for record in page["items"]
+            if not record.get("entityId") or is_entity_allowed_by_restrictions(record["entityId"], restrictions)
+        ]
+        return {**page, "items": allowed}
 
     async def get_notifications_by_sources(self, sources: list[str], limit: int = 30) -> list[dict[str, Any]]:
         if not sources:

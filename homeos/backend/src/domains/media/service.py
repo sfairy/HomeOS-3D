@@ -313,6 +313,39 @@ class MediaService:
             "result": result if isinstance(result, dict) else None,
         }
 
+    async def play_uri(self, uri: str, area_id: str = "") -> dict[str, Any]:
+        """播放一个已知 ``uri``（点歌候选槽选中后用），不再走一次搜索。
+
+        与 :meth:`play_music` 共用「目标播放器 → 提交队列」这一段，区别只是曲目已经确定；
+        把这段单独抽出来，是因为候选槽里存的本来就是搜索结果的 ``uri``，再搜一次既有
+        网络开销、也可能搜出不一样的结果（MA 排序不是稳定的）。
+        """
+        target = str(uri or "").strip()
+        if not target:
+            return {"success": False, "message": "曲目信息缺失，请重新点歌。"}
+        player = self._resolve_player(area_id)
+        if isinstance(player, dict):
+            return player
+        if not player:
+            return {"success": False, "message": "没有可用的默认音箱。"}
+        _url, token = self._ma()
+        result = await self._ma_json(
+            "POST",
+            "/api/playerqueues/play_media",
+            token=token,
+            json_body={"queue_id": player, "media": target},
+            timeout=25.0,
+        )
+        if result is None:
+            return {"success": False, "message": f"提交播放队列失败：{_MA_FAILED}"}
+        return {
+            "success": True,
+            "accepted": True,
+            "phase": "queue_submitted",
+            "playerId": player,
+            "uri": target,
+        }
+
     def _resolve_player(self, area_id: str) -> Any:
         """默认播放器：房间 → ``speaker`` 默认；无房间时要求全屋恰好 1 台。
 

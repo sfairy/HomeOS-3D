@@ -209,6 +209,11 @@ class AgentChatOptions:
     room: str | None = None
     #: 流式进度：token 增量与工具轨迹
     on_progress: Callable[[dict[str, Any]], None] | None = None
+    #: 音箱授权 id：`send_notification` 的「发到手机」未点名时按该音箱的默认接收人推送
+    voice_grant_id: str | None = None
+    #: 语音上下文（``protocolVersion`` / ``gatewayId`` / ``speakerId`` / ``conversationId`` /
+    #: ``turnId`` / ``capabilities``）；仅语音通道携带，web 对话恒为空
+    voice_context: dict[str, Any] | None = None
 
 
 @dataclass
@@ -241,6 +246,8 @@ class AgentChatResponse:
     attachments: list[dict[str, Any]] = field(default_factory=list)
     #: 结构化确认信息（批量控制 / 缓存待确认）；前端据此渲染确认 / 取消按钮
     confirmation: dict[str, Any] | None = None
+    #: 终端动作（目前只有自然结束对话）：音箱据 ``type=end_conversation`` 收麦
+    terminal_actions: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         """转换为 HTTP 响应的 camelCase 结构（对齐 Nest 序列化）。"""
@@ -263,6 +270,9 @@ class AgentChatResponse:
             payload["attachments"] = self.attachments
         if self.confirmation:
             payload["confirmation"] = self.confirmation
+        # 只有语音通道会产出：web 端不带这个键，老调用方零改动。
+        if self.terminal_actions:
+            payload["terminalActions"] = self.terminal_actions
         return payload
 
 
@@ -502,6 +512,8 @@ async def apply_device_allowlist(agent_config: Any, actor: AgentActor | None) ->
         restrictions=_intersect_restrictions(actor.restrictions, allowlist),
         user_id=actor.user_id,
         username=actor.username,
+        voice_grant_id=actor.voice_grant_id,
+        role=actor.role,
     )
 
 

@@ -16,8 +16,10 @@ from ..state.store import MemoryStateStore, SharedStateStore
 
 logger = logging.getLogger("homeos.agent.short_term_memory")
 
-#: 会话有效期：45 秒内的连续对话才认为具备指代关系
-SESSION_TTL_MS = 45_000
+#: 会话有效期：短时记忆（2 轮）只服务「紧接着的追问」，90 秒是参考实现的口径
+#: （v1.9.21 公告：AI 管家短时对话记忆升级至 90 秒）。再长就该走
+#: ``session_store`` 的 10 分钟长会话，那是另一份存储、另一套截断规则。
+SESSION_TTL_MS = 90_000
 #: 单会话最多保留的轮数（1 轮 = 1 条 user + 1 条 assistant）
 MAX_TURNS = 2
 #: 会话池上限
@@ -173,7 +175,7 @@ class AgentShortTermMemoryService:
             logger.info('已清空短时记忆: session="%s"', session_id)
 
     def remember_targets(self, session_id: str, entity_ids: list[str]) -> None:
-        """记录本轮控制命中的实体，供 45 秒内的「它」指代消解。
+        """记录本轮控制命中的实体，供 90 秒内的「它」指代消解。
 
         只保留字符串 ID 并去重；空列表视为「明确没有目标」，用于清掉旧目标。
         """
