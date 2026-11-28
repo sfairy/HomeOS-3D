@@ -54,23 +54,6 @@ const DRACO_OPTIONS = Object.freeze({
   quantizeGeneric: 12,
 })
 
-/**
- * 类型化数组 → glTF 的 componentType。
- *
- * 必须显式写：`document.createAccessor()` 新建的 accessor 默认分量类型是 FLOAT，
- * 而 Draco 编码器按 `getComponentType()` 判断分量宽度 —— 类型不符时它 `throw` 后被上层
- * 吞成一句「Error applying Draco compression. Skipping primitive compression.」，
- * 于是整个文件悄悄变成未压缩（实测 `小汽车-lite` 18.7KB → 279KB）。
- */
-const COMPONENT_TYPE_BY_ARRAY = Object.freeze({
-  Int8Array: 5120,
-  Uint8Array: 5121,
-  Int16Array: 5122,
-  Uint16Array: 5123,
-  Uint32Array: 5125,
-  Float32Array: 5126,
-})
-
 /** 十六进制 → glTF 的 `baseColorFactor`（约定见 `repair_glb_material_slots.mjs`：sRGB / 255）。 */
 function hexToFactor(hex) {
   const value = Number.parseInt(String(hex).replace('#', ''), 16)

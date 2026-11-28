@@ -6,6 +6,7 @@ import {
   carOpeningsModelType,
   mountCarOpeningParts,
 } from '../items/model/vehicle-models'
+import { prepareCarGlassShell } from '../items/model/car-glass-shell'
 import { decorateWarmFloor } from '../scene/studio-scene-style'
 import { pipelineDispenserModelType } from '../items/pipeline-dispenser'
 import { storageSectionModelType } from '../items/studio-storage-sections'
@@ -229,7 +230,43 @@ export function createExternalModelManager({
   function attachOpeningsToVehicles(openingsType: string, openingsScene: any) {
     const vehicleType = openingsType === 'smallcar-openings' ? 'smallcar' : 'suv',
       vehicleEntry = preparedTemplatesByItemType.get(vehicleType)
-    vehicleEntry?.source && mountCarOpeningParts(vehicleEntry.source, openingsScene)
+    if (!vehicleEntry?.source) return
+    mountCarOpeningParts(vehicleEntry.source, openingsScene)
+    /**
+     * `smallcar` 的车窗在这份 GLB 里不是独立几何：车身是闭合实体，窗 / 风挡 / 天幕 / 尾灯
+     * 原本靠一张拍摄参考图上色（该图已从资产移除）。挂件之后立刻按「共面玻璃片 + 座舱几何带」
+     * 把这几处重新认定出来，车身才不会只剩一层纯色漆。
+     * 与 `prepareSuvRoofGlass` 同类做法，只是范围扩到整舱；函数内幂等，重复挂件安全。
+     */
+    if (vehicleType === 'smallcar') {
+      const glassMaterial = findVehicleGlassMaterial(openingsScene)
+      prepareCarGlassShell(threeNamespace, vehicleEntry.source, {
+        ...(glassMaterial ? { glassMaterial } : {}),
+        taillightMaterial: new threeNamespace.MeshStandardMaterial({
+          name: 'smallcar-taillight',
+          color: 0x7a1114,
+          roughness: 0.34,
+          metalness: 0.1,
+          emissive: 0x8f1418,
+          emissiveIntensity: 0.45,
+        }),
+      })
+    }
+  }
+
+  /** 开合件里的玻璃材质（`glass` / `glass_01`…），作为车窗网格的材质来源。 */
+  function findVehicleGlassMaterial(openingsScene: any) {
+    let found: any = null
+    openingsScene?.traverse?.((node: any) => {
+      if (found || !node?.isMesh) return
+      for (const material of [node.material].flat().filter(Boolean)) {
+        if (/^glass/i.test(String(material.name ?? ''))) {
+          found = material
+          return
+        }
+      }
+    })
+    return found
   }
 
   /** 只为「取到开合件模板」而加载；失败不影响车身（车照样能开，只是门不能动）。 */
