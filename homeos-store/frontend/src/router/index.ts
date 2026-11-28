@@ -1,6 +1,14 @@
 /** 路由表：前台商店、后台工作台与首次初始化。 */
 
 import { createRouter, createWebHistory, type RouteRecordRaw } from "vue-router";
+// 陈旧 chunk 恢复：发版 / 重建之后，已打开的标签页会按旧哈希请求已删除的 chunk。
+// 商店此前是裸 `() => import(...)`，一旦命中就只剩白屏 + 控制台一串 404。
+import {
+  STALE_CHUNK_HINT,
+  STORE_RELOAD_GUARD_KEY,
+  isDynamicImportFailure,
+  lazyWithStaleChunkRecovery,
+} from "@homeos/shared/router/stale-chunk";
 import { serverAuthState } from "@store/shared/session";
 import { hashScrollOffset } from "@store/shared/hash-scroll";
 // 跨域只走域根 barrel：admin 的会话态给后台闸门，storefront 的三个首屏页面给路由表。
@@ -8,14 +16,18 @@ import { useAdminStore } from "@store/features/admin";
 import { StoreLayout, HomeView, AuthView } from "@store/features/storefront";
 import { resolveAdminGate } from "./admin-guard";
 import { probeSetupStatus, setupTokenFromHash } from "@store/shared/setup-status";
+import { useStoreToast } from "@store/shared/toast";
 
-const ProductsView = () => import("@store/features/storefront/catalog/ProductsView.vue");
-const ItemView = () => import("@store/features/storefront/catalog/ItemView.vue");
-const AccountView = () => import("@store/features/storefront/account/AccountView.vue");
-const ReferralsView = () => import("@store/features/storefront/account/ReferralsView.vue");
+/** 懒加载页面统一走「重试 + 有限次整页刷新」，预算键与主应用分开。 */
+const lazyPage = <T>(loader: () => Promise<T>) => lazyWithStaleChunkRecovery(loader, STORE_RELOAD_GUARD_KEY);
 
-const AdminLayout = () => import("@store/features/admin/layouts/AdminLayout.vue");
-const SetupView = () => import("@store/features/setup/SetupView.vue");
+const ProductsView = lazyPage(() => import("@store/features/storefront/catalog/ProductsView.vue"));
+const ItemView = lazyPage(() => import("@store/features/storefront/catalog/ItemView.vue"));
+const AccountView = lazyPage(() => import("@store/features/storefront/account/AccountView.vue"));
+const ReferralsView = lazyPage(() => import("@store/features/storefront/account/ReferralsView.vue"));
+
+const AdminLayout = lazyPage(() => import("@store/features/admin/layouts/AdminLayout.vue"));
+const SetupView = lazyPage(() => import("@store/features/setup/SetupView.vue"));
 
 /** 需要在挂载前就确认登录态的页面：`meta.requiresAuth`。 */
 const ACCOUNT_META = { storePage: "account", requiresAuth: true };
@@ -119,6 +131,25 @@ router.beforeEach(async (to) => {
     bootstrap: () => admin.bootstrap(),
     showLogin: () => admin.showLogin(),
   });
+});
+
+/**
+ * 懒加载失败的最后一道提示。
+ *
+ * `lazyPage` 已经在内部重试并在预算内刷新；仍失败（例如预算用尽、或文件确实不存在）
+ * 时这里把「刷新即可」告诉用户 —— 否则 vue-router 只是静默 reject，页面停在上一屏，
+ * 看起来像「点了没反应」。
+ */
+router.onError((error) => {
+  if (!isDynamicImportFailure(error)) return;
+  // 刷新已由 `lazyWithStaleChunkRecovery` 尝试过（有预算的话页面已经在重载）。
+  // 走到这里说明没刷新或刷新后仍失败，给一条可操作的提示。
+  console.warn("[store] 页面资源加载失败（多半是发版后未刷新）：", error);
+  try {
+    useStoreToast().show(STALE_CHUNK_HINT, "err");
+  } catch {
+    /* toast 宿主尚未挂载（极端早期失败）：至少控制台有记录，不阻塞渲染 */
+  }
 });
 
 export default router;

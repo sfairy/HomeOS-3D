@@ -21,6 +21,7 @@
     "./scene/scene-values": "./src/scene/scene-values.ts",
     "./scene/touch-profile": "./src/scene/touch-profile.ts",
     "./security/password-policy": "./src/security/password-policy.ts",
+    "./router/stale-chunk": "./src/router/stale-chunk.ts",
     "./utils/clipboard": "./src/utils/clipboard.ts"
   },
   "scripts": {
