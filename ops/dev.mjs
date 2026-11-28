@@ -827,6 +827,15 @@ async function main() {
   }
 
   let exitCode = 0
+  // **立即**挂 exit 监听。原先要等 20 秒就绪探测 + 写 serving 标记之后才挂：
+  // 后端起不来（或起一半就崩）时 'exit' 早已发出，监听器永远不会触发，
+  // `bun run dev` 以 0 退出 —— 用退出码判断成败的脚本 / 监督器会以为一切正常。
+  for (const child of children) {
+    child.on('exit', (code, signal) => {
+      if (signal) return
+      if (typeof code === 'number' && code !== 0) exitCode = code
+    })
+  }
   try {
     let interrupted = false
     const onSignal = () => {
@@ -867,6 +876,9 @@ async function main() {
       if (interrupted) {
         // 用户按了 Ctrl-C：不追加噪声，直接走退出路径。
       } else if (pending.length) {
+        // 就绪失败必须记成非零退出：只打一行警告的话，用退出码判断的脚本 / 监督器
+        // 会得到「成功」，而实际上两台 API 都没在监听。
+        if (!exitCode) exitCode = 1
         console.log(`⚠ 20 秒内未进入监听态：${pending.map(([p, name]) => `${p}（${name}）`).join('、')}`)
         console.log('  子进程日志在上面；常见原因是依赖未装全或端口被上一次的残留进程占住。')
       } else {
@@ -900,15 +912,15 @@ async function main() {
       )
     }
 
-    for (const child of children) {
-      child.on('exit', (code, signal) => {
-        if (signal) return
-        if (typeof code === 'number' && code !== 0) exitCode = code
-      })
-    }
-
+    // 守着子进程直到全部退出或用户 Ctrl-C：这是 dev 进程存活的原因。
     while (!interrupted && children.every(childAlive)) {
       await sleep(400)
+    }
+
+    for (const child of children) {
+      // 子进程可能在挂监听之前就已退出（例如导入期直接抛错）：exitCode 仍为 0，
+      // 用可同步读取的 exitCode / signalCode 兜底。
+      if (typeof child.exitCode === 'number' && child.exitCode !== 0 && !exitCode) exitCode = child.exitCode
     }
     return exitCode
   } finally {

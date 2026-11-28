@@ -37,7 +37,7 @@
  * ```
  */
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
@@ -48,10 +48,17 @@ const IS_CI = CONTEXT === 'ci'
 
 /**
  * 「可选：内置 Caddy 入口」段的临时产物。路径显式传给 ops/ci/compose_public.py 的 --out，
- * 后面两个 docker 步骤读同一个文件 —— 三处各写一个字面量就会有一处漂移（Windows 上还没有
- * /tmp）。用 os.tmpdir() 与 Python 侧 tempfile.gettempdir() 同源。
+ * 后面两个 docker 步骤读同一个文件 —— 三处各写一个字面量就会有一处漂移。
+ *
+ * **每次运行一个独立目录**：固定名 `os.tmpdir()/compose-public.yml` 在共享主机上会
+ * 让两个并发门禁互相覆盖（一个 job 校验另一个 job 的片段），别人也能预先放一个同名
+ * 符号链接把写入引到别处。目录在进程退出时删掉。
  */
-const COMPOSE_PUBLIC_PATH = path.join(os.tmpdir(), 'compose-public.yml')
+const COMPOSE_PUBLIC_DIR = mkdtempSync(path.join(os.tmpdir(), 'homeos-gate-'))
+const COMPOSE_PUBLIC_PATH = path.join(COMPOSE_PUBLIC_DIR, 'compose-public.yml')
+process.on('exit', () => {
+  rmSync(COMPOSE_PUBLIC_DIR, { recursive: true, force: true })
+})
 
 /** `bun run <script>`：门禁命令一律走 package.json，避免编排器里长出第二份实现。 */
 const bun = (...args) => ({ cmd: 'bun', args })

@@ -214,25 +214,60 @@ def base_image_args(args: argparse.Namespace, *, with_build_mirrors: bool = Fals
     return extra
 
 
+def _validate_backend_export(directory: Path, project: Project, *, cleanup: bool = True) -> None:
+    """导出的后端产物必须真的是一棵完整的加密后端树。
+
+    ``buildx --output type=local`` 在复制过程中就会创建目录：磁盘写满 / buildkit OOM /
+    Ctrl-C 中断都会留下一个「目录存在但内容不全」的结果。只判 ``is_dir()`` 的话，
+    组装镜像时 ``COPY`` 的是一份缺 ``.so`` 的后端 —— 容器启动才在 import 阶段失败，
+    而那时镜像已经 ``--push`` / ``--load`` 完了。这里用两道最小判据兜住：
+    必须有项目包目录，且必须至少有一个原生扩展。
+    """
+    has_extensions = any(directory.rglob("*.so"))
+    if (directory / project.source).is_dir() and has_extensions:
+        return
+    if cleanup:
+        shutil.rmtree(directory, ignore_errors=True)
+    try:
+        shown = directory.relative_to(ROOT)
+    except ValueError:
+        shown = directory
+    raise SystemExit(
+        f'后端导出产物不完整（{shown}）：'
+        f'缺少 {project.source}/ 或没有任何 .so。'
+        '常见原因是导出途中磁盘写满 / buildkit 被中断；请重跑 backend 导出。'
+    )
+
+
 def export_backend(args: argparse.Namespace) -> None:
     arch = normalize_arch(args.arch) if args.arch else host_arch()
     version = repo_version()
     for project in selected_projects(args.project):
         dest = DIST_ROOT / project.name / 'backend' / f'linux-{arch}'
-        shutil.rmtree(dest, ignore_errors=True)
+        # 先导到临时目录、校验完整后再替换：直接导出到 dest 会先把上一份删掉，
+        # 中断后既没有旧的也没有完整的新产物。
+        staging = dest.with_name(f'{dest.name}.tmp-{os.getpid()}')
+        shutil.rmtree(staging, ignore_errors=True)
         dest.parent.mkdir(parents=True, exist_ok=True)
         print(f'导出加密后端 {project.name}（linux-{arch}）→ {dest.relative_to(ROOT)}', flush=True)
-        run([
-            docker_bin(), 'buildx', 'build',
-            '--file', str(DOCKERFILE),
-            '--target', project.export_target,
-            '--build-arg', f'PROJECT={project.source}',
-            '--output', f'type=local,dest={dest}',
-            '--build-arg', f'HOMEOS_VERSION={version}',
-            *base_image_args(args, with_build_mirrors=True),
-            *buildx_cache_args(args),
-            str(ROOT),
-        ])
+        try:
+            run([
+                docker_bin(), 'buildx', 'build',
+                '--file', str(DOCKERFILE),
+                '--target', project.export_target,
+                '--build-arg', f'PROJECT={project.source}',
+                '--output', f'type=local,dest={staging}',
+                '--build-arg', f'HOMEOS_VERSION={version}',
+                *base_image_args(args, with_build_mirrors=True),
+                *buildx_cache_args(args),
+                str(ROOT),
+            ])
+            _validate_backend_export(staging, project)
+        except BaseException:
+            shutil.rmtree(staging, ignore_errors=True)
+            raise
+        shutil.rmtree(dest, ignore_errors=True)
+        shutil.move(str(staging), str(dest))
 
 
 def build_image(args: argparse.Namespace) -> None:
@@ -246,6 +281,8 @@ def build_image(args: argparse.Namespace) -> None:
                 f'缺少后端产物 {backend.relative_to(ROOT)}；'
                 f'先执行 python3 ops/build.py backend --project {project.key} --arch {arch}'
             )
+        # 目录存在不等于内容完整（见 `_validate_backend_export`）。
+        _validate_backend_export(backend, project, cleanup=False)
         if not frontend.is_dir():
             raise SystemExit(
                 f'缺少前端产物 {frontend.relative_to(ROOT)}；先执行 bun run build:frontend'

@@ -22,6 +22,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import pathlib
 import re
 import sys
@@ -88,7 +89,17 @@ def main() -> int:
 
     out = options.out or str(pathlib.Path(tempfile.gettempdir()) / 'compose-public.yml')
     text, block_lines = render(COMPOSE.read_text(encoding='utf-8'))
-    pathlib.Path(out).write_text(text, encoding='utf-8')
+    # 原子落盘：后续 `docker compose config` 会直接读这个文件。直接 write_text 是
+    # 「先截断再写」，中途失败会留下一份半截 YAML —— 下一步解析失败会被当成
+    # 「compose 配置有语法错误」，把真正的原因（本步失败）藏起来。
+    target = pathlib.Path(out)
+    staging = target.with_name(f'{target.name}.tmp-{os.getpid()}')
+    try:
+        staging.write_text(text, encoding='utf-8')
+        os.replace(staging, target)
+    finally:
+        if staging.exists():
+            staging.unlink()
     print(f'已生成 {out}（服务块 {block_lines} 行）')
     return 0
 

@@ -1010,9 +1010,25 @@ export async function entityLoadError(deps: WorkspaceHistoryDeps, syncHaConnecti
     !haDetailWarningHandler() || deps.editorCtx.isSaving || deps.historyState.busy || !deps.editorCtx.activeProject)
   )
     return
-  const undo = syncHaConnectionUi === 'undo' ? deps.historyState.undo : deps.historyState.redo,
-    haDetailWarning = syncHaConnectionUi === 'undo' ? 'redo' : 'undo',
-    pop = undo.pop()
+  // 本次操作对应的栈 / 反向栈。每次重新取而不能缓存：切项目 / 切页面会
+  // `resetHistoryState` 换掉数组，缓存的引用会指向已经被丢弃的那一份历史。
+  const stackNow = () => (syncHaConnectionUi === 'undo' ? deps.historyState.undo : deps.historyState.redo)
+  const oppositeNow = () => (syncHaConnectionUi === 'undo' ? deps.historyState.redo : deps.historyState.undo)
+  const stack = stackNow(),
+    pop = stack.pop()
+  /**
+   * 中止时把已弹出的条目塞回反向栈。
+   *
+   * 旧实现的两条 `return`（加载失败 / 文档重建失败）只 `return` 不放回：这一条
+   * 历史从此消失，下一次撤销会直接跨过一整个文档状态 —— 用户看到的是「撤销少了一步」。
+   *
+   * 只在栈未被重置时放回：作用域已切换说明栈已换成新项目的，塞进去会把上一个项目的
+   * 历史带进当前项目。
+   */
+  const restorePopped = () => {
+    if (stackNow() !== stack) return
+    oppositeNow().push(pop)
+  }
   if (pop) {
     ;(deps.historyState.busy = true),
       deps.syncHistoryButtons(),
@@ -1023,8 +1039,11 @@ export async function entityLoadError(deps: WorkspaceHistoryDeps, syncHaConnecti
       deps.airConditionerBaselineByComponentId.clear()
     try {
       if (pop.kind === 'save') {
-        if (!(await deps.loadHaConnection(pop, syncHaConnectionUi))) return
-        deps.refreshDirtyState(deps.historyState[haDetailWarning], pop)
+        if (!(await deps.loadHaConnection(pop, syncHaConnectionUi))) {
+          restorePopped()
+          return
+        }
+        deps.refreshDirtyState(oppositeNow(), pop)
       } else {
         const hl3 = deps.historyEntries(),
           deadlineTime = Array.isArray(pop.selectedComponentIds)
@@ -1047,19 +1066,21 @@ export async function entityLoadError(deps: WorkspaceHistoryDeps, syncHaConnecti
           !(await deps.projectSummary(pop.document, pop.selectedPath, {
             recordHistory: false,
           })))
-        )
+        ) {
+          restorePopped()
           return
-        deps.refreshDirtyState(deps.historyState[haDetailWarning], hl3)
+        }
+        deps.refreshDirtyState(oppositeNow(), hl3)
       }
     } catch (requireToken: any) {
-      haDetailWarningHandler() &&
-        (deps.refreshDirtyState(syncHaConnectionUi === 'undo' ? deps.historyState.undo : deps.historyState.redo, pop),
-        deps.handleOperationError(requireToken))
+      haDetailWarningHandler() && (deps.refreshDirtyState(stackNow(), pop), deps.handleOperationError(requireToken))
     } finally {
-      haDetailWarningHandler() &&
-        ((deps.historyState.busy = false),
-        deps.syncHistoryButtons(),
-        deps.editorCtx.hasUnsavedChanges && deps.scheduleRecoverySnapshot())
+      // **无条件**清 busy。旧实现把它挂在「作用域未变」上：撤销期间切项目 / 切页面
+      // （或场景重建改了 componentScopeState）后 busy 永久为 true —— 保存按钮、Ctrl+S、
+      // 撤销 / 重做全部静默失效，只有重载项目才会恢复，期间的编辑在关页面时丢失。
+      deps.historyState.busy = false
+      deps.syncHistoryButtons()
+      haDetailWarningHandler() && deps.editorCtx.hasUnsavedChanges && deps.scheduleRecoverySnapshot()
     }
   }
 }

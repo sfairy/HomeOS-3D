@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import os
 import re
 import shutil
 import subprocess
@@ -244,16 +245,28 @@ def generate(upgrade: bool = False, upgrade_packages: list[str] | None = None) -
     for package in upgrade_packages or []:
         upgrade_flags.extend(("--upgrade-package", package))
 
-    command = [uv, *UV_FLAGS, *upgrade_flags, f"--output-file={LOCK_PATH.name}", *INPUTS]
-    print("[python-lock] " + " ".join(command))
-    result = subprocess.run(command, cwd=REPO_ROOT, check=False)
-    if result.returncode != 0:
-        print("[python-lock] uv 解析失败，锁未改动")
-        return result.returncode
+    # uv 直接写临时文件，再补头、原子替换。
+    #
+    # 旧实现让 uv 直接写 `requirements.lock`，随后再 read + write 补头部与指纹：
+    # 中间被打断（Ctrl-C / OOM / 磁盘满）会留下「没有指纹的锁」或半截文件。
+    # `verify()` 事后确实会红，但 Dockerfile 用 `pip install --require-hashes` 装的就是
+    # 这份文件 —— 一次中断之后生成的发布镜像可能来自从未校验过的锁。
+    lock_tmp = LOCK_PATH.with_name(f"{LOCK_PATH.name}.tmp-{os.getpid()}")
+    try:
+        command = [uv, *UV_FLAGS, *upgrade_flags, f"--output-file={lock_tmp.name}", *INPUTS]
+        print("[python-lock] " + " ".join(command))
+        result = subprocess.run(command, cwd=REPO_ROOT, check=False)
+        if result.returncode != 0:
+            print("[python-lock] uv 解析失败，锁未改动")
+            return result.returncode
 
-    # 指纹写进头部（uv 自己的头会记录本次命令，保留在上半部分，便于回溯用的哪一版 uv）。
-    text = LOCK_PATH.read_text(encoding="utf-8")
-    LOCK_PATH.write_text(f"{_HEADER}{FINGERPRINT_PREFIX}{fingerprint()}\n\n{text}", encoding="utf-8")
+        # 指纹写进头部（uv 自己的头会记录本次命令，保留在上半部分，便于回溯用的哪一版 uv）。
+        text = lock_tmp.read_text(encoding="utf-8")
+        lock_tmp.write_text(f"{_HEADER}{FINGERPRINT_PREFIX}{fingerprint()}\n\n{text}", encoding="utf-8")
+        os.replace(lock_tmp, LOCK_PATH)
+    finally:
+        if lock_tmp.exists():
+            lock_tmp.unlink()
     print(f"[python-lock] 已写出 {LOCK_PATH.relative_to(REPO_ROOT)}（{len(pinned_names(text))} 个依赖）")
     return 0
 

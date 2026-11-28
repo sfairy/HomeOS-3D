@@ -142,9 +142,24 @@ def seed_default_assets(
             # 已有内容 = 管理员自己的素材，不覆盖（见 docstring 的语义边界）。
             if destination.is_dir() and any(destination.iterdir()):
                 continue
-            shutil.copytree(source_dir, destination, dirs_exist_ok=True)
+            # 先铺到同级临时目录再整体 rename 进位。
+            #
+            # 直接 copytree 进 destination 不是原子的：「已有内容」这个判据是**任意一个
+            # 字节**，首次启动若在拷贝中途被杀 / bind mount 写满，下一次启动看到半个
+            # backgrounds/ 就当作「管理员自己的素材」永久跳过 —— sw.js 的 cache.addAll
+            # 失败导致 SW 再也装不上，默认插画一直 404，而日志里只有一行警告。
+            staging = target / f".{name}.seed-tmp"
+            shutil.rmtree(staging, ignore_errors=True)
+            shutil.copytree(source_dir, staging)
+            if destination.is_dir():
+                # 空目录占位（例如宿主预先 mkdir 过）：先移除才能 rename 进位。
+                shutil.rmtree(destination, ignore_errors=True)
+            os.replace(staging, destination)
             seeded.append(destination)
     except OSError as error:
+        # 清掉可能残留的半成品，让下一次启动重新尝试（而不是把它当成用户素材跳过）。
+        for name in ASSET_SUBDIRECTORIES:
+            shutil.rmtree(target / f".{name}.seed-tmp", ignore_errors=True)
         print(
             f"警告：默认素材未能铺到 {target}（{error.strerror or error}）。"
             "该目录若是只读挂载，请清空后重试或改由宿主机自行放置素材。",

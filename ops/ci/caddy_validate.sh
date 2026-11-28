@@ -54,7 +54,15 @@ if [ -z "$caddy_bin" ]; then
   fi
   echo "caddy 版本（${caddy_version_source}）：${caddy_version}"
 
-  caddy_tarball=/tmp/caddy.tar.gz
+  # 下载与解包都放在本次运行独有的临时目录里：
+  #   - `/tmp/caddy.tar.gz` 这类固定路径会被 `curl -o` 跟随符号链接，共享 runner / 多用户
+  #     机器上别人可以预先放一个链接把文件写到别处；
+  #   - 固定 `/tmp/caddy` 还会变成「上次的二进制」的隐式回退（本次下载分支没走到就直接用它），
+  #     并且两个并发门禁会互相覆盖 tarball 与解包结果。
+  # 同一个 work 目录也让「校验的就是本次下载到的东西」这件事成立。
+  caddy_work="$(mktemp -d "${TMPDIR:-/tmp}/homeos-caddy.XXXXXX")"
+  trap 'rm -rf "$caddy_work"' EXIT
+  caddy_tarball="$caddy_work/caddy.tar.gz"
   # 平台映射：原先硬编码 linux_amd64 —— CI runner（ubuntu/amd64）刚好成立，但本机用
   # `HOMEOS_GATE_CONTEXT=ci` 跑时会下到一个 Linux ELF，紧接着 `cannot execute binary file`。
   # 按 uname 映射后两边都成立；未知平台直接报错，不猜。
@@ -84,8 +92,8 @@ if [ -z "$caddy_bin" ]; then
     echo "::error::下载到的 caddy 发包不是 gzip（版本 ${caddy_version}）—— 检查 release 资产名或网络中间层" >&2
     exit 1
   fi
-  tar -xzf "$caddy_tarball" -C /tmp caddy
-  caddy_bin=/tmp/caddy
+  tar -xzf "$caddy_tarball" -C "$caddy_work" caddy
+  caddy_bin="$caddy_work/caddy"
 fi
 
 "$caddy_bin" version
