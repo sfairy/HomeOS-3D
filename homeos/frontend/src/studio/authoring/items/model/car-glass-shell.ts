@@ -1,5 +1,5 @@
 /**
- * 小汽车「玻璃舱」重建：从闭合车身上切出车窗 / 挡风玻璃 / 车顶天幕 / 后窗。
+ * 小汽车「玻璃舱」重建：从闭合车身上切出车窗 / 挡风玻璃 / 车顶天幕 / 后窗，外加尾灯带。
  *
  * ## 为什么需要运行时重建（而不是在 GLB 里做）
  *
@@ -8,22 +8,31 @@
  * （1024² 里 58% 的采样是纯黑、且带第三方品牌标识），于是车身只剩一层纯色漆。
  *
  * 与 `prepareSuvRoofGlass` 的思路一致：**几何本身没有窗，就用几何判据把它「认定」出来**，
- * 再单独生成一张网格挂玻璃材质。区别是范围更大（侧窗 + 风挡 + 天幕 + 后窗），
- * 所以判据取两条独立证据，避免把车漆误判成玻璃：
+ * 再单独生成一张网格挂玻璃材质。判据取两类独立证据：
  *
- * 1. **共面证据（侧窗）**：开合件里的 `glass` 片就贴在车门内 18mm 处
+ * 1. **共面证据（侧窗，主）**：开合件里的 `glass` 片就贴在车门内 18mm 处
  *    （实测门板 9.180 / 玻璃 9.198）。车身三角形若「正贴在某块玻璃片上方」，
  *    它所在的表面就是那块窗 —— 把漆面改判为玻璃，玻璃件本身保留（不删几何）。
- * 2. **舱段证据（风挡 / 天幕 / 后窗）**：这几处根本没有玻璃件，只能按「朝上/朝前/朝后
- *    的法线 + 高于腰线 + 落在座舱纵向区间」筛。阈值由实测轮廓标定：
+ *    侧窗玻璃是曲面，多数三角形法线斜着走，纯几何带只能捞到 40 面，所以这条是主路径。
+ * 2. **舱段证据（风挡 / 天幕 / 后窗 / 侧窗兜底）**：按「朝上/朝前/朝后/朝侧的
+ *    法线 + 高于腰线 + 落在座舱纵向区间」筛。阈值由实测轮廓标定：
  *    车顶最高 1.43m、腰线约 0.95m、座舱纵向 -1.62…1.14m。
+ *
+ * ## 调用时机与幂等
+ *
+ * 车身模板与开合件模板的加载先后不确定，所以本函数在**两处**都会调用：
+ * 车身就绪时（先用舱段证据建一版）、开合件就绪时（拿到玻璃片后再细化侧窗）。
+ * 为支持这种「先建后细化」，实现是**从原始几何重建**而不是增量切分：
+ * 首次调用把每个宿主网格的原始 geometry 记进模块级 `WeakMap`，后续调用先把
+ * geometry 还原成原始，再重新切。否则第二次调用会把上一版已经切走的三角形当车身、
+ * 再把上一版玻璃网格删掉 —— 净效果是风挡/天幕凭空消失。
  *
  * ## 边界
  *
  * - 只动材质名是 `smallcar-bodywork` / `car_tms` 的网格；内饰、轮子、灯腔不碰。
  * - 切分沿用原几何的 attribute（共享 `BufferAttribute`，只换 index），顶点不复制。
- * - 幂等：以 `userData.hbCarGlassShell` 记录生成物，重复调用先移除再生成。
- * - 不参与合批 / 阴影投射的语义保持不变（继承原网格的 `castShadow` / `receiveShadow`）。
+ * - 不写 `userData`：模板缓存会把 `userData` 一起打包，WeakMap 既能跨调用记住原始几何，
+ *   又不会污染序列化结果。
  */
 
 /** 承载车窗的车身材质名（漆面）。 */
@@ -75,22 +84,33 @@ const CABIN = Object.freeze({
   maxRearGlassHeight: 1.36,
   /** 车顶天幕的横向宽度，避免把车顶两侧的漆面轨道也吃掉。 */
   maxAbsWidthNormal: 0.92,
+  /** 侧窗兜底（没有玻璃片时的近似）：朝侧、高于腰线、限在侧窗纵向区间。 */
+  sideNormalX: 0.6,
+  maxAbsSideNormalY: 0.5,
+  minAbsSideCenterX: 0.45,
+  minSideHeight: 0.94,
+  maxSideHeight: 1.345,
+  minSideLength: -1.75,
+  maxSideLength: 0.95,
 })
 
-const MATERIAL_BODY = 'body'
+/** 宿主网格的原始几何（首次切分前的副本引用）。 */
+const originalGeometryByHost = new WeakMap<object, any>()
+/** 每台车生成过的网格，供再次调用时移除。 */
+const shellsByModel = new WeakMap<object, any[]>()
+/** 尾灯材质按车缓存，避免每次调用都新建材质。 */
+const taillightMaterialByModel = new WeakMap<object, any>()
 
 type ThreeApi = {
   BufferGeometry: new () => any
   Mesh: new (geometry: any, material: any) => any
   Vector3: new (x?: number, y?: number, z?: number) => any
-  Matrix3?: new () => any
 }
 
 type Vec3Like = any
 
 /** 三角形顶点（世界坐标）。 */
 const worldTriangle = (mesh: any, position: any, ia: number, ib: number, ic: number, out: Vec3Like[]) => {
-  out[0].set(0, 0, 0)
   const read = (index: number, target: Vec3Like) => {
     target.set(position.getX(index), position.getY(index), position.getZ(index))
     const m = mesh.matrixWorld.elements
@@ -110,7 +130,7 @@ const worldTriangle = (mesh: any, position: any, ia: number, ib: number, ic: num
   return out
 }
 
-/** 三角形的世界法线（用顶点法线平均，比叉积稳：退化面不会给出 NaN）。 */
+/** 三角形的世界法线（顶点法线平均，退化面不会给出 NaN）。 */
 const worldNormal = (mesh: any, normal: any, ia: number, ib: number, ic: number, out: Vec3Like) => {
   const m = mesh.matrixWorld.elements
   let x = 0
@@ -152,6 +172,7 @@ function collectGlassPanes(three: ThreeApi, carModel: any): GlassPane[] {
   const edge1 = new three.Vector3()
   const edge2 = new three.Vector3()
   const normal = new three.Vector3()
+  const dot = (a: Vec3Like, b: Vec3Like) => a.x * b.x + a.y * b.y + a.z * b.z
   carModel.updateMatrixWorld?.(true)
   carModel.traverse?.((mesh: any) => {
     if (!mesh?.isMesh) return
@@ -179,7 +200,6 @@ function collectGlassPanes(three: ThreeApi, carModel: any): GlassPane[] {
       normal.multiplyScalar(1 / length)
       const axisU = edge1.clone().normalize()
       const axisV = new three.Vector3().crossVectors(normal, axisU).normalize()
-      const dot = (a: Vec3Like, b: Vec3Like) => a.x * b.x + a.y * b.y + a.z * b.z
       const bx = dot(edge1, axisU)
       const by = dot(edge1, axisV)
       const cx = dot(edge2, axisU)
@@ -222,9 +242,12 @@ function overGlassPane(panes: GlassPane[], point: Vec3Like): boolean {
   return false
 }
 
-/** 该三角形是否属于「玻璃舱」（风挡 / 天幕 / 后窗）。 */
+/** 该三角形是否属于「玻璃舱」（风挡 / 天幕 / 后窗 / 侧窗兜底）。 */
 function inGlassCabin(center: Vec3Like, normal: Vec3Like): boolean {
-  if (center.z < CABIN.minLength || center.z > CABIN.maxLength) return false
+  if (center.z < CABIN.minLength || center.z > CABIN.maxLength) {
+    // 侧窗的纵向区间比座舱略长（后三角窗在 -1.75 一带），单独判。
+    return inSideWindow(center, normal)
+  }
   const horizontal = Math.abs(normal.y) < CABIN.maxAbsHeightNormal
   // 车顶天幕：朝上、高于车顶腰线、且不靠到车顶两侧的漆面轨道。
   if (normal.y > CABIN.roofNormalY && center.y > CABIN.minRoofHeight && Math.abs(normal.z) < CABIN.maxAbsWidthNormal) {
@@ -248,7 +271,20 @@ function inGlassCabin(center: Vec3Like, normal: Vec3Like): boolean {
   ) {
     return true
   }
-  return false
+  return inSideWindow(center, normal)
+}
+
+/** 侧窗兜底：没有玻璃片时按「朝侧 + 腰线以上 + 侧窗纵向区间」近似。 */
+function inSideWindow(center: Vec3Like, normal: Vec3Like): boolean {
+  return (
+    Math.abs(normal.x) > CABIN.sideNormalX &&
+    Math.abs(normal.y) < CABIN.maxAbsSideNormalY &&
+    Math.abs(center.x) > CABIN.minAbsSideCenterX &&
+    center.y >= CABIN.minSideHeight &&
+    center.y <= CABIN.maxSideHeight &&
+    center.z >= CABIN.minSideLength &&
+    center.z <= CABIN.maxSideLength
+  )
 }
 
 /** 拷贝一份「只含给定角标」的几何：attribute 共享，仅换 index。 */
@@ -262,32 +298,44 @@ function subsetGeometry(three: ThreeApi, geometry: any, indices: number[]): any 
 export type CarGlassShellOptions = {
   /** 玻璃材质来源（开合件里的 `glass`）；缺省时新建一个深色半透明材质。 */
   glassMaterial?: any
-  /** 尾灯材质（暗红 + 自发光）；不给则不切尾灯带。 */
+  /** 尾灯材质（暗红 + 自发光）；不给则沿用上次 / 不切尾灯带。 */
   taillightMaterial?: any
 }
 
 /**
- * 为 `smallcar` 重建玻璃舱。返回生成的玻璃网格（没有可切的三角形时返回 `null`）。
+ * 为 `smallcar` 重建玻璃舱（含尾灯带）。返回本轮生成的网格（无可切内容时返回 `null`）。
  *
- * 幂等：重复调用会先移除上一次生成物。
+ * 幂等且可重复调用：每次都从**原始车身几何**重新切，所以「先按几何建一版、拿到开合件
+ * 玻璃片后再细化」不会丢面。
  */
 export function prepareCarGlassShell(three: ThreeApi, carModel: any, options: CarGlassShellOptions = {}) {
   if (!carModel?.traverse || !three?.BufferGeometry) return null
   carModel.updateMatrixWorld?.(true)
 
-  const previous = carModel.userData?.hbCarGlassShell
-  if (Array.isArray(previous)) {
-    for (const mesh of previous) {
-      mesh?.parent === carModel && carModel.remove(mesh)
-      mesh?.geometry?.dispose?.()
-    }
+  // 1) 撤掉上一轮生成物。
+  const previousShells = shellsByModel.get(carModel) ?? []
+  for (const mesh of previousShells) {
+    mesh?.parent?.remove?.(mesh)
+    mesh?.geometry?.dispose?.()
   }
   const created: any[] = []
-  carModel.userData && (carModel.userData.hbCarGlassShell = created)
+  shellsByModel.set(carModel, created)
+
+  // 2) 宿主网格的几何先还原成原始（首次调用时记录），保证重复调用结果一致。
+  const hostMeshes: any[] = []
+  carModel.traverse?.((mesh: any) => {
+    if (!mesh?.isMesh) return
+    const materialName = String([mesh.material].flat()[0]?.name ?? '')
+    if (!GLASS_HOST_MATERIALS.includes(materialName)) return
+    hostMeshes.push(mesh)
+  })
+  for (const mesh of hostMeshes) {
+    const original = originalGeometryByHost.get(mesh)
+    if (original) mesh.geometry = original
+    else originalGeometryByHost.set(mesh, mesh.geometry)
+  }
 
   const panes = collectGlassPanes(three, carModel)
-  if (!panes.length) return null
-
   const glassMaterial =
     options.glassMaterial ??
     (() => {
@@ -298,12 +346,6 @@ export function prepareCarGlassShell(three: ThreeApi, carModel: any, options: Ca
   const corners = [new three.Vector3(), new three.Vector3(), new three.Vector3()]
   const normal = new three.Vector3()
   const center = new three.Vector3()
-  const hostMeshes: any[] = []
-  carModel.traverse?.((mesh: any) => {
-    if (!mesh?.isMesh) return
-    const materialName = String([mesh.material].flat()[0]?.name ?? '')
-    if (GLASS_HOST_MATERIALS.includes(materialName)) hostMeshes.push(mesh)
-  })
 
   for (const mesh of hostMeshes) {
     const geometry = mesh.geometry
@@ -334,31 +376,34 @@ export function prepareCarGlassShell(three: ThreeApi, carModel: any, options: Ca
         center.y < TAILLIGHT.maxHeight &&
         Math.abs(center.x) > TAILLIGHT.minAbsWidth
       if (isTaillight) taillightIndices.push(ia, ib, ic)
-      else if (overGlassPane(panes, center) || inGlassCabin(center, normal)) glassIndices.push(ia, ib, ic)
-      else bodyIndices.push(ia, ib, ic)
+      else if ((panes.length && overGlassPane(panes, center)) || inGlassCabin(center, normal)) {
+        glassIndices.push(ia, ib, ic)
+      } else bodyIndices.push(ia, ib, ic)
     }
     if (!glassIndices.length && !taillightIndices.length) continue
 
+    const parent = mesh.parent ?? carModel
     if (taillightIndices.length) {
-      const taillightMesh = new three.Mesh(subsetGeometry(three, geometry, taillightIndices), options.taillightMaterial)
-      taillightMesh.name = `${mesh.name || MATERIAL_BODY}-taillight`
-      taillightMesh.castShadow = false
-      taillightMesh.receiveShadow = false
-      mesh.parent?.add?.(taillightMesh)
-      created.push(taillightMesh)
+      const taillightMaterial = options.taillightMaterial ?? taillightMaterialByModel.get(carModel)
+      if (taillightMaterial) {
+        taillightMaterialByModel.set(carModel, taillightMaterial)
+        const taillightMesh = new three.Mesh(subsetGeometry(three, geometry, taillightIndices), taillightMaterial)
+        taillightMesh.name = `${mesh.name || 'body'}-taillight`
+        taillightMesh.castShadow = false
+        taillightMesh.receiveShadow = false
+        parent.add?.(taillightMesh)
+        created.push(taillightMesh)
+      }
     }
-    if (!glassIndices.length) {
-      mesh.geometry = subsetGeometry(three, geometry, bodyIndices)
-      continue
-    }
-
-    const glassMesh = new three.Mesh(subsetGeometry(three, geometry, glassIndices), glassMaterial)
-    glassMesh.name = `${mesh.name || MATERIAL_BODY}-glass`
-    glassMesh.castShadow = false
-    glassMesh.receiveShadow = mesh.receiveShadow === true
     // 原网格只保留车身部分（几何重建，不动顶点数据）。
     mesh.geometry = subsetGeometry(three, geometry, bodyIndices)
-    mesh.parent?.add?.(glassMesh)
+    if (!glassIndices.length) continue
+
+    const glassMesh = new three.Mesh(subsetGeometry(three, geometry, glassIndices), glassMaterial)
+    glassMesh.name = `${mesh.name || 'body'}-glass`
+    glassMesh.castShadow = false
+    glassMesh.receiveShadow = mesh.receiveShadow === true
+    parent.add?.(glassMesh)
     created.push(glassMesh)
   }
 

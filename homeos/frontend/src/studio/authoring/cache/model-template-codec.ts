@@ -17,8 +17,14 @@ import { packModelTextures, restoreModelTextures } from './model-texture-cache'
  * 15 款庭院植物重出）改了 GLB 字节与产物结构，而模板存的是**几何 + UV + 材质**，
  * 光换 URL 键只能让新请求拿到新字节，本地 IndexedDB 里旧模板仍按旧描述符命中 ——
  * 画面依旧是「三块实心箱子」的水盆柜 / 燃气灶柜。跳版本号让全库模板重新打包。
+ *
+ * `v8`：小汽车资产与运行期收尾都变了，旧模板会让修复**完全看不到**：
+ * - 贴图：`小汽车` 摘掉了那张拍摄参考图，车身 / 车轮改纯色角色配方；
+ * - 几何：车身按几何壳拆出 `smallcar-wheel`（原先是单个 bodywork，车轮靠图上色）；
+ * - 运行期：`prepareCarGlassShell` 从车身几何重建玻璃舱 + 尾灯带。
+ * 模板缓存 key 不含 GLB 字节，所以不跳这一版，画面仍是「全白车壳 + 浅色轮子」。
  */
-const MODEL_TEMPLATE_REVISION = '20261025-kitchen-garden-v7'
+const MODEL_TEMPLATE_REVISION = '20261128-smallcar-glass-v8'
 
 /** 模板里一个打包属性的最小结构。 */
 type PackedAttribute = {

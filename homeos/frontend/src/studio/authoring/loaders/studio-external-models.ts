@@ -81,6 +81,15 @@ import { ALL_ITEM_MODELS } from './external-models/all-item-models'
 import { modelKeyForDecorationItem, userDecorationModelDefinition } from './external-models/user-decoration-models'
 import { applyModelAnchors } from './external-models/model-anchors'
 export { ALL_ITEM_MODELS } from './external-models/all-item-models'
+/**
+ * 运行期会**注入 / 重切几何**的车型：模板缓存会冻结「单份模板就绪时」的形态，
+ * 而它们的最终形态要等两份模板都到齐，因此这些 itemType 不走模板缓存恢复。
+ *
+ * - `smallcar`：`prepareCarGlassShell` 用开合件的 `glass` 片把侧窗从车身上切出来；
+ * - `suv`：`prepareSuvRoofGlass` 从车身挑面生成顶棚玻璃。
+ */
+const RUNTIME_GEOMETRY_ITEM_TYPES: ReadonlySet<string> = new Set(['smallcar', 'suv'])
+
 /** 外模型加载状态； */
 type ExternalModelLoadState = {
   /** 正在加载的数量。 */
@@ -218,12 +227,40 @@ export function createExternalModelManager({
    * 1. 车身先好 → 车身模板就绪时尝试挂（开合件没好的话跳过）；
    * 2. 开合件先好 → 开合件模板就绪时回头补挂到已就绪的车身模板上。
    */
+  /** 尾灯材质按车身模板缓存：重建玻璃舱可能被调用两次，不该每次新建材质。 */
+  const taillightMaterialCache = new WeakMap<object, any>()
+
   function mountOpeningPartsForVehicle(vehicleType: string, templateScene: any) {
     const openingsType = carOpeningsModelType(vehicleType)
     if (!openingsType || !templateScene) return
     const openingsEntry = preparedTemplatesByItemType.get(openingsType)
     if (openingsEntry?.source) mountCarOpeningParts(templateScene, openingsEntry.source)
     else void ensureOpeningsTemplate(openingsType)
+    // 车身先就绪时也要建一版玻璃舱（此时没有玻璃片，靠舱段判据近似）；
+    // 开合件到货后 `attachOpeningsToVehicles` 会用玻璃片再细化一次（函数幂等）。
+    if (vehicleType === 'smallcar') rebuildSmallcarGlassShell(templateScene, openingsEntry?.source ?? null)
+  }
+
+  /** `smallcar` 的玻璃舱 / 尾灯带重建；开合件场景可缺省（缺省时只有几何判据）。 */
+  function rebuildSmallcarGlassShell(carScene: any, openingsScene: any) {
+    if (!carScene) return null
+    const glassMaterial = openingsScene ? findVehicleGlassMaterial(openingsScene) : null
+    let taillightMaterial = taillightMaterialCache.get(carScene)
+    if (!taillightMaterial) {
+      taillightMaterial = new threeNamespace.MeshStandardMaterial({
+        name: 'smallcar-taillight',
+        color: 0x7a1114,
+        roughness: 0.34,
+        metalness: 0.1,
+        emissive: 0x8f1418,
+        emissiveIntensity: 0.45,
+      })
+      taillightMaterialCache.set(carScene, taillightMaterial)
+    }
+    return prepareCarGlassShell(threeNamespace, carScene, {
+      ...(glassMaterial ? { glassMaterial } : {}),
+      taillightMaterial,
+    })
   }
 
   /** 开合件模板就绪时，回头挂到对应车型的车身模板上。 */
@@ -234,24 +271,10 @@ export function createExternalModelManager({
     mountCarOpeningParts(vehicleEntry.source, openingsScene)
     /**
      * `smallcar` 的车窗在这份 GLB 里不是独立几何：车身是闭合实体，窗 / 风挡 / 天幕 / 尾灯
-     * 原本靠一张拍摄参考图上色（该图已从资产移除）。挂件之后立刻按「共面玻璃片 + 座舱几何带」
-     * 把这几处重新认定出来，车身才不会只剩一层纯色漆。
-     * 与 `prepareSuvRoofGlass` 同类做法，只是范围扩到整舱；函数内幂等，重复挂件安全。
+     * 原本靠一张拍摄参考图上色（该图已从资产移除）。开合件到货后用它的 `glass` 片把侧窗
+     * 精确切出来（车身先加载时已经按几何建过一版，这里只细化，函数幂等）。
      */
-    if (vehicleType === 'smallcar') {
-      const glassMaterial = findVehicleGlassMaterial(openingsScene)
-      prepareCarGlassShell(threeNamespace, vehicleEntry.source, {
-        ...(glassMaterial ? { glassMaterial } : {}),
-        taillightMaterial: new threeNamespace.MeshStandardMaterial({
-          name: 'smallcar-taillight',
-          color: 0x7a1114,
-          roughness: 0.34,
-          metalness: 0.1,
-          emissive: 0x8f1418,
-          emissiveIntensity: 0.45,
-        }),
-      })
-    }
+    if (vehicleType === 'smallcar') rebuildSmallcarGlassShell(vehicleEntry.source, openingsScene)
   }
 
   /** 开合件里的玻璃材质（`glass` / `glass_01`…），作为车窗网格的材质来源。 */
@@ -286,9 +309,22 @@ export function createExternalModelManager({
     itemTypeName: any,
     { skipPersistentRestore = false, preferFull = false } = {},
   ) {
+    /**
+     * 有**运行期注入几何**的车型必须绕开模板缓存。
+     *
+     * 模板缓存存的是打包后的场景图，而这类模型的最终形态要等两份模板都到齐才确定：
+     * - `smallcar`：`prepareCarGlassShell` 用开合件的 `glass` 片切侧窗（车身先到时只能近似）；
+     * - `suv`：`prepareSuvRoofGlass` 从车身挑面生成顶棚玻璃。
+     * 而缓存写入发生在**单份模板就绪时**（早于另一份），命中的模板天然缺这部分；
+     * 又因为 key 不含 GLB 字节，光跳 revision 只能修一次、下次又踩。
+     * 所以对它们直接关掉恢复 —— 代价是一次 GLB 解析（`小汽车-lite` 15KB）。
+     */
+    const runtimeGeometryItemType = RUNTIME_GEOMETRY_ITEM_TYPES.has(String(itemTypeName))
     const templateCacheKey = modelTemplateKey(threeNamespace, itemTypeName, itemDefinition),
       restoredPreparedTemplate =
-        skipPersistentRestore || preferFull ? null : await persistentCache.restore(templateCacheKey)
+        skipPersistentRestore || preferFull || runtimeGeometryItemType
+          ? null
+          : await persistentCache.restore(templateCacheKey)
     if (restoredPreparedTemplate)
       return {
         preparedTemplate: restoredPreparedTemplate,
