@@ -42,6 +42,11 @@ import {
   repoRoot,
 } from '../../../homeos/frontend/scripts/models/lib/glb-io.mjs'
 import { repackGlb } from '../../../homeos/frontend/scripts/models/lib/glb-bin-io.mjs'
+import {
+  dracoStreams,
+  geometrySignature,
+  positionBounds,
+} from '../../../homeos/frontend/scripts/models/lib/glb-json-surgery.mjs'
 
 const hereDir = path.dirname(fileURLToPath(import.meta.url))
 void hereDir
@@ -51,6 +56,12 @@ const hasFlag = (name) => args.includes(`--${name}`)
 const write = hasFlag('write')
 const check = hasFlag('check')
 const asJson = hasFlag('json')
+/** `--drop-textures --model <id>`：摘掉模型对贴图的全部引用（贴图本身不需要时用）。 */
+const dropTextures = hasFlag('drop-textures')
+const modelFilter = (() => {
+  const index = args.indexOf('--model')
+  return index >= 0 ? args[index + 1] : undefined
+})()
 const quality = Number(args[args.indexOf('--quality') + 1]) || 92
 
 /**
@@ -163,7 +174,114 @@ function assetBaseName(group) {
 
 const round1 = (value) => Math.round(value * 10) / 10
 
+/**
+ * 摘掉模型对贴图的**全部**引用，让材质回到「纯色 + 角色配方」。
+ *
+ * 为什么需要这个模式：`小汽车` 的 `car_tms` 是一张**拍摄的四视图参考图**，不是 UV 图集 ——
+ * 车身 58% 的顶点采样到纯黑，且 `studio-car-finish.ts` 为它写了约 200 行像素级补丁
+ * （硬编码采样 `v=0.770/0.895` 修「拍摄曝光台阶」、按 `/700` 换算像素定位玻璃岛）。
+ * 图本身不需要时，正确做法是把引用整体摘掉：`#ifdef USE_MAP` 的补丁全部编译外，
+ * 车辆走 `applyCarFinish` 的非贴图分支（车漆 + 环境反射）。
+ *
+ * 只动 JSON：贴图已外置（`uri`）时连 BIN 都不碰；仍内嵌时顺手 drop 它的 bufferView，
+ * 由 `repackGlb` 重排引用。几何流（含 Draco）必须逐字节不变。
+ */
+function stripTextures(filePath) {
+  const buffer = fs.readFileSync(filePath)
+  const before = parseGlb(buffer)
+  const signatureBefore = geometrySignature(before.json)
+  const dracoBefore = dracoStreams(before.json, before.bin)
+
+  const imageViews = (before.json.images ?? []).map((image) => image.bufferView).filter((view) => view !== undefined)
+  const next = repackGlb(buffer, {
+    mutateJson: (json) => {
+      for (const material of json.materials ?? []) {
+        const pbr = material.pbrMetallicRoughness
+        if (pbr) {
+          delete pbr.baseColorTexture
+          delete pbr.metallicRoughnessTexture
+        }
+        delete material.normalTexture
+        delete material.occlusionTexture
+        delete material.emissiveTexture
+      }
+      delete json.textures
+      delete json.images
+      delete json.samplers
+    },
+    drop: new Set(imageViews),
+  })
+
+  const after = parseGlb(next)
+  const signatureAfter = geometrySignature(after.json)
+  if (signatureAfter.triangles !== signatureBefore.triangles) {
+    throw new Error(`${filePath}：三角面 ${signatureBefore.triangles} → ${signatureAfter.triangles}，中止`)
+  }
+  if (JSON.stringify(signatureAfter.materials) !== JSON.stringify(signatureBefore.materials)) {
+    throw new Error(`${filePath}：primitive → 材质 绑定变了，中止`)
+  }
+  if (JSON.stringify(positionBounds(before.json)) !== JSON.stringify(positionBounds(after.json))) {
+    throw new Error(`${filePath}：POSITION 外接尺寸变了，中止`)
+  }
+  if (after.json.images?.length || after.json.textures?.length)
+    throw new Error(`${filePath}：仍有 textures / images，中止`)
+  const dracoAfter = dracoStreams(after.json, after.bin)
+  if (dracoAfter.length !== dracoBefore.length) throw new Error(`${filePath}：Draco primitive 数量变了，中止`)
+  for (let index = 0; index < dracoAfter.length; index += 1) {
+    if (!dracoAfter[index].equals(dracoBefore[index])) {
+      throw new Error(`${filePath}：Draco 流第 ${index} 段的字节变了，中止`)
+    }
+  }
+  fs.writeFileSync(filePath, next)
+  return { bytesBefore: buffer.length, bytesAfter: next.length, materials: (after.json.materials ?? []).length }
+}
+
+/** 该 GLB 里是否还有任何贴图引用。 */
+function hasTextureReference(json) {
+  if ((json.images ?? []).length || (json.textures ?? []).length) return true
+  for (const material of json.materials ?? []) {
+    const pbr = material.pbrMetallicRoughness ?? {}
+    if (pbr.baseColorTexture || pbr.metallicRoughnessTexture) return true
+    if (material.normalTexture || material.occlusionTexture || material.emissiveTexture) return true
+  }
+  return false
+}
+
 async function main() {
+  if (dropTextures) {
+    const targets = listModelFiles().filter((relativePath) => {
+      const parsed = parseModelPath(relativePath)
+      return !modelFilter || parsed.id === modelFilter
+    })
+    const pending = targets.filter((relativePath) =>
+      hasTextureReference(parseGlb(fs.readFileSync(path.join(modelsDir, relativePath))).json),
+    )
+    if (!pending.length) {
+      console.log(`✓ 没有模型仍引用贴图${modelFilter ? `（${modelFilter}）` : ''}`)
+      return
+    }
+    for (const relativePath of pending) {
+      if (!write) {
+        console.log(`  将摘除贴图引用：${relativePath}`)
+        continue
+      }
+      const outcome = stripTextures(path.join(modelsDir, relativePath))
+      console.log(
+        `  已摘除 ${relativePath}（${outcome.materials} 个材质，${outcome.bytesBefore} → ${outcome.bytesAfter} 字节）`,
+      )
+    }
+    if (!write) {
+      console.log(`\n（dry-run：加 --write 才落盘）共 ${pending.length} 个文件`)
+      return
+    }
+    console.log(
+      `\n完成：${pending.length} 个文件不再引用贴图。` +
+        '\n下一步：`repair_glb_material_slots.mjs --model <id> --write` 回填 baseColorFactor（否则 M1 缺失），' +
+        '\n然后删掉不再被引用的外置贴图文件，并重跑 check:model-assets。',
+    )
+    return
+  }
+
   const entries = scanImages()
   const byHash = new Map()
   for (const entry of entries) {

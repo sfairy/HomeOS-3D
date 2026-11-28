@@ -48,8 +48,11 @@ import { repackGlb } from '../../../homeos/frontend/scripts/models/lib/glb-bin-i
 import {
   declaresAttribute,
   detachAttribute,
+  dracoStreams,
   dropAccessors,
   dropNodes,
+  geometrySignature,
+  positionBounds,
   unreachableNodeIndices,
 } from '../../../homeos/frontend/scripts/models/lib/glb-json-surgery.mjs'
 import { STALE_UV_ITEM_TYPES } from '../../../homeos/frontend/scripts/models/lib/stale-uv-models.mjs'
@@ -64,54 +67,6 @@ const write = hasFlag('write')
 const check = hasFlag('check')
 const asJson = hasFlag('json')
 const only = valueOf('model')
-
-/** 三角面数与材质绑定序列（判「几何 / 绑定有没有被动过」）。 */
-function geometrySignature(json) {
-  const accessors = json.accessors ?? []
-  let triangles = 0
-  const materials = []
-  for (const mesh of json.meshes ?? []) {
-    for (const primitive of mesh.primitives ?? []) {
-      const indices = accessors[primitive.indices]
-      const position = accessors[primitive.attributes?.POSITION]
-      triangles += (indices?.count ?? position?.count ?? 0) / 3
-      materials.push(json.materials?.[primitive.material]?.name ?? '(无材质)')
-    }
-  }
-  return { triangles: Math.round(triangles), materials }
-}
-
-/** POSITION accessor 的 min/max 合并：不依赖 Draco 解码就能拿到外接尺寸。 */
-function positionBounds(json) {
-  const min = [Infinity, Infinity, Infinity]
-  const max = [-Infinity, -Infinity, -Infinity]
-  for (const mesh of json.meshes ?? []) {
-    for (const primitive of mesh.primitives ?? []) {
-      const accessor = json.accessors?.[primitive.attributes?.POSITION]
-      if (!accessor?.min || !accessor?.max) continue
-      for (let axis = 0; axis < 3; axis += 1) {
-        min[axis] = Math.min(min[axis], accessor.min[axis])
-        max[axis] = Math.max(max[axis], accessor.max[axis])
-      }
-    }
-  }
-  return { min, max }
-}
-
-/** Draco 流字节（删 UV 前后必须逐字节相同）。 */
-function dracoBytes(json, bin) {
-  const chunks = []
-  for (const mesh of json.meshes ?? []) {
-    for (const primitive of mesh.primitives ?? []) {
-      const index = primitive.extensions?.KHR_draco_mesh_compression?.bufferView
-      if (index === undefined) continue
-      const view = json.bufferViews?.[index]
-      const start = view.byteOffset ?? 0
-      chunks.push(bin.subarray(start, start + view.byteLength))
-    }
-  }
-  return chunks
-}
 
 function scan() {
   const plan = []
@@ -178,7 +133,7 @@ async function main() {
     const before = parseGlb(buffer)
     const signatureBefore = geometrySignature(before.json)
     const boundsBefore = positionBounds(before.json)
-    const dracoBefore = dracoBytes(before.json, before.bin)
+    const dracoBefore = dracoStreams(before.json, before.bin)
     const reachableNamesBefore = (() => {
       const skipped = new Set(unreachableNodeIndices(before.json))
       return (before.json.nodes ?? [])
@@ -230,7 +185,7 @@ async function main() {
       if (!(after.json.extensionsUsed ?? []).includes('KHR_draco_mesh_compression')) {
         throw new Error(`${entry.file}：lite 丢失 Draco，中止`)
       }
-      const dracoAfter = dracoBytes(after.json, after.bin)
+      const dracoAfter = dracoStreams(after.json, after.bin)
       if (dracoAfter.length !== dracoBefore.length) throw new Error(`${entry.file}：Draco primitive 数量变了，中止`)
       for (let index = 0; index < dracoAfter.length; index += 1) {
         if (!dracoAfter[index].equals(dracoBefore[index])) {

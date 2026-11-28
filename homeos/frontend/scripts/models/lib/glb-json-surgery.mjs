@@ -224,3 +224,61 @@ export function declaresAttribute(json, attributeName) {
   }
   return false
 }
+
+/**
+ * 几何签名：三角面数 + `primitive → 材质名` 序列。
+ *
+ * 改 JSON 的手术（摘 UV、删节点、去贴图）都必须保持它不变 —— 三角面变了是丢件，
+ * 材质序列变了是把 A 构件刷成 B 的外观。按**名字**比对而不是下标：材质下标会随删除漂移。
+ */
+export function geometrySignature(json) {
+  const accessors = json.accessors ?? []
+  let triangles = 0
+  const materials = []
+  for (const mesh of json.meshes ?? []) {
+    for (const primitive of mesh.primitives ?? []) {
+      const indices = accessors[primitive.indices]
+      const position = accessors[primitive.attributes?.POSITION]
+      triangles += (indices?.count ?? position?.count ?? 0) / 3
+      materials.push(json.materials?.[primitive.material]?.name ?? '(无材质)')
+    }
+  }
+  return { triangles: Math.round(triangles), materials }
+}
+
+/**
+ * POSITION accessor 的 min/max 合并。
+ *
+ * 不依赖 Draco 解码就能拿到外接尺寸：glTF 规范要求 POSITION 必需 `min` / `max`，
+ * Draco 压缩时它们仍留在 JSON 里。所以「JSON 手术没动几何」这件事可以零解码验证。
+ */
+export function positionBounds(json) {
+  const min = [Infinity, Infinity, Infinity]
+  const max = [-Infinity, -Infinity, -Infinity]
+  for (const mesh of json.meshes ?? []) {
+    for (const primitive of mesh.primitives ?? []) {
+      const accessor = json.accessors?.[primitive.attributes?.POSITION]
+      if (!accessor?.min || !accessor?.max) continue
+      for (let axis = 0; axis < 3; axis += 1) {
+        min[axis] = Math.min(min[axis], accessor.min[axis])
+        max[axis] = Math.max(max[axis], accessor.max[axis])
+      }
+    }
+  }
+  return { min, max }
+}
+
+/** Draco 流的逐段字节（改 JSON 前后必须逐字节相同）。 */
+export function dracoStreams(json, bin) {
+  const streams = []
+  for (const mesh of json.meshes ?? []) {
+    for (const primitive of mesh.primitives ?? []) {
+      const index = primitive.extensions?.KHR_draco_mesh_compression?.bufferView
+      if (index === undefined) continue
+      const view = json.bufferViews?.[index]
+      const start = view.byteOffset ?? 0
+      streams.push(bin.subarray(start, start + view.byteLength))
+    }
+  }
+  return streams
+}
