@@ -399,7 +399,16 @@ class AgentSchedulerService:
         return results
 
     def _claim_sync(self, task_id: str, now: datetime) -> dict[str, Any] | None:
-        """执行前复核并 CAS 推进 ``next_run_at``，返回最新参数快照，否则 ``None``。
+        """执行前复核并**推进** ``next_run_at``，返回最新参数快照，否则 ``None``。
+
+        这里的「领取」是**进程内**语义（SELECT → 修改 → commit），不是数据库级 CAS：
+        HomeOS 由 ``assert_single_process`` 强制单进程，`tick` 又串行 await，所以进程内
+        不会有两个领取者；真正的排他依赖调用方的 ``_running`` 集合（手动执行也已登记）。
+
+        **多 worker 上线前必须先改成条件 UPDATE**（``... WHERE id=? AND enabled=1 AND
+        next_run_at<=?``，按 ``rowcount==1`` 判定），否则每个 worker 都会把同一到期任务
+        执行一遍 —— 门锁 / 阀门 / 场景会被下发两次。原注释把它写成 CAS，容易让人以为
+        分布式安全已经就位。
 
         ``tick`` 是先快照 ``enabled=1`` 的任务再逐个 ``await`` 执行的。期间用户完全可能
         把任务停用、改动作参数或改 cron，而旧实现会拿快照里的旧参数照跑一遍。
@@ -429,7 +438,7 @@ class AgentSchedulerService:
                 "precondition": read_json_object(row.precondition, {}),
                 "actor": read_json_object(row.actor, {}),
             }
-            # CAS：领取即推进，防止 finish 失败后同一到期任务被反复重领。
+            # 领取即推进，防止 finish 失败后同一到期任务被反复重领（进程内语义，见 docstring）。
             if row.schedule_type == "RECURRING":
                 next_run = next_cron_run(row.cron or "", row.timezone or "", now)
                 if next_run is None:
