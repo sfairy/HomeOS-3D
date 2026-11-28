@@ -60,7 +60,10 @@
     <!-- 3D 户型图编辑器首屏加载遮罩样式**不在这里**（0.8.9 公告 9）。
          原因：它只服务 `/3d-studio` 创作页，却被无条件挂在所有路由的首屏 ——
          普通仪表盘用户为一个用不到的遮罩多付一次 CSS 请求与解析。
-         改由路由守卫在判定「进入创作页」后按需注入（见 `src/shared/utils/ui/studio-loading-style.ts`）。 -->
+         现由两处按需注入，二者按 id / href 判重：
+         - 冷开 `/3d-studio`：`static/3d-studio/studio-loading.js`（body 里的经典脚本，
+           早于本页任何渲染）就地挂表，并等它 `load` 之后再揭示遮罩 —— 否则会露一帧无样式文案；
+         - SPA 内路由切入：`src/kernel/ui/studio-loading-style.ts`（`router.afterEach`）。 -->
 </head>
 
 <body>

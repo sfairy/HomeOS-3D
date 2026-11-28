@@ -5,6 +5,7 @@ import { syncControlValue as syncControlValue2 } from './ui-controls'
 import { finite as finite2 } from '../loaders/studio-normalization'
 import { setUserDecorationStageContext, decorationPlacementFields, registerUserDecorationModel } from './wiring'
 import { isPlacedItemHidden, isPlacedItemLocked } from '../items/placement/placed-item-state'
+import { cachePanelRatios } from './workspace'
 
 /**
  * 平面画布的 2D 上下文（0.8.9 起从 `boot.ts` 切出）。
@@ -68,7 +69,8 @@ export function applySnapTolerance(runtime: StudioAppRuntime, resizeMoveEvent: a
       yl4.maximumWidthRatio,
     )),
     runtime.applyPanelRatios(),
-    runtime.applyDetailsRatio()
+    runtime.applyDetailsRatio(),
+    cachePanelRatios(runtime)
 }
 
 export function applyWallHeightInput(runtime: StudioAppRuntime, wallHeightValue: any) {

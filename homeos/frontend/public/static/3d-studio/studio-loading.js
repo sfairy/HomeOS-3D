@@ -37,6 +37,60 @@
   var panel = document.getElementById("studio-loading");
   if (!panel) return;
 
+  /**
+   * 遮罩样式表必须**在揭示遮罩之前**就位。
+   *
+   * 这一段以前是直接 `panel.hidden = false`：`#studio-loading` 的样式表由路由守卫
+   * （`ensureStudioLoadingStyle`，在 `router.afterEach` 里）后挂，而本脚本是 body 里的
+   * 经典脚本、远早于它执行。于是刷新 `/3d-studio` 的头 ~350ms 会露出一块**没有任何样式**
+   * 的遮罩（默认字号、透明底、蓝色下划线链接）—— 就是「刷新瞬间样式不对」的那一帧。
+   *
+   * 这里就地挂表并等它 `load` 再揭示；失败/超时也照常揭示（宁可朴素，也不要停在空屏）。
+   * 节点 id 与 `ensureStudioLoadingStyle` 一致，那边会按 id 判重，不会重复请求。
+   */
+  var LOADING_STYLE_HREF = "/static/3d-studio/studio-loading.css";
+  var LOADING_STYLE_ID = "studio-loading-style";
+  var LOADING_STYLE_WAIT_MS = 400;
+
+  function revealWhenStyled() {
+    var show = function () {
+      if (!active || failed || leaving) return;
+      panel.hidden = false;
+    };
+    var link = document.getElementById(LOADING_STYLE_ID);
+    if (!link) {
+      var links = document.head.querySelectorAll('link[rel="stylesheet"]');
+      for (var index = 0; index < links.length; index += 1) {
+        if ((links[index].getAttribute("href") || "").indexOf("studio-loading.css") !== -1) {
+          link = links[index];
+          break;
+        }
+      }
+    }
+    if (!link) {
+      link = document.createElement("link");
+      link.id = LOADING_STYLE_ID;
+      link.rel = "stylesheet";
+      link.href = LOADING_STYLE_HREF;
+      document.head.appendChild(link);
+    }
+    if (link.sheet) {
+      show();
+      return;
+    }
+    var settled = false;
+    var settle = function () {
+      if (settled) return;
+      settled = true;
+      link.removeEventListener("load", settle);
+      link.removeEventListener("error", settle);
+      show();
+    };
+    link.addEventListener("load", settle);
+    link.addEventListener("error", settle);
+    window.setTimeout(settle, LOADING_STYLE_WAIT_MS);
+  }
+
   var titleElement = panel.querySelector("[data-loading-title]");
   var detailElement = panel.querySelector("[data-loading-detail]");
   var retryElement = panel.querySelector("[data-loading-retry]");
@@ -48,7 +102,7 @@
   var stallTimer = null;
 
   root.classList.add("studio-starting");
-  panel.hidden = false;
+  revealWhenStyled();
 
   // 加载期间用户按键一律吞掉：此时编辑器还没挂上，键盘快捷键打到的是一份空壳。
   function swallowKeydown(event) {

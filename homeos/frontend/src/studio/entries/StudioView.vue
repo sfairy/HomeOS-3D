@@ -20,7 +20,7 @@ function scheduleStudioTeardown(teardown: (() => Promise<void> | void) | null | 
 
 <script setup lang="ts">
 /** Vue 壳层（顶栏 / 工作流 / 平面聚焦 / 撤销）+ DOM 契约供 bootStudio 操作。 */
-import { computed, onBeforeUnmount, onMounted, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
 import { useStudioFloorplanStore } from "@app/state/studio-floorplan.store";
 import { useChromeStore } from "@/kernel/ui/chrome/chrome-store";
@@ -33,6 +33,7 @@ import "@/studio/chrome/studio-chrome.css";
 import "@/studio/chrome/studio-native-dialogs.css";
 import { Undo2, Redo2, Focus, PanelsTopLeft } from "@lucide/vue";
 import { studioStartupFail, studioStartupPhase } from '@/kernel/ui/studio-startup'
+import { applyStudioPanelRatios } from '@app/shared/panel-ratios'
 // bootStudio 在 onMounted 同步读 #plan-canvas / 对话框等节点：这些壳必须同步挂载，不能 defineAsyncComponent。
 import StudioPlanPanel from "@/studio/chrome/creator/StudioPlanPanel.vue";
 import StudioPlacedPanel from "@/studio/chrome/creator/StudioPlacedPanel.vue";
@@ -46,6 +47,17 @@ const route = useRoute();
 const router = useRouter();
 const floorplanStore = useStudioFloorplanStore();
 const chrome = useChromeStore();
+
+/**
+ * 首帧排布用的两个宿主：右栏宽度（`.studio-shell` 的 `--details-panel-width`）与
+ * 右栏内预览高度（`.details-panel` 的 `--preview-panel-height`）。
+ *
+ * 这两个变量由引擎在场景 settings 到达后写（`applyDetailsRatio` / `applyPanelRatios`）。
+ * 首帧先按上次落地的比例排布，否则从仪表盘编辑器切进来时会先按 CSS 兜底画一帧、
+ * 再跳到用户实际调过的宽度 —— 那就是切换过程中那一下「样式不对」。
+ */
+const studioShellEl = ref<HTMLElement | null>(null);
+const detailsPanelEl = ref<HTMLElement | null>(null);
 
 /** 舞台 iframe / 自动导图嵌入态：不挂创作顶栏，避免步骤条叠进 3D 画布 */
 const showCreatorChrome = computed(
@@ -184,6 +196,9 @@ watch(
 );
 
 onMounted(async () => {
+  // 第一帧就按上次的面板比例排布（同步执行，早于浏览器绘制与下面的 await）：
+  // 否则场景 settings 到达前壳层按 CSS 兜底排，随后再跳到真实宽度。
+  applyStudioPanelRatios(studioShellEl.value, detailsPanelEl.value);
   // 引擎侧的工作区切换会发这个事件：先挂监听，别等 boot 完成才收得到。
   window.addEventListener(LEAVE_PLAN_FOCUS_EVENT, leavePlanFocusForWorkspace);
   // 界面顶栏已经挂上，但 3D 那半边还没影子：遮罩文案从这里开始接管，直到 boot 自己
@@ -353,7 +368,7 @@ onBeforeUnmount(() => {
         </div>
         <div class="header-actions"> <span id="save-state" class="save-state"><i></i>正在载入…</span> </div>
     </header>
-    <main class="studio-shell">
+    <main ref="studioShellEl" class="studio-shell" data-editor-workspace="true">
         <aside
           class="library-panel panel-surface"
           :class="{ 'is-collapsed': floorplanStore.libraryCollapsed }"
@@ -1409,13 +1424,20 @@ onBeforeUnmount(() => {
                 </div>
             </section>
         </aside>
-        <div class="editor-main-view"><div class="editor-primary-view"></div></div><!-- 嵌入舞台也必须挂载：boot 依赖 #plan-canvas 等 DOM，不能用 v-if 裁掉。 --><StudioPlanPanel />
+        <!-- 两块画布预置在最终容器里：boot 的 `layoutWorkspace` 会把它们搬进主/次视图。
+             先放好，`.studio-shell` 就不会在首帧多出一个「只装空 `.editor-main-view` 的隐式行」，
+             右栏也就不会先被压矮再弹回全高（编辑器 → 户型图绘制那一下的重排）。
+             嵌入舞台同样必须挂载：boot 依赖 #plan-canvas 等 DOM，不能用 v-if 裁掉。 -->
+        <div class="editor-main-view"><div class="editor-primary-view"><StudioPlanPanel /></div></div>
         <aside
+          ref="detailsPanelEl"
           class="details-panel"
           :class="{ 'is-collapsed': floorplanStore.planFocus }"
           :aria-hidden="floorplanStore.planFocus"
         >
-            <div class="editor-secondary-view"></div><section class="preview-card panel-surface">
+            <!-- 预览卡预置在次视图里：boot 的 `layoutWorkspace` 会把它搬进来，先放好就没有
+                 「右栏上半格先是空的、随后 3D 预览才顶上来」的首帧重排。 -->
+            <div class="editor-secondary-view"><section class="preview-card panel-surface">
                 <!-- 0.8.9 预览标题条：**两段式**（`preview-heading-main` + `preview-heading-actions`）。
                      - 左段：标题 + 光影切换行（同一行，光影行自己会 wrap 到下一行）
                      - 右段：`preview-view-controls`（同步/楼层/视角）+ `preview-tools`（风格/导图/相机）
@@ -1591,7 +1613,7 @@ onBeforeUnmount(() => {
                     <div id="model-loading-status" class="model-loading-status" role="status" aria-live="polite" hidden>
                         <span class="model-loading-spinner" aria-hidden="true"></span><span>正在加载模型…</span></div>
                 </div>
-            </section>
+            </section></div>
             <div class="details-divider"> <button id="details-resizer" class="details-resizer" type="button"
                     role="separator" aria-label="拖动调整画布宽度和 3D 预览高度"></button> </div>
             <section class="inspector-card panel-surface">

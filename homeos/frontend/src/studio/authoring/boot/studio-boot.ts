@@ -16,6 +16,7 @@ import {
 import { prepareSceneDocument as prepareSceneDocument2 } from '../cache/scene-persistent-cache'
 import { stageStartup as stageStartup2 } from '../stage-startup'
 import { describeStageFailure } from '../../app/shared/util/stage-failure-message'
+import { writeStudioPanelRatios } from '../../app/shared/panel-ratios'
 import { STUDIO_COMPAT_NOTICE, studioCompatModeSource } from '../studio-gpu-compat'
 import {
   studioStartupActive,
@@ -117,6 +118,22 @@ export async function startupStudio(deps: StudioBootDeps) {
     const draftRequest = deps.fetchStudioApi(stageStartup2?.path || '/studio3d', {}, stageStartup2?.response)
     // 草稿请求与遮罩共用中止信号：用户点重试 / 关页面时不再白等一次往返。
     const xa3 = await (overlayActive ? studioStartupWait(draftRequest) : draftRequest)
+    // 首帧面板比例缓存：记下**服务端草稿里的原值**（未经布局夹紧），下次进入绘制台
+    // 先按它排布，避免「先按 CSS 兜底画一帧、再跳到用户宽度」的列宽跳变。
+    // 必须用原始 payload 而不是净化后的文档：后者会被引擎的夹紧写回，重复进入时会带上
+    // 一次错误测量的结果。视图设置存在**活动楼层**的 scene.settings 里（不是在顶层）。
+    const draftSceneRecord = xa3?.scene
+    const draftFloorRecord = Array.isArray(draftSceneRecord?.floors)
+      ? draftSceneRecord.floors.find((floor: any) => floor?.id === draftSceneRecord.activeFloorId) ||
+        draftSceneRecord.floors[0]
+      : null
+    const draftViewSettings = draftFloorRecord?.scene?.settings
+    if (draftViewSettings && typeof draftViewSettings === 'object') {
+      writeStudioPanelRatios({
+        detailsPanelWidthRatio: draftViewSettings.detailsPanelWidthRatio,
+        previewPanelRatio: draftViewSettings.previewPanelRatio,
+      })
+    }
     ;(deps.projectNameElement.textContent = '户型图绘制'),
       deps.stageLoadTiming('draft-fetched'),
       (document.title = '户型图绘制')

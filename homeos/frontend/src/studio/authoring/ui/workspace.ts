@@ -1,6 +1,7 @@
 import { type StudioAppRuntime } from '../runtime/studio-app-runtime'
 import { clamp as clamp2 } from '../plan/geometry'
 import { finite as finite2 } from '../loaders/studio-normalization'
+import { writeStudioPanelRatios } from '@app/shared/panel-ratios'
 import { cancelEditor3D } from './editor-3d'
 import { dismissOverlapPicker } from './wiring'
 import { registerOverlayObstacles } from './overlay-obstacles'
@@ -46,6 +47,24 @@ export function applyDetailsRatio(runtime: StudioAppRuntime) {
       '--details-panel-width',
       (detailsPanelWidthRatio * 100).toFixed(2) + '%',
     )
+}
+
+/**
+ * 记录用户手动调整后的面板比例（拖拽分隔条 / 方向键）。
+ *
+ * 只在这两条**用户显式**路径写缓存：引擎在场景 payload 到达后也会 apply* 一次，但那一刻
+ * `.studio-shell` 可能还没完成布局（量出来的最小宽度偏高），拿那次结果写缓存会把下次
+ * 进入时的首帧带偏。拖拽与方向键都发生在稳定布局上，值可信。
+ *
+ * 场景 payload 自己的比例由 `startupStudio` 在 `applyLoadedDraft` 之后直接写（见那里），
+ * 不经过这里。
+ */
+export function cachePanelRatios(runtime: StudioAppRuntime): void {
+  const settings = runtime.appCtx.studioState.settings
+  writeStudioPanelRatios({
+    detailsPanelWidthRatio: settings?.detailsPanelWidthRatio,
+    previewPanelRatio: settings?.previewPanelRatio,
+  })
 }
 
 /**

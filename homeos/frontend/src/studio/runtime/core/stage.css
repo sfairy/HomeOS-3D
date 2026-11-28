@@ -302,7 +302,12 @@ body.interaction3d-stage {
   margin: 0;
 }
 .interaction3d-stage .studio-shell > :not(.details-panel),
-.interaction3d-stage .details-panel > :not(.preview-card),
+/* `.editor-secondary-view` 是预览卡的常驻容器（Vue 模板预置，创作页的 boot 也把预览搬进这里）：
+   舞台必须让它透传，只藏它里面的非预览子节点，否则整块 3D 预览会被一起隐藏。 */
+  .interaction3d-stage
+  .details-panel
+  > :not(.preview-card):not(.editor-secondary-view),
+.interaction3d-stage .editor-secondary-view > :not(.preview-card),
 .interaction3d-stage .preview-card > :not(#preview-3d):not(#webgl-message) {
   display: none !important;
 }

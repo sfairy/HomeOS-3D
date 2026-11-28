@@ -577,6 +577,7 @@ import {
   getPanelRatioLimits as getPanelRatioLimitsImpl,
   applyPanelRatios as applyPanelRatiosImpl,
   applyDetailsRatio as applyDetailsRatioImpl,
+  cachePanelRatios as cachePanelRatiosImpl,
   closeOpenPopovers as closeOpenPopoversImpl,
   applyLightGroupRename as applyLightGroupRenameImpl,
   createLightGroup as createLightGroupImpl,
@@ -2656,6 +2657,7 @@ export function bootStudio(): void {
       const getPanelRatioLimits = (...args: any[]): any => (getPanelRatioLimitsImpl as any)(studioRuntime, ...args)
       const applyPanelRatios = (...args: any[]): any => (applyPanelRatiosImpl as any)(studioRuntime, ...args)
       const applyDetailsRatio = (...args: any[]): any => (applyDetailsRatioImpl as any)(studioRuntime, ...args)
+      const cachePanelRatios = (): any => (cachePanelRatiosImpl as any)(studioRuntime)
       const isSnapEnabled = (...args: any[]): any => (isSnapEnabledImpl as any)(studioRuntime, ...args)
       const setSnapSettingsOpen = (...args: any[]): any => (setSnapSettingsOpenImpl as any)(studioRuntime, ...args)
       const syncSnapControls = (...args: any[]): any => (syncSnapControlsImpl as any)(studioRuntime, ...args)
@@ -5045,6 +5047,7 @@ export function bootStudio(): void {
             )),
             applyPanelRatios(),
             applyDetailsRatio(),
+            cachePanelRatios(),
             markDocumentDirty()
         })
       // 0.8.9：焦段可用性（面板本身由 `bindStudioChrome` 安装）。

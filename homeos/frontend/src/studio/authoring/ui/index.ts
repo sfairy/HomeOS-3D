@@ -18,7 +18,7 @@ export {
 } from './inspector-groups'
 export { lightSignatureOf } from './lighting'
 export { classifyLightingScope } from './lighting'
-export { getPanelRatioLimits, applyPanelRatios, applyDetailsRatio } from './workspace'
+export { getPanelRatioLimits, applyPanelRatios, applyDetailsRatio, cachePanelRatios } from './workspace'
 export { closeOpenPopovers, applyLightGroupRename, createLightGroup } from './workspace'
 export { refreshStudioUiInner } from './refresh-view'
 export type { RefreshStudioUiInnerDeps } from './refresh-view'
