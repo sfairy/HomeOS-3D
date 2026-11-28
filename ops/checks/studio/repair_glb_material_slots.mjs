@@ -57,6 +57,8 @@ const pruneDead = hasFlag('prune-dead')
 const emitOnly = hasFlag('emit-generated')
 const forceRename = hasFlag('force-rename')
 const backfillSurface = hasFlag('backfill-surface')
+/** A6：删掉 `KHR_materials_pbrSpecularGlossiness` 残留（three 0.187 已不支持，pbrMR 才是真值）。 */
+const stripSpecularGlossiness = hasFlag('strip-specular-glossiness')
 const only = valueOf('model')
 const asJson = hasFlag('json')
 
@@ -298,7 +300,11 @@ function applySurfaceBackfill(material, pbr, slot, log, { openShell = false } = 
  *    `alphaMode` 写错会让镜面 / 水面渲染成实心板，`doubleSided` 写错只是多一倍背面
  *    绘制，两者都不该在没有契约证据时由脚本自行猜测。
  */
-function planFilePatch(json, model, { backfillPbr = false, backfillSurface = false, pruneDead = false } = {}) {
+function planFilePatch(
+  json,
+  model,
+  { backfillPbr = false, backfillSurface = false, stripSpecularGlossiness = false, pruneDead = false } = {},
+) {
   const log = []
   const openShell = Boolean(OPEN_SHELL_ITEM_TYPES[model.itemType])
   const materials = json.materials ?? []
@@ -306,6 +312,28 @@ function planFilePatch(json, model, { backfillPbr = false, backfillSurface = fal
   for (const mesh of json.meshes ?? []) {
     for (const primitive of mesh.primitives ?? []) {
       if (typeof primitive.material === 'number') referenced.add(primitive.material)
+    }
+  }
+
+  // 0) A6：清掉 specular-glossiness 残留。`pbrMetallicRoughness` 已是完整真值
+  //    （baseColorTexture + roughness/metallic），旧扩展只是导出器残留；
+  //    three 0.187 起完全不解析它，留着只会让审计与「真值到底在哪」长期对不上。
+  if (stripSpecularGlossiness) {
+    for (const material of materials) {
+      if (material.extensions?.KHR_materials_pbrSpecularGlossiness) {
+        delete material.extensions.KHR_materials_pbrSpecularGlossiness
+        if (!Object.keys(material.extensions).length) delete material.extensions
+        log.push(`移除 KHR_materials_pbrSpecularGlossiness（${material.name ?? '?'}）`)
+      }
+    }
+    if (Array.isArray(json.extensionsUsed)) {
+      const used = json.extensionsUsed.filter((name) => name !== 'KHR_materials_pbrSpecularGlossiness')
+      if (used.length !== json.extensionsUsed.length) json.extensionsUsed = used
+    }
+    if (Array.isArray(json.extensionsRequired)) {
+      const required = json.extensionsRequired.filter((name) => name !== 'KHR_materials_pbrSpecularGlossiness')
+      if (required.length !== json.extensionsRequired.length) json.extensionsRequired = required
+      if (!json.extensionsRequired.length) delete json.extensionsRequired
     }
   }
 
@@ -367,7 +395,7 @@ function planFilePatch(json, model, { backfillPbr = false, backfillSurface = fal
   for (const material of json.materials ?? []) {
     const slot = slotByName.get(material.name)
     if (!slot) continue
-    const EMISSIVE_ROLES = new Set(['glow', 'lit', 'emissive', 'indicator', 'display', 'led', 'screen'])
+    const EMISSIVE_ROLES = new Set(['glow', 'lit', 'emissive', 'indicator', 'display', 'led', 'screen', 'taillight'])
     const roleIsEmissive = EMISSIVE_ROLES.has(String(slot.role || ''))
     const targetEmissive = slot.target?.emissiveHex && slot.target.emissiveHex !== '—'
     const current = Array.isArray(material.emissiveFactor) ? material.emissiveFactor : null
@@ -465,6 +493,7 @@ function main() {
             const plan = planFilePatch(json, model, {
               backfillPbr: hasFlag('backfill-pbr'),
               backfillSurface,
+              stripSpecularGlossiness,
               pruneDead: hasFlag('prune-dead'),
             })
             log = plan.log

@@ -1065,12 +1065,7 @@ const MODEL_ROLE_BY_MATERIAL_NAME: Readonly<Record<string, Readonly<Record<strin
   },
   airoutlet: { m03_pewter_shine: 'body' },
   'air-outlet': { m03_pewter_shine: 'body' },
-  /**
-   * `smallcar-glass` / `smallcar-taillight` 是**运行期**从车身切出来的网格
-   * （`items/model/car-glass-shell.ts`），不在 GLB 里；登记它们是为了让材质面板与
-   * 角色解析拿到正确的构件语义，而不是落到家族兜底的 `body`。
-   */
-  smallcar: { car_tms: 'body', 'smallcar-glass': 'glass', 'smallcar-taillight': 'taillight' },
+  smallcar: { car_tms: 'body' },
   suv: {
     body: 'body',
     base: 'base',
@@ -1240,16 +1235,7 @@ const MODEL_ROLE_RECIPE_OVERRIDES: Record<string, RoleRecipeTable> = {
     lit: { color: 'furnitureSoft', surface: 'lacquer' },
     body: { color: 'floorLampBody', surface: 'wood' },
   },
-  smallcar: {
-    body: { color: 'furniture', surface: 'lacquer' },
-    /**
-     * 运行期从车身切出来的两块（`items/model/car-glass-shell.ts`）：
-     * - `glass`：车窗 / 风挡 / 天幕 / 后窗，深色半透明；
-     * - `taillight`：车尾两侧灯带，暗红 + 轻微自发光（原图上的红色，摘图后需要自己给）。
-     */
-    glass: { color: 0x0d1319, surface: 'glass', transparent: true, opacity: 0.42, depthWrite: false },
-    taillight: { color: 0x7a1114, surface: 'lacquer', emissive: 0x8f1418, emissiveIntensity: 0.45 },
-  },
+  smallcar: { body: { color: 'furniture', surface: 'lacquer' } },
   /**
    * 排气扇五槽（对应 GLB 根节点 `extras.paletteRoles`）：
    * `shell` 外壳、`edge` 与外圈压条、`bore` 进风筒内壁、`blade` 叶片、`fastener` 四角螺钉。

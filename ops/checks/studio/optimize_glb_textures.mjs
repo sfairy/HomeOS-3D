@@ -73,6 +73,23 @@ const quality = Number(args[args.indexOf('--quality') + 1]) || 92
  */
 const SKIP_MODEL_IDS = new Set(['floor-lamp'])
 
+/**
+ * 允许内嵌重复图集的模型（上游原始资产）。
+ *
+ * `小汽车` 系列是 0.9.0 的原始文件：车身、lite、开合件各嵌一份**同一张** 1024² 图集。
+ * 曾经把它外置成共享 JPEG 并删掉车身那一份，结果引出两个问题：
+ * 1. 车身外观依赖这张图上的像素坐标（`applyCarFinish` 里 `v=0.770/0.895` 的曝光台阶修复、
+ *    按 `/700` 换算的灯罩多边形），重编码会让这些补丁静默偏位；
+ * 2. 外置文件缺失时 GLB 仍能解析、几何门禁也照过，只有真去加载贴图才 404（车变纯色壳）。
+ * 因此这里退回**自包含**：三份各带一份图集，代价是 lite 多约 1MB（仍在 8MB 预算内），
+ * 换来的是任何加载路径都不会因为缺一个旁挂文件而白车。
+ */
+const UPSTREAM_ATLAS_MODEL_IDS = new Set(['car', 'smallcar-openings'])
+
+/** 该重复组是否全部来自「允许自带图集」的上游资产。 */
+const isUpstreamAtlasGroup = (group) =>
+  group.files.every((file) => UPSTREAM_ATLAS_MODEL_IDS.has(parseModelPath(file).id))
+
 /** 扫描期发现的「GLB 指向的外置贴图不存在」（模块级，`scanImages` 里填）。 */
 const missingExternalImages = []
 
@@ -335,19 +352,27 @@ async function main() {
      * 不进退出码 —— 否则每个新导出的「lite + 完整件」双份贴图都会把门禁点红，
      * 而作者并不需要为此先跑一遍优化脚本。
      */
-    const heavy = report.duplicateGroups.filter((group) => group.bytes >= 64 * 1024)
+    const upstreamGroups = report.duplicateGroups.filter(isUpstreamAtlasGroup)
+    const heavy = report.duplicateGroups.filter((group) => group.bytes >= 64 * 1024 && !isUpstreamAtlasGroup(group))
     const failures = []
     if (missingExternalImages.length) failures.push(`${missingExternalImages.length} 处外置贴图缺失`)
     if (heavy.length) failures.push(`${heavy.length} 组大体积重复内嵌贴图`)
-    if (report.uselessMaskMaterials.length) failures.push(`${report.uselessMaskMaterials.length} 处无用 alpha 测试`)
+    // 上游图集资产不参与「无用 MASK」判定：它们的 `alphaMode=MASK` 是 SimLab 导出的原样，
+    // 历史图集本身带 alpha 通道（本次这份恰好是 RGB），保持原样才不会在换图后变成裁剪错误。
+    const uselessMask = report.uselessMaskMaterials.filter(
+      (entry) => !UPSTREAM_ATLAS_MODEL_IDS.has(parseModelPath(entry.file).id),
+    )
+    if (uselessMask.length) failures.push(`${uselessMask.length} 处无用 alpha 测试`)
     if (failures.length) {
       console.error(`✗ 贴图门禁：${failures.join('、')}`)
       console.error('  修：bun ops/checks/studio/optimize_glb_textures.mjs --write')
       process.exit(1)
     }
-    const small = report.duplicateGroups.length - heavy.length
+    const small = report.duplicateGroups.length - heavy.length - upstreamGroups.length
     console.log(
-      `✓ 贴图门禁通过：无大体积重复内嵌图、无无用 alpha 测试` + (small ? `（${small} 组小图重复，仅提示）` : ''),
+      `✓ 贴图门禁通过：无大体积重复内嵌图、无无用 alpha 测试` +
+        (upstreamGroups.length ? `（${upstreamGroups.length} 组上游自带图集，已审）` : '') +
+        (small > 0 ? `（${small} 组小图重复，仅提示）` : ''),
     )
     return
   }

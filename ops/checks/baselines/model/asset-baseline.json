@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-28T00:54:03.930Z",
+  "generatedAt": "2026-11-28T01:25:34.659Z",
   "budgets": {
     "fullTotalBytes": 31457280,
     "liteTotalBytes": 8388608,
@@ -1442,51 +1442,48 @@
       "declaresUv": false
     },
     "家居/建筑与交通/小汽车-lite.glb": {
-      "bytes": 15720,
-      "triangles": 2896,
+      "bytes": 528740,
+      "triangles": 2700,
       "extensionsUsed": [
-        "KHR_draco_mesh_compression",
-        "KHR_materials_pbrSpecularGlossiness"
+        "KHR_draco_mesh_compression"
       ],
-      "images": 0,
-      "textures": 0,
+      "images": 1,
+      "textures": 1,
       "nodeNames": [
+        "Active View",
         "Assembly-3",
         "Component1_场景根",
         "Component_Mesh",
         "Geom3D"
       ],
       "materialNames": [
-        "smallcar-bodywork",
-        "smallcar-wheel"
+        "car_tms"
       ],
       "brokenImages": [],
       "draco": true,
       "unreachableNodes": 0,
-      "declaresUv": false
+      "declaresUv": true
     },
     "家居/建筑与交通/小汽车.glb": {
-      "bytes": 216432,
-      "triangles": 2896,
-      "extensionsUsed": [
-        "KHR_materials_pbrSpecularGlossiness"
-      ],
-      "images": 0,
-      "textures": 0,
+      "bytes": 804652,
+      "triangles": 2700,
+      "extensionsUsed": [],
+      "images": 1,
+      "textures": 1,
       "nodeNames": [
+        "Active View",
         "Assembly-3",
         "Component1_场景根",
         "Component_Mesh",
         "Geom3D"
       ],
       "materialNames": [
-        "smallcar-bodywork",
-        "smallcar-wheel"
+        "car_tms"
       ],
       "brokenImages": [],
       "draco": false,
       "unreachableNodes": 0,
-      "declaresUv": false
+      "declaresUv": true
     },
     "家居/宠物用品/猫抓板-lite.glb": {
       "bytes": 5260,
@@ -13569,13 +13566,13 @@
       "declaresUv": false
     },
     "家居/建筑与交通/小汽车-开合件-lite.glb": {
-      "bytes": 107592,
+      "bytes": 618700,
       "triangles": 13164,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
       ],
-      "images": 0,
-      "textures": 0,
+      "images": 1,
+      "textures": 1,
       "nodeNames": [
         "Small car",
         "body",

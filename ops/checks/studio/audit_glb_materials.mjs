@@ -199,7 +199,7 @@ const DETAIL_SCALE_BY_SURFACE = Object.freeze({
 })
 
 /** 允许自带自发光的角色（其余角色带 `emissiveFactor` 一律视为异常）。 */
-const EMISSIVE_ROLES = new Set(['glow', 'lit', 'emissive', 'indicator', 'display', 'led'])
+const EMISSIVE_ROLES = new Set(['glow', 'lit', 'emissive', 'indicator', 'display', 'led', 'taillight'])
 
 /** 双面渲染有正当理由的表面族（叶片 / 布片）。 */
 /**
@@ -419,6 +419,10 @@ const declaredAssetException = (modelId, kind) => {
  * 只进报告注记，不参与单模型 status。新增条目同样要在 review 里逐条过。
  */
 const DECLARED_SHARED_SLOT_MODELS = Object.freeze({
+  car:
+    '`小汽车.glb` 是 0.9.0 原始资产：整台车烘焙进一张 UV 图集，单一材质 `car_tms`' +
+    '（SimLab 导出名）。改名会打穿图集绑定与 `applyCarFinish` 的 `#ifdef USE_MAP` 分支',
+
   'smallcar-openings':
     '`小汽车-开合件-lite.glb`：可动件从 `car.glb` 拆出，材质名由上游导出器决定' +
     '（`car_tms` / `glass_01` / `headlight_0*` / `car-interior-*`），改名会打穿车辆槽位归并与取色分支',

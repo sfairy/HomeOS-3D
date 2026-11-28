@@ -227,10 +227,11 @@ const CANONICAL_SLOT = /^[a-z0-9][a-z0-9_]*(?:[-][a-z0-9][a-z0-9_]*)*$/
 /**
  * 已审「共享槽位命名」的模型：材质名沿用上游导出的车身原名（`car_tms` / `glass_01` /
  * `car-interior-*`），与 `audit_glb_materials.mjs → DECLARED_SHARED_SLOT_MODELS` 同一份
- * 判断。这里让 `planSlotRenames` 一律 keep，避免契约给出「待改名 22 处」这种
+ * 判断（`car` 的 `car_tms` 是 0.9.0 原始资产的烤图集名，同样不动）。这里让
+ * `planSlotRenames` 一律 keep，避免契约给出「待改名 22 处」这种
  * 永远不打算执行的计划，也避免有人照着契约跑一次改名把运行期取色分支打穿。
  */
-const NO_RENAME_ITEM_TYPES = new Set(['smallcar-openings', 'suv-openings'])
+const NO_RENAME_ITEM_TYPES = new Set(['smallcar', 'smallcar-openings', 'suv-openings'])
 
 /** 角色 → 槽位名尾段：`playBall` → `play-ball`、`rugPile` → `rug-pile`。 */
 function roleSlug(role) {

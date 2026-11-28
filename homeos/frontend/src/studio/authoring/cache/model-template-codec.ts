@@ -18,13 +18,12 @@ import { packModelTextures, restoreModelTextures } from './model-texture-cache'
  * 光换 URL 键只能让新请求拿到新字节，本地 IndexedDB 里旧模板仍按旧描述符命中 ——
  * 画面依旧是「三块实心箱子」的水盆柜 / 燃气灶柜。跳版本号让全库模板重新打包。
  *
- * `v8`：小汽车资产与运行期收尾都变了，旧模板会让修复**完全看不到**：
- * - 贴图：`小汽车` 摘掉了那张拍摄参考图，车身 / 车轮改纯色角色配方；
- * - 几何：车身按几何壳拆出 `smallcar-wheel`（原先是单个 bodywork，车轮靠图上色）；
- * - 运行期：`prepareCarGlassShell` 从车身几何重建玻璃舱 + 尾灯带。
- * 模板缓存 key 不含 GLB 字节，所以不跳这一版，画面仍是「全白车壳 + 浅色轮子」。
+ * `v8`：小汽车换回 **0.9.0 原始资产**（`car_tms` 图集自带车窗 / 车灯 / 内饰，
+ * 车身只有这一个材质），并撤掉期间加过的运行期切分（`smallcar-wheel` / 玻璃舱）。
+ * 模板缓存 key 不含 GLB 字节，不跳版本号的话旧模板仍按旧几何命中 ——
+ * 画面不会变（这正是之前「代码改了、车还是白的」的原因）。
  */
-const MODEL_TEMPLATE_REVISION = '20261128-smallcar-glass-v8'
+const MODEL_TEMPLATE_REVISION = '20261128-smallcar-upstream-v8'
 
 /** 模板里一个打包属性的最小结构。 */
 type PackedAttribute = {
