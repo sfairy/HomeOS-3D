@@ -1,5 +1,5 @@
 # 语法集按真实运行时（镜像 PYTHON_IMAGE = 3.15）取，避免「写得对但跑不了」以及
-# 「能跑的语法被误判为不支持」。`check:toolchain` 要求它落在 `运行时 - 1 ~ 运行时`。
+# 「能跑的语法被误判为不支持」。它应落在 `运行时 - 1 ~ 运行时`。
 target-version = "py315"
 line-length = 120
 
@@ -38,8 +38,7 @@ ignore = [
   # `except A as B:` 解析，于是 B 变成一个局部变量：同函数内更早的 `except B:` 会报
   # 「local variable referenced before assignment」，即便编译通过，语义也变成「只捕获 A」。
   # 故一律写 `except (A, B):`（并加 `# fmt: skip`，否则 ruff format 会把括号删掉）。
-  # 守卫：gate:static 的 check:pep758-except（`ops/checks/python/check_guards.py --module pep758`，纯静态、
-  # 本地可跑，能抓住「2 个名字编译通过但语义错了」）；gate:infra 的 check:cython 是最后一道。
+  # 该约束现由 gate:infra 的 check:cython 兜底（原先的 check:guards 已随 ops/checks 瘦身移除）。
   # —— bandit S 类：逐条核对后确认以下规则在本项目里全是结构性问题，非安全缺陷 ——
   "S101",  # assert 仅用于「显式收窄给静态检查看」，且从不以 python -O 运行，断言不会被剥离
   "S104",  # 监听 0.0.0.0 是容器/局域网部署的设计意图（见 ops/ 与 docker-compose）

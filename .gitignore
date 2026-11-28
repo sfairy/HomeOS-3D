@@ -97,9 +97,6 @@ docs/
 graphflow-out/
 .slider-check.html
 
-# 槽位修复 dry-run 产物（每次 --check 重写，不作为基线入库）
-ops/checks/studio/material-slot-repair-plan.json
-
 # 材质探针的 PNG / JSON 产物（`probe:materials` / `probe:pillar` 每次重跑即覆盖）
 .tmp-viewer/
 
@@ -117,17 +114,5 @@ ops/checks/studio/material-slot-repair-plan.json
 # `ops/port/*.mjs` 与 `ops/port/lib/` 入库，`tmp/` 只留本地。
 ops/port/tmp/
 
-# 重复代码检测的原始报告（jscpd 每次重跑即覆盖，且内含绝对路径会写进本机用户名）。
-# 已被上面的 `docs/` 整目录规则覆盖，这里不再单列；入库的只有归一化后的
-# 基线与 `ops/checks/duplication-baseline.json`。
-
-# 视觉回归基线：需登录的场景截图会包含真实户型、设备名与事件日志，
-# 只允许在本地录制（`check:visual --write-baseline`），不入库。
-ops/checks/baselines/visual/homeos-display.png
-ops/checks/baselines/visual/homeos-devices.png
-ops/checks/baselines/visual/homeos-events.png
-ops/checks/baselines/visual/homeos-settings-display.png
-ops/checks/baselines/visual/homeos-3d-studio.png
-ops/checks/baselines/visual/actual/
 # 7 组并排像素验收的截图同理（报告 report-css.json 可入库）。
 docs/analysis/studio-parity-089/*.png

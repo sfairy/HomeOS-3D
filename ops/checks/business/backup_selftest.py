@@ -18,7 +18,7 @@
 恢复后只写回本机授权（旧包里的授权不生效）。
 
 用法：
-    node ops/lib/py.mjs ops/checks/backup_selftest.py
+    node ops/lib/py.mjs ops/checks/business/backup_selftest.py
 """
 
 from __future__ import annotations

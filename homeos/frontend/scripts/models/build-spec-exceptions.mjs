@@ -30,7 +30,7 @@ import { loadDocument, modelStatistics, worldBounds } from './lib/model-document
 const specsFile = path.join(specsDir, 'model-specs.json')
 const exceptionsFile = path.join(specsDir, 'spec-exceptions.json')
 
-/** 与 `audit_glb_geometry.mjs` 同口径：超过 5% 才算尺寸例外。 */
+/** 与几何审计同口径：超过 5% 才算尺寸例外（审计脚本已移除，口径留作判据）。 */
 const MAX_DEVIATION = 0.05
 
 const OPEN_SHEET_REASON = '薄片类（叶片 / 布片 / 玻璃 / 地毯 / 挂画）按单层双面建模，开口是设计意图，不是破面'

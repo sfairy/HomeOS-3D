@@ -8,7 +8,7 @@
  * CI 那份在开发机上可能缺依赖。
  *
  * 现在本地与 CI 都走这一层：
- *   node ops/lib/py.mjs ops/checks/python/check_guards.py --module async-db
+ *   node ops/lib/py.mjs ops/checks/run_selftests.py --module circadian_selftest
  *
  * 选择顺序：
  *   1. `HOMEOS_PYTHON`（显式覆盖，路径或命令名）；

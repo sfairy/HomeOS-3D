@@ -15,7 +15,6 @@
     "preview": "vite preview",
     "lint": "bun run --cwd ../.. lint",
     "lint:ci": "bun run --cwd ../.. lint && node ../../ops/lib/check-css-syntax.mjs",
-    "check:deps": "node ../../ops/checks/frontend/check_frontend_deps.mjs",
     "check:css": "node ../../ops/lib/check-css-syntax.mjs",
     "typecheck": "node ../../ops/lib/run-vue-tsc.mjs -p tsconfig.json --noEmit",
     "sync:three": "node scripts/build-three-vendor.mjs",

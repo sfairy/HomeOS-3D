@@ -4,7 +4,7 @@
 --------
 本模块此前同时装着四类职责：时间、标识/凭据、文本判据、口令哈希。后果是
 ``core.models`` / ``core.deps`` / ``core.schemas`` 都必须 import 它，于是 ``core`` 反过来
-依赖 ``security``，两者构成包级强连通（``check_backend_deps`` 的 B4 白名单一度冻结了这个环）。
+依赖 ``security``，两者构成包级强连通（后端的 base 层不得反向依赖上层；这里一度靠白名单冻结了这个环）。
 
 现在真实实现按职责落位：``core.clock`` / ``core.ids`` / ``core.text`` / ``security.passwords``。
 本模块只做 re-export —— 调用点（``api``、``licensing``、``payments`` …）里既有的

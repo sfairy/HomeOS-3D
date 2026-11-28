@@ -1,6 +1,5 @@
 /**
- * 自动生成，勿手改。生成命令：
- *   bun ops/checks/studio/repair_glb_material_slots.mjs --emit-generated
+ * 自动生成，勿手改。生成器已随 ops/checks/studio 移除，改动需由材质契约同步：
  *
  * 槽位改名后，原本靠 `MODEL_SLOT_ROLES[itemType][slotIndex]` 顺序表解析角色的模型，
  * 名字里已经没有 `material-<n>`；这里把「新 token → 角色」登记进语义表，

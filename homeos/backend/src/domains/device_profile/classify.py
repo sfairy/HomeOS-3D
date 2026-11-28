@@ -34,7 +34,7 @@ WATER_HEATER_KINDS = ("water_heater", "unknown")
 #:
 #: 这张表是「分类结论 → UI 形态」的唯一换算，必须与
 #: ``packages/shared/src/entity/device-kind.ts`` 的 ``CLIMATE_RENDER_TYPE_BY_KIND``
-#: 逐条相等 —— 由 ``ops/checks/check_device_kinds_parity.py`` 断言。
+#: 逐条相等 —— 由前后端两表对齐的约定保证。
 #: 供暖类（``boiler`` / ``floor_heating``）复用空调面板：温度 + 模式的交互同构，
 #: 单开第四套 UI 只会让四份气候代码变成五份。
 CLIMATE_RENDER_TYPE_BY_KIND: dict[str, str] = {

@@ -707,7 +707,7 @@ export const MODEL_SLOT_ROLES_SEMANTIC: Readonly<Record<string, Readonly<Record<
    * 这里**不能**用 `<itemType>-<role>` 重命名来解耦：运行时还有 21 处按
    * `material-<n>` 下标 / 原始材质名取色的分支（柜门双色 shader、窗帘自发光、
    * 楼梯踏步地板色、鞋柜台面、钢琴漆面、NAS 透光板、电梯门板…），
-   * 见 `ops/checks/studio/audit_glb_materials.mjs` 的 N1 规则说明。
+   * 这条约束由材质契约与运行时角色解析共同保证。
    * 要改名必须先迁移那批分支，否则会静默丢效果。
    */
 })

@@ -13,7 +13,7 @@
 
 把装配上移到组合根解掉这个死结：`platform` 只保留「按给定 metadata 建表 / 自检」的
 通用能力，**谁的表由谁注册**由本文件负责。本文件在架构检查里登记为 `bootstrap` 层
-（见 ``ops/checks/architecture/check_backend_deps.py`` 的 ``HOMEOS_ROOT_MODULES``），
+（见后端分层约定的根模块清单），
 和 ``app.py`` / ``run.py`` 同类。
 
 ## 为什么仍然是一次性 import 全部

@@ -2,7 +2,7 @@
  * device（设备域）域根 barrel —— 域的唯一对外出口。
  *
  * 域内细节不外借：跨域引用只允许 `import ... from '@/features/device'`
- * （门禁见 ops/checks/frontend/check_frontend_deps.mjs）。
+ * （跨域只走域根 barrel，属项目约定）。
  *
  * ## 薄 barrel 原则
  *

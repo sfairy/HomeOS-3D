@@ -5,7 +5,7 @@
 报警派发路径（``SecurityAlarmHelper.handle_sensor_trigger``）本来就长；把「起定时器、
 撤防取消、到点复核」三件事塞进去会同时抬高圈复杂度与文件规模。这里只依赖
 ``config_reader`` / ``get_current_mode`` / ``bus`` 与一个「真正派发」的回调，可以独立
-演进与自检（见 ``ops/checks/security_entry_delay_selftest.py``）。
+演进与自检（见 ``ops/checks/business/security_entry_delay_selftest.py``）。
 
 ## 与「撤离宽限」的区别
 

@@ -1040,7 +1040,7 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
                 // 28_000 是「预算通过 + 两页懒加载边界不被 shared 合并打穿」同时成立的最大
                 // 阈值（30_000 起边界失效），JS chunk 数比 48_000 多 27 个、仍为两位数。
                 //
-                // 改这个值必须重跑：`bun ops/checks/frontend/check_chunk_init_order.mjs --strict`，并抽查
+                // 改这个值必须重跑 `bun run gate:build`（结构断言会经 chunk 图核对顶层常量顺序），并抽查
                 // devices 路由的 chunk 是否又 import 了 DeviceDetailPage 所在的 chunk。
                 name: 'shared',
                 entriesAware: true,

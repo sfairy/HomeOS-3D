@@ -10,7 +10,7 @@
 这一笔最大的重复开销，而且不引入任何可观测的陈旧窗口。
 
 鉴权异常由调用方以工厂函数注入（``auth_error``）：本模块反向导入 ``client`` 会构成
-文件级循环依赖，而门禁 ``check_backend_deps`` 会直接判红。
+文件级循环依赖，而分层约定会直接判红。
 """
 
 from __future__ import annotations

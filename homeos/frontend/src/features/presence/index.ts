@@ -2,7 +2,7 @@
  * presence（在家人 / 人员域）域根 barrel —— 域的唯一对外出口。
  *
  * 域内细节不外借：跨域引用只允许 `import ... from '@/features/presence'`
- * （门禁见 ops/checks/frontend/check_frontend_deps.mjs）。
+ * （跨域只走域根 barrel，属项目约定）。
  *
  * ## 数据层已不在本域
  *

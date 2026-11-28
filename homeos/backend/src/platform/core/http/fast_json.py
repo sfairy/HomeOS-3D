@@ -81,7 +81,7 @@ def _can_encode_directly(content: Any) -> bool:
     except orjson.JSONEncodeError:
         # orjson 的编码错误是 TypeError 的子类：用单异常捕获，避免 `except A, B` 写法
         # （ruff format 会去掉括号，而 Cython 3.3 会把它误编译成 `except A as B:`，
-        # 见 ops/checks/python/check_guards.py 的 pep758 守卫）。
+        # 见 ruff.toml 对 PEP 758 的说明）。
         logger.debug("内容无法被 orjson 直接编码，回退 jsonable_encoder")
         return False
     return True

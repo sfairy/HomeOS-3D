@@ -2,7 +2,7 @@
  * security（安防域）域根 barrel —— 域的唯一对外出口。
  *
  * 跨域引用只允许 `import ... from '@/features/security'`，禁止深引用子路径
- * （门禁见 ops/checks/frontend/check_frontend_deps.mjs 与 biome.json 的 noRestrictedImports 规则）。
+ * （跨域只走域根 barrel，属项目约定；biome.json 的 noRestrictedImports 仍会拦部分越界）。
  *
  * ## 已下沉到 domain 的部分
  *

@@ -13,7 +13,7 @@
 - 兜底脱敏生效：将来分区的任意 password/token/secret/apiKey/webhook 一类键都会被遮蔽。
 
 用法：
-    node ops/lib/py.mjs ops/checks/public_config_selftest.py
+    node ops/lib/py.mjs ops/checks/business/public_config_selftest.py
 """
 
 from __future__ import annotations

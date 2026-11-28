@@ -11,7 +11,7 @@
 - 快路径：别名房间作用域、有画像但未确认时不再 fail-open、点歌房间限定。
 
 用法：
-    node ops/lib/py.mjs ops/checks/device_profile_selftest.py
+    node ops/lib/py.mjs ops/checks/business/device_profile_selftest.py
 """
 
 from __future__ import annotations

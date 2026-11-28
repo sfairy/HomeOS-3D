@@ -2,8 +2,8 @@
  * home-mode（家居模式）域根 barrel —— 域的唯一对外出口。
  *
  * 域内细节（`composables/` `components/` `editor/`）不外借：跨域引用只允许
- * `import ... from '@/features/home-mode'`（门禁见 ops/checks/frontend/check_frontend_deps.mjs
- * 与 biome.json 的 noRestrictedImports 规则）。
+ * `import ... from '@/features/home-mode'`（跨域只走域根 barrel，属项目约定；
+ * biome.json 的 noRestrictedImports 仍会拦部分越界）。
  *
  * ## 本域为什么成立（而不是并回 settings）
  *

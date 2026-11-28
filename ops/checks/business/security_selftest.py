@@ -17,7 +17,7 @@ CSRF 用的是双提交 Cookie，而 Cookie **不按端口隔离**：同一台�
 - CSRF 豁免表仍然只覆盖那几条预认证 / 回调路径。
 
 用法：
-    node ops/lib/py.mjs ops/checks/security_selftest.py
+    node ops/lib/py.mjs ops/checks/business/security_selftest.py
 """
 
 from __future__ import annotations

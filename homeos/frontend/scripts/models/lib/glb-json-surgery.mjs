@@ -200,8 +200,8 @@ export function detachAttribute(json, attributeName) {
  * 与节点名集合 —— `越野车.glb` 的 `Assembly-3 → Component_Mesh → 20× Geom3D` 就是这样
  * 让 suv 一直被误报成 40,430 面（真实 20,215）。
  *
- * 判定只有这一份：审计（`audit_glb_assets.mjs`）与修复（`repair_glb_structure.mjs`）
- * 都 import 它，避免两边各写一套后出现「审计说 0、修复说 24」的分歧。
+ * 判定只有这一份：所有消费方都 import 它，避免两处各写一套后出现
+ * 「审计说 0、修复说 24」的分歧。
  */
 export function unreachableNodeIndices(json) {
   const nodes = json.nodes ?? []

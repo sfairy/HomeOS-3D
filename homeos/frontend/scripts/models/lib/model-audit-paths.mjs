@@ -1,7 +1,7 @@
 /**
  * 模型审计快照的**唯一落盘位置**（不是历史归档）。
  *
- * 这里放的都是**派生物**，不是源数据：都能由 `audit_glb_*` 从 GLB 本体重算。
+ * 这里放的都是**派生物**，不是源数据：都能由 GLB 本体重算（审计脚本已移除）。
  * 所以目录整体在 `.gitignore` 里（`docs/`），仓库只提交由它们生成的
  * `specs/*.json`；干净检出照常构建，只有**重建契约**时才需要先跑审计。
  *
@@ -17,7 +17,7 @@ import { repoRoot } from './glb-io.mjs'
 /** 审计快照根目录（gitignored）。 */
 export const modelAuditDir = path.join(repoRoot, 'docs/model-audit')
 
-/** `audit_glb_materials.mjs` 输出；`build-slot-contracts.mjs` 的唯一外部输入。 */
+/** 材质审计输出（历史产物，现由外部流程生成）；`build-slot-contracts.mjs` 的唯一外部输入。 */
 export const materialAuditFile = path.join(modelAuditDir, 'glb-material-audit.json')
 
 /** 仓库相对路径，用于写进生成物做溯源（始终用 `/` 分隔）。 */

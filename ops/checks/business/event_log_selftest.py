@@ -22,7 +22,7 @@
 断言「事件日志只写一次」而不是「每轮重试写一次」。
 
 用法：
-    node ops/lib/py.mjs ops/checks/event_log_selftest.py
+    node ops/lib/py.mjs ops/checks/business/event_log_selftest.py
 """
 
 from __future__ import annotations

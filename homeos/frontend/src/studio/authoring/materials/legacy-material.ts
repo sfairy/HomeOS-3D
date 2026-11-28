@@ -1,6 +1,5 @@
 /**
- * 自动生成，勿手改。生成命令：
- *   bun ops/checks/studio/repair_glb_material_slots.mjs --emit-generated
+ * 自动生成，勿手改。生成器已随 ops/checks/studio 移除，改动需由材质契约同步：
  *
  * 作用：GLB 槽位改名后，`studio-external-models.ts` 里按 `material-<n>` / 原始名取色的
  * 分支仍然要看到**旧名**。加载器在拿 `materialName` 的第一时间过一遍这张表，
@@ -247,7 +246,7 @@ export const LEGACY_MATERIAL_ALIASES: Readonly<Record<string, string>> = Object.
  * 这些分支会**静默失效**——不报错，只是颜色变回默认值，很难在几百个模型里发现。
  *
  * 这里的做法是「一次迁移、单点归一」：改名与别名表由同一份契约生成
- * （`ops/checks/studio/repair_glb_material_slots.mjs --emit-generated`），
+ * （由材质契约生成），
  * 加载器在拿到材质名的第一件事就是过一遍这张表，历史分支看到的一直是旧名，
  * 逻辑与视觉都不变；新代码则应当优先用 `resolveModelMaterialRole` 按角色判定。
  *

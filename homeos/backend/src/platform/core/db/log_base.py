@@ -4,7 +4,7 @@
 ------------------
 ``models.py`` 需要 ``LogBase`` 来声明日志表；``log_database.py`` 需要表清单来搬运/清理。
 如果 ``LogBase`` 定义在 ``log_database`` 里，两者就互为依赖 —— 文件级 import 环会让
-``platform → 上层`` 的依赖门禁（``check_backend_deps`` 的 B5）失败，而这类环在运行期
+``platform → 上层`` 的依赖方向约定失败，而这类环在运行期
 也意味着「谁都没法先完成初始化」。
 
 把「基类 + 表名常量」抽到这个叶子模块后：``models`` 与 ``log_database`` 都只向下依赖它，

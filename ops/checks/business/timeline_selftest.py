@@ -16,7 +16,7 @@
    在真实库里 100% 空白的根因。
 
 用法：
-    node ops/lib/py.mjs ops/checks/timeline_selftest.py
+    node ops/lib/py.mjs ops/checks/business/timeline_selftest.py
 """
 
 from __future__ import annotations

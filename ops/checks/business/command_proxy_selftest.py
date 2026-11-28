@@ -15,7 +15,7 @@ HA 重启 / 断网通常只有几十秒，而旧实现里「HA 未连接 + 非�
 4. 重连补发会真的下发，并在 HA 再次断连时**停止**（剩余条目留给下一次）。
 
 用法：
-    node ops/lib/py.mjs ops/checks/command_proxy_selftest.py
+    node ops/lib/py.mjs ops/checks/business/command_proxy_selftest.py
 """
 
 from __future__ import annotations

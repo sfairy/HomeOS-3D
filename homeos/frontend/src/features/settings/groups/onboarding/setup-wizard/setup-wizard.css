@@ -6,7 +6,7 @@
  * 就变成两套规则 —— 一半命中、一半落空，且同一份 CSS 会重复打进每个 chunk。
  * 历史上这批表混着写，表现为「某个面板的间距只在打开顺序不同的时候才对」。
  *
- * 由 `node ops/checks/frontend/audit_css_layout.mjs` 的 scoping 统计守卫。
+ * 约定：同一份表只以全局方式加载一次（不再由自动门禁检查，靠评审遵守）。
  */
 /* 合并自：setup-wizard-tokens.css, setup-wizard-shared.css, setup-wizard-panel.css, setup-wizard-progress.css, setup-wizard-env.css, setup-wizard-presence.css, setup-wizard-doorbell.css */
 

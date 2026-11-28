@@ -122,7 +122,7 @@ def _valid_public_origin(value: str) -> bool:
     """一个「额外公开来源」是否合法（完整 ``scheme://host:port``，无路径/凭据/列表）。
 
     刻意与 :func:`platform.security.request_origin.parse_origin` 同口径而**不**在这里导入它：
-    ``config`` 属于只许用标准库的 base 层（``check:backend-deps`` 的 B6 规则），
+    ``config`` 属于只许用标准库的 base 层（后端分层约定），
     导入 platform 会把配置层拖进请求层。两处必须保持同一套解析口径。
     """
     from ipaddress import ip_address

@@ -2,7 +2,7 @@
 
 角色判定（电量 / 功率）与统计口径常量已下沉到 ``platform/core/energy/roles.py``：
 ``domains/app_config`` 的绑定校验也要用它们，而从 app_config 反向 import 本包会成环
-（``check:backend-deps`` B4）。这里 re-export，保持既有 import 点不变。
+（后端分层约定）。这里 re-export，保持既有 import 点不变。
 """
 
 from __future__ import annotations

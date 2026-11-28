@@ -32,7 +32,7 @@ import { createCachedCanvasTexture } from './texture-cache'
  *    配合 `studio-box-uv.ts` 的盒式 UV 才能铺满无 UV 的模型。
  */
 
-/** 与审计 `NORMAL_SCALE_BY_SURFACE` 同一份表面族清单（`ops/checks/studio/audit_glb_materials.mjs`）。 */
+/** 表面族 → 法线缩放清单（与材质审计的 `NORMAL_SCALE_BY_SURFACE` 同一口径）。 */
 export type MaterialSurface =
   | 'fabric'
   | 'leather'

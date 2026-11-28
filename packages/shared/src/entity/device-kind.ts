@@ -2,14 +2,13 @@
  * 设备类型（kind）唯一词汇表 —— 前端侧。
  *
  * 为什么两端各存一份而不用跨语言代码生成：后端跑 Python、前端跑浏览器，生成器本身
- * 会成为第三处真源（这一结论见 `ops/checks/contract/check_parity.py` 的模块注释）。
- * 因此这里的做法是「同一张表 + 跨端断言」：
+ * 会成为第三处真源（前后端各存一份，靠两表对齐的约定保证一致）。
+ * 因此这里的做法是「同一张表 + 跨端约定」：
  *
  * - 后端 `homeos/backend/src/domains/device_profile/classify.py` 的 `CLIMATE_KINDS` 是权威集合
  *   （它的 `ALLOWED_KINDS` 是写入校验的唯一口径）；
  * - 本文件是前端唯一词汇表；
- * - `ops/checks/contract/check_parity.py` 断言两边「kind 集合」与「kind → 渲染形态」
- *   逐条相等，任一单侧改动 CI 立刻红灯。
+ * - 两边「kind 集合」与「kind → 渲染形态」必须逐条相等，任一单侧改动都要同步另一侧。
  *
  * 这份表存在的原因：分类结论只能有一个。此前前端 `resolveClimateDeviceType()` 用中文
  * 设备名正则（`浴霸|风暖|暖风`）自己猜一遍，后端 `classify()` 是另一套规则，同一台设备

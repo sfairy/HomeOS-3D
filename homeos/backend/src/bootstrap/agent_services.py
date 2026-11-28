@@ -24,7 +24,7 @@ async def build_agent_shared_state(
 
     ``startup`` 是 ``lifespan._StartupContext``，但这里不 import 它（类型注解一律 ``Any``）：
     ``lifespan → agent_services`` 是真实依赖，反过来再加一条即使只在 ``TYPE_CHECKING``
-    里也会被 ``check:backend-deps`` 判成文件级循环（B5）。
+    里也会被判成文件级循环（后端分层约定）。
 
     返回 ``(agent_memory, llm_provider, agent_tts, agent_state_store)``；其余服务挂到
     ``app.state``，由 ``lifespan._build_agent_domain`` 组装 ``AgentService`` 时读取。

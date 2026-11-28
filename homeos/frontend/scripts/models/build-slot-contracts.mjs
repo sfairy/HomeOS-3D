@@ -4,7 +4,7 @@
  *
  * 三个输入，缺一不可：
  * 1. `docs/model-audit/glb-material-audit.json`：角色、解析来源、目标配方
- *    （由 `audit_glb_materials.mjs` 用**运行时解析器**算出，这里不重新实现角色判定）；
+ *    （由材质审计用**运行时解析器**算出，这里不重新实现角色判定）；
  * 2. GLB 本体：逐槽位的几何指纹（面积占比 / 薄厚比 / 竖向位置带 / 壳数 / 前偏），
  *    由 `lib/material-slots.mjs` 实测；
  * 3. `specs/model-specs.json`：模型族与拓扑类别，用来解释「为什么这个槽位允许是薄片」。
@@ -12,8 +12,7 @@
  * 契约登记「槽位 → 构件 → 角色 → 外观」，并在**改名管线就绪**时给出目标名：
  * `action=rename` + `targetName`，旧名留在 `legacyName`（持久记录，下次重建继续沿用）。
  *
- * 改名不是这一层直接落盘的：真值由 `ops/checks/studio/repair_glb_material_slots.mjs`
- * 执行（先写别名表，再改 GLB 的 JSON chunk）。运行期按旧名取色的 30 处历史分支靠
+ * 改名不是这一层直接落盘的：落盘由独立工具执行（先写别名表，再改 GLB 的 JSON chunk）。运行期按旧名取色的 30 处历史分支靠
  * `legacy-material-aliases.generated.ts` 保持原样，见 `materials/legacy-material-aliases.ts`。
  *
  * 用法：
@@ -217,7 +216,7 @@ const EXPLICIT_ROLE_OVERRIDES = Object.freeze({
  * 同时让 `legacy-material-aliases.generated.ts` 变成改名与运行期的耦合点。
  *
  * 2026-10-24 重开的顺序反过来：**先把取色分支单点归一**（加载器把材质名过一遍别名表），
- * 再由本文件给出目标名、`repair_glb_material_slots.mjs --write` 落盘。目标名规则见
+ * 再由本文件给出目标名、由落盘工具写入。目标名规则见
  * `needsSlotRename()` / `planSlotRenames()`。
  */
 
@@ -226,7 +225,7 @@ const CANONICAL_SLOT = /^[a-z0-9][a-z0-9_]*(?:[-][a-z0-9][a-z0-9_]*)*$/
 
 /**
  * 已审「共享槽位命名」的模型：材质名沿用上游导出的车身原名（`car_tms` / `glass_01` /
- * `car-interior-*`），与 `audit_glb_materials.mjs → DECLARED_SHARED_SLOT_MODELS` 同一份
+ * `car-interior-*`），与材质审计的 `DECLARED_SHARED_SLOT_MODELS` 同一份
  * 判断（`car` 的 `car_tms` 是 0.9.0 原始资产的烤图集名，同样不动）。这里让
  * `planSlotRenames` 一律 keep，避免契约给出「待改名 22 处」这种
  * 永远不打算执行的计划，也避免有人照着契约跑一次改名把运行期取色分支打穿。
@@ -452,7 +451,7 @@ function main() {
         /**
          * 契约里的人工裁定（`EXPLICIT_ROLE_OVERRIDES`）：这类槽位的角色**必须**进运行期
          * 完整名覆盖表，否则「契约说 body、运行时按名字解析成 playBall」，配色按运行期走。
-         * 生成器 `repair_glb_material_slots.mjs --emit-generated` 会据此写
+         * 生成器会据此写
          * `GENERATED_MATERIAL_ROLE_OVERRIDES`。
          */
         roleExplicit: Boolean(explicitRole),

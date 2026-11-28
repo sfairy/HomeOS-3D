@@ -182,7 +182,7 @@ HomeOS/
 
 ## 3. 本地开发
 
-依赖：Bun 1.4.5（根 `packageManager`）、Python 3.15（镜像 `PYTHON_IMAGE`）——两者都由 `check:toolchain` 守。端口真源：`ops/ports.mjs`。
+依赖：Bun 1.4.5（根 `packageManager`）、Python 3.15（镜像 `PYTHON_IMAGE`）。端口真源：`ops/ports.mjs`。
 
 ```bash
 bun install
@@ -221,63 +221,45 @@ bun run dev -- --lan     # 局域网
 
 ### 门禁
 
-清单唯一来源 `ops/gates.mjs`（`--list` / `--list --json` 查）。分三层：阻断（`gate:*`）、手动审计（`audit:*`）、生成（`generate:*` / `organize:*` / `index:*` / `rebuild:*` / `build:slot-contracts`）。
+清单唯一来源 `ops/gates.mjs`（`--list` / `--list --json` 查）。2026-11-28 起只保留三组：
+运行/构建必需检查 + 业务规则自检；原 `model` 组与 `ops/checks` 下的工程门禁已移除。
 
 | 组 | 管什么 |
 | --- | --- |
-| `static` | 类型 / lint / 契约（路由·依赖·环境变量）/ 棘轮 / 不变量 / 测试 |
-| `model` | 资产·几何·槽位·材质审计 + 目录布局与中文名索引 |
-| `build` | 清 `dist` → 构建与产物断言 → chunk 初始化顺序 → 字体子集 → 静态产物处理 |
+| `static` | 类型 / lint / 静态产物一致性 / 依赖锁 / 业务自检 |
+| `build` | 清 `dist` → 构建与产物断言 → 字体子集 → 静态产物处理 |
 | `infra` | shellcheck / actionlint / compose / Caddy 格式与校验 / Cython |
 
-static 的步骤按**标签**分六类（`--list` 按此打印，`--tag` 可整类跑）：`types` / `lint` /
-`contract` / `ratchet` / `invariant` / `business`。新增 static 步骤必须在 `TAG_GROUPS` 里登记标签，
+static 的步骤按**标签**分四类（`--list` 按此打印，`--tag` 可整类跑）：`types` / `lint` /
+`contract` / `business`。新增 static 步骤必须在 `TAG_GROUPS` 里登记标签，
 否则启动即报错 —— 分类过期比没有分类更糟。
 
 ### 批量入口与单项调试
 
-同一批文件被多条检查反复扫描时，门禁只登记一个**批量入口**，被合并的原脚本写进 `covers`：
+`ops/checks/` 现在只剩业务自检：`business/*_selftest.py` + 顶层唯一入口
+`run_selftests.py`。单项调试用 `--module`（精确名优先、其余按子串）：
+`bun run check:selftests -- --module device_profile_selftest`。
 
-| 入口 | 子检查 | 合并收益 |
-| --- | --- | --- |
-| `check:frontend` | 2 | 1974 个 ts/vue 只遍历一次；离线计数 / 受限写法共用同一份 `SourceFile` |
-| `check:backend` | 3 | 694 个 `.py` 只 `ast.parse` 一次（此前每条都重解析）；guards / ws-auth / parity |
-| `check:selftests` | 1 | 业务规则自检；`--module <名称>` 单项调试 |
-| `check:studio-invariants` | 7 | 八条不变量里画布两条合成一条（同一份 `canvas-layout.util.ts`） |
-| `check:model-assets` | 4 | 四条 GLB 只读审计 |
-| `check:model-index` | 2 | 目录布局 + 中文名索引 |
-
-单项调试不必跑整批：批量入口都收 `--module`（精确名优先、其余按子串），例如
-`bun run check:backend -- --module guards`；`--module` 就是唯一入口，
-不再为每条子检查各留一个 `check:*` 别名。
-
-**脚本按域分目录**：`business/`（业务自检）/ `python/`（后端 AST 检查）/ `frontend/`（前端扫描）/
-`contract/`（版本、环境变量、跨语言表）/ `studio/`（3D 与模型）、
-`security/`（WS 鉴权）/ `baselines/`（全部基线）。`run_*.{mjs,py}` 留在顶层作为唯一执行入口，
-`ops/checks/` 顶层因此只有 8 个文件 + 子目录。
-
-Python 脚本的 `PYTHONPATH`（仓库根 + 各子目录）由 `ops/lib/py.mjs` 统一注入 —— 脚本里不再各写
-`sys.path.insert`，否则那 3 行会变成九份克隆。
+Python 脚本的 `PYTHONPATH`（仓库根 + 业务自检目录）由 `ops/lib/py.mjs` 统一注入 ——
+脚本里不再各写 `sys.path.insert`。
 
 ```bash
-bun run gate                 # static + model（默认）
+bun run gate                 # static（默认）
 bun run gate:fast            # 日常快检：static 的 types + lint
-bun run check:frontend       # 只跑前端那批
-bun run check:backend -- --module kinds   # 批量入口里的单条（子串匹配）
-node ops/gates.mjs --tag ratchet          # 只跑某一类
-node ops/gates.mjs --step offline         # 命中 check:frontend（批量入口按 covers 匹配）
+bun run check:selftests      # 业务规则自检
+bun run check:selftests -- --module device_profile_selftest   # 单条（子串匹配）
+node ops/gates.mjs --tag business         # 只跑某一类
+node ops/gates.mjs --step selftests       # 按名字子串命中
 node ops/gates.mjs --group static --jobs 1  # 串行逐条看
-node ops/gates.mjs --list --json          # 机器可读（含 covers）
+node ops/gates.mjs --list --json          # 机器可读
 ```
 
 默认并行 4（`--jobs` / `HOMEOS_GATE_JOBS` 可改）；`build` / `infra` 有组内先后依赖，恒为串行。
 并行模式下通过的步骤只留一行结果，失败才展开完整输出。缺工具本机 SKIP、CI 失败。
 
-仍保留的检查只守**语义**：分层依赖方向、WS 鉴权、async 同步 DB / PEP 758、跨语言表对齐、
-runtime 导出面、离线计数口径、受限写法、模型资产契约。没有任何「数字只许降」的基线 ——
-`ops/checks/baselines/` 下只剩 `contracts/runtime-contract.json`、`contracts/ws-routes-baseline.json`
-与 `model/{asset,geometry,material-role}-baseline.json`，它们记录的是**接口面与资产契约**，
-不是代码形态计数。
+2026-11-28 的瘦身把 `ops/checks` 下的工程门禁整体移除（前端分层/CSS 布局、模型 GLB 审计、
+跨语言契约、依赖方向、AST 守卫、WS 鉴权、浏览器冒烟、soak 及其全部基线 JSON）。保留的是
+构建/运行/部署真正需要的检查与业务规则自检。
 
 已删除的门禁（连同脚本、基线、`package.json` 条目）：代码量总量（`check:code-size`）、
 单文件行数审计（`audit:file-size`）、巨型文件扇出审计（`audit:giant-files`）、
@@ -295,20 +277,16 @@ CSS 重复、CSS 令牌、画布断点、Studio 拆分预算、0.8.9 对齐、�
 **行数不作任何判据**：项目不再统计单文件行数，也不再设「巨型文件」定义；
 按行数或扇出取证的手动入口已一并删除，不维护任何体量基线。
 
-`check:toolchain` 守三条「写了两遍以上」的版本线，任何一处漂移都不影响编译、只会在换机或发版时才炸：
-
-| 线 | 真源 | 必须跟随的地方 |
-| --- | --- | --- |
-| Bun | 根 `packageManager` | workflow 的 `bun-version`（禁止 `bun-version-file`）、`homeos-store` 的 `engines.bun` 下界 |
-| 基础镜像 | `ops/docker-pins.json`（tag 与 digest 分开写） | `Dockerfile` 的 `ARG *_IMAGE`、compose 里同 tag 的 `image:`（含注释态可选段） |
-| Python | `ops/docker-pins.json` 的 `python` 标签 | workflow 的 `python-version` |
+`check:toolchain` 已随工程门禁移除；三条版本线（Bun / 基础镜像 / Python）的真源不变：根
+`packageManager`、`ops/docker-pins.json`、workflow 的 `bun-version` / `python-version`。
 
 `ruff.toml` 的 `target-version` 与 `pyproject.toml` 的 `requires-python` 是**声明**，允许落后运行时一个 minor
 （上游工具链常还没支持最新 minor，强行要求相等会把「升 Python」卡在工具上），但绝不允许超前 ——
 超前等于放行跑不了的语法。
 
 业务规则层「跑断言」的门禁是 `ops/checks/business/*_selftest.py`（标准库 + 运行期依赖，不需要 pytest）。
-`check:selftests` 串起 22 个业务自检模块（都在 `ops/checks/business/`），单项调试用 `--module`
+`check:selftests` 串起 `ops/checks/business/` 下全部业务自检模块（当前 30 个，以
+`node ops/lib/py.mjs ops/checks/run_selftests.py --list` 为准），单项调试用 `--module`
 （`bun run check:selftests -- --module device_profile_selftest`）：
 
 - 设备画像（58 项）：分类规则、别名归一与房间作用域、在线 / 可用二分、确认与审计、
@@ -400,7 +378,7 @@ bfcache 交接在 `shared/utils/page-cache-lifecycle.ts`：`pagehide(persisted)`
 
 ## 5. 3D Studio 与模型库
 
-创作页与展示页共用 `buildStudioScene`。根应用只 `import '@/studio'`，不直达 `@app/*` / `@runtime/*`（`check:deps` 守）。
+创作页与展示页共用 `buildStudioScene`。根应用只 `import '@/studio'`，不直达 `@app/*` / `@runtime/*`。
 
 ### 模型库
 
@@ -412,30 +390,27 @@ bfcache 交接在 `shared/utils/page-cache-lifecycle.ts`：`pagehide(persisted)`
 - 物品模型 14 族 / 59 类型分支（`item-model/`），族序即命中优先级，重排前先确认没有交叠条件。
 - vendor：three 0.187.0、hls.js 1.7.4、meshoptimizer 0.25、mdi 7.4.47、meteocons。
 
-新增模型：`model-asset-folders.ts` 登记 id → 放两个 GLB → `StudioView.vue` 加 `data-library-name` 卡片 → `index:model-names` → `gate:model`。
+新增模型：`model-asset-folders.ts` 登记 id → 放两个 GLB → `StudioView.vue` 加 `data-library-name` 卡片 → `index:model-names`。
 
 ### 材质契约（生成物）
 
-| 文件 | 命令 |
+| 文件 | 生成方式 |
 | --- | --- |
-| `model-slot-contracts.json` | `build:slot-contracts` |
-| `model-slot-roles.generated.ts` | `generate:slot-tables` |
-| `legacy-material-aliases.generated.ts` | `generate:slot-tables` |
-| `baselines/model/material-role-baseline.json`（672 文件 / 3136 条） | `audit_glb_materials.mjs --write-role-baseline` |
-| `baselines/model/{asset,geometry}-baseline.json` | 对应 `audit:*` |
+| `model-slot-contracts.json` | `build:slot-contracts`（读取已提交的 `docs/model-audit/glb-material-audit.json`） |
+| `model-slot-roles.generated.ts` / `legacy-material-aliases.generated.ts` | 生成器已随 `ops/checks/studio` 移除；文件保持已提交版本 |
 
-顺序：`bun ops/checks/studio/audit_glb_materials.mjs`（写 `docs/model-audit/glb-material-audit.json`）→ `build:slot-contracts` → `generate:slot-tables`。日常构建只需已提交的 `model-slot-contracts.json`。
+2026-11-28 的瘦身移除了 GLB 审计与槽位修复工具（`audit_glb_*` / `repair_glb_material_slots`）
+及其基线。日常构建只需已提交的 `model-slot-contracts.json` 与两个 generated 文件；
+如需重新生成审计快照，需从外部流程恢复工具。
 
-### 模型门禁
+### 模型工具
 
 | 命令 | 作用 |
 | --- | --- |
-| `check:model-assets` | 资产 / 几何 / 槽位 / 材质四条审计（`--module` 可单跑） |
-| `check:model-index` | 目录布局 + 中文名索引（`--module` 可单跑） |
 | `organize:models` / `index:model-names` | 迁移目录 / 生成索引（生成物，需提交） |
 | `rebuild:items` | 按配方重建精修件 |
 
-无 `repair:*` 层。模型坏了用 `audit_glb_*` 定位后重导出或 `rebuild:items`。
+GLB 审计门禁与 `audit_glb_*` 已随 `ops/checks/studio` 移除；模型坏了直接重导出或 `rebuild:items`。
 
 ### 备份包含什么
 
@@ -474,7 +449,7 @@ bfcache 交接在 `shared/utils/page-cache-lifecycle.ts`：`pagehide(persisted)`
 
 前者商店与主应用同机（`http://homeos-store:8802`）；后者商店地址为公网域名。
 
-环境变量、内网 HTTPS 与 SNI、穿透、备份与升级、排错：见 `.env.example`（约 90 个变量，分 A–G 七段）与两个 compose 的注释。模板里不允许出现没有读取方的键（`check:env` 守）。
+环境变量、内网 HTTPS 与 SNI、穿透、备份与升级、排错：见 `.env.example`（约 90 个变量，分 A–G 七段）与两个 compose 的注释。模板里不允许出现没有读取方的键。
 
 镜像：`bun run build` → `bun run image:app` / `image:store`。基础镜像按多架构 digest 钉死，真源 `ops/docker-pins.json`。
 
@@ -484,10 +459,10 @@ bfcache 交接在 `shared/utils/page-cache-lifecycle.ts`：`pagehide(persisted)`
 | --- | --- | --- |
 | 产品版本 | 根 `package.json` | `set-version.mjs` 同步各槽位；`_version.py` 构建期生成 |
 | JS 依赖 | `package.json` + `bun.lock` | 全仓（hoisted） |
-| Bun | 根 `packageManager`（`homeos-store` 另有 `engines`）；CI 的 `bun-version` 必须跟随，`check:toolchain` 守 | workflow `bun-version` |
+| Bun | 根 `packageManager`（`homeos-store` 另有 `engines`）；CI 的 `bun-version` 必须跟随 | workflow `bun-version` |
 | Python 解释器 | `ops/docker-pins.json` 的 `python` 标签 | `Dockerfile` 的 `PYTHON_IMAGE`、workflow 的 `python-version`、`ruff.toml` / `pyproject.toml` 的声明（允许落后一个 minor） |
 | Python 依赖 | 两个 `requirements.txt` | `python_lock.py` → 根 `requirements.lock`（49 项 + sha256），构建按 `--require-hashes --only-binary=:all:` 装 |
-| 基础镜像 digest | `ops/docker-pins.json` | Dockerfile ARG / compose / `ops/build.py`（`check:toolchain` 对账） |
+| 基础镜像 digest | `ops/docker-pins.json` | Dockerfile ARG / compose / `ops/build.py` |
 | 端口 | `ops/ports.mjs` | dev 脚本 / compose |
 | 设置页标签与文案 | `shared/utils/registry/settings-nav.util.ts` | 侧栏 / 页头 / 深链 |
 | 能力码 | `ops/contracts/feature_codes.json` | 授权校验（18 项 / 2 组） |
@@ -513,4 +488,4 @@ bfcache 交接在 `shared/utils/page-cache-lifecycle.ts`：`pagehide(persisted)`
 | --- | --- | --- |
 | `checks.yml` | push 到 main、PR、`workflow_call`、手动 | static / model / build / lint-infra 四个 job |
 | `docker.yml` | 手动 | amd64 + arm64 → GHCR；发版前经 `workflow_call` 复用 checks |
-| `audit.yml` | 每周一 03:17 UTC、手动 | `bun audit --production`、依赖许可证、`pip-audit`、`detect-secrets` |
+| `audit.yml` | 每周一 03:17 UTC、手动 | `bun audit --production`、`pip-audit`、`detect-secrets` |

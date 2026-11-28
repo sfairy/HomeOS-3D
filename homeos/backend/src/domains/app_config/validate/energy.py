@@ -114,7 +114,7 @@ def _validate_energy(section: str, payload: dict[str, Any], errors: list[FieldEr
             validate_optional_entity_id(section, key, payload[key], errors)
     if "meterScope" in payload:
         # 口径常量在 platform：从 client_power 取会让 app_config → client_power → …
-        # 形成包级循环（check:backend-deps B4）
+        # 形成包级循环（后端分层约定）
         from ....platform.core.energy.roles import METER_SCOPES
 
         scope = payload["meterScope"]

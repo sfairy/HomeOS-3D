@@ -13,7 +13,7 @@
 ``icons/`` 必须被改名隔离而不是物理删除（素材可能来自用户自己画的图）。
 
 用法：
-    node ops/lib/py.mjs ops/checks/ui_assets_selftest.py
+    node ops/lib/py.mjs ops/checks/business/ui_assets_selftest.py
 """
 
 from __future__ import annotations

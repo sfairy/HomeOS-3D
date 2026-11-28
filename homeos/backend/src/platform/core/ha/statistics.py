@@ -2,7 +2,7 @@
 
 放在 ``platform/core/ha`` 而不是 ``domains/ha``：日志域（能耗回填）要用它，而
 ``domains/logs → domains/ha`` 会与既有的 ``domains/ha → domains/logs`` 形成包级循环
-（``check:backend-deps`` B4）。这里只做一条 WS 命令，只依赖调用方传进来的 client，
+（后端分层约定：platform 内不得互相 import 成环）。这里只做一条 WS 命令，只依赖调用方传进来的 client，
 放在下层平台包里既没有反向依赖，也不影响 ``HAClient`` 的分层。
 
 能耗回填优先走统计：一次命令取回所有实体的统计桶，比 ``/api/history/period`` 的

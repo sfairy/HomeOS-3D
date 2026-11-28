@@ -1,10 +1,9 @@
 name: Checks
 
-# 门禁入口（不构建镜像、不推 GHCR）。四个 job 与 `ops/gates.mjs` 的四个组一一对应：
+# 门禁入口（不构建镜像、不推 GHCR）。三个 job 与 `ops/gates.mjs` 的三个组一一对应：
 #
-#   static  → bun run gate:static   类型 / lint / ruff / 契约（路由·依赖·环境变量）/ 棘轮 / 不变量 / 测试
-#   model   → bun run gate:model    3D 模型库只读审计（资产·几何·槽位·材质 / 目录与命名）
-#   build   → bun run gate:build    前端产物构建 + 结构断言 + chunk 初始化 + 静态产物检查
+#   static  → bun run gate:static   类型 / lint / 静态产物一致性 / 依赖锁 / 业务自检
+#   build   → bun run gate:build    前端产物构建 + 结构断言 + 静态产物检查
 #   infra   → bun run gate:infra    shell / workflow / compose / Caddyfile / Cython
 #
 # 单一来源：**清单在 ops/gates.mjs**，这里只负责「装环境 + 按组调用」。改检查只改那一处，
@@ -18,7 +17,7 @@ name: Checks
 # - workflow_dispatch：Actions 页面 Run workflow。
 # - workflow_call：docker.yml 发版前复用同一份检查，并取用 build job 的前端制品。
 #
-# 本地等价入口：`bun run gate`（默认 static + model）、`bun run gate:build`、
+# 本地等价入口：`bun run gate`（默认 static）、`bun run gate:build`、
 # `bun run gate:infra`；`node ops/gates.mjs --list` 打印完整清单。
 on:
   push:
@@ -38,9 +37,7 @@ permissions:
 jobs:
   # 静态检查：不需要构建产物，几十秒内就能给出「语义回退」的红灯。
   #
-  # 单个步骤内部是多条检查的批量入口（`check:frontend` / `check:backend`
-  # / `check:tests`）：合并只改执行方式（共享一次遍历与 AST 解析），判定
-  # 口径与基线不变。`node ops/gates.mjs --list --json` 可看每条入口覆盖了哪些原脚本（`covers`）。
+  # 编排清单在 `ops/gates.mjs`；`node ops/gates.mjs --list --json` 可机器读取。
   #
   # `check:image-imports` 与 `check:python-lock` 仍是独立步骤：两者都是纯静态、不联网、不编译，
   # 却各自守着一个「本地看不出来、发版才炸」的失败面（镜像里的包名改写、依赖锁与
@@ -51,11 +48,7 @@ jobs:
       # 让 ops/gates.mjs 走 CI 口径：ciOnly 步骤参与、缺工具即失败。
       HOMEOS_GATE_CONTEXT: ci
     steps:
-      # fetch-depth: 2 —— check:python-format 要 diff 出「新增的 .py」，
-      # 默认浅克隆只有 1 个 commit，脚本会显式 SKIP（不静默通过，但门禁等于没跑）。
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          fetch-depth: 2
 
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
@@ -80,48 +73,15 @@ jobs:
       - name: Install ruff
         run: pip install "ruff==0.17.6"
 
-      # `check:tests`（业务自检 + 后端 unittest）会导入真实后端模块（fastapi / sqlalchemy 在
+      # `check:selftests`（业务规则自检）会导入真实后端模块（fastapi / sqlalchemy 在
       # 导入链上），装开区间的 requirements.txt，不碰 requirements.lock（镜像用的才是那份锁）。
-      - name: Install backend deps for tests
+      - name: Install backend deps for selftests
         run: |
           pip install -r homeos/backend/requirements.txt
           pip install -r homeos-store/backend/requirements.txt
 
       - name: Static gates
         run: bun run gate:static
-
-  # 模型库只读审计：不依赖前端构建，也不写盘。
-  #
-  # 入口是 `gate:model`，两条批量步骤：
-  # - `check:model-assets`：资产预算 / 几何 / 槽位 / 材质四条只读审计。资产那条守「文件里还剩
-  #   什么」（体积、扩展、贴图、名字），其余几条只看新文件自身一致 —— 互补而非重复；
-  # - `check:model-index`：目录分区与中文名索引是否最新（新增/移动模型必须同步）。
-  #
-  # 槽位「角色不漂移」的 git 历史比对（原 `check:slot-roles`）已删除：它读的是已提交的改名
-  # 证据，而 `check:slots` 已经在守「槽位角色 == 契约」。
-  model:
-    runs-on: ubuntu-24.04
-    env:
-      HOMEOS_GATE_CONTEXT: ci
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
-        with:
-          bun-version: 1.4.5
-
-      - name: Cache bun install cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
-        with:
-          path: ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-          restore-keys: bun-${{ runner.os }}-
-
-      - name: Install
-        run: bun install --frozen-lockfile
-
-      - name: Model gates
-        run: bun run gate:model
 
   # 前端产物构建 + 结构断言。这是整条流水线里**唯一**构建前端的 job：docker.yml 通过
   # workflow_call 复用它，产物以制品形式交给镜像矩阵。

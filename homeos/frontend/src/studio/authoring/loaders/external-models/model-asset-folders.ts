@@ -14,7 +14,7 @@
  *
  * 这张表是**唯一真值**：运行时 URL 由 `modelAssetUrl()` 拼出来，不再散落硬编码路径；
  * `scripts/models/organize-models.mjs` 用同一张表校验/迁移文件。新增模型先登记在这里，
- * 否则 `bun run check:model-index -- --module models-layout` 会失败。
+ * 否则文件名与登记表对不上（无自动门禁，靠 `organize-models.mjs` 校验）。
  */
 import { MODEL_FILE_STEMS } from './model-file-names.generated'
 
@@ -503,7 +503,7 @@ for (const [folder, assetIds] of Object.entries(MODEL_ASSETS_BY_FOLDER) as [Mode
     const stem = modelAssetFileStem(assetId)
     assetIdByFolderStem.set(folder + '/' + stem, assetId)
     const previous = assetIdByStem.get(stem)
-    // 中文名全库唯一（`check:model-names` 会卡住重名）；真出现歧义就留空，让反查失败而不是猜错。
+    // 中文名全库唯一；真出现歧义就留空，让反查失败而不是猜错。
     if (previous === undefined) assetIdByStem.set(stem, assetId)
     else if (previous !== assetId) assetIdByStem.set(stem, '')
   }

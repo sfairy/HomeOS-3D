@@ -3,7 +3,7 @@
 为什么放在 ``platform``：``domains/app_config`` 的绑定校验需要判断「这个实体是累计电量
 还是瞬时功率」，但 import ``domains/client_power`` 会让
 ``app_config → client_power → security → proxy → ha → app_config`` 成环
-（``check:backend-deps`` B4，即使写成函数内延迟导入也照样判环）。这里只放纯函数与
+（后端分层约定，即使写成函数内延迟导入也照样判环）。这里只放纯函数与
 常量，不依赖任何域；``domains/client_power/energy_meter.py`` 原样 re-export，既有
 import 点与测试都不用改。
 """

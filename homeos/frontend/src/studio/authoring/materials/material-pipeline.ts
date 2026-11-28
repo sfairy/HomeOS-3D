@@ -1,7 +1,7 @@
 /**
  * 「这个材质最终会不会被运行时**重建**」的唯一判定。
  *
- * 为什么单独成模块：`ops/checks/studio/{audit,repair}_glb_materials.mjs` 需要知道某个槽位
+ * 为什么单独成模块：材质审计与回填工具都需要知道某个槽位
  * 的 `metallicFactor` / `roughnessFactor` 到底会不会被读取 —— 会重建的槽位，GLB 里写什么
  * 都不生效；不会重建的槽位（走 `sourceMaterial.clone()`）才需要与配方对齐。
  *

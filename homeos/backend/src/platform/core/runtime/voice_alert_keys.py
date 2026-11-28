@@ -2,7 +2,7 @@
 
 放在 ``platform`` 而不是 ``domains/awareness``：``domains.notification`` 要用它决定
 「这条通知该不该播报」，而 ``notification`` 与 ``awareness`` 之间已经存在包级循环
-（``check:backend-deps`` B4），任何互相 import 都会立刻失败。
+（后端分层约定），任何互相 import 都会立刻失败。
 
 这里只做纯映射，不读配置、不认识默认值 —— 默认矩阵仍由 ``app_config.defaults`` 与
 ``awareness.voice_alerts`` 拥有。

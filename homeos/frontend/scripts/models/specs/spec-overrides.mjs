@@ -259,8 +259,7 @@ const ARC_CENTER_ORIGIN_IDS = new Set(['pillar-semicircle', 'pillar-quarter'])
 const WALL_FACE_ANCHORED_IDS = new Set(['air-outlet', 'pipeline-water-purifier', 'up-down-wall-lamp'])
 
 /**
- * 原点口径（**必须与几何实测一致**，改名前先重跑
- * `ops/checks/studio/audit_glb_geometry.mjs` 核对）。
+ * 原点口径（**必须与几何实测一致**，改名前先重跑几何实测核对）。
  *
  * 历史：这里曾经写 `wall-back-center`，暗示「背面中心」。但 35 个挂墙件的原点其实在
  * **底部、厚度方向中心**（`min.z ≈ -深度/2`），既不是背面也不是竖直中心 —— 标签错了
