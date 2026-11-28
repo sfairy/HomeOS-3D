@@ -80,7 +80,9 @@ def setup_status(request: Request, session: DbSession) -> dict:
     状态里。现在的口径只有一条：只有库里真有管理员，才叫已初始化。
     """
     guard = getattr(request.app.state, "setup_guard", None)
-    local_access = bool(guard is not None and guard.has_setup_privilege(request))
+    # local_access 只在运维显式允许本机免密钥时才为真（见 SetupGuard.local_access 的说明）：
+    # 否则界面会声称「不用填密钥」，而 POST 却要密钥。
+    local_access = bool(guard is not None and guard.local_access(request))
     if admin_exists(session):
         return {
             "initialized": True,

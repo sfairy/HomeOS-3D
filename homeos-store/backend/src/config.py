@@ -230,6 +230,9 @@ class StoreSettings:
     schema_mode: str = "auto"
 
     setup_token: str = ""
+    #: 是否允许「本机直连免引导密钥」。默认关闭：回环对端证明不了请求来自本机
+    #: （SSH -L / socat 等四层转发也能满足），而初始化会创建第一个管理员。
+    allow_local_setup: bool = False
 
     mail_mode: str = "log"
     #: 仅本机首装用：``mail_mode=log`` 时是否允许把明文验证码写进日志。默认关闭（fail-closed）。
@@ -434,6 +437,7 @@ def _env_core_values() -> dict[str, Any]:
         ),
         "schema_mode": (_env_str("STORE_SCHEMA_MODE", "auto") or "auto").strip().lower(),
         "setup_token": _env_str("STORE_SETUP_TOKEN", ""),
+        "allow_local_setup": _env_bool("STORE_ALLOW_LOCAL_SETUP", False),
         "products_cache_ttl_seconds": _env_int("STORE_PRODUCTS_CACHE_TTL_SECONDS", 5, minimum=0, maximum=300),
     }
 

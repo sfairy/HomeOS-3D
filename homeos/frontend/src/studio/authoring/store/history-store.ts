@@ -114,6 +114,9 @@ export class StudioHistoryStore {
     }
     this.redoStack.push(entry)
     this.redoBytesValue += entryBytes
+    // 撤销也要收口 redo：反复 undo/redo 大补丁（多选粘贴高模）时，redo 栈会一直
+    // 涨到下一次编辑才被清空，而 `maxBytes` 的文档承诺是「双向都限」。
+    this.enforceCaps()
     return { ok: true, direction: 'undo', entry }
   }
 
@@ -187,6 +190,18 @@ export class StudioHistoryStore {
     while (this.undoBytesValue > this.maxBytes && this.undoStack.length > 1) {
       this.dropOldestUndo()
     }
+    // redo 同样受条数和字节双重约束：`redoStack` 只在新编辑（`dropRedoStack`）时清空，
+    // 中间反复 undo/redo 会让它无限增长到几十 MB（低内存墙屏上的 OOM 来源之一）。
+    // 至少保留一条：把最后一条也丢掉会让「重做」按钮直接消失。
+    while (this.redoStack.length > this.maxEntries) this.dropOldestRedo()
+    while (this.redoBytesValue > this.maxBytes && this.redoStack.length > 1) {
+      this.dropOldestRedo()
+    }
+  }
+
+  private dropOldestRedo(): void {
+    const dropped = this.redoStack.shift()
+    if (dropped) this.redoBytesValue -= estimateHistoryEntryBytes(dropped)
   }
 
   private dropOldestUndo(): void {

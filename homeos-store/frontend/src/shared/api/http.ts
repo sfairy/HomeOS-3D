@@ -67,10 +67,16 @@ async function request(
   { notifyAuth = false, notifyStoreAuth = false } = {},
 ): Promise<unknown> {
   const isForm = typeof FormData !== "undefined" && options.body instanceof FormData;
+  // `headers` 必须在 `...options` **之后**合并：展开会把调用方传的 headers 整个替换掉
+  // 默认对象（而不是合并），于是带 `X-Order-Token` 之类自定义头的 JSON POST 会丢掉
+  // `Content-Type`，后端收到的是无类型 body（422 / 解析失败），而本地类型检查全绿。
   const response = await fetch(`${base}${path}`, {
-    credentials: "same-origin",
-    headers: options.body && !isForm ? { "Content-Type": "application/json" } : {},
     ...options,
+    credentials: "same-origin",
+    headers: {
+      ...(options.body && !isForm ? { "Content-Type": "application/json" } : {}),
+      ...((options.headers as Record<string, string> | undefined) ?? {}),
+    },
   });
   notifyAuthFailure(response, { notifyAuth, notifyStoreAuth });
   if (options.raw) return response;

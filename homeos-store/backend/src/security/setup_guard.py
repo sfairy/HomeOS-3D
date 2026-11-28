@@ -25,6 +25,14 @@ FINGERPRINT_PREFIX = "sha256:"
 
 LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1", "localhost"})
 
+#: 显式允许「本机直连免引导密钥」的环境变量。
+#:
+#: 默认**关闭**：``is_direct_local`` 只能证明「TCP 对端是回环」，而四层转发
+#: （SSH ``-L`` / ``socat`` / 只转发的 sidecar）会让远端请求也满足这个条件，
+#: 于是任何人都能在实例初始化前抢先创建第一个管理员。引导密钥是唯一无法伪造的凭据。
+#: 确实只在本机使用、且能接受该风险的部署可以设为 1 换回便利。
+ALLOW_LOCAL_SETUP_ENV = "STORE_ALLOW_LOCAL_SETUP"
+
 _SETUP_ATTEMPT_LIMIT = 10
 _SETUP_ATTEMPT_WINDOW_SECONDS = 900.0
 
@@ -53,6 +61,13 @@ def host_header_name(request: Request) -> str:
 
 def is_direct_local(request: Request) -> bool:
     """是否是「本机直连」：loopback 对端 + loopback ``Host`` + 没有任何转发头。
+
+    **这只说明请求看起来来自本机，不构成身份凭据**：一个 TCP 层的转发（SSH ``-L``、
+    ``socat``、只做四层转发的 sidecar）会让远端连接的 TCP 对端变成 ``127.0.0.1``，
+    而转发方还能把 ``Host`` 改写成 ``localhost`` —— 此时本函数返回真，但请求其实是
+    远程发起的。因此它只用来**提示**（``GET /setup/status`` 的 ``localAccess``），
+    真正放行初始化还必须拿到引导密钥，除非运维显式打开
+    :data:`ALLOW_LOCAL_SETUP_ENV`。
     """
     if forwarded_headers_present(request):
         return False
@@ -74,16 +89,30 @@ def read_token_file(text: str) -> str:
 class SetupGuard:
     """首次初始化窗口的守卫：本机放行 + 远程需引导密钥 + 限流。"""
 
-    def __init__(self, data_dir: Path, configured_token: str = "") -> None:
+    def __init__(self, data_dir: Path, configured_token: str = "", *, allow_local_setup: bool = False) -> None:
         self.path = Path(data_dir) / "setup-token"
         self.marker_path = Path(data_dir) / GENERATED_MARKER_FILE
         self._configured = (configured_token or "").strip()
+        #: 是否允许「本机直连免密钥」（见 :data:`ALLOW_LOCAL_SETUP_ENV`）。默认关闭。
+        self._allow_local_setup = bool(allow_local_setup)
         self._token = ""
         self._generated = False
         self._attempts = SlidingWindowLimiter(
             limit=_SETUP_ATTEMPT_LIMIT,
             window_seconds=_SETUP_ATTEMPT_WINDOW_SECONDS,
         )
+
+    @property
+    def allow_local_setup(self) -> bool:
+        return self._allow_local_setup
+
+    def local_access(self, request: Request) -> bool:
+        """本机直连**且**运维允许免密钥时，才算「本次访问无需引导密钥」。
+
+        ``is_direct_local`` 本身不是凭据（四层转发可伪造），所以状态接口也用它判 ——
+        否则界面会告诉用户「不用填密钥」，而 POST 却要密钥，两边自相矛盾。
+        """
+        return self._allow_local_setup and is_direct_local(request)
 
     @property
     def token(self) -> str:
@@ -205,8 +234,12 @@ class SetupGuard:
 
     def has_setup_privilege(self, request: Request, setup_token: str = "") -> bool:
         """本次请求是否有资格初始化（只判断，不抛错、不消耗限流配额）。
+
+        本机直连只在运维**显式**打开 ``STORE_ALLOW_LOCAL_SETUP`` 时放行（见
+        :data:`ALLOW_LOCAL_SETUP_ENV` 的说明）：回环对端证明不了「请求来自本机」，
+        四层转发也能满足它。
         """
-        if is_direct_local(request):
+        if self.local_access(request):
             return True
         supplied = (setup_token or request.headers.get("x-setup-token") or "").strip()
         return bool(self._token and supplied and secrets.compare_digest(supplied, self._token))
@@ -249,8 +282,7 @@ class SetupGuard:
             status_code=status.HTTP_403_FORBIDDEN,
             detail=(
                 "首次设置需要引导密钥。请在服务启动日志（或容器日志）中查找 setup token，"
-                "也可以用 STORE_SETUP_TOKEN 指定一份后重启；"
-                "用 localhost / 127.0.0.1 从本机访问则无需填写。"
+                "也可以用 STORE_SETUP_TOKEN 指定一份后重启。"
             ),
         )
 
@@ -277,10 +309,16 @@ def announce_setup_window(guard: SetupGuard) -> None:
         "    docker logs homeos-store 2>&1 | grep -m1 SETUP-TOKEN=）",
         "  使用方式: 打开 /store/setup 页面填入「引导密钥」一栏；",
         "            或在 POST /store/v1/setup/admin 的请求体里加 \"setupToken\"（也可用 X-Setup-Token 头）。",
-        "  用 localhost / 127.0.0.1 从本机（未经代理）访问时无需填写。",
-        "=" * 72,
-        "",
     ]
+    if guard.allow_local_setup:
+        lines.append("  已开启 STORE_ALLOW_LOCAL_SETUP=1：用 localhost / 127.0.0.1 从本机（未经代理）访问时无需填写。")
+    else:
+        lines.append(
+            "  用 localhost 从本机访问**同样**需要这枚密钥（回环对端无法证明请求来自本机："
+            "SSH -L / socat 之类的四层转发也能伪造）。"
+        )
+        lines.append("  只想在本机图省事、且能接受该风险：设 STORE_ALLOW_LOCAL_SETUP=1 后重启。")
+    lines.extend(["=" * 72, ""])
     try:
         sys.stderr.write("\n".join(lines) + "\n")
         sys.stderr.flush()

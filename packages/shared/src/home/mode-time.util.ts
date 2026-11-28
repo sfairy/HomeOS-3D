@@ -7,13 +7,17 @@
  * @returns 标准化后的 "HH:mm"（如 "07:05"）；非法输入返回 null
  *
  * 校验规则：
- *  - 必须匹配 \d{1,2}:\d{2} 格式；
+ *  - 必须匹配 \d{1,2}:\d{1,2} 格式（分钟同样允许一位，与上面文档的 "7:5" 一致）；
  *  - 小时 0-23，分钟 0-59；
  *  - 通过后零填充为两位。
+ *
+ * 为什么分钟也要允许一位：这个函数的入参来自 HTTP API / 旧配置，`"7:5"` 是人工手写的
+ * 常见形态。旧实现只认两位分钟，于是 `"7:5"` 被规整成 `null`（**文档里定义的“非法”**），
+ * 定时触发器永远等不到匹配的分钟键 —— 自动化静默不执行，且没有任何报错。
  */
 export function normalizeHomeModeTimeAt(raw: string | undefined | null): string | null {
   const s = String(raw || '').trim()
-  const m = /^(\d{1,2}):(\d{2})$/.exec(s)
+  const m = /^(\d{1,2}):(\d{1,2})$/.exec(s)
   // 格式不匹配直接拒绝
   if (!m) return null
   const h = Number(m[1])

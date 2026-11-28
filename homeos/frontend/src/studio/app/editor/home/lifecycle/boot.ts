@@ -1023,7 +1023,16 @@ function workspaceHistoryDeps(): WorkspaceHistoryDeps {
 
 
 
-const recoveryWriter = createRecoveryWriter2(persistRecoverySnapshot);
+const recoveryWriter = createRecoveryWriter2(persistRecoverySnapshot, {
+  // 快照写不进去（浏览器存储已满 / 隐私模式）时必须提示：此时服务端保存若也在失败，
+  // 崩溃或关标签页就等于丢掉全部未保存修改，而旧实现两次尝试都静默吞错。
+  onWriteFailed: () =>
+    setSettingsMessage(
+      projectMessageElement,
+      "本机恢复快照写入失败（浏览器存储已满或不可用），请立即手动保存，否则关闭页面会丢失未保存修改。",
+      "error",
+    ),
+});
   window.addEventListener("pagehide", recoveryWriter.flush);
   window.addEventListener("beforeunload", recoveryWriter.flush);
   document.addEventListener("visibilitychange", () => {

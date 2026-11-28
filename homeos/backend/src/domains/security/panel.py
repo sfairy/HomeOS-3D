@@ -356,6 +356,8 @@ class SecurityPanelService:
         return result
 
     async def _emit_deferred(self, events: list[tuple[str, dict[str, Any]]]) -> None:
+        # event-contract: forward 事件名由调用方（布防 / 撤防 / 区域配置）以字面量装入
+        # ``events``；这里只是把一串待发事件在转换锁之外统一发出，避免持锁广播。
         for name, payload in events:
             await self._bus.emit(name, payload)
 

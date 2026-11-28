@@ -1004,6 +1004,8 @@ class HALiveMixin(HAConnectorHost):
             emit = getattr(bus, "emit", None) or getattr(bus, "publish", None)
             if not callable(emit):
                 return
+            # event-contract: forward 事件名由调用方（注册表同步各入口）以常量传入，
+            # 实际名字在 ha.* 常量与 lifespan 注册表里，本行只是统一转发。
             result: Any = emit(event_name, payload)
             if inspect.isawaitable(result):
                 await result

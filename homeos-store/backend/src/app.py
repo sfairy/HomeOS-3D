@@ -245,7 +245,11 @@ def _build_runtime(settings: StoreSettings) -> _StoreRuntime:
     trusted_proxies = _prepare_settings(settings)
     database = _open_database(settings)
     authority = LicenseAuthority(settings, database, build_key_registry(settings))
-    setup_guard = SetupGuard(settings.data_dir, settings.setup_token)
+    setup_guard = SetupGuard(
+        settings.data_dir,
+        settings.setup_token,
+        allow_local_setup=settings.allow_local_setup,
+    )
     return _StoreRuntime(
         settings=settings,
         database=database,

@@ -467,14 +467,35 @@ function recoveryFingerprint(recoveryDocument: any) {
 }
 export function createRecoveryWriter(
   writeRecoverySnapshot: any,
-  { delay: delayMs = 200, setTimer: setTimer = setTimeout, clearTimer: clearTimer = clearTimeout } = {},
+  {
+    delay: delayMs = 200,
+    setTimer: setTimer = setTimeout,
+    clearTimer: clearTimer = clearTimeout,
+    /** 写入失败时的回调（同一项目只通知一次，成功写入后重新武装）。 */
+    onWriteFailed,
+  }: any = {},
 ) {
   let pendingSnapshot: any = null,
     timeoutId: any = null
+  //: 已经提示过「本机快照写不进去」的项目：避免每次防抖刷新都弹一次。
+  const notifiedFailureProjectIds = new Set<string>()
   const flushPendingSnapshot = () => {
     timeoutId !== null && clearTimer(timeoutId), (timeoutId = null)
     const flushedSnapshot = pendingSnapshot
-    ;(pendingSnapshot = null), flushedSnapshot && writeRecoverySnapshot(flushedSnapshot)
+    pendingSnapshot = null
+    if (!flushedSnapshot) return
+    // 写入函数返回 false = 两次尝试都没落盘（配额 / 隐私模式 / 序列化）。
+    // 这时崩溃就真的丢稿了，必须让用户知道；成功则重新武装，下次失败还会提示。
+    const written = writeRecoverySnapshot(flushedSnapshot)
+    const projectId = String(flushedSnapshot.projectId || '')
+    if (written === false) {
+      if (!notifiedFailureProjectIds.has(projectId)) {
+        notifiedFailureProjectIds.add(projectId)
+        onWriteFailed?.(flushedSnapshot)
+      }
+    } else {
+      notifiedFailureProjectIds.delete(projectId)
+    }
   }
   return {
     schedule(incomingSnapshot: any) {

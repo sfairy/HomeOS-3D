@@ -38,6 +38,7 @@
  */
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import net from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
@@ -56,9 +57,21 @@ const IS_CI = CONTEXT === 'ci'
  */
 const COMPOSE_PUBLIC_DIR = mkdtempSync(path.join(os.tmpdir(), 'homeos-gate-'))
 const COMPOSE_PUBLIC_PATH = path.join(COMPOSE_PUBLIC_DIR, 'compose-public.yml')
-process.on('exit', () => {
+const cleanupComposePublicDir = () => {
   rmSync(COMPOSE_PUBLIC_DIR, { recursive: true, force: true })
-})
+}
+process.on('exit', cleanupComposePublicDir)
+// Node **不会**在默认 SIGINT/SIGTERM 终止时跑 `exit` 钩子：没有这两条的话，每次
+// Ctrl-C 都会在临时目录里留下一个 `homeos-gate-*`（与「每次运行独立目录」的初衷相反）。
+for (const [signal, code] of [
+  ['SIGINT', 130],
+  ['SIGTERM', 143],
+]) {
+  process.on(signal, () => {
+    cleanupComposePublicDir()
+    process.exit(code)
+  })
+}
 
 /** `bun run <script>`：门禁命令一律走 package.json，避免编排器里长出第二份实现。 */
 const bun = (...args) => ({ cmd: 'bun', args })
@@ -103,11 +116,11 @@ const GATE_GROUPS = {
     {
       name: 'clean dist',
       // 干净检出的状态必须能复现：本地残留的 dist/ 是「本地绿、CI 红」的经典来源。
-      fn: () => {
+      fn: async () => {
         const dist = path.join(REPO_ROOT, 'dist')
         // 先确认没人在服务 dist：`bun run dev` 的后端直接把 dist 当静态根，
         // 在它运行时清空 = 把正在用的产物删掉 20~32 秒（watch-build 重建期间）。
-        const dev = devServerServing()
+        const dev = await devServerServing()
         if (dev.serving && process.env.HOMEOS_GATE_FORCE_CLEAN !== '1') {
           console.error(`  拒绝清空 dist/：${dev.reason}`)
           console.error('  `bun run gate:build` 会先删 dist 再重建；dev 正在服务它时这会中断前端 20~32 秒。')
@@ -247,7 +260,7 @@ const DEFAULT_GROUPS = ['static']
  *
  * @returns {{serving: boolean, reason: string}}
  */
-function devServerServing() {
+async function devServerServing() {
   const marker = path.join(REPO_ROOT, '.dev-server.json')
   if (existsSync(marker)) {
     try {
@@ -267,7 +280,7 @@ function devServerServing() {
     [8801, '主应用 API'],
     [8805, '主应用 Vite'],
   ]) {
-    if (portResponding(port)) {
+    if (await portResponding(port)) {
       return { serving: true, reason: `${label}（127.0.0.1:${port}）有响应，dist/ 可能正被服务` }
     }
   }
@@ -284,12 +297,25 @@ function processAlive(pid) {
   }
 }
 
-/** 端口是否有 HTTP 响应（1s 超时：本机回环，不该慢）。 */
+/**
+ * 端口是否在监听（TCP 连接探测，**不依赖 curl**）。
+ *
+ * 旧实现跑 `spawnSync('curl', …)`：`curl` 不存在时（精简容器 / 受限 PATH）`status` 是
+ * `null`，函数返回假 —— 于是 `clean dist` 判定「没有服务在用 dist」，把正在被
+ * `bun run dev` 服务的产物删掉。用回环 TCP 连接判断既没有外部依赖，也更快（~1ms）。
+ */
 function portResponding(port) {
-  const probe = spawnSync('curl', ['-s', '-o', '/dev/null', '-m', '1', `http://127.0.0.1:${port}/`], {
-    stdio: 'ignore',
+  return new Promise((resolve) => {
+    const socket = net.connect({ host: '127.0.0.1', port })
+    const done = (ok) => {
+      socket.removeAllListeners()
+      socket.destroy()
+      resolve(ok)
+    }
+    socket.setTimeout(1000, () => done(false))
+    socket.once('connect', () => done(true))
+    socket.once('error', () => done(false))
   })
-  return probe.status === 0
 }
 
 /* ------------------------------------------------------------------ *
@@ -522,7 +548,8 @@ async function runStep(step, capture) {
   if (blocked) return { ...blocked, seconds: elapsed() }
 
   if (step.fn) {
-    const code = step.fn()
+    // 允许异步：`clean dist` 的「是否有人在服务 dist」探测走 TCP，需要 await。
+    const code = await step.fn()
     return { status: code === 0 ? 'pass' : 'fail', seconds: elapsed() }
   }
 

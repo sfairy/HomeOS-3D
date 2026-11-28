@@ -1,0 +1,24 @@
+{
+  "_doc": [
+    "Caddy **release 二进制**的 sha256 白名单（不是镜像摘要，镜像见 docker-pins.json）。",
+    "",
+    "为什么需要它：ops/ci/caddy_validate.sh 会下载 GitHub release 里的 caddy tarball 并**执行**它。",
+    "此前唯一的校验是 `gzip -t`（格式检查）——一个被替换过的 release 资产（或会重打包的 TLS 中间层）",
+    "会被原样解包执行，等于在 CI runner / 开发机上跑任意代码。同一份 workflow 里 shellcheck 与",
+    "actionlint 都校验 sha256，唯独「要执行的那个二进制」没有。",
+    "",
+    "维护方式：升级 CADDY_IMAGE 时，把新版本每个 (os, arch) 的资产摘要补到这里；缺失即失败（fail-closed），",
+    "不提供「校验不了就跳过」。",
+    "",
+    "取值：https://api.github.com/repos/caddyserver/caddy/releases/tags/v<版本> 每个 asset 的 digest 字段，",
+    "或本地 `curl -fsSL <资产 URL> | shasum -a 256`。",
+    "",
+    "键格式：<version>:<os>_<arch>，与脚本拼出的资产名后缀一致（caddy_<ver>_<os>_<arch>.tar.gz）。"
+  ],
+  "assets": {
+    "2.11.9:linux_amd64": "5b8cb7faf8726a2028ad96a66e54e6e81e8f361bc6175e5d22bbd997cc5177fb",
+    "2.11.9:linux_arm64": "5e377cff994fc9362a6fcf695c53f226cfca3a3ef85bd3a3687cf252d6310165",
+    "2.11.9:mac_amd64": "22af256a2cc45606f6bfa8786cd89130529331319665926f4e972234a658fb30",
+    "2.11.9:mac_arm64": "d075afc620376679a77b453399bf7ada264cab3280b2833e4ed1372abc0c1c13"
+  }
+}

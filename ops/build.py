@@ -220,11 +220,26 @@ def _validate_backend_export(directory: Path, project: Project, *, cleanup: bool
     ``buildx --output type=local`` 在复制过程中就会创建目录：磁盘写满 / buildkit OOM /
     Ctrl-C 中断都会留下一个「目录存在但内容不全」的结果。只判 ``is_dir()`` 的话，
     组装镜像时 ``COPY`` 的是一份缺 ``.so`` 的后端 —— 容器启动才在 import 阶段失败，
-    而那时镜像已经 ``--push`` / ``--load`` 完了。这里用两道最小判据兜住：
-    必须有项目包目录，且必须至少有一个原生扩展。
+    而那时镜像已经 ``--push`` / ``--load`` 完了。
+
+    判据来自 Dockerfile 的导出阶段（``FROM scratch`` + ``COPY --from=backend-build /app/ /``）：
+    导出根 = 容器里的 ``/app``，即 ``app/``（``COPY ${PROJECT}/backend/src ./app`` 编出来的
+    原生扩展包）+ ``ops/`` + ``homeos_shared/``。因此这里要求：
+
+    - ``app/`` 存在且非空；
+    - 至少有一个 ``.so``（Cython 加密后**不应**剩任何 ``.py``）。
+
+    注意不能用 ``project.source``（``homeos`` / ``homeos-store``）判目录：那是仓库里的
+    项目目录名，导出产物里从来没有这个目录。
     """
-    has_extensions = any(directory.rglob("*.so"))
-    if (directory / project.source).is_dir() and has_extensions:
+    app_package = directory / "app"
+    so_count = sum(1 for _ in directory.rglob("*.so"))
+    problems: list[str] = []
+    if not app_package.is_dir() or not any(app_package.iterdir()):
+        problems.append("缺少 app/ 包目录（或其为空）")
+    if so_count == 0:
+        problems.append("没有任何 .so（加密编译产物缺失）")
+    if not problems:
         return
     if cleanup:
         shutil.rmtree(directory, ignore_errors=True)
@@ -233,8 +248,7 @@ def _validate_backend_export(directory: Path, project: Project, *, cleanup: bool
     except ValueError:
         shown = directory
     raise SystemExit(
-        f'后端导出产物不完整（{shown}）：'
-        f'缺少 {project.source}/ 或没有任何 .so。'
+        f'后端导出产物不完整（{shown}）：{"；".join(problems)}。'
         '常见原因是导出途中磁盘写满 / buildkit 被中断；请重跑 backend 导出。'
     )
 

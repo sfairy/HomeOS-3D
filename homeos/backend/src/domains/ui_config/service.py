@@ -136,6 +136,8 @@ class UiConfigService:
             emit_soon = getattr(self._event_bus, "emit_soon", None)
             if callable(emit_soon):
                 try:
+                    # event-contract: forward 名字来自上面的常量元组
+                    # （CONFIG_UPDATED / _LAYOUT_CONFIG_UPDATED_EVENT）。
                     emit_soon(name, *args)
                 except Exception as exc:
                     logger.debug("广播 %s 失败: %s", name, exc)

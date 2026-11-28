@@ -76,6 +76,7 @@ MODULES: tuple[str, ...] = (
     "config_env_selftest",
     "http_validation_selftest",
     "store_links_selftest",
+    "store_setup_guard_selftest",
     "ui_assets_selftest",
     "entity_room_order_selftest",
     "timeline_selftest",

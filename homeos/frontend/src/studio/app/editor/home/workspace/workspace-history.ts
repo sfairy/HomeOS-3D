@@ -492,16 +492,22 @@ export function scheduleRecoverySnapshot(deps: WorkspaceHistoryDeps) {
   deps.recoveryWriter.schedule(recoveryFailureNotifiedProjectId)
 }
 
-export function persistRecoverySnapshot(deps: WorkspaceHistoryDeps, recoveryState: any) {
+/**
+ * 写本机恢复快照；返回是否**成功落盘**。
+ *
+ * 返回值的意义：调用方需要知道「崩溃后能不能恢复」。旧实现两次写入都静默吞错，
+ * 于是大仪表盘（图片 / 弹窗文档）撑爆 sessionStorage 配额、同时又赶上服务端保存
+ * 失败时，用户既没有快照也没有任何提示 —— 关掉标签页就等于丢掉全部未保存修改。
+ */
+export function persistRecoverySnapshot(deps: WorkspaceHistoryDeps, recoveryState: any): boolean {
+  const storageKey = recoveryStorageKey2(deps.RECOVERY_STORAGE_PREFIX, recoveryState.projectId)
   try {
-    sessionStorage.setItem(
-      recoveryStorageKey2(deps.RECOVERY_STORAGE_PREFIX, recoveryState.projectId),
-      JSON.stringify(recoveryState),
-    )
+    sessionStorage.setItem(storageKey, JSON.stringify(recoveryState))
+    return true
   } catch {
     try {
       sessionStorage.setItem(
-        recoveryStorageKey2(deps.RECOVERY_STORAGE_PREFIX, recoveryState.projectId),
+        storageKey,
         JSON.stringify({
           projectId: recoveryState.projectId,
           revision: recoveryState.revision,
@@ -516,8 +522,12 @@ export function persistRecoverySnapshot(deps: WorkspaceHistoryDeps, recoveryStat
           savedAt: recoveryState.savedAt,
         }),
       )
+      // 降级版丢掉了 undo/redo，但文档本身还在，仍算「能恢复」。
+      return true
     } catch {
-      /* 存储写入是 best-effort：隐私模式 / 配额 / 序列化失败都不应影响本次渲染 */
+      // 两次都失败（隐私模式 / 配额 / 序列化）：**必须让调用方知道**，
+      // 它负责提示用户立即手动保存。
+      return false
     }
   }
 }

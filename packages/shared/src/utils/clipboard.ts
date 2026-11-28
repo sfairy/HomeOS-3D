@@ -21,8 +21,11 @@ export async function copyTextToClipboard(text: string): Promise<boolean> {
   if (typeof document === 'undefined') return false
 
   // 2) 降级：隐藏 textarea + execCommand('copy')，兼容 HTTP 非安全上下文
+  // 清理放在 `finally`：`execCommand` / `select` / `focus` 任一抛错（kiosk / WebView）
+  // 都会跳过后面的 remove，留下一个 fixed 定位、`left:-9999px` 的节点挂在 body 上。
+  let ta: HTMLTextAreaElement | null = null
   try {
-    const ta = document.createElement('textarea')
+    ta = document.createElement('textarea')
     ta.value = value
     ta.setAttribute('readonly', '')
     ta.style.position = 'fixed'
@@ -31,10 +34,10 @@ export async function copyTextToClipboard(text: string): Promise<boolean> {
     document.body.appendChild(ta)
     ta.focus()
     ta.select()
-    const ok = document.execCommand('copy')
-    document.body.removeChild(ta)
-    return ok
+    return document.execCommand('copy')
   } catch {
     return false
+  } finally {
+    ta?.remove()
   }
 }
